@@ -109,6 +109,42 @@
 
 ---
 
+## 3.5. v2.16 경기 탭 신규 디자인 언어 (2026-05-20)
+
+> 경기 탭 list/detail/create 박제 후 적용. 종별 컬러 + Date Tile + Area Chip + 호스트 아바타 + Pretendard 900.
+> 박제 진행 시 B 등급 → A 승격 예정 (`/games`, `/games/my-games`, `/games/[id]`, `/games/new`).
+
+### 신규 토큰
+- `--kind-pickup` = `--bdr-red` (크림슨)
+- `--kind-pickup-deep` = `--bdr-red-ink`
+- `--kind-guest` = `#C66400` (오렌지) / `--kind-guest-deep` = `#9D4F00`
+- `--kind-scrim` = `#1CA05E` (그린) / `--kind-scrim-deep` = `#137A45`
+- 카드 스코프: `.gcard.kind-pickup { --kind: var(--kind-pickup); --kind-deep: var(--kind-pickup-deep); }` 등
+
+### 핵심 컴포넌트
+- `<GameCard>` — Date Tile (좌측 세로) + Area Chip (row1) + 호스트 아바타 + Progress + 종별 컬러
+- `<GameDetailHero>` (V2 Hero-led) — 풀폭 다크 hero band + 종별 컬러 + 핵심정보 통합
+- `<ParticipantsSlotBoard>` (Concept B) — 5×2 슬롯 그리드 + filled 카드 / empty CTA
+- `<ApplyRibbon>` — hero 아래 빠른 액션 (정원 progress + 신청 CTA + 호스트 미니카드)
+- `<MobileStickyBar>` — 모바일 하단 fixed (정원 + 신청 버튼 44px)
+
+### 적용 범위 (재사용)
+1. `/games` (목록)
+2. `/games/my-games` (내 경기)
+3. `/games/[id]` (상세 — V2 Hero + Concept B)
+4. `/games/new` (개설 — 단일 페이지 + 라이브 프리뷰)
+5. `/games/[id]/edit`, `/games/[id]/guest-apply`, `/games/[id]/report` (후속)
+6. `/guest-apps`, `/scrim`, `/live/*`, `/tournaments/*` 매치 카드
+
+### 박제 source
+- `Dev/design/BDR-current/_games_card_final.html` — 카드 최종
+- `Dev/design/BDR-current/_game_detail_explore.html` — 상세 V1/V2 + 모바일
+- `Dev/design/BDR-current/_create_game_explore.html` — 개설 + 라이브 프리뷰
+- `Dev/design/BDR-current/screens-gd/ConceptB.jsx` — 참가자 슬롯 보드
+- `Dev/design/BDR-current/screens/{Games,GameDetail,CreateGame,MyGames,GuestApply,Live,Match,Scrim}.jsx`
+
+---
+
 ## 4. C등급 (부분 박제) — 9 페이지
 
 ```

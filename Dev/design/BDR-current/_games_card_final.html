@@ -1,0 +1,1151 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>경기 카드 — B2 최종 (v2.16)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800;900&family=JetBrains+Mono:wght@500;700;800&family=Pretendard:wght@400;500;600;700;800;900&display=swap" />
+<link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Symbols+Outlined" />
+<style>
+/* ============================================================
+   v2.15 light tokens
+   ============================================================ */
+:root {
+  --bdr-red: #E31B23;
+  --bdr-red-ink: #B3141A;
+
+  --bg: #F4F6FA;
+  --bg-elev: #FFFFFF;
+  --bg-card: #FFFFFF;
+  --bg-alt: #F8FAFD;
+  --bg-head: #EEF2F7;
+
+  --ink: #1A1E27;
+  --ink-soft: #404755;
+  --ink-mute: #6B7280;
+  --ink-dim: #8C94A0;
+
+  --border: #E3E7ED;
+  --border-strong: #D0D5DD;
+
+  --cafe-blue: #0F5FCC;
+  --cafe-blue-deep: #0A4CA6;
+  --cafe-blue-soft: #E8F1FC;
+  --cafe-blue-hair: #C7DCF5;
+
+  --accent: var(--bdr-red);
+  --accent-soft: #FDE8E9;
+
+  --ok: #1CA05E;
+  --ok-soft: #E1F4EA;
+  --warn: #E8A33B;
+
+  --sh-xs: 0 1px 2px rgba(15, 23, 42, .04);
+  --sh-sm: 0 2px 6px rgba(15, 23, 42, .06);
+
+  --ff-display: 'Archivo', 'Pretendard', sans-serif;
+  --ff-body: 'Pretendard', sans-serif;
+  --ff-mono: 'JetBrains Mono', monospace;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--ff-body);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+.page-shell {
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 56px 40px 80px;
+}
+.page-head { margin-bottom: 36px; }
+.page-head .eyebrow {
+  font-family: var(--ff-mono);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  color: var(--accent);
+  font-weight: 700;
+  margin-bottom: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.page-head .eyebrow::before { content: ""; width: 18px; height: 2px; background: var(--accent); }
+.page-head h1 {
+  font-family: var(--ff-display);
+  font-size: 36px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  margin: 0 0 12px;
+}
+.page-head p {
+  color: var(--ink-soft);
+  margin: 0 0 14px;
+  max-width: 760px;
+  line-height: 1.65;
+}
+.changes {
+  margin-top: 18px;
+  padding: 14px 18px;
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--ok);
+  border-radius: 4px;
+  font-size: 13px;
+  color: var(--ink-soft);
+  line-height: 1.7;
+}
+.changes b { color: var(--ink); font-weight: 700; }
+.changes ul { margin: 6px 0 0; padding-left: 18px; }
+
+/* Variant block */
+.variant {
+  margin-top: 36px;
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.variant__head {
+  padding: 22px 26px;
+  border-bottom: 1px solid var(--border);
+}
+.variant__num {
+  font-family: var(--ff-mono);
+  font-weight: 800;
+  font-size: 12px;
+  color: var(--ok);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.variant__title {
+  font-family: var(--ff-display);
+  margin: 4px 0 6px;
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: -0.015em;
+}
+.variant__desc {
+  font-size: 13.5px;
+  color: var(--ink-mute);
+  line-height: 1.6;
+  max-width: 760px;
+  margin: 0;
+}
+
+/* Viewport strip */
+.viewport-strip {
+  display: flex;
+  gap: 24px;
+  padding: 28px 26px 32px;
+  background: linear-gradient(180deg, #EEF1F6 0%, #F4F6FA 100%);
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
+}
+.viewport-strip .vp { flex: 0 0 auto; scroll-snap-align: start; }
+.viewport-strip .vp--pc { width: 1040px; }
+.viewport-strip .vp--tablet { width: 740px; }
+.viewport-strip .vp--mobile { width: 400px; }
+
+.vp {
+  background: var(--bg-elev);
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: var(--sh-sm);
+  display: flex;
+  flex-direction: column;
+}
+.vp__chrome {
+  padding: 10px 14px;
+  background: var(--bg-head);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.vp__lights { display: inline-flex; gap: 6px; }
+.vp__lights span { width: 10px; height: 10px; border-radius: 50%; background: var(--border-strong); }
+.vp__url {
+  flex: 1;
+  font-family: var(--ff-mono);
+  font-size: 11px;
+  color: var(--ink-mute);
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 4px 10px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.vp__size {
+  font-family: var(--ff-mono);
+  font-size: 10px;
+  color: var(--ink-dim);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+.vp__inner {
+  padding: 16px;
+  background: var(--bg);
+  flex: 1;
+}
+.vp__inner--pc { padding: 18px 20px; }
+.vp__inner--mobile { padding: 14px; }
+
+.mock-header { margin-bottom: 12px; display: flex; align-items: baseline; justify-content: space-between; gap: 14px; flex-wrap: wrap; }
+.mock-header__title { font-family: var(--ff-display); font-size: 18px; font-weight: 800; letter-spacing: -0.01em; margin: 0; }
+.mock-header__sub { font-size: 11px; color: var(--ink-mute); margin-top: 2px; }
+.mock-seg { display: flex; background: var(--bg-alt); border: 1px solid var(--border); border-radius: 6px; padding: 3px; margin-bottom: 14px; }
+.mock-seg__btn { flex: 1; padding: 6px 4px; font-size: 11.5px; font-weight: 600; color: var(--ink-mute); background: transparent; border: 0; border-radius: 4px; cursor: default; display: inline-flex; align-items: center; justify-content: center; gap: 4px; white-space: nowrap; }
+.mock-seg__btn.is-active { background: var(--accent); color: #fff; }
+.mock-seg__count { font-family: var(--ff-mono); font-size: 10px; font-weight: 700; opacity: 0.85; }
+
+.cards { display: grid; gap: 12px; }
+.cards--pc { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.cards--tablet { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.cards--mobile { grid-template-columns: 1fr; }
+
+/* Kind colors — DARK / 강렬 variant (PM 요청)
+   * pickup    = BDR Navy (#1B3C87)  → 더 깊은 navy
+   * guest     = deep crimson
+   * scrimmage = forest green
+   * 토큰 보강 필요 시 tokens.css 에 --kind-pickup/guest/scrimmage 추가 예정
+*/
+.kind-pickup    { --kind: #1B3C87; --kind-deep: #0F234F; --kind-soft: var(--cafe-blue-soft); --kind-hair: var(--cafe-blue-hair); }
+.kind-guest     { --kind: #8B0E15; --kind-deep: #5C0810; --kind-soft: var(--accent-soft); --kind-hair: #F5C6C8; }
+.kind-scrimmage { --kind: #0A5132; --kind-deep: #053823; --kind-soft: var(--ok-soft);     --kind-hair: #C7E8D7; }
+
+/* ============================================================
+   DATE TILE — 한글 + 시간 범위 prominent
+   ============================================================ */
+.dt {
+  background: linear-gradient(155deg, var(--kind) 0%, var(--kind) 45%, var(--kind-deep) 100%);
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  text-align: center;
+  padding: 12px 6px 12px;
+  position: relative;
+  flex-shrink: 0;
+  min-height: 100%;
+  gap: 8px;
+  overflow: hidden;
+}
+.dt::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 100% 0%, rgba(255,255,255,.18) 0%, transparent 50%);
+  pointer-events: none;
+}
+.dt::after {
+  content: "";
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  height: 1px;
+  background: rgba(0,0,0,.22);
+  pointer-events: none;
+}
+.dt > * { position: relative; z-index: 1; }
+
+.dt__kind {
+  font-family: var(--ff-body);
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  padding: 4px 9px;
+  background: rgba(255,255,255,.95);
+  color: var(--kind-deep);
+  border-radius: 3px;
+  text-shadow: none;
+  box-shadow: 0 1px 2px rgba(0,0,0,.18);
+}
+
+.dt__date {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: baseline;
+  justify-content: center;
+  gap: 2px;
+  line-height: 1;
+  white-space: nowrap;
+}
+.dt__date-md {
+  font-family: var(--ff-body);
+  font-size: 20px;
+  font-weight: 900;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  font-feature-settings: "tnum";
+  text-shadow: 0 1px 1px rgba(0,0,0,.18);
+}
+.dt__date-day {
+  font-family: var(--ff-body);
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  line-height: 1;
+  opacity: 0.95;
+  text-shadow: 0 1px 1px rgba(0,0,0,.16);
+}
+.dt__date.is-weekend .dt__date-day { opacity: 1; }
+
+.dt__time {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  padding-top: 8px;
+  width: 100%;
+  border-top: 1px solid rgba(255,255,255,.32);
+}
+.dt__t {
+  font-family: var(--ff-body);
+  font-size: 15px;
+  font-weight: 900;
+  line-height: 1.1;
+  letter-spacing: -0.01em;
+  font-feature-settings: "tnum";
+  text-shadow: 0 1px 1px rgba(0,0,0,.20);
+}
+.dt__t-end {
+  font-family: var(--ff-body);
+  font-size: 11.5px;
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -0.005em;
+  font-feature-settings: "tnum";
+  opacity: 0.92;
+}
+
+/* .dt__dur removed — 컴팩트 카드 (PM 요청) */
+
+/* ============================================================
+   Host (좌하단 아바타 + 닉네임)
+   ============================================================ */
+.host {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex: 0 1 auto;
+}
+.host__av {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--ff-display);
+  font-weight: 800;
+  font-size: 12px;
+  letter-spacing: -0.01em;
+  color: #fff;
+  background: var(--kind-deep);
+  border: 1px solid rgba(255,255,255,.5);
+  box-shadow: var(--sh-xs);
+}
+.host__name {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-soft);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: 1.2;
+}
+.host__name small {
+  display: block;
+  font-size: 10.5px;
+  font-weight: 500;
+  color: var(--ink-dim);
+}
+
+/* ============================================================
+   Apply button + count pill
+   ============================================================ */
+.btn-apply {
+  flex: 0 0 auto;
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 700;
+  background: var(--cafe-blue);
+  color: #fff;
+  border: 1px solid var(--cafe-blue-deep);
+  border-radius: 4px;
+  cursor: pointer;
+  min-height: 36px;
+}
+.btn-apply:hover { background: var(--cafe-blue-deep); }
+.count-pill {
+  font-family: var(--ff-mono);
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+.count-pill.is-closing { color: var(--accent); }
+
+/* ============================================================
+   CARD — final (Area Chip + tile time)
+   ============================================================ */
+.gcard {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  transition: border-color .12s, box-shadow .12s;
+}
+.gcard:hover { border-color: var(--border-strong); box-shadow: var(--sh-sm); }
+
+.gcard__main { display: grid; grid-template-columns: 92px minmax(0, 1fr); }
+.gcard__content {
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+.gcard__row1 { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.gcard__kind {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 800;
+  color: #fff;
+  background: var(--kind);
+  border: 1px solid var(--kind-deep);
+  border-radius: 4px;
+  line-height: 1.5;
+}
+.gcard__area-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 8px 2px 6px;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--ink);
+  background: var(--bg-head);
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+  line-height: 1.5;
+}
+.gcard__area-chip .ico {
+  font-family: 'Material Symbols Outlined';
+  font-size: 14px;
+  color: var(--kind);
+  font-weight: 500;
+}
+.gcard__chip {
+  font-size: 10.5px;
+  font-weight: 600;
+  padding: 1px 7px;
+  color: var(--ink-mute);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg-elev);
+  line-height: 1.5;
+  margin-left: auto;
+}
+.gcard__chip--free { color: var(--ok); border-color: #C7E8D7; background: var(--ok-soft); font-weight: 700; }
+.gcard__chip--closing { color: var(--accent); border-color: #F5C6C8; background: var(--accent-soft); font-weight: 700; }
+.gcard__title {
+  margin: 2px 0 0;
+  font-size: 14.5px;
+  font-weight: 700;
+  line-height: 1.4;
+  color: var(--ink);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  word-break: keep-all;
+  min-height: 2.8em; /* lock height — 2 lines always */
+}
+.gcard__meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  color: var(--ink-mute);
+  margin-top: auto; /* push to bottom of content */
+}
+.gcard__meta .item { display: inline-flex; align-items: center; gap: 4px; min-width: 0; }
+.gcard__meta .ico {
+  font-family: 'Material Symbols Outlined';
+  font-size: 15px;
+  color: var(--ink-dim);
+  font-weight: 400;
+  flex-shrink: 0;
+}
+.gcard__place {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ink-soft);
+  font-weight: 500;
+}
+.gcard__fee {
+  font-family: var(--ff-mono);
+  font-weight: 700;
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+.gcard__fee.is-free { color: var(--ok); }
+
+.gcard__foot {
+  padding: 10px 14px 12px;
+  border-top: 1px dashed var(--border);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.gcard__progress {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.gcard__progress-bar {
+  height: 4px;
+  background: var(--bg-alt);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.gcard__progress-fill { height: 100%; background: var(--kind); transition: width .25s; }
+.gcard__progress-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.gcard__progress-label {
+  font-size: 11px;
+  color: var(--ink-dim);
+}
+.gcard__progress-label.is-warn {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+/* Force card uniform height in grid */
+.gcard { height: 100%; }
+
+@media (max-width: 720px) {
+  .page-shell { padding: 24px 16px 60px; }
+  .page-head h1 { font-size: 26px; }
+}
+</style>
+</head>
+<body>
+
+<div class="page-shell">
+
+  <!-- ======== PAGE INTRO ======== -->
+  <header class="page-head">
+    <div class="eyebrow">BDR v2.16 · 경기 카드 최종안</div>
+    <h1>Date Tile + Area Chip — 최종</h1>
+    <p>B2 (Area Chip) 기반 최종 정리. 시간을 컬러 타일로 끌어올려 중복 제거, 본문 메타를 <b>장소 · 비용</b> 한 줄로 합쳐 카드 높이를 고정했습니다.</p>
+    <div class="changes">
+      <b>이번 라운드 변경</b>
+      <ul>
+        <li>날짜 타일에 <b>시간 범위 (09:00 / ~11:00)</b> 추가 — 본문 시간 행 제거</li>
+        <li>본문 메타 <b>한 줄로 통합</b>: 🏀 장소 · 💰 비용</li>
+        <li>제목은 <b>2줄 고정 높이</b> (min-height 2.8em) — 카드 높이 일정 유지</li>
+      </ul>
+    </div>
+  </header>
+
+  <!-- ============================================================
+       FINAL VARIANT
+       ============================================================ -->
+  <section class="variant">
+    <header class="variant__head">
+      <span class="variant__num">FINAL</span>
+      <h2 class="variant__title">경기 카드 — 최종</h2>
+      <p class="variant__desc">날짜 타일 86px (한글 월/일/요일 + 시작·종료 시간), 본문 한 줄 메타 (장소 · 비용), 좌하단 주최자 아바타 + 닉네임. 9 종 시나리오 (3 종별 × 3 상태: 일반 / 마감임박 / 무료).</p>
+    </header>
+
+    <div class="viewport-strip">
+      <!-- ===== PC ===== -->
+      <div class="vp vp--pc">
+        <div class="vp__chrome">
+          <span class="vp__lights"><span></span><span></span><span></span></span>
+          <span class="vp__url">mybdr.kr/games</span>
+          <span class="vp__size">PC · 1200</span>
+        </div>
+        <div class="vp__inner vp__inner--pc">
+          <div class="mock-header">
+            <div>
+              <h3 class="mock-header__title">픽업 · 게스트 모집</h3>
+              <div class="mock-header__sub">같이 뛸 사람을 찾는 294건의 모집이 열려 있습니다</div>
+            </div>
+          </div>
+          <div class="mock-seg">
+            <button class="mock-seg__btn is-active">전체 <span class="mock-seg__count">294</span></button>
+            <button class="mock-seg__btn">픽업 <span class="mock-seg__count">10</span></button>
+            <button class="mock-seg__btn">게스트 <span class="mock-seg__count">170</span></button>
+            <button class="mock-seg__btn">연습 <span class="mock-seg__count">114</span></button>
+          </div>
+          <div class="cards cards--pc">
+
+            <!-- Row 1: scrimmage(free) / guest(closing) / pickup(regular) -->
+            <article class="gcard kind-scrimmage">
+              <div class="gcard__main">
+                <div class="dt">
+                  <div class="dt__kind">연습경기</div>
+                  <div class="dt__date is-weekend"><span class="dt__date-md">4/26</span><span class="dt__date-day">(토)</span></div>
+                  <div class="dt__time">
+                    <div class="dt__t">09:00</div>
+                    <div class="dt__t-end">~11:00</div>
+                  </div>
+                </div>
+                <div class="gcard__content">
+                  <div class="gcard__row1">
+                    <span class="gcard__area-chip"><span class="ico material-symbols-outlined">place</span>서울 광진구</span>
+                    <span class="gcard__chip gcard__chip--free">무료</span>
+                  </div>
+                  <h4 class="gcard__title">4월 26일 9시~11시 구의중학교에서 연습게임 초청합니다</h4>
+                  <div class="gcard__meta">
+                    <span class="item"><span class="ico material-symbols-outlined">sports_basketball</span><span class="gcard__place">구의중학교 체육관</span></span>
+                    <span class="item"><span class="ico material-symbols-outlined">payments</span><span class="gcard__fee is-free">무료</span></span>
+                  </div>
+                </div>
+              </div>
+              <div class="gcard__foot">
+                <div class="host">
+                  <span class="host__av" aria-hidden="true">HM</span>
+                  <span class="host__name">huk_master<small>주최자</small></span>
+                </div>
+                <div class="gcard__progress">
+                  <div class="gcard__progress-row">
+                    <span class="gcard__progress-label">정원</span>
+                    <span class="count-pill">0/10</span>
+                  </div>
+                  <div class="gcard__progress-bar"><div class="gcard__progress-fill" style="width:0%"></div></div>
+                </div>
+                <button class="btn-apply">신청</button>
+              </div>
+            </article>
+
+            <article class="gcard kind-guest">
+              <div class="gcard__main">
+                <div class="dt">
+                  <div class="dt__kind">게스트</div>
+                  <div class="dt__date"><span class="dt__date-md">4/23</span><span class="dt__date-day">(목)</span></div>
+                  <div class="dt__time">
+                    <div class="dt__t">05:40</div>
+                    <div class="dt__t-end">~08:00</div>
+                  </div>
+                </div>
+                <div class="gcard__content">
+                  <div class="gcard__row1">
+                    <span class="gcard__area-chip"><span class="ico material-symbols-outlined">place</span>서울 관악구</span>
+                    <span class="gcard__chip gcard__chip--closing">마감임박</span>
+                  </div>
+                  <h4 class="gcard__title">[관악구] 내일 새벽 4/23(목) 오전 5:40~8:00 게스트 1명</h4>
+                  <div class="gcard__meta">
+                    <span class="item"><span class="ico material-symbols-outlined">sports_basketball</span><span class="gcard__place">관악구민종합체육센터</span></span>
+                    <span class="item"><span class="ico material-symbols-outlined">payments</span><span class="gcard__fee">₩8,000</span></span>
+                  </div>
+                </div>
+              </div>
+              <div class="gcard__foot">
+                <div class="host">
+                  <span class="host__av" aria-hidden="true">GK</span>
+                  <span class="host__name">gwanak_cap<small>주최자</small></span>
+                </div>
+                <div class="gcard__progress">
+                  <div class="gcard__progress-row">
+                    <span class="gcard__progress-label is-warn">마감임박</span>
+                    <span class="count-pill is-closing">9/10</span>
+                  </div>
+                  <div class="gcard__progress-bar"><div class="gcard__progress-fill" style="width:90%"></div></div>
+                </div>
+                <button class="btn-apply">신청</button>
+              </div>
+            </article>
+
+            <article class="gcard kind-pickup">
+              <div class="gcard__main">
+                <div class="dt">
+                  <div class="dt__kind">픽업</div>
+                  <div class="dt__date"><span class="dt__date-md">4/25</span><span class="dt__date-day">(목)</span></div>
+                  <div class="dt__time">
+                    <div class="dt__t">20:30</div>
+                    <div class="dt__t-end">~22:30</div>
+                  </div>
+                </div>
+                <div class="gcard__content">
+                  <div class="gcard__row1">
+                    <span class="gcard__area-chip"><span class="ico material-symbols-outlined">place</span>경기 하남시</span>
+                    <span class="gcard__chip">정기</span>
+                  </div>
+                  <h4 class="gcard__title">목요일 저녁 하남미사 픽업 · 6:4</h4>
+                  <div class="gcard__meta">
+                    <span class="item"><span class="ico material-symbols-outlined">sports_basketball</span><span class="gcard__place">미사강변체육관</span></span>
+                    <span class="item"><span class="ico material-symbols-outlined">payments</span><span class="gcard__fee">₩5,000</span></span>
+                  </div>
+                </div>
+              </div>
+              <div class="gcard__foot">
+                <div class="host">
+                  <span class="host__av" aria-hidden="true">B</span>
+                  <span class="host__name">block_master<small>주최자</small></span>
+                </div>
+                <div class="gcard__progress">
+                  <div class="gcard__progress-row">
+                    <span class="gcard__progress-label">정원</span>
+                    <span class="count-pill">7/10</span>
+                  </div>
+                  <div class="gcard__progress-bar"><div class="gcard__progress-fill" style="width:70%"></div></div>
+                </div>
+                <button class="btn-apply">신청</button>
+              </div>
+            </article>
+
+            <!-- Row 2 -->
+            <article class="gcard kind-guest">
+              <div class="gcard__main">
+                <div class="dt">
+                  <div class="dt__kind">게스트</div>
+                  <div class="dt__date"><span class="dt__date-md">4/22</span><span class="dt__date-day">(수)</span></div>
+                  <div class="dt__time">
+                    <div class="dt__t">21:40</div>
+                    <div class="dt__t-end">~24:00</div>
+                  </div>
+                </div>
+                <div class="gcard__content">
+                  <div class="gcard__row1">
+                    <span class="gcard__area-chip"><span class="ico material-symbols-outlined">place</span>경기 용인시</span>
+                    <span class="gcard__chip">상급</span>
+                  </div>
+                  <h4 class="gcard__title">[용인,수지,동백] 4월 23일 목요일 21:40~24:00 용인 동백 게스트 모집</h4>
+                  <div class="gcard__meta">
+                    <span class="item"><span class="ico material-symbols-outlined">sports_basketball</span><span class="gcard__place">용인 동백 KCC 동백체육관</span></span>
+                    <span class="item"><span class="ico material-symbols-outlined">payments</span><span class="gcard__fee">₩8,000</span></span>
+                  </div>
+                </div>
+              </div>
+              <div class="gcard__foot">
+                <div class="host">
+                  <span class="host__av" aria-hidden="true">YS</span>
+                  <span class="host__name">yongin_swish<small>주최자</small></span>
+                </div>
+                <div class="gcard__progress">
+                  <div class="gcard__progress-row">
+                    <span class="gcard__progress-label">정원</span>
+                    <span class="count-pill">3/5</span>
+                  </div>
+                  <div class="gcard__progress-bar"><div class="gcard__progress-fill" style="width:60%"></div></div>
+                </div>
+                <button class="btn-apply">신청</button>
+              </div>
+            </article>
+
+            <article class="gcard kind-scrimmage">
+              <div class="gcard__main">
+                <div class="dt">
+                  <div class="dt__kind">연습경기</div>
+                  <div class="dt__date is-weekend"><span class="dt__date-md">4/27</span><span class="dt__date-day">(일)</span></div>
+                  <div class="dt__time">
+                    <div class="dt__t">12:00</div>
+                    <div class="dt__t-end">~15:00</div>
+                  </div>
+                </div>
+                <div class="gcard__content">
+                  <div class="gcard__row1">
+                    <span class="gcard__area-chip"><span class="ico material-symbols-outlined">place</span>서울 구로구</span>
+                    <span class="gcard__chip gcard__chip--free">무료</span>
+                  </div>
+                  <h4 class="gcard__title">[서울][구로] 4월 26일 일요일 12:00~15:00 연습게임 한 팀 초청합니다</h4>
+                  <div class="gcard__meta">
+                    <span class="item"><span class="ico material-symbols-outlined">sports_basketball</span><span class="gcard__place">구로 항동생활체육관</span></span>
+                    <span class="item"><span class="ico material-symbols-outlined">payments</span><span class="gcard__fee is-free">무료</span></span>
+                  </div>
+                </div>
+              </div>
+              <div class="gcard__foot">
+                <div class="host">
+                  <span class="host__av" aria-hidden="true">G</span>
+                  <span class="host__name">guro_baller<small>주최자</small></span>
+                </div>
+                <div class="gcard__progress">
+                  <div class="gcard__progress-row">
+                    <span class="gcard__progress-label">정원</span>
+                    <span class="count-pill">0/10</span>
+                  </div>
+                  <div class="gcard__progress-bar"><div class="gcard__progress-fill" style="width:0%"></div></div>
+                </div>
+                <button class="btn-apply">신청</button>
+              </div>
+            </article>
+
+            <article class="gcard kind-pickup">
+              <div class="gcard__main">
+                <div class="dt">
+                  <div class="dt__kind">픽업</div>
+                  <div class="dt__date is-weekend"><span class="dt__date-md">4/26</span><span class="dt__date-day">(토)</span></div>
+                  <div class="dt__time">
+                    <div class="dt__t">07:45</div>
+                    <div class="dt__t-end">~10:00</div>
+                  </div>
+                </div>
+                <div class="gcard__content">
+                  <div class="gcard__row1">
+                    <span class="gcard__area-chip"><span class="ico material-symbols-outlined">place</span>서울 송파구</span>
+                    <span class="gcard__chip gcard__chip--free">무료</span>
+                  </div>
+                  <h4 class="gcard__title">[송파] 4월 26일 일 오전 7시 45분~10시 픽업 모집</h4>
+                  <div class="gcard__meta">
+                    <span class="item"><span class="ico material-symbols-outlined">sports_basketball</span><span class="gcard__place">송례중학교</span></span>
+                    <span class="item"><span class="ico material-symbols-outlined">payments</span><span class="gcard__fee is-free">무료</span></span>
+                  </div>
+                </div>
+              </div>
+              <div class="gcard__foot">
+                <div class="host">
+                  <span class="host__av" aria-hidden="true">SP</span>
+                  <span class="host__name">songpa_morn<small>주최자</small></span>
+                </div>
+                <div class="gcard__progress">
+                  <div class="gcard__progress-row">
+                    <span class="gcard__progress-label">정원</span>
+                    <span class="count-pill">4/10</span>
+                  </div>
+                  <div class="gcard__progress-bar"><div class="gcard__progress-fill" style="width:40%"></div></div>
+                </div>
+                <button class="btn-apply">신청</button>
+              </div>
+            </article>
+
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== TABLET ===== -->
+      <div class="vp vp--tablet">
+        <div class="vp__chrome">
+          <span class="vp__lights"><span></span><span></span><span></span></span>
+          <span class="vp__url">mybdr.kr/games</span>
+          <span class="vp__size">TABLET · 768</span>
+        </div>
+        <div class="vp__inner">
+          <div class="cards cards--tablet">
+            <article class="gcard kind-scrimmage">
+              <div class="gcard__main">
+                <div class="dt">
+                  <div class="dt__kind">연습경기</div>
+                  <div class="dt__date is-weekend"><span class="dt__date-md">4/26</span><span class="dt__date-day">(토)</span></div>
+                  <div class="dt__time">
+                    <div class="dt__t">09:00</div>
+                    <div class="dt__t-end">~11:00</div>
+                  </div>
+                </div>
+                <div class="gcard__content">
+                  <div class="gcard__row1">
+                    <span class="gcard__area-chip"><span class="ico material-symbols-outlined">place</span>서울 광진구</span>
+                    <span class="gcard__chip gcard__chip--free">무료</span>
+                  </div>
+                  <h4 class="gcard__title">4월 26일 9시~11시 구의중학교 연습게임 초청합니다</h4>
+                  <div class="gcard__meta">
+                    <span class="item"><span class="ico material-symbols-outlined">sports_basketball</span><span class="gcard__place">구의중학교 체육관</span></span>
+                    <span class="item"><span class="ico material-symbols-outlined">payments</span><span class="gcard__fee is-free">무료</span></span>
+                  </div>
+                </div>
+              </div>
+              <div class="gcard__foot">
+                <div class="host">
+                  <span class="host__av" aria-hidden="true">HM</span>
+                  <span class="host__name">huk_master<small>주최자</small></span>
+                </div>
+                <div class="gcard__progress">
+                  <div class="gcard__progress-row">
+                    <span class="gcard__progress-label">정원</span>
+                    <span class="count-pill">0/10</span>
+                  </div>
+                  <div class="gcard__progress-bar"><div class="gcard__progress-fill" style="width:0%"></div></div>
+                </div>
+                <button class="btn-apply">신청</button>
+              </div>
+            </article>
+
+            <article class="gcard kind-guest">
+              <div class="gcard__main">
+                <div class="dt">
+                  <div class="dt__kind">게스트</div>
+                  <div class="dt__date"><span class="dt__date-md">4/23</span><span class="dt__date-day">(목)</span></div>
+                  <div class="dt__time">
+                    <div class="dt__t">05:40</div>
+                    <div class="dt__t-end">~08:00</div>
+                  </div>
+                </div>
+                <div class="gcard__content">
+                  <div class="gcard__row1">
+                    <span class="gcard__area-chip"><span class="ico material-symbols-outlined">place</span>서울 관악구</span>
+                    <span class="gcard__chip gcard__chip--closing">마감임박</span>
+                  </div>
+                  <h4 class="gcard__title">[관악구] 4/23(목) 5:40~8:00 게스트 1명</h4>
+                  <div class="gcard__meta">
+                    <span class="item"><span class="ico material-symbols-outlined">sports_basketball</span><span class="gcard__place">관악구민종합체육</span></span>
+                    <span class="item"><span class="ico material-symbols-outlined">payments</span><span class="gcard__fee">₩8,000</span></span>
+                  </div>
+                </div>
+              </div>
+              <div class="gcard__foot">
+                <div class="host">
+                  <span class="host__av" aria-hidden="true">GK</span>
+                  <span class="host__name">gwanak_cap<small>주최자</small></span>
+                </div>
+                <div class="gcard__progress">
+                  <div class="gcard__progress-row">
+                    <span class="gcard__progress-label is-warn">마감임박</span>
+                    <span class="count-pill is-closing">9/10</span>
+                  </div>
+                  <div class="gcard__progress-bar"><div class="gcard__progress-fill" style="width:90%"></div></div>
+                </div>
+                <button class="btn-apply">신청</button>
+              </div>
+            </article>
+
+            <article class="gcard kind-pickup">
+              <div class="gcard__main">
+                <div class="dt">
+                  <div class="dt__kind">픽업</div>
+                  <div class="dt__date"><span class="dt__date-md">4/25</span><span class="dt__date-day">(목)</span></div>
+                  <div class="dt__time">
+                    <div class="dt__t">20:30</div>
+                    <div class="dt__t-end">~22:30</div>
+                  </div>
+                </div>
+                <div class="gcard__content">
+                  <div class="gcard__row1">
+                    <span class="gcard__area-chip"><span class="ico material-symbols-outlined">place</span>경기 하남시</span>
+                    <span class="gcard__chip">정기</span>
+                  </div>
+                  <h4 class="gcard__title">목요일 저녁 하남미사 픽업 · 6:4</h4>
+                  <div class="gcard__meta">
+                    <span class="item"><span class="ico material-symbols-outlined">sports_basketball</span><span class="gcard__place">미사강변체육관</span></span>
+                    <span class="item"><span class="ico material-symbols-outlined">payments</span><span class="gcard__fee">₩5,000</span></span>
+                  </div>
+                </div>
+              </div>
+              <div class="gcard__foot">
+                <div class="host">
+                  <span class="host__av" aria-hidden="true">B</span>
+                  <span class="host__name">block_master<small>주최자</small></span>
+                </div>
+                <div class="gcard__progress">
+                  <div class="gcard__progress-row">
+                    <span class="gcard__progress-label">정원</span>
+                    <span class="count-pill">7/10</span>
+                  </div>
+                  <div class="gcard__progress-bar"><div class="gcard__progress-fill" style="width:70%"></div></div>
+                </div>
+                <button class="btn-apply">신청</button>
+              </div>
+            </article>
+
+            <article class="gcard kind-scrimmage">
+              <div class="gcard__main">
+                <div class="dt">
+                  <div class="dt__kind">연습경기</div>
+                  <div class="dt__date is-weekend"><span class="dt__date-md">4/27</span><span class="dt__date-day">(일)</span></div>
+                  <div class="dt__time">
+                    <div class="dt__t">12:00</div>
+                    <div class="dt__t-end">~15:00</div>
+                  </div>
+                </div>
+                <div class="gcard__content">
+                  <div class="gcard__row1">
+                    <span class="gcard__area-chip"><span class="ico material-symbols-outlined">place</span>서울 구로구</span>
+                    <span class="gcard__chip gcard__chip--free">무료</span>
+                  </div>
+                  <h4 class="gcard__title">[서울][구로] 4월 26일 일요일 연습게임 초청</h4>
+                  <div class="gcard__meta">
+                    <span class="item"><span class="ico material-symbols-outlined">sports_basketball</span><span class="gcard__place">구로 항동생활체육관</span></span>
+                    <span class="item"><span class="ico material-symbols-outlined">payments</span><span class="gcard__fee is-free">무료</span></span>
+                  </div>
+                </div>
+              </div>
+              <div class="gcard__foot">
+                <div class="host">
+                  <span class="host__av" aria-hidden="true">G</span>
+                  <span class="host__name">guro_baller<small>주최자</small></span>
+                </div>
+                <div class="gcard__progress">
+                  <div class="gcard__progress-row">
+                    <span class="gcard__progress-label">정원</span>
+                    <span class="count-pill">0/10</span>
+                  </div>
+                  <div class="gcard__progress-bar"><div class="gcard__progress-fill" style="width:0%"></div></div>
+                </div>
+                <button class="btn-apply">신청</button>
+              </div>
+            </article>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== MOBILE ===== -->
+      <div class="vp vp--mobile">
+        <div class="vp__chrome">
+          <span class="vp__lights"><span></span><span></span><span></span></span>
+          <span class="vp__url">m · 경기</span>
+          <span class="vp__size">375</span>
+        </div>
+        <div class="vp__inner vp__inner--mobile">
+          <div class="cards cards--mobile">
+            <article class="gcard kind-scrimmage">
+              <div class="gcard__main">
+                <div class="dt">
+                  <div class="dt__kind">연습경기</div>
+                  <div class="dt__date is-weekend"><span class="dt__date-md">4/26</span><span class="dt__date-day">(토)</span></div>
+                  <div class="dt__time">
+                    <div class="dt__t">09:00</div>
+                    <div class="dt__t-end">~11:00</div>
+                  </div>
+                </div>
+                <div class="gcard__content">
+                  <div class="gcard__row1">
+                    <span class="gcard__area-chip"><span class="ico material-symbols-outlined">place</span>서울 광진구</span>
+                    <span class="gcard__chip gcard__chip--free">무료</span>
+                  </div>
+                  <h4 class="gcard__title">4월 26일 9시~11시 구의중학교 연습게임 초청합니다</h4>
+                  <div class="gcard__meta">
+                    <span class="item"><span class="ico material-symbols-outlined">sports_basketball</span><span class="gcard__place">구의중학교</span></span>
+                    <span class="item"><span class="ico material-symbols-outlined">payments</span><span class="gcard__fee is-free">무료</span></span>
+                  </div>
+                </div>
+              </div>
+              <div class="gcard__foot">
+                <div class="host">
+                  <span class="host__av" aria-hidden="true">HM</span>
+                  <span class="host__name">huk_master<small>주최자</small></span>
+                </div>
+                <div class="gcard__progress">
+                  <div class="gcard__progress-row">
+                    <span class="gcard__progress-label">정원</span>
+                    <span class="count-pill">0/10</span>
+                  </div>
+                  <div class="gcard__progress-bar"><div class="gcard__progress-fill" style="width:0%"></div></div>
+                </div>
+                <button class="btn-apply">신청</button>
+              </div>
+            </article>
+
+            <article class="gcard kind-guest">
+              <div class="gcard__main">
+                <div class="dt">
+                  <div class="dt__kind">게스트</div>
+                  <div class="dt__date"><span class="dt__date-md">4/23</span><span class="dt__date-day">(목)</span></div>
+                  <div class="dt__time">
+                    <div class="dt__t">05:40</div>
+                    <div class="dt__t-end">~08:00</div>
+                  </div>
+                </div>
+                <div class="gcard__content">
+                  <div class="gcard__row1">
+                    <span class="gcard__area-chip"><span class="ico material-symbols-outlined">place</span>서울 관악구</span>
+                    <span class="gcard__chip gcard__chip--closing">마감임박</span>
+                  </div>
+                  <h4 class="gcard__title">[관악구] 4/23(목) 5:40~8:00 게스트 1명</h4>
+                  <div class="gcard__meta">
+                    <span class="item"><span class="ico material-symbols-outlined">sports_basketball</span><span class="gcard__place">관악구민체육</span></span>
+                    <span class="item"><span class="ico material-symbols-outlined">payments</span><span class="gcard__fee">₩8,000</span></span>
+                  </div>
+                </div>
+              </div>
+              <div class="gcard__foot">
+                <div class="host">
+                  <span class="host__av" aria-hidden="true">GK</span>
+                  <span class="host__name">gwanak_cap<small>주최자</small></span>
+                </div>
+                <div class="gcard__progress">
+                  <div class="gcard__progress-row">
+                    <span class="gcard__progress-label is-warn">마감임박</span>
+                    <span class="count-pill is-closing">9/10</span>
+                  </div>
+                  <div class="gcard__progress-bar"><div class="gcard__progress-fill" style="width:90%"></div></div>
+                </div>
+                <button class="btn-apply">신청</button>
+              </div>
+            </article>
+
+            <article class="gcard kind-pickup">
+              <div class="gcard__main">
+                <div class="dt">
+                  <div class="dt__kind">픽업</div>
+                  <div class="dt__date"><span class="dt__date-md">4/25</span><span class="dt__date-day">(목)</span></div>
+                  <div class="dt__time">
+                    <div class="dt__t">20:30</div>
+                    <div class="dt__t-end">~22:30</div>
+                  </div>
+                </div>
+                <div class="gcard__content">
+                  <div class="gcard__row1">
+                    <span class="gcard__area-chip"><span class="ico material-symbols-outlined">place</span>경기 하남시</span>
+                    <span class="gcard__chip">정기</span>
+                  </div>
+                  <h4 class="gcard__title">목요일 저녁 하남미사 픽업 · 6:4</h4>
+                  <div class="gcard__meta">
+                    <span class="item"><span class="ico material-symbols-outlined">sports_basketball</span><span class="gcard__place">미사강변체육관</span></span>
+                    <span class="item"><span class="ico material-symbols-outlined">payments</span><span class="gcard__fee">₩5,000</span></span>
+                  </div>
+                </div>
+              </div>
+              <div class="gcard__foot">
+                <div class="host">
+                  <span class="host__av" aria-hidden="true">B</span>
+                  <span class="host__name">block_master<small>주최자</small></span>
+                </div>
+                <div class="gcard__progress">
+                  <div class="gcard__progress-row">
+                    <span class="gcard__progress-label">정원</span>
+                    <span class="count-pill">7/10</span>
+                  </div>
+                  <div class="gcard__progress-bar"><div class="gcard__progress-fill" style="width:70%"></div></div>
+                </div>
+                <button class="btn-apply">신청</button>
+              </div>
+            </article>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOOTER NEXT STEPS -->
+  <footer style="margin-top:36px; padding:22px 26px; background:var(--bg-elev); border:1px solid var(--border); border-radius:8px; font-size:13px; color:var(--ink-soft); line-height:1.7;">
+    <div style="font-family:var(--ff-mono); font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--ink-dim); margin-bottom:8px;">NEXT STEPS</div>
+    <p style="margin:0 0 6px;">이 시안 확정되면 <code style="background:var(--bg-alt); padding:1px 6px; border-radius:3px; font-family:var(--ff-mono); font-size:12px;">Dev/design/BDR v2.16/</code> 폴더를 v2.15 카피 + <code style="background:var(--bg-alt); padding:1px 6px; border-radius:3px; font-family:var(--ff-mono); font-size:12px;">screens/Games.jsx</code> 박제 + <code style="background:var(--bg-alt); padding:1px 6px; border-radius:3px; font-family:var(--ff-mono); font-size:12px;">games.css</code> 갱신으로 완성하겠습니다.</p>
+    <p style="margin:0;">남은 미세 조정: 다크 모드 컬러 검수 / 타이틀 1줄 시 빈 줄 처리 / 비공개 모집 상태 표현 등.</p>
+  </footer>
+
+</div>
+
+</body>
+</html>

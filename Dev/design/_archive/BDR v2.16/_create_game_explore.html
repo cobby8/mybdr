@@ -1,0 +1,1585 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>경기 만들기 — v2.16</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800;900&family=JetBrains+Mono:wght@500;700;800&family=Pretendard:wght@400;500;600;700;800;900&display=swap" />
+<link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Symbols+Outlined" />
+<style>
+:root {
+  --bdr-red: #E31B23;
+  --bdr-red-ink: #B3141A;
+  --bg: #F4F6FA;
+  --bg-elev: #FFFFFF;
+  --bg-card: #FFFFFF;
+  --bg-alt: #F8FAFD;
+  --bg-head: #EEF2F7;
+  --ink: #1A1E27;
+  --ink-soft: #404755;
+  --ink-mute: #6B7280;
+  --ink-dim: #8C94A0;
+  --border: #E3E7ED;
+  --border-strong: #D0D5DD;
+  --cafe-blue: #0F5FCC;
+  --cafe-blue-deep: #0A4CA6;
+  --cafe-blue-soft: #E8F1FC;
+  --cafe-blue-hair: #C7DCF5;
+  --accent: var(--bdr-red);
+  --accent-soft: #FDE8E9;
+  --ok: #1CA05E;
+  --ok-soft: #E1F4EA;
+  --warn: #E8A33B;
+  --warn-soft: #FBEED2;
+  --sh-xs: 0 1px 2px rgba(15, 23, 42, .04);
+  --sh-sm: 0 2px 6px rgba(15, 23, 42, .06);
+  --sh-md: 0 6px 18px rgba(15, 23, 42, .08);
+  --ff-display: 'Archivo', 'Pretendard', sans-serif;
+  --ff-body: 'Pretendard', sans-serif;
+  --ff-mono: 'JetBrains Mono', monospace;
+}
+.kind-pickup    { --kind: #1B3C87; --kind-deep: #0F234F; --kind-soft: var(--cafe-blue-soft); --kind-hair: var(--cafe-blue-hair); }
+.kind-guest     { --kind: #8B0E15; --kind-deep: #5C0810; --kind-soft: var(--accent-soft); --kind-hair: #F5C6C8; }
+.kind-scrimmage { --kind: #0A5132; --kind-deep: #053823; --kind-soft: var(--ok-soft); --kind-hair: #C7E8D7; }
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--ff-body);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Showcase */
+.showcase { max-width: 1440px; margin: 0 auto; padding: 56px 40px 80px; }
+.showcase-head { margin-bottom: 36px; }
+.showcase-head .eyebrow {
+  font-family: var(--ff-mono); font-size: 11px; letter-spacing: 0.14em;
+  color: var(--accent); font-weight: 700; margin-bottom: 10px;
+  display: inline-flex; align-items: center; gap: 8px;
+}
+.showcase-head .eyebrow::before { content:""; width:18px; height:2px; background:var(--accent); }
+.showcase-head h1 {
+  font-family: var(--ff-display); font-size: 36px; font-weight: 800; letter-spacing: -0.02em;
+  margin: 0 0 12px;
+}
+.showcase-head p { color: var(--ink-soft); margin: 0; max-width: 800px; line-height: 1.65; }
+.assumptions {
+  margin-top: 18px; padding: 14px 18px;
+  background: var(--bg-elev); border: 1px solid var(--border);
+  border-left: 3px solid var(--cafe-blue); border-radius: 4px;
+  font-size: 13px; color: var(--ink-soft); line-height: 1.7;
+}
+.assumptions b { color: var(--ink); font-weight: 700; }
+.assumptions ul { margin: 6px 0 0; padding-left: 18px; }
+
+.variant { margin-top: 48px; background: var(--bg-elev); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.variant__head { padding: 22px 26px; border-bottom: 1px solid var(--border); }
+.variant__num { font-family: var(--ff-mono); font-weight: 800; font-size: 12px; color: var(--accent); letter-spacing: 0.08em; text-transform: uppercase; }
+.variant__title { font-family: var(--ff-display); margin: 4px 0 6px; font-size: 24px; font-weight: 800; letter-spacing: -0.015em; }
+.variant__desc { font-size: 13.5px; color: var(--ink-mute); line-height: 1.6; max-width: 760px; margin: 0; }
+
+.vp-strip {
+  display: flex; gap: 24px; padding: 28px 26px 32px;
+  background: linear-gradient(180deg, #EEF1F6 0%, #F4F6FA 100%);
+  overflow-x: auto;
+}
+.vp { flex: 0 0 auto; }
+.vp--pc { width: 1200px; }
+.vp--mobile { width: 400px; }
+.vp__chrome {
+  padding: 10px 14px; background: var(--bg-head);
+  border: 1px solid var(--border-strong); border-bottom: 0;
+  border-radius: 10px 10px 0 0;
+  display: flex; align-items: center; gap: 10px;
+}
+.vp__lights { display: inline-flex; gap: 6px; }
+.vp__lights span { width: 10px; height: 10px; border-radius: 50%; background: var(--border-strong); }
+.vp__url {
+  flex: 1; font-family: var(--ff-mono); font-size: 11px; color: var(--ink-mute);
+  background: var(--bg-elev); border: 1px solid var(--border); border-radius: 4px;
+  padding: 4px 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.vp__size { font-family: var(--ff-mono); font-size: 10px; color: var(--ink-dim); font-weight: 700; letter-spacing: 0.04em; }
+.vp__body { background: var(--bg); border: 1px solid var(--border-strong); border-top: 0; border-radius: 0 0 10px 10px; overflow: hidden; }
+
+.variant__cap {
+  padding: 18px 26px 22px; background: var(--bg-alt);
+  border-top: 1px solid var(--border);
+  display: grid; grid-template-columns: 1fr 1fr; gap: 26px;
+}
+.variant__cap h4 { margin: 0 0 8px; font-size: 11px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-dim); display:inline-flex; gap:6px; align-items:center; }
+.variant__cap h4 .ico { font-family: 'Material Symbols Outlined'; font-size:14px; }
+.variant__cap .pros h4 { color: var(--ok); }
+.variant__cap .cons h4 { color: var(--accent); }
+.variant__cap ul { margin:0; padding-left:16px; font-size: 13px; color: var(--ink-soft); line-height: 1.65; }
+
+/* AppNav mock */
+.appnav { position: relative; background: var(--bg-elev); border-bottom: 1px solid var(--border); }
+.appnav__util { background: var(--cafe-blue); color: #fff; font-size: 11.5px; padding: 6px 24px; display: flex; justify-content: flex-end; gap: 14px; }
+.appnav__main { padding: 12px 24px; display: flex; align-items: center; gap: 24px; }
+.appnav__logo { font-family: var(--ff-display); font-weight: 900; font-size: 22px; letter-spacing: -0.01em; }
+.appnav__logo .dot { color: var(--accent); }
+.appnav__tabs { flex: 1; display: flex; gap: 2px; }
+.appnav__tab { padding: 8px 12px; font-size: 13.5px; font-weight: 600; color: var(--ink-mute); border-radius: 6px; }
+.appnav__tab[data-active="true"] { background: var(--cafe-blue-soft); color: var(--cafe-blue-deep); font-weight: 700; }
+.appnav__right { display: flex; align-items: center; gap: 6px; }
+.appnav__icon { width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; color: var(--ink-soft); border-radius: 4px; }
+.appnav__icon .ico { font-family: 'Material Symbols Outlined'; font-size: 18px; }
+
+.page { max-width: 1200px; margin: 0 auto; padding: 24px 24px 80px; }
+.crumbs { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--ink-mute); margin-bottom: 14px; }
+.crumbs span.sep { color: var(--ink-dim); }
+.crumbs a { color: var(--ink-mute); }
+.crumbs .cur { color: var(--ink); font-weight: 600; }
+
+/* Header */
+.page-header { margin-bottom: 22px; }
+.page-header__eyebrow {
+  font-family: var(--ff-mono); font-size: 11px; letter-spacing: 0.14em;
+  color: var(--accent); font-weight: 700; margin-bottom: 6px;
+  display: inline-flex; align-items: center; gap: 8px;
+}
+.page-header__eyebrow::before { content:""; width:18px; height:2px; background:var(--accent); }
+.page-header h1 {
+  font-family: var(--ff-display); font-size: 30px; font-weight: 800; letter-spacing: -0.015em;
+  margin: 0 0 4px;
+}
+.page-header__sub { font-size: 13px; color: var(--ink-mute); }
+
+/* Form sections */
+.form-section {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 22px 24px;
+  margin-bottom: 14px;
+}
+.form-section__head {
+  display: flex; align-items: baseline; justify-content: space-between;
+  margin-bottom: 14px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+  gap: 12px;
+}
+.form-section__title {
+  margin: 0;
+  font-size: 15px; font-weight: 800;
+  display: inline-flex; align-items: center; gap: 8px;
+  letter-spacing: -0.005em;
+}
+.form-section__title .step {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 24px; height: 24px;
+  background: var(--ink);
+  color: #fff;
+  border-radius: 50%;
+  font-family: var(--ff-mono);
+  font-size: 11px; font-weight: 800;
+}
+.form-section__hint { font-size: 11.5px; color: var(--ink-dim); }
+
+.field { display: flex; flex-direction: column; gap: 6px; }
+.field__lbl {
+  font-size: 12px; font-weight: 700;
+  color: var(--ink-soft);
+  letter-spacing: -0.005em;
+}
+.field__lbl .req { color: var(--accent); margin-left: 2px; font-weight: 800; }
+.field__hint { font-size: 11.5px; color: var(--ink-mute); margin-top: 2px; }
+.field__hint .ico { font-family: 'Material Symbols Outlined'; font-size:13px; vertical-align:-2px; margin-right:2px; }
+
+.input {
+  width: 100%;
+  padding: 10px 12px;
+  font-size: 14px;
+  font-family: var(--ff-body);
+  color: var(--ink);
+  background: var(--bg-elev);
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+  outline: none;
+  transition: border-color .12s, box-shadow .12s;
+}
+.input:focus { border-color: var(--cafe-blue); box-shadow: 0 0 0 3px var(--cafe-blue-soft); }
+.textarea { min-height: 100px; resize: vertical; line-height: 1.55; }
+.select { appearance: auto; background: var(--bg-elev); padding-right: 36px; }
+
+.field-row {
+  display: grid;
+  gap: 12px;
+}
+.field-row--2 { grid-template-columns: 1fr 1fr; }
+.field-row--3 { grid-template-columns: 1fr 1fr 1fr; }
+.field-row--date { grid-template-columns: 1.4fr 1fr 1fr auto; align-items: end; }
+.field-row--date .dur {
+  font-family: var(--ff-mono);
+  font-size: 13px;
+  font-weight: 800;
+  padding: 11px 12px;
+  background: var(--bg-alt);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+.field-row--date .dur .ico { font-family:'Material Symbols Outlined'; font-size:14px; color:var(--ink-dim); margin-right:4px; vertical-align:-2px; }
+
+/* Kind picker */
+.kind-picker {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+.kind-opt {
+  position: relative;
+  display: flex; flex-direction: column;
+  padding: 0;
+  background: var(--bg-elev);
+  border: 1.5px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+  text-align: left;
+  overflow: hidden;
+  transition: border-color .12s, box-shadow .12s;
+}
+.kind-opt:hover { border-color: var(--border-strong); }
+.kind-opt__band {
+  height: 6px;
+  background: var(--kind);
+  background: linear-gradient(90deg, var(--kind) 0%, var(--kind-deep) 100%);
+}
+.kind-opt__body { padding: 12px 14px 14px; }
+.kind-opt__label {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--ink);
+  letter-spacing: -0.01em;
+  margin-bottom: 4px;
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.kind-opt__label .check {
+  width: 16px; height: 16px;
+  border: 1.5px solid var(--border-strong);
+  border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.kind-opt__desc {
+  font-size: 11.5px;
+  color: var(--ink-mute);
+  line-height: 1.5;
+}
+.kind-opt[data-selected="true"] {
+  border-color: var(--kind);
+  background: var(--bg-card);
+  box-shadow: 0 0 0 3px var(--kind-soft);
+}
+.kind-opt[data-selected="true"] .kind-opt__band { height: 8px; }
+.kind-opt[data-selected="true"] .check {
+  background: var(--kind);
+  border-color: var(--kind);
+}
+.kind-opt[data-selected="true"] .check::after {
+  content: ""; width: 6px; height: 6px;
+  background: #fff;
+  border-radius: 50%;
+}
+
+/* Court selector */
+.court-picker {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px;
+  background: var(--bg-elev);
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+}
+.court-picker .ico {
+  font-family: 'Material Symbols Outlined'; font-size: 18px;
+  color: var(--kind, var(--ink-mute));
+}
+.court-picker__name { font-weight: 700; font-size: 14px; }
+.court-picker__sub { font-size: 11.5px; color: var(--ink-mute); margin-top: 1px; }
+.court-picker__info { flex: 1; }
+.court-picker__chg {
+  font-size: 11.5px; font-weight: 600;
+  color: var(--cafe-blue);
+  cursor: pointer;
+  padding: 4px 10px;
+  border-radius: 4px;
+  background: var(--cafe-blue-soft);
+}
+
+/* Condition chips */
+.cond-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.cond-chip {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 12px;
+  background: var(--bg-elev);
+  border: 1.5px solid var(--border);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all .12s;
+}
+.cond-chip:hover { border-color: var(--border-strong); }
+.cond-chip[data-selected="true"] {
+  background: var(--kind-soft, var(--cafe-blue-soft));
+  border-color: var(--kind, var(--cafe-blue));
+  color: var(--kind-deep, var(--cafe-blue-deep));
+}
+.cond-chip__box {
+  width: 16px; height: 16px;
+  border: 1.5px solid var(--border-strong);
+  border-radius: 3px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--bg-elev);
+  flex-shrink: 0;
+}
+.cond-chip[data-selected="true"] .cond-chip__box {
+  background: var(--kind, var(--cafe-blue));
+  border-color: var(--kind, var(--cafe-blue));
+  color: #fff;
+}
+.cond-chip[data-selected="true"] .cond-chip__box::after {
+  content: "✓"; font-size: 11px; font-weight: 800;
+}
+.cond-chip__label {
+  font-size: 13px; font-weight: 600;
+}
+
+/* Toggle row */
+.toggle-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 14px;
+  background: var(--bg-alt);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  gap: 14px;
+}
+.toggle-row + .toggle-row { margin-top: 8px; }
+.toggle-row__info { flex: 1; min-width: 0; }
+.toggle-row__lbl { font-size: 13.5px; font-weight: 700; }
+.toggle-row__desc { font-size: 11.5px; color: var(--ink-mute); margin-top: 2px; line-height: 1.5; }
+.toggle {
+  position: relative;
+  width: 38px; height: 22px;
+  background: var(--border-strong);
+  border-radius: 11px;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background .15s;
+}
+.toggle::after {
+  content: "";
+  position: absolute; top: 2px; left: 2px;
+  width: 18px; height: 18px;
+  background: #fff;
+  border-radius: 50%;
+  box-shadow: 0 1px 3px rgba(0,0,0,.18);
+  transition: left .15s;
+}
+.toggle[data-on="true"] { background: var(--kind, var(--cafe-blue)); }
+.toggle[data-on="true"]::after { left: 18px; }
+
+.recurrence-detail {
+  margin-top: 8px;
+  padding: 12px 14px;
+  background: var(--bg-elev);
+  border: 1px dashed var(--border-strong);
+  border-radius: 4px;
+}
+.day-picker { display: flex; gap: 4px; margin-top: 8px; }
+.day-pick {
+  flex: 1;
+  padding: 8px 0;
+  font-size: 13px; font-weight: 700;
+  background: var(--bg-elev);
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  color: var(--ink);
+  line-height: 1;
+}
+.day-pick[data-on="true"] {
+  background: var(--kind, var(--cafe-blue));
+  color: #fff;
+  border-color: var(--kind-deep, var(--cafe-blue-deep));
+}
+.day-pick.is-sat { color: var(--cafe-blue); }
+.day-pick.is-sun { color: var(--accent); }
+.day-pick[data-on="true"].is-sat,
+.day-pick[data-on="true"].is-sun { color: #fff; }
+
+/* Form footer */
+.form-foot {
+  display: flex; align-items: center; gap: 8px;
+  padding: 18px 0 0;
+  margin-top: 8px;
+  border-top: 1px solid var(--border);
+}
+.form-foot__spacer { flex: 1; }
+.btn-base {
+  padding: 11px 18px;
+  font-size: 14px; font-weight: 700;
+  border-radius: 4px;
+  cursor: pointer;
+  display: inline-flex; align-items: center; gap: 6px;
+  border: 1px solid var(--border-strong);
+  background: var(--bg-elev);
+  color: var(--ink-soft);
+}
+.btn-base:hover { background: var(--bg-alt); }
+.btn-base .ico { font-family: 'Material Symbols Outlined'; font-size: 16px; }
+.btn-base--primary {
+  background: var(--cafe-blue);
+  color: #fff;
+  border-color: var(--cafe-blue-deep);
+}
+.btn-base--primary:hover { background: var(--cafe-blue-deep); }
+.btn-base--ghost {
+  background: transparent;
+  border: 0;
+  color: var(--ink-mute);
+}
+.btn-base--ghost:hover { background: var(--bg-alt); color: var(--ink); }
+
+/* ============================================================
+   Live preview card (matches v2.16 game card)
+   ============================================================ */
+.preview {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.preview__head {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-alt);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.preview__head-lbl {
+  font-size: 11px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--ink-dim);
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.preview__head-lbl .ico { font-family: 'Material Symbols Outlined'; font-size: 14px; color: var(--cafe-blue); }
+.preview__live {
+  font-size: 10px; font-weight: 700;
+  padding: 2px 6px;
+  background: var(--ok-soft); color: var(--ok);
+  border-radius: 3px;
+  font-family: var(--ff-mono);
+  letter-spacing: 0.04em;
+}
+.preview__body { padding: 16px; }
+
+/* Replicate v2.16 card */
+.gcard {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+  display: flex; flex-direction: column;
+}
+.gcard__main { display: grid; grid-template-columns: 92px minmax(0, 1fr); }
+.dt {
+  background: linear-gradient(155deg, var(--kind) 0%, var(--kind) 45%, var(--kind-deep) 100%);
+  color: #fff;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: space-between;
+  text-align: center; padding: 12px 6px;
+  position: relative; flex-shrink: 0;
+  min-height: 100%;
+  gap: 8px;
+  overflow: hidden;
+}
+.dt::before {
+  content: ""; position: absolute; inset: 0;
+  background: radial-gradient(circle at 100% 0%, rgba(255,255,255,.18) 0%, transparent 50%);
+  pointer-events: none;
+}
+.dt > * { position: relative; z-index: 1; }
+.dt__kind {
+  font-size: 10.5px; font-weight: 800; letter-spacing: 0.02em;
+  line-height: 1; padding: 4px 9px;
+  background: rgba(255,255,255,.95); color: var(--kind-deep);
+  border-radius: 3px;
+  box-shadow: 0 1px 2px rgba(0,0,0,.18);
+}
+.dt__date {
+  display: inline-flex; flex-direction: row; align-items: baseline;
+  justify-content: center; gap: 2px;
+  line-height: 1; white-space: nowrap;
+}
+.dt__date-md { font-size: 20px; font-weight: 900; letter-spacing: -0.03em; font-feature-settings: "tnum"; text-shadow: 0 1px 1px rgba(0,0,0,.18); }
+.dt__date-day { font-size: 13px; font-weight: 800; opacity: 0.95; text-shadow: 0 1px 1px rgba(0,0,0,.16); }
+.dt__time {
+  display: flex; flex-direction: column; align-items: center; gap: 1px;
+  padding-top: 8px; width: 100%;
+  border-top: 1px solid rgba(255,255,255,.32);
+}
+.dt__t { font-size: 15px; font-weight: 900; line-height: 1.1; font-feature-settings: "tnum"; text-shadow: 0 1px 1px rgba(0,0,0,.20); }
+.dt__t-end { font-size: 11.5px; font-weight: 700; opacity: .92; font-feature-settings: "tnum"; }
+.gcard__content { padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.gcard__row1 { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.gcard__area-chip {
+  display: inline-flex; align-items: center; gap: 3px;
+  padding: 2px 8px 2px 6px;
+  font-size: 11.5px; font-weight: 700;
+  color: var(--ink);
+  background: var(--bg-head);
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+  line-height: 1.5;
+}
+.gcard__area-chip .ico { font-family:'Material Symbols Outlined'; font-size:14px; color:var(--kind); font-weight:500; }
+.gcard__chip {
+  font-size: 10.5px; font-weight: 600;
+  padding: 1px 7px;
+  color: var(--ink-mute);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg-elev);
+  line-height: 1.5;
+}
+.gcard__chip--free { color: var(--ok); border-color:#C7E8D7; background: var(--ok-soft); font-weight: 700; }
+.gcard__title {
+  margin: 2px 0 0;
+  font-size: 14.5px; font-weight: 700; line-height: 1.4;
+  color: var(--ink);
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  overflow: hidden; word-break: keep-all;
+  min-height: 2.8em;
+}
+.gcard__meta {
+  display: flex; align-items: center; gap: 10px;
+  font-size: 12px; color: var(--ink-mute);
+  margin-top: auto;
+}
+.gcard__meta .item { display: inline-flex; align-items: center; gap: 4px; min-width: 0; }
+.gcard__meta .ico { font-family: 'Material Symbols Outlined'; font-size: 15px; color: var(--ink-dim); font-weight: 400; flex-shrink: 0; }
+.gcard__place { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink-soft); font-weight: 500; }
+.gcard__fee { font-family: var(--ff-mono); font-weight: 700; color: var(--ink-soft); white-space: nowrap; }
+.gcard__fee.is-free { color: var(--ok); }
+.gcard__foot {
+  padding: 10px 14px 12px;
+  border-top: 1px dashed var(--border);
+  display: flex; align-items: center; gap: 10px;
+}
+.host {
+  display: inline-flex; align-items: center; gap: 8px;
+  min-width: 0; flex: 0 1 auto;
+}
+.host__av {
+  width: 28px; height: 28px;
+  border-radius: 50%; flex-shrink: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-family: var(--ff-display); font-weight: 800; font-size: 12px;
+  color: #fff;
+  background: var(--kind-deep);
+  border: 1px solid rgba(255,255,255,.5);
+  box-shadow: var(--sh-xs);
+}
+.host__name {
+  font-size: 12px; font-weight: 600; color: var(--ink-soft);
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  line-height: 1.2;
+}
+.host__name small { display: block; font-size: 10.5px; font-weight: 500; color: var(--ink-dim); }
+.gcard__progress { flex: 1; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.bar { height: 4px; background: var(--bg-alt); border-radius: 2px; overflow: hidden; }
+.bar__fill { height: 100%; background: var(--kind); }
+.gcard__progress-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.gcard__progress-label { font-size: 11px; color: var(--ink-dim); }
+.count-pill { font-family: var(--ff-mono); font-size: 12px; font-weight: 800; color: var(--ink-soft); white-space: nowrap; }
+.btn-apply {
+  flex: 0 0 auto;
+  padding: 8px 16px;
+  font-size: 13px; font-weight: 700;
+  background: var(--cafe-blue); color: #fff;
+  border: 1px solid var(--cafe-blue-deep);
+  border-radius: 4px;
+  min-height: 36px;
+}
+
+/* Preview checklist */
+.checklist {
+  margin-top: 14px;
+  padding: 14px 16px;
+  background: var(--bg-alt);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+.checklist__title {
+  font-size: 11px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--ink-dim); margin-bottom: 10px;
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.checklist__title .ico { font-family: 'Material Symbols Outlined'; font-size: 14px; }
+.checklist__row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 5px 0;
+  font-size: 12.5px;
+}
+.checklist__row .ico {
+  font-family: 'Material Symbols Outlined';
+  font-size: 16px;
+}
+.checklist__row[data-state="ok"] .ico { color: var(--ok); }
+.checklist__row[data-state="ok"] .lbl { color: var(--ink); }
+.checklist__row[data-state="miss"] .ico { color: var(--ink-dim); }
+.checklist__row[data-state="miss"] .lbl { color: var(--ink-mute); }
+.checklist__row[data-state="warn"] .ico { color: var(--warn); }
+.checklist__row[data-state="warn"] .lbl { color: var(--ink); }
+
+.preview-tip {
+  margin-top: 12px;
+  padding: 10px 12px;
+  background: var(--cafe-blue-soft);
+  border: 1px solid var(--cafe-blue-hair);
+  border-radius: 4px;
+  font-size: 12px;
+  color: var(--cafe-blue-deep);
+  line-height: 1.55;
+  display: flex; gap: 8px;
+}
+.preview-tip .ico { font-family: 'Material Symbols Outlined'; font-size: 16px; flex-shrink: 0; color: var(--cafe-blue); }
+
+/* ============================================================
+   MOBILE
+   ============================================================ */
+.m-page { padding: 16px 16px 90px; display: flex; flex-direction: column; gap: 12px; }
+.m-crumbs {
+  display: flex; align-items: center; gap: 4px;
+  font-size: 11px; color: var(--ink-mute); margin-bottom: 4px;
+}
+.m-crumbs .ico { font-family: 'Material Symbols Outlined'; font-size: 14px; }
+.m-page-header h1 { font-family: var(--ff-display); font-size: 22px; font-weight: 800; margin: 0; letter-spacing: -0.015em; }
+.m-page-header .sub { font-size: 12px; color: var(--ink-mute); margin-top: 2px; }
+.m-preview-collapse {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.m-preview-collapse__head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 12px;
+  background: var(--bg-alt);
+  border-bottom: 1px solid var(--border);
+}
+.m-preview-collapse__lbl {
+  font-size: 11px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--ink-dim);
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.m-preview-collapse__lbl .ico { font-family: 'Material Symbols Outlined'; font-size: 14px; color: var(--cafe-blue); }
+.m-preview-collapse__body { padding: 12px; }
+.m-form-section {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px 14px 14px;
+}
+.m-section__head {
+  display: flex; align-items: center; gap: 8px;
+  margin-bottom: 10px;
+}
+.m-section__step {
+  width: 22px; height: 22px;
+  background: var(--ink);
+  color: #fff;
+  border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-family: var(--ff-mono); font-size: 11px; font-weight: 800;
+}
+.m-section__title { font-size: 14px; font-weight: 800; }
+.m-sticky-bottom {
+  position: sticky;
+  bottom: 0;
+  background: rgba(255,255,255,.97);
+  backdrop-filter: blur(8px);
+  border-top: 1px solid var(--border-strong);
+  padding: 10px 12px;
+  display: flex; gap: 8px;
+  box-shadow: 0 -2px 8px rgba(0,0,0,.06);
+  z-index: 5;
+}
+.m-sticky-bottom__cancel {
+  padding: 12px 14px;
+  font-size: 13px; font-weight: 700;
+  background: var(--bg-elev);
+  color: var(--ink-soft);
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+  cursor: pointer;
+}
+.m-sticky-bottom__primary {
+  flex: 1;
+  padding: 12px;
+  font-size: 14px; font-weight: 800;
+  background: var(--cafe-blue);
+  color: #fff;
+  border: 1px solid var(--cafe-blue-deep);
+  border-radius: 4px;
+}
+
+.vp--mobile .vp__body { position: relative; height: 760px; overflow-y: auto; }
+.m-page { padding-bottom: 90px; }  /* always reserve bottom space for sticky CTA */
+
+/* Custom condition input row */
+.cond-custom-row {
+  margin-top: 12px;
+  padding: 10px 12px;
+  background: var(--bg-alt);
+  border: 1px dashed var(--border-strong);
+  border-radius: 4px;
+  display: flex; gap: 8px; align-items: center;
+}
+.cond-custom-row .input { flex: 1; padding: 8px 10px; font-size: 13px; background: var(--bg-elev); }
+.cond-custom-row .btn-base { padding: 8px 14px; font-size: 13px; flex-shrink: 0; }
+.cond-custom-list { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 6px; }
+.cond-chip--custom {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 8px 6px 12px;
+  font-size: 13px; font-weight: 700;
+  background: var(--kind-soft, var(--cafe-blue-soft));
+  color: var(--kind-deep, var(--cafe-blue-deep));
+  border: 1px solid var(--kind-hair, var(--cafe-blue-hair));
+  border-radius: 4px;
+}
+.cond-chip--custom .x {
+  width: 18px; height: 18px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: rgba(0,0,0,.08);
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 11px; line-height: 1;
+}
+.cond-chip--custom .x:hover { background: rgba(0,0,0,.15); }
+
+/* Improve text visibility — slightly bump small chip font sizes */
+.gcard__chip { font-size: 11px; }
+.gcard__progress-label { color: var(--ink-mute); }
+.checklist__row[data-state="miss"] .lbl { color: var(--ink-soft); }
+.field__hint { color: var(--ink-soft); }
+
+@media (max-width: 720px) {
+  .showcase { padding: 24px 16px 60px; }
+  .showcase-head h1 { font-size: 26px; }
+}
+
+/* PROC BLOCK — 진행 방식 sub-block */
+.proc-block {
+  padding: 14px 14px 14px;
+  background: var(--bg-alt);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+.proc-block__head {
+  display: flex; align-items: baseline; gap: 10px;
+  margin-bottom: 12px;
+}
+.proc-block__title {
+  font-size: 12.5px; font-weight: 800; color: var(--ink-soft);
+  letter-spacing: -0.005em;
+}
+.proc-block__hint { font-size: 11px; color: var(--ink-mute); }
+
+/* RECURRENCE — auto-post + end condition */
+.recurrence-sub { margin-top: 12px; }
+.recurrence-sub__lbl {
+  font-size: 11.5px; color: var(--ink-mute); font-weight: 700;
+  margin-bottom: 6px;
+}
+.recurrence-sub__row {
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  font-size: 13px;
+}
+.recurrence-sub__text { color: var(--ink-soft); font-weight: 600; }
+.recurrence-sub__sel {
+  width: auto; padding: 6px 8px;
+  font-size: 13px;
+  flex: 0 0 auto;
+}
+.recurrence-sub__radios {
+  display: flex; gap: 14px; flex-wrap: wrap;
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+.recurrence-radio {
+  display: inline-flex; align-items: center; gap: 6px;
+  cursor: pointer;
+}
+.recurrence-radio__num {
+  width: 50px; padding: 5px 7px; text-align: center;
+  font-family: var(--ff-mono);
+}
+.recurrence-radio__date {
+  padding: 5px 7px;
+  font-size: 12.5px;
+}
+.recurrence-preview {
+  margin-top: 12px;
+  padding: 8px 10px;
+  background: var(--cafe-blue-soft);
+  border: 1px solid var(--cafe-blue-hair);
+  border-radius: 4px;
+  font-size: 11.5px;
+  color: var(--cafe-blue-deep);
+  font-weight: 500;
+  line-height: 1.55;
+}
+.recurrence-preview b { font-weight: 800; }
+
+
+/* Pill row — chip selector with direct input */
+.pill-row {
+  display: flex; flex-wrap: wrap; gap: 6px;
+  align-items: center;
+}
+.pill {
+  padding: 7px 14px;
+  font-size: 13px; font-weight: 600;
+  background: var(--bg-elev);
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+  cursor: pointer;
+  color: var(--ink-soft);
+  font-family: var(--ff-body);
+  transition: background .12s, border-color .12s, color .12s;
+}
+.pill:hover { background: var(--bg-alt); border-color: var(--ink-mute); color: var(--ink); }
+.pill[data-on="true"] {
+  background: var(--kind, var(--cafe-blue));
+  color: #fff;
+  border-color: var(--kind-deep, var(--cafe-blue-deep));
+  font-weight: 700;
+}
+.pill-row__input {
+  width: 80px;
+  padding: 7px 10px;
+  font-size: 13px;
+  text-align: center;
+  background: var(--bg-elev);
+  border: 1px dashed var(--border-strong);
+  border-radius: 4px;
+  color: var(--ink);
+  outline: none;
+  font-family: var(--ff-body);
+}
+.pill-row__input:focus {
+  border-color: var(--kind, var(--cafe-blue));
+  border-style: solid;
+  box-shadow: 0 0 0 3px var(--kind-soft, var(--cafe-blue-soft));
+}
+.pill-row__input::placeholder { color: var(--ink-dim); }
+
+</style>
+</head>
+<body>
+
+<div class="showcase">
+
+  <header class="showcase-head">
+    <div class="eyebrow">BDR v2.16 · 경기 만들기</div>
+    <h1>경기 개설 — 단일 페이지 + 라이브 프리뷰</h1>
+    <p>입력하면서 우측에 <b>실제 카드 미리보기</b> 가 실시간 업데이트되는 단일-페이지 폼입니다. 카드의 다크 컬러 시스템과 종별 hover 인식을 그대로 가져와 "어떤 카드가 만들어지는지" 를 눈으로 보면서 채우는 흐름이 핵심입니다.</p>
+    <div class="assumptions">
+      <b>핵심 디자인 의사결정</b>
+      <ul>
+        <li>단일-페이지 폼 (반복 호스트는 빠르게, 신규는 sticky 미리보기로 안내)</li>
+        <li>2-column PC (form 1fr + sticky preview 360px) / 1-column Mobile (상단 collapsible preview)</li>
+        <li>종별 선택 시 컬러 즉시 반영 — 폼 전체 accent (kind) 컬러 전환</li>
+        <li>날짜·시작·종료 자동 duration 계산 (예: 12:00–15:00 → 3시간)</li>
+        <li>코트 선택 — DB 검색 picker (이번 시안은 선택 완료 상태 mock)</li>
+        <li>정기 모집 토글 → 요일 선택 picker 노출</li>
+        <li>모바일 하단 fixed bar — 취소 / 임시저장 / 개설</li>
+      </ul>
+    </div>
+  </header>
+
+  <!-- ============================================================
+       시안 — Live Preview Form
+       ============================================================ -->
+  <section class="variant">
+    <header class="variant__head">
+      <span class="variant__num">CREATE GAME / FORM</span>
+      <h2 class="variant__title">경기 개설 폼</h2>
+      <p class="variant__desc">현행 CreateGame.jsx 의 단일-페이지 구조를 정제 + 우측 sticky 미리보기 추가. 종별/일시/코트가 입력되면 우측 카드가 즉시 반영, 필수 체크리스트로 누락 안내.</p>
+    </header>
+
+    <div class="vp-strip">
+      <!-- ===== PC ===== -->
+      <div class="vp vp--pc">
+        <div class="vp__chrome">
+          <span class="vp__lights"><span></span><span></span><span></span></span>
+          <span class="vp__url">mybdr.kr/games/new</span>
+          <span class="vp__size">PC · 1200</span>
+        </div>
+        <div class="vp__body">
+          <nav class="appnav">
+            <div class="appnav__util"><span>관리자</span><span>김수빈</span><span>설정</span><span>로그아웃</span></div>
+            <div class="appnav__main">
+              <span class="appnav__logo">MyBDR<span class="dot">.</span></span>
+              <div class="appnav__tabs">
+                <button class="appnav__tab">홈</button>
+                <button class="appnav__tab" data-active="true">경기</button>
+                <button class="appnav__tab">대회</button>
+                <button class="appnav__tab">단체</button>
+                <button class="appnav__tab">팀</button>
+                <button class="appnav__tab">코트</button>
+                <button class="appnav__tab">랭킹</button>
+                <button class="appnav__tab">커뮤니티</button>
+                <button class="appnav__tab">더보기</button>
+              </div>
+              <div class="appnav__right">
+                <span class="appnav__icon"><span class="ico material-symbols-outlined">search</span></span>
+                <span class="appnav__icon"><span class="ico material-symbols-outlined">mail</span></span>
+                <span class="appnav__icon"><span class="ico material-symbols-outlined">notifications</span></span>
+              </div>
+            </div>
+          </nav>
+
+          <div class="page kind-pickup">
+            <div class="crumbs">
+              <a>홈</a><span class="sep">›</span><a>경기</a><span class="sep">›</span><span class="cur">경기 개설</span>
+            </div>
+            <header class="page-header">
+              <div class="page-header__eyebrow">NEW GAME</div>
+              <h1>경기 개설</h1>
+              <div class="page-header__sub">픽업·게스트·연습경기 중 하나를 열고 참가자를 모집하세요</div>
+            </header>
+
+            <div style="display:grid; grid-template-columns: minmax(0,1fr) 360px; gap:24px; align-items:start;">
+              <!-- LEFT — FORM -->
+              <div>
+                <!-- Section 1: 종류 -->
+                <section class="form-section">
+                  <div class="form-section__head">
+                    <h2 class="form-section__title"><span class="step">1</span>경기 종류</h2>
+                    <span class="form-section__hint">선택한 종류에 따라 카드 컬러가 바뀝니다</span>
+                  </div>
+                  <div class="kind-picker">
+                    <button class="kind-opt kind-pickup" data-selected="true">
+                      <div class="kind-opt__band"></div>
+                      <div class="kind-opt__body">
+                        <div class="kind-opt__label"><span class="check"></span>픽업</div>
+                        <div class="kind-opt__desc">개인 단위 즉석 경기 · 6:4 로테이션 등</div>
+                      </div>
+                    </button>
+                    <button class="kind-opt kind-guest">
+                      <div class="kind-opt__band"></div>
+                      <div class="kind-opt__body">
+                        <div class="kind-opt__label"><span class="check"></span>게스트</div>
+                        <div class="kind-opt__desc">우리 팀에 일회성 게스트 모집</div>
+                      </div>
+                    </button>
+                    <button class="kind-opt kind-scrimmage">
+                      <div class="kind-opt__band"></div>
+                      <div class="kind-opt__body">
+                        <div class="kind-opt__label"><span class="check"></span>연습경기</div>
+                        <div class="kind-opt__desc">팀 vs 팀 스크림 · 관전 모집</div>
+                      </div>
+                    </button>
+                  </div>
+                </section>
+
+                <!-- Section 2: 일시 -->
+                <section class="form-section">
+                  <div class="form-section__head">
+                    <h2 class="form-section__title"><span class="step">2</span>일시</h2>
+                  </div>
+                  <div class="field-row field-row--date">
+                    <div class="field">
+                      <label class="field__lbl">날짜 <span class="req">*</span></label>
+                      <input class="input" type="date" value="2026-05-03" />
+                    </div>
+                    <div class="field">
+                      <label class="field__lbl">시작 <span class="req">*</span></label>
+                      <input class="input" type="time" value="12:00" />
+                    </div>
+                    <div class="field">
+                      <label class="field__lbl">종료 <span class="req">*</span></label>
+                      <input class="input" type="time" value="15:00" />
+                    </div>
+                    <div class="dur" title="시간 자동 계산"><span class="ico">schedule</span>3시간</div>
+                  </div>
+                </section>
+
+                <!-- Section 3: 장소 -->
+                <section class="form-section">
+                  <div class="form-section__head">
+                    <h2 class="form-section__title"><span class="step">3</span>장소</h2>
+                    <span class="form-section__hint">등록된 코트에서 검색</span>
+                  </div>
+                  <div class="field">
+                    <label class="field__lbl">코트 <span class="req">*</span></label>
+                    <div class="court-picker">
+                      <span class="ico" style="color:var(--kind);">place</span>
+                      <div class="court-picker__info">
+                        <div class="court-picker__name">회룡 시민체육관</div>
+                        <div class="court-picker__sub">경기 의정부시 전곡동 · 실내 · 1호선 회룡역 도보 3분</div>
+                      </div>
+                      <span class="court-picker__chg">변경</span>
+                    </div>
+                    <div class="field__hint"><span class="ico">info</span>등록 안 된 코트는 <a style="color:var(--cafe-blue); text-decoration:underline;">신규 코트 추가</a> 로 등록할 수 있습니다</div>
+                  </div>
+                </section>
+
+                <!-- Section 4: 모집 정보 -->
+                <section class="form-section">
+                  <div class="form-section__head">
+                    <h2 class="form-section__title"><span class="step">4</span>모집 정보</h2>
+                  </div>
+                  <div class="field">
+                    <label class="field__lbl">제목 <span class="req">*</span></label>
+                    <input class="input" value="토요일 낮 회룡역 픽업 — 초보 환영" />
+                    <div class="field__hint">25 / 60자</div>
+                  </div>
+                  <div class="field-row field-row--3" style="margin-top:14px;">
+                    <div class="field">
+                      <label class="field__lbl">정원 <span class="req">*</span></label>
+                      <input class="input" type="number" value="12" />
+                    </div>
+                    <div class="field">
+                      <label class="field__lbl">참가비 <span class="req">*</span></label>
+                      <input class="input" value="무료" />
+                    </div>
+                    <div class="field">
+                      <label class="field__lbl">레벨 <span class="req">*</span></label>
+                      <select class="input select">
+                        <option>최하</option>
+                        <option>하</option>
+                        <option>중하</option>
+                        <option selected>중</option>
+                        <option>중상</option>
+                        <option>상</option>
+                        <option>최상</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div class="proc-block" style="margin-top:14px;">
+                    <div class="proc-block__head">
+                      <span class="proc-block__title">진행 방식</span>
+                      <span class="proc-block__hint">실내 농구 표준 옵션 · 모든 항목 직접 입력 가능</span>
+                    </div>
+                    <div class="field" style="margin-top:0;">
+                      <label class="field__lbl">팀 인원</label>
+                      <div style="display:flex; align-items:center; gap:8px;">
+                        <span style="font-size:13.5px; color:var(--ink-soft); font-weight:600;">한 팀</span>
+                        <input class="input" type="number" min="3" max="10" value="5" style="width:80px; text-align:center; font-family:var(--ff-mono); font-weight:700;" />
+                        <span style="font-size:13.5px; color:var(--ink-soft); font-weight:600;">명</span>
+                      </div>
+                    </div>
+                    <div class="field" style="margin-top:12px;">
+                      <label class="field__lbl">경기 형식</label>
+                      <div class="pill-row kind-pickup">
+                        <button type="button" class="pill" data-on="true">2파전</button>
+                        <button type="button" class="pill">3파전</button>
+                        <input class="pill-row__input" placeholder="직접 입력 (예: 로테이션 4팀)" style="width:180px;" />
+                      </div>
+                    </div>
+                    <div class="field" style="margin-top:12px;">
+                      <label class="field__lbl">쿼터 시간</label>
+                      <div class="pill-row kind-pickup">
+                        <button type="button" class="pill">7분</button>
+                        <button type="button" class="pill">8분</button>
+                        <button type="button" class="pill" data-on="true">10분</button>
+                        <input class="pill-row__input" placeholder="직접" />
+                      </div>
+                    </div>
+                    <div class="field" style="margin-top:12px;">
+                      <label class="field__lbl">전체 경기 수</label>
+                      <div class="pill-row kind-pickup">
+                        <button type="button" class="pill">2경기</button>
+                        <button type="button" class="pill">3경기</button>
+                        <button type="button" class="pill" data-on="true">자동 (시간 내 최대)</button>
+                        <input class="pill-row__input" placeholder="직접" />
+                      </div>
+                    </div>
+                  </div>
+                </section>
+
+                <!-- Section 5: 상세 설명 -->
+                <section class="form-section">
+                  <div class="form-section__head">
+                    <h2 class="form-section__title"><span class="step">5</span>상세 설명</h2>
+                    <span class="form-section__hint">참가자에게 노출</span>
+                  </div>
+                  <div class="field">
+                    <textarea class="input textarea">회룡역 도보 3분 거리 시민체육관 실내 코트에서 매주 토요일 낮 픽업합니다. 4팀 5명씩 로테이션 진행되고, 초보 분들도 환영합니다. 자유롭게 슈팅·드리블 워밍업 후 경기 시작합니다. 변동 사항은 카톡 단톡방으로 공지 드립니다.</textarea>
+                    <div class="field__hint">128 / 500자 · Markdown 미지원</div>
+                  </div>
+                </section>
+
+                <!-- Section 6: 신청 조건 -->
+                <section class="form-section">
+                  <div class="form-section__head">
+                    <h2 class="form-section__title"><span class="step">6</span>신청 조건</h2>
+                    <span class="form-section__hint">선택사항 · 다중 선택 가능</span>
+                  </div>
+                  <div class="cond-grid kind-pickup">
+                    <div class="cond-chip" data-selected="true"><span class="cond-chip__box"></span><span class="cond-chip__label">실력 평점 ★ 4.0+</span></div>
+                    <div class="cond-chip"><span class="cond-chip__box"></span><span class="cond-chip__label">포지션 명시</span></div>
+                    <div class="cond-chip"><span class="cond-chip__box"></span><span class="cond-chip__label">유니폼 (흰/검)</span></div>
+                    <div class="cond-chip" data-selected="true"><span class="cond-chip__box"></span><span class="cond-chip__label">경기 매너 우수</span></div>
+                    <div class="cond-chip" data-selected="true"><span class="cond-chip__box"></span><span class="cond-chip__label">시간 엄수</span></div>
+                    <div class="cond-chip" data-selected="true"><span class="cond-chip__box"></span><span class="cond-chip__label">농구화 지참</span></div>
+                  </div>
+                  <div class="cond-custom-row kind-pickup">
+                    <input class="input" placeholder="직접 추가 (예: 음주 후 불가, 30대 이상)" />
+                    <button class="btn-base"><span class="ico">add</span>추가</button>
+                  </div>
+                  <div class="cond-custom-list kind-pickup">
+                    <span class="cond-chip--custom">30대 이상 <span class="x">✕</span></span>
+                    <span class="cond-chip--custom">음주 후 불가 <span class="x">✕</span></span>
+                  </div>
+                </section>
+
+                <!-- Section 7: 추가 옵션 -->
+                <section class="form-section">
+                  <div class="form-section__head">
+                    <h2 class="form-section__title"><span class="step">7</span>추가 옵션</h2>
+                  </div>
+                  <div class="kind-pickup">
+                    <div class="toggle-row">
+                      <div class="toggle-row__info">
+                        <div class="toggle-row__lbl">정기 모집</div>
+                        <div class="toggle-row__desc">선택한 요일 매주 자동으로 모집 글이 게시됩니다</div>
+                      </div>
+                      <div class="toggle" data-on="true"></div>
+                    </div>
+                    <div class="recurrence-detail">
+                      <div style="font-size:11.5px; color:var(--ink-mute); font-weight:700;">반복 요일</div>
+                      <div class="day-picker">
+                        <div class="day-pick">월</div>
+                        <div class="day-pick">화</div>
+                        <div class="day-pick">수</div>
+                        <div class="day-pick">목</div>
+                        <div class="day-pick">금</div>
+                        <div class="day-pick is-sat" data-on="true">토</div>
+                        <div class="day-pick is-sun">일</div>
+                      </div>
+
+                      <div class="recurrence-sub">
+                        <div class="recurrence-sub__lbl">자동 게시 시점</div>
+                        <div class="recurrence-sub__row">
+                          <span class="recurrence-sub__text">경기</span>
+                          <select class="input select recurrence-sub__sel">
+                            <option>3일 전</option>
+                            <option selected>7일 전</option>
+                            <option>10일 전</option>
+                            <option>14일 전</option>
+                          </select>
+                          <select class="input select recurrence-sub__sel">
+                            <option>09:00</option>
+                            <option>12:00</option>
+                            <option>18:00</option>
+                            <option>21:00</option>
+                            <option selected>22:00</option>
+                          </select>
+                          <span class="recurrence-sub__text">에 자동 게시</span>
+                        </div>
+                      </div>
+
+                      <div class="recurrence-sub">
+                        <div class="recurrence-sub__lbl">종료 조건</div>
+                        <div class="recurrence-sub__radios">
+                          <label class="recurrence-radio">
+                            <input type="radio" name="end-cond" checked />
+                            <span>무한 반복</span>
+                          </label>
+                          <label class="recurrence-radio">
+                            <input type="radio" name="end-cond" />
+                            <input class="input recurrence-radio__num" value="10" />
+                            <span>회 후 종료</span>
+                          </label>
+                          <label class="recurrence-radio">
+                            <input type="radio" name="end-cond" />
+                            <input class="input recurrence-radio__date" type="date" value="2026-12-31" />
+                            <span>까지</span>
+                          </label>
+                        </div>
+                      </div>
+
+                      <div class="recurrence-preview"><span class="material-symbols-outlined" style="font-size:13px; vertical-align:-2px; color:var(--cafe-blue);">event_repeat</span> 다음 4주 자동 게시: <b>5/3, 5/10, 5/17, 5/24</b> · 각 경기 7일 전 22:00 게시</div>
+                    </div>
+                    <div class="toggle-row" style="margin-top:8px;">
+                      <div class="toggle-row__info">
+                        <div class="toggle-row__lbl">자동 승인</div>
+                        <div class="toggle-row__desc">신청 시 별도 승인 없이 즉시 참가 확정</div>
+                      </div>
+                      <div class="toggle"></div>
+                    </div>
+                    <div class="toggle-row">
+                      <div class="toggle-row__info">
+                        <div class="toggle-row__lbl">공개 모집</div>
+                        <div class="toggle-row__desc">비공개 시 링크가 있는 사람만 참가 가능</div>
+                      </div>
+                      <div class="toggle" data-on="true"></div>
+                    </div>
+                  </div>
+                </section>
+
+                <!-- Footer -->
+                <div class="form-foot">
+                  <button class="btn-base btn-base--ghost">취소</button>
+                  <div class="form-foot__spacer"></div>
+                  <button class="btn-base"><span class="ico">save</span>임시저장</button>
+                  <button class="btn-base btn-base--primary"><span class="ico">arrow_forward</span>경기 개설</button>
+                </div>
+              </div>
+
+              <!-- RIGHT — STICKY LIVE PREVIEW -->
+              <aside style="position:sticky; top:0; display:flex; flex-direction:column; gap:14px;">
+                <div class="preview">
+                  <div class="preview__head">
+                    <span class="preview__head-lbl"><span class="ico">preview</span>실시간 미리보기</span>
+                    <span class="preview__live">LIVE</span>
+                  </div>
+                  <div class="preview__body">
+                    <!-- The actual game card preview -->
+                    <article class="gcard kind-pickup">
+                      <div class="gcard__main">
+                        <div class="dt">
+                          <div class="dt__kind">픽업</div>
+                          <div class="dt__date is-weekend">
+                            <span class="dt__date-md">5/3</span><span class="dt__date-day">(토)</span>
+                          </div>
+                          <div class="dt__time">
+                            <div class="dt__t">12:00</div>
+                            <div class="dt__t-end">~15:00</div>
+                          </div>
+                        </div>
+                        <div class="gcard__content">
+                          <div class="gcard__row1">
+                            <span class="gcard__area-chip"><span class="ico material-symbols-outlined">place</span>경기 의정부시</span>
+                            <span class="gcard__chip gcard__chip--free">무료</span>
+                            <span class="gcard__chip">초보환영</span>
+                          </div>
+                          <h4 class="gcard__title">토요일 낮 회룡역 픽업 — 초보 환영</h4>
+                          <div class="gcard__meta">
+                            <span class="item"><span class="ico material-symbols-outlined">sports_basketball</span><span class="gcard__place">회룡 시민체육관</span></span>
+                            <span class="item"><span class="ico material-symbols-outlined">payments</span><span class="gcard__fee is-free">무료</span></span>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="gcard__foot">
+                        <div class="host">
+                          <span class="host__av">KS</span>
+                          <span class="host__name">kim_subin<small>주최자</small></span>
+                        </div>
+                        <div class="gcard__progress">
+                          <div class="gcard__progress-row">
+                            <span class="gcard__progress-label">정원</span>
+                            <span class="count-pill">0/12</span>
+                          </div>
+                          <div class="bar"><div class="bar__fill" style="width:0%"></div></div>
+                        </div>
+                        <button class="btn-apply">신청</button>
+                      </div>
+                    </article>
+
+                    <!-- Checklist -->
+                    <div class="checklist">
+                      <div class="checklist__title"><span class="ico">checklist</span>필수 입력 체크</div>
+                      <div class="checklist__row" data-state="ok"><span class="ico">check_circle</span><span class="lbl">경기 종류</span></div>
+                      <div class="checklist__row" data-state="ok"><span class="ico">check_circle</span><span class="lbl">날짜 · 시간</span></div>
+                      <div class="checklist__row" data-state="ok"><span class="ico">check_circle</span><span class="lbl">코트 선택</span></div>
+                      <div class="checklist__row" data-state="ok"><span class="ico">check_circle</span><span class="lbl">제목 · 정원 · 비용 · 레벨</span></div>
+                      <div class="checklist__row" data-state="ok"><span class="ico">check_circle</span><span class="lbl">상세 설명</span></div>
+                      <div class="checklist__row" data-state="warn"><span class="ico">info</span><span class="lbl">신청 조건 (선택)</span></div>
+                    </div>
+
+                    <div class="preview-tip">
+                      <span class="ico">lightbulb</span>
+                      <span><b>정기 모집</b> 켜져 있어 5/10, 5/17, 5/24 도 자동 게시됩니다. 매주 화요일 22시에 게시.</span>
+                    </div>
+                  </div>
+                </div>
+              </aside>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== MOBILE ===== -->
+      <div class="vp vp--mobile">
+        <div class="vp__chrome">
+          <span class="vp__lights"><span></span><span></span><span></span></span>
+          <span class="vp__url">m · 경기 개설</span>
+          <span class="vp__size">375</span>
+        </div>
+        <div class="vp__body">
+          <div class="m-page kind-pickup">
+            <div class="m-crumbs">
+              <span class="ico material-symbols-outlined">arrow_back</span>
+              <span>경기</span><span>›</span><span>개설</span>
+            </div>
+            <div class="m-page-header">
+              <h1>경기 개설</h1>
+              <div class="sub">픽업·게스트·연습경기 모집</div>
+            </div>
+
+            <!-- Top: collapsible preview -->
+            <div class="m-preview-collapse">
+              <div class="m-preview-collapse__head">
+                <span class="m-preview-collapse__lbl"><span class="ico">preview</span>미리보기</span>
+                <span class="material-symbols-outlined" style="font-size:18px; color:var(--ink-mute);">expand_more</span>
+              </div>
+              <div class="m-preview-collapse__body">
+                <article class="gcard kind-pickup">
+                  <div class="gcard__main">
+                    <div class="dt">
+                      <div class="dt__kind">픽업</div>
+                      <div class="dt__date is-weekend">
+                        <span class="dt__date-md">5/3</span><span class="dt__date-day">(토)</span>
+                      </div>
+                      <div class="dt__time">
+                        <div class="dt__t">12:00</div>
+                        <div class="dt__t-end">~15:00</div>
+                      </div>
+                    </div>
+                    <div class="gcard__content">
+                      <div class="gcard__row1">
+                        <span class="gcard__area-chip"><span class="ico material-symbols-outlined">place</span>경기 의정부시</span>
+                        <span class="gcard__chip gcard__chip--free">무료</span>
+                      </div>
+                      <h4 class="gcard__title">토요일 낮 회룡역 픽업 — 초보 환영</h4>
+                      <div class="gcard__meta">
+                        <span class="item"><span class="ico material-symbols-outlined">sports_basketball</span><span class="gcard__place">회룡 시민체육관</span></span>
+                        <span class="item"><span class="ico material-symbols-outlined">payments</span><span class="gcard__fee is-free">무료</span></span>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="gcard__foot">
+                    <div class="host">
+                      <span class="host__av">KS</span>
+                      <span class="host__name">kim_subin<small>주최자</small></span>
+                    </div>
+                    <div class="gcard__progress">
+                      <div class="gcard__progress-row">
+                        <span class="gcard__progress-label">정원</span>
+                        <span class="count-pill">0/12</span>
+                      </div>
+                      <div class="bar"><div class="bar__fill" style="width:0%"></div></div>
+                    </div>
+                  </div>
+                </article>
+              </div>
+            </div>
+
+            <!-- 종류 -->
+            <div class="m-form-section">
+              <div class="m-section__head">
+                <span class="m-section__step">1</span>
+                <span class="m-section__title">경기 종류</span>
+              </div>
+              <div class="kind-picker" style="grid-template-columns:1fr 1fr 1fr; gap:6px;">
+                <button class="kind-opt kind-pickup" data-selected="true">
+                  <div class="kind-opt__band"></div>
+                  <div class="kind-opt__body" style="padding:8px 10px;">
+                    <div class="kind-opt__label" style="font-size:13px;"><span class="check" style="width:14px;height:14px;"></span>픽업</div>
+                  </div>
+                </button>
+                <button class="kind-opt kind-guest">
+                  <div class="kind-opt__band"></div>
+                  <div class="kind-opt__body" style="padding:8px 10px;">
+                    <div class="kind-opt__label" style="font-size:13px;"><span class="check" style="width:14px;height:14px;"></span>게스트</div>
+                  </div>
+                </button>
+                <button class="kind-opt kind-scrimmage">
+                  <div class="kind-opt__band"></div>
+                  <div class="kind-opt__body" style="padding:8px 10px;">
+                    <div class="kind-opt__label" style="font-size:13px;"><span class="check" style="width:14px;height:14px;"></span>연습</div>
+                  </div>
+                </button>
+              </div>
+            </div>
+
+            <!-- 일시 -->
+            <div class="m-form-section">
+              <div class="m-section__head">
+                <span class="m-section__step">2</span>
+                <span class="m-section__title">일시</span>
+              </div>
+              <div class="field">
+                <label class="field__lbl">날짜</label>
+                <input class="input" type="date" value="2026-05-03" />
+              </div>
+              <div class="field-row field-row--2" style="margin-top:10px;">
+                <div class="field">
+                  <label class="field__lbl">시작</label>
+                  <input class="input" type="time" value="12:00" />
+                </div>
+                <div class="field">
+                  <label class="field__lbl">종료</label>
+                  <input class="input" type="time" value="15:00" />
+                </div>
+              </div>
+              <div class="dur" style="margin-top:8px; text-align:center; padding:8px;"><span class="ico material-symbols-outlined" style="font-size:14px; color:var(--ink-dim); vertical-align:-2px;">schedule</span>3시간</div>
+            </div>
+
+            <!-- 장소 -->
+            <div class="m-form-section">
+              <div class="m-section__head">
+                <span class="m-section__step">3</span>
+                <span class="m-section__title">장소</span>
+              </div>
+              <div class="court-picker">
+                <span class="ico" style="color:var(--kind);">place</span>
+                <div class="court-picker__info">
+                  <div class="court-picker__name" style="font-size:13px;">회룡 시민체육관</div>
+                  <div class="court-picker__sub">의정부시 전곡동</div>
+                </div>
+                <span class="court-picker__chg">변경</span>
+              </div>
+            </div>
+
+            <!-- 모집 정보 -->
+            <div class="m-form-section">
+              <div class="m-section__head">
+                <span class="m-section__step">4</span>
+                <span class="m-section__title">모집 정보</span>
+              </div>
+              <div class="field">
+                <label class="field__lbl">제목</label>
+                <input class="input" value="토요일 낮 회룡역 픽업 — 초보 환영" />
+              </div>
+              <div class="field-row field-row--2" style="margin-top:10px;">
+                <div class="field">
+                  <label class="field__lbl">정원</label>
+                  <input class="input" type="number" value="12" />
+                </div>
+                <div class="field">
+                  <label class="field__lbl">참가비</label>
+                  <input class="input" value="무료" />
+                </div>
+              </div>
+              <div class="field" style="margin-top:10px;">
+                <label class="field__lbl">레벨</label>
+                <select class="input select">
+                  <option>최하</option>
+                  <option>하</option>
+                  <option>중하</option>
+                  <option selected>중</option>
+                  <option>중상</option>
+                  <option>상</option>
+                  <option>최상</option>
+                </select>
+              </div>
+              <div class="field" style="margin-top:10px;">
+                <label class="field__lbl">상세 설명</label>
+                <textarea class="input textarea" style="min-height:80px;">회룡 시민체육관 실내 코트에서 매주 토요일 낮 픽업합니다.</textarea>
+              </div>
+            </div>
+
+            <!-- 조건 -->
+            <div class="m-form-section">
+              <div class="m-section__head">
+                <span class="m-section__step">5</span>
+                <span class="m-section__title">신청 조건</span>
+              </div>
+              <div class="cond-grid kind-pickup" style="grid-template-columns:1fr 1fr;">
+                <div class="cond-chip" data-selected="true"><span class="cond-chip__box"></span><span class="cond-chip__label">농구화 지참</span></div>
+                <div class="cond-chip" data-selected="true"><span class="cond-chip__box"></span><span class="cond-chip__label">경기 매너</span></div>
+                <div class="cond-chip" data-selected="true"><span class="cond-chip__box"></span><span class="cond-chip__label">시간 엄수</span></div>
+                <div class="cond-chip"><span class="cond-chip__box"></span><span class="cond-chip__label">실력 ★ 4.0+</span></div>
+                <div class="cond-chip"><span class="cond-chip__box"></span><span class="cond-chip__label">포지션 명시</span></div>
+                <div class="cond-chip"><span class="cond-chip__box"></span><span class="cond-chip__label">유니폼 (흰/검)</span></div>
+              </div>
+              <div class="cond-custom-row kind-pickup">
+                <input class="input" placeholder="직접 추가" />
+                <button class="btn-base"><span class="ico">add</span>추가</button>
+              </div>
+              <div class="cond-custom-list kind-pickup">
+                <span class="cond-chip--custom">30대 이상 <span class="x">✕</span></span>
+              </div>
+            </div>
+
+            <!-- 추가 옵션 -->
+            <div class="m-form-section">
+              <div class="m-section__head">
+                <span class="m-section__step">6</span>
+                <span class="m-section__title">추가 옵션</span>
+              </div>
+              <div class="kind-pickup">
+                <div class="toggle-row">
+                  <div class="toggle-row__info">
+                    <div class="toggle-row__lbl">정기 모집</div>
+                    <div class="toggle-row__desc">매주 토요일</div>
+                  </div>
+                  <div class="toggle" data-on="true"></div>
+                </div>
+                <div class="recurrence-detail" style="margin-bottom:8px;">
+                  <div class="recurrence-sub__lbl">자동 게시</div>
+                  <div class="recurrence-sub__row" style="margin-top:4px;">
+                    <span class="recurrence-sub__text">경기</span>
+                    <select class="input select recurrence-sub__sel"><option selected>7일 전</option><option>3일 전</option><option>14일 전</option></select>
+                    <select class="input select recurrence-sub__sel"><option selected>22:00</option><option>09:00</option><option>18:00</option></select>
+                  </div>
+                  <div class="recurrence-preview" style="margin-top:8px;"><span class="material-symbols-outlined" style="font-size:12px; vertical-align:-2px; color:var(--cafe-blue);">event_repeat</span> 5/3, 5/10, 5/17, 5/24 · 각 7일 전 22:00 게시</div>
+                </div>
+                <div class="toggle-row">
+                  <div class="toggle-row__info">
+                    <div class="toggle-row__lbl">자동 승인</div>
+                    <div class="toggle-row__desc">즉시 참가 확정</div>
+                  </div>
+                  <div class="toggle"></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Section 6 last form section closes here -->
+          </div><!-- /.m-page -->
+
+          <!-- Sticky bottom CTA (outside m-page, inside vp__body so sticky tracks scroll) -->
+          <div class="m-sticky-bottom">
+            <button class="m-sticky-bottom__cancel">취소</button>
+            <button class="m-sticky-bottom__primary">경기 개설</button>
+          </div>
+        </div><!-- /.vp__body -->
+      </div>
+    </div>
+
+    <div class="variant__cap">
+      <div class="pros">
+        <h4><span class="ico material-symbols-outlined">check_circle</span>장점</h4>
+        <ul>
+          <li>입력하는 동안 실제 카드 미리보기 — 결과물이 명확히 보임</li>
+          <li>종별 선택 즉시 컬러 시스템 반영 → 일관성</li>
+          <li>날짜 + 시작 + 종료 분리 → 자동 duration 계산 (3시간 등)</li>
+          <li>정기 모집 → 요일 picker → 다음 4주 자동 예고</li>
+          <li>모바일 collapsible 미리보기 + 하단 fixed CTA</li>
+        </ul>
+      </div>
+      <div class="cons">
+        <h4><span class="ico material-symbols-outlined">priority_high</span>고려</h4>
+        <ul>
+          <li>모바일에서 미리보기가 collapsed 상태 — 펼치는 동작 필요</li>
+          <li>코트 picker UI 는 별도 모달/오버레이로 분리 필요</li>
+          <li>대회·시리즈 연결, 운영진 권한 등 advanced 옵션은 v2 이후로</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+</body>
+</html>

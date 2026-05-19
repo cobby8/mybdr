@@ -6,7 +6,7 @@ function About({ setRoute }) {
       <div className="eyebrow">소개 · ABOUT</div>
       <h1 style={{margin:'6px 0 18px', fontSize:36, fontWeight:800, letterSpacing:'-0.02em'}}>BDR — Basketball Daily Routine</h1>
       <p style={{fontSize:17, color:'var(--ink-soft)', maxWidth:'62ch', lineHeight:1.7, marginBottom:28}}>
-        MyBDR는 전국 농구 매칭 플랫폼의 공식 허브입니다.
+        MyBDR는 서울을 중심으로 한 3x3 농구 커뮤니티의 공식 허브입니다.
         픽업 게임부터 정규 대회까지, 농구인이 가장 빠르게 “오늘 뛸 무엇”을 찾고
         팀을 운영하고 대회를 개최할 수 있도록 만들어졌습니다.
       </p>

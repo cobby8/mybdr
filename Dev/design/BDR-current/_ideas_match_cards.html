@@ -1,0 +1,1149 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<title>경기 카드 아이디어 보드 — v2.15</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800;900&family=JetBrains+Mono:wght@500;700;800&family=Pretendard:wght@400;500;600;700;800&display=swap" />
+<link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Symbols+Outlined" />
+<style>
+  :root {
+    --accent: #E31B23;
+    --cafe-blue: #1B3C87;
+    --bg: #F4F6FA;
+    --bg-elev: #FFFFFF;
+    --bg-alt: #F8FAFD;
+    --ink: #1A1E27;
+    --ink-soft: #404755;
+    --ink-mute: #6B7280;
+    --ink-dim: #8C94A0;
+    --border: #E4E7EE;
+    --ok: #1CA05E;
+    --warn: #E8A33B;
+    --ff-display: 'Archivo', 'Pretendard', sans-serif;
+    --ff-body: 'Pretendard', sans-serif;
+    --ff-mono: 'JetBrains Mono', monospace;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 56px 40px 80px;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--ff-body);
+    font-size: 14px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 960px; margin: 0 auto; }
+  .pageHead {
+    margin-bottom: 40px;
+  }
+  .pageHead .eyebrow {
+    font-family: var(--ff-mono);
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    color: var(--accent);
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+  .pageHead h1 {
+    font-family: var(--ff-display);
+    font-size: 36px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    margin: 0 0 10px;
+  }
+  .pageHead p {
+    color: var(--ink-soft);
+    margin: 0;
+    max-width: 640px;
+    line-height: 1.65;
+  }
+  .currentNote {
+    margin: 18px 0 0;
+    padding: 12px 16px;
+    background: #FFF4F4;
+    border-left: 3px solid var(--accent);
+    border-radius: 4px;
+    font-size: 13px;
+    color: var(--ink-soft);
+  }
+  .currentNote b { color: var(--ink); }
+
+  .concept {
+    margin-top: 36px;
+    background: var(--bg-elev);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .concept .head {
+    padding: 18px 22px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+    flex-wrap: wrap;
+  }
+  .concept .head .num {
+    font-family: var(--ff-mono);
+    font-weight: 800;
+    font-size: 13px;
+    color: var(--accent);
+    letter-spacing: 0.04em;
+  }
+  .concept .head h2 {
+    font-family: var(--ff-display);
+    margin: 0;
+    font-size: 22px;
+    font-weight: 800;
+    letter-spacing: -0.015em;
+  }
+  .concept .head .desc {
+    font-size: 13px;
+    color: var(--ink-mute);
+    flex-basis: 100%;
+    margin-top: 4px;
+    line-height: 1.55;
+  }
+  .concept .preview {
+    padding: 28px 22px;
+    background: var(--bg-alt);
+  }
+  .concept .preview.dark {
+    background: #0F1115;
+  }
+  .concept .pros {
+    padding: 14px 22px 18px;
+    border-top: 1px dashed var(--border);
+    display: flex;
+    gap: 22px;
+    font-size: 12px;
+    color: var(--ink-mute);
+    flex-wrap: wrap;
+  }
+  .concept .pros span b { color: var(--ink-soft); font-weight: 700; }
+
+  /* shared utility */
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    font-size: 11px;
+    font-weight: 600;
+    border-radius: 4px;
+    background: var(--bg-alt);
+    color: var(--ink-soft);
+    border: 1px solid var(--border);
+  }
+  .badge--live { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .badge--ended { background: #EEF1F6; color: var(--ink-mute); border: 0; }
+  .badge--upcoming { background: #E8EEF9; color: var(--cafe-blue); border: 0; }
+  .badge--live .dot { width: 6px; height: 6px; border-radius: 50%; background: #fff; animation: pulse 1.2s infinite; }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+  .avatar {
+    width: 44px; height: 44px; border-radius: 50%;
+    display: grid; place-items: center;
+    font-family: var(--ff-display); font-weight: 800; font-size: 16px;
+    color: #fff;
+    flex-shrink: 0;
+  }
+
+  /* ============================================================
+     CONCEPT 1 — VS POSTER (대전 포스터)
+     ============================================================ */
+  .c1-card {
+    position: relative;
+    height: 132px;
+    border-radius: 8px;
+    overflow: hidden;
+    color: #fff;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    cursor: pointer;
+  }
+  .c1-card .side {
+    position: absolute;
+    top: 0; bottom: 0;
+    width: 55%;
+    display: flex;
+    align-items: center;
+    padding: 0 28px;
+  }
+  .c1-card .side.left {
+    left: 0;
+    background: linear-gradient(135deg, #1F4FA0 0%, #102556 100%);
+    clip-path: polygon(0 0, 100% 0, 80% 100%, 0 100%);
+  }
+  .c1-card .side.right {
+    right: 0;
+    background: linear-gradient(225deg, #C2362E 0%, #6C1611 100%);
+    clip-path: polygon(20% 0, 100% 0, 100% 100%, 0 100%);
+    justify-content: flex-end;
+    text-align: right;
+  }
+  .c1-card .side .name {
+    font-family: var(--ff-display);
+    font-size: 26px;
+    font-weight: 900;
+    letter-spacing: -0.015em;
+    line-height: 1;
+  }
+  .c1-card .side .seed {
+    font-family: var(--ff-mono);
+    font-size: 11px;
+    opacity: 0.7;
+    letter-spacing: 0.08em;
+    margin-bottom: 6px;
+  }
+  .c1-card .vs {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 56px; height: 56px;
+    border-radius: 50%;
+    background: #fff;
+    color: #111;
+    display: grid; place-items: center;
+    font-family: var(--ff-display); font-weight: 900; font-size: 20px;
+    letter-spacing: -0.02em;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.35);
+    z-index: 2;
+  }
+  .c1-card .meta {
+    position: absolute;
+    top: 14px; left: 0; right: 0;
+    display: flex; justify-content: space-between;
+    padding: 0 22px;
+    font-family: var(--ff-mono);
+    font-size: 11px;
+    z-index: 3;
+    pointer-events: none;
+  }
+  .c1-card .meta .time { font-weight: 700; letter-spacing: 0.06em; }
+  .c1-card .footer {
+    position: absolute;
+    bottom: 12px; left: 0; right: 0;
+    display: flex; justify-content: space-between;
+    padding: 0 22px;
+    font-size: 11px;
+    opacity: 0.85;
+    z-index: 3;
+    pointer-events: none;
+  }
+
+  /* ============================================================
+     CONCEPT 2 — LED SCOREBOARD (점수판)
+     ============================================================ */
+  .c2-row {
+    background: #0A0C10;
+    border: 1px solid #1F242C;
+    border-radius: 6px;
+    padding: 16px 20px;
+    color: #FFB200;
+    font-family: var(--ff-mono);
+    display: grid;
+    grid-template-columns: 100px 1fr 100px;
+    gap: 18px;
+    align-items: center;
+  }
+  .c2-row + .c2-row { margin-top: 8px; }
+  .c2-row .left {
+    border-right: 1px dashed #2B3038;
+    padding-right: 16px;
+  }
+  .c2-row .left .time {
+    font-size: 26px; font-weight: 800; letter-spacing: 0.04em; line-height: 1;
+  }
+  .c2-row .left .court {
+    font-size: 10px; color: #6FA8FF; letter-spacing: 0.16em; margin-top: 6px; font-weight: 700;
+  }
+  .c2-row .center {
+    display: grid;
+    grid-template-columns: 1fr 100px 1fr;
+    gap: 12px;
+    align-items: center;
+  }
+  .c2-row .team {
+    display: flex; align-items: center; gap: 10px;
+    color: #fff; font-family: var(--ff-display); font-weight: 800; font-size: 16px;
+  }
+  .c2-row .team.right { justify-content: flex-end; }
+  .c2-row .team .dot { width: 10px; height: 10px; border-radius: 50%; }
+  .c2-row .score {
+    text-align: center;
+    font-size: 32px; font-weight: 800;
+    letter-spacing: 0.06em;
+    color: #FFB200;
+    text-shadow: 0 0 8px rgba(255,178,0,0.4);
+  }
+  .c2-row .score .vs {
+    font-size: 20px; color: #4A5160; margin: 0 6px; vertical-align: 1px;
+  }
+  .c2-row .right-info {
+    text-align: right;
+    font-size: 11px; color: #6FA8FF; letter-spacing: 0.1em; line-height: 1.6;
+  }
+  .c2-row .right-info .q {
+    color: var(--accent); font-size: 14px; font-weight: 800;
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .c2-row .right-info .q::before {
+    content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--accent);
+    animation: pulse 1.2s infinite;
+  }
+  .c2-row.ended .score { color: #6B7280; text-shadow: none; }
+  .c2-row.ended .right-info .q { color: var(--ink-mute); }
+  .c2-row.ended .right-info .q::before { display: none; }
+
+  /* ============================================================
+     CONCEPT 3 — TICKET (티켓 스타일)
+     ============================================================ */
+  .c3-row {
+    background: #fff;
+    border-radius: 6px;
+    padding: 0;
+    display: grid;
+    grid-template-columns: 110px 1fr 130px;
+    align-items: stretch;
+    position: relative;
+    overflow: visible;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    border: 1px solid var(--border);
+  }
+  .c3-row + .c3-row { margin-top: 14px; }
+  .c3-stub {
+    background: var(--cafe-blue);
+    color: #fff;
+    padding: 16px 14px;
+    border-radius: 6px 0 0 6px;
+    text-align: center;
+    position: relative;
+  }
+  .c3-stub.live { background: var(--accent); }
+  .c3-stub.ended { background: var(--ink-dim); }
+  .c3-stub .num {
+    font-family: var(--ff-mono);
+    font-size: 10px; letter-spacing: 0.12em; opacity: 0.85;
+  }
+  .c3-stub .time {
+    font-family: var(--ff-display);
+    font-size: 24px; font-weight: 900;
+    margin-top: 4px; letter-spacing: 0.02em;
+  }
+  .c3-stub .label { font-size: 11px; margin-top: 4px; opacity: 0.9; }
+  .c3-divider {
+    position: absolute;
+    top: 0; bottom: 0;
+    left: 110px;
+    width: 0;
+    border-left: 1.5px dashed var(--border);
+  }
+  .c3-divider::before, .c3-divider::after {
+    content: '';
+    position: absolute;
+    left: -7px;
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    background: var(--bg-alt);
+    border: 1.5px solid var(--border);
+  }
+  .c3-divider::before { top: -8px; }
+  .c3-divider::after { bottom: -8px; }
+  .c3-main {
+    padding: 14px 22px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .c3-main .team {
+    flex: 1;
+    display: flex; align-items: center; gap: 10px;
+    min-width: 0;
+  }
+  .c3-main .team.right { justify-content: flex-end; text-align: right; }
+  .c3-main .team .name {
+    font-family: var(--ff-display); font-weight: 800; font-size: 16px;
+  }
+  .c3-main .team .seed { font-family: var(--ff-mono); font-size: 11px; color: var(--ink-mute); }
+  .c3-main .vs {
+    font-family: var(--ff-display);
+    font-weight: 800;
+    color: var(--ink-mute);
+    font-size: 14px;
+  }
+  .c3-main .score {
+    font-family: var(--ff-mono);
+    font-weight: 800;
+    font-size: 22px;
+    letter-spacing: 0.04em;
+    color: var(--ink);
+  }
+  .c3-main .score .lose { color: var(--ink-mute); }
+  .c3-aside {
+    border-left: 1.5px dashed var(--border);
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 4px;
+  }
+  .c3-aside .court { font-family: var(--ff-mono); font-size: 11px; color: var(--ink-mute); }
+  .c3-aside .gym { font-size: 13px; font-weight: 700; }
+  .c3-aside .cta {
+    margin-top: 8px;
+    font-family: var(--ff-mono);
+    font-size: 11px;
+    color: var(--cafe-blue);
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  /* ============================================================
+     CONCEPT 4 — COURT LANE (코트별 트랙)
+     ============================================================ */
+  .c4-board {
+    background: #fff;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    padding: 16px 0 18px;
+  }
+  .c4-axis {
+    display: grid;
+    grid-template-columns: 100px repeat(8, 1fr);
+    align-items: center;
+    padding: 0 16px;
+    font-family: var(--ff-mono);
+    font-size: 11px;
+    color: var(--ink-dim);
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 10px;
+    margin-bottom: 10px;
+  }
+  .c4-axis .tick { text-align: center; }
+  .c4-lane {
+    display: grid;
+    grid-template-columns: 100px 1fr;
+    align-items: center;
+    padding: 6px 16px;
+    gap: 12px;
+  }
+  .c4-lane + .c4-lane { border-top: 1px dashed var(--border); }
+  .c4-lane .laneLabel {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 12px; font-weight: 700; color: var(--ink-soft);
+  }
+  .c4-lane .laneLabel .swatch {
+    width: 4px; height: 24px; border-radius: 2px;
+  }
+  .c4-lane .track {
+    position: relative;
+    height: 40px;
+    background:
+      linear-gradient(to right, var(--border) 1px, transparent 1px) 0 0 / 12.5% 100% no-repeat,
+      linear-gradient(to right, var(--border) 1px, transparent 1px) 12.5% 0 / 12.5% 100% no-repeat,
+      linear-gradient(to right, var(--border) 1px, transparent 1px) 25% 0 / 12.5% 100% no-repeat,
+      linear-gradient(to right, var(--border) 1px, transparent 1px) 37.5% 0 / 12.5% 100% no-repeat,
+      linear-gradient(to right, var(--border) 1px, transparent 1px) 50% 0 / 12.5% 100% no-repeat,
+      linear-gradient(to right, var(--border) 1px, transparent 1px) 62.5% 0 / 12.5% 100% no-repeat,
+      linear-gradient(to right, var(--border) 1px, transparent 1px) 75% 0 / 12.5% 100% no-repeat,
+      linear-gradient(to right, var(--border) 1px, transparent 1px) 87.5% 0 / 12.5% 100% no-repeat,
+      var(--bg-alt);
+    border-radius: 4px;
+  }
+  .c4-lane .match {
+    position: absolute;
+    top: 4px; bottom: 4px;
+    border-radius: 4px;
+    padding: 0 10px;
+    display: flex; align-items: center; gap: 8px;
+    font-size: 11px;
+    color: #fff;
+    cursor: pointer;
+    overflow: hidden;
+  }
+  .c4-lane .match .m-teams { font-weight: 700; white-space: nowrap; }
+  .c4-lane .match .m-score { font-family: var(--ff-mono); font-weight: 800; margin-left: auto; }
+  .c4-lane .now {
+    position: absolute;
+    top: -4px; bottom: -4px;
+    width: 2px;
+    background: var(--accent);
+    z-index: 5;
+  }
+  .c4-lane .now::before {
+    content: 'NOW';
+    position: absolute;
+    top: -16px; left: 50%; transform: translateX(-50%);
+    background: var(--accent); color: #fff;
+    font-family: var(--ff-mono); font-size: 9px; font-weight: 800;
+    padding: 1px 5px; border-radius: 2px;
+  }
+
+  /* ============================================================
+     CONCEPT 5 — MATCHUP PREVIEW (NBA-style)
+     ============================================================ */
+  .c5-card {
+    background: linear-gradient(180deg, #0E1118 0%, #1A1F2B 100%);
+    color: #fff;
+    border-radius: 8px;
+    padding: 20px 24px;
+    position: relative;
+    overflow: hidden;
+  }
+  .c5-card::before {
+    content: '#1';
+    position: absolute;
+    top: -20px; right: 18px;
+    font-family: var(--ff-display);
+    font-size: 110px; font-weight: 900;
+    color: rgba(255,255,255,0.04);
+    letter-spacing: -0.04em;
+    line-height: 1;
+  }
+  .c5-card .top {
+    display: flex; justify-content: space-between; align-items: center;
+    font-family: var(--ff-mono); font-size: 11px; color: #9aa5b8;
+    margin-bottom: 14px;
+  }
+  .c5-card .top .stage { color: var(--accent); font-weight: 700; letter-spacing: 0.08em; }
+  .c5-card .matchup {
+    display: grid;
+    grid-template-columns: 1fr 80px 1fr;
+    gap: 14px;
+    align-items: center;
+  }
+  .c5-card .side {
+    display: flex; flex-direction: column; align-items: center; gap: 8px;
+  }
+  .c5-card .side.right .form { flex-direction: row-reverse; }
+  .c5-card .avatar.big { width: 56px; height: 56px; font-size: 20px; }
+  .c5-card .side .name {
+    font-family: var(--ff-display);
+    font-size: 18px; font-weight: 800; letter-spacing: -0.01em;
+  }
+  .c5-card .side .rank {
+    font-family: var(--ff-mono); font-size: 11px; color: #9aa5b8;
+    letter-spacing: 0.06em;
+  }
+  .c5-card .side .form {
+    display: flex; gap: 3px;
+  }
+  .c5-card .side .form .f {
+    width: 11px; height: 11px; border-radius: 2px; font-size: 8px;
+    color: #fff; display: grid; place-items: center; font-weight: 800;
+    font-family: var(--ff-mono);
+  }
+  .c5-card .side .form .f.w { background: var(--ok); }
+  .c5-card .side .form .f.l { background: #C7423C; }
+  .c5-card .center {
+    text-align: center;
+  }
+  .c5-card .center .time {
+    font-family: var(--ff-display);
+    font-size: 28px; font-weight: 900; letter-spacing: -0.02em;
+  }
+  .c5-card .center .court {
+    font-family: var(--ff-mono); font-size: 11px; color: #9aa5b8;
+    margin-top: 2px;
+  }
+  .c5-card .stats {
+    margin-top: 16px;
+    padding-top: 14px;
+    border-top: 1px solid rgba(255,255,255,0.08);
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    gap: 12px;
+    font-size: 12px;
+  }
+  .c5-card .stats .row {
+    display: flex; justify-content: space-between; align-items: center;
+    color: #c9d0dd;
+  }
+  .c5-card .stats .row.r { text-align: right; flex-direction: row-reverse; }
+  .c5-card .stats .row b { color: #fff; font-family: var(--ff-mono); }
+  .c5-card .stats .lbl {
+    font-family: var(--ff-mono); font-size: 10px; color: #6a7385;
+    letter-spacing: 0.1em; padding: 0 6px;
+  }
+
+  /* ============================================================
+     CONCEPT 6 — STATUS-ADAPTIVE (상태별 카드 폼)
+     ============================================================ */
+  .c6-card {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 14px 18px;
+    position: relative;
+    overflow: hidden;
+  }
+  .c6-card + .c6-card { margin-top: 10px; }
+  .c6-card.live {
+    background: linear-gradient(90deg, #FFF4F4 0%, #FFEAEA 100%);
+    border-color: var(--accent);
+    border-left-width: 4px;
+  }
+  .c6-card.ended { opacity: 0.78; background: #FAFBFD; }
+  .c6-card .accent-bar {
+    position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+    background: var(--cafe-blue);
+  }
+  .c6-card.live .accent-bar { background: var(--accent); width: 4px; }
+  .c6-card.ended .accent-bar { background: var(--ink-dim); }
+  .c6-grid {
+    display: grid;
+    grid-template-columns: 60px 1fr auto;
+    gap: 14px;
+    align-items: center;
+  }
+  .c6-grid .time {
+    font-family: var(--ff-display);
+    font-weight: 800; font-size: 20px;
+    color: var(--ink);
+    line-height: 1.1;
+  }
+  .c6-grid .court {
+    font-family: var(--ff-mono); font-size: 10px; color: var(--ink-mute); margin-top: 4px;
+    letter-spacing: 0.06em;
+  }
+  .c6-grid .center { min-width: 0; }
+  .c6-grid .row1 {
+    display: flex; gap: 8px; align-items: center; margin-bottom: 6px;
+    font-size: 11px; color: var(--ink-mute);
+  }
+  .c6-grid .matchup {
+    display: flex; align-items: center; gap: 10px;
+    font-family: var(--ff-display); font-weight: 800;
+    font-size: 16px;
+  }
+  .c6-grid .matchup .vs { color: var(--ink-mute); font-size: 13px; font-weight: 700; }
+  .c6-grid .matchup .winner { color: var(--ink); }
+  .c6-grid .matchup .loser { color: var(--ink-mute); }
+  .c6-grid .matchup .live-score {
+    font-family: var(--ff-mono); font-weight: 800; font-size: 22px;
+    color: var(--accent);
+  }
+  .c6-grid .matchup .live-score .sep { color: var(--ink-dim); margin: 0 4px; }
+  .c6-grid .cta {
+    padding: 8px 14px;
+    border-radius: 4px;
+    font-weight: 700; font-size: 13px;
+    border: 0;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .c6-grid .cta--watch { background: var(--accent); color: #fff;
+    display: inline-flex; align-items: center; gap: 5px;
+  }
+  .c6-grid .cta--watch::before {
+    content: ''; width: 6px; height: 6px; border-radius: 50%; background: #fff;
+    animation: pulse 1.2s infinite;
+  }
+  .c6-grid .cta--detail { background: var(--bg-alt); color: var(--ink-soft); border: 1px solid var(--border); }
+  .c6-grid .cta--result { background: #1F2937; color: #fff; }
+
+  /* notes */
+  .footnote {
+    margin-top: 60px;
+    padding: 22px 26px;
+    background: var(--bg-elev);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+  }
+  .footnote h3 { margin: 0 0 10px; font-size: 15px; font-weight: 700; }
+  .footnote ul { margin: 0; padding-left: 18px; color: var(--ink-soft); }
+  .footnote li { margin-bottom: 6px; line-height: 1.6; }
+  .footnote li b { color: var(--ink); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="pageHead">
+    <div class="eyebrow">EXPLORATION · v2.15 → v2.16</div>
+    <h1>경기 카드 6 방향</h1>
+    <p>현재 경기일정 row 는 "시간 · 코트 · 팀A vs 팀B · 상세" 한 줄이라 매치 사이 차이가 거의 없습니다. 카드에 시각적 무게와 상태감을 어떻게 줄지 6가지 방향으로 스케치했어요. 마음에 드는 방향(또는 조합) 알려주시면 v2.16 에 본 시안으로 들어갑니다.</p>
+    <div class="currentNote">
+      <b>현재 (v2.15) :</b> 시간 코트 라벨 "팀A vs 팀B" [상세] — 모든 매치가 동일 폼. 종별/코트/상태로 구분 약함.
+    </div>
+  </header>
+
+  <!-- ============================================================
+       CONCEPT 1 — VS POSTER
+       ============================================================ -->
+  <article class="concept">
+    <div class="head">
+      <span class="num">01</span>
+      <h2>VS 포스터</h2>
+      <span class="badge">엔터테인먼트형</span>
+      <p class="desc">팀 컬러로 좌·우 사선 분할. 가운데 큰 VS 뱃지. 격투기 / 스포츠 중계 매치업 그래픽 느낌. 카드 자체가 "포스터" 가 되어 매치마다 강하게 구분됨.</p>
+    </div>
+    <div class="preview">
+
+      <div class="c1-card">
+        <div class="meta">
+          <span class="time">09:30 · 예선 1경기</span>
+          <span class="badge badge--live"><span class="dot"></span>LIVE · Q2 03:24</span>
+        </div>
+        <div class="side left">
+          <div>
+            <div class="seed">SEED 04</div>
+            <div class="name">김포홉스타</div>
+          </div>
+        </div>
+        <div class="side right">
+          <div>
+            <div class="seed">SEED 12</div>
+            <div class="name">스티즈강남</div>
+          </div>
+        </div>
+        <div class="vs">VS</div>
+        <div class="footer">
+          <span>📍 강남구민체육관</span>
+          <span style="font-family:var(--ff-mono);font-weight:800;">14 — 09</span>
+        </div>
+      </div>
+
+    </div>
+    <div class="pros">
+      <span>👍 <b>매치마다 강한 시각 차</b> (팀 컬러)</span>
+      <span>👍 SNS / 공유에 강함</span>
+      <span>⚠️ 정보 밀도 ↓ (한 화면에 적게 보임)</span>
+      <span>⚠️ 일정 빠르게 훑기엔 무거움</span>
+    </div>
+  </article>
+
+  <!-- ============================================================
+       CONCEPT 2 — LED SCOREBOARD
+       ============================================================ -->
+  <article class="concept">
+    <div class="head">
+      <span class="num">02</span>
+      <h2>LED 점수판</h2>
+      <span class="badge">스타디움 메타포</span>
+      <p class="desc">실제 농구 점수판 메타포. 검정 배경 + 앰버 mono 숫자. 코트별로 다른 컬러 라벨 (코트1 = 파랑 / 코트2 = 청록 / 코트3 = 보라). LIVE / 종료 시 시각적 차이 큼.</p>
+    </div>
+    <div class="preview dark">
+
+      <!-- LIVE -->
+      <div class="c2-row">
+        <div class="left">
+          <div class="time">Q2</div>
+          <div class="court">COURT 01 · 09:30</div>
+        </div>
+        <div class="center">
+          <div class="team"><span class="dot" style="background:#1F4FA0"></span>김포홉스타</div>
+          <div class="score">14<span class="vs">:</span>09</div>
+          <div class="team right">스티즈강남<span class="dot" style="background:#C2362E"></span></div>
+        </div>
+        <div class="right-info">
+          <div class="q">LIVE 03:24</div>
+          <div>EVENT · 1R</div>
+        </div>
+      </div>
+
+      <!-- 종료 -->
+      <div class="c2-row ended">
+        <div class="left">
+          <div class="time">FT</div>
+          <div class="court">COURT 02 · 08:30</div>
+        </div>
+        <div class="center">
+          <div class="team"><span class="dot" style="background:#1CA05E"></span>그로우</div>
+          <div class="score">28<span class="vs">:</span>14</div>
+          <div class="team right" style="color:#6B7280">YNC A<span class="dot" style="background:#6B7280"></span></div>
+        </div>
+        <div class="right-info">
+          <div class="q">FINAL</div>
+          <div>EVENT · 1R</div>
+        </div>
+      </div>
+
+    </div>
+    <div class="pros">
+      <span>👍 <b>스포츠다운 정체성</b> · BDR 브랜드와 결</span>
+      <span>👍 LIVE 매치 즉각 식별</span>
+      <span>👍 코트별 컬러로 빠른 구분</span>
+      <span>⚠️ 다크 영역이라 라이트 테마 본문과 대비 강함 — 의도 시 OK</span>
+    </div>
+  </article>
+
+  <!-- ============================================================
+       CONCEPT 3 — TICKET
+       ============================================================ -->
+  <article class="concept">
+    <div class="head">
+      <span class="num">03</span>
+      <h2>경기 티켓</h2>
+      <span class="badge">컬렉터블 메타포</span>
+      <p class="desc">실제 경기 입장권 메타포. 좌측 컬러 stub(시간·게임번호) + punched edge + 본문(대진) + 우측 정보(코트). 상태별로 stub 컬러 바뀜 (예정=네이비 / LIVE=빨강 / 종료=회색).</p>
+    </div>
+    <div class="preview">
+
+      <!-- 예정 -->
+      <div class="c3-row">
+        <div class="c3-stub">
+          <div class="num">#1</div>
+          <div class="time">09:30</div>
+          <div class="label">예선 1경기</div>
+        </div>
+        <div class="c3-divider"></div>
+        <div class="c3-main">
+          <div class="team">
+            <div class="avatar" style="background:#1F4FA0">김</div>
+            <div>
+              <div class="name">김포홉스타</div>
+              <div class="seed">SEED 04 · 12승 3패</div>
+            </div>
+          </div>
+          <div class="vs">VS</div>
+          <div class="team right">
+            <div>
+              <div class="name">스티즈강남</div>
+              <div class="seed">SEED 12 · 9승 6패</div>
+            </div>
+            <div class="avatar" style="background:#C2362E">스</div>
+          </div>
+        </div>
+        <div class="c3-aside">
+          <div class="court">COURT · 1</div>
+          <div class="gym">강남구민체육관</div>
+          <div class="cta">상세 →</div>
+        </div>
+      </div>
+
+      <!-- LIVE -->
+      <div class="c3-row">
+        <div class="c3-stub live">
+          <div class="num">#2</div>
+          <div class="time">10:00</div>
+          <div class="label">LIVE</div>
+        </div>
+        <div class="c3-divider"></div>
+        <div class="c3-main">
+          <div class="team">
+            <div class="avatar" style="background:#1CA05E">그</div>
+            <div>
+              <div class="name">그로우</div>
+              <div class="seed">SEED 01</div>
+            </div>
+          </div>
+          <div class="score">14<span style="color:var(--ink-dim);margin:0 4px;">:</span><span class="lose">09</span></div>
+          <div class="team right">
+            <div>
+              <div class="name">YNC A</div>
+              <div class="seed">SEED 08</div>
+            </div>
+            <div class="avatar" style="background:#7C3AED">Y</div>
+          </div>
+        </div>
+        <div class="c3-aside">
+          <div class="court">COURT · 2</div>
+          <div class="gym">강남구민체육관</div>
+          <div class="cta" style="color:var(--accent);">중계 보기 →</div>
+        </div>
+      </div>
+
+      <!-- 종료 -->
+      <div class="c3-row">
+        <div class="c3-stub ended">
+          <div class="num">#3</div>
+          <div class="time">11:00</div>
+          <div class="label">FINAL</div>
+        </div>
+        <div class="c3-divider"></div>
+        <div class="c3-main">
+          <div class="team">
+            <div class="avatar" style="background:#E8A33B">강</div>
+            <div>
+              <div class="name">강동SK</div>
+              <div class="seed" style="color:var(--ok);font-weight:700;">WIN</div>
+            </div>
+          </div>
+          <div class="score">28<span style="color:var(--ink-dim);margin:0 4px;">:</span><span class="lose">14</span></div>
+          <div class="team right" style="opacity:0.6;">
+            <div>
+              <div class="name">다산SK</div>
+              <div class="seed">LOSE</div>
+            </div>
+            <div class="avatar" style="background:#6B7280">다</div>
+          </div>
+        </div>
+        <div class="c3-aside">
+          <div class="court">COURT · 1</div>
+          <div class="gym">수도공고</div>
+          <div class="cta">결과 →</div>
+        </div>
+      </div>
+
+    </div>
+    <div class="pros">
+      <span>👍 <b>"경기 티켓" 컬렉션감</b> — 마이페이지에서 모아보기 가능</span>
+      <span>👍 상태별 컬러 stub 으로 한 눈 구분</span>
+      <span>👍 정보량 / 구분 / 친근감 균형</span>
+      <span>👍 정통 BDR 카페 느낌과 호환</span>
+    </div>
+  </article>
+
+  <!-- ============================================================
+       CONCEPT 4 — COURT LANE
+       ============================================================ -->
+  <article class="concept">
+    <div class="head">
+      <span class="num">04</span>
+      <h2>코트 레인 / 간트차트</h2>
+      <span class="badge">정보 시각화형</span>
+      <p class="desc">코트별 가로 lane × 시간축. 한 눈에 코트별 흐름 + 빈 시간 + 동시 진행 매치 파악. 공항 게이트 보드 / 프로젝트 간트 메타포. "지금 NOW" 라인이 실시간 진행 위치 표시.</p>
+    </div>
+    <div class="preview">
+
+      <div class="c4-board">
+        <div class="c4-axis">
+          <div></div>
+          <div class="tick">09:00</div>
+          <div class="tick">10:00</div>
+          <div class="tick">11:00</div>
+          <div class="tick">12:00</div>
+          <div class="tick">13:00</div>
+          <div class="tick">14:00</div>
+          <div class="tick">15:00</div>
+          <div class="tick">16:00</div>
+        </div>
+
+        <div class="c4-lane">
+          <div class="laneLabel"><span class="swatch" style="background:#1F4FA0"></span>코트 1</div>
+          <div class="track">
+            <div class="match" style="left:6.25%; width:11%; background:#1F4FA0">
+              <span class="m-teams">김포 vs 스티즈</span>
+              <span class="m-score">FT 28:14</span>
+            </div>
+            <div class="match" style="left:18%; width:11%; background:var(--accent)">
+              <span class="m-teams">그로우 vs YNC</span>
+              <span class="m-score">14:09</span>
+            </div>
+            <div class="match" style="left:30%; width:11%; background:#1F4FA0; opacity:0.6;">
+              <span class="m-teams">강동 vs 다산</span>
+            </div>
+            <div class="match" style="left:55%; width:11%; background:#1F4FA0; opacity:0.6;">
+              <span class="m-teams">8강 #1</span>
+            </div>
+            <div class="now" style="left:22%;"></div>
+          </div>
+        </div>
+
+        <div class="c4-lane">
+          <div class="laneLabel"><span class="swatch" style="background:#7C3AED"></span>코트 2</div>
+          <div class="track">
+            <div class="match" style="left:6.25%; width:11%; background:#7C3AED">
+              <span class="m-teams">YNC B vs 김포홀</span>
+              <span class="m-score">FT 22:18</span>
+            </div>
+            <div class="match" style="left:18%; width:11%; background:#7C3AED; opacity:0.6;">
+              <span class="m-teams">강남삼성 vs 그로우</span>
+            </div>
+            <div class="match" style="left:42%; width:11%; background:#7C3AED; opacity:0.6;">
+              <span class="m-teams">4강 #1</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="c4-lane">
+          <div class="laneLabel"><span class="swatch" style="background:#1CA05E"></span>코트 3</div>
+          <div class="track">
+            <div class="match" style="left:18%; width:11%; background:#1CA05E; opacity:0.6;">
+              <span class="m-teams">구리 vs 김포홀</span>
+            </div>
+            <div class="match" style="left:30%; width:11%; background:#1CA05E; opacity:0.6;">
+              <span class="m-teams">예선 #6</span>
+            </div>
+            <div class="match" style="left:67%; width:11%; background:#1CA05E; opacity:0.6;">
+              <span class="m-teams">결승</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+    <div class="pros">
+      <span>👍 <b>"몇 시에 어디서 뭐 해?"</b> 압도적으로 빠름</span>
+      <span>👍 빈 시간 / 동시 매치 한 눈</span>
+      <span>👍 NOW 라인으로 진행 상황 즉시</span>
+      <span>⚠️ 모바일 변환 어려움 → 데스크톱 메인 + 모바일은 03(티켓) 으로 fallback 추천</span>
+    </div>
+  </article>
+
+  <!-- ============================================================
+       CONCEPT 5 — MATCHUP PREVIEW
+       ============================================================ -->
+  <article class="concept">
+    <div class="head">
+      <span class="num">05</span>
+      <h2>매치업 카드 (NBA Preview)</h2>
+      <span class="badge">데이터 풍부형</span>
+      <p class="desc">NBA.com / ESPN 의 게임 preview 카드 스타일. 양팀 큰 아바타 + 시드 + 최근 5경기 폼(W/L 도트) + 키 스탯(평균득점/리바운드). 정보량 많고 "보고 싶게" 만듦.</p>
+    </div>
+    <div class="preview dark">
+
+      <div class="c5-card">
+        <div class="top">
+          <span class="stage">EVENT · 8강 1경기</span>
+          <span>📍 강남구민체육관 · COURT 01</span>
+        </div>
+        <div class="matchup">
+          <div class="side">
+            <div class="avatar big" style="background:#1F4FA0">김</div>
+            <div class="name">김포홉스타</div>
+            <div class="rank">SEED 04 · 12승 3패</div>
+            <div class="form">
+              <span class="f w">W</span><span class="f w">W</span><span class="f l">L</span><span class="f w">W</span><span class="f w">W</span>
+            </div>
+          </div>
+          <div class="center">
+            <div class="time">09:30</div>
+            <div class="court">SAT 5/16</div>
+          </div>
+          <div class="side right">
+            <div class="avatar big" style="background:#C2362E">스</div>
+            <div class="name">스티즈강남</div>
+            <div class="rank">SEED 12 · 9승 6패</div>
+            <div class="form">
+              <span class="f w">W</span><span class="f l">L</span><span class="f w">W</span><span class="f l">L</span><span class="f w">W</span>
+            </div>
+          </div>
+        </div>
+        <div class="stats">
+          <div class="row"><span>평균득점</span><b>74.2</b></div>
+          <div class="lbl">PPG</div>
+          <div class="row r"><span>평균득점</span><b>68.5</b></div>
+          <div class="row"><span>최근 맞대결</span><b>2승 1패</b></div>
+          <div class="lbl">H2H</div>
+          <div class="row r"><span>최근 맞대결</span><b>1승 2패</b></div>
+        </div>
+      </div>
+
+    </div>
+    <div class="pros">
+      <span>👍 <b>"이 경기 볼 만한가?"</b> 즉시 판단</span>
+      <span>👍 통계 fan 들이 좋아함</span>
+      <span>⚠️ 카드 키 큼 → 한 화면에 적게</span>
+      <span>⚠️ 모든 팀 스탯이 모이지 않으면 빈약</span>
+    </div>
+  </article>
+
+  <!-- ============================================================
+       CONCEPT 6 — STATUS-ADAPTIVE
+       ============================================================ -->
+  <article class="concept">
+    <div class="head">
+      <span class="num">06</span>
+      <h2>상태별 변신 카드</h2>
+      <span class="badge">실용형 · 추천</span>
+      <p class="desc">한 카드 폼이 상태(예정/LIVE/종료)별로 자동 변신. 라이브는 빨강 + 펄스 + 실시간 스코어, 예정은 카운트다운 + 시드, 종료는 dim + 승자 highlight. 정보 밀도 유지하면서 LIVE 매치가 가장 강하게 튐.</p>
+    </div>
+    <div class="preview">
+
+      <!-- 예정 -->
+      <div class="c6-card">
+        <div class="accent-bar"></div>
+        <div class="c6-grid">
+          <div>
+            <div class="time">09:30</div>
+            <div class="court">CRT 1 · #1</div>
+          </div>
+          <div class="center">
+            <div class="row1">
+              <span class="badge badge--upcoming">예정 · 30분 후</span>
+              <span style="color:var(--ink-mute);font-family:var(--ff-mono);">예선 1경기</span>
+            </div>
+            <div class="matchup">
+              <div class="avatar" style="background:#1F4FA0;width:28px;height:28px;font-size:12px;">김</div>
+              <span>김포홉스타</span>
+              <span class="vs">VS</span>
+              <span>스티즈강남</span>
+              <div class="avatar" style="background:#C2362E;width:28px;height:28px;font-size:12px;">스</div>
+            </div>
+          </div>
+          <button class="cta cta--detail">상세 →</button>
+        </div>
+      </div>
+
+      <!-- LIVE -->
+      <div class="c6-card live">
+        <div class="accent-bar"></div>
+        <div class="c6-grid">
+          <div>
+            <div class="time" style="color:var(--accent);">Q2</div>
+            <div class="court" style="color:var(--accent);">03:24 · CRT 2</div>
+          </div>
+          <div class="center">
+            <div class="row1">
+              <span class="badge badge--live"><span class="dot"></span>LIVE</span>
+              <span style="color:var(--accent);font-family:var(--ff-mono);font-weight:700;">예선 2경기</span>
+            </div>
+            <div class="matchup">
+              <div class="avatar" style="background:#1CA05E;width:28px;height:28px;font-size:12px;">그</div>
+              <span>그로우</span>
+              <span class="live-score">14<span class="sep">:</span>09</span>
+              <span>YNC A</span>
+              <div class="avatar" style="background:#7C3AED;width:28px;height:28px;font-size:12px;">Y</div>
+            </div>
+          </div>
+          <button class="cta cta--watch">중계</button>
+        </div>
+      </div>
+
+      <!-- 종료 -->
+      <div class="c6-card ended">
+        <div class="accent-bar"></div>
+        <div class="c6-grid">
+          <div>
+            <div class="time">FT</div>
+            <div class="court">CRT 1 · #3</div>
+          </div>
+          <div class="center">
+            <div class="row1">
+              <span class="badge badge--ended">종료</span>
+              <span style="color:var(--ink-mute);font-family:var(--ff-mono);">예선 3경기</span>
+            </div>
+            <div class="matchup">
+              <div class="avatar" style="background:#E8A33B;width:28px;height:28px;font-size:12px;">강</div>
+              <span class="winner">강동SK <span style="color:var(--ok);font-family:var(--ff-mono);font-size:11px;font-weight:800;">28</span></span>
+              <span class="vs">·</span>
+              <span class="loser">다산SK <span style="font-family:var(--ff-mono);font-size:11px;font-weight:800;">14</span></span>
+              <div class="avatar" style="background:#6B7280;width:28px;height:28px;font-size:12px;opacity:0.6;">다</div>
+            </div>
+          </div>
+          <button class="cta cta--result">결과 →</button>
+        </div>
+      </div>
+
+    </div>
+    <div class="pros">
+      <span>👍 <b>현 시안 정보 밀도 유지</b> + 상태별 강한 차이</span>
+      <span>👍 LIVE 매치 가장 튀게 / 종료는 자연스럽게 dim</span>
+      <span>👍 모바일 변환 매끄러움</span>
+      <span>👍 구현 비용 낮음 (한 컴포넌트 + 상태 props)</span>
+    </div>
+  </article>
+
+  <!-- ============================================================
+       FOOTNOTE
+       ============================================================ -->
+  <div class="footnote">
+    <h3>제안 — 조합 추천</h3>
+    <ul>
+      <li><b>안전한 기본 :</b> 06 상태별 변신 카드 — 현 시안 그대로 두면서 상태감만 강하게. 가장 빠르게 적용 가능.</li>
+      <li><b>BDR 다운 :</b> 02 LED 점수판 + 03 티켓 stub 결합 — "스타디움" 정체성. mybdr.kr 브랜드와 결.</li>
+      <li><b>야심작 :</b> 04 코트 레인 (데스크톱 상단) + 03 티켓 (모바일·리스트 fallback) — 한 페이지 안 시점 두 개.</li>
+      <li><b>이번 v2.16 결정 사항 :</b> 어느 방향(또는 조합) 으로 갈지 + 대회 목록 카드도 같이 갈지(현재는 경기일정 카드만) 알려주세요.</li>
+    </ul>
+  </div>
+
+</div>
+</body>
+</html>
