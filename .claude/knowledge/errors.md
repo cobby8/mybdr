@@ -2,6 +2,45 @@
 <!-- 담당: debugger, tester | 최대 30항목 -->
 <!-- 이 프로젝트에서 반복되는 에러 패턴, 함정, 주의사항을 기록 -->
 
+### [2026-05-18] standings losses 부정합 — updateTeamStandings "호출자 home/away 2팀만 SET" 특성 race
+- **분류**: error/race (강남구협회장배 운영 중)
+- **발견자**: pm (사용자 보고 이미지 #26 — "i2 U12 예선 결과 집계 잘못됨")
+- **증상**: 토너먼트 `bd527531...` 5/17 강남구협회장배 6 종별 중 **i2-U12 + i3w-U12 만 losses 박제 누락** (5팀 × 일부 = 5건 losses 누락). PF/PA/wins/winPoints/winner_team_id 는 모두 정확. UI 표시 = "김포SK 2승 1패 (실제 2승 2패)" / "조성훈 1승 1패 (실제 1승 3패)" 등 패배 누락
+- **근본 원인 (확정 불가, 가장 유력 가설)**:
+  - `updateTeamStandings(matchId)` 는 SET 방식이지만 **호출자 매치의 home/away 2팀만 UPDATE** (성능 trade-off — 종별 전체 N팀 SET 회피)
+  - 5/16 commit `817cf4d` (`updateMany` where 절 buggy `teamId: homeId` → `id: homeId` fix) 이전 → wins/losses 박제 거의 안 됨
+  - fix 이후 새 매치 종료 시 그 매치 home/away 만 SET → 다른 팀은 stale 유지
+  - 모든 매치 종료 시점 = 각 팀이 "마지막 home/away 였던 매치" 시점의 합산값으로 박제
+  - 일부 케이스 (race / retroactive 수정 / 어드민 직접 SET) 시 일부 팀 stale 값 잔존
+  - **`tournament_match_audits` 박제 0건** → 정확한 매치별 추적 불가
+- **fix (즉시)**: `scripts/_temp/fix-gnba-standings.ts` 종별 전체 재계산 SET UPDATE (i2-U12 + i3w-U12 11팀 SET) — 사용자 명시 승인 후 실행
+- **재발 방지 룰**:
+  1. **종별 전체 standings 재계산 admin 엔드포인트 신설** (`/admin/tournaments/[id]/divisions/[code]/recalc-standings`) — 운영자 1-click 호출
+  2. **`tournament_match_audits` 박제 의무** — score-sheet submit + 어드민 매치 PATCH 시 status / winner_team_id 변경 audit 박제 (현재 0건 = 디버깅 불가)
+  3. **운영 종료 후 진단 스크립트 표준 절차** = `diag-gnba-all-divisions.ts` 패턴 (종별 DB vs 실측 자동 비교)
+  4. **`updateTeamStandings` 종별 모든 팀 일괄 SET 검토** — 현재 2팀만 = race window. 종별 전체 SET = race 0 (성능 trade-off / 큰 종별 비용 검토 필요)
+  5. **대회 종료 직후 자동 consistency check (cron)** — UI 표시 전 차이 발견
+- **검증**: fix 적용 후 6 종별 모두 DB = 실측 (diag 0건)
+- **참조횟수**: 0
+
+### [2026-05-17] Turbopack HMR — "module factory is not available" + "Switched to client rendering"
+- **분류**: error/dev-server (Next.js 16.1.6 Turbopack)
+- **발견자**: pm (사용자 보고 — 라이브 페이지 UI 정리 PR `335a9fe` 머지 직후 dev 서버에서 발생)
+- **증상**: localhost:3001 라이브 페이지(`/live/[id]`) 진입 시 "Recoverable Error — Switched to client rendering because the server rendering errored. Module ... was instantiated because it was required from module ... but the module factory is not available." SSR 폴백으로 페이지는 보이지만 콘솔 빨강 에러
+- **근본 원인**:
+  - 큰 파일 (page.tsx 2000+ 줄) + 의존 컴포넌트 (youtube-embed.tsx) 가 **동시에 크게 바뀌면** Turbopack 의 module dependency graph 가 hot-reload 도중 stale 참조를 들고 있음
+  - 코드 자체는 정상 (tsc 0 통과 / 운영/Vercel 빌드는 영향 없음)
+  - 5/12 errors.md "Jest worker child process exceptions" 와 동일 카테고리 (HMR worker pool stale)
+- **fix**:
+  - **Step 1 (90% 케이스)**: dev 서버 단순 재시작 (Ctrl+C → `npm run dev`)
+  - **Step 2 (Step 1 실패 시)**: `.next` + `node_modules/.cache` 삭제 후 재시작
+  - **금지**: `taskkill //f //im node.exe` (다른 프로젝트 dev 서버 + Claude Code 자체 동시 죽음). 포트별 PID 종료만 허용
+- **재발 방지 룰**:
+  - **큰 파일 ± 의존 컴포넌트 동시 변경 commit/머지 후** → dev 서버 자동 재시작 권장 (HMR 신뢰 X)
+  - **"Recoverable Error" 라벨 = 코드 문제 아님** 1차 가설로 dev 서버 재시작부터. 코드 회귀 X
+  - 운영/Vercel 빌드는 별도 검증 — Turbopack HMR ≠ production build
+- **참조횟수**: 0
+
 ### [2026-05-17] YouTube 자동 매핑 — 공백 포함 다단어 팀명 토큰 분리 실패 ("YNC B" 사고)
 - **분류**: 알고리즘 / 다단어 입력 처리 누락 (5/10 swap-aware 백포트 후 잔존 케이스)
 - **발견자**: pm (사용자 보고 "5/17 강남구협회장배 유소년부 유튜브 라이브 모두 매핑됐는지 확인")

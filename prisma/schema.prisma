@@ -211,11 +211,11 @@ model User {
   // verified_birth: 인증 시점의 생년월일 (User.birth_date 와 별도)
   // name_verified: 인증 완료 여부 (대회 신청 게이트에서 true 검사)
   // verified_at: 인증 완료 시각 (감사 로그용)
-  verified_name  String?   @db.VarChar(100)
-  verified_phone String?   @db.VarChar(20)
-  verified_birth DateTime? @db.Date
-  name_verified  Boolean   @default(false)
-  verified_at    DateTime? @db.Timestamp(6)
+  verified_name   String?   @db.VarChar(100)
+  verified_phone  String?   @db.VarChar(20)
+  verified_birth  DateTime? @db.Date
+  name_verified   Boolean   @default(false)
+  verified_at     DateTime? @db.Timestamp(6)
   // 5/8 — 본인인증 출처 표식 (mock / portone / null=미인증)
   // 사유: PortOne 활성화 후 mock 통과자 사후 식별 + 권유 안내 + 통계
   // 백필 X — 신규 인증 시점부터 기록. 기존 통과자 (5/7 이전) = null 유지
@@ -259,8 +259,8 @@ model User {
   // 2026-05-11 Phase 1 (유소년 일괄 등록) — 부모-자녀 관계 + ttp 클레임 역참조
   // childProfiles: 본 user 가 부모로 등록한 자녀 프로필 (재사용 가능)
   // ttpClaimed: 본 user 가 부모 클레임으로 자녀 선수와 연결한 ttp row 역참조
-  childProfiles ChildProfile[]          @relation("ChildProfileParent")
-  ttpClaimed    TournamentTeamPlayer[]  @relation("TtpClaimedUser")
+  childProfiles ChildProfile[]         @relation("ChildProfileParent")
+  ttpClaimed    TournamentTeamPlayer[] @relation("TtpClaimedUser")
 
   @@unique([provider, uid], map: "index_users_on_provider_and_uid")
   @@index([createdAt], map: "index_users_on_created_at")
@@ -356,6 +356,10 @@ model Tournament {
   users_tournaments_organizer_idTousers  User                          @relation("tournaments_organizer_idTousers", fields: [organizerId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_rails_5037ef73fd")
   users_tournaments_mvp_player_idTousers User?                         @relation("tournaments_mvp_player_idTousers", fields: [mvp_player_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_rails_85db3c3f6e")
 
+  // 2026-05-14 Phase 5 C — 마법사 회차 자동 채번 race condition 차단.
+  // PostgreSQL UNIQUE 는 NULL 행끼리 unique 비교 안 함 → 회차 없는 대회 (series_id=NULL) 영향 0.
+  // 사후 검증 (작업 C 진입 전 02-db-changes §7): drift 0 / 중복 0 통과.
+  @@unique([series_id, edition_number], map: "tournaments_series_edition_unique")
   @@index([champion_team_id], map: "index_tournaments_on_champion_team_id")
   @@index([divisions], map: "index_tournaments_on_divisions", type: Gin)
   @@index([is_public], map: "index_tournaments_on_is_public")
@@ -368,10 +372,6 @@ model Tournament {
   @@index([status, startDate], map: "index_tournaments_on_status_and_start_date")
   @@index([venue_id], map: "index_tournaments_on_venue_id")
   @@index([city], map: "index_tournaments_on_city")
-  // 2026-05-14 Phase 5 C — 마법사 회차 자동 채번 race condition 차단.
-  // PostgreSQL UNIQUE 는 NULL 행끼리 unique 비교 안 함 → 회차 없는 대회 (series_id=NULL) 영향 0.
-  // 사후 검증 (작업 C 진입 전 02-db-changes §7): drift 0 / 중복 0 통과.
-  @@unique([series_id, edition_number], map: "tournaments_series_edition_unique")
   @@map("tournaments")
 }
 
@@ -522,24 +522,24 @@ model team_match_requests {
 }
 
 model TeamMember {
-  id           BigInt    @id @default(autoincrement())
-  teamId       BigInt    @map("team_id")
-  userId       BigInt    @map("user_id")
-  jerseyNumber Int?      @map("jersey_number")
-  role         String?   @default("member") @db.VarChar
-  position     String?   @db.VarChar
-  status       String?   @default("active") @db.VarChar
-  joined_at    DateTime? @db.Timestamp(6)
-  left_at      DateTime? @db.Timestamp(6)
+  id               BigInt    @id @default(autoincrement())
+  teamId           BigInt    @map("team_id")
+  userId           BigInt    @map("user_id")
+  jerseyNumber     Int?      @map("jersey_number")
+  role             String?   @default("member") @db.VarChar
+  position         String?   @db.VarChar
+  status           String?   @default("active") @db.VarChar
+  joined_at        DateTime? @db.Timestamp(6)
+  left_at          DateTime? @db.Timestamp(6)
   // 2026-05-05 Phase 5 PR14 — 활동 추적 컬럼 (유령회원 후보 분류용)
   // 이유(왜): 보고서 §3-1 — 3개월 미활동 멤버 후보 조회 + 미묘 룰 #3 5분 throttle UPDATE.
   //   NULL 허용 ADD COLUMN — 무중단 변경. 기존 row 의 last_activity_at = NULL → createdAt 기준
   //   3개월 후보 평가 로직에서 fallback 처리.
   last_activity_at DateTime? @map("last_activity_at") @db.Timestamp(6)
-  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
-  updatedAt    DateTime  @updatedAt @map("updated_at") @db.Timestamp(6)
-  team         Team      @relation(fields: [teamId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_rails_194b5b076d")
-  user         User      @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_rails_9ec2d5e75e")
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt        DateTime  @updatedAt @map("updated_at") @db.Timestamp(6)
+  team             Team      @relation(fields: [teamId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_rails_194b5b076d")
+  user             User      @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_rails_9ec2d5e75e")
 
   @@unique([teamId, jerseyNumber], map: "index_team_members_on_team_id_and_jersey_number")
   @@unique([teamId, userId], map: "index_team_members_on_team_id_and_user_id")
@@ -3323,16 +3323,16 @@ model MatchLineupConfirmed {
 /// 부모 계정에 종속된 자녀 프로필 — 1 부모 : N 자녀. 재사용 가능 (다른 대회에서도 동일 자녀 참가).
 /// 클레임 성공 시 ChildProfile 생성 → TournamentTeamPlayer.child_profile_id 가 본 row 를 가리킴.
 model ChildProfile {
-  id              BigInt    @id @default(autoincrement())
-  parentUserId    BigInt    @map("parent_user_id")
-  childName       String    @map("child_name") @db.VarChar
-  childBirthdate  DateTime  @map("child_birthdate") @db.Date
-  childGrade      Int?      @map("child_grade")
-  schoolName      String?   @map("school_name") @db.VarChar
-  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
-  updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamp(6)
-  parent          User                   @relation("ChildProfileParent", fields: [parentUserId], references: [id])
-  rosters         TournamentTeamPlayer[]
+  id             BigInt                 @id @default(autoincrement())
+  parentUserId   BigInt                 @map("parent_user_id")
+  childName      String                 @map("child_name") @db.VarChar
+  childBirthdate DateTime               @map("child_birthdate") @db.Date
+  childGrade     Int?                   @map("child_grade")
+  schoolName     String?                @map("school_name") @db.VarChar
+  createdAt      DateTime               @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt      DateTime               @updatedAt @map("updated_at") @db.Timestamp(6)
+  parent         User                   @relation("ChildProfileParent", fields: [parentUserId], references: [id])
+  rosters        TournamentTeamPlayer[]
 
   @@index([parentUserId])
   @@map("child_profiles")
@@ -3342,13 +3342,13 @@ model ChildProfile {
 /// playerId 가 unique 이므로 ttp 1건 = 토큰 1건만 발급 (재발송은 동일 row UPDATE 또는 별도 정책).
 /// 일회용 = consumedAt 세팅 후 무효.
 model ClaimToken {
-  id              BigInt    @id @default(autoincrement())
-  playerId        BigInt    @unique @map("player_id")
-  token           String    @unique @db.VarChar
-  parentPhone     String    @map("parent_phone") @db.VarChar
-  expiresAt       DateTime  @map("expires_at") @db.Timestamp(6)
-  consumedAt      DateTime? @map("consumed_at") @db.Timestamp(6)
-  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
+  id          BigInt    @id @default(autoincrement())
+  playerId    BigInt    @unique @map("player_id")
+  token       String    @unique @db.VarChar
+  parentPhone String    @map("parent_phone") @db.VarChar
+  expiresAt   DateTime  @map("expires_at") @db.Timestamp(6)
+  consumedAt  DateTime? @map("consumed_at") @db.Timestamp(6)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
 
   @@index([token])
   @@map("claim_tokens")
@@ -3358,21 +3358,21 @@ model ClaimToken {
 /// 대회 setup 시 seed (scripts/_temp/seed-gangnam-divisions.ts).
 /// feeKrw = 종별 참가비 (팀 단위 신청 시점에 자동 계산용).
 model TournamentDivisionRule {
-  id              BigInt    @id @default(autoincrement())
-  tournamentId    String    @map("tournament_id") @db.Uuid
-  code            String    @db.VarChar
-  label           String    @db.VarChar
-  birthYearMin    Int?      @map("birth_year_min")
-  birthYearMax    Int?      @map("birth_year_max")
-  gradeMin        Int?      @map("grade_min")
-  gradeMax        Int?      @map("grade_max")
-  feeKrw          Int       @default(0) @map("fee_krw")
-  sortOrder       Int       @default(0) @map("sort_order")
+  id           BigInt     @id @default(autoincrement())
+  tournamentId String     @map("tournament_id") @db.Uuid
+  code         String     @db.VarChar
+  label        String     @db.VarChar
+  birthYearMin Int?       @map("birth_year_min")
+  birthYearMax Int?       @map("birth_year_max")
+  gradeMin     Int?       @map("grade_min")
+  gradeMax     Int?       @map("grade_max")
+  feeKrw       Int        @default(0) @map("fee_krw")
+  sortOrder    Int        @default(0) @map("sort_order")
   // 2026-05-12 Phase 3.5 — 종별 진행 방식 (단일 Tournament.format 우회, 종별마다 다른 방식 지원).
   //   값: single_elimination / double_elimination / round_robin / dual_tournament /
   //        group_stage_knockout / full_league_knockout / league_advancement /
   //        group_stage_with_ranking (Phase 3.5-D) / swiss / null (대회 format 폴백)
-  format          String?   @db.VarChar
+  format       String?    @db.VarChar
   // 종별별 추가 설정 (JSON):
   //   - group_size: 조당 팀 수 (예: 4) — Phase 3.5-D snake_case 표준
   //   - group_count: 조 수 (예: 4) — Phase 3.5-D snake_case 표준
@@ -3382,10 +3382,49 @@ model TournamentDivisionRule {
   //   - linkagePairs: 링크제 동순위전 페어 (예: [[1,2],[3,4]] = 1·2위 / 3·4위)
   //   - bracketSize: 본선 토너먼트 사이즈 (예: 8 = 8강 시작)
   //   - notes: 운영자 메모
-  settings        Json?     @default("{}")
-  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
-  tournament      Tournament @relation(fields: [tournamentId], references: [id])
+  settings     Json?      @default("{}")
+  createdAt    DateTime   @default(now()) @map("created_at") @db.Timestamp(6)
+  tournament   Tournament @relation(fields: [tournamentId], references: [id])
 
   @@index([tournamentId])
   @@map("tournament_division_rules")
+}
+
+/// 대회 요강 AI 분석 audit (prospectus AI wizard / Phase 1-C 박제 2026-05-20).
+///
+/// 박제 룰:
+/// - INSERT only / SELECT 위주 (audit) — UPDATE 는 status 전이 (`completed` → `applied`) 만
+/// - tournamentId / userId = FK 컬럼만 박제 (@relation 사용 X / ClaimToken 패턴)
+///   → Tournament + User 모델 schema 변경 0 → 운영 무중단 100%
+/// - tournamentId NULL 허용 = wizard 진입 시점엔 대회 ID 미생성 (analyze → 사용자 검토 → wizard 저장 → 대회 생성)
+/// - analysisRaw = ProspectusAnalysisResult JSON 그대로 박제 (필드별 confidence + source_excerpt 포함)
+/// - 비용 추적 = inputTokens / outputTokens / totalTokens (Vercel AI Gateway usage 반환값)
+/// - audit 추적 = promptVersion (v1 / v2 ...) + modelId ("anthropic/claude-sonnet-4")
+/// - status 4종: "completed" (분석 성공) / "applied" (wizard 적용 완료) / "failed" (AI 호출 실패) / "discarded" (사용자 폐기)
+/// - errorCode = AIAnalysisErrorCode (schema_validation / timeout / auth / rate_limit / unknown) — status=failed 시 박제
+model ProspectusAiAnalysis {
+  id            BigInt   @id @default(autoincrement())
+  tournamentId  String?  @map("tournament_id") @db.Uuid
+  userId        BigInt   @map("user_id")
+  fileName      String?  @map("file_name") @db.VarChar
+  fileSize      Int?     @map("file_size")
+  fileMime      String?  @map("file_mime") @db.VarChar
+  sourceType    String   @map("source_type") @db.VarChar // "pdf" | "image"
+  analysisRaw   Json     @map("analysis_raw") // ProspectusAnalysisResult JSON
+  promptVersion String   @map("prompt_version") @db.VarChar // "v1"
+  modelId       String   @map("model_id") @db.VarChar // "anthropic/claude-sonnet-4"
+  inputTokens   Int?     @map("input_tokens")
+  outputTokens  Int?     @map("output_tokens")
+  totalTokens   Int?     @map("total_tokens")
+  durationMs    Int?     @map("duration_ms")
+  status        String   @default("completed") @db.VarChar // completed | applied | failed | discarded
+  errorCode     String?  @map("error_code") @db.VarChar // AIAnalysisErrorCode
+  errorMessage  String?  @map("error_message")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamp(6)
+
+  @@index([tournamentId])
+  @@index([userId])
+  @@index([createdAt])
+  @@map("prospectus_ai_analysis")
 }
