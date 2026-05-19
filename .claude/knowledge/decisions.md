@@ -2,6 +2,34 @@
 <!-- 담당: planner-architect | 최대 30항목 -->
 <!-- "왜 A 대신 B를 선택했는지" 기술 결정의 배경과 이유를 기록 -->
 
+### [2026-05-19] prospectus AI wizard Phase 1-B — Vercel AI Gateway plain "provider/model" 라우팅 채택 (provider-specific 패키지 0)
+- **분류**: architecture + decision
+- **발견자**: pm (사용자 AI_GATEWAY_API_KEY 발급 후)
+- **계기**: Phase 1-A (schema + prompt) 박제 완료 → Phase 1-B gateway 래퍼 박제 진입 시 SDK 선택 결정 필요.
+- **분석한 옵션**:
+  - **SDK**: A (`ai` v6 + plain `"anthropic/claude-sonnet-4"` 문자열 / Vercel Gateway 자동 라우팅) vs B (`@ai-sdk/anthropic` provider-specific 패키지 직결) vs C (raw fetch Vercel Gateway REST) → **A 선택**
+  - **출력 강제**: A (`generateObject` + Zod schema 강제) vs B (`generateText` + JSON.parse 후 safeParse) → **A 선택** (schema 통과 보장 / 재시도 SDK 내부 처리)
+  - **에러 분류**: A (5코드 `AIAnalysisError`) vs B (raw throw → 호출 측 분기) → **A 선택** (UI 분기 표준화)
+- **A 선택 사유 (Vercel knowledge-update §1 권장 정합)**:
+  - provider 변경 자유도 (`"anthropic/claude-sonnet-4"` → `"openai/gpt-4"` 1문자열 변경)
+  - cost 통합 추적 (Gateway 대시보드 단일 source)
+  - `AI_GATEWAY_API_KEY` 자동 픽업 (provider 키 분산 0)
+  - vision input (`type:"image"` + `mediaType`) 표준 지원 (PDF/이미지 양면)
+- **B 거절 사유**: provider 패키지 추가 시 lockfile 부담 + Gateway 우회로 cost 추적 분산 + 추후 모델 변경 시 코드 변경 부담
+- **비용 가드 박제** (`gateway.ts`):
+  - `maxOutputTokens=2000` (prompt.ts `MAX_OUTPUT_TOKENS` 상수)
+  - `AbortSignal.timeout(30_000)` (30s 상한 / 평균 ~10s 여유 3x)
+  - 호출 전 `AI_GATEWAY_API_KEY` 사전 차단 (비용 0 / 명확한 auth 에러)
+- **에러 매핑 5종**: `schema_validation` (재시도 가치 0) / `timeout` (⚠️ 재시도) / `auth` (운영자 결재) / `rate_limit` (✅ backoff) / `unknown`
+- **audit 반환 표준**: `usage` (input/output/total tokens) + `durationMs` + `promptVersion` + `modelId` — Phase 1-C `prospectus_ai_analysis` 테이블 박제용 (cost 추적)
+- **참조횟수**: 0
+- **참조 파일**:
+  - `src/lib/ai/gateway.ts` (240L / `analyzeProspectus()` + `AIAnalysisError`)
+  - `src/lib/ai/prospectus-schema.ts` (Zod `ProspectusAnalysisSchema`)
+  - `src/lib/ai/prospectus-prompt.ts` (system/user prompt 빌더)
+  - 보고서: `Dev/prospectus-ai-wizard-plan-2026-05-18.md` §3 §4
+  - commit `e37ae80` (Phase 1-B 박제)
+
 ### [2026-05-16] PR-Public-1 공개 bracket 종별 view — 옵션 A (공개 신규 view) + D1 (기존 API 확장) 선택
 - **분류**: architecture + decision
 - **발견자**: planner-architect
