@@ -18,6 +18,9 @@ export const RATE_LIMITS: Record<string, RateLimitConfig> = {
   // 2026-05-02: 라이브 페이지 전용 — 폴링 3초 간격 + 다중 매치 / 탭 / 새로고침 합산 고려.
   // 분당 호출 = 20 req/min (단독) → IP당 최대 6 매치 동시 폴링까지 안전. 60 req 까지 허용.
   liveDetail: { maxRequests: 120, windowMs: 60 * 1000 },
+  // 2026-05-20: prospectus AI 분석 endpoint — 분당 5건 / 일 한도는 DB count (호출 측 별도 가드).
+  // 사유: AI Gateway 비용 가드 — Claude Sonnet 4 호출 1건 ≈ $0.05~$0.15. 분당 5건 = 시간당 max $45 한도.
+  aiAnalyze: { maxRequests: 5, windowMs: 60 * 1000 },
 };
 
 export interface RateLimitResult {
