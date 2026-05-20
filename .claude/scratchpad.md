@@ -2,8 +2,8 @@
 
 ## 현재 작업
 - **요청**: 점수 정합성 영구 fix Sprint 1 — F3-α + F3-β + F5 + F2 통합 기획설계 (2026-05-21)
-- **상태**: ✅ PR-1 (F3-α) + ✅ PR-2 (F3-β) developer 박제 완료 — tsc 0 / 회귀 0
-- **현재 담당**: tester (PR-1 + PR-2 검증 진입 대기) → 이후 PR-3 (F5) developer
+- **상태**: ✅ PR-1 (F3-α) + ✅ PR-2 (F3-β) + ✅ PR-3 (F5) developer 박제 완료 — tsc 0 / 회귀 0
+- **현재 담당**: tester (PR-1 + PR-2 + PR-3 검증 진입 대기) → 이후 PR-4 (F2) developer
 - **세션 산출물 (cumulative)**:
   - audit 2건: `Dev/score-consistency-audit-2026-05-21.md` (125 매치) + `Dev/paper-mode-precise-audit-2026-05-21.md` (paper 6 매치 상세)
   - script 2건: `scripts/_temp/score-consistency-audit.ts` + `scripts/_temp/paper-mode-precise-audit.ts` (모두 SELECT only / 사후 정리 예정)
@@ -57,6 +57,78 @@
   2. `BigInt(s.tournament_team_player_id)` 캐스팅 — Prisma `tournamentTeamPlayerId` 컬럼이 BigInt 이므로 일치
   3. 트랜잭션 X — PBP 패턴 동일 (deleteMany + upsert 순차 / 같은 if 블록 안)
   4. C4 회귀 가드 = if 블록 자체 미진입 = 운영 stat 손실 0 보장
+
+## 구현 기록 (PR-3 F5 FIBA 룰 가드 / developer 2026-05-21)
+
+📝 구현한 기능: PURE 헬퍼 `assertCompletedMatchFiba` 신규 + paper(score-sheet submit) + Flutter (v1 sync + batch-sync) 양면 호출 가드 — OT1 동점 + winner NULL completed 차단 (매치 124 OT2 사고 재발 방지 / FIBA Article 17.2)
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| `src/lib/tournaments/fiba-rules.ts` | 121 LOC 신규 — PURE 헬퍼 `assertCompletedMatchFiba(input)` / DB I/O 0 / 6 분기 (OT1 동점 차단 + OT2+ 통과 + winner 있음 통과 + 점수차 통과 + in_progress 통과 + regulation 동점 차단) | **신규** |
+| `src/__tests__/lib/fiba-rules.test.ts` | 202 LOC 신규 — 13 케이스 (F1~F6 위임 6 + winnerTeamId 타입 5 + currentQuarter 미박제 2) | **신규** |
+| `src/app/api/web/score-sheet/[matchId]/submit/route.ts` | +30 LOC (import 3줄 + 가드 27줄 line ~1062 직전) — paper 모드 `winnerTeamId: null` + `currentQuarter: input.running_score?.currentPeriod` + 위반 시 422 `FIBA_*` 응답 | 수정 |
+| `src/app/api/v1/tournaments/[id]/matches/sync/route.ts` | +35 LOC (import 4줄 + 가드 28줄 line ~140 직후 modeRow 가드 다음) — Flutter sync body `match.current_quarter` 활용 / `winnerTeamId: null` (service 자동 결정) / 위반 시 422 `FIBA_*` 응답 | 수정 |
+| `src/app/api/v1/tournaments/[id]/matches/batch-sync/route.ts` | +41 LOC (import 4줄 + per-match 가드 22줄 + catch safeReason 매핑 2건 추가) — `existing.winner_team_id` 활용 / `currentQuarter = quarterScores.length` 추정 / throw FIBA_* → 외부 catch 매핑 | 수정 |
+
+**검증 결과**:
+- `npx tsc --noEmit` → **EXIT=0 (0 errors)**
+- `npx vitest run fiba-rules.test.ts + recording-mode.test.ts + match-sync.test.ts` → **60/60 PASS**
+  - fiba-rules: 13/13 ✅
+  - recording-mode (회귀): 20/20 ✅
+  - match-sync (회귀): 27/27 ✅
+- `git diff --stat HEAD -- src/` PR-3 관련 라인:
+  ```
+  src/app/api/v1/tournaments/[id]/matches/batch-sync/route.ts | 41 ++++++++++++++++
+  src/app/api/v1/tournaments/[id]/matches/sync/route.ts      | 35 ++++++++++++++
+  src/app/api/web/score-sheet/[matchId]/submit/route.ts      | 30 ++++++++++++
+  src/lib/tournaments/fiba-rules.ts (신규)                    | 121 LOC
+  src/__tests__/lib/fiba-rules.test.ts (신규)                | 202 LOC
+  ```
+
+**vitest 13 케이스 결과**:
+| 케이스 | given | expect | 결과 |
+|--------|-------|--------|------|
+| F1 | OT1 (q=5) 70-70 winner=null completed | ❌ FIBA_OT1_TIE_REQUIRES_OT2 | ✅ PASS |
+| F2 | OT1 70-72 winner=away(BigInt) completed | ✅ ok | ✅ PASS |
+| F3 | OT2 (q=6) 70-70 winner=null completed | ✅ ok (OT2+ 통과) | ✅ PASS |
+| F4 | regulation (q=4) 70-70 winner=null completed | ❌ FIBA_TIE_WITHOUT_WINNER | ✅ PASS |
+| F5 | in_progress 70-70 winner=null | ✅ ok (진행 중 통과) | ✅ PASS |
+| F6 | OT1 70-70 winner=home(BigInt) completed | ✅ ok (운영자 결정 보존) | ✅ PASS |
+| 보너스 5건 | winnerTeamId = BigInt/string/number/''/0 hasWinner 판정 | 정확 | ✅ 5/5 PASS |
+| 보너스 2건 | currentQuarter undefined 시 regulation 처리 + 점수차 통과 | 정확 | ✅ 2/2 PASS |
+
+**회귀 0 보장 근거**:
+1. **신규 헬퍼 = PURE 함수 / DB I/O 0** → service / Prisma / 기타 코드 영향 0
+2. **score-sheet submit**: `winnerTeamId: null` 고정 + `currentQuarter` = running_score 의존 (없으면 regulation 처리) → 기존 paper 매치 종료 흐름 (점수차 매치) 100% 통과
+3. **v1 sync**: 신규 가드 = modeRow 가드 다음 위치 / `currentQuarter` = Flutter sync body 의 optional 필드 → 기존 Flutter 매치 (점수차 매치 + winner 자동 결정) 100% 통과
+4. **v1 batch-sync**: `existing.winner_team_id` 활용 → Flutter 기존 매치 winner 갱신 박제 흐름 보존. `currentQuarter` = `quarterScores.length` 추정 → 점수차 매치 100% 통과
+5. **catch safeReason 매핑**: 신규 FIBA_OT1_TIE_REQUIRES_OT2 / FIBA_TIE_WITHOUT_WINNER 2건만 추가 → 기존 RECORDING_MODE_PAPER / Match not found / Sync failed 모두 보존
+
+💡 tester 참고:
+- 테스트 방법:
+  1. **vitest**: `npx vitest run src/__tests__/lib/fiba-rules.test.ts` → 13/13 PASS 확인
+  2. **paper 매치 (score-sheet submit)**: paper 매치에 OT1 70-70 + status=completed + running_score.currentPeriod=5 POST → **422 `FIBA_OT1_TIE_REQUIRES_OT2`**
+  3. **paper 매치 정상**: paper 매치에 OT1 70-72 (점수차) + status=completed → **통과** (회귀 0)
+  4. **paper 매치 OT2**: paper 매치에 OT2 70-70 (currentPeriod=6) + status=completed → **통과** (운영자 OT2 박제 흐름 보존)
+  5. **Flutter sync (v1)**: Flutter app 이 OT1 동점 자동 종료 박제 → server-side 422 응답 (Flutter 앱 변경 0 / 사용자 결재 의무)
+  6. **Flutter batch-sync**: Flutter app batch 동기화 시 OT1 동점 매치 1건 → errors[] 에 매치별 reason 박제 + 나머지 정상 매치 synced
+- 정상 동작:
+  - 응답 body: `{error: "OT1 동점 매치는 종료할 수 없습니다. ...", code: "FIBA_OT1_TIE_REQUIRES_OT2", match_id: "124"}`
+  - in_progress 매치 = 모든 분기 통과 (가드 활성 X)
+  - 점수차 매치 = 모든 분기 통과
+- 주의할 입력:
+  - **score-sheet submit**: `winnerTeamId: null` 고정 → paper 매치는 동점 시 항상 FIBA 가드 분기 진입 (의도된 동작)
+  - **v1 sync**: `match.current_quarter` zod 범위 0~8 — `undefined` 시 regulation 처리 (Flutter 앱이 미박제 시)
+  - **v1 batch-sync**: `quarterScores` 미박제 시 `currentQuarter = undefined` → regulation 처리. quarterScores 길이가 1~7 일 때 정상 분기
+
+⚠️ reviewer 참고:
+- 특별히 봐줬으면 하는 부분:
+  1. **PURE 헬퍼 분리** = vitest 단위 검증 가능 / 양면 호출자 단일 source / 변경 시 6 분기 일관 보장
+  2. **paper 모드 `winnerTeamId: null` 고정 결정**: score-sheet submit 에는 winner 박제 0 (service 자동 결정) → null 로 가드 통과 시도. 의도 = 운영자가 OT2 진입 결정 없이 동점 매치 종료 시도 시 차단
+  3. **v1 sync `winnerTeamId: null` 결정**: Flutter sync body 에 winner_team_id 박제 0 (service 자동 결정) → service 진입 전 가드라 db 의 기존 winner 확인 불가 → null. 단 batch-sync 는 existing row 확보되어 winner 활용 (더 정확)
+  4. **batch-sync `currentQuarter` 추정**: quarterScores.length 추정 = approximation. OT2+ 매치 박제 시 quarterScores 길이 6~ 보장 (정확). regulation 매치 = length 4 (정확). 한계 = 비정상 quarterScores 박제 시 mis-classification 가능 (운영 영향 0 — 어느 분기든 결과 = FIBA_TIE_WITHOUT_WINNER vs FIBA_OT1_TIE_REQUIRES_OT2 중 1건 차단)
+  5. **사용자 결재 (CLAUDE.md "Flutter 앱 변경 시 원영 사전 공지 의무")**: Flutter server-side 만 변경 / Flutter 클라이언트 코드 0 변경. OT1 동점 시 422 응답 → Flutter 앱이 받게 됨. **PR 머지 후 원영 사후 공지 의무** (PR 본문 + commit message 명시 필수)
+  6. **OT2+ 통과 룰**: 매치 124 사고 박제 흐름 보존 — 운영자가 OT2 박제 진행 중 또는 사후 박제 케이스. 무한 OT 시 어느 시점 winner 결정 필요하지만 본 가드는 OT2+ 통과 (Sprint 2 별도 안내)
 
 ## 구현 기록 (PR-2 F3-β 어드민 PATCH paper 매치 score 차단 / developer 2026-05-21)
 
@@ -316,6 +388,7 @@ export function assertCompletedMatchFiba(input: FibaCheckInput): FibaCheckResult
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
 |------|------|------|
+| 2026-05-21 | PR-3 (F5) developer 박제 — FIBA 룰 가드 (OT1 동점 + winner NULL completed 차단) | ✅ `src/lib/tournaments/fiba-rules.ts` 신규 121 LOC (PURE 헬퍼 `assertCompletedMatchFiba` / 6 분기) + `src/__tests__/lib/fiba-rules.test.ts` 신규 202 LOC (13 케이스 = F1~F6 6 + 보너스 7) + 양면 호출 가드 3건 (score-sheet submit +30 / v1 sync +35 / v1 batch-sync +41 LOC) / tsc 0 / vitest 60/60 PASS (fiba 13 + recording-mode 20 회귀 + match-sync 27 회귀) / Flutter server-side / 클라이언트 코드 0 변경 / 매치 124 OT2 사고 재발 방지 / tester 검증 대기 / **원영 사후 공지 의무** |
 | 2026-05-21 | PR-2 (F3-β) developer 박제 — 어드민 PATCH paper 매치 score 차단 가드 | ✅ `src/app/api/web/tournaments/[id]/matches/[matchId]/route.ts` +20 LOC (import 3줄 + 가드 17줄) / `getRecordingMode({ settings: match.settings })` + paper && (homeScore\|awayScore) 변경 시 403 `RECORDING_MODE_PAPER_SCORE_BLOCKED` / tsc 0 / vitest 20/20 PASS (recording-mode 회귀 0) / Flutter 매치 + paper 매치 메타 수정 보존 / tester 검증 대기 |
 | 2026-05-21 | PR-1 (F3-α) developer 박제 — MPS deleteMany NOT IN 가드 | ✅ `src/lib/services/match-sync.ts` +15 LOC (line 507~521) + `src/__tests__/lib/match-sync.test.ts` +222 LOC (4 케이스) / tsc 0 / vitest 27/27 PASS (기존 23 + 신규 4) / PBP 패턴 답습 / 회귀 0 (C4 player_stats=undefined 가드) / tester 검증 대기 |
 | 2026-05-21 | 점수 정합성 Sprint 1 통합 기획설계 (F3-α + F3-β + F5 + F2 / 8h) | ✅ planner-architect 분석 완료 / 4개 별도 PR 권장 (통합 PR 거절 — 영역 분산) / vitest 케이스 18건 박제 (F3-α 4 / F3-β 4 / F5 6 / F2 4) / F5 = `fiba-rules.ts` PURE 헬퍼 신규 (양면 호출 / vitest 가능) / F2 = `score_consistency_audit` 신규 모델 NULL ADD + cron `0 1 * * *` + admin 위젯 1개 / 진입 순서 F3-α → F3-β → F5 → F2 (단순→복잡) / 회귀 0 / 운영 영향 0 |

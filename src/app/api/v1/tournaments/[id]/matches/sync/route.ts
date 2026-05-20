@@ -9,6 +9,10 @@ import { SYNC_ALLOWED_STATUSES } from "@/lib/constants/match-status";
 //   settings.recording_mode === "paper" 매치는 Flutter sync 차단 — 웹 종이 기록지와 충돌 방지.
 //   기존 매치 100% (settings null / {}) 는 fallback "flutter" 로 그대로 허용 — 운영 영향 0.
 import { assertRecordingMode } from "@/lib/tournaments/recording-mode";
+// 2026-05-21 PR-3 F5 (errors.md [2026-05-20] 매치 124 OT2 사고 재발 방지):
+//   FIBA 룰 가드 PURE 헬퍼. service 호출 직전 호출 → OT1 동점 + winner NULL completed 차단.
+//   Flutter server-side 가드 — Flutter 클라이언트 코드 0 변경 (운영 Flutter app 영향 0).
+import { assertCompletedMatchFiba } from "@/lib/tournaments/fiba-rules";
 // 2026-05-11: Phase 1-B refactor — sync core 로직을 service 로 추출.
 //   본 route 는 zod 검증 + 권한 + 모드 가드 + service 호출 + 응답 wrap 만 담당.
 //   웹 종이 기록지 BFF (`/api/web/score-sheet/[matchId]/submit`) 도 동일 service 호출 = 단일 source.
@@ -137,6 +141,37 @@ async function handler(req: NextRequest, ctx: AuthContext, tournamentId: string)
       if (modeGuard) return modeGuard;
     }
     // modeRow null = 매치 미존재 — service 가 동일 SELECT 후 404 반환 (단일 source 보장).
+
+    // 2026-05-21 PR-3 F5 (errors.md [2026-05-20] 매치 124 OT2 사고 재발 방지):
+    //   FIBA 룰 가드 — OT1 동점 + winner NULL completed 차단.
+    //
+    // 이유:
+    //   매치 124 = Flutter 기록앱이 OT1 70-70 동점 자동 종료 박제 → DB 박제 winner=NULL completed.
+    //   FIBA Article 17.2 (Tied Score) — regulation/OT 동점 시 winner 결정 의무.
+    //   본 가드 = server-side / Flutter 클라이언트 코드 0 변경 / Flutter sync body 영향 0.
+    //
+    // Flutter sync body 매핑:
+    //   - homeScore / awayScore = match.home_score / match.away_score (zod schema 필수 필드)
+    //   - status = match.status (SYNC_ALLOWED_STATUSES enum)
+    //   - winnerTeamId = null (sync body 에 winner_team_id 박제 0 — service 가 자동 결정)
+    //   - currentQuarter = match.current_quarter (optional 1~8 / 미박제 시 undefined)
+    //
+    // 사용자 결재 (CLAUDE.md "Flutter 앱 변경 시 원영 사전 공지 의무"):
+    //   본 PR = Flutter server-side 만 변경. Flutter 클라이언트 코드 0 변경.
+    //   단 OT1 동점 시 422 응답 = Flutter 앱이 받게 됨 → PR 머지 후 원영 사후 공지 의무.
+    const fibaCheck = assertCompletedMatchFiba({
+      homeScore: match.home_score,
+      awayScore: match.away_score,
+      status: match.status,
+      winnerTeamId: null, // sync body 에 winner_team_id 없음 (service 자동 결정)
+      currentQuarter: match.current_quarter,
+      recordingMode: "flutter",
+    });
+    if (!fibaCheck.ok) {
+      return apiError(fibaCheck.message, 422, fibaCheck.code, {
+        match_id: String(match.server_id),
+      });
+    }
 
     // 2026-05-11: Phase 1-B — core sync 로직 service 호출.
     // service 는 zod 검증 후의 input 만 받음 (route 가 검증 책임).

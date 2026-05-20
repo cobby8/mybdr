@@ -12,6 +12,10 @@ import { waitUntil } from "@vercel/functions";
 import { triggerMatchBriefPublish } from "@/lib/news/auto-publish-match-brief";
 // 2026-05-11: Phase 1-A 매치별 recording_mode 게이팅 — paper 매치 batch 차단 (per-match try 안에서 검사).
 import { getRecordingMode } from "@/lib/tournaments/recording-mode";
+// 2026-05-21 PR-3 F5 (errors.md [2026-05-20] 매치 124 OT2 사고 재발 방지):
+//   FIBA 룰 가드 PURE 헬퍼. per-match transaction 안 update 직전 호출 → OT1 동점 + winner NULL completed 차단.
+//   Flutter server-side 가드 — Flutter 클라이언트 코드 0 변경 (운영 Flutter app 영향 0).
+import { assertCompletedMatchFiba } from "@/lib/tournaments/fiba-rules";
 // 2026-05-16: recorder_admin 전역 흡수 (Flutter 기록앱 모든 대회 batch-sync 통과)
 import { isSuperAdmin } from "@/lib/auth/is-super-admin";
 import { isRecorderAdmin } from "@/lib/auth/is-recorder-admin";
@@ -50,6 +54,35 @@ async function handler(req: NextRequest, ctx: AuthContext, tournamentId: string)
         // throw 후 외부 catch 가 safeReason 매핑 (line ~67) — 신규 reason 추가.
         if (getRecordingMode(existing) === "paper") {
           throw new Error("RECORDING_MODE_PAPER");
+        }
+
+        // 2026-05-21 PR-3 F5 (errors.md [2026-05-20] 매치 124 OT2 사고 재발 방지):
+        //   FIBA 룰 가드 — OT1 동점 + winner NULL completed 차단.
+        //   batch-sync body 에는 winner_team_id / current_quarter 박제 0 → existing row 활용.
+        //
+        //   currentQuarter 추정:
+        //     batch-sync body 의 quarterScores 배열 길이 → 진행 period 추정
+        //     - length=4 → Q4 종료 (currentQuarter=4)
+        //     - length=5 → OT1 종료 (currentQuarter=5)
+        //     - length=6 → OT2 종료 (currentQuarter=6)
+        //     - 미박제 / 빈 배열 → undefined (regulation 처리)
+        //
+        //   winnerTeamId = existing.winner_team_id (이미 박제된 winner / Flutter sync 가 갱신 안 함).
+        //   throw "FIBA_TIE_WITHOUT_WINNER" 또는 "FIBA_OT1_TIE_REQUIRES_OT2" → 외부 catch 매핑.
+        const estimatedQuarter =
+          match.quarterScores && match.quarterScores.length > 0
+            ? match.quarterScores.length
+            : undefined;
+        const fibaCheck = assertCompletedMatchFiba({
+          homeScore: match.homeScore,
+          awayScore: match.awayScore,
+          status: match.status,
+          winnerTeamId: existing.winner_team_id,
+          currentQuarter: estimatedQuarter,
+          recordingMode: "flutter",
+        });
+        if (!fibaCheck.ok) {
+          throw new Error(fibaCheck.code);
         }
 
         await tx.tournamentMatch.update({
@@ -106,6 +139,14 @@ async function handler(req: NextRequest, ctx: AuthContext, tournamentId: string)
         safeReason = "Match not found in tournament";
       } else if (errMsg === "RECORDING_MODE_PAPER") {
         safeReason = "이 매치는 종이 기록지 모드로 진행 중입니다.";
+      } else if (errMsg === "FIBA_OT1_TIE_REQUIRES_OT2") {
+        // 2026-05-21 PR-3 F5 — OT1 동점 + winner NULL completed 차단 (매치 124 재발 방지)
+        safeReason =
+          "OT1 동점 매치는 종료할 수 없습니다. FIBA Article 17.2 — OT2 박제 후 완료해주세요.";
+      } else if (errMsg === "FIBA_TIE_WITHOUT_WINNER") {
+        // 2026-05-21 PR-3 F5 — regulation 동점 + winner NULL completed 차단
+        safeReason =
+          "동점 매치는 winner 없이 종료할 수 없습니다. 추가 시간 또는 winner 결정 후 완료해주세요.";
       } else {
         safeReason = "Sync failed";
       }
