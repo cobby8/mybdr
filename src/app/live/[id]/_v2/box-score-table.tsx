@@ -31,14 +31,17 @@ export function BoxScoreTable({
   color,
   players,
   hasOT = false,
+  otCount = 0,
   hasQuarterEventDetail = true,
   isPaperMatch = false,
 }: {
   teamName: string;
   color: string;
   players: PlayerRowV2[];
-  // OT 쿼터 존재 시 쿼터 필터 버튼에 OT 노출
+  // 2026-05-20 OT2+ 분리 — hasOT 는 deprecated (otCount > 0 이면 자동 true / backward-compat).
+  //   otCount = OT 진행 회수 (0 = 없음 / 1 = OT1만 / 2 = OT1+OT2 / N+).
   hasOT?: boolean;
+  otCount?: number;
   // 쿼터별 이벤트 상세 스탯 존재 여부 — false + 쿼터 필터 활성 시 안내 배너 + 스탯 "-"
   hasQuarterEventDetail?: boolean;
   // 2026-05-13 FIBA Phase 21: 종이 매치 (recording_mode="paper") 슈팅 6 컬럼 (FG/FG%/3P/3P%/FT/FT%) hide.
@@ -157,7 +160,15 @@ export function BoxScoreTable({
             { key: "2", label: "2Q" },
             { key: "3", label: "3Q" },
             { key: "4", label: "4Q" },
-            ...(hasOT ? [{ key: "5", label: "OT" }] : []),
+            // 2026-05-20 OT2+ 지원: otCount = 진행 OT 회수. backward-compat: hasOT=true 일 때 otCount=0 면 OT1 만.
+            ...(otCount > 0
+              ? Array.from({ length: otCount }, (_, i) => ({
+                  key: String(5 + i),
+                  label: `OT${i + 1}`,
+                }))
+              : hasOT
+                ? [{ key: "5", label: "OT" }]
+                : []),
           ].map(({ key, label }) => (
             <button
               key={key}
