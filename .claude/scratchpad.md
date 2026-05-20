@@ -2,8 +2,8 @@
 
 ## 현재 작업
 - **요청**: 점수 정합성 영구 fix Sprint 1 — F3-α + F3-β + F5 + F2 통합 기획설계 (2026-05-21)
-- **상태**: ✅ PR-1 (F3-α) developer 박제 완료 — tsc 0 / vitest 27/27 PASS / 변경 2 파일 +237 LOC
-- **현재 담당**: tester (PR-1 검증 진입 대기) → 이후 PR-2 (F3-β) developer
+- **상태**: ✅ PR-1 (F3-α) + ✅ PR-2 (F3-β) developer 박제 완료 — tsc 0 / 회귀 0
+- **현재 담당**: tester (PR-1 + PR-2 검증 진입 대기) → 이후 PR-3 (F5) developer
 - **세션 산출물 (cumulative)**:
   - audit 2건: `Dev/score-consistency-audit-2026-05-21.md` (125 매치) + `Dev/paper-mode-precise-audit-2026-05-21.md` (paper 6 매치 상세)
   - script 2건: `scripts/_temp/score-consistency-audit.ts` + `scripts/_temp/paper-mode-precise-audit.ts` (모두 SELECT only / 사후 정리 예정)
@@ -57,6 +57,47 @@
   2. `BigInt(s.tournament_team_player_id)` 캐스팅 — Prisma `tournamentTeamPlayerId` 컬럼이 BigInt 이므로 일치
   3. 트랜잭션 X — PBP 패턴 동일 (deleteMany + upsert 순차 / 같은 if 블록 안)
   4. C4 회귀 가드 = if 블록 자체 미진입 = 운영 stat 손실 0 보장
+
+## 구현 기록 (PR-2 F3-β 어드민 PATCH paper 매치 score 차단 / developer 2026-05-21)
+
+📝 구현한 기능: 어드민 PATCH route 에 paper 매치 score 차단 가드 — score-sheet BFF 단일 진입점 의무화 (강남구 매치 170/187 = 헤더만 박제 / 4 source 중 헤더 단독 박제 재발 차단)
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| `src/app/api/web/tournaments/[id]/matches/[matchId]/route.ts` | +20 LOC (import 3줄 line 18~20 + 가드 17줄 line 169~185) — `getRecordingMode({ settings: match.settings })` + paper && score 변경 시 403 `RECORDING_MODE_PAPER_SCORE_BLOCKED` 반환. updateMatch 호출 직전 위치 (effectiveStatus 계산 후) | 수정 |
+
+**검증 결과**:
+- `npx tsc --noEmit` → EXIT=0 (0 errors)
+- `npx vitest run src/__tests__/lib/recording-mode.test.ts` → **20/20 PASS** (회귀 0 / 헬퍼 의존 검증)
+- `git diff --stat HEAD -- src/app/api/web/tournaments/[id]/matches/[matchId]/route.ts`:
+  ```
+  src/app/api/web/tournaments/[id]/matches/[matchId]/route.ts | 20 ++++++++
+  ```
+
+**옵션 B 채택 사유 (route 안 인라인 가드 / vitest 통합 0)**:
+- recording-mode 헬퍼는 이미 vitest 20 케이스 커버 (이중 검증 비용 ↑)
+- 단순 분기 추가 (`if (recordingMode === "paper" && scoreFieldChanged)`) — route 통합 테스트 비용 高 (Prisma mock 全면 필요)
+- Flutter 매치 = score 변경 통과 (기존 동작 보존) — 회귀 위험 매우 낮음
+
+💡 tester 참고:
+- 테스트 방법:
+  1. paper 매치 (settings.recording_mode="paper") 에 `PATCH /api/web/tournaments/{id}/matches/{matchId}` body `{homeScore: 10}` 호출 → **403 응답 + code="RECORDING_MODE_PAPER_SCORE_BLOCKED"** 확인
+  2. paper 매치에 score 외 메타 (venue_name 등) 만 수정 → **통과** 확인 (paper 매치도 메타 수정 허용)
+  3. Flutter 매치 (settings.recording_mode 없음 또는 "flutter") 에 score 수정 → **통과** 확인 (회귀 0)
+  4. paper 매치에 `body={awayScore: 5}` (homeScore 없음) → **403 차단** 확인 (awayScore 만 단독 변경도 차단)
+- 정상 동작:
+  - paper 매치 score 차단 메시지: "종이 기록지 모드 매치는 점수를 직접 수정할 수 없습니다. score-sheet 페이지에서 입력해주세요."
+  - 응답 본문: `{error, code, match_id, current_mode: "paper"}` (snake_case 변환 자동)
+- 주의할 입력:
+  - body 에 `homeScore: null` (명시적 null) — `homeScore !== undefined` 이므로 가드 진입 → 차단 (의도된 동작 / paper 매치 score 정합성 보호)
+  - body 에 `homeScore` 키 없음 — 가드 미진입 → 통과 (메타 수정 허용)
+
+⚠️ reviewer 참고:
+- 특별히 봐줬으면 하는 부분:
+  1. **가드 위치**: `effectiveStatus` 계산 직후 + `updateMatch` 호출 직전 — auto-schedule 흐름 (line 154~164) 영향 0 / homeTeamId·awayTeamId 진출 destination 가드 (line 95~132) 영향 0
+  2. **`getRecordingMode({ settings: match.settings })`** — `getMatch` 가 `findFirst` 로 전체 필드 반환 (`src/lib/services/match.ts:93~97`) → `match.settings: Prisma.JsonValue | null` 자동 포함
+  3. **score 외 메타 통과 의도**: venue / scheduledAt / status / 팀 (homeTeamId·awayTeamId) / winner_team_id / notes / roundName 모두 paper 매치에서도 수정 허용 — 운영자가 종이 기록지 외부에서 메타 정정 필요 케이스 보존
+  4. **status="completed" + winner_team_id 만 변경 (score 미변경)** = 통과 → finalizeMatchCompletion 호출 진입. paper 매치 종료 운영 흐름 (별도 score-sheet finalize 이후 status 변경) 보존
 
 ## 구현 기록 (prospectus AI Phase 1-A + 1-B / PM 직접 박제 2026-05-19~20)
 - **신규 파일 3건** (총 527L / 외부 npm 1건 추가 = `ai@^6.0.185`)
@@ -275,6 +316,7 @@ export function assertCompletedMatchFiba(input: FibaCheckInput): FibaCheckResult
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
 |------|------|------|
+| 2026-05-21 | PR-2 (F3-β) developer 박제 — 어드민 PATCH paper 매치 score 차단 가드 | ✅ `src/app/api/web/tournaments/[id]/matches/[matchId]/route.ts` +20 LOC (import 3줄 + 가드 17줄) / `getRecordingMode({ settings: match.settings })` + paper && (homeScore\|awayScore) 변경 시 403 `RECORDING_MODE_PAPER_SCORE_BLOCKED` / tsc 0 / vitest 20/20 PASS (recording-mode 회귀 0) / Flutter 매치 + paper 매치 메타 수정 보존 / tester 검증 대기 |
 | 2026-05-21 | PR-1 (F3-α) developer 박제 — MPS deleteMany NOT IN 가드 | ✅ `src/lib/services/match-sync.ts` +15 LOC (line 507~521) + `src/__tests__/lib/match-sync.test.ts` +222 LOC (4 케이스) / tsc 0 / vitest 27/27 PASS (기존 23 + 신규 4) / PBP 패턴 답습 / 회귀 0 (C4 player_stats=undefined 가드) / tester 검증 대기 |
 | 2026-05-21 | 점수 정합성 Sprint 1 통합 기획설계 (F3-α + F3-β + F5 + F2 / 8h) | ✅ planner-architect 분석 완료 / 4개 별도 PR 권장 (통합 PR 거절 — 영역 분산) / vitest 케이스 18건 박제 (F3-α 4 / F3-β 4 / F5 6 / F2 4) / F5 = `fiba-rules.ts` PURE 헬퍼 신규 (양면 호출 / vitest 가능) / F2 = `score_consistency_audit` 신규 모델 NULL ADD + cron `0 1 * * *` + admin 위젯 1개 / 진입 순서 F3-α → F3-β → F5 → F2 (단순→복잡) / 회귀 0 / 운영 영향 0 |
 | 2026-05-21 | 점수 정합성 paper 모드 정밀 조사 + F3 Sprint 1 상향 | ✅ `scripts/_temp/paper-mode-precise-audit.ts` SELECT only / 6 매치 player별+audit log 추적 / `Dev/paper-mode-precise-audit-2026-05-21.md` 박제 / errors.md+decisions.md 각 +1 / 근본 원인 코드 위치 3건 확정 (match-sync.ts:488~559 MPS deleteMany 누락 + matches/[matchId]/route.ts:171~189 PATCH 헤더 단독 박제) / **F3 Sprint 1 상향** (2h 추가 / 총 8h) |
