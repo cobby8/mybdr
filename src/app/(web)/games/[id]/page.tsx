@@ -47,6 +47,8 @@ import { AboutCard } from "./_v2/about-card";
 import { ParticipantList } from "./_v2/participant-list";
 import { ApplyPanel } from "./_v2/apply-panel";
 import { HostPanel } from "./_v2/host-panel";
+// [v2.16 Phase 3-1a] 풀폭 다크 hero band — 사용자 결정 §11 V2 Hero-led
+import { GameDetailHero } from "./_v2/game-detail-hero";
 
 export const revalidate = 30;
 
@@ -251,6 +253,24 @@ export default async function GameDetailPage({
 
       {/* 프로필 미완성 안내 배너 (1일 1회, 기존 로직 유지) */}
       {showProfileBanner && <ProfileIncompleteBanner />}
+
+      {/* [v2.16 Phase 3-1a] 풀폭 다크 hero band — 종별 + status + countdown + meta + progress
+       * 사용자 결정 §11 V2 (Hero-led). 박제 source: BDR-current/screens-gd/ConceptB.jsx */}
+      <GameDetailHero
+        gameType={game.game_type}
+        status={game.status}
+        title={game.title}
+        venueName={game.venue_name}
+        areaLabel={[game.city, game.district].filter(Boolean).join(" ")}
+        scheduledAt={game.scheduled_at}
+        durationHours={game.duration_hours ?? null}
+        feePerPerson={game.fee_per_person ?? null}
+        skillLevel={game.skill_level}
+        allowGuests={game.allow_guests ?? false}
+        maxParticipants={game.max_participants ?? 10}
+        minParticipants={game.min_participants ?? 4}
+        currentParticipants={game.current_participants ?? 0}
+      />
 
       {/* 2컬럼 그리드 — 데스크톱: 1fr + 340px 사이드, 모바일: 단일 컬럼 스택.
        * CSS 변수 없이 인라인으로 관리(페이지 1곳에서만 사용). */}
