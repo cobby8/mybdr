@@ -22,7 +22,13 @@ export default async function NewGamePage() {
 
   const user = await prisma.user.findUnique({
     where: { id: BigInt(session.sub) },
-    select: { membershipType: true, isAdmin: true },
+    select: {
+      membershipType: true,
+      isAdmin: true,
+      // [v2.16 Phase 3-2a] 라이브 프리뷰 GameCard 호스트 닉네임 표시용
+      nickname: true,
+      name: true,
+    },
   });
 
   const mt = user?.membershipType ?? 0;
@@ -33,5 +39,10 @@ export default async function NewGamePage() {
     canCreateTeamMatch: isAdmin || canCreateTeam(mt),
   };
 
-  return <NewGameForm permissions={permissions} />;
+  // [v2.16 Phase 3-2a] 프리뷰 GameCard authorNickname — nickname 우선, 폴백 name
+  const previewNickname = user?.nickname ?? user?.name ?? null;
+
+  return (
+    <NewGameForm permissions={permissions} previewNickname={previewNickname} />
+  );
 }
