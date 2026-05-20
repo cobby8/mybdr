@@ -28,6 +28,8 @@ import { prisma } from "@/lib/db/prisma";
 // 2026-05-12 로그인 redirect 통합 — `next=` 쿼리 → `redirect=` 표준 통일 (login page 가 redirect 만 읽음)
 import { buildLoginRedirect } from "@/lib/auth/redirect";
 import { GuestApplyForm } from "./_components/guest-apply-form";
+// [v2.16 Phase 3-3] 상단 GameCard 미니 — 작업지시서 §3-3 "guest-apply 상단에 GameCard 미니 표시"
+import { GameCard } from "@/components/bdr-v2/game-card";
 
 // 게임 상세와 동일한 캐시 정책 — 신청 직후 폼 진입 시 데이터가 너무 오래되지 않게
 export const revalidate = 30;
@@ -129,17 +131,68 @@ export default async function GuestApplyPage({
   // 6) 시안 카드용 표시 문자열 조립 — 모든 필드 server 에서 포맷팅 완료
   const courtName = [game.venue_name, game.venue_address].filter(Boolean).join(" ") || "장소 미정";
 
+  // [v2.16 Phase 3-3] GameCard 미니 prop 매핑 (자동 tags 인라인 파생)
+  const tags: string[] = [];
+  if (!game.fee_per_person || game.fee_per_person === 0) tags.push("무료");
+  if (
+    game.skill_level &&
+    ["beginner", "lowest", "low"].includes(game.skill_level)
+  ) {
+    tags.push("초보환영");
+  }
+  if (game.scheduled_at) {
+    const dow = game.scheduled_at.getDay();
+    if (dow === 0 || dow === 6) tags.push("주말");
+  }
+  const areaLabel = [game.city, game.district].filter(Boolean).join(" ");
+
   return (
-    <GuestApplyForm
-      gameId={id}
-      game={{
-        title: game.title ?? "경기",
-        when: formatWhen(game.scheduled_at, game.duration_hours),
-        court: courtName,
-        level: levelLabel(game.skill_level),
-        fee: formatFee(game.fee_per_person),
-      }}
-      host={{ name: hostName, tag: hostTag }}
-    />
+    <div className="page">
+      <div style={{ maxWidth: 760, margin: "0 auto" }}>
+        {/* [v2.16 Phase 3-3] 상단 GameCard 미니 — 시안 §3-3 의도 박제 */}
+        <div className="gd-mini-card-wrap" style={{ marginBottom: 18 }}>
+          <div
+            style={{
+              fontSize: 11,
+              fontWeight: 800,
+              letterSpacing: "0.12em",
+              textTransform: "uppercase",
+              color: "var(--accent)",
+              marginBottom: 8,
+            }}
+          >
+            지원할 경기
+          </div>
+          <GameCard
+            href={`/games/${id}`}
+            gameType={game.game_type}
+            status={game.status}
+            title={game.title}
+            venueName={game.venue_name}
+            areaLabel={areaLabel}
+            scheduledAt={game.scheduled_at?.toISOString() ?? null}
+            durationHours={game.duration_hours ?? null}
+            skillLevel={game.skill_level}
+            feePerPerson={game.fee_per_person?.toString() ?? null}
+            currentParticipants={game.current_participants ?? 0}
+            maxParticipants={game.max_participants ?? 10}
+            authorNickname={hostName}
+            tags={tags}
+          />
+        </div>
+
+        <GuestApplyForm
+          gameId={id}
+          game={{
+            title: game.title ?? "경기",
+            when: formatWhen(game.scheduled_at, game.duration_hours),
+            court: courtName,
+            level: levelLabel(game.skill_level),
+            fee: formatFee(game.fee_per_person),
+          }}
+          host={{ name: hostName, tag: hostTag }}
+        />
+      </div>
+    </div>
   );
 }
