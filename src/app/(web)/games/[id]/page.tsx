@@ -36,6 +36,8 @@ import { Breadcrumb } from "@/components/shared/breadcrumb";
 import { decodeHtmlEntities } from "@/lib/utils/decode-html";
 // 5/8 PR3 — 본인인증 미완료 사용자 페이지 진입 가드 (mock 모드 default)
 import { requireIdentityForPage } from "@/lib/auth/require-identity-for-page";
+// [v2.16 Phase 3-1c fix] super_admin 판정 — admin 계정은 "내가 호스트" 대신 "관리자 view" 표시
+import { isSuperAdmin } from "@/lib/auth/is-super-admin";
 // 5/9 displayName P0 — 공식 기록(MVP 시상) 실명 우선 헬퍼
 import { getDisplayName } from "@/lib/utils/player-display-name";
 // 4단계 A — MVP 시상 / 호스트 / 참가자 / 신청자 닉네임 → 공개프로필 PlayerLink
@@ -54,6 +56,9 @@ import {
   ParticipantsSlotBoard,
   type SlotMember,
 } from "./_v2/participants-slot-board";
+// [v2.16 Phase 3-1c] ApplyRibbon (hero 아래 빠른 액션) + MobileStickyBar (모바일 하단 fixed)
+import { ApplyRibbon } from "./_v2/apply-ribbon";
+import { MobileStickyBar } from "./_v2/mobile-sticky-bar";
 
 export const revalidate = 30;
 
@@ -128,6 +133,9 @@ export default async function GameDetailPage({
   ]);
 
   const isHost = session ? game.organizer_id === BigInt(session.sub) : false;
+  // [v2.16 Phase 3-1c fix] admin 계정은 카페 크롤링 게임의 organizer 가 모두 admin master(id=1) 라서
+  // 모든 게임에서 isHost=true 가 됨 → "내가 호스트" 라벨이 부적절. admin 은 별도 "관리자 view" 분기.
+  const isAdmin = isSuperAdmin(session);
   // 로그인 유저의 신청 여부 (status: 0=대기, 1=승인, 2=거절)
   const myApplication = session
     ? applications.find((a) => a.user_id === BigInt(session.sub))
@@ -290,30 +298,26 @@ export default async function GameDetailPage({
         currentParticipants={game.current_participants ?? 0}
       />
 
-      {/* 2컬럼 그리드 — 데스크톱: 1fr + 340px 사이드, 모바일: 단일 컬럼 스택.
-       * CSS 변수 없이 인라인으로 관리(페이지 1곳에서만 사용). */}
-      <div
-        style={{
-          display: "grid",
-          gap: 18,
-          gridTemplateColumns: "minmax(0, 1fr)",
-          marginTop: 14,
-        }}
-      >
-        {/* 모바일/PC 공통: 좌측 메인 스택 + 우측 신청 패널.
-         * 간결한 반응형을 위해 className 대신 중첩 grid 2개 사용. */}
-        <div
-          style={{
-            display: "grid",
-            gap: 18,
-            // 768px 이상에서만 2열 — Tailwind lg 와 유사한 효과를 미디어쿼리 대신
-            // CSS grid auto-fit 으로 단순화할 수도 있지만, 우측 고정 340px가 필요해
-            // className="game-detail-grid" 도입 대신 inline + global 그리드 쿼리
-            // 생략. 대신 기존 페이지 전체에서 써온 tailwind lg:grid-cols 패턴 적용.
-          }}
-          className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_340px] lg:gap-5"
-        >
-          {/* 좌측 메인 스택 */}
+      {/* [v2.16 Phase 3-1c] Hero 바로 아래 ApplyRibbon — 정원 progress + 호스트 + 신청 CTA */}
+      <ApplyRibbon
+        gameType={game.game_type}
+        gameStatus={game.status}
+        maxParticipants={game.max_participants ?? 10}
+        currentParticipants={game.current_participants ?? 0}
+        organizer={organizer}
+        isLoggedIn={Boolean(session)}
+        isHost={isHost}
+        isAdmin={isAdmin}
+        myApplicationStatus={myApplication ? myApplication.status : null}
+        applyAnchorId="apply-panel"
+      />
+
+      {/* [v2.16 Phase 3-1c] V2 단일 칼럼 본문 — 2-col grid → 1-col 변경
+       * 사유: 사용자 결정 §11 V2 Hero-led / 작업지시서 §3-1
+       * 우측 sticky ApplyPanel → 본문 하단 (SlotBoard 아래) 이동 */}
+      <div style={{ marginTop: 16 }}>
+        <div>
+          {/* 단일 컬럼 메인 스택 */}
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
             {/* Phase 10-1 B-8 — 종료된 경기 hero 띠: MVP 배지 + 평가 진행 상태.
              * SummaryCard 위에 한 줄짜리 카드로 띄워 종료된 경기의 결과 요약을
@@ -465,6 +469,34 @@ export default async function GameDetailPage({
                 })()}
               />
             )}
+
+            {/* [v2.16 Phase 3-1c] ApplyPanel — V2 단일 칼럼 본문 안으로 이동 (이전 우측 sticky).
+             * id="apply-panel" 유지 — Ribbon CTA / SlotBoard 빈 슬롯 anchor 타겟. */}
+            <div id="apply-panel" style={{ scrollMarginTop: 80 }}>
+              <ApplyPanel
+                gameId={id}
+                gameStatus={game.status}
+                feePerPerson={game.fee_per_person}
+                entryFeeNote={game.entry_fee_note}
+                maxParticipants={game.max_participants}
+                currentParticipants={game.current_participants}
+                isLoggedIn={Boolean(session)}
+                isHost={isHost}
+                myApplicationStatus={myApplication ? myApplication.status : null}
+                profileCompleted={profileCompleted}
+                missingFields={missingFields}
+                myProfile={
+                  userRecord
+                    ? {
+                        nickname: userRecord.nickname,
+                        name: userRecord.name,
+                        position: userRecord.position,
+                        skill_level: userRecord.skill_level,
+                      }
+                    : null
+                }
+              />
+            </div>
 
             {/* 4. 카페 댓글 — 기존 디자인 유지(요청: 유지) */}
             {cafeComments.length > 0 && (
@@ -650,45 +682,22 @@ export default async function GameDetailPage({
             </div>
           </div>
 
-          {/* 우측 사이드 — ApplyPanel (lg 이상에서 340px 고정, 모바일에선 스택 아래)
-           * [v2.16 Phase 3-1b] id="apply-panel" — Concept B 빈 슬롯 click anchor 타겟 */}
-          <div
-            id="apply-panel"
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              gap: 16,
-              scrollMarginTop: 80,
-            }}
-          >
-            <ApplyPanel
-              gameId={id}
-              gameStatus={game.status}
-              feePerPerson={game.fee_per_person}
-              entryFeeNote={game.entry_fee_note}
-              maxParticipants={game.max_participants}
-              currentParticipants={game.current_participants}
-              isLoggedIn={Boolean(session)}
-              isHost={isHost}
-              myApplicationStatus={myApplication ? myApplication.status : null}
-              profileCompleted={profileCompleted}
-              missingFields={missingFields}
-              // Phase C (2026-05-02): 신청자 정보 카드 노출용. userRecord 없으면 (비로그인) null.
-              // 시안 결정 4 = A: skill_level select 1줄 추가, 그 외 정보는 user 자동.
-              myProfile={
-                userRecord
-                  ? {
-                      nickname: userRecord.nickname,
-                      name: userRecord.name,
-                      position: userRecord.position,
-                      skill_level: userRecord.skill_level,
-                    }
-                  : null
-              }
-            />
-          </div>
         </div>
       </div>
+
+      {/* [v2.16 Phase 3-1c] 모바일 하단 fixed sticky bar — ≤720px 만 표시
+       * 정원 + 신청 CTA (44px 터치). #apply-panel anchor scroll. */}
+      <MobileStickyBar
+        gameType={game.game_type}
+        gameStatus={game.status}
+        maxParticipants={game.max_participants ?? 10}
+        currentParticipants={game.current_participants ?? 0}
+        isLoggedIn={Boolean(session)}
+        isHost={isHost}
+        isAdmin={isAdmin}
+        myApplicationStatus={myApplication ? myApplication.status : null}
+        applyAnchorId="apply-panel"
+      />
     </div>
   );
 }
