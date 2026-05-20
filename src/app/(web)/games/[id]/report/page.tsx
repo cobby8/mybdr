@@ -15,6 +15,8 @@ import { redirect, notFound } from "next/navigation";
 // 2026-05-12 로그인 redirect 통합 — `returnTo=` 쿼리 → `redirect=` 표준 통일
 import { buildLoginRedirect } from "@/lib/auth/redirect";
 import { GameReportForm, type ReportPlayer } from "./_components/report-form";
+// [v2.16 Phase 3-3] 상단 GameCard 미니 — 작업지시서 §3-3 일관성
+import { GameCard } from "@/components/bdr-v2/game-card";
 
 // 동적 — 매 요청마다 세션/참가자 변경될 수 있음. 캐시 X.
 export const dynamic = "force-dynamic";
@@ -57,6 +59,16 @@ export default async function GameReportPage({
       scheduled_at: true,
       organizer_id: true,
       status: true,
+      // [v2.16 Phase 3-3] GameCard 미니 상단 표시용 추가 필드
+      game_type: true,
+      city: true,
+      district: true,
+      venue_name: true,
+      duration_hours: true,
+      fee_per_person: true,
+      skill_level: true,
+      max_participants: true,
+      current_participants: true,
       // schema.prisma 1286: relation 이름이 `users` (organizer 아님)
       users: {
         select: {
@@ -121,17 +133,69 @@ export default async function GameReportPage({
 
   const players: ReportPlayer[] = Array.from(playerMap.values());
 
+  // [v2.16 Phase 3-3] GameCard 미니 prop 매핑
+  const tags: string[] = [];
+  if (!game.fee_per_person || game.fee_per_person === 0) tags.push("무료");
+  if (
+    game.skill_level &&
+    ["beginner", "lowest", "low"].includes(game.skill_level)
+  ) {
+    tags.push("초보환영");
+  }
+  if (game.scheduled_at) {
+    const dow = game.scheduled_at.getDay();
+    if (dow === 0 || dow === 6) tags.push("주말");
+  }
+  const areaLabel = [game.city, game.district].filter(Boolean).join(" ");
+  const hostNickname = game.users?.nickname ?? game.users?.name ?? null;
+
   // 5. client 폼 렌더 — 권한 체크/임시저장/제출은 client에서
   return (
-    <GameReportForm
-      gameId={id}
-      game={{
-        title: game.title,
-        date: game.scheduled_at ? game.scheduled_at.toISOString() : null,
-        host_nickname: game.users?.nickname ?? null,
-      }}
-      players={players}
-      currentUserId={session.sub}
-    />
+    <div className="page">
+      <div style={{ maxWidth: 760, margin: "0 auto" }}>
+        {/* [v2.16 Phase 3-3] 상단 GameCard 미니 — 시안 §3-3 일관성 */}
+        <div style={{ marginBottom: 18 }}>
+          <div
+            style={{
+              fontSize: 11,
+              fontWeight: 800,
+              letterSpacing: "0.12em",
+              textTransform: "uppercase",
+              color: "var(--accent)",
+              marginBottom: 8,
+            }}
+          >
+            평가 대상 경기
+          </div>
+          <GameCard
+            href={`/games/${id}`}
+            gameType={game.game_type}
+            status={game.status}
+            title={game.title}
+            venueName={game.venue_name}
+            areaLabel={areaLabel}
+            scheduledAt={game.scheduled_at?.toISOString() ?? null}
+            durationHours={game.duration_hours ?? null}
+            skillLevel={game.skill_level}
+            feePerPerson={game.fee_per_person?.toString() ?? null}
+            currentParticipants={game.current_participants ?? 0}
+            maxParticipants={game.max_participants ?? 10}
+            authorNickname={hostNickname}
+            tags={tags}
+          />
+        </div>
+
+        <GameReportForm
+          gameId={id}
+          game={{
+            title: game.title,
+            date: game.scheduled_at ? game.scheduled_at.toISOString() : null,
+            host_nickname: game.users?.nickname ?? null,
+          }}
+          players={players}
+          currentUserId={session.sub}
+        />
+      </div>
+    </div>
   );
 }
