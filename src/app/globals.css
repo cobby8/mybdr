@@ -4076,3 +4076,284 @@ html.dark {
     font-size: 16px;
   }
 }
+
+/* ============================================================
+ * 2026-05-20 [v2.16 Phase 3-1c] ApplyRibbon — hero 바로 아래 빠른 액션 띠
+ * + MobileStickyBar — 모바일 하단 고정
+ * 박제 source: 작업지시서 §3-1
+ *
+ * 사용 위치:
+ *   - <ApplyRibbon> in _v2/apply-ribbon.tsx
+ *   - <MobileStickyBar> in _v2/mobile-sticky-bar.tsx (≤720px 만)
+ * ============================================================ */
+
+.gd-ribbon {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-top: 16px;
+  overflow: hidden;
+  box-shadow: var(--sh-xs);
+}
+.gd-ribbon__inner {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) auto;
+  gap: 16px;
+  align-items: center;
+  padding: 14px 20px;
+}
+.gd-ribbon__progress {
+  min-width: 0;
+}
+.gd-ribbon__progress-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 6px;
+  margin-bottom: 6px;
+  font-size: 12px;
+}
+.gd-ribbon__progress-lbl {
+  font-weight: 700;
+  color: var(--ink-soft);
+  letter-spacing: 0.02em;
+}
+.gd-ribbon__progress-count {
+  font-family: var(--ff-mono);
+  font-size: 12px;
+  color: var(--ink-mute);
+}
+.gd-ribbon__progress-count strong {
+  font-family: var(--ff-display);
+  font-size: 16px;
+  font-weight: 900;
+  color: var(--ink);
+  margin-right: 1px;
+}
+.gd-ribbon__progress-den {
+  margin-right: 6px;
+}
+.gd-ribbon__progress-remain {
+  color: var(--ink-mute);
+}
+.gd-ribbon__progress-remain strong {
+  font-size: 13px;
+  color: var(--kind, var(--accent));
+}
+.gd-ribbon__progress-bar {
+  height: 6px;
+  background: var(--bg-alt);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.gd-ribbon__progress-fill {
+  height: 100%;
+  background: var(--kind, var(--cafe-blue));
+  transition: width 0.3s;
+}
+
+.gd-ribbon__host {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding-left: 16px;
+  border-left: 1px solid var(--border);
+}
+.gd-ribbon__host-av {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--kind-deep, var(--cafe-blue-deep));
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--ff-display);
+  font-weight: 800;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+.gd-ribbon__host-meta {
+  min-width: 0;
+}
+.gd-ribbon__host-lbl {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+}
+.gd-ribbon__host-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-top: 1px;
+}
+
+.gd-ribbon__cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 22px;
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  border-radius: 4px;
+  text-decoration: none;
+  white-space: nowrap;
+  min-height: 40px;
+  flex-shrink: 0;
+}
+.gd-ribbon__cta.is-primary {
+  background: var(--cafe-blue);
+  color: #fff;
+  border: 1px solid var(--cafe-blue-deep);
+}
+.gd-ribbon__cta.is-primary:hover {
+  background: var(--cafe-blue-deep);
+}
+.gd-ribbon__cta.is-approved {
+  background: var(--ok-soft);
+  color: var(--ok);
+  border: 1px solid #C7E8D7;
+}
+.gd-ribbon__cta.is-pending {
+  background: var(--bg-alt);
+  color: var(--ink-mute);
+  border: 1px solid var(--border);
+}
+.gd-ribbon__cta.is-closed {
+  background: var(--bg-alt);
+  color: var(--ink-dim);
+  border: 1px solid var(--border);
+}
+.gd-ribbon__cta.is-host {
+  background: var(--accent-soft);
+  color: var(--accent);
+  border: 1px solid #F5C6C8;
+}
+.gd-ribbon__cta.is-disabled {
+  pointer-events: none;
+  cursor: default;
+}
+
+/* Mobile (≤720px) — Ribbon 세로 stack, host 숨김 */
+@media (max-width: 720px) {
+  .gd-ribbon__inner {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px;
+    padding: 12px 14px;
+  }
+  .gd-ribbon__host {
+    display: none;
+  }
+  .gd-ribbon__cta {
+    padding: 10px 16px;
+    font-size: 13px;
+  }
+}
+
+/* ============================================================
+ * MobileStickyBar — 모바일 하단 fixed
+ * ============================================================ */
+
+.gd-mobile-bar {
+  display: none;
+}
+@media (max-width: 720px) {
+  .gd-mobile-bar {
+    display: flex;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 40;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px calc(10px + env(safe-area-inset-bottom, 0px));
+    background: var(--bg-card);
+    border-top: 1px solid var(--border-strong);
+    box-shadow: 0 -4px 16px rgba(15, 23, 42, 0.08);
+  }
+  .gd-mobile-bar__info {
+    flex: 1;
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    min-width: 0;
+  }
+  .gd-mobile-bar__count {
+    font-family: var(--ff-display);
+    font-size: 18px;
+    font-weight: 900;
+    color: var(--ink);
+    line-height: 1;
+  }
+  .gd-mobile-bar__filled {
+    color: var(--kind, var(--cafe-blue));
+  }
+  .gd-mobile-bar__den {
+    font-size: 13px;
+    color: var(--ink-mute);
+    font-weight: 600;
+    margin-left: 2px;
+  }
+  .gd-mobile-bar__remain {
+    font-size: 11px;
+    color: var(--ink-mute);
+    font-family: var(--ff-mono);
+  }
+  .gd-mobile-bar__remain strong {
+    color: var(--accent);
+    font-weight: 800;
+    font-size: 13px;
+  }
+  .gd-mobile-bar__cta {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 22px;
+    font-size: 14px;
+    font-weight: 800;
+    border-radius: 4px;
+    text-decoration: none;
+    white-space: nowrap;
+    min-height: 44px; /* iOS 터치 타겟 */
+    min-width: 110px;
+    flex-shrink: 0;
+  }
+  .gd-mobile-bar__cta.is-primary {
+    background: var(--cafe-blue);
+    color: #fff;
+    border: 1px solid var(--cafe-blue-deep);
+  }
+  .gd-mobile-bar__cta.is-approved {
+    background: var(--ok-soft);
+    color: var(--ok);
+    border: 1px solid #C7E8D7;
+  }
+  .gd-mobile-bar__cta.is-pending,
+  .gd-mobile-bar__cta.is-closed {
+    background: var(--bg-alt);
+    color: var(--ink-mute);
+    border: 1px solid var(--border);
+  }
+  .gd-mobile-bar__cta.is-host {
+    background: var(--accent-soft);
+    color: var(--accent);
+    border: 1px solid #F5C6C8;
+  }
+  .gd-mobile-bar__cta.is-disabled {
+    pointer-events: none;
+    cursor: default;
+  }
+
+  /* 페이지 하단 padding — MobileStickyBar 가 콘텐츠 가리지 않게 */
+  body.has-mobile-sticky-bar {
+    padding-bottom: 80px;
+  }
+}
