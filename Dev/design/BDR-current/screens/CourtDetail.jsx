@@ -110,20 +110,6 @@ function CourtDetail({ setRoute }) {
               </div>
             ))}
           </div>
-
-          {/* [Phase 16] 방문 후기 — 컨텍스트 인라인 리뷰 */}
-          <ContextReviews
-            kind="court"
-            targetName={c.name}
-            reviews={[
-              { author:'리딤캡틴',  authorLevel:'L.8', rating:5, date:'2026.04.20', body:'바닥 컨디션이 깔끔하고 조명도 충분합니다. 평일 저녁 픽업이 활발해서 처음 가도 낄 수 있어요.', tags:['픽업활발','조명상'], verified:true },
-              { author:'pickup_lover', authorLevel:'L.6', rating:5, date:'2026.04.15', body:'관중석 있는게 진짜 다릅니다. 분위기 살아납니다.', tags:['관중석'], verified:true },
-              { author:'jang_player',  authorLevel:'L.4', rating:4, date:'2026.04.02', body:'주차가 유료라 비싸지만 시설은 만족.', tags:['주차아쉬움'], verified:true },
-            ]}
-            summary={{ avg:'4.6', total:128, dist:[78, 30, 12, 5, 3] }}
-            onWrite={()=>alert('방문 후기 작성 (실제 방문 인증 필요)')}
-            onViewAll={()=>alert('전체 후기 — 페이징 페이지로')}
-          />
         </div>
 
         {/* Side */}

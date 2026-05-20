@@ -122,7 +122,6 @@ function PlayerProfile({ setRoute }) {
           { id:'overview', label:'개요' },
           { id:'stats',    label:'시즌 스탯' },
           { id:'games',    label:'최근 경기' },
-          { id:'manner',   label:'매너 평가' },
           { id:'vs',       label:'나와의 전적' },
         ].map(t => (
           <button key={t.id} onClick={()=>setTab(t.id)} style={{
@@ -272,22 +271,6 @@ function PlayerProfile({ setRoute }) {
             </div>
           ))}
         </div>
-      )}
-
-      {tab === 'manner' && (
-        <ContextReviews
-          kind="player"
-          targetName={p.name}
-          reviews={[
-            { author:'리딤캡틴',  authorLevel:'L.8', rating:5, date:'2026.04.20', body:'센터 포지션에서 스크린·박스아웃이 정확합니다. 함께 뛰면 든든해요.', tags:['든든함','스크린정확'], verified:true },
-            { author:'3POINT_슈', authorLevel:'L.5', rating:5, date:'2026.04.05', body:'경기 매너 좋고 클러치에 강합니다.', tags:['매너','클러치'], verified:true },
-            { author:'pickup_lover', authorLevel:'L.6', rating:4, date:'2026.03.18', body:'리바운드 강하지만 가끔 거친 플레이가 나오는게 옥의 티.', tags:['리바운드'], verified:true },
-            { author:'kings_p', authorLevel:'L.7', rating:5, date:'2026.02.10', body:'팀 디펜스 호흡이 잘 맞습니다. 추천합니다.', tags:['디펜스호흡'], verified:true },
-          ]}
-          summary={{ avg:'4.8', total:42, dist:[34, 6, 2, 0, 0] }}
-          onWrite={()=>alert('매너 평가 작성 (함께 뛴 경기 인증 필요)')}
-          onViewAll={()=>alert('전체 매너 평가 — 페이징 페이지로')}
-        />
       )}
 
       {tab === 'vs' && (

@@ -96,7 +96,7 @@ function Saved({ setRoute }) {
             {savedGames.map(g => (
               <div key={g.id} className="card" style={{padding:'16px 18px', cursor:'pointer'}} onClick={()=>setRoute('gameDetail')}>
                 <div style={{display:'flex', gap:8, marginBottom:8}}>
-                  <span className="badge badge--soft">{g.kind==='pickup'?'픽업':g.kind==='guest'?'게스트':'연습경기'}</span>
+                  <span className="badge badge--soft">{g.kind==='pickup'?'픽업':g.kind==='guest'?'게스트':'스크림'}</span>
                   {g.status==='closing' && <span className="badge badge--red">마감임박</span>}
                   <span style={{marginLeft:'auto', fontSize:10, color:'var(--ink-dim)', fontFamily:'var(--ff-mono)'}}>🔖 {g.savedAt}</span>
                 </div>

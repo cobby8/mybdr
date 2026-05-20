@@ -1,0 +1,1088 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>제17회 강남구협회장배 — Tournament Full-Flow Showcase</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800;900&family=JetBrains+Mono:wght@500;700;800&family=Pretendard:wght@400;500;600;700;800;900&display=swap" />
+<link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Symbols+Outlined" />
+<link rel="stylesheet" href="_tournament_showcase.css" />
+</head>
+<body>
+
+<!-- ============================================================
+     APPNAV (frozen v2.15 style, simplified static)
+     ============================================================ -->
+<div class="t-utility">
+  <div class="inner">
+    <span>관리자</span><a href="#">김수빈</a><a href="#">설정</a><a href="#">로그아웃</a>
+  </div>
+</div>
+<div class="t-nav">
+  <div class="inner">
+    <div class="logo">MyBDR<span class="dot">.</span></div>
+    <nav>
+      <a href="#">홈</a>
+      <a href="#">경기</a>
+      <a href="#" class="active">대회</a>
+      <a href="#">단체</a>
+      <a href="#">팀</a>
+      <a href="#">코트</a>
+      <a href="#">랭킹</a>
+      <a href="#">커뮤니티</a>
+      <a href="#">더보기</a>
+    </nav>
+    <div class="actions">
+      <div class="themeswitch"><span class="on">☀ 라이트</span><span>☾ 다크</span></div>
+      <button class="iconbtn"><span class="material-symbols-outlined">search</span></button>
+      <button class="iconbtn"><span class="material-symbols-outlined">mail</span></button>
+      <button class="iconbtn"><span class="material-symbols-outlined">notifications</span></button>
+    </div>
+  </div>
+</div>
+
+<div class="page">
+
+  <!-- ============================================================
+       §1 — TOURNAMENT LIST CARD (preview)
+       ============================================================ -->
+  <div class="section-marker">
+    <span class="num">SECTION 01</span>
+    <h2 class="title">대회 목록 카드</h2>
+    <span class="note">/ 목록 페이지에서 이 대회는 이렇게 보입니다 (위 = featured, 아래 = 비교용 회색)</span>
+  </div>
+
+  <div class="list-preview">
+
+    <!-- featured / 이번 대회 -->
+    <div class="t-listcard featured">
+      <div class="ribbon">
+        <div class="month">MAY</div>
+        <div class="day">17</div>
+        <div class="weekday">SUN · 종료</div>
+      </div>
+      <div class="body">
+        <div class="stage-row">
+          <span class="badge badge--ended">종료 · 시상완료</span>
+          <span class="badge badge--division">i3W-U12</span>
+          <span class="badge">유소년부 · 36팀</span>
+          <span style="font-family:var(--ff-mono); font-size:11px; color:var(--ink-mute);">2026 GNBA 협회장배 시리즈 · 17회</span>
+        </div>
+        <div class="title">제17회 강남구협회장배 농구대회 · 유소년부</div>
+        <div class="meta-row">
+          <span><span class="material-symbols-outlined">calendar_today</span>5/16(토) ~ 5/17(일)</span>
+          <span><span class="material-symbols-outlined">location_on</span>강남구민체육관 / 수도공고</span>
+          <span><span class="material-symbols-outlined">paid</span>참가비 무료</span>
+          <span><span class="material-symbols-outlined">groups</span>36/36팀</span>
+        </div>
+      </div>
+      <div class="progress-col">
+        <div class="lbl">DUAL TOURNAMENT 진행</div>
+        <div class="pbar"><div class="fill" style="width:100%"></div></div>
+        <div class="stat-row"><span>경기</span><span><b>59</b>/59 완료</span></div>
+        <div class="stat-row"><span>우승</span><span style="color:var(--accent);font-weight:700;">🥇 김포홉스타</span></div>
+      </div>
+      <div class="cta-col">
+        <a href="#hero" class="btn btn--primary">결과 보기</a>
+      </div>
+    </div>
+
+    <!-- comparison muted -->
+    <div class="t-listcard muted">
+      <div class="ribbon">
+        <div class="month">JUN</div>
+        <div class="day">07</div>
+        <div class="weekday">SAT · 예정</div>
+      </div>
+      <div class="body">
+        <div class="stage-row">
+          <span class="badge badge--open">접수중</span>
+          <span class="badge badge--division">i2-U14</span>
+          <span style="font-family:var(--ff-mono); font-size:11px; color:var(--ink-mute);">2026 BDR CHALLENGE · SPRING</span>
+        </div>
+        <div class="title">BDR CHALLENGE 2026 · Spring Open</div>
+        <div class="meta-row">
+          <span><span class="material-symbols-outlined">calendar_today</span>6/7(토) ~ 6/8(일)</span>
+          <span><span class="material-symbols-outlined">location_on</span>잠실학생체육관</span>
+          <span><span class="material-symbols-outlined">paid</span>참가비 8만원/팀</span>
+          <span><span class="material-symbols-outlined">groups</span>22/24팀</span>
+        </div>
+      </div>
+      <div class="progress-col">
+        <div class="lbl">접수 D-22</div>
+        <div class="pbar"><div class="fill" style="width:91%"></div></div>
+        <div class="stat-row"><span>마감까지</span><span><b>2</b>팀 남음</span></div>
+        <div class="stat-row"><span>상금</span><span style="color:var(--ink-soft);font-weight:700;">200만원</span></div>
+      </div>
+      <div class="cta-col">
+        <a href="#" class="btn">신청</a>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ============================================================
+       §2 — HERO HEADER
+       ============================================================ -->
+  <div class="section-marker">
+    <span class="num">SECTION 02</span>
+    <h2 class="title">대회 상세 — Hero</h2>
+    <span class="note">/ 진행 상태 + 핵심 KPI 우측 패널</span>
+  </div>
+
+  <div class="breadcrumb">
+    <a href="#">홈</a>
+    <span class="sep">›</span>
+    <a href="#">강남구농구협회</a>
+    <span class="sep">›</span>
+    <a href="#">2026 GNBA 협회장배 시리즈</a>
+    <span class="sep">›</span>
+    <span class="current">제17회 강남구협회장배 농구대회 (유소년부)</span>
+  </div>
+
+  <section id="hero" class="t-hero">
+    <div class="inner">
+      <div>
+        <div class="pills">
+          <span class="h-pill live"><span class="material-symbols-outlined" style="font-size:14px;">emoji_events</span>종료 · 시상 완료</span>
+          <span class="h-pill">DUAL TOURNAMENT</span>
+          <span class="h-pill">i3W-U12 · 유소년부</span>
+        </div>
+        <h1>제17회 강남구협회장배 농구대회</h1>
+        <div class="subtitle">강남구농구협회 주최 / 36팀 6개 종별 · 듀얼 토너먼트 방식으로 진행된 2026 GNBA 협회장배 시리즈의 17번째 회차입니다. 이틀간 59경기, 4개 코트 운영.</div>
+        <div class="meta">
+          <span><span class="material-symbols-outlined">calendar_today</span>2026.05.16 (토) ~ 05.17 (일)</span>
+          <span><span class="material-symbols-outlined">location_on</span>강남구민체육관 / 수도공고</span>
+          <span><span class="material-symbols-outlined">paid</span>참가비 무료</span>
+          <span><span class="material-symbols-outlined">shield</span>강남구농구협회</span>
+        </div>
+      </div>
+      <div class="stat-board">
+        <div class="head">FINAL STANDING</div>
+        <div style="display:flex; align-items:center; gap:12px;">
+          <div class="avatar lg t-kpo">김</div>
+          <div>
+            <div style="font-family:var(--ff-mono); font-size:10px; opacity:0.7; letter-spacing:0.1em;">🥇 CHAMPION</div>
+            <div class="big">김포홉스타</div>
+            <div style="font-family:var(--ff-mono); font-size:11px; opacity:0.8;">3W (예선) · 3W (토너먼트)</div>
+          </div>
+        </div>
+        <div class="row">
+          <div class="cell"><span class="lbl">총 경기</span><span class="v">59</span></div>
+          <div class="cell"><span class="lbl">총 득점</span><span class="v">1,488</span></div>
+          <div class="cell"><span class="lbl">최다득점</span><span class="v">42</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Tabs -->
+  <div class="t-tabs">
+    <button class="on">대회소개</button>
+    <button>경기일정</button>
+    <button>대진표</button>
+    <button>참가팀</button>
+    <button>입상/시상</button>
+    <button>규정</button>
+  </div>
+
+  <!-- ============================================================
+       §3 — PHASE TIMELINE
+       ============================================================ -->
+  <div class="section-marker">
+    <span class="num">SECTION 03</span>
+    <h2 class="title">대회 흐름 — Phase Timeline</h2>
+    <span class="note">/ 접수 → 조추첨 → 조별 예선 → 8강 → 4강 → 결승+시상 (현재 위치 표시)</span>
+  </div>
+
+  <div class="flow">
+    <div class="flow-head">
+      <div>
+        <div class="flow-head" style="display:block; margin:0;">
+          <span class="lbl">진행 단계</span>
+        </div>
+      </div>
+      <div class="sub">완료 <b>6/6</b> · 마지막 업데이트 2026.05.17 18:42</div>
+    </div>
+    <div class="steps">
+      <div class="step done">
+        <div class="marker"><span class="material-symbols-outlined">check</span></div>
+        <div class="label">접수</div>
+        <div class="date">04.20 — 05.10</div>
+      </div>
+      <div class="step done">
+        <div class="marker"><span class="material-symbols-outlined">check</span></div>
+        <div class="label">조 추첨</div>
+        <div class="date">05.12</div>
+      </div>
+      <div class="step done">
+        <div class="marker"><span class="material-symbols-outlined">check</span></div>
+        <div class="label">조별 예선</div>
+        <div class="date">05.16 (토)</div>
+      </div>
+      <div class="step done">
+        <div class="marker"><span class="material-symbols-outlined">check</span></div>
+        <div class="label">8강</div>
+        <div class="date">05.17 오전</div>
+      </div>
+      <div class="step done">
+        <div class="marker"><span class="material-symbols-outlined">check</span></div>
+        <div class="label">4강</div>
+        <div class="date">05.17 오후</div>
+      </div>
+      <div class="step done">
+        <div class="marker"><span class="material-symbols-outlined">emoji_events</span></div>
+        <div class="label">결승 · 시상</div>
+        <div class="date">05.17 18:00</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       §4 — SCHEDULE CARDS
+       ============================================================ -->
+  <div class="section-marker">
+    <span class="num">SECTION 04</span>
+    <h2 class="title">경기 일정 — 상태별 변신 카드</h2>
+    <span class="note">/ Concept 06 적용 · 예정 / LIVE / 종료 카드 폼 자동 변신</span>
+  </div>
+
+  <div class="schedule-toolbar">
+    <div class="date-pills">
+      <span class="date-pill">전체 (59)</span>
+      <span class="date-pill">5/16 (토) · 36</span>
+      <span class="date-pill on">5/17 (일) · 23</span>
+    </div>
+    <div class="legend">
+      <span class="leg"><span class="sw" style="background:var(--navy)"></span>예정</span>
+      <span class="leg"><span class="sw" style="background:var(--accent)"></span>LIVE</span>
+      <span class="leg"><span class="sw" style="background:var(--ink-dim)"></span>종료</span>
+    </div>
+  </div>
+
+  <div class="day-block">
+    <div class="day-head">
+      <span class="date">5월 17일 (일) — 결승일</span>
+      <span class="count">7경기 / 8강 4 · 4강 2 · 3위전 1 · 결승 1 · 모두 종료</span>
+    </div>
+
+    <!-- 8강 #1 ended -->
+    <div class="match ended">
+      <div class="col-time"><div class="t">09:30</div><div class="g">8강 #1</div></div>
+      <div class="col-main">
+        <div class="meta-row">
+          <span class="badge badge--ended">FINAL</span>
+          <span class="badge badge--division">i3W-U12</span>
+          <span>A1 vs D2</span>
+        </div>
+        <div class="matchup">
+          <div class="team"><div class="avatar md t-kpo">김</div><span class="name">김포홉스타</span></div>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span class="score" style="color:var(--ok)">28</span>
+            <span class="score sep">:</span>
+            <span class="score lost">14</span>
+          </div>
+          <div class="team right lost"><span class="name">구리남양주삼성</span><div class="avatar md t-gry">구</div></div>
+        </div>
+      </div>
+      <div class="col-venue"><div class="court">COURT 1</div><div class="gym">강남구민체육관</div></div>
+      <div class="col-cta"><a href="#" class="btn btn--sm">기록지</a></div>
+    </div>
+
+    <!-- 8강 #2 ended -->
+    <div class="match ended">
+      <div class="col-time"><div class="t">10:00</div><div class="g">8강 #2</div></div>
+      <div class="col-main">
+        <div class="meta-row">
+          <span class="badge badge--ended">FINAL</span>
+          <span class="badge badge--division">i3W-U12</span>
+          <span>B1 vs C2</span>
+        </div>
+        <div class="matchup">
+          <div class="team"><div class="avatar md t-gd">강</div><span class="name">강동SK</span></div>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span class="score" style="color:var(--ok)">26</span>
+            <span class="score sep">:</span>
+            <span class="score lost">18</span>
+          </div>
+          <div class="team right lost"><span class="name">강남삼성</span><div class="avatar md t-gns">강</div></div>
+        </div>
+      </div>
+      <div class="col-venue"><div class="court">COURT 2</div><div class="gym">강남구민체육관</div></div>
+      <div class="col-cta"><a href="#" class="btn btn--sm">기록지</a></div>
+    </div>
+
+    <!-- 8강 #3 LIVE (we'll show one as live to demonstrate the state, even though everything ended) -->
+    <div class="match live">
+      <div class="col-time"><div class="t">10:30</div><div class="g">8강 #3</div></div>
+      <div class="col-main">
+        <div class="meta-row">
+          <span class="badge badge--live"><span class="dot dot--pulse"></span>LIVE · Q3 03:24</span>
+          <span class="badge badge--division">i3W-U12</span>
+          <span>C1 vs B2</span>
+        </div>
+        <div class="matchup">
+          <div class="team"><div class="avatar md t-yncB">Y</div><span class="name">YNC B</span></div>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span class="score">22</span>
+            <span class="score sep">:</span>
+            <span class="score">19</span>
+          </div>
+          <div class="team right"><span class="name">그로우</span><div class="avatar md t-grw">그</div></div>
+        </div>
+      </div>
+      <div class="col-venue"><div class="court">COURT 1</div><div class="gym">강남구민체육관</div></div>
+      <div class="col-cta"><a href="#" class="btn btn--primary btn--sm">중계 보기</a></div>
+    </div>
+
+    <!-- 8강 #4 upcoming -->
+    <div class="match upcoming">
+      <div class="col-time"><div class="t">11:00</div><div class="g">8강 #4</div></div>
+      <div class="col-main">
+        <div class="meta-row">
+          <span class="badge badge--upcoming">예정 · 30분 후</span>
+          <span class="badge badge--division">i3W-U12</span>
+          <span>D1 vs A2</span>
+        </div>
+        <div class="matchup">
+          <div class="team"><div class="avatar md t-kph">김</div><span class="name">김포홀</span></div>
+          <div><span class="score" style="color:var(--ink-dim)">VS</span></div>
+          <div class="team right"><span class="name">YNC A</span><div class="avatar md t-yncA">Y</div></div>
+        </div>
+      </div>
+      <div class="col-venue"><div class="court">COURT 2</div><div class="gym">강남구민체육관</div></div>
+      <div class="col-cta"><a href="#" class="btn btn--sm">알림</a></div>
+    </div>
+
+    <!-- 결승 (final) - ended with score -->
+    <div class="match ended" style="background: linear-gradient(90deg, rgba(196,152,38,0.06), transparent 50%);">
+      <div class="col-time"><div class="t" style="color:var(--gold)">18:00</div><div class="g">결승</div></div>
+      <div class="col-main">
+        <div class="meta-row">
+          <span class="badge badge--gold"><span class="material-symbols-outlined" style="font-size:12px;">emoji_events</span>FINAL · 우승 결정전</span>
+          <span class="badge badge--division">i3W-U12</span>
+        </div>
+        <div class="matchup">
+          <div class="team"><div class="avatar md t-kpo">김</div><span class="name">김포홉스타</span></div>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span class="score" style="color:var(--gold); font-size:26px;">32</span>
+            <span class="score sep">:</span>
+            <span class="score lost">28</span>
+          </div>
+          <div class="team right lost"><span class="name">김포홀</span><div class="avatar md t-kph">김</div></div>
+        </div>
+      </div>
+      <div class="col-venue"><div class="court">COURT 1 · CENTER</div><div class="gym">강남구민체육관</div></div>
+      <div class="col-cta"><a href="#" class="btn btn--sm">다시보기</a></div>
+    </div>
+
+  </div>
+
+  <!-- ============================================================
+       §5 — GROUP DRAW
+       ============================================================ -->
+  <div class="section-marker">
+    <span class="num">SECTION 05</span>
+    <h2 class="title">조 편성 — Group Draw</h2>
+    <span class="note">/ 12팀 4조 · 각 조 상위 2팀 8강 진출 (i3W-U12 부)</span>
+  </div>
+
+  <div class="groups">
+    <!-- Group A -->
+    <div class="group-card A">
+      <div class="gh">
+        <div class="letter">A</div>
+        <div class="meta">
+          <div class="title">A조</div>
+          <div class="sub">3팀 · 라운드 로빈</div>
+        </div>
+      </div>
+      <div class="team-row advanced">
+        <div class="seed">1</div>
+        <div class="nm"><div class="avatar sm t-kpo">김</div><span class="name">김포홉스타</span></div>
+        <div class="rec">2W</div>
+      </div>
+      <div class="team-row advanced">
+        <div class="seed">2</div>
+        <div class="nm"><div class="avatar sm t-yncA">Y</div><span class="name">YNC A</span></div>
+        <div class="rec">1W 1L</div>
+      </div>
+      <div class="team-row eliminated">
+        <div class="seed">3</div>
+        <div class="nm"><div class="avatar sm t-stz">스</div><span class="name">스티즈강남</span></div>
+        <div class="rec">2L</div>
+      </div>
+    </div>
+
+    <!-- Group B -->
+    <div class="group-card B">
+      <div class="gh">
+        <div class="letter">B</div>
+        <div class="meta">
+          <div class="title">B조</div>
+          <div class="sub">3팀 · 라운드 로빈</div>
+        </div>
+      </div>
+      <div class="team-row advanced">
+        <div class="seed">1</div>
+        <div class="nm"><div class="avatar sm t-gd">강</div><span class="name">강동SK</span></div>
+        <div class="rec">2W</div>
+      </div>
+      <div class="team-row advanced">
+        <div class="seed">2</div>
+        <div class="nm"><div class="avatar sm t-grw">그</div><span class="name">그로우</span></div>
+        <div class="rec">1W 1L</div>
+      </div>
+      <div class="team-row eliminated">
+        <div class="seed">3</div>
+        <div class="nm"><div class="avatar sm t-dsk">다</div><span class="name">다산SK</span></div>
+        <div class="rec">2L</div>
+      </div>
+    </div>
+
+    <!-- Group C -->
+    <div class="group-card C">
+      <div class="gh">
+        <div class="letter">C</div>
+        <div class="meta">
+          <div class="title">C조</div>
+          <div class="sub">3팀 · 라운드 로빈</div>
+        </div>
+      </div>
+      <div class="team-row advanced">
+        <div class="seed">1</div>
+        <div class="nm"><div class="avatar sm t-yncB">Y</div><span class="name">YNC B</span></div>
+        <div class="rec">2W</div>
+      </div>
+      <div class="team-row advanced">
+        <div class="seed">2</div>
+        <div class="nm"><div class="avatar sm t-gns">강</div><span class="name">강남삼성</span></div>
+        <div class="rec">1W 1L</div>
+      </div>
+      <div class="team-row eliminated">
+        <div class="seed">3</div>
+        <div class="nm"><div class="avatar sm t-kps">김</div><span class="name">김포SK</span></div>
+        <div class="rec">2L</div>
+      </div>
+    </div>
+
+    <!-- Group D -->
+    <div class="group-card D">
+      <div class="gh">
+        <div class="letter">D</div>
+        <div class="meta">
+          <div class="title">D조</div>
+          <div class="sub">3팀 · 라운드 로빈</div>
+        </div>
+      </div>
+      <div class="team-row advanced">
+        <div class="seed">1</div>
+        <div class="nm"><div class="avatar sm t-kph">김</div><span class="name">김포홀</span></div>
+        <div class="rec">2W</div>
+      </div>
+      <div class="team-row advanced">
+        <div class="seed">2</div>
+        <div class="nm"><div class="avatar sm t-gry">구</div><span class="name">구리남양주삼성</span></div>
+        <div class="rec">1W 1L</div>
+      </div>
+      <div class="team-row eliminated">
+        <div class="seed">3</div>
+        <div class="nm"><div class="avatar sm t-dt">D</div><span class="name">DT스포츠</span></div>
+        <div class="rec">2L</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       §6 — GROUP STANDINGS
+       ============================================================ -->
+  <div class="section-marker">
+    <span class="num">SECTION 06</span>
+    <h2 class="title">조별 순위표 — Standings</h2>
+    <span class="note">/ 승점 · 득점 · 실점 · 득실차 · 진출 여부 · A/B조만 표시 (4개조 동일 구조)</span>
+  </div>
+
+  <div class="standings">
+    <!-- A조 -->
+    <div class="st-card">
+      <div class="gh-row">
+        <div class="gl" style="color:#1F4FA0">A조</div>
+        <div class="sub">— 강남구민체육관 · 코트 1</div>
+      </div>
+      <table class="st-table">
+        <thead>
+          <tr><th>순위</th><th>팀</th><th>경기</th><th>승</th><th>패</th><th>득점</th><th>실점</th><th>득실</th><th>승점</th></tr>
+        </thead>
+        <tbody>
+          <tr class="adv">
+            <td class="rank-cell"><span class="num">1</span></td>
+            <td class="team-cell"><span class="nm"><span class="avatar sm t-kpo">김</span>김포홉스타</span></td>
+            <td>2</td><td>2</td><td>0</td><td>54</td><td>32</td>
+            <td class="diff pos">+22</td><td>6</td>
+          </tr>
+          <tr class="adv">
+            <td class="rank-cell"><span class="num">2</span></td>
+            <td class="team-cell"><span class="nm"><span class="avatar sm t-yncA">Y</span>YNC A</span></td>
+            <td>2</td><td>1</td><td>1</td><td>40</td><td>42</td>
+            <td class="diff neg">-2</td><td>4</td>
+          </tr>
+          <tr class="elim">
+            <td class="rank-cell"><span class="num" style="color:var(--ink-dim);">3</span></td>
+            <td class="team-cell"><span class="nm"><span class="avatar sm t-stz">스</span>스티즈강남</span></td>
+            <td>2</td><td>0</td><td>2</td><td>28</td><td>48</td>
+            <td class="diff neg">-20</td><td>2</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- B조 -->
+    <div class="st-card">
+      <div class="gh-row">
+        <div class="gl" style="color:var(--accent)">B조</div>
+        <div class="sub">— 강남구민체육관 · 코트 2</div>
+      </div>
+      <table class="st-table">
+        <thead>
+          <tr><th>순위</th><th>팀</th><th>경기</th><th>승</th><th>패</th><th>득점</th><th>실점</th><th>득실</th><th>승점</th></tr>
+        </thead>
+        <tbody>
+          <tr class="adv">
+            <td class="rank-cell"><span class="num">1</span></td>
+            <td class="team-cell"><span class="nm"><span class="avatar sm t-gd">강</span>강동SK</span></td>
+            <td>2</td><td>2</td><td>0</td><td>52</td><td>34</td>
+            <td class="diff pos">+18</td><td>6</td>
+          </tr>
+          <tr class="adv">
+            <td class="rank-cell"><span class="num">2</span></td>
+            <td class="team-cell"><span class="nm"><span class="avatar sm t-grw">그</span>그로우</span></td>
+            <td>2</td><td>1</td><td>1</td><td>44</td><td>40</td>
+            <td class="diff pos">+4</td><td>4</td>
+          </tr>
+          <tr class="elim">
+            <td class="rank-cell"><span class="num" style="color:var(--ink-dim);">3</span></td>
+            <td class="team-cell"><span class="nm"><span class="avatar sm t-dsk">다</span>다산SK</span></td>
+            <td>2</td><td>0</td><td>2</td><td>30</td><td>52</td>
+            <td class="diff neg">-22</td><td>2</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- C조 -->
+    <div class="st-card">
+      <div class="gh-row">
+        <div class="gl" style="color:#7C3AED">C조</div>
+        <div class="sub">— 수도공고 · 코트 1</div>
+      </div>
+      <table class="st-table">
+        <thead>
+          <tr><th>순위</th><th>팀</th><th>경기</th><th>승</th><th>패</th><th>득점</th><th>실점</th><th>득실</th><th>승점</th></tr>
+        </thead>
+        <tbody>
+          <tr class="adv">
+            <td class="rank-cell"><span class="num">1</span></td>
+            <td class="team-cell"><span class="nm"><span class="avatar sm t-yncB">Y</span>YNC B</span></td>
+            <td>2</td><td>2</td><td>0</td><td>56</td><td>30</td>
+            <td class="diff pos">+26</td><td>6</td>
+          </tr>
+          <tr class="adv">
+            <td class="rank-cell"><span class="num">2</span></td>
+            <td class="team-cell"><span class="nm"><span class="avatar sm t-gns">강</span>강남삼성</span></td>
+            <td>2</td><td>1</td><td>1</td><td>38</td><td>40</td>
+            <td class="diff neg">-2</td><td>4</td>
+          </tr>
+          <tr class="elim">
+            <td class="rank-cell"><span class="num" style="color:var(--ink-dim);">3</span></td>
+            <td class="team-cell"><span class="nm"><span class="avatar sm t-kps">김</span>김포SK</span></td>
+            <td>2</td><td>0</td><td>2</td><td>26</td><td>50</td>
+            <td class="diff neg">-24</td><td>2</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- D조 -->
+    <div class="st-card">
+      <div class="gh-row">
+        <div class="gl" style="color:var(--ok)">D조</div>
+        <div class="sub">— 수도공고 · 코트 2</div>
+      </div>
+      <table class="st-table">
+        <thead>
+          <tr><th>순위</th><th>팀</th><th>경기</th><th>승</th><th>패</th><th>득점</th><th>실점</th><th>득실</th><th>승점</th></tr>
+        </thead>
+        <tbody>
+          <tr class="adv">
+            <td class="rank-cell"><span class="num">1</span></td>
+            <td class="team-cell"><span class="nm"><span class="avatar sm t-kph">김</span>김포홀</span></td>
+            <td>2</td><td>2</td><td>0</td><td>50</td><td>32</td>
+            <td class="diff pos">+18</td><td>6</td>
+          </tr>
+          <tr class="adv">
+            <td class="rank-cell"><span class="num">2</span></td>
+            <td class="team-cell"><span class="nm"><span class="avatar sm t-gry">구</span>구리남양주삼성</span></td>
+            <td>2</td><td>1</td><td>1</td><td>42</td><td>38</td>
+            <td class="diff pos">+4</td><td>4</td>
+          </tr>
+          <tr class="elim">
+            <td class="rank-cell"><span class="num" style="color:var(--ink-dim);">3</span></td>
+            <td class="team-cell"><span class="nm"><span class="avatar sm t-dt">D</span>DT스포츠</span></td>
+            <td>2</td><td>0</td><td>2</td><td>28</td><td>50</td>
+            <td class="diff neg">-22</td><td>2</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+  </div>
+
+  <!-- ============================================================
+       §7 — TOURNAMENT BRACKET
+       ============================================================ -->
+  <div class="section-marker">
+    <span class="num">SECTION 07</span>
+    <h2 class="title">토너먼트 트리 — Bracket</h2>
+    <span class="note">/ 8강 → 4강 → 결승. 승자에 좌측 녹색 인디케이터 + 우승 카드 골드 강조</span>
+  </div>
+
+  <div class="bracket-wrap">
+    <div class="bracket-round-labels">
+      <div class="lbl">8강 · QUARTERFINAL</div>
+      <div class="lbl">4강 · SEMIFINAL</div>
+      <div class="lbl final">결승 · FINAL</div>
+      <div class="lbl" style="color:var(--gold); border-color:var(--gold);">우승 · CHAMPION</div>
+    </div>
+
+    <div class="bracket">
+
+      <!-- ROUND 1 — 8강 -->
+      <div class="b-round">
+        <div class="b-match with-connector">
+          <div class="b-team win">
+            <div class="seed">A1</div>
+            <div class="avatar sm t-kpo">김</div>
+            <div class="nm">김포홉스타</div>
+            <div class="sc">28</div>
+          </div>
+          <div class="b-team lose">
+            <div class="seed">D2</div>
+            <div class="avatar sm t-gry">구</div>
+            <div class="nm">구리남양주삼성</div>
+            <div class="sc">14</div>
+          </div>
+          <div class="b-foot"><span class="game">8강 #1</span><span>05.17 09:30 · CRT1</span></div>
+        </div>
+
+        <div class="b-match with-connector">
+          <div class="b-team win">
+            <div class="seed">C1</div>
+            <div class="avatar sm t-yncB">Y</div>
+            <div class="nm">YNC B</div>
+            <div class="sc">22</div>
+          </div>
+          <div class="b-team lose">
+            <div class="seed">B2</div>
+            <div class="avatar sm t-grw">그</div>
+            <div class="nm">그로우</div>
+            <div class="sc">19</div>
+          </div>
+          <div class="b-foot"><span class="game">8강 #2</span><span>05.17 10:30 · CRT1</span></div>
+        </div>
+
+        <div class="b-match with-connector">
+          <div class="b-team win">
+            <div class="seed">B1</div>
+            <div class="avatar sm t-gd">강</div>
+            <div class="nm">강동SK</div>
+            <div class="sc">26</div>
+          </div>
+          <div class="b-team lose">
+            <div class="seed">C2</div>
+            <div class="avatar sm t-gns">강</div>
+            <div class="nm">강남삼성</div>
+            <div class="sc">18</div>
+          </div>
+          <div class="b-foot"><span class="game">8강 #3</span><span>05.17 10:00 · CRT2</span></div>
+        </div>
+
+        <div class="b-match with-connector">
+          <div class="b-team win">
+            <div class="seed">D1</div>
+            <div class="avatar sm t-kph">김</div>
+            <div class="nm">김포홀</div>
+            <div class="sc">24</div>
+          </div>
+          <div class="b-team lose">
+            <div class="seed">A2</div>
+            <div class="avatar sm t-yncA">Y</div>
+            <div class="nm">YNC A</div>
+            <div class="sc">20</div>
+          </div>
+          <div class="b-foot"><span class="game">8강 #4</span><span>05.17 11:00 · CRT2</span></div>
+        </div>
+      </div>
+
+      <!-- ROUND 2 — 4강 -->
+      <div class="b-round" style="justify-content:space-around;">
+        <div class="b-match with-connector">
+          <div class="b-team win">
+            <div class="seed">W1</div>
+            <div class="avatar sm t-kpo">김</div>
+            <div class="nm">김포홉스타</div>
+            <div class="sc">30</div>
+          </div>
+          <div class="b-team lose">
+            <div class="seed">W2</div>
+            <div class="avatar sm t-yncB">Y</div>
+            <div class="nm">YNC B</div>
+            <div class="sc">22</div>
+          </div>
+          <div class="b-foot"><span class="game">4강 #1</span><span>05.17 14:00 · CRT1</span></div>
+        </div>
+
+        <div class="b-match with-connector">
+          <div class="b-team lose">
+            <div class="seed">W3</div>
+            <div class="avatar sm t-gd">강</div>
+            <div class="nm">강동SK</div>
+            <div class="sc">26</div>
+          </div>
+          <div class="b-team win">
+            <div class="seed">W4</div>
+            <div class="avatar sm t-kph">김</div>
+            <div class="nm">김포홀</div>
+            <div class="sc">28</div>
+          </div>
+          <div class="b-foot"><span class="game">4강 #2</span><span>05.17 15:00 · CRT1</span></div>
+        </div>
+      </div>
+
+      <!-- FINAL -->
+      <div class="b-round" style="justify-content:center;">
+        <div class="b-match champion">
+          <div class="b-team win">
+            <div class="seed">SF1</div>
+            <div class="avatar md t-kpo">김</div>
+            <div class="nm">김포홉스타</div>
+            <div class="sc">32</div>
+          </div>
+          <div class="b-team lose">
+            <div class="seed">SF2</div>
+            <div class="avatar md t-kph">김</div>
+            <div class="nm">김포홀</div>
+            <div class="sc">28</div>
+          </div>
+          <div class="b-foot">
+            <span class="game"><span class="material-symbols-outlined" style="font-size:11px; vertical-align:-2px;">emoji_events</span>FINAL</span>
+            <span>05.17 18:00 · CENTER</span>
+          </div>
+        </div>
+
+        <!-- 3rd place -->
+        <div class="b-match" style="margin-top:18px; border-color: var(--bronze); border-style: dashed;">
+          <div class="b-team win">
+            <div class="seed">SF1L</div>
+            <div class="avatar sm t-gd">강</div>
+            <div class="nm">강동SK</div>
+            <div class="sc">24</div>
+          </div>
+          <div class="b-team lose">
+            <div class="seed">SF2L</div>
+            <div class="avatar sm t-yncB">Y</div>
+            <div class="nm">YNC B</div>
+            <div class="sc">20</div>
+          </div>
+          <div class="b-foot" style="background: var(--bronze); color:#fff;">
+            <span class="game" style="color:#fff;">3·4위전</span>
+            <span>05.17 16:30 · CRT2</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- CHAMPION -->
+      <div class="bracket-final-col">
+        <div class="champion-card">
+          <div class="crown"><span class="material-symbols-outlined" style="font-size:36px; color:var(--gold);">emoji_events</span></div>
+          <div class="lbl">17TH CHAMPION</div>
+          <div class="av-wrap">
+            <div class="avatar xl t-kpo">김</div>
+          </div>
+          <div class="nm">김포홉스타</div>
+          <div class="rec">5W 0L · 우승</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ============================================================
+       §8 — PODIUM
+       ============================================================ -->
+  <div class="section-marker">
+    <span class="num">SECTION 08</span>
+    <h2 class="title">시상대 — Podium</h2>
+    <span class="note">/ 1위 김포홉스타 · 2위 김포홀 · 3위 강동SK · 4위 YNC B</span>
+  </div>
+
+  <section class="podium-wrap">
+    <div class="podium-head">
+      <div class="eyebrow">★ AWARD CEREMONY ★</div>
+      <h2>제17회 강남구협회장배 시상</h2>
+      <p>2026.05.17 18:30 · 강남구민체육관 센터코트</p>
+    </div>
+
+    <div class="podium">
+      <!-- 2nd -->
+      <div class="pod pod-2">
+        <div class="rosette">2ND · RUNNER-UP</div>
+        <div class="avatar lg t-kph">김</div>
+        <div class="team-name">김포홀</div>
+        <div class="team-sub">D조 1위 · 4W 1L</div>
+        <div class="block">
+          <div class="rank">02</div>
+          <div class="lbl">준우승</div>
+        </div>
+        <div class="captain">주장 <b>박지훈</b> · 22.4 PPG</div>
+      </div>
+
+      <!-- 1st -->
+      <div class="pod pod-1">
+        <div class="rosette">1ST · CHAMPION</div>
+        <div class="avatar xl t-kpo">김</div>
+        <div class="team-name">김포홉스타</div>
+        <div class="team-sub">A조 1위 · 5W 0L · 무패우승</div>
+        <div class="block">
+          <div class="rank">01</div>
+          <div class="lbl">우승</div>
+        </div>
+        <div class="captain">주장 <b>김도윤</b> · 28.8 PPG · MVP</div>
+      </div>
+
+      <!-- 3rd -->
+      <div class="pod pod-3">
+        <div class="rosette">3RD · 3위</div>
+        <div class="avatar lg t-gd">강</div>
+        <div class="team-name">강동SK</div>
+        <div class="team-sub">B조 1위 · 4W 1L</div>
+        <div class="block">
+          <div class="rank">03</div>
+          <div class="lbl">3위</div>
+        </div>
+        <div class="captain">주장 <b>최우진</b> · 19.6 PPG</div>
+      </div>
+    </div>
+
+    <div class="podium-extra">
+      <div class="seg">
+        <span style="font-family:var(--ff-mono); font-size:11px; opacity:0.6; letter-spacing:0.06em;">4위</span>
+        <div class="avatar sm t-yncB" style="width:24px;height:24px;font-size:11px;">Y</div>
+        <b>YNC B</b>
+        <span style="opacity:0.6;">· C조 1위 · 3W 2L</span>
+      </div>
+      <div class="seg">
+        <span style="font-family:var(--ff-mono); font-size:11px; opacity:0.6;">결승 스코어</span>
+        <b>김포홉스타</b><span class="score">32 : 28</span><b>김포홀</b>
+      </div>
+      <div class="seg">
+        <a href="#" class="btn btn--sm" style="background:rgba(255,255,255,0.12); border-color:rgba(255,255,255,0.2); color:#fff;">시상 사진첩 ↗</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       §9 — INDIVIDUAL AWARDS / BEST 5
+       ============================================================ -->
+  <div class="section-marker">
+    <span class="num">SECTION 09</span>
+    <h2 class="title">개인상 — MVP · 득점왕 · 어시스트왕 · 리바운드왕</h2>
+    <span class="note">/ + Best 5 라인업</span>
+  </div>
+
+  <div class="awards-grid">
+    <!-- MVP -->
+    <div class="award mvp">
+      <div class="eyebrow">★ MOST VALUABLE PLAYER</div>
+      <div class="stat">28.8<span class="unit">PPG</span></div>
+      <div class="player">
+        <div class="avatar lg t-kpo">김</div>
+        <div class="info">
+          <div class="pname">김도윤 #7</div>
+          <div class="pteam">김포홉스타 · 주장 · F</div>
+        </div>
+      </div>
+      <div class="accolade">
+        <div class="ax"><span>득점</span><b>144</b></div>
+        <div class="ax"><span>어시스트</span><b>22</b></div>
+        <div class="ax"><span>3P%</span><b>48</b></div>
+        <div class="ax"><span>FG%</span><b>62</b></div>
+      </div>
+    </div>
+
+    <!-- 득점왕 -->
+    <div class="award">
+      <div class="eyebrow">SCORING TITLE · 득점왕</div>
+      <div class="stat">32.6<span class="unit">PPG</span></div>
+      <div class="player">
+        <div class="avatar md t-kph">김</div>
+        <div class="info">
+          <div class="pname">박서준 #4</div>
+          <div class="pteam">김포홀 · G</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 어시스트 -->
+    <div class="award">
+      <div class="eyebrow">ASSIST TITLE · 어시스트왕</div>
+      <div class="stat">7.4<span class="unit">APG</span></div>
+      <div class="player">
+        <div class="avatar md t-yncB">Y</div>
+        <div class="info">
+          <div class="pname">이지훈 #11</div>
+          <div class="pteam">YNC B · PG</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 리바운드 -->
+    <div class="award">
+      <div class="eyebrow">REBOUND TITLE · 리바운드왕</div>
+      <div class="stat">11.2<span class="unit">RPG</span></div>
+      <div class="player">
+        <div class="avatar md t-gd">강</div>
+        <div class="info">
+          <div class="pname">최우진 #5</div>
+          <div class="pteam">강동SK · C</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="best5">
+    <div class="head">
+      <span class="t">베스트 5 — All Tournament Team</span>
+      <span class="sub">대회 운영진 + 미디어 투표 (총 35표)</span>
+    </div>
+    <div class="court-svg">
+      <div class="bp">
+        <div class="pos">PG · 포인트가드</div>
+        <div class="av"><div class="avatar lg t-yncB" style="margin:0 auto;">Y</div></div>
+        <div class="nm">이지훈 #11</div>
+        <div class="tm">YNC B</div>
+        <div class="ln">7.4 APG</div>
+      </div>
+      <div class="bp">
+        <div class="pos">SG · 슈팅가드</div>
+        <div class="av"><div class="avatar lg t-kph" style="margin:0 auto;">김</div></div>
+        <div class="nm">박서준 #4</div>
+        <div class="tm">김포홀</div>
+        <div class="ln">32.6 PPG</div>
+      </div>
+      <div class="bp">
+        <div class="pos">SF · 스몰포워드</div>
+        <div class="av"><div class="avatar lg t-kpo" style="margin:0 auto; box-shadow: 0 0 0 3px var(--gold);">김</div></div>
+        <div class="nm">김도윤 #7 ⭐</div>
+        <div class="tm">김포홉스타 · MVP</div>
+        <div class="ln">28.8 PPG</div>
+      </div>
+      <div class="bp">
+        <div class="pos">PF · 파워포워드</div>
+        <div class="av"><div class="avatar lg t-grw" style="margin:0 auto;">그</div></div>
+        <div class="nm">한지원 #15</div>
+        <div class="tm">그로우</div>
+        <div class="ln">9.2 RPG</div>
+      </div>
+      <div class="bp">
+        <div class="pos">C · 센터</div>
+        <div class="av"><div class="avatar lg t-gd" style="margin:0 auto;">강</div></div>
+        <div class="nm">최우진 #5</div>
+        <div class="tm">강동SK</div>
+        <div class="ln">11.2 RPG</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       §10 — STATS SUMMARY
+       ============================================================ -->
+  <div class="section-marker">
+    <span class="num">SECTION 10</span>
+    <h2 class="title">대회 결산 — Stats</h2>
+    <span class="note">/ 핵심 지표 4 + 하이라이트 4</span>
+  </div>
+
+  <div class="stats-grid">
+    <div class="stat-tile">
+      <div class="ic"><span class="material-symbols-outlined">sports_basketball</span></div>
+      <div class="l">총 경기 수</div>
+      <div class="v">59<span class="unit">경기</span></div>
+      <div class="d">조별 36 + 토너먼트 23</div>
+    </div>
+    <div class="stat-tile accent">
+      <div class="ic"><span class="material-symbols-outlined">scoreboard</span></div>
+      <div class="l">총 득점</div>
+      <div class="v">1,488<span class="unit">점</span></div>
+      <div class="d">경기당 평균 25.2점</div>
+    </div>
+    <div class="stat-tile">
+      <div class="ic"><span class="material-symbols-outlined">trending_up</span></div>
+      <div class="l">최다 득점 경기</div>
+      <div class="v">42<span class="unit">점</span></div>
+      <div class="d">김포홀 vs 그로우 · 5/16 14:00</div>
+    </div>
+    <div class="stat-tile">
+      <div class="ic"><span class="material-symbols-outlined">bolt</span></div>
+      <div class="l">최대 점수차</div>
+      <div class="v">26<span class="unit">점</span></div>
+      <div class="d">YNC B 56 — 김포SK 30</div>
+    </div>
+  </div>
+
+  <div class="stats-grid" style="margin-top:14px;">
+    <div class="stat-tile">
+      <div class="ic"><span class="material-symbols-outlined">groups</span></div>
+      <div class="l">참가팀</div>
+      <div class="v">12<span class="unit">팀</span></div>
+      <div class="d">i3W-U12 부 한정 · 전 종별 36팀</div>
+    </div>
+    <div class="stat-tile">
+      <div class="ic"><span class="material-symbols-outlined">stadium</span></div>
+      <div class="l">사용 코트</div>
+      <div class="v">4<span class="unit">코트</span></div>
+      <div class="d">강남구민체육관 2 / 수도공고 2</div>
+    </div>
+    <div class="stat-tile">
+      <div class="ic"><span class="material-symbols-outlined">timer</span></div>
+      <div class="l">총 운영 시간</div>
+      <div class="v">19<span class="unit">시간</span></div>
+      <div class="d">5/16 09:00 ~ 5/17 19:30</div>
+    </div>
+    <div class="stat-tile">
+      <div class="ic"><span class="material-symbols-outlined">whistle</span></div>
+      <div class="l">참여 심판</div>
+      <div class="v">18<span class="unit">명</span></div>
+      <div class="d">정심 12 / 보조심 6</div>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       FOOTER NOTE
+       ============================================================ -->
+  <div class="footer-note">
+    <h4>이 시안에서 결정해주실 것</h4>
+    <ul>
+      <li><b>전체 톤 :</b> 라이트 기본 + 시상대/MVP/우승 카드만 다크 강조 — 의도대로 OK 인가요? (BDR 다크모드 토글과 별개로, 우승·시상은 본문이 라이트여도 다크 강조해서 visual rhythm 확보)</li>
+      <li><b>대회 흐름 타임라인 (§3) :</b> 6단계 horizontal stepper — 현재 위치를 항상 펄스로 표시. 단계명/개수 (접수·조추첨·조별예선·8강·4강·결승) — 듀얼토너먼트 외 방식도 같은 컴포넌트 재사용 가능. 단계명 조정 필요할까요?</li>
+      <li><b>경기 카드 (§4) :</b> Concept 06 (상태별 변신) 채택. 만족하시면 v2.16 에서 본 코드로 들어갑니다. (다른 컨셉으로 교체 원하시면 알려주세요)</li>
+      <li><b>대진표 (§7) :</b> 우승팀이 트리 오른쪽 끝 골드 카드로 별도 분리 — 표시 강도 OK? "다시 작게" 하길 원하시면 우승 카드 제거하고 결승 카드 자체만 골드 강조하는 버전도 가능.</li>
+      <li><b>시상대 (§8) :</b> 다크 배경 + 3-tier 블록 + 카운트 큰 숫자. 4위는 따로 한 줄. 4위 강조도 필요할까요?</li>
+      <li><b>개인상 (§9) :</b> MVP 만 다크 강조, 나머지 3 상은 화이트. 베스트5 는 농구 5포지션 (PG·SG·SF·PF·C) — 운영 사이트가 5명 모두 받는 시상인지 확인 부탁드려요.</li>
+      <li><b>다음 단계 :</b> 위 항목 결정해주시면 v2.16 폴더로 카피해 <code>screens/Match.jsx</code> 에 본 디자인 통합. Tweaks 패널로 시안 1~6 토글도 추가 가능.</li>
+    </ul>
+  </div>
+
+</div>
+
+</body>
+</html>

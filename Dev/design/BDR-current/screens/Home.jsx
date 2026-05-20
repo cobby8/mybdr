@@ -1,115 +1,858 @@
-/* global React, BOARDS, POSTS, HOT_POSTS, LATEST_POSTS, HOME_STATS, TOURNAMENTS, Icon, LevelBadge */
+/* global React, BOARDS, POSTS, HOT_POSTS, LATEST_POSTS, HOME_STATS, TOURNAMENTS, GAMES, TEAMS, ORGS, OPEN_RUNS, Icon, LevelBadge, Avatar, Poster, NavBadge */
+
+// ============================================================
+// Phase B — Home (mybdr.kr/ 정합)
+//
+// 진입: AppNav '홈' 탭 / 로고 클릭 / 직접 접근 (route='home' 또는 default)
+// 복귀: AppNav 모든 탭, 본 페이지에서 모든 핵심 라우트 진입 가능
+//
+// 시스템:
+//   - Hero 헤더 grid 1fr auto (eyebrow + h1 + 부제 / 우측 액션)
+//   - HeroBento (라이트: 메인 promo + 우 라이브/대회 요약 / 다크: brutalism 포스터)
+//   - MySummaryHero (본인 요약 카드 — 로그인 시)
+//   - RecommendedRail × 4 (경기 / 대회 / 팀 / 비디오)
+//   - NewsFeed + NotableTeams (좌 본문 / 우 사이드바)
+//   - 모든 카드 var(--*) 토큰만 / 720px 1열 stack
+// ============================================================
 
 function Home({ setRoute, setActiveBoard }) {
   const mainTourney = TOURNAMENTS[0];
-  const closingTourney = TOURNAMENTS[1];
+  const closingTourney = TOURNAMENTS.find(t => t.status === 'closing') || TOURNAMENTS[1];
+  const liveTourney = TOURNAMENTS.find(t => t.status === 'live');
+  const liveRun = OPEN_RUNS.find(r => r.live);
+  const upcomingGames = GAMES.filter(g => g.status === 'open').slice(0, 6);
+  const featuredTeams = [...TEAMS].sort((a, b) => b.rating - a.rating).slice(0, 6);
+  const featuredOrgs = ORGS.slice(0, 4);
 
   return (
-    <div className="page">
-      {/* Promo banner */}
-      <div className="promo" style={{ marginBottom: 20 }}>
+    <div className="page home">
+      {/* =================================================
+          Hero 헤더 — eyebrow + 인사말 + 우측 빠른 액션
+          ================================================= */}
+      <header style={{
+        display:'grid', gridTemplateColumns:'1fr auto', alignItems:'flex-end',
+        gap:16, marginBottom:18, flexWrap:'wrap',
+      }}>
+        <div style={{minWidth:0}}>
+          <div className="eyebrow">전국 농구 매칭 플랫폼</div>
+          <h1 style={{
+            margin:'6px 0 4px',
+            fontFamily:'var(--ff-display)',
+            fontSize:'var(--fs-h1)',
+            fontWeight:800,
+            letterSpacing:'-0.015em',
+            lineHeight:1.1,
+            overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap',
+          }}>
+            오늘도 <span style={{color:'var(--accent)'}}>코트</span>에서 만나요
+          </h1>
+          <div style={{fontSize:13, color:'var(--ink-mute)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis'}}>
+            전국 {HOME_STATS.members.toLocaleString()}명의 플레이어 · 지금 {HOME_STATS.onlineNow}명 접속 중
+          </div>
+        </div>
+        <div style={{display:'flex', alignItems:'center', gap:8, flex:'0 0 auto'}}>
+          <button className="btn btn--sm" onClick={()=>setRoute('search')} aria-label="검색">
+            <Icon.search/> 검색
+          </button>
+          <button className="btn btn--sm btn--accent" onClick={()=>setRoute('createGame')}>
+            <Icon.plus/> 모집글 작성
+          </button>
+        </div>
+      </header>
+
+      {/* =================================================
+          HeroBento — 좌 메인 promo (대회) + 우 라이브/접수 요약
+          ================================================= */}
+      <HeroBento
+        main={mainTourney}
+        closing={closingTourney}
+        live={liveTourney}
+        liveRun={liveRun}
+        setRoute={setRoute}
+      />
+
+      {/* =================================================
+          MySummaryHero — 본인 요약 (로그인 가정 / 비로그인 → CTA)
+          ================================================= */}
+      <MySummaryHero setRoute={setRoute}/>
+
+      {/* =================================================
+          RecommendedRail #1 — 곧 시작할 경기 (픽업/게스트/스크림)
+          ================================================= */}
+      <RecommendedRail
+        title="곧 시작할 경기"
+        eyebrow="GAMES · 픽업 · 게스트"
+        more={() => setRoute('games')}
+      >
+        {upcomingGames.map(g => (
+          <GameMiniCard key={g.id} game={g} onClick={() => setRoute('gameDetail')} />
+        ))}
+      </RecommendedRail>
+
+      {/* =================================================
+          RecommendedRail #2 — 진행/접수 대회
+          ================================================= */}
+      <RecommendedRail
+        title="열린 대회"
+        eyebrow="TOURNAMENTS"
+        more={() => setRoute('match')}
+      >
+        {TOURNAMENTS.filter(t => ['open','closing','live'].includes(t.status)).map(t => (
+          <TourneyMiniCard key={t.id} t={t} onClick={() => setRoute('matchDetail')} />
+        ))}
+      </RecommendedRail>
+
+      {/* =================================================
+          본문 (좌) + 사이드바 (우) — with-aside 변형 (우측 280)
+          ================================================= */}
+      <div className="home__split" style={{
+        display:'grid',
+        gridTemplateColumns:'minmax(0, 1fr) 300px',
+        gap:24, marginTop:32,
+      }}>
+        <div style={{minWidth:0, display:'flex', flexDirection:'column', gap:24}}>
+          {/* 공지 + 인기글 (가로 2분할) */}
+          <div className="home__notice-pop" style={{
+            display:'grid',
+            gridTemplateColumns:'repeat(auto-fit, minmax(280px, 1fr))',
+            gap:16,
+          }}>
+            <NoticeCard setRoute={setRoute} setActiveBoard={setActiveBoard}/>
+            <HotPostsCard setRoute={setRoute} setActiveBoard={setActiveBoard}/>
+          </div>
+
+          {/* NewsFeed — 방금 올라온 글 (board table) */}
+          <NewsFeed setRoute={setRoute} setActiveBoard={setActiveBoard}/>
+
+          {/* RecommendedRail #3 — 주목할 팀 */}
+          <RecommendedRail
+            title="주목할 팀"
+            eyebrow="TEAMS · 레이팅 상위"
+            more={() => setRoute('team')}
+            inset
+          >
+            {featuredTeams.map(t => (
+              <TeamMiniCard key={t.id} team={t} onClick={() => setRoute('teamDetail')} />
+            ))}
+          </RecommendedRail>
+        </div>
+
+        {/* 사이드바 — 본인 위젯 + 단체 + 통계 */}
+        <aside className="home__aside" style={{
+          display:'flex', flexDirection:'column', gap:16,
+          alignSelf:'start',
+        }}>
+          <ProfileWidget setRoute={setRoute}/>
+          <NotableOrgs orgs={featuredOrgs} setRoute={setRoute}/>
+          <CommunityPulse stats={HOME_STATS}/>
+        </aside>
+      </div>
+
+      {/* =================================================
+          모바일 1열 stack 안전장치
+          ================================================= */}
+      <style>{`
+        @media (max-width: 900px) {
+          .home__split { grid-template-columns: 1fr !important; }
+        }
+        @media (max-width: 720px) {
+          .home h1 { font-size: 22px !important; white-space: normal !important; }
+        }
+      `}</style>
+    </div>
+  );
+}
+
+// ============================================================
+// HeroBento — 좌 promo (대회) + 우 라이브/마감임박 패널
+// 라이트: 카페블루(또는 BDR레드 promo) / 다크: brutalism
+// ============================================================
+function HeroBento({ main, closing, live, liveRun, setRoute }) {
+  return (
+    <div className="home__bento" style={{
+      display:'grid',
+      gridTemplateColumns:'minmax(0, 1.6fr) minmax(0, 1fr)',
+      gap:14,
+      marginBottom:20,
+    }}>
+      {/* 좌 — 메인 promo */}
+      <div className="promo" style={{padding:'28px 28px 24px', display:'flex', flexDirection:'column', justifyContent:'space-between', minHeight:220}}>
         <div className="promo__accent"/>
-        <div className="eyebrow" style={{color:'rgba(255,255,255,.7)', marginBottom: 8}}>NOW OPEN · 접수중</div>
-        <h2>{mainTourney.title} {mainTourney.edition}</h2>
-        <p>{mainTourney.subtitle} · {mainTourney.court} · {mainTourney.dates}</p>
-        <div style={{display:'flex', gap:8}}>
-          <button className="btn btn--accent" onClick={() => setRoute('match')}>지금 신청하기</button>
-          <button className="btn" style={{background:'rgba(255,255,255,.12)', color:'#fff', borderColor:'rgba(255,255,255,.3)'}}>자세히 보기</button>
+        <div>
+          <div className="eyebrow" style={{color:'rgba(255,255,255,.78)'}}>NOW OPEN · 접수중</div>
+          <h2 style={{margin:'10px 0 8px', fontSize:28, lineHeight:1.15}}>
+            {main.title} <span style={{opacity:.85, fontWeight:700, fontSize:18}}>{main.edition}</span>
+          </h2>
+          <p style={{maxWidth:'52ch'}}>
+            {main.subtitle} · {main.court} · {main.dates}
+          </p>
+        </div>
+        <div style={{display:'flex', gap:8, flexWrap:'wrap'}}>
+          <button className="btn btn--accent" onClick={()=>setRoute('matchDetail')}>지금 신청하기</button>
+          <button className="btn" style={{background:'rgba(255,255,255,.14)', color:'#fff', borderColor:'rgba(255,255,255,.32)'}} onClick={()=>setRoute('match')}>
+            전체 대회 →
+          </button>
         </div>
       </div>
 
-      {/* Stats strip */}
-      <div style={{display:'grid', gridTemplateColumns:'repeat(4, 1fr)', gap:12, marginBottom:24}}>
-        {[
-          ['전체 회원',   HOME_STATS.members.toLocaleString()],
-          ['지금 접속',   HOME_STATS.onlineNow.toLocaleString()],
-          ['오늘의 글',   HOME_STATS.postsToday.toLocaleString()],
-          ['진행중 대회', HOME_STATS.tournaments.toLocaleString()],
-        ].map(([lbl, val]) => (
-          <div key={lbl} className="card" style={{padding:'16px 18px'}}>
-            <div style={{fontSize:11, letterSpacing:'.08em', textTransform:'uppercase', color:'var(--ink-dim)', fontWeight:700}}>{lbl}</div>
-            <div style={{fontFamily:'var(--ff-display)', fontSize:28, fontWeight:800, marginTop:4, letterSpacing:'-0.01em'}}>{val}</div>
+      {/* 우 — 라이브 / 마감임박 / 빠른 진입 */}
+      <div className="card" style={{padding:0, display:'flex', flexDirection:'column', minHeight:220}}>
+        {live || liveRun ? (
+          <button onClick={()=> live ? setRoute('live') : setRoute('games')} style={{
+            background:'transparent', border:0, cursor:'pointer', textAlign:'left',
+            padding:'14px 16px', borderBottom:'1px solid var(--border)',
+            display:'flex', alignItems:'center', gap:10,
+          }}>
+            <NavBadge variant="live" inline/>
+            <div style={{minWidth:0, flex:1}}>
+              <div style={{fontWeight:700, fontSize:14, color:'var(--ink)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>
+                {live ? `${live.title} · 경기 중` : `${liveRun.court} · 즉석 매칭`}
+              </div>
+              <div style={{fontSize:12, color:'var(--ink-mute)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>
+                {live ? live.subtitle : `${liveRun.format} · ${liveRun.on}/${liveRun.on + liveRun.needs}명`}
+              </div>
+            </div>
+            <Icon.chevron style={{color:'var(--ink-dim)'}}/>
+          </button>
+        ) : null}
+
+        {/* 마감임박 대회 */}
+        {closing ? (
+          <button onClick={()=>setRoute('matchDetail')} style={{
+            background:'transparent', border:0, cursor:'pointer', textAlign:'left',
+            padding:'14px 16px', borderBottom:'1px solid var(--border)',
+            display:'grid', gridTemplateColumns:'auto 1fr auto', gap:10, alignItems:'center',
+          }}>
+            <Poster title={closing.title} edition={closing.edition} accent={closing.accent} width={48} height={48} radius={4}/>
+            <div style={{minWidth:0}}>
+              <div style={{display:'flex', gap:6, alignItems:'center', marginBottom:2}}>
+                <span className="badge badge--red">마감임박</span>
+                <span style={{fontSize:11, fontFamily:'var(--ff-mono)', color:'var(--ink-dim)'}}>{closing.dates}</span>
+              </div>
+              <div style={{fontWeight:700, fontSize:13, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>
+                {closing.title} <span style={{color:'var(--ink-mute)', fontWeight:500}}>{closing.edition}</span>
+              </div>
+              <div style={{fontSize:11, color:'var(--ink-mute)'}}>접수 {closing.applied}/{closing.capacity}팀</div>
+            </div>
+            <Icon.chevron style={{color:'var(--ink-dim)'}}/>
+          </button>
+        ) : null}
+
+        {/* 빠른 진입 그리드 */}
+        <div style={{
+          display:'grid', gridTemplateColumns:'1fr 1fr',
+          flex:1, padding:8,
+        }}>
+          {[
+            ['games', '경기 찾기', Icon.calendar],
+            ['court', '코트 찾기', Icon.list],
+            ['team', '팀 찾기', Icon.heart],
+            ['rank', '랭킹', Icon.eye],
+          ].map(([r, label, IconC]) => (
+            <button key={r} onClick={()=>setRoute(r)} style={{
+              background:'transparent', border:0, cursor:'pointer',
+              padding:'10px 12px',
+              display:'flex', alignItems:'center', gap:8,
+              fontSize:13, fontWeight:600, color:'var(--ink-soft)',
+              borderRadius:'var(--radius-chip)',
+              transition:'background .15s',
+            }} onMouseEnter={e=>e.currentTarget.style.background='var(--bg-alt)'}
+              onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
+              <IconC style={{color:'var(--cafe-blue)'}}/>
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <style>{`
+        @media (max-width: 900px) {
+          .home__bento { grid-template-columns: 1fr !important; }
+        }
+      `}</style>
+    </div>
+  );
+}
+
+// ============================================================
+// MySummaryHero — 본인 요약 카드 (로그인 시)
+// 운영 my-summary-hero.tsx 정합 (32 위반 → 토큰만 사용)
+// ============================================================
+function MySummaryHero({ setRoute }) {
+  // 가정: 로그인된 상태. 실제 운영은 user 컨텍스트에서 가져옴
+  const me = {
+    name: '리딤캡틴',
+    handle: 'rdm_captain',
+    level: 'L.8',
+    team: TEAMS[0],
+    upcoming: { date: '04.25 (목)', time: '20:30', court: '미사강변체육관', kind: '픽업' },
+    badges: [
+      { label: '미응답 신청 2건', tone: 'warn', go: 'mygames' },
+      { label: '쪽지 3', tone: 'red', go: 'messages' },
+    ],
+  };
+
+  return (
+    <div className="card" style={{
+      marginTop:20, padding:0, overflow:'hidden',
+      display:'grid',
+      gridTemplateColumns:'auto minmax(0, 1fr) auto',
+      gap:0, alignItems:'stretch',
+    }}>
+      {/* 좌 — 팀 컬러 스트립 + 아바타 */}
+      <div style={{
+        display:'flex', alignItems:'center', gap:14,
+        padding:'18px 20px',
+        borderRight:'1px solid var(--border)',
+        background:'linear-gradient(135deg, var(--bg-alt), var(--bg-elev))',
+      }}>
+        <Avatar tag={me.team.tag} color={me.team.color} ink={me.team.ink} size={52} radius={6}/>
+        <div style={{minWidth:0}}>
+          <div style={{display:'flex', alignItems:'center', gap:6, fontWeight:700, fontSize:15, marginBottom:2}}>
+            {me.name}
+            <span style={{fontSize:11, fontFamily:'var(--ff-mono)', color:'var(--ink-mute)', fontWeight:500}}>@{me.handle}</span>
           </div>
+          <div style={{fontSize:12, color:'var(--ink-mute)', display:'flex', alignItems:'center', gap:6}}>
+            <span className="badge badge--soft">{me.level}</span>
+            <span style={{whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis'}}>{me.team.name} · 캡틴</span>
+          </div>
+        </div>
+      </div>
+
+      {/* 중 — 다음 일정 + 알림 뱃지 */}
+      <div style={{padding:'16px 20px', display:'flex', flexDirection:'column', gap:10, minWidth:0}}>
+        <div style={{display:'flex', alignItems:'baseline', gap:8, flexWrap:'wrap'}}>
+          <span style={{fontSize:11, fontWeight:700, letterSpacing:'.08em', textTransform:'uppercase', color:'var(--ink-dim)'}}>
+            다음 경기
+          </span>
+          <span style={{fontFamily:'var(--ff-mono)', fontSize:13, color:'var(--cafe-blue-deep)', fontWeight:700}}>
+            D-3
+          </span>
+        </div>
+        <div style={{fontWeight:700, fontSize:15, color:'var(--ink)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>
+          {me.upcoming.date} {me.upcoming.time} · {me.upcoming.court}
+        </div>
+        <div style={{display:'flex', gap:6, flexWrap:'wrap'}}>
+          {me.badges.map(b => (
+            <button key={b.label} onClick={()=>setRoute(b.go)}
+              className={`badge ${b.tone === 'red' ? 'badge--red' : 'badge--soft'}`}
+              style={{cursor:'pointer', border:0, padding:'4px 10px'}}>
+              {b.label} →
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* 우 — 빠른 액션 */}
+      <div style={{
+        padding:'16px 20px', display:'flex', flexDirection:'column', gap:6,
+        borderLeft:'1px solid var(--border)',
+        justifyContent:'center',
+        background:'var(--bg-alt)',
+      }}>
+        <button className="btn btn--sm btn--primary" onClick={()=>setRoute('mygames')}>
+          내 경기
+        </button>
+        <button className="btn btn--sm" onClick={()=>setRoute('profile')}>
+          프로필
+        </button>
+      </div>
+
+      <style>{`
+        @media (max-width: 720px) {
+          .home .card[style*="auto minmax"] { grid-template-columns: 1fr !important; }
+          .home .card[style*="auto minmax"] > div { border-right: 0 !important; border-left: 0 !important; border-bottom: 1px solid var(--border); }
+          .home .card[style*="auto minmax"] > div:last-child { border-bottom: 0; flex-direction: row !important; }
+        }
+      `}</style>
+    </div>
+  );
+}
+
+// ============================================================
+// RecommendedRail — 가로 스크롤 추천 캐러셀
+// inset: 본문 내부에 들어갈 때 (사이드바와 같이 줄어듦)
+// ============================================================
+function RecommendedRail({ title, eyebrow, more, children, inset = false }) {
+  const cards = React.Children.toArray(children);
+  return (
+    <section style={{marginTop: inset ? 0 : 28}}>
+      <div style={{display:'flex', alignItems:'baseline', justifyContent:'space-between', marginBottom:12, gap:12}}>
+        <div style={{minWidth:0}}>
+          {eyebrow && <div className="eyebrow" style={{marginBottom:2}}>{eyebrow}</div>}
+          <h3 style={{margin:0, fontSize:18, fontWeight:800, letterSpacing:'-0.01em', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>
+            {title}
+          </h3>
+        </div>
+        {more && (
+          <button onClick={more} style={{
+            background:'transparent', border:0, cursor:'pointer',
+            fontSize:12, color:'var(--ink-mute)', whiteSpace:'nowrap', flex:'0 0 auto',
+          }}>
+            전체 보기 →
+          </button>
+        )}
+      </div>
+      <div style={{
+        display:'grid',
+        gridAutoFlow:'column',
+        gridAutoColumns: inset ? 'minmax(220px, 1fr)' : 'minmax(260px, 1fr)',
+        gap:12,
+        overflowX:'auto',
+        scrollSnapType:'x mandatory',
+        paddingBottom:6,
+      }}>
+        {cards.map((c, i) => (
+          <div key={i} style={{scrollSnapAlign:'start', minWidth:0}}>{c}</div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+// ============================================================
+// GameMiniCard — 경기(픽업/게스트/스크림) 미니 카드
+// ============================================================
+function GameMiniCard({ game, onClick }) {
+  const kindLabel = { pickup: '픽업', guest: '게스트', scrimmage: '연습' };
+  const kindColor = { pickup: 'var(--cafe-blue)', guest: 'var(--accent)', scrimmage: 'var(--ok)' };
+  const pct = (game.applied / game.spots) * 100;
+  const isClosing = game.status === 'closing';
+  return (
+    <div className="card" onClick={onClick} style={{
+      padding:0, overflow:'hidden', cursor:'pointer',
+      display:'flex', flexDirection:'column', height:'100%',
+    }}>
+      <div style={{height:3, background: kindColor[game.kind]}}/>
+      <div style={{padding:'12px 14px 10px', flex:1, display:'flex', flexDirection:'column', gap:8, minWidth:0}}>
+        <div style={{display:'flex', alignItems:'center', gap:6}}>
+          <span className="badge" style={{background: kindColor[game.kind], color:'#fff', borderColor:'transparent'}}>
+            {kindLabel[game.kind]}
+          </span>
+          {isClosing && <span className="badge badge--red">마감</span>}
+          <span style={{fontSize:11, fontFamily:'var(--ff-mono)', color:'var(--ink-dim)', marginLeft:'auto', whiteSpace:'nowrap'}}>
+            {game.area}
+          </span>
+        </div>
+        <div style={{
+          fontWeight:700, fontSize:13.5, lineHeight:1.4, color:'var(--ink)',
+          display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical',
+          overflow:'hidden',
+        }}>
+          {game.title}
+        </div>
+        <div style={{fontSize:12, color:'var(--ink-mute)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis'}}>
+          {game.date} · {game.time}
+        </div>
+      </div>
+      <div style={{padding:'10px 14px 12px', borderTop:'1px dashed var(--border)'}}>
+        <div style={{display:'flex', justifyContent:'space-between', fontSize:11, marginBottom:4}}>
+          <span style={{color:'var(--ink-dim)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', maxWidth:'60%'}}>{game.court}</span>
+          <span style={{fontFamily:'var(--ff-mono)', fontWeight:700, color: isClosing ? 'var(--accent)' : 'var(--ink-soft)'}}>
+            {game.applied}/{game.spots}
+          </span>
+        </div>
+        <div style={{height:3, background:'var(--bg-alt)', borderRadius:2, overflow:'hidden'}}>
+          <div style={{width:`${pct}%`, height:'100%', background: isClosing ? 'var(--accent)' : kindColor[game.kind]}}/>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// TourneyMiniCard — 대회 미니 카드 (Poster + 메타)
+// ============================================================
+function TourneyMiniCard({ t, onClick }) {
+  return (
+    <div className="card" onClick={onClick} style={{
+      padding:0, overflow:'hidden', cursor:'pointer',
+      display:'flex', flexDirection:'column', height:'100%',
+    }}>
+      <Poster title={t.title} edition={t.edition} accent={t.accent} height={110} radius={0}/>
+      <div style={{padding:'12px 14px 14px', display:'flex', flexDirection:'column', gap:6, flex:1}}>
+        <div style={{display:'flex', gap:6, alignItems:'center', flexWrap:'wrap'}}>
+          {t.status === 'live' && <NavBadge variant="live" inline/>}
+          {t.status === 'closing' && <span className="badge badge--red">마감임박</span>}
+          {t.status === 'open' && <span className="badge badge--soft">접수중</span>}
+          <span style={{fontSize:11, fontFamily:'var(--ff-mono)', color:'var(--ink-dim)', marginLeft:'auto'}}>
+            {t.applied}/{t.capacity}팀
+          </span>
+        </div>
+        <div style={{
+          fontSize:12, color:'var(--ink-mute)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap',
+        }}>
+          {t.court} · {t.dates}
+        </div>
+        <div style={{fontSize:11, color:'var(--ink-dim)', fontFamily:'var(--ff-mono)', marginTop:'auto'}}>
+          {t.format}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// TeamMiniCard — 팀 미니 카드 (로고 + 이름 + 레이팅)
+// ============================================================
+function TeamMiniCard({ team, onClick }) {
+  const winRate = Math.round((team.wins / (team.wins + team.losses)) * 100);
+  return (
+    <div className="card" onClick={onClick} style={{
+      padding:'14px', cursor:'pointer',
+      display:'flex', alignItems:'center', gap:12, height:'100%', minWidth:0,
+    }}>
+      <Avatar tag={team.tag} color={team.color} ink={team.ink} size={44} radius={6}/>
+      <div style={{minWidth:0, flex:1}}>
+        <div style={{
+          fontWeight:700, fontSize:14, color:'var(--ink)',
+          overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap',
+        }}>{team.name}</div>
+        <div style={{fontSize:11, color:'var(--ink-mute)', display:'flex', gap:8}}>
+          <span>{team.wins}승 {team.losses}패</span>
+          <span style={{color:'var(--ink-dim)'}}>·</span>
+          <span style={{fontFamily:'var(--ff-mono)'}}>{winRate}%</span>
+        </div>
+      </div>
+      <div style={{
+        fontFamily:'var(--ff-mono)', fontSize:13, fontWeight:800,
+        color:'var(--cafe-blue-deep)', flex:'0 0 auto',
+      }}>
+        {team.rating}
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// NoticeCard — 공지 (운영팀)
+// ============================================================
+function NoticeCard({ setRoute, setActiveBoard }) {
+  const notices = POSTS.filter(p => p.board === 'notice').slice(0, 4);
+  return (
+    <section className="card" style={{padding:0, display:'flex', flexDirection:'column'}}>
+      <header style={{padding:'12px 16px', borderBottom:'1px solid var(--border)', display:'flex', alignItems:'center', justifyContent:'space-between'}}>
+        <div style={{display:'flex', alignItems:'center', gap:6}}>
+          <span style={{
+            display:'inline-block', width:3, height:14, background:'var(--accent)',
+          }}/>
+          <span style={{fontWeight:700, fontSize:14}}>공지사항</span>
+        </div>
+        <button onClick={()=>{setActiveBoard('notice'); setRoute('board');}} style={{
+          background:'transparent', border:0, cursor:'pointer',
+          fontSize:11, color:'var(--ink-mute)',
+        }}>
+          전체 보기 →
+        </button>
+      </header>
+      <div style={{flex:1}}>
+        {notices.map((p, i) => (
+          <button key={p.id} onClick={()=>setRoute('post')} style={{
+            background:'transparent', border:0, cursor:'pointer',
+            width:'100%', textAlign:'left',
+            padding:'10px 16px',
+            borderBottom: i < notices.length - 1 ? '1px solid var(--border)' : 0,
+            display:'grid', gridTemplateColumns:'auto 1fr auto', gap:10, alignItems:'center',
+            color:'var(--ink)',
+          }}>
+            <span style={{
+              fontSize:10, fontWeight:800, padding:'2px 6px',
+              background: p.pinned ? 'var(--accent)' : 'var(--bg-alt)',
+              color: p.pinned ? '#fff' : 'var(--ink-mute)',
+              borderRadius:3, letterSpacing:'.04em', flex:'0 0 auto',
+            }}>
+              {p.pinned ? '고정' : '공지'}
+            </span>
+            <span style={{
+              fontSize:13, fontWeight:500,
+              overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap',
+            }}>{p.title}</span>
+            <span style={{fontSize:11, color:'var(--ink-dim)', fontFamily:'var(--ff-mono)', flex:'0 0 auto'}}>
+              {p.date.slice(5)}
+            </span>
+          </button>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+// ============================================================
+// HotPostsCard — 인기글
+// ============================================================
+function HotPostsCard({ setRoute, setActiveBoard }) {
+  return (
+    <section className="card" style={{padding:0, display:'flex', flexDirection:'column'}}>
+      <header style={{padding:'12px 16px', borderBottom:'1px solid var(--border)', display:'flex', alignItems:'center', justifyContent:'space-between'}}>
+        <div style={{display:'flex', alignItems:'center', gap:6}}>
+          <span style={{
+            display:'inline-block', width:3, height:14, background:'var(--cafe-blue)',
+          }}/>
+          <span style={{fontWeight:700, fontSize:14}}>인기글</span>
+        </div>
+        <button onClick={()=>{setActiveBoard('free'); setRoute('board');}} style={{
+          background:'transparent', border:0, cursor:'pointer',
+          fontSize:11, color:'var(--ink-mute)',
+        }}>
+          전체 보기 →
+        </button>
+      </header>
+      <div style={{flex:1}}>
+        {HOT_POSTS.map((p, i) => (
+          <button key={p.id} onClick={()=>setRoute('post')} style={{
+            background:'transparent', border:0, cursor:'pointer',
+            width:'100%', textAlign:'left',
+            padding:'10px 16px',
+            borderBottom: i < HOT_POSTS.length - 1 ? '1px solid var(--border)' : 0,
+            display:'grid', gridTemplateColumns:'18px 1fr auto', gap:10, alignItems:'center',
+            color:'var(--ink)',
+          }}>
+            <span style={{
+              fontFamily:'var(--ff-mono)', fontSize:11, fontWeight:800,
+              color: i < 3 ? 'var(--accent)' : 'var(--ink-dim)',
+              textAlign:'center',
+            }}>
+              {i + 1}
+            </span>
+            <span style={{
+              fontSize:13, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap',
+              fontWeight: i < 3 ? 600 : 500,
+            }}>
+              {p.title}
+              {p.comments > 0 && <span style={{color:'var(--accent)', fontWeight:700, fontSize:11, marginLeft:4}}>[{p.comments}]</span>}
+            </span>
+            <span style={{fontSize:11, color:'var(--ink-dim)', fontFamily:'var(--ff-mono)', flex:'0 0 auto'}}>
+              {p.views > 999 ? `${(p.views/1000).toFixed(1)}k` : p.views}
+            </span>
+          </button>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+// ============================================================
+// NewsFeed — 방금 올라온 글 (간소화 board feed)
+// 운영 news-feed.tsx 정합 (16 위반 → 토큰만)
+// ============================================================
+function NewsFeed({ setRoute, setActiveBoard }) {
+  const [tab, setTab] = useState('all');
+  const tabs = [
+    { id: 'all', label: '전체' },
+    { id: 'free', label: '자유' },
+    { id: 'match', label: '매치' },
+    { id: 'team', label: '팀원' },
+    { id: 'review', label: '후기' },
+  ];
+  const shown = tab === 'all'
+    ? LATEST_POSTS
+    : LATEST_POSTS.filter(p => p.board === tab);
+
+  return (
+    <section>
+      <div style={{display:'flex', alignItems:'baseline', justifyContent:'space-between', marginBottom:12, gap:12, flexWrap:'wrap'}}>
+        <div>
+          <div className="eyebrow">COMMUNITY · 방금</div>
+          <h3 style={{margin:'4px 0 0', fontSize:18, fontWeight:800, letterSpacing:'-0.01em'}}>
+            방금 올라온 글
+          </h3>
+        </div>
+        <button onClick={()=>{setActiveBoard('free'); setRoute('board');}} style={{
+          background:'transparent', border:0, cursor:'pointer',
+          fontSize:12, color:'var(--ink-mute)',
+        }}>
+          전체 보기 →
+        </button>
+      </div>
+
+      {/* Filter chips */}
+      <div style={{display:'flex', gap:6, flexWrap:'wrap', marginBottom:12}}>
+        {tabs.map(t => (
+          <button key={t.id} onClick={()=>setTab(t.id)} style={{
+            background: tab === t.id ? 'var(--cafe-blue-soft)' : 'transparent',
+            color: tab === t.id ? 'var(--cafe-blue-deep)' : 'var(--ink-mute)',
+            border:`1px solid ${tab === t.id ? 'var(--cafe-blue-hair)' : 'var(--border)'}`,
+            borderRadius:'var(--radius-chip)',
+            padding:'5px 11px',
+            fontSize:12, fontWeight: tab === t.id ? 700 : 500,
+            cursor:'pointer',
+            whiteSpace:'nowrap',
+          }}>
+            {t.label}
+          </button>
         ))}
       </div>
 
-      <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:20}}>
-        {/* 공지 + 인기 */}
-        <section className="card" style={{padding:0}}>
-          <div style={{padding:'14px 18px', borderBottom:'1px solid var(--border)', display:'flex', alignItems:'center', justifyContent:'space-between'}}>
-            <div style={{fontWeight:700, fontSize:15}}>공지 · 인기글</div>
-            <a href="#" style={{fontSize:12}} onClick={(e)=>{e.preventDefault(); setActiveBoard('notice'); setRoute('board');}}>더보기 ›</a>
+      {/* Compact feed */}
+      <div className="card" style={{padding:0, overflow:'hidden'}}>
+        {shown.length === 0 && (
+          <div style={{padding:'40px 20px', textAlign:'center', color:'var(--ink-mute)', fontSize:13}}>
+            아직 새 글이 없습니다.
           </div>
-          <div>
-            {HOT_POSTS.map(p => (
-              <a key={p.id} onClick={(e)=>{e.preventDefault(); setRoute('post');}} style={{display:'grid', gridTemplateColumns:'56px 1fr auto', gap:10, padding:'11px 18px', borderBottom:'1px solid var(--border)', alignItems:'center', cursor:'pointer', color:'var(--ink)'}}>
-                <span className="badge badge--soft">{BOARDS.find(b=>b.id===p.board)?.name}</span>
-                <span style={{overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>
-                  {p.title} {p.comments > 0 && <span style={{color:'var(--accent)', fontWeight:700, fontSize:12, marginLeft:4}}>[{p.comments}]</span>}
-                </span>
-                <span style={{fontSize:12, color:'var(--ink-dim)', display:'flex', gap:8}}>
-                  <span><Icon.eye style={{verticalAlign:-1}}/> {p.views}</span>
-                </span>
-              </a>
-            ))}
-          </div>
-        </section>
-
-        {/* 최근 대회 */}
-        <section className="card" style={{padding:0}}>
-          <div style={{padding:'14px 18px', borderBottom:'1px solid var(--border)', display:'flex', alignItems:'center', justifyContent:'space-between'}}>
-            <div style={{fontWeight:700, fontSize:15}}>열린 대회</div>
-            <a href="#" style={{fontSize:12}} onClick={(e)=>{e.preventDefault(); setRoute('match');}}>더보기 ›</a>
-          </div>
-          <div style={{padding:'14px 18px', display:'flex', flexDirection:'column', gap:12}}>
-            {TOURNAMENTS.filter(t => ['open','closing','live'].includes(t.status)).slice(0,3).map(t => (
-              <div key={t.id} style={{display:'grid', gridTemplateColumns:'auto 1fr auto', gap:14, alignItems:'center', padding:'10px 0', borderBottom:'1px dashed var(--border)'}}>
-                <div style={{width:54, height:54, background:t.accent, color:'#fff', display:'grid', placeItems:'center', fontFamily:'var(--ff-display)', fontWeight:900, fontSize:11, letterSpacing:'.04em', textAlign:'center', borderRadius:'var(--radius-chip)', lineHeight:1.1}}>
-                  {t.level}
-                </div>
-                <div style={{minWidth:0}}>
-                  <div style={{fontWeight:700, fontSize:14, display:'flex', gap:6, alignItems:'center'}}>
-                    {t.title} <span style={{color:'var(--ink-mute)', fontWeight:500, fontSize:12}}>{t.edition}</span>
-                    {t.status === 'closing' && <span className="badge badge--red" style={{marginLeft:'auto'}}>마감임박</span>}
-                    {t.status === 'live' && <span className="badge badge--red">LIVE</span>}
-                  </div>
-                  <div style={{fontSize:12, color:'var(--ink-mute)', marginTop:3}}>{t.court} · {t.dates} · 접수 {t.applied}/{t.capacity}</div>
-                </div>
-                <button className="btn btn--sm btn--primary">신청</button>
+        )}
+        {shown.map((p, i) => (
+          <button key={p.id} onClick={()=>setRoute('post')} style={{
+            background:'transparent', border:0, cursor:'pointer',
+            width:'100%', textAlign:'left',
+            padding:'12px 16px',
+            borderBottom: i < shown.length - 1 ? '1px solid var(--border)' : 0,
+            display:'grid', gridTemplateColumns:'auto 1fr auto', gap:12, alignItems:'center',
+            color:'var(--ink)',
+          }}>
+            <span className="badge badge--soft" style={{flex:'0 0 auto'}}>
+              {BOARDS.find(b => b.id === p.board)?.name || p.board}
+            </span>
+            <div style={{minWidth:0}}>
+              <div style={{
+                fontSize:14, fontWeight:500,
+                overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap',
+                marginBottom:2,
+              }}>
+                {p.hasImage && <Icon.image style={{color:'var(--ink-dim)', marginRight:4, verticalAlign:-1}}/>}
+                {p.title}
+                {p.comments > 0 && <span style={{color:'var(--accent)', fontWeight:700, fontSize:12, marginLeft:4}}>[{p.comments}]</span>}
+                {p.isNew && <span className="badge badge--new" style={{marginLeft:6}}>N</span>}
               </div>
-            ))}
-          </div>
-        </section>
-      </div>
-
-      {/* 최근글 (full board-style) */}
-      <section style={{marginTop:24}}>
-        <div style={{display:'flex', alignItems:'baseline', justifyContent:'space-between', marginBottom:12}}>
-          <h3 style={{margin:0, fontSize:17, fontWeight:700}}>방금 올라온 글</h3>
-          <a href="#" style={{fontSize:12}} onClick={(e)=>{e.preventDefault(); setActiveBoard('free'); setRoute('board');}}>전체 보기 ›</a>
-        </div>
-        <div className="board">
-          <div className="board__head">
-            <div>번호</div><div>제목</div><div>게시판</div><div>작성자</div><div>날짜</div><div>조회</div>
-          </div>
-          {LATEST_POSTS.map(p => (
-            <div key={p.id} className="board__row" onClick={()=>setRoute('post')}>
-              <div className="num">{p.id}</div>
-              <div className="title">
-                {p.hasImage && <Icon.image style={{color:'var(--ink-dim)'}}/>}
-                <a>{p.title}</a>
-                {p.comments > 0 && <span className="comment-count">[{p.comments}]</span>}
-                {p.isNew && <span className="badge badge--new" style={{marginLeft:4}}>N</span>}
+              <div style={{fontSize:11, color:'var(--ink-dim)', display:'flex', gap:6, alignItems:'center'}}>
+                <span>{p.author}</span>
+                <span>·</span>
+                <span style={{fontFamily:'var(--ff-mono)'}}>{p.date.slice(5)}</span>
+                <span>·</span>
+                <span style={{fontFamily:'var(--ff-mono)'}}>조회 {p.views}</span>
               </div>
-              <div style={{fontSize:12, color:'var(--ink-mute)'}}>{BOARDS.find(b=>b.id===p.board)?.name}</div>
-              <div style={{fontSize:12}}>{p.author}</div>
-              <div style={{fontSize:12, color:'var(--ink-dim)'}}>{p.date.slice(5)}</div>
-              <div style={{fontSize:12, color:'var(--ink-dim)'}}>{p.views}</div>
             </div>
-          ))}
+          </button>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+// ============================================================
+// ProfileWidget — 사이드바 본인 위젯 (운영 profile-widget.tsx 정합, 21 위반 → 토큰만)
+// ============================================================
+function ProfileWidget({ setRoute }) {
+  return (
+    <section className="card" style={{padding:'16px', display:'flex', flexDirection:'column', gap:12}}>
+      <div style={{display:'flex', alignItems:'center', gap:10}}>
+        <Avatar tag="RDM" color={TEAMS[0].color} ink="#fff" size={40} radius={6}/>
+        <div style={{minWidth:0, flex:1}}>
+          <div style={{fontWeight:700, fontSize:13, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>리딤캡틴</div>
+          <div style={{fontSize:11, color:'var(--ink-mute)', fontFamily:'var(--ff-mono)'}}>L.8 · 412 글</div>
         </div>
-      </section>
-    </div>
+      </div>
+      <div style={{
+        display:'grid', gridTemplateColumns:'repeat(3, 1fr)', gap:6,
+        padding:'10px 0',
+        borderTop:'1px solid var(--border)',
+        borderBottom:'1px solid var(--border)',
+      }}>
+        {[
+          ['승률', '78%'],
+          ['경기', '34'],
+          ['평점', '8.4'],
+        ].map(([k, v]) => (
+          <div key={k} style={{textAlign:'center'}}>
+            <div style={{fontFamily:'var(--ff-mono)', fontSize:14, fontWeight:800, color:'var(--ink)'}}>{v}</div>
+            <div style={{fontSize:10, color:'var(--ink-dim)', letterSpacing:'.04em', textTransform:'uppercase'}}>{k}</div>
+          </div>
+        ))}
+      </div>
+      <div style={{display:'flex', flexDirection:'column', gap:4}}>
+        {[
+          ['mygames', '내 경기', '3'],
+          ['saved', '저장한 글', '12'],
+          ['messages', '쪽지함', '3'],
+          ['notifications', '알림', '8'],
+        ].map(([go, label, n]) => (
+          <button key={go} onClick={()=>setRoute(go)} style={{
+            background:'transparent', border:0, cursor:'pointer',
+            width:'100%', textAlign:'left',
+            padding:'7px 8px', borderRadius:'var(--radius-chip)',
+            display:'flex', justifyContent:'space-between', alignItems:'center',
+            color:'var(--ink-soft)', fontSize:13,
+          }} onMouseEnter={e=>e.currentTarget.style.background='var(--bg-alt)'}
+            onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
+            <span>{label}</span>
+            <span style={{fontFamily:'var(--ff-mono)', fontSize:11, color:'var(--ink-dim)'}}>{n}</span>
+          </button>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+// ============================================================
+// NotableOrgs — 사이드바 단체 추천
+// ============================================================
+function NotableOrgs({ orgs, setRoute }) {
+  return (
+    <section className="card" style={{padding:0, overflow:'hidden'}}>
+      <header style={{padding:'12px 16px', borderBottom:'1px solid var(--border)', display:'flex', alignItems:'center', justifyContent:'space-between'}}>
+        <div style={{fontWeight:700, fontSize:13}}>추천 단체</div>
+        <button onClick={()=>setRoute('orgs')} style={{
+          background:'transparent', border:0, cursor:'pointer',
+          fontSize:11, color:'var(--ink-mute)',
+        }}>더 보기 →</button>
+      </header>
+      <div>
+        {orgs.map((o, i) => (
+          <button key={o.id} onClick={()=>setRoute('orgDetail')} style={{
+            background:'transparent', border:0, cursor:'pointer',
+            width:'100%', textAlign:'left',
+            padding:'10px 16px',
+            borderBottom: i < orgs.length - 1 ? '1px solid var(--border)' : 0,
+            display:'flex', alignItems:'center', gap:10,
+            color:'var(--ink)',
+          }}>
+            <Avatar tag={o.tag} color={o.color} ink="#fff" size={32} radius={4}/>
+            <div style={{minWidth:0, flex:1}}>
+              <div style={{
+                fontWeight:600, fontSize:13,
+                overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap',
+              }}>{o.name}</div>
+              <div style={{fontSize:11, color:'var(--ink-dim)', fontFamily:'var(--ff-mono)'}}>
+                {o.kind} · {o.teams}팀 · {o.members}명
+              </div>
+            </div>
+          </button>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+// ============================================================
+// CommunityPulse — 사이드바 통계
+// ============================================================
+function CommunityPulse({ stats }) {
+  const items = [
+    ['전체 회원', stats.members.toLocaleString()],
+    ['지금 접속', stats.onlineNow.toLocaleString()],
+    ['오늘의 글', stats.postsToday.toLocaleString()],
+    ['진행중 대회', stats.tournaments.toLocaleString()],
+  ];
+  return (
+    <section className="card" style={{padding:'14px 16px'}}>
+      <div style={{
+        fontSize:11, fontWeight:700, letterSpacing:'.08em', textTransform:'uppercase',
+        color:'var(--ink-dim)', marginBottom:10,
+      }}>
+        커뮤니티 펄스
+      </div>
+      <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:8}}>
+        {items.map(([k, v]) => (
+          <div key={k} style={{
+            padding:'10px 12px',
+            background:'var(--bg-alt)',
+            borderRadius:'var(--radius-chip)',
+          }}>
+            <div style={{fontFamily:'var(--ff-mono)', fontSize:18, fontWeight:800, lineHeight:1, color:'var(--ink)'}}>{v}</div>
+            <div style={{fontSize:10, color:'var(--ink-dim)', letterSpacing:'.04em', textTransform:'uppercase', marginTop:4}}>{k}</div>
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }
 

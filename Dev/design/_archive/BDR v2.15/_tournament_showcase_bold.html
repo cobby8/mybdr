@@ -1,0 +1,1050 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>제17회 강남구협회장배 농구대회 — 결산</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@700;800;900&family=JetBrains+Mono:wght@500;700;800&family=Pretendard:wght@500;600;700;800;900&display=swap" />
+<link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Symbols+Outlined" />
+<style>
+/* ============================================================
+   TOURNAMENT SHOWCASE — LEAN edition (v2)
+   덜 / 더 — 6 섹션, 모바일 우선
+   ============================================================ */
+:root {
+  --red:        #E31B23;
+  --red-deep:   #8E0E14;
+  --gold:       #E3B83F;
+  --gold-deep:  #A37A14;
+  --silver:     #B7BEC9;
+  --bronze:     #B26B3F;
+  --ink:        #0A0B0E;
+  --ink-soft:   #2A2C32;
+  --ink-mute:   #5A5D66;
+  --ink-dim:    #8E929A;
+  --paper:      #F5F2EC;
+  --paper-mute: #EBE5D7;
+  --line:       #1A1B1F;
+  --line-paper: #DCD6C6;
+
+  --ff-display: 'Archivo','Pretendard','Apple SD Gothic Neo',sans-serif;
+  --ff-body:    'Pretendard',-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
+  --ff-mono:    'JetBrains Mono','IBM Plex Mono',ui-monospace,monospace;
+}
+*,*::before,*::after { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; background: var(--paper); color: var(--ink); font-family: var(--ff-body); font-size: 14px; line-height: 1.5; -webkit-font-smoothing: antialiased; }
+
+/* ---------- shared ---------- */
+.wrap { max-width: 1280px; margin: 0 auto; padding: 0 28px; }
+.eyebrow { font-family: var(--ff-mono); font-size: 11px; font-weight: 800; letter-spacing: 0.2em; text-transform: uppercase; color: var(--red); }
+.disp { font-family: var(--ff-display); font-weight: 900; letter-spacing: -0.025em; }
+.mono { font-family: var(--ff-mono); letter-spacing: 0.06em; font-weight: 700; }
+
+.av { border-radius: 50%; display: grid; place-items: center; font-family: var(--ff-display); font-weight: 900; color: #fff; flex-shrink: 0; }
+.av.xs  { width: 20px; height: 20px; font-size: 10px; }
+.av.s   { width: 26px; height: 26px; font-size: 11px; }
+.av.m   { width: 36px; height: 36px; font-size: 14px; }
+.av.l   { width: 56px; height: 56px; font-size: 20px; }
+.av.xl  { width: 84px; height: 84px; font-size: 30px; }
+
+.t-kpo  { background: #1F4FA0; }
+.t-stz  { background: #C2362E; }
+.t-yncA { background: #7C3AED; }
+.t-yncB { background: #DB2777; }
+.t-gd   { background: #E8A33B; }
+.t-grw  { background: #1CA05E; }
+.t-dsk  { background: #6B7280; }
+.t-gns  { background: #2563EB; }
+.t-kps  { background: #0EA5E9; }
+.t-gry  { background: #0F766E; }
+.t-kph  { background: #B91C1C; }
+.t-dt   { background: #4B5563; }
+
+/* ============================================================
+   NAV (slim)
+   ============================================================ */
+.nav { background: var(--ink); color: var(--paper); position: sticky; top: 0; z-index: 60; border-bottom: 1px solid var(--line); }
+.nav .row { max-width: 1280px; margin: 0 auto; padding: 12px 28px; display: flex; align-items: center; gap: 18px; }
+.nav .logo { font-family: var(--ff-display); font-weight: 900; font-size: 20px; letter-spacing: -0.025em; }
+.nav .logo .dot { color: var(--red); }
+.nav nav { flex: 1; display: flex; justify-content: center; gap: 2px; }
+.nav nav a { padding: 7px 12px; font-size: 13px; font-weight: 700; color: rgba(245,242,236,0.7); text-decoration: none; border-radius: 2px; }
+.nav nav a.active { background: var(--red); color: #fff; }
+.nav nav a:hover:not(.active) { color: var(--paper); }
+.nav .icons { display: flex; gap: 2px; }
+.nav .icons button { width: 32px; height: 32px; background: transparent; border: 0; cursor: pointer; color: rgba(245,242,236,0.7); display: grid; place-items: center; border-radius: 2px; }
+.nav .icons button:hover { background: rgba(255,255,255,0.08); color: var(--paper); }
+.nav .icons .material-symbols-outlined { font-size: 19px; }
+.nav .ham { display: none; }
+
+@media (max-width: 720px) {
+  .nav .row { padding: 10px 16px; gap: 8px; }
+  .nav nav { display: none; }
+  .nav .ham { display: grid; }
+  /* keep search + bell + ham on mobile, hide rest */
+  .nav .icons button.hide-m { display: none; }
+}
+
+/* ============================================================
+   §01  HERO
+   ============================================================ */
+.hero { background: var(--ink); color: var(--paper); position: relative; overflow: hidden; border-bottom: 3px solid var(--red); }
+.hero::before, .hero::after { content: ''; position: absolute; pointer-events: none; border-radius: 50%; }
+.hero::before { right: -260px; top: 18%; width: 640px; height: 640px; border: 1.5px solid rgba(245,242,236,0.045); }
+.hero::after  { right: -100px; top: 28%; width: 360px; height: 360px; border: 1.5px solid rgba(245,242,236,0.035); }
+
+.hero .row { max-width: 1280px; margin: 0 auto; padding: 28px 28px 36px; position: relative; z-index: 2; }
+.hero .meta {
+  display: flex; flex-wrap: wrap; gap: 14px; align-items: center;
+  font-family: var(--ff-mono); font-size: 11px; font-weight: 800; letter-spacing: 0.18em;
+}
+.hero .meta .series { color: var(--gold); }
+.hero .meta .place  { color: rgba(245,242,236,0.5); }
+.hero .meta .status {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 10px; border: 1px solid var(--gold); color: var(--gold); border-radius: 2px;
+  letter-spacing: 0.14em;
+}
+.hero .meta .status::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--gold); }
+
+.hero .grid {
+  display: grid; grid-template-columns: 1fr auto; gap: 24px;
+  align-items: end; margin-top: 22px;
+}
+.hero h1 {
+  font-family: var(--ff-display); font-weight: 900;
+  font-size: clamp(48px, 9vw, 108px); line-height: 0.9;
+  letter-spacing: -0.04em; margin: 0;
+}
+.hero h1 .red { color: var(--red); }
+.hero .info {
+  margin-top: 16px; display: flex; flex-wrap: wrap; gap: 8px 18px;
+  font-family: var(--ff-mono); font-size: 12px; font-weight: 700; letter-spacing: 0.08em;
+  color: rgba(245,242,236,0.75);
+}
+.hero .info span + span::before { content: '·'; margin-right: 18px; color: rgba(245,242,236,0.3); }
+.hero .ed-num {
+  font-family: var(--ff-display); font-weight: 900;
+  font-size: clamp(120px, 20vw, 260px);
+  line-height: 0.78; letter-spacing: -0.06em; color: var(--red);
+  position: relative; margin-right: 14px;
+}
+.hero .ed-num .th {
+  position: absolute; top: 10px; right: -50px;
+  font-family: var(--ff-body); font-size: 22px; font-weight: 800;
+  letter-spacing: 0; color: rgba(245,242,236,0.55);
+}
+
+/* Champion ribbon */
+.champ-ribbon {
+  background: var(--ink); position: relative; z-index: 2;
+  border-top: 1px solid rgba(227,184,63,0.4);
+  border-bottom: 1px solid rgba(227,184,63,0.4);
+  background-image: linear-gradient(180deg, rgba(227,184,63,0.16) 0%, rgba(163,122,20,0.04) 100%);
+}
+.champ-ribbon .row {
+  max-width: 1280px; margin: 0 auto; padding: 16px 28px;
+  display: grid; grid-template-columns: auto 1fr auto auto; gap: 22px; align-items: center;
+  color: rgba(245,242,236,0.85);
+}
+.champ-ribbon .lbl {
+  font-family: var(--ff-mono); font-size: 11px; font-weight: 900;
+  letter-spacing: 0.22em; color: var(--gold);
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.champ-ribbon .lbl::before, .champ-ribbon .lbl::after { content: '★'; font-size: 12px; }
+.champ-ribbon .team {
+  display: flex; align-items: center; gap: 12px;
+  font-family: var(--ff-display); font-weight: 900; font-size: 22px;
+  letter-spacing: -0.02em; color: var(--paper);
+}
+.champ-ribbon .rec {
+  font-family: var(--ff-mono); font-size: 12px; font-weight: 700;
+  letter-spacing: 0.06em; color: rgba(245,242,236,0.65);
+}
+.champ-ribbon .mvp {
+  font-family: var(--ff-mono); font-size: 12px; font-weight: 700; letter-spacing: 0.06em;
+  display: flex; align-items: center; gap: 8px; color: rgba(245,242,236,0.85);
+}
+.champ-ribbon .mvp b { color: var(--gold); font-family: var(--ff-display); font-weight: 900; font-size: 16px; letter-spacing: -0.015em; margin-right: 2px; }
+
+@media (max-width: 720px) {
+  .hero .row { padding: 22px 16px 24px; }
+  .hero .grid { grid-template-columns: 1fr; gap: 0; align-items: flex-start; }
+  .hero .ed-num { order: -1; font-size: 160px; margin: 0 0 -14px -8px; }
+  .hero .ed-num .th { right: -42px; font-size: 18px; top: 8px; }
+  .hero h1 { font-size: 52px; }
+  .hero .meta { font-size: 10px; gap: 8px; }
+  .hero .info { font-size: 11px; gap: 6px 12px; }
+  .hero .info span + span::before { margin-right: 12px; }
+  .champ-ribbon .row {
+    padding: 14px 16px; grid-template-columns: 1fr;
+    gap: 8px;
+  }
+  .champ-ribbon .lbl { font-size: 10px; }
+  .champ-ribbon .team { font-size: 20px; }
+}
+
+/* ============================================================
+   §02  FINAL + PODIUM
+   ============================================================ */
+.crowning { background: var(--paper); padding: 56px 0 64px; }
+.crowning .head { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; }
+.crowning .head h2 { font-family: var(--ff-display); font-weight: 900; font-size: clamp(28px, 4vw, 40px); letter-spacing: -0.03em; margin: 6px 0 0; }
+.crowning .head .meta-r { font-family: var(--ff-mono); font-size: 12px; font-weight: 700; letter-spacing: 0.08em; color: var(--ink-mute); }
+.crowning .head .meta-r b { color: var(--ink); }
+
+.vs-poster {
+  position: relative; height: 210px; overflow: hidden;
+  border: 3px solid var(--gold); background: #0A0B0E; color: #fff;
+}
+.vs-poster .topbar, .vs-poster .bottombar {
+  position: absolute; left: 0; right: 0;
+  display: flex; justify-content: space-between; padding: 10px 20px;
+  font-family: var(--ff-mono); font-size: 11px; font-weight: 800; letter-spacing: 0.16em;
+  color: rgba(255,255,255,0.85); z-index: 3;
+}
+.vs-poster .topbar { top: 0; background: linear-gradient(180deg, rgba(0,0,0,0.55) 0%, transparent 100%); }
+.vs-poster .topbar .gold { color: var(--gold); }
+.vs-poster .bottombar { bottom: 0; background: linear-gradient(0deg, rgba(0,0,0,0.55) 0%, transparent 100%); color: rgba(255,255,255,0.7); font-weight: 700; }
+.vs-poster .side {
+  position: absolute; top: 0; bottom: 0; width: 55%;
+  display: flex; align-items: center; padding: 0 36px;
+}
+.vs-poster .side.l { left: 0;  background: linear-gradient(135deg, #1F4FA0 0%, #0F2956 100%); clip-path: polygon(0 0,100% 0,88% 100%,0 100%); }
+.vs-poster .side.r { right: 0; background: linear-gradient(225deg, #B91C1C 0%, #6C0F11 100%); clip-path: polygon(12% 0,100% 0,100% 100%,0 100%); justify-content: flex-end; text-align: right; }
+.vs-poster .side .seed { font-family: var(--ff-mono); font-size: 11px; letter-spacing: 0.16em; opacity: 0.75; font-weight: 800; }
+.vs-poster .side .team { font-family: var(--ff-display); font-weight: 900; font-size: clamp(28px, 4vw, 44px); letter-spacing: -0.025em; line-height: 1; margin: 6px 0; }
+.vs-poster .side .score { font-family: var(--ff-display); font-weight: 900; font-size: clamp(64px, 9vw, 96px); letter-spacing: -0.04em; line-height: 0.85; margin-top: -8px; }
+.vs-poster .side.l .score { color: var(--gold); }
+.vs-poster .side.r .score { color: rgba(255,255,255,0.5); }
+.vs-poster .vs {
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
+  width: 80px; height: 80px; background: var(--gold); color: var(--ink);
+  display: grid; place-items: center;
+  font-family: var(--ff-display); font-weight: 900; font-size: 26px; letter-spacing: -0.04em;
+  border-radius: 50%; box-shadow: 0 10px 36px rgba(0,0,0,0.5); z-index: 2;
+}
+
+/* Podium */
+.podium {
+  margin-top: 28px;
+  display: grid; grid-template-columns: 1fr 1.25fr 1fr; gap: 20px;
+  align-items: end;
+}
+.pod {
+  display: flex; flex-direction: column; align-items: center; text-align: center;
+}
+.pod .rib { font-family: var(--ff-mono); font-weight: 900; letter-spacing: 0.18em; font-size: 10px; padding: 4px 12px; margin-bottom: 10px; }
+.pod.p1 .rib { background: var(--gold); color: var(--ink); }
+.pod.p2 .rib { background: var(--silver); color: var(--ink); }
+.pod.p3 .rib { background: var(--bronze); color: #fff; }
+.pod .av { margin-bottom: 8px; box-shadow: 0 0 0 3px var(--paper-mute); }
+.pod.p1 .av { box-shadow: 0 0 0 3px var(--gold), 0 10px 32px rgba(227,184,63,0.25); }
+.pod .nm { font-family: var(--ff-display); font-weight: 900; font-size: 20px; letter-spacing: -0.02em; line-height: 1.05; }
+.pod.p1 .nm { font-size: 28px; }
+.pod .sub { font-family: var(--ff-mono); font-size: 10px; letter-spacing: 0.08em; color: var(--ink-mute); font-weight: 700; margin-top: 4px; margin-bottom: 12px; }
+.pod .block {
+  width: 100%; padding: 12px 10px 14px;
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  font-family: var(--ff-display); font-weight: 900;
+}
+.pod.p1 .block { background: linear-gradient(180deg, var(--gold) 0%, var(--gold-deep) 100%); height: 130px; }
+.pod.p2 .block { background: linear-gradient(180deg, var(--silver) 0%, #5e6675 100%); height: 96px; }
+.pod.p3 .block { background: linear-gradient(180deg, var(--bronze) 0%, #6f3e1d 100%); height: 76px; }
+.pod .block .rk { font-size: 60px; line-height: 1; color: rgba(255,255,255,0.95); text-shadow: 0 4px 12px rgba(0,0,0,0.3); letter-spacing: -0.04em; }
+.pod.p1 .block .rk { font-size: 80px; color: rgba(10,11,14,0.85); }
+.pod.p2 .block .rk { color: rgba(10,11,14,0.85); }
+.pod .block .lbl { font-family: var(--ff-mono); font-size: 9px; letter-spacing: 0.22em; color: rgba(10,11,14,0.7); font-weight: 900; }
+.pod.p3 .block .lbl { color: rgba(255,255,255,0.85); }
+
+@media (max-width: 720px) {
+  .crowning { padding: 36px 0 44px; }
+  .vs-poster { height: 150px; border-width: 2px; }
+  .vs-poster .topbar, .vs-poster .bottombar { padding: 8px 14px; font-size: 9px; }
+  .vs-poster .side { padding: 0 18px; }
+  .vs-poster .vs { width: 56px; height: 56px; font-size: 18px; }
+  .vs-poster .side .seed { font-size: 9px; }
+  .podium { margin-top: 20px; gap: 8px; }
+  .pod .av { width: 40px; height: 40px; font-size: 14px; }
+  .pod.p1 .av { width: 56px; height: 56px; font-size: 19px; }
+  .pod .nm { font-size: 14px; }
+  .pod.p1 .nm { font-size: 18px; }
+  .pod .sub { font-size: 9px; margin-bottom: 8px; }
+  .pod.p1 .block { height: 96px; }
+  .pod.p2 .block { height: 72px; }
+  .pod.p3 .block { height: 56px; }
+  .pod .block .rk { font-size: 36px; }
+  .pod.p1 .block .rk { font-size: 52px; }
+  .pod .block .lbl { font-size: 8px; }
+  .pod .rib { font-size: 8px; padding: 3px 8px; letter-spacing: 0.12em; }
+}
+
+/* ============================================================
+   §03  BRACKET (dark)
+   ============================================================ */
+.bracket-band { background: var(--ink); color: var(--paper); padding: 56px 0 64px; position: relative; overflow: hidden; border-top: 3px solid var(--red); }
+.bracket-band::before {
+  content: ''; position: absolute; right: -200px; top: 50%; transform: translateY(-50%);
+  width: 560px; height: 560px; background: radial-gradient(circle, rgba(227,184,63,0.12) 0%, transparent 60%);
+  pointer-events: none;
+}
+.bracket-band .inner { position: relative; z-index: 2; }
+.bracket-band .head { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-bottom: 22px; }
+.bracket-band .head h2 { font-family: var(--ff-display); font-weight: 900; font-size: clamp(28px, 4vw, 40px); letter-spacing: -0.03em; margin: 6px 0 0; }
+.bracket-band .head h2 .red { color: var(--red); }
+.bracket-band .head .meta-r { font-family: var(--ff-mono); font-size: 12px; color: rgba(245,242,236,0.6); letter-spacing: 0.06em; }
+.bracket-band .head .meta-r b { color: var(--gold); }
+.bracket-band .eyebrow { color: var(--gold); }
+
+.bracket-scroll { overflow-x: auto; padding-bottom: 8px; -webkit-overflow-scrolling: touch; scrollbar-width: thin; scrollbar-color: rgba(245,242,236,0.2) transparent; }
+.bracket-scroll::-webkit-scrollbar { height: 4px; }
+.bracket-scroll::-webkit-scrollbar-thumb { background: rgba(245,242,236,0.2); border-radius: 2px; }
+.bracket-rounds, .tree {
+  display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 18px;
+  min-width: 880px;
+}
+.bracket-rounds .r { font-family: var(--ff-mono); font-size: 11px; font-weight: 800; letter-spacing: 0.2em; color: rgba(245,242,236,0.5); padding-bottom: 8px; border-bottom: 1px solid rgba(245,242,236,0.15); }
+.bracket-rounds .r.final { color: var(--red); border-color: var(--red); }
+.bracket-rounds .r.champ { color: var(--gold); border-color: var(--gold); }
+.bracket-rounds { margin-bottom: 12px; }
+.tree { min-height: 460px; }
+.tree .col { display: flex; flex-direction: column; justify-content: space-around; gap: 8px; }
+.tree .col.center { justify-content: center; }
+.bm { background: rgba(245,242,236,0.04); border: 1px solid rgba(245,242,236,0.12); position: relative; }
+.bm .b-row { display: grid; grid-template-columns: 26px 26px 1fr 36px; gap: 8px; padding: 9px 12px; align-items: center; border-bottom: 1px solid rgba(245,242,236,0.08); position: relative; }
+.bm .b-row:last-child { border-bottom: 0; }
+.bm .b-row .seed { font-family: var(--ff-mono); font-size: 10px; font-weight: 800; color: rgba(245,242,236,0.4); text-align: center; letter-spacing: 0.04em; }
+.bm .b-row .nm { font-family: var(--ff-display); font-weight: 800; font-size: 13px; letter-spacing: -0.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bm .b-row .sc { font-family: var(--ff-display); font-weight: 900; font-size: 15px; text-align: right; letter-spacing: -0.015em; }
+.bm .b-row.win { background: rgba(245,242,236,0.06); }
+.bm .b-row.win::before { content: ''; position: absolute; left: 0; width: 3px; background: var(--red); height: 50%; }
+.bm .b-row.win:first-child::before { top: 0; }
+.bm .b-row.win:last-child::before  { top: 50%; }
+.bm .b-row.lose { color: rgba(245,242,236,0.45); }
+.bm .b-row.lose .av { opacity: 0.5; }
+.bm .b-foot { padding: 5px 12px; font-family: var(--ff-mono); font-size: 10px; font-weight: 700; letter-spacing: 0.1em; color: rgba(245,242,236,0.45); display: flex; justify-content: space-between; background: rgba(245,242,236,0.03); }
+.bm.champ-path { background: rgba(227,184,63,0.06); border-color: rgba(227,184,63,0.5); box-shadow: 0 0 24px rgba(227,184,63,0.15); }
+.bm.champ-path .b-row.win::before { background: var(--gold); }
+.bm.final { background: linear-gradient(180deg, rgba(227,184,63,0.18), rgba(227,184,63,0.06)); border: 2px solid var(--gold); box-shadow: 0 10px 36px rgba(227,184,63,0.22); }
+.bm.final::before {
+  content: 'FINAL'; position: absolute; top: -10px; left: 14px;
+  background: var(--gold); color: var(--ink); padding: 2px 10px;
+  font-family: var(--ff-mono); font-size: 10px; font-weight: 900; letter-spacing: 0.16em;
+}
+.bm.final .b-row { padding: 12px 14px; }
+.bm.final .b-row .nm { font-size: 15px; font-weight: 900; }
+.bm.final .b-row .sc { font-size: 20px; }
+.bm.final .b-row.win::before { background: var(--gold); width: 4px; }
+
+/* connectors */
+.tree .col:nth-child(1) .bm::after,
+.tree .col:nth-child(2) .bm::after { content: ''; position: absolute; right: -19px; top: 50%; width: 18px; height: 1px; background: rgba(245,242,236,0.2); }
+.tree .col:nth-child(1) .bm.champ-path::after,
+.tree .col:nth-child(2) .bm.champ-path::after { background: var(--gold); height: 2px; }
+
+/* champ card */
+.champ-card {
+  background: linear-gradient(160deg, #1a1207 0%, #2A1A0E 60%, #0F0805 100%);
+  border: 2px solid var(--gold); padding: 22px 18px 24px; text-align: center;
+  position: relative; overflow: hidden;
+}
+.champ-card::before {
+  content: ''; position: absolute; top: -120px; left: 50%; transform: translateX(-50%);
+  width: 320px; height: 320px;
+  background: radial-gradient(circle, rgba(227,184,63,0.35) 0%, transparent 50%);
+  pointer-events: none;
+}
+.champ-card > * { position: relative; z-index: 2; }
+.champ-card .lbl { font-family: var(--ff-mono); font-size: 10px; font-weight: 900; letter-spacing: 0.24em; color: var(--gold); }
+.champ-card .crown { margin-top: 4px; }
+.champ-card .crown .material-symbols-outlined { font-size: 32px; color: var(--gold); }
+.champ-card .av-wrap { display: flex; justify-content: center; margin: 4px 0 10px; }
+.champ-card .av { box-shadow: 0 0 0 4px rgba(227,184,63,0.35); }
+.champ-card .nm { font-family: var(--ff-display); font-weight: 900; font-size: 22px; letter-spacing: -0.02em; line-height: 1; }
+.champ-card .rec { margin-top: 6px; font-family: var(--ff-mono); font-size: 11px; color: rgba(245,242,236,0.75); letter-spacing: 0.08em; font-weight: 700; }
+.champ-card .div { margin: 14px 0; height: 1px; background: rgba(227,184,63,0.3); }
+.champ-card .stat-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0; }
+.champ-card .stat-row .c { border-right: 1px solid rgba(227,184,63,0.2); padding: 0 8px; }
+.champ-card .stat-row .c:last-child { border-right: 0; }
+.champ-card .stat-row .lbl-s { font-family: var(--ff-mono); font-size: 9px; letter-spacing: 0.14em; color: rgba(245,242,236,0.5); font-weight: 700; }
+.champ-card .stat-row .v-s { font-family: var(--ff-display); font-weight: 900; font-size: 20px; color: var(--gold); letter-spacing: -0.02em; }
+
+/* 3rd place row */
+.third { margin-top: 18px; min-width: 880px; display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 18px; }
+.third .lbl { font-family: var(--ff-mono); font-size: 11px; letter-spacing: 0.18em; color: var(--bronze); font-weight: 800; padding-bottom: 6px; border-bottom: 1px solid rgba(178,107,63,0.4); grid-column: 3 / 4; }
+.third .bm { grid-column: 3 / 4; }
+.third .bm.bronze-match { border: 1px dashed var(--bronze); }
+.third .bm.bronze-match .b-row.win::before { background: var(--bronze); }
+.third .bm.bronze-match .b-foot { background: var(--bronze); color: #fff; }
+
+@media (max-width: 720px) {
+  .bracket-band { padding: 36px 0 44px; }
+  .bracket-band .head h2 { font-size: 24px; }
+  .bracket-band .head .meta-r { font-size: 11px; }
+  .bracket-rounds, .tree { min-width: 720px; gap: 12px; }
+  .bracket-rounds .r { font-size: 10px; letter-spacing: 0.14em; }
+  .tree { min-height: 380px; }
+  .bm .b-row { padding: 8px 10px; }
+  .bm .b-row .nm { font-size: 12px; }
+  .bm .b-row .sc { font-size: 14px; }
+  .bm.final .b-row .nm { font-size: 13px; }
+  .bm.final .b-row .sc { font-size: 17px; }
+  .champ-card { padding: 16px 12px 18px; }
+  .champ-card .nm { font-size: 18px; }
+  .third { min-width: 720px; }
+}
+
+/* ============================================================
+   §04  GROUPS (combined posters + standings)
+   ============================================================ */
+.groups-band { background: var(--paper-mute); padding: 56px 0 64px; border-top: 3px solid var(--ink); border-bottom: 3px solid var(--ink); }
+.groups-band .head { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-bottom: 22px; }
+.groups-band .head h2 { font-family: var(--ff-display); font-weight: 900; font-size: clamp(28px, 4vw, 40px); letter-spacing: -0.03em; margin: 6px 0 0; }
+.groups-band .head .meta-r { font-family: var(--ff-mono); font-size: 12px; color: var(--ink-mute); letter-spacing: 0.06em; font-weight: 700; }
+
+.gposters {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px;
+}
+.gp { background: var(--paper); border: 1px solid var(--ink); position: relative; overflow: hidden; }
+.gp .top { position: relative; height: 70px; padding: 14px 16px; color: #fff; display: flex; align-items: flex-end; justify-content: space-between; overflow: hidden; }
+.gp.a .top { background: #1F4FA0; }
+.gp.b .top { background: var(--red); }
+.gp.c .top { background: #7C3AED; }
+.gp.d .top { background: #156D45; }
+.gp .top .letter { font-family: var(--ff-display); font-weight: 900; font-size: 96px; letter-spacing: -0.06em; line-height: 0.75; position: absolute; bottom: -14px; left: -4px; color: rgba(255,255,255,0.2); }
+.gp .top .info { position: relative; z-index: 2; margin-left: auto; text-align: right; }
+.gp .top .info .e { font-family: var(--ff-mono); font-size: 9px; letter-spacing: 0.18em; font-weight: 800; opacity: 0.85; }
+.gp .top .info .ttl { font-family: var(--ff-display); font-weight: 900; font-size: 22px; letter-spacing: -0.02em; line-height: 1; margin-top: 2px; }
+.gp table { width: 100%; border-collapse: collapse; }
+.gp thead th {
+  font-family: var(--ff-mono); font-size: 9px; font-weight: 800; letter-spacing: 0.1em;
+  color: var(--ink-mute); padding: 7px 4px; background: var(--paper-mute);
+  border-bottom: 1px solid var(--ink); text-align: center;
+}
+.gp thead th:first-child, .gp thead th:nth-child(2) { text-align: left; padding-left: 12px; }
+.gp tbody td {
+  padding: 10px 4px; font-family: var(--ff-mono); font-size: 12px; font-weight: 800;
+  border-bottom: 1px solid var(--line-paper); text-align: center;
+}
+.gp tbody tr:last-child td { border-bottom: 0; }
+.gp tbody td.rk { width: 28px; padding-left: 12px; text-align: left; font-family: var(--ff-display); font-size: 16px; letter-spacing: -0.02em; }
+.gp tbody td.tm { text-align: left; padding-left: 8px; font-family: var(--ff-display); font-weight: 900; font-size: 13px; letter-spacing: -0.015em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 0; }
+.gp tbody td.tm .row { display: flex; align-items: center; gap: 8px; }
+.gp tbody td.tm .row span { overflow: hidden; text-overflow: ellipsis; }
+.gp tbody td.diff.pos { color: #16a34a; }
+.gp tbody td.diff.neg { color: var(--red); }
+.gp tbody tr.adv td { background: rgba(227,27,35,0.04); }
+.gp tbody tr.adv td.rk { color: var(--red); position: relative; }
+.gp tbody tr.adv td.rk::before { content: ''; position: absolute; left: 0; top: 8px; bottom: 8px; width: 3px; background: var(--red); }
+.gp tbody tr.elim td { color: var(--ink-mute); }
+.gp tbody tr.elim .av { opacity: 0.55; }
+.gp .footer { padding: 8px 14px; background: var(--ink); color: var(--paper); font-family: var(--ff-mono); font-size: 9px; font-weight: 800; letter-spacing: 0.14em; display: flex; justify-content: space-between; }
+.gp .footer .ok { color: var(--gold); }
+
+@media (max-width: 1024px) {
+  .gposters { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 720px) {
+  .groups-band { padding: 36px 0 44px; }
+  .groups-band .head h2 { font-size: 24px; }
+  .gposters { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .gp .top { height: 56px; padding: 10px 12px; }
+  .gp .top .letter { font-size: 72px; }
+  .gp .top .info .ttl { font-size: 18px; }
+  .gp tbody td { padding: 8px 2px; font-size: 11px; }
+  .gp tbody td.tm { font-size: 11px; padding-left: 6px; }
+  .gp tbody td.rk { font-size: 14px; padding-left: 10px; }
+  .gp thead th { font-size: 8px; padding: 6px 2px; letter-spacing: 0.04em; }
+  .gp .footer { font-size: 8px; padding: 6px 10px; letter-spacing: 0.08em; }
+  /* hide some columns on mobile to keep readable */
+  .gp .col-pf, .gp .col-pa { display: none; }
+}
+
+/* ============================================================
+   §05  AWARDS  (3 titles + Best 5)
+   ============================================================ */
+.awards-band { background: var(--ink); color: var(--paper); padding: 56px 0 0; position: relative; overflow: hidden; }
+.awards-band::before {
+  content: ''; position: absolute; left: -200px; top: 40%; transform: translateY(-50%);
+  width: 500px; height: 500px;
+  background: radial-gradient(circle, rgba(227,27,35,0.12) 0%, transparent 60%);
+  pointer-events: none;
+}
+.awards-band .head { position: relative; z-index: 2; display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-bottom: 28px; }
+.awards-band .head h2 { font-family: var(--ff-display); font-weight: 900; font-size: clamp(28px, 4vw, 40px); letter-spacing: -0.03em; margin: 6px 0 0; }
+.awards-band .head .meta-r { font-family: var(--ff-mono); font-size: 12px; color: rgba(245,242,236,0.55); letter-spacing: 0.06em; }
+.awards-band .eyebrow { color: var(--gold); }
+
+/* 3 title cards */
+.titles { position: relative; z-index: 2; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+.title-card {
+  background: rgba(245,242,236,0.04); border: 1px solid rgba(245,242,236,0.12); padding: 22px 20px;
+  display: flex; flex-direction: column; gap: 12px;
+}
+.title-card .l { font-family: var(--ff-mono); font-size: 11px; letter-spacing: 0.18em; color: var(--red); font-weight: 900; }
+.title-card.mvp .l { color: var(--gold); }
+.title-card .stat { font-family: var(--ff-display); font-weight: 900; font-size: clamp(40px, 5vw, 56px); letter-spacing: -0.04em; line-height: 0.9; color: var(--paper); }
+.title-card.mvp .stat { color: var(--gold); }
+.title-card .stat .u { font-size: 0.34em; color: rgba(245,242,236,0.5); font-family: var(--ff-mono); font-weight: 800; margin-left: 6px; letter-spacing: 0.04em; }
+.title-card .player { display: flex; align-items: center; gap: 12px; padding-top: 12px; border-top: 1px solid rgba(245,242,236,0.12); }
+.title-card .player .info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.title-card .pname { font-family: var(--ff-display); font-weight: 900; font-size: 16px; letter-spacing: -0.015em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.title-card .pteam { font-family: var(--ff-mono); font-size: 11px; color: rgba(245,242,236,0.55); letter-spacing: 0.04em; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* Best 5 */
+.best5-wrap { margin-top: 36px; padding: 36px 0 56px; border-top: 1px solid var(--line); position: relative; z-index: 2; }
+.best5-wrap .head { margin-bottom: 22px; }
+.best5-wrap .head h3 { font-family: var(--ff-display); font-weight: 900; font-size: 24px; letter-spacing: -0.02em; margin: 4px 0 0; }
+.best5-wrap .head .eyebrow { color: var(--red); }
+.best5-wrap .head .meta-r b { color: var(--gold); }
+.best5 { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0; border: 1px solid var(--line); }
+.best5 .b {
+  padding: 22px 14px 18px; border-right: 1px solid var(--line);
+  display: flex; flex-direction: column; align-items: center; text-align: center;
+  background: rgba(245,242,236,0.02); position: relative;
+}
+.best5 .b:last-child { border-right: 0; }
+.best5 .b.mvp { background: linear-gradient(180deg, rgba(227,184,63,0.08), rgba(227,184,63,0.02)); }
+.best5 .b.mvp::before { content: 'MVP'; position: absolute; top: 8px; right: 10px; font-family: var(--ff-mono); font-size: 9px; font-weight: 900; color: var(--ink); letter-spacing: 0.16em; background: var(--gold); padding: 2px 6px; }
+.best5 .b .pos { font-family: var(--ff-mono); font-size: 10px; font-weight: 900; letter-spacing: 0.16em; color: var(--red); }
+.best5 .b.mvp .pos { color: var(--gold); }
+.best5 .b .av { margin: 12px 0 8px; }
+.best5 .b.mvp .av { box-shadow: 0 0 0 3px var(--gold); }
+.best5 .b .nm { font-family: var(--ff-display); font-weight: 900; font-size: 16px; letter-spacing: -0.02em; line-height: 1.05; }
+.best5 .b .tm { font-family: var(--ff-mono); font-size: 10px; color: rgba(245,242,236,0.55); margin-top: 3px; letter-spacing: 0.04em; font-weight: 700; }
+.best5 .b .stat-mini { margin-top: 8px; font-family: var(--ff-display); font-weight: 900; font-size: 18px; color: var(--red); letter-spacing: -0.025em; }
+.best5 .b.mvp .stat-mini { color: var(--gold); }
+.best5 .b .stat-mini .u { font-size: 10px; font-family: var(--ff-mono); color: rgba(245,242,236,0.5); margin-left: 3px; letter-spacing: 0.04em; font-weight: 700; }
+
+@media (max-width: 720px) {
+  .awards-band { padding: 36px 0 0; }
+  .awards-band .head h2 { font-size: 24px; }
+  .titles { grid-template-columns: 1fr; gap: 10px; }
+  .title-card { padding: 16px 14px; gap: 10px; }
+  .title-card .stat { font-size: 38px; }
+  .best5-wrap { margin-top: 24px; padding: 24px 0 36px; }
+  .best5-wrap .head h3 { font-size: 18px; }
+  .best5 { grid-template-columns: 1fr 1fr; }
+  .best5 .b { padding: 16px 12px 14px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+  .best5 .b:nth-child(2n) { border-right: 0; }
+  .best5 .b:last-child { grid-column: 1 / -1; border-bottom: 0; }
+  .best5 .b:nth-last-child(2) { border-bottom: 1px solid var(--line); }
+  .best5 .b .av { width: 56px; height: 56px; font-size: 20px; }
+  .best5 .b .nm { font-size: 14px; }
+}
+
+/* ============================================================
+   §06  BY THE NUMBERS
+   ============================================================ */
+.numbers-band { background: var(--paper); padding: 56px 0 64px; }
+.numbers-band .head { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-bottom: 22px; }
+.numbers-band .head h2 { font-family: var(--ff-display); font-weight: 900; font-size: clamp(28px, 4vw, 40px); letter-spacing: -0.03em; margin: 6px 0 0; }
+.numbers-band .head .meta-r { font-family: var(--ff-mono); font-size: 12px; color: var(--ink-mute); letter-spacing: 0.06em; font-weight: 700; }
+
+.nums {
+  display: grid; grid-template-columns: 1.4fr 1fr 1fr 1fr 1fr 1fr;
+  gap: 1px; background: var(--ink); border: 1px solid var(--ink);
+}
+.nums .n { background: var(--paper); padding: 22px 18px; display: flex; flex-direction: column; gap: 4px; }
+.nums .n.hero { background: var(--ink); color: var(--paper); padding: 28px 22px; }
+.nums .n.red  { background: var(--red); color: #fff; }
+.nums .n .l { font-family: var(--ff-mono); font-size: 10px; font-weight: 800; letter-spacing: 0.14em; color: var(--ink-mute); }
+.nums .n.hero .l { color: var(--gold); }
+.nums .n.red .l { color: rgba(255,255,255,0.85); }
+.nums .n .v {
+  font-family: var(--ff-display); font-weight: 900;
+  font-size: clamp(28px, 4vw, 44px); letter-spacing: -0.035em; line-height: 0.95;
+  margin-top: 4px;
+}
+.nums .n.hero .v { font-size: clamp(48px, 7vw, 72px); color: var(--paper); }
+.nums .n .v .u { font-size: 0.42em; color: var(--ink-mute); font-family: var(--ff-mono); font-weight: 800; margin-left: 4px; letter-spacing: 0.04em; }
+.nums .n.hero .v .u { color: rgba(245,242,236,0.55); }
+.nums .n.red .v .u { color: rgba(255,255,255,0.7); }
+.nums .n .d { font-size: 11px; color: var(--ink-mute); margin-top: 4px; line-height: 1.4; }
+.nums .n.hero .d { color: rgba(245,242,236,0.55); }
+.nums .n.red .d { color: rgba(255,255,255,0.85); }
+
+@media (max-width: 1024px) {
+  .nums { grid-template-columns: 1fr 1fr 1fr; }
+  .nums .n.hero { grid-column: span 3; }
+}
+@media (max-width: 720px) {
+  .numbers-band { padding: 36px 0 44px; }
+  .numbers-band .head h2 { font-size: 24px; }
+  .nums { grid-template-columns: 1fr 1fr; }
+  .nums .n.hero { grid-column: span 2; padding: 22px 18px; }
+  .nums .n { padding: 16px 14px; }
+  .nums .n .v { font-size: 28px; }
+  .nums .n .d { font-size: 10px; }
+}
+
+/* ============================================================
+   FOOTER
+   ============================================================ */
+.foot { background: var(--ink); color: rgba(245,242,236,0.55); padding: 24px 28px; font-family: var(--ff-mono); font-size: 11px; letter-spacing: 0.06em; text-align: center; font-weight: 700; border-top: 1px solid var(--line); }
+.foot b { color: var(--paper); }
+
+/* ============================================================
+   Responsive wrap padding
+   ============================================================ */
+@media (max-width: 720px) {
+  .wrap { padding: 0 16px; }
+}
+</style>
+</head>
+<body>
+
+<!-- ============================================================
+     NAV
+     ============================================================ -->
+<header class="nav">
+  <div class="row">
+    <div class="logo">MyBDR<span class="dot">.</span></div>
+    <nav>
+      <a href="#">홈</a><a href="#">경기</a><a href="#" class="active">대회</a><a href="#">단체</a><a href="#">팀</a><a href="#">코트</a><a href="#">랭킹</a><a href="#">커뮤니티</a><a href="#">더보기</a>
+    </nav>
+    <div class="icons">
+      <button><span class="material-symbols-outlined">search</span></button>
+      <button class="hide-m"><span class="material-symbols-outlined">mail</span></button>
+      <button><span class="material-symbols-outlined">notifications</span></button>
+      <button class="ham"><span class="material-symbols-outlined">menu</span></button>
+    </div>
+  </div>
+</header>
+
+<!-- ============================================================
+     §01 — HERO
+     ============================================================ -->
+<section class="hero">
+  <div class="row">
+    <div class="meta">
+      <span class="series">2026 GNBA · 17TH EDITION</span>
+      <span class="place">SEOUL · GANGNAM-GU</span>
+      <span class="status">FINISHED 05.17 18:42</span>
+    </div>
+    <div class="grid">
+      <div>
+        <h1>강남구<span class="red">협회장배</span>.</h1>
+        <div class="info">
+          <span>05.16 — 17 (토·일)</span>
+          <span>i3W-U12 · 12팀</span>
+          <span>강남구민체육관 · 수도공고</span>
+        </div>
+      </div>
+      <div class="ed-num">17<span class="th">th</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- Champion ribbon -->
+<div class="champ-ribbon">
+  <div class="row">
+    <div class="lbl">17TH CHAMPION</div>
+    <div class="team"><div class="av m t-kpo">김</div>김포홉스타</div>
+    <div class="rec">5W 0L · 무패우승</div>
+    <div class="mvp">MVP <b>김도윤 #7</b> 28.8 PPG</div>
+  </div>
+</div>
+
+<!-- ============================================================
+     §02 — FINAL + PODIUM
+     ============================================================ -->
+<section class="crowning">
+  <div class="wrap">
+    <div class="head">
+      <div>
+        <div class="eyebrow">★ Grand Final · 05.17 18:00</div>
+        <h2>이틀의 끝, 4점차.</h2>
+      </div>
+      <div class="meta-r"><b>강남구민체육관 CENTER COURT</b> · MVP 김도윤 14PTS</div>
+    </div>
+
+    <!-- VS Poster -->
+    <div class="vs-poster">
+      <div class="topbar">
+        <span class="gold">★ GRAND FINAL ★</span>
+        <span>i3W-U12 · 우승 결정전</span>
+      </div>
+      <div class="side l">
+        <div>
+          <div class="seed">A1 · CHAMPION</div>
+          <div class="team">김포홉스타</div>
+          <div class="score">32</div>
+        </div>
+      </div>
+      <div class="side r">
+        <div>
+          <div class="seed">D1 · RUNNER-UP</div>
+          <div class="team">김포홀</div>
+          <div class="score">28</div>
+        </div>
+      </div>
+      <div class="vs">FINAL</div>
+      <div class="bottombar">
+        <span>18:00 · CRT 01</span>
+        <span>4 PT MARGIN</span>
+      </div>
+    </div>
+
+    <!-- Podium -->
+    <div class="podium">
+      <div class="pod p2">
+        <div class="rib">RUNNER-UP</div>
+        <div class="av l t-kph">김</div>
+        <div class="nm">김포홀</div>
+        <div class="sub">D조 1위 · 4W 1L</div>
+        <div class="block"><div class="rk">02</div><div class="lbl">준우승</div></div>
+      </div>
+      <div class="pod p1">
+        <div class="rib">CHAMPION</div>
+        <div class="av xl t-kpo">김</div>
+        <div class="nm">김포홉스타</div>
+        <div class="sub">A조 1위 · 5W 0L · 무패</div>
+        <div class="block"><div class="rk">01</div><div class="lbl">우승</div></div>
+      </div>
+      <div class="pod p3">
+        <div class="rib">3RD PLACE</div>
+        <div class="av l t-gd">강</div>
+        <div class="nm">강동SK</div>
+        <div class="sub">B조 1위 · 4W 1L</div>
+        <div class="block"><div class="rk">03</div><div class="lbl">3위</div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     §03 — BRACKET
+     ============================================================ -->
+<section class="bracket-band">
+  <div class="wrap inner">
+    <div class="head">
+      <div>
+        <div class="eyebrow">Knockout Bracket</div>
+        <h2>김포홉스타의 <span class="red">무패 5경기</span>.</h2>
+      </div>
+      <div class="meta-r"><b>골드 라인</b> = 챔피언의 길</div>
+    </div>
+
+    <div class="bracket-scroll">
+      <div class="bracket-rounds">
+        <div class="r">8강 · QUARTERFINALS</div>
+        <div class="r">4강 · SEMIFINALS</div>
+        <div class="r final">결승 · GRAND FINAL</div>
+        <div class="r champ">★ CHAMPION</div>
+      </div>
+
+      <div class="tree">
+        <!-- COL 1: 8강 -->
+        <div class="col">
+          <div class="bm champ-path">
+            <div class="b-row win"><div class="seed">A1</div><div class="av s t-kpo">김</div><div class="nm">김포홉스타</div><div class="sc">28</div></div>
+            <div class="b-row lose"><div class="seed">D2</div><div class="av s t-gry">구</div><div class="nm">구리남양주삼성</div><div class="sc">14</div></div>
+            <div class="b-foot"><span>QF1</span><span>09:30 CRT1</span></div>
+          </div>
+          <div class="bm">
+            <div class="b-row win"><div class="seed">C1</div><div class="av s t-yncB">Y</div><div class="nm">YNC B</div><div class="sc">22</div></div>
+            <div class="b-row lose"><div class="seed">B2</div><div class="av s t-grw">그</div><div class="nm">그로우</div><div class="sc">19</div></div>
+            <div class="b-foot"><span>QF2</span><span>10:00 CRT1</span></div>
+          </div>
+          <div class="bm">
+            <div class="b-row win"><div class="seed">B1</div><div class="av s t-gd">강</div><div class="nm">강동SK</div><div class="sc">26</div></div>
+            <div class="b-row lose"><div class="seed">C2</div><div class="av s t-gns">강</div><div class="nm">강남삼성</div><div class="sc">18</div></div>
+            <div class="b-foot"><span>QF3</span><span>10:30 CRT2</span></div>
+          </div>
+          <div class="bm">
+            <div class="b-row win"><div class="seed">D1</div><div class="av s t-kph">김</div><div class="nm">김포홀</div><div class="sc">24</div></div>
+            <div class="b-row lose"><div class="seed">A2</div><div class="av s t-yncA">Y</div><div class="nm">YNC A</div><div class="sc">20</div></div>
+            <div class="b-foot"><span>QF4</span><span>11:00 CRT2</span></div>
+          </div>
+        </div>
+
+        <!-- COL 2: 4강 -->
+        <div class="col">
+          <div class="bm champ-path">
+            <div class="b-row win"><div class="seed">W1</div><div class="av s t-kpo">김</div><div class="nm">김포홉스타</div><div class="sc">30</div></div>
+            <div class="b-row lose"><div class="seed">W2</div><div class="av s t-yncB">Y</div><div class="nm">YNC B</div><div class="sc">22</div></div>
+            <div class="b-foot"><span>SF1</span><span>14:00 CRT1</span></div>
+          </div>
+          <div class="bm">
+            <div class="b-row lose"><div class="seed">W3</div><div class="av s t-gd">강</div><div class="nm">강동SK</div><div class="sc">26</div></div>
+            <div class="b-row win"><div class="seed">W4</div><div class="av s t-kph">김</div><div class="nm">김포홀</div><div class="sc">28</div></div>
+            <div class="b-foot"><span>SF2</span><span>15:00 CRT1</span></div>
+          </div>
+        </div>
+
+        <!-- COL 3: 결승 -->
+        <div class="col center">
+          <div class="bm final champ-path">
+            <div class="b-row win"><div class="seed">SF1</div><div class="av m t-kpo">김</div><div class="nm">김포홉스타</div><div class="sc">32</div></div>
+            <div class="b-row lose"><div class="seed">SF2</div><div class="av m t-kph">김</div><div class="nm">김포홀</div><div class="sc">28</div></div>
+            <div class="b-foot" style="background:var(--gold);color:var(--ink);font-weight:900;"><span>★ FINAL</span><span>18:00</span></div>
+          </div>
+        </div>
+
+        <!-- COL 4: CHAMPION -->
+        <div class="col center">
+          <div class="champ-card">
+            <div class="lbl">17TH CHAMPION</div>
+            <div class="crown"><span class="material-symbols-outlined">emoji_events</span></div>
+            <div class="av-wrap"><div class="av xl t-kpo">김</div></div>
+            <div class="nm">김포홉스타</div>
+            <div class="rec">5W · 0L · 무패우승</div>
+            <div class="div"></div>
+            <div class="stat-row">
+              <div class="c"><div class="lbl-s">TOTAL PTS</div><div class="v-s">144</div></div>
+              <div class="c"><div class="lbl-s">PTS DIFF</div><div class="v-s">+58</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3rd place row -->
+      <div class="third">
+        <div></div><div></div>
+        <div class="lbl">3·4위전 · BRONZE MATCH</div>
+        <div></div>
+      </div>
+      <div class="third" style="margin-top:6px;">
+        <div></div><div></div>
+        <div class="bm bronze-match">
+          <div class="b-row win"><div class="seed">SF1L</div><div class="av s t-gd">강</div><div class="nm">강동SK</div><div class="sc">24</div></div>
+          <div class="b-row lose"><div class="seed">SF2L</div><div class="av s t-yncB">Y</div><div class="nm">YNC B</div><div class="sc">20</div></div>
+          <div class="b-foot"><span>3·4위전</span><span>16:30 CRT2</span></div>
+        </div>
+        <div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     §04 — GROUPS (조 편성 + 순위 통합)
+     ============================================================ -->
+<section class="groups-band">
+  <div class="wrap">
+    <div class="head">
+      <div>
+        <div class="eyebrow">Group Stage</div>
+        <h2>4조 12팀, 상위 2팀 진출.</h2>
+      </div>
+      <div class="meta-r">5/16 토 · 라운드 로빈</div>
+    </div>
+
+    <div class="gposters">
+
+      <!-- A조 -->
+      <div class="gp a">
+        <div class="top">
+          <div class="letter">A</div>
+          <div class="info"><div class="e">GROUP</div><div class="ttl">A조</div></div>
+        </div>
+        <table>
+          <thead><tr><th>#</th><th>팀</th><th>승</th><th>패</th><th class="col-pf">득</th><th class="col-pa">실</th><th>차</th><th>승점</th></tr></thead>
+          <tbody>
+            <tr class="adv"><td class="rk">01</td><td class="tm"><div class="row"><div class="av s t-kpo">김</div><span>김포홉스타</span></div></td><td>2</td><td>0</td><td class="col-pf">54</td><td class="col-pa">32</td><td class="diff pos">+22</td><td>6</td></tr>
+            <tr class="adv"><td class="rk">02</td><td class="tm"><div class="row"><div class="av s t-yncA">Y</div><span>YNC A</span></div></td><td>1</td><td>1</td><td class="col-pf">40</td><td class="col-pa">42</td><td class="diff neg">-2</td><td>4</td></tr>
+            <tr class="elim"><td class="rk">03</td><td class="tm"><div class="row"><div class="av s t-stz">스</div><span>스티즈강남</span></div></td><td>0</td><td>2</td><td class="col-pf">28</td><td class="col-pa">48</td><td class="diff neg">-20</td><td>2</td></tr>
+          </tbody>
+        </table>
+        <div class="footer"><span>강남구민체육관 · CRT 1</span><span class="ok">진출 2팀 ★</span></div>
+      </div>
+
+      <!-- B조 -->
+      <div class="gp b">
+        <div class="top">
+          <div class="letter">B</div>
+          <div class="info"><div class="e">GROUP</div><div class="ttl">B조</div></div>
+        </div>
+        <table>
+          <thead><tr><th>#</th><th>팀</th><th>승</th><th>패</th><th class="col-pf">득</th><th class="col-pa">실</th><th>차</th><th>승점</th></tr></thead>
+          <tbody>
+            <tr class="adv"><td class="rk">01</td><td class="tm"><div class="row"><div class="av s t-gd">강</div><span>강동SK</span></div></td><td>2</td><td>0</td><td class="col-pf">52</td><td class="col-pa">34</td><td class="diff pos">+18</td><td>6</td></tr>
+            <tr class="adv"><td class="rk">02</td><td class="tm"><div class="row"><div class="av s t-grw">그</div><span>그로우</span></div></td><td>1</td><td>1</td><td class="col-pf">44</td><td class="col-pa">40</td><td class="diff pos">+4</td><td>4</td></tr>
+            <tr class="elim"><td class="rk">03</td><td class="tm"><div class="row"><div class="av s t-dsk">다</div><span>다산SK</span></div></td><td>0</td><td>2</td><td class="col-pf">30</td><td class="col-pa">52</td><td class="diff neg">-22</td><td>2</td></tr>
+          </tbody>
+        </table>
+        <div class="footer"><span>강남구민체육관 · CRT 2</span><span class="ok">진출 2팀 ★</span></div>
+      </div>
+
+      <!-- C조 -->
+      <div class="gp c">
+        <div class="top">
+          <div class="letter">C</div>
+          <div class="info"><div class="e">GROUP</div><div class="ttl">C조</div></div>
+        </div>
+        <table>
+          <thead><tr><th>#</th><th>팀</th><th>승</th><th>패</th><th class="col-pf">득</th><th class="col-pa">실</th><th>차</th><th>승점</th></tr></thead>
+          <tbody>
+            <tr class="adv"><td class="rk">01</td><td class="tm"><div class="row"><div class="av s t-yncB">Y</div><span>YNC B</span></div></td><td>2</td><td>0</td><td class="col-pf">56</td><td class="col-pa">30</td><td class="diff pos">+26</td><td>6</td></tr>
+            <tr class="adv"><td class="rk">02</td><td class="tm"><div class="row"><div class="av s t-gns">강</div><span>강남삼성</span></div></td><td>1</td><td>1</td><td class="col-pf">38</td><td class="col-pa">40</td><td class="diff neg">-2</td><td>4</td></tr>
+            <tr class="elim"><td class="rk">03</td><td class="tm"><div class="row"><div class="av s t-kps">김</div><span>김포SK</span></div></td><td>0</td><td>2</td><td class="col-pf">26</td><td class="col-pa">50</td><td class="diff neg">-24</td><td>2</td></tr>
+          </tbody>
+        </table>
+        <div class="footer"><span>수도공고 · CRT 1</span><span class="ok">진출 2팀 ★</span></div>
+      </div>
+
+      <!-- D조 -->
+      <div class="gp d">
+        <div class="top">
+          <div class="letter">D</div>
+          <div class="info"><div class="e">GROUP</div><div class="ttl">D조</div></div>
+        </div>
+        <table>
+          <thead><tr><th>#</th><th>팀</th><th>승</th><th>패</th><th class="col-pf">득</th><th class="col-pa">실</th><th>차</th><th>승점</th></tr></thead>
+          <tbody>
+            <tr class="adv"><td class="rk">01</td><td class="tm"><div class="row"><div class="av s t-kph">김</div><span>김포홀</span></div></td><td>2</td><td>0</td><td class="col-pf">50</td><td class="col-pa">32</td><td class="diff pos">+18</td><td>6</td></tr>
+            <tr class="adv"><td class="rk">02</td><td class="tm"><div class="row"><div class="av s t-gry">구</div><span>구리남양주삼성</span></div></td><td>1</td><td>1</td><td class="col-pf">42</td><td class="col-pa">38</td><td class="diff pos">+4</td><td>4</td></tr>
+            <tr class="elim"><td class="rk">03</td><td class="tm"><div class="row"><div class="av s t-dt">D</div><span>DT스포츠</span></div></td><td>0</td><td>2</td><td class="col-pf">28</td><td class="col-pa">50</td><td class="diff neg">-22</td><td>2</td></tr>
+          </tbody>
+        </table>
+        <div class="footer"><span>수도공고 · CRT 2</span><span class="ok">진출 2팀 ★</span></div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     §05 — AWARDS (득점/어시스트/리바운드 + Best 5)
+     ============================================================ -->
+<section class="awards-band">
+  <div class="wrap">
+    <div class="head">
+      <div>
+        <div class="eyebrow">★ Individual Awards</div>
+        <h2>이 대회의 주인공들.</h2>
+      </div>
+      <div class="meta-r">대회 운영진 + 미디어 35표</div>
+    </div>
+
+    <div class="titles">
+      <div class="title-card mvp">
+        <div class="l">★ MVP · 최우수선수</div>
+        <div class="stat">28.8<span class="u">PPG</span></div>
+        <div class="player">
+          <div class="av m t-kpo">김</div>
+          <div class="info"><div class="pname">김도윤 #7</div><div class="pteam">김포홉스타 · F</div></div>
+        </div>
+      </div>
+      <div class="title-card">
+        <div class="l">★ 득점왕</div>
+        <div class="stat">32.6<span class="u">PPG</span></div>
+        <div class="player">
+          <div class="av m t-kph">김</div>
+          <div class="info"><div class="pname">박서준 #4</div><div class="pteam">김포홀 · G</div></div>
+        </div>
+      </div>
+      <div class="title-card">
+        <div class="l">★ 어시스트왕</div>
+        <div class="stat">7.4<span class="u">APG</span></div>
+        <div class="player">
+          <div class="av m t-yncB">Y</div>
+          <div class="info"><div class="pname">이지훈 #11</div><div class="pteam">YNC B · PG</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="wrap best5-wrap">
+      <div class="head">
+        <div>
+          <div class="eyebrow">All Tournament Team</div>
+          <h3>대회 베스트 5.</h3>
+        </div>
+        <div class="meta-r"><b>리바운드왕</b> 최우진 · 강동SK · 11.2 RPG</div>
+      </div>
+      <div class="best5">
+        <div class="b">
+          <div class="pos">PG</div>
+          <div class="av xl t-yncB">Y</div>
+          <div class="nm">이지훈 #11</div>
+          <div class="tm">YNC B</div>
+          <div class="stat-mini">7.4<span class="u">APG</span></div>
+        </div>
+        <div class="b">
+          <div class="pos">SG</div>
+          <div class="av xl t-kph">김</div>
+          <div class="nm">박서준 #4</div>
+          <div class="tm">김포홀</div>
+          <div class="stat-mini">32.6<span class="u">PPG</span></div>
+        </div>
+        <div class="b mvp">
+          <div class="pos">SF · MVP</div>
+          <div class="av xl t-kpo">김</div>
+          <div class="nm">김도윤 #7</div>
+          <div class="tm">김포홉스타</div>
+          <div class="stat-mini">28.8<span class="u">PPG</span></div>
+        </div>
+        <div class="b">
+          <div class="pos">PF</div>
+          <div class="av xl t-grw">그</div>
+          <div class="nm">한지원 #15</div>
+          <div class="tm">그로우</div>
+          <div class="stat-mini">9.2<span class="u">RPG</span></div>
+        </div>
+        <div class="b">
+          <div class="pos">C</div>
+          <div class="av xl t-gd">강</div>
+          <div class="nm">최우진 #5</div>
+          <div class="tm">강동SK</div>
+          <div class="stat-mini">11.2<span class="u">RPG</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     §06 — BY THE NUMBERS
+     ============================================================ -->
+<section class="numbers-band">
+  <div class="wrap">
+    <div class="head">
+      <div>
+        <div class="eyebrow">Tournament in Numbers</div>
+        <h2>59경기, 그 숫자.</h2>
+      </div>
+      <div class="meta-r">5/16 — 17 · 강남구민체육관 · 수도공고</div>
+    </div>
+    <div class="nums">
+      <div class="n hero">
+        <div class="l">★ TOTAL POINTS</div>
+        <div class="v">1,488<span class="u">점</span></div>
+        <div class="d">경기당 평균 25.2점</div>
+      </div>
+      <div class="n">
+        <div class="l">GAMES</div>
+        <div class="v">59<span class="u">경기</span></div>
+        <div class="d">조별 36 + 토너 23</div>
+      </div>
+      <div class="n">
+        <div class="l">TEAMS</div>
+        <div class="v">12<span class="u">팀</span></div>
+        <div class="d">i3W-U12</div>
+      </div>
+      <div class="n red">
+        <div class="l">★ MAX MARGIN</div>
+        <div class="v">26<span class="u">차</span></div>
+        <div class="d">YNC B 56 — 김포SK 30</div>
+      </div>
+      <div class="n">
+        <div class="l">CLOSE GAMES</div>
+        <div class="v">14<span class="u">경기</span></div>
+        <div class="d">5점 이내 23.7%</div>
+      </div>
+      <div class="n">
+        <div class="l">PLAYERS</div>
+        <div class="v">144<span class="u">명</span></div>
+        <div class="d">12팀 × 12명</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer class="foot">
+  MyBDR · 전국 농구 매칭 플랫폼 / 2026 GNBA 협회장배 시리즈 <b>17회</b> 결산
+</footer>
+
+</body>
+</html>

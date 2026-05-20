@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<title>대회 현황 확인 — v2.15</title>
+<style>
+  :root {
+    --bg: #0f1115;
+    --bg-alt: #161922;
+    --ink: #e7e9ee;
+    --ink-mute: #9aa0aa;
+    --border: #262a35;
+    --accent: #E31B23;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin:0; padding:0; height:100%; background:var(--bg); color:var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Pretendard', sans-serif; }
+  header {
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border);
+    display:flex; align-items:center; gap:14px; flex-wrap:wrap;
+    background: var(--bg-alt);
+  }
+  header h1 { margin:0; font-size:15px; font-weight:700; letter-spacing:-0.01em; }
+  header .sub { font-size:12px; color: var(--ink-mute); }
+  header .pill {
+    display:inline-flex; align-items:center; gap:6px;
+    padding:4px 10px; border-radius:4px; background:#1f242f;
+    font-size:11px; color:var(--ink-mute);
+    border:1px solid var(--border);
+  }
+  header .pill code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color:#cbd0db; font-size:11px; }
+  .legend {
+    margin-left:auto;
+    display:flex; gap:14px; font-size:11px; color:var(--ink-mute);
+  }
+  .grid {
+    display:grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1px;
+    background: var(--border);
+    height: calc(100% - 54px);
+  }
+  .pane {
+    display:flex; flex-direction:column;
+    background: var(--bg);
+    min-height: 0;
+  }
+  .pane > .label {
+    padding: 10px 16px;
+    font-size:12px; font-weight:700;
+    color: var(--ink);
+    background: #11141b;
+    border-bottom: 1px solid var(--border);
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+  }
+  .pane > .label small {
+    font-weight:500; color:var(--ink-mute); font-size:11px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  .pane > .label a {
+    font-size:11px; color:#7fb5ff; text-decoration:none; padding:3px 8px;
+    border:1px solid var(--border); border-radius:4px;
+  }
+  .pane > .label a:hover { background:#1a1f2a; }
+  iframe {
+    flex: 1 1 auto;
+    border: 0;
+    width: 100%;
+    background: #fff;
+  }
+  @media (max-width: 960px) {
+    .grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+  <header>
+    <h1>대회 시안 현황 (v2.15)</h1>
+    <span class="sub">/ Match.jsx 안 두 컴포넌트로 구현되어 있음</span>
+    <span class="pill">route = <code>match</code> · <code>matchDetail</code></span>
+    <div class="legend">
+      <span>※ 실제 운영 URL: <code style="font-family:ui-monospace,Menlo,monospace;color:#cbd0db">mybdr.kr/tournaments</code></span>
+    </div>
+  </header>
+
+  <div class="grid">
+    <section class="pane">
+      <div class="label">
+        <span>① 대회 목록 — MatchList <small>(route=match)</small></span>
+        <a href="MyBDR.html?route=match" target="_blank">새 창에서 열기 ↗</a>
+      </div>
+      <iframe src="MyBDR.html?route=match" title="대회 목록"></iframe>
+    </section>
+
+    <section class="pane">
+      <div class="label">
+        <span>② 대회 상세 — MatchDetail <small>(route=matchDetail)</small></span>
+        <a href="MyBDR.html?route=matchDetail" target="_blank">새 창에서 열기 ↗</a>
+      </div>
+      <iframe src="MyBDR.html?route=matchDetail" title="대회 상세"></iframe>
+    </section>
+  </div>
+</body>
+</html>
