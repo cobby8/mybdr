@@ -26,6 +26,56 @@ const RECURRENCE_RULES = [
   { value: "monthly", label: "매월" },
 ];
 
+// [v2.16 Phase 3-2b] 요일 picker — 시안 .day-picker
+const WEEKDAYS = [
+  { code: "MO", label: "월", idx: 1 },
+  { code: "TU", label: "화", idx: 2 },
+  { code: "WE", label: "수", idx: 3 },
+  { code: "TH", label: "목", idx: 4 },
+  { code: "FR", label: "금", idx: 5 },
+  { code: "SA", label: "토", idx: 6, weekend: true },
+  { code: "SU", label: "일", idx: 0, weekend: true },
+] as const;
+
+/* recurrenceRule 문자열 → 선택된 요일 코드 배열 추출
+ * 지원 형식: "BYDAY=MO,WE,FR" / "FREQ=WEEKLY;BYDAY=MO,WE,FR" / 기존 운영 ("weekly" 등 — 선택 0)
+ */
+function extractByday(rule: string | null | undefined): string[] {
+  if (!rule) return [];
+  const m = rule.match(/BYDAY=([A-Z,]+)/);
+  if (!m) return [];
+  return m[1].split(",").filter(Boolean);
+}
+
+/* 선택된 요일 + scheduledDate 기준 다음 4주 자동 게시 일정 계산 */
+function nextFourWeeks(
+  scheduledDate: string,
+  byday: string[],
+): { date: Date; label: string }[] {
+  if (!scheduledDate || byday.length === 0) return [];
+  const base = new Date(`${scheduledDate}T00:00:00`);
+  if (Number.isNaN(base.getTime())) return [];
+  const selectedIdx = new Set<number>();
+  for (const c of byday) {
+    const w = WEEKDAYS.find((wd) => wd.code === c);
+    if (w !== undefined) selectedIdx.add(w.idx);
+  }
+  const out: { date: Date; label: string }[] = [];
+  const cursor = new Date(base);
+  let safety = 0;
+  while (out.length < 4 && safety < 60) {
+    if (selectedIdx.has(cursor.getDay()) && cursor >= base) {
+      const m = cursor.getMonth() + 1;
+      const d = cursor.getDate();
+      const w = ["일", "월", "화", "수", "목", "금", "토"][cursor.getDay()];
+      out.push({ date: new Date(cursor), label: `${m}/${d}(${w})` });
+    }
+    cursor.setDate(cursor.getDate() + 1);
+    safety++;
+  }
+  return out;
+}
+
 interface Props {
   data: GameFormData;
   updateData: <K extends keyof GameFormData>(key: K, value: GameFormData[K]) => void;
@@ -252,30 +302,141 @@ export function AdvancedSection({ data, updateData }: Props) {
           </div>
 
           {data.isRecurring && (
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 14 }}>
-              <div>
-                <label className="label">반복 주기</label>
-                <select
-                  className="input"
-                  value={data.recurrenceRule}
-                  onChange={(e) => updateData("recurrenceRule", e.target.value)}
-                  style={{ appearance: "auto" }}
-                >
-                  {RECURRENCE_RULES.map((r) => (
-                    <option key={r.value} value={r.value}>{r.label}</option>
-                  ))}
-                </select>
+            // [v2.16 Phase 3-2b] 정기 모집 요일 picker + 4주 예고 박제
+            // 박제 source: Dev/design/BDR-current/_create_game_explore.html L1167~1220
+            <div className="recurrence-detail" style={{ marginBottom: 14 }}>
+              <div
+                style={{
+                  fontSize: 11.5,
+                  color: "var(--ink-mute)",
+                  fontWeight: 700,
+                }}
+              >
+                반복 요일
               </div>
-              <div>
-                <label className="label">총 횟수</label>
-                <input
-                  className="input"
-                  type="number"
-                  value={data.recurringCount}
-                  onChange={(e) => updateData("recurringCount", parseInt(e.target.value) || 2)}
-                  min={2}
-                  max={52}
-                />
+              {(() => {
+                const byday = extractByday(data.recurrenceRule);
+                const bydaySet = new Set(byday);
+                const toggleDay = (code: string) => {
+                  const next = new Set(bydaySet);
+                  if (next.has(code)) next.delete(code);
+                  else next.add(code);
+                  // 순서 보존 — WEEKDAYS 정의 순서
+                  const ordered = WEEKDAYS.filter((w) => next.has(w.code)).map(
+                    (w) => w.code,
+                  );
+                  const rule =
+                    ordered.length > 0
+                      ? `FREQ=WEEKLY;BYDAY=${ordered.join(",")}`
+                      : "";
+                  updateData("recurrenceRule", rule);
+                };
+                const upcoming = nextFourWeeks(data.scheduledDate, byday);
+                return (
+                  <>
+                    <div
+                      className="day-picker"
+                      style={{ display: "flex", gap: 4, marginTop: 8 }}
+                    >
+                      {WEEKDAYS.map((w) => {
+                        const on = bydaySet.has(w.code);
+                        const sat = w.code === "SA";
+                        const sun = w.code === "SU";
+                        return (
+                          <button
+                            key={w.code}
+                            type="button"
+                            className={`day-pick${sat ? " is-sat" : ""}${sun ? " is-sun" : ""}`}
+                            data-on={on ? "true" : "false"}
+                            onClick={() => toggleDay(w.code)}
+                            aria-pressed={on}
+                          >
+                            {w.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {upcoming.length > 0 && (
+                      <div className="recurrence-preview">
+                        <span
+                          className="material-symbols-outlined"
+                          aria-hidden
+                          style={{
+                            fontSize: 13,
+                            verticalAlign: "-2px",
+                            color: "var(--cafe-blue)",
+                          }}
+                        >
+                          event_repeat
+                        </span>{" "}
+                        다음 4주 자동 게시:{" "}
+                        <b>{upcoming.map((u) => u.label).join(", ")}</b>
+                      </div>
+                    )}
+                    {byday.length === 0 && (
+                      <p
+                        style={{
+                          fontSize: 11.5,
+                          color: "var(--ink-dim)",
+                          margin: "10px 0 0",
+                        }}
+                      >
+                        요일을 선택하면 다음 4주 일정이 자동 계산됩니다.
+                      </p>
+                    )}
+                  </>
+                );
+              })()}
+              {/* 호환 — 기존 운영 select 옵션 (weekly/biweekly/monthly) 도 유지.
+               * 시안 요일 picker = BYDAY 형식 우선. 기존 데이터는 그대로 유지. */}
+              <div
+                style={{
+                  marginTop: 12,
+                  display: "grid",
+                  gridTemplateColumns: "1fr 1fr",
+                  gap: 14,
+                }}
+              >
+                <div>
+                  <label className="label">반복 주기 (호환)</label>
+                  <select
+                    className="input"
+                    value={
+                      RECURRENCE_RULES.some(
+                        (r) => r.value === data.recurrenceRule,
+                      )
+                        ? data.recurrenceRule
+                        : ""
+                    }
+                    onChange={(e) =>
+                      updateData("recurrenceRule", e.target.value)
+                    }
+                    style={{ appearance: "auto" }}
+                  >
+                    <option value="">요일 선택 사용</option>
+                    {RECURRENCE_RULES.map((r) => (
+                      <option key={r.value} value={r.value}>
+                        {r.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="label">총 횟수</label>
+                  <input
+                    className="input"
+                    type="number"
+                    value={data.recurringCount}
+                    onChange={(e) =>
+                      updateData(
+                        "recurringCount",
+                        parseInt(e.target.value) || 2,
+                      )
+                    }
+                    min={2}
+                    max={52}
+                  />
+                </div>
               </div>
             </div>
           )}

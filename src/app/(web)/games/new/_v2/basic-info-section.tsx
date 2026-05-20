@@ -294,41 +294,73 @@ export function BasicInfoSection({
         </p>
       )}
 
-      {/* 코트 + 지역 (2열) — 코트 클릭 시 카카오 postcode 오픈 */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginTop: 14 }}>
-        <div>
-          <label className="label">코트</label>
-          <input
-            className="input"
-            type="text"
-            value={data.venueName}
-            onChange={(e) => updateData("venueName", e.target.value)}
+      {/* [v2.16 Phase 3-2b] 코트 picker — 시안 .court-picker 카드 박제.
+       * 박제 source: Dev/design/BDR-current/_create_game_explore.html L1032~1038 + L295~316
+       * 선택 완료 = 카드 (코트명 + 주소 + "변경" 버튼) / 미선택 = 입력 placeholder + click → 모달
+       * 흐름 = 운영 카카오 postcode 모달 유지 (별도 courts DB 검색 모달 = 추후 PR) */}
+      <div style={{ marginTop: 14 }}>
+        <label className="label">코트</label>
+        {data.venueName ? (
+          // 선택 완료 상태
+          <div
+            className="court-picker"
+            role="button"
+            tabIndex={0}
             onClick={onOpenPostcode}
-            placeholder="미사강변체육관"
-            style={{ cursor: "pointer" }}
-          />
-          {data.venueAddress && (
-            <p style={{ fontSize: 11, color: "var(--ink-dim)", marginTop: 4 }}>
-              {data.venueAddress}
-            </p>
-          )}
-        </div>
-        <div>
-          <label className="label">지역</label>
-          <input
-            className="input"
-            type="text"
-            value={[data.city, data.district].filter(Boolean).join(" ")}
-            onChange={(e) => {
-              // 지역은 카카오 검색 결과로 채움 → 수동 수정 시 city만 반영
-              updateData("city", e.target.value);
-              updateData("district", "");
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") onOpenPostcode();
             }}
-            onClick={onOpenPostcode}
-            placeholder="하남시"
             style={{ cursor: "pointer" }}
-          />
-        </div>
+          >
+            <span
+              className="material-symbols-outlined ico"
+              aria-hidden
+              style={{ fontSize: 18 }}
+            >
+              location_on
+            </span>
+            <div className="court-picker__info">
+              <div className="court-picker__name">{data.venueName}</div>
+              <div className="court-picker__sub">
+                {[data.city, data.district].filter(Boolean).join(" ")}
+                {data.venueAddress && data.venueAddress !== data.venueName
+                  ? ` · ${data.venueAddress}`
+                  : ""}
+              </div>
+            </div>
+            <span className="court-picker__chg">변경</span>
+          </div>
+        ) : (
+          // 미선택 상태 — 입력 click → 모달
+          <button
+            type="button"
+            onClick={onOpenPostcode}
+            className="court-picker court-picker--empty"
+            style={{
+              width: "100%",
+              textAlign: "left",
+              cursor: "pointer",
+            }}
+          >
+            <span
+              className="material-symbols-outlined ico"
+              aria-hidden
+              style={{ fontSize: 18 }}
+            >
+              add_location_alt
+            </span>
+            <div className="court-picker__info">
+              <div
+                className="court-picker__name"
+                style={{ color: "var(--ink-mute)" }}
+              >
+                코트를 선택하세요
+              </div>
+              <div className="court-picker__sub">탭하여 주소 검색</div>
+            </div>
+            <span className="court-picker__chg">선택</span>
+          </button>
+        )}
       </div>
 
       {/* 최근 장소 칩 (기존 기능 유지) */}
