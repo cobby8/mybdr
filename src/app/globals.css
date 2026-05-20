@@ -4369,3 +4369,67 @@ html.dark {
     padding-bottom: 80px;
   }
 }
+
+/* ============================================================
+ * 2026-05-20 [v2.16 Phase 3-2a] /games/new 라이브 프리뷰 레이아웃
+ * 박제 source: 작업지시서 §3-2 "좌 폼 + 우 sticky 라이브 프리뷰 (입력 즉시 GameCard 미리보기 갱신)"
+ *
+ * 사용 위치: src/app/(web)/games/new/_v2/game-form.tsx
+ * ============================================================ */
+
+.gd-create-grid {
+  max-width: 1140px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: minmax(0, 760px) 340px;
+  gap: 28px;
+  align-items: start;
+}
+.gd-create-form {
+  min-width: 0;
+}
+.gd-create-preview {
+  position: sticky;
+  top: 80px; /* AppNav 높이 보정 */
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.gd-create-preview__head {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.gd-create-preview__head .material-symbols-outlined {
+  font-size: 16px;
+}
+.gd-create-preview__card {
+  pointer-events: none; /* 프리뷰 click 비활성 */
+}
+.gd-create-preview__hint {
+  margin: 0;
+  font-size: 11px;
+  color: var(--ink-dim);
+  text-align: center;
+  font-family: var(--ff-mono);
+}
+
+/* 모바일/태블릿 — 1-col stack (3-2c PR 에서 collapsible 도입 예정) */
+@media (max-width: 1024px) {
+  .gd-create-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 18px;
+    max-width: 760px;
+  }
+  .gd-create-preview {
+    position: static;
+    top: auto;
+    order: -1; /* 모바일에서 프리뷰를 폼 상단으로 */
+    margin-bottom: 4px;
+  }
+}
