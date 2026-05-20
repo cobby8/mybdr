@@ -1,14 +1,20 @@
 # 작업 스크래치패드
 
 ## 현재 작업
-- **요청**: 점수 정합성 시스템 분석 — 운영 DB 전수 audit + 영구 fix 6건 우선순위 박제 (2026-05-21 세션)
-- **상태**: ✅ audit 실측 완료 (`Dev/score-consistency-audit-2026-05-21.md` 박제 / SELECT only / 운영 영향 0) → Sprint 1 결재 대기
-- **현재 담당**: pm (사용자 결재 대기)
-- **세션 산출물**:
-  - audit script 박제 (`scripts/_temp/score-consistency-audit.ts` / 사후 정리 예정)
-  - 실측 보고서 박제 (`Dev/score-consistency-audit-2026-05-21.md`)
-  - errors.md + decisions.md + lessons.md 박제 ([2026-05-21] 시스템 차원 결함 + F1~F6 영구 fix)
-- **핵심 발견 (125 completed 매치)**: A(정합) 55건 / 불일치 70건 (56%) — 토너먼트별 = 열혈농구단·몰텐배·4차뉴비리그 100% 불일치 / 강남구 10% / TEST 87%
+- **요청**: 점수 정합성 시스템 분석 — paper 모드 정밀 조사 + F3 Sprint 1 상향 (2026-05-21 세션)
+- **상태**: ✅ paper 모드 정밀 조사 완료 → 근본 원인 코드 위치 3건 확정 → F3 Sprint 1 상향 → 결재 대기
+- **현재 담당**: pm (사용자 Sprint 1 결재 대기)
+- **세션 산출물 (cumulative)**:
+  - audit 2건: `Dev/score-consistency-audit-2026-05-21.md` (125 매치) + `Dev/paper-mode-precise-audit-2026-05-21.md` (paper 6 매치 상세)
+  - script 2건: `scripts/_temp/score-consistency-audit.ts` + `scripts/_temp/paper-mode-precise-audit.ts` (모두 SELECT only / 사후 정리 예정)
+  - errors.md +2 / decisions.md +2 / lessons.md +1 / index.md 갱신
+- **paper 모드 결함 근본 원인 코드 위치 확정**:
+  | 분류 | 코드 위치 | 결함 |
+  |------|----------|------|
+  | C (MPS +2점) | `match-sync.ts:488~559` | MPS upsert에 deleteMany 없음 (PBP만 가드) → stale stat 누적 |
+  | D (헤더만 SET) | `tournaments/[id]/matches/[matchId]/route.ts:171~189` | PATCH route 가 헤더만 박제 / QS/MPS/PBP 박제 0 |
+  | B (PBP 일부) | 위 두 결함 결합 패턴 (matches 208) | score-sheet 부분 박제 + 어드민 PATCH 헤더 단독 |
+- **Sprint 1 재세팅 (6h → 8h)**: F5 (2h) + F2 (4h) + **F3 (2h) 상향**
 
 ## 구현 기록 (prospectus AI Phase 1-A + 1-B / PM 직접 박제 2026-05-19~20)
 - **신규 파일 3건** (총 527L / 외부 npm 1건 추가 = `ai@^6.0.185`)
@@ -70,7 +76,8 @@
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
 |------|------|------|
-| 2026-05-21 | 점수 정합성 시스템 분석 — 운영 DB 전수 audit + F1~F6 영구 fix 우선순위 박제 | ✅ audit script 박제 (`scripts/_temp/score-consistency-audit.ts` SELECT only) + 실측 (125 매치 / 56% 불일치 / 5 토너먼트 분포) + `Dev/score-consistency-audit-2026-05-21.md` 박제 + errors.md/decisions.md/lessons.md 각 +1 / **다음 단계**: Sprint 1 결재 (F5 2h + F2 4h 묶음 = 신규 사고 방지 + 검출 layer 동시 박제) |
+| 2026-05-21 | 점수 정합성 paper 모드 정밀 조사 + F3 Sprint 1 상향 | ✅ `scripts/_temp/paper-mode-precise-audit.ts` SELECT only / 6 매치 player별+audit log 추적 / `Dev/paper-mode-precise-audit-2026-05-21.md` 박제 / errors.md+decisions.md 각 +1 / 근본 원인 코드 위치 3건 확정 (match-sync.ts:488~559 MPS deleteMany 누락 + matches/[matchId]/route.ts:171~189 PATCH 헤더 단독 박제) / **F3 Sprint 1 상향** (2h 추가 / 총 8h) |
+| 2026-05-21 | 점수 정합성 시스템 분석 — 운영 DB 전수 audit + F1~F6 영구 fix 우선순위 박제 | ✅ audit script 박제 (`scripts/_temp/score-consistency-audit.ts` SELECT only) + 실측 (125 매치 / 56% 불일치 / 5 토너먼트 분포) + `Dev/score-consistency-audit-2026-05-21.md` 박제 + errors.md/decisions.md/lessons.md 각 +1 |
 | 2026-05-21 | 매치 124 (라이징 vs 제이크루 OT2 75:82) 박제 + 점수 4 source 불일치 진단 + 시스템 분석 | ✅ commit `95ddbea` (OT2 점수+stat+standings) + `d5e3805` (paper+nested) + `b0a49ae` (박스스코어 OT1/OT2 분리 UI) + `a4932bb` (knowledge 박제) / 모두 push / OT2 PBP 41건 INSERT / errors.md +1 lessons.md +2 decisions.md +1 / 영구 fix F1~F6 우선순위 박제 |
 | 2026-05-20 | 경기 탭 v2.16 박제 Phase 3-3 후속 — /games/[id]/edit 코트 picker 카드 | ✅ commit `fdfff27` / push / PR #633 / 1 파일 +36 -1 / .court-picker 카드 read-only / globals.css 재사용 / tsc 0 / GET /games/552/edit 200 |
 | 2026-05-20 | 경기 탭 v2.16 박제 Phase 3-3 — guest-apply + report 상단 GameCard 미니 | ✅ commit `7f2fc03` / PR #632 머지 / 2 파일 +138 -21 / 상단 GameCard + tags + report select 확장 / tsc 0 |
@@ -102,18 +109,20 @@
 - Flutter 앱 연동 = 별도 박제 예정 (사용자 명시)
 - scratchpad 압축 룰: 100줄 이내 / 작업 로그 10건 / 가장 오래된 항목 자동 삭제
 
-## 🔜 다음 단계 — Sprint 결재 진입
-- **완료**:
+## 🔜 다음 단계 — Sprint 1 결재 진입 (F5 + F2 + F3 / 8h)
+- **완료** (2026-05-21):
   - ✅ 운영 DB 전수 audit (125 매치 SELECT only / 운영 영향 0)
-  - ✅ 영구 fix 6건 (F1~F6) 우선순위 결정 (decisions.md [2026-05-21])
-  - ✅ 시스템 차원 결함 3대 패턴 박제 (errors.md [2026-05-21])
-  - ✅ DB trigger vs service layer vs cron 비교 결정 (옵션 A service layer 채택 / decisions.md [2026-05-21])
-- **Sprint 1 결재 (≤6h / 운영 영향 0 / 즉시 진입 가능)**:
-  - **F5 (2h)** FIBA 룰 가드 (OT1 동점 시 completed 차단 / 매치 124 재발 방지 / Flutter v1 영향 0)
+  - ✅ paper 모드 정밀 조사 (6 매치 player별 + audit log + service 코드 검토)
+  - ✅ F1~F6 우선순위 + F3 Sprint 1 상향 (decisions.md [2026-05-21] 2건)
+  - ✅ 근본 원인 코드 위치 3건 확정 (errors.md [2026-05-21] 2건)
+- **Sprint 1 결재 권장 (8h / 운영 영향 0 / 회귀 0 / 즉시 진입 가능)**:
+  - **F5 (2h)** FIBA 룰 가드 (OT1 동점 + winner NULL completed 차단 / 매치 124 재발 방지)
   - **F2 (4h)** PBP 검증 cron (daily PBP vs MPS 비교 + admin 대시보드 알림)
+  - **F3-α (1h)** service `syncSingleMatch:507~559` MPS deleteMany NOT IN 가드 추가 (PBP 패턴 답습)
+  - **F3-β (1h)** 어드민 PATCH `matches/[matchId]/route.ts:171~189` paper 매치 차단 + 운영자 안내
 - **Sprint 2 결재 (≤8h / 운영 데이터 backfill 별도)**:
-  - **F1 (8h)** quarterScores 자동 갱신 service layer (PBP/MPS → QS sync / 매치 종료 시점 trigger)
-- **Sprint 3 결재 (≤22h+ / 사용자 결재 다수)**:
-  - **F3 (6h)** score-sheet submit 시 헤더 자동 갱신
-  - **F4 (16h+)** SSOT migration 일괄 정정 (E 분류 48건 매치별 결재)
-- **사후 정리**: `scripts/_temp/score-consistency-audit.ts` 삭제 (운영 DB 자격 노출 방지 / Sprint 1 종료 시점)
+  - **F1 (8h)** quarterScores 자동 갱신 service layer (PBP/MPS → QS sync / 매치 종료 시점 trigger + paper 분기)
+- **Sprint 3 결재 (≤17h+ / 사용자 결재 다수)**:
+  - **F4 (16h+)** SSOT migration 일괄 정정 (E 분류 48건 매치별 결재 + paper 매치는 종이 기록지 외부 source 결재)
+  - **F6 (1h)** stale 헤더 백필 (TEST 토너먼트 7건)
+- **사후 정리**: `scripts/_temp/*-audit.ts` 2건 삭제 (운영 DB 자격 노출 방지 / Sprint 1 종료 시점)

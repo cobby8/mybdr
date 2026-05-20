@@ -2,6 +2,90 @@
 <!-- 담당: debugger, tester | 최대 30항목 -->
 <!-- 이 프로젝트에서 반복되는 에러 패턴, 함정, 주의사항을 기록 -->
 
+### [2026-05-21] paper 모드 3가지 특수 결함 — 근본 원인 코드 위치 확정 (정밀 조사 완료)
+- **분류**: errors (코드 레벨 정밀 분석 / fix 대상 확정)
+- **발견자**: pm (사용자 결재 후 정밀 조사)
+- **계기**: paper 모드 보강 분석 후 추가 정밀 조사 (운영 DB 6 매치 player별 분포 + audit log 추적 + service 코드 레벨 검토)
+- **근본 원인 3가지 코드 위치 확정**:
+
+  **① C 분류 (MPS +2점 누적) — `syncSingleMatch` MPS deleteMany 누락**:
+  - 위치: `src/lib/services/match-sync.ts:488~559`
+  - 흐름: status='scheduled' + stats/PBP 0건일 때만 `matchPlayerStat.deleteMany` 실행 (line 490~503) → 그 외 = `upsert`만 수행
+  - 결함: PBP는 `deleteMany NOT IN incoming local_id` 가드 있지만 (line 567~578) **MPS는 incoming ttp 외 stale stat 잔존**
+  - 재현: 매치 159 운영 audit 분석 — score-sheet submit 30+회 반복 호출. 각 submit에서 다른 ttp set 전송 → 이전 박제 ttp 그대로 잔존 → MPS 누적
+  - 매치 159 실측: 홈 MPS 합 9점 = ttp 2852(2) + ttp 2849(3) + ttp 2856(4). 홈 PBP 합 7점 = Q1 1pt 1건 + Q2 2pt 3건 = 1+6. 차이 = 2점 (홈 2점슛 1개 MPS 박제 + PBP INSERT 누락)
+
+  **② D 분류 (헤더만 SET) — 어드민 PATCH route 헤더 단독 박제**:
+  - 위치: `src/app/api/web/tournaments/[id]/matches/[matchId]/route.ts:171~189`
+  - 흐름: PATCH body 의 `homeScore` / `awayScore` / `status` / `winner_team_id` / `scheduledAt` / `venue_name` / `roundName` / `notes` / `homeTeamId` / `awayTeamId` 만 박제
+  - 결함: **`quarterScores` / `matchPlayerStat` / `play_by_plays` 박제 0** — 운영자가 어드민 ScoreModal 로 점수 직접 SET 시 헤더만 박제 + 다른 source 동기화 트리거 없음
+  - 재현: 매치 170/187 운영 audit 분석 — `tournament_match_audits` 박제 (mode_switch 외) 0건 = score-sheet BFF 미경유. 헤더 11/1 + 26/13 만 박제 / QS/MPS/PBP 모두 0/0
+  - 관련 caller: `src/app/(admin)/tournament-admin/tournaments/[id]/matches/matches-client.tsx:118~199` ScoreModal save()
+
+  **③ B 분류 (PBP 일부 누락) — score-sheet 부분 박제 + 어드민 PATCH 결합 패턴**:
+  - 매치 208 운영 audit 분석:
+    - score-sheet submit audit 마지막 (id=8798) = 점수 12-12 / status in_progress / PBP 28건 (score 16)
+    - 실제 DB = 헤더 22/16 / QS 22/16 / MPS 22/16 / PBP 12/12 / status completed
+  - 해석: score-sheet 입력이 12-12에서 멈춤 + 어드민 PATCH 또는 score-sheet BFF re-submit 으로 헤더+QS+MPS만 22/16 완료 박제 / PBP 12-12 유지
+  - 결함: 매치 종료 시 PBP / MPS / QS / 헤더 4 source 원자성 미보장 (트랜잭션 또는 동기화 trigger 부재)
+  - 같은 패턴이 paper 외 Flutter 모드 매치 (열혈/몰텐 100% 불일치)에서도 의심 — sync route 가 QS 박제 0 + 어드민 ScoreModal 헤더 단독 SET 결합
+
+- **fix 대상 코드 라인 정밀 확정**:
+  | Fix | 코드 위치 | 변경 사항 |
+  |-----|----------|----------|
+  | F3-α | `src/lib/services/match-sync.ts:507~559` | `player_stats` 박제 직전 `matchPlayerStat.deleteMany({ tournamentMatchId, NOT: { tournamentTeamPlayerId: { in: incomingTtpIds } } })` 가드 추가 — PBP 패턴 답습 |
+  | F3-β | `src/app/api/web/tournaments/[id]/matches/[matchId]/route.ts:171~189` | paper 매치 (`recording_mode='paper'`) + score 필드 변경 시 **차단 / score-sheet 경유 안내** + Flutter 매치는 score 변경 시 sync route trigger 권장 배너 |
+  | F1 | `src/lib/services/match-sync.ts` 신규 함수 `syncQuarterScores()` | 매치 종료 시점 (status='completed' 전환) PBP/MPS 합 → quarterScores 자동 갱신 + paper 매치 분기 (LIVE API L933 패턴 답습 / DB QS 가 SSOT) |
+
+- **사용자 우려 정당성 확정**: paper 모드 = Flutter sync 와 완전히 다른 path → 영구 fix 6건 모두 **paper/flutter 분기 + service layer 코드 변경 필수**. F1 (서비스 layer / 옵션 A) 채택 정합성 재확인.
+- **F3 Sprint 우선순위 상향** (Sprint 3 → **Sprint 1**): paper 모드 직접 fix 대상 + 강남구 운영 매치 정정 = 사용자 우선 영역 + service layer 단순 추가 (회귀 0)
+- **참조횟수**: 0
+- **참조 파일**:
+  - `Dev/paper-mode-precise-audit-2026-05-21.md` (정밀 조사 보고서 / 6 매치 player별 + audit log)
+  - `src/lib/services/match-sync.ts:488~559` (MPS deleteMany 누락 코드 라인)
+  - `src/app/api/web/tournaments/[id]/matches/[matchId]/route.ts:171~189` (어드민 PATCH 헤더 단독 박제)
+  - `src/app/(admin)/tournament-admin/tournaments/[id]/matches/matches-client.tsx:118~199` (ScoreModal save)
+  - `src/lib/score-sheet/running-score-helpers.ts:201~245` (`marksToPaperPBPInputs` — 정확 / 결함 없음 확인)
+
+### [2026-05-21] paper 모드 score-sheet BFF 흐름 3가지 특수 결함 (강남구 유소년부 6 매치 보강 분석)
+- **분류**: errors (paper 모드 정밀 분석)
+- **발견자**: pm (사용자 지적 — "강남구협회장배 유소년부 = 종이 기록지 모드 / 완전히 다른 방향")
+- **계기**: [2026-05-21] 시스템 차원 결함 보고 후 사용자 paper 모드 특수성 점검 요청. paper 모드 = `/api/web/score-sheet/[matchId]/submit` BFF 경유 (Flutter sync `/api/v1/...` 와 완전히 다른 path).
+- **강남구 paper 매치 6건 (59 매치 중 10.2% 불일치)**:
+  | 매치 | 분류 | 헤더 | QS | MPS | PBP | 결함 패턴 |
+  |------|------|------|-----|-----|-----|----------|
+  | 159 | C | 7/3 | 7/3 | **9/3** | 7/3 | MPS만 +2점 (홈팀) |
+  | 164 | C | 9/21 | 9/21 | **9/23** | 9/21 | MPS만 +2점 (어웨이) |
+  | 186 | C | 16/41 | 16/41 | **18/41** | 16/41 | MPS만 +2점 (홈팀) |
+  | 170 | D | 11/1 | **0/0** | **0/0** | **0/0** | 헤더만 직접 SET (BFF 미경유) |
+  | 187 | D | 26/13 | **0/0** | **0/0** | **0/0** | 헤더만 직접 SET (BFF 미경유) |
+  | 208 | B | 22/16 | 22/16 | 22/16 | **12/12** | PBP 일부 INSERT 실패 (10/4점 누락) |
+- **3가지 paper 모드 특수 결함**:
+  1. **C 분류 (3건) — score-sheet BFF 가 MPS 만 +2점 사일런트 박제**: QS = 헤더 = PBP 일치 / MPS 만 한쪽 팀 +2점. 3건 모두 동일 패턴 (양 팀 합 +2점). 근본 의심 = (a) `marksToPaperPBPInputs` 헬퍼 가 free throw 누적 박제 시 PBP 는 1점씩 INSERT 하지만 MPS 의 `freeThrowsMade` / `points` 도 동시 업데이트 → 어딘가 +1 중복 OR (b) PBP→MPS 누적 시 sub-shot stat 한 곳에서 +2 박제 흐름. (재현 케이스 = 159 = 7/3 헤더 일치, MPS 만 9/3 = 홈팀 박찬웅 등 1명의 stat 만 부풀림 가능성).
+  2. **D 분류 (2건) — score-sheet BFF 미경유 + 헤더만 직접 SET**: 매치 170 (헤더 11/1) + 187 (헤더 26/13) = 4 source 중 헤더만 박제 / QS/MPS/PBP 모두 0/0. 경로 가설 = (a) 어드민 매치 PATCH (`/admin/tournaments/[id]/matches/[matchId]` ScoreModal — `recording_mode` 토글 후 score 만 SET) OR (b) score-sheet submit 시 트랜잭션 실패 (헤더 update 후 PBP/MPS INSERT rollback) OR (c) 운영 중 매치 자동 종료 흐름.
+  3. **B 분류 (1건 / 208) — PBP 일부 INSERT 실패**: 헤더 = QS = MPS 22/16 정합 / PBP 만 12/12 (10/4점 누락). score-sheet BFF submit 시 트랜잭션 부분 실패. 단 status=completed 박제됨 (= 실패 인지 0).
+- **paper vs Flutter 결함 패턴 차이**:
+  | 패턴 | paper (강남구 6건) | Flutter (열혈/몰텐 51건) |
+  |------|-------------------|------------------------|
+  | QS=0/0 | 2건 (D 분류 / BFF 미경유) | 38건 (Flutter sync QS 박제 0) |
+  | MPS ≠ 헤더 | 3건 (BFF +2점 사일런트) | 1건 (113 매치) |
+  | PBP ≠ 헤더 | 1건 (208 / INSERT 실패) | 48건 (시계 결손 + 무효 이벤트) |
+- **재발 방지 룰**:
+  - **paper 모드 = score-sheet BFF 단일 진입점 의무** — 어드민 ScoreModal 헤더 직접 SET 차단 (recording_mode='paper' 매치 = ScoreModal disabled). D 분류 2건 재발 방지.
+  - **BFF submit 트랜잭션 = 헤더 + QS + MPS + PBP 4 source 원자성 의무** — 부분 실패 시 모두 rollback. 현재 가설 = 트랜잭션 가드 불충분 (B 분류 208 / D 분류 부분 실패).
+  - **`marksToPaperPBPInputs` 헬퍼 회귀 가드 vitest 필수** — C 분류 3건 동일 패턴 = 헬퍼 버그 의심. 회귀 가드 케이스 부재 = 사일런트 박제 잔존.
+  - **paper PBP 도 cron 검증 대상** (game_clock_seconds=0 무관 / 단순 합산 비교) — F2 cron paper 매치도 포함 의무.
+  - **F1 quarterScores 자동 갱신 = paper 분기 필수** — LIVE API L933 패턴 답습 (paper 매치 QS 절대 덮어쓰지 않음 / DB QS 가 SSOT).
+- **F3 우선순위 재세팅 권장**: 현재 Sprint 3 → **Sprint 1** 으로 상향 (paper 모드 직접 fix 대상 + 강남구 운영 매치 정정 = 사용자 우선 영역)
+- **참조횟수**: 0
+- **참조 파일**:
+  - `src/lib/score-sheet/running-score-helpers.ts` (`marksToPaperPBPInputs` 헬퍼 / C 분류 의심 코드)
+  - `src/app/api/web/score-sheet/[matchId]/submit/route.ts` (BFF submit 트랜잭션)
+  - `src/app/(admin)/tournament-admin/tournaments/[id]/matches/matches-client.tsx` (D 분류 ScoreModal 의심 경로)
+  - errors.md [2026-05-21] 시스템 차원 결함 (개별 분류 patterns)
+  - decisions.md [2026-05-21] F1~F6 영구 fix
+  - `Dev/score-consistency-audit-2026-05-21.md` (실측 보고서)
+
 ### [2026-05-21] 점수 4 source 시스템 차원 결함 — completed 125 매치 실측 56% 불일치
 - **분류**: errors + systems (운영 DB 전수 실측 결과)
 - **발견자**: pm (사용자 지적 3대 문제 영구 fix 설계 — Sprint 1 결재 근거)

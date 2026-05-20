@@ -2,6 +2,47 @@
 <!-- 담당: planner-architect | 최대 30항목 -->
 <!-- "왜 A 대신 B를 선택했는지" 기술 결정의 배경과 이유를 기록 -->
 
+### [2026-05-21] 점수 정합성 F3 Sprint 우선순위 상향 — paper 모드 정밀 조사 근거 (F3 Sprint 3 → Sprint 1)
+- **분류**: decision (Sprint 우선순위 재세팅)
+- **발견자**: pm (paper 모드 정밀 조사 후 사용자 우려 반영)
+- **계기**: 사용자 지적 "강남구 paper 모드 = 완전히 다른 방향" → 정밀 조사 결과 F3 fix 대상 = service layer `syncSingleMatch` MPS deleteMany 누락 + 어드민 PATCH route 헤더 단독 박제. 두 fix 모두 단순 service layer 추가 / 회귀 0. Sprint 1 진입 가능.
+- **변경 전 Sprint 우선순위**:
+  | Sprint | 묶음 | 시간 |
+  |--------|------|------|
+  | 1 | F5 + F2 | 6h |
+  | 2 | F1 | 8h |
+  | 3 | F3 + F4 | 22h+ |
+- **변경 후 Sprint 우선순위 (F3 Sprint 1 상향)**:
+  | Sprint | 묶음 | 시간 | 변경 사유 |
+  |--------|------|------|----------|
+  | **1** | F5 + F2 + **F3** | 8h | F3 = service layer MPS deleteMany 가드 추가 (회귀 0 / PBP 패턴 답습) + 어드민 PATCH route paper 매치 차단 (운영자 안내). 단순 추가 변경 — Sprint 1 적합. |
+  | 2 | F1 | 8h | 변경 없음 |
+  | 3 | F4 + F6 | 17h+ | F3 이동 + F6 추가 (TEST 토너먼트 7건 백필 / 운영 영향 0) |
+- **F3 세부 분해 (paper 모드 정밀 조사 결과 반영)**:
+  - **F3-α** (`src/lib/services/match-sync.ts:507~559`) — `player_stats` 박제 직전 `matchPlayerStat.deleteMany({ tournamentMatchId, NOT: { tournamentTeamPlayerId: { in: incomingTtpIds } } })` 가드 추가. PBP `deleteMany NOT IN` 패턴 답습. 회귀 0 (incoming ttp 는 upsert / 외만 삭제 = idempotent).
+  - **F3-β** (`src/app/api/web/tournaments/[id]/matches/[matchId]/route.ts:171~189`) — paper 매치 (`recording_mode='paper'`) + `homeScore`/`awayScore` 변경 시 **403 차단** + 운영자 안내 (score-sheet 경유 권장). Flutter 매치는 변경 가능 (회귀 0). 회귀 가드 vitest 필수.
+  - **F3-γ** (Sprint 2 묶음 검토) — Flutter 매치 score 변경 시 sync route trigger 권장 배너 (어드민 UI 추가). F3-α/β 진입 후 별도 PR 검토.
+- **분석한 옵션 (F3-α deleteMany 위치)**:
+  - **A. service layer `syncSingleMatch` 안 (PBP 패턴 답습)** ← 채택 (단일 source / Flutter+paper 양면)
+  - B. BFF submit route 안 (`score-sheet/[matchId]/submit/route.ts`) — paper 모드만 해당 / Flutter sync route 영향 0 → 거절 (Flutter 매치도 같은 패턴 영향 가능)
+  - C. cron 일일 동기화 — 실시간성 0 / 운영자 발견 지연 → 거절 (Sprint 2 F1 과 분리 불가)
+- **A 선택 사유**:
+  - **단일 source** — service `syncSingleMatch` 가 paper (score-sheet) + Flutter sync 양면 진입점
+  - **회귀 0** — PBP `deleteMany NOT IN incoming local_id` 패턴 정확 답습 (이미 운영 검증된 패턴)
+  - **테스트 가능** — vitest `match-sync.test.ts` 회귀 가드 추가 (incoming ttp 외 stat 삭제 케이스)
+  - **paper + Flutter 동시 fix** — Flutter 모드 매치도 sync 중 ttp set 변경 시 stale stat 잔존 가능 (이번 audit E 분류 48건 중 일부 의심)
+- **F3-β 추가 사유 (어드민 PATCH 차단)**:
+  - paper 모드는 score-sheet BFF = 단일 진입점 의무 (decisions.md [2026-05-21] §A 채택 정합)
+  - 어드민 ScoreModal 로 paper 매치 score 직접 SET = D 분류 재발 원인 (매치 170/187)
+  - Flutter 매치는 score 변경 가능 (Flutter 앱 sync 흐름과 별개로 admin 보정 필요한 케이스 보존)
+- **F3 정밀 조사 산출물**: `Dev/paper-mode-precise-audit-2026-05-21.md` (6 매치 player별 + audit log 상세) + `scripts/_temp/paper-mode-precise-audit.ts` (read-only)
+- **참조횟수**: 0
+- **참조 파일**:
+  - errors.md [2026-05-21] paper 모드 3가지 결함 근본 원인 코드 위치 확정
+  - `src/lib/services/match-sync.ts:488~559` (F3-α 대상)
+  - `src/app/api/web/tournaments/[id]/matches/[matchId]/route.ts:171~189` (F3-β 대상)
+  - `Dev/paper-mode-precise-audit-2026-05-21.md` (정밀 조사 보고서)
+
 ### [2026-05-21] 점수 정합성 영구 fix 6건 (F1~F6) 우선순위 — 실측 56% 불일치 근거
 - **분류**: decision (시스템 설계)
 - **발견자**: pm (`Dev/score-consistency-audit-2026-05-21.md` 실측 결과 기반)

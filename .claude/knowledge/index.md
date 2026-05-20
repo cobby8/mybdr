@@ -1,14 +1,14 @@
 # 프로젝트 지식 목차
-> 최종 갱신: 2026-05-21 (점수 정합성 시스템 분석 — 운영 DB 전수 audit 56% 불일치 발견 + F1~F6 영구 fix 우선순위 박제 / errors+lessons+decisions 각 +1)
+> 최종 갱신: 2026-05-21 (점수 정합성 paper 모드 정밀 조사 — 근본 원인 코드 위치 3건 확정 + F3 Sprint 1 상향 / errors +2 / decisions +2 / lessons +1)
 
 ## 파일별 요약
 | 파일 | 항목 수 | 최종 업데이트 | 설명 |
 |------|--------|------------|------|
 | architecture.md | 53 | 2026-05-15 | 이전 51건 + **(1) 마법사 통합 wizard 인프라** + **(2) Phase 23 PR5-A cross-check audit endpoint** |
 | conventions.md | 52 | 2026-05-16 | 이전 51건 + **PM `git add` 전 = `git status` staged 상태 의무 점검** (다중 세션 환경에서 다른 세션 staged 파일 휩쓸림 방지 / PR-Admin-1 commit 시 score-sheet 22 파일 휩쓸림 1회 / 표준 절차 5단계 박제) + 이전 **PM agent 결과 인수 = git diff --stat HEAD 실측 검증 의무** (developer 거짓 보고 영구 차단 — PR-G5.5-followup-B 1차 사고 박제 / PM 직접 검증 모드 옵션 B 30~40분 → 15~20분 단축) |
-| decisions.md | **122** | 2026-05-21 | 이전 121건 + **점수 정합성 영구 fix 6건 (F1~F6) 우선순위 — 실측 56% 불일치 근거** (Sprint 1 = F5 2h + F2 4h 묶음 / Sprint 2 = F1 8h / Sprint 3 = F3 6h + F4 16h+ / DB trigger vs service layer vs cron 비교 → 옵션 A service layer 채택 = 회귀 0 + 디버깅 가능 + schema 변경 0) / 이전 **OT2+ 매치 운영 표준 — paper 모드 + nested quarterScores + 종이 기록지 박제** (FIBA Phase 22 패턴 답습 / Long-term fix 우선순위 5건) |
+| decisions.md | **123** | 2026-05-21 | 이전 122건 + **점수 정합성 F3 Sprint 1 상향 — paper 모드 정밀 조사 근거** (F3-α match-sync.ts:507~559 MPS deleteMany NOT IN 가드 + F3-β PATCH route:171~189 paper 매치 차단 / Sprint 1 = F5+F2+F3 / 옵션 A service layer 단일 source 채택 / 회귀 0 PBP 패턴 답습) + **점수 정합성 영구 fix 6건 (F1~F6) 우선순위 — 실측 56% 불일치 근거** (Sprint 1 = F5 2h + F2 4h / Sprint 2 = F1 8h / Sprint 3 = F4 16h+) |
 | (이전) decisions.md 118 | | | **PR-G5.8 swiss generator R1 박제 + R(N) endpoint stub (옵션 B)** — `swiss-helpers.ts` 신규 (planSwissRound1 시드 양분 + planSwissNextRound Dutch+Buchholz+최근대전회피 + getSwissRoundCount) + `swiss-knockout.ts` 신규 (generateSwissRound1 idempotent + generateSwissNextRound 501 stub) + `bracket/route.ts` format='swiss' 분기 + `/admin/tournaments/[id]/swiss/next-round` 501 stub endpoint / 신규 SlotKind 0 (실팀 INSERT) / 운영 사용 0 / planner 의견 보류 권장 / 사용자 선택 옵션 3 진행 / commit `b8b3117` |
-| errors.md | **55** | 2026-05-21 | 이전 54건 + **점수 4 source 시스템 차원 결함 — completed 125 매치 실측 56% 불일치** (5 토너먼트 분포: 열혈농구단 100% / 몰텐배 100% / 4차뉴비리그 100% / TEST 87% / 강남구 10% / 3대 결함: QS=0/0 박제 다수 + PBP 사일런트 부풀림 + MPS 사일런트 누락 / F1~F6 영구 fix 우선순위) / 이전 **매치 124 Flutter OT2 미구현 + 4 source 불일치 패턴** (4 source 모두 다른 값 / SSOT 부재 = 사고 증폭 / fix 4단계) |
+| errors.md | **56** | 2026-05-21 | 이전 55건 + **paper 모드 3가지 특수 결함 근본 원인 코드 위치 확정** (C: match-sync.ts:488~559 MPS deleteMany 누락 = stale stat 누적 / D: matches/[matchId]/route.ts:171~189 PATCH 헤더 단독 박제 / B: 두 결함 결합 패턴 = 매치 208 / F3-α + F3-β 정밀 fix 대상) + **점수 4 source 시스템 차원 결함 — completed 125 매치 실측 56% 불일치** (5 토너먼트 분포 / 3대 결함 패턴) |
 | lessons.md | **56** | 2026-05-21 | 이전 55건 + **시스템 차원 결함 발견 → 운영 DB 전수 audit 표준 절차 (SELECT only 가드)** (`scripts/_temp/*-audit.ts` + Markdown 보고서 패턴 / 분류 bucket 기반 / 토너먼트별 + 매치별 2단계 집계 / 운영 DB SELECT 가드 면제 = `.env DATABASE_URL` 운영 / SELECT만 / schema 변경 0 → 사용자 결재 없이 즉시 실행 가능 / 사고 1건 발견 시 같은 패턴 시스템 검색 의무) / 이전 **OT2+ 매치 종이 기록지 수동 박제 표준 절차** (5단계 / 3 source 정합 검증) |
 | (이전) lessons.md 48 | | | **developer agent 거짓 보고 사고 — scratchpad만 박제 + "+175 LOC 완료" 보고** (PR-G5.5-followup-B 1차 / tester+reviewer 가 git diff 실측으로 발견 / 되돌림 루프 1회 / PM git diff 인수 검증 의무 박제 / developer prompt 표준화 — 1차 사고 재발 방지 prefix + 자가 진단 5건) |
 | wizard-regression-checklist.md | (8 항목) | 2026-05-15 | 신규 — 통합 마법사 회귀 체크리스트 8 항목 (UI 3 + 백엔드/DB 5) |
