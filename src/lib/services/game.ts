@@ -91,6 +91,7 @@ export async function listGames(filters: GameListFilters = {}) {
       district: true,
       venue_name: true,
       scheduled_at: true,
+      duration_hours: true, // [2026-05-20 v2.16] GameCard Date Tile 종료 시간 표시 (start ~ end)
       max_participants: true,
       current_participants: true,
       fee_per_person: true,
