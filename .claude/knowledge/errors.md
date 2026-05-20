@@ -2,6 +2,41 @@
 <!-- 담당: debugger, tester | 최대 30항목 -->
 <!-- 이 프로젝트에서 반복되는 에러 패턴, 함정, 주의사항을 기록 -->
 
+### [2026-05-20] 매치 124 Flutter OT2 미구현 + 점수 4 source 불일치 패턴 (열혈농구단 SEASON2)
+- **분류**: errors + lessons (시스템 패턴)
+- **발견자**: pm (사용자 보고)
+- **계기**: 라이징이글스 vs 제이크루 2차 연장 75-82 매치. Flutter 기록앱이 OT1 종료 후 자동 매치 종료 → DB 박제 = 70-70 / winner=NULL / status=completed (FIBA 룰 위반).
+- **사고 chain 5건**:
+  1. **PBP 무효 이벤트** — 박찬웅 3pt +3 (Q2 0s id=2241107 score 갱신 0) / 이정형 FT +1 잘못 박제 → PBP 합 73/71 (실제 70/70)
+  2. **DB.quarterScores Q3 = 13/14** (Flutter 박제값) vs PBP Q3 16/15 (PBP 무효 포함) → 두 source 불일치
+  3. **Flutter OT2 미구현** → matchPlayerStat 합 70/70 (실제 75/82, 17점 누락)
+  4. **LIVE API 형식 미스매치** — DB 박제 = `{Q1:{home,away}, ...}` flat / LIVE API 가정 = `{home:{q1,...,ot:[]}, away:{...}}` nested
+  5. **STL 보정 한계** — PBP에 없는 OT의 부족분을 마지막 진행 쿼터에 누적 (OT1에 모두 더해짐 → OT2 컬럼 생성 0)
+- **4 source 불일치 분석**:
+  - matchPlayerStat 합 = 70/70 (Flutter 박제값 / OT2 0)
+  - DB.quarterScores 합 = 70/70 (flat Q3=13/14)
+  - PBP made events 합 = 73/71 (PBP 무효 +3/+1 부풀림)
+  - home_score_at_time 흐름 마지막 = 68/70 (Flutter sync 박제 buggy)
+  - 실제 (종이) = 75/82
+- **단일 진실 source (SSOT) 부재** — 같은 점수 4 곳 분산 박제 + 동기화 메커니즘 0
+- **fix 흐름 (commit `95ddbea` + `d5e3805` + `b0a49ae` + PBP 41건 INSERT)**:
+  1. matchPlayerStat 21건 + match.homeScore/awayScore/winner_team_id + standings 정정 (사용자 안 OT2-cum 절대값)
+  2. recording_mode='paper' SET + quarter_scores nested 형식 변환 (LIVE OT2 컬럼 표시 fix)
+  3. 박스스코어 + 인쇄 다이얼로그 OT1/OT2+ 분리 UI
+  4. OT2 PBP 41건 INSERT (선수별 quarter_stats[6] 자동 박제)
+- **재발 방지 룰**:
+  - matchPlayerStat 합 = match.homeScore/awayScore 검증 (불일치 시 audit warning)
+  - OT1 동점 시 매치 종료 차단 (FIBA 5x5 룰 / Flutter v1 + 웹 API)
+  - quarterScores nested 형식 통일 (flat 폐기 / zod 파서 강제)
+  - PBP 합 vs matchPlayerStat 합 cron 검증 (무효 이벤트 즉시 발견)
+- **참조횟수**: 0
+- **참조 파일**:
+  - `src/app/api/live/[id]/route.ts` L893~1064 (quarter_scores 재계산 + paper override + STL 보정)
+  - `src/app/live/[id]/_v2/box-score-table.tsx` (otCount 동적 OT 분리)
+  - `src/app/live/[id]/_v2/print-box-score.tsx` (인쇄 페이지 분리)
+  - `src/lib/tournaments/recording-mode.ts` (paper/flutter 분기 헬퍼)
+  - commit `95ddbea` + `d5e3805` + `b0a49ae`
+
 ### [2026-05-18] standings losses 부정합 — updateTeamStandings "호출자 home/away 2팀만 SET" 특성 race
 - **분류**: error/race (강남구협회장배 운영 중)
 - **발견자**: pm (사용자 보고 이미지 #26 — "i2 U12 예선 결과 집계 잘못됨")

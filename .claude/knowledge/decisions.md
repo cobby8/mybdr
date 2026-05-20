@@ -2,6 +2,35 @@
 <!-- 담당: planner-architect | 최대 30항목 -->
 <!-- "왜 A 대신 B를 선택했는지" 기술 결정의 배경과 이유를 기록 -->
 
+### [2026-05-20] OT2+ 매치 운영 표준 — paper 모드 + nested quarterScores + 종이 기록지 박제 흐름
+- **분류**: decision
+- **발견자**: pm (매치 124)
+- **계기**: Flutter 기록앱 OT2+ 미구현 한계. OT1 동점 시 매치 자동 종료 박제 (winner NULL / 70-70 동점 completed = FIBA 룰 위반).
+- **분석한 옵션 (OT2 데이터 source)**:
+  - **A. paper 모드 + nested quarterScores + OT2 PBP INSERT** ← 채택
+  - B. flutter 모드 유지 + STL 보정 로직 수정 (LIVE API 코드 fix)
+  - C. PBP 박제 0 + matchPlayerStat 만 수동 박제 (UI에서 OT2 데이터 없음 표시)
+- **A 선택 사유**:
+  - **회귀 0** (LIVE API 코드 변경 0 / Flutter v1 영향 0)
+  - **3 source 정합** (matchPlayerStat 합 = quarterScores 합 = match 헤더)
+  - **LIVE API paper override 검증된 패턴** (FIBA Phase 22 매치 218 표준 답습)
+  - **재사용성** (다음 OT2+ 매치 동일 절차 적용 가능)
+- **B 거절 사유**: LIVE API 코드 수정 회귀 위험 (다른 매치 영향) / fix 시간 多 / 매치별 데이터 source 일관성 부족
+- **C 거절 사유**: UI 사용자 경험 저하 / matchPlayerStat과 LIVE 표시 불일치 잔존
+- **결정 후속 작업 (Long-term Fix 우선순위)**:
+  - ★★★★★ Flutter 앱 OT2+ 지원 + FIBA 룰 자동 가드 (winner NULL + completed 차단)
+  - ★★★★ DB.quarterScores nested 형식 통일 + Flutter sync 형식 변환
+  - ★★★★ matchPlayerStat을 SSOT로 채택 + 자동 동기화 trigger
+  - ★★★ PBP 무효 이벤트 cron 검출 (매치 종료 후 PBP 합 vs matchPlayerStat 합 비교)
+  - ★★★ minutesPlayed 999 cap 16:39 truncate 버그 fix
+- **참조횟수**: 0
+- **참조 파일**:
+  - commit `95ddbea` ops(match-124) OT2 박제
+  - commit `d5e3805` ops(match-124) paper 모드 fix
+  - commit `b0a49ae` feat(live) OT2 분리 UI
+  - `src/app/api/live/[id]/route.ts` L893~947 (paper override)
+  - errors.md [2026-05-20] 매치 124 4 source 불일치
+
 ### [2026-05-19] prospectus AI wizard Phase 1-B — Vercel AI Gateway plain "provider/model" 라우팅 채택 (provider-specific 패키지 0)
 - **분류**: architecture + decision
 - **발견자**: pm (사용자 AI_GATEWAY_API_KEY 발급 후)

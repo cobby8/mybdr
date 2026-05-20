@@ -2,6 +2,47 @@
 <!-- 담당: 전체 에이전트 | 최대 30항목 -->
 <!-- 삽질 경험, 다음에 피해야 할 것, 효과적이었던 접근법을 기록 -->
 
+### [2026-05-20] OT2+ 매치 종이 기록지 수동 박제 표준 절차 (Flutter OT2 미구현 한계)
+- **분류**: lessons (운영 절차)
+- **발견자**: pm (매치 124 작업)
+- **계기**: Flutter 기록앱 OT2+ 미구현 한계 → 종이 기록지 박제로 운영 데이터 정합 회복.
+- **표준 절차 5단계** (재발 시 본 매치 124 흐름 재사용):
+  1. **사전 검증 (READ-ONLY)** — match SELECT (status / homeScore / quarterScores / winner) + matchPlayerStat 21건 합 = 매치 헤더 일치 확인
+  2. **종이 기록지 OT2-cum (절대값) 명시** — 선수별 PTS/FG/3P/FT/REB/AST/STL/BLK/TO/PF 최종 누적값 (OT2 변화량 아님 / 종이 기록지 본문 그대로)
+  3. **트랜잭션 UPDATE 12건**: 선수 stat (변경 있는 것만) + match score+winner+quarterScores+notes + standings 2팀 정정 (draws-1, wins/losses+1)
+  4. **paper 모드 + nested quarterScores 변환** — settings.recording_mode='paper' SET + quarterScores `{home:{q1,...,ot:[7,N]}, away:{...}}` 형식. LIVE API paper override 진입 → OT 컬럼 정확 표시
+  5. **OT2 PBP 박제** — 선수별 OT2 동안 made/missed 이벤트 박제 (quarter=6 / LIVE API quarter_stats[6] 자동 합산). score 흐름 (home_score_at_time) 정확도 무시 가능 (paper 모드 STL skip)
+- **3 source 동시 정합 검증** (UPDATE 후 필수):
+  - matchPlayerStat 합 = match.homeScore/awayScore
+  - quarterScores Q1+Q2+Q3+Q4+ot[0]+ot[1]... 합 = match.homeScore/awayScore
+  - winner_team_id 박제 (NULL 차단)
+- **재발 방지 (운영 표준)**: 시합 종료 후 OT1 동점 + Flutter completed = "Flutter 미구현" 가설 1순위 의심 → 즉시 종이 기록지 요청 → 운영자 결재 후 본 절차 실행
+- **PBP 무효 이벤트 부담**: 본 매치 124 = 박찬웅+3 / 이정형+1 잔존. quarter_stats Q3 박스스코어 표시 부풀림 (16/15 vs 실제 13/14). 별도 후속 fix.
+- **참조횟수**: 0
+- **참조 파일**:
+  - commit `95ddbea` ops(match-124) OT2 박제
+  - commit `d5e3805` ops(match-124) paper 모드 + nested 형식
+  - commit `b0a49ae` feat(live) OT2 분리 UI
+
+### [2026-05-20] 점수 단일 진실 source (SSOT) 부재 = 운영 사고 증폭 패턴
+- **분류**: lessons (시스템 설계)
+- **발견자**: pm (매치 124 진단)
+- **계기**: 매치 124 점수 사고 진단 시 4 source (matchPlayerStat / quarterScores / PBP / home_score_at_time) 모두 다른 값.
+- **사고 증폭 메커니즘**:
+  - 같은 정보 (점수) 4 곳 분산 박제 → 운영 진행 중 각자 buggy 누적 → 최종 어느 source 신뢰할지 불명
+  - LIVE API의 paper/flutter 분기 + STL 보정 + paper override 코드 분기 다수 → 운영 시점에 어느 분기 진입했는지 추적 어려움
+  - 진단 시 4 source 모두 SELECT + 사용자 종이 기록지 비교 = 30분+ 소요
+- **권장 SSOT 채택**:
+  - **matchPlayerStat = SSOT 1순위** (선수 합산 = 매치 헤더 정합 유지)
+  - matchPlayerStat write 시 trigger: quarterScores 자동 재생성 + PBP 합 검증 + 매치 헤더 갱신
+  - PBP는 보조 source (event log) — 무효 이벤트 검출 cron 운영
+- **운영 가드 권장**:
+  1. matchPlayerStat 합 ≠ match.homeScore/awayScore 시 audit warning + Sentry alert
+  2. matchPlayerStat write trigger로 match.homeScore/awayScore 자동 SET
+  3. quarterScores 형식 nested 통일 (zod 파서 강제)
+- **재발 방지 핵심**: 신규 매치 데이터 source 추가 시 SSOT 채택 + 다른 source는 derived (자동 계산) 처리. 같은 정보 4 곳 박제 절대 금지.
+- **참조횟수**: 0
+
 ### [2026-05-17] 시합 운영 중 박제 → 즉시 main 머지 흐름 (= 사용자 명시 결재 매번 / classifier 차단 대응)
 - **분류**: 시합 운영 / 긴급 박제 / 사용자 명시 결재 / 사고 대응
 - **계기**: 강남구협회장배 5/16~5/17 시합 운영 중 60+ PR 박제 + main 머지. classifier 가 main 머지 매번 차단 → 사용자 한 마디 결재 받고 머지.
