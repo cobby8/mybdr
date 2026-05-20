@@ -49,6 +49,11 @@ import { ApplyPanel } from "./_v2/apply-panel";
 import { HostPanel } from "./_v2/host-panel";
 // [v2.16 Phase 3-1a] 풀폭 다크 hero band — 사용자 결정 §11 V2 Hero-led
 import { GameDetailHero } from "./_v2/game-detail-hero";
+// [v2.16 Phase 3-1b] Concept B 10인 슬롯 보드 — 사용자 결정 §11 Concept B
+import {
+  ParticipantsSlotBoard,
+  type SlotMember,
+} from "./_v2/participants-slot-board";
 
 export const revalidate = 30;
 
@@ -103,10 +108,23 @@ export default async function GameDetailPage({
   const [game, session] = await Promise.all([getGame(id), getWebSession()]);
   if (!game) return notFound();
 
-  // Phase 2: 유저 프로필 + 신청자 목록 병렬 (기존 로직 100% 유지)
-  const [userRecord, applications] = await Promise.all([
+  // Phase 2: 유저 프로필 + 신청자 목록 + 호스트(organizer) 정보 병렬
+  // [v2.16 Phase 3-1b] organizer 추가 — Concept B 슬롯 보드의 첫 슬롯에 호스트 노출
+  const [userRecord, applications, organizer] = await Promise.all([
     session ? getUserGameProfile(BigInt(session.sub)) : Promise.resolve(null),
     listGameApplications(game.id).catch(() => []),
+    prisma.user
+      .findUnique({
+        where: { id: game.organizer_id },
+        select: {
+          id: true,
+          nickname: true,
+          name: true,
+          position: true,
+          skill_level: true,
+        },
+      })
+      .catch(() => null),
   ]);
 
   const isHost = session ? game.organizer_id === BigInt(session.sub) : false;
@@ -405,7 +423,10 @@ export default async function GameDetailPage({
               />
             )}
 
-            {/* 3. 호스트 패널(호스트만) 또는 참가자 리스트(그 외) */}
+            {/* 3. 호스트 패널(호스트만) 또는 참가자 리스트(그 외)
+             * [v2.16 Phase 3-1b] 비호스트 → ParticipantsSlotBoard (Concept B 10인 슬롯 보드)
+             * 호스트 자신은 HostPanel 그대로 (관리 액션). 추후 PR 에서 호스트도 슬롯 보드 +
+             * HostPanel 병기 가능 (단, 화면 길이 증가). 이번 PR 은 보수적 교체. */}
             {isHost ? (
               <HostPanel
                 gameId={id}
@@ -413,9 +434,35 @@ export default async function GameDetailPage({
                 maxParticipants={game.max_participants}
               />
             ) : (
-              <ParticipantList
-                participants={approvedParticipants}
-                maxParticipants={game.max_participants}
+              <ParticipantsSlotBoard
+                spotsTotal={game.max_participants ?? 10}
+                gameType={game.game_type}
+                applyAnchorId="apply-panel"
+                members={(() => {
+                  // [v2.16] 호스트(organizer) + 승인된 신청자 — 슬롯 1 = 호스트
+                  const list: SlotMember[] = [];
+                  if (organizer) {
+                    list.push({
+                      user_id: organizer.id.toString(),
+                      nickname: organizer.nickname,
+                      name: organizer.name,
+                      position: organizer.position,
+                      skill_level: organizer.skill_level,
+                      isHost: true,
+                    });
+                  }
+                  approvedParticipants.forEach((p) => {
+                    list.push({
+                      user_id: p.user_id,
+                      nickname: p.nickname,
+                      name: p.name,
+                      position: p.position,
+                      skill_level: p.skill_level,
+                      isHost: false,
+                    });
+                  });
+                  return list;
+                })()}
               />
             )}
 
@@ -603,8 +650,17 @@ export default async function GameDetailPage({
             </div>
           </div>
 
-          {/* 우측 사이드 — ApplyPanel (lg 이상에서 340px 고정, 모바일에선 스택 아래) */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          {/* 우측 사이드 — ApplyPanel (lg 이상에서 340px 고정, 모바일에선 스택 아래)
+           * [v2.16 Phase 3-1b] id="apply-panel" — Concept B 빈 슬롯 click anchor 타겟 */}
+          <div
+            id="apply-panel"
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: 16,
+              scrollMarginTop: 80,
+            }}
+          >
             <ApplyPanel
               gameId={id}
               gameStatus={game.status}

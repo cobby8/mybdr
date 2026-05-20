@@ -3850,3 +3850,229 @@ html.dark {
     font-size: 26px;
   }
 }
+
+/* ============================================================
+ * 2026-05-20 [v2.16] Concept B — 10인 슬롯 보드 (ParticipantsSlotBoard)
+ * 박제 source: Dev/design/BDR-current/screens-gd/ConceptB.jsx (B.slotGrid / B.slot* / FilledSlot / EmptySlot)
+ * 사용자 결정 §11: Concept B (10인 슬롯 보드) 채택
+ *
+ * 사용 위치: <ParticipantsSlotBoard> in src/app/(web)/games/[id]/_v2/
+ *   - .gd-slots.kind-pickup / .gd-slots.kind-guest / .gd-slots.kind-scrimmage 스코프
+ *     슬롯 아바타 배경 = var(--kind) (GameCard 와 일관)
+ * ============================================================ */
+
+.gd-slots {
+  background: transparent;
+}
+
+.gd-slots__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-bottom: 14px;
+  gap: 10px;
+}
+.gd-slots__eyebrow {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.gd-slots__title {
+  margin: 4px 0 0;
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+  line-height: 1.2;
+}
+.gd-slots__count {
+  display: flex;
+  align-items: baseline;
+  gap: 3px;
+  font-family: var(--ff-display);
+}
+.gd-slots__count-num {
+  font-size: 22px;
+  font-weight: 900;
+  color: var(--ink);
+  line-height: 1;
+}
+.gd-slots__count-den {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-mute);
+}
+
+.gd-slots__grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 10px;
+}
+
+/* 슬롯 1개 — aspect-ratio 1/1.18 → 카드 비율 통일 */
+.gd-slot {
+  aspect-ratio: 1 / 1.18;
+  border-radius: 8px;
+  padding: 14px 10px 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  text-align: center;
+  transition: transform 0.12s, box-shadow 0.12s, border-color 0.12s;
+  min-height: 170px;
+  color: inherit;
+}
+.gd-slot--filled {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+.gd-slot--empty {
+  background: transparent;
+  border: 2px dashed var(--border-strong);
+  cursor: pointer;
+  color: var(--ink-mute);
+  font-family: var(--ff-body);
+}
+.gd-slot--empty:hover {
+  border-color: var(--kind, var(--accent));
+  background: rgba(15, 95, 204, 0.03);
+}
+.gd-slot--empty-disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+.gd-slot--empty-disabled:hover {
+  border-color: var(--border-strong);
+  background: transparent;
+}
+.gd-slot__num {
+  position: absolute;
+  top: 6px;
+  left: 8px;
+  font-family: var(--ff-mono);
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--ink-dim);
+  letter-spacing: 0.04em;
+}
+.gd-slot__num--empty {
+  color: var(--ink-dim);
+}
+.gd-slot__host-tag {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  font-size: 9px;
+  font-weight: 800;
+  padding: 2px 6px;
+  background: var(--accent);
+  color: #fff;
+  border-radius: 3px;
+  letter-spacing: 0.06em;
+}
+.gd-slot__avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--kind, var(--cafe-blue));
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--ff-display);
+  font-weight: 800;
+  font-size: 18px;
+  margin-top: 6px;
+  margin-bottom: 8px;
+}
+.gd-slot__name {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--ink);
+  line-height: 1.1;
+  word-break: keep-all;
+}
+.gd-slot__name a {
+  color: inherit;
+  text-decoration: none;
+}
+.gd-slot__name a:hover {
+  text-decoration: underline;
+}
+.gd-slot__handle {
+  font-size: 10px;
+  color: var(--ink-mute);
+  font-family: var(--ff-mono);
+  margin-top: 1px;
+}
+.gd-slot__meta {
+  display: flex;
+  gap: 4px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.gd-slot__pos {
+  font-size: 10px;
+  font-weight: 800;
+  padding: 2px 6px;
+  background: var(--cafe-blue-soft);
+  color: var(--cafe-blue-deep);
+  border-radius: 3px;
+  font-family: var(--ff-mono);
+}
+.gd-slot__lvl {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 6px;
+  background: var(--bg-alt);
+  color: var(--ink-soft);
+  border-radius: 3px;
+}
+
+/* Empty 슬롯 내부 — + 아이콘 + 안내 텍스트 */
+.gd-slot__empty-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: var(--bg-alt);
+  color: var(--accent);
+  font-size: 24px;
+  font-weight: 300;
+  line-height: 40px;
+  margin-top: 6px;
+  margin-bottom: 6px;
+}
+.gd-slot__empty-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink-soft);
+  line-height: 1.25;
+}
+.gd-slot__empty-sub {
+  font-size: 10px;
+  color: var(--ink-dim);
+  margin-top: 6px;
+  font-family: var(--ff-mono);
+}
+
+/* 모바일 분기 — 5×2 → 2×N (또는 가로 스크롤) */
+@media (max-width: 720px) {
+  .gd-slots__grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+  .gd-slot {
+    min-height: 150px;
+    padding: 12px 8px 10px;
+  }
+  .gd-slot__avatar {
+    width: 42px;
+    height: 42px;
+    font-size: 16px;
+  }
+}
