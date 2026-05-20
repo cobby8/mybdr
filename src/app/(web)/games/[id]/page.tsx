@@ -36,6 +36,8 @@ import { Breadcrumb } from "@/components/shared/breadcrumb";
 import { decodeHtmlEntities } from "@/lib/utils/decode-html";
 // 5/8 PR3 — 본인인증 미완료 사용자 페이지 진입 가드 (mock 모드 default)
 import { requireIdentityForPage } from "@/lib/auth/require-identity-for-page";
+// [v2.16 Phase 3-1c fix] super_admin 판정 — admin 계정은 "내가 호스트" 대신 "관리자 view" 표시
+import { isSuperAdmin } from "@/lib/auth/is-super-admin";
 // 5/9 displayName P0 — 공식 기록(MVP 시상) 실명 우선 헬퍼
 import { getDisplayName } from "@/lib/utils/player-display-name";
 // 4단계 A — MVP 시상 / 호스트 / 참가자 / 신청자 닉네임 → 공개프로필 PlayerLink
@@ -131,6 +133,9 @@ export default async function GameDetailPage({
   ]);
 
   const isHost = session ? game.organizer_id === BigInt(session.sub) : false;
+  // [v2.16 Phase 3-1c fix] admin 계정은 카페 크롤링 게임의 organizer 가 모두 admin master(id=1) 라서
+  // 모든 게임에서 isHost=true 가 됨 → "내가 호스트" 라벨이 부적절. admin 은 별도 "관리자 view" 분기.
+  const isAdmin = isSuperAdmin(session);
   // 로그인 유저의 신청 여부 (status: 0=대기, 1=승인, 2=거절)
   const myApplication = session
     ? applications.find((a) => a.user_id === BigInt(session.sub))
@@ -302,6 +307,7 @@ export default async function GameDetailPage({
         organizer={organizer}
         isLoggedIn={Boolean(session)}
         isHost={isHost}
+        isAdmin={isAdmin}
         myApplicationStatus={myApplication ? myApplication.status : null}
         applyAnchorId="apply-panel"
       />
@@ -688,6 +694,7 @@ export default async function GameDetailPage({
         currentParticipants={game.current_participants ?? 0}
         isLoggedIn={Boolean(session)}
         isHost={isHost}
+        isAdmin={isAdmin}
         myApplicationStatus={myApplication ? myApplication.status : null}
         applyAnchorId="apply-panel"
       />

@@ -4236,6 +4236,12 @@ html.dark {
   color: var(--accent);
   border: 1px solid #F5C6C8;
 }
+/* [v2.16 fix] admin 변형 — cafe-blue 톤 (관리자 view) */
+.gd-ribbon__cta.is-admin {
+  background: var(--cafe-blue-soft);
+  color: var(--cafe-blue-deep);
+  border: 1px solid var(--cafe-blue-hair);
+}
 .gd-ribbon__cta.is-disabled {
   pointer-events: none;
   cursor: default;
@@ -4346,6 +4352,12 @@ html.dark {
     background: var(--accent-soft);
     color: var(--accent);
     border: 1px solid #F5C6C8;
+  }
+  /* [v2.16 fix] admin 변형 — cafe-blue 톤 */
+  .gd-mobile-bar__cta.is-admin {
+    background: var(--cafe-blue-soft);
+    color: var(--cafe-blue-deep);
+    border: 1px solid var(--cafe-blue-hair);
   }
   .gd-mobile-bar__cta.is-disabled {
     pointer-events: none;

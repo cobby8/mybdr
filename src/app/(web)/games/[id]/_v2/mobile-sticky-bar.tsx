@@ -31,6 +31,11 @@ export interface MobileStickyBarProps {
   currentParticipants: number;
   isLoggedIn: boolean;
   isHost: boolean;
+  /**
+   * [v2.16 Phase 3-1c fix] super_admin 여부 — admin 계정은 "내 경기" 대신 "관리자" 노출.
+   * (카페 크롤링 게임의 organizer 가 모두 admin master 라서 모든 게임이 isHost=true 되는 운영 특성 대응)
+   */
+  isAdmin: boolean;
   myApplicationStatus: number | null;
   applyAnchorId: string;
 }
@@ -39,6 +44,7 @@ function resolveCta(
   gameStatus: number,
   isLoggedIn: boolean,
   isHost: boolean,
+  isAdmin: boolean,
   myApplicationStatus: number | null,
 ): { label: string; disabled: boolean; variant: string } {
   if (gameStatus === 3)
@@ -47,6 +53,9 @@ function resolveCta(
     return { label: "취소됨", disabled: true, variant: "is-closed" };
   if (gameStatus === 2)
     return { label: "모집 마감", disabled: true, variant: "is-closed" };
+  // [v2.16 fix] admin 우선 — host 라벨 숨김
+  if (isAdmin)
+    return { label: "관리자", disabled: true, variant: "is-admin" };
   if (isHost)
     return { label: "내 경기", disabled: true, variant: "is-host" };
   if (myApplicationStatus === 1)
@@ -67,6 +76,7 @@ export function MobileStickyBar({
   currentParticipants,
   isLoggedIn,
   isHost,
+  isAdmin,
   myApplicationStatus,
   applyAnchorId,
 }: MobileStickyBarProps) {
@@ -76,6 +86,7 @@ export function MobileStickyBar({
     gameStatus,
     isLoggedIn,
     isHost,
+    isAdmin,
     myApplicationStatus,
   );
 

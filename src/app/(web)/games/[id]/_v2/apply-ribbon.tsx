@@ -47,8 +47,14 @@ export interface ApplyRibbonProps {
   organizer: RibbonOrganizer | null;
   /** 로그인 여부 */
   isLoggedIn: boolean;
-  /** 본인이 호스트인지 */
+  /** 본인이 호스트인지 (organizer_id === user.id) */
   isHost: boolean;
+  /**
+   * [v2.16 Phase 3-1c fix] super_admin 여부.
+   * 카페 크롤링 게임의 organizer 가 모두 admin master(id=1) 라서 admin 계정에서
+   * 모든 게임이 isHost=true 가 됨 → "내가 호스트" 라벨이 부적절. admin 우선 분기.
+   */
+  isAdmin: boolean;
   /** 본인 신청 상태 — 0=대기/1=승인/2=거부, 또는 null=미신청 */
   myApplicationStatus: number | null;
   /** 신청 패널 anchor id (page.tsx 의 ApplyPanel div) */
@@ -68,11 +74,17 @@ function nicknameInitials(name: string | null): string {
   return t.slice(0, 1).toUpperCase();
 }
 
-/** CTA 분기 — (텍스트, 변형 클래스, 비활성 여부) 결정 */
+/** CTA 분기 — (텍스트, 변형 클래스, 비활성 여부) 결정.
+ *
+ * [v2.16 Phase 3-1c fix] admin 우선 분기 — 카페 크롤링 게임의 organizer 가 모두
+ * admin master(id=1) 라서 admin 계정에서 isHost=true 가 되는 운영 데이터 특성 대응.
+ * admin 은 "내가 호스트" 라벨 대신 "관리자 view" 노출 (편집 권한은 별도 UI).
+ */
 function resolveCta(
   gameStatus: number,
   isLoggedIn: boolean,
   isHost: boolean,
+  isAdmin: boolean,
   myApplicationStatus: number | null,
 ): { label: string; variant: string; disabled: boolean } {
   // 게임 종료/취소 → 우선 분기
@@ -86,7 +98,11 @@ function resolveCta(
   if (gameStatus === 2) {
     return { label: "모집 마감", variant: "is-closed", disabled: true };
   }
-  // 호스트 본인
+  // [v2.16 fix] admin 우선 — host 라벨 숨김 (admin master organizer 카페 크롤링 대응)
+  if (isAdmin) {
+    return { label: "관리자 view", variant: "is-admin", disabled: true };
+  }
+  // 호스트 본인 (admin 외)
   if (isHost) {
     return { label: "내가 호스트", variant: "is-host", disabled: true };
   }
@@ -116,6 +132,7 @@ export function ApplyRibbon({
   organizer,
   isLoggedIn,
   isHost,
+  isAdmin,
   myApplicationStatus,
   applyAnchorId,
 }: ApplyRibbonProps) {
@@ -125,7 +142,13 @@ export function ApplyRibbon({
       ? Math.min((currentParticipants / maxParticipants) * 100, 100)
       : 0;
   const remain = Math.max(maxParticipants - currentParticipants, 0);
-  const cta = resolveCta(gameStatus, isLoggedIn, isHost, myApplicationStatus);
+  const cta = resolveCta(
+    gameStatus,
+    isLoggedIn,
+    isHost,
+    isAdmin,
+    myApplicationStatus,
+  );
 
   const hostName =
     decodeHtmlEntities(organizer?.nickname) ||
