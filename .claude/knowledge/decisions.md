@@ -2,6 +2,51 @@
 <!-- 담당: planner-architect | 최대 30항목 -->
 <!-- "왜 A 대신 B를 선택했는지" 기술 결정의 배경과 이유를 기록 -->
 
+### [2026-05-21] 점수 정합성 영구 fix 6건 (F1~F6) 우선순위 — 실측 56% 불일치 근거
+- **분류**: decision (시스템 설계)
+- **발견자**: pm (`Dev/score-consistency-audit-2026-05-21.md` 실측 결과 기반)
+- **계기**: 운영 DB 125 completed 매치 전수 audit 결과 70건 (56%) 불일치 → 시스템 차원 영구 fix 6건 우선순위 결정 필요
+- **3대 시스템 결함 분류 (errors.md [2026-05-21])**:
+  1. quarterScores 박제 누락 (D+E = 58건 / 46%)
+  2. PBP 합 ≠ 헤더 사일런트 (B+E PBP = ~48건)
+  3. matchPlayerStat 사일런트 (C+E MPS = ~4건)
+- **영구 fix 6건 우선순위 (즉시 진행 가능 + 운영 데이터 정정)**:
+
+  | ID | 영구 fix | 우선순위 | 예상 시간 | 영향 분류 | 운영 영향 |
+  |----|---------|---------|----------|----------|----------|
+  | **F1** | quarterScores 자동 갱신 layer (PBP/MPS → QS sync service) | ★★★★★ | 8h | D 10건 + E 48건의 QS 부분 = 58건 | 코드 추가 / 운영 매치 backfill 별도 |
+  | **F2** | PBP 검증 cron (PBP 합 vs MPS 합 daily 비교 + 알림) | ★★★ | 4h | B 2건 + E PBP 부풀림 발견 | 신규 cron / 운영 영향 0 |
+  | **F3** | matchPlayerStat trigger (score-sheet submit 시 헤더 자동 갱신) | ★★★★ | 6h | C 3건 (강남구 paper 매치) | score-sheet BFF 패치 / 회귀 0 |
+  | **F4** | SSOT migration 일괄 정정 (E 분류 48건 매치별 결재 후 정정) | ★★★★★ | 16h+ | E 48건 + X 7건 | 사용자 매치별 결재 필수 / 운영 데이터 변경 |
+  | **F5** | FIBA 룰 가드 (OT1 동점 + winner NULL completed 차단) | ★★★★ | 2h | 매치 124 재발 방지 + 신규 매치 보호 | Flutter v1 영향 0 / 웹 API 가드만 |
+  | **F6** | stale 헤더 백필 (X 분류 7건 TEST 토너먼트) | ★★★ | 1h | X 7건 (모두 TEST 토너먼트) | TEST 데이터만 / 운영 영향 0 |
+
+- **Sprint 1 결재 권장 (≤6h / 운영 영향 0 / 즉시 진입 가능)**:
+  - **F5 (2h) + F2 (4h) 묶음** → 신규 사고 방지 + 검출 layer 동시 박제 (회귀 0)
+  - F5 = OT1 동점 시 종료 차단 가드 (매치 124 재발 방지 / Flutter v1 영향 0 / 웹 API 가드만)
+  - F2 = daily cron PBP vs MPS 비교 → 불일치 매치 admin 대시보드 노출 (운영자 조기 발견)
+- **Sprint 2 결재 권장 (≤8h / 운영 데이터 backfill 별도)**:
+  - **F1 (8h)** → quarterScores 자동 갱신 service layer (매치 종료 시 PBP+MPS → QS 동기화). 회귀 가드 vitest 필수. 운영 매치 backfill 은 별도 트랜잭션 + 사용자 결재.
+- **Sprint 3 결재 권장 (≤22h / 사용자 결재 다수)**:
+  - **F3 (6h) + F4 (16h+)** → 강남구 paper 매치 헤더 갱신 (F3) + E 분류 48건 SSOT 정정 (F4). F4 는 매치별 사용자 결재.
+- **분석한 옵션 (서비스 layer 위치)**:
+  - **A. service layer** (`src/lib/score/sync.ts` 신규 + LIVE API + admin matches PATCH 호출) ← 채택
+  - B. DB trigger (PostgreSQL plpgsql) — 회피 (운영 DB 변경 위험 + 디버깅 불가)
+  - C. cron only — 회피 (실시간성 0 / 운영자 발견 지연)
+- **A 선택 사유**:
+  - 회귀 0 (Flutter v1 영향 0 / paper 모드 LIVE override 패턴 답습)
+  - 디버깅 가능 (TypeScript 코드 / 단위 테스트 가능 / log 추적)
+  - 운영 DB schema 변경 0 (NULL 허용 컬럼 추가 0 / 무중단 진입)
+- **B 거절 사유**: PostgreSQL trigger 디버깅 어려움 + 운영 Supabase 직접 변경 위험 (롤백 어려움) + Prisma 마이그레이션 우회
+- **C 거절 사유**: 실시간 갱신 불가 → LIVE 페이지 표시 stale + 운영자 정정 지연 (강남구 사례 = 운영 중 즉시 fix 필요했음)
+- **참조횟수**: 0
+- **참조 파일**:
+  - `Dev/score-consistency-audit-2026-05-21.md` (실측 보고서)
+  - errors.md [2026-05-21] 시스템 차원 결함 분류
+  - errors.md [2026-05-20] 매치 124 OT2 사고
+  - `src/app/api/live/[id]/route.ts` L893~947 (paper override 답습 패턴)
+  - `src/lib/tournaments/recording-mode.ts` (paper/flutter 분기 헬퍼)
+
 ### [2026-05-20] OT2+ 매치 운영 표준 — paper 모드 + nested quarterScores + 종이 기록지 박제 흐름
 - **분류**: decision
 - **발견자**: pm (매치 124)

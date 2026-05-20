@@ -2,6 +2,48 @@
 <!-- 담당: debugger, tester | 최대 30항목 -->
 <!-- 이 프로젝트에서 반복되는 에러 패턴, 함정, 주의사항을 기록 -->
 
+### [2026-05-21] 점수 4 source 시스템 차원 결함 — completed 125 매치 실측 56% 불일치
+- **분류**: errors + systems (운영 DB 전수 실측 결과)
+- **발견자**: pm (사용자 지적 3대 문제 영구 fix 설계 — Sprint 1 결재 근거)
+- **계기**: 매치 124 (열혈 OT2) 사고 후 사용자 "점수 정합성 시스템적 결함 의심" → 운영 DB 전수 audit (`scripts/_temp/score-consistency-audit.ts` SELECT only / `Dev/score-consistency-audit-2026-05-21.md` 박제)
+- **실측 결과 (125 completed 매치)**:
+  | 분류 | 정의 | 매치수 | 비율 |
+  |------|------|--------|------|
+  | A | ✅ 4 source 정합 | 55 | 44.0% |
+  | B | ⚠️ PBP만 불일치 | 2 | 1.6% |
+  | C | 🔴 matchPlayerStat 사일런트 박제 누락 | 3 | 2.4% |
+  | D | 🔴 quarterScores 박제 누락 | 10 | 8.0% |
+  | E | 🚨 다중 불일치 (QS+PBP 또는 QS+MPS+PBP) | 48 | 38.4% |
+  | X | 🚨 헤더 0/0 + 박제값 있음 | 7 | 5.6% |
+- **토너먼트별 불일치 비율**:
+  | 토너먼트 | 매치 | 불일치 | 비율 |
+  |---------|------|--------|------|
+  | 제21회 몰텐배 동호회최강전 | 27 | 27 | 100% |
+  | 열혈농구단 SEASON2 전국 최강전 | 24 | 24 | 100% |
+  | 2026년 4차 BDR 뉴비리그 | 6 | 6 | 100% |
+  | TEST | 8 | 7 | 87.5% |
+  | 제17회 강남구협회장배 (유소년부) | 59 | 6 | 10.2% |
+- **시스템 차원 결함 3대 패턴**:
+  1. **`quarterScores=0/0` 박제가 절대 다수** (D+E = 58건 / 46%): Flutter sync + score-sheet BFF 양쪽 모두 박제 후 갱신 안 됨. 매치 124처럼 paper 모드 강제 SET 시에만 정상 박제.
+  2. **PBP 합 ≠ 헤더 = 사일런트** (B+E PBP 분류 = ~48건): Flutter 시계 결손 + PBP 무효 이벤트 가 매치 종료 후 검출 0. cron 검증 layer 부재.
+  3. **matchPlayerStat ≠ 헤더** (C+E MPS 분류 = ~4건): 강남구 paper 매치 159/164/186 = MPS만 박제, 헤더는 stale (paper 모드 score-sheet submit 시 헤더 갱신 흐름 결손).
+- **강남구 = 가장 양호 (10.2% 불일치) 이유**: paper 모드 + 운영 중 fix 활동 활발 + score-sheet BFF 가 가장 최신 path. → 다른 토너먼트는 score-sheet 도입 전 / Flutter sync 결손 매치 다수.
+- **재발 방지 영구 fix 6건** (`decisions.md` [2026-05-21] 박제):
+  - **F1 ★★★★★** quarterScores 자동 갱신 layer (D 분류 10건 + E 분류 48건의 QS 부분)
+  - **F2 ★★★** PBP 검증 cron (B/E 분류 PBP 부풀림 자동 감지)
+  - **F3 ★★★★** matchPlayerStat trigger (C 분류 강남구 paper 매치 사일런트 박제 누락)
+  - **F4 ★★★★★** SSOT migration (E 분류 48건 운영 정정 — 매치별 사용자 결재 필요)
+  - **F5 ★★★★** FIBA 룰 가드 (OT1 동점 + winner NULL completed 차단 / 매치 124 재발 방지)
+  - **F6 ★★★** stale 헤더 백필 (X 분류 7건 TEST 토너먼트)
+- **실측 단계 운영 영향**: 0 (SELECT only / 운영 DB 변경 0 / 사용자 결재 가드 §"운영 영향 0 작업" 부합)
+- **참조횟수**: 0
+- **참조 파일**:
+  - `scripts/_temp/score-consistency-audit.ts` (read-only audit / 사후 정리 예정)
+  - `Dev/score-consistency-audit-2026-05-21.md` (실측 결과 박제)
+  - `src/app/api/live/[id]/route.ts` L893~947 (paper override + STL 보정)
+  - errors.md [2026-05-20] 매치 124 4 source 불일치 (개별 사고)
+  - decisions.md [2026-05-21] 영구 fix F1~F6 우선순위
+
 ### [2026-05-20] 매치 124 Flutter OT2 미구현 + 점수 4 source 불일치 패턴 (열혈농구단 SEASON2)
 - **분류**: errors + lessons (시스템 패턴)
 - **발견자**: pm (사용자 보고)
