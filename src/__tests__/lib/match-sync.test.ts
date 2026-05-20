@@ -481,3 +481,225 @@ describe("match-sync — syncSingleMatch existingMatch 분기 (SELECT 통합)", 
     expect(findFirstMock).toHaveBeenCalledTimes(1);
   });
 });
+
+// ============================================================================
+// 6. syncSingleMatch — MPS deleteMany NOT IN 가드 (F3-α / 2026-05-21)
+// ============================================================================
+
+/**
+ * 2026-05-21 F3-α (errors.md [2026-05-21] paper 모드 3가지 특수 결함 — C 분류 fix):
+ *   PBP `deleteMany NOT IN incoming local_id` 패턴 답습.
+ *   강남구 paper 매치 159/164/186 = score-sheet submit 30+회 반복 호출 시
+ *   다른 ttp set 전송 → 이전 박제 ttp 잔존 → MPS 사일런트 +2점 누적 재발.
+ *
+ * 4 케이스 검증 (C1~C4):
+ *   C1: 기존 ttp [1,2,3] DB + incoming ttp [1,2,3] → upsert 3건 / delete 0건
+ *   C2: 기존 ttp [1,2,3] DB + incoming ttp [1,2]   → ttp [3] 삭제 / [1,2] upsert
+ *   C3: 기존 ttp [] DB + incoming ttp [4,5]        → create 2건 / delete 0건
+ *   C4: player_stats=undefined                      → deleteMany 미실행 (전체 보존 / 회귀 0)
+ *
+ * 검증 방식 = deleteMany / upsert call args 스파이.
+ * DB 부작용 (실 row 삭제/생성) 은 별도 e2e 영역.
+ */
+describe("match-sync — syncSingleMatch MPS deleteMany NOT IN 가드 (F3-α)", () => {
+  beforeEach(() => {
+    vi.resetModules();
+    vi.clearAllMocks();
+  });
+
+  /**
+   * 공용 mock 헬퍼 — prisma + 의존 module 4종 격리.
+   * caller 가 mpsDeleteMany / mpsUpsert / pbpDeleteMany spy 를 받아서 케이스별 검증.
+   */
+  function setupMocks() {
+    const mpsDeleteMany = vi.fn().mockResolvedValue({ count: 0 });
+    const mpsUpsert = vi.fn().mockResolvedValue({});
+    const pbpDeleteMany = vi.fn().mockResolvedValue({ count: 0 });
+    const updateMock = vi.fn().mockResolvedValue({});
+    const findUniqueMock = vi.fn().mockResolvedValue({ format: "single_elimination" });
+
+    vi.doMock("@/lib/db/prisma", () => ({
+      prisma: {
+        tournamentMatch: {
+          findFirst: vi.fn(),
+          update: updateMock,
+        },
+        tournament: {
+          findUnique: findUniqueMock,
+        },
+        play_by_plays: { deleteMany: pbpDeleteMany },
+        matchPlayerStat: {
+          deleteMany: mpsDeleteMany,
+          upsert: mpsUpsert,
+        },
+      },
+    }));
+    vi.doMock("@/lib/tournaments/update-standings", () => ({
+      advanceWinner: vi.fn(),
+      updateTeamStandings: vi.fn(),
+    }));
+    vi.doMock("@/lib/tournaments/dual-progression", () => ({
+      progressDualMatch: vi.fn(),
+    }));
+    vi.doMock("@vercel/functions", () => ({ waitUntil: vi.fn() }));
+    vi.doMock("@/lib/news/auto-publish-match-brief", () => ({
+      triggerMatchBriefPublish: vi.fn(),
+    }));
+    vi.doMock("@/lib/tournaments/finalize-match-completion", () => ({
+      finalizeMatchCompletion: vi.fn().mockResolvedValue({}),
+    }));
+
+    return { mpsDeleteMany, mpsUpsert, pbpDeleteMany };
+  }
+
+  // PlayerStatInput 풀 필드를 채우는 헬퍼 — minimal valid stat (% / efficiency 는 0 처리).
+  function makeStat(ttpId: number, points = 0) {
+    return {
+      tournament_team_player_id: ttpId,
+      tournament_team_id: 10,
+      is_starter: false,
+      minutes_played: 0,
+      points,
+      field_goals_made: 0,
+      field_goals_attempted: 0,
+      two_pointers_made: 0,
+      two_pointers_attempted: 0,
+      three_pointers_made: 0,
+      three_pointers_attempted: 0,
+      free_throws_made: 0,
+      free_throws_attempted: 0,
+      offensive_rebounds: 0,
+      defensive_rebounds: 0,
+      total_rebounds: 0,
+      assists: 0,
+      steals: 0,
+      blocks: 0,
+      turnovers: 0,
+      personal_fouls: 0,
+      technical_fouls: 0,
+      unsportsmanlike_fouls: 0,
+      plus_minus: 0,
+      fouled_out: false,
+      ejected: false,
+    };
+  }
+
+  // existingMatch 스텁 — in_progress 로 두어 isReset 분기 회피 (isReset 은 status=scheduled 만).
+  const existingMatchStub = {
+    id: BigInt(999),
+    tournamentId: "t-f3a",
+    homeTeamId: BigInt(10),
+    awayTeamId: BigInt(20),
+    winner_team_id: null,
+    status: "in_progress",
+    started_at: new Date("2026-05-21T10:00:00Z"),
+  };
+
+  it("C1: incoming ttp [1,2,3] = 기존 ttp [1,2,3] → deleteMany 1회 호출 (NOT IN [1,2,3]) / upsert 3회", async () => {
+    // 핵심 검증 = deleteMany 의 WHERE NOT IN 절이 incoming ttp 전체 포함 → 실제 삭제 row 0건이 보장됨.
+    // (DB count=0 mock 이지만 NOT IN 절 args 가 정확한지가 본 케이스 핵심.)
+    const { mpsDeleteMany, mpsUpsert } = setupMocks();
+    const { syncSingleMatch } = await import("@/lib/services/match-sync");
+
+    const result = await syncSingleMatch({
+      tournamentId: "t-f3a",
+      match: {
+        server_id: 999,
+        home_score: 30,
+        away_score: 25,
+        status: "in_progress",
+      },
+      player_stats: [makeStat(1, 10), makeStat(2, 12), makeStat(3, 8)],
+      existingMatch: existingMatchStub,
+    });
+
+    expect(result.ok).toBe(true);
+    expect(mpsDeleteMany).toHaveBeenCalledTimes(1);
+    // deleteMany call args = WHERE NOT IN incoming ttp [1,2,3] (BigInt 으로 변환됨)
+    const deleteCall = mpsDeleteMany.mock.calls[0][0];
+    expect(deleteCall.where.tournamentMatchId).toBe(BigInt(999));
+    expect(deleteCall.where.NOT.tournamentTeamPlayerId.in).toEqual([
+      BigInt(1),
+      BigInt(2),
+      BigInt(3),
+    ]);
+    // upsert 3회 호출 (incoming ttp 마다 1회)
+    expect(mpsUpsert).toHaveBeenCalledTimes(3);
+  });
+
+  it("C2: incoming ttp [1,2] (기존 ttp [1,2,3] 가정) → deleteMany NOT IN [1,2] 호출 → ttp [3] 정정 삭제 / upsert 2회", async () => {
+    // 핵심 케이스 = 강남구 매치 159 재현 (incoming set 이 기존보다 작음 → 잔존 ttp [3] 정정).
+    const { mpsDeleteMany, mpsUpsert } = setupMocks();
+    const { syncSingleMatch } = await import("@/lib/services/match-sync");
+
+    const result = await syncSingleMatch({
+      tournamentId: "t-f3a",
+      match: {
+        server_id: 999,
+        home_score: 22,
+        away_score: 25,
+        status: "in_progress",
+      },
+      player_stats: [makeStat(1, 10), makeStat(2, 12)],
+      existingMatch: existingMatchStub,
+    });
+
+    expect(result.ok).toBe(true);
+    expect(mpsDeleteMany).toHaveBeenCalledTimes(1);
+    const deleteCall = mpsDeleteMany.mock.calls[0][0];
+    // NOT IN [1,2] 로 호출 → DB level 에서 ttp [3] 자동 정정 삭제
+    expect(deleteCall.where.NOT.tournamentTeamPlayerId.in).toEqual([BigInt(1), BigInt(2)]);
+    // upsert 는 incoming ttp 2건만
+    expect(mpsUpsert).toHaveBeenCalledTimes(2);
+  });
+
+  it("C3: 기존 ttp [] (신규 박제) + incoming ttp [4,5] → deleteMany NOT IN [4,5] (실 삭제 0) / upsert 2회", async () => {
+    // 신규 매치 박제 케이스 — deleteMany 호출은 되지만 실 삭제 row 는 0 (DB 가 자동 처리).
+    // 호출 자체는 회귀 0 (PBP 패턴과 동일 — 항상 NOT IN 가드 호출).
+    const { mpsDeleteMany, mpsUpsert } = setupMocks();
+    const { syncSingleMatch } = await import("@/lib/services/match-sync");
+
+    const result = await syncSingleMatch({
+      tournamentId: "t-f3a",
+      match: {
+        server_id: 999,
+        home_score: 0,
+        away_score: 0,
+        status: "in_progress",
+      },
+      player_stats: [makeStat(4, 0), makeStat(5, 0)],
+      existingMatch: existingMatchStub,
+    });
+
+    expect(result.ok).toBe(true);
+    expect(mpsDeleteMany).toHaveBeenCalledTimes(1);
+    const deleteCall = mpsDeleteMany.mock.calls[0][0];
+    expect(deleteCall.where.NOT.tournamentTeamPlayerId.in).toEqual([BigInt(4), BigInt(5)]);
+    // create 분기 = upsert 호출 2회 (incoming ttp 마다 / Prisma upsert 의 create path)
+    expect(mpsUpsert).toHaveBeenCalledTimes(2);
+  });
+
+  it("C4: player_stats=undefined → deleteMany 미호출 (회귀 0 / 기존 stat 전체 보존)", async () => {
+    // 핵심 회귀 가드 — Flutter sync 가 stats 없이 점수만 박제하는 케이스 (legacy / in-progress).
+    // 본 분기에서 deleteMany 호출하면 운영 stat 전체 손실 = 즉시 회귀 사고.
+    const { mpsDeleteMany, mpsUpsert } = setupMocks();
+    const { syncSingleMatch } = await import("@/lib/services/match-sync");
+
+    const result = await syncSingleMatch({
+      tournamentId: "t-f3a",
+      match: {
+        server_id: 999,
+        home_score: 30,
+        away_score: 25,
+        status: "in_progress",
+      },
+      // player_stats 미제공 — 본 케이스가 가장 중요 (회귀 0 보장)
+      existingMatch: existingMatchStub,
+    });
+
+    expect(result.ok).toBe(true);
+    // deleteMany 절대 호출 안됨 (player_stats undefined 분기 = if 블록 skip)
+    expect(mpsDeleteMany).not.toHaveBeenCalled();
+    expect(mpsUpsert).not.toHaveBeenCalled();
+  });
+});

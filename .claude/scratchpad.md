@@ -1,9 +1,9 @@
 # 작업 스크래치패드
 
 ## 현재 작업
-- **요청**: 점수 정합성 시스템 분석 — paper 모드 정밀 조사 + F3 Sprint 1 상향 (2026-05-21 세션)
-- **상태**: ✅ paper 모드 정밀 조사 완료 → 근본 원인 코드 위치 3건 확정 → F3 Sprint 1 상향 → 결재 대기
-- **현재 담당**: pm (사용자 Sprint 1 결재 대기)
+- **요청**: 점수 정합성 영구 fix Sprint 1 — F3-α + F3-β + F5 + F2 통합 기획설계 (2026-05-21)
+- **상태**: ✅ PR-1 (F3-α) developer 박제 완료 — tsc 0 / vitest 27/27 PASS / 변경 2 파일 +237 LOC
+- **현재 담당**: tester (PR-1 검증 진입 대기) → 이후 PR-2 (F3-β) developer
 - **세션 산출물 (cumulative)**:
   - audit 2건: `Dev/score-consistency-audit-2026-05-21.md` (125 매치) + `Dev/paper-mode-precise-audit-2026-05-21.md` (paper 6 매치 상세)
   - script 2건: `scripts/_temp/score-consistency-audit.ts` + `scripts/_temp/paper-mode-precise-audit.ts` (모두 SELECT only / 사후 정리 예정)
@@ -16,6 +16,48 @@
   | B (PBP 일부) | 위 두 결함 결합 패턴 (matches 208) | score-sheet 부분 박제 + 어드민 PATCH 헤더 단독 |
 - **Sprint 1 재세팅 (6h → 8h)**: F5 (2h) + F2 (4h) + **F3 (2h) 상향**
 
+## 구현 기록 (PR-1 F3-α MPS deleteMany NOT IN 가드 / developer 2026-05-21)
+
+📝 구현한 기능: MPS upsert 전 `deleteMany NOT IN incoming ttp` 가드 — paper 매치 score-sheet submit 반복 호출 시 stale stat 정정 (강남구 매치 159/164/186 +2점 사일런트 누적 재발 차단)
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| `src/lib/services/match-sync.ts` | +15 LOC (line 507~521) — `incomingTtpIds.map(BigInt)` 후 deleteMany NOT IN 호출. PBP 패턴 (line 581~592) 답습 / 주석 한국어 6줄 (errors.md [2026-05-21] 인용) | 수정 |
+| `src/__tests__/lib/match-sync.test.ts` | +222 LOC (4 케이스 C1~C4) — describe block "MPS deleteMany NOT IN 가드 (F3-α)" 신규 / setupMocks + makeStat 헬퍼 + existingMatchStub | 수정 |
+
+**검증 결과**:
+- `npx tsc --noEmit` → EXIT=0 (0 errors)
+- `npx vitest run src/__tests__/lib/match-sync.test.ts` → **27 tests passed (기존 23 + 신규 4)**
+- `git diff --stat HEAD -- src/` PR-1 관련 라인:
+  ```
+  src/__tests__/lib/match-sync.test.ts  | 222 +++++++++++
+  src/lib/services/match-sync.ts        |  15 ++
+  ```
+
+**vitest 4 케이스 결과**:
+| 케이스 | 검증 포인트 | 결과 |
+|--------|------------|------|
+| C1 (incoming=기존 [1,2,3]) | deleteMany NOT IN [BigInt(1), BigInt(2), BigInt(3)] + upsert 3회 | ✅ PASS |
+| C2 (incoming [1,2] / 기존 [1,2,3] 시나리오) | NOT IN [BigInt(1), BigInt(2)] → DB 가 ttp [3] 자동 정정 + upsert 2회 | ✅ PASS |
+| C3 (신규 매치 incoming [4,5]) | NOT IN [BigInt(4), BigInt(5)] (실 삭제 0) + upsert 2회 | ✅ PASS |
+| C4 (player_stats=undefined) | **deleteMany 미호출 (회귀 0 / 운영 stat 전체 보존)** | ✅ PASS |
+
+💡 tester 참고:
+- 테스트 방법: `npx vitest run src/__tests__/lib/match-sync.test.ts` (27/27 PASS 확인)
+- 정상 동작:
+  - paper 매치 score-sheet submit 반복 호출 시 incoming ttp set 외 stale stat 자동 삭제
+  - Flutter sync (player_stats undefined 케이스) 는 기존 동작 보존 (회귀 0)
+- 주의할 입력:
+  - C4 (player_stats=undefined) = **회귀 가드의 핵심**. if 블록 진입 자체 차단 보장.
+  - isReset 분기 (status='scheduled' + stats/PBP 0건) = 이미 line 498 전체 deleteMany 수행 → 이중 삭제 안 됨
+
+⚠️ reviewer 참고:
+- 특별히 봐줬으면 하는 부분:
+  1. PBP `deleteMany NOT IN` 패턴 (line 581~592) 답습 정확성 — `manual-fix-` 보호는 MPS 미해당 (단순 NOT IN 만)
+  2. `BigInt(s.tournament_team_player_id)` 캐스팅 — Prisma `tournamentTeamPlayerId` 컬럼이 BigInt 이므로 일치
+  3. 트랜잭션 X — PBP 패턴 동일 (deleteMany + upsert 순차 / 같은 if 블록 안)
+  4. C4 회귀 가드 = if 블록 자체 미진입 = 운영 stat 손실 0 보장
+
 ## 구현 기록 (prospectus AI Phase 1-A + 1-B / PM 직접 박제 2026-05-19~20)
 - **신규 파일 3건** (총 527L / 외부 npm 1건 추가 = `ai@^6.0.185`)
   - `src/lib/ai/prospectus-schema.ts` (167L / 1-A) — Zod schema 4그룹 + 필드별 `_confidence`+`_source_excerpt` + thresholds (0.95/0.6) + camelCase
@@ -24,6 +66,163 @@
 - **Phase 1-B 핵심**: 모델 = `"anthropic/claude-sonnet-4"` plain 문자열 (Vercel Gateway 자동) / PDF (prompt) + image (vision messages `type:"image"` + `mediaType`) 분기 / `AbortSignal.timeout(30_000)` / audit 반환 = `usage`+`durationMs`+`promptVersion`+`modelId`
 - **검증**: `npx tsc --noEmit` → 0 errors (양 commit) / 회귀 0 (신규 폴더 / 시그니처 변경 0)
 - **참조 보고서**: `Dev/prospectus-ai-wizard-plan-2026-05-18.md` §3 §4
+
+## 기획설계 (2026-05-21 — 점수 정합성 Sprint 1 / F3-α + F3-β + F5 + F2)
+
+🎯 목표: 점수 4 source 정합성 영구 fix Sprint 1 (8h / 운영 영향 0 / 회귀 0) — 강남구 paper 매치 159/164/186 (F3-α) + 170/187 (F3-β) 재발 차단 + 매치 124 OT1 사고 (F5) 재발 차단 + 일일 검출 layer (F2)
+
+### 📍 PR 분해 — 4개 별도 PR 권장 (1 통합 PR ❌ / 2 묶음 ❌)
+| PR | 시간 | 코드 위치 | 회귀 위험 | 진입 순서 |
+|----|------|----------|----------|----------|
+| **PR-1 (F3-α)** | 1h | `src/lib/services/match-sync.ts:507~559` MPS upsert 전 deleteMany 추가 | 낮음 (PBP 패턴 답습 / Flutter+paper 양면 ttp 외 stat 삭제) | **1번째** — 단순/단일 함수/회귀 0 |
+| **PR-2 (F3-β)** | 1h | `src/app/api/web/tournaments/[id]/matches/[matchId]/route.ts:165` 직전 paper 매치 score 차단 가드 | 낮음 (paper 매치만 차단 / Flutter 경로 보존) | **2번째** — 단일 route / vitest 4 케이스 |
+| **PR-3 (F5)** | 2h | 신규 `src/lib/tournaments/fiba-rules.ts` PURE 헬퍼 + score-sheet submit + v1 sync route 양면 호출 | 중간 (Flutter v1 영향 / OT2 박제 시점 통과 룰) | **3번째** — 헬퍼 신규 / vitest 6 케이스 |
+| **PR-4 (F2)** | 4h | 신규 `src/app/api/cron/score-consistency/route.ts` + `vercel.json` cron + admin 대시보드 위젯 1개 | 매우 낮음 (read-only / 검출만 / 박제 0) | **4번째** — 독립 신규 라우트 |
+
+**1개 통합 PR 거절**: 4개 영역 (service / route / 헬퍼+양면 / cron+UI) 코드 위치 분산 → review 비용 ↑ + 부분 rollback 불가. 별도 PR = 각 PR 회귀 가드 독립 + 즉시 운영 진입.
+
+### 🔧 PR-1 (F3-α) MPS deleteMany 가드
+**변경 위치**: `match-sync.ts:507` `if (player_stats && player_stats.length > 0) {` 안 첫 줄 추가
+
+```ts
+// PBP 패턴 (line 567~578) 답습 — incoming ttp set 외 stale stat 삭제
+const incomingTtpIds = player_stats.map(s => BigInt(s.tournament_team_player_id));
+await prisma.matchPlayerStat.deleteMany({
+  where: { tournamentMatchId: matchId, NOT: { tournamentTeamPlayerId: { in: incomingTtpIds } } },
+});
+```
+
+**회귀 가드 + vitest** (`src/lib/services/__tests__/match-sync.test.ts` 추가):
+| 케이스 | given | expect |
+|--------|-------|--------|
+| C1 | 기존 ttp [1,2,3] DB + incoming ttp [1,2,3] | upsert 3건 / delete 0건 |
+| C2 | 기존 ttp [1,2,3] DB + incoming ttp [1,2] | ttp [3] 삭제 / [1,2] upsert |
+| C3 | 기존 ttp [] DB + incoming ttp [4,5] | create 2건 / delete 0건 |
+| C4 | `player_stats=undefined` | deleteMany 미실행 / 기존 stat 보존 (회귀 0) |
+
+### 🔧 PR-2 (F3-β) 어드민 PATCH paper 매치 score 차단
+**변경 위치**: `matches/[matchId]/route.ts:88` (winner_team_id 검증 직후)
+
+```ts
+// paper 매치 + score 변경 시 차단 — score-sheet 경유 의무 (decisions.md [2026-05-21])
+const isPaperMode = getRecordingMode(match) === "paper";
+const scoreFieldChanged = homeScore !== undefined || awayScore !== undefined;
+if (isPaperMode && scoreFieldChanged) {
+  return apiError("종이 기록지 모드 매치는 점수 직접 수정 불가. score-sheet 페이지에서 입력하세요.", 403, "RECORDING_MODE_PAPER_SCORE_BLOCKED");
+}
+```
+
+**회귀 가드 + vitest** (`route.test.ts` 또는 통합 테스트):
+| 케이스 | given | expect |
+|--------|-------|--------|
+| B1 | paper 매치 + body `{homeScore: 10}` | 403 RECORDING_MODE_PAPER_SCORE_BLOCKED |
+| B2 | paper 매치 + body `{venue_name: "X"}` (score 외) | 통과 (paper 매치도 메타 수정 허용) |
+| B3 | flutter 매치 + body `{homeScore: 10}` | 통과 (회귀 0 / 기존 동작) |
+| B4 | paper 매치 + status=completed 이미 박제 + body `{homeScore: 10}` | 403 (운영자 정정 요청 시 별도 흐름 필요 — Sprint 3 F4) |
+
+### 🔧 PR-3 (F5) FIBA 룰 가드 — PURE 헬퍼 분리 + 양면 호출
+**신규 파일**: `src/lib/tournaments/fiba-rules.ts` (PURE 함수만 / DB I/O 0)
+
+```ts
+type FibaCheckInput = {
+  homeScore: number;
+  awayScore: number;
+  status: string;
+  winnerTeamId: bigint | null;
+  currentQuarter?: number;  // 1~7 (Q1~Q4=1~4 / OT1~OT3=5~7)
+  recordingMode: "flutter" | "paper";
+};
+type FibaCheckResult = { ok: true } | { ok: false; code: string; message: string };
+
+export function assertCompletedMatchFiba(input: FibaCheckInput): FibaCheckResult {
+  if (input.status !== "completed") return { ok: true };
+  // 1) 동점 + winner NULL = FIBA 위반 (regulation/OT 무관)
+  if (input.homeScore === input.awayScore && input.winnerTeamId === null) {
+    return { ok: false, code: "FIBA_TIE_WITHOUT_WINNER", message: "..." };
+  }
+  // 2) OT1 (currentQuarter=5) + 동점 = FIBA 위반 (OT2 박제 필요)
+  if (input.currentQuarter === 5 && input.homeScore === input.awayScore) {
+    return { ok: false, code: "FIBA_OT1_TIE_REQUIRES_OT2", message: "..." };
+  }
+  return { ok: true };
+}
+```
+
+**호출 위치 2건**:
+1. `src/app/api/web/score-sheet/[matchId]/submit/route.ts` — service 호출 직전 paper 매치 check
+2. `src/app/api/v1/tournaments/[id]/matches/sync/route.ts` + `/batch-sync/route.ts` — service 호출 직전 flutter 매치 check
+
+**회귀 가드 + vitest** (`fiba-rules.test.ts` PURE 헬퍼 단위):
+| 케이스 | given | expect |
+|--------|-------|--------|
+| F1 | OT1 (quarter=5) 70-70 + winner NULL + completed | ❌ FIBA_OT1_TIE_REQUIRES_OT2 |
+| F2 | OT1 70-72 + winner=away + completed | ✅ ok (정상 OT1 종료) |
+| F3 | OT2 (quarter=6) 70-70 + winner NULL + completed | ✅ ok (운영자 OT2 박제 의도 보존 — 별도 안내 / Sprint 2) |
+| F4 | regulation (quarter=4) 70-70 + winner NULL + completed | ❌ FIBA_TIE_WITHOUT_WINNER |
+| F5 | in_progress + 70-70 + winner NULL | ✅ ok (진행 중 동점 정상) |
+| F6 | OT1 70-70 + winner=home + completed (운영자 추첨 등) | ✅ ok (winner 있으면 통과 / 사용자 결재 의존) |
+
+### 🔧 PR-4 (F2) Daily PBP vs MPS cron + admin 알림
+**구조** (4 파일):
+| 파일 | 역할 |
+|------|------|
+| `src/app/api/cron/score-consistency/route.ts` 신규 | CRON_SECRET Bearer 가드 + 125 매치 audit 로직 답습 + 결과 DB 박제 |
+| `vercel.json` 수정 | `{ "path": "/api/cron/score-consistency", "schedule": "0 1 * * *" }` (매일 01:00 KST 새벽) |
+| `prisma/schema.prisma` 수정 | 신규 모델 `score_consistency_audit` (NULL 허용 ADD / 무중단 / `audited_at` + `match_id` + `mismatch_type` + `details` JSON) |
+| `src/app/(admin)/tournament-admin/page.tsx` 수정 | `ScoreConsistencyAlertCard` 위젯 1개 (최근 24h 불일치 매치 수 + "상세 보기" 링크) |
+
+**cron 로직** (audit script 답습):
+- completed 매치만 SELECT (paper + flutter 모두 / game_clock_seconds 무관)
+- MPS 합 vs PBP 합 (made events) vs match.homeScore/awayScore 3-way 비교
+- 불일치 시 `score_consistency_audit` INSERT (mismatch_type = "PBP_MPS_DIFF" | "MPS_HEADER_DIFF" | "QS_ZERO")
+- 응답 = `{ ok: true, audited: N, mismatches: M }`
+
+**회귀 가드 + vitest** (mock prisma + 합성 매치 데이터):
+| 케이스 | given | expect |
+|--------|-------|--------|
+| A1 | 4 source 정합 매치 1건 | INSERT 0건 / response.mismatches=0 |
+| A2 | MPS 9 / PBP 7 / 헤더 7 (159 패턴) | INSERT 1건 type=PBP_MPS_DIFF |
+| A3 | MPS=PBP=헤더 7 / QS=0-0 (E 분류) | INSERT 1건 type=QS_ZERO |
+| A4 | CRON_SECRET 헤더 누락 | 401 응답 / SELECT 0건 (가드 정확) |
+
+### 🔗 기존 코드 연결
+- F3-α = PBP `deleteMany NOT IN` 패턴 (line 567~578) 의 MPS 답습 (단일 source / Flutter+paper 양면)
+- F3-β = `getRecordingMode(match)` 헬퍼 재사용 (`recording-mode.ts:49`) — 신규 분기 0
+- F5 = `recording-mode.ts` 헬퍼 의존 0 (PURE 헬퍼 / mode 도 input 으로 받음 — 양면 호출자에서 추출)
+- F2 = `series-counter-audit/route.ts` 패턴 답습 (Bearer 가드 + DRY-RUN + console.warn → DB INSERT 로 확장)
+
+### 📋 실행 계획
+| 순서 | 작업 | 담당 | 선행 | 비고 |
+|------|------|------|------|------|
+| 1 | PR-1 (F3-α) 박제 + vitest 4 케이스 | developer | 없음 | 1h |
+| 2 | tester + reviewer (PR-1) | 둘 (병렬) | 1단계 | tsc + vitest + 회귀 가드 |
+| 3 | PR-2 (F3-β) 박제 + vitest 4 케이스 | developer | 2단계 | 1h |
+| 4 | tester + reviewer (PR-2) | 둘 (병렬) | 3단계 | |
+| 5 | PR-3 (F5) 헬퍼 + 양면 호출 + vitest 6 케이스 | developer | 4단계 | 2h / **사용자 결재 §F5 OT2 통과 룰 확인 필수** |
+| 6 | tester + reviewer (PR-3) | 둘 (병렬) | 5단계 | Flutter v1 영향 검토 |
+| 7 | PR-4 (F2) cron + schema + admin 위젯 + vitest 4 케이스 | developer | 6단계 | 4h / **prisma db push NULL ADD 사용자 결재 필수** |
+
+⚠️ developer 주의사항:
+- **PR-1**: PBP deleteMany 패턴 (line 567~578) 정확 답습 — `manual-fix-` 보호는 MPS 미해당 (단순 NOT IN 만)
+- **PR-2**: `getRecordingMode(match)` 호출 위치는 line 88 (winner_team_id 검증 직후 / updateMatch 호출 전)
+- **PR-3**: PURE 헬퍼 vitest 가 양면 호출보다 우선 — 헬퍼 단위 6 케이스 통과 후 양면 통합
+- **PR-4**: `prisma db push` NULL 허용 ADD COLUMN 만 (CLAUDE.md DB 정책 §1 — destructive 사용자 결재). `schema diff` 사용자 검토 후 진행
+- **공통**: snake_case 자동 변환 (errors.md 2026-04-17 재발 5회) — 신규 응답 필드 추가 시 raw curl 1회 검증
+
+📊 효과 예측 (audit 125 매치 기반):
+| 분류 | 현재 | F3-α 후 | F3-β 후 | F5 후 | F2 후 |
+|------|------|---------|---------|-------|-------|
+| C (MPS 사일런트) | 3건 | 0건 (신규) | — | — | — |
+| D (헤더 단독) | 2건 | — | 0건 (신규) | — | — |
+| FIBA 위반 | 1건 (124) | — | — | 0건 (신규) | — |
+| 검출 layer | 0 | — | — | — | 일일 검출 ✅ |
+
+📝 분석 산출물 박제 위치 (knowledge):
+- 본 기획설계 → 본 scratchpad
+- F3-α + F3-β 코드 위치 확정 → errors.md [2026-05-21] 이미 박제
+- F1~F6 우선순위 + Sprint 1 상향 → decisions.md [2026-05-21] 이미 박제
+
+---
 
 ## 기획설계 (2026-05-18 — prospectus-ai-wizard)
 
@@ -76,6 +275,8 @@
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
 |------|------|------|
+| 2026-05-21 | PR-1 (F3-α) developer 박제 — MPS deleteMany NOT IN 가드 | ✅ `src/lib/services/match-sync.ts` +15 LOC (line 507~521) + `src/__tests__/lib/match-sync.test.ts` +222 LOC (4 케이스) / tsc 0 / vitest 27/27 PASS (기존 23 + 신규 4) / PBP 패턴 답습 / 회귀 0 (C4 player_stats=undefined 가드) / tester 검증 대기 |
+| 2026-05-21 | 점수 정합성 Sprint 1 통합 기획설계 (F3-α + F3-β + F5 + F2 / 8h) | ✅ planner-architect 분석 완료 / 4개 별도 PR 권장 (통합 PR 거절 — 영역 분산) / vitest 케이스 18건 박제 (F3-α 4 / F3-β 4 / F5 6 / F2 4) / F5 = `fiba-rules.ts` PURE 헬퍼 신규 (양면 호출 / vitest 가능) / F2 = `score_consistency_audit` 신규 모델 NULL ADD + cron `0 1 * * *` + admin 위젯 1개 / 진입 순서 F3-α → F3-β → F5 → F2 (단순→복잡) / 회귀 0 / 운영 영향 0 |
 | 2026-05-21 | 점수 정합성 paper 모드 정밀 조사 + F3 Sprint 1 상향 | ✅ `scripts/_temp/paper-mode-precise-audit.ts` SELECT only / 6 매치 player별+audit log 추적 / `Dev/paper-mode-precise-audit-2026-05-21.md` 박제 / errors.md+decisions.md 각 +1 / 근본 원인 코드 위치 3건 확정 (match-sync.ts:488~559 MPS deleteMany 누락 + matches/[matchId]/route.ts:171~189 PATCH 헤더 단독 박제) / **F3 Sprint 1 상향** (2h 추가 / 총 8h) |
 | 2026-05-21 | 점수 정합성 시스템 분석 — 운영 DB 전수 audit + F1~F6 영구 fix 우선순위 박제 | ✅ audit script 박제 (`scripts/_temp/score-consistency-audit.ts` SELECT only) + 실측 (125 매치 / 56% 불일치 / 5 토너먼트 분포) + `Dev/score-consistency-audit-2026-05-21.md` 박제 + errors.md/decisions.md/lessons.md 각 +1 |
 | 2026-05-21 | 매치 124 (라이징 vs 제이크루 OT2 75:82) 박제 + 점수 4 source 불일치 진단 + 시스템 분석 | ✅ commit `95ddbea` (OT2 점수+stat+standings) + `d5e3805` (paper+nested) + `b0a49ae` (박스스코어 OT1/OT2 분리 UI) + `a4932bb` (knowledge 박제) / 모두 push / OT2 PBP 41건 INSERT / errors.md +1 lessons.md +2 decisions.md +1 / 영구 fix F1~F6 우선순위 박제 |
