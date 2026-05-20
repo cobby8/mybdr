@@ -710,7 +710,42 @@ export default function GameEditPage({
               </div>
             </div>
 
-            {/* 코트 + 지역 — 2열 (모바일 1열) */}
+            {/* [v2.16 Phase 3-3 edit] 코트 picker 카드 (read-only 시각 일관성)
+             * 박제 source: Dev/design/BDR-current/_create_game_explore.html L295~316
+             * /games/new 의 court-picker 카드와 동일 클래스 사용 — 운영 src/app/globals.css 의 .court-picker
+             * edit 페이지는 자체 폼 (kakao postcode 없음) — 카드 = 시각만, 편집은 아래 input 그대로 유지 */}
+            {venueName && (
+              <div className="court-picker" style={{ marginTop: 14 }}>
+                <span
+                  className="material-symbols-outlined ico"
+                  aria-hidden
+                  style={{ fontSize: 18 }}
+                >
+                  location_on
+                </span>
+                <div className="court-picker__info">
+                  <div className="court-picker__name">{venueName}</div>
+                  <div className="court-picker__sub">
+                    {[game?.city, game?.district].filter(Boolean).join(" ")}
+                    {venueAddress &&
+                    venueAddress !== venueName &&
+                    (game?.city || game?.district)
+                      ? ` · ${venueAddress}`
+                      : venueAddress && venueAddress !== venueName
+                        ? venueAddress
+                        : ""}
+                  </div>
+                </div>
+                <span
+                  className="court-picker__chg"
+                  style={{ fontSize: 11, fontWeight: 600 }}
+                >
+                  아래에서 수정
+                </span>
+              </div>
+            )}
+
+            {/* 코트 + 지역 — 2열 (모바일 1열) — 편집 input 그대로 유지 */}
             <div
               style={{
                 display: "grid",
