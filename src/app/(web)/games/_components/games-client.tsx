@@ -45,6 +45,8 @@ export interface GameForClient {
   district: string | null;
   venueName: string | null;
   scheduledAt: string | null;
+  /** [v2.16] 경기 시간 (시간 단위) — Date Tile 종료 시간 = scheduledAt + durationHours */
+  durationHours: number | null;
   currentParticipants: number | null;
   maxParticipants: number | null;
   feePerPerson: string | null;
@@ -253,6 +255,7 @@ export function GamesClient({ games, typeCounts }: GamesClientProps) {
             venueName={g.venueName}
             areaLabel={formatArea(g)}
             scheduledAt={g.scheduledAt}
+            durationHours={g.durationHours}
             skillLevel={g.skillLevel}
             feePerPerson={g.feePerPerson}
             currentParticipants={g.currentParticipants}

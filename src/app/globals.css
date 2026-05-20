@@ -104,6 +104,9 @@ html {
   --accent: var(--bdr-red);
   --accent-soft: #FDE8E9;
 
+  /* [v2.16] Semantic soft variants — GameCard chip 등 */
+  --ok-soft: #E6F4EC;
+
   /* Shadows — soft, modern */
   --sh-xs: 0 1px 2px rgba(15, 23, 42, .04);
   --sh-sm: 0 2px 6px rgba(15, 23, 42, .06);
@@ -153,6 +156,9 @@ html {
 
   --accent: var(--bdr-red);
   --accent-soft: #2A1214;
+
+  /* [v2.16] Semantic soft variants (dark) — GameCard chip 등 */
+  --ok-soft: #0F2A1B;
 
   /* Hard offset shadows for the brutalist vibe */
   --sh-xs: 2px 2px 0 0 rgba(0,0,0,.6);
@@ -3191,5 +3197,397 @@ html.dark {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr);
     gap: 1rem;
+  }
+}
+
+/* ============================================================
+ * 2026-05-20 [v2.16] GameCard — Date Tile + Area Chip + Host Avatar
+ * 박제 source: Dev/design/BDR-current/_games_card_final.html L218-560
+ *
+ * 종별 컬러 (시안 L224-226 — PM 결정 §11):
+ *   .kind-pickup    = #1B3C87 (BDR Navy 더 깊은 톤)
+ *   .kind-guest     = #8B0E15 (deep crimson)
+ *   .kind-scrimmage = #0A5132 (forest green)
+ *
+ * 사용 위치: <GameCard> in @/components/bdr-v2/game-card.tsx
+ * 적용 라우트: /games, /games/my-games, /guest-apps (Phase 2-3 후속)
+ * ============================================================ */
+
+.kind-pickup {
+  --kind: #1B3C87;
+  --kind-deep: #0F234F;
+  --kind-soft: var(--cafe-blue-soft);
+  --kind-hair: var(--cafe-blue-hair);
+}
+.kind-guest {
+  --kind: #8B0E15;
+  --kind-deep: #5C0810;
+  --kind-soft: var(--accent-soft);
+  --kind-hair: #F5C6C8;
+}
+.kind-scrimmage {
+  --kind: #0A5132;
+  --kind-deep: #053823;
+  --kind-soft: var(--ok-soft);
+  --kind-hair: #C7E8D7;
+}
+
+/* Date Tile — 좌측 세로 */
+.dt {
+  background: linear-gradient(155deg, var(--kind) 0%, var(--kind) 45%, var(--kind-deep) 100%);
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  text-align: center;
+  padding: 12px 6px;
+  position: relative;
+  flex-shrink: 0;
+  min-height: 100%;
+  gap: 8px;
+  overflow: hidden;
+}
+.dt::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 100% 0%, rgba(255, 255, 255, 0.18) 0%, transparent 50%);
+  pointer-events: none;
+}
+.dt::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 1px;
+  background: rgba(0, 0, 0, 0.22);
+  pointer-events: none;
+}
+.dt > * {
+  position: relative;
+  z-index: 1;
+}
+.dt__kind {
+  font-family: var(--ff-body);
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  padding: 4px 9px;
+  background: rgba(255, 255, 255, 0.95);
+  color: var(--kind-deep);
+  border-radius: 3px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.18);
+}
+.dt__date {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: baseline;
+  justify-content: center;
+  gap: 2px;
+  line-height: 1;
+  white-space: nowrap;
+}
+.dt__date-md {
+  font-family: var(--ff-body);
+  font-size: 20px;
+  font-weight: 900;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  font-feature-settings: "tnum";
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.18);
+}
+.dt__date-day {
+  font-family: var(--ff-body);
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  line-height: 1;
+  opacity: 0.95;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.16);
+}
+.dt__date.is-weekend .dt__date-day {
+  opacity: 1;
+}
+.dt__time {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  padding-top: 8px;
+  width: 100%;
+  border-top: 1px solid rgba(255, 255, 255, 0.32);
+}
+.dt__t {
+  font-family: var(--ff-body);
+  font-size: 15px;
+  font-weight: 900;
+  line-height: 1.1;
+  letter-spacing: -0.01em;
+  font-feature-settings: "tnum";
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.2);
+}
+.dt__t-end {
+  font-family: var(--ff-body);
+  font-size: 11.5px;
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -0.005em;
+  font-feature-settings: "tnum";
+  opacity: 0.92;
+}
+
+/* GameCard 외곽 */
+.gcard {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  transition: border-color 0.12s, box-shadow 0.12s;
+  height: 100%; /* grid stretch 통일 */
+}
+.gcard:hover {
+  border-color: var(--border-strong);
+  box-shadow: var(--sh-sm);
+}
+.gcard__main {
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr);
+}
+.gcard__content {
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+.gcard__row1 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.gcard__area-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 8px 2px 6px;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--ink);
+  background: var(--bg-head);
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+  line-height: 1.5;
+}
+.gcard__area-chip .ico {
+  font-family: 'Material Symbols Outlined';
+  font-size: 14px;
+  color: var(--kind);
+  font-weight: 500;
+}
+.gcard__chip {
+  font-size: 10.5px;
+  font-weight: 600;
+  padding: 1px 7px;
+  color: var(--ink-mute);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg-elev);
+  line-height: 1.5;
+  margin-left: auto;
+}
+.gcard__chip--free {
+  color: var(--ok);
+  border-color: #C7E8D7;
+  background: var(--ok-soft);
+  font-weight: 700;
+}
+.gcard__chip--closing {
+  color: var(--accent);
+  border-color: #F5C6C8;
+  background: var(--accent-soft);
+  font-weight: 700;
+}
+.gcard__title {
+  margin: 2px 0 0;
+  font-size: 14.5px;
+  font-weight: 700;
+  line-height: 1.4;
+  color: var(--ink);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  word-break: keep-all;
+  min-height: 2.8em; /* 2줄 고정 — grid 높이 통일 */
+}
+.gcard__meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  color: var(--ink-mute);
+  margin-top: auto;
+}
+.gcard__meta .item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+.gcard__meta .ico {
+  font-family: 'Material Symbols Outlined';
+  font-size: 15px;
+  color: var(--ink-dim);
+  font-weight: 400;
+  flex-shrink: 0;
+}
+.gcard__place {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ink-soft);
+  font-weight: 500;
+}
+.gcard__fee {
+  font-family: var(--ff-mono);
+  font-weight: 700;
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+.gcard__fee.is-free {
+  color: var(--ok);
+}
+
+/* Footer */
+.gcard__foot {
+  padding: 10px 14px 12px;
+  border-top: 1px dashed var(--border);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.gcard__progress {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.gcard__progress-bar {
+  height: 4px;
+  background: var(--bg-alt);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.gcard__progress-fill {
+  height: 100%;
+  background: var(--kind);
+  transition: width 0.25s;
+}
+.gcard__progress-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.gcard__progress-label {
+  font-size: 11px;
+  color: var(--ink-dim);
+}
+.gcard__progress-label.is-warn {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+/* Host (좌하단 아바타 + 닉네임) */
+.host {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex: 0 1 auto;
+}
+.host__av {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--ff-display);
+  font-weight: 800;
+  font-size: 12px;
+  letter-spacing: -0.01em;
+  color: #fff;
+  background: var(--kind-deep);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  box-shadow: var(--sh-xs);
+}
+.host__name {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-soft);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: 1.2;
+}
+.host__name small {
+  display: block;
+  font-size: 10.5px;
+  font-weight: 500;
+  color: var(--ink-dim);
+}
+
+/* 신청 버튼 + count-pill */
+.btn-apply {
+  flex: 0 0 auto;
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 700;
+  background: var(--cafe-blue);
+  color: #fff;
+  border: 1px solid var(--cafe-blue-deep);
+  border-radius: 4px;
+  cursor: pointer;
+  min-height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.btn-apply:hover {
+  background: var(--cafe-blue-deep);
+}
+.count-pill {
+  font-family: var(--ff-mono);
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+.count-pill.is-closing {
+  color: var(--accent);
+}
+
+/* 모바일 분기 — Date Tile 살짝 축소 */
+@media (max-width: 720px) {
+  .gcard__main {
+    grid-template-columns: 78px minmax(0, 1fr);
+  }
+  .dt__date-md {
+    font-size: 18px;
+  }
+  .dt__t {
+    font-size: 14px;
   }
 }
