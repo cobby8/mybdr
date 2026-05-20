@@ -4404,9 +4404,18 @@ html.dark {
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--accent);
+  background: transparent;
+  border: 0;
+  padding: 0;
+  cursor: default; /* 데스크톱은 토글 없음 */
+  font-family: inherit;
 }
 .gd-create-preview__head .material-symbols-outlined {
   font-size: 16px;
+}
+.gd-create-preview__toggle {
+  display: none; /* 데스크톱 — 토글 hidden */
+  margin-left: auto;
 }
 .gd-create-preview__card {
   pointer-events: none; /* 프리뷰 click 비활성 */
@@ -4419,7 +4428,7 @@ html.dark {
   font-family: var(--ff-mono);
 }
 
-/* 모바일/태블릿 — 1-col stack (3-2c PR 에서 collapsible 도입 예정) */
+/* 모바일/태블릿 — 1-col stack + collapsible (Phase 3-2c) */
 @media (max-width: 1024px) {
   .gd-create-grid {
     grid-template-columns: minmax(0, 1fr);
@@ -4431,6 +4440,79 @@ html.dark {
     top: auto;
     order: -1; /* 모바일에서 프리뷰를 폼 상단으로 */
     margin-bottom: 4px;
+  }
+  /* 모바일에서 헤더 = 토글 버튼 (전체 폭 + 화살표) */
+  .gd-create-preview__head {
+    display: flex;
+    width: 100%;
+    cursor: pointer;
+    padding: 8px 12px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    transition: background 0.12s;
+  }
+  .gd-create-preview__head:hover {
+    background: var(--bg-alt);
+  }
+  .gd-create-preview__toggle {
+    display: inline-flex;
+    color: var(--ink-mute);
+    font-size: 20px;
+  }
+  /* collapsed 상태 — 카드 + hint 숨김 */
+  .gd-create-preview[data-collapsed="true"] .gd-create-preview__card,
+  .gd-create-preview[data-collapsed="true"] .gd-create-preview__hint {
+    display: none;
+  }
+  /* 폼 영역 하단 padding — 모바일 fixed CTA 가 콘텐츠 가리지 않게 */
+  .gd-create-form {
+    padding-bottom: 80px;
+  }
+}
+
+/* ============================================================
+ * 2026-05-20 [v2.16 Phase 3-2c] 모바일 하단 fixed CTA
+ * 박제 source: 작업지시서 §3-2 "모바일 하단 fixed CTA"
+ * ============================================================ */
+
+.gd-create-mobile-cta {
+  display: none;
+}
+@media (max-width: 1024px) {
+  .gd-create-mobile-cta {
+    display: flex;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 40;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px calc(10px + env(safe-area-inset-bottom, 0px));
+    background: var(--bg-card);
+    border-top: 1px solid var(--border-strong);
+    box-shadow: 0 -4px 16px rgba(15, 23, 42, 0.08);
+  }
+  .gd-create-mobile-cta__btn {
+    flex: 1;
+    padding: 0 22px;
+    min-height: 44px; /* iOS 터치 타겟 */
+    font-size: 14px;
+    font-weight: 800;
+    background: var(--cafe-blue);
+    color: #fff;
+    border: 1px solid var(--cafe-blue-deep);
+    border-radius: 4px;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .gd-create-mobile-cta__btn:hover {
+    background: var(--cafe-blue-deep);
+  }
+  .gd-create-mobile-cta__btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
   }
 }
 
