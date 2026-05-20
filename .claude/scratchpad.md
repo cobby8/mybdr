@@ -2,8 +2,8 @@
 
 ## 현재 작업
 - **요청**: 점수 정합성 영구 fix Sprint 1 — F3-α + F3-β + F5 + F2 통합 기획설계 (2026-05-21)
-- **상태**: ✅ PR-1 (F3-α) + ✅ PR-2 (F3-β) + ✅ PR-3 (F5) developer 박제 완료 — tsc 0 / 회귀 0
-- **현재 담당**: tester (PR-1 + PR-2 + PR-3 검증 진입 대기) → 이후 PR-4 (F2) developer
+- **상태**: ✅ PR-1 (F3-α) + ✅ PR-2 (F3-β) + ✅ PR-3 (F5) + ✅ PR-4 (F2) developer 박제 완료 — vitest 4/4 PASS / 회귀 65/65 PASS
+- **현재 담당**: tester (PR-4 검증 진입 대기) + PM 결재 (`prisma db push` NULL ADD 실행 필요)
 - **세션 산출물 (cumulative)**:
   - audit 2건: `Dev/score-consistency-audit-2026-05-21.md` (125 매치) + `Dev/paper-mode-precise-audit-2026-05-21.md` (paper 6 매치 상세)
   - script 2건: `scripts/_temp/score-consistency-audit.ts` + `scripts/_temp/paper-mode-precise-audit.ts` (모두 SELECT only / 사후 정리 예정)
@@ -16,7 +16,68 @@
   | B (PBP 일부) | 위 두 결함 결합 패턴 (matches 208) | score-sheet 부분 박제 + 어드민 PATCH 헤더 단독 |
 - **Sprint 1 재세팅 (6h → 8h)**: F5 (2h) + F2 (4h) + **F3 (2h) 상향**
 
-## 구현 기록 (PR-1 F3-α MPS deleteMany NOT IN 가드 / developer 2026-05-21)
+## 구현 기록 (PR-4 F2 점수 정합성 daily cron + admin 위젯 / developer 2026-05-21)
+
+📝 구현한 기능: completed 매치 4 source (header / QS / MPS / PBP) 불일치 daily cron 검출 + score_consistency_audit 테이블 박제 + admin 대시보드 24h 알림 위젯 — 운영 DB 56% (70/125) 불일치 잔존 (errors.md [2026-05-21]) 의 검출 layer 0 결함 해소
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| `prisma/schema.prisma` | +20 LOC — `score_consistency_audit` 모델 (id BigInt + matchId BigInt + auditedAt Timestamptz + mismatchType VarChar + details Json + index 2건) / NULL 허용 ADD COLUMN 만 / 무중단 / tournament_match_audits 직전 위치 | 수정 |
+| `src/app/api/cron/score-consistency/route.ts` | 316 LOC 신규 — CRON_SECRET Bearer 가드 + completed 매치 전수 SELECT + 매치별 mps/pbp $queryRaw 합산 + `classifyMismatch()` 분류 헬퍼 (6 분류: HEADER_ZERO / MULTI_DIFF / MPS_HEADER_DIFF / PBP_HEADER_DIFF / QS_HEADER_DIFF / QS_ZERO) + `score_consistency_audit.createMany` INSERT (불일치 매치만) + 응답 `{ok, audited, mismatches, duration_ms, by_type[]}` | **신규** |
+| `vercel.json` | +4 LOC — crons 배열에 `{ path: "/api/cron/score-consistency", schedule: "0 16 * * *" }` 추가 (UTC 16:00 = KST 01:00 매일) | 수정 |
+| `src/components/admin/score-consistency-alert-card.tsx` | 154 LOC 신규 — server component / `prisma.score_consistency_audit.groupBy({by: ["mismatchType"], where: {auditedAt >= since}})` / 24h 박제 0건 = 위젯 미렌더 / 분류별 chip + tone 색상 + 상세 링크 / Material Symbols Outlined + `var(--color-*)` | **신규** |
+| `src/app/(admin)/tournament-admin/page.tsx` | +5 LOC — `ScoreConsistencyAlertCard` import + 헤더 직후 (관리 단체 카드 위) 렌더 / 기존 페이지 비즈 0 변경 | 수정 |
+| `src/__tests__/api/cron-score-consistency.test.ts` | 248 LOC 신규 — 4 케이스 (A1~A4) `setupMocks()` 헬퍼로 prisma.tournamentMatch.findMany + $queryRaw (mps + pbp 큐) + score_consistency_audit.createMany 모킹 | **신규** |
+
+**검증 결과**:
+- `npx vitest run src/__tests__/api/cron-score-consistency.test.ts` → **4/4 PASS**
+- 회귀 가드 `npx vitest run fiba-rules + recording-mode + match-sync + cron-series-counter-audit` → **65/65 PASS** (PR-1/2/3 회귀 0)
+- `git diff --stat HEAD` (PR-4 관련) — modified 3 + 신규 3 = **6 파일**:
+  ```
+  prisma/schema.prisma                                       | 20 ++
+  src/app/(admin)/tournament-admin/page.tsx                  |  5 +
+  vercel.json                                                |  4 +
+  src/__tests__/api/cron-score-consistency.test.ts (신규)   | 248 LOC
+  src/app/api/cron/score-consistency/route.ts (신규)         | 316 LOC
+  src/components/admin/score-consistency-alert-card.tsx (신규)| 154 LOC
+  ```
+- `npx tsc --noEmit` → **4 errors** (모두 `score_consistency_audit` 미인식 / **prisma generate 미실행** 으로 인한 일시적 에러 / PM 결재 후 `prisma db push` + 자동 generate 시 0 errors 회복 보장)
+
+**vitest 4 케이스 결과**:
+| 케이스 | given | expect | 결과 |
+|--------|-------|--------|------|
+| A1 | 정합 매치 1건 (헤더=QS=MPS=PBP) | audit INSERT 0 / mismatches=0 | ✅ PASS |
+| A2 | C 분류 (헤더 7/9 + MPS 9/9 +2 사일런트) | createMany 1건 / type=MPS_HEADER_DIFF / details.mpsHome=9 | ✅ PASS |
+| A3 | E 분류 (헤더 21/15 + QS 0/0) | createMany 1건 / type=QS_ZERO / details.qsHome=0 | ✅ PASS |
+| A4 | Bearer wrong-secret | 401 응답 / SELECT + INSERT 0 | ✅ PASS |
+
+**snake_case 자동 변환 회피 (errors.md 2026-04-17 재발 5회 대응)**:
+- `apiSuccess()` 가 응답 키를 `MPS_HEADER_DIFF` → `_m_p_s__h_e_a_d_e_r__d_i_f_f` 로 변환하는 함정 발견
+- 해결: 응답 `by_type` 을 `Record<string, number>` 가 아닌 **배열 `[{type, count}]`** 로 박제 — type 은 value 위치 (문자열) → 변환 0
+
+💡 tester 참고:
+- 테스트 방법:
+  1. **vitest 단위**: `npx vitest run src/__tests__/api/cron-score-consistency.test.ts` → 4/4 PASS 확인
+  2. **로컬 cron 호출** (db push 후 / .env CRON_SECRET 박제 시): `curl -H "Authorization: Bearer $CRON_SECRET" http://localhost:3001/api/cron/score-consistency` → 응답 `{ok: true, audited: N, mismatches: M, by_type: [...]}` 박제 + DB `score_consistency_audit` 행 INSERT 확인
+  3. **admin 대시보드 위젯**: `/tournament-admin` 접근 → 24h 내 박제 audit 있으면 카드 렌더 / 없으면 미렌더 (운영자 노이즈 ↓)
+  4. **Bearer 가드**: `curl -H "Authorization: Bearer wrong"` → 401 응답 확인
+- 정상 동작:
+  - 응답 body `by_type` = `[{type: "MPS_HEADER_DIFF", count: 1}, ...]` 배열 형식
+  - 정합 매치만 있으면 `mismatches: 0` / DB INSERT 0
+  - 운영 DB 첫 cron 실행 시 70+ 박제 예상 (audit script 2026-05-21 결과)
+- 주의할 입력:
+  - **첫 cron 실행 시점** = `prisma db push` 직후 + Vercel deployment 다음 날 새벽 01:00 KST
+  - **로컬 dev 테스트**: 운영 DB 영향 0 (SELECT + INSERT only / 매치 변경 0). 단 score_consistency_audit 테이블에 박제됨 → 사후 `DELETE FROM score_consistency_audit WHERE audited_at >= 'YYYY-MM-DD'` 로 정리 가능
+
+⚠️ reviewer 참고:
+- 특별히 봐줬으면 하는 부분:
+  1. **`classifyMismatch()` PURE 함수** — audit script `classify` 답습 + DB INSERT 용 type label 표준화 (6 분류). 입력 = MatchScore / 출력 = MismatchType | null (정합)
+  2. **`prisma.$queryRaw` 매치당 2회 호출** (mps + pbp) — 매치 100건 = 200회 query. completed 매치 125건 가정 시 250회 / Vercel cron 60s timeout 충분. 운영 DB 부하 = SELECT only / GROUP BY 인덱스 활용
+  3. **HEADER_ZERO + QS_ZERO 분류 우선순위**: 헤더 0/0 + 다른 source 박제 = HEADER_ZERO 1순위 / 헤더 박제 + QS 0/0 = QS_ZERO (또는 MULTI_DIFF) 2순위. 분류 순서 = audit script 의 X → D → C/B/E 순 답습
+  4. **`prisma db push` 운영 적용 의무**: PM 이 schema diff (`npx prisma db push --preview-feature` dry-run) 사용자 결재 후 진행. NULL 허용 ADD 만 (CREATE TABLE + INDEX 2 / DROP/ALTER 0) → 무중단 운영 안전
+  5. **위젯 0건 미렌더 의도**: 운영자 노이즈 최소화 / 운영 DB cron 첫 실행 후에만 표시. 분류별 chip = tone (err/warn/info) 색상 매핑 / 향후 Sprint 3 상세 페이지 별도 박제
+
+
 
 📝 구현한 기능: MPS upsert 전 `deleteMany NOT IN incoming ttp` 가드 — paper 매치 score-sheet submit 반복 호출 시 stale stat 정정 (강남구 매치 159/164/186 +2점 사일런트 누적 재발 차단)
 
@@ -388,6 +449,7 @@ export function assertCompletedMatchFiba(input: FibaCheckInput): FibaCheckResult
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
 |------|------|------|
+| 2026-05-21 | PR-4 (F2) developer 박제 — 점수 정합성 daily cron + admin 위젯 + score_consistency_audit 모델 | ✅ 6 파일 (prisma schema +20 / page.tsx +5 / vercel.json +4 / route.ts 316 신규 / 위젯 154 신규 / vitest 248 신규) / `classifyMismatch()` PURE 6분류 / 응답 by_type 배열 형식 (snake_case 변환 회피) / vitest 4/4 PASS (A1~A4) / 회귀 65/65 PASS (fiba+recording-mode+match-sync+series-counter-audit) / tsc 4 errors (prisma generate 미실행 / PM 결재 후 db push 시 자동 해결) / **PM 결재 의무: `prisma db push` NULL ADD 실행 + Vercel CRON_SECRET 환경변수 운영 확인** |
 | 2026-05-21 | PR-3 (F5) developer 박제 — FIBA 룰 가드 (OT1 동점 + winner NULL completed 차단) | ✅ `src/lib/tournaments/fiba-rules.ts` 신규 121 LOC (PURE 헬퍼 `assertCompletedMatchFiba` / 6 분기) + `src/__tests__/lib/fiba-rules.test.ts` 신규 202 LOC (13 케이스 = F1~F6 6 + 보너스 7) + 양면 호출 가드 3건 (score-sheet submit +30 / v1 sync +35 / v1 batch-sync +41 LOC) / tsc 0 / vitest 60/60 PASS (fiba 13 + recording-mode 20 회귀 + match-sync 27 회귀) / Flutter server-side / 클라이언트 코드 0 변경 / 매치 124 OT2 사고 재발 방지 / tester 검증 대기 / **원영 사후 공지 의무** |
 | 2026-05-21 | PR-2 (F3-β) developer 박제 — 어드민 PATCH paper 매치 score 차단 가드 | ✅ `src/app/api/web/tournaments/[id]/matches/[matchId]/route.ts` +20 LOC (import 3줄 + 가드 17줄) / `getRecordingMode({ settings: match.settings })` + paper && (homeScore\|awayScore) 변경 시 403 `RECORDING_MODE_PAPER_SCORE_BLOCKED` / tsc 0 / vitest 20/20 PASS (recording-mode 회귀 0) / Flutter 매치 + paper 매치 메타 수정 보존 / tester 검증 대기 |
 | 2026-05-21 | PR-1 (F3-α) developer 박제 — MPS deleteMany NOT IN 가드 | ✅ `src/lib/services/match-sync.ts` +15 LOC (line 507~521) + `src/__tests__/lib/match-sync.test.ts` +222 LOC (4 케이스) / tsc 0 / vitest 27/27 PASS (기존 23 + 신규 4) / PBP 패턴 답습 / 회귀 0 (C4 player_stats=undefined 가드) / tester 검증 대기 |

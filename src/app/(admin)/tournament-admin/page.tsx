@@ -5,6 +5,8 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 // Admin-7-A 박제 (BDR v2.14 AdminTournamentAdminHome.jsx) — eyebrow + breadcrumbs + actions 헤더
 import { AdminPageHeader } from "@/components/admin/admin-page-header";
+// 2026-05-21 PR-4 F2 — 점수 정합성 daily cron 결과 알림 위젯 (24h 불일치 0건 시 미렌더)
+import { ScoreConsistencyAlertCard } from "@/components/admin/score-consistency-alert-card";
 
 /* ============================================================
  * 대회 운영자 도구 — /tournament-admin (대시보드)
@@ -167,6 +169,9 @@ export default async function TournamentAdminDashboard({
           </>
         }
       />
+
+      {/* 2026-05-21 PR-4 F2 — 점수 정합성 daily cron 결과 알림 위젯 (24h 박제 0건 시 자동 미렌더) */}
+      <ScoreConsistencyAlertCard />
 
       {/* 2026-05-12 — 관리 단체 카드 (내 organization_members) — Phase 4-B 후속 단체-대회 연결 시각화 */}
       {myOrganizations.length > 0 && (
