@@ -1,9 +1,9 @@
 # 작업 스크래치패드
 
 ## 현재 작업
-- **요청**: 점수 정합성 영구 fix Sprint 2 — F1 quarterScores 자동 갱신 service layer 기획설계 (2026-05-23)
-- **상태**: Sprint 1 (F3-α + F3-β + F5 + F2) ✅ main 머지 완료 (commit `b37716e`). Sprint 2 진입 — planner-architect 분석 완료
-- **현재 담당**: planner-architect → developer (PR-5 F1 박제 진입 대기)
+- **요청**: 점수 정합성 영구 fix Sprint 2 — PR-6 backfill (기존 58건 quarterScores=0/0 매치 정정) DRY-RUN 박제 (2026-05-23)
+- **상태**: Sprint 1 ✅ main 머지 / PR-5 ✅ developer 박제 완료 / PR-6 DRY-RUN ✅ 박제 완료 → **PM 사용자 결재 대기** (EXECUTE 별도 실행)
+- **현재 담당**: developer → PM (DRY-RUN 결과 결재 대기)
 - **세션 산출물 (cumulative)**:
   - audit 2건: `Dev/score-consistency-audit-2026-05-21.md` (125 매치) + `Dev/paper-mode-precise-audit-2026-05-21.md` (paper 6 매치 상세)
   - script 2건: `scripts/_temp/score-consistency-audit.ts` + `scripts/_temp/paper-mode-precise-audit.ts` (모두 SELECT only / 사후 정리 예정)
@@ -104,6 +104,75 @@
   6. **service tournamentMatch.update 의 data.quarterScores 우선순위 변경** = `effectiveQuarterScores` 사용. autoQuarterScores 가 박제될 때 (Flutter + 신규 completed 전환 + PBP 1+) 만 input 무시. 모든 다른 케이스 (paper / 라이브 / 재진입) = input.quarter_scores fallback (회귀 0).
   7. **finalizeMatchCompletion mock 반환 shape** = 신규 4 케이스에서 `{status:"ok", warnings:[]}` 박제. 기존 F3-α 4 케이스 (line 548) 는 `{}` 반환 그대로 → 본 PR 영향 0 (in_progress 매치라 finalize 미호출 케이스).
   8. **운영 DB 영향 0** = schema 변경 0 / Prisma generate 영향 0 / 즉시 운영 진입 가능 (사용자 결재 후 main 머지). 기존 58건 (D 10 + E 48) 잔존 = 별도 PR-6 backfill (DRY-RUN 사용자 결재).
+
+
+
+## 구현 기록 (PR-6 backfill DRY-RUN / developer 2026-05-23)
+
+📝 구현한 기능: 기존 quarterScores=0/0 매치 정정용 1회성 backfill 스크립트 박제 + DRY-RUN 1회 운영 DB 실행 → 결과 보고서 박제. **PR-5 (F1 본체)** 의 PURE 헬퍼 `computeQuarterScoresFromPbp` 단일 source 답습 (backfill + service + vitest 동일 진입). EXECUTE 미실행 (PM 사용자 결재 대기 / 운영 DB 영향 0).
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| `scripts/_temp/backfill-quarter-scores.ts` | 335 LOC 신규 — DRY-RUN/EXECUTE 분기 + 7 안전 가드 (paper skip / header=0 skip / QS already OK skip / homeTeamId NULL skip / status=completed / PBP_MATCHES_HEADER 만 EXECUTE / UPDATE 직전 1건 사전 검증) + 정정 신뢰도 분류 3종 (PBP_MATCHES_HEADER ✅ / PBP_PARTIAL ⚠️ / PBP_MISMATCH ❌) + markdown 테이블 출력 + EXECUTE 대상 변경안 JSON dump | **신규** |
+| `Dev/backfill-quarter-scores-dryrun-2026-05-23.md` | 92 LOC 신규 — DRY-RUN 실행 결과 보고서 (운영 DB SELECT only) | **신규** |
+
+**검증 결과**:
+- `npx tsc --noEmit` → **EXIT=0 (0 errors)** (script 자체 컴파일 통과)
+- `npx tsx scripts/_temp/backfill-quarter-scores.ts > Dev/backfill-quarter-scores-dryrun-2026-05-23.md` → **EXIT=0** (운영 DB SELECT only / UPDATE 0)
+- `git diff --stat HEAD` 신규 (untracked):
+  ```
+  scripts/_temp/backfill-quarter-scores.ts (신규)                   | 335 LOC
+  Dev/backfill-quarter-scores-dryrun-2026-05-23.md (신규)            |  92 LOC
+  = 2 파일 (모두 신규)
+  ```
+
+**DRY-RUN 결과 요약** (운영 DB 실측 2026-05-23):
+| 분류 | 건수 | 비고 |
+|------|------|------|
+| 후보 총 | **29건** | 예상 58건보다 적음 — paper 매치 87건 skip 정확 동작 |
+| ✅ PBP_MATCHES_HEADER (안전 정정) | **4건** | matchId 101, 110, 111, 269 — PBP 합 === 헤더 일치 (신뢰도 100%) |
+| ⚠️ PBP_PARTIAL (검토 필요) | 25건 | PBP 합 ≠ 헤더 (STL 보정 또는 시계 누락 의심 / Sprint 3 F4 영역) |
+| ❌ PBP_MISMATCH | 0건 | PBP 0건/합 0 매치 없음 |
+
+**skip 통계 (필터 제외)**:
+- paper 매치 (DB.QS SSOT 보존): **87건** ← 가드 정확 동작 (강남구 매치 등)
+- QS already OK (이미 박제): 2건
+- 헤더 0/0 (X 분류 / stale 헤더): 14건
+- 팀 미배정: 0건
+
+**EXECUTE 대상 4 매치 변경안 (PBP_MATCHES_HEADER 만)**:
+| matchId | 토너먼트 | 헤더 | 제안 QS |
+|---------|---------|------|---------|
+| 101 | 열혈농구단 SEASON2 전국 최강전 | 58/53 | home={q1:16,q2:22,q3:4,q4:16} / away={q1:10,q2:15,q3:12,q4:16} |
+| 110 | 열혈농구단 SEASON2 전국 최강전 | 63/33 | home={q1:17,q2:19,q3:11,q4:16} / away={q1:6,q2:15,q3:4,q4:8} |
+| 111 | 열혈농구단 SEASON2 전국 최강전 | 29/45 | home={q1:14,q2:6,q3:3,q4:6} / away={q1:4,q2:11,q3:18,q4:12} |
+| 269 | 2026년 6차 BDR 스타터스리그 | 18/28 | home={q1:2,q2:3,q3:13,q4:0} / away={q1:6,q2:8,q3:9,q4:5} |
+
+**기획설계 (planner) 와 실측 차이**:
+1. **예상 58건 vs 실측 29건**: paper 매치 87건이 (PR-5 가드 패턴 답습) 정확 skip — 강남구협회장배 paper 매치 다수가 audit 분석 시점엔 D/E 분류로 잡혔지만, paper 매치는 DB.QS=SSOT 보존 정책 → 본 backfill 대상 아님 (회귀 차단 가드 정확 동작)
+2. **PBP_MATCHES_HEADER 4건만 안전 정정 가능**: 25 PBP_PARTIAL 매치는 STL 보정 / 시계 누락 등 PBP source 자체 결손 → Sprint 3 F4 영역 (매치별 결재 + 외부 source 검토 의무)
+
+💡 tester 참고:
+- 테스트 방법:
+  1. **컴파일 검증**: `npx tsc --noEmit` → EXIT=0 확인
+  2. **DRY-RUN 재실행** (운영 영향 0): `npx tsx scripts/_temp/backfill-quarter-scores.ts` → 동일 결과 (4건 PBP_MATCHES_HEADER)
+  3. **신뢰도 분류 검증**: 보고서 테이블에서 PBP 합 === 헤더 일치 케이스만 ✅ 분류 확인 (matchId 101/110/111/269)
+- 정상 동작:
+  - DRY-RUN 모드 = SELECT only / UPDATE 0 / 운영 DB 영향 0
+  - paper 매치 87건 자동 skip (DB.QS SSOT 보존 보장)
+  - EXECUTE 대상 4건만 / PBP_MATCHES_HEADER 신뢰도 100%
+- 주의할 입력:
+  - **`--execute` flag 절대 입력 X** (본 PR-6 박제 단계 = DRY-RUN only / PM 사용자 결재 대기)
+  - **운영 DB UPDATE 권한**: EXECUTE 시 matchId 4건 quarterScores 컬럼만 변경 (헤더/standings/PBP 영향 0)
+
+⚠️ reviewer 참고:
+- 특별히 봐줬으면 하는 부분:
+  1. **DRY-RUN 기본값** = `process.argv.includes("--execute")` false 시 EXECUTE 블록 미진입. CLI argv 1회 체크 단순 / 회피 불가
+  2. **PURE 헬퍼 재사용** = `computeQuarterScoresFromPbp` (PR-5 신규) 단일 source 답습 — service / vitest / backfill 동일 진입 = 분기 0 / 정확성 보장
+  3. **paper 매치 skip 가드** = `getRecordingMode({ settings: m.settings })` 호출 위치 (line 110~113) — PR-5 패턴 동일 / DB.QS SSOT 보존 룰 일관
+  4. **PBP_MATCHES_HEADER 만 EXECUTE 안전** = `newSum.home === headerHome && newSum.away === headerAway` 정확 일치 — PARTIAL 매치는 STL 보정 / 시계 누락 등 외부 검토 의무 (Sprint 3 F4)
+  5. **UPDATE 직전 사전 검증** (line 282~298) = race 방지 — status / QS 재확인 후 UPDATE
+  6. **운영 영향 0** = 본 박제 단계는 DRY-RUN only / UPDATE 0 / SELECT 만 (CLAUDE.md §DB 정책 §1.1 준수)
 
 
 
@@ -745,6 +814,7 @@ export function assertCompletedMatchFiba(input: FibaCheckInput): FibaCheckResult
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
 |------|------|------|
+| 2026-05-23 | PR-6 (backfill) DRY-RUN developer 박제 — quarterScores=0/0 매치 정정 스크립트 + 운영 DB DRY-RUN 실행 | ✅ 2 신규 파일 (`scripts/_temp/backfill-quarter-scores.ts` 335 LOC + `Dev/backfill-quarter-scores-dryrun-2026-05-23.md` 92 LOC) / tsc 0 / DRY-RUN exit 0 / 운영 DB SELECT only / UPDATE 0 / 후보 29건 (예상 58 → paper 87 skip 가드 정확) / **PBP_MATCHES_HEADER 4건 (matchId 101/110/111/269) 안전 정정 대상** / PBP_PARTIAL 25건 (Sprint 3 F4 영역) / PR-5 PURE 헬퍼 `computeQuarterScoresFromPbp` 단일 source 답습 / **EXECUTE 절대 금지 — PM 사용자 결재 대기** |
 | 2026-05-23 | PR-5 (F1 본체) developer 박제 — quarterScores 자동 갱신 service layer | ✅ 4 파일 (신규 `quarter-scores-sync.ts` 148 LOC PURE 헬퍼 2종 + 신규 vitest 244 LOC 10 케이스 + `match-sync.ts` +52 LOC service 통합 + `match-sync.test.ts` +321 LOC 통합 4 케이스) / tsc 0 / vitest 78/78 PASS (quarter-scores-sync 10 + match-sync 31 + recording-mode 20 + fiba-rules 13 + cron-score-consistency 4) / 전체 1093 중 1 fail = `running-score-helpers.test.ts` 본 PR 무관 (main 동등 재현) / paper skip 보장 (LIVE API L933 패턴) + status 전환 가드 (재진입 skip) + PBP 0 skip + homeTeamId NULL skip / 회귀 0 / **PM 결재 + main 머지 시 신규 매치 D/E 분류 차단 즉시 운영 진입** / tester 검증 대기 |
 | 2026-05-23 | 점수 정합성 Sprint 2 F1 기획설계 (quarterScores 자동 갱신 service layer / 8h) | ✅ planner-architect 분석 완료 / 2 PR 권장 (PR-5 본체 6h + PR-6 backfill 2h) / 옵션 채택 A (트리거=service syncSingleMatch line 444 / 계산=PBP 합 단순 / paper skip = LIVE API L933 패턴) / PURE 헬퍼 `quarter-scores-sync.ts` 신규 (computeQuarterScoresFromPbp + shouldAutoSyncQuarterScores) / vitest 9 케이스 (헬퍼 5 + service 4) / backfill 58건 별도 PR (DRY-RUN 사용자 결재) / Sprint 1 F5 와 호출 순서 자연스러움 / 회귀 0 (paper skip 보장 / status 전환 가드) |
 | 2026-05-21 | PR-4 (F2) developer 박제 — 점수 정합성 daily cron + admin 위젯 + score_consistency_audit 모델 | ✅ 6 파일 (prisma schema +20 / page.tsx +5 / vercel.json +4 / route.ts 316 신규 / 위젯 154 신규 / vitest 248 신규) / `classifyMismatch()` PURE 6분류 / 응답 by_type 배열 형식 (snake_case 변환 회피) / vitest 4/4 PASS (A1~A4) / 회귀 65/65 PASS (fiba+recording-mode+match-sync+series-counter-audit) / tsc 4 errors (prisma generate 미실행 / PM 결재 후 db push 시 자동 해결) / **PM 결재 의무: `prisma db push` NULL ADD 실행 + Vercel CRON_SECRET 환경변수 운영 확인** |
@@ -784,20 +854,18 @@ export function assertCompletedMatchFiba(input: FibaCheckInput): FibaCheckResult
 - Flutter 앱 연동 = 별도 박제 예정 (사용자 명시)
 - scratchpad 압축 룰: 100줄 이내 / 작업 로그 10건 / 가장 오래된 항목 자동 삭제
 
-## 🔜 다음 단계 — Sprint 2 F1 진입 (PR-5 본체 6h + PR-6 backfill 2h)
-- **완료** (Sprint 1):
-  - ✅ F3-α (MPS deleteMany NOT IN) + F3-β (admin PATCH paper 차단) + F5 (FIBA 룰 가드) + F2 (daily cron + audit 모델) main 머지 (commit `b37716e`)
-- **Sprint 2 결재 권장 (8h / 운영 영향 0 / 회귀 0)**:
-  - **PR-5 (F1 본체 / 6h)**: PURE 헬퍼 `quarter-scores-sync.ts` 신규 + service `syncSingleMatch` 통합 + vitest 9 케이스 (헬퍼 5 + service 4) + tsc 0
-    - 트리거 = `match-sync.ts` line 444 직전 (winnerTeamId 결정 후 / tournamentMatch.update 직전)
-    - paper 매치 skip (LIVE API L933 패턴 답습 / DB.QS = SSOT 보존)
-    - status='completed' 전환 시점만 자동 갱신 (in_progress 매치 영향 0)
-    - 회귀 가드 73 케이스 (match-sync 27 + recording-mode 20 + fiba-rules 13 + cron-score-consistency 4 + 신규 9)
-  - **PR-6 (backfill / 2h)**: `scripts/_temp/backfill-quarter-scores.ts` DRY-RUN → 사용자 결재 → UPDATE batch (58건)
-    - 대상 = D 10 + E 48 (QS=0/0 부분) = 58 매치
-    - paper 분기 가드 의무 (paper SSOT 보존 / 회귀 차단)
-    - UPDATE only / 매치 헤더/standings 변경 0
+## 🔜 다음 단계 — Sprint 2 PR-6 EXECUTE 결재 대기
+- **완료** (Sprint 1 + Sprint 2):
+  - ✅ Sprint 1: F3-α + F3-β + F5 + F2 main 머지 (commit `b37716e`)
+  - ✅ Sprint 2 PR-5 (F1 본체) developer 박제 / tsc 0 / vitest 78/78 / **tester 검증 대기**
+  - ✅ Sprint 2 PR-6 (backfill) DRY-RUN 박제 / 운영 DB SELECT only / **PM 사용자 결재 대기**
+- **PR-6 EXECUTE 결재 항목** (사용자 명시 결재 의무 / CLAUDE.md §DB 정책 §1.1):
+  - 대상 = **PBP_MATCHES_HEADER 4건** (matchId 101/110/111/269) — 신뢰도 100%
+  - 변경 컬럼 = `tournament_matches.quarterScores` JSON 만 (헤더/standings/PBP 영향 0)
+  - 실행 명령 = `npx tsx scripts/_temp/backfill-quarter-scores.ts --execute`
+  - 보고서 = `Dev/backfill-quarter-scores-dryrun-2026-05-23.md` (변경안 4건 JSON dump 박제)
+  - PARTIAL 25건 = Sprint 3 F4 영역 (STL 보정 / 외부 source 검토 의무)
 - **Sprint 3 결재 (≤17h+ / 사용자 결재 다수)**:
-  - **F4 (16h+)** SSOT migration 일괄 정정 (E 분류 48건 매치별 결재 + paper 매치는 종이 기록지 외부 source 결재)
+  - **F4 (16h+)** SSOT migration 일괄 정정 (PARTIAL 25건 매치별 결재)
   - **F6 (1h)** stale 헤더 백필 (TEST 토너먼트 7건)
-- **사후 정리**: PR-6 backfill 종료 후 `scripts/_temp/*.ts` 모두 삭제
+- **사후 정리**: PR-6 EXECUTE 후 `scripts/_temp/*.ts` 모두 삭제 + audit 재실행 (정합률 갱신)
