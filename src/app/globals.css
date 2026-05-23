@@ -104,6 +104,9 @@ html {
   --accent: var(--bdr-red);
   --accent-soft: #FDE8E9;
 
+  /* [v2.16] Semantic soft variants — GameCard chip 등 */
+  --ok-soft: #E6F4EC;
+
   /* Shadows — soft, modern */
   --sh-xs: 0 1px 2px rgba(15, 23, 42, .04);
   --sh-sm: 0 2px 6px rgba(15, 23, 42, .06);
@@ -153,6 +156,9 @@ html {
 
   --accent: var(--bdr-red);
   --accent-soft: #2A1214;
+
+  /* [v2.16] Semantic soft variants (dark) — GameCard chip 등 */
+  --ok-soft: #0F2A1B;
 
   /* Hard offset shadows for the brutalist vibe */
   --sh-xs: 2px 2px 0 0 rgba(0,0,0,.6);
@@ -3192,4 +3198,1443 @@ html.dark {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr);
     gap: 1rem;
   }
+}
+
+/* ============================================================
+ * 2026-05-20 [v2.16] GameCard — Date Tile + Area Chip + Host Avatar
+ * 박제 source: Dev/design/BDR-current/_games_card_final.html L218-560
+ *
+ * 종별 컬러 (시안 L224-226 — PM 결정 §11):
+ *   .kind-pickup    = #1B3C87 (BDR Navy 더 깊은 톤)
+ *   .kind-guest     = #8B0E15 (deep crimson)
+ *   .kind-scrimmage = #0A5132 (forest green)
+ *
+ * 사용 위치: <GameCard> in @/components/bdr-v2/game-card.tsx
+ * 적용 라우트: /games, /games/my-games, /guest-apps (Phase 2-3 후속)
+ * ============================================================ */
+
+.kind-pickup {
+  --kind: #1B3C87;
+  --kind-deep: #0F234F;
+  --kind-soft: var(--cafe-blue-soft);
+  --kind-hair: var(--cafe-blue-hair);
+}
+.kind-guest {
+  --kind: #8B0E15;
+  --kind-deep: #5C0810;
+  --kind-soft: var(--accent-soft);
+  --kind-hair: #F5C6C8;
+}
+.kind-scrimmage {
+  --kind: #0A5132;
+  --kind-deep: #053823;
+  --kind-soft: var(--ok-soft);
+  --kind-hair: #C7E8D7;
+}
+
+/* Date Tile — 좌측 세로 */
+.dt {
+  background: linear-gradient(155deg, var(--kind) 0%, var(--kind) 45%, var(--kind-deep) 100%);
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  text-align: center;
+  padding: 12px 6px;
+  position: relative;
+  flex-shrink: 0;
+  min-height: 100%;
+  gap: 8px;
+  overflow: hidden;
+}
+.dt::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 100% 0%, rgba(255, 255, 255, 0.18) 0%, transparent 50%);
+  pointer-events: none;
+}
+.dt::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 1px;
+  background: rgba(0, 0, 0, 0.22);
+  pointer-events: none;
+}
+.dt > * {
+  position: relative;
+  z-index: 1;
+}
+.dt__kind {
+  font-family: var(--ff-body);
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  padding: 4px 9px;
+  background: rgba(255, 255, 255, 0.95);
+  color: var(--kind-deep);
+  border-radius: 3px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.18);
+}
+.dt__date {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: baseline;
+  justify-content: center;
+  gap: 2px;
+  line-height: 1;
+  white-space: nowrap;
+}
+.dt__date-md {
+  font-family: var(--ff-body);
+  font-size: 20px;
+  font-weight: 900;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  font-feature-settings: "tnum";
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.18);
+}
+.dt__date-day {
+  font-family: var(--ff-body);
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  line-height: 1;
+  opacity: 0.95;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.16);
+}
+.dt__date.is-weekend .dt__date-day {
+  opacity: 1;
+}
+.dt__time {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  padding-top: 8px;
+  width: 100%;
+  border-top: 1px solid rgba(255, 255, 255, 0.32);
+}
+.dt__t {
+  font-family: var(--ff-body);
+  font-size: 15px;
+  font-weight: 900;
+  line-height: 1.1;
+  letter-spacing: -0.01em;
+  font-feature-settings: "tnum";
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.2);
+}
+.dt__t-end {
+  font-family: var(--ff-body);
+  font-size: 11.5px;
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -0.005em;
+  font-feature-settings: "tnum";
+  opacity: 0.92;
+}
+
+/* GameCard 외곽 */
+.gcard {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  transition: border-color 0.12s, box-shadow 0.12s;
+  height: 100%; /* grid stretch 통일 */
+}
+.gcard:hover {
+  border-color: var(--border-strong);
+  box-shadow: var(--sh-sm);
+}
+.gcard__main {
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr);
+}
+.gcard__content {
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+.gcard__row1 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.gcard__area-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 8px 2px 6px;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--ink);
+  background: var(--bg-head);
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+  line-height: 1.5;
+}
+.gcard__area-chip .ico {
+  font-family: 'Material Symbols Outlined';
+  font-size: 14px;
+  color: var(--kind);
+  font-weight: 500;
+}
+.gcard__chip {
+  font-size: 10.5px;
+  font-weight: 600;
+  padding: 1px 7px;
+  color: var(--ink-mute);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg-elev);
+  line-height: 1.5;
+  margin-left: auto;
+}
+.gcard__chip--free {
+  color: var(--ok);
+  border-color: #C7E8D7;
+  background: var(--ok-soft);
+  font-weight: 700;
+}
+.gcard__chip--closing {
+  color: var(--accent);
+  border-color: #F5C6C8;
+  background: var(--accent-soft);
+  font-weight: 700;
+}
+.gcard__title {
+  margin: 2px 0 0;
+  font-size: 14.5px;
+  font-weight: 700;
+  line-height: 1.4;
+  color: var(--ink);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  word-break: keep-all;
+  min-height: 2.8em; /* 2줄 고정 — grid 높이 통일 */
+}
+.gcard__meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  color: var(--ink-mute);
+  margin-top: auto;
+}
+.gcard__meta .item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+.gcard__meta .ico {
+  font-family: 'Material Symbols Outlined';
+  font-size: 15px;
+  color: var(--ink-dim);
+  font-weight: 400;
+  flex-shrink: 0;
+}
+.gcard__place {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ink-soft);
+  font-weight: 500;
+}
+.gcard__fee {
+  font-family: var(--ff-mono);
+  font-weight: 700;
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+.gcard__fee.is-free {
+  color: var(--ok);
+}
+
+/* Footer */
+.gcard__foot {
+  padding: 10px 14px 12px;
+  border-top: 1px dashed var(--border);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.gcard__progress {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.gcard__progress-bar {
+  height: 4px;
+  background: var(--bg-alt);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.gcard__progress-fill {
+  height: 100%;
+  background: var(--kind);
+  transition: width 0.25s;
+}
+.gcard__progress-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.gcard__progress-label {
+  font-size: 11px;
+  color: var(--ink-dim);
+}
+.gcard__progress-label.is-warn {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+/* Host (좌하단 아바타 + 닉네임) */
+.host {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex: 0 1 auto;
+}
+.host__av {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--ff-display);
+  font-weight: 800;
+  font-size: 12px;
+  letter-spacing: -0.01em;
+  color: #fff;
+  background: var(--kind-deep);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  box-shadow: var(--sh-xs);
+}
+.host__name {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-soft);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: 1.2;
+}
+.host__name small {
+  display: block;
+  font-size: 10.5px;
+  font-weight: 500;
+  color: var(--ink-dim);
+}
+
+/* 신청 버튼 + count-pill */
+.btn-apply {
+  flex: 0 0 auto;
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 700;
+  background: var(--cafe-blue);
+  color: #fff;
+  border: 1px solid var(--cafe-blue-deep);
+  border-radius: 4px;
+  cursor: pointer;
+  min-height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.btn-apply:hover {
+  background: var(--cafe-blue-deep);
+}
+.count-pill {
+  font-family: var(--ff-mono);
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+.count-pill.is-closing {
+  color: var(--accent);
+}
+
+/* 모바일 분기 — Date Tile 살짝 축소 */
+@media (max-width: 720px) {
+  .gcard__main {
+    grid-template-columns: 78px minmax(0, 1fr);
+  }
+  .dt__date-md {
+    font-size: 18px;
+  }
+  .dt__t {
+    font-size: 14px;
+  }
+}
+
+/* ============================================================
+ * 2026-05-20 [v2.16] GameDetailHero — 풀폭 다크 hero band
+ * 박제 source: Dev/design/BDR-current/screens-gd/ConceptB.jsx (B.hero / B.heroMeta / B.heroProgWrap)
+ * 사용자 결정 §11: V2 (Hero-led) 채택
+ *
+ * 사용 위치: <GameDetailHero> in src/app/(web)/games/[id]/_v2/game-detail-hero.tsx
+ * ============================================================ */
+
+.gd-hero {
+  background: linear-gradient(135deg, #0F2A52 0%, #1B3C87 60%, #2A4FA0 100%);
+  color: #fff;
+  position: relative;
+  overflow: hidden;
+  /* 페이지 .page 의 max-width 1200 + padding 안에서 풀폭 — 음수 margin 으로 가장자리 확장 */
+  margin-left: calc(50% - 50vw);
+  margin-right: calc(50% - 50vw);
+  padding: 32px 0 24px;
+}
+.gd-hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 90% 0%, rgba(255, 255, 255, 0.08) 0%, transparent 50%);
+  pointer-events: none;
+}
+.gd-hero__inner {
+  position: relative;
+  z-index: 1;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+.gd-hero__breadcrumb {
+  font-size: 12px;
+  font-family: var(--ff-mono);
+  letter-spacing: 0.04em;
+  opacity: 0.85;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.gd-hero__breadcrumb-sep {
+  opacity: 0.4;
+}
+.gd-hero__breadcrumb-kind {
+  opacity: 0.7;
+}
+
+.gd-hero__badges {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+.gd-hero__badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 12px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  border-radius: 4px;
+  line-height: 1.5;
+}
+.gd-hero__badge--kind {
+  background: var(--accent);
+  color: #fff;
+}
+.gd-hero__badge--status {
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  letter-spacing: 0.04em;
+  gap: 4px;
+}
+.gd-hero__badge--status.is-open {
+  background: rgba(16, 185, 129, 0.2);
+  color: #5EEAA5;
+  border-color: rgba(16, 185, 129, 0.4);
+}
+.gd-hero__badge--status.is-closed {
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.7);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+.gd-hero__badge-dot {
+  font-size: 6px;
+  line-height: 1;
+}
+.gd-hero__countdown {
+  font-size: 11px;
+  font-weight: 600;
+  font-family: var(--ff-mono);
+  color: rgba(255, 255, 255, 0.7);
+  letter-spacing: 0.04em;
+}
+
+.gd-hero__title {
+  margin: 0 0 22px;
+  font-size: 32px;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  font-family: var(--ff-body);
+  line-height: 1.2;
+  color: #fff;
+  max-width: 720px;
+}
+
+.gd-hero__meta {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 18px;
+  margin-bottom: 24px;
+}
+.gd-hero__meta-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.gd-hero__meta-icon {
+  font-family: 'Material Symbols Outlined';
+  font-size: 22px;
+  opacity: 0.85;
+  flex-shrink: 0;
+  color: #fff;
+}
+.gd-hero__meta-val {
+  font-size: 14px;
+  font-weight: 700;
+  color: #fff;
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.gd-hero__meta-val.is-free {
+  color: #5EEAA5;
+}
+.gd-hero__meta-sub {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.65);
+  margin-top: 1px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gd-hero__progress {
+  background: rgba(0, 0, 0, 0.18);
+  padding: 14px 18px;
+  border-radius: 6px;
+  max-width: 720px;
+}
+.gd-hero__progress-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+.gd-hero__progress-lbl {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  opacity: 0.7;
+}
+.gd-hero__progress-val {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin-top: 2px;
+}
+.gd-hero__progress-num {
+  font-family: var(--ff-display);
+  font-size: 32px;
+  font-weight: 900;
+  line-height: 1;
+  color: #fff;
+}
+.gd-hero__progress-num--accent {
+  color: var(--accent);
+}
+.gd-hero__progress-den {
+  font-size: 14px;
+  font-weight: 600;
+  opacity: 0.7;
+}
+.gd-hero__progress-right {
+  text-align: right;
+}
+.gd-hero__progress-bar {
+  height: 10px;
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 5px;
+  position: relative;
+  overflow: visible;
+}
+.gd-hero__progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), #FF6B6B);
+  border-radius: 5px;
+  transition: width 0.3s;
+}
+.gd-hero__progress-min {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  transform: translateX(-50%);
+}
+.gd-hero__progress-min-tick {
+  width: 2px;
+  height: 18px;
+  background: #fff;
+  position: absolute;
+  top: -4px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+.gd-hero__progress-min-lbl {
+  position: absolute;
+  top: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 10px;
+  font-family: var(--ff-mono);
+  opacity: 0.85;
+  white-space: nowrap;
+  color: #fff;
+}
+
+/* 모바일 분기 — Hero meta 2-col + 폰트 축소 */
+@media (max-width: 720px) {
+  .gd-hero {
+    padding: 22px 0 18px;
+  }
+  .gd-hero__inner {
+    padding: 0 16px;
+  }
+  .gd-hero__title {
+    font-size: 22px;
+    margin-bottom: 16px;
+  }
+  .gd-hero__meta {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    margin-bottom: 18px;
+  }
+  .gd-hero__meta-val {
+    font-size: 13px;
+  }
+  .gd-hero__progress-num {
+    font-size: 26px;
+  }
+}
+
+/* ============================================================
+ * 2026-05-20 [v2.16] Concept B — 10인 슬롯 보드 (ParticipantsSlotBoard)
+ * 박제 source: Dev/design/BDR-current/screens-gd/ConceptB.jsx (B.slotGrid / B.slot* / FilledSlot / EmptySlot)
+ * 사용자 결정 §11: Concept B (10인 슬롯 보드) 채택
+ *
+ * 사용 위치: <ParticipantsSlotBoard> in src/app/(web)/games/[id]/_v2/
+ *   - .gd-slots.kind-pickup / .gd-slots.kind-guest / .gd-slots.kind-scrimmage 스코프
+ *     슬롯 아바타 배경 = var(--kind) (GameCard 와 일관)
+ * ============================================================ */
+
+.gd-slots {
+  background: transparent;
+}
+
+.gd-slots__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-bottom: 14px;
+  gap: 10px;
+}
+.gd-slots__eyebrow {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.gd-slots__title {
+  margin: 4px 0 0;
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+  line-height: 1.2;
+}
+.gd-slots__count {
+  display: flex;
+  align-items: baseline;
+  gap: 3px;
+  font-family: var(--ff-display);
+}
+.gd-slots__count-num {
+  font-size: 22px;
+  font-weight: 900;
+  color: var(--ink);
+  line-height: 1;
+}
+.gd-slots__count-den {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-mute);
+}
+
+.gd-slots__grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 10px;
+}
+
+/* 슬롯 1개 — aspect-ratio 1/1.18 → 카드 비율 통일 */
+.gd-slot {
+  aspect-ratio: 1 / 1.18;
+  border-radius: 8px;
+  padding: 14px 10px 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  text-align: center;
+  transition: transform 0.12s, box-shadow 0.12s, border-color 0.12s;
+  min-height: 170px;
+  color: inherit;
+}
+.gd-slot--filled {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+.gd-slot--empty {
+  background: transparent;
+  border: 2px dashed var(--border-strong);
+  cursor: pointer;
+  color: var(--ink-mute);
+  font-family: var(--ff-body);
+}
+.gd-slot--empty:hover {
+  border-color: var(--kind, var(--accent));
+  background: rgba(15, 95, 204, 0.03);
+}
+.gd-slot--empty-disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+.gd-slot--empty-disabled:hover {
+  border-color: var(--border-strong);
+  background: transparent;
+}
+.gd-slot__num {
+  position: absolute;
+  top: 6px;
+  left: 8px;
+  font-family: var(--ff-mono);
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--ink-dim);
+  letter-spacing: 0.04em;
+}
+.gd-slot__num--empty {
+  color: var(--ink-dim);
+}
+.gd-slot__host-tag {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  font-size: 9px;
+  font-weight: 800;
+  padding: 2px 6px;
+  background: var(--accent);
+  color: #fff;
+  border-radius: 3px;
+  letter-spacing: 0.06em;
+}
+.gd-slot__avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--kind, var(--cafe-blue));
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--ff-display);
+  font-weight: 800;
+  font-size: 18px;
+  margin-top: 6px;
+  margin-bottom: 8px;
+}
+.gd-slot__name {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--ink);
+  line-height: 1.1;
+  word-break: keep-all;
+}
+.gd-slot__name a {
+  color: inherit;
+  text-decoration: none;
+}
+.gd-slot__name a:hover {
+  text-decoration: underline;
+}
+.gd-slot__handle {
+  font-size: 10px;
+  color: var(--ink-mute);
+  font-family: var(--ff-mono);
+  margin-top: 1px;
+}
+.gd-slot__meta {
+  display: flex;
+  gap: 4px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.gd-slot__pos {
+  font-size: 10px;
+  font-weight: 800;
+  padding: 2px 6px;
+  background: var(--cafe-blue-soft);
+  color: var(--cafe-blue-deep);
+  border-radius: 3px;
+  font-family: var(--ff-mono);
+}
+.gd-slot__lvl {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 6px;
+  background: var(--bg-alt);
+  color: var(--ink-soft);
+  border-radius: 3px;
+}
+
+/* Empty 슬롯 내부 — + 아이콘 + 안내 텍스트 */
+.gd-slot__empty-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: var(--bg-alt);
+  color: var(--accent);
+  font-size: 24px;
+  font-weight: 300;
+  line-height: 40px;
+  margin-top: 6px;
+  margin-bottom: 6px;
+}
+.gd-slot__empty-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink-soft);
+  line-height: 1.25;
+}
+.gd-slot__empty-sub {
+  font-size: 10px;
+  color: var(--ink-dim);
+  margin-top: 6px;
+  font-family: var(--ff-mono);
+}
+
+/* 모바일 분기 — 5×2 → 2×N (또는 가로 스크롤) */
+@media (max-width: 720px) {
+  .gd-slots__grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+  .gd-slot {
+    min-height: 150px;
+    padding: 12px 8px 10px;
+  }
+  .gd-slot__avatar {
+    width: 42px;
+    height: 42px;
+    font-size: 16px;
+  }
+}
+
+/* ============================================================
+ * 2026-05-20 [v2.16 Phase 3-1c] ApplyRibbon — hero 바로 아래 빠른 액션 띠
+ * + MobileStickyBar — 모바일 하단 고정
+ * 박제 source: 작업지시서 §3-1
+ *
+ * 사용 위치:
+ *   - <ApplyRibbon> in _v2/apply-ribbon.tsx
+ *   - <MobileStickyBar> in _v2/mobile-sticky-bar.tsx (≤720px 만)
+ * ============================================================ */
+
+.gd-ribbon {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-top: 16px;
+  overflow: hidden;
+  box-shadow: var(--sh-xs);
+}
+.gd-ribbon__inner {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) auto;
+  gap: 16px;
+  align-items: center;
+  padding: 14px 20px;
+}
+.gd-ribbon__progress {
+  min-width: 0;
+}
+.gd-ribbon__progress-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 6px;
+  margin-bottom: 6px;
+  font-size: 12px;
+}
+.gd-ribbon__progress-lbl {
+  font-weight: 700;
+  color: var(--ink-soft);
+  letter-spacing: 0.02em;
+}
+.gd-ribbon__progress-count {
+  font-family: var(--ff-mono);
+  font-size: 12px;
+  color: var(--ink-mute);
+}
+.gd-ribbon__progress-count strong {
+  font-family: var(--ff-display);
+  font-size: 16px;
+  font-weight: 900;
+  color: var(--ink);
+  margin-right: 1px;
+}
+.gd-ribbon__progress-den {
+  margin-right: 6px;
+}
+.gd-ribbon__progress-remain {
+  color: var(--ink-mute);
+}
+.gd-ribbon__progress-remain strong {
+  font-size: 13px;
+  color: var(--kind, var(--accent));
+}
+.gd-ribbon__progress-bar {
+  height: 6px;
+  background: var(--bg-alt);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.gd-ribbon__progress-fill {
+  height: 100%;
+  background: var(--kind, var(--cafe-blue));
+  transition: width 0.3s;
+}
+
+.gd-ribbon__host {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding-left: 16px;
+  border-left: 1px solid var(--border);
+}
+.gd-ribbon__host-av {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--kind-deep, var(--cafe-blue-deep));
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--ff-display);
+  font-weight: 800;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+.gd-ribbon__host-meta {
+  min-width: 0;
+}
+.gd-ribbon__host-lbl {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+}
+.gd-ribbon__host-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-top: 1px;
+}
+
+.gd-ribbon__cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 22px;
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  border-radius: 4px;
+  text-decoration: none;
+  white-space: nowrap;
+  min-height: 40px;
+  flex-shrink: 0;
+}
+.gd-ribbon__cta.is-primary {
+  background: var(--cafe-blue);
+  color: #fff;
+  border: 1px solid var(--cafe-blue-deep);
+}
+.gd-ribbon__cta.is-primary:hover {
+  background: var(--cafe-blue-deep);
+}
+.gd-ribbon__cta.is-approved {
+  background: var(--ok-soft);
+  color: var(--ok);
+  border: 1px solid #C7E8D7;
+}
+.gd-ribbon__cta.is-pending {
+  background: var(--bg-alt);
+  color: var(--ink-mute);
+  border: 1px solid var(--border);
+}
+.gd-ribbon__cta.is-closed {
+  background: var(--bg-alt);
+  color: var(--ink-dim);
+  border: 1px solid var(--border);
+}
+.gd-ribbon__cta.is-host {
+  background: var(--accent-soft);
+  color: var(--accent);
+  border: 1px solid #F5C6C8;
+}
+/* [v2.16 fix] admin 변형 — cafe-blue 톤 (관리자 view) */
+.gd-ribbon__cta.is-admin {
+  background: var(--cafe-blue-soft);
+  color: var(--cafe-blue-deep);
+  border: 1px solid var(--cafe-blue-hair);
+}
+.gd-ribbon__cta.is-disabled {
+  pointer-events: none;
+  cursor: default;
+}
+
+/* Mobile (≤720px) — Ribbon 세로 stack, host 숨김 */
+@media (max-width: 720px) {
+  .gd-ribbon__inner {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px;
+    padding: 12px 14px;
+  }
+  .gd-ribbon__host {
+    display: none;
+  }
+  .gd-ribbon__cta {
+    padding: 10px 16px;
+    font-size: 13px;
+  }
+}
+
+/* ============================================================
+ * MobileStickyBar — 모바일 하단 fixed
+ * ============================================================ */
+
+.gd-mobile-bar {
+  display: none;
+}
+@media (max-width: 720px) {
+  .gd-mobile-bar {
+    display: flex;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 40;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px calc(10px + env(safe-area-inset-bottom, 0px));
+    background: var(--bg-card);
+    border-top: 1px solid var(--border-strong);
+    box-shadow: 0 -4px 16px rgba(15, 23, 42, 0.08);
+  }
+  .gd-mobile-bar__info {
+    flex: 1;
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    min-width: 0;
+  }
+  .gd-mobile-bar__count {
+    font-family: var(--ff-display);
+    font-size: 18px;
+    font-weight: 900;
+    color: var(--ink);
+    line-height: 1;
+  }
+  .gd-mobile-bar__filled {
+    color: var(--kind, var(--cafe-blue));
+  }
+  .gd-mobile-bar__den {
+    font-size: 13px;
+    color: var(--ink-mute);
+    font-weight: 600;
+    margin-left: 2px;
+  }
+  .gd-mobile-bar__remain {
+    font-size: 11px;
+    color: var(--ink-mute);
+    font-family: var(--ff-mono);
+  }
+  .gd-mobile-bar__remain strong {
+    color: var(--accent);
+    font-weight: 800;
+    font-size: 13px;
+  }
+  .gd-mobile-bar__cta {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 22px;
+    font-size: 14px;
+    font-weight: 800;
+    border-radius: 4px;
+    text-decoration: none;
+    white-space: nowrap;
+    min-height: 44px; /* iOS 터치 타겟 */
+    min-width: 110px;
+    flex-shrink: 0;
+  }
+  .gd-mobile-bar__cta.is-primary {
+    background: var(--cafe-blue);
+    color: #fff;
+    border: 1px solid var(--cafe-blue-deep);
+  }
+  .gd-mobile-bar__cta.is-approved {
+    background: var(--ok-soft);
+    color: var(--ok);
+    border: 1px solid #C7E8D7;
+  }
+  .gd-mobile-bar__cta.is-pending,
+  .gd-mobile-bar__cta.is-closed {
+    background: var(--bg-alt);
+    color: var(--ink-mute);
+    border: 1px solid var(--border);
+  }
+  .gd-mobile-bar__cta.is-host {
+    background: var(--accent-soft);
+    color: var(--accent);
+    border: 1px solid #F5C6C8;
+  }
+  /* [v2.16 fix] admin 변형 — cafe-blue 톤 */
+  .gd-mobile-bar__cta.is-admin {
+    background: var(--cafe-blue-soft);
+    color: var(--cafe-blue-deep);
+    border: 1px solid var(--cafe-blue-hair);
+  }
+  .gd-mobile-bar__cta.is-disabled {
+    pointer-events: none;
+    cursor: default;
+  }
+
+  /* 페이지 하단 padding — MobileStickyBar 가 콘텐츠 가리지 않게 */
+  body.has-mobile-sticky-bar {
+    padding-bottom: 80px;
+  }
+}
+
+/* ============================================================
+ * 2026-05-20 [v2.16 Phase 3-2a] /games/new 라이브 프리뷰 레이아웃
+ * 박제 source: 작업지시서 §3-2 "좌 폼 + 우 sticky 라이브 프리뷰 (입력 즉시 GameCard 미리보기 갱신)"
+ *
+ * 사용 위치: src/app/(web)/games/new/_v2/game-form.tsx
+ * ============================================================ */
+
+.gd-create-grid {
+  max-width: 1140px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: minmax(0, 760px) 340px;
+  gap: 28px;
+  align-items: start;
+}
+.gd-create-form {
+  min-width: 0;
+}
+.gd-create-preview {
+  position: sticky;
+  top: 80px; /* AppNav 높이 보정 */
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.gd-create-preview__head {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent);
+  background: transparent;
+  border: 0;
+  padding: 0;
+  cursor: default; /* 데스크톱은 토글 없음 */
+  font-family: inherit;
+}
+.gd-create-preview__head .material-symbols-outlined {
+  font-size: 16px;
+}
+.gd-create-preview__toggle {
+  display: none; /* 데스크톱 — 토글 hidden */
+  margin-left: auto;
+}
+.gd-create-preview__card {
+  pointer-events: none; /* 프리뷰 click 비활성 */
+}
+.gd-create-preview__hint {
+  margin: 0;
+  font-size: 11px;
+  color: var(--ink-dim);
+  text-align: center;
+  font-family: var(--ff-mono);
+}
+
+/* 모바일/태블릿 — 1-col stack + collapsible (Phase 3-2c) */
+@media (max-width: 1024px) {
+  .gd-create-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 18px;
+    max-width: 760px;
+  }
+  .gd-create-preview {
+    position: static;
+    top: auto;
+    order: -1; /* 모바일에서 프리뷰를 폼 상단으로 */
+    margin-bottom: 4px;
+  }
+  /* 모바일에서 헤더 = 토글 버튼 (전체 폭 + 화살표) */
+  .gd-create-preview__head {
+    display: flex;
+    width: 100%;
+    cursor: pointer;
+    padding: 8px 12px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    transition: background 0.12s;
+  }
+  .gd-create-preview__head:hover {
+    background: var(--bg-alt);
+  }
+  .gd-create-preview__toggle {
+    display: inline-flex;
+    color: var(--ink-mute);
+    font-size: 20px;
+  }
+  /* collapsed 상태 — 카드 + hint 숨김 */
+  .gd-create-preview[data-collapsed="true"] .gd-create-preview__card,
+  .gd-create-preview[data-collapsed="true"] .gd-create-preview__hint {
+    display: none;
+  }
+  /* 폼 영역 하단 padding — 모바일 fixed CTA 가 콘텐츠 가리지 않게 */
+  .gd-create-form {
+    padding-bottom: 80px;
+  }
+}
+
+/* ============================================================
+ * 2026-05-20 [v2.16 Phase 3-2c] 모바일 하단 fixed CTA
+ * 박제 source: 작업지시서 §3-2 "모바일 하단 fixed CTA"
+ * ============================================================ */
+
+.gd-create-mobile-cta {
+  display: none;
+}
+@media (max-width: 1024px) {
+  .gd-create-mobile-cta {
+    display: flex;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 40;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px calc(10px + env(safe-area-inset-bottom, 0px));
+    background: var(--bg-card);
+    border-top: 1px solid var(--border-strong);
+    box-shadow: 0 -4px 16px rgba(15, 23, 42, 0.08);
+  }
+  .gd-create-mobile-cta__btn {
+    flex: 1;
+    padding: 0 22px;
+    min-height: 44px; /* iOS 터치 타겟 */
+    font-size: 14px;
+    font-weight: 800;
+    background: var(--cafe-blue);
+    color: #fff;
+    border: 1px solid var(--cafe-blue-deep);
+    border-radius: 4px;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .gd-create-mobile-cta__btn:hover {
+    background: var(--cafe-blue-deep);
+  }
+  .gd-create-mobile-cta__btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+}
+
+/* ============================================================
+ * 2026-05-20 [v2.16 Phase 3-2b] 정기 모집 요일 picker + 코트 picker 카드
+ * 박제 source: Dev/design/BDR-current/_create_game_explore.html
+ *   - .court-picker (L295~316)
+ *   - .recurrence-detail / .day-picker / .day-pick / .recurrence-preview (L393~424)
+ * ============================================================ */
+
+/* Court picker — 선택 완료 카드 (시안 L295~316) */
+.court-picker {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--bg-elev);
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+}
+.court-picker .ico {
+  font-family: 'Material Symbols Outlined';
+  font-size: 18px;
+  color: var(--kind, var(--ink-mute));
+  flex-shrink: 0;
+}
+.court-picker__info {
+  flex: 1;
+  min-width: 0;
+}
+.court-picker__name {
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.court-picker__sub {
+  font-size: 11.5px;
+  color: var(--ink-mute);
+  margin-top: 1px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.court-picker__chg {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--cafe-blue);
+  cursor: pointer;
+  padding: 4px 10px;
+  border-radius: 4px;
+  background: var(--cafe-blue-soft);
+  flex-shrink: 0;
+}
+.court-picker:hover {
+  border-color: var(--cafe-blue);
+}
+.court-picker--empty {
+  border-style: dashed;
+  background: var(--bg-alt);
+}
+
+/* Recurrence (정기 모집) — 시안 L393~424 */
+.recurrence-detail {
+  margin-top: 8px;
+  padding: 12px 14px;
+  background: var(--bg-elev);
+  border: 1px dashed var(--border-strong);
+  border-radius: 4px;
+}
+.day-picker {
+  display: flex;
+  gap: 4px;
+  margin-top: 8px;
+}
+.day-pick {
+  flex: 1;
+  padding: 8px 0;
+  font-size: 13px;
+  font-weight: 700;
+  background: var(--bg-elev);
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  color: var(--ink);
+  line-height: 1;
+  transition: background 0.12s, border-color 0.12s, color 0.12s;
+}
+.day-pick:hover {
+  background: var(--bg-alt);
+}
+.day-pick[data-on="true"] {
+  background: var(--cafe-blue);
+  color: #fff;
+  border-color: var(--cafe-blue-deep);
+}
+.day-pick.is-sat {
+  color: var(--cafe-blue);
+}
+.day-pick.is-sun {
+  color: var(--accent);
+}
+.day-pick[data-on="true"].is-sat,
+.day-pick[data-on="true"].is-sun {
+  color: #fff;
+}
+.recurrence-preview {
+  margin-top: 12px;
+  padding: 10px 12px;
+  background: var(--cafe-blue-soft);
+  border: 1px solid var(--cafe-blue-hair);
+  border-radius: 4px;
+  font-size: 12px;
+  color: var(--cafe-blue-deep);
+  line-height: 1.5;
+}
+.recurrence-preview b {
+  font-weight: 800;
 }

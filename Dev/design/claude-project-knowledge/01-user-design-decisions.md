@@ -227,6 +227,33 @@
 - teams.name_primary VarChar(10)
 - 운영 DB SQL 사용자 직접 적용 완료
 
+## 11. 경기 탭 v2.16 시안 결정 (2026-05-20)
+
+> **트리거**: `BDR v2 (1).zip` 업로드 — v2.16 경기 list/detail/create 시안 도착
+> **선택지 출처**: `Dev/design/_archive/BDR v2.16/_game_detail_explore.html` (V1 vs V2) + `screens-gd/Concept{A,B,C}.jsx`
+
+### 11-1. 경기 상세 페이지 레이아웃 — V2 (Hero-led) 채택
+- **결정**: 풀폭 다크 hero band + 단일 칼럼 섹션 카드 (V2)
+- **거절**: V1 (Classic Refined 2-column), V2+V1 조합
+- **근거**: 카드(목록)에서 확정된 종별 컬러 언어(`--kind-pickup/guest/scrim`)를 상세 hero 까지 일관 확장. 시각 임팩트 ↑ + 모바일 자연스럽게 1-column
+- **회귀 금지**: 2-column 구조 (좌 본문 + 우 sticky aside) 로 되돌리지 말 것
+- **박제 source**: `_game_detail_explore.html` 라인 1928 ~ (V2 영역)
+
+### 11-2. 경기 상세 페이지 참가자 표시 — Concept B (10인 슬롯 보드) 채택
+- **결정**: 5×2 슬롯 그리드, filled = 카드, empty = "이 자리에 들어오기" CTA
+- **거절**: Concept A (코트 라인업), Concept C (대시보드)
+- **근거**: "픽업 모집 = 자리 채우기" 본질을 가장 직관적으로 시각화. 빈 슬롯 → 즉시 CTA 액션 유발도 ★★★. 모바일 호환성 강함
+- **회귀 금지**: ConceptA (코트 라인업) / ConceptC (대시보드) 로 변경 제안 시 사용자 확인 필수
+- **박제 source**: `screens-gd/ConceptB.jsx`
+
+### 11-3. v2.16 디자인 언어 4 요소 (전 경기 탭 일관 적용)
+- **종별 컬러**: `--kind-pickup` (크림슨 = BDR Red) / `--kind-guest` (오렌지) / `--kind-scrim` (그린)
+- **Date Tile**: 카드 좌측 세로 컬럼 (종별 라벨 + 날짜 + 시간) — `_games_card_final.html` 패턴
+- **Area Chip**: 지역 칩 (카드 row1 상단)
+- **호스트 아바타**: 28~32px 둥근 / 종별 컬러 배경 + 닉네임 + "주최자" 라벨
+- **적용 범위**: `/games`, `/games/my-games`, `/games/[id]`, `/games/new`, `/games/[id]/edit`, `/games/[id]/guest-apply`, `/guest-apps`, `/scrim`, `/live/*`, `/tournaments/*` 매치 카드 등 경기 도메인 전체
+- **회귀 금지**: 종별 컬러 = pink/salmon/coral 으로 변경 ❌ (CLAUDE.md §디자인 핵심 위반)
+
 ---
 
 ## 향후 변경 시 체크리스트

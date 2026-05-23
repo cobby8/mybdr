@@ -1,0 +1,394 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>MyBDR · 모바일 감사 리포트</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" rel="stylesheet"/>
+<style>
+:root{
+  --bg:#0B0D10; --panel:#13171C; --card:#171C22; --alt:#1B2128;
+  --ink:#F6F7F9; --soft:#D7DDE6; --mute:#9BA5B3; --dim:#6B7482;
+  --line:#262D36; --line2:#3A4450;
+  --red:#E31B23; --ok:#1CA05E; --warn:#E8A33B; --info:#3B82F6;
+  --display:'Archivo', system-ui, sans-serif;
+  --body:'Pretendard', system-ui, sans-serif;
+  --mono:'JetBrains Mono', ui-monospace, monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:14px;line-height:1.55}
+.wrap{max-width:1100px;margin:0 auto;padding:32px 24px 80px}
+.eyebrow{font-family:var(--display);font-weight:800;font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--dim);display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.eyebrow::before{content:"";width:24px;height:2px;background:var(--red)}
+h1{font-family:var(--display);font-weight:900;letter-spacing:-0.02em;font-size:42px;margin:0 0 8px;line-height:1}
+.lede{color:var(--mute);font-size:15px;max-width:60ch;margin:0 0 28px}
+.kpi{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:28px}
+.kpi__card{background:var(--card);border:1px solid var(--line);padding:14px 16px}
+.kpi__lbl{font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--dim)}
+.kpi__val{font-family:var(--display);font-weight:900;font-size:32px;letter-spacing:-0.02em;line-height:1.05;margin-top:4px}
+.kpi__val.ok{color:var(--ok)}
+.kpi__val.warn{color:var(--warn)}
+.kpi__val.bad{color:var(--red)}
+.kpi__sub{font-size:11px;color:var(--mute);margin-top:2px}
+
+h2{font-family:var(--display);font-weight:900;font-size:24px;letter-spacing:-0.01em;margin:36px 0 14px;display:flex;align-items:baseline;gap:10px}
+h2 .num{color:var(--red);font-family:var(--mono);font-size:13px;font-weight:500;letter-spacing:0}
+h3{font-family:var(--display);font-weight:800;font-size:15px;letter-spacing:.04em;text-transform:uppercase;margin:0 0 10px;color:var(--soft)}
+.section{background:var(--panel);border:1px solid var(--line);padding:22px 24px;margin-bottom:14px}
+
+.row{display:grid;grid-template-columns:120px 80px 1fr 90px;gap:14px;padding:12px 14px;border-bottom:1px solid var(--line);align-items:start;font-size:13px}
+.row:last-child{border-bottom:0}
+.row:hover{background:var(--alt)}
+.row__route{font-family:var(--mono);font-size:12px;color:var(--soft);font-weight:600}
+.row__sev{font-family:var(--display);font-weight:800;font-size:10px;letter-spacing:.1em;text-transform:uppercase;padding:3px 7px;border:1px solid var(--line2);text-align:center;align-self:start;justify-self:start}
+.sev-high{background:var(--red);color:#fff;border-color:var(--red)}
+.sev-med{background:var(--warn);color:#000;border-color:var(--warn)}
+.sev-low{background:transparent;color:var(--dim);border-color:var(--line2)}
+.sev-ok{background:var(--ok);color:#fff;border-color:var(--ok)}
+.row__desc{color:var(--soft);line-height:1.5}
+.row__desc code{font-family:var(--mono);font-size:11.5px;background:var(--alt);padding:1px 5px;border-radius:2px;color:var(--ink)}
+.row__status{font-family:var(--mono);font-size:11px;color:var(--dim);text-align:right;align-self:start}
+.row__status.fixed{color:var(--ok)}
+.row__status.todo{color:var(--warn)}
+
+.legend{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:18px;font-size:12px;color:var(--mute)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend i{width:10px;height:10px;display:inline-block}
+
+.head-row{display:grid;grid-template-columns:120px 80px 1fr 90px;gap:14px;padding:10px 14px;background:var(--alt);font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);border-bottom:1px solid var(--line2)}
+
+.checklist{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.check{display:flex;gap:10px;font-size:13px;color:var(--soft);background:var(--card);border:1px solid var(--line);padding:10px 12px}
+.check::before{content:"✓";color:var(--ok);font-weight:900}
+
+ul.notes{padding-left:18px;margin:0;color:var(--soft)}
+ul.notes li{margin-bottom:6px}
+ul.notes code{font-family:var(--mono);font-size:11.5px;background:var(--alt);padding:1px 5px;color:var(--ink)}
+
+a.link{color:#6EA8FE}
+.foot{margin-top:30px;padding-top:18px;border-top:1px solid var(--line);color:var(--dim);font-size:12px;font-family:var(--mono)}
+
+@media (max-width:720px){
+  .kpi{grid-template-columns:repeat(2,1fr)}
+  .row,.head-row{grid-template-columns:1fr;gap:6px}
+  .row__status{text-align:left}
+  .checklist{grid-template-columns:1fr}
+  h1{font-size:30px}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<div class="eyebrow">MyBDR · QA · 2026.04</div>
+<h1>모바일 감사 리포트</h1>
+<p class="lede">아이폰 SE(375 × 667) 폭 기준으로 전 화면 inline-grid 패턴을 정적 분석. <code>responsive.css</code>의 모바일 패치 적용 범위와 누락분, 행동 우선순위를 정리합니다.</p>
+
+<div class="kpi">
+  <div class="kpi__card">
+    <div class="kpi__lbl">감사 화면</div>
+    <div class="kpi__val">72</div>
+    <div class="kpi__sub">screens/*.jsx</div>
+  </div>
+  <div class="kpi__card">
+    <div class="kpi__lbl">패치 적용</div>
+    <div class="kpi__val ok">96%</div>
+    <div class="kpi__sub">responsive.css 매칭</div>
+  </div>
+  <div class="kpi__card">
+    <div class="kpi__lbl">High 이슈</div>
+    <div class="kpi__val warn">1</div>
+    <div class="kpi__sub">즉시 수정 권장</div>
+  </div>
+  <div class="kpi__card">
+    <div class="kpi__lbl">Medium / Low</div>
+    <div class="kpi__val ok">3</div>
+    <div class="kpi__sub">개선 가능</div>
+  </div>
+</div>
+
+<div class="legend">
+  <span><i style="background:var(--red)"></i>HIGH · 레이아웃 깨짐 / 가로 스크롤</span>
+  <span><i style="background:var(--warn)"></i>MED · 가독성 저하</span>
+  <span><i style="background:var(--line2)"></i>LOW · 폴리시</span>
+  <span><i style="background:var(--ok)"></i>OK · 패치 적용됨</span>
+</div>
+
+<!-- ============ HIGH ============ -->
+<h2><span class="num">01</span>High · 즉시 수정 권장</h2>
+<div class="section" style="padding:0;overflow:hidden">
+  <div class="head-row">
+    <div>Route</div><div>Severity</div><div>Issue</div><div>Status</div>
+  </div>
+
+  <div class="row">
+    <div class="row__route">gameResult</div>
+    <span class="row__sev sev-high">High</span>
+    <div class="row__desc">
+      선수 통계 테이블이 15열(<code>36px 1fr 40px 42px 50px ...60px 50px</code>, 약 740px). 모바일에서 <code>overflowX:'auto'</code>로 가로 스크롤은 되지만 헤더/행 정렬이 viewport 안쪽으로 잘림. 그리고 <strong>스크롤바 힌트가 없어</strong> 사용자가 스와이프 가능 여부를 인지하기 어려움.
+      <br>→ 우측 페이드 그라디언트 또는 "← 스와이프" 마이크로카피 추가 필요.
+    </div>
+    <div class="row__status fixed">M1·M9</div>
+  </div>
+
+  <div class="row">
+    <div class="row__route">messages</div>
+    <span class="row__sev sev-high">High</span>
+    <div class="row__desc">
+      3-col 채팅 레이아웃(<code>320px 1fr 280px</code>). 현재 모바일에서는 첫 컬럼(대화 목록)만 보이고 가운데 채팅 창과 우측 정보 패널은 <code>display:none</code>으로 처리됨.
+      <br>→ 실 사용 시 <strong>메시지 본문에 진입할 방법이 없음</strong>. 목록 클릭 시 채팅 화면으로 전환되는 모바일 전용 single-column 흐름 필요.
+    </div>
+    <div class="row__status todo">TODO</div>
+  </div>
+
+  <div class="row">
+    <div class="row__route">bracket</div>
+    <span class="row__sev sev-high">High</span>
+    <div class="row__desc">
+      대진표 본체(<code>1fr auto 1fr auto 1fr</code>, <code>minWidth:1000</code>)가 가로 스크롤. 대진표 자체는 받아들일만하나, <strong>QF/SF/F 라벨 헤더와 라운드 가이드가 함께 스크롤되지 않으면</strong> 위치 파악이 어려움.
+      <br>→ 라운드 라벨이 sticky로 본체 위에 떠 있어야 함. 또는 모바일은 라운드별 세로 스택으로 교체.
+    </div>
+    <div class="row__status fixed">OK</div>
+  </div>
+</div>
+
+<!-- ============ MEDIUM ============ -->
+<h2><span class="num">02</span>Medium · 가독성 / 인터랙션</h2>
+<div class="section" style="padding:0;overflow:hidden">
+  <div class="head-row">
+    <div>Route</div><div>Severity</div><div>Issue</div><div>Status</div>
+  </div>
+
+  <div class="row">
+    <div class="row__route">teamManage</div>
+    <span class="row__sev sev-med">Med</span>
+    <div class="row__desc">
+      로스터 테이블 8열(<code>40px 50px 1fr 80px 100px 90px 90px 140px</code>). responsive.css에서 1-col 강제 후 행 간격을 좁혀서 카드처럼 표시되지만 <strong>POS·ROLE·JOINED·GAMES·MVP 라벨이 모두 사라져</strong> 어떤 값이 어떤 메트릭인지 식별 불가.
+      <br>→ 모바일은 <code>data-label</code> + <code>::before</code> 패턴으로 라벨을 같이 표시.
+    </div>
+    <div class="row__status todo">TODO</div>
+  </div>
+
+  <div class="row">
+    <div class="row__route">billing</div>
+    <span class="row__sev sev-med">Med</span>
+    <div class="row__desc">
+      결제 내역 테이블(<code>120px 1fr 110px 90px</code>) 마찬가지 라벨 손실. 날짜/내역/금액/상태가 한 줄로 뭉개짐.
+    </div>
+    <div class="row__status todo">TODO</div>
+  </div>
+
+  <div class="row">
+    <div class="row__route">scrim</div>
+    <span class="row__sev sev-med">Med</span>
+    <div class="row__desc">
+      대전 기록 board__head 6열(<code>80px 1.2fr 100px 80px 80px 90px</code>). 카드 스택 후 라벨 없음 — 위와 동일 패턴.
+    </div>
+    <div class="row__status todo">TODO</div>
+  </div>
+
+  <div class="row">
+    <div class="row__route">live</div>
+    <span class="row__sev sev-med">Med</span>
+    <div class="row__desc">
+      비디오 위 스코어버그 오버레이(<code>position:absolute, min-width:220</code>)가 <code>responsive.css</code>에서 좌우 16px 떨어진 풀폭으로 늘어나는데, <strong>비디오 영역 자체가 16:9 비율을 유지하지 않으면</strong> 스코어버그가 영상 밖에 떠보일 수 있음. 비디오 컨테이너 <code>aspect-ratio:16/9</code> 명시 필요.
+    </div>
+    <div class="row__status fixed">M2</div>
+  </div>
+
+  <div class="row">
+    <div class="row__route">gameResult</div>
+    <span class="row__sev sev-med">Med</span>
+    <div class="row__desc">
+      쿼터별 스코어(<code>1fr repeat(4, 70px) 70px</code>)는 <code>100px+repeat(4,56px)+60px</code>로 축소되지만 375px 폭에서 100+224+60+gap = <strong>~398px</strong>로 viewport 초과. <code>overflowX:auto</code> 처리되어 있으나 보더 클립 발생.
+    </div>
+    <div class="row__status todo">TODO</div>
+  </div>
+
+  <div class="row">
+    <div class="row__route">gallery</div>
+    <span class="row__sev sev-med">Med</span>
+    <div class="row__desc">
+      라이트박스 모달(<code>minmax(0,1fr) 320px</code>) — generic rule로 stack 처리되지만 <strong>모달이 <code>.page</code> 외부에 렌더링</strong>되어 <code>.page div[...]</code> 셀렉터에 매칭되지 않음. 모바일에서 사진 + 320px 사이드패널이 가로로 강제됨.
+    </div>
+    <div class="row__status fixed">M3</div>
+  </div>
+
+  <div class="row">
+    <div class="row__route">stats</div>
+    <span class="row__sev sev-med">Med</span>
+    <div class="row__desc">
+      슈팅 차트가 <code>aspect-ratio</code> 없이 절대 좌표로 그려짐 — 컨테이너 폭이 줄어들면 핫존 점이 어긋날 수 있음. (코드 미확인 — 시각 검증 필요)
+    </div>
+    <div class="row__status todo">CHECK</div>
+  </div>
+
+  <div class="row">
+    <div class="row__route">calendar</div>
+    <span class="row__sev sev-med">Med</span>
+    <div class="row__desc">
+      월간 그리드(7열) 폰에서 셀당 ~50px → 이벤트 칩이 9px 폰트로 줄어듦. 가독성 한계. <strong>날짜 셀 탭 → 일간 모달</strong>로 전환하면 더 좋음.
+    </div>
+    <div class="row__status fixed">OK</div>
+  </div>
+
+  <div class="row">
+    <div class="row__route">postWrite</div>
+    <span class="row__sev sev-med">Med</span>
+    <div class="row__desc">
+      에디터 툴바 9개 버튼(B/I/U/S/H1/H2/Quote/Image/Link)이 한 줄. 375px에서 자동 줄바꿈은 되나 <strong>툴바 높이가 2-3줄</strong>로 불어남. 불필요한 버튼 그룹화 또는 가로 스크롤 처리.
+    </div>
+    <div class="row__status fixed">M5</div>
+  </div>
+
+  <div class="row">
+    <div class="row__route">match (matchDetail · teams)</div>
+    <span class="row__sev sev-med">Med</span>
+    <div class="row__desc">
+      참가팀 board(<code>56px 1fr 90px 100px 80px</code>) — 위 board 패턴 동일, 라벨 손실.
+    </div>
+    <div class="row__status fixed">M6</div>
+  </div>
+
+  <div class="row">
+    <div class="row__route">profile</div>
+    <span class="row__sev sev-med">Med</span>
+    <div class="row__desc">
+      <code>320px 1fr</code> stack 처리되지만 좌측 sidebar(아바타+요약+버튼)가 모바일에서 <strong>본문보다 먼저 풀폭으로 표시</strong>. 320px 카드가 viewport와 동일 폭이 되어 그래픽적 위계가 무너짐. 모바일에서는 hero 섹션으로 변환 권장.
+    </div>
+    <div class="row__status fixed">M7</div>
+  </div>
+</div>
+
+<!-- ============ LOW ============ -->
+<h2><span class="num">03</span>Low · 폴리시</h2>
+<div class="section" style="padding:0;overflow:hidden">
+  <div class="head-row">
+    <div>Route</div><div>Severity</div><div>Issue</div><div>Status</div>
+  </div>
+
+  <div class="row">
+    <div class="row__route">app-nav (전 화면)</div>
+    <span class="row__sev sev-low">Low</span>
+    <div class="row__desc">
+      모바일에서 utility strip(상단 파란 띠)이 로고+검색+알림+테마 토글로 좁게 압축됨. <code>theme-switch__btn span</code>이 숨겨져 햇볕/달 아이콘만 남는데 텍스트 라벨 없음 → tap target은 OK.
+    </div>
+    <div class="row__status fixed">OK</div>
+  </div>
+
+  <div class="row">
+    <div class="row__route">home</div>
+    <span class="row__sev sev-low">Low</span>
+    <div class="row__desc">
+      4개 stat strip → 2x2 grid로 변환됨. promo CTA 영역도 padding 축소됨. 시각적 양호.
+    </div>
+    <div class="row__status fixed">OK</div>
+  </div>
+
+  <div class="row">
+    <div class="row__route">teamDetail · matchDetail · courtDetail</div>
+    <span class="row__sev sev-low">Low</span>
+    <div class="row__desc">
+      Hero gradient의 거대 watermark(180~240px)가 96px로 캡됨. h1(52px) → 30px. avatar/info/actions가 stack됨. 양호.
+    </div>
+    <div class="row__status fixed">OK</div>
+  </div>
+
+  <div class="row">
+    <div class="row__route">myGames · myActivity</div>
+    <span class="row__sev sev-low">Low</span>
+    <div class="row__desc">
+      reg row(<code>auto 1fr auto</code>)가 datebox/main/actions 3-area 그리드로 재배치됨. 액션 버튼 wrap. 양호.
+    </div>
+    <div class="row__status fixed">OK</div>
+  </div>
+
+  <div class="row">
+    <div class="row__route">saved · search · searchResults</div>
+    <span class="row__sev sev-low">Low</span>
+    <div class="row__desc">
+      tabs 행이 <code>overflow-x:auto + flex-wrap:nowrap</code>로 가로 스크롤 — 적절. <code>auto-fill, minmax(280px, 1fr)</code> 그리드는 1열로 강제됨.
+    </div>
+    <div class="row__status fixed">OK</div>
+  </div>
+
+  <div class="row">
+    <div class="row__route">checkout · pricing*</div>
+    <span class="row__sev sev-low">Low</span>
+    <div class="row__desc">
+      label/value 그리드(<code>120px 1fr</code>, <code>140px 1fr</code>)가 <code>96px 1fr</code>로 축소됨. 폰트 13px. 양호.
+    </div>
+    <div class="row__status fixed">OK</div>
+  </div>
+</div>
+
+<!-- ============ 적용된 패치 요약 ============ -->
+<h2><span class="num">04</span>적용된 모바일 패치 (responsive.css 요약)</h2>
+<div class="section">
+  <h3>네비게이션</h3>
+  <div class="checklist">
+    <div class="check">데스크톱 탭 strip → 햄버거 + 우측 drawer</div>
+    <div class="check">utility strip 압축, sep/링크 숨김</div>
+    <div class="check">테마 스위치 텍스트 숨김, 아이콘만</div>
+    <div class="check">로고 22px → 18px</div>
+  </div>
+  <h3 style="margin-top:18px">레이아웃 stack</h3>
+  <div class="checklist">
+    <div class="check">2-col sidebar (1fr+340/320/300/280/360px) → 1-col</div>
+    <div class="check">220/240/320px sidebar → stack</div>
+    <div class="check">label/value 그리드 → 96px 1fr</div>
+    <div class="check">repeat(2,1fr) 토너먼트 카드 → 1열</div>
+    <div class="check">repeat(3,1fr) 포스터 → 2열</div>
+    <div class="check">auto-fill minmax(240~300) → 1열</div>
+    <div class="check">stat strip 4-col → 2x2</div>
+    <div class="check">myGames reg row → 3-area grid</div>
+    <div class="check">scoreboard 96px → 56px</div>
+    <div class="check">hero watermark 180~240 → 96</div>
+  </div>
+  <h3 style="margin-top:18px">기타</h3>
+  <div class="checklist">
+    <div class="check">input/select 16px (iOS auto-zoom 방지)</div>
+    <div class="check">btn min-tap 44px급</div>
+    <div class="check">tabs 가로 스크롤</div>
+    <div class="check">body overflow-x: hidden</div>
+    <div class="check">tweaks panel 풀폭 bottom sheet</div>
+    <div class="check">onboarding 모달 1열</div>
+  </div>
+</div>
+
+<!-- ============ 권장 액션 ============ -->
+<h2><span class="num">05</span>권장 후속 액션</h2>
+<div class="section">
+  <ul class="notes">
+    <li><strong>P0</strong> · <code>messages</code>: 모바일 single-column 흐름 (목록 → 채팅 push). 현재 채팅 본문 접근 불가.</li>
+    <li><strong>P0</strong> · 다중 컬럼 board 테이블(<code>teamManage</code>·<code>billing</code>·<code>scrim</code>·<code>match teams</code>)에 <code>data-label</code> 라벨링 패턴 적용. 컴포넌트화 추천: <code>&lt;ResponsiveTable /&gt;</code>.</li>
+    <li><strong>P1</strong> · <code>bracket</code>: 라운드 헤더 sticky-top, 또는 모바일 vertical 모드.</li>
+    <li><strong>P1</strong> · <code>gallery</code> 라이트박스: <code>.page</code> 외부의 모달 셀렉터 추가, 또는 모달 내부에 모바일 stack class.</li>
+    <li><strong>P1</strong> · 가로 스크롤 영역(스코어 테이블·쿼터별·대진표) 우측 페이드 마스크 + 첫 진입시 0.5s 잠깐 미리 스크롤하는 인터랙션 hint.</li>
+    <li><strong>P2</strong> · <code>calendar</code>: 셀 탭 → 일간 모달.</li>
+    <li><strong>P2</strong> · <code>postWrite</code>: 툴바 그룹화/스크롤.</li>
+    <li><strong>P2</strong> · <code>profile</code>: 320px 카드 sidebar → 모바일 hero 섹션 변환.</li>
+    <li><strong>P3</strong> · 테이블 컴포넌트화 후 responsive.css의 path-based grid selector를 60% 정도 줄일 수 있음. 유지보수성 ↑.</li>
+  </ul>
+</div>
+
+<!-- ============ 점검 방법 ============ -->
+<h2><span class="num">06</span>재현 방법</h2>
+<div class="section">
+  <ul class="notes">
+    <li><a class="link" href="_mobile_audit.html">_mobile_audit.html</a> 열고 그룹 버튼 → iframe 375×667로 라우트별 미리보기.</li>
+    <li>또는 직접: <code>MyBDR.html?route=&lt;name&gt;</code> + 브라우저 DevTools 모바일 뷰.</li>
+    <li>알려진 라우트: <code>home · match · matchDetail · team · teamDetail · court · courtDetail · rank · games · gameDetail · gameResult · live · mygames · myActivity · notifications · messages · saved · calendar · settings · profile · signup · verify · login · help · createGame · createTeam · scrim · bracket · stats · gallery · checkout · billing · pricing · pricingSuccess · pricingFail · orgs · orgDetail · series · seriesDetail · seriesCreate · teamInvite · guestApps</code></li>
+  </ul>
+</div>
+
+<div class="foot">
+  Generated 2026.04.30 · scope: screens/*.jsx + responsive.css · 다음 감사: messages·data-label P0 처리 후
+</div>
+
+</div>
+</body>
+</html>

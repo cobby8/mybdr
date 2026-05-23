@@ -40,24 +40,31 @@ export function PrintBoxScoreArea({
   // game-result.tsx 에서 match.recording_mode === "paper" 산출 후 prop 전달.
   isPaperMatch?: boolean;
 }) {
+  // 2026-05-20 OT2+ 분리 — OT 진행 회수에 따라 쿼터 키 동적 확장.
+  // otCount = home.ot 배열 길이 (0 = 없음 / 1 = OT1만 / 2 = OT1+OT2 / N+).
+  const otCount = match.quarter_scores?.home?.ot?.length ?? 0;
+
   // printOptions 기반 (팀 × 기간) 매핑 — 옛 page.tsx L559-574 의 printSections 로직 카피.
-  // 순서: 홈(누적 → 1Q → ... → OT) → 원정(누적 → 1Q → ... → OT)
+  // 순서: 홈(누적 → 1Q → ... → OT1 → OT2 ...) → 원정(누적 → 1Q → ... → OT1 → OT2 ...)
   const printSections = useMemo(() => {
     if (!printOptions) return [];
     const out: Array<{ team: "home" | "away"; filter: string; label: string }> = [];
+    // 1~4쿼터 키 + OT 진행 회수만큼 OT1/OT2/... 키 동적 추가
+    const quarterKeys = ["1", "2", "3", "4", ...Array.from({ length: Math.max(otCount, 1) }, (_, i) => String(5 + i))];
     for (const side of ["home", "away"] as const) {
       const o = printOptions[side];
       if (!o.enabled) continue;
       if (o.total) out.push({ team: side, filter: "all", label: "누적 기록" });
-      for (const q of ["1", "2", "3", "4", "5"]) {
+      for (const q of quarterKeys) {
         if (o.quarters[q]) {
-          const label = q === "5" ? "OT" : `${q}쿼터`;
+          const qNum = Number(q);
+          const label = qNum >= 5 ? `OT${qNum - 4}` : `${q}쿼터`;
           out.push({ team: side, filter: q, label });
         }
       }
     }
     return out;
-  }, [printOptions]);
+  }, [printOptions, otCount]);
 
   // 쿼터별 점수 — quarter_scores 가 있으면 quarters 배열로 재가공
   const quarters = useMemo(() => {

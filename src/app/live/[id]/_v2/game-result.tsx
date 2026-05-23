@@ -208,8 +208,10 @@ export function GameResultV2({ match }: { match: MatchDataV2 }) {
   const [printOptions, setPrintOptions] = useState<PrintOptions | null>(null);
   const [isPrinting, setIsPrinting] = useState(false);
 
-  // OT 쿼터 존재 여부 — 다이얼로그에 OT 옵션 노출 분기
-  const hasOT = (match.quarter_scores?.home?.ot?.length ?? 0) > 0;
+  // OT 쿼터 분리 — 다이얼로그/박스스코어/인쇄 모두 OT1/OT2+ 분리 지원 (2026-05-20).
+  // otCount = home.ot 배열 길이 (0=없음 / 1=OT1만 / 2=OT1+OT2 / N+). hasOT는 backward-compat.
+  const otCount = match.quarter_scores?.home?.ot?.length ?? 0;
+  const hasOT = otCount > 0;
 
   // 프린트 트리거 — printOptions 세팅 시 다음 틱에 실제 프린트 실행 (옛 page.tsx L511-555 카피)
   // 이유: printOptions 세팅으로 #box-score-print-area 가 리렌더되는 타이밍과
@@ -627,6 +629,7 @@ export function GameResultV2({ match }: { match: MatchDataV2 }) {
           homeTeamName={match.home_team.name}
           awayTeamName={match.away_team.name}
           hasOT={hasOT}
+          otCount={otCount}
           hasQuarterEventDetail={match.has_quarter_event_detail}
         />
       </div>

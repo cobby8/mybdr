@@ -1,7 +1,17 @@
-/* global React, TEAMS, Avatar */
+/* global React, TEAMS, Avatar, ForceActionModal */
 
 function TeamManage({ setRoute }) {
   const [tab, setTab] = React.useState('roster');
+  // Phase A.5 §9 — ForceActionModal mount state (jersey + withdraw 2 모드)
+  const [forceModal, setForceModal] = React.useState(null);
+  const [openMenuId, setOpenMenuId] = React.useState(null);
+  React.useEffect(() => {
+    const close = () => setOpenMenuId(null);
+    if (openMenuId !== null) {
+      document.addEventListener('click', close);
+      return () => document.removeEventListener('click', close);
+    }
+  }, [openMenuId]);
   const team = TEAMS[0] || { name:'REDEEM', tag:'RDM', color:'#DC2626', ink:'#fff' };
 
   const roster = [
@@ -103,10 +113,37 @@ function TeamManage({ setRoute }) {
                 <div data-label="JOINED" style={{fontSize:11, color:'var(--ink-dim)', fontFamily:'var(--ff-mono)'}}>{r.joined}</div>
                 <div data-label="GAMES" style={{fontFamily:'var(--ff-mono)', color:'var(--ink-soft)'}}>{r.games}</div>
                 <div data-label="MVP" style={{fontFamily:'var(--ff-mono)', color: r.mvp>0?'var(--accent)':'var(--ink-dim)', fontWeight:700}}>{r.mvp > 0 ? '★'.repeat(r.mvp) : '−'}</div>
-                <div data-actions="true" style={{display:'flex', gap:4, justifyContent:'flex-end'}}>
-                  <button className="btn btn--sm" style={{padding:'4px 8px', fontSize:11}}>권한</button>
+                <div data-actions="true" style={{display:'flex', gap:4, justifyContent:'flex-end', alignItems:'center', position:'relative', overflow:'visible'}}>
                   <button className="btn btn--sm" style={{padding:'4px 8px', fontSize:11}}>쪽지</button>
-                  {r.role !== 'captain' && <button className="btn btn--sm" style={{padding:'4px 8px', fontSize:11, color:'var(--err)'}}>탈퇴</button>}
+                  {r.role !== 'captain' && (
+                    <div style={{position:'relative'}} onClick={(e)=>e.stopPropagation()}>
+                      <button
+                        className="btn btn--sm"
+                        aria-label="운영진 액션"
+                        style={{padding:'4px 8px', fontSize:13, fontWeight:700, lineHeight:1}}
+                        onClick={()=>setOpenMenuId(openMenuId===r.id ? null : r.id)}>⋮</button>
+                      {openMenuId === r.id && (
+                        <div role="menu" style={{
+                          position:'absolute', right:0, top:'100%', marginTop:4,
+                          minWidth:180, background:'var(--bg-card)', border:'1px solid var(--border)',
+                          borderRadius:6, boxShadow:'0 8px 20px rgba(0,0,0,.35)', zIndex:50, overflow:'hidden',
+                        }}>
+                          <button
+                            role="menuitem"
+                            onClick={()=>{ setOpenMenuId(null); setForceModal({mode:'jersey', member:r}); }}
+                            style={{display:'block', width:'100%', textAlign:'left', padding:'10px 14px', background:'transparent', border:0, color:'var(--ink)', fontSize:13, cursor:'pointer'}}>
+                            등번호 강제 변경
+                          </button>
+                          <button
+                            role="menuitem"
+                            onClick={()=>{ setOpenMenuId(null); setForceModal({mode:'withdraw', member:r}); }}
+                            style={{display:'block', width:'100%', textAlign:'left', padding:'10px 14px', background:'transparent', border:'none', borderTop:'1px solid var(--border)', color:'var(--err)', fontSize:13, cursor:'pointer', fontWeight:600}}>
+                            강제 탈퇴
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
@@ -218,6 +255,19 @@ function TeamManage({ setRoute }) {
           </div>
         </div>
       )}
+
+      {/* Phase A.5 §9 — ForceActionModal (jersey + withdraw 두 모드 공통 mount) */}
+      <ForceActionModal
+        open={!!forceModal}
+        mode={forceModal?.mode}
+        memberName={forceModal?.member?.name}
+        onClose={()=>setForceModal(null)}
+        onSubmit={async (payload)=>{
+          // 데모: 운영 src/ 동기화 시 API 호출로 교체
+          await new Promise(r => setTimeout(r, 400));
+          console.log('[ForceAction]', forceModal?.mode, forceModal?.member?.name, payload);
+        }}
+      />
     </div>
   );
 }

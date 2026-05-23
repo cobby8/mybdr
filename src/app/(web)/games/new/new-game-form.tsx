@@ -12,6 +12,15 @@
 
 import { GameFormV2, type Permissions } from "./_v2/game-form";
 
-export function NewGameForm({ permissions }: { permissions: Permissions }) {
-  return <GameFormV2 permissions={permissions} />;
+export function NewGameForm({
+  permissions,
+  previewNickname,
+}: {
+  permissions: Permissions;
+  /** [v2.16 Phase 3-2a] 라이브 프리뷰 GameCard authorNickname */
+  previewNickname?: string | null;
+}) {
+  return (
+    <GameFormV2 permissions={permissions} previewNickname={previewNickname} />
+  );
 }

@@ -11,12 +11,12 @@ function Scrim({ setRoute }) {
   ];
 
   const incoming = [
-    { id:'in1', from:'몽키즈', tag:'MNK', color:'#F59E0B', msg:'토요일 연습경기 어떠세요?', at:'2시간 전', status:'new' },
+    { id:'in1', from:'몽키즈', tag:'MNK', color:'#F59E0B', msg:'토요일 스크림 어떠세요?', at:'2시간 전', status:'new' },
     { id:'in2', from:'3POINT', tag:'3PT', color:'#E31B23', msg:'4/30 저녁 용산 같이 뛰시죠', at:'어제', status:'replied' },
   ];
   const outgoing = [
     { id:'o1', to:'킹스크루',   tag:'KGS', color:'#0F5FCC', msg:'금요일 저녁 풀코트 제안드려요', at:'1시간 전', status:'pending' },
-    { id:'o2', to:'IRON WOLVES', tag:'IRN', color:'#374151', msg:'5/2 연습경기 가능하신지', at:'3일 전', status:'accepted' },
+    { id:'o2', to:'IRON WOLVES', tag:'IRN', color:'#374151', msg:'5/2 스크림 가능하신지', at:'3일 전', status:'accepted' },
   ];
 
   const history = [
@@ -29,18 +29,18 @@ function Scrim({ setRoute }) {
     <div className="page">
       <div style={{display:'flex', gap:6, fontSize:12, color:'var(--ink-mute)', marginBottom:12}}>
         <a onClick={()=>setRoute('home')} style={{cursor:'pointer'}}>홈</a><span>›</span>
-        <span style={{color:'var(--ink)'}}>연습경기 매칭</span>
+        <span style={{color:'var(--ink)'}}>스크림 매칭</span>
       </div>
 
       <div style={{display:'flex', justifyContent:'space-between', alignItems:'flex-end', marginBottom:18, flexWrap:'wrap', gap:12}}>
         <div>
-          <div className="eyebrow">연습경기 · SCRIMMAGE</div>
+          <div className="eyebrow">스크림 · SCRIMMAGE</div>
           <h1 style={{margin:'4px 0 6px', fontSize:32, fontWeight:800, letterSpacing:'-0.02em'}}>팀 vs 팀, 연습경기 잡기</h1>
           <p style={{margin:0, color:'var(--ink-mute)', fontSize:14}}>내 팀 레이팅에 맞는 상대를 찾고, 바로 제안을 주고받으세요.</p>
         </div>
         <div style={{display:'flex', gap:6}}>
           <button className="btn">내 요청 관리</button>
-          <button className="btn btn--accent">+ 연습경기 등록</button>
+          <button className="btn btn--accent">+ 스크림 등록</button>
         </div>
       </div>
 
@@ -60,7 +60,7 @@ function Scrim({ setRoute }) {
           { id:'find',     label:'상대 찾기', n: openReqs.length },
           { id:'incoming', label:'받은 제안', n: incoming.length },
           { id:'outgoing', label:'보낸 제안', n: outgoing.length },
-          { id:'history',  label:'지난 연습경기', n: history.length },
+          { id:'history',  label:'지난 스크림', n: history.length },
         ].map(t => (
           <button key={t.id} onClick={()=>setTab(t.id)} style={{
             padding:'12px 18px', background:'transparent', border:0, cursor:'pointer',

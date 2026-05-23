@@ -1,0 +1,2609 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>경기 상세 페이지 — 시안 2종 비교 (v2.16)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800;900&family=JetBrains+Mono:wght@500;700;800&family=Pretendard:wght@400;500;600;700;800;900&display=swap" />
+<link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Symbols+Outlined" />
+<style>
+/* ============================================================
+   v2.15 light tokens
+   ============================================================ */
+:root {
+  --bdr-red: #E31B23;
+  --bdr-red-ink: #B3141A;
+  --bg: #F4F6FA;
+  --bg-elev: #FFFFFF;
+  --bg-card: #FFFFFF;
+  --bg-alt: #F8FAFD;
+  --bg-head: #EEF2F7;
+  --ink: #1A1E27;
+  --ink-soft: #404755;
+  --ink-mute: #6B7280;
+  --ink-dim: #8C94A0;
+  --border: #E3E7ED;
+  --border-strong: #D0D5DD;
+  --cafe-blue: #0F5FCC;
+  --cafe-blue-deep: #0A4CA6;
+  --cafe-blue-soft: #E8F1FC;
+  --cafe-blue-hair: #C7DCF5;
+  --accent: var(--bdr-red);
+  --accent-soft: #FDE8E9;
+  --ok: #1CA05E;
+  --ok-soft: #E1F4EA;
+  --warn: #E8A33B;
+  --warn-soft: #FBEED2;
+  --danger: #DC2626;
+  --sh-xs: 0 1px 2px rgba(15, 23, 42, .04);
+  --sh-sm: 0 2px 6px rgba(15, 23, 42, .06);
+  --sh-md: 0 6px 18px rgba(15, 23, 42, .08);
+  --ff-display: 'Archivo', 'Pretendard', sans-serif;
+  --ff-body: 'Pretendard', sans-serif;
+  --ff-mono: 'JetBrains Mono', monospace;
+}
+
+/* Kind colors — DARK / confirmed in card */
+.kind-pickup    { --kind: #1B3C87; --kind-deep: #0F234F; --kind-soft: var(--cafe-blue-soft); --kind-hair: var(--cafe-blue-hair); }
+.kind-guest     { --kind: #8B0E15; --kind-deep: #5C0810; --kind-soft: var(--accent-soft); --kind-hair: #F5C6C8; }
+.kind-scrimmage { --kind: #0A5132; --kind-deep: #053823; --kind-soft: var(--ok-soft);     --kind-hair: #C7E8D7; }
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--ff-body);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ============================================================
+   Showcase layout
+   ============================================================ */
+.showcase {
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 56px 40px 80px;
+}
+.showcase-head { margin-bottom: 36px; }
+.showcase-head .eyebrow {
+  font-family: var(--ff-mono);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  color: var(--accent);
+  font-weight: 700;
+  margin-bottom: 10px;
+  display: inline-flex; align-items: center; gap: 8px;
+}
+.showcase-head .eyebrow::before { content: ""; width: 18px; height: 2px; background: var(--accent); }
+.showcase-head h1 {
+  font-family: var(--ff-display);
+  font-size: 36px; font-weight: 800; letter-spacing: -0.02em;
+  margin: 0 0 12px;
+}
+.showcase-head p { color: var(--ink-soft); margin: 0; max-width: 800px; line-height: 1.65; }
+.assumptions {
+  margin-top: 18px;
+  padding: 14px 18px;
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--cafe-blue);
+  border-radius: 4px;
+  font-size: 13px;
+  color: var(--ink-soft);
+  line-height: 1.7;
+}
+.assumptions b { color: var(--ink); font-weight: 700; }
+.assumptions ul { margin: 6px 0 0; padding-left: 18px; }
+
+.variant {
+  margin-top: 48px;
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.variant__head {
+  padding: 22px 26px;
+  border-bottom: 1px solid var(--border);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  column-gap: 24px;
+  row-gap: 6px;
+}
+.variant__num {
+  font-family: var(--ff-mono); font-weight: 800; font-size: 12px;
+  color: var(--accent); letter-spacing: 0.08em; text-transform: uppercase;
+}
+.variant__title {
+  font-family: var(--ff-display);
+  margin: 4px 0 0;
+  font-size: 24px; font-weight: 800; letter-spacing: -0.015em;
+}
+.variant__desc {
+  font-size: 13.5px; color: var(--ink-mute); line-height: 1.6;
+  grid-column: 1 / -1; max-width: 760px; margin: 4px 0 0;
+}
+.variant__tags { align-self: start; display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+.variant__tag {
+  font-family: var(--ff-mono); font-size: 10px; font-weight: 700;
+  letter-spacing: 0.06em; text-transform: uppercase;
+  padding: 4px 8px;
+  background: var(--bg-alt); border: 1px solid var(--border); border-radius: 4px;
+  color: var(--ink-mute);
+}
+.variant__tag--ok { color: var(--ok); border-color: #C7E8D7; background: var(--ok-soft); }
+
+/* Viewport strip — PC + Mobile side by side */
+.vp-strip {
+  display: flex;
+  gap: 24px;
+  padding: 28px 26px 32px;
+  background: linear-gradient(180deg, #EEF1F6 0%, #F4F6FA 100%);
+  overflow-x: auto;
+}
+.vp { flex: 0 0 auto; }
+.vp--pc { width: 1200px; }
+.vp--mobile { width: 400px; }
+.vp__chrome {
+  padding: 10px 14px;
+  background: var(--bg-head);
+  border: 1px solid var(--border-strong);
+  border-bottom: 0;
+  border-radius: 10px 10px 0 0;
+  display: flex; align-items: center; gap: 10px;
+}
+.vp__lights { display: inline-flex; gap: 6px; }
+.vp__lights span { width: 10px; height: 10px; border-radius: 50%; background: var(--border-strong); }
+.vp__url {
+  flex: 1;
+  font-family: var(--ff-mono); font-size: 11px; color: var(--ink-mute);
+  background: var(--bg-elev); border: 1px solid var(--border); border-radius: 4px;
+  padding: 4px 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.vp__size {
+  font-family: var(--ff-mono); font-size: 10px; color: var(--ink-dim);
+  font-weight: 700; letter-spacing: 0.04em;
+}
+.vp__body {
+  background: var(--bg);
+  border: 1px solid var(--border-strong);
+  border-top: 0;
+  border-radius: 0 0 10px 10px;
+  overflow: hidden;
+}
+
+/* Variant caption */
+.variant__cap {
+  padding: 18px 26px 22px;
+  background: var(--bg-alt);
+  border-top: 1px solid var(--border);
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 26px;
+}
+.variant__cap h4 {
+  margin: 0 0 8px;
+  font-size: 11px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--ink-dim);
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.variant__cap h4 .ico { font-family: 'Material Symbols Outlined'; font-size: 14px; }
+.variant__cap .pros h4 { color: var(--ok); }
+.variant__cap .cons h4 { color: var(--accent); }
+.variant__cap ul { margin: 0; padding-left: 16px; font-size: 13px; color: var(--ink-soft); line-height: 1.65; }
+
+/* ============================================================
+   APP NAV (간단 mock — 실제 AppNav 박제 카피 자리)
+   ============================================================ */
+.appnav {
+  position: relative;
+  background: var(--bg-elev);
+  border-bottom: 1px solid var(--border);
+}
+.appnav__util {
+  background: var(--cafe-blue);
+  color: #fff;
+  font-size: 11.5px;
+  padding: 6px 24px;
+  display: flex; justify-content: flex-end; gap: 14px;
+}
+.appnav__main {
+  padding: 12px 24px;
+  display: flex; align-items: center; gap: 24px;
+}
+.appnav__logo {
+  font-family: var(--ff-display);
+  font-weight: 900;
+  font-size: 22px;
+  letter-spacing: -0.01em;
+}
+.appnav__logo .dot { color: var(--accent); }
+.appnav__tabs { flex: 1; display: flex; gap: 2px; }
+.appnav__tab {
+  padding: 8px 12px;
+  font-size: 13.5px; font-weight: 600;
+  color: var(--ink-mute);
+  border-radius: 6px;
+}
+.appnav__tab[data-active="true"] {
+  background: var(--cafe-blue-soft);
+  color: var(--cafe-blue-deep);
+  font-weight: 700;
+}
+.appnav__right { display: flex; align-items: center; gap: 6px; }
+.appnav__icon {
+  width: 32px; height: 32px;
+  display: inline-flex; align-items: center; justify-content: center;
+  color: var(--ink-soft);
+  border-radius: 4px;
+}
+.appnav__icon .ico { font-family: 'Material Symbols Outlined'; font-size: 18px; }
+
+/* ============================================================
+   PAGE (shared)
+   ============================================================ */
+.page {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 24px 24px 80px;
+}
+.crumbs {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 12px; color: var(--ink-mute);
+  margin-bottom: 14px;
+}
+.crumbs span.sep { color: var(--ink-dim); }
+.crumbs a { color: var(--ink-mute); }
+.crumbs .cur { color: var(--ink); font-weight: 600; }
+
+/* ============================================================
+   ATOMS — badges, host card, applicant card etc
+   ============================================================ */
+.kind-chip {
+  display: inline-flex; align-items: center;
+  padding: 3px 10px;
+  font-size: 11px; font-weight: 800;
+  color: #fff;
+  background: var(--kind);
+  border-radius: 4px;
+  letter-spacing: 0.02em;
+  line-height: 1.5;
+}
+.area-chip {
+  display: inline-flex; align-items: center; gap: 3px;
+  padding: 3px 10px 3px 8px;
+  font-size: 11.5px; font-weight: 700;
+  color: var(--ink);
+  background: var(--bg-head);
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+  line-height: 1.5;
+}
+.area-chip .ico {
+  font-family: 'Material Symbols Outlined';
+  font-size: 14px;
+  color: var(--kind);
+  font-weight: 500;
+}
+.tag-chip {
+  display: inline-flex; align-items: center;
+  padding: 1px 7px;
+  font-size: 10.5px; font-weight: 600;
+  color: var(--ink-mute);
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  line-height: 1.5;
+}
+.tag-chip--free { color: var(--ok); border-color: #C7E8D7; background: var(--ok-soft); font-weight: 700; }
+
+.card-base {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.section-title {
+  margin: 0 0 12px;
+  font-size: 16px; font-weight: 800;
+  letter-spacing: -0.005em;
+  display: flex; align-items: center; gap: 8px;
+}
+.section-title .count {
+  font-size: 12px; font-weight: 600; color: var(--ink-mute);
+  font-family: var(--ff-mono);
+}
+.section-title .ico { font-family: 'Material Symbols Outlined'; font-size: 18px; color: var(--kind); font-weight: 500; }
+
+/* Host card (shared) */
+.host-card {
+  display: flex; align-items: center; gap: 12px;
+}
+.host-card__av {
+  width: 44px; height: 44px;
+  border-radius: 50%;
+  background: var(--kind-deep);
+  color: #fff;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-family: var(--ff-display); font-weight: 800; font-size: 16px;
+  flex-shrink: 0;
+  border: 1px solid rgba(255,255,255,.5);
+}
+.host-card__info { flex: 1; min-width: 0; }
+.host-card__nick {
+  font-weight: 800; font-size: 14px;
+  color: var(--ink);
+  line-height: 1.25;
+  display: flex; align-items: center; gap: 6px;
+}
+.host-card__nick .role {
+  font-family: var(--ff-body);
+  font-size: 10px; font-weight: 800;
+  letter-spacing: 0.04em;
+  padding: 1px 6px;
+  background: var(--kind-soft);
+  color: var(--kind-deep);
+  border: 1px solid var(--kind-hair);
+  border-radius: 3px;
+  text-transform: uppercase;
+}
+.host-card__meta {
+  margin-top: 3px;
+  font-size: 11.5px;
+  color: var(--ink-dim);
+  font-family: var(--ff-mono);
+  display: flex; align-items: center; gap: 6px;
+}
+.host-card__meta .star { color: var(--warn); font-weight: 700; }
+
+/* Applicant card */
+.appl {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px;
+  background: var(--bg-alt);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+.appl__av {
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  background: var(--ink-soft);
+  color: #fff;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-family: var(--ff-mono); font-weight: 700; font-size: 11px;
+  flex-shrink: 0;
+}
+.appl__info { flex: 1; min-width: 0; }
+.appl__nick {
+  font-weight: 700; font-size: 13px;
+  line-height: 1.2;
+  display: flex; align-items: center; gap: 4px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.appl__meta {
+  font-size: 10.5px;
+  color: var(--ink-dim);
+  font-family: var(--ff-mono);
+  margin-top: 3px;
+  display: flex; gap: 8px;
+}
+.appl__meta .star { color: var(--warn); font-weight: 700; }
+.appl__lvl {
+  font-family: var(--ff-mono);
+  font-size: 10px; font-weight: 800;
+  padding: 1px 5px;
+  background: var(--ink-soft);
+  color: #fff;
+  border-radius: 3px;
+  letter-spacing: -0.01em;
+}
+.appl__status {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.04em;
+  padding: 2px 6px; border-radius: 3px;
+  font-family: var(--ff-body);
+}
+.appl__status--ok { background: var(--ok-soft); color: var(--ok); }
+.appl__status--wait { background: var(--warn-soft); color: #8B5A0F; }
+
+/* Apply button */
+.btn-apply-lg {
+  width: 100%;
+  padding: 14px 16px;
+  font-size: 16px; font-weight: 800;
+  background: var(--cafe-blue);
+  color: #fff;
+  border: 1px solid var(--cafe-blue-deep);
+  border-radius: 4px;
+  cursor: pointer;
+  letter-spacing: -0.005em;
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+}
+.btn-apply-lg:hover { background: var(--cafe-blue-deep); }
+.btn-apply-lg .ico { font-family: 'Material Symbols Outlined'; font-size: 18px; font-weight: 500; }
+
+.btn-sub {
+  flex: 1;
+  padding: 8px 10px;
+  font-size: 12px; font-weight: 600;
+  background: var(--bg-elev);
+  color: var(--ink-soft);
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+  cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center; gap: 4px;
+}
+.btn-sub:hover { background: var(--bg-alt); }
+.btn-sub .ico { font-family: 'Material Symbols Outlined'; font-size: 14px; }
+
+/* Progress bar */
+.bar {
+  height: 8px;
+  background: var(--bg-alt);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.bar__fill { height: 100%; background: var(--kind); transition: width .25s; }
+.bar--lg { height: 10px; }
+.bar--sm { height: 4px; }
+.bar__fill--ok { background: var(--ok); }
+.bar__fill--warn { background: var(--warn); }
+.bar__fill--accent { background: var(--accent); }
+
+/* Map placeholder — CSS pseudo-map */
+.map {
+  position: relative;
+  height: 220px;
+  background:
+    linear-gradient(135deg, rgba(232,238,240,.4) 0%, rgba(220,232,235,.7) 100%) 0 0 / 100% 100%,
+    linear-gradient(90deg, rgba(0,0,0,.04) 1px, transparent 1px) 0 0 / 24px 100%,
+    linear-gradient(0deg, rgba(0,0,0,.04) 1px, transparent 1px) 0 0 / 100% 24px,
+    #E8EEF0;
+  border-radius: 6px 6px 0 0;
+  overflow: hidden;
+}
+.map::before {
+  /* road */
+  content: ""; position: absolute;
+  left: 0; right: 0; top: 55%;
+  height: 16px;
+  background:
+    linear-gradient(180deg, transparent 45%, rgba(255,255,255,.7) 45%, rgba(255,255,255,.7) 55%, transparent 55%),
+    #D5DDE1;
+  transform: rotate(-2deg);
+  box-shadow: 0 1px 0 rgba(0,0,0,.05);
+}
+.map::after {
+  /* secondary road */
+  content: ""; position: absolute;
+  top: 0; bottom: 0; left: 65%;
+  width: 10px;
+  background: #D5DDE1;
+  box-shadow: 0 0 0 1px rgba(0,0,0,.05);
+}
+.map__pin {
+  position: absolute;
+  top: 48%; left: 45%;
+  transform: translate(-50%, -100%);
+  z-index: 2;
+}
+.map__pin-dot {
+  width: 28px; height: 28px;
+  background: var(--kind);
+  border: 3px solid #fff;
+  border-radius: 50% 50% 50% 0;
+  transform: rotate(-45deg);
+  box-shadow: 0 4px 8px rgba(0,0,0,.18);
+  display: grid; place-items: center;
+}
+.map__pin-dot::after {
+  content: "🏀";
+  transform: rotate(45deg);
+  font-size: 12px;
+  line-height: 1;
+}
+.map__attr {
+  position: absolute;
+  bottom: 8px; right: 10px;
+  font-family: var(--ff-mono);
+  font-size: 10px;
+  color: var(--ink-dim);
+  background: rgba(255,255,255,.85);
+  padding: 2px 6px;
+  border-radius: 3px;
+}
+
+/* ============================================================
+   V1 — CLASSIC REFINED — 2 column
+   ============================================================ */
+/* V1 page layout — handled by inline .page__main-and-aside grid (avoids nested grid collision) */
+.v1 .page__main { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.v1 .page__aside { position: sticky; top: 0; display: flex; flex-direction: column; gap: 16px; }
+
+/* V1 — Title block */
+.v1-hero {
+  padding: 22px 24px 20px;
+}
+.v1-hero__row1 {
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.v1-hero__title {
+  margin: 0 0 16px;
+  font-size: 26px; font-weight: 800;
+  letter-spacing: -0.015em;
+  line-height: 1.3;
+  color: var(--ink);
+}
+.v1-meta-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  padding: 16px 18px;
+  background: var(--bg-alt);
+  border-radius: 6px;
+}
+.v1-meta-grid__item {
+  display: flex; flex-direction: column; gap: 4px;
+  min-width: 0;
+}
+.v1-meta-grid__lbl {
+  font-size: 10.5px; font-weight: 700;
+  color: var(--ink-dim);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  display: inline-flex; align-items: center; gap: 4px;
+}
+.v1-meta-grid__lbl .ico {
+  font-family: 'Material Symbols Outlined';
+  font-size: 13px;
+  color: var(--kind);
+  font-weight: 500;
+}
+.v1-meta-grid__val {
+  font-size: 14px; font-weight: 700;
+  color: var(--ink);
+  letter-spacing: -0.005em;
+  font-feature-settings: "tnum";
+}
+.v1-meta-grid__val .sub {
+  font-size: 11.5px; font-weight: 500;
+  color: var(--ink-mute);
+  margin-left: 4px;
+}
+.v1-meta-grid__val.is-free { color: var(--ok); }
+
+/* V1 — generic section card */
+.v1-section {
+  padding: 22px 24px;
+}
+.v1-prose {
+  font-size: 14px;
+  color: var(--ink-soft);
+  line-height: 1.75;
+  margin: 0;
+  word-break: keep-all;
+}
+
+/* V1 — court info */
+.v1-court {
+  padding: 0;
+  overflow: hidden;
+}
+.v1-court__head {
+  padding: 18px 24px 14px;
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: 12px;
+}
+.v1-court__addr {
+  padding: 0 24px 16px;
+  display: grid; gap: 4px;
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+.v1-court__addr .line {
+  display: flex; gap: 6px; align-items: baseline;
+}
+.v1-court__addr .lbl {
+  flex: 0 0 56px;
+  color: var(--ink-dim);
+  font-size: 11.5px; font-weight: 600;
+  letter-spacing: 0;
+}
+.v1-court__addr .val { color: var(--ink); font-weight: 500; }
+.v1-court__facilities {
+  padding: 0 24px 16px;
+  display: flex; flex-wrap: wrap; gap: 6px;
+}
+.v1-court__facility {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 4px 9px;
+  font-size: 11.5px; font-weight: 600;
+  color: var(--ink-soft);
+  background: var(--bg-alt);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+.v1-court__facility .ico { font-family: 'Material Symbols Outlined'; font-size: 14px; color: var(--kind); }
+.v1-court__actions {
+  padding: 14px 24px;
+  background: var(--bg-alt);
+  border-top: 1px solid var(--border);
+  display: flex; gap: 8px;
+}
+
+/* V1 — participants */
+.v1-appls {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  margin-top: 4px;
+}
+.v1-progress-row {
+  display: flex; align-items: center; gap: 12px;
+  padding-bottom: 14px;
+  margin-bottom: 12px;
+  border-bottom: 1px dashed var(--border);
+}
+.v1-progress-row__bar { flex: 1; }
+.v1-progress-row__count {
+  font-family: var(--ff-mono);
+  font-size: 16px; font-weight: 800;
+  color: var(--ink);
+  letter-spacing: -0.02em;
+}
+.v1-progress-row__count small {
+  font-size: 11.5px; font-weight: 700;
+  color: var(--ink-dim);
+  margin-left: 2px;
+}
+
+/* V1 — comments */
+.v1-comment {
+  display: flex; gap: 10px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+}
+.v1-comment:last-child { border-bottom: 0; padding-bottom: 0; }
+.v1-comment__av {
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  background: var(--ink-soft);
+  color: #fff;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-family: var(--ff-mono); font-weight: 700; font-size: 10.5px;
+  flex-shrink: 0;
+}
+.v1-comment__body { flex: 1; min-width: 0; }
+.v1-comment__head {
+  display: flex; align-items: baseline; gap: 6px;
+  font-size: 12px;
+  margin-bottom: 3px;
+}
+.v1-comment__nick { font-weight: 700; color: var(--ink); }
+.v1-comment__nick.is-host {
+  background: var(--kind-soft); color: var(--kind-deep);
+  padding: 0 6px;
+  border: 1px solid var(--kind-hair);
+  border-radius: 3px;
+  display: inline-flex; align-items: center; gap: 4px;
+}
+.v1-comment__nick.is-host::before {
+  content: "★"; font-size: 9px;
+}
+.v1-comment__time { color: var(--ink-dim); font-family: var(--ff-mono); font-size: 10.5px; }
+.v1-comment__text {
+  font-size: 13px;
+  color: var(--ink-soft);
+  line-height: 1.6;
+}
+.v1-comment-input {
+  margin-top: 14px;
+  padding: 10px 12px;
+  background: var(--bg-alt);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  display: flex; align-items: center; gap: 8px;
+  font-size: 12.5px;
+  color: var(--ink-dim);
+}
+
+/* V1 — recommend cards */
+.v1-rec-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin-top: 4px;
+}
+.v1-rec {
+  display: grid; grid-template-columns: 60px minmax(0, 1fr); gap: 12px;
+  padding: 10px;
+  background: var(--bg-alt);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  align-items: center;
+}
+.v1-rec__tile {
+  background: var(--kind);
+  border-radius: 4px;
+  padding: 8px 4px;
+  text-align: center;
+  color: #fff;
+}
+.v1-rec__tile-date {
+  font-family: var(--ff-body);
+  font-size: 14px; font-weight: 900;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+.v1-rec__tile-day {
+  font-size: 10px; font-weight: 700;
+  margin-top: 2px;
+}
+.v1-rec__tile-time {
+  font-family: var(--ff-mono);
+  font-size: 9.5px; font-weight: 700;
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 1px solid rgba(255,255,255,.3);
+  opacity: 0.9;
+}
+.v1-rec__info { min-width: 0; }
+.v1-rec__title {
+  font-size: 12.5px; font-weight: 700;
+  color: var(--ink);
+  margin-bottom: 3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.v1-rec__meta {
+  font-size: 11px; color: var(--ink-mute);
+  display: flex; align-items: center; gap: 6px;
+}
+.v1-rec__meta .ico { font-family: 'Material Symbols Outlined'; font-size: 12px; }
+
+/* V1 — apply panel (sticky aside) */
+.v1-apply {
+  padding: 0;
+  overflow: hidden;
+}
+.v1-apply__head {
+  background: linear-gradient(155deg, var(--kind) 0%, var(--kind) 45%, var(--kind-deep) 100%);
+  color: #fff;
+  padding: 16px 18px;
+}
+.v1-apply__h-row1 {
+  display: flex; justify-content: space-between; align-items: baseline;
+  margin-bottom: 10px;
+}
+.v1-apply__h-eyebrow {
+  font-size: 10.5px; font-weight: 800;
+  letter-spacing: 0.1em; text-transform: uppercase;
+  opacity: 0.92;
+}
+.v1-apply__h-status {
+  font-family: var(--ff-body);
+  font-size: 11px; font-weight: 800;
+  padding: 2px 8px;
+  background: rgba(255,255,255,.22);
+  border-radius: 9px;
+}
+.v1-apply__count {
+  font-family: var(--ff-body);
+  font-size: 24px; font-weight: 900;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  font-feature-settings: "tnum";
+  text-shadow: 0 1px 1px rgba(0,0,0,.18);
+}
+.v1-apply__count small {
+  font-size: 13px; font-weight: 700; opacity: 0.85;
+  margin-left: 2px;
+}
+.v1-apply__h-bar {
+  margin-top: 10px;
+  height: 6px;
+  background: rgba(0,0,0,.22);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.v1-apply__h-bar-fill {
+  height: 100%;
+  background: rgba(255,255,255,.85);
+}
+.v1-apply__body {
+  padding: 16px 18px;
+  display: flex; flex-direction: column; gap: 12px;
+}
+.v1-apply__me {
+  padding: 10px 12px;
+  background: var(--bg-alt);
+  border-radius: 4px;
+}
+.v1-apply__me-nick {
+  font-weight: 700; font-size: 13px;
+}
+.v1-apply__me-meta {
+  font-size: 11px; color: var(--ink-dim);
+  font-family: var(--ff-mono);
+  margin-top: 2px;
+}
+.v1-apply__label {
+  font-size: 11px; font-weight: 700;
+  color: var(--ink-dim);
+  letter-spacing: 0.04em;
+}
+.v1-apply__textarea {
+  width: 100%;
+  resize: vertical;
+  padding: 8px 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+  font-family: var(--ff-body);
+  font-size: 13px;
+  color: var(--ink);
+  background: var(--bg-elev);
+  min-height: 56px;
+}
+.v1-apply__terms {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 11.5px; color: var(--ink-soft);
+}
+.v1-apply__terms a { color: var(--cafe-blue); text-decoration: underline; }
+.v1-apply__sub {
+  display: flex; gap: 6px;
+}
+
+.v1-host-card {
+  padding: 18px 18px 16px;
+}
+.v1-host-card__hd {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 12px;
+}
+.v1-host-card__hd-lbl {
+  font-size: 10.5px; font-weight: 800;
+  letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--ink-dim);
+}
+.v1-host-card__actions {
+  margin-top: 14px;
+  display: flex; gap: 6px;
+}
+
+/* ============================================================
+   V2 — HERO-LED — single column, magazine layout
+   ============================================================ */
+.v2 .page { max-width: 1100px; padding-bottom: 60px; }
+
+.v2-hero {
+  position: relative;
+  background: linear-gradient(155deg, var(--kind) 0%, var(--kind) 35%, var(--kind-deep) 100%);
+  color: #fff;
+  padding: 36px 40px 30px;
+  border-radius: 10px;
+  margin-bottom: 0;
+  overflow: hidden;
+}
+.v2-hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(255,255,255,.10) 0%, transparent 50%),
+    radial-gradient(circle at 0% 100%, rgba(0,0,0,.12) 0%, transparent 50%);
+  pointer-events: none;
+}
+.v2-hero > * { position: relative; z-index: 1; }
+.v2-hero__row1 {
+  display: flex; align-items: center; gap: 8px;
+  margin-bottom: 14px;
+}
+.v2-hero__kind {
+  display: inline-flex; align-items: center;
+  padding: 5px 12px;
+  font-size: 11.5px; font-weight: 900;
+  letter-spacing: 0.04em;
+  background: #fff;
+  color: var(--kind-deep);
+  border-radius: 4px;
+  box-shadow: 0 1px 2px rgba(0,0,0,.18);
+}
+.v2-hero__tag {
+  font-size: 11px; font-weight: 700;
+  letter-spacing: 0.02em;
+  padding: 4px 10px;
+  background: rgba(255,255,255,.2);
+  color: #fff;
+  border: 1px solid rgba(255,255,255,.22);
+  border-radius: 4px;
+  backdrop-filter: blur(4px);
+}
+.v2-hero__tag--free { background: rgba(255,255,255,.95); color: var(--kind-deep); border-color: #fff; font-weight: 800; }
+.v2-hero__title {
+  margin: 0 0 24px;
+  font-family: var(--ff-body);
+  font-size: 32px;
+  font-weight: 900;
+  letter-spacing: -0.025em;
+  line-height: 1.25;
+  text-shadow: 0 2px 4px rgba(0,0,0,.18);
+  word-break: keep-all;
+}
+.v2-hero__meta {
+  display: grid;
+  grid-template-columns: auto 1px auto 1px minmax(0, 1fr);
+  gap: 20px;
+  align-items: center;
+}
+.v2-hero__meta-sep {
+  width: 1px; height: 40px;
+  background: rgba(255,255,255,.28);
+}
+.v2-hero__meta-item {
+  display: flex; flex-direction: column; gap: 2px;
+  min-width: 0;
+}
+.v2-hero__meta-lbl {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  opacity: 0.86;
+}
+.v2-hero__meta-val {
+  font-size: 18px; font-weight: 900;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  font-feature-settings: "tnum";
+  text-shadow: 0 1px 1px rgba(0,0,0,.20);
+}
+.v2-hero__meta-val .sub {
+  font-size: 12px; font-weight: 700; opacity: 0.86;
+  margin-left: 3px;
+}
+.v2-hero__meta-place {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 13.5px; font-weight: 700;
+  min-width: 0;
+}
+.v2-hero__meta-place .ico { font-family: 'Material Symbols Outlined'; font-size: 18px; }
+.v2-hero__meta-place .place-name {
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.v2-hero__meta-place .place-sub {
+  font-size: 11.5px; font-weight: 600; opacity: 0.86;
+  display: block;
+}
+
+/* V2 — quick action ribbon */
+.v2-quick {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-top: 0;
+  border-radius: 0 0 10px 10px;
+  padding: 14px 24px;
+  display: grid; grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 18px;
+  align-items: center;
+  margin-bottom: 20px;
+  box-shadow: var(--sh-sm);
+}
+.v2-quick__progress { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.v2-quick__progress-row {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: 12px;
+}
+.v2-quick__count {
+  font-family: var(--ff-body);
+  font-size: 19px; font-weight: 900;
+  letter-spacing: -0.02em;
+  font-feature-settings: "tnum";
+  color: var(--ink);
+}
+.v2-quick__count small {
+  font-size: 13px; font-weight: 700; color: var(--ink-dim);
+  margin-left: 2px;
+}
+.v2-quick__label {
+  font-size: 12px; font-weight: 600;
+  color: var(--ink-mute);
+}
+.v2-quick__label.is-warn { color: var(--accent); font-weight: 700; }
+.v2-quick__host {
+  display: flex; align-items: center; gap: 10px;
+  padding-left: 18px;
+  border-left: 1px solid var(--border);
+  font-size: 12px;
+}
+.v2-quick__host-av {
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  background: var(--kind-deep);
+  color: #fff;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-family: var(--ff-display); font-weight: 800; font-size: 12px;
+  flex-shrink: 0;
+}
+.v2-quick__host-info { line-height: 1.25; }
+.v2-quick__host-nick { font-weight: 800; font-size: 12.5px; color: var(--ink); }
+.v2-quick__host-sub { font-size: 10.5px; color: var(--ink-dim); font-family: var(--ff-mono); }
+.v2-quick__cta {
+  padding: 11px 24px;
+  font-size: 14px; font-weight: 800;
+  background: var(--cafe-blue);
+  color: #fff;
+  border: 1px solid var(--cafe-blue-deep);
+  border-radius: 4px;
+  cursor: pointer;
+  white-space: nowrap;
+  letter-spacing: -0.005em;
+}
+.v2-quick__cta:hover { background: var(--cafe-blue-deep); }
+
+/* V2 — section */
+.v2-section {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 26px 28px;
+  margin-bottom: 16px;
+}
+.v2-section__head {
+  display: flex; align-items: baseline; justify-content: space-between;
+  margin-bottom: 14px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+.v2-section__title {
+  margin: 0;
+  font-size: 16px; font-weight: 800;
+  letter-spacing: -0.005em;
+  display: flex; align-items: center; gap: 8px;
+}
+.v2-section__title .ico {
+  font-family: 'Material Symbols Outlined';
+  font-size: 18px;
+  color: var(--kind);
+}
+.v2-section__sub {
+  font-size: 12px; color: var(--ink-mute);
+}
+
+.v2-twocol {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 24px;
+}
+@media (max-width: 900px) {
+  .v2-twocol { grid-template-columns: 1fr; }
+}
+
+/* V2 — rules */
+.v2-rules { display: flex; flex-wrap: wrap; gap: 8px; }
+.v2-rule {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 5px 10px;
+  font-size: 12px; font-weight: 600;
+  color: var(--ink-soft);
+  background: var(--bg-alt);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+.v2-rule .ico { font-family: 'Material Symbols Outlined'; font-size: 14px; color: var(--kind); }
+
+/* ============================================================
+   MOBILE — shared
+   ============================================================ */
+.m-page {
+  padding: 16px 16px 100px; /* bottom space for sticky bar */
+  display: flex; flex-direction: column; gap: 14px;
+}
+.m-crumbs {
+  display: flex; align-items: center; gap: 4px;
+  font-size: 11px; color: var(--ink-mute);
+  margin-bottom: 4px;
+}
+.m-crumbs .ico { font-family: 'Material Symbols Outlined'; font-size: 14px; }
+
+.m-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.m-hero {
+  background: linear-gradient(155deg, var(--kind) 0%, var(--kind) 35%, var(--kind-deep) 100%);
+  color: #fff;
+  padding: 18px 16px 16px;
+  position: relative;
+  overflow: hidden;
+}
+.m-hero::before {
+  content: "";
+  position: absolute; inset: 0;
+  background: radial-gradient(circle at 100% 0%, rgba(255,255,255,.10) 0%, transparent 50%);
+  pointer-events: none;
+}
+.m-hero > * { position: relative; z-index: 1; }
+.m-hero__row1 {
+  display: flex; gap: 6px; margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+.m-hero__kind {
+  padding: 3px 9px;
+  font-size: 11px; font-weight: 900;
+  letter-spacing: 0.04em;
+  background: #fff;
+  color: var(--kind-deep);
+  border-radius: 4px;
+}
+.m-hero__tag {
+  padding: 3px 8px;
+  font-size: 10.5px; font-weight: 700;
+  background: rgba(255,255,255,.18);
+  border-radius: 4px;
+}
+.m-hero__tag--free { background: #fff; color: var(--kind-deep); font-weight: 800; }
+.m-hero__title {
+  margin: 0 0 14px;
+  font-size: 19px; font-weight: 900;
+  letter-spacing: -0.02em;
+  line-height: 1.3;
+}
+.m-hero__meta { display: flex; flex-direction: column; gap: 6px; font-size: 13px; }
+.m-hero__meta-row {
+  display: flex; align-items: center; gap: 8px;
+}
+.m-hero__meta-row .ico { font-family: 'Material Symbols Outlined'; font-size: 16px; opacity: .9; }
+.m-hero__meta-row .when {
+  font-family: var(--ff-body);
+  font-weight: 800;
+  font-feature-settings: "tnum";
+  letter-spacing: -0.01em;
+}
+.m-hero__meta-row .place {
+  font-weight: 700;
+}
+.m-hero__meta-row .sub {
+  font-size: 11px; opacity: 0.8; margin-left: 4px; font-weight: 600;
+}
+
+.m-section {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px 14px 12px;
+}
+.m-section__title {
+  margin: 0 0 8px;
+  font-size: 14px; font-weight: 800;
+  display: flex; align-items: baseline; justify-content: space-between;
+}
+.m-section__title .count {
+  font-size: 11px; color: var(--ink-mute); font-family: var(--ff-mono);
+}
+.m-prose { font-size: 13px; color: var(--ink-soft); line-height: 1.65; margin: 0; word-break: keep-all; }
+
+.m-appl-grid {
+  display: grid; grid-template-columns: 1fr;
+  gap: 6px;
+}
+
+.m-rec {
+  display: grid; grid-template-columns: 48px minmax(0, 1fr); gap: 10px;
+  padding: 8px;
+  background: var(--bg-alt);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  align-items: center;
+}
+.m-rec__tile {
+  background: var(--kind);
+  border-radius: 4px;
+  padding: 6px 2px;
+  text-align: center;
+  color: #fff;
+}
+.m-rec__tile-date {
+  font-size: 12px; font-weight: 900;
+  font-feature-settings: "tnum";
+  line-height: 1;
+}
+.m-rec__tile-time {
+  font-family: var(--ff-mono);
+  font-size: 9px; font-weight: 700;
+  opacity: 0.9;
+  margin-top: 2px;
+}
+.m-rec__info { min-width: 0; }
+.m-rec__title {
+  font-size: 12px; font-weight: 700;
+  line-height: 1.3;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.m-rec__meta {
+  font-size: 10.5px; color: var(--ink-mute);
+  margin-top: 2px;
+}
+
+/* MOBILE — sticky bottom CTA */
+.m-sticky {
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  background: rgba(255,255,255,.96);
+  backdrop-filter: blur(8px);
+  border-top: 1px solid var(--border-strong);
+  padding: 10px 14px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  box-shadow: 0 -2px 8px rgba(0,0,0,.05);
+  z-index: 5;
+}
+.m-sticky__info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.m-sticky__count {
+  font-family: var(--ff-body);
+  font-size: 15px; font-weight: 900;
+  font-feature-settings: "tnum";
+  line-height: 1;
+}
+.m-sticky__count small {
+  font-size: 11px; font-weight: 700; color: var(--ink-dim);
+  margin-left: 2px;
+}
+.m-sticky__label { font-size: 10.5px; color: var(--ink-mute); }
+.m-sticky__label.is-warn { color: var(--accent); font-weight: 700; }
+.m-sticky__cta {
+  padding: 12px 20px;
+  font-size: 14px; font-weight: 800;
+  background: var(--cafe-blue);
+  color: #fff;
+  border: 1px solid var(--cafe-blue-deep);
+  border-radius: 4px;
+  cursor: pointer;
+  white-space: nowrap;
+  min-height: 44px;
+}
+.m-sticky__cta--disabled {
+  background: var(--ink-dim);
+  border-color: var(--ink-mute);
+  cursor: not-allowed;
+}
+
+/* Mobile viewport need relative positioning for sticky */
+.vp--mobile .vp__body {
+  position: relative;
+  height: 700px;
+  overflow-y: auto;
+}
+
+/* ============================================================
+   STATES grid (6)
+   ============================================================ */
+.states-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  padding: 28px 26px 32px;
+  background: linear-gradient(180deg, #EEF1F6 0%, #F4F6FA 100%);
+}
+.state-cell {
+  background: var(--bg-card);
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  overflow: hidden;
+  display: flex; flex-direction: column;
+}
+.state-cell__lbl {
+  padding: 8px 12px;
+  background: var(--bg-head);
+  border-bottom: 1px solid var(--border);
+  font-size: 11px; font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+.state-cell__panel {
+  /* same as v1-apply but in narrow column */
+  flex: 1;
+}
+
+@media (max-width: 1100px) {
+  .states-grid { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 720px) {
+  .states-grid { grid-template-columns: 1fr; }
+  .showcase { padding: 24px 16px 60px; }
+  .showcase-head h1 { font-size: 26px; }
+  .variant__cap { grid-template-columns: 1fr; gap: 14px; }
+}
+</style>
+</head>
+<body>
+
+<div class="showcase">
+
+  <!-- ==================== INTRO ==================== -->
+  <header class="showcase-head">
+    <div class="eyebrow">BDR v2.16 · 경기 상세 페이지 시안</div>
+    <h1>경기 상세 페이지 — 시안 2종</h1>
+    <p>카드에서 확정된 디자인 언어(다크 네이비/크림슨/포레스트 + Pretendard 900 + 주최자 아바타)를 상세 페이지로 확장합니다. 현행 2-column 구조를 정제한 <b>V1 (Classic Refined)</b> 과 풀폭 hero 를 도입한 <b>V2 (Hero-led)</b> 를 비교합니다.</p>
+    <div class="assumptions">
+      <b>의뢰 응답 반영</b>
+      <ul>
+        <li>코트 사진 ❌ → <b>지도 미리보기</b> 로 대체 (Kakao/Naver Map embed 자리)</li>
+        <li>참가자 정보: <b>닉네임 + 레벨 + 포지션 + 평점</b> 풀-노출</li>
+        <li>호스트 문의: <b>댓글 + 쪽지</b> 둘 다 — 인라인 댓글 + 우측 패널 쪽지 버튼</li>
+        <li>추가 섹션: 같은 코트 다른 경기 / 주최자 다른 모집 / 참가자 후기 / 코트 시설</li>
+        <li>상태 6종: 기본 / 마감임박 / 마감 / 신청함(대기·승인) / 호스트 본인 / 미로그인</li>
+        <li>모바일: 하단 fixed sticky bar (정원 + 신청 버튼)</li>
+      </ul>
+    </div>
+  </header>
+
+  <!-- ============================================================
+       시안 V1 — CLASSIC REFINED
+       ============================================================ -->
+  <section class="variant">
+    <header class="variant__head">
+      <div>
+        <span class="variant__num">SCHEME V1</span>
+        <h2 class="variant__title">Classic Refined — 2 column 정제</h2>
+      </div>
+      <div class="variant__tags">
+        <span class="variant__tag">현행 구조 진화</span>
+        <span class="variant__tag variant__tag--ok">학습비용 ↓</span>
+      </div>
+      <p class="variant__desc">현재 GameDetail 의 2-column 구조(좌 메인 + 우 sticky aside 340px)를 유지하면서 시각 위계만 정제. 신청 패널이 항상 같이 보이므로 의사결정이 빠릅니다. 메인은 정보 카드들의 수직 흐름.</p>
+    </header>
+
+    <div class="vp-strip">
+      <!-- ===== PC ===== -->
+      <div class="vp vp--pc">
+        <div class="vp__chrome">
+          <span class="vp__lights"><span></span><span></span><span></span></span>
+          <span class="vp__url">mybdr.kr/games/g3</span>
+          <span class="vp__size">PC · 1200</span>
+        </div>
+        <div class="vp__body v1">
+          <!-- AppNav mock -->
+          <nav class="appnav">
+            <div class="appnav__util">
+              <span>관리자</span><span>김수빈</span><span>설정</span><span>로그아웃</span>
+            </div>
+            <div class="appnav__main">
+              <span class="appnav__logo">MyBDR<span class="dot">.</span></span>
+              <div class="appnav__tabs">
+                <button class="appnav__tab">홈</button>
+                <button class="appnav__tab" data-active="true">경기</button>
+                <button class="appnav__tab">대회</button>
+                <button class="appnav__tab">단체</button>
+                <button class="appnav__tab">팀</button>
+                <button class="appnav__tab">코트</button>
+                <button class="appnav__tab">랭킹</button>
+                <button class="appnav__tab">커뮤니티</button>
+                <button class="appnav__tab">더보기</button>
+              </div>
+              <div class="appnav__right">
+                <span class="appnav__icon"><span class="ico material-symbols-outlined">search</span></span>
+                <span class="appnav__icon"><span class="ico material-symbols-outlined">mail</span></span>
+                <span class="appnav__icon"><span class="ico material-symbols-outlined">notifications</span></span>
+              </div>
+            </div>
+          </nav>
+
+          <div class="page kind-pickup">
+            <!-- Breadcrumbs -->
+            <div class="crumbs">
+              <a>홈</a>
+              <span class="sep">›</span>
+              <a>경기</a>
+              <span class="sep">›</span>
+              <span class="cur">토요일 낮 회룡역 픽업 — 초보 환영</span>
+            </div>
+
+            <!-- 2-column -->
+            <div class="page__main-and-aside" style="display:grid; grid-template-columns:minmax(0, 1fr) 340px; gap:24px; align-items:start;">
+              <!-- LEFT MAIN -->
+              <div class="page__main" style="display:flex; flex-direction:column; gap:16px; min-width:0;">
+
+                <!-- Title hero card -->
+                <article class="card-base v1-hero">
+                  <div class="v1-hero__row1">
+                    <span class="kind-chip">픽업</span>
+                    <span class="area-chip"><span class="ico material-symbols-outlined">place</span>경기 의정부시 · 전곡동</span>
+                    <span class="tag-chip tag-chip--free">무료</span>
+                    <span class="tag-chip">실외</span>
+                    <span class="tag-chip">초보환영</span>
+                    <span class="tag-chip">정기</span>
+                  </div>
+                  <h1 class="v1-hero__title">토요일 낮 회룡역 픽업 — 초보 환영</h1>
+                  <div class="v1-meta-grid">
+                    <div class="v1-meta-grid__item">
+                      <div class="v1-meta-grid__lbl"><span class="ico">calendar_today</span>일시</div>
+                      <div class="v1-meta-grid__val">4/26 (토) <span class="sub">3시간</span></div>
+                    </div>
+                    <div class="v1-meta-grid__item">
+                      <div class="v1-meta-grid__lbl"><span class="ico">schedule</span>시간</div>
+                      <div class="v1-meta-grid__val">12:00 – 15:00</div>
+                    </div>
+                    <div class="v1-meta-grid__item">
+                      <div class="v1-meta-grid__lbl"><span class="ico">sports_basketball</span>장소</div>
+                      <div class="v1-meta-grid__val">회룡역사거리 농구장</div>
+                    </div>
+                    <div class="v1-meta-grid__item">
+                      <div class="v1-meta-grid__lbl"><span class="ico">payments</span>참가비</div>
+                      <div class="v1-meta-grid__val is-free">무료</div>
+                    </div>
+                    <div class="v1-meta-grid__item">
+                      <div class="v1-meta-grid__lbl"><span class="ico">trending_up</span>레벨</div>
+                      <div class="v1-meta-grid__val">초-중급</div>
+                    </div>
+                    <div class="v1-meta-grid__item">
+                      <div class="v1-meta-grid__lbl"><span class="ico">groups</span>방식</div>
+                      <div class="v1-meta-grid__val">5v5 · 21점</div>
+                    </div>
+                  </div>
+                </article>
+
+                <!-- 경기 안내 -->
+                <article class="card-base v1-section">
+                  <h2 class="section-title"><span class="ico">description</span>경기 안내</h2>
+                  <p class="v1-prose">회룡역 도보 3분 거리 실외 코트에서 매주 토요일 낮 픽업합니다. 4팀 5명씩 로테이션 진행되고, 초보 분들도 환영합니다. 자유롭게 슈팅·드리블 워밍업 후 경기 시작합니다. 우천 시 카톡 단톡방으로 취소 공지 드립니다.</p>
+                </article>
+
+                <!-- 코트 정보 + 지도 -->
+                <article class="card-base v1-court">
+                  <div class="v1-court__head">
+                    <h2 class="section-title" style="margin:0;"><span class="ico">location_on</span>코트 정보</h2>
+                  </div>
+                  <div class="map">
+                    <div class="map__pin"><div class="map__pin-dot"></div></div>
+                    <div class="map__attr">Kakao Map · 자리표시</div>
+                  </div>
+                  <div class="v1-court__addr" style="padding-top:14px;">
+                    <div class="line"><span class="lbl">코트</span><span class="val">회룡역사거리 농구장</span></div>
+                    <div class="line"><span class="lbl">주소</span><span class="val">경기 의정부시 전곡동 158-3</span></div>
+                    <div class="line"><span class="lbl">교통</span><span class="val">1호선 회룡역 1번 출구 도보 3분</span></div>
+                  </div>
+                  <div class="v1-court__facilities">
+                    <span class="v1-court__facility"><span class="ico">local_parking</span>주차 무료</span>
+                    <span class="v1-court__facility"><span class="ico">shower</span>샤워실</span>
+                    <span class="v1-court__facility"><span class="ico">water_drop</span>음수대</span>
+                    <span class="v1-court__facility"><span class="ico">flashlight_on</span>야간 조명</span>
+                    <span class="v1-court__facility"><span class="ico">event_seat</span>벤치</span>
+                  </div>
+                  <div class="v1-court__actions">
+                    <button class="btn-sub"><span class="ico">directions</span>길찾기</button>
+                    <button class="btn-sub"><span class="ico">content_copy</span>주소 복사</button>
+                    <button class="btn-sub"><span class="ico">open_in_new</span>코트 상세</button>
+                  </div>
+                </article>
+
+                <!-- 참가자 -->
+                <article class="card-base v1-section kind-pickup">
+                  <h2 class="section-title"><span class="ico">groups</span>참가자<span class="count">8 / 12명</span></h2>
+                  <div class="v1-progress-row">
+                    <div class="v1-progress-row__bar">
+                      <div class="bar bar--lg"><div class="bar__fill" style="width:66.7%"></div></div>
+                      <div style="display:flex; justify-content:space-between; margin-top:6px; font-size:11px; color:var(--ink-mute);">
+                        <span>승인 7명 · 대기 1명</span>
+                        <span style="font-family:var(--ff-mono); font-weight:700; color:var(--kind-deep);">4자리 남음</span>
+                      </div>
+                    </div>
+                    <div class="v1-progress-row__count">8<small>/12</small></div>
+                  </div>
+                  <div class="v1-appls">
+                    <div class="appl">
+                      <div class="appl__av">HM</div>
+                      <div class="appl__info">
+                        <div class="appl__nick">hoops_m <span class="appl__lvl">Lv.6</span></div>
+                        <div class="appl__meta"><span>가드</span><span class="star">★ 4.5</span></div>
+                      </div>
+                      <span class="appl__status appl__status--ok">승인</span>
+                    </div>
+                    <div class="appl">
+                      <div class="appl__av">SP</div>
+                      <div class="appl__info">
+                        <div class="appl__nick">ssg_pg <span class="appl__lvl">Lv.5</span></div>
+                        <div class="appl__meta"><span>가드</span><span class="star">★ 4.2</span></div>
+                      </div>
+                      <span class="appl__status appl__status--ok">승인</span>
+                    </div>
+                    <div class="appl">
+                      <div class="appl__av">KJ</div>
+                      <div class="appl__info">
+                        <div class="appl__nick">kim_j <span class="appl__lvl">Lv.4</span></div>
+                        <div class="appl__meta"><span>포워드</span><span class="star">★ 3.9</span></div>
+                      </div>
+                      <span class="appl__status appl__status--ok">승인</span>
+                    </div>
+                    <div class="appl">
+                      <div class="appl__av">IC</div>
+                      <div class="appl__info">
+                        <div class="appl__nick">iron_c <span class="appl__lvl">Lv.7</span></div>
+                        <div class="appl__meta"><span>센터</span><span class="star">★ 4.7</span></div>
+                      </div>
+                      <span class="appl__status appl__status--ok">승인</span>
+                    </div>
+                    <div class="appl">
+                      <div class="appl__av">PM</div>
+                      <div class="appl__info">
+                        <div class="appl__nick">pivot_mia <span class="appl__lvl">Lv.5</span></div>
+                        <div class="appl__meta"><span>포워드</span><span class="star">★ 4.0</span></div>
+                      </div>
+                      <span class="appl__status appl__status--ok">승인</span>
+                    </div>
+                    <div class="appl">
+                      <div class="appl__av">BK</div>
+                      <div class="appl__info">
+                        <div class="appl__nick">block_k <span class="appl__lvl">Lv.4</span></div>
+                        <div class="appl__meta"><span>가드</span><span class="star">★ 3.8</span></div>
+                      </div>
+                      <span class="appl__status appl__status--ok">승인</span>
+                    </div>
+                    <div class="appl">
+                      <div class="appl__av">DR</div>
+                      <div class="appl__info">
+                        <div class="appl__nick">dawn_r <span class="appl__lvl">Lv.3</span></div>
+                        <div class="appl__meta"><span>포워드</span><span class="star">★ 3.5</span></div>
+                      </div>
+                      <span class="appl__status appl__status--ok">승인</span>
+                    </div>
+                    <div class="appl">
+                      <div class="appl__av">LJ</div>
+                      <div class="appl__info">
+                        <div class="appl__nick">lite_j <span class="appl__lvl">Lv.4</span></div>
+                        <div class="appl__meta"><span>포워드</span><span class="star">★ 3.7</span></div>
+                      </div>
+                      <span class="appl__status appl__status--wait">대기</span>
+                    </div>
+                  </div>
+                </article>
+
+                <!-- 댓글 -->
+                <article class="card-base v1-section">
+                  <h2 class="section-title"><span class="ico">forum</span>댓글<span class="count">3</span></h2>
+                  <div class="v1-comment">
+                    <div class="v1-comment__av">HM</div>
+                    <div class="v1-comment__body">
+                      <div class="v1-comment__head">
+                        <span class="v1-comment__nick">hoops_m</span>
+                        <span class="v1-comment__time">10분 전</span>
+                      </div>
+                      <div class="v1-comment__text">초보인데 참가해도 될까요? 농구화·옷 준비물 있을까요?</div>
+                    </div>
+                  </div>
+                  <div class="v1-comment">
+                    <div class="v1-comment__av" style="background:var(--kind-deep);">RC</div>
+                    <div class="v1-comment__body">
+                      <div class="v1-comment__head">
+                        <span class="v1-comment__nick is-host kind-pickup">호스트</span>
+                        <span class="v1-comment__nick">rdm_captain</span>
+                        <span class="v1-comment__time">5분 전</span>
+                      </div>
+                      <div class="v1-comment__text">@hoops_m 초보 환영합니다. 농구화·운동복만 갖춰 오시면 됩니다. 농구공은 코트에 비치되어 있어요.</div>
+                    </div>
+                  </div>
+                  <div class="v1-comment">
+                    <div class="v1-comment__av">KJ</div>
+                    <div class="v1-comment__body">
+                      <div class="v1-comment__head">
+                        <span class="v1-comment__nick">kim_j</span>
+                        <span class="v1-comment__time">2분 전</span>
+                      </div>
+                      <div class="v1-comment__text">우천 시 취소 공지 시간이 따로 있나요?</div>
+                    </div>
+                  </div>
+                  <div class="v1-comment-input">
+                    <span class="material-symbols-outlined" style="font-size:18px; color:var(--ink-dim);">edit</span>
+                    <span>호스트나 다른 참가자에게 질문해보세요…</span>
+                  </div>
+                </article>
+
+                <!-- 같은 코트 다른 경기 -->
+                <article class="card-base v1-section">
+                  <h2 class="section-title"><span class="ico">place</span>같은 코트의 다른 경기</h2>
+                  <div class="v1-rec-grid">
+                    <div class="v1-rec kind-pickup">
+                      <div class="v1-rec__tile">
+                        <div class="v1-rec__tile-date">5/3</div>
+                        <div class="v1-rec__tile-day">토</div>
+                        <div class="v1-rec__tile-time">12:00</div>
+                      </div>
+                      <div class="v1-rec__info">
+                        <div class="v1-rec__title">토요일 낮 회룡역 픽업</div>
+                        <div class="v1-rec__meta"><span class="ico material-symbols-outlined">groups</span>5/12 · 무료</div>
+                      </div>
+                    </div>
+                    <div class="v1-rec kind-guest">
+                      <div class="v1-rec__tile">
+                        <div class="v1-rec__tile-date">4/29</div>
+                        <div class="v1-rec__tile-day">화</div>
+                        <div class="v1-rec__tile-time">20:00</div>
+                      </div>
+                      <div class="v1-rec__info">
+                        <div class="v1-rec__title">의정부 화요일 게스트 2명</div>
+                        <div class="v1-rec__meta"><span class="ico material-symbols-outlined">groups</span>3/5 · ₩7,000</div>
+                      </div>
+                    </div>
+                    <div class="v1-rec kind-pickup">
+                      <div class="v1-rec__tile">
+                        <div class="v1-rec__tile-date">5/2</div>
+                        <div class="v1-rec__tile-day">금</div>
+                        <div class="v1-rec__tile-time">19:30</div>
+                      </div>
+                      <div class="v1-rec__info">
+                        <div class="v1-rec__title">금요일 저녁 회룡 픽업</div>
+                        <div class="v1-rec__meta"><span class="ico material-symbols-outlined">groups</span>2/10 · 무료</div>
+                      </div>
+                    </div>
+                    <div class="v1-rec kind-scrimmage">
+                      <div class="v1-rec__tile">
+                        <div class="v1-rec__tile-date">5/4</div>
+                        <div class="v1-rec__tile-day">일</div>
+                        <div class="v1-rec__tile-time">14:00</div>
+                      </div>
+                      <div class="v1-rec__info">
+                        <div class="v1-rec__title">의정부 RDM vs 호크스</div>
+                        <div class="v1-rec__meta"><span class="ico material-symbols-outlined">groups</span>관전 5/20</div>
+                      </div>
+                    </div>
+                  </div>
+                </article>
+
+                <!-- 주최자 다른 모집 -->
+                <article class="card-base v1-section">
+                  <h2 class="section-title"><span class="ico">person</span>주최자의 다른 모집</h2>
+                  <div class="v1-rec-grid">
+                    <div class="v1-rec kind-pickup">
+                      <div class="v1-rec__tile">
+                        <div class="v1-rec__tile-date">5/3</div>
+                        <div class="v1-rec__tile-day">토</div>
+                        <div class="v1-rec__tile-time">12:00</div>
+                      </div>
+                      <div class="v1-rec__info">
+                        <div class="v1-rec__title">[정기] 토요일 낮 회룡 픽업</div>
+                        <div class="v1-rec__meta"><span class="ico material-symbols-outlined">groups</span>5/12 · 무료</div>
+                      </div>
+                    </div>
+                    <div class="v1-rec kind-pickup">
+                      <div class="v1-rec__tile">
+                        <div class="v1-rec__tile-date">5/2</div>
+                        <div class="v1-rec__tile-day">금</div>
+                        <div class="v1-rec__tile-time">19:30</div>
+                      </div>
+                      <div class="v1-rec__info">
+                        <div class="v1-rec__title">금요일 저녁 회룡 픽업</div>
+                        <div class="v1-rec__meta"><span class="ico material-symbols-outlined">groups</span>2/10 · 무료</div>
+                      </div>
+                    </div>
+                  </div>
+                </article>
+
+              </div>
+
+              <!-- RIGHT ASIDE -->
+              <aside class="page__aside" style="position:sticky; top:0; display:flex; flex-direction:column; gap:16px;">
+                <!-- Apply panel -->
+                <article class="card-base v1-apply kind-pickup">
+                  <div class="v1-apply__head">
+                    <div class="v1-apply__h-row1">
+                      <span class="v1-apply__h-eyebrow">참가 신청</span>
+                      <span class="v1-apply__h-status">신청 가능</span>
+                    </div>
+                    <div class="v1-apply__count">4<small>자리 남음</small></div>
+                    <div class="v1-apply__h-bar"><div class="v1-apply__h-bar-fill" style="width:66.7%"></div></div>
+                  </div>
+                  <div class="v1-apply__body">
+                    <div>
+                      <div class="v1-apply__label">신청자</div>
+                      <div class="v1-apply__me">
+                        <div class="v1-apply__me-nick">kim_subin</div>
+                        <div class="v1-apply__me-meta">Lv.5 · 가드 · ★ 4.1 · 12경기</div>
+                      </div>
+                    </div>
+                    <div>
+                      <div class="v1-apply__label">한마디 (선택)</div>
+                      <textarea class="v1-apply__textarea">초보지만 열심히 뛰겠습니다!</textarea>
+                    </div>
+                    <label class="v1-apply__terms">
+                      <input type="checkbox" checked />
+                      <span>취소 시 3시간 전 통보 동의 · <a>참가 규정</a></span>
+                    </label>
+                    <button class="btn-apply-lg"><span class="ico">how_to_reg</span>신청하기 · 무료</button>
+                    <div class="v1-apply__sub">
+                      <button class="btn-sub"><span class="ico">forum</span>댓글</button>
+                      <button class="btn-sub"><span class="ico">mail</span>쪽지</button>
+                      <button class="btn-sub"><span class="ico">bookmark</span>저장</button>
+                    </div>
+                  </div>
+                </article>
+
+                <!-- Host card -->
+                <article class="card-base v1-host-card kind-pickup">
+                  <div class="v1-host-card__hd">
+                    <span class="v1-host-card__hd-lbl">주최자</span>
+                    <span style="font-size:11px; color:var(--cafe-blue); font-weight:700; cursor:pointer;">팔로우</span>
+                  </div>
+                  <div class="host-card">
+                    <div class="host-card__av">RC</div>
+                    <div class="host-card__info">
+                      <div class="host-card__nick">rdm_captain <span class="role">호스트</span></div>
+                      <div class="host-card__meta">
+                        <span class="star">★ 4.7</span>
+                        <span>·</span>
+                        <span>23회 모집</span>
+                        <span>·</span>
+                        <span>2024.06~</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="v1-host-card__actions">
+                    <button class="btn-sub"><span class="ico">mail</span>쪽지</button>
+                    <button class="btn-sub"><span class="ico">person</span>프로필</button>
+                  </div>
+                </article>
+              </aside>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== MOBILE ===== -->
+      <div class="vp vp--mobile">
+        <div class="vp__chrome">
+          <span class="vp__lights"><span></span><span></span><span></span></span>
+          <span class="vp__url">m · 경기 상세</span>
+          <span class="vp__size">375</span>
+        </div>
+        <div class="vp__body">
+          <div class="m-page kind-pickup">
+            <div class="m-crumbs">
+              <span class="ico material-symbols-outlined">arrow_back</span>
+              <span>경기</span><span>›</span><span>상세</span>
+            </div>
+
+            <!-- Hero (mobile uses same dark hero) -->
+            <div class="m-card">
+              <div class="m-hero">
+                <div class="m-hero__row1">
+                  <span class="m-hero__kind">픽업</span>
+                  <span class="m-hero__tag m-hero__tag--free">무료</span>
+                  <span class="m-hero__tag">초보환영</span>
+                </div>
+                <h1 class="m-hero__title">토요일 낮 회룡역 픽업 — 초보 환영</h1>
+                <div class="m-hero__meta">
+                  <div class="m-hero__meta-row">
+                    <span class="ico material-symbols-outlined">calendar_today</span>
+                    <span class="when">4/26 (토) · 12:00 – 15:00</span>
+                  </div>
+                  <div class="m-hero__meta-row">
+                    <span class="ico material-symbols-outlined">place</span>
+                    <span class="place">회룡역사거리 농구장 <span class="sub">의정부 전곡동</span></span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 참가자 progress -->
+            <div class="m-section">
+              <h3 class="m-section__title">참가자 <span class="count">8/12</span></h3>
+              <div class="bar bar--lg" style="margin-top:8px;"><div class="bar__fill" style="width:66.7%; background:var(--kind);"></div></div>
+              <div style="margin-top:6px; font-size:11px; color:var(--ink-mute);">승인 7 · 대기 1 · <b style="color:var(--kind-deep);">4자리 남음</b></div>
+              <div class="m-appl-grid" style="margin-top:10px;">
+                <div class="appl">
+                  <div class="appl__av">HM</div>
+                  <div class="appl__info">
+                    <div class="appl__nick">hoops_m <span class="appl__lvl">Lv.6</span></div>
+                    <div class="appl__meta"><span>가드</span><span class="star">★ 4.5</span></div>
+                  </div>
+                  <span class="appl__status appl__status--ok">승인</span>
+                </div>
+                <div class="appl">
+                  <div class="appl__av">IC</div>
+                  <div class="appl__info">
+                    <div class="appl__nick">iron_c <span class="appl__lvl">Lv.7</span></div>
+                    <div class="appl__meta"><span>센터</span><span class="star">★ 4.7</span></div>
+                  </div>
+                  <span class="appl__status appl__status--ok">승인</span>
+                </div>
+                <button class="btn-sub" style="width:100%; margin-top:4px;">참가자 8명 모두 보기</button>
+              </div>
+            </div>
+
+            <!-- 호스트 카드 -->
+            <div class="m-section">
+              <h3 class="m-section__title">주최자</h3>
+              <div class="host-card">
+                <div class="host-card__av">RC</div>
+                <div class="host-card__info">
+                  <div class="host-card__nick">rdm_captain <span class="role">호스트</span></div>
+                  <div class="host-card__meta">
+                    <span class="star">★ 4.7</span>
+                    <span>·</span>
+                    <span>23회 모집</span>
+                  </div>
+                </div>
+              </div>
+              <div style="display:flex; gap:6px; margin-top:10px;">
+                <button class="btn-sub"><span class="ico">mail</span>쪽지</button>
+                <button class="btn-sub"><span class="ico">person</span>프로필</button>
+              </div>
+            </div>
+
+            <!-- 코트 -->
+            <div class="m-section">
+              <h3 class="m-section__title">코트</h3>
+              <div class="map" style="height:130px; margin-bottom:8px;">
+                <div class="map__pin"><div class="map__pin-dot"></div></div>
+              </div>
+              <div style="font-size:12.5px;">
+                <b>회룡역사거리 농구장</b><br/>
+                <span style="color:var(--ink-mute);">경기 의정부시 전곡동 158-3</span>
+              </div>
+              <div style="display:flex; flex-wrap:wrap; gap:4px; margin-top:8px;">
+                <span class="v1-court__facility"><span class="ico">local_parking</span>주차</span>
+                <span class="v1-court__facility"><span class="ico">shower</span>샤워실</span>
+                <span class="v1-court__facility"><span class="ico">water_drop</span>음수대</span>
+              </div>
+            </div>
+
+            <!-- 추천 -->
+            <div class="m-section">
+              <h3 class="m-section__title">같은 코트 다른 경기</h3>
+              <div style="display:flex; flex-direction:column; gap:6px; margin-top:6px;">
+                <div class="m-rec kind-pickup">
+                  <div class="m-rec__tile">
+                    <div class="m-rec__tile-date">5/3</div>
+                    <div class="m-rec__tile-time">12:00</div>
+                  </div>
+                  <div class="m-rec__info">
+                    <div class="m-rec__title">토요일 낮 회룡역 픽업</div>
+                    <div class="m-rec__meta">5/12명 · 무료</div>
+                  </div>
+                </div>
+                <div class="m-rec kind-guest">
+                  <div class="m-rec__tile">
+                    <div class="m-rec__tile-date">4/29</div>
+                    <div class="m-rec__tile-time">20:00</div>
+                  </div>
+                  <div class="m-rec__info">
+                    <div class="m-rec__title">의정부 화요일 게스트 2명</div>
+                    <div class="m-rec__meta">3/5명 · ₩7,000</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Sticky bottom CTA -->
+            <div class="m-sticky kind-pickup">
+              <div class="m-sticky__info">
+                <div class="m-sticky__count">4<small>자리 남음 · 8/12</small></div>
+                <div class="m-sticky__label">무료 · 토 12:00</div>
+              </div>
+              <button class="m-sticky__cta">신청하기</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="variant__cap">
+      <div class="pros">
+        <h4><span class="ico material-symbols-outlined">check_circle</span>장점</h4>
+        <ul>
+          <li>현행 GameDetail 구조 그대로 — 운영 src 마이그레이션 비용 ↓</li>
+          <li>신청 패널이 PC 에서 항상 보임 → 의사결정 빠름</li>
+          <li>좌측에 정보 카드 수직 흐름이라 스크롤 자연스러움</li>
+          <li>주최자 카드가 신청 패널 바로 아래 — 쪽지/팔로우 액션 노출</li>
+        </ul>
+      </div>
+      <div class="cons">
+        <h4><span class="ico material-symbols-outlined">priority_high</span>고려</h4>
+        <ul>
+          <li>풀폭 hero 가 없어 종별 컬러 가시성 V2 대비 ↓</li>
+          <li>340px aside 가 좁아 한마디 textarea 가 작음</li>
+          <li>제목과 메타 그리드의 비주얼 임팩트가 평이</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       시안 V2 — HERO-LED
+       ============================================================ -->
+  <section class="variant">
+    <header class="variant__head">
+      <div>
+        <span class="variant__num">SCHEME V2</span>
+        <h2 class="variant__title">Hero-led — 풀폭 다크 hero + 섹션 카드</h2>
+      </div>
+      <div class="variant__tags">
+        <span class="variant__tag">시각 임팩트 ↑↑</span>
+        <span class="variant__tag variant__tag--ok">카드 컬러 언어 확장</span>
+      </div>
+      <p class="variant__desc">상단에 <b>풀폭 다크 컬러 hero</b> 로 종별 컬러를 강하게 노출 (카드 dt 의 확장). 핵심 정보(종별/제목/일시/시간/장소)를 hero 안에 통합하고, 그 아래 빠른 액션 ribbon (정원 + CTA + 주최자 미니카드) 후 단일-칼럼 섹션 카드로 본문 정리. 시각적으로 임팩트 ↑, 모바일도 자연스럽게 1-column.</p>
+    </header>
+
+    <div class="vp-strip">
+      <!-- ===== PC ===== -->
+      <div class="vp vp--pc">
+        <div class="vp__chrome">
+          <span class="vp__lights"><span></span><span></span><span></span></span>
+          <span class="vp__url">mybdr.kr/games/g3</span>
+          <span class="vp__size">PC · 1200</span>
+        </div>
+        <div class="vp__body v2">
+          <!-- AppNav mock -->
+          <nav class="appnav">
+            <div class="appnav__util"><span>관리자</span><span>김수빈</span><span>설정</span><span>로그아웃</span></div>
+            <div class="appnav__main">
+              <span class="appnav__logo">MyBDR<span class="dot">.</span></span>
+              <div class="appnav__tabs">
+                <button class="appnav__tab">홈</button>
+                <button class="appnav__tab" data-active="true">경기</button>
+                <button class="appnav__tab">대회</button>
+                <button class="appnav__tab">단체</button>
+                <button class="appnav__tab">팀</button>
+                <button class="appnav__tab">코트</button>
+                <button class="appnav__tab">랭킹</button>
+                <button class="appnav__tab">커뮤니티</button>
+                <button class="appnav__tab">더보기</button>
+              </div>
+              <div class="appnav__right">
+                <span class="appnav__icon"><span class="ico material-symbols-outlined">search</span></span>
+                <span class="appnav__icon"><span class="ico material-symbols-outlined">mail</span></span>
+                <span class="appnav__icon"><span class="ico material-symbols-outlined">notifications</span></span>
+              </div>
+            </div>
+          </nav>
+
+          <div class="page kind-pickup">
+            <div class="crumbs">
+              <a>홈</a><span class="sep">›</span><a>경기</a><span class="sep">›</span><span class="cur">토요일 낮 회룡역 픽업 — 초보 환영</span>
+            </div>
+
+            <!-- Hero band -->
+            <div class="v2-hero">
+              <div class="v2-hero__row1">
+                <span class="v2-hero__kind">픽업</span>
+                <span class="v2-hero__tag v2-hero__tag--free">무료</span>
+                <span class="v2-hero__tag">실외</span>
+                <span class="v2-hero__tag">초보환영</span>
+                <span class="v2-hero__tag">정기</span>
+              </div>
+              <h1 class="v2-hero__title">토요일 낮 회룡역 픽업 — 초보 환영</h1>
+              <div class="v2-hero__meta">
+                <div class="v2-hero__meta-item">
+                  <div class="v2-hero__meta-lbl">일시</div>
+                  <div class="v2-hero__meta-val">4/26 (토)<span class="sub">3시간</span></div>
+                </div>
+                <div class="v2-hero__meta-sep"></div>
+                <div class="v2-hero__meta-item">
+                  <div class="v2-hero__meta-lbl">시간</div>
+                  <div class="v2-hero__meta-val">12:00 – 15:00</div>
+                </div>
+                <div class="v2-hero__meta-sep"></div>
+                <div class="v2-hero__meta-item" style="min-width:0;">
+                  <div class="v2-hero__meta-lbl">장소</div>
+                  <div class="v2-hero__meta-place">
+                    <span class="ico material-symbols-outlined">place</span>
+                    <span>
+                      <span class="place-name">회룡역사거리 농구장</span>
+                      <span class="place-sub">경기 의정부시 전곡동</span>
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Quick action ribbon -->
+            <div class="v2-quick kind-pickup">
+              <div class="v2-quick__progress">
+                <div class="v2-quick__progress-row">
+                  <span class="v2-quick__count">8<small>/12명</small></span>
+                  <span class="v2-quick__label">정원 <b style="color:var(--kind-deep);">4자리 남음</b></span>
+                </div>
+                <div class="bar"><div class="bar__fill" style="width:66.7%"></div></div>
+              </div>
+              <div class="v2-quick__host">
+                <div class="v2-quick__host-av">RC</div>
+                <div class="v2-quick__host-info">
+                  <div class="v2-quick__host-nick">rdm_captain</div>
+                  <div class="v2-quick__host-sub">★ 4.7 · 23회</div>
+                </div>
+              </div>
+              <button class="v2-quick__cta">신청하기 · 무료</button>
+            </div>
+
+            <!-- 경기 안내 + 규정 (2-col) -->
+            <article class="v2-section">
+              <div class="v2-section__head">
+                <h2 class="v2-section__title kind-pickup"><span class="ico material-symbols-outlined">description</span>경기 안내</h2>
+              </div>
+              <div class="v2-twocol">
+                <div>
+                  <p class="v1-prose">회룡역 도보 3분 거리 실외 코트에서 매주 토요일 낮 픽업합니다. 4팀 5명씩 로테이션 진행되고, 초보 분들도 환영합니다. 자유롭게 슈팅·드리블 워밍업 후 경기 시작합니다. 우천 시 카톡 단톡방으로 취소 공지 드립니다.</p>
+                </div>
+                <div>
+                  <div style="font-size:11px; font-weight:800; color:var(--ink-dim); letter-spacing:0.04em; text-transform:uppercase; margin-bottom:8px;">진행 규정</div>
+                  <div class="v2-rules kind-pickup">
+                    <span class="v2-rule"><span class="ico material-symbols-outlined">groups</span>5v5 로테이션</span>
+                    <span class="v2-rule"><span class="ico material-symbols-outlined">scoreboard</span>21점 선취</span>
+                    <span class="v2-rule"><span class="ico material-symbols-outlined">timer</span>15분제</span>
+                    <span class="v2-rule"><span class="ico material-symbols-outlined">person</span>여성 합류 시 가산</span>
+                  </div>
+                </div>
+              </div>
+            </article>
+
+            <!-- 코트 정보 + 지도 -->
+            <article class="v2-section" style="padding:0; overflow:hidden;">
+              <div class="v2-section__head" style="padding:22px 28px 14px; border-bottom:0;">
+                <h2 class="v2-section__title kind-pickup"><span class="ico material-symbols-outlined">location_on</span>코트 정보</h2>
+                <span class="v2-section__sub">실외 코트</span>
+              </div>
+              <div style="display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:0;">
+                <div class="map kind-pickup" style="height:240px; border-radius:0; border-right:1px solid var(--border);">
+                  <div class="map__pin"><div class="map__pin-dot"></div></div>
+                  <div class="map__attr">Kakao Map · 자리표시</div>
+                </div>
+                <div style="padding:22px 28px;">
+                  <div style="font-size:16px; font-weight:800; margin-bottom:4px;">회룡역사거리 농구장</div>
+                  <div style="font-size:13px; color:var(--ink-soft); margin-bottom:14px; line-height:1.6;">
+                    경기 의정부시 전곡동 158-3<br/>
+                    <span style="color:var(--ink-mute);">1호선 회룡역 1번 출구 도보 3분</span>
+                  </div>
+                  <div class="v1-court__facilities kind-pickup" style="padding:0; margin-bottom:14px;">
+                    <span class="v1-court__facility"><span class="ico">local_parking</span>주차 무료</span>
+                    <span class="v1-court__facility"><span class="ico">shower</span>샤워실</span>
+                    <span class="v1-court__facility"><span class="ico">water_drop</span>음수대</span>
+                    <span class="v1-court__facility"><span class="ico">flashlight_on</span>야간 조명</span>
+                    <span class="v1-court__facility"><span class="ico">event_seat</span>벤치</span>
+                  </div>
+                  <div style="display:flex; gap:8px;">
+                    <button class="btn-sub"><span class="ico">directions</span>길찾기</button>
+                    <button class="btn-sub"><span class="ico">content_copy</span>주소 복사</button>
+                    <button class="btn-sub"><span class="ico">open_in_new</span>코트 상세</button>
+                  </div>
+                </div>
+              </div>
+            </article>
+
+            <!-- 참가자 -->
+            <article class="v2-section kind-pickup">
+              <div class="v2-section__head">
+                <h2 class="v2-section__title"><span class="ico material-symbols-outlined">groups</span>참가자 <span style="font-size:13px; font-weight:600; color:var(--ink-mute); margin-left:4px;">8/12</span></h2>
+                <span class="v2-section__sub">승인 7 · 대기 1 · <b style="color:var(--kind-deep);">4자리 남음</b></span>
+              </div>
+              <div class="v1-appls" style="grid-template-columns: repeat(4, 1fr); margin-top:0;">
+                <div class="appl">
+                  <div class="appl__av">HM</div>
+                  <div class="appl__info">
+                    <div class="appl__nick">hoops_m <span class="appl__lvl">Lv.6</span></div>
+                    <div class="appl__meta"><span>가드</span><span class="star">★ 4.5</span></div>
+                  </div>
+                </div>
+                <div class="appl">
+                  <div class="appl__av">SP</div>
+                  <div class="appl__info">
+                    <div class="appl__nick">ssg_pg <span class="appl__lvl">Lv.5</span></div>
+                    <div class="appl__meta"><span>가드</span><span class="star">★ 4.2</span></div>
+                  </div>
+                </div>
+                <div class="appl">
+                  <div class="appl__av">KJ</div>
+                  <div class="appl__info">
+                    <div class="appl__nick">kim_j <span class="appl__lvl">Lv.4</span></div>
+                    <div class="appl__meta"><span>포워드</span><span class="star">★ 3.9</span></div>
+                  </div>
+                </div>
+                <div class="appl">
+                  <div class="appl__av">IC</div>
+                  <div class="appl__info">
+                    <div class="appl__nick">iron_c <span class="appl__lvl">Lv.7</span></div>
+                    <div class="appl__meta"><span>센터</span><span class="star">★ 4.7</span></div>
+                  </div>
+                </div>
+                <div class="appl">
+                  <div class="appl__av">PM</div>
+                  <div class="appl__info">
+                    <div class="appl__nick">pivot_mia <span class="appl__lvl">Lv.5</span></div>
+                    <div class="appl__meta"><span>포워드</span><span class="star">★ 4.0</span></div>
+                  </div>
+                </div>
+                <div class="appl">
+                  <div class="appl__av">BK</div>
+                  <div class="appl__info">
+                    <div class="appl__nick">block_k <span class="appl__lvl">Lv.4</span></div>
+                    <div class="appl__meta"><span>가드</span><span class="star">★ 3.8</span></div>
+                  </div>
+                </div>
+                <div class="appl">
+                  <div class="appl__av">DR</div>
+                  <div class="appl__info">
+                    <div class="appl__nick">dawn_r <span class="appl__lvl">Lv.3</span></div>
+                    <div class="appl__meta"><span>포워드</span><span class="star">★ 3.5</span></div>
+                  </div>
+                </div>
+                <div class="appl" style="background:var(--warn-soft); border-color:#F5E0AF;">
+                  <div class="appl__av" style="background:var(--warn); color:#fff;">LJ</div>
+                  <div class="appl__info">
+                    <div class="appl__nick">lite_j <span class="appl__lvl">Lv.4</span></div>
+                    <div class="appl__meta"><span>포워드</span><span class="appl__status appl__status--wait" style="padding:0; background:transparent;">대기 중</span></div>
+                  </div>
+                </div>
+              </div>
+            </article>
+
+            <!-- 댓글 -->
+            <article class="v2-section kind-pickup">
+              <div class="v2-section__head">
+                <h2 class="v2-section__title"><span class="ico material-symbols-outlined">forum</span>댓글 <span style="font-size:13px; font-weight:600; color:var(--ink-mute); margin-left:4px;">3</span></h2>
+                <button class="btn-sub" style="flex:0 0 auto;"><span class="ico">mail</span>주최자에게 쪽지</button>
+              </div>
+              <div class="v1-comment">
+                <div class="v1-comment__av">HM</div>
+                <div class="v1-comment__body">
+                  <div class="v1-comment__head">
+                    <span class="v1-comment__nick">hoops_m</span>
+                    <span class="v1-comment__time">10분 전</span>
+                  </div>
+                  <div class="v1-comment__text">초보인데 참가해도 될까요? 농구화·옷 준비물 있을까요?</div>
+                </div>
+              </div>
+              <div class="v1-comment">
+                <div class="v1-comment__av" style="background:var(--kind-deep);">RC</div>
+                <div class="v1-comment__body">
+                  <div class="v1-comment__head">
+                    <span class="v1-comment__nick is-host">호스트</span>
+                    <span class="v1-comment__nick">rdm_captain</span>
+                    <span class="v1-comment__time">5분 전</span>
+                  </div>
+                  <div class="v1-comment__text">@hoops_m 초보 환영합니다. 농구화·운동복만 갖춰 오시면 됩니다. 농구공은 코트에 비치되어 있어요.</div>
+                </div>
+              </div>
+              <div class="v1-comment">
+                <div class="v1-comment__av">KJ</div>
+                <div class="v1-comment__body">
+                  <div class="v1-comment__head">
+                    <span class="v1-comment__nick">kim_j</span>
+                    <span class="v1-comment__time">2분 전</span>
+                  </div>
+                  <div class="v1-comment__text">우천 시 취소 공지 시간이 따로 있나요?</div>
+                </div>
+              </div>
+              <div class="v1-comment-input">
+                <span class="material-symbols-outlined" style="font-size:18px; color:var(--ink-dim);">edit</span>
+                <span>호스트나 다른 참가자에게 질문해보세요…</span>
+              </div>
+            </article>
+
+            <!-- 같은 코트 + 주최자 다른 모집 (2-col) -->
+            <div class="v2-twocol">
+              <article class="v2-section kind-pickup">
+                <div class="v2-section__head">
+                  <h2 class="v2-section__title"><span class="ico material-symbols-outlined">place</span>같은 코트 다른 경기</h2>
+                </div>
+                <div style="display:flex; flex-direction:column; gap:8px;">
+                  <div class="v1-rec kind-pickup">
+                    <div class="v1-rec__tile">
+                      <div class="v1-rec__tile-date">5/3</div>
+                      <div class="v1-rec__tile-day">토</div>
+                      <div class="v1-rec__tile-time">12:00</div>
+                    </div>
+                    <div class="v1-rec__info">
+                      <div class="v1-rec__title">토요일 낮 회룡역 픽업</div>
+                      <div class="v1-rec__meta"><span class="ico material-symbols-outlined">groups</span>5/12 · 무료</div>
+                    </div>
+                  </div>
+                  <div class="v1-rec kind-guest">
+                    <div class="v1-rec__tile">
+                      <div class="v1-rec__tile-date">4/29</div>
+                      <div class="v1-rec__tile-day">화</div>
+                      <div class="v1-rec__tile-time">20:00</div>
+                    </div>
+                    <div class="v1-rec__info">
+                      <div class="v1-rec__title">의정부 화요일 게스트 2명</div>
+                      <div class="v1-rec__meta"><span class="ico material-symbols-outlined">groups</span>3/5 · ₩7,000</div>
+                    </div>
+                  </div>
+                  <div class="v1-rec kind-scrimmage">
+                    <div class="v1-rec__tile">
+                      <div class="v1-rec__tile-date">5/4</div>
+                      <div class="v1-rec__tile-day">일</div>
+                      <div class="v1-rec__tile-time">14:00</div>
+                    </div>
+                    <div class="v1-rec__info">
+                      <div class="v1-rec__title">의정부 RDM vs 호크스</div>
+                      <div class="v1-rec__meta"><span class="ico material-symbols-outlined">groups</span>관전 5/20</div>
+                    </div>
+                  </div>
+                </div>
+              </article>
+              <article class="v2-section kind-pickup">
+                <div class="v2-section__head">
+                  <h2 class="v2-section__title"><span class="ico material-symbols-outlined">person</span>주최자 다른 모집</h2>
+                </div>
+                <div class="host-card" style="margin-bottom:12px;">
+                  <div class="host-card__av">RC</div>
+                  <div class="host-card__info">
+                    <div class="host-card__nick">rdm_captain <span class="role">호스트</span></div>
+                    <div class="host-card__meta">
+                      <span class="star">★ 4.7</span><span>·</span><span>23회 모집</span>
+                    </div>
+                  </div>
+                </div>
+                <div style="display:flex; flex-direction:column; gap:8px;">
+                  <div class="v1-rec kind-pickup">
+                    <div class="v1-rec__tile">
+                      <div class="v1-rec__tile-date">5/3</div>
+                      <div class="v1-rec__tile-day">토</div>
+                      <div class="v1-rec__tile-time">12:00</div>
+                    </div>
+                    <div class="v1-rec__info">
+                      <div class="v1-rec__title">[정기] 토요일 낮 회룡 픽업</div>
+                      <div class="v1-rec__meta"><span class="ico material-symbols-outlined">groups</span>5/12 · 무료</div>
+                    </div>
+                  </div>
+                  <div class="v1-rec kind-pickup">
+                    <div class="v1-rec__tile">
+                      <div class="v1-rec__tile-date">5/2</div>
+                      <div class="v1-rec__tile-day">금</div>
+                      <div class="v1-rec__tile-time">19:30</div>
+                    </div>
+                    <div class="v1-rec__info">
+                      <div class="v1-rec__title">금요일 저녁 회룡 픽업</div>
+                      <div class="v1-rec__meta"><span class="ico material-symbols-outlined">groups</span>2/10 · 무료</div>
+                    </div>
+                  </div>
+                </div>
+              </article>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== V2 MOBILE ===== -->
+      <div class="vp vp--mobile">
+        <div class="vp__chrome">
+          <span class="vp__lights"><span></span><span></span><span></span></span>
+          <span class="vp__url">m · 경기 상세</span>
+          <span class="vp__size">375</span>
+        </div>
+        <div class="vp__body">
+          <div class="m-page kind-pickup">
+            <div class="m-crumbs">
+              <span class="ico material-symbols-outlined">arrow_back</span>
+              <span>경기</span><span>›</span><span>상세</span>
+            </div>
+
+            <div class="m-card">
+              <div class="m-hero">
+                <div class="m-hero__row1">
+                  <span class="m-hero__kind">픽업</span>
+                  <span class="m-hero__tag m-hero__tag--free">무료</span>
+                  <span class="m-hero__tag">초보환영</span>
+                </div>
+                <h1 class="m-hero__title">토요일 낮 회룡역 픽업 — 초보 환영</h1>
+                <div class="m-hero__meta">
+                  <div class="m-hero__meta-row">
+                    <span class="ico material-symbols-outlined">calendar_today</span>
+                    <span class="when">4/26 (토) · 12:00 – 15:00</span>
+                  </div>
+                  <div class="m-hero__meta-row">
+                    <span class="ico material-symbols-outlined">place</span>
+                    <span class="place">회룡역사거리 농구장 <span class="sub">의정부 전곡동</span></span>
+                  </div>
+                  <div class="m-hero__meta-row">
+                    <span class="ico material-symbols-outlined">groups</span>
+                    <span class="when">8 / 12명 <span class="sub">4자리 남음</span></span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 같은 컨텐츠 ... -->
+            <div class="m-section">
+              <h3 class="m-section__title">경기 안내</h3>
+              <p class="m-prose">회룡역 도보 3분 거리 실외 코트에서 매주 토요일 낮 픽업합니다. 4팀 5명씩 로테이션 진행되고, 초보 분들도 환영합니다.</p>
+            </div>
+            <div class="m-section">
+              <h3 class="m-section__title">참가자 <span class="count">8/12</span></h3>
+              <div class="bar bar--lg" style="margin-top:8px;"><div class="bar__fill" style="width:66.7%; background:var(--kind);"></div></div>
+              <div style="margin-top:6px; font-size:11px; color:var(--ink-mute);">승인 7 · 대기 1 · <b style="color:var(--kind-deep);">4자리 남음</b></div>
+              <div class="m-appl-grid" style="margin-top:10px;">
+                <div class="appl">
+                  <div class="appl__av">HM</div>
+                  <div class="appl__info">
+                    <div class="appl__nick">hoops_m <span class="appl__lvl">Lv.6</span></div>
+                    <div class="appl__meta"><span>가드</span><span class="star">★ 4.5</span></div>
+                  </div>
+                  <span class="appl__status appl__status--ok">승인</span>
+                </div>
+                <div class="appl">
+                  <div class="appl__av">IC</div>
+                  <div class="appl__info">
+                    <div class="appl__nick">iron_c <span class="appl__lvl">Lv.7</span></div>
+                    <div class="appl__meta"><span>센터</span><span class="star">★ 4.7</span></div>
+                  </div>
+                  <span class="appl__status appl__status--ok">승인</span>
+                </div>
+                <button class="btn-sub" style="width:100%; margin-top:4px;">참가자 8명 모두 보기</button>
+              </div>
+            </div>
+
+            <div class="m-section">
+              <h3 class="m-section__title">주최자</h3>
+              <div class="host-card">
+                <div class="host-card__av">RC</div>
+                <div class="host-card__info">
+                  <div class="host-card__nick">rdm_captain <span class="role">호스트</span></div>
+                  <div class="host-card__meta">
+                    <span class="star">★ 4.7</span><span>·</span><span>23회</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="m-section">
+              <h3 class="m-section__title">코트</h3>
+              <div class="map" style="height:130px; margin-bottom:8px;">
+                <div class="map__pin"><div class="map__pin-dot"></div></div>
+              </div>
+              <div style="font-size:12.5px;">
+                <b>회룡역사거리 농구장</b><br/>
+                <span style="color:var(--ink-mute);">경기 의정부시 전곡동 158-3</span>
+              </div>
+            </div>
+
+            <div class="m-sticky kind-pickup">
+              <div class="m-sticky__info">
+                <div class="m-sticky__count">4<small>자리 남음 · 8/12</small></div>
+                <div class="m-sticky__label">무료 · 토 12:00</div>
+              </div>
+              <button class="m-sticky__cta">신청하기</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="variant__cap">
+      <div class="pros">
+        <h4><span class="ico material-symbols-outlined">check_circle</span>장점</h4>
+        <ul>
+          <li>풀폭 다크 hero 로 종별 컬러가 강하게 — 카드와 시각 언어 일관</li>
+          <li>제목·일시·장소가 hero 안에 통합 → 첫인상 강력</li>
+          <li>Quick action ribbon 으로 정원 + 신청 버튼 + 주최자가 한 줄에 — 의사결정 빠름</li>
+          <li>모바일과 데스크탑이 구조적으로 동일 (1-column) — 일관성 ↑</li>
+        </ul>
+      </div>
+      <div class="cons">
+        <h4><span class="ico material-symbols-outlined">priority_high</span>고려</h4>
+        <ul>
+          <li>스크롤 시 신청 패널이 보이지 않음 — Quick ribbon 을 sticky 화 필요</li>
+          <li>운영 src 마이그레이션 작업량 V1 보다 ↑</li>
+          <li>다크 hero 가 종별 마다 다른 분위기를 만들어 전체 페이지 톤이 갈림</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       6 STATES — apply panel
+       ============================================================ -->
+  <section class="variant">
+    <header class="variant__head">
+      <div>
+        <span class="variant__num">상태 6</span>
+        <h2 class="variant__title">신청 패널 상태 — V1 sticky aside 기준</h2>
+      </div>
+      <div class="variant__tags">
+        <span class="variant__tag">PM 요청 6 상태</span>
+      </div>
+      <p class="variant__desc">기본 / 마감임박 / 마감 / 신청함(승인) / 호스트 본인 보기 (관리 모드) / 미로그인. 모든 상태 패널 폭은 동일(340px).</p>
+    </header>
+
+    <div class="states-grid">
+
+      <!-- 1. 기본 (신청 가능) -->
+      <div class="state-cell">
+        <div class="state-cell__lbl">① 기본 — 신청 가능</div>
+        <article class="card-base v1-apply kind-pickup" style="border-radius:0; border:0; border-top:1px solid var(--border);">
+          <div class="v1-apply__head">
+            <div class="v1-apply__h-row1">
+              <span class="v1-apply__h-eyebrow">참가 신청</span>
+              <span class="v1-apply__h-status">신청 가능</span>
+            </div>
+            <div class="v1-apply__count">4<small>자리 남음</small></div>
+            <div class="v1-apply__h-bar"><div class="v1-apply__h-bar-fill" style="width:66.7%"></div></div>
+          </div>
+          <div class="v1-apply__body">
+            <div class="v1-apply__me">
+              <div class="v1-apply__me-nick">kim_subin</div>
+              <div class="v1-apply__me-meta">Lv.5 · 가드 · ★ 4.1</div>
+            </div>
+            <textarea class="v1-apply__textarea" placeholder="한마디 (선택)">초보지만 열심히 뛰겠습니다!</textarea>
+            <label class="v1-apply__terms">
+              <input type="checkbox" checked /><span>취소 시 3시간 전 통보 동의</span>
+            </label>
+            <button class="btn-apply-lg"><span class="ico">how_to_reg</span>신청하기 · 무료</button>
+          </div>
+        </article>
+      </div>
+
+      <!-- 2. 마감 임박 -->
+      <div class="state-cell">
+        <div class="state-cell__lbl">② 마감 임박</div>
+        <article class="card-base v1-apply kind-pickup" style="border-radius:0; border:0; border-top:1px solid var(--border);">
+          <div class="v1-apply__head" style="background: linear-gradient(155deg, #8B0E15 0%, #8B0E15 45%, #5C0810 100%);">
+            <div class="v1-apply__h-row1">
+              <span class="v1-apply__h-eyebrow">참가 신청</span>
+              <span class="v1-apply__h-status" style="background:rgba(0,0,0,.30);">⚠ 마감 임박</span>
+            </div>
+            <div class="v1-apply__count">1<small>자리 남음</small></div>
+            <div class="v1-apply__h-bar"><div class="v1-apply__h-bar-fill" style="width:91.7%"></div></div>
+          </div>
+          <div class="v1-apply__body">
+            <div style="font-size:12px; color:var(--accent); font-weight:700; padding:8px 10px; background:var(--accent-soft); border-left:3px solid var(--accent); border-radius:0 4px 4px 0;">
+              곧 마감됩니다. 빠르게 신청해주세요.
+            </div>
+            <div class="v1-apply__me">
+              <div class="v1-apply__me-nick">kim_subin</div>
+              <div class="v1-apply__me-meta">Lv.5 · 가드 · ★ 4.1</div>
+            </div>
+            <button class="btn-apply-lg" style="background:#8B0E15; border-color:#5C0810;"><span class="ico">bolt</span>지금 신청 · 무료</button>
+          </div>
+        </article>
+      </div>
+
+      <!-- 3. 마감 (정원 초과) -->
+      <div class="state-cell">
+        <div class="state-cell__lbl">③ 마감 — 정원 차서 마감</div>
+        <article class="card-base v1-apply kind-pickup" style="border-radius:0; border:0; border-top:1px solid var(--border);">
+          <div class="v1-apply__head" style="background:#1B2128;">
+            <div class="v1-apply__h-row1">
+              <span class="v1-apply__h-eyebrow">참가 신청</span>
+              <span class="v1-apply__h-status">마감</span>
+            </div>
+            <div class="v1-apply__count">12<small>/12명 정원</small></div>
+            <div class="v1-apply__h-bar"><div class="v1-apply__h-bar-fill" style="width:100%; background:#fff;"></div></div>
+          </div>
+          <div class="v1-apply__body">
+            <div style="text-align:center; padding:18px 12px;">
+              <span class="material-symbols-outlined" style="font-size:36px; color:var(--ink-dim);">block</span>
+              <div style="font-size:14px; font-weight:800; margin-top:8px;">정원이 모두 찼습니다</div>
+              <div style="font-size:12px; color:var(--ink-mute); margin-top:4px;">대기 명단 등록 시 취소 발생 알림</div>
+            </div>
+            <button class="btn-apply-lg" style="background:var(--ink-soft); border-color:#1B2128;"><span class="ico">notifications_active</span>대기 명단 등록</button>
+            <button class="btn-sub" style="flex:none; width:100%;"><span class="ico">place</span>같은 코트 다른 경기 보기</button>
+          </div>
+        </article>
+      </div>
+
+      <!-- 4. 이미 신청함 (승인) -->
+      <div class="state-cell">
+        <div class="state-cell__lbl">④ 이미 신청함 — 승인됨</div>
+        <article class="card-base v1-apply kind-pickup" style="border-radius:0; border:0; border-top:1px solid var(--border);">
+          <div class="v1-apply__head" style="background: linear-gradient(155deg, #0A5132 0%, #0A5132 45%, #053823 100%);">
+            <div class="v1-apply__h-row1">
+              <span class="v1-apply__h-eyebrow">참가 신청 완료</span>
+              <span class="v1-apply__h-status" style="background:rgba(255,255,255,.30);">✓ 승인</span>
+            </div>
+            <div class="v1-apply__count" style="font-size:18px;">4/26 (토) 12:00</div>
+            <div style="font-size:11.5px; opacity:0.92; margin-top:4px;">캘린더에 추가됨 · 시작 2시간 전 알림</div>
+          </div>
+          <div class="v1-apply__body">
+            <div class="v1-apply__me">
+              <div class="v1-apply__me-nick">kim_subin <span style="font-size:10px; color:var(--ok); font-weight:700; padding:1px 5px; background:var(--ok-soft); border-radius:2px; margin-left:4px;">참가 확정</span></div>
+              <div class="v1-apply__me-meta">한마디: "초보지만 열심히 뛰겠습니다!"</div>
+            </div>
+            <div style="display:flex; gap:6px;">
+              <button class="btn-sub"><span class="ico">calendar_add_on</span>캘린더</button>
+              <button class="btn-sub"><span class="ico">share</span>공유</button>
+            </div>
+            <button class="btn-apply-lg" style="background:var(--bg-elev); color:var(--accent); border-color:var(--accent);"><span class="ico">cancel</span>신청 취소</button>
+          </div>
+        </article>
+      </div>
+
+      <!-- 5. 호스트 본인 보기 -->
+      <div class="state-cell">
+        <div class="state-cell__lbl">⑤ 호스트 본인 — 관리 모드</div>
+        <article class="card-base v1-apply kind-pickup" style="border-radius:0; border:0; border-top:1px solid var(--border);">
+          <div class="v1-apply__head">
+            <div class="v1-apply__h-row1">
+              <span class="v1-apply__h-eyebrow">호스트 관리</span>
+              <span class="v1-apply__h-status">내 모집</span>
+            </div>
+            <div class="v1-apply__count">8<small>/12 · 대기 1</small></div>
+            <div class="v1-apply__h-bar"><div class="v1-apply__h-bar-fill" style="width:66.7%"></div></div>
+          </div>
+          <div class="v1-apply__body">
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px;">
+              <div style="padding:8px; background:var(--bg-alt); border-radius:4px; text-align:center;">
+                <div style="font-family:var(--ff-mono); font-size:16px; font-weight:800; color:var(--warn);">1</div>
+                <div style="font-size:10.5px; color:var(--ink-mute);">대기 신청</div>
+              </div>
+              <div style="padding:8px; background:var(--bg-alt); border-radius:4px; text-align:center;">
+                <div style="font-family:var(--ff-mono); font-size:16px; font-weight:800;">3</div>
+                <div style="font-size:10.5px; color:var(--ink-mute);">새 댓글</div>
+              </div>
+            </div>
+            <button class="btn-apply-lg"><span class="ico">manage_accounts</span>신청 관리 (1건 대기)</button>
+            <div style="display:flex; gap:6px;">
+              <button class="btn-sub"><span class="ico">edit</span>수정</button>
+              <button class="btn-sub"><span class="ico">campaign</span>공지</button>
+              <button class="btn-sub" style="color:var(--accent);"><span class="ico">delete</span>마감</button>
+            </div>
+          </div>
+        </article>
+      </div>
+
+      <!-- 6. 미로그인 -->
+      <div class="state-cell">
+        <div class="state-cell__lbl">⑥ 미로그인</div>
+        <article class="card-base v1-apply kind-pickup" style="border-radius:0; border:0; border-top:1px solid var(--border);">
+          <div class="v1-apply__head">
+            <div class="v1-apply__h-row1">
+              <span class="v1-apply__h-eyebrow">참가 신청</span>
+              <span class="v1-apply__h-status">신청 가능</span>
+            </div>
+            <div class="v1-apply__count">4<small>자리 남음</small></div>
+            <div class="v1-apply__h-bar"><div class="v1-apply__h-bar-fill" style="width:66.7%"></div></div>
+          </div>
+          <div class="v1-apply__body">
+            <div style="text-align:center; padding:14px 12px;">
+              <span class="material-symbols-outlined" style="font-size:32px; color:var(--ink-dim);">login</span>
+              <div style="font-size:14px; font-weight:800; margin-top:6px;">로그인 후 신청할 수 있습니다</div>
+              <div style="font-size:11.5px; color:var(--ink-mute); margin-top:4px; line-height:1.5;">레벨·평점·매칭 정보를 활용하기 위해<br/>로그인이 필요합니다</div>
+            </div>
+            <button class="btn-apply-lg"><span class="ico">login</span>로그인</button>
+            <button class="btn-sub" style="flex:none; width:100%;">회원가입</button>
+          </div>
+        </article>
+      </div>
+
+    </div>
+
+    <div class="variant__cap">
+      <div class="pros">
+        <h4><span class="ico material-symbols-outlined">check_circle</span>구현 노트</h4>
+        <ul>
+          <li>모든 상태가 동일 패널 폭 (340px) — 레이아웃 점프 없음</li>
+          <li>head 영역만 컬러/문구 변경, body 만 컴포넌트 swap</li>
+          <li>마감임박 = accent 그라데이션, 마감 = 회색 톤, 승인 = 그린 톤</li>
+        </ul>
+      </div>
+      <div class="cons">
+        <h4><span class="ico material-symbols-outlined">priority_high</span>다음</h4>
+        <ul>
+          <li>대기 명단 (waiting list) 상태 — 신청은 했지만 미승인 — 추가 가능</li>
+          <li>호스트 모드의 "신청 관리" 페이지는 별도 라우트로 분기 예정</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer style="margin-top:48px; padding:22px 26px; background:var(--bg-elev); border:1px solid var(--border); border-radius:8px; font-size:13px; color:var(--ink-soft); line-height:1.7;">
+    <div style="font-family:var(--ff-mono); font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--ink-dim); margin-bottom:8px;">DECISION POINT</div>
+    <p style="margin:0 0 6px;"><b>V1</b> = 안전한 진화 (운영 src 변경 적음). <b>V2</b> = 시각 임팩트 큼 (hero 가 종별 컬러 강조).</p>
+    <p style="margin:0;">선호하시는 시안 + 추가 조정 요청 알려주시면 박제 진행하겠습니다. (조합도 가능 — 예: V2 hero + V1 sticky aside)</p>
+  </footer>
+
+</div>
+
+</body>
+</html>

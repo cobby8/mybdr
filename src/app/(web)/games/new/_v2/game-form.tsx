@@ -27,6 +27,8 @@ import { KindSelector } from "./kind-selector";
 import { BasicInfoSection } from "./basic-info-section";
 import { ConditionsSection } from "./conditions-section";
 import { AdvancedSection } from "./advanced-section";
+// [v2.16 Phase 3-2a] 라이브 프리뷰 — 운영 GameCard 컴포넌트 그대로 활용
+import { GameCard } from "@/components/bdr-v2/game-card";
 
 // --- Types ---
 
@@ -169,7 +171,14 @@ function savePreset(name: string, data: GameFormData) {
 
 // --- Main Component ---
 
-export function GameFormV2({ permissions }: { permissions: Permissions }) {
+export function GameFormV2({
+  permissions,
+  previewNickname,
+}: {
+  permissions: Permissions;
+  /** [v2.16 Phase 3-2a] 라이브 프리뷰 GameCard authorNickname */
+  previewNickname?: string | null;
+}) {
   const router = useRouter();
   const [data, setData] = useState<GameFormData>(INITIAL_DATA);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -188,6 +197,10 @@ export function GameFormV2({ permissions }: { permissions: Permissions }) {
   // 카카오 postcode 오버레이
   const [showPostcode, setShowPostcode] = useState(false);
   const postcodeContainerRef = useRef<HTMLDivElement>(null);
+
+  // [v2.16 Phase 3-2c] 모바일 라이브 프리뷰 collapsible (≤1024px 만 동작 — 데스크톱 CSS 무시)
+  // default false (펼침) — 시안 v2.16 모바일 collapsible 의도
+  const [mobilePreviewCollapsed, setMobilePreviewCollapsed] = useState(false);
 
   // 임시저장 / 불러오기 모달
   const [showSaveModal, setShowSaveModal] = useState(false);
@@ -512,9 +525,11 @@ export function GameFormV2({ permissions }: { permissions: Permissions }) {
       {/* 성공 오버레이 */}
       {showSuccess && <SuccessOverlay gameId={createdGameId} />}
 
-      {/* === v2 시안 레이아웃: page + maxWidth 760 중앙 정렬 === */}
+      {/* === v2.16 Phase 3-2a: 좌 폼 + 우 sticky 라이브 프리뷰 === */}
       <div className="page">
-        <div style={{ maxWidth: 760, margin: "0 auto" }}>
+        <div className="gd-create-grid">
+          {/* 좌측 — 폼 (기존 maxWidth 760 유지 / grid 안에서 1fr 점유) */}
+          <div className="gd-create-form">
           {/* Breadcrumb */}
           <div
             style={{
@@ -680,7 +695,102 @@ export function GameFormV2({ permissions }: { permissions: Permissions }) {
               저장된 설정 불러오기
             </button>
           </div>
+          </div>{/* === 좌측 폼 wrapper 닫기 === */}
+
+          {/* [v2.16 Phase 3-2a] 우측 sticky 라이브 프리뷰 — formData 즉시 반영 GameCard
+           * 박제 source: 작업지시서 §3-2 "우 sticky 라이브 프리뷰 (입력 즉시 GameCard 미리보기 갱신)"
+           * [v2.16 Phase 3-2c] 모바일 collapsible — 헤더 click 시 카드 toggle (모바일만 동작)
+           * GameCard 운영 컴포넌트 그대로 사용 — pointer-events:none 으로 click 비활성 */}
+          <aside
+            className="gd-create-preview"
+            aria-label="실시간 미리보기"
+            data-collapsed={mobilePreviewCollapsed ? "true" : "false"}
+          >
+            <button
+              type="button"
+              className="gd-create-preview__head"
+              onClick={() => setMobilePreviewCollapsed((v) => !v)}
+              aria-expanded={!mobilePreviewCollapsed}
+              aria-controls="gd-create-preview-card"
+            >
+              <span className="material-symbols-outlined" aria-hidden>
+                visibility
+              </span>
+              실시간 미리보기
+              <span
+                className="material-symbols-outlined gd-create-preview__toggle"
+                aria-hidden
+              >
+                {mobilePreviewCollapsed ? "expand_more" : "expand_less"}
+              </span>
+            </button>
+            {(() => {
+              // data → GameCardProps 매핑 (인라인) — state 이름은 'data' (L183)
+              const scheduledIso =
+                data.scheduledDate && data.scheduledTime
+                  ? new Date(
+                      `${data.scheduledDate}T${data.scheduledTime}:00`,
+                    ).toISOString()
+                  : null;
+              const tags: string[] = [];
+              if (!data.feePerPerson || data.feePerPerson === 0)
+                tags.push("무료");
+              if (["beginner", "lowest", "low"].includes(data.skillLevel))
+                tags.push("초보환영");
+              if (scheduledIso) {
+                const dow = new Date(scheduledIso).getDay();
+                if (dow === 0 || dow === 6) tags.push("주말");
+              }
+              const areaLabel = [data.city, data.district]
+                .filter(Boolean)
+                .join(" ");
+              return (
+                <div
+                  id="gd-create-preview-card"
+                  className="gd-create-preview__card"
+                >
+                  <GameCard
+                    href="#"
+                    gameType={Number(data.gameType)}
+                    status={1}
+                    title={data.title || "(제목 미입력)"}
+                    venueName={data.venueName || null}
+                    areaLabel={areaLabel}
+                    scheduledAt={scheduledIso}
+                    durationHours={data.durationHours}
+                    skillLevel={data.skillLevel}
+                    feePerPerson={
+                      data.feePerPerson > 0
+                        ? data.feePerPerson.toString()
+                        : null
+                    }
+                    currentParticipants={0}
+                    maxParticipants={data.maxParticipants}
+                    authorNickname={previewNickname ?? null}
+                    tags={tags}
+                  />
+                </div>
+              );
+            })()}
+            <p className="gd-create-preview__hint">
+              입력 정보가 실시간으로 카드에 반영됩니다.
+            </p>
+          </aside>
         </div>
+      </div>
+
+      {/* [v2.16 Phase 3-2c] 모바일 하단 fixed CTA — ≤1024px 만 표시
+       * 박제 source: 작업지시서 §3-2 "모바일 collapsible 미리보기 + 하단 fixed CTA"
+       * 같은 handleSubmit 호출 (별도 로직 없음) */}
+      <div className="gd-create-mobile-cta" role="region" aria-label="경기 개설">
+        <button
+          type="button"
+          className="gd-create-mobile-cta__btn"
+          onClick={handleSubmit}
+          disabled={submitting}
+        >
+          {submitting ? "생성 중..." : "경기 개설 →"}
+        </button>
       </div>
 
       {/* 임시저장 모달 */}

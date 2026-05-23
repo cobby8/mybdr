@@ -4,7 +4,7 @@ function SeriesDetail({ setRoute }) {
   const [tab, setTab] = React.useState('editions');
 
   const series = {
-    name:'BDR CHALLENGE', tagline:'3x3 오픈 챔피언십', host:'BDR 리그 사무국',
+    name:'BDR CHALLENGE', tagline:'서울 3x3 오픈 챔피언십', host:'BDR 리그 사무국',
     accent:'#E31B23', founded:2023, editionsTotal:8, format:'3v3 더블 엘리미네이션',
     sponsorTier:'OFFICIAL',
   };
@@ -55,7 +55,7 @@ function SeriesDetail({ setRoute }) {
       <div style={{display:'grid', gridTemplateColumns:'minmax(0,1fr) 320px', gap:24, alignItems:'flex-start'}}>
         <div>
           <div style={{display:'flex', borderBottom:'2px solid var(--border)', marginBottom:20, flexWrap:'wrap'}}>
-            {[['editions','회차 계보'],['honors','명예의 전당'],['stats','통계'],['reviews','참가 후기'],['about','소개']].map(([k,l]) => (
+            {[['editions','회차 계보'],['honors','명예의 전당'],['stats','통계'],['about','소개']].map(([k,l]) => (
               <button key={k} onClick={()=>setTab(k)} style={{
                 padding:'12px 18px', background:'transparent', border:0,
                 borderBottom: tab===k ? '3px solid var(--cafe-blue)' : '3px solid transparent',
@@ -137,27 +137,11 @@ function SeriesDetail({ setRoute }) {
             </div>
           )}
 
-          {tab === 'reviews' && (
-            <ContextReviews
-              kind="series"
-              targetName={series.name}
-              reviews={[
-                { author:'3POINT_슈',  authorLevel:'L.5', rating:5, date:'2026.04.13', body:'운영 깔끔, 시간 배분이 정확했어요. 결승까지 진행 매끄러웠습니다.', tags:['운영','결승까지'], verified:true },
-                { author:'monkey_k',   authorLevel:'L.9', rating:5, date:'2025.12.21', body:'레퍼리 수준이 인상적. 디테일까지 잡아줘서 경기 흐름이 살았어요.', tags:['레퍼리'], verified:true },
-                { author:'kings_p',    authorLevel:'L.7', rating:4, date:'2025.10.20', body:'대진표 발표가 조금 늦었지만 진행 자체는 만족.', tags:['대진표아쉬움'], verified:true },
-                { author:'redeem_g',   authorLevel:'L.6', rating:5, date:'2025.07.07', body:'분위기·운영·중계 다 좋았습니다. 다음 회차도 갑니다.', tags:['중계','분위기'], verified:true },
-              ]}
-              summary={{ avg:'4.7', total:62, dist:[44, 14, 3, 1, 0] }}
-              onWrite={()=>alert('참가 후기 작성 (대회 참가 인증 필요)')}
-              onViewAll={()=>alert('전체 후기 — 페이징 페이지로')}
-            />
-          )}
-
           {tab === 'about' && (
             <div className="card" style={{padding:'24px 26px'}}>
               <h2 style={{margin:'0 0 12px', fontSize:18, fontWeight:700}}>{series.name} 소개</h2>
               <p style={{color:'var(--ink-soft)', lineHeight:1.75, margin:'0 0 14px'}}>
-                BDR 리그 사무국이 분기마다 개최하는 3x3 오픈 챔피언십. 2023년 첫 대회 이후 현재까지 8회 진행되었으며,
+                BDR 리그 사무국이 분기마다 개최하는 서울 3x3 오픈 챔피언십. 2023년 첫 대회 이후 현재까지 8회 진행되었으며,
                 참가 자격 제한 없이 누구나 팀 단위로 등록 가능합니다.
               </p>
               <div style={{display:'grid', gridTemplateColumns:'140px 1fr', rowGap:10, columnGap:16, fontSize:14, padding:'14px 16px', background:'var(--bg-alt)', borderRadius:6}}>

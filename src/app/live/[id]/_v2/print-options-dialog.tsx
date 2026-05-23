@@ -30,6 +30,7 @@ export function PrintOptionsDialog({
   homeTeamName,
   awayTeamName,
   hasOT,
+  otCount = 0,
   hasQuarterEventDetail,
 }: {
   open: boolean;
@@ -38,6 +39,8 @@ export function PrintOptionsDialog({
   homeTeamName: string;
   awayTeamName: string;
   hasOT: boolean;
+  // 2026-05-20 OT2+ 분리: 진행 OT 회수 (0=없음 / 1=OT1만 / 2=OT1+OT2 / N+). hasOT 는 backward-compat.
+  otCount?: number;
   hasQuarterEventDetail: boolean;
 }) {
   // 옵션 state — 기본값은 양 팀 + 누적만 체크
@@ -78,6 +81,7 @@ export function PrintOptionsDialog({
           opt={opts.home}
           onChange={(next) => setOpts({ ...opts, home: next })}
           hasOT={hasOT}
+          otCount={otCount}
         />
 
         <div className="h-3" />
@@ -88,6 +92,7 @@ export function PrintOptionsDialog({
           opt={opts.away}
           onChange={(next) => setOpts({ ...opts, away: next })}
           hasOT={hasOT}
+          otCount={otCount}
         />
 
         {/* 이벤트 없는 경기에서 쿼터 선택 시 주의 안내 */}
@@ -165,11 +170,13 @@ function TeamSection({
   opt,
   onChange,
   hasOT,
+  otCount = 0,
 }: {
   label: string;
   opt: TeamPrintOption;
   onChange: (next: TeamPrintOption) => void;
   hasOT: boolean;
+  otCount?: number;
 }) {
   // 쿼터 토글 — 현재 상태 반전
   const toggleQuarter = (q: string) => {
@@ -177,8 +184,15 @@ function TeamSection({
     onChange({ ...opt, quarters: next });
   };
 
-  // 쿼터 버튼 목록 — OT 는 hasOT 일 때만 노출
-  const quarterKeys = ["1", "2", "3", "4", ...(hasOT ? ["5"] : [])];
+  // 쿼터 버튼 목록 — 2026-05-20 OT2+ 분리.
+  //   otCount > 0 → OT1/OT2/... 동적 / backward-compat: hasOT=true & otCount=0 시 OT1 만.
+  const otKeys =
+    otCount > 0
+      ? Array.from({ length: otCount }, (_, i) => String(5 + i))
+      : hasOT
+        ? ["5"]
+        : [];
+  const quarterKeys = ["1", "2", "3", "4", ...otKeys];
 
   return (
     <div className="rounded border p-3" style={{ borderColor: "var(--color-border)" }}>
@@ -219,7 +233,7 @@ function TeamSection({
                 checked={!!opt.quarters[q]}
                 onChange={() => toggleQuarter(q)}
               />
-              {q === "5" ? "OT" : `${q}Q`}
+              {Number(q) >= 5 ? `OT${Number(q) - 4}` : `${q}Q`}
             </label>
           ))}
         </div>

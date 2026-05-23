@@ -2202,6 +2202,26 @@ model match_events {
   @@map("match_events")
 }
 
+/// 2026-05-21 PR-4 F2 — 점수 정합성 daily cron 결과 박제 audit 테이블 (NULL 허용 ADD / 무중단).
+///
+/// 왜: completed 매치 4 source (header / QS / MPS / PBP) 불일치 자동 검출 결과를 DB 박제 →
+///   admin 대시보드 위젯이 최근 24h 알림 표시 + 운영자 며칠 후 확인 가능.
+///   (현재 검출 layer 0 / 운영 DB 56% (70/125) 불일치 잔존 — errors.md [2026-05-21])
+///
+/// idempotent: cron 매일 01:00 KST 1회 실행 / 같은 매치 + 같은 mismatch_type 중복 INSERT 허용
+///   (시간 흐름 추적용 / unique 가드 0 / N일 보존 후 일괄 삭제 정책 검토 — Sprint 3)
+model score_consistency_audit {
+  id           BigInt   @id @default(autoincrement())
+  matchId      BigInt   @map("match_id")
+  auditedAt    DateTime @default(now()) @map("audited_at") @db.Timestamptz(6)
+  mismatchType String   @map("mismatch_type") @db.VarChar // "MPS_HEADER_DIFF" | "PBP_HEADER_DIFF" | "QS_HEADER_DIFF" | "QS_ZERO" | "MULTI_DIFF" | "HEADER_ZERO"
+  details      Json // { headerHome, headerAway, mpsHome, mpsAway, qsHome, qsAway, pbpHome, pbpAway, recordingMode, tournamentId }
+
+  @@index([matchId, auditedAt])
+  @@index([auditedAt])
+  @@map("score_consistency_audit")
+}
+
 // 2026-05-02 회귀 방지 audit log (errors.md "양쪽 같은 팀 (피벗·아울스)" 케이스 대응)
 // TournamentMatch 의 주요 필드 변경 이력 추적 — homeTeamId/awayTeamId/winner_team_id/status/score/scheduledAt
 // source = "admin" (web admin PATCH) | "flutter" (v1 API) | "system" (progressDualMatch 등 자동)

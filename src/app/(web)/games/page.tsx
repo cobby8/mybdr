@@ -142,6 +142,7 @@ export default async function GamesPage({
     district: g.district,
     venueName: g.venue_name,
     scheduledAt: g.scheduled_at?.toISOString() ?? null,
+    durationHours: g.duration_hours ?? null, // [v2.16] Date Tile 종료 시간 계산용
     currentParticipants: g.current_participants,
     maxParticipants: g.max_participants,
     feePerPerson: g.fee_per_person?.toString() ?? null, // Decimal → string

@@ -7,6 +7,7 @@ import { StatCard } from "./_components/stat-card";
 import { MyGamesClient } from "./_components/my-games-client";
 import type { RegItem } from "./_components/reg-row";
 import type { RegStatus } from "./_components/status-badge";
+import { GameCard } from "@/components/bdr-v2/game-card";
 
 /* ============================================================
  * /games/my-games — BDR v2 "내 신청 내역" (A 변형)
@@ -407,61 +408,49 @@ export default async function MyGamesPage() {
         </div>
 
         {hostedGames.length > 0 ? (
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {hostedGames.map((g) => (
-              <Link
-                key={g.id.toString()}
-                href={`/games/${g.uuid?.slice(0, 8) ?? g.id.toString()}`}
-                className="card"
-                style={{
-                  padding: "14px 18px",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  gap: 12,
-                  textDecoration: "none",
-                  color: "inherit",
-                }}
-              >
-                <div style={{ minWidth: 0 }}>
-                  <p
-                    style={{
-                      margin: 0,
-                      fontWeight: 700,
-                      fontSize: 14.5,
-                      color: "var(--ink)",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    {g.title ?? "제목 없음"}
-                  </p>
-                  <p
-                    style={{
-                      margin: "4px 0 0",
-                      fontSize: 12,
-                      color: "var(--ink-mute)",
-                    }}
-                  >
-                    {g.scheduled_at
-                      ? g.scheduled_at.toLocaleString("ko-KR", {
-                          timeZone: "Asia/Seoul",
-                          month: "2-digit",
-                          day: "2-digit",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })
-                      : "일정 미정"}
-                    {" · "}
-                    {g.venue_name ?? g.city ?? "-"}
-                  </p>
-                </div>
-                <span className="badge" style={{ flexShrink: 0 }}>
-                  {GAME_STATUS_LABEL[g.status] ?? "대기"}
-                </span>
-              </Link>
-            ))}
+          /* [2026-05-20 v2.16] 호스팅 게임 카드 통일 — GameCard 적용
+           * 박제 source: Dev/design/BDR-current/_games_card_final.html
+           * 기존 1줄 .card 인라인 → GameCard (Date Tile + Area Chip + Host) */
+          <div className="games-grid">
+            {hostedGames.map((g) => {
+              // 자동 파생 태그 (games-client.tsx deriveTags 와 동일 규칙 — 인라인)
+              const tags: string[] = [];
+              const feeNum = g.fee_per_person ? Number(g.fee_per_person) : 0;
+              if (!g.fee_per_person || feeNum === 0) tags.push("무료");
+              if (
+                g.skill_level &&
+                ["beginner", "lowest", "low"].includes(g.skill_level)
+              ) {
+                tags.push("초보환영");
+              }
+              if (g.scheduled_at) {
+                const dow = g.scheduled_at.getDay();
+                if (dow === 0 || dow === 6) tags.push("주말");
+              }
+              const areaLabel = [g.city?.trim(), g.district?.trim()]
+                .filter(Boolean)
+                .join(" ");
+              const shortUuid = g.uuid?.slice(0, 8);
+              return (
+                <GameCard
+                  key={g.id.toString()}
+                  href={`/games/${shortUuid ?? g.id.toString()}`}
+                  gameType={g.game_type}
+                  status={g.status}
+                  title={g.title}
+                  venueName={g.venue_name}
+                  areaLabel={areaLabel}
+                  scheduledAt={g.scheduled_at?.toISOString() ?? null}
+                  durationHours={g.duration_hours ?? null}
+                  skillLevel={g.skill_level}
+                  feePerPerson={g.fee_per_person?.toString() ?? null}
+                  currentParticipants={g.current_participants}
+                  maxParticipants={g.max_participants}
+                  authorNickname={g.author_nickname ?? null}
+                  tags={tags}
+                />
+              );
+            })}
           </div>
         ) : (
           <div
