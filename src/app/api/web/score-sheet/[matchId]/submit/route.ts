@@ -38,6 +38,9 @@ import {
   checkScoreSheetEditAccess,
 } from "@/lib/auth/require-score-sheet-access";
 import { getRecordingMode } from "@/lib/tournaments/recording-mode";
+// 2026-05-21 PR-3 F5 (errors.md [2026-05-20] 매치 124 OT2 사고 재발 방지):
+//   FIBA 룰 가드 PURE 헬퍼. service 호출 직전 호출 → OT1 동점 + winner NULL completed 차단.
+import { assertCompletedMatchFiba } from "@/lib/tournaments/fiba-rules";
 import {
   syncSingleMatch,
   type PlayByPlayInput,
@@ -1057,6 +1060,33 @@ export async function POST(
     if (built.length > 0) {
       playerStats = built;
     }
+  }
+
+  // 2026-05-21 PR-3 F5 (errors.md [2026-05-20] 매치 124 OT2 사고 재발 방지):
+  //   FIBA 룰 가드 — OT1 동점 + winner NULL completed 차단.
+  //
+  // 이유:
+  //   매치 124 (라이징이글스 vs 제이크루) = OT1 70-70 자동 종료 박제 후 OT2 박제 누락 사고.
+  //   FIBA Article 17.2 (Tied Score) — regulation/OT 동점 시 winner 결정 의무.
+  //   service 호출 전 가드로 차단 → paper + Flutter 양면 단일 source.
+  //
+  // paper 모드 특이사항:
+  //   - score-sheet submit 에는 winner 박제 0 (service 가 자동 결정).
+  //   - winnerTeamId = null → 동점일 때 FIBA 위반 분기 진입 (의도된 동작).
+  //   - currentQuarter = running_score.currentPeriod (1~7) — UI 가 박제한 진행 period.
+  //   - OT2+ (quarter>=6) 동점은 가드 통과 (운영자 OT2 박제 흐름 보존 — 매치 124 사후 박제 케이스).
+  const fibaCheck = assertCompletedMatchFiba({
+    homeScore: input.home_score,
+    awayScore: input.away_score,
+    status: input.status,
+    winnerTeamId: null, // paper = winner 미박제 (service 자동 결정)
+    currentQuarter: input.running_score?.currentPeriod,
+    recordingMode: "paper",
+  });
+  if (!fibaCheck.ok) {
+    return apiError(fibaCheck.message, 422, fibaCheck.code, {
+      match_id: match.id.toString(),
+    });
   }
 
   // 5) service 호출 — 단일 source (Flutter sync 와 동일 path)

@@ -15,6 +15,9 @@ import { shouldAutoSchedule } from "@/lib/tournaments/auto-status";
 //   advanceTournamentPlaceholders) → 본 헬퍼 1회 호출로 통합 (단일 source 박제).
 //   alreadyCompleted 가드 = 본 route 책임 (헬퍼 호출 조건 if 안에서 보존).
 import { finalizeMatchCompletion } from "@/lib/tournaments/finalize-match-completion";
+// 2026-05-21 F3-β (errors.md [2026-05-21] D 분류): paper 매치 score-sheet BFF 단일 진입점 의무.
+//   어드민 PATCH 로 score 직접 SET 시 QS/MPS/PBP 박제 누락 (강남구 매치 170/187 재발 원인) 차단.
+import { getRecordingMode } from "@/lib/tournaments/recording-mode";
 
 type Ctx = { params: Promise<{ id: string; matchId: string }> };
 
@@ -162,6 +165,23 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
 
   // 자동 전환 시 effectiveStatus = "scheduled" (updateMatch input.status 로 전달 → audit 자동 기록)
   const effectiveStatus = autoSchedule ? "scheduled" : status;
+
+  // 2026-05-21 F3-β (errors.md [2026-05-21] paper 모드 D 분류 fix):
+  //   paper 매치 = score-sheet BFF 단일 진입점 의무. 어드민 PATCH 로 score 직접 SET 시
+  //   QS/MPS/PBP 박제 누락 (강남구 매치 170/187 = 헤더만 박제 / 4 source 중 헤더 단독 박제) 재발 원인.
+  //   본 가드로 차단 — Flutter 매치 = 기존 동작 보존 (Flutter v1 sync 흐름 별도 보존).
+  //   score 외 메타 (venue / scheduledAt / status / 팀 등) 수정은 paper 매치도 허용.
+  //   getRecordingMode = recording-mode.ts:49 / vitest 14 케이스 커버 (회귀 0).
+  const recordingMode = getRecordingMode({ settings: match.settings });
+  const scoreFieldChanged = homeScore !== undefined || awayScore !== undefined;
+  if (recordingMode === "paper" && scoreFieldChanged) {
+    return apiError(
+      "종이 기록지 모드 매치는 점수를 직접 수정할 수 없습니다. score-sheet 페이지에서 입력해주세요.",
+      403,
+      "RECORDING_MODE_PAPER_SCORE_BLOCKED",
+      { match_id: matchBigInt.toString(), current_mode: recordingMode }
+    );
+  }
 
   // Service 호출: 매치 업데이트 + 다음 경기 팀 배치 (트랜잭션) + audit
   const { updated, alreadyCompleted } = await updateMatch(

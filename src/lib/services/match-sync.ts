@@ -505,6 +505,21 @@ export async function syncSingleMatch(
   // 9) 선수 스탯 upsert (병렬 처리) — % / efficiency 는 헬퍼 위임 (순수 함수, 테스트 가능).
   // 기존 sync route line 242~304 동등.
   if (player_stats && player_stats.length > 0) {
+    // 2026-05-21 F3-α (errors.md [2026-05-21] paper 모드 3가지 특수 결함 — C 분류 fix):
+    //   PBP `deleteMany NOT IN incoming local_id` 패턴 답습. incoming ttp 외 stale stat 삭제.
+    //   재현 케이스 = 강남구 매치 159/164/186 (paper) 운영 audit 분석:
+    //     score-sheet submit 30+회 반복 호출 시 다른 ttp set 전송 → 이전 박제 ttp 잔존 → MPS 누적
+    //     (ex: 매치 159 홈 MPS 9점 vs PBP 7점 = 2점 stale stat)
+    //   회귀 보장: incoming ttp = upsert (기존 동작) / incoming 외 = 삭제 (이전 잔존 정정).
+    //   isReset 분기 (status='scheduled' + stats/PBP 0건) 에서는 이미 line 498 에서 전체 deleteMany 수행.
+    const incomingTtpIds = player_stats.map((s) => BigInt(s.tournament_team_player_id));
+    await prisma.matchPlayerStat.deleteMany({
+      where: {
+        tournamentMatchId: matchId,
+        NOT: { tournamentTeamPlayerId: { in: incomingTtpIds } },
+      },
+    });
+
     const statPromises = player_stats.map((stat) => {
       const { fgPct, tpPct, ftPct, twoPct, efficiency } = computeStatRates(stat);
 

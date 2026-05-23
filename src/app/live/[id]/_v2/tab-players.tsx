@@ -13,9 +13,11 @@ import { BoxScoreTable } from "./box-score-table";
 import type { MatchDataV2 } from "./game-result";
 
 export function TabPlayers({ match }: { match: MatchDataV2 }) {
-  // OT 쿼터 존재 여부 — 박스스코어 쿼터 필터 버튼에 OT 노출 분기
-  // quarter_scores 가 있으면 home.ot 배열 길이 확인. 없으면 false.
-  const hasOT = (match.quarter_scores?.home?.ot?.length ?? 0) > 0;
+  // OT 쿼터 분리 — 박스스코어 쿼터 필터 + 인쇄 페이지 분리에 사용.
+  // 2026-05-20 OT2+ 분리: otCount = home.ot 배열 길이 (0=없음 / 1=OT1만 / 2=OT1+OT2 / N+).
+  // 기존 hasOT 는 backward-compat (otCount > 0 시 자동 true).
+  const otCount = match.quarter_scores?.home?.ot?.length ?? 0;
+  const hasOT = otCount > 0;
 
   // 2026-05-13 FIBA Phase 21: 종이 매치 (recording_mode="paper") 박스스코어 슈팅 6 컬럼 hide.
   // 종이 기록지 = miss/FG attempted 미박제 → 시도수=성공수=항상 100% → 가짜 정확도 시각 노이즈 차단.
@@ -30,6 +32,7 @@ export function TabPlayers({ match }: { match: MatchDataV2 }) {
         color={match.home_team.color}
         players={match.home_players}
         hasOT={hasOT}
+        otCount={otCount}
         hasQuarterEventDetail={match.has_quarter_event_detail}
         isPaperMatch={isPaperMatch}
       />
@@ -39,6 +42,7 @@ export function TabPlayers({ match }: { match: MatchDataV2 }) {
         color={match.away_team.color}
         players={match.away_players}
         hasOT={hasOT}
+        otCount={otCount}
         hasQuarterEventDetail={match.has_quarter_event_detail}
         isPaperMatch={isPaperMatch}
       />

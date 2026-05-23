@@ -2,6 +2,121 @@
 <!-- 담당: planner-architect | 최대 30항목 -->
 <!-- "왜 A 대신 B를 선택했는지" 기술 결정의 배경과 이유를 기록 -->
 
+### [2026-05-21] 점수 정합성 F3 Sprint 우선순위 상향 — paper 모드 정밀 조사 근거 (F3 Sprint 3 → Sprint 1)
+- **분류**: decision (Sprint 우선순위 재세팅)
+- **발견자**: pm (paper 모드 정밀 조사 후 사용자 우려 반영)
+- **계기**: 사용자 지적 "강남구 paper 모드 = 완전히 다른 방향" → 정밀 조사 결과 F3 fix 대상 = service layer `syncSingleMatch` MPS deleteMany 누락 + 어드민 PATCH route 헤더 단독 박제. 두 fix 모두 단순 service layer 추가 / 회귀 0. Sprint 1 진입 가능.
+- **변경 전 Sprint 우선순위**:
+  | Sprint | 묶음 | 시간 |
+  |--------|------|------|
+  | 1 | F5 + F2 | 6h |
+  | 2 | F1 | 8h |
+  | 3 | F3 + F4 | 22h+ |
+- **변경 후 Sprint 우선순위 (F3 Sprint 1 상향)**:
+  | Sprint | 묶음 | 시간 | 변경 사유 |
+  |--------|------|------|----------|
+  | **1** | F5 + F2 + **F3** | 8h | F3 = service layer MPS deleteMany 가드 추가 (회귀 0 / PBP 패턴 답습) + 어드민 PATCH route paper 매치 차단 (운영자 안내). 단순 추가 변경 — Sprint 1 적합. |
+  | 2 | F1 | 8h | 변경 없음 |
+  | 3 | F4 + F6 | 17h+ | F3 이동 + F6 추가 (TEST 토너먼트 7건 백필 / 운영 영향 0) |
+- **F3 세부 분해 (paper 모드 정밀 조사 결과 반영)**:
+  - **F3-α** (`src/lib/services/match-sync.ts:507~559`) — `player_stats` 박제 직전 `matchPlayerStat.deleteMany({ tournamentMatchId, NOT: { tournamentTeamPlayerId: { in: incomingTtpIds } } })` 가드 추가. PBP `deleteMany NOT IN` 패턴 답습. 회귀 0 (incoming ttp 는 upsert / 외만 삭제 = idempotent).
+  - **F3-β** (`src/app/api/web/tournaments/[id]/matches/[matchId]/route.ts:171~189`) — paper 매치 (`recording_mode='paper'`) + `homeScore`/`awayScore` 변경 시 **403 차단** + 운영자 안내 (score-sheet 경유 권장). Flutter 매치는 변경 가능 (회귀 0). 회귀 가드 vitest 필수.
+  - **F3-γ** (Sprint 2 묶음 검토) — Flutter 매치 score 변경 시 sync route trigger 권장 배너 (어드민 UI 추가). F3-α/β 진입 후 별도 PR 검토.
+- **분석한 옵션 (F3-α deleteMany 위치)**:
+  - **A. service layer `syncSingleMatch` 안 (PBP 패턴 답습)** ← 채택 (단일 source / Flutter+paper 양면)
+  - B. BFF submit route 안 (`score-sheet/[matchId]/submit/route.ts`) — paper 모드만 해당 / Flutter sync route 영향 0 → 거절 (Flutter 매치도 같은 패턴 영향 가능)
+  - C. cron 일일 동기화 — 실시간성 0 / 운영자 발견 지연 → 거절 (Sprint 2 F1 과 분리 불가)
+- **A 선택 사유**:
+  - **단일 source** — service `syncSingleMatch` 가 paper (score-sheet) + Flutter sync 양면 진입점
+  - **회귀 0** — PBP `deleteMany NOT IN incoming local_id` 패턴 정확 답습 (이미 운영 검증된 패턴)
+  - **테스트 가능** — vitest `match-sync.test.ts` 회귀 가드 추가 (incoming ttp 외 stat 삭제 케이스)
+  - **paper + Flutter 동시 fix** — Flutter 모드 매치도 sync 중 ttp set 변경 시 stale stat 잔존 가능 (이번 audit E 분류 48건 중 일부 의심)
+- **F3-β 추가 사유 (어드민 PATCH 차단)**:
+  - paper 모드는 score-sheet BFF = 단일 진입점 의무 (decisions.md [2026-05-21] §A 채택 정합)
+  - 어드민 ScoreModal 로 paper 매치 score 직접 SET = D 분류 재발 원인 (매치 170/187)
+  - Flutter 매치는 score 변경 가능 (Flutter 앱 sync 흐름과 별개로 admin 보정 필요한 케이스 보존)
+- **F3 정밀 조사 산출물**: `Dev/paper-mode-precise-audit-2026-05-21.md` (6 매치 player별 + audit log 상세) + `scripts/_temp/paper-mode-precise-audit.ts` (read-only)
+- **참조횟수**: 0
+- **참조 파일**:
+  - errors.md [2026-05-21] paper 모드 3가지 결함 근본 원인 코드 위치 확정
+  - `src/lib/services/match-sync.ts:488~559` (F3-α 대상)
+  - `src/app/api/web/tournaments/[id]/matches/[matchId]/route.ts:171~189` (F3-β 대상)
+  - `Dev/paper-mode-precise-audit-2026-05-21.md` (정밀 조사 보고서)
+
+### [2026-05-21] 점수 정합성 영구 fix 6건 (F1~F6) 우선순위 — 실측 56% 불일치 근거
+- **분류**: decision (시스템 설계)
+- **발견자**: pm (`Dev/score-consistency-audit-2026-05-21.md` 실측 결과 기반)
+- **계기**: 운영 DB 125 completed 매치 전수 audit 결과 70건 (56%) 불일치 → 시스템 차원 영구 fix 6건 우선순위 결정 필요
+- **3대 시스템 결함 분류 (errors.md [2026-05-21])**:
+  1. quarterScores 박제 누락 (D+E = 58건 / 46%)
+  2. PBP 합 ≠ 헤더 사일런트 (B+E PBP = ~48건)
+  3. matchPlayerStat 사일런트 (C+E MPS = ~4건)
+- **영구 fix 6건 우선순위 (즉시 진행 가능 + 운영 데이터 정정)**:
+
+  | ID | 영구 fix | 우선순위 | 예상 시간 | 영향 분류 | 운영 영향 |
+  |----|---------|---------|----------|----------|----------|
+  | **F1** | quarterScores 자동 갱신 layer (PBP/MPS → QS sync service) | ★★★★★ | 8h | D 10건 + E 48건의 QS 부분 = 58건 | 코드 추가 / 운영 매치 backfill 별도 |
+  | **F2** | PBP 검증 cron (PBP 합 vs MPS 합 daily 비교 + 알림) | ★★★ | 4h | B 2건 + E PBP 부풀림 발견 | 신규 cron / 운영 영향 0 |
+  | **F3** | matchPlayerStat trigger (score-sheet submit 시 헤더 자동 갱신) | ★★★★ | 6h | C 3건 (강남구 paper 매치) | score-sheet BFF 패치 / 회귀 0 |
+  | **F4** | SSOT migration 일괄 정정 (E 분류 48건 매치별 결재 후 정정) | ★★★★★ | 16h+ | E 48건 + X 7건 | 사용자 매치별 결재 필수 / 운영 데이터 변경 |
+  | **F5** | FIBA 룰 가드 (OT1 동점 + winner NULL completed 차단) | ★★★★ | 2h | 매치 124 재발 방지 + 신규 매치 보호 | Flutter v1 영향 0 / 웹 API 가드만 |
+  | **F6** | stale 헤더 백필 (X 분류 7건 TEST 토너먼트) | ★★★ | 1h | X 7건 (모두 TEST 토너먼트) | TEST 데이터만 / 운영 영향 0 |
+
+- **Sprint 1 결재 권장 (≤6h / 운영 영향 0 / 즉시 진입 가능)**:
+  - **F5 (2h) + F2 (4h) 묶음** → 신규 사고 방지 + 검출 layer 동시 박제 (회귀 0)
+  - F5 = OT1 동점 시 종료 차단 가드 (매치 124 재발 방지 / Flutter v1 영향 0 / 웹 API 가드만)
+  - F2 = daily cron PBP vs MPS 비교 → 불일치 매치 admin 대시보드 노출 (운영자 조기 발견)
+- **Sprint 2 결재 권장 (≤8h / 운영 데이터 backfill 별도)**:
+  - **F1 (8h)** → quarterScores 자동 갱신 service layer (매치 종료 시 PBP+MPS → QS 동기화). 회귀 가드 vitest 필수. 운영 매치 backfill 은 별도 트랜잭션 + 사용자 결재.
+- **Sprint 3 결재 권장 (≤22h / 사용자 결재 다수)**:
+  - **F3 (6h) + F4 (16h+)** → 강남구 paper 매치 헤더 갱신 (F3) + E 분류 48건 SSOT 정정 (F4). F4 는 매치별 사용자 결재.
+- **분석한 옵션 (서비스 layer 위치)**:
+  - **A. service layer** (`src/lib/score/sync.ts` 신규 + LIVE API + admin matches PATCH 호출) ← 채택
+  - B. DB trigger (PostgreSQL plpgsql) — 회피 (운영 DB 변경 위험 + 디버깅 불가)
+  - C. cron only — 회피 (실시간성 0 / 운영자 발견 지연)
+- **A 선택 사유**:
+  - 회귀 0 (Flutter v1 영향 0 / paper 모드 LIVE override 패턴 답습)
+  - 디버깅 가능 (TypeScript 코드 / 단위 테스트 가능 / log 추적)
+  - 운영 DB schema 변경 0 (NULL 허용 컬럼 추가 0 / 무중단 진입)
+- **B 거절 사유**: PostgreSQL trigger 디버깅 어려움 + 운영 Supabase 직접 변경 위험 (롤백 어려움) + Prisma 마이그레이션 우회
+- **C 거절 사유**: 실시간 갱신 불가 → LIVE 페이지 표시 stale + 운영자 정정 지연 (강남구 사례 = 운영 중 즉시 fix 필요했음)
+- **참조횟수**: 0
+- **참조 파일**:
+  - `Dev/score-consistency-audit-2026-05-21.md` (실측 보고서)
+  - errors.md [2026-05-21] 시스템 차원 결함 분류
+  - errors.md [2026-05-20] 매치 124 OT2 사고
+  - `src/app/api/live/[id]/route.ts` L893~947 (paper override 답습 패턴)
+  - `src/lib/tournaments/recording-mode.ts` (paper/flutter 분기 헬퍼)
+
+### [2026-05-20] OT2+ 매치 운영 표준 — paper 모드 + nested quarterScores + 종이 기록지 박제 흐름
+- **분류**: decision
+- **발견자**: pm (매치 124)
+- **계기**: Flutter 기록앱 OT2+ 미구현 한계. OT1 동점 시 매치 자동 종료 박제 (winner NULL / 70-70 동점 completed = FIBA 룰 위반).
+- **분석한 옵션 (OT2 데이터 source)**:
+  - **A. paper 모드 + nested quarterScores + OT2 PBP INSERT** ← 채택
+  - B. flutter 모드 유지 + STL 보정 로직 수정 (LIVE API 코드 fix)
+  - C. PBP 박제 0 + matchPlayerStat 만 수동 박제 (UI에서 OT2 데이터 없음 표시)
+- **A 선택 사유**:
+  - **회귀 0** (LIVE API 코드 변경 0 / Flutter v1 영향 0)
+  - **3 source 정합** (matchPlayerStat 합 = quarterScores 합 = match 헤더)
+  - **LIVE API paper override 검증된 패턴** (FIBA Phase 22 매치 218 표준 답습)
+  - **재사용성** (다음 OT2+ 매치 동일 절차 적용 가능)
+- **B 거절 사유**: LIVE API 코드 수정 회귀 위험 (다른 매치 영향) / fix 시간 多 / 매치별 데이터 source 일관성 부족
+- **C 거절 사유**: UI 사용자 경험 저하 / matchPlayerStat과 LIVE 표시 불일치 잔존
+- **결정 후속 작업 (Long-term Fix 우선순위)**:
+  - ★★★★★ Flutter 앱 OT2+ 지원 + FIBA 룰 자동 가드 (winner NULL + completed 차단)
+  - ★★★★ DB.quarterScores nested 형식 통일 + Flutter sync 형식 변환
+  - ★★★★ matchPlayerStat을 SSOT로 채택 + 자동 동기화 trigger
+  - ★★★ PBP 무효 이벤트 cron 검출 (매치 종료 후 PBP 합 vs matchPlayerStat 합 비교)
+  - ★★★ minutesPlayed 999 cap 16:39 truncate 버그 fix
+- **참조횟수**: 0
+- **참조 파일**:
+  - commit `95ddbea` ops(match-124) OT2 박제
+  - commit `d5e3805` ops(match-124) paper 모드 fix
+  - commit `b0a49ae` feat(live) OT2 분리 UI
+  - `src/app/api/live/[id]/route.ts` L893~947 (paper override)
+  - errors.md [2026-05-20] 매치 124 4 source 불일치
+
 ### [2026-05-19] prospectus AI wizard Phase 1-B — Vercel AI Gateway plain "provider/model" 라우팅 채택 (provider-specific 패키지 0)
 - **분류**: architecture + decision
 - **발견자**: pm (사용자 AI_GATEWAY_API_KEY 발급 후)
