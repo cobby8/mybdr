@@ -22,6 +22,7 @@
  */
 
 import { prisma } from "@/lib/db/prisma";
+import type { Prisma } from "@prisma/client";
 // 2026-05-16 영구 fix (PR-G5.5-followup-B): post-process 5종 호출 통합 헬퍼
 //   기존 분산 호출 (updateTeamStandings / advanceWinner / progressDualMatch /
 //   advanceDivisionPlaceholders / advanceTournamentPlaceholders / checkAndAutoCompleteTournament)
@@ -35,6 +36,16 @@ import {
 //   본 헬퍼 외 호출 — status 전환 시점 (existing.status !== "completed") 검증 필요 → finalizeMatchCompletion 미포함.
 import { waitUntil } from "@vercel/functions";
 import { triggerMatchBriefPublish } from "@/lib/news/auto-publish-match-brief";
+// 2026-05-23 — PR-5 F1 (errors.md [2026-05-21] 점수 4 source 시스템 차원 결함 fix):
+//   매치 종료 시점 (status='completed' 신규 전환) quarterScores 자동 갱신.
+//   paper 매치 = skip (DB.QS = SSOT 보존 / LIVE API L933 패턴 답습).
+//   Flutter 매치 + PBP 합 → QS 자동 갱신 → LIVE 표시 / standings / cross-check 4 source 정합.
+import { getRecordingMode } from "@/lib/tournaments/recording-mode";
+import {
+  computeQuarterScoresFromPbp,
+  shouldAutoSyncQuarterScores,
+  type QuarterScoresJson,
+} from "@/lib/tournaments/quarter-scores-sync";
 
 // ============================================================================
 // 입력 타입 — zod parse 결과 type 과 동치 (caller 가 검증 후 전달)
@@ -127,8 +138,9 @@ export interface PlayByPlayInput {
 /**
  * 기존 매치 row — caller 가 mode 가드 등으로 이미 SELECT 한 경우 재사용 (1B-2 신규).
  *
- * 본 service 는 다음 필드만 사용 — 더 많은 필드 (settings 등) 가 있어도 무시.
- *   - id, tournamentId, homeTeamId, awayTeamId, winner_team_id, status
+ * 본 service 는 다음 필드만 사용 — 더 많은 필드가 있어도 무시.
+ *   - id, tournamentId, homeTeamId, awayTeamId, winner_team_id, status, started_at
+ *   - settings (2026-05-23 F1 추가 — recording mode 판정용)
  *
  * Prisma 타입 `TournamentMatch` 와 그대로 호환 (full row 전달 가능).
  */
@@ -141,6 +153,10 @@ export interface ExistingMatchForSync {
   status: string | null;
   // 2026-05-17 fix A — status='in_progress' 전환 시 started_at NULL 박제 가드용 (auto-register 윈도우 정확성)
   started_at: Date | null;
+  // 2026-05-23 F1 — quarterScores 자동 갱신 paper 분기 판정용 (getRecordingMode 입력).
+  //   optional = caller 미제공 시 service 가 findFirst (line 396) 통해 자동 채움 → 회귀 0.
+  //   기존 caller (score-sheet BFF / 양면 호출자) 는 미박제 그대로 통과 (Prisma row 가 settings 자동 SELECT).
+  settings?: Prisma.JsonValue | null;
 }
 
 /**
@@ -441,8 +457,36 @@ export async function syncSingleMatch(
     awayTeamId: existing.awayTeamId,
   });
 
+  // 6-pre) 2026-05-23 F1 (errors.md [2026-05-21] 점수 4 source 시스템 차원 결함 fix):
+  //   매치 종료 시점 (status='completed' 신규 전환) quarterScores 자동 갱신.
+  //   - paper 매치 = skip (DB.QS = SSOT 보존 / LIVE API L933 패턴 답습)
+  //   - Flutter 매치 + PBP 1+ + completed 신규 전환 → PBP made events 합으로 QS 박제
+  //   - 그 외 = input.quarter_scores 보존 (라이브 / 재진입 / 신규 매치 박제 흐름 보존)
+  //
+  //   효과: Flutter 매치 D 분류 (QS=0/0) 신규 박제 차단. 기존 58건은 별도 backfill PR-6.
+  const recordingMode = getRecordingMode({ settings: existing.settings ?? null });
+  const shouldSync = shouldAutoSyncQuarterScores({
+    recordingMode,
+    newStatus: match.status,
+    previousStatus: existing.status ?? "scheduled",
+    pbpCount: play_by_plays?.length ?? 0,
+  });
+  let autoQuarterScores: QuarterScoresJson | undefined = undefined;
+  if (shouldSync && play_by_plays && existing.homeTeamId !== null) {
+    // homeTeamId Number 변환 — PBP input 의 tournament_team_id 도 number 타입
+    autoQuarterScores = computeQuarterScoresFromPbp(
+      play_by_plays,
+      Number(existing.homeTeamId)
+    );
+  }
+
   // 6) tournamentMatch.update — 점수 + status + winner + 메타
   // 기존 sync route line 195~218 동등.
+  //
+  // 2026-05-23 F1 변경: autoQuarterScores 가 박제되면 input.quarter_scores 무시.
+  //   룰: Flutter app 의 QS=0/0 박제는 PBP 합으로 덮어쓰기 / paper 매치는 위에서 skip 되었으므로
+  //        score-sheet BFF 박제 QS 그대로 보존 (autoQuarterScores=undefined).
+  const effectiveQuarterScores = autoQuarterScores ?? match.quarter_scores;
   await prisma.tournamentMatch.update({
     where: { id: matchId },
     data: {
@@ -453,10 +497,10 @@ export async function syncSingleMatch(
         ? { winner_team_id: winnerTeamId }
         : {}),
       // I-01: current_quarter는 quarter_scores JSON 내부에 함께 보관 (DB 컬럼 미존재)
-      quarterScores: match.quarter_scores
+      quarterScores: effectiveQuarterScores
         ? JSON.parse(
             JSON.stringify({
-              ...(match.quarter_scores as Record<string, unknown>),
+              ...(effectiveQuarterScores as Record<string, unknown>),
               ...(match.current_quarter != null && {
                 current_quarter: match.current_quarter,
               }),
