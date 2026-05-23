@@ -1,9 +1,9 @@
 # 작업 스크래치패드
 
 ## 현재 작업
-- **요청**: 점수 정합성 영구 fix Sprint 1 — F3-α + F3-β + F5 + F2 통합 기획설계 (2026-05-21)
-- **상태**: ✅ PR-1 (F3-α) + ✅ PR-2 (F3-β) + ✅ PR-3 (F5) + ✅ PR-4 (F2) developer 박제 완료 — vitest 4/4 PASS / 회귀 65/65 PASS
-- **현재 담당**: tester (PR-4 검증 진입 대기) + PM 결재 (`prisma db push` NULL ADD 실행 필요)
+- **요청**: 점수 정합성 영구 fix Sprint 2 — F1 quarterScores 자동 갱신 service layer 기획설계 (2026-05-23)
+- **상태**: Sprint 1 (F3-α + F3-β + F5 + F2) ✅ main 머지 완료 (commit `b37716e`). Sprint 2 진입 — planner-architect 분석 완료
+- **현재 담당**: planner-architect → developer (PR-5 F1 박제 진입 대기)
 - **세션 산출물 (cumulative)**:
   - audit 2건: `Dev/score-consistency-audit-2026-05-21.md` (125 매치) + `Dev/paper-mode-precise-audit-2026-05-21.md` (paper 6 매치 상세)
   - script 2건: `scripts/_temp/score-consistency-audit.ts` + `scripts/_temp/paper-mode-precise-audit.ts` (모두 SELECT only / 사후 정리 예정)
@@ -16,7 +16,96 @@
   | B (PBP 일부) | 위 두 결함 결합 패턴 (matches 208) | score-sheet 부분 박제 + 어드민 PATCH 헤더 단독 |
 - **Sprint 1 재세팅 (6h → 8h)**: F5 (2h) + F2 (4h) + **F3 (2h) 상향**
 
-## 구현 기록 (PR-4 F2 점수 정합성 daily cron + admin 위젯 / developer 2026-05-21)
+## 구현 기록 (PR-5 F1 quarterScores 자동 갱신 service layer / developer 2026-05-23)
+
+📝 구현한 기능: Flutter sync 매치 종료 시점 (status='completed' 신규 전환) `quarterScores` 자동 갱신 service layer 박제 — D 분류 10건 + E 분류 48건 (QS=0/0 박제) 신규 매치 영구 차단. PURE 헬퍼 분리 + service 단일 진입점 (`syncSingleMatch`) 통합 + paper 매치 skip 보장 (DB.QS=SSOT 보존 / LIVE API L933 패턴 답습).
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| `src/lib/tournaments/quarter-scores-sync.ts` | 148 LOC 신규 — PURE 헬퍼 2종: `computeQuarterScoresFromPbp(pbpInputs, homeTeamIdNum)` (LIVE API L909~920 패턴 답습 / is_made=true + points_scored>0 만 합산 / Q1~Q4 = q1~q4 + Q5+ = ot[] 정렬 ASC) + `shouldAutoSyncQuarterScores(input)` (4 가드 = paper skip / status 전환 / 재진입 skip / PBP 0 skip) / 타입 export `QuarterScoresJson` | **신규** |
+| `src/__tests__/lib/quarter-scores-sync.test.ts` | 244 LOC 신규 — vitest 10 케이스 (PURE 헬퍼 Q1~Q5 + trigger 헬퍼 Q6~Q9 + 보너스 1) / `makePbp` minimal 헬퍼 22 필드 채움 + override / DB I/O 0 | **신규** |
+| `src/lib/services/match-sync.ts` | +24 LOC (import 6줄 + ExistingMatchForSync.settings optional 3줄 + 자동 갱신 로직 line 444 직전 19줄 + tournamentMatch.update.quarterScores 우선순위 변경 1줄) — `getRecordingMode({ settings: existing.settings ?? null })` + `shouldAutoSyncQuarterScores({recordingMode, newStatus: match.status, previousStatus: existing.status ?? "scheduled", pbpCount: play_by_plays?.length ?? 0})` + `effectiveQuarterScores = autoQuarterScores ?? match.quarter_scores` | 수정 |
+| `src/__tests__/lib/match-sync.test.ts` | +321 LOC (통합 4 케이스 = Q-int-1~Q-int-4) — `describe("match-sync — syncSingleMatch quarterScores 자동 갱신 통합 (F1 / PR-5)")` 신규 / setupMocks + makePbp + finalizeMatchCompletion mock 반환 shape {status:"ok", warnings:[]} 보정 | 수정 |
+
+**검증 결과**:
+- `npx tsc --noEmit` → **EXIT=0 (0 errors)**
+- `npx vitest run [관련 5 파일]` → **78/78 PASS** (회귀 0):
+  - quarter-scores-sync: 10/10 ✅ (Q1~Q5 PURE + Q6~Q9 trigger + 보너스 1)
+  - match-sync: 31/31 ✅ (기존 27 + 신규 4 Q-int-1~Q-int-4)
+  - recording-mode (회귀): 20/20 ✅
+  - fiba-rules (회귀): 13/13 ✅
+  - cron-score-consistency (회귀): 4/4 ✅
+- `npx vitest run` (전체 1093) → **1092 PASS / 1 FAIL** (실패 = `running-score-helpers.test.ts` / **본 PR-5 무관 / 기존 main 결함 동등 재현 검증 완료**)
+- `git diff --stat HEAD`:
+  ```
+  src/__tests__/lib/match-sync.test.ts                          | 321 +++
+  src/lib/services/match-sync.ts                                |  52 +-
+  + 신규 src/lib/tournaments/quarter-scores-sync.ts             | 148 LOC
+  + 신규 src/__tests__/lib/quarter-scores-sync.test.ts          | 244 LOC
+  = 4 파일 (수정 2 + 신규 2)
+  ```
+
+**vitest 10 케이스 (PURE 헬퍼 quarter-scores-sync.test.ts)**:
+| 케이스 | given | expect | 결과 |
+|--------|-------|--------|------|
+| Q1 | Q1~Q4 made events 정확 분포 (home 1+2+3+4 / away 2+2+2+2) | home={q1:1,q2:2,q3:3,q4:4,ot:[]} / away={q1:2,q2:2,q3:2,q4:2,ot:[]} | ✅ PASS |
+| Q2 | OT1+OT2 (quarter=5+6) made events | home.ot=[5,7] / away.ot=[5,12] / length=2 | ✅ PASS |
+| Q3 | PBP 0건 | 모두 0 / ot=[] | ✅ PASS |
+| Q4 | is_made=false (miss) 혼합 | made 만 합산 (miss 제외) | ✅ PASS |
+| Q5 | is_made=null (비-슛 이벤트) 혼합 | null 제외 / made 만 합산 | ✅ PASS |
+| Q6 | paper + completed 신규 전환 + PBP 10건 | false (DB.QS SSOT 보존) | ✅ PASS |
+| Q7 | Flutter + completed 신규 전환 + PBP 10건 | true (auto-sync 진입) | ✅ PASS |
+| Q8 | Flutter + in_progress 유지 + PBP 5건 | false (라이브 영향 0) | ✅ PASS |
+| Q9 | Flutter + completed → completed (재진입) | false (재진입 skip) | ✅ PASS |
+| 보너스 | Flutter + completed 신규 전환 + PBP 0건 | false (PBP 0 = 갱신 source 부재) | ✅ PASS |
+
+**vitest 4 케이스 (service 통합 match-sync.test.ts Q-int-1~Q-int-4)**:
+| 케이스 | given | expect | 결과 |
+|--------|-------|--------|------|
+| Q-int-1 | paper 매치 + completed 신규 전환 + input.QS={정확값} + PBP | DB.QS = input.QS 그대로 (paper SSOT 보존) | ✅ PASS |
+| Q-int-2 | Flutter + completed 신규 전환 + input.QS=0/0 + PBP 합=home q1=10/q2=5/away q1=12 | DB.QS = PBP 합 (auto-sync 적용 / input.QS=0/0 무시) | ✅ PASS |
+| Q-int-3 | Flutter + in_progress 유지 + PBP 2건 | DB.QS = input.QS 그대로 (라이브 영향 0) | ✅ PASS |
+| Q-int-4 | Flutter + completed → completed (재진입) + 운영자 정정 input.QS | DB.QS = input.QS 그대로 (재진입 skip / 운영자 정정 보존) | ✅ PASS |
+
+**회귀 0 보장 근거**:
+1. **PURE 헬퍼 = DB I/O 0** → service / Prisma / 기타 코드 영향 0 (vitest 단위 검증 가능)
+2. **paper 매치 skip** = LIVE API L933 패턴 동등 — DB.quarterScores=SSOT 보존 / score-sheet BFF 박제 흐름 100% 보존
+3. **status 전환 가드** = in_progress / scheduled / 재진입(completed→completed) 모두 input.quarter_scores 보존 (auto-sync 미진입) → 라이브 매치 + 운영자 정정 흐름 100% 보존
+4. **PBP 0건 skip** = play_by_plays 미박제 또는 0건 매치 = input.quarter_scores 보존 → 신규 매치 / scheduled 매치 박제 흐름 100% 보존
+5. **homeTeamId NULL skip** = `existing.homeTeamId !== null` 가드 — 신규 매치 슬롯 미배정 케이스 보존
+6. **`ExistingMatchForSync.settings` optional** = 기존 caller (score-sheet BFF / match-sync.test.ts 기존 케이스 23건) 영향 0 — service 안 findFirst (line 396) 자동 settings SELECT (Prisma row 기본 모든 필드 포함)
+7. **transaction X** = MPS/PBP deleteMany + upsert 와 동일 패턴 (트랜잭션 별도 불필요 / 순차 실행)
+
+💡 tester 참고:
+- 테스트 방법:
+  1. **vitest 단위**: `npx vitest run src/__tests__/lib/quarter-scores-sync.test.ts` → 10/10 PASS 확인
+  2. **vitest 통합**: `npx vitest run src/__tests__/lib/match-sync.test.ts` → 31/31 PASS 확인 (기존 27 + 신규 4)
+  3. **회귀 가드**: `npx vitest run src/__tests__/lib/recording-mode.test.ts src/__tests__/lib/fiba-rules.test.ts src/__tests__/api/cron-score-consistency.test.ts` → 37/37 PASS (Sprint 1 회귀 0)
+  4. **로컬 통합 (dev DB)**: paper 매치 score-sheet submit → DB.quarterScores = input.QS 보존 (auto-sync 미진입 / paper SSOT)
+  5. **로컬 통합 (dev DB)**: Flutter 가상 sync (QS=0/0 + PBP 10건 + status=completed) → DB.quarterScores = PBP 합 (auto-sync 진입)
+  6. **운영 매치 124 OT2 재진입**: Flutter status='completed' → 'completed' 재sync → input.QS 보존 (운영자 정정 흐름 0 영향)
+- 정상 동작:
+  - paper 매치 = DB.QS SSOT 보존 (강남구 매치 4 source 정합 보장)
+  - Flutter 매치 + 정상 PBP 박제 = QS 자동 갱신 (D/E 분류 신규 매치 차단)
+  - in_progress 매치 = QS 박제 변경 0 (라이브 LIVE API 표시 정합)
+  - 재진입 sync = 운영자 정정 결과 보존 (관리자 정정 흐름 0 영향)
+- 주의할 입력:
+  - **Flutter app 의 quarter_scores 박제 0/0 + PBP 정상** = auto-sync 진입 = PBP 합으로 덮어쓰기 (의도된 동작 / D 분류 차단 핵심)
+  - **paper 매치 + Flutter sync API 호출** = paper skip 보장 → DB.QS 보존 (의도된 동작 / score-sheet BFF 단일 진입점 의무)
+  - **OT1/OT2/OT3 매치** = PBP made events 의 quarter 필드가 5/6/7 으로 정확 박제되어야 함 (Flutter app 박제 의무) → ot[] 분리 결과 정확
+
+⚠️ reviewer 참고:
+- 특별히 봐줬으면 하는 부분:
+  1. **PURE 헬퍼 분리 의도** = service / vitest / backfill 스크립트 (PR-6) 모두 단일 source 호출. LIVE API L909~920 패턴 답습 정확성 = 운영 검증된 패턴 일치.
+  2. **`effectiveQuarterScores = autoQuarterScores ?? match.quarter_scores`** = optional chaining 짧음. paper 매치 = autoQuarterScores=undefined → input.quarter_scores fallback (paper SSOT 보존 / 회귀 차단).
+  3. **`existing.status ?? "scheduled"` fallback** = ExistingMatchForSync.status 가 string|null 이므로 null 시 "scheduled" 처리 (재진입 skip 분기에서 안전). 실제 운영 매치 status NULL 케이스 = 신규 매치 (status=scheduled) 동등.
+  4. **`ExistingMatchForSync.settings` optional 변경** = 회귀 가드 = 기존 caller (score-sheet BFF / 양면 호출자) 미박제 통과. service 안 findFirst (line 396) 가 자동 settings SELECT (Prisma 전체 row).
+  5. **import { Prisma } from "@prisma/client"** = ExistingMatchForSync.settings 타입에 사용. 신규 import 만 추가 (기존 import 0 영향).
+  6. **service tournamentMatch.update 의 data.quarterScores 우선순위 변경** = `effectiveQuarterScores` 사용. autoQuarterScores 가 박제될 때 (Flutter + 신규 completed 전환 + PBP 1+) 만 input 무시. 모든 다른 케이스 (paper / 라이브 / 재진입) = input.quarter_scores fallback (회귀 0).
+  7. **finalizeMatchCompletion mock 반환 shape** = 신규 4 케이스에서 `{status:"ok", warnings:[]}` 박제. 기존 F3-α 4 케이스 (line 548) 는 `{}` 반환 그대로 → 본 PR 영향 0 (in_progress 매치라 finalize 미호출 케이스).
+  8. **운영 DB 영향 0** = schema 변경 0 / Prisma generate 영향 0 / 즉시 운영 진입 가능 (사용자 결재 후 main 머지). 기존 58건 (D 10 + E 48) 잔존 = 별도 PR-6 backfill (DRY-RUN 사용자 결재).
+
+
 
 📝 구현한 기능: completed 매치 4 source (header / QS / MPS / PBP) 불일치 daily cron 검출 + score_consistency_audit 테이블 박제 + admin 대시보드 24h 알림 위젯 — 운영 DB 56% (70/125) 불일치 잔존 (errors.md [2026-05-21]) 의 검출 layer 0 결함 해소
 
@@ -241,6 +330,213 @@
 - **검증**: `npx tsc --noEmit` → 0 errors (양 commit) / 회귀 0 (신규 폴더 / 시그니처 변경 0)
 - **참조 보고서**: `Dev/prospectus-ai-wizard-plan-2026-05-18.md` §3 §4
 
+## 기획설계 (2026-05-23 — 점수 정합성 Sprint 2 / F1 quarterScores 자동 갱신 service layer)
+
+🎯 목표: Flutter+paper 매치 status='completed' 전환 시점에 PBP made events 합으로 `quarterScores` 자동 갱신 — D 10건 + E 48건 (QS=0/0 박제) 신규 매치 영구 차단. paper 매치는 DB.QS=SSOT 보존 (LIVE API L933 패턴 답습 / 회귀 0).
+
+### 📍 옵션 채택 결정 (트리거 위치 / 계산 source / paper 분기)
+
+| 옵션 영역 | A (채택) | B (거절) | C (거절) |
+|----------|---------|---------|---------|
+| **트리거 위치** | service `syncSingleMatch` 안 (line 503 tournamentMatch.update 직전) | 별도 service `syncQuarterScores(matchId)` 신규 + 호출자 명시 호출 | `finalizeMatchCompletion` hook 안 (post-process) |
+| **계산 source** | PBP made events 합 (LIVE API L909~920 패턴) | matchPlayerStat.quarter_stats_json 합 (paper 미박제) | PBP + STL 보정 (LIVE API L949~1064 패턴) |
+| **paper 분기** | `getRecordingMode(match)==="paper"` 시 skip — DB.QS=SSOT 보존 | input.quarter_scores 우선 / PBP fallback | 무분기 (paper 매치 QS 덮어쓰기 ❌ 회귀) |
+
+### 🚫 A 선택 사유 (트리거 위치)
+- service `syncSingleMatch` = paper (score-sheet BFF) + Flutter (v1 sync) **단일 진입점** — 양면 보장
+- status='completed' 전환 시점 (existing.status !== "completed" && match.status === "completed") 정확 캡처 가능 (line 484 `triggerMatchBriefPublish` 패턴 답습)
+- PBP 박제 직후 + tournamentMatch.update 직전 = QS 박제 흐름 자연 (트랜잭션 별도 불필요)
+- **B 거절**: 신규 service 분리 = 호출자 수 ↑ (admin PATCH / Flutter v1 status PATCH 등 5 path 모두 호출 필요 / 누락 위험 ↑)
+- **C 거절**: `finalizeMatchCompletion` 은 standings/advancer 박제 hook = 책임 비대화 + 호출자 hooked 5 path 중 score-sheet BFF 진입 0 (paper 매치 service 경유 의존)
+
+### 🚫 A 선택 사유 (계산 source — PBP 합 단순)
+- LIVE API line 909~920 패턴 = 운영 검증된 PBP 합산 로직 (paper override 패턴 L933 도 동일 source 신뢰)
+- **B 거절**: matchPlayerStat.quarter_stats_json = paper 모드 score-sheet BFF 박제 X (NULL) → paper 매치 QS 갱신 불가
+- **C 거절**: STL 보정 = LIVE API 가 이미 처리 (L949~1064 fallback). service layer 단순 박제 → LIVE API 가 보정 → 책임 분리 (service = 일단 박제 / LIVE = 사후 보정)
+
+### 🔧 PURE 헬퍼 분리 (신규 파일)
+
+**`src/lib/tournaments/quarter-scores-sync.ts`** (신규 ~120 LOC / DB I/O 0 / vitest 가능):
+
+```ts
+type QuarterScoresJson = {
+  home: { q1: number; q2: number; q3: number; q4: number; ot: number[] };
+  away: { q1: number; q2: number; q3: number; q4: number; ot: number[] };
+};
+
+type PbpRow = {
+  is_made: boolean | null;
+  points_scored: number | null;
+  quarter: number | null;
+  tournament_team_id: bigint;
+};
+
+// PURE — DB I/O 0 / vitest 단위 검증 가능
+export function computeQuarterScoresFromPbp(
+  pbpRows: PbpRow[],
+  homeTeamId: bigint
+): QuarterScoresJson {
+  // LIVE API L909~920 패턴 답습
+  const qMap: Record<number, { home: number; away: number }> = {};
+  for (const p of pbpRows) {
+    if (p.is_made !== true) continue;
+    const pts = p.points_scored ?? 0;
+    if (pts <= 0) continue;
+    const q = p.quarter ?? 1;
+    if (!qMap[q]) qMap[q] = { home: 0, away: 0 };
+    if (p.tournament_team_id === homeTeamId) qMap[q].home += pts;
+    else qMap[q].away += pts;
+  }
+  const result: QuarterScoresJson = {
+    home: { q1: qMap[1]?.home ?? 0, q2: qMap[2]?.home ?? 0, q3: qMap[3]?.home ?? 0, q4: qMap[4]?.home ?? 0, ot: [] },
+    away: { q1: qMap[1]?.away ?? 0, q2: qMap[2]?.away ?? 0, q3: qMap[3]?.away ?? 0, q4: qMap[4]?.away ?? 0, ot: [] },
+  };
+  for (const q of Object.keys(qMap).map(Number).filter(n => n > 4).sort((a,b)=>a-b)) {
+    result.home.ot.push(qMap[q].home);
+    result.away.ot.push(qMap[q].away);
+  }
+  return result;
+}
+
+// PURE — 갱신 필요 여부 판정 (paper skip + status 가드)
+export function shouldAutoSyncQuarterScores(input: {
+  recordingMode: "flutter" | "paper";
+  existingStatus: string;
+  newStatus: string;
+}): boolean {
+  // paper = DB.QS SSOT (LIVE API L933 패턴 / 회귀 차단)
+  if (input.recordingMode === "paper") return false;
+  // status='completed' 전환 시점만 갱신 (in_progress / scheduled 영향 0)
+  return input.existingStatus !== "completed" && input.newStatus === "completed";
+}
+```
+
+### 🔧 service 통합 (`src/lib/services/match-sync.ts` 수정)
+
+**변경 위치**: line 444 `tournamentMatch.update` 직전 (winnerTeamId 결정 후 / PBP 박제 전 = PBP 박제 전 SELECT 후)
+
+**실행 흐름** (Flutter sync 매치 status='completed' 전환 케이스):
+```
+1. 기존 line 435 winnerTeamId 결정
+2. 신규: shouldAutoSyncQuarterScores 체크
+   - paper → skip (DB.QS SSOT)
+   - status 전환 아님 → skip (input.quarter_scores 그대로 박제)
+3. 신규: PBP SELECT (이번 sync 의 incoming play_by_plays + 기존 DB PBP merge 합산)
+   - 옵션 A1: incoming play_by_plays 만 사용 (Flutter 가 전체 PBP 전달 가정)
+   - 옵션 A2: 신규: prisma.play_by_plays.findMany({ where: { tournament_match_id } }) 후 합산
+   → A1 채택 (sync route 가 PBP 전체 전달 = decision.md [2026-05-11] 사용자 결재 정합)
+4. 신규: computeQuarterScoresFromPbp(incomingPbp, existing.homeTeamId)
+5. 신규: line 456~467 match.quarter_scores 우선순위 변경:
+   - 자동 갱신 trigger 시 computeQuarterScoresFromPbp 결과 사용 (input.quarter_scores 무시)
+   - 그 외 (paper / status 전환 아님) = 기존 동작 보존
+6. line 446 tournamentMatch.update 호출
+```
+
+⚠️ **변경 룰**: input.quarter_scores 가 명시적으로 박제된 경우 (paper 매치 score-sheet BFF) 는 절대 덮어쓰지 X. paper 분기 보장으로 자동 차단.
+
+### 🔧 호출 위치 단일 (F1 본체 PR-5)
+
+| 진입점 | 호출 경로 | 변경 |
+|--------|----------|------|
+| Flutter v1 sync (`/api/v1/tournaments/[id]/matches/sync`) | `syncSingleMatch` 경유 | 변경 0 (자동 trigger) |
+| Flutter v1 batch-sync (`/api/v1/tournaments/[id]/matches/batch-sync`) | `syncSingleMatch` 경유 | 변경 0 (자동 trigger) |
+| paper score-sheet submit BFF (`/api/web/score-sheet/[matchId]/submit`) | `syncSingleMatch` 경유 | 변경 0 (paper skip) |
+| admin PATCH (`/api/web/tournaments/[id]/matches/[matchId]`) | `syncSingleMatch` 미경유 | F3-β 이미 paper score 차단 / Flutter 매치 admin score 직접 SET = 자동 trigger 없음 (한계 / Sprint 3 F4 검토) |
+| Flutter v1 status PATCH (`/api/v1/matches/[id]/status`) | `updateMatchStatus` 경유 | 변경 0 (PBP 박제 0 = QS 갱신 source 부재 → skip) |
+
+### 🔄 vitest 회귀 가드 (PURE 헬퍼 + service 통합 = 2 파일 분리)
+
+**`src/__tests__/lib/quarter-scores-sync.test.ts`** (신규 PURE 헬퍼 단위 — 5 케이스):
+
+| 케이스 | given | expect |
+|--------|-------|--------|
+| Q1 | Q1~Q4 PBP made 정확 분포 (home 1+2+3+4 / away 2+2+2+2) | `{home:{q1:1,q2:2,q3:3,q4:4,ot:[]}, away:{q1:2,...,ot:[]}}` |
+| Q2 | OT1+OT2 포함 (q=5+6 made events) | `result.home.ot.length===2` (OT1+OT2 분리) |
+| Q3 | PBP 0건 | `{home:{q1:0,...,ot:[]}, away:{...}}` (모두 0) |
+| Q4 | is_made=false (실패 슛) + made 혼합 | made 만 합산 / false 제외 |
+| Q5 | is_made=null (PBP 비-슛 이벤트 / 파울/리바운드) | null 제외 (정확 0 합산) |
+
+**`src/__tests__/lib/match-sync.test.ts`** (기존 27 케이스 + 신규 4 = 31):
+
+| 케이스 | given | expect |
+|--------|-------|--------|
+| Q6 (paper skip) | paper 매치 + status='in_progress'→'completed' 전환 + incoming QS=0/0 + PBP 합=15/12 | DB.QS = input.quarter_scores 그대로 (자동 갱신 X) / paper SSOT 보존 |
+| Q7 (Flutter trigger) | Flutter 매치 + status 전환 + incoming QS=0/0 + PBP 합=15/12 | DB.QS = computeQuarterScoresFromPbp 결과 (자동 갱신) |
+| Q8 (in_progress skip) | Flutter 매치 + status='in_progress' 유지 + incoming QS=0/0 | DB.QS = input.quarter_scores 그대로 (라이브 매치 영향 0) |
+| Q9 (PBP 부족) | Flutter 매치 + status 전환 + 매치 헤더 70/72 + PBP 합 = 65/68 | 자동 갱신 진입 / LIVE API STL 보정에 위임 (service layer skip — LIVE API L949 fallback 신뢰) |
+
+### 📋 backfill 별도 PR (운영 데이터 정정 — PR-6)
+
+**대상**: 기존 D 분류 10건 + E 분류 48건의 QS 부분 = **58건** 모두 status='completed' 전환 시점 지나감 → 자동 trigger 안 됨 → 별도 backfill 의무.
+
+**옵션 A 채택 (자동 backfill 스크립트 / 사용자 결재 후 1회 실행)**:
+- `scripts/_temp/backfill-quarter-scores.ts` (read-only audit 첫 → 사용자 결재 → UPDATE 실행)
+- 흐름: 58 매치 SELECT → 매치별 PBP SELECT → computeQuarterScoresFromPbp → DRY-RUN 결과 박제 → 사용자 결재 → UPDATE batch
+- paper 매치 분기 가드 의무 (paper SSOT 보존 / 회귀 차단)
+- 운영 영향: 매치별 DB.quarterScores UPDATE — 매치 헤더/standings 변경 0 / LIVE 페이지 QS 표시만 정정
+
+**옵션 B 거절**: 매치별 사용자 결재 = 58 매치 → 운영자 부담 ↑ (Sprint 3 F4 영역과 중복)
+**옵션 C 거절**: F1 본체만 진입 = 신규 매치 보장 / 기존 58건 잔존 = audit 카드 잔존
+
+### 🔗 기존 코드 연결
+
+- **PURE 헬퍼** = LIVE API L909~920 (PBP 합산) + L933 (paper override) 패턴 통합 단일 source
+- **service 통합** = match-sync.ts L484 status 전환 감지 패턴 (triggerMatchBriefPublish) 답습
+- **paper 분기** = `getRecordingMode(match)` 헬퍼 재사용 (recording-mode.ts:49) — Sprint 1 F3-β 가드와 단일 source
+- **backfill 스크립트** = audit script (`scripts/_temp/score-consistency-audit.ts`) 패턴 답습 + UPDATE 추가
+- **회귀 가드** = Sprint 1 F5 (FIBA 룰 가드) 호출 순서와 충돌 0:
+  - F5 = service 호출 직전 (route 안) = completed 매치 FIBA 위반 차단
+  - F1 = service 안 (line 444) = F5 통과 후 자동 갱신
+  - 자연스러운 흐름 (F5 차단 시 F1 미진입)
+
+### 📋 PR 분해 — A 채택 (2 PR / 옵션 B 3 PR 거절)
+
+| PR | 시간 | 범위 | 회귀 위험 | 사용자 결재 |
+|----|------|------|----------|------------|
+| **PR-5 (F1 본체)** | 6h | PURE 헬퍼 + service 통합 + vitest 9 케이스 (5+4) + tsc 0 | 낮음 (paper skip 보장 / status 전환 가드) | 코드 결재만 |
+| **PR-6 (backfill)** | 2h | 스크립트 박제 + DRY-RUN 실행 + 사용자 결재 후 UPDATE batch + audit script 사후 정리 | 매우 낮음 (UPDATE only / standings/PBP 변경 0) | **DRY-RUN 결과 확인 후 UPDATE 실행 결재 필수** |
+
+**B 거절 사유** (PURE 헬퍼만 1 PR + service 통합 1 PR + backfill 1 PR = 3 PR):
+- 8h 작업 = 2 PR 분리 충분 / 3 PR = review 비용 ↑
+- PURE 헬퍼만 단독 PR = 호출자 0 → 효용 0 (vitest 만 진입)
+- service 통합 = PURE 헬퍼 의존 → 같은 PR 묶음이 자연
+
+### 📋 실행 계획
+
+| 순서 | 작업 | 담당 | 선행 | 비고 |
+|------|------|------|------|------|
+| 1 | PR-5 (F1 본체) PURE 헬퍼 + service 통합 + vitest 9 케이스 | developer | 없음 | 6h / `quarter-scores-sync.ts` 신규 / `match-sync.ts` line 444 직전 통합 |
+| 2 | tester + reviewer (PR-5) | 둘 (병렬) | 1단계 | tsc + vitest 9 + 회귀 (match-sync 27 + recording-mode 20 + fiba-rules 13 + cron-score-consistency 4 = 73) |
+| 3 | PM main 머지 + 즉시 운영 진입 | pm | 2단계 | F1 본체 = 신규 매치 즉시 보장 (backfill 별도) |
+| 4 | PR-6 (backfill) audit script 박제 + DRY-RUN | developer | 3단계 | 2h / `scripts/_temp/backfill-quarter-scores.ts` 신규 |
+| 5 | 사용자 DRY-RUN 결과 결재 | pm + 사용자 | 4단계 | 58 매치 변경 사항 검토 |
+| 6 | UPDATE batch 실행 + 사후 검증 | developer | 5단계 | 운영 DB UPDATE 58건 / 사후 audit 재실행 = 0건 확인 |
+| 7 | 임시 스크립트 정리 + audit 갱신 | pm | 6단계 | `scripts/_temp/*.ts` 삭제 + errors.md D/E 분류 갱신 |
+
+⚠️ developer 주의사항:
+- **PURE 헬퍼 vitest 우선** — service 통합 전 PURE 헬퍼 5 케이스 통과 의무 (LIVE API L909~920 정확 답습)
+- **paper 매치 절대 덮어쓰기 ❌** — `shouldAutoSyncQuarterScores` 가드 필수 (회귀 차단)
+- **incoming play_by_plays 사용** — 기존 DB PBP 합산 ❌ (sync 가 PBP 전체 전달 가정 / 매치 종료 시점 incoming = 최종 PBP)
+- **status 전환 시점만 trigger** — in_progress 매치 자동 갱신 ❌ (라이브 LIVE API L909 동등 효과 / 운영 영향 0)
+- **input.quarter_scores 우선순위 변경** — Flutter sync 가 quarter_scores 전달 시 자동 trigger 시 computeQuarterScoresFromPbp 결과로 덮어쓰기 (Flutter app QS 박제 0/0 무시)
+- **backfill DRY-RUN 의무** — 사용자 결재 전 UPDATE 0 / DRY-RUN 결과 박제 후 결재 진행
+
+### 📊 효과 예측 (audit 125 매치 기반)
+
+| 분류 | 현재 | PR-5 (F1 본체) 후 | PR-6 (backfill) 후 |
+|------|------|-------------------|---------------------|
+| D (헤더 단독 / QS=0/0) | 10건 | 신규 매치 0건 / 기존 10건 잔존 | 0건 (UPDATE 완료) |
+| E (다중 / QS=0/0 부분) | 48건 | 신규 매치 0건 / 기존 48건 잔존 | QS 부분 정정 (PBP/MPS 부분은 Sprint 3 F4 영역) |
+| 4 source 정합 | 44.0% | 신규 매치 99%+ | 58건 정정 후 ~88% (E 분류 PBP/MPS 잔존) |
+
+### 📝 분석 산출물 박제 위치 (knowledge)
+
+- 본 기획설계 → scratchpad
+- F1 옵션 채택 사유 (트리거 위치 A / 계산 source A / paper 분기 A) → decisions.md [2026-05-23] 추가 박제 권장
+- backfill 별도 PR 의 운영 영향 → 운영 후 sprint 3 errors.md / lessons.md 박제
+
+---
+
 ## 기획설계 (2026-05-21 — 점수 정합성 Sprint 1 / F3-α + F3-β + F5 + F2)
 
 🎯 목표: 점수 4 source 정합성 영구 fix Sprint 1 (8h / 운영 영향 0 / 회귀 0) — 강남구 paper 매치 159/164/186 (F3-α) + 170/187 (F3-β) 재발 차단 + 매치 124 OT1 사고 (F5) 재발 차단 + 일일 검출 layer (F2)
@@ -449,6 +745,8 @@ export function assertCompletedMatchFiba(input: FibaCheckInput): FibaCheckResult
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
 |------|------|------|
+| 2026-05-23 | PR-5 (F1 본체) developer 박제 — quarterScores 자동 갱신 service layer | ✅ 4 파일 (신규 `quarter-scores-sync.ts` 148 LOC PURE 헬퍼 2종 + 신규 vitest 244 LOC 10 케이스 + `match-sync.ts` +52 LOC service 통합 + `match-sync.test.ts` +321 LOC 통합 4 케이스) / tsc 0 / vitest 78/78 PASS (quarter-scores-sync 10 + match-sync 31 + recording-mode 20 + fiba-rules 13 + cron-score-consistency 4) / 전체 1093 중 1 fail = `running-score-helpers.test.ts` 본 PR 무관 (main 동등 재현) / paper skip 보장 (LIVE API L933 패턴) + status 전환 가드 (재진입 skip) + PBP 0 skip + homeTeamId NULL skip / 회귀 0 / **PM 결재 + main 머지 시 신규 매치 D/E 분류 차단 즉시 운영 진입** / tester 검증 대기 |
+| 2026-05-23 | 점수 정합성 Sprint 2 F1 기획설계 (quarterScores 자동 갱신 service layer / 8h) | ✅ planner-architect 분석 완료 / 2 PR 권장 (PR-5 본체 6h + PR-6 backfill 2h) / 옵션 채택 A (트리거=service syncSingleMatch line 444 / 계산=PBP 합 단순 / paper skip = LIVE API L933 패턴) / PURE 헬퍼 `quarter-scores-sync.ts` 신규 (computeQuarterScoresFromPbp + shouldAutoSyncQuarterScores) / vitest 9 케이스 (헬퍼 5 + service 4) / backfill 58건 별도 PR (DRY-RUN 사용자 결재) / Sprint 1 F5 와 호출 순서 자연스러움 / 회귀 0 (paper skip 보장 / status 전환 가드) |
 | 2026-05-21 | PR-4 (F2) developer 박제 — 점수 정합성 daily cron + admin 위젯 + score_consistency_audit 모델 | ✅ 6 파일 (prisma schema +20 / page.tsx +5 / vercel.json +4 / route.ts 316 신규 / 위젯 154 신규 / vitest 248 신규) / `classifyMismatch()` PURE 6분류 / 응답 by_type 배열 형식 (snake_case 변환 회피) / vitest 4/4 PASS (A1~A4) / 회귀 65/65 PASS (fiba+recording-mode+match-sync+series-counter-audit) / tsc 4 errors (prisma generate 미실행 / PM 결재 후 db push 시 자동 해결) / **PM 결재 의무: `prisma db push` NULL ADD 실행 + Vercel CRON_SECRET 환경변수 운영 확인** |
 | 2026-05-21 | PR-3 (F5) developer 박제 — FIBA 룰 가드 (OT1 동점 + winner NULL completed 차단) | ✅ `src/lib/tournaments/fiba-rules.ts` 신규 121 LOC (PURE 헬퍼 `assertCompletedMatchFiba` / 6 분기) + `src/__tests__/lib/fiba-rules.test.ts` 신규 202 LOC (13 케이스 = F1~F6 6 + 보너스 7) + 양면 호출 가드 3건 (score-sheet submit +30 / v1 sync +35 / v1 batch-sync +41 LOC) / tsc 0 / vitest 60/60 PASS (fiba 13 + recording-mode 20 회귀 + match-sync 27 회귀) / Flutter server-side / 클라이언트 코드 0 변경 / 매치 124 OT2 사고 재발 방지 / tester 검증 대기 / **원영 사후 공지 의무** |
 | 2026-05-21 | PR-2 (F3-β) developer 박제 — 어드민 PATCH paper 매치 score 차단 가드 | ✅ `src/app/api/web/tournaments/[id]/matches/[matchId]/route.ts` +20 LOC (import 3줄 + 가드 17줄) / `getRecordingMode({ settings: match.settings })` + paper && (homeScore\|awayScore) 변경 시 403 `RECORDING_MODE_PAPER_SCORE_BLOCKED` / tsc 0 / vitest 20/20 PASS (recording-mode 회귀 0) / Flutter 매치 + paper 매치 메타 수정 보존 / tester 검증 대기 |
@@ -476,7 +774,6 @@ export function assertCompletedMatchFiba(input: FibaCheckInput): FibaCheckResult
 | 2026-05-20 | 오늘 작업 시작 — dev 머지 + dev서버 실행 | ✅ `492819f` Merge origin/dev (7커밋 catch-up, 충돌 0) / npm run dev port 3001 Ready 4s (Next 16.1.6 Turbopack) |
 | 2026-05-19 | prospectus AI wizard Phase 1-A 박제 (Zod schema + prompt 빌더) | ✅ commit `ca99e94` / 2 신규 파일 287L / tsc 0 |
 | 2026-05-19 | nonggudan@mybdr.kr 비밀번호 변경 (제작진용 계정) | ✅ id=2989 / bcrypt salt 12 / 검증 PASS / DB UPDATE 1행 / 임시 스크립트 즉시 삭제 |
-| 2026-05-18 | 대회 요강 AI 분석 → wizard 자동 채움 기획설계 보고서 | ✅ `Dev/prospectus-ai-wizard-plan-2026-05-18.md` 박제 / 2026-05-19 사용자 결재 완료 |
 
 ## 미푸시 commit
 - **0건** (모두 push 완료. PR #623 머지 완료 / PR #624 머지 대기)
@@ -487,20 +784,20 @@ export function assertCompletedMatchFiba(input: FibaCheckInput): FibaCheckResult
 - Flutter 앱 연동 = 별도 박제 예정 (사용자 명시)
 - scratchpad 압축 룰: 100줄 이내 / 작업 로그 10건 / 가장 오래된 항목 자동 삭제
 
-## 🔜 다음 단계 — Sprint 1 결재 진입 (F5 + F2 + F3 / 8h)
-- **완료** (2026-05-21):
-  - ✅ 운영 DB 전수 audit (125 매치 SELECT only / 운영 영향 0)
-  - ✅ paper 모드 정밀 조사 (6 매치 player별 + audit log + service 코드 검토)
-  - ✅ F1~F6 우선순위 + F3 Sprint 1 상향 (decisions.md [2026-05-21] 2건)
-  - ✅ 근본 원인 코드 위치 3건 확정 (errors.md [2026-05-21] 2건)
-- **Sprint 1 결재 권장 (8h / 운영 영향 0 / 회귀 0 / 즉시 진입 가능)**:
-  - **F5 (2h)** FIBA 룰 가드 (OT1 동점 + winner NULL completed 차단 / 매치 124 재발 방지)
-  - **F2 (4h)** PBP 검증 cron (daily PBP vs MPS 비교 + admin 대시보드 알림)
-  - **F3-α (1h)** service `syncSingleMatch:507~559` MPS deleteMany NOT IN 가드 추가 (PBP 패턴 답습)
-  - **F3-β (1h)** 어드민 PATCH `matches/[matchId]/route.ts:171~189` paper 매치 차단 + 운영자 안내
-- **Sprint 2 결재 (≤8h / 운영 데이터 backfill 별도)**:
-  - **F1 (8h)** quarterScores 자동 갱신 service layer (PBP/MPS → QS sync / 매치 종료 시점 trigger + paper 분기)
+## 🔜 다음 단계 — Sprint 2 F1 진입 (PR-5 본체 6h + PR-6 backfill 2h)
+- **완료** (Sprint 1):
+  - ✅ F3-α (MPS deleteMany NOT IN) + F3-β (admin PATCH paper 차단) + F5 (FIBA 룰 가드) + F2 (daily cron + audit 모델) main 머지 (commit `b37716e`)
+- **Sprint 2 결재 권장 (8h / 운영 영향 0 / 회귀 0)**:
+  - **PR-5 (F1 본체 / 6h)**: PURE 헬퍼 `quarter-scores-sync.ts` 신규 + service `syncSingleMatch` 통합 + vitest 9 케이스 (헬퍼 5 + service 4) + tsc 0
+    - 트리거 = `match-sync.ts` line 444 직전 (winnerTeamId 결정 후 / tournamentMatch.update 직전)
+    - paper 매치 skip (LIVE API L933 패턴 답습 / DB.QS = SSOT 보존)
+    - status='completed' 전환 시점만 자동 갱신 (in_progress 매치 영향 0)
+    - 회귀 가드 73 케이스 (match-sync 27 + recording-mode 20 + fiba-rules 13 + cron-score-consistency 4 + 신규 9)
+  - **PR-6 (backfill / 2h)**: `scripts/_temp/backfill-quarter-scores.ts` DRY-RUN → 사용자 결재 → UPDATE batch (58건)
+    - 대상 = D 10 + E 48 (QS=0/0 부분) = 58 매치
+    - paper 분기 가드 의무 (paper SSOT 보존 / 회귀 차단)
+    - UPDATE only / 매치 헤더/standings 변경 0
 - **Sprint 3 결재 (≤17h+ / 사용자 결재 다수)**:
   - **F4 (16h+)** SSOT migration 일괄 정정 (E 분류 48건 매치별 결재 + paper 매치는 종이 기록지 외부 source 결재)
   - **F6 (1h)** stale 헤더 백필 (TEST 토너먼트 7건)
-- **사후 정리**: `scripts/_temp/*-audit.ts` 2건 삭제 (운영 DB 자격 노출 방지 / Sprint 1 종료 시점)
+- **사후 정리**: PR-6 backfill 종료 후 `scripts/_temp/*.ts` 모두 삭제
