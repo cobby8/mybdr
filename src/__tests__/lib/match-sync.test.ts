@@ -703,3 +703,324 @@ describe("match-sync — syncSingleMatch MPS deleteMany NOT IN 가드 (F3-α)", 
     expect(mpsUpsert).not.toHaveBeenCalled();
   });
 });
+
+// ============================================================================
+// 7. syncSingleMatch — quarterScores 자동 갱신 통합 (F1 / 2026-05-23 / PR-5)
+// ============================================================================
+
+/**
+ * 2026-05-23 PR-5 F1 (errors.md [2026-05-21] 점수 4 source 시스템 차원 결함 fix):
+ *   매치 종료 시점 (status='completed' 신규 전환) quarterScores 자동 갱신 통합 검증.
+ *   PURE 헬퍼 9 케이스 (quarter-scores-sync.test.ts) 통과 전제 +
+ *   본 통합 4 케이스 = service tournamentMatch.update 의 data.quarterScores 정확성 보장.
+ *
+ * 4 케이스 검증 (Q-int-1 ~ Q-int-4):
+ *   Q-int-1: paper 매치 + completed 신규 전환 + input.QS={...} + PBP 15/12
+ *            → DB.QS = input.QS 그대로 (paper SSOT 보존 / autoQuarterScores 미적용)
+ *   Q-int-2: Flutter 매치 + completed 신규 전환 + input.QS=0/0 + PBP 합=15/12
+ *            → DB.QS = PBP 합 (autoQuarterScores 적용)
+ *   Q-int-3: Flutter 매치 + in_progress 유지 + PBP 10건
+ *            → DB.QS = input.QS 그대로 (autoQuarterScores 미적용 / 라이브 영향 0)
+ *   Q-int-4: Flutter 매치 + completed → completed (재진입)
+ *            → DB.QS = input.QS 그대로 (재진입 skip)
+ */
+describe("match-sync — syncSingleMatch quarterScores 자동 갱신 통합 (F1 / PR-5)", () => {
+  beforeEach(() => {
+    vi.resetModules();
+    vi.clearAllMocks();
+  });
+
+  /**
+   * 공용 mock 헬퍼 — F3-α setupMocks 답습 (update spy 핵심).
+   */
+  function setupMocks() {
+    const updateMock = vi.fn().mockResolvedValue({});
+    const findUniqueMock = vi.fn().mockResolvedValue({ format: "single_elimination" });
+    const pbpDeleteMany = vi.fn().mockResolvedValue({ count: 0 });
+    const pbpUpsert = vi.fn().mockResolvedValue({});
+
+    vi.doMock("@/lib/db/prisma", () => ({
+      prisma: {
+        tournamentMatch: {
+          findFirst: vi.fn(),
+          update: updateMock,
+        },
+        tournament: {
+          findUnique: findUniqueMock,
+        },
+        play_by_plays: { deleteMany: pbpDeleteMany, upsert: pbpUpsert },
+        matchPlayerStat: { deleteMany: vi.fn(), upsert: vi.fn() },
+      },
+    }));
+    vi.doMock("@/lib/tournaments/update-standings", () => ({
+      advanceWinner: vi.fn(),
+      updateTeamStandings: vi.fn(),
+    }));
+    vi.doMock("@/lib/tournaments/dual-progression", () => ({
+      progressDualMatch: vi.fn(),
+    }));
+    vi.doMock("@vercel/functions", () => ({ waitUntil: vi.fn() }));
+    vi.doMock("@/lib/news/auto-publish-match-brief", () => ({
+      triggerMatchBriefPublish: vi.fn(),
+    }));
+    vi.doMock("@/lib/tournaments/finalize-match-completion", () => ({
+      // 2026-05-23 F1 fix — finalizeMatchCompletion 반환 shape (warnings 배열 / status)
+      //   service line 724 `warnings.push(...finalizeResult.warnings)` 가 iterable 요구.
+      finalizeMatchCompletion: vi.fn().mockResolvedValue({
+        status: "ok",
+        warnings: [],
+      }),
+    }));
+
+    return { updateMock };
+  }
+
+  /**
+   * minimal PBP event 생성 헬퍼 — 22 필드 풀 채움 + 핵심 필드 override 허용.
+   * is_made / points_scored / quarter / tournament_team_id 만 케이스별 변경.
+   */
+  function makePbp(overrides: {
+    quarter?: number;
+    tournament_team_id?: number;
+    points_scored?: number;
+    is_made?: boolean | null;
+    local_id?: string;
+  }) {
+    return {
+      local_id: overrides.local_id ?? "pbp-test-1",
+      tournament_team_player_id: 1,
+      tournament_team_id: overrides.tournament_team_id ?? 10,
+      quarter: overrides.quarter ?? 1,
+      game_clock_seconds: 600,
+      action_type: "score",
+      is_made: overrides.is_made ?? true,
+      points_scored: overrides.points_scored ?? 2,
+      home_score_at_time: 0,
+      away_score_at_time: 0,
+      is_flagrant: false,
+      is_technical: false,
+      is_fastbreak: false,
+      is_second_chance: false,
+      is_from_turnover: false,
+    };
+  }
+
+  const HOME_TID = 10;
+  const AWAY_TID = 20;
+
+  // Q-int-1: paper 매치 = DB.QS SSOT 보존 = 핵심 회귀 가드 (LIVE API L933 패턴)
+  it("Q-int-1: paper 매치 + completed 신규 전환 + input.QS + PBP → input.QS 그대로 (paper SSOT)", async () => {
+    const { updateMock } = setupMocks();
+    const { syncSingleMatch } = await import("@/lib/services/match-sync");
+
+    // paper 매치 — settings.recording_mode = "paper"
+    const paperExistingMatch = {
+      id: BigInt(700),
+      tournamentId: "t-paper",
+      homeTeamId: BigInt(HOME_TID),
+      awayTeamId: BigInt(AWAY_TID),
+      winner_team_id: null,
+      status: "in_progress",
+      started_at: new Date("2026-05-23T10:00:00Z"),
+      settings: { recording_mode: "paper" },
+    };
+
+    // input.QS = paper score-sheet BFF 박제 (정확 점수)
+    const paperInputQs = {
+      home: { q1: 15, q2: 12, q3: 18, q4: 13, ot: [] },
+      away: { q1: 10, q2: 11, q3: 14, q4: 9, ot: [] },
+    };
+
+    // PBP 도 함께 박제 (paper score-sheet BFF 가 PBP 도 박제)
+    const pbpInputs = [
+      makePbp({ quarter: 1, tournament_team_id: HOME_TID, points_scored: 15 }),
+      makePbp({ quarter: 2, tournament_team_id: HOME_TID, points_scored: 12 }),
+      makePbp({ quarter: 1, tournament_team_id: AWAY_TID, points_scored: 10 }),
+    ];
+
+    const result = await syncSingleMatch({
+      tournamentId: "t-paper",
+      match: {
+        server_id: 700,
+        home_score: 58,
+        away_score: 44,
+        status: "completed",
+        quarter_scores: paperInputQs,
+      },
+      play_by_plays: pbpInputs,
+      existingMatch: paperExistingMatch,
+    });
+
+    expect(result.ok).toBe(true);
+    // update data.quarterScores = input.QS 그대로 (paper SSOT 보존)
+    expect(updateMock).toHaveBeenCalledTimes(1);
+    const updateData = updateMock.mock.calls[0][0].data;
+    // input.QS 가 그대로 유지되어야 함 (auto-sync skip)
+    expect(updateData.quarterScores.home).toEqual(paperInputQs.home);
+    expect(updateData.quarterScores.away).toEqual(paperInputQs.away);
+  });
+
+  // Q-int-2: Flutter 매치 + completed 신규 전환 = 정상 trigger 케이스 = 본 PR 의 핵심 효과
+  it("Q-int-2: Flutter + completed 신규 전환 + input.QS=0/0 + PBP 합=15/12 → DB.QS = PBP 합 (auto-sync)", async () => {
+    const { updateMock } = setupMocks();
+    const { syncSingleMatch } = await import("@/lib/services/match-sync");
+
+    // Flutter 매치 (settings = null / 또는 settings.recording_mode 미박제)
+    const flutterExistingMatch = {
+      id: BigInt(701),
+      tournamentId: "t-flutter",
+      homeTeamId: BigInt(HOME_TID),
+      awayTeamId: BigInt(AWAY_TID),
+      winner_team_id: null,
+      status: "in_progress",
+      started_at: new Date("2026-05-23T10:00:00Z"),
+      settings: null,
+    };
+
+    // input.QS = 0/0 박제 (Flutter app 의 QS=0/0 사고 케이스 / D 분류 10건 재현)
+    const flutterBadInputQs = {
+      home: { q1: 0, q2: 0, q3: 0, q4: 0, ot: [] },
+      away: { q1: 0, q2: 0, q3: 0, q4: 0, ot: [] },
+    };
+
+    // PBP = home q1=10, q2=5 (합=15) / away q1=12 (합=12)
+    const pbpInputs = [
+      makePbp({
+        local_id: "pbp-1",
+        quarter: 1,
+        tournament_team_id: HOME_TID,
+        points_scored: 10,
+      }),
+      makePbp({
+        local_id: "pbp-2",
+        quarter: 2,
+        tournament_team_id: HOME_TID,
+        points_scored: 5,
+      }),
+      makePbp({
+        local_id: "pbp-3",
+        quarter: 1,
+        tournament_team_id: AWAY_TID,
+        points_scored: 12,
+      }),
+    ];
+
+    const result = await syncSingleMatch({
+      tournamentId: "t-flutter",
+      match: {
+        server_id: 701,
+        home_score: 15,
+        away_score: 12,
+        status: "completed",
+        quarter_scores: flutterBadInputQs,
+      },
+      play_by_plays: pbpInputs,
+      existingMatch: flutterExistingMatch,
+    });
+
+    expect(result.ok).toBe(true);
+    expect(updateMock).toHaveBeenCalledTimes(1);
+    const updateData = updateMock.mock.calls[0][0].data;
+    // 자동 갱신 = PBP 합 으로 덮어쓰기 (input.QS=0/0 무시)
+    expect(updateData.quarterScores.home.q1).toBe(10);
+    expect(updateData.quarterScores.home.q2).toBe(5);
+    expect(updateData.quarterScores.away.q1).toBe(12);
+    expect(updateData.quarterScores.away.q2).toBe(0);
+  });
+
+  // Q-int-3: in_progress 유지 = 라이브 매치 영향 0 (auto-sync 미진입)
+  it("Q-int-3: Flutter + in_progress 유지 + PBP 1건 → DB.QS = input.QS 그대로 (라이브 영향 0)", async () => {
+    const { updateMock } = setupMocks();
+    const { syncSingleMatch } = await import("@/lib/services/match-sync");
+
+    const flutterExistingMatch = {
+      id: BigInt(702),
+      tournamentId: "t-flutter",
+      homeTeamId: BigInt(HOME_TID),
+      awayTeamId: BigInt(AWAY_TID),
+      winner_team_id: null,
+      status: "in_progress",
+      started_at: new Date("2026-05-23T10:00:00Z"),
+      settings: null,
+    };
+
+    // input.QS = Flutter app 가 보낸 라이브 점수
+    const liveInputQs = {
+      home: { q1: 10, q2: 0, q3: 0, q4: 0, ot: [] },
+      away: { q1: 8, q2: 0, q3: 0, q4: 0, ot: [] },
+    };
+
+    const pbpInputs = [
+      makePbp({ quarter: 1, tournament_team_id: HOME_TID, points_scored: 10 }),
+      makePbp({ quarter: 1, tournament_team_id: AWAY_TID, points_scored: 8 }),
+    ];
+
+    const result = await syncSingleMatch({
+      tournamentId: "t-flutter",
+      match: {
+        server_id: 702,
+        home_score: 10,
+        away_score: 8,
+        status: "in_progress", // ← in_progress 유지
+        quarter_scores: liveInputQs,
+      },
+      play_by_plays: pbpInputs,
+      existingMatch: flutterExistingMatch,
+    });
+
+    expect(result.ok).toBe(true);
+    expect(updateMock).toHaveBeenCalledTimes(1);
+    const updateData = updateMock.mock.calls[0][0].data;
+    // input.QS 그대로 (auto-sync 미진입 / 라이브 영향 0)
+    expect(updateData.quarterScores.home).toEqual(liveInputQs.home);
+    expect(updateData.quarterScores.away).toEqual(liveInputQs.away);
+  });
+
+  // Q-int-4: 재진입 (completed → completed) = 무한 덮어쓰기 방지
+  it("Q-int-4: Flutter + completed → completed (재진입) → DB.QS = input.QS 그대로 (재진입 skip)", async () => {
+    const { updateMock } = setupMocks();
+    const { syncSingleMatch } = await import("@/lib/services/match-sync");
+
+    // 이미 completed 매치 (재sync 케이스 / 운영자 수동 정정 / Flutter 재시도)
+    const completedExistingMatch = {
+      id: BigInt(703),
+      tournamentId: "t-flutter",
+      homeTeamId: BigInt(HOME_TID),
+      awayTeamId: BigInt(AWAY_TID),
+      winner_team_id: BigInt(HOME_TID), // 이미 winner 결정
+      status: "completed", // ← 이미 completed
+      started_at: new Date("2026-05-23T10:00:00Z"),
+      settings: null,
+    };
+
+    // 운영자가 정정한 input.QS (PBP 와 다를 수 있음 / 운영자 결재 반영)
+    const adminCorrectedQs = {
+      home: { q1: 20, q2: 15, q3: 18, q4: 12, ot: [] },
+      away: { q1: 18, q2: 14, q3: 16, q4: 10, ot: [] },
+    };
+
+    const pbpInputs = [
+      makePbp({ quarter: 1, tournament_team_id: HOME_TID, points_scored: 5 }),
+    ];
+
+    const result = await syncSingleMatch({
+      tournamentId: "t-flutter",
+      match: {
+        server_id: 703,
+        home_score: 65,
+        away_score: 58,
+        status: "completed",
+        quarter_scores: adminCorrectedQs,
+      },
+      play_by_plays: pbpInputs,
+      existingMatch: completedExistingMatch,
+    });
+
+    expect(result.ok).toBe(true);
+    expect(updateMock).toHaveBeenCalledTimes(1);
+    const updateData = updateMock.mock.calls[0][0].data;
+    // input.QS 그대로 (재진입 skip / 운영자 정정 보존)
+    expect(updateData.quarterScores.home).toEqual(adminCorrectedQs.home);
+    expect(updateData.quarterScores.away).toEqual(adminCorrectedQs.away);
+  });
+});
