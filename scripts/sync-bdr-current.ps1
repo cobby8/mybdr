@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
   BDR-current 시안 폴더를 새 zip 으로 동기화 (CLAUDE.md §🗂️ 5단계 자동화).
 
