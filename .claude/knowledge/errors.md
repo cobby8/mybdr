@@ -2,6 +2,45 @@
 <!-- 담당: debugger, tester | 최대 30항목 -->
 <!-- 이 프로젝트에서 반복되는 에러 패턴, 함정, 주의사항을 기록 -->
 
+### [2026-05-25] Flutter legacy quarter_scores 형식 잔존 — `{Q4:{home,away}, current_quarter}` (Sprint 3 F4 발견)
+- **분류**: errors (데이터 형식 / Flutter app 버전별 분포)
+- **발견자**: pm (Sprint 3 F4 옵션 A audit matchId 257 EXECUTE 시점)
+- **계기**: Sprint 2 PR-6 + Sprint 3 F4 audit script 의 sumQS() 가 매치 257 `quarter_scores` 를 0/0 으로 계산 → 옵션 A 안전 정정 후보로 분류 → EXECUTE 시점 [BEFORE] 출력에서 legacy 형식 확인
+- **legacy 형식 (Flutter 옛 버전 박제)**:
+  ```json
+  {"Q4":{"away":45,"home":5}, "current_quarter":4}
+  ```
+- **현재 표준 형식 (LIVE API + score-sheet BFF + Sprint 2 F1)**:
+  ```json
+  {"home":{"q1":0,"q2":2,"q3":1,"q4":2,"ot":[]}, "away":{"q1":11,"q2":7,"q3":12,"q4":15,"ot":[]}}
+  ```
+- **재현**:
+  - sumQS() = `o.home`/`o.away` 키 접근 → legacy 는 `home`/`away` 키 없음 (`Q4` 안에만 있음) → 0/0 반환
+  - LIVE API L893~947 paper override 분기 = match.quarterScores 가 새 형식 가정 → legacy 매치 표시 0/0 (Flutter 매치라 paper override 미진입 / PBP 합 표시 가능했음)
+- **근본 원인 가설**:
+  - Flutter app 옛 버전 (≤2025년) 이 `{Qn: {home, away}, current_quarter}` 형식으로 sync route 전송 → service `syncSingleMatch` 가 그대로 JSON 박제
+  - 새 Flutter 버전 (2026~) 이 표준 형식으로 변경 → 신규 매치 호환
+  - 운영 DB 옛 매치 (~139건 중 N건) = legacy 형식 잔존
+- **영향**:
+  - audit (Sprint 1 score-consistency-audit.ts) = legacy QS 매치를 D 분류 (QS=0/0) 로 잘못 분류 → 실제는 박제됨
+  - LIVE API 표시 = Flutter 매치는 PBP 합으로 재계산 (paper override 미진입) → 표시 자체는 정상
+  - F2 cron (Sprint 1) = legacy 매치를 QS_ZERO 로 분류 → 운영자 admin 대시보드 alert
+- **fix (Sprint 3 적용)**:
+  - 매치 257 = legacy → nested 변환 (사용자 명시 결재 후 UPDATE)
+  - 다른 매치도 동일 패턴 잔존 가능 (별도 audit 필요 / Sprint 4 잠재)
+- **재발 방지 룰**:
+  - **sumQS() 헬퍼 = legacy 형식 인식 분기 추가 검토** (audit 정확도 ↑ / F2 cron 알림 false positive 감소)
+  - **score-consistency-audit.ts 확장** = QS 형식 정상성 별도 분류 (legacy / nested / null / empty)
+  - **Flutter app sync 시점 QS 형식 정규화** = service `syncSingleMatch` 가 legacy → nested 자동 변환 추가 검토 (회귀 위험 검토 필수)
+  - **신규 매치 = F1 (Sprint 2 PR-5) 자동 갱신으로 nested 형식 박제 보장** ✅ (이미 적용)
+- **잠재 영향 매치 수**: 미정 (별도 audit 필요 / Flutter v1 sync 옛 매치 가능성)
+- **참조횟수**: 0
+- **참조 파일**:
+  - `Dev/f4-safe-fix-audit-2026-05-25.md` (Sprint 3 EXECUTE 결과 박제)
+  - `scripts/_temp/score-consistency-audit.ts` sumQS() (Sprint 1 박제 / Sprint 4 확장 후보)
+  - `src/lib/score-sheet/running-score-helpers.ts:125~154` toQuarterScoresJson (표준 형식 source)
+  - `src/lib/tournaments/quarter-scores-sync.ts` (Sprint 2 PR-5 / nested 형식 박제)
+
 ### [2026-05-21] paper 모드 3가지 특수 결함 — 근본 원인 코드 위치 확정 (정밀 조사 완료)
 - **분류**: errors (코드 레벨 정밀 분석 / fix 대상 확정)
 - **발견자**: pm (사용자 결재 후 정밀 조사)
