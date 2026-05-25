@@ -1,233 +1,452 @@
-/* global React, TOURNAMENTS, TEAMS, MY_TEAM */
-
+/* global React */
 // ============================================================
-// TournamentDetail — /tournaments/[id] (Phase F3)
+// TournamentDetail.jsx — UA2 (부분수정)
+//   진입: setRoute('tournamentDetail', { id })   /tournaments/[id]
+//   복귀: setRoute('tournaments')
+//   에러: setRoute('serverError')
 //
-// Hero (포스터 / 제목 / 일정 / 장소 / 참가비) + 상태 뱃지 + D-day
-// 진행률 막대 (team_count / max_teams) — Phase A.6 패턴
-// 5 탭 (개요 / 일정 / 대진표 / 참가팀 / 규정) — inline 분기
-// "신청" / "대진표 보기" CTA
+// hero band (B7 status / B4 capacity)
+//  + 종별 selector chip row (B2, sticky)
+//  + 5 탭 (overview / schedule / bracket / teams / rules)
+//  + sidebar 보강 (B1: MyRegistrationStatus / B7 운영자 미리보기)
+//  + bracket 탭 = 버전 메타 (B5) + 본인 팀 하이라이트
+//
+// AppNav 03 frozen (preview HTML 에서 mount)
 // ============================================================
 
-const { useState: useStateTD } = React;
+(function () {
+  const { useState, useMemo } = React;
 
-function TournamentDetail({ setRoute }) {
-  const t = (typeof TOURNAMENTS !== 'undefined' && TOURNAMENTS[0]) || {
-    id:'bdr-challenge-spring-2026', title:'BDR CHALLENGE SPRING 2026',
-    host:'BDR 운영팀', date:'2026.05.18 ~ 06.07', venue:'잠실 실내체육관 외 3개 코트',
-    fee:80000, status:'open', team_count:24, max_teams:32, accent:'#E31B23',
-    division:'OPEN · 5x5', mode:'더블 엘리미네이션',
+  // ---- mock tournament (in-progress, multi-division) ----
+  const T = {
+    id: 'tn-2',
+    name: 'BDR 서머 오픈 #4',
+    edition: 'Vol.4',
+    org: { name: 'BDR 운영팀', avatar: 'B' },
+    starts_at: '2026-06-15',
+    ends_at: '2026-06-21',
+    venue: '장충체육관 · 잠실학생체육관',
+    status: 'recruit',     // 모집 중
+    teams_now: 18, teams_max: 32,
+    apply_deadline: '2026-05-09',  // D-11
+    divisions: ['오픈', '아마추어', 'U18'],
+    fee_min: 40000, fee_max: 60000,
+    poster_hue: 220,
+    bracket: {
+      version: 'v3',
+      last_updated_min: 5,
+      author: '박수빈',
+      my_team_seed: 4,
+      my_team_name: 'rdm 농구단',
+    },
   };
-  const [tab, setTab] = useStateTD('overview');
 
-  const statusMeta = {
-    open:      { label:'접수중',   color:'var(--cafe-blue)', dday:'D-9'  },
-    closing:   { label:'마감임박', color:'var(--accent)',    dday:'D-2'  },
-    closed:    { label:'접수마감', color:'var(--ink-dim)',   dday:'마감'  },
-    live:      { label:'진행중',   color:'var(--ok)',        dday:'LIVE' },
-    ended:     { label:'종료',     color:'var(--ink-dim)',   dday:'종료' },
-    preparing: { label:'접수예정', color:'var(--cafe-blue)', dday:'D-21' },
+  const MY_REG = {
+    tn_name: T.name,
+    division: '아마추어',
+    team_name: 'rdm 농구단',
+    status: 'approved',
+    step_idx: 2,
+    next_action: '결제 마감 D-2 (5/2)',
+    pay_due: '2026-05-02',
   };
-  const sm = statusMeta[t.status] || statusMeta.open;
-  const pct = Math.round((t.team_count / t.max_teams) * 100);
 
-  return (
-    <div className="page" style={{maxWidth:1040}}>
-      {/* Breadcrumb */}
-      <div style={{display:'flex', gap:6, fontSize:12, color:'var(--ink-mute)', marginBottom:12}}>
-        <a onClick={()=>setRoute('home')} style={{cursor:'pointer'}}>홈</a><span>›</span>
-        <a onClick={()=>setRoute('match')} style={{cursor:'pointer'}}>대회</a><span>›</span>
-        <span style={{color:'var(--ink)'}}>{t.title}</span>
-      </div>
-
-      {/* HERO */}
-      <div className="card" style={{padding:0, overflow:'hidden', marginBottom:14}}>
-        <div className="td-hero" style={{display:'grid', gridTemplateColumns:'220px 1fr', gap:0, alignItems:'stretch'}}>
-          {/* 포스터 placeholder */}
-          <div style={{
-            background:`linear-gradient(135deg, ${t.accent || 'var(--accent)'}, color-mix(in oklab, ${t.accent || 'var(--accent)'} 50%, #000))`,
-            color:'#fff', padding:'24px 22px', display:'flex', flexDirection:'column', justifyContent:'space-between',
-            minHeight:240,
-          }}>
-            <div>
-              <div style={{fontSize:10, fontWeight:800, letterSpacing:'.14em', textTransform:'uppercase', opacity:.85}}>BDR TOURNAMENT</div>
-              <div style={{fontFamily:'var(--ff-display)', fontWeight:900, fontSize:28, lineHeight:1.05, letterSpacing:'-0.02em', marginTop:14}}>
-                {t.title.split(' ').slice(0, 2).join(' ')}<br/>
-                <span style={{fontSize:18, opacity:.85}}>{t.title.split(' ').slice(2).join(' ')}</span>
-              </div>
-            </div>
-            <div style={{fontFamily:'var(--ff-mono)', fontSize:11, opacity:.85, letterSpacing:'.06em'}}>
-              {t.id}
-            </div>
-          </div>
-          {/* 정보 */}
-          <div style={{padding:'24px 28px', display:'flex', flexDirection:'column', gap:14}}>
-            <div style={{display:'flex', gap:8, alignItems:'center', flexWrap:'wrap'}}>
-              <span style={{
-                padding:'4px 10px', background:sm.color, color:'#fff',
-                fontSize:11, fontWeight:800, letterSpacing:'.06em', borderRadius:3, textTransform:'uppercase',
-              }}>{sm.label}</span>
-              <span style={{
-                fontFamily:'var(--ff-display)', fontWeight:900, fontSize:22,
-                color:sm.color, letterSpacing:'-0.01em',
-              }}>{sm.dday}</span>
-              <span style={{fontSize:11, color:'var(--ink-dim)', fontFamily:'var(--ff-mono)'}}>· {t.division || 'OPEN'}</span>
-              <span style={{fontSize:11, color:'var(--ink-dim)', fontFamily:'var(--ff-mono)'}}>· {t.mode || '더블 엘리'}</span>
-            </div>
-            <h1 style={{margin:0, fontFamily:'var(--ff-display)', fontSize:26, fontWeight:800, letterSpacing:'-0.015em'}}>
-              {t.title}
-            </h1>
-            <div style={{display:'grid', gridTemplateColumns:'auto 1fr', gap:'6px 14px', fontSize:13}}>
-              <span style={{color:'var(--ink-dim)'}}>주최</span><span>{t.host || 'BDR 운영팀'}</span>
-              <span style={{color:'var(--ink-dim)'}}>일정</span><span style={{fontFamily:'var(--ff-mono)'}}>{t.date}</span>
-              <span style={{color:'var(--ink-dim)'}}>장소</span><span>{t.venue}</span>
-              <span style={{color:'var(--ink-dim)'}}>참가비</span><span style={{fontFamily:'var(--ff-mono)', fontWeight:700}}>₩{(t.fee || 0).toLocaleString('ko-KR')} / 팀</span>
-            </div>
-
-            {/* 진행률 */}
-            <div>
-              <div style={{display:'flex', justifyContent:'space-between', fontSize:11, marginBottom:5, color:'var(--ink-mute)'}}>
-                <span>참가팀 모집</span>
-                <span style={{fontFamily:'var(--ff-mono)', fontWeight:700, color:'var(--ink)'}}>
-                  {t.team_count} / {t.max_teams} <span style={{color:sm.color, marginLeft:4}}>({pct}%)</span>
-                </span>
-              </div>
-              <div style={{height:6, background:'var(--bg-alt)', borderRadius:3, overflow:'hidden'}}>
-                <div style={{width:`${pct}%`, height:'100%', background:sm.color, transition:'width .3s'}}/>
-              </div>
-            </div>
-
-            {/* CTA */}
-            <div style={{display:'flex', gap:8, marginTop:4, flexWrap:'wrap'}}>
-              <button className="btn btn--primary" onClick={()=>setRoute('tournamentEnroll')} style={{minHeight:44, minWidth:140}}>
-                참가 신청
-              </button>
-              <button className="btn btn--sm" onClick={()=>setTab('bracket')} style={{minHeight:44}}>
-                대진표 보기
-              </button>
-              <button className="btn btn--sm" style={{minHeight:44}}>공유</button>
-              <button className="btn btn--sm" style={{minHeight:44, marginLeft:'auto'}}>관심 ☆</button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* 5 탭 */}
-      {typeof TournamentTabBar !== 'undefined' && (
-        <TournamentTabBar value={tab} onChange={setTab} setRoute={setRoute} tid={t.id}/>
-      )}
-
-      {/* Inline 컨텐츠 분기 */}
-      <div style={{marginTop:14}}>
-        {tab === 'overview' && <TDOverview t={t}/>}
-        {tab === 'schedule' && (
-          <div className="card" style={{padding:'22px 24px', textAlign:'center'}}>
-            <div style={{fontSize:14, color:'var(--ink-mute)', marginBottom:10}}>경기 일정 전체 페이지로 이동</div>
-            <button className="btn btn--primary" onClick={()=>setRoute('tournamentSchedule')} style={{minHeight:44}}>일정 페이지 →</button>
-          </div>
-        )}
-        {tab === 'bracket' && (
-          <div className="card" style={{padding:'22px 24px', textAlign:'center'}}>
-            <div style={{fontSize:14, color:'var(--ink-mute)', marginBottom:10}}>대진표 전체 페이지로 이동</div>
-            <button className="btn btn--primary" onClick={()=>setRoute('bracket')} style={{minHeight:44}}>대진표 페이지 →</button>
-          </div>
-        )}
-        {tab === 'teams' && (
-          <div className="card" style={{padding:'22px 24px', textAlign:'center'}}>
-            <div style={{fontSize:14, color:'var(--ink-mute)', marginBottom:10}}>참가팀 전체 페이지로 이동</div>
-            <button className="btn btn--primary" onClick={()=>setRoute('tournamentTeams')} style={{minHeight:44}}>참가팀 페이지 →</button>
-          </div>
-        )}
-        {tab === 'rules' && <TDRules/>}
-      </div>
-
-      <style>{`
-        @media (max-width: 720px) {
-          .td-hero { grid-template-columns: 1fr !important; }
-        }
-      `}</style>
-    </div>
-  );
-}
-
-function TDOverview({ t }) {
-  return (
-    <div style={{display:'grid', gridTemplateColumns:'minmax(0, 2fr) minmax(0, 1fr)', gap:14}} className="td-overview">
-      <div className="card" style={{padding:'22px 24px'}}>
-        <h2 style={{margin:'0 0 12px', fontSize:18, fontWeight:700}}>대회 소개</h2>
-        <p style={{margin:'0 0 14px', fontSize:14, color:'var(--ink-soft)', lineHeight:1.7}}>
-          BDR Challenge Spring 2026 은 전국 5x5 아마추어 클럽팀 대상 더블 엘리미네이션 토너먼트입니다.
-          예선 8개 그룹 · 본선 16강 · 결승까지 5주에 걸쳐 진행되며, 우승팀에는 상금 500만원과 시즌 시드 배정 혜택이 주어집니다.
-        </p>
-        <div style={{display:'grid', gridTemplateColumns:'repeat(3, 1fr)', gap:10, marginTop:10}}>
-          {[
-            { k:'우승 상금', v:'₩5,000,000', c:'var(--accent)' },
-            { k:'준우승',    v:'₩2,000,000', c:'var(--cafe-blue)' },
-            { k:'MVP',       v:'₩500,000',   c:'var(--ink)' },
-          ].map(s => (
-            <div key={s.k} style={{padding:'14px 16px', background:'var(--bg-alt)', borderRadius:6, borderTop:`3px solid ${s.c}`}}>
-              <div style={{fontSize:10, color:'var(--ink-dim)', fontWeight:800, letterSpacing:'.08em', textTransform:'uppercase'}}>{s.k}</div>
-              <div style={{fontFamily:'var(--ff-mono)', fontWeight:800, fontSize:16, marginTop:2}}>{s.v}</div>
-            </div>
-          ))}
-        </div>
-      </div>
-      <div className="card" style={{padding:'22px 24px'}}>
-        <h3 style={{margin:'0 0 10px', fontSize:14, fontWeight:700}}>주요 일정</h3>
-        <div style={{display:'flex', flexDirection:'column', gap:0}}>
-          {[
-            { d:'05.10', t:'접수 마감', on:false },
-            { d:'05.18', t:'예선 1라운드', on:true },
-            { d:'05.25', t:'예선 2라운드', on:false },
-            { d:'06.01', t:'준결승', on:false },
-            { d:'06.07', t:'결승', on:false },
-          ].map((e, i) => (
-            <div key={i} style={{
-              display:'grid', gridTemplateColumns:'56px 1fr 8px',
-              gap:10, padding:'10px 0', alignItems:'center',
-              borderBottom: i < 4 ? '1px solid var(--border)' : 0,
-            }}>
-              <span style={{fontFamily:'var(--ff-mono)', fontSize:12, color:'var(--ink-mute)', fontWeight:700}}>{e.d}</span>
-              <span style={{fontSize:13, fontWeight: e.on ? 700 : 500, color: e.on ? 'var(--accent)' : 'var(--ink)'}}>{e.t}</span>
-              {e.on && <span style={{width:6, height:6, borderRadius:'50%', background:'var(--accent)'}}/>}
-            </div>
-          ))}
-        </div>
-      </div>
-      <style>{`
-        @media (max-width: 720px) {
-          .td-overview { grid-template-columns: 1fr !important; }
-        }
-      `}</style>
-    </div>
-  );
-}
-
-function TDRules() {
-  const sections = [
-    { h:'참가 자격', items:['BDR 등록 클럽팀 한정 (4인 이상 로스터)', '선출 출전 제한 — L7 이상 팀당 최대 1명', '나이 제한 없음 / 만 18세 이상 동의 필요'] },
-    { h:'경기 규칙', items:['FIBA 5x5 룰 적용 (10분 4쿼터)', '24초 샷클락 / 8초 백코트', '파울 5개 → 퇴장 / 팀 파울 7개 → 자유투'] },
-    { h:'복장·장비', items:['홈/원정 유니폼 색 구분 의무', '등번호 0~99 (중복 금지)', '액세서리 반입 금지 — 안전상'] },
-    { h:'분쟁·이의 제기', items:['경기 종료 30분 이내 운영팀 서면 제출', '심판 판정은 최종 — 경기 결과 번복 불가', '징계 대상 행위는 운영팀이 별도 결정'] },
+  const TABS = [
+    { key: 'overview', label: '개요', ico: 'description' },
+    { key: 'schedule', label: '일정', ico: 'event' },
+    { key: 'bracket',  label: '대진표', ico: 'account_tree' },
+    { key: 'teams',    label: '참가팀', ico: 'groups' },
+    { key: 'rules',    label: '규정', ico: 'gavel' },
   ];
-  return (
-    <div className="card" style={{padding:'22px 24px'}}>
-      <h2 style={{margin:'0 0 14px', fontSize:18, fontWeight:700}}>대회 규정</h2>
-      {sections.map((s, i) => (
-        <div key={i} style={{marginBottom:18}}>
-          <div style={{fontSize:12, fontWeight:800, letterSpacing:'.08em', textTransform:'uppercase', color:'var(--accent)', marginBottom:8}}>
-            {s.h}
+
+  function daysUntil(s) {
+    const today = new Date('2026-04-28T00:00:00');
+    return Math.ceil((new Date(s + 'T00:00:00') - today) / 86400000);
+  }
+  function fmtDate(s) {
+    const d = new Date(s + 'T00:00:00');
+    return `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}`;
+  }
+
+  // ---------- Hero ----------
+  function Hero({ t }) {
+    const d = daysUntil(t.apply_deadline);
+    const pct = Math.min(100, Math.round((t.teams_now / t.teams_max) * 100));
+    return (
+      <div className="td-hero" style={{'--hue': t.poster_hue}}>
+        <div className="td-hero__poster">
+          <div className="td-hero__poster-grid" />
+          <div className="td-hero__edition">{t.edition}</div>
+          <div className="td-hero__name">{t.name}</div>
+          <div className="td-hero__org">
+            <span className="td-hero__org-av">{t.org.avatar}</span>
+            <span>{t.org.name}</span>
           </div>
-          <ul style={{margin:0, paddingLeft:18, fontSize:13, color:'var(--ink-soft)', lineHeight:1.7}}>
-            {s.items.map((it, j) => <li key={j}>{it}</li>)}
+        </div>
+        <div className="td-hero__info">
+          <div className="td-hero__status-row">
+            <span className="td-hero__status">
+              <span className="td-hero__status-dot" />
+              모집 중
+            </span>
+            <span className="td-hero__d">접수마감 D-{d}</span>
+          </div>
+
+          <dl className="td-hero__meta">
+            <div className="td-mi">
+              <dt><span className="ico material-symbols-outlined">event</span>대회 기간</dt>
+              <dd>{fmtDate(t.starts_at)} – {fmtDate(t.ends_at)}</dd>
+            </div>
+            <div className="td-mi">
+              <dt><span className="ico material-symbols-outlined">location_on</span>경기장</dt>
+              <dd>{t.venue}</dd>
+            </div>
+            <div className="td-mi">
+              <dt><span className="ico material-symbols-outlined">payments</span>참가비</dt>
+              <dd>{t.fee_min.toLocaleString()}–{t.fee_max.toLocaleString()}원 <span className="td-mi__sub">(종별 상이)</span></dd>
+            </div>
+            <div className="td-mi">
+              <dt><span className="ico material-symbols-outlined">category</span>종별</dt>
+              <dd>{t.divisions.join(' · ')}</dd>
+            </div>
+          </dl>
+
+          <div className="td-hero__cap">
+            <div className="td-hero__cap-bar"><div className="td-hero__cap-fill" style={{width: pct+'%'}} /></div>
+            <div className="td-hero__cap-meta">
+              <span><b>{t.teams_now}</b>/{t.teams_max}팀 신청</span>
+              <span className="td-hero__cap-pct">{pct}%</span>
+            </div>
+          </div>
+
+          <div className="td-hero__cta">
+            <button className="btn btn--accent btn--touch">참가 신청하기</button>
+            <button className="btn btn--touch"><span className="ico material-symbols-outlined">share</span>공유</button>
+            <button className="btn btn--touch"><span className="ico material-symbols-outlined">bookmark_border</span>저장</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ---------- Division selector (B2) ----------
+  function DivisionChips({ divisions, value, onChange }) {
+    if (divisions.length <= 1) return null;
+    return (
+      <div className="td-divsel" role="tablist" aria-label="종별 선택">
+        <span className="td-divsel__lbl">종별</span>
+        <div className="td-divsel__chips">
+          <button
+            className={'td-divchip' + (value === '__all' ? ' is-on' : '')}
+            onClick={() => onChange('__all')}>
+            전체
+          </button>
+          {divisions.map(d => (
+            <button key={d}
+              className={'td-divchip' + (value === d ? ' is-on' : '')}
+              onClick={() => onChange(d)}>
+              {d}
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // ---------- Tabs ----------
+  function TabBar({ active, onChange }) {
+    return (
+      <div className="td-tabs" role="tablist">
+        {TABS.map(t => (
+          <button key={t.key}
+            role="tab"
+            aria-selected={active === t.key}
+            className={'td-tab' + (active === t.key ? ' is-active' : '')}
+            onClick={() => onChange(t.key)}>
+            <span className="ico material-symbols-outlined">{t.ico}</span>
+            {t.label}
+          </button>
+        ))}
+      </div>
+    );
+  }
+
+  // ---------- Tab panes ----------
+  function OverviewPane({ t, division }) {
+    return (
+      <div className="td-pane">
+        <section className="td-section">
+          <h2 className="td-h2">대회 소개</h2>
+          <p className="td-p">
+            BDR 서머 오픈 #4는 전국 단위 5x5 오픈 토너먼트입니다. 예선은 6/15–17, 본선은 6/20–21에 진행되며,
+            오픈 / 아마추어 / U18 3개 종별로 운영됩니다.
+            {division !== '__all' && <span className="td-p__filter"> · 현재 [{division}] 종별 정보 표시</span>}
+          </p>
+        </section>
+        <section className="td-section">
+          <h2 className="td-h2">시리즈</h2>
+          <div className="td-series">
+            <span className="td-series__ico">📚</span>
+            <div>
+              <div className="td-series__name">BDR 서머 오픈 시리즈</div>
+              <div className="td-series__meta">Vol.1 (2023) · Vol.2 (2024) · Vol.3 (2025) · <b>Vol.4 (2026, 현재)</b></div>
+            </div>
+            <button className="btn btn--sm">시리즈 보기</button>
+          </div>
+        </section>
+        <section className="td-section">
+          <h2 className="td-h2">상금 / 시상</h2>
+          <div className="td-prize">
+            <div className="td-prize__row"><span className="td-prize__rank">🥇 우승</span><span className="td-prize__amount">₩3,000,000</span><span className="td-prize__extra">+ 트로피 · 굿즈</span></div>
+            <div className="td-prize__row"><span className="td-prize__rank">🥈 준우승</span><span className="td-prize__amount">₩1,000,000</span></div>
+            <div className="td-prize__row"><span className="td-prize__rank">🥉 3위 (2팀)</span><span className="td-prize__amount">₩500,000</span></div>
+            <div className="td-prize__row"><span className="td-prize__rank">⭐ MVP</span><span className="td-prize__amount">₩300,000</span><span className="td-prize__extra">+ MVP 트로피</span></div>
+          </div>
+        </section>
+      </div>
+    );
+  }
+
+  function SchedulePane({ division }) {
+    const schedule = [
+      { date: '2026.06.15 (월)', label: '예선 1일차', games: 16, div: ['오픈', '아마추어'] },
+      { date: '2026.06.16 (화)', label: '예선 2일차', games: 16, div: ['오픈', '아마추어', 'U18'] },
+      { date: '2026.06.17 (수)', label: '예선 3일차', games: 12, div: ['U18'] },
+      { date: '2026.06.20 (토)', label: '본선 8강·4강', games: 12, div: ['오픈', '아마추어', 'U18'] },
+      { date: '2026.06.21 (일)', label: '결승', games: 6, div: ['오픈', '아마추어', 'U18'] },
+    ];
+    const list = division === '__all' ? schedule : schedule.filter(s => s.div.includes(division));
+    return (
+      <div className="td-pane">
+        <h2 className="td-h2">전체 일정 {division !== '__all' && <span className="td-h2__chip">[{division}]</span>}</h2>
+        <table className="td-table">
+          <thead>
+            <tr><th>날짜</th><th>구분</th><th>경기 수</th><th>종별</th><th></th></tr>
+          </thead>
+          <tbody>
+            {list.map((s, i) => (
+              <tr key={i}>
+                <td className="td-table__date">{s.date}</td>
+                <td><b>{s.label}</b></td>
+                <td className="td-table__num">{s.games}경기</td>
+                <td className="td-table__divs">{s.div.map(d => <span key={d} className="td-divtag">{d}</span>)}</td>
+                <td className="td-table__action"><button className="btn btn--sm btn--ghost">상세</button></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  }
+
+  function BracketPane({ t, division }) {
+    const b = t.bracket;
+    return (
+      <div className="td-pane">
+        {/* B5 — version meta */}
+        <div className="td-bracket-meta">
+          <div className="td-bracket-meta__left">
+            <span className="td-bracket-meta__chip">
+              <span className="ico material-symbols-outlined">history</span>
+              버전 {b.version}
+            </span>
+            <span className="td-bracket-meta__upd">
+              마지막 갱신 {b.last_updated_min}분 전 · {b.author} 운영자
+            </span>
+          </div>
+          <div className="td-bracket-meta__right">
+            <span className="td-bracket-meta__my">
+              <span className="td-bracket-meta__my-dot" />
+              내 팀: <b>{b.my_team_name}</b> (#{b.my_team_seed} 시드)
+            </span>
+            <button className="btn btn--sm btn--ghost">
+              <span className="ico material-symbols-outlined">notifications</span>
+              변경 알림 받기
+            </button>
+          </div>
+        </div>
+
+        <h2 className="td-h2">{division === '__all' ? '아마추어 본선 토너먼트' : `[${division}] 본선 토너먼트`}</h2>
+
+        {/* Mini bracket visualization */}
+        <div className="td-bracket">
+          {[
+            { round: '16강', games: [
+              { id: 'g1', a: 'rdm 농구단', b: '강남BC', mine: true, seed_a: 4, seed_b: 13 },
+              { id: 'g2', a: '서초파이브', b: '용산레전드', seed_a: 5, seed_b: 12 },
+              { id: 'g3', a: '마포드림', b: '동작볼러스', seed_a: 6, seed_b: 11 },
+              { id: 'g4', a: '광진코프', b: '성동슈터', seed_a: 7, seed_b: 10 },
+            ]},
+            { round: '8강', games: [
+              { id: 'g5', a: 'TBD (g1 승)', b: 'TBD (g2 승)', tbd: true },
+              { id: 'g6', a: 'TBD (g3 승)', b: 'TBD (g4 승)', tbd: true },
+            ]},
+            { round: '4강', games: [
+              { id: 'g7', a: 'TBD', b: 'TBD', tbd: true },
+            ]},
+            { round: '결승', games: [
+              { id: 'g8', a: '???', b: '???', tbd: true },
+            ]},
+          ].map((col, ci) => (
+            <div key={ci} className="td-br-col">
+              <div className="td-br-col__h">{col.round}</div>
+              {col.games.map(g => (
+                <div key={g.id} className={'td-br-game' + (g.mine ? ' is-mine' : '') + (g.tbd ? ' is-tbd' : '')}>
+                  <div className="td-br-team">
+                    {!g.tbd && <span className="td-br-seed">{g.seed_a}</span>}
+                    <span className="td-br-name">{g.a}</span>
+                  </div>
+                  <div className="td-br-team">
+                    {!g.tbd && <span className="td-br-seed">{g.seed_b}</span>}
+                    <span className="td-br-name">{g.b}</span>
+                  </div>
+                  {g.mine && <span className="td-br-mine">내 팀</span>}
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  function TeamsPane({ division }) {
+    const teams = [
+      { name: 'rdm 농구단', div: '아마추어', mine: true, captain: 'rdm_captain', roster: 8 },
+      { name: '강남BC',      div: '오픈',    captain: 'gn_lee',      roster: 10 },
+      { name: '서초파이브',  div: '오픈',    captain: 'sc_park',     roster: 9 },
+      { name: '용산레전드',  div: '오픈',    captain: 'yong_kim',    roster: 8 },
+      { name: '마포드림',    div: '아마추어', captain: 'mp_choi',    roster: 7 },
+      { name: '동작볼러스',  div: 'U18',     captain: 'dj_jung',    roster: 8 },
+      { name: '광진코프',    div: '아마추어', captain: 'gj_yang',    roster: 9 },
+      { name: '성동슈터',    div: 'U18',     captain: 'sd_hong',    roster: 8 },
+    ];
+    const list = division === '__all' ? teams : teams.filter(t => t.div === division);
+    return (
+      <div className="td-pane">
+        <h2 className="td-h2">참가팀 ({list.length})</h2>
+        <div className="td-teams">
+          {list.map(t => (
+            <div key={t.name} className={'td-team-card' + (t.mine ? ' is-mine' : '')}>
+              <div className="td-team-card__top">
+                <span className="td-divtag td-divtag--lg">{t.div}</span>
+                {t.mine && <span className="td-team-card__mine">내 팀</span>}
+              </div>
+              <div className="td-team-card__name">{t.name}</div>
+              <div className="td-team-card__meta">
+                <span>주장 <b>@{t.captain}</b></span>
+                <span>· 엔트리 {t.roster}명</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  function RulesPane() {
+    return (
+      <div className="td-pane">
+        <h2 className="td-h2">대회 규정</h2>
+        <ol className="td-rules">
+          <li><b>경기 시간</b> — 예선 8분 4쿼터 / 본선 10분 4쿼터. 연장은 3분 1회.</li>
+          <li><b>엔트리</b> — 팀당 최대 12명. 외국인 선수는 종별별 상이 (오픈 2명 / 아마추어 0명).</li>
+          <li><b>파울 룰</b> — 5반칙 퇴장. 팀 파울 5회부터 자유투 2개.</li>
+          <li><b>이의신청</b> — 경기 종료 후 30분 이내 운영본부에 서면 접수.</li>
+          <li><b>유니폼</b> — 동일 색상 통일 의무. 등번호 0~99 중복 금지.</li>
+          <li><b>실격</b> — 경기 지각 15분 시 자동 패배 처리. 두 번 실격 시 대회 출전권 박탈.</li>
+        </ol>
+      </div>
+    );
+  }
+
+  // ---------- Sidebar (B1 + B7) ----------
+  function Sidebar({ isAdmin, onTogglePreview, previewMode }) {
+    return (
+      <aside className="td-side">
+        <window.MyRegistrationStatus reg={MY_REG} variant="sidebar" onOpenMy={() => {}} />
+
+        {/* B7 — admin preview toggle (운영자만 보임) */}
+        {isAdmin && (
+          <div className="td-side__preview">
+            <div className="td-side__preview-h">
+              <span className="ico material-symbols-outlined">visibility</span>
+              <span className="td-side__preview-title">운영자 화면 전환</span>
+            </div>
+            <p className="td-side__preview-desc">
+              현재 publish 상태로 사용자가 어떻게 보는지 미리 확인합니다.
+            </p>
+            <div className="td-side__preview-toggle">
+              <button
+                className={'td-side__preview-btn' + (!previewMode ? ' is-on' : '')}
+                onClick={() => onTogglePreview(false)}>
+                관리자
+              </button>
+              <button
+                className={'td-side__preview-btn' + (previewMode ? ' is-on' : '')}
+                onClick={() => onTogglePreview(true)}>
+                사용자 (미리보기)
+              </button>
+            </div>
+          </div>
+        )}
+
+        <div className="td-side__contact">
+          <h3 className="td-side__h">문의</h3>
+          <ul className="td-side__contact-list">
+            <li><span className="ico material-symbols-outlined">mail</span>support@bdr.kr</li>
+            <li><span className="ico material-symbols-outlined">phone</span>02-1234-5678</li>
+            <li><span className="ico material-symbols-outlined">chat</span>운영자 쪽지 보내기</li>
           </ul>
         </div>
-      ))}
-      <div style={{padding:'14px 16px', background:'var(--bg-alt)', borderRadius:6, fontSize:12, color:'var(--ink-mute)'}}>
-        규정 전문 PDF는 참가 신청 시 함께 발송됩니다.
-      </div>
-    </div>
-  );
-}
+      </aside>
+    );
+  }
 
-window.TournamentDetail = TournamentDetail;
+  window.TournamentDetail = function TournamentDetail({ setRoute, isAdmin = false }) {
+    const [tab, setTab] = useState('overview');
+    const [div, setDiv] = useState('__all');
+    const [previewMode, setPreviewMode] = useState(false);
+
+    const pane = useMemo(() => {
+      if (tab === 'overview') return <OverviewPane t={T} division={div} />;
+      if (tab === 'schedule') return <SchedulePane division={div} />;
+      if (tab === 'bracket')  return <BracketPane t={T} division={div} />;
+      if (tab === 'teams')    return <TeamsPane division={div} />;
+      return <RulesPane />;
+    }, [tab, div]);
+
+    return (
+      <div className="td-page">
+        <div className="td-page__inner">
+          <window.Crumbs trail={['홈', '대회', T.name]} />
+          <Hero t={T} />
+
+          {/* Sticky bar: division selector + tab bar */}
+          <div className="td-sticky">
+            <DivisionChips divisions={T.divisions} value={div} onChange={setDiv} />
+            <TabBar active={tab} onChange={setTab} />
+          </div>
+
+          <div className="td-body">
+            <div className="td-body__main">
+              {pane}
+            </div>
+            <Sidebar isAdmin={isAdmin} previewMode={previewMode} onTogglePreview={setPreviewMode} />
+          </div>
+        </div>
+
+        {/* Mobile sticky bottom — "내 참가 현황" 펼침/접힘 */}
+        <div className="td-mobile-sticky">
+          <button className="td-mobile-sticky__btn">
+            <span className="td-mobile-sticky__txt">
+              <span className="td-mobile-sticky__title">내 참가: 결제 대기 (D-2)</span>
+              <span className="td-mobile-sticky__sub">5/2까지 ₩40,000 결제 필요</span>
+            </span>
+            <span className="td-mobile-sticky__cta">결제하기</span>
+          </button>
+        </div>
+      </div>
+    );
+  };
+})();

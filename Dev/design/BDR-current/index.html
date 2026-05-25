@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>BDR v2.18 · Phase 1B 시안 목차</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800;900&family=JetBrains+Mono:wght@500;700;800&family=Pretendard:wght@400;500;600;700;800;900&display=swap" />
+<link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Symbols+Outlined" />
+<link rel="stylesheet" href="tokens.css" />
+<link rel="stylesheet" href="shell.css" />
+<style>
+.index-page { max-width: 1240px; margin: 0 auto; padding: 56px 32px 80px; }
+.index-hero { margin-bottom: 36px; }
+.index-hero h1 { font-family: var(--ff-display); font-size: 40px; font-weight: 900; letter-spacing: -0.025em; margin: 8px 0 12px; }
+.index-hero p { margin: 0; color: var(--ink-soft); max-width: 760px; font-size: 15px; line-height: 1.7; }
+
+.index-summary {
+  margin: 28px 0;
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;
+}
+.index-stat {
+  background: var(--bg-elev); border: 1px solid var(--border);
+  border-radius: var(--r-md); padding: 16px 20px;
+}
+.index-stat__v { font-family: var(--ff-display); font-size: 32px; font-weight: 900; letter-spacing: -0.02em; color: var(--ink); line-height: 1; }
+.index-stat__l { font-family: var(--ff-mono); font-size: 10.5px; font-weight: 700; color: var(--ink-mute); letter-spacing: 0.08em; text-transform: uppercase; margin-top: 8px; }
+.index-stat--accent .index-stat__v { color: var(--accent); }
+
+.index-section { margin-top: 36px; }
+.index-section__h {
+  font-family: var(--ff-display); font-size: 20px; font-weight: 800; letter-spacing: -0.015em;
+  margin: 0 0 4px;
+  display: flex; align-items: center; gap: 10px;
+}
+.index-section__num {
+  font-family: var(--ff-mono); font-size: 11px; font-weight: 800;
+  color: var(--accent); letter-spacing: 0.1em;
+  background: var(--accent-soft);
+  padding: 3px 8px; border-radius: var(--r-xs);
+}
+.index-section__sub { margin: 0 0 16px; font-size: 13.5px; color: var(--ink-mute); }
+
+.index-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+.index-card {
+  background: var(--bg-elev); border: 1px solid var(--border);
+  border-radius: var(--r-lg); padding: 22px 24px;
+  text-decoration: none; color: inherit;
+  display: flex; flex-direction: column; gap: 8px;
+  transition: border-color .12s, box-shadow .12s, transform .12s;
+}
+.index-card:hover { border-color: var(--accent-hair); box-shadow: var(--sh-md); transform: translateY(-1px); }
+.index-card__top { display: flex; align-items: baseline; gap: 8px; }
+.index-card__id {
+  font-family: var(--ff-mono); font-size: 11px; font-weight: 800;
+  color: var(--accent); letter-spacing: 0.1em;
+  background: var(--accent-soft);
+  padding: 3px 8px; border-radius: var(--r-xs);
+}
+.index-card__kind {
+  font-family: var(--ff-mono); font-size: 10px; font-weight: 700;
+  color: var(--ink-mute); letter-spacing: 0.06em; text-transform: uppercase;
+}
+.index-card__title { font-family: var(--ff-display); font-size: 17px; font-weight: 800; margin: 4px 0 2px; letter-spacing: -0.005em; }
+.index-card__route { font-family: var(--ff-mono); font-size: 11.5px; color: var(--cafe-blue-deep); }
+.index-card__desc { font-size: 13px; color: var(--ink-soft); line-height: 1.55; margin-top: 6px; }
+.index-card__tags { display: flex; gap: 4px; margin-top: 8px; flex-wrap: wrap; }
+.index-card__tag {
+  font-family: var(--ff-mono); font-size: 9.5px; font-weight: 800;
+  padding: 2px 6px;
+  background: var(--bg-head); color: var(--ink-soft);
+  border-radius: var(--r-xs); letter-spacing: 0.04em;
+}
+.index-card__tag--gap { background: var(--cafe-blue-soft); color: var(--cafe-blue-deep); }
+.index-card__tag--new { background: var(--accent); color: #fff; }
+
+.index-checks {
+  margin-top: 36px; padding: 22px 26px;
+  background: var(--bg-elev); border: 1px solid var(--border); border-radius: var(--r-lg);
+}
+.index-checks h3 { font-family: var(--ff-display); font-size: 16px; font-weight: 800; margin: 0 0 12px; }
+.index-checks ul { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 6px 16px; }
+.index-checks li { font-size: 13px; color: var(--ink-soft); display: flex; align-items: flex-start; gap: 6px; line-height: 1.55; }
+.index-checks li::before { content: '✓'; color: var(--ok); font-weight: 800; flex-shrink: 0; }
+
+@media (max-width: 720px) {
+  .index-summary { grid-template-columns: 1fr 1fr; }
+  .index-grid { grid-template-columns: 1fr; }
+  .index-checks ul { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+<div class="index-page">
+  <header class="index-hero">
+    <div class="eyebrow">BDR v2.18 · Phase 1B · 2026-05-25</div>
+    <h1>대회 사용자 측 + 사용자↔관리자 연결 다리</h1>
+    <p>
+      <b>운영 코드 변경 0 — 시안 박제만.</b>
+      상위 계획서의 B1~B7 연결성 갭 7건 중 5건 양측 (B1/B3/B5/B6/B7) + 사용자 측 단독 2건 (B2/B4) 해소.
+      사용자 측 5 시안 (A 등급 / AppNav frozen) + 관리자 보강 3 시안 (E 등급 자체 영역) = 8 시안 + 1 컴포넌트.
+    </p>
+    <div class="index-summary">
+      <div class="index-stat"><div class="index-stat__v">8</div><div class="index-stat__l">시안</div></div>
+      <div class="index-stat"><div class="index-stat__v">9</div><div class="index-stat__l">파일</div></div>
+      <div class="index-stat index-stat--accent"><div class="index-stat__v">7</div><div class="index-stat__l">갭 해소 (B1~B7)</div></div>
+      <div class="index-stat"><div class="index-stat__v">0</div><div class="index-stat__l">운영 코드 변경</div></div>
+    </div>
+  </header>
+
+  <section class="index-section">
+    <h2 class="index-section__h"><span class="index-section__num">U-A</span> 사용자 측 (3 파일)</h2>
+    <p class="index-section__sub">전면교체 1 / 부분수정 2. A 등급 — AppNav frozen 카피 / 위반 검수 4 케이스 통과.</p>
+    <div class="index-grid">
+      <a class="index-card" href="ua1-tournaments.html">
+        <div class="index-card__top">
+          <span class="index-card__id">UA1</span>
+          <span class="index-card__kind">전면교체</span>
+        </div>
+        <div class="index-card__title">대회 목록</div>
+        <div class="index-card__route">/tournaments</div>
+        <p class="index-card__desc">카드 grid + sticky 필터 + 정원 progress + status 뱃지 + 종료 카드 우승팀 라인. <code>--color-*</code> 폐기 토큰 0.</p>
+        <div class="index-card__tags">
+          <span class="index-card__tag index-card__tag--gap">B4</span>
+          <span class="index-card__tag index-card__tag--gap">B6</span>
+          <span class="index-card__tag index-card__tag--gap">B7</span>
+        </div>
+      </a>
+      <a class="index-card" href="ua2-tournament-detail.html">
+        <div class="index-card__top">
+          <span class="index-card__id">UA2</span>
+          <span class="index-card__kind">부분수정</span>
+        </div>
+        <div class="index-card__title">대회 상세</div>
+        <div class="index-card__route">/tournaments/[id]</div>
+        <p class="index-card__desc">hero + 종별 selector sticky (B2) + 5 탭 + sidebar 5-단계 step + 대진표 버전 표시 + 운영자 미리보기.</p>
+        <div class="index-card__tags">
+          <span class="index-card__tag index-card__tag--gap">B1</span>
+          <span class="index-card__tag index-card__tag--gap">B2</span>
+          <span class="index-card__tag index-card__tag--gap">B4</span>
+          <span class="index-card__tag index-card__tag--gap">B5</span>
+          <span class="index-card__tag index-card__tag--gap">B7</span>
+        </div>
+      </a>
+      <a class="index-card" href="ua3-tournament-enroll.html">
+        <div class="index-card__top">
+          <span class="index-card__id">UA3</span>
+          <span class="index-card__kind">부분보강</span>
+        </div>
+        <div class="index-card__title">대회 신청</div>
+        <div class="index-card__route">/tournaments/[id]/join</div>
+        <p class="index-card__desc">5단계 stepper 보존 + step 5 결제 강화 (결제수단 3종 + 명세) + 사후 안내 page.</p>
+        <div class="index-card__tags">
+          <span class="index-card__tag index-card__tag--gap">B3</span>
+        </div>
+      </a>
+    </div>
+  </section>
+
+  <section class="index-section">
+    <h2 class="index-section__h"><span class="index-section__num">U-B</span> 사용자 측 신규 (1 파일)</h2>
+    <p class="index-section__sub">D1 (관리자 종료 hub) 의 사용자 카운터파트. 같은 라우트 status 분기.</p>
+    <div class="index-grid">
+      <a class="index-card" href="ub1-tournament-completed.html">
+        <div class="index-card__top">
+          <span class="index-card__id">UB1</span>
+          <span class="index-card__kind">신규 (status 분기)</span>
+        </div>
+        <div class="index-card__title">대회 종료 발표</div>
+        <div class="index-card__route">/tournaments/[id] · status='completed'</div>
+        <p class="index-card__desc">🏆 우승팀 hero + 5 카드 (final standings / MVP·베스트5 / 사진 갤러리 / 알기자 / 다음 회차) + 공유.</p>
+        <div class="index-card__tags">
+          <span class="index-card__tag index-card__tag--new">NEW</span>
+          <span class="index-card__tag index-card__tag--gap">B6</span>
+        </div>
+      </a>
+    </div>
+  </section>
+
+  <section class="index-section">
+    <h2 class="index-section__h"><span class="index-section__num">U-C</span> 마이페이지 통합 (1 파일 + 1 컴포넌트)</h2>
+    <p class="index-section__sub">B1 진입 보강. 더보기 메뉴 신규 추가 ❌ — 마이페이지 sub-link 만.</p>
+    <div class="index-grid">
+      <a class="index-card" href="uc1-my-activity.html">
+        <div class="index-card__top">
+          <span class="index-card__id">UC1</span>
+          <span class="index-card__kind">부분수정</span>
+        </div>
+        <div class="index-card__title">마이페이지 — "내 대회" 섹션</div>
+        <div class="index-card__route">/profile/activity</div>
+        <p class="index-card__desc">신청한 대회 카드 list + 상태별 정렬 (pending 상단 / rejected 하단). MyRegistrationStatus 컴포넌트 재사용.</p>
+        <div class="index-card__tags">
+          <span class="index-card__tag index-card__tag--gap">B1</span>
+        </div>
+      </a>
+    </div>
+  </section>
+
+  <section class="index-section">
+    <h2 class="index-section__h"><span class="index-section__num">U-D</span> 관리자 보강 (3 파일)</h2>
+    <p class="index-section__sub">E 등급 — AppNav 적용 외. 기존 시안 위에 보강. 운영 코드 변경 0.</p>
+    <div class="index-grid">
+      <a class="index-card" href="ud1-admin-teams.html">
+        <div class="index-card__top">
+          <span class="index-card__id">UD1</span>
+          <span class="index-card__kind">관리자 보강</span>
+        </div>
+        <div class="index-card__title">참가팀 관리</div>
+        <div class="index-card__route">/tournament-admin/tournaments/[id]/teams</div>
+        <p class="index-card__desc">B4 정원 진행도 카드 + B1 알림 액션 bar + B3 payment_status 컬럼.</p>
+        <div class="index-card__tags">
+          <span class="index-card__tag index-card__tag--gap">B1</span>
+          <span class="index-card__tag index-card__tag--gap">B3</span>
+          <span class="index-card__tag index-card__tag--gap">B4</span>
+        </div>
+      </a>
+      <a class="index-card" href="ud2-admin-bracket.html">
+        <div class="index-card__top">
+          <span class="index-card__id">UD2</span>
+          <span class="index-card__kind">관리자 보강</span>
+        </div>
+        <div class="index-card__title">대진표 관리</div>
+        <div class="index-card__route">/tournament-admin/tournaments/[id]/bracket</div>
+        <p class="index-card__desc">B5 publish 시 알림 체크박스 + 변경 이력 panel (tournament_bracket_versions).</p>
+        <div class="index-card__tags">
+          <span class="index-card__tag index-card__tag--gap">B5</span>
+        </div>
+      </a>
+      <a class="index-card" href="ud3-admin-setup.html">
+        <div class="index-card__top">
+          <span class="index-card__id">UD3</span>
+          <span class="index-card__kind">관리자 보강</span>
+        </div>
+        <div class="index-card__title">셋업 hub</div>
+        <div class="index-card__route">/tournament-admin/tournaments/[id]</div>
+        <p class="index-card__desc">Phase 1A B1 (진행도 bar) 보존 + B7 "사용자 미리보기" link 카드 (9번째 secondary 카드).</p>
+        <div class="index-card__tags">
+          <span class="index-card__tag index-card__tag--gap">B7</span>
+        </div>
+      </a>
+    </div>
+  </section>
+
+  <section class="index-checks">
+    <h3>자체 검수 통과 (06-self-checklist)</h3>
+    <ul>
+      <li>AppNav frozen — 03 카피 / 위반 검수 4 케이스 통과 (사용자 측 5 시안)</li>
+      <li>더보기 — 가짜링크 4건 (gameResult/gameReport/guestApps/referee) 추가 ❌</li>
+      <li>디자인 토큰 — var(--*) 100% / `--color-*` 폐기 토큰 0 / lucide-react 0</li>
+      <li>라운딩 — 버튼·카드 4-8px / pill 9999px 0</li>
+      <li>모바일 — 720px 분기 / iOS input 16px / 버튼 44px 터치</li>
+      <li>아이콘 — Material Symbols Outlined / 검증된 이모지 (🏆/⭐)</li>
+      <li>색상 — accent/cafe-blue/ok/ink-mute 토큰만 / 핑크·살몬·코랄 ❌</li>
+      <li>사용자 결정 §1/§2/§6/§7 보존 (사용자 측 시안)</li>
+    </ul>
+  </section>
+</div>
+</body>
+</html>

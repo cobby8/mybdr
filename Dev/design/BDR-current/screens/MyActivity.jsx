@@ -1,116 +1,207 @@
-/* global React, TOURNAMENTS, TEAMS */
+/* global React */
+// ============================================================
+// MyActivity.jsx — UC1 (마이페이지 통합 — "내 대회" 섹션 신설)
+//   진입: setRoute('myActivity')   /profile/activity
+//   복귀: setRoute('myPage')
+//
+//   B1 갭의 진입 보강 — MyRegistrationStatus 컴포넌트를 마이페이지 list 에 재사용.
+//   더보기 메뉴 신규 추가 ❌ — 마이페이지 안 카드로만 진입 (룰 §2 통과).
+// ============================================================
 
-function MyActivity({ setRoute }) {
-  const [tab, setTab] = React.useState('all');
+(function () {
+  const { useState, useMemo } = React;
 
-  const items = [
-    { kind:'tournament', status:'pending', title:'BDR CHALLENGE SPRING 2026', sub:'팀 신청 · 검토중', when:'D-14', meta:'참가비 ₩80,000', accent:'var(--warn)', route:'matchDetail' },
-    { kind:'game',       status:'confirmed', title:'장충체육관 픽업 3v3', sub:'토 19:00 · 4명 모집', when:'토 19:00', meta:'본인 신청 확정', accent:'var(--ok)', route:'gameDetail' },
-    { kind:'team',       status:'pending', title:'리딤 (RDM)', sub:'팀 가입 신청 · 팀장 검토중', when:'2일 전', meta:'서울 강남 · D3', accent:'var(--warn)', route:'teamDetail' },
-    { kind:'tournament', status:'confirmed', title:'KINGS CUP VOL.07', sub:'팀 등록 확정', when:'D-3', meta:'예선 토 10:00', accent:'var(--ok)', route:'matchDetail' },
-    { kind:'game',       status:'cancelled', title:'한강 농구코트 픽업', sub:'주최자 취소', when:'어제', meta:'환불 처리됨', accent:'var(--danger)', route:'gameDetail' },
-    { kind:'team',       status:'rejected', title:'몽키즈 (MKZ)', sub:'팀 가입 신청 · 거절', when:'1주 전', meta:'정원 마감', accent:'var(--danger)', route:'teamDetail' },
-    { kind:'game',       status:'past', title:'올림픽공원 5v5', sub:'완료 · 24-19 승', when:'1주 전', meta:'스탯 입력 완료', accent:'var(--ink-mute)', route:'gameResult' },
+  const SECTIONS = [
+    { key: 'tournaments', label: '내 대회',     ico: 'emoji_events' },
+    { key: 'games',       label: '내 신청 경기', ico: 'sports_basketball' },
+    { key: 'teams',       label: '내 팀',       ico: 'groups' },
+    { key: 'saved',       label: '저장한 항목', ico: 'bookmark' },
   ];
 
-  const filters = [
-    { id:'all',  label:'전체', count: items.length },
-    { id:'tournament', label:'대회', count: items.filter(x=>x.kind==='tournament').length },
-    { id:'game', label:'경기', count: items.filter(x=>x.kind==='game').length },
-    { id:'team', label:'팀',   count: items.filter(x=>x.kind==='team').length },
-    { id:'pending', label:'검토중', count: items.filter(x=>x.status==='pending').length },
+  const STATUS_FILTERS = [
+    { key: 'all',         label: '전체' },
+    { key: 'pending',     label: '승인 대기' },
+    { key: 'approved',    label: '결제 대기' },
+    { key: 'in_progress', label: '진행 중' },
+    { key: 'completed',   label: '종료' },
+    { key: 'rejected',    label: '거절' },
   ];
-  const shown = tab === 'all' ? items
-    : tab === 'pending' ? items.filter(x=>x.status==='pending')
-    : items.filter(x=>x.kind===tab);
 
-  const statusLabel = { pending:'검토중', confirmed:'확정', rejected:'거절', cancelled:'취소', past:'완료' };
-  const statusBadge = { pending:'badge--warn', confirmed:'badge--ok', rejected:'badge--ghost', cancelled:'badge--ghost', past:'badge--ghost' };
-  const kindIcon = { tournament:'🏆', game:'🏀', team:'👥' };
+  // status sort order — pending 상단, rejected 하단 (UC1 룰)
+  const STATUS_ORDER = {
+    pending: 0,
+    approved: 1,
+    in_progress: 2,
+    paid: 2,
+    completed: 3,
+    waitlist: 3,
+    rejected: 4,
+  };
 
-  // counters at top
-  const pending = items.filter(x=>x.status==='pending').length;
-  const upcoming = items.filter(x=>x.status==='confirmed' && (x.when.startsWith('D-') || x.when.startsWith('토') || x.when.startsWith('일'))).length;
+  function Sidebar({ active, onChange }) {
+    return (
+      <aside className="ma-side">
+        <div className="ma-side__profile">
+          <div className="ma-side__av">RDM</div>
+          <div className="ma-side__info">
+            <div className="ma-side__name">rdm_captain</div>
+            <div className="ma-side__handle">@rdm_captain</div>
+          </div>
+        </div>
+        <nav className="ma-side__nav">
+          <a className="ma-side__link" data-active={active === '__home' ? 'true' : 'false'}>
+            <span className="ico material-symbols-outlined">person</span>
+            <span>프로필</span>
+          </a>
+          <div className="ma-side__group">활동</div>
+          {SECTIONS.map(s => (
+            <a key={s.key} className="ma-side__link"
+               data-active={active === s.key ? 'true' : 'false'}
+               onClick={() => onChange(s.key)}>
+              <span className="ico material-symbols-outlined">{s.ico}</span>
+              <span>{s.label}</span>
+            </a>
+          ))}
+          <div className="ma-side__group">설정</div>
+          <a className="ma-side__link">
+            <span className="ico material-symbols-outlined">notifications</span>
+            <span>알림 설정</span>
+          </a>
+          <a className="ma-side__link">
+            <span className="ico material-symbols-outlined">manage_accounts</span>
+            <span>계정 설정</span>
+          </a>
+        </nav>
+      </aside>
+    );
+  }
 
-  return (
-    <div className="page">
-      <div style={{fontSize:12, color:'var(--ink-mute)', marginBottom:10}}>
-        <a onClick={()=>setRoute('profile')} style={{cursor:'pointer'}}>프로필</a> › <span style={{color:'var(--ink)'}}>내 활동</span>
+  function StatCard({ count, sub, accent }) {
+    return (
+      <div className={'ma-stat' + (accent ? ' ma-stat--accent' : '')}>
+        <span className="ma-stat__count">{count}</span>
+        <span className="ma-stat__sub">{sub}</span>
       </div>
+    );
+  }
 
-      <div style={{display:'flex', alignItems:'baseline', justifyContent:'space-between', marginBottom:18, flexWrap:'wrap', gap:10}}>
-        <div>
-          <div className="eyebrow">내 활동 · MY ACTIVITY</div>
-          <h1 style={{margin:'6px 0 4px', fontSize:28, fontWeight:800, letterSpacing:'-0.02em'}}>신청한 모든 것</h1>
-          <div style={{fontSize:13, color:'var(--ink-mute)'}}>경기 · 대회 · 팀 가입 신청을 한 화면에서</div>
+  function EmptyState() {
+    return (
+      <div className="ma-empty">
+        <span className="ico material-symbols-outlined">emoji_events</span>
+        <div className="ma-empty__title">아직 신청한 대회가 없습니다</div>
+        <div className="ma-empty__sub">모집 중인 대회를 둘러보세요. 우리 동네 대회도 있습니다.</div>
+        <button className="btn btn--accent btn--touch">대회 둘러보기 →</button>
+      </div>
+    );
+  }
+
+  function TournamentsSection() {
+    const [filter, setFilter] = useState('all');
+
+    const all = window.MY_TOURNAMENTS || [];
+    const counts = useMemo(() => ({
+      all: all.length,
+      pending: all.filter(r => r.status === 'pending').length,
+      approved: all.filter(r => r.status === 'approved').length,
+      in_progress: all.filter(r => r.status === 'in_progress').length,
+      completed: all.filter(r => r.status === 'completed').length,
+      rejected: all.filter(r => r.status === 'rejected').length,
+    }), [all]);
+
+    const filtered = useMemo(() => {
+      const list = filter === 'all' ? all.slice() : all.filter(r => r.status === filter);
+      list.sort((a, b) => {
+        const oa = STATUS_ORDER[a.status] ?? 9;
+        const ob = STATUS_ORDER[b.status] ?? 9;
+        if (oa !== ob) return oa - ob;
+        return b.submitted_at.localeCompare(a.submitted_at);
+      });
+      return list;
+    }, [filter, all]);
+
+    return (
+      <div className="ma-tn">
+        <header className="ma-tn__head">
+          <window.Eyebrow>MY TOURNAMENTS · 내 대회</window.Eyebrow>
+          <h1 className="ma-tn__title">신청한 대회</h1>
+          <p className="ma-tn__sub">
+            내 대회 <b>{counts.all}</b>건 · 진행 중 <b>{counts.in_progress}</b>건
+            {counts.pending > 0 && <> · 승인 대기 <b className="ma-tn__accent">{counts.pending}</b>건</>}
+            {counts.approved > 0 && <> · 결제 대기 <b className="ma-tn__accent">{counts.approved}</b>건</>}
+          </p>
+        </header>
+
+        {/* Stats strip */}
+        <div className="ma-stats">
+          <StatCard count={counts.pending} sub="승인 대기" accent={counts.pending > 0} />
+          <StatCard count={counts.approved} sub="결제 대기" accent={counts.approved > 0} />
+          <StatCard count={counts.in_progress} sub="진행 중" />
+          <StatCard count={counts.completed} sub="종료" />
+        </div>
+
+        {/* Filter chips */}
+        <div className="ma-filter">
+          {STATUS_FILTERS.map(f => (
+            <button key={f.key}
+              className={'ma-filter__chip' + (filter === f.key ? ' is-on' : '')}
+              onClick={() => setFilter(f.key)}>
+              {f.label}
+              <span className="ma-filter__count">{counts[f.key] ?? 0}</span>
+            </button>
+          ))}
+        </div>
+
+        {filtered.length === 0
+          ? <EmptyState />
+          : <ul className="ma-list">
+              {filtered.map(reg => (
+                <li key={reg.id}>
+                  <window.MyRegistrationStatus reg={reg} variant="compact" />
+                </li>
+              ))}
+            </ul>}
+      </div>
+    );
+  }
+
+  function OtherSection({ label, ico }) {
+    return (
+      <div className="ma-other">
+        <window.Eyebrow>{label.toUpperCase()}</window.Eyebrow>
+        <h1 className="ma-tn__title">{label}</h1>
+        <div className="ma-other__placeholder">
+          <span className="ico material-symbols-outlined">{ico}</span>
+          <div>
+            <div className="ma-other__title">이 영역은 본 의뢰 범위 외</div>
+            <div className="ma-other__sub">
+              UC1 시안은 "내 대회" 섹션 신설만 해당. 다른 섹션 (내 신청 경기 / 내 팀 / 저장한 항목) 은
+              기존 마이페이지 hub 골격을 보존합니다. (Phase 13 박제)
+            </div>
+          </div>
         </div>
       </div>
+    );
+  }
 
-      {/* counters */}
-      <div style={{display:'grid', gridTemplateColumns:'repeat(4, 1fr)', gap:10, marginBottom:18}}>
-        {[
-          { n: pending, lbl:'검토중', tone:'var(--warn)' },
-          { n: upcoming, lbl:'예정', tone:'var(--cafe-blue)' },
-          { n: items.filter(x=>x.status==='past').length, lbl:'완료', tone:'var(--ink-mute)' },
-          { n: items.filter(x=>x.status==='rejected'||x.status==='cancelled').length, lbl:'취소·거절', tone:'var(--ink-dim)' },
-        ].map((c,i)=> (
-          <div key={i} className="card" style={{padding:'14px 16px', borderTop:`3px solid ${c.tone}`}}>
-            <div style={{fontFamily:'var(--ff-display)', fontSize:32, fontWeight:900, lineHeight:1, color:c.tone}}>{c.n}</div>
-            <div style={{fontSize:12, color:'var(--ink-mute)', marginTop:4}}>{c.lbl}</div>
+  window.MyActivity = function MyActivity({ setRoute, defaultSection = 'tournaments' }) {
+    const [section, setSection] = useState(defaultSection);
+    return (
+      <div className="ma-page">
+        <div className="ma-page__inner">
+          <window.Crumbs trail={['홈', '마이페이지', '내 활동']} />
+
+          <div className="ma-shell">
+            <Sidebar active={section} onChange={setSection} />
+            <main className="ma-main">
+              {section === 'tournaments' && <TournamentsSection />}
+              {section === 'games'       && <OtherSection label="내 신청 경기" ico="sports_basketball" />}
+              {section === 'teams'       && <OtherSection label="내 팀" ico="groups" />}
+              {section === 'saved'       && <OtherSection label="저장한 항목" ico="bookmark" />}
+            </main>
           </div>
-        ))}
+        </div>
       </div>
-
-      {/* filter chips */}
-      <div style={{display:'flex', gap:8, marginBottom:14, flexWrap:'wrap'}}>
-        {filters.map(f => (
-          <button key={f.id} className="btn btn--sm" onClick={()=>setTab(f.id)}
-            style={tab===f.id ? {background:'var(--cafe-blue)', color:'#fff', borderColor:'var(--cafe-blue-deep)'} : {}}>
-            {f.label} <span style={{fontFamily:'var(--ff-mono)', opacity:.7, marginLeft:4}}>{f.count}</span>
-          </button>
-        ))}
-      </div>
-
-      {/* list */}
-      <div className="card" style={{padding:0, overflow:'hidden'}}>
-        {shown.map((it, i) => (
-          <div key={i} onClick={()=>setRoute(it.route)} style={{
-            display:'grid', gridTemplateColumns:'40px 1fr auto auto', gap:14,
-            alignItems:'center', padding:'14px 18px',
-            borderBottom: i<shown.length-1 ? '1px solid var(--border)' : 0,
-            cursor:'pointer',
-            borderLeft: `3px solid ${it.accent}`,
-          }}>
-            <div style={{fontSize:22}}>{kindIcon[it.kind]}</div>
-            <div style={{minWidth:0}}>
-              <div style={{display:'flex', alignItems:'center', gap:8, marginBottom:4}}>
-                <span className={`badge ${statusBadge[it.status]}`}>{statusLabel[it.status]}</span>
-                <span style={{fontSize:11, color:'var(--ink-dim)', fontFamily:'var(--ff-mono)'}}>{it.when}</span>
-              </div>
-              <div style={{fontWeight:700, fontSize:15, marginBottom:2, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{it.title}</div>
-              <div style={{fontSize:13, color:'var(--ink-mute)'}}>{it.sub} · {it.meta}</div>
-            </div>
-            <div style={{fontSize:12, color:'var(--ink-dim)', textAlign:'right', whiteSpace:'nowrap'}}>
-              {it.status==='pending' && <button className="btn btn--sm" onClick={(e)=>{e.stopPropagation();}}>신청 취소</button>}
-              {it.status==='confirmed' && it.kind!=='team' && <button className="btn btn--sm">상세</button>}
-              {it.status==='past' && <button className="btn btn--sm btn--ghost">기록 보기</button>}
-            </div>
-          </div>
-        ))}
-        {shown.length === 0 && (
-          <div style={{padding:'60px 20px', textAlign:'center', color:'var(--ink-mute)'}}>
-            아직 신청한 항목이 없어요.
-          </div>
-        )}
-      </div>
-
-      <div style={{display:'flex', gap:8, marginTop:16, flexWrap:'wrap'}}>
-        <button className="btn" onClick={()=>setRoute('games')}>경기 찾기</button>
-        <button className="btn" onClick={()=>setRoute('match')}>대회 찾기</button>
-        <button className="btn" onClick={()=>setRoute('team')}>팀 찾기</button>
-      </div>
-    </div>
-  );
-}
-
-window.MyActivity = MyActivity;
+    );
+  };
+})();
