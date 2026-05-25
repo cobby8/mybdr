@@ -1,11 +1,11 @@
 # 작업 스크래치패드
 
 ## 현재 작업
-- **요청**: 점수 정합성 Sprint 3 F4 (옵션 A 안전 정정 / 매치 257)
-- **상태**: ✅ Sprint 3 종료 — UPDATE 1건 (m257) 완료 + 사후 검증 OK + script 정리
-- **현재 담당**: pm (push + 메인 머지 진행)
-- **Sprint 1+2+3 총 산출물**: PR-1~6 (6 PR / 6 commit) 모두 main 머지 완료 + F4 옵션 A 1건 정정 (m257)
-- **잔여 보류**: PARTIAL 46건 (외부 source 필요 / Sprint 4 또는 보류) + F6 TEST 7건
+- **요청**: 대회 생성/관리 UX 점검 → 시안 설계 계획 수립 (디자인 우선 / 기능 개발 보류)
+- **상태**: 분석 진입 — planner-architect
+- **현재 담당**: planner-architect (인벤토리 + 점검 + 시안 의뢰 패키지 박제)
+- **배경**: 사용자 결정 — prospectus AI 기능 개발 보류 / 대회 생성 흐름 전체 UI/UX 사각지대 우선 점검 / Claude.ai 디자인 시안 설계 후 박제 진행
+- **prospectus AI fix 1~3 (unstaged 5 파일)**: 별개 작업 / 디자인 시안 작업과 충돌 0 / 미커밋 그대로 보존
 
 ## 기획설계 (planner-architect)
 (아직 없음)
@@ -26,7 +26,8 @@
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
 |------|------|------|
-| 2026-05-25 | Sprint 3 F4 옵션 A 안전 정정 — matchId 257 quarterScores UPDATE | ✅ audit (f4-safe-fix-audit.ts SELECT only) / 139 매치 / 옵션 A 후보 1건 / 사용자 명시 결재 후 UPDATE / 사후 검증 5/45=5/45 OK / Flutter legacy QS 형식 (`{Q4:{home,away}}`) → nested 형식 정정 / script 2 정리 / `Dev/f4-safe-fix-audit-2026-05-25.md` 박제 / PARTIAL 46건 보류 (Sprint 4 또는 보류) |
+| 2026-05-25 | Sprint 4 F4-γ LEGACY QS 형식 일괄 정정 (34건 / 사용자 결재 EXECUTE) | ✅ 139 매치 audit → LEGACY 44건 → 안전 정정 34건 (변환 + 헤더 정확 일치) → 일괄 UPDATE → 사후 검증 34/34 OK / LEGACY MISMATCH 10건 보류 / INVALID 25건 별도 분석 / paper SSOT 충돌 0 (형식 변환만) / F2 cron false positive 34건 해결 / `Dev/f4-legacy-qs-audit-2026-05-25.md` 박제 / script 2 정리 |
+| 2026-05-25 | Sprint 3 F4 옵션 A 안전 정정 — matchId 257 quarterScores UPDATE | ✅ audit (f4-safe-fix-audit.ts SELECT only) / 139 매치 / 옵션 A 후보 1건 / 사용자 명시 결재 후 UPDATE / 사후 검증 5/45=5/45 OK / Flutter legacy QS 형식 (`{Q4:{home,away}}`) → nested 형식 정정 / script 2 정리 / `Dev/f4-safe-fix-audit-2026-05-25.md` 박제 |
 | 2026-05-24 | 제 2회 BDR W 대학동아리 농구대회 결승 대진 박제 (m260 home/away UPDATE) | ✅ 운영 DB UPDATE 1건 / 사전 가드 7건 통과 / home=이화여대 에폭시 ttId=334 (A1 +6) vs away=한체대 KANCE ttId=339 (B1 +48) / status=scheduled 유지 / 임시 스크립트 3건 사후 정리 / 코드 커밋 0 |
 | 2026-05-23 | PR-6 (backfill) DRY-RUN | ✅ 2 신규 (backfill-quarter-scores.ts 335 LOC + DRY-RUN 보고서 92 LOC) / 후보 29건 (paper 87 skip 정확) / PBP_MATCHES_HEADER 4건 (m101/110/111/269) 안전 정정 대상 / EXECUTE 금지 (PM 결재 대기) |
 | 2026-05-23 | PR-5 (F1 본체) quarterScores 자동 갱신 service layer | ✅ 4 파일 (quarter-scores-sync.ts 148 LOC PURE 헬퍼 + vitest 244 LOC 10 케이스 + match-sync.ts +52 + 테스트 +321) / vitest 78/78 PASS / paper skip 보장 / 회귀 0 |
