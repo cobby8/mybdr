@@ -33,7 +33,7 @@
   - **score-consistency-audit.ts 확장** = QS 형식 정상성 별도 분류 (legacy / nested / null / empty)
   - **Flutter app sync 시점 QS 형식 정규화** = service `syncSingleMatch` 가 legacy → nested 자동 변환 추가 검토 (회귀 위험 검토 필수)
   - **신규 매치 = F1 (Sprint 2 PR-5) 자동 갱신으로 nested 형식 박제 보장** ✅ (이미 적용)
-- **잠재 영향 매치 수**: 미정 (별도 audit 필요 / Flutter v1 sync 옛 매치 가능성)
+- **잠재 영향 매치 수 (2026-05-25 Sprint 4 audit 결과)**: LEGACY 44건 = NESTED 69 + EMPTY 1 + INVALID 25 / 안전 정정 34건 + MISMATCH 10건. **Sprint 4 일괄 정정 34건 완료** (`Dev/f4-legacy-qs-audit-2026-05-25.md`)
 - **참조횟수**: 0
 - **참조 파일**:
   - `Dev/f4-safe-fix-audit-2026-05-25.md` (Sprint 3 EXECUTE 결과 박제)
