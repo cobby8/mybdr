@@ -164,18 +164,21 @@ export async function POST(req: NextRequest) {
   let analyzeInput: AnalyzeProspectusInput;
 
   if (verifiedMime === "application/pdf") {
-    // PDF 케이스 — pdf-parse 로 텍스트 추출
+    // PDF 케이스 — unpdf 사용 (worker 안 쓰는 pdfjs-dist 추상화 / Vercel Fluid + Next.js Turbopack 호환).
+    // 2026-05-20 fix 2: pdf-parse v2.x 는 pdfjs-dist worker 파일에 의존 → Next.js Turbopack 이 chunk 못 찾음
+    //   (`Setting up fake worker failed: Cannot find module '.next/dev/server/chunks/pdf.worker.mjs'`).
+    //   → unpdf 는 worker 없이 동작하는 pdfjs-dist serverless build 사용. Vercel/Edge/Node 전 환경 검증됨.
     let textContent: string;
     try {
-      // 동적 import — pdf-parse 가 ESM 일 수도 / CommonJS 일 수도 (v2.x ESM 우선)
-      const pdfModule = await import("pdf-parse");
-      const pdfParse =
-        (pdfModule as { default?: (b: Buffer) => Promise<{ text: string }> })
-          .default ?? (pdfModule as unknown as (b: Buffer) => Promise<{ text: string }>);
-      const pdfData = await pdfParse(buffer);
-      textContent = (pdfData.text ?? "").trim();
+      const { extractText } = await import("unpdf");
+      const result = await extractText(new Uint8Array(buffer), {
+        mergePages: true,
+      });
+      textContent = (result.text ?? "").trim();
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
+      // 운영 진단용 — dev/staging stderr 노출 (운영 영향 0 / Vercel runtime logs 확인)
+      console.error("[analyze-prospectus] pdf-parse failed:", msg);
       await insertFailureAudit({
         userId,
         fileName: file.name,
@@ -185,7 +188,12 @@ export async function POST(req: NextRequest) {
         errorCode: "pdf_parse_failed",
         errorMessage: msg,
       });
-      return apiError("PDF 파싱 실패", 422, "PDF_PARSE_FAILED");
+      // dev/staging 환경에서만 errorMessage 일부 노출 (디버깅 즉시 가능 / production 차단)
+      const extra =
+        process.env.NODE_ENV !== "production"
+          ? { detail: msg.substring(0, 200) }
+          : undefined;
+      return apiError("PDF 파싱 실패", 422, "PDF_PARSE_FAILED", extra);
     }
 
     if (textContent.length < MIN_PDF_TEXT_CHARS) {

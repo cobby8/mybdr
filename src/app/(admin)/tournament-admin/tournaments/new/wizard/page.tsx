@@ -26,6 +26,8 @@ import { BDR_PRIMARY_HEX, BDR_SECONDARY_HEX } from "@/lib/constants/colors";
 // 2026-05-15 Admin-7-B Sub-B3 박제 — 시안 v2.14 AdminTournamentWizard1Step.jsx 헤더 패턴.
 //   eyebrow + breadcrumbs 3단계 + actions slot (× 종료). Sub-B1/B2 와 동일 패턴 (옵션 A 보수적).
 import { AdminPageHeader } from "@/components/admin/admin-page-header";
+// 2026-05-20 Phase 3 fix — prospectus AI 분석 후 sessionStorage draft 자동 채움.
+import { loadDraft } from "@/lib/tournaments/wizard-draft";
 
 // --- 3단계 구성 (기존 8탭 → 3단계로 간소화) ---
 const STEPS = [
@@ -169,6 +171,17 @@ function QuickCreateForm() {
         }
       })
       .catch(() => setAuthStatus("unauthenticated"));
+  }, []);
+
+  // 2026-05-20 Phase 3 fix — prospectus AI 분석 후 sessionStorage draft 자동 채움 (QuickCreateForm).
+  // 흐름: /wizard/prospectus → "이대로 wizard 진입" → saveDraft → /new/wizard → 본 useEffect → setName 등.
+  useEffect(() => {
+    const draft = loadDraft();
+    if (!draft) return;
+    const p = draft.tournament_payload;
+    if (p.title) setName(p.title);
+    if (p.schedule.startDate) setStartDate(p.schedule.startDate);
+    if (draft.series_id) setSeriesId(String(draft.series_id));
   }, []);
 
   useEffect(() => {
@@ -785,6 +798,29 @@ function LegacyWizardForm() {
     return () => {
       cancelled = true;
     };
+  }, [authStatus]);
+
+  // 2026-05-20 Phase 3 fix — prospectus AI 분석 후 sessionStorage draft 자동 채움 (LegacyWizardForm).
+  // QuickCreateForm 보다 폼 필드가 많음 — title / description / format / schedule / team / registration / seriesId 전체 자동 채움.
+  // 인증 통과 후 1회만 실행 (authorized 되면 draft 읽기). 이후 사용자 직접 수정 가능 (덮어쓰기 ❌).
+  useEffect(() => {
+    if (authStatus !== "authorized") return;
+    const draft = loadDraft();
+    if (!draft) return;
+    const p = draft.tournament_payload;
+    if (p.title) setName(p.title);
+    if (p.description) setDescription(p.description);
+    if (p.format) setFormat(p.format);
+    if (p.schedule) {
+      setSchedule((prev) => ({ ...prev, ...p.schedule }));
+    }
+    if (p.team) {
+      setTeamSettings((prev) => ({ ...prev, ...p.team }));
+    }
+    if (p.registration) {
+      setRegistration((prev) => ({ ...prev, ...p.registration }));
+    }
+    if (draft.series_id) setSeriesId(String(draft.series_id));
   }, [authStatus]);
 
   // 인라인 폼에서 시리즈 생성 성공 시 — seriesOptions 갱신 + 자동 선택 + 폼 닫기.
