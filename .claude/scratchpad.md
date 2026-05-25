@@ -1,11 +1,10 @@
 # 작업 스크래치패드
 
 ## 현재 작업
-- **요청**: 대회 생성/관리 UX 점검 → 시안 설계 계획 수립 (디자인 우선 / 기능 개발 보류)
-- **상태**: ✅ Phase 1 박제 완료 — 사용자가 Claude.ai 의뢰 진입 가능
-- **현재 담당**: pm (사용자 결재 대기 — 시안 의뢰 패키지 commit + Phase 2 시작 시점)
-- **prospectus AI fix 1~3**: ✅ 이미 운영 코드 박제 완료 (외부 채널 처리 / HEAD MAX_OUTPUT_TOKENS=4000 + unpdf + nullable.optional 모두 반영). 본 세션 git add 7 파일은 머지 결과와 동일 → "no changes added to commit" / 별도 commit 불필요
-- **미푸시 commit 2건**: `eca4bbc Merge #647 dev → subin` + `4cc85c5 Merge #646 subin → dev (사용자 외부 처리)` — push 결재 대기
+- **요청**: Phase 1B v2.18 BDR-current sync (Cowork 의뢰서 §0~§6)
+- **상태**: ✅ 완료 — sync + 회귀 검수 6 케이스 통과 + phase-ledger ⑩ ✅ + commit + push 완료
+- **현재 담당**: pm (대기)
+- **다음**: Phase 1A 의뢰 (관리자 10 시안) Claude.ai 전달 (사용자 수동) → zip 도착 시 동일 절차로 sync
 
 ## 기획설계 (planner-architect) — 대회 생성/관리 UX 점검 + 시안 설계 / 2026-05-25
 
@@ -212,6 +211,7 @@ git commit -m "fix(ai): prospectus AI Phase 3 fix 1~3 보류 보존"
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
 |------|------|------|
+| 2026-05-26 | Phase 1B v2.18 BDR-current sync (Cowork 의뢰서 §0~§6) | ✅ commit `a71c9a3` + push (3 commit 전송 / origin/subin 정합) / BDR-current = 15 파일 (jsx 9 UA1~UD3 + css 6) / pre-snapshot `_archive/BDR-current-2026-05-26-pre-v2.18/` 149 파일 보존 / 회귀 검수 6 케이스 통과 (더보기/RDM/--color-*/lucide-react/9999px/가짜링크/icon-btn) / 인코딩 우회 = UTF-8 BOM 임시 파일 1회성 (원본 스크립트 변경 0) / phase-ledger ⑩ ✅ + 다음 액션 ☑ |
 | 2026-05-25 | Phase 1 — 대회 생성/관리 리디자인 시안 의뢰 패키지 박제 (planner-architect) | ✅ `Dev/design/prompts/tournament-admin-redesign-prompt-2026-05-25.md` (617 LOC / 범위 500~800 권장 안) / 10 시안 정의 (수정 7 = A1 list / A2 wizard1step / A3 association / B1 setupHub / C1 matches / C2 divisions + 신규 3 = D1 completed / E1 playoffs / E2 prospectus) / 9 사각지대 + 3 갭 → 시안 매핑 부록 첨부 / 13 룰 + 사용자 결정 §1~§8 보존 명시 / 첫 응답 형식 + 위반 시 중단 룰 / 사용자 → Claude.ai Project (BDR 디자인 시스템 관리) 전달 가능 |
 | 2026-05-25 | 대회 생성/관리 UX 점검 + 시안 설계 계획 수립 (planner-architect) | ✅ 인벤토리 24 페이지 + 12 컴포넌트 / 9 사각지대 (S1~S9 / 우선순위 매트릭스) / 운영 vs BDR-current 갭 3건 (G1 playoffs / G2 prospectus / G3 wizard 자동 채움) / 4 Phase 계획 (Phase 0 역박제 불필요 → Phase 1 의뢰 패키지 박제 → Phase 4 CLI batch) / unstaged 5 파일 옵션 A (분리 commit + push 보류) 권장 / scratchpad 박제 / 코드 변경 0 / 사용자 결재 4건 대기 |
 | 2026-05-25 | Sprint 4 F4-γ LEGACY QS 형식 일괄 정정 (34건 / 사용자 결재 EXECUTE) | ✅ 139 매치 audit → LEGACY 44건 → 안전 정정 34건 (변환 + 헤더 정확 일치) → 일괄 UPDATE → 사후 검증 34/34 OK / LEGACY MISMATCH 10건 보류 / INVALID 25건 별도 분석 / paper SSOT 충돌 0 (형식 변환만) / F2 cron false positive 34건 해결 / `Dev/f4-legacy-qs-audit-2026-05-25.md` 박제 / script 2 정리 |
