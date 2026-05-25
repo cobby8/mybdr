@@ -1,5 +1,5 @@
-<!-- AUTO-SYNCED: BDR-current = v2.18 (2026-05-26 00:59) -->
-<!-- ÀÌÀü ½Ã¾È = _archive/BDR-current-2026-05-26-pre-v2.18/ -->
+<!-- AUTO-SYNCED: BDR-current = v2.19 (2026-05-26 02:34) -->
+<!-- ÀÌÀü ½Ã¾È = _archive/BDR-current-2026-05-26-pre-v2.19/ -->
 # BDR ?”ì???‘ì—… ?ˆë¸Œ
 
 > **?¨ì¼ ì§„ì…??*. ?´ë–¤ ?”ì??/ ë°•ì œ ?‘ì—…???œì‘?˜ê¸° ?„ì— ??ë¬¸ì„œ + `claude-project-knowledge/00-master-guide.md` ë¶€??ë³¸ë‹¤.

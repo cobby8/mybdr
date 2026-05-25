@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>PA4 / UD3 · 관리자 — 셋업 hub (B1 + B7) — BDR v2.19</title>
+<title>PA5 · 관리자 — 경기 관리 — BDR v2.19</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800;900&family=JetBrains+Mono:wght@500;700;800&family=Pretendard:wght@400;500;600;700;800;900&display=swap" />
@@ -15,20 +15,16 @@
 <body>
 <div class="showcase">
   <header class="showcase-head">
-    <div class="eyebrow">BDR v2.19 · PA4 (UD3) / 셋업 hub B1 + B7 (E 등급)</div>
-    <h1>관리자 — 셋업 hub — /tournament-admin/tournaments/[id]</h1>
-    <p>
-      <b>Phase 1A B1 강화</b> — depends_on 시각화 (잠금 STEP 7·8) + 잠금 toast + 모바일 sticky 공개 버튼 추가.
-      <b>Phase 1B B7 보존</b> — 9번째 "사용자 미리보기" 카드 (cafe-blue 톤 secondary).
-      S2 (셋업 hub depends_on 미사용) + S7 (모바일 셋업 hub 미흡) 해소.
-    </p>
+    <div class="eyebrow">BDR v2.19 · PA5 / 검증 배너 표준 (E 등급)</div>
+    <h1>관리자 — 경기 관리 (PlaceholderValidationBanner 표준) — /tournament-admin/tournaments/[id]/matches</h1>
+    <p>검증 배너 3-tone (err / warn / ok) — 모든 어드민 페이지의 baseline 패턴. S8 검증 피드백 산발 해소.</p>
     <nav class="showcase-nav">
       <a href="index.html">목차</a>
       <a href="pa1-admin-list.html">PA1 목록</a>
       <a href="pa2-admin-wizard.html">PA2 Quick</a>
       <a href="pa3-admin-assoc.html">PA3 협회</a>
-      <a class="is-cur" href="ud3-admin-setup.html">PA4 셋업</a>
-      <a href="pa5-admin-matches.html">PA5 경기</a>
+      <a href="ud3-admin-setup.html">PA4 셋업</a>
+      <a class="is-cur" href="pa5-admin-matches.html">PA5 경기</a>
       <a href="pa6-admin-divisions.html">PA6 종별</a>
       <a href="pa7-admin-completed.html">PA7 종료</a>
       <a href="pa8-admin-playoffs.html">PA8 순위전</a>
@@ -38,15 +34,15 @@
 
   <section class="variant">
     <header class="variant__head">
-      <span class="variant__num">UD3 / PC + MOBILE</span>
-      <h2 class="variant__title">8 카드 + B7 사용자 미리보기 카드</h2>
-      <p class="variant__desc">진행도 bar (Phase 1A B1) → 8 셋업 항목 + 9번째 = 사용자 미리보기 (cafe-blue 톤 secondary).</p>
+      <span class="variant__num">PA5 / PC + MOBILE</span>
+      <h2 class="variant__title">검증 배너 3-tone + 기록 모드 + 매치 표</h2>
+      <p class="variant__desc">데모 톤 토글로 err / warn / ok 시연. 매치 표 = LIVE pulse 포함.</p>
     </header>
     <div class="vp-strip">
       <div class="vp vp--pc-wide">
         <div class="vp__chrome">
           <span class="vp__lights"><span></span><span></span><span></span></span>
-          <span class="vp__url">mybdr.kr/tournament-admin/tournaments/tn-2</span>
+          <span class="vp__url">mybdr.kr/tournament-admin/tournaments/tn-2/matches</span>
           <span class="vp__size">PC · 1320</span>
         </div>
         <div class="vp__body">
@@ -56,7 +52,7 @@
       <div class="vp vp--mobile">
         <div class="vp__chrome">
           <span class="vp__lights"><span></span><span></span><span></span></span>
-          <span class="vp__url">m · 관리자 셋업</span>
+          <span class="vp__url">m · 경기 관리</span>
           <span class="vp__size">375</span>
         </div>
         <div class="vp__body">
@@ -71,10 +67,10 @@
 <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
 <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
 <script type="text/babel" src="shared.jsx"></script>
-<script type="text/babel" src="screens/AdminTournamentSetupHub.jsx"></script>
+<script type="text/babel" src="screens/AdminTournamentMatches.jsx"></script>
 <script type="text/babel">
-  ReactDOM.createRoot(document.getElementById('m-pc')).render(<window.AdminTournamentSetupHub />);
-  ReactDOM.createRoot(document.getElementById('m-mob')).render(<window.AdminTournamentSetupHub />);
+  ReactDOM.createRoot(document.getElementById('m-pc')).render(<window.AdminTournamentMatches />);
+  ReactDOM.createRoot(document.getElementById('m-mob')).render(<window.AdminTournamentMatches />);
 </script>
 </body>
 </html>
