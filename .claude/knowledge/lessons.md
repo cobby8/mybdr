@@ -2,6 +2,44 @@
 <!-- 담당: 전체 에이전트 | 최대 30항목 -->
 <!-- 삽질 경험, 다음에 피해야 할 것, 효과적이었던 접근법을 기록 -->
 
+### [2026-05-25] 점수 정합성 영구 fix Sprint 1+2+3 종합 (4 source 시스템 / 7 PR / 5건 운영 정정)
+- **분류**: lesson (시스템 차원 fix 종합 / Sprint 방법론)
+- **발견자**: pm (사용자 결재로 5/21~5/25 진행)
+- **계기**: 매치 124 OT2 사고 1건 발견 → 운영 DB 전수 audit → 시스템 56% 불일치 발견 → 영구 fix 6건 우선순위 → Sprint 1+2+3 3주 진행
+- **종합 산출물 (3 Sprint / 7 PR / 7 commits)**:
+  | Sprint | PR | 영역 | commit |
+  |--------|-----|------|--------|
+  | 1 | F3-α | MPS deleteMany 가드 | cdc5b11 |
+  | 1 | F3-β | 어드민 PATCH paper 차단 | 677c0cd |
+  | 1 | F5 | FIBA 룰 가드 (paper+Flutter 양면) | 681e924 |
+  | 1 | F2 | Daily cron + admin 위젯 | 948ab04 |
+  | 2 | F1 본체 | quarterScores 자동 갱신 service | 5fca519 |
+  | 2 | F1 backfill | 4건 정정 (m101/110/111/269) | da6ad39 |
+  | 3 | F4 옵션 A | 1건 정정 (m257) | fbfac15 |
+- **신규 매치 영구 차단** (Sprint 1+2 / 다중 layer):
+  - MPS 누적 박제 / paper 헤더 단독 SET / OT1 동점 자동 종료 / QS=0/0 박제 / 일일 검출 layer
+- **운영 데이터 정정**: 5건 (paper 87건 SSOT 보존 / 헤더 변경 0)
+- **잔여 보류** (Sprint 4 또는 보류):
+  - PARTIAL 46건 = 외부 source (종이 기록지 / 운영자 기억) 필요
+  - F6 TEST 7건 = 테스트 데이터
+- **방법론 lesson 5건**:
+  1. **사고 1건 발견 시 = 같은 패턴 시스템 검색 의무** (errors.md "재발 N회" 패턴 활용)
+  2. **운영 DB SELECT-only audit 가드 면제** = 즉시 실행 가능 (CLAUDE.md §DB 정책 §1.5 부합)
+  3. **분류 (bucket) 기반 우선순위 결정** = "전체 N% 불일치" 보다 "패턴별 분류" 가 fix 설계에 유용
+  4. **Sprint 분해 = 회귀 위험 + 결재 비용 최소화** = 단순 PR (Sprint 1 4건) 먼저 / 복잡 PR (Sprint 2 service layer) 후순위 / 운영 데이터 정정 (Sprint 3 F4) 마지막
+  5. **사용자 결재 그룹별 의무** = UPDATE 대량 전 DRY-RUN + 신뢰도 분류 + 매치별 변경안 출력 (Sprint 2 PR-6 패턴)
+- **회귀 가드 vitest 통과** = Sprint 1+2 64/64 PASS (PR-1 27 + PR-2 20 + PR-3 13 + PR-4 4 + PR-5 78 통합) / Sprint 3 audit only
+- **Flutter 사후 공지 의무** (PR-3 F5) = server-side 만 변경 / Flutter 클라이언트 코드 0 / OT1 동점 시 422 응답 / 원영 안내 완료
+- **추가 발견** (errors.md [2026-05-25]): Flutter legacy QS 형식 (`{Q4:{home,away}}`) 잔존 → Sprint 4 잠재 작업
+- **참조횟수**: 0
+- **참조 파일**:
+  - `Dev/score-consistency-audit-2026-05-21.md` (전수 audit / 125 매치 / 70 불일치)
+  - `Dev/paper-mode-precise-audit-2026-05-21.md` (paper 6 매치 정밀 조사)
+  - `Dev/backfill-quarter-scores-dryrun-2026-05-23.md` (Sprint 2 PR-6 DRY-RUN + EXECUTE)
+  - `Dev/f4-safe-fix-audit-2026-05-25.md` (Sprint 3 F4 옵션 A 결과)
+  - decisions.md [2026-05-21] F1~F6 우선순위 / [2026-05-21] F3 Sprint 1 상향
+  - errors.md [2026-05-21] 시스템 차원 결함 / paper 모드 결함 / [2026-05-25] legacy QS 형식
+
 ### [2026-05-21] 시스템 차원 결함 발견 → 운영 DB 전수 audit 표준 절차 (SELECT only 가드)
 - **분류**: lesson (시스템 진단 방법론)
 - **발견자**: pm (점수 정합성 시스템 분석 / 매치 124 사고 후)
