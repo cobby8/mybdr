@@ -33,12 +33,13 @@ interface Props {
 
 /**
  * leaf 필드 1건의 표시용 row.
+ * 2026-05-20 fix 3: schema가 nullable.optional() 로 완화됨 — confidence/sourceExcerpt 가 undefined 허용.
  */
 interface FieldRow {
   label: string;
   value: string;
-  confidence: number | null;
-  sourceExcerpt: string | null;
+  confidence: number | null | undefined;
+  sourceExcerpt: string | null | undefined;
 }
 
 /**
@@ -84,8 +85,8 @@ const LABELS: Record<string, string> = {
 function buildRow(
   label: string,
   value: unknown,
-  confidence: number | null,
-  sourceExcerpt: string | null,
+  confidence: number | null | undefined,
+  sourceExcerpt: string | null | undefined,
 ): FieldRow | null {
   if (value == null || value === "") return null;
   return {
@@ -170,7 +171,7 @@ function buildGroups(analysis: ProspectusAnalysisResult): FieldGroup[] {
 // =============================================================================
 // confidence 분기 헬퍼
 // =============================================================================
-function confidenceBadge(confidence: number | null): {
+function confidenceBadge(confidence: number | null | undefined): {
   icon: string;
   label: string;
   colorVar: string;

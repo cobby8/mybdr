@@ -23,7 +23,9 @@ export const PROSPECTUS_PROMPT_VERSION = "v1";
 
 /** AI Gateway 호출 시 max_tokens 상한 — 비용 폭주 가드 (보고서 §5 비용 가드) */
 export const MAX_INPUT_TOKENS = 30_000;
-export const MAX_OUTPUT_TOKENS = 2_000;
+// 2026-05-20 fix 3: 2000 → 4000. 한국어 25+ leaf 필드 + 각 필드 _confidence + _source_excerpt suffix 2종
+//   → JSON 직렬화 시 2000 토큰 빠듯 → 응답 잘림 → schema 미통과 가설. 보험 차원 2배 상향 (비용 영향 ≤2배).
+export const MAX_OUTPUT_TOKENS = 4_000;
 
 /**
  * System prompt — AI 역할 + 출력 규칙 + 도메인 인지.
@@ -41,10 +43,25 @@ schedule / team / registration / meta 4 그룹의 leaf 필드를 추출하세요
 
 ## 정확도 원칙 (절대 위반 금지)
 - 원문에 명시되지 않은 정보는 절대 추측 ❌ → 해당 필드 = null, confidence = 0
-- 한국어 날짜 표기 ("2026년 5월 17일") → ISO 8601 ("2026-05-17") 변환
+- **단, 명시된 정보는 적극 추출** (2026-05-20 fix 3 강화):
+  - "5월 16일(토) ~ 17일(일)" → startDate=2026-05-16 / endDate=2026-05-17 (현재 연도 또는 인접 추론) / confidence=0.85
+  - "예선: 5/16, 결승: 5/17" → startDate=2026-05-16 / endDate=2026-05-17 / confidence=0.85
+  - "신청기간: 4/15 ~ 5/10" → registrationStartAt + registrationEndAt 동일 패턴 박제 / confidence=0.85
+  - "장소: ○○체육관" → venueName 박제 / confidence=0.9
+- 한국어 날짜 표기 ("2026년 5월 17일" / "5/17" / "5월 17일") → ISO 8601 ("2026-05-17") 변환
 - 한국어 시간 표기 ("오전 9시" / "09:00") → ISO datetime ("2026-05-17T09:00:00+09:00") 변환
 - 금액 단위 ("5만원" / "50,000원") → 정수 KRW (50000)
 - 한국 광역시·도 ("서울" / "서울특별시") → city 필드 = "서울특별시" (정규 표기)
+
+## 필드 누락 금지 (가장 중요)
+- **모든 leaf 필드는 반드시 응답에 포함** (key 자체 누락 ❌)
+- 정보 없으면: value=null + confidence=0 + source_excerpt=null 박제 (key는 반드시 존재)
+- 각 leaf 필드별 _confidence + _source_excerpt suffix 반드시 동반 (1세트 = 3 key)
+- 예시 (좋음):
+  - "startDate": null, "startDate_confidence": 0, "startDate_source_excerpt": null  ✅
+- 예시 (나쁨 — schema 통과 실패):
+  - "startDate": null  (suffix 누락) ❌
+  - {} (startDate 키 자체 누락) ❌
 
 ## 도메인 인지
 - 종별 (divisions) = 연령/성별/실력 분류 예시:
