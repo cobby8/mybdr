@@ -26,8 +26,8 @@
 | ⑧ 시안 박제 | 1A | ⏸ 보류 | Claude.ai | - | 1A 의뢰 전달 후 |
 | ⑨ zip 출력 | 1A | ⏸ 보류 | Claude.ai | - | 별 zip 묶음 — v2.19 또는 v2.18 갱신 |
 | **⑩ sync 실행** | 1A | ✅ 완료 | CLI | 2026-05-26 | `sync-bdr-current.ps1 -NewVersion "v2.19"` 실행 완료. BDR-current = 23 파일 (jsx 17 admin 11 + user 6 / css 6 user) — v2.19 cumulative (v2.18 user + Phase 1A admin) / pre-snapshot = `_archive/BDR-current-2026-05-26-pre-v2.19/` (v2.18 15 + baseline 5 = 20 파일 보존). 회귀 검수 6 케이스 통과. Step 0 BOM 영구 해결 commit `5609c61` (Phase 1B 임시 우회 패턴 폐기). |
-| **⑪ 운영 박제 (Phase 1C)** | 1C | 🔵 진행 중 | CLI | 2026-05-28 | **PR-1C-1 ✅** (commit `40d19db` / PR #650) + **PR-1C-2 ✅** (commit `9734de4`) + **PR-1C-3 UB1 TournamentCompleted ✅** (page.tsx 721→923 status='completed' 분기 + standings query 1건 + 신규 css 1 + tsx 6 = tournament-completed.css 343 / hero 145 / final-standings 102 / mvp-best5 63 / gallery 75 / story 67 / next-edition 90) / 데이터 없는 카드 자동 hide / mock 0 / 신규 라우트 0 / API 변경 0 (Prisma query 1건 = §3 예외) / AppNav 변경 0 / tsc 0 errors. 잔여 13 PR (PR-1C-4~16). |
-| **⑫ 회귀 검수 (역박제 룰)** | 1C | ✅ 진행 중 (PR-1C-1+2+3) | CLI | 2026-05-28 | PR-1C-1+2+3 자체 회귀 검수 6/6 + 추가 UB1 10/10 PASS (신규 라우트 0 / mock 0 / 5 카드 grid 반응형 / fallback / snake_case OK / PA7 혼동 0). 운영→시안 drift 0. |
+| **⑪ 운영 박제 (Phase 1C)** | 1C | 🔵 진행 중 | CLI | 2026-05-28 | **PR-1C-1 ✅** (`40d19db` / PR #650) + **PR-1C-2 ✅** (`9734de4`) + **PR-1C-3 ✅** (`19dfa03`) + **PR-1C-4 UA3 TournamentEnroll B3 결제 보강 ✅** 옵션 B (page.tsx 1563→1292 -271 / 신규 css 1 + tsx 2 = tournament-enroll.css 316 / enroll-step-payment 255 / enroll-success-hero 125) / bank 단일 + 결제 명세 + 입금 안내 + 사후 안내 hero / manual·card 보류 / 토스 0 / 새 라우트 0 / API/route.ts 변경 0 / payment_status 흐름 보존 / _v2 4 기존 컴포넌트 변경 0 / tsc 0 errors. 잔여 12 PR (PR-1C-5~16). |
+| **⑫ 회귀 검수 (역박제 룰)** | 1C | ✅ 진행 중 (PR-1C-1+2+3+4) | CLI | 2026-05-28 | PR-1C-1+2+3+4 자체 회귀 6/6 + 추가 UA3 9/9 PASS (5/4-step adaptive / bank 단일 / done 사후 hero / aside 보존 / payment_status 0 / route.ts 0 / 토스 0 / 새 라우트 0). 9999px grep hit = "회피" 주석 컨텍스트 (룰 명시). 운영→시안 drift 0. |
 | **⑬ PR 결재** | 1C | ⏸ 보류 | **수빈 (수동)** | - | subin → dev → main (CLAUDE.md §🚦) |
 | ⑭ Phase 완료 | 1 | ⏸ 보류 | Cowork | - | 본 ledger 갱신 + Phase 2 시작 결정 |
 

@@ -1,13 +1,127 @@
 # 작업 스크래치패드
 
 ## 현재 작업
-- **요청**: PR-1C-3 UB1 TournamentCompleted 박제 (developer 수행)
+- **요청**: PR-1C-4 UA3 TournamentEnroll B3 결제 보강 + 사후 안내 박제 (옵션 B / developer 수행)
 - **상태**: 박제 완료 — PM 검토/commit/push/PR 대기
 - **현재 담당**: pm (developer 산출물 검토 → tester/reviewer 병렬 검증 또는 PM 직접 검증 → commit)
-- **참고**: phase-ledger PR-1C-3 (UB1 사용자측 종료 발표) — PA7 (관리자측 AdminTournamentCompleted) 와 별 PR / 동일 [id]/page.tsx status='completed' 분기 박제 / 신규 라우트 ❌
+- **참고**: phase-ledger PR-1C-4 옵션 B (bank 단일) / manual·card / 토스 ❌ / API·route.ts·Prisma 변경 0 / 새 라우트 ❌
 
 ## 기획설계 (planner-architect)
 (아직 없음)
+
+## 구현 기록 (developer / PR-1C-4 UA3 B3 결제 보강 + 사후 안내 박제 / 옵션 B)
+
+### 분석
+- **시안 구조** (TournamentEnroll.jsx 277 LOC / tournament-enroll.css 265 LOC):
+  - 결제 step (`te-pay`) — 2-column grid: [결제수단 (te-method + te-bank)] | [명세 (te-bill) + 안내 (te-pay__note)]
+  - 사후 안내 (`te-success`) — 체크 아이콘 (72px ok 배경) + eyebrow ENROLLMENT COMPLETE + h1 + sub + 3 STEPS + CTA 2개
+- **시안 결제수단 3 옵션**: bank / manual / card → **옵션 B 채택 = bank 단일만 박제** (사용자 결재). manual·card·토스 Phase B 별 PR.
+- **운영 상태**:
+  - `[id]/join/page.tsx` 1563 LOC = 이미 v2 박제됨 (Phase 7-1 / 5-step·4-step adaptive / `_v2/` 4 컴포넌트 추출 완료)
+  - 결제 step inline (L1280~1473 = ~193 LOC) — 신청 요약 카드 + 입금 안내 + 약관 동의
+  - done 분기 (L408~524 = ~117 LOC) — 체크 + 메시지 + 입금 안내 + CTA 2개
+- **운영 데이터 매핑**:
+  | 시안 영역 | 운영 데이터 | 처리 |
+  |---------|----------|------|
+  | te-method (bank) | always active (옵션 B) | 시각만 / payment_status 무관 |
+  | te-bank (운영팀 입금 계좌) | tournament.bank_name/bank_account/bank_holder/fee_notes | 진짜 / bank_name null 시 카드 hide |
+  | te-bill 결제 명세 | selectedTeam + manager + cat/div + roster + fee | 진짜 (분기 보존 — selectedCategory 있을 때만 부문 row 노출) |
+  | te-pay__note | 시안 카피 그대로 | 시안 보존 (운영 카피 일부 흡수) |
+  | 약관 동의 (agreeRules/agreeMedia) | 운영 흐름 보존 | 시안 te-pay 외 영역 (시안 미존재 — 운영 고유 흐름 보존) |
+  | te-success | result {id, status, waiting_number, message} | 진짜 / status 분기 (waiting/approved/pending) sub 카피 변경 |
+- **5/4-step adaptive 보존**: hasCategories=true → 5-step (디비전 포함) / false → 4-step. 본 PR 결제 step + done 분기만 변경. stage 매핑 변경 0.
+- **약관 동의 step 보존**: 운영 page.tsx L144 `Step 5+: 결제 동의` 변수 (agreeRules / agreeMedia) → 결제 step 안에서 게이트. 본 PR 에서도 EnrollStepPayment 내부로 이전 (UX 동일).
+
+### 변경 파일
+| 경로 | 변경 | 신규/수정 | LOC |
+|------|------|----------|-----|
+| `_v2/tournament-enroll.css` | 시안 css 박제 — `te-h3` / `te-pay` 2-column / `te-method` (bank is-on) / `te-bank` (운영팀 입금) / `te-bill` (명세) / `te-pay__note` (cafe-blue 콜아웃) / `te-success__*` (hero / icon / 3 STEPS / CTA) / 모바일 ≤720px 분기. 토큰 대체: `--r-sm/md/lg` → `4/6/8px` (운영 globals 미정의) | 신규 | 316 |
+| `_v2/enroll-step-payment.tsx` | 결제 step 박제 — bank 단일 결제수단 (옵션 B) / te-bank 입금 계좌 (bank_name 가드) / te-bill 명세 (참가팀+대표자+부문분기+로스터+합계) / te-pay__note 안내 / 약관 동의 2종 (운영 보존). API·payment_status 변경 0 / 계좌번호 복사 버튼 운영 보존 | 신규 | 255 |
+| `_v2/enroll-success-hero.tsx` | 사후 안내 hero — te-success 체크 아이콘 72×72 (50% 정사각) + eyebrow ENROLLMENT COMPLETE + h1 (result.message) + sub (status 분기 — waiting/approved/pending) + 3 STEPS (서류검토/결제확인/참가확정) + CTA 2개 (`/games/my-games` + `/tournaments/${id}`) | 신규 | 125 |
+| `page.tsx` | imports +3 (EnrollStepPayment / EnrollSuccessHero / tournament-enroll.css) / done 분기 inline 117 LOC → `<EnrollSuccessHero result onMyApplications onTournamentDetail />` 12 LOC / 결제 stage inline 193 LOC → `<EnrollStepPayment {...12 props} />` 13 LOC. _v2/ 기존 4 컴포넌트 (stepper/aside/poster/step-docs) 변경 0. 5/4-step adaptive 분기 보존. API/POST /api/web/tournaments/[id]/join 변경 0 | 수정 | 1563 → 1292 (-271) |
+
+### 검증 결과
+- **tsc --noEmit**: 0 errors (EXIT=0)
+- **자체 회귀 검수 6 기본 케이스**:
+  | # | 케이스 | 결과 |
+  |---|--------|------|
+  | 1 | AppNav main bar 우측 dropdown/아바타 | OK (AppNav 변경 0) |
+  | 2 | 모바일 듀얼 라벨 | OK (AppNav 변경 0) |
+  | 3 | 검색/쪽지/알림 box | OK (AppNav 변경 0) |
+  | 4 | 하드코딩 색상 | tsx 0건 / css 시안 원본 (`#fff` 2건 = accent 위 흰 글자 / `rgba(28,160,94,0.32)` ok 토큰 alpha shadow) — 운영 미정의 토큰 §6-1 시안 우선 |
+  | 5 | lucide-react import | 0 (본 PR 신규 3 파일) |
+  | 6 | 9999px / rounded-full | 0 (정사각형 50% 만: te-success__icon 72×72 / te-success__step-n 26×26) |
+  | - | 가짜링크 | 0 (`/games/my-games` + `/tournaments/${id}` = 운영 라우트) |
+- **UA3 추가 검수 (의뢰서 §7)**:
+  | # | 케이스 | 결과 |
+  |---|--------|------|
+  | + | 5-step (hasCategories=true) / 4-step (false) adaptive 보존 | OK (stage 매핑 분기 / steps 배열 변경 0) |
+  | + | Step 5 결제 = bank 단일 + 결제 명세 카드 + 입금 안내 카드 | OK (te-method.is-on 1건 / te-bill + te-bank) |
+  | + | Step done 사후 = "신청이 접수되었습니다" success hero + CTA | OK (te-success__title result.message 폴백 + CTA 2개) |
+  | + | 우측 sticky aside (포스터 + D-카운터 + 환불 정책) 보존 | OK (EnrollAside 컴포넌트 변경 0) |
+  | + | enroll-stepper 시각 = 시안 te-stepper 클래스 일치 | 보존 (의뢰서 §5 "_v2/ 기존 4 변경 최소") |
+  | + | payment_status (unpaid → paid 전환) 운영 변경 ❌ | OK (POST /api/web/tournaments/[id]/join 호출 동일) |
+  | + | /api/web/tournaments/[id]/join route.ts 변경 ❌ | OK (route.ts 변경 0) |
+  | + | 토스페이먼츠 코드 0 | OK (Phase B 별 PR) |
+  | + | 새 라우트 [id]/join/success/ 생성 ❌ | OK (done 분기 안에서만 렌더) |
+
+### 결정 사항
+- **옵션 B 채택** (사용자 결재 / 의뢰서 §4 권장안) — bank 단일 결제수단만 시각 박제. manual·card·토스페이먼츠 = Phase B 별 PR (현재 schema line 1299 주석 토스 미연결)
+- **_v2/ 기존 4 컴포넌트 (stepper / aside / poster / step-docs) = 변경 0** — 의뢰서 §5 "변경 최소" 룰 준수. 시안 te-stepper 시각 정렬은 후속 PR
+- **약관 동의 step 보존** — 운영 5/4-step adaptive 의 마지막 step 안에 게이트. EnrollStepPayment 내부로 흡수 (UX 동일 / 제출 버튼 활성화 게이트 동일)
+- **CTA 2개** — `/games/my-games` (시안 "내 참가 현황" → 운영 라우트 매핑) + `/tournaments/${id}` (대회 상세). 시안 카피 "내 신청 내역 보기" + "대회 상세로"
+- **API / Prisma / route.ts / payment_status 변경 0** — 시각만 박제 (의뢰서 §6 룰)
+
+### 알림
+- **시안 ↔ 운영 불일치 (디자인 변경 ❌, API 변경 ❌)**:
+  - 시안 PAYMENT_METHODS 3 옵션 (bank / manual / card) → 옵션 B 룰: bank 1 건만 박제 (manual 옵션 박제 보류 — 운영에 manual flag 부재 / card 옵션 = 토스 미연결)
+  - 시안 te-bill 의 "보험료 (의무가입) 15,000원" 행 → 운영 보험료 데이터 X → 미박제 (mock ❌). 향후 insurance 필드 추가 시 자연 흡수 가능
+  - 시안 te-success 의 "결제는 3일 내" 카피 → 운영 pay_due_days 데이터 X → "3일 내" 기본값 박제 (시안 카피 보존). 향후 Tournament.pay_due_days 필드 추가 시 자연 흡수
+  - 시안 mobile sticky bottom CTA (te-mobile-cta) → 운영 sticky CTA 2026-05-02 사용자 결정으로 삭제됨 (PR-1C-2 결정 답습) → 본 PR 미추가
+- **page.tsx LOC 감소 271** — inline 결제 step (193) + done 분기 (117) → 컴포넌트 호출 (13 + 12) + import 4. 가독성 + 재사용성 향상
+- **commit/push/PR 은 PM 담당** (의뢰서 §Step 9~11)
+
+💡 tester 참고:
+- **로컬 검증**: `npm run dev` → http://localhost:3001/tournaments/[id]/join 접속 (로그인 + 주장 + 신청 가능 대회)
+  - **5-step 흐름 (hasCategories=true 대회)**: 대회확인 → 디비전 → 로스터 → 서류 → 결제 → 신청 후 done
+  - **4-step 흐름 (hasCategories=false 대회)**: 대회확인 → 로스터 → 서류 → 결제 → 신청 후 done
+  - **결제 step (Step 5/4)**:
+    - 좌측 col: "계좌이체" 단일 카드 (is-on / accent border) + 입금 계좌 안내 카드 (은행/계좌/예금주 + 입금자명 가이드 + 계좌번호 복사 버튼)
+    - 우측 col: 결제 명세 (참가팀/대표자/부문분기/로스터/합계 — accent 색) + 안내 콜아웃 (cafe-blue 톤)
+    - 하단: 약관 동의 2종 (대회 규정 / 미디어) — 둘 다 체크해야 제출 버튼 활성
+  - **사후 안내 (done=true)**:
+    - 체크 아이콘 (72px ok 녹색 배경 + 흰 체크)
+    - eyebrow "ENROLLMENT COMPLETE"
+    - h1 = result.message (서버 응답)
+    - sub = status 분기 (waiting → 대기 순번 / approved → 참가 확정 / pending → 승인 대기)
+    - 3 STEPS (서류 검토 / 결제 확인 / 참가 확정)
+    - CTA 2개: "내 신청 내역 보기" → `/games/my-games`, "대회 상세로" → `/tournaments/${id}`
+  - **모바일 (≤720px)**:
+    - te-pay 2-column → 1-column 변환
+    - te-success__title 32px → 24px 축소
+    - te-success padding 60px → 40px 축소
+- **정상 동작**:
+  - 결제 step 진입 시 te-method (계좌이체) 자동 활성 (is-on 클래스 + accent border)
+  - bank_name null 인 대회 → te-bank 카드 자동 hide / te-bill + te-pay__note 만 노출
+  - 약관 미체크 → 제출 버튼 disabled (운영 흐름 보존)
+  - 제출 성공 → done 분기 진입 → te-success hero
+  - waiting 상태 → "대기 순번 N번" 카피 / approved → "참가가 확정되었습니다" / 그 외 → "관리자 승인 시 알림"
+- **주의할 입력**:
+  - `tournament.bank_name === null` 대회 → 입금 계좌 카드 자동 hide / 결제 명세 + 약관만 노출 (정상)
+  - `tournament.entry_fee === 0` 대회 → te-bill "총 참가비 무료" 표시
+  - hasCategories=false 대회 → te-bill 의 "부문 / 디비전" row 자동 hide
+  - `result.status === "waiting"` → waiting_number 노출 / "approved" → 즉시 확정 / null → 기본 안내
+  - 운영 DB 영향 0 — schema / route.ts / payment_status 변경 0
+
+⚠️ reviewer 참고:
+- **css 시안 원본 보존 (`#fff` 2건 / `rgba(28,160,94,0.32)` 1건)**: te-success__icon shadow + 흰 체크 + step number 흰 글자. 운영 globals.css 에 동등 토큰 미정의 (사용자 §6-1 시안 우선 룰). 향후 토큰 추가 시 var() 전환 가능
+- **EnrollStepPayment props 12개**: tournament + 6 form state + 2 agree + 2 setter + 2 derived. 운영 page.tsx 가 single state owner — 컴포넌트는 stateless. props drilling 우려 시 후속 PR 에서 reducer 추출 가능
+- **te-method bank 단일 always active**: 옵션 B 룰 — radio readOnly + onChange 없음. 향후 manual / card 추가 시 useState method + onMethod 콜백으로 자연 확장 가능 (시안 PAYMENT_METHODS 패턴 그대로)
+- **약관 동의 위치 변경**: 운영 page.tsx 결제 step inline → EnrollStepPayment 내부. 시각 변경 0 / 제출 게이트 동일 (agreeRules + agreeMedia 둘 다 true 일 때만 제출 버튼 활성)
+- **API/route.ts 호출 0 변경**: POST /api/web/tournaments/[id]/join 응답 스펙 (id/status/waiting_number/message) 그대로 사용. payment_status 변경 0
+
+#### 수정 이력
+(아직 없음 — tester/reviewer 피드백 시 추가)
 
 ## 구현 기록 (developer / PR-1C-3 UB1 TournamentCompleted 박제)
 
@@ -311,6 +425,7 @@
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
 |------|------|------|
+| 2026-05-28 | PR-1C-4 UA3 TournamentEnroll B3 결제 보강 + 사후 안내 박제 (developer / 옵션 B) | ✅ 시안 박제 / 신규 3 (tournament-enroll.css 316 / enroll-step-payment.tsx 255 / enroll-success-hero.tsx 125) + 수정 1 (page.tsx 1563→1292 / -271 LOC / done 분기 + 결제 stage 컴포넌트화) / 옵션 B = bank 단일 (manual·card·토스 보류) / API·route.ts·payment_status·새 라우트 변경 0 / _v2/ 기존 4 컴포넌트 변경 0 / 5/4-step adaptive 보존 / 약관 동의 보존 / tsc 0 errors / 자체 회귀 6/6 + UA3 9/9 PASS / commit·push·PR PM 담당 |
 | 2026-05-28 | PR-1C-3 UB1 TournamentCompleted 박제 (developer) | ✅ 시안 박제 / 신규 7 (tournament-completed.css 343 / tournament-completed-hero.tsx 145 / tournament-final-standings-card.tsx 102 / tournament-mvp-best5-card.tsx 63 / tournament-gallery-card.tsx 75 / tournament-story-card.tsx 67 / tournament-next-edition-card.tsx 90) + 수정 1 (page.tsx 721→923 / status='completed' 분기 + select 4필드 추가 + standings query 1건) / 신규 라우트 ❌ / mock ❌ (갤러리/best5/통계 4종 중 3종 hide) / 다른 status 대회 회귀 0 / tsc 0 errors / 자체 회귀 6/6 + UB1 10/10 PASS / commit·push·PR PM 담당 |
 | 2026-05-28 | Phase 1C-2 UA2 TournamentDetail + UC2 MyRegistrationStatus 박제 (developer) | ✅ 시안 박제 / 신규 4 (my-registration-status.css 174 / tournament-detail.css 162 / tournament-division-chips.tsx 60 / tournament-operator-preview.tsx 64) + 수정 2 (my-registration-status.tsx 153→263 variant 분기 / page.tsx 684→720 sidebar+sticky chip row) / API·Prisma·AppNav 변경 0 / MyRegistrationStatus 위치 이동 ❌ / 기존 prop 시그니처 유지 / tsc 0 errors / 자체 회귀 6/6 + 추가 4/4 PASS / commit·push·PR PM 담당 |
 | 2026-05-28 | Phase 1C-1 UA1 Tournaments 박제 (developer) | ✅ 시안 `tnl-card` 패턴 박제 / 신규 1 (tournaments.css) + 수정 2 (v2-tournament-list.tsx 552→432, tournaments-content.tsx 380→408) / API/AppNav 변경 0 / tsc 0 errors / 자체 회귀 6/6 PASS / commit·push·PR PM 담당 |
@@ -323,4 +438,3 @@
 | 2026-05-25 | Sprint 3 F4 옵션 A 안전 정정 — m257 quarterScores | ✅ 옵션 A 후보 1건 / Flutter legacy → nested 변환 / 사후 5/45 OK |
 | 2026-05-24 | 제 2회 BDR W 대학동아리 농구대회 결승 대진 박제 (m260) | ✅ UPDATE 1건 / 가드 7 통과 / home=이화여대 에폭시 vs away=한체대 KANCE |
 | 2026-05-23 | PR-6 backfill DRY-RUN | ✅ 후보 29건 / PBP_MATCHES_HEADER 4건 (m101/110/111/269) 안전 정정 대상 |
-| 2026-05-23 | PR-5 (F1) quarterScores 자동 갱신 service layer | ✅ 4 파일 / vitest 78/78 PASS / paper skip 보장 |
