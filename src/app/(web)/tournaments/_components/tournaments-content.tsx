@@ -325,55 +325,80 @@ export function TournamentsContent({
     </>
   );
 
-  return (
-    <div className="page">
-      {/* 2026-05-03: 헤더 — 좌측 제목 / 우측 컨트롤 5개 (경기 페이지의 [필터][만들기] 위치와 동일 패턴) */}
-      <div className="games-header">
-        <div className="games-header__title">
-          <div className="eyebrow">대회 · TOURNAMENTS</div>
-          <h1 className="games-header__h1">대회</h1>
-        </div>
-        <div
-          className="games-header__actions"
-          style={{
-            display: "flex",
-            gap: 6,
-            alignItems: "center",
-            flexShrink: 0,
-          }}
-        >
-          {controlsNode}
-        </div>
-      </div>
+  // 시안 EmptyState onReset — Tournaments.jsx L180 (필터 초기화)
+  // 본 함수는 v2 상태 탭/검색/지역/성별/종별/디비전 + prefer 까지 한 번에 리셋
+  // 단, FloatingFilterPanel 내부 state 는 그대로 (상위 onChange 만 호출됨)
+  const handleEmptyReset = useCallback(() => {
+    setV2StatusTab("전체");
+    setSearchQuery("");
+    setRegionFilter("all");
+    setGenderFilter("all");
+    setCategoryFilter("all");
+    setDivisionFilter("all");
+  }, []);
 
-      {/* 본문 — list / calendar / week 뷰 분기 (segmented 탭은 풀폭, 컨트롤 미전달 = 잘림 0) */}
-      {viewMode === "calendar" ? (
-        <CalendarView categoryFilter={categoryFilter} genderFilter={genderFilter} />
-      ) : viewMode === "week" ? (
-        <WeekView categoryFilter={categoryFilter} genderFilter={genderFilter} />
-      ) : loading ? (
-        <TournamentGridSkeleton />
-      ) : (
-        <>
-          <V2TournamentList
-            tournaments={paginatedTournaments}
-            photoMap={photoMap}
-            activeTab={v2StatusTab}
-            onTabChange={setV2StatusTab}
-            emptyMessage={
-              hasFilters
-                ? "조건에 맞는 대회가 없습니다."
-                : "등록된 대회가 없습니다."
-            }
-            counts={v2TabCounts}
-          />
-          <LoadMoreButton
-            hasMore={hasMore}
-            onMore={() => setCurrentPage((p) => p + 1)}
-            remaining={remaining}
-          />
-        </>
-      )}
+  return (
+    // 2026-05-28 (Phase 1C-1, UA1 박제): 시안 .tnl-page > .tnl-inner 로 외곽 변경
+    <div className="tnl-page">
+      <div className="tnl-inner">
+        {/* 2026-05-03: 헤더 — 좌측 제목 / 우측 컨트롤 5개 (경기 페이지의 [필터][만들기] 위치와 동일 패턴)
+            2026-05-28: 시안 hero 통계 카운트 라인 추가 — Tournaments.jsx L217~224 */}
+        <div className="games-header">
+          <div className="games-header__title">
+            <div className="eyebrow">TOURNAMENTS · 전국 농구 매칭</div>
+            <h1 className="games-header__h1">대회 둘러보기</h1>
+            {/* 시안 통계 sub 라인 — 모집/진행/종료 카운트 + 내 지역 링크는 운영 FloatingFilterPanel
+                의 지역필터로 대체되므로 생략 */}
+            <p className="tnl-hero__sub" style={{ marginTop: 6 }}>
+              모집 중인 대회{" "}
+              <b>{v2TabCounts["접수중"] ?? 0}</b>건 · 진행 중{" "}
+              <b>{v2TabCounts["진행중"] ?? 0}</b>건 · 종료{" "}
+              <b>{v2TabCounts["종료"] ?? 0}</b>건
+            </p>
+          </div>
+          <div
+            className="games-header__actions"
+            style={{
+              display: "flex",
+              gap: 6,
+              alignItems: "center",
+              flexShrink: 0,
+            }}
+          >
+            {controlsNode}
+          </div>
+        </div>
+
+        {/* 본문 — list / calendar / week 뷰 분기 (segmented 탭은 풀폭, 컨트롤 미전달 = 잘림 0) */}
+        {viewMode === "calendar" ? (
+          <CalendarView categoryFilter={categoryFilter} genderFilter={genderFilter} />
+        ) : viewMode === "week" ? (
+          <WeekView categoryFilter={categoryFilter} genderFilter={genderFilter} />
+        ) : loading ? (
+          <TournamentGridSkeleton />
+        ) : (
+          <>
+            <V2TournamentList
+              tournaments={paginatedTournaments}
+              photoMap={photoMap}
+              activeTab={v2StatusTab}
+              onTabChange={setV2StatusTab}
+              emptyMessage={
+                hasFilters
+                  ? "조건에 맞는 대회가 없습니다."
+                  : "등록된 대회가 없습니다."
+              }
+              counts={v2TabCounts}
+              onReset={hasFilters ? handleEmptyReset : undefined}
+            />
+            <LoadMoreButton
+              hasMore={hasMore}
+              onMore={() => setCurrentPage((p) => p + 1)}
+              remaining={remaining}
+            />
+          </>
+        )}
+      </div>
     </div>
   );
 }

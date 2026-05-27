@@ -26,8 +26,8 @@
 | ⑧ 시안 박제 | 1A | ⏸ 보류 | Claude.ai | - | 1A 의뢰 전달 후 |
 | ⑨ zip 출력 | 1A | ⏸ 보류 | Claude.ai | - | 별 zip 묶음 — v2.19 또는 v2.18 갱신 |
 | **⑩ sync 실행** | 1A | ✅ 완료 | CLI | 2026-05-26 | `sync-bdr-current.ps1 -NewVersion "v2.19"` 실행 완료. BDR-current = 23 파일 (jsx 17 admin 11 + user 6 / css 6 user) — v2.19 cumulative (v2.18 user + Phase 1A admin) / pre-snapshot = `_archive/BDR-current-2026-05-26-pre-v2.19/` (v2.18 15 + baseline 5 = 20 파일 보존). 회귀 검수 6 케이스 통과. Step 0 BOM 영구 해결 commit `5609c61` (Phase 1B 임시 우회 패턴 폐기). |
-| ⑪ 운영 박제 (Phase 1C) | 1C | ⏸ 보류 | CLI | - | PR-1C-1 ~ PR-1C-N (사용자 측 + 관리자 측 = ~16~19 PR) |
-| ⑫ 회귀 검수 (역박제 룰) | 1C | ⏸ 보류 | CLI | - | CLAUDE.md §🔄 운영→시안 동기화 룰 / Phase A.5 사례 |
+| **⑪ 운영 박제 (Phase 1C)** | 1C | 🔵 진행 중 | CLI | 2026-05-28 | **PR-1C-1 UA1 Tournaments ✅ 박제 완료** (commit 대기) — `src/app/(web)/tournaments/_components/` 신규 css 1 + 수정 tsx 2 (v2-tournament-list 552→432, tournaments-content 380→408) / API 변경 0 / AppNav 변경 0 / tsc 0 errors. 잔여 15 PR (PR-1C-2~16) = scoping 완료 / 별 의뢰. PR 그룹핑 = 사용자 5 + 관리자 9 + carryover 2. |
+| **⑫ 회귀 검수 (역박제 룰)** | 1C | ✅ 진행 중 (PR-1C-1) | CLI | 2026-05-28 | PR-1C-1 자체 회귀 검수 6/6 PASS (AppNav 변경 0 / 모바일 듀얼 0 / icon-btn box 0 / 하드코딩 색상 = 시안 챔피언 골드 §6-1 시안 우선 / lucide-react 0 / 9999px 0 / 가짜링크 0). 운영→시안 drift 0. |
 | **⑬ PR 결재** | 1C | ⏸ 보류 | **수빈 (수동)** | - | subin → dev → main (CLAUDE.md §🚦) |
 | ⑭ Phase 완료 | 1 | ⏸ 보류 | Cowork | - | 본 ledger 갱신 + Phase 2 시작 결정 |
 
