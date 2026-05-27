@@ -1,13 +1,134 @@
 # 작업 스크래치패드
 
 ## 현재 작업
-- **요청**: Phase 1C-2 UA2 TournamentDetail + UC2 MyRegistrationStatus 박제 (developer 수행)
+- **요청**: PR-1C-3 UB1 TournamentCompleted 박제 (developer 수행)
 - **상태**: 박제 완료 — PM 검토/commit/push/PR 대기
 - **현재 담당**: pm (developer 산출물 검토 → tester/reviewer 병렬 검증 또는 PM 직접 검증 → commit)
-- **참고**: phase-ledger (`.claude/phase-ledger.md`) 가 Phase 1/2 상태 source of truth — PR-1C-1 (UA1) PR #650 ✅ 완료 (commit `40d19db`) / PR-1C-2 박제 완료 (commit 전) / UC1 (`profile/activity/page.tsx`) 박제 = PR-1C-5 까지 보류
+- **참고**: phase-ledger PR-1C-3 (UB1 사용자측 종료 발표) — PA7 (관리자측 AdminTournamentCompleted) 와 별 PR / 동일 [id]/page.tsx status='completed' 분기 박제 / 신규 라우트 ❌
 
 ## 기획설계 (planner-architect)
 (아직 없음)
+
+## 구현 기록 (developer / PR-1C-3 UB1 TournamentCompleted 박제)
+
+### 분석
+- **시안 구조** (216 LOC TournamentCompleted.jsx):
+  - Hero band — 🏆 champion + eyebrow ({name} · {edition} CHAMPION) + meta (ended_at · venue · divisions) + 4 통계
+  - 5 카드 grid (6 col span layout): 01 standings (span 2) / 02 MVP·Best5 (span 4) / 03 photos (span 4) / 04 story (span 2) / 05 next (span 6)
+  - Share bar — URL/카카오/인스타 공유 + 다른 대회
+- **운영 데이터 spec 매핑**:
+  | 시안 영역 | 운영 데이터 | 처리 |
+  |---------|----------|------|
+  | Hero champion | `champion_team_id` + Tournament.teams (Team) | 진짜 — null 시 fallback "종료된 대회" |
+  | Hero 통계 4종 | TournamentMatch agg | 운영 미지원 → 엔트리 1개 (champion team_count) 외 3종 hide |
+  | 최종 순위 | TournamentTeam.final_rank 1~3 + team relation | 진짜 — 빈 배열 시 카드 hide |
+  | MVP·Best5 | `mvp_player_id` + User (nickname / name / profile_image_url) | MVP only fallback (Best5 운영 X → 미렌더) |
+  | 갤러리 | 운영 X | 빈 배열 전달 → 카드 자동 hide |
+  | 알기자 (스토리) | `description` ≥ 60자 | 진짜 — 너무 짧으면 hide |
+  | 다음 회차 | series.tournaments 안 edition_number+1 | 진짜 — 별도 query 추가 ❌ (page.tsx 이미 series fetch) |
+- **추가 Prisma query 1건**: TournamentTeam standings (final_rank in [1,2,3]) — 의뢰서 §3 mock 금지 + standings 카드 필수 데이터
+- **status 분기 위치**: page.tsx 비공개/insider 가드 직후 (L287) — 분기 진입 시 V2TournamentHero / V2RegistrationSidebar / Tabs 등 22 기존 컴포넌트 미렌더 (시안 의도 — 종료 후 무의미)
+- **신규 라우트 ❌**: 동일 [id]/page.tsx 분기만 (의뢰서 §2 룰 통과)
+
+### 변경 파일
+| 경로 | 변경 | 신규/수정 | LOC |
+|------|------|----------|-----|
+| `_components/tournament-completed.css` | 시안 css 박제 (`tc-*` 클래스) — `--r-*` → `--radius-*` 토큰 대체 / 챔피언 골드 (#FBF6E6/#E8D9A7/#D4A52E) + 다크 hero (#14181F/#1F242E/#1A1E27/#2A1015) + 텍스트 흰 + mvp 핑크 #FCE4E7 + eyebrow #FFD66B = 시안 원본 보존 (사용자 §6-1 시안 우선) / tablet media query 추가 (≥721 ≤1023 = 2 col) | 신규 | 343 |
+| `_components/tournament-completed-hero.tsx` | Hero band — champion null fallback "종료된 대회" / 통계 4종 중 엔트리만 진짜 (3종 운영 X → hide / mock ❌) / getInitials 폴백 (logo null 시 이니셜) | 신규 | 145 |
+| `_components/tournament-final-standings-card.tsx` | 최종 순위 (rank 1~3) — is-champ class rank=1 / 빈 배열 가드 / "전체 대진표 보기" Link `?tab=bracket` (가짜링크 ❌) | 신규 | 102 |
+| `_components/tournament-mvp-best5-card.tsx` | MVP only — best5 운영 X → 미렌더 (mock ❌) / 헤더 "MVP · 베스트5" → "MVP" 단축 / statText null hide | 신규 | 63 |
+| `_components/tournament-gallery-card.tsx` | 운영 X → photos.length === 0 시 항상 null 반환 (placeholder ❌) / 향후 photos prop 확장 시 자연 흡수 | 신규 | 75 |
+| `_components/tournament-story-card.tsx` | description ≥ 60자 시 노출 / 첫 줄 ≤ 50자 = title 자동 추출 / 240자 초과 ellipsis | 신규 | 67 |
+| `_components/tournament-next-edition-card.tsx` | series.tournaments 에서 edition_number > current 첫 회차 찾아 prop 전달 (별도 query ❌) / D-day 자동 계산 (D-N / D+N / TBD) / Link `/tournaments/{id}` | 신규 | 90 |
+| `page.tsx` | imports: 6 카드 컴포넌트 + tournament-completed.css / select 추가: `champion_team_id` + `teams` (id/name/logoUrl + teamMembers count) + `mvp_player_id` + `users_tournaments_mvp_player_idTousers` (nickname/name/profile_image_url) / `status === 'completed'` 분기 (L287~430) — standings query 1건 + champion/mvp/nextEdition 매핑 + 5 카드 grid 렌더 + Share bar + breadcrumb (4단/2단) | 수정 | 721 → 923 |
+
+### 검증 결과
+- **tsc --noEmit**: 0 errors (EXIT=0)
+- **자체 회귀 검수 6 기본 케이스**:
+  | # | 케이스 | 결과 |
+  |---|--------|------|
+  | 1 | AppNav main bar 우측 dropdown/아바타 | OK (AppNav 변경 0) |
+  | 2 | 모바일 듀얼 라벨 | OK (AppNav 변경 0) |
+  | 3 | 검색/쪽지/알림 box | OK (AppNav 변경 0) |
+  | 4 | 하드코딩 색상 | css 시안 원본 hex 박제 (다크 hero / 챔피언 골드 / mvp 핑크 / eyebrow yellow / 텍스트 흰) — 운영 토큰 미정의 영역 §6-1 시안 우선. tsx 0건 |
+  | 5 | lucide-react import | 0 (본 PR 신규 7 파일) |
+  | 6 | rounded-full / 9999px | 0 (정사각형 50% 사용: tc-hero__logo 84×84 / tc-stand__logo 26×26 / tc-mvp__av 64×64) |
+  | - | 가짜링크 | 0 |
+- **UB1 추가 검수**:
+  | # | 케이스 | 결과 |
+  |---|--------|------|
+  | + | 신규 라우트 [id]/completed/ 생성 | 0 — page.tsx 분기 추가만 |
+  | + | mock/placeholder 데이터 노출 | 0 — 갤러리/베스트5/통계 4종 중 3종 hide |
+  | + | tc-hero / tc-card className 시안 일치 | OK |
+  | + | 5 카드 grid 반응형 | OK (≥1024 6col / ≥721 2col / 모바일 1col) |
+  | + | Hero champion null → fallback "종료된 대회" / 그라데이션 ❌ | OK (logo box 미렌더 + h1 텍스트만 유지 / 시안 배경 그라데이션은 보존) |
+  | + | MVP mvp null → 카드 hide | OK (parent + 컴포넌트 내부 이중 가드) |
+  | + | 하단 CTA 가짜링크 ❌ | OK (`/tournaments` 운영 라우트) |
+  | + | 응답 키 snake_case | OK (page.tsx select `champion_team_id` / `mvp_player_id` snake_case 보존 — Prisma model 직접 매핑) |
+  | + | PA7 관리자측 혼동 | 0 — `(web)/tournaments/[id]` 사용자 측 분기 |
+  | + | API endpoint 추가 / 새 fetch | 0건 |
+
+### 데이터 매핑 결정
+| 시안 카드 | 운영 데이터 | 처리 |
+|---------|----------|------|
+| Hero 🏆 champion | Tournament.teams (via champion_team_id) | 진짜 / null 시 fallback h1 "종료된 대회" |
+| Hero 통계 (엔트리) | Team._count.teamMembers (champion 팀 멤버수) | 진짜 |
+| Hero 통계 (무패/평균득점/평균마진) | 운영 X | hide (mock ❌) |
+| 01 최종 순위 | TournamentTeam.final_rank 1~3 + team relation | 진짜 (Prisma query 1건 추가 — 의뢰서 §3 허용분) |
+| 02 MVP | Tournament.users_tournaments_mvp_player_idTousers (nickname/name/profile_image_url) | 진짜 / 통계 statText 운영 X → hide |
+| 02 베스트5 | 운영 X | 미렌더 (mock ❌) |
+| 03 갤러리 | 운영 X | 빈 배열 전달 → 카드 자동 hide |
+| 04 알기자 (스토리) | tournament.description ≥ 60자 | 진짜 / 너무 짧으면 hide |
+| 05 다음 회차 | series.tournaments 에서 edition_number > current | 진짜 (page.tsx series fetch 재사용 — 별도 query ❌) |
+
+### 알림
+- **시안 ↔ 운영 불일치 (디자인 변경 ❌, API 변경 ❌)**:
+  - 시안 hero 4 통계 (엔트리/7경기 무패/68.2 평균득점/+12.4 평균마진) → 운영 데이터 X → 엔트리 1종만 진짜, 3종 hide. 향후 TournamentMatch agg API 추가 시 자연 흡수 가능
+  - 시안 best5 (5명 PG/SG/SF/PF/C 라인업) → 운영 X → 미렌더. 향후 TournamentBest5 모델/API 추가 시 자연 흡수
+  - 시안 갤러리 (T.photos[] 4~6장) → 운영 X → 카드 자동 hide. 향후 TournamentPhoto 모델 추가 시 photos prop 전달만 하면 자연 흡수
+  - 시안 share bar (URL/카카오/인스타) → 본 PR 에서 카카오/인스타 SDK 통합 보류 (mock ❌ / 향후 클라이언트 share-tournament-button 재사용 가능) → "다른 대회 둘러보기" Link 만 운영 라우트로 박제
+  - 시안 "전체 8강 보기" → 운영 bracket 탭으로 라우팅 (시안 의도 = 대진표 확인)
+- **status === 'completed' 시 22 기존 컴포넌트 미렌더**: V2TournamentHero / V2RegistrationSidebar / TournamentTabs / SeriesCard / TournamentDivisionChips / TournamentOperatorPreview / V2BracketPrediction 모두 분기 안에서 미사용 (early return). 시안 의도 — 종료된 대회는 종료 발표 UI 가 전체 화면. 기존 컴포넌트 코드 자체는 변경 0 (다른 status 분기에서 계속 사용)
+- **신규 Prisma query 1건 추가** (TournamentTeam standings) — 의뢰서 §3 "예외: series next_edition 도출용 단순 query 1건 허용" 의 정신에 따라 데이터 진실성을 위한 최소 query. mock 사용 회피 목적. status='completed' 분기에서만 실행되므로 다른 상태 대회 성능 영향 0
+- **page.tsx select 추가** (champion_team_id / mvp_player_id / teams / users_mvp): status 분기 무관하게 항상 select. 영향 = SSR fetch 시 ~20 byte 추가 / 모든 대회 회귀 0 (필드 추가만)
+- **commit/push/PR 은 PM 담당** (의뢰서 §Step 9~11)
+
+💡 tester 참고:
+- **로컬 검증**: `npm run dev` → http://localhost:3001/tournaments/[completed-uuid] 접속
+  - 종료 대회 (`status='completed'`) → 5 카드 grid 노출, 기존 hero/sidebar/tabs 미노출
+  - 비종료 대회 (recruit/active/published/draft 등) → 기존 동작 100% 유지 (회귀 0)
+  - **데스크톱**:
+    - champion 있음 + 우승 1팀 + MVP + description → 5 카드 grid 완전 노출 (갤러리 hide)
+    - champion 없음 → Hero "종료된 대회" + standings/MVP/story 카드 (있으면) 노출
+    - mvp 없음 → MVP 카드 hide
+    - description 짧음 (<60자) → 알기자 카드 hide
+    - series 없음 / 마지막 회차 → 다음 회차 카드 hide
+  - **모바일 (≤720px)**: 5 카드 1열, hero 통계 4 grid (각 컴포넌트 자체 반응형)
+  - **태블릿 (721~1023px)**: 2 column grid (story/standings 한 줄, photos/next 풀폭)
+  - **다크모드**: var(--*) 토큰 자동 적용
+- **정상 동작**:
+  - Hero 우승팀 로고 = teams.logoUrl 또는 이니셜 폴백
+  - 최종 순위 1위 카드 = `.is-champ` 골드 그라데이션
+  - "전체 대진표 보기" 클릭 → `?tab=bracket` 쿼리 부여 후 페이지 그대로 (참고: status='completed' 분기 안이라 탭 이동 효과는 미동작 — bracket 으로 직접 이동하려면 `/tournaments/{id}?tab=bracket` 명시 라우팅 필요 — 향후 별 PR)
+  - 다음 회차 카드 D-day = 시작일 - 오늘 (음수면 D+N / 0이면 D-0)
+- **주의할 입력**:
+  - final_rank 미설정 대회 → standings 카드 자동 hide (운영 데이터 그대로)
+  - champion_team_id 미설정 → hero fallback "종료된 대회"
+  - mvp_player_id 미설정 → MVP 카드 hide
+  - description NULL → story 카드 hide
+  - series_id NULL → 다음 회차 카드 hide
+  - **운영 DB 영향 0**: status='completed' 대회만 본 분기 진입. 다른 status 대회는 select 추가분만 (data fetch +20byte / 회귀 0)
+
+⚠️ reviewer 참고:
+- **css 시안 원본 hex 박제** (다크 hero / 챔피언 골드 / mvp 핑크 / eyebrow yellow): 사용자 §6-1 "시안 우선" 룰. 운영 globals.css 에 동등 토큰 미정의. 향후 토큰 추가 시 var() 전환 가능
+- **page.tsx select 영구 확장**: champion_team_id / mvp_player_id / teams / users_mvp 4 필드 — 다른 status 대회에도 fetch (분기 무관). 영향 미미하지만 reviewer 가 "분기 시에만 fetch" 권장 시 별도 prisma.tournament.findUnique 분리 PR 로 처리 가능
+- **TournamentTeam standings query 1건 추가**: status='completed' 분기 안에서만 실행. 의뢰서 §3 mock 금지 + 데이터 진실성 위한 최소 query. final_rank in [1,2,3] 인덱스 미정의 — 향후 final_rank index 추가 시 자연 흡수
+- **공유 SDK 미통합**: 시안 카카오/인스타 공유 버튼은 본 PR 에서 미박제 (mock ❌ 정신). 향후 share-tournament-button 클라이언트 재사용 가능
+- **breadcrumb 4단/2단 분기 재구현**: status='completed' 분기는 별도 wrapper (.tc-inner 다크 배경) 이므로 기존 max-w-7xl wrapper 재사용 불가 → breadcrumb 로직 일부 재현. 가독성 위해 별도 헬퍼 함수로 추출 가능 (향후 별 PR)
+- **API/Prisma 호출**: select +4 필드 + standings query 1건 (status='completed' 분기 안). 의뢰서 §3 데이터 정책 준수
+
+#### 수정 이력
+(아직 없음 — tester/reviewer 피드백 시 추가)
 
 ## 구현 기록 (developer / PR-1C-2 UA2 TournamentDetail + UC2 MyRegistrationStatus 박제)
 
@@ -190,6 +311,7 @@
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
 |------|------|------|
+| 2026-05-28 | PR-1C-3 UB1 TournamentCompleted 박제 (developer) | ✅ 시안 박제 / 신규 7 (tournament-completed.css 343 / tournament-completed-hero.tsx 145 / tournament-final-standings-card.tsx 102 / tournament-mvp-best5-card.tsx 63 / tournament-gallery-card.tsx 75 / tournament-story-card.tsx 67 / tournament-next-edition-card.tsx 90) + 수정 1 (page.tsx 721→923 / status='completed' 분기 + select 4필드 추가 + standings query 1건) / 신규 라우트 ❌ / mock ❌ (갤러리/best5/통계 4종 중 3종 hide) / 다른 status 대회 회귀 0 / tsc 0 errors / 자체 회귀 6/6 + UB1 10/10 PASS / commit·push·PR PM 담당 |
 | 2026-05-28 | Phase 1C-2 UA2 TournamentDetail + UC2 MyRegistrationStatus 박제 (developer) | ✅ 시안 박제 / 신규 4 (my-registration-status.css 174 / tournament-detail.css 162 / tournament-division-chips.tsx 60 / tournament-operator-preview.tsx 64) + 수정 2 (my-registration-status.tsx 153→263 variant 분기 / page.tsx 684→720 sidebar+sticky chip row) / API·Prisma·AppNav 변경 0 / MyRegistrationStatus 위치 이동 ❌ / 기존 prop 시그니처 유지 / tsc 0 errors / 자체 회귀 6/6 + 추가 4/4 PASS / commit·push·PR PM 담당 |
 | 2026-05-28 | Phase 1C-1 UA1 Tournaments 박제 (developer) | ✅ 시안 `tnl-card` 패턴 박제 / 신규 1 (tournaments.css) + 수정 2 (v2-tournament-list.tsx 552→432, tournaments-content.tsx 380→408) / API/AppNav 변경 0 / tsc 0 errors / 자체 회귀 6/6 PASS / commit·push·PR PM 담당 |
 | 2026-05-26 | Phase 2 묶음 2 baseline 복원 + zip (의뢰서 §Step 1~3) | ✅ baseline 10 복원 (v2.18 pre-snapshot 9 + v2.19 MyActivity 1) / `Downloads/BDR-current-phase2.zip` 0.15 MB / commit 보류 (다음 sync 시 archive 자연 이동) / 사용자 Claude.ai 세션 2 진입 대기 |
