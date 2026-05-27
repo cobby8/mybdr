@@ -1,13 +1,105 @@
 # 작업 스크래치패드
 
 ## 현재 작업
-- **요청**: Phase 1C-1 UA1 Tournaments 박제 (developer 수행)
+- **요청**: Phase 1C-2 UA2 TournamentDetail + UC2 MyRegistrationStatus 박제 (developer 수행)
 - **상태**: 박제 완료 — PM 검토/commit/push/PR 대기
 - **현재 담당**: pm (developer 산출물 검토 → tester/reviewer 병렬 검증 또는 PM 직접 검증 → commit)
-- **참고**: phase-ledger (`.claude/phase-ledger.md`) 가 Phase 1/2 상태 source of truth — Phase 1 ⑩ ✅ 완료 / Phase 1 ⑪ PR-1C-1 박제 완료 (commit 전) / Phase 2 zip 회신 대기
+- **참고**: phase-ledger (`.claude/phase-ledger.md`) 가 Phase 1/2 상태 source of truth — PR-1C-1 (UA1) PR #650 ✅ 완료 (commit `40d19db`) / PR-1C-2 박제 완료 (commit 전) / UC1 (`profile/activity/page.tsx`) 박제 = PR-1C-5 까지 보류
 
 ## 기획설계 (planner-architect)
 (아직 없음)
+
+## 구현 기록 (developer / PR-1C-2 UA2 TournamentDetail + UC2 MyRegistrationStatus 박제)
+
+### 분석
+- **시안 구조 (UA2 / 452 LOC)**:
+  - hero band (B7 status / B4 capacity) — `td-hero` (poster grad + 통계 + CTA)
+  - 종별 sticky chip row (B2) — `td-divsel` + `td-divchip`
+  - 5 탭 (overview / schedule / bracket / teams / rules) — `td-tabs`
+  - sidebar 보강 — `MyRegistrationStatus` (B1) + 운영자 미리보기 (B7) + 문의
+  - mobile sticky bottom (결제 마감 알림)
+- **시안 UC2 (121 LOC)**: variant 'sidebar' (풀카드) | 'compact' (한 줄) 분기. 5 STEPS (신청 → 대기 → 승인 → 결제 → 진행). STATUS_META 7종 톤 (warn/accent/ok/navy/mute/err)
+- **운영 데이터 흐름**:
+  - `page.tsx` 가 SSR — `tournament.findUnique` (include tournament_series), `isTournamentInsider`, `myApplicationsCount`, `divisions` 가공
+  - `V2TournamentHero` + `V2RegistrationSidebar` + `TournamentTabs` (overview/규정 SSR + bracket/일정/팀 클라 lazy)
+- **22 기존 컴포넌트 ↔ 시안 매핑**:
+  - hero → `V2TournamentHero` 유지 (시안 hero band 시각 일부 흡수는 후속 PR)
+  - 5 탭 → `TournamentTabs` 유지 (이미 시안 동일 5탭 ALLOWED_TABS 박제됨 — overview/bracket/schedule/teams/rules)
+  - 종별 chip → 신규 `TournamentDivisionChips` (sticky, divisions ≥ 2 시만)
+  - sidebar 운영자 toggle → 신규 `TournamentOperatorPreview` (isInsider 시만)
+  - 사이드바 MyRegistrationStatus → 기존 `_components/my-registration-status.tsx` variant 박제 갱신
+- **API 변경**: 0 (리디자인 룰 — Prisma 쿼리/응답 동일)
+- **MyRegistrationStatus 위치 이동**: ❌ (PR-1C-5 영향 회피) — `_components/` 유지, 기존 prop 시그니처 (`tournamentId`) 보존
+
+### 변경 파일
+| 경로 | 변경 | 신규/수정 | LOC |
+|------|------|----------|-----|
+| `_components/my-registration-status.tsx` | variant 'sidebar' \| 'compact' prop 추가 / 5 STEPS 박제 / STATUS_META 7종 톤 매핑 / 외부 `reg` 주입 모드 추가 (UC1 대비) / 기존 `tournamentId` 시그니처 + SWR `/api/web/tournaments/[id]/my-status` 호출 유지 | 수정 (시안 박제 패턴) | 153 → 263 |
+| `_components/my-registration-status.css` | 시안 `my-registration-status.css` 박제 — `mrs-*` 클래스 + `mrs-pulse` keyframe 자체 정의. 토큰 대체 (`--r-sm → --radius-chip`, `--r-md → --radius-card`, `--r-xs → 4px`, `--bdr-navy → --cafe-blue-deep`, `--err → --danger`, `--warn-soft → #FFF7E8`, `--err-soft → #FCE7E7` 시안 원본 hex 보존) | 신규 | 174 |
+| `_components/tournament-detail.css` | 시안 `tournament-detail.css` 박제 — hero band / sticky chip row (`td-divsel`) / 운영자 미리보기 (`td-side__preview*`) 박제. 토큰 대체 동일 패턴 + `td-pulse` keyframe 자체 정의. 운영 사용 안 하는 시안 영역 (`.td-tabs`/`.td-pane`/`.td-table`/`.td-bracket`/`.td-teams`/`.td-rules`) 은 박제 보류 (운영 22 기존 컴포넌트가 이미 담당 — 변경 최소화) | 신규 | 162 |
+| `_components/tournament-division-chips.tsx` | 시안 `DivisionChips` (B2) 추출 — 종별 ≥ 2 시 sticky chip row. URL 쿼리 동기화 없이 클라이언트 state 만 보유 (SSR 가 종별별 데이터 전부 내려주므로 시각 필터만 담당) | 신규 | 60 |
+| `_components/tournament-operator-preview.tsx` | 시안 sidebar B7 운영자 미리보기 toggle 추출 — `isInsider` 시만 노출 (page.tsx 가드) | 신규 | 64 |
+| `page.tsx` | imports: MyRegistrationStatus / TournamentDivisionChips / TournamentOperatorPreview + `./_components/tournament-detail.css` / main 상단에 sticky chip row (divisions > 1 시) / sidebar 영역에 MyRegistrationStatus (session 있을 때) + TournamentOperatorPreview (isInsider 시) 추가 | 수정 | 684 → 720 |
+
+### 검증 결과
+- **tsc --noEmit**: 0 errors
+- **자체 회귀 검수 6 케이스**:
+  | # | 케이스 | 결과 |
+  |---|--------|------|
+  | 1 | AppNav main bar 우측 dropdown/아바타 | OK (AppNav 변경 ❌) |
+  | 2 | 모바일 듀얼 라벨 | OK (AppNav 변경 ❌) |
+  | 3 | 검색/쪽지/알림 box | OK (AppNav 변경 ❌) |
+  | 4 | 하드코딩 색상 (본 PR 신규 파일 기준) | css 시안 원본 hex 3건 (`#8B5A0F` 텍스트 / `#FFF7E8` warn-soft / `#FCE7E7` err-soft) — 운영 미정의 토큰의 시안 원본 hex 보존 (사용자 §6-1 시안 우선) |
+  | 5 | lucide-react import | 0 (본 PR 신규/수정 5 파일 모두 0) |
+  | 6 | rounded-full / 9999px | 0 (본 PR 신규/수정 파일) — 기존 운영 `overviewContent` 3건은 본 PR 범위 외 |
+  | - | 가짜링크 | 0 |
+- **추가 검수** (본 PR 의뢰서 Step 8):
+  | # | 케이스 | 결과 |
+  |---|--------|------|
+  | + | sidebar (UA2) MyRegistrationStatus 노출 = 신청한 사용자만 | OK (`session` 가드 + 컴포넌트 내부 `data.registered` 가드) |
+  | + | 종별 chip row sticky = scroll 시 hero band 아래 fix | OK (`.td-sticky` `position: sticky; top: 0; z-index: 5`) |
+  | + | 5 탭 = overview / schedule / bracket / teams / rules 순서/명 시안 일치 | OK (`page.tsx` `ALLOWED_TABS` 이미 시안과 동일 5탭) |
+  | + | bracket 탭 = 버전 메타 (B5) + 본인 팀 하이라이트 — 시안 의도 그대로 (운영 v2-bracket-* 컴포넌트 보존) | OK (`V2BracketWrapper`/`V2BracketHeader` 기존 컴포넌트 보존 — bracket 버전/본인 팀 메타는 후속 PR 에서 v2-bracket-header 갱신 시 흡수 가능) |
+
+### 알림
+- **시안 ↔ 운영 불일치 (디자인 변경 ❌, API 변경 ❌)**:
+  - 시안 `MY_REG` mock (status='approved' / step_idx=2 / pay_due) 의 `next_action / pay_due / division / team_name` → 운영 API (`/api/web/tournaments/[id]/my-status`) 응답 스펙에 미포함 → MyRegistrationStatus 가 API 미구현 시 silent fail (sidebar 미노출). API 확장 시 자연 흡수 가능 (시안 `next_action` 필드 그대로 매핑)
+  - 시안 hero band 의 status 톤 (`recruit` accent / `final-call` warn / `closed/completed` mute) → 운영 `V2TournamentHero` 는 기존 톤 유지 (본 PR 변경 최소화 룰) — hero 시각 갱신은 PR-1C-3 또는 후속 PR 로 분리 가능
+  - 시안 bracket 탭 B5 (version meta + 본인 팀 하이라이트) → 운영 `v2-bracket-header` 가 이미 일부 기능 보유 — 시안 의도 매핑은 본 PR 범위 외 (의뢰서: "버전 메타 본인 팀 하이라이트 = 시안 의도 그대로 운영 v2-bracket-* 컴포넌트 보존")
+  - 시안 mobile sticky bottom (결제 마감 알림) → 운영 sticky CTA 는 2026-05-02 사용자 결정으로 삭제됨 (page.tsx L680~ 주석). 본 PR 에서도 미추가 (시안 의도 시각만 박제 / 모바일 sticky 정책 변경 = 별 PR)
+- **운영 유지 컴포넌트 (시안 매핑 보류)**: `V2TournamentHero` / `V2RegistrationSidebar` / `V2BracketPrediction` / 5탭 콘텐츠 22개 모두 보존 — 의뢰서 "22 기존 컴포넌트는 변경 최소" 룰 준수
+- **`TournamentSidebar` (tournament-sidebar.tsx)** — 운영 page.tsx 에서 미사용 (참조 0건). `MyRegistrationStatus` 의 유일한 다른 호출처 였음. 본 PR 의 prop 시그니처 변경 (`tournamentId` 유지 + variant 추가) 이라 호출처 회귀 0 — 추후 사용 시 자연 흡수
+- **commit/push/PR 은 PM 담당** (의뢰서 §Step 9~11)
+
+💡 tester 참고:
+- **로컬 검증**: `npm run dev` → http://localhost:3001/tournaments/[유효-tournament-uuid] 접속
+  - **데스크톱**:
+    - 다종별 대회 (categories 2종 이상) → main 상단 종별 chip row 노출 ("전체" + 종별 chip N개) → scroll 시 hero 아래 sticky 고정
+    - 단일 종별 대회 → 종별 chip row 미노출
+    - 로그인 + 신청 완료 사용자 → sidebar 최상단에 `mrs--sidebar` 카드 (5 STEPS 인디케이터 + 마이페이지 CTA)
+    - 비로그인 / 미신청 사용자 → MyRegistrationStatus 미노출
+    - 운영자 (organizer / admin member / super_admin) → sidebar 에 운영자 미리보기 toggle 노출
+  - **모바일 (≤720px)**: chip row 가로 스크롤, sidebar 영역 hidden (lg+ 만), `mrs-step__lbl` 축소
+  - **다크모드**: 토큰 var(--*) 자동 적용
+- **정상 동작**:
+  - 종별 chip 클릭 → 시각만 변경 (탭 콘텐츠 SSR 보존)
+  - 운영자 toggle 클릭 → state 변경 (실제 미리보기 모드 전환은 본 PR 미구현 — 토글 UI 만 박제)
+  - MyRegistrationStatus 5 STEPS = 신청 → 대기 → 승인 → 결제 → 진행 (`status === "approved" && payment === "paid"` → step 3, `status === "in_progress"` → step 4)
+  - status pill 톤: pending → warn / approved → accent / paid → ok / in_progress → navy / completed → mute / rejected → err
+- **주의할 입력**:
+  - `MY_STATUS` API 미구현 (current state) → SWR onError silent → sidebar 카드 자동 미노출 (정상)
+  - `divisions.length === 1` → chip row 자동 미노출
+  - `tournament.status === "completed"` 대회 → MyRegistrationStatus 사용자 가입 안 했으면 미노출, 가입했으면 `completed` 톤 (mute) 표시
+
+⚠️ reviewer 참고:
+- **시안 css 원본 hex 3건 박제** (`#8B5A0F` text / `#FFF7E8` warn-soft bg / `#FCE7E7` err-soft bg): 운영 globals.css 에 `--warn-soft` / `--err-soft` 미정의 — 시안 원본 그대로 박제 (사용자 §6-1 시안 우선 룰). 향후 globals.css 토큰 추가 시 var() 전환 가능
+- **`MyRegistrationStatus` prop 시그니처 확장**: 기존 `tournamentId` 유지 + 신규 `reg / variant / onOpenMy / onOpenTn` 옵션 prop 추가 → 호출처 (tournament-sidebar.tsx 운영 미사용 / page.tsx 신규 호출) 회귀 0. UC1 (PR-1C-5) 에서 `<MyRegistrationStatus reg={...} variant="compact" />` 패턴으로 사용 예정
+- **종별 chip URL 동기화 의도적 생략**: SSR 이 categories 전체를 한 번에 내려주므로 클라이언트 state 만으로 충분. URL 동기화는 페이지네이션/필터 연결 시 후속 PR 에서 추가 가능 (의뢰서 "본 PR 에서는 시각 칩 노출만 박제")
+- **`TournamentOperatorPreview` 실제 미리보기 모드 미구현**: toggle UI 만 박제. 실제 미리보기 모드 전환 = url query `?preview=user` + page.tsx isInsider 조건 분기 = 별 PR 로 분리 (의뢰서 "토글 UI 만 박제")
+- **API/Prisma 호출 0 변경**: page.tsx SSR 쿼리 동일, MyRegistrationStatus SWR endpoint 동일
+
+#### 수정 이력
+(아직 없음 — tester/reviewer 피드백 시 추가)
 
 ## 구현 기록 (developer / PR-1C-1 UA1 Tournaments 박제)
 
@@ -98,6 +190,7 @@
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
 |------|------|------|
+| 2026-05-28 | Phase 1C-2 UA2 TournamentDetail + UC2 MyRegistrationStatus 박제 (developer) | ✅ 시안 박제 / 신규 4 (my-registration-status.css 174 / tournament-detail.css 162 / tournament-division-chips.tsx 60 / tournament-operator-preview.tsx 64) + 수정 2 (my-registration-status.tsx 153→263 variant 분기 / page.tsx 684→720 sidebar+sticky chip row) / API·Prisma·AppNav 변경 0 / MyRegistrationStatus 위치 이동 ❌ / 기존 prop 시그니처 유지 / tsc 0 errors / 자체 회귀 6/6 + 추가 4/4 PASS / commit·push·PR PM 담당 |
 | 2026-05-28 | Phase 1C-1 UA1 Tournaments 박제 (developer) | ✅ 시안 `tnl-card` 패턴 박제 / 신규 1 (tournaments.css) + 수정 2 (v2-tournament-list.tsx 552→432, tournaments-content.tsx 380→408) / API/AppNav 변경 0 / tsc 0 errors / 자체 회귀 6/6 PASS / commit·push·PR PM 담당 |
 | 2026-05-26 | Phase 2 묶음 2 baseline 복원 + zip (의뢰서 §Step 1~3) | ✅ baseline 10 복원 (v2.18 pre-snapshot 9 + v2.19 MyActivity 1) / `Downloads/BDR-current-phase2.zip` 0.15 MB / commit 보류 (다음 sync 시 archive 자연 이동) / 사용자 Claude.ai 세션 2 진입 대기 |
 | 2026-05-26 | Phase 1A v2.19 sync + Step 0 BOM 영구 해결 | ✅ Step 0 commit `5609c61` (BOM) + sync commit `d5befb9` push / BDR-current = 23 파일 v2.19 cumulative / pre-snapshot 20 파일 보존 / 회귀 검수 6 통과 / 임시 우회 패턴 폐기 / ledger Phase 1 ⑩ (1A) ✅ |

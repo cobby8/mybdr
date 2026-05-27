@@ -19,6 +19,16 @@ import { Breadcrumb, type BreadcrumbItem } from "@/components/shared/breadcrumb"
 // 탭 전환 컴포넌트 (클라이언트) — lazy loading 방식으로 변경
 import { TournamentTabs } from "./_components/tournament-tabs";
 
+// UA2 시안 박제 (2026-05-28) — sidebar 영역 + sticky chip row 시각 갱신
+//  - MyRegistrationStatus: 신청 사용자 sidebar 풀카드 (UC2 공유 컴포넌트)
+//  - TournamentDivisionChips: 종별 선택 sticky chip row (B2 갭 해소)
+//  - TournamentOperatorPreview: 운영자 미리보기 toggle (B7 — isInsider 시만)
+import { MyRegistrationStatus } from "./_components/my-registration-status";
+import { TournamentDivisionChips } from "./_components/tournament-division-chips";
+import { TournamentOperatorPreview } from "./_components/tournament-operator-preview";
+// 시안 sticky chip row / sidebar 운영자 미리보기 등의 토큰화 css
+import "./_components/tournament-detail.css";
+
 // 비공개 대회 가드 — 관계자(organizer/admin member/super_admin)만 접근
 import { getWebSession } from "@/lib/auth/web-session";
 import { isTournamentInsider } from "@/lib/auth/tournament-auth";
@@ -585,6 +595,17 @@ export default async function TournamentDetailPage({
         {/* min-w-0: grid 자식이 내부 콘텐츠(예: 스크롤 테이블)로 인해
             최소폭이 튕기며 우측 aside를 밀어내지 않도록 축소 허용. 필수. */}
         <main className="min-w-0">
+          {/*
+            UA2 시안 박제 (2026-05-28) — 종별 sticky chip row (B2 갭 해소)
+            divisions 가 2개 이상일 때만 시안 패턴으로 노출. 단일 종별 대회는 칩 표시 자체가 무의미하므로 미노출.
+            현재는 시각 칩만 렌더 (탭 콘텐츠는 SSR 로 종별별 데이터를 이미 모두 포함 — 즉시 회귀 0).
+          */}
+          {divisions.length > 1 && (
+            <TournamentDivisionChips
+              divisions={Array.from(new Set(divisions.map((d) => d.division)))}
+            />
+          )}
+
           {/* 탭: 개요/규정은 서버 렌더링, 대진표/일정/참가팀은 클라이언트 lazy loading
               Bracket 탭 v2: 헤더/Status/사이드 카드용 메타를 서버 props로 전달.
               seriesEditions는 같은 series_id 내 다른 회차 select 라우팅용 (데이터 부족 시 빈 배열). */}
@@ -644,9 +665,25 @@ export default async function TournamentDetailPage({
 
         {/* 데스크톱(lg+) 전용 우측 영역: sticky 신청 카드 (Phase 2 Match v2).
             top-20 = 상단 네비 높이(h-16) + 약간의 숨통. 탭 전환 시 리마운트 없음.
-            6상태 CTA 분기 로직은 기존 RegistrationStickyCard와 동일, UI만 v2 스킨. */}
+            6상태 CTA 분기 로직은 기존 RegistrationStickyCard와 동일, UI만 v2 스킨.
+
+            UA2 시안 박제 (2026-05-28) — B1/B7 갭 해소:
+             - MyRegistrationStatus (sidebar variant): 신청한 사용자만 노출 (내부 SWR 자동 가드)
+             - TournamentOperatorPreview: isInsider 시만 노출 — B7 운영자 화면 전환 미리보기 toggle
+            */}
         <aside className="hidden lg:block">
           <div className="sticky top-20 flex flex-col gap-4">
+            {/* 내 참가 현황 (UA2 sidebar) — 로그인 + 신청 사용자만 (컴포넌트 내부에서 자동 가드) */}
+            {session && (
+              <MyRegistrationStatus
+                tournamentId={tournament.id}
+                variant="sidebar"
+              />
+            )}
+
+            {/* B7: 운영자 미리보기 (isInsider 한정) — 시안 L370~392 */}
+            {isInsider && <TournamentOperatorPreview />}
+
             <V2RegistrationSidebar
               tournamentId={tournament.id}
               registrationEndAt={tournament.registration_end_at}
