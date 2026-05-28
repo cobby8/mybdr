@@ -26,7 +26,7 @@
 | ⑧ 시안 박제 | 1A | ⏸ 보류 | Claude.ai | - | 1A 의뢰 전달 후 |
 | ⑨ zip 출력 | 1A | ⏸ 보류 | Claude.ai | - | 별 zip 묶음 — v2.19 또는 v2.18 갱신 |
 | **⑩ sync 실행** | 1A | ✅ 완료 | CLI | 2026-05-26 | `sync-bdr-current.ps1 -NewVersion "v2.19"` 실행 완료. BDR-current = 23 파일 (jsx 17 admin 11 + user 6 / css 6 user) — v2.19 cumulative (v2.18 user + Phase 1A admin) / pre-snapshot = `_archive/BDR-current-2026-05-26-pre-v2.19/` (v2.18 15 + baseline 5 = 20 파일 보존). 회귀 검수 6 케이스 통과. Step 0 BOM 영구 해결 commit `5609c61` (Phase 1B 임시 우회 패턴 폐기). |
-| **⑪ 운영 박제 (Phase 1C)** | 1C | ⏸ 현세션 종료 (대형 3 새 세션) | CLI | 2026-05-28 | PR #650 누적. **PR-1C-1~9 + 11~13 ✅ (11 PR)** (`40d19db` UA1 / `9734de4` UA2+UC2 / `19dfa03` UB1 / `e4e629b` UA3 / `7e57690` UC1 / `08524bd` PA5 / `0cf3e1f` PA1 / `30f60a5` PA8 / `b468436` PA4 / `4f5d4cc` PA9 / `05d961d` PA6 / `<PR-1C-13 commit>` PA7 Completed 신규 라우트 = 관리자 종료 hub 5 카드 + 🏆 hero / 가짜링크 0 (실재만 활성·없으면 disabled) / admin nav 미변경 (setup hub CTA 진입) / mock hide). **⏸ PR-1C-10 PA3 = SKIP** (시안≠운영 / planner 재설계). 모두 API/AppNav/가짜링크 0 / tsc 0. **남은 작업 = 대형 3 (PR-1C-14 PA2 1668 / 15 Teams 1599 / 16 Bracket 976) 새 세션 batch + PR-1C-10 PA3 재설계**. |
+| **⑪ 운영 박제 (Phase 1C)** | 1C | ✅ 박제 종료 (PA3 SKIP 제외 15/16) | CLI | 2026-05-28 | **15 PR 박제 완료** (PA3 SKIP 1건 제외 전부). 머지 12 PR (`40d19db` UA1 / `9734de4` UA2+UC2 / `19dfa03` UB1 / `e4e629b` UA3 / `7e57690` UC1 / `08524bd` PA5 / `0cf3e1f` PA1 / `30f60a5` PA8 / `b468436` PA4 / `4f5d4cc` PA9 / `05d961d` PA6 / `32f4d2b` PA7). **🆕 대형 3 로컬 commit (미push)**: PR-1C-14 PA2 `d33177e` (진입점 sub-tab 4옵션 + draft 배너 [작성시각 hide=mock❌] + 3step flow / Legacy 보존 / 라우팅·API 0) / PR-1C-15 Teams `044527d` + PR-1C-16 Bracket `7694763` (carryover 잔여 rgba/#fff/rounded-full → 토큰). 모두 API/AppNav/가짜링크 0 / tsc 0 / PM 직접검증 회귀 6/6. **⏸ PR-1C-10 PA3 = SKIP** (시안 종별위임≠운영 협회생성 / planner 재설계 대기). **남은 작업 = 3 commit push + PA3 재설계만**. |
 | **⑫ 회귀 검수 (역박제 룰)** | 1C | ✅ 진행 중 (PR-1C-1~6) | CLI | 2026-05-28 | PR-1C-1~6 각 자체 회귀 6/6 + 추가 케이스 PASS. PR-1C-6 = 옵션 A (vban hide / mock 금지 / 데이터 흐름 100% 유지). 운영→시안 drift 0. |
 | **⑬ PR 결재** | 1C | ⏸ 보류 | **수빈 (수동)** | - | subin → dev → main (CLAUDE.md §🚦) |
 | ⑭ Phase 완료 | 1 | ⏸ 보류 | Cowork | - | 본 ledger 갱신 + Phase 2 시작 결정 |
@@ -148,3 +148,4 @@ Phase 번호 ↑    영역 ↑
 | 2026-05-25 | Phase 2 ①~⑤ ✅ 완료 (점검 리포트 + 의뢰 2A/2B 작성) | Phase 2 결재 4건 + 의뢰 2건 작성 |
 | 2026-05-26 | **통합 가이드 작성** = `phase-1A+2-claude-ai-delivery-guide-2026-05-26.md` (다른 세션 Phase 1A 가이드 superset + Phase 2 baseline 9 추가) | Phase 1A + Phase 2 묶음 전달 결정 — 옵션 B (2 세션 분리) 권장 |
 | 2026-05-26 | **사용자 결재 — 옵션 B 채택** (2 세션 분리 / 대회 → 경기 순) | 가이드 §0-0 결재 결과 명시 |
+| 2026-05-28 | **Phase 1C 대형 3 박제 완료** (PR-1C-14 PA2 `d33177e` / 15 Teams `044527d` / 16 Bracket `7694763`) — 15/16 박제 종료 (PA3 SKIP 제외) | 새 세션 batch / 3 commit 미push / push+결재 대기 |
