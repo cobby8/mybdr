@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db/prisma";
 import { apiSuccess, apiError } from "@/lib/api/response";
 
 /**
- * GET /api/web/me/activity?type=tournaments|games|teams&limit=20
+ * GET /api/web/me/activity?type=tournaments|games|teams|manner&limit=20
  *
  * 이유: W4 M4 "내 활동 통합 뷰"(/profile/activity)에서 3개 탭의 데이터를
  *      각각 호출한다. 탭이 바뀔 때만 해당 type 데이터만 fetch → 초기 페인트
@@ -108,6 +108,43 @@ export const GET = withWebAuth(async (req: Request, _routeCtx, ctx: WebAuthConte
               }
             : null,
         })),
+      });
+    }
+
+    if (type === "manner") {
+      /* PR-2C-3 (BG2): 내 매너 평가 — game_player_ratings 본인 대상 최근 50건.
+       * ⚠️ 노출 룰 (사용자 결재): 평균 + flag "종류"(키워드)만.
+       *    개별 건수(예 "no_show 2회")는 절대 집계/노출 ❌.
+       * 이유: 본인 매너 피드백은 동기부여용 — 부정 건수 카운트는 위축/낙인 유발.
+       *      따라서 flags 는 Set 으로 distinct 만 추출하고 발생 횟수는 버린다.
+       * IDOR: rated_user_id = session 본인 고정. */
+      const rows = await prisma.game_player_ratings.findMany({
+        where: { rated_user_id: ctx.userId },
+        orderBy: { created_at: "desc" },
+        take: 50, // 최근 50건 (의뢰서 §3-UC1-2)
+        select: { rating: true, flags: true },
+      });
+
+      // 평가 0건 → 빈 상태로 응답 (mock ❌ / 프론트가 빈 카드 분기)
+      const totalEvaluations = rows.length;
+      const avg =
+        totalEvaluations === 0
+          ? 0
+          : // 평균 평점 = rating 합 / 건수 (소수 1자리는 프론트에서 toFixed)
+            rows.reduce((sum, r) => sum + r.rating, 0) / totalEvaluations;
+
+      // flag 종류만 distinct — 건수 미집계 (Set 으로 중복 제거 후 종류 배열)
+      const flagKinds = Array.from(
+        new Set(rows.flatMap((r) => r.flags ?? [])),
+      );
+
+      return apiSuccess({
+        // 단일 객체 — items 리스트 아님 (집계 결과)
+        manner: {
+          avg, // 평균 평점 (0 = 평가 없음)
+          totalEvaluations, // 평가 받은 "사람 수"(건수)는 노출 OK — flag별 건수만 ❌
+          flagKinds, // 받은 flag 종류 (키워드 / 건수 없음)
+        },
       });
     }
 

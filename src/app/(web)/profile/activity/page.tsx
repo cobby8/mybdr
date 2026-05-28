@@ -78,6 +78,28 @@ type TeamItem = {
   };
 };
 
+// PR-2C-3 (BG2): 내 매너 집계 응답 타입 — /api/web/me/activity?type=manner
+// ⚠️ flag "종류"(flag_kinds)만 / 개별 건수 필드 없음 (사용자 결재 — 건수 노출 ❌)
+type MannerData = {
+  avg: number; // 평균 평점 (0 = 평가 없음)
+  total_evaluations: number; // 평가 받은 건수 (OK / flag별 건수만 ❌)
+  flag_kinds: string[]; // 받은 flag 종류 (키워드만)
+};
+
+// PR-2C-3: 운영 flag → 한국어 라벨 + 이모지 맵.
+// 이유: 시안 MANNER_FLAG_LABELS 는 시안 더미 flag(on_time/good_attitude 등)용이라
+//      운영 DB 의 실제 flag(game-report.ts PLAYER_FLAGS 6종)와 키가 다르다.
+//      운영 데이터 기준으로 재작성해야 키워드가 매칭된다(미매칭 시 flag 원문 노출).
+// 운영 flags = 부정 신고만 6종 (positive flag 없음 → 부정 키워드만 표시).
+const MANNER_FLAG_LABELS: Record<string, { label: string; emoji: string }> = {
+  no_show: { label: "노쇼", emoji: "🚫" },
+  late: { label: "지각", emoji: "⚠" },
+  poor_manner: { label: "매너 불량", emoji: "⚠" },
+  foul: { label: "과한 파울", emoji: "⚠" },
+  verbal: { label: "언어 폭력", emoji: "🚫" },
+  cheat: { label: "부정행위", emoji: "🚫" },
+};
+
 // 탭 탭바 정의 — 순서: 경기(가장 빈번) → 대회 → 팀
 const TABS: { key: Tab; label: string; icon: string }[] = [
   { key: "games", label: "내 경기 신청", icon: "sports_basketball" },
@@ -237,6 +259,15 @@ function formatApplied(iso: string) {
   }
 }
 
+// PR-2C-3 (BG2): 매너 평균 → tone 색상.
+// 시안 룰 그대로: 4.5+ = ok(녹) / 3.0~4.4 = warn(주황) / 3.0- = danger(빨)
+// 토큰 매핑: 시안 --err → 운영 --danger (운영 globals.css 에 --err 없음)
+function mannerToneColor(avg: number): string {
+  if (avg >= 4.5) return "var(--ok)";
+  if (avg >= 3.0) return "var(--warn)";
+  return "var(--danger)";
+}
+
 export default function ProfileActivityPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -257,6 +288,10 @@ export default function ProfileActivityPage() {
     teams: TeamItem[];
   }>({ games: [], tournaments: [], teams: [] });
   const [loading, setLoading] = useState(true);
+
+  // PR-2C-3 (BG2): 내 매너 집계 — 탭과 무관하게 화면 상단 카드 + 카운트 한 줄에 사용.
+  // null = 아직 로드 전 (로드 후엔 항상 객체 / 평가 0건도 avg:0 객체로 옴)
+  const [manner, setManner] = useState<MannerData | null>(null);
 
   // 단일 탭 refetch — cancel/action 후 해당 탭만 갱신
   const loadOne = useCallback(async (type: Tab) => {
@@ -279,7 +314,7 @@ export default function ProfileActivityPage() {
     (async () => {
       setLoading(true);
       try {
-        const [g, t, te] = await Promise.all([
+        const [g, t, te, m] = await Promise.all([
           fetch("/api/web/me/activity?type=games", { credentials: "include" }).then((r) =>
             r.ok ? (r.json() as Promise<{ items?: GameItem[] }>) : { items: [] },
           ),
@@ -289,6 +324,10 @@ export default function ProfileActivityPage() {
           fetch("/api/web/me/activity?type=teams", { credentials: "include" }).then((r) =>
             r.ok ? (r.json() as Promise<{ items?: TeamItem[] }>) : { items: [] },
           ),
+          // PR-2C-3 (BG2): 내 매너 집계 — manner 단일 객체 응답 (items 아님)
+          fetch("/api/web/me/activity?type=manner", { credentials: "include" }).then((r) =>
+            r.ok ? (r.json() as Promise<{ manner?: MannerData }>) : { manner: undefined },
+          ),
         ]);
         if (cancelled) return;
         setCache({
@@ -296,6 +335,8 @@ export default function ProfileActivityPage() {
           tournaments: Array.isArray(t.items) ? t.items : [],
           teams: Array.isArray(te.items) ? te.items : [],
         });
+        // manner 응답 반영 (없으면 null 유지 → 카드/카운트 숨김)
+        setManner(m.manner ?? null);
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -329,12 +370,25 @@ export default function ProfileActivityPage() {
   }
 
   // 필터 적용된 리스트 — "전체" 면 그대로, 아니면 버킷 일치만
-  const filteredItems =
+  const filteredItemsRaw =
     statusFilter === "all"
       ? items
       : (items as (GameItem | TournamentItem | TeamItem)[]).filter(
           (it) => itemBucket(it) === statusFilter,
         );
+
+  // PR-2C-3 (BG6): 내 경기 탭만 상태별 정렬 적용.
+  // 의뢰서 §3-UC1-1 정렬: 🟡 승인대기(0) 상단 → 🟢 확정(1) → ❌ 취소·거부(2) 하단.
+  // 같은 상태 안에서는 created_at 역순(신청 시각 최신 우선 — API 가 이미 desc 정렬).
+  // (대회·팀 탭은 기존 동작 보존 — 정렬 변경 ❌)
+  const GAME_STATUS_ORDER: Record<number, number> = { 0: 0, 1: 1, 2: 2 };
+  const filteredItems =
+    tab === "games"
+      ? [...(filteredItemsRaw as GameItem[])].sort(
+          (a, b) =>
+            (GAME_STATUS_ORDER[a.status] ?? 9) - (GAME_STATUS_ORDER[b.status] ?? 9),
+        )
+      : filteredItemsRaw;
 
   function changeTab(next: Tab) {
     if (next === tab) return;
@@ -440,6 +494,22 @@ export default function ProfileActivityPage() {
           <div style={{ fontSize: 13, color: "var(--ink-mute)" }}>
             경기 · 대회 · 팀 가입 신청을 한 화면에서
           </div>
+          {/* PR-2C-3 §3-UC1-3: 상단 카운트 한 줄 — 내 대회 N · 내 경기 M · 평균 매너 X.Y
+              매너는 평가 1건 이상일 때만 노출 (mock ❌ / 0건이면 "평균 매너" 생략) */}
+          <div style={{ fontSize: 13, color: "var(--ink-mute)", marginTop: 4 }}>
+            내 대회{" "}
+            <strong style={{ color: "var(--ink)" }}>{counts.tournaments}</strong> · 내 경기{" "}
+            <strong style={{ color: "var(--ink)" }}>{counts.games}</strong>
+            {manner && manner.total_evaluations > 0 && (
+              <>
+                {" "}
+                · 평균 매너{" "}
+                <strong style={{ color: mannerToneColor(manner.avg) }}>
+                  {manner.avg.toFixed(1)}
+                </strong>
+              </>
+            )}
+          </div>
         </div>
       </div>
 
@@ -540,6 +610,10 @@ export default function ProfileActivityPage() {
           })}
         </div>
       </nav>
+
+      {/* PR-2C-3 (BG2): 내 매너 카드 — 탭과 무관(본인 매너 종합). 탭 콘텐츠 위 배치.
+          loading 끝 + manner 응답 도착 시에만 노출. 평가 0건도 카드(빈 상태)로 노출 */}
+      {!loading && manner && <MannerCard data={manner} />}
 
       {/* PR-1C-5 시안 v2.20: 상태 필터 chip row (.ma-filter)
           탭=도메인 선택 / 필터=상태 선택 공존. loading 중에는 미노출 */}
@@ -931,6 +1005,163 @@ function TeamCard({
           </button>
         )}
       </div>
+    </div>
+  );
+}
+
+/* ============================================================
+ * PR-2C-3 (BG2) — 내 매너 카드
+ *
+ * 이유: 본인이 받은 매너 평가를 한눈에. ★ 노출 룰 엄격(사용자 결재):
+ *      평균 평점 + flag "종류"(키워드)만 노출. flag별 개별 건수 절대 ❌.
+ *      (예 "노쇼 2회" 같은 건수 표시 금지 — 위축/낙인 방지)
+ *
+ * 데이터: data.flag_kinds 는 API 가 이미 distinct(Set) 처리한 "종류" 배열.
+ *        이 컴포넌트에서도 건수는 일절 계산/표시하지 않는다.
+ *
+ * 시안: BDR-current/game-shared.jsx MannerCard 박제 (운영 토큰/인라인 매핑).
+ * ============================================================ */
+function MannerCard({ data }: { data: MannerData }) {
+  const hasRatings = data.total_evaluations > 0;
+  // 평균 색상 tone — 모듈 헬퍼 재사용 (헤더 카운트와 동일 기준)
+  const toneColor = mannerToneColor(data.avg);
+
+  return (
+    <div
+      className="card"
+      style={{
+        padding: "16px 18px",
+        border: "1px solid var(--border)",
+        borderRadius: 4,
+        background: "var(--bg-card)",
+        marginBottom: 12,
+      }}
+    >
+      {/* 헤더: 제목 + "최근 50건 평균" 힌트 */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 8,
+          marginBottom: 12,
+        }}
+      >
+        <h3
+          style={{
+            margin: 0,
+            fontSize: 15,
+            fontWeight: 700,
+            color: "var(--ink)",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+          }}
+        >
+          <span
+            className="material-symbols-outlined"
+            style={{ fontSize: 18, color: "var(--accent)" }}
+            aria-hidden
+          >
+            handshake
+          </span>
+          내 매너 평가
+        </h3>
+        <span
+          style={{
+            fontSize: 11,
+            color: "var(--ink-dim)",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 4,
+          }}
+          title="최근 50건 평균"
+        >
+          <span
+            className="material-symbols-outlined"
+            style={{ fontSize: 14 }}
+            aria-hidden
+          >
+            info
+          </span>
+          최근 50건 평균
+        </span>
+      </div>
+
+      {hasRatings ? (
+        <>
+          {/* 큰 숫자 = 평균 평점 + tone 색상 분기 */}
+          <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+            <span
+              style={{
+                fontFamily: "var(--ff-display)",
+                fontSize: 40,
+                fontWeight: 900,
+                lineHeight: 1,
+                color: toneColor,
+              }}
+            >
+              {data.avg.toFixed(1)}
+            </span>
+            <span style={{ fontSize: 14, color: "var(--ink-mute)", fontWeight: 600 }}>
+              / 5.0
+            </span>
+          </div>
+          {/* 평가 받은 "횟수"는 노출 OK (flag별 건수만 ❌) */}
+          <div style={{ fontSize: 12, color: "var(--ink-mute)", marginTop: 6 }}>
+            {data.total_evaluations}명에게 평가 받음
+          </div>
+
+          {/* 받은 flag 종류 — 키워드만 (건수 표시 ❌) */}
+          {data.flag_kinds.length > 0 && (
+            <div style={{ marginTop: 12 }}>
+              <div
+                style={{
+                  fontSize: 11,
+                  color: "var(--ink-mute)",
+                  marginBottom: 6,
+                }}
+              >
+                받은 평가 키워드{" "}
+                <span style={{ color: "var(--ink-dim)", fontWeight: 500 }}>
+                  (종류만 / 건수 ❌)
+                </span>
+              </div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                {data.flag_kinds.map((f) => {
+                  // 운영 flag → 라벨 매핑 (미정의 flag 는 원문 fallback)
+                  const lab = MANNER_FLAG_LABELS[f] ?? { label: f, emoji: "·" };
+                  return (
+                    <span
+                      key={f}
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 4,
+                        fontSize: 11.5,
+                        fontWeight: 600,
+                        padding: "3px 9px",
+                        borderRadius: 4,
+                        // 부정 flag → danger 톤(연한 배경) — 운영은 부정 flag만
+                        backgroundColor:
+                          "color-mix(in srgb, var(--danger) 12%, transparent)",
+                        color: "var(--danger)",
+                      }}
+                    >
+                      {lab.emoji} {lab.label}
+                    </span>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </>
+      ) : (
+        // 빈 상태 — 평가 0건
+        <div style={{ fontSize: 13, color: "var(--ink-mute)", padding: "8px 0" }}>
+          아직 매너 평가가 없습니다. 더 많은 경기에 참가해보세요.
+        </div>
+      )}
     </div>
   );
 }
