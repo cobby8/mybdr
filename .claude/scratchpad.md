@@ -2,17 +2,16 @@
 
 ## 현재 작업
 - **요청**: Phase 1C 대형 3 PR batch 박제 (PA2 / Teams / Bracket)
-- **상태**: ✅ 박제+commit 완료 / 🔜 push + subin→dev→main 결재 대기
+- **상태**: ✅ 박제+push+머지 완료 (subin→dev #652 → main #653) / Phase 1C 박제 본체 종료
 - **현재 담당**: pm
 - **참고**: phase-ledger (`.claude/phase-ledger.md`) = Phase 1/2 source of truth
 
 ## 진행 현황 (Phase 1C 디자인 운영 박제)
-- **✅ main 머지 완료 (2026-05-28)**: PR #650 (subin→dev) + PR #651 (dev→main) `5976dca` / Vercel 운영 배포
-- **운영 반영 12 PR**: PR-1C-1~9 + 11~13 (UA1/UA2+UC2/UB1/UA3/UC1/PA5/PA1/PA8/PA4/PA9/PA6/PA7)
-- **🆕 로컬 commit 3건 (미push)**: PR-1C-14 PA2 `d33177e` / PR-1C-15 Teams `044527d` / PR-1C-16 Bracket `7694763` (+ dev 머지 `1fa6731`)
-- **⏸ PR-1C-10 PA3 SKIP**: 시안(종별위임 마법사) ≠ 운영(협회생성 마법사) — planner 재설계 대기
-- **Phase 1C 집계**: 16개 중 **15 박제 완료** (12 머지 + 3 로컬) + PA3 1건 SKIP → 대형 3 batch 완료로 **Phase 1C 박제 본체 종료**
-- **🔜 다음**: ① 3 commit push (`git push origin subin`) ② subin→dev→main 결재 (사용자) ③ PA3 재설계 또는 Phase 2C 시작
+- **✅ 전체 main 머지 완료**: 1차 PR #650/#651 (12 PR) + 2차 PR #652 `7da6fc4`/#653 `3de14c9` (대형 3) → **subin=dev=main 정합** / Vercel 운영 배포
+- **운영 반영 15 PR**: PR-1C-1~9 + 11~16 (PA3 제외 전부). 대형 3 = PA2 `d33177e` / Teams `044527d` / Bracket `7694763`
+- **⏸ PR-1C-10 PA3 SKIP**: 시안(종별위임 마법사) ≠ 운영(협회생성 마법사) — planner 재설계 대기 (Phase 1C 유일 잔여)
+- **Phase 1C**: 16개 중 **15 박제+머지 완료** + PA3 1건 SKIP → **박제 본체 종료**
+- **🔜 다음 세션 재개점**: ① PA3 재설계 (planner — 시안 vs 운영 기능 갭 분석) **또는** ② Phase 2C 운영 박제 시작 (v2.20 sync 완료 / PR ~10건 + css hex 23 토큰화). 새 세션 시작 시 `Read .claude/phase-ledger.md`
 
 ## 기획설계 (planner-architect)
 (없음 — 박제 작업 = 시안→운영, 설계 불필요)
@@ -46,8 +45,7 @@ PM 직접 검증 모드 (기존 12 PR 동일): git diff 실측 + tsc 0 + 회귀 
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
 |------|------|------|
-| 2026-05-28 | Phase 1C 대형 3 batch 박제 (PA2/Teams/Bracket) | ✅ commit 3건 (`d33177e`/`044527d`/`7694763`) / PM 직접검증 tsc 0+회귀 6/6+diff 정독 / API·라우팅·가짜링크 0 / mock❌ / 미push |
-| 2026-05-28 | subin←dev 머지 (작업 베이스 정합) | ✅ `1fa6731` / subin=dev 정합 (PR#650 머지커밋 흡수) |
+| 2026-05-28 | Phase 1C 대형 3 박제+push+머지 (PA2/Teams/Bracket) | ✅ commit 3 (`d33177e`/`044527d`/`7694763`) / PM 직접검증 tsc0+회귀6/6+diff정독 / subin→dev #652 `7da6fc4` → main #653 `3de14c9` / 운영 배포 / subin=dev=main 정합 |
 | 2026-05-28 | subin → dev → main 머지 (PR #650 + #651) | ✅ Phase 1C 12 PR + Phase 2 v2.20 sync / main `5976dca` / Vercel 배포 / 사용자 승인 |
 | 2026-05-28 | Phase 1C batch 현 세션 (PR-1C-5~13 / PA3 SKIP = 8 PR) | ✅ PR #650 누적 12 PR / 각 tsc 0 + 회귀 6/6 / mock❌(hide) / 운영 보존 |
 | 2026-05-28 | PR-1C-13 PA7 Completed 신규 라우트 (`32f4d2b`) | ✅ 관리자 종료 hub 5 카드 + 🏆 hero / 가짜링크 0 / admin nav 미변경 |
