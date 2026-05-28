@@ -9,6 +9,82 @@
 ## 기획설계 (planner-architect)
 (아직 없음)
 
+## 구현 기록 (developer / PR-1C-11 PA9 AdminTournamentProspectus 박제 — 4-step 진행도 + 수동 fallback)
+
+📝 구현한 기능: PDF→AI→wizard 요강 분석 페이지에 시안 E2 시각 2요소 박제 — ① 4-step 진행도 bar(apr-progress) ② 수동 입력 fallback(apr-fallback / done·failed 상태). AI 호출 흐름 / sessionStorage draft / mergeDraft / analyze-prospectus route / fetch 100% 유지 (시각만)
+
+### 분석
+- **시안 source**: `BDR-current/screens/AdminTournamentProspectus.jsx` (194 LOC, mock `FIELDS` + `step` state 데모) + `admin.css` L1245~1379 (apr-progress / apr-drop / apr-analyzing / apr-preview / apr-field__chip(high/mid/low) / apr-fallback)
+- **운영 baseline**: `prospectus/page.tsx` (387 → 박제 후 확장). 이미 **fix 1~3 적용 완료** (unpdf / schema nullable.optional / token 4000 / wizard 자동 채움). AnalyzeStatus(idle/uploading/analyzing/done/failed) state machine + `ProspectusUploadDropzone` + `ProspectusAnalysisPreview`(confidence 자동/검토/거절 badge + %) + sessionStorage draft 흐름 동작
+- **핵심 판단 (운영 더 정밀한 구현 보존 — PR-1C-8/9 답습)**:
+  1. **신뢰도 chip(high/mid/low)** = 운영 ProspectusAnalysisPreview 에 **이미 confidence badge(자동 ≥auto / 검토 ≥review / 거절 + % 표기) 존재**. 시안 high/mid/low 3단 chip 보다 운영 badge 가 **% 까지 정밀** → 시안 chip 강제 박제 = 정보 후퇴 → **운영 preview 보존** (chip 미박제 / 의뢰서 §5 "신뢰도 chip" = 운영 confidence 값 활용 = 이미 충족)
+  2. **드롭존 / 분석 스피너** = 운영 Tailwind 컴포넌트 동작 완비 → 시안 apr-drop / apr-analyzing 미박제 (운영 보존)
+  3. **시각 신규 2요소만 박제**: 진행도 bar(운영 부재) + 수동 fallback(운영 부재)
+- **토큰 체계 결정**: 시안 apr-* = admin.css 토큰(`--r-md`/`--bg-elev`/`--ink`) 기반 / 운영 page.tsx = `var(--color-*)` Tailwind 기반. → 진행도 bar 를 **운영 `--color-*` 토큰 + Tailwind 인라인으로 박제** (admin.css import 회피 / 컴포넌트 1개 추출). globals.css L2754~ `--color-success/accent/border/surface/background/text-*/accent-light` 전부 정의 확인
+- **수동 fallback 라우트 실재 검증**: `?legacy=1` = wizard/page.tsx L94 `searchParams.get("legacy")==="1"` 분기 실재 (가짜링크 0)
+
+### 변경 파일
+| 경로 | 변경 | 신규/수정 | LOC |
+|------|------|----------|-----|
+| `src/components/tournament/prospectus-progress-steps.tsx` | **신규** — 4-step 진행도 bar(시안 apr-progress). STEPS 4종(PDF업로드/AI분석/미리보기/wizard진입) + `current` prop. is-done(success 배경 + check 아이콘) / is-cur(accent 배경 + ring) / 대기(중립) 시각 분기. 연결선(시안 ::before) = accent/border. dot = 정사각 30×30 rounded-full(§C-10 원형 허용). 활성 글자 = text-white(운영 accent 위 관례) | 신규 | 102 |
+| `.../wizard/prospectus/page.tsx` | import +1(ProspectusProgressSteps) / `MANUAL_WIZARD_HREF`(?legacy=1) 상수 / `statusToStep()` 매핑 헬퍼(idle·uploading=1 / analyzing·failed=2 / done=3 — **새 state 0 / 기존 status 환산만**) / 헤더 직후 `<ProspectusProgressSteps current={statusToStep(status)}>` mount / done 상태 = preview 하단 apr-fallback 카드("수동 입력으로 전환" + 단계별 마법사 Link) / failed 상태 = "다시 시도" 옆 "단계별 마법사로 직접 입력" Link 추가. **AI fetch / sessionStorage / mergeDraft / 응답 키 접근(analysis_id·payload) 0 변경** | 수정 | +53 |
+
+### 데이터 매핑 (전부 운영 진짜 — mock 0)
+| 시안 요소 | 운영 데이터 | 처리 |
+|---------|----------|------|
+| 4-step 진행도 (apr-progress) | AnalyzeStatus state | `statusToStep()` 으로 1~4 환산 (시각만 / 새 데이터 0). 4단계=redirect 후라 본 페이지 미도달 |
+| 신뢰도 chip (high/mid/low) | 운영 confidence 값 (ProspectusAnalysisPreview badge 자동/검토/거절 + %) | **운영 preview 보존** (시안 chip 강제 박제 = % 정보 후퇴 → 미박제 / confidence 값 활용은 이미 충족) |
+| 수동 입력 fallback (apr-fallback) | 운영 부재 | done/failed 상태에 `?legacy=1` 단계별 마법사 Link 추가 (라우트 실재) |
+| 분석중 스피너 / 드롭존 | 운영 Tailwind 컴포넌트 동작 완비 | 보존 (시안 apr-drop/apr-analyzing 미박제) |
+
+### 검증 결과
+- **tsc --noEmit**: 0 errors (EXIT=0)
+- **자체 회귀 6 케이스 + admin 특수**:
+  | # | 케이스 | 결과 |
+  |---|--------|------|
+  | 1 | AppNav dropdown/아바타 | OK (AppNav 변경 0 — admin prospectus 만) |
+  | 2 | 모바일 듀얼 라벨 | OK (AppNav 변경 0) |
+  | 3 | 검색/쪽지/알림 box | OK (AppNav 변경 0) |
+  | 4 | 하드코딩 색상 | 신규 컴포넌트 0건(전부 var(--color-*)) / page.tsx 신규 0건 / `text-white` = accent·success 배경 위 텍스트(운영 page.tsx L252·L279 기존 관례 동일) — §6-1 불필요 |
+  | 5 | lucide-react | 0 (Material Symbols `check` 만) |
+  | 6 | 9999px / rounded-full | 진행도 dot 정사각 30×30 rounded-full 1건 = §C-10 원형 허용(pill 9999px 무관) / 그 외 rounded-[4px] |
+  | + | 가짜링크 | 0 (수동 fallback = `?legacy=1` 실재 라우트 / wizard/page.tsx L94 분기 확인) |
+  | + | /api/web/* snake_case | N/A (새 fetch 0 — analysis_id·payload·data.role 응답 키 접근 = 전부 기존 보존) |
+  | + | API/Prisma/fetch/AI/draft 변경 | 0 (analyze-prospectus route / mergeDraft / saveDraft / sessionStorage 흐름 100% 보존) |
+- **design 회귀 스크립트**: prospectus / progress-steps 매치 위반 0건
+
+### 알림
+- **신뢰도 chip = 운영 confidence badge 보존 (시안 chip 미박제)**: 의뢰서 §5 "AI 분석 결과 신뢰도 chip(high/mid/low)" 이나, 운영 ProspectusAnalysisPreview 가 이미 confidence 를 자동/검토/거절 badge + **% 정밀 표기**. 시안 3단 chip 강제 박제 = % 정보 후퇴 → 운영 보존(PR-1C-8/9 "운영 더 나은 구현 보존" 답습). "confidence 값 활용" 요구는 이미 충족
+- **진행도 4단계 = 본 페이지 미도달**: wizard 진입(4단계)은 "이대로 wizard 진입" 클릭 → router.push redirect 시점 → 본 페이지엔 1~3 만 표시. statusToStep 도 1~3 만 반환
+- **운영 토큰 체계 채택**: 시안 apr-* admin.css 토큰 → 운영 page.tsx 가 var(--color-*) Tailwind 기반이라 진행도 bar 를 운영 토큰으로 박제(admin.css import 회피). 컴포넌트 1개 추출(progress-steps)
+- **수동 fallback 2곳**: done(추출 부족 시) + failed(분석 실패 시 — 시안 주석 "AI 분석 실패 = 수동 입력으로 전환" 의도 충족). 둘 다 `?legacy=1`
+- **commit/push/PR 은 PM 담당**
+
+💡 tester 참고:
+- **로컬 검증**: `npm run dev` → http://localhost:3001/tournament-admin/tournaments/new/wizard/prospectus (운영자/super_admin)
+  - **진행도 bar**(헤더 아래 항상): 4-step (PDF업로드 / AI분석 / 미리보기 / wizard진입). idle = 1단계 accent / 분석중 = 2단계 / 미리보기(done) = 3단계 + 1·2 완료(success 체크 dot)
+  - **수동 fallback**: done 상태 = preview 하단 "추출이 부족한가요? 수동 입력으로 전환" + "단계별 마법사로 전환" 버튼 / failed 상태 = "다시 시도" 옆 "단계별 마법사로 직접 입력" 버튼 → 둘 다 `?legacy=1` 이동
+- **정상 동작**:
+  - 파일 업로드 전 = 진행도 1단계(PDF업로드) accent dot
+  - 분석 중 = 2단계(AI분석) accent dot + 1단계 success 체크
+  - 분석 완료 = 3단계(미리보기) accent dot + 1·2 success 체크 + ProspectusAnalysisPreview(자동/검토/거절 badge + %) + 수동 fallback 카드
+  - 분석 실패 = 2단계 표시 + 에러 + 재시도/수동입력 2버튼
+  - "이대로 wizard 진입" → 기존 흐름(saveDraft + redirect) 100% 보존
+- **주의할 입력**:
+  - 모바일(≤sm) = 진행도 bar 가로 스크롤 / fallback 세로 스택
+  - `?legacy=1` 링크 클릭 → 기존 3-step 폼 (회귀 0)
+  - 운영 DB 영향 0
+
+⚠️ reviewer 참고:
+- **AI 로직 / fetch 100% 보존**: handleFile(analyze-prospectus POST) / handleApply(mapAnalysisToDraft + mergeDraft + saveDraft + router.push) / handleReset / 응답 키(analysis_id·payload·data.role) 접근 0 변경. 본 PR = 표시 요소(진행도 bar + fallback Link)만 추가
+- **statusToStep = 순수 매핑 함수**: 기존 status 값을 1~3 번호로 환산만 (새 state / setState / fetch 0). 진행도 bar 는 status 변화에 자동 반응
+- **신뢰도 chip 미박제 판단**: 운영 confidence badge 가 시안보다 정밀(% 표기) → 보존. reviewer 가 "시안 chip 누락" 으로 보지 않도록 — 의도된 보존(정보 후퇴 회피)
+- **dot rounded-full §C-10**: 진행도 dot = 정사각 30×30 원형(50%). pill 9999px 룰 위반 아님(C-10 명시 정사각 원형 허용)
+- **API/Prisma/fetch/draft 0 변경**
+
+#### 수정 이력
+(아직 없음 — tester/reviewer 피드백 시 추가)
+
 ## 구현 기록 (developer / PR-1C-9 PA4 AdminTournamentSetupHub 박제 — B1 + B7)
 
 📝 구현한 기능: 셋업 hub 에 시안 B1 (depends_on 시각화 + 잠금 STEP toast + 모바일 sticky 공개 버튼) 박제. B7 (사용자 미리보기 카드) = 운영 부재 → 추가 안 함으로 보존 충족 (mock ❌). 데이터/API/Prisma/fetch 100% 유지 (시각만)
@@ -820,6 +896,7 @@
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
 |------|------|------|
+| 2026-05-28 | PR-1C-11 PA9 AdminTournamentProspectus 박제 (developer / 4-step 진행도 + 수동 fallback) | ✅ 시안 E2 시각 2요소 박제 / 신규 1 (prospectus-progress-steps.tsx 102 — 4-step 진행도 bar, status→step 매핑, 운영 var(--color-*) 토큰, dot 정사각 rounded-full §C-10) + 수정 1 (prospectus/page.tsx +53 — import·MANUAL_WIZARD_HREF·statusToStep 헬퍼·진행도 mount·done/failed 수동 fallback Link `?legacy=1`) / 신뢰도 chip=운영 confidence badge(%) 더 정밀→보존 (시안 high/mid/low chip 미박제 / PR-1C-8·9 답습) / 드롭존·스피너 운영 보존 / AI fetch·sessionStorage·mergeDraft·응답키 0 변경 / tsc 0 errors / 자체 회귀 6/6+admin 특수(snake_case N/A·가짜링크 0) PASS / commit·push·PR PM 담당 |
 | 2026-05-28 | PR-1C-9 PA4 AdminTournamentSetupHub 박제 (developer / B1+B7) | ✅ 시안 B1 3요소 박제 (depends_on 시각화 + 잠금 STEP toast + 모바일 sticky 공개 버튼) / 신규 1 (setup-hub-mobile-sticky.tsx 128 — sm:hidden·기존 publish 재사용) + 수정 3 (setup-status.ts +20 = ChecklistItem.dependsOn optional 추가·잠금카드 3종 매핑 / SetupChecklist.tsx +60 = toast state·잠금카드 button화·depends 행 / page.tsx +13 = canPublish 게이트+sticky mount) / B7 미리보기=운영 부재→추가안함 보존충족 (mock❌) / 운영 컴포넌트 전면박제❌ (PR-1C-8 답습 — atsh-* CSS 미박제) / 시안 8항목→운영 7항목 통합 deps 1:1 매핑 / API·Prisma·fetch·DB 변경 0 / tsc 0 errors / setup-status 테스트 50/50 / 자체 회귀 6/6+admin 특수 PASS / commit·push·PR PM 담당 |
 | 2026-05-28 | PR-1C-8 PA8 AdminTournamentPlayoffs 박제 (developer) | ✅ 시안 E1 5 섹션 탭 박제 / 신규 1 (playoffs-admin.css 75 — apl-tabs+apl-section, `--r-md→--radius-card`·`--r-sm→--radius-chip` 대체, is-on #fff=운영 .btn--accent 관례) + 수정 1 (playoffs-client.tsx 623→707 / +84 — 5 섹션 세로 나열→4 탭 전환 [순위표/순위전/결승/결과], section state, 데이터 흐름·rankingByDivision·finalByDivision·핸들러 0 변경) / 시안 8강·4강 2탭→"순위전" 1탭 통합 (운영 가변 라운드 데이터 왜곡 회피) / "결과 박제"=static 안내 (mock❌) / AdvancePlayoffsButton 기존 재사용 (추출·이동❌) / 종별 탭+섹션 탭 2축 공존 / API·Prisma·fetch·DB 변경 0 / tsc 0 errors / 자체 회귀 6/6+admin 특수 PASS / commit·push·PR PM 담당 |
 | 2026-05-28 | PR-1C-6 옵션 A Matches 표 시각 박제 (developer) | ✅ 시안 amt-table 박제 / 신규 1 (matches-admin.css 113 — amt-table 전체 + 모바일 분기, `--r-md→--radius-card`·`--r-xs→4px` 대체, 하드코딩 0) + 수정 1 (matches-client.tsx 순증 +33 — 라운드별 한 줄 카드→`<table amt-table>`, onClick=setSelectedMatch 행 단위 유지, 컬럼 7종, 승자 success 톤·STATUS 톤 보존) / vban·amt-mode 박제 보류 (mock❌ / ScoreModal 보존) / API·fetch·Prisma·DB 변경 0 / tsc 0 errors / 자체 회귀 6/6 PASS / commit·push·PR PM 담당 |
@@ -829,5 +906,4 @@
 | 2026-05-28 | PR-1C-4 UA3 TournamentEnroll B3 결제 보강 + 사후 안내 박제 (developer / 옵션 B) | ✅ 시안 박제 / 신규 3 (tournament-enroll.css 316 / enroll-step-payment.tsx 255 / enroll-success-hero.tsx 125) + 수정 1 (page.tsx 1563→1292 / -271 LOC / done 분기 + 결제 stage 컴포넌트화) / 옵션 B = bank 단일 (manual·card·토스 보류) / API·route.ts·payment_status·새 라우트 변경 0 / _v2/ 기존 4 컴포넌트 변경 0 / 5/4-step adaptive 보존 / 약관 동의 보존 / tsc 0 errors / 자체 회귀 6/6 + UA3 9/9 PASS / commit·push·PR PM 담당 |
 | 2026-05-28 | PR-1C-3 UB1 TournamentCompleted 박제 (developer) | ✅ 시안 박제 / 신규 7 (tournament-completed.css 343 / tournament-completed-hero.tsx 145 / tournament-final-standings-card.tsx 102 / tournament-mvp-best5-card.tsx 63 / tournament-gallery-card.tsx 75 / tournament-story-card.tsx 67 / tournament-next-edition-card.tsx 90) + 수정 1 (page.tsx 721→923 / status='completed' 분기 + select 4필드 추가 + standings query 1건) / 신규 라우트 ❌ / mock ❌ (갤러리/best5/통계 4종 중 3종 hide) / 다른 status 대회 회귀 0 / tsc 0 errors / 자체 회귀 6/6 + UB1 10/10 PASS / commit·push·PR PM 담당 |
 | 2026-05-28 | Phase 1C-2 UA2 TournamentDetail + UC2 MyRegistrationStatus 박제 (developer) | ✅ 시안 박제 / 신규 4 (my-registration-status.css 174 / tournament-detail.css 162 / tournament-division-chips.tsx 60 / tournament-operator-preview.tsx 64) + 수정 2 (my-registration-status.tsx 153→263 variant 분기 / page.tsx 684→720 sidebar+sticky chip row) / API·Prisma·AppNav 변경 0 / MyRegistrationStatus 위치 이동 ❌ / 기존 prop 시그니처 유지 / tsc 0 errors / 자체 회귀 6/6 + 추가 4/4 PASS / commit·push·PR PM 담당 |
-| 2026-05-28 | Phase 1C-1 UA1 Tournaments 박제 (developer) | ✅ 시안 `tnl-card` 패턴 박제 / 신규 1 (tournaments.css) + 수정 2 (v2-tournament-list.tsx 552→432, tournaments-content.tsx 380→408) / API/AppNav 변경 0 / tsc 0 errors / 자체 회귀 6/6 PASS / commit·push·PR PM 담당 |
 | 2026-05-26 | Phase 2 묶음 2 baseline 복원 + zip (의뢰서 §Step 1~3) | ✅ baseline 10 복원 (v2.18 pre-snapshot 9 + v2.19 MyActivity 1) / `Downloads/BDR-current-phase2.zip` 0.15 MB / commit 보류 (다음 sync 시 archive 자연 이동) / 사용자 Claude.ai 세션 2 진입 대기 |
