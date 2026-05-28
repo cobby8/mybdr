@@ -38,7 +38,15 @@ export const metadata: Metadata = {
 // 왜 PromoCard 제거: 단일 promo 영역을 4종 슬라이드 카로셀로 교체 (4단계).
 // PromoCard 컴포넌트 파일 자체는 무수정 보존 — 다른 페이지에서 재사용 가능성.
 import { getWebSession } from "@/lib/auth/web-session";
+// 2026-05-29 Phase 2C UC2 — 진행 중 라이브 매치 조회용 (BG7 LIVE 띠).
+//   /api/live route 와 동일한 tournamentMatch 쿼리 패턴 재사용 (server 조회 — 정책 허용).
+import { prisma } from "@/lib/db/prisma";
 import { HeroCarousel } from "@/components/bdr-v2/hero-carousel";
+// 2026-05-29 Phase 2C UC2 (BG7) — Hero 카로셀 위 sticky LIVE chip row (UA1/UA5 공용 컴포넌트).
+import {
+  LiveChipRow,
+  type LiveChipItem,
+} from "@/components/bdr-v2/live-chip-row";
 // 2026-05-09 HomeHeader 제거 — 시안에 맞춰 재계획 예정.
 // 컴포넌트 자체는 src/components/bdr-v2/home-header.tsx 에 보존 (재부활 가능).
 import { StatsStrip } from "@/components/bdr-v2/stats-strip";
@@ -115,18 +123,55 @@ function tournamentAccent(idx: number): string {
   return TOURNAMENT_ACCENTS[idx % TOURNAMENT_ACCENTS.length];
 }
 
+/* -- BG7: 진행 중 라이브 매치(대회 경기) 조회 → LiveChipItem[] 매핑 --
+ * 왜 tournamentMatch 인가:
+ *   시안 LiveChipRow 의 "Q3 14-10"(라이브 스코어) / 팀 vs 팀 / 대회 round 는
+ *   라이브 스코어 추적이 있는 tournamentMatch 에만 존재 (픽업 games 엔 라이브 스코어 필드 없음).
+ *   /api/live route 와 동일한 status in ["live","in_progress"] 쿼리 패턴을 그대로 답습.
+ * 결과 0건이면 빈 배열 → LiveChipRow 가 null 반환(띠 hide). 가짜 데이터 절대 생성 안 함.
+ * take: 8 — Hero 위 띠라 과다 노출 방지 (5건+ 가로 스크롤). started_at desc = 최근 시작 우선. */
+async function prefetchLiveChips(): Promise<LiveChipItem[]> {
+  const matches = await prisma.tournamentMatch.findMany({
+    where: { status: { in: ["live", "in_progress"] } },
+    orderBy: { started_at: "desc" },
+    take: 8,
+    include: {
+      homeTeam: { include: { team: { select: { name: true } } } },
+      awayTeam: { include: { team: { select: { name: true } } } },
+      tournament: { select: { name: true } },
+    },
+  });
+
+  return matches.map((m) => {
+    // 팀명 — 미연결 매치 방어용 fallback (시안 "홈/원정" 톤 유지)
+    const home = m.homeTeam?.team?.name ?? "홈";
+    const away = m.awayTeam?.team?.name ?? "원정";
+    // 대회명 · round → meta (round 없으면 대회명만, 둘 다 없으면 빈 문자열)
+    const meta = [m.tournament?.name, m.roundName].filter(Boolean).join(" · ");
+    return {
+      id: Number(m.id),
+      title: `${home} vs ${away}`,
+      // 라이브 스코어 라벨 "14 - 10" (DB camelCase 필드 그대로 — null 시 0)
+      label: `${m.homeScore ?? 0} - ${m.awayScore ?? 0}`,
+      meta,
+    };
+  });
+}
+
 export default async function HomePage() {
   // 2026-05-02: 사용자별 hero 슬라이드 위해 session 조회 (login 사용자만 내경기 fallback)
   const session = await getWebSession().catch(() => null);
   const userId = session ? BigInt(session.sub) : undefined;
 
-  // 4개 데이터를 병렬 프리페치 — 하나 실패해도 나머지는 정상 반영
-  const [statsResult, communityResult, tournamentsResult, heroResult] =
+  // 5개 데이터를 병렬 프리페치 — 하나 실패해도 나머지는 정상 반영
+  // (2026-05-29 Phase 2C UC2: liveResult = BG7 LIVE 띠용 진행 중 매치 추가)
+  const [statsResult, communityResult, tournamentsResult, heroResult, liveResult] =
     await Promise.allSettled([
       prefetchStats(),
       prefetchCommunity(),
       prefetchOpenTournaments(),
       prefetchHeroSlides(userId), // 진행 중 대회 우선 + 대회 0건 시 사용자 슬라이드
+      prefetchLiveChips(), // BG7 — 진행 중 라이브 매치 (0건이면 띠 hide)
     ]);
 
   // 성공한 결과만 추출 (실패 시 undefined → 빈 상태 fallback)
@@ -141,6 +186,8 @@ export default async function HomePage() {
   // hero 슬라이드: prefetchHeroSlides 내부에서 정적 fallback 1개를 항상 보장하므로
   // rejected 시에만 빈 배열. 빈 배열이면 카로셀 렌더 skip.
   const heroSlides = heroResult.status === "fulfilled" ? heroResult.value : [];
+  // BG7 라이브 chip: 조회 실패/0건이면 빈 배열 → LiveChipRow 가 null 반환(띠 hide).
+  const liveChips = liveResult.status === "fulfilled" ? liveResult.value : [];
 
   // 공지·인기글: prefetchCommunity 상위 5건 (DB에 별도 "인기" 플래그가 없으므로
   // 최신 정렬 기준 상위 5건을 공지/인기 섹션에 매핑. 추후 likes 기준 정렬 가능)
@@ -156,6 +203,13 @@ export default async function HomePage() {
     // page: v2 globals.css의 .page 쉘 — max-width + 중앙 정렬 + 기본 상하 여백
     // (이전 "pb-10"은 좌우 maxw/gutter 제한이 없어 콘텐츠가 전폭으로 퍼져 시안과 어긋났음)
     <div className="page">
+      {/* BG7 (Phase 2C UC2) — AppNav 바로 아래 / Hero 카로셀 위 sticky LIVE chip row.
+       * 진행 중 라이브 매치(tournamentMatch live/in_progress) 0건이면 LiveChipRow 가
+       * null 반환 → 띠 전체 hidden (가짜 chip 절대 노출 안 함 — 사용자 결재 2026-05-29).
+       * 시안 Home.jsx 순서 답습: LIVE 띠 → (ProfileCtaCard) → Hero 카로셀.
+       * Hero 카로셀(§5)·본문 섹션·AppNav 는 변경 0. */}
+      <LiveChipRow items={liveChips} />
+
       {/* 0. 프로필 완성 CTA — Hero 카로셀 위 최상단 배치
        * 이유: 가입 흐름 1-step 단순화 (F1) 결과 신규 가입자는 포지션/지역/실력 미입력.
        *      Hero 보다 위에 두어 가장 먼저 시야에 노출 + 완성 후 X 닫기 시 7일 억제.
