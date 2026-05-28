@@ -1360,3 +1360,165 @@
   .aen-row__date { grid-column: 1 / -1; }
   .aen-row__cta { display: none; }
 }
+
+/* ============================================================
+ * PR-1C-13 PA7 AdminTournamentCompleted (D1 · 종료 후 hub — 신규 라우트)
+ *   시안 BDR-current/screens/AdminTournamentCompleted.jsx 의 acp-* 박제.
+ *   시안 admin.css 에는 acp-* 정의가 없어 시안 JSX 구조 기준으로 운영 토큰
+ *   (--bg-elev / --border / --cafe-blue-* / --ink* / --ff-display / --ff-mono)
+ *   으로 박제. champion hero + 5 카드 grid.
+ * ============================================================ */
+
+/* 우승팀 hero — 🏆 트로피 + 우승팀 + MVP + 종료 일자 (cafe-blue 그라데이션 틴트) */
+.acp-hero {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 18px;
+  padding: 20px 22px;
+  margin-bottom: 16px;
+  border-radius: var(--radius-card);
+  border: 1px solid var(--cafe-blue-line, var(--border-strong));
+  /* cafe-blue 6% → 2% 가로 그라데이션 틴트 (하드코딩 색상 0) */
+  background: linear-gradient(
+    100deg,
+    color-mix(in srgb, var(--cafe-blue) 7%, transparent),
+    color-mix(in srgb, var(--cafe-blue) 2%, transparent)
+  );
+}
+.acp-hero__trophy {
+  width: 64px; height: 64px;
+  display: grid; place-items: center;
+  border-radius: var(--radius-card);
+  background: color-mix(in srgb, var(--cafe-blue) 10%, transparent);
+  line-height: 1;
+}
+.acp-hero__body { min-width: 0; }
+.acp-hero__eyebrow {
+  font-family: var(--ff-mono);
+  font-size: 10.5px; font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--cafe-blue-deep);
+  text-transform: uppercase;
+}
+.acp-hero__title {
+  font-family: var(--ff-display);
+  font-size: 22px; font-weight: 800;
+  margin: 2px 0 1px;
+  color: var(--ink);
+}
+.acp-hero__name { font-size: 12.5px; color: var(--ink-mute); }
+.acp-hero__mvp {
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  margin-top: 6px;
+  font-size: 12px; color: var(--ink-dim);
+}
+.acp-hero__mvp b { color: var(--ink); font-weight: 700; }
+.acp-hero__date {
+  display: flex; flex-direction: column; align-items: center;
+  font-size: 10.5px; color: var(--ink-mute);
+  white-space: nowrap;
+}
+.acp-hero__date b {
+  font-family: var(--ff-display);
+  font-size: 20px; font-weight: 800;
+  color: var(--ink); margin: 1px 0;
+}
+
+/* 5 카드 grid (2-col → 모바일 1-col) */
+.acp-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+/* 후속 작업 카드 */
+.acp-card {
+  display: flex; flex-direction: column;
+  padding: 16px;
+  border-radius: var(--radius-card);
+  border: 1px solid var(--border);
+  background: var(--bg-elev);
+}
+.acp-card--disabled { opacity: 0.6; }
+.acp-card__head {
+  display: flex; align-items: flex-start; gap: 10px;
+  margin-bottom: 8px;
+}
+.acp-card__icon {
+  font-size: 22px;
+  color: var(--cafe-blue-deep);
+  flex-shrink: 0;
+}
+.acp-card__num {
+  font-family: var(--ff-mono);
+  font-size: 10px; font-weight: 700;
+  letter-spacing: 0.05em;
+  color: var(--ink-mute);
+}
+.acp-card__title {
+  font-family: var(--ff-display);
+  font-size: 15px; font-weight: 800;
+  margin: 1px 0 0;
+  color: var(--ink);
+}
+.acp-card__state {
+  font-size: 10.5px; font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 4px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.acp-card__state--done { color: var(--ok); background: var(--ok-soft); }
+.acp-card__state--auto { color: var(--cafe-blue-deep); background: var(--cafe-blue-soft); }
+.acp-card__state--idle { color: var(--ink-mute); background: var(--bg-head); }
+.acp-card__desc {
+  font-size: 12.5px; line-height: 1.5;
+  color: var(--ink-mute);
+  margin: 0 0 12px;
+  flex: 1;
+}
+.acp-card__meta {
+  display: flex; flex-wrap: wrap; gap: 8px;
+  margin-bottom: 12px;
+}
+.acp-card__metric {
+  display: inline-flex; flex-direction: column;
+  padding: 6px 10px;
+  border-radius: 4px;
+  background: var(--bg-alt);
+  font-size: 10.5px; color: var(--ink-mute);
+}
+.acp-card__metric b {
+  font-family: var(--ff-display);
+  font-size: 14px; font-weight: 800;
+  color: var(--ink);
+}
+/* 카드 CTA — Link (활성) / span (disabled) 공용 */
+.acp-card__cta {
+  display: inline-flex; align-items: center; justify-content: center; gap: 4px;
+  min-height: 38px;
+  padding: 0 12px;
+  border-radius: 4px;
+  border: 1px solid var(--cafe-blue-line, var(--border-strong));
+  background: var(--cafe-blue-soft);
+  color: var(--cafe-blue-deep);
+  font-size: 12.5px; font-weight: 700;
+  text-decoration: none;
+  transition: background 0.12s;
+}
+.acp-card__cta:hover { background: color-mix(in srgb, var(--cafe-blue) 14%, transparent); }
+.acp-card__cta--disabled {
+  background: var(--bg-head);
+  border-color: var(--border);
+  color: var(--ink-mute);
+  cursor: not-allowed;
+}
+.acp-card__cta--disabled:hover { background: var(--bg-head); }
+
+/* 모바일 ≤768px — hero 세로 스택 / 카드 grid 1col */
+@media (max-width: 768px) {
+  .acp-hero { grid-template-columns: 1fr; text-align: left; }
+  .acp-hero__date { flex-direction: row; gap: 4px; align-items: baseline; }
+  .acp-grid { grid-template-columns: 1fr; }
+}

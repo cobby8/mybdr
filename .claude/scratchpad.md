@@ -9,6 +9,58 @@
 ## 기획설계 (planner-architect)
 (아직 없음)
 
+## 구현 기록 (developer / PR-1C-13 PA7 AdminTournamentCompleted 박제 — D1 관리자 측 종료 후 hub 신규 라우트)
+
+📝 구현한 기능: 관리자 측 종료 후 작업 hub **신규 라우트** 박제 — `[id]/completed/page.tsx`. 🏆 우승팀 hero(champion_team_id relation / null fallback) + 5 카드(결과/매치결과/알기자/사진영상/사이트 archive). 5 카드 = 운영 실재 라우트만 활성 Link, 부재 카드 = disabled "준비 중"(가짜링크 ❌). setup hub 에 status='completed' "종료 후 hub" CTA 추가. 새 query 0(getTournamentById 동등 + champion/mvp relation 1줄 include)
+
+### 분석
+- **시안 source**: `BDR-current/screens/AdminTournamentCompleted.jsx` (193 LOC, mock TN/CARDS 5종 + acp-hero/acp-grid/acp-card). admin.css 에 **acp-* 정의 부재** → 시안 JSX 구조 기준 운영 토큰으로 신규 박제
+- **운영 baseline**: `[id]/completed/` **미존재 → 신규 라우트 생성**. setup hub `[id]/page.tsx` 권한 가드 패턴(getWebSession + super_admin/organizer/active TAM findFirst) 답습
+- **★ UB1 (PR-1C-3) 과 완전 분리**: UB1 = 사용자 측 `/tournaments/[id]` status 분기 / PA7 = 관리자 측 `/tournament-admin/tournaments/[id]/completed` 신규. 헤더 eyebrow "ADMIN · 종료 후 hub" + breadcrumb "종료 후 hub" 로 명시
+- **champion/mvp 데이터**: champion_team_id → `teams` relation(name) / mvp_player_id → `users_tournaments_mvp_player_idTousers` relation(name/nickname). UB1 과 동일 데이터. 둘 다 nullable → hero fallback
+- **5 카드 매핑 (가짜링크 ❌ 핵심)**: 운영 실재 라우트만 href(활성 Link), 부재 카드 = href undefined → disabled "준비 중" span
+- **mock 수치 전부 hide**: 시안 24매치/1,847득점/342조회/6장/MVP 평균24.3 등 = 운영 미보유 → 미표시(새 query=stop 회피)
+- **admin nav 미변경 판단**: tournament-admin-nav.tsx = 글로벌 sub-nav — 대회별 컨텍스트 아님. playoffs/site 등도 nav 항목 없이 setup hub 진입 → completed 도 setup hub CTA 진입(가짜 nav ❌)
+- **CSS import**: admin.css = layout.tsx L10 전역 import → acp-* 자동 적용
+
+### 변경 파일
+| 경로 | 변경 | 신규/수정 | LOC |
+|------|------|----------|-----|
+| `[id]/completed/page.tsx` | **신규** 서버 컴포넌트 — 권한 가드(setup hub 답습) + findUnique(champion `teams`/mvp relation include) + status≠completed 시 setup hub redirect + AdminPageHeader + hero + 5 카드 배열(실재 라우트만 href) + 진행도 footer | 신규 | 215 |
+| `[id]/completed/admin-completed-hero.tsx` | **신규** — 🏆 hero. championName null 시 fallback. MVP 있을 때만(mock 스탯 hide). endDate 월·일/연도 분리(KST) | 신규 | 100 |
+| `[id]/completed/admin-completed-card-grid.tsx` | **신규** — 5 카드 grid. href 유무로 활성 Link/disabled "준비 중" 분기. external 시 `<a target=_blank>`. metrics 빈배열 hide(mock ❌) | 신규 | 112 |
+| `[id]/page.tsx` (setup hub) | isCompleted 플래그 + 상태 메타 라인 "종료 후 hub" CTA Link(btn--primary) | 수정 | +13 |
+| `src/styles/admin.css` | acp-hero/grid/card 전체 박제. 운영 var(--*)/color-mix(cafe-blue 틴트) | 수정 | +168 |
+
+### 5 카드 매핑 (운영 실재 라우트만 활성 — 가짜링크 0)
+| # | 시안 카드 | 운영 라우트 | 처리 |
+|---|----------|------------|------|
+| 1 | 결과 박제 | `[id]/playoffs` (실재 ✅) | 활성 Link / championName 유무 state |
+| 2 | 통계 대시보드 | 전용 부재 | `[id]/matches` 대체 "매치 결과" / mock 통계 hide |
+| 3 | 알기자 발행 | `/admin/news` (super_admin ✅) | super_admin 만 활성 / 그 외 disabled |
+| 4 | 사진·영상 | 전용 부재 | disabled "준비 중"(mock 6장 hide) |
+| 5 | 사이트 archive | `[id]/site` (실재 ✅) | 활성 Link / 공개 여부 state |
+
+### 검증 결과
+- **tsc --noEmit**: 0 errors (EXIT=0)
+- **자체 회귀 6/6 + PA7 특수**: AppNav 0(변경 0) / 모바일 듀얼 0 / icon-btn box 0 / 하드코딩 색상 0(tsx 0 + acp-* CSS 전부 var/color-mix, `--cafe-blue-line` fallback `--border-strong`) / lucide 0(Material Symbols) / 9999px 0(radius-card/chip/4px) / 가짜링크 0(실재 라우트 or disabled) / snake_case N/A(새 fetch 0) / UB1 혼동 0(관리자 라우트 명시) / champion null fallback OK / 새 query 0(relation include 1줄)
+
+### 알림
+- **통계=매치목록 대체** / **사진영상=disabled "준비 중"** / **알기자=super_admin 만 활성** / **mock 수치 전부 hide(진행도 doneCount/2 진짜 판정)** / **admin nav 미변경(글로벌 sub-nav → setup hub CTA 진입)** / commit·push·PR = PM 담당
+
+💡 tester 참고:
+- **로컬**: http://localhost:3001/tournament-admin/tournaments/[id]/completed (운영자/super_admin + **status=completed/ended/closed**)
+  - 미종료 진입 → setup hub redirect / setup hub status=completed → "🏆 종료 후 hub" 버튼
+  - completed = 🏆 hero + 5 카드 + 진행도 footer
+- **정상**: 우승팀 확정 시 hero 팀명+결과카드 "확정됨" / 미확정 시 fallback / super_admin 알기자 활성 / 사진영상 항상 disabled / 사이트 공개 여부 state
+- **주의**: endDate/mvp null → 해당 블록 hide / 모바일 세로 스택 / DB 영향 0
+
+⚠️ reviewer 참고:
+- **★ UB1 혼동 금지** (관리자 [id]/completed vs 사용자 /tournaments/[id]) / **새 query 0**(relation include 1줄, getTournamentById 동등 / 권한 가드 setup hub 답습) / **가짜링크 0**(href 유무 분기) / **mock 미박제 = 의도 보존**(운영 미보유) / **acp-* color-mix**(cafe-blue 틴트, 하드코딩 0) / API·Prisma·fetch·DB 0 변경
+
+#### 수정 이력
+(아직 없음 — tester/reviewer 피드백 시 추가)
+
 ## 구현 기록 (developer / PR-1C-12 PA6 AdminTournamentDivisions 박제 — C2 다중 종별 발견성)
 
 📝 구현한 기능: 종별 운영 페이지에 시안 C2 시각 3요소 박제 — ① 멀티 종별 hero CTA + 5 예시(adv-hero) ② empty state 발견성 강화(adv-empty) ③ 종별 카드 헤더 code 모노 칩(adv-card__head). 데이터 패칭(GET division-rules) / format PATCH / settings / 진출 매핑 / 가이드 카드 100% 유지 (시각만)
@@ -966,6 +1018,7 @@
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
 |------|------|------|
+| 2026-05-28 | PR-1C-13 PA7 AdminTournamentCompleted 박제 (developer / D1 관리자 측 종료 후 hub 신규 라우트) | ✅ 신규 라우트 `[id]/completed/page.tsx` 박제 / 신규 3 (page.tsx 215 — 권한가드 setup hub 답습+champion/mvp relation include 1줄+status≠completed redirect+5 카드 / admin-completed-hero.tsx 100 — 🏆 hero champion null fallback·MVP·endDate / admin-completed-card-grid.tsx 112 — href 유무 활성Link/disabled 분기) + 수정 2 (setup hub page.tsx +13 "종료 후 hub" CTA / admin.css +168 acp-hero/grid/card color-mix) / 5 카드=실재 라우트만 활성(playoffs/matches/admin-news super_admin/site) 사진영상 disabled "준비 중"(가짜링크 0) / mock 수치 전부 hide(진행도 doneCount/2 진짜) / UB1(사용자측) 혼동 0 / admin nav 미변경(글로벌 sub-nav→setup hub CTA 진입) / 새 query·API·fetch·DB 0 / tsc 0 errors / 자체 회귀 6/6+PA7 특수 PASS / commit·push·PR PM 담당 |
 | 2026-05-28 | PR-1C-11 PA9 AdminTournamentProspectus 박제 (developer / 4-step 진행도 + 수동 fallback) | ✅ 시안 E2 시각 2요소 박제 / 신규 1 (prospectus-progress-steps.tsx 102 — 4-step 진행도 bar, status→step 매핑, 운영 var(--color-*) 토큰, dot 정사각 rounded-full §C-10) + 수정 1 (prospectus/page.tsx +53 — import·MANUAL_WIZARD_HREF·statusToStep 헬퍼·진행도 mount·done/failed 수동 fallback Link `?legacy=1`) / 신뢰도 chip=운영 confidence badge(%) 더 정밀→보존 (시안 high/mid/low chip 미박제 / PR-1C-8·9 답습) / 드롭존·스피너 운영 보존 / AI fetch·sessionStorage·mergeDraft·응답키 0 변경 / tsc 0 errors / 자체 회귀 6/6+admin 특수(snake_case N/A·가짜링크 0) PASS / commit·push·PR PM 담당 |
 | 2026-05-28 | PR-1C-9 PA4 AdminTournamentSetupHub 박제 (developer / B1+B7) | ✅ 시안 B1 3요소 박제 (depends_on 시각화 + 잠금 STEP toast + 모바일 sticky 공개 버튼) / 신규 1 (setup-hub-mobile-sticky.tsx 128 — sm:hidden·기존 publish 재사용) + 수정 3 (setup-status.ts +20 = ChecklistItem.dependsOn optional 추가·잠금카드 3종 매핑 / SetupChecklist.tsx +60 = toast state·잠금카드 button화·depends 행 / page.tsx +13 = canPublish 게이트+sticky mount) / B7 미리보기=운영 부재→추가안함 보존충족 (mock❌) / 운영 컴포넌트 전면박제❌ (PR-1C-8 답습 — atsh-* CSS 미박제) / 시안 8항목→운영 7항목 통합 deps 1:1 매핑 / API·Prisma·fetch·DB 변경 0 / tsc 0 errors / setup-status 테스트 50/50 / 자체 회귀 6/6+admin 특수 PASS / commit·push·PR PM 담당 |
 | 2026-05-28 | PR-1C-8 PA8 AdminTournamentPlayoffs 박제 (developer) | ✅ 시안 E1 5 섹션 탭 박제 / 신규 1 (playoffs-admin.css 75 — apl-tabs+apl-section, `--r-md→--radius-card`·`--r-sm→--radius-chip` 대체, is-on #fff=운영 .btn--accent 관례) + 수정 1 (playoffs-client.tsx 623→707 / +84 — 5 섹션 세로 나열→4 탭 전환 [순위표/순위전/결승/결과], section state, 데이터 흐름·rankingByDivision·finalByDivision·핸들러 0 변경) / 시안 8강·4강 2탭→"순위전" 1탭 통합 (운영 가변 라운드 데이터 왜곡 회피) / "결과 박제"=static 안내 (mock❌) / AdvancePlayoffsButton 기존 재사용 (추출·이동❌) / 종별 탭+섹션 탭 2축 공존 / API·Prisma·fetch·DB 변경 0 / tsc 0 errors / 자체 회귀 6/6+admin 특수 PASS / commit·push·PR PM 담당 |
@@ -976,4 +1029,3 @@
 | 2026-05-28 | PR-1C-4 UA3 TournamentEnroll B3 결제 보강 + 사후 안내 박제 (developer / 옵션 B) | ✅ 시안 박제 / 신규 3 (tournament-enroll.css 316 / enroll-step-payment.tsx 255 / enroll-success-hero.tsx 125) + 수정 1 (page.tsx 1563→1292 / -271 LOC / done 분기 + 결제 stage 컴포넌트화) / 옵션 B = bank 단일 (manual·card·토스 보류) / API·route.ts·payment_status·새 라우트 변경 0 / _v2/ 기존 4 컴포넌트 변경 0 / 5/4-step adaptive 보존 / 약관 동의 보존 / tsc 0 errors / 자체 회귀 6/6 + UA3 9/9 PASS / commit·push·PR PM 담당 |
 | 2026-05-28 | PR-1C-3 UB1 TournamentCompleted 박제 (developer) | ✅ 시안 박제 / 신규 7 (tournament-completed.css 343 / tournament-completed-hero.tsx 145 / tournament-final-standings-card.tsx 102 / tournament-mvp-best5-card.tsx 63 / tournament-gallery-card.tsx 75 / tournament-story-card.tsx 67 / tournament-next-edition-card.tsx 90) + 수정 1 (page.tsx 721→923 / status='completed' 분기 + select 4필드 추가 + standings query 1건) / 신규 라우트 ❌ / mock ❌ (갤러리/best5/통계 4종 중 3종 hide) / 다른 status 대회 회귀 0 / tsc 0 errors / 자체 회귀 6/6 + UB1 10/10 PASS / commit·push·PR PM 담당 |
 | 2026-05-28 | Phase 1C-2 UA2 TournamentDetail + UC2 MyRegistrationStatus 박제 (developer) | ✅ 시안 박제 / 신규 4 (my-registration-status.css 174 / tournament-detail.css 162 / tournament-division-chips.tsx 60 / tournament-operator-preview.tsx 64) + 수정 2 (my-registration-status.tsx 153→263 variant 분기 / page.tsx 684→720 sidebar+sticky chip row) / API·Prisma·AppNav 변경 0 / MyRegistrationStatus 위치 이동 ❌ / 기존 prop 시그니처 유지 / tsc 0 errors / 자체 회귀 6/6 + 추가 4/4 PASS / commit·push·PR PM 담당 |
-| 2026-05-26 | Phase 2 묶음 2 baseline 복원 + zip (의뢰서 §Step 1~3) | ✅ baseline 10 복원 (v2.18 pre-snapshot 9 + v2.19 MyActivity 1) / `Downloads/BDR-current-phase2.zip` 0.15 MB / commit 보류 (다음 sync 시 archive 자연 이동) / 사용자 Claude.ai 세션 2 진입 대기 |

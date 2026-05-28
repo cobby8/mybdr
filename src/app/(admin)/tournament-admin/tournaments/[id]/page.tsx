@@ -101,6 +101,11 @@ export default async function TournamentAdminDetailPage({
   const status = tournament.status ?? "draft";
   const site = tournament.tournamentSite[0];
 
+  // ⭐ PR-1C-13 (PA7) — 종료된 대회면 "종료 후 hub" CTA 노출용 플래그.
+  //   종료군(completed/ended/closed) 일 때만 종료 후 정리 hub(신규 라우트) 링크.
+  const isCompleted =
+    status === "completed" || status === "ended" || status === "closed";
+
   // 체크리스트 진행도 산출 — setup-status.ts 헬퍼 위임 (UI 책임 0)
   const progress = calculateSetupProgress(
     id,
@@ -209,6 +214,18 @@ export default async function TournamentAdminDetailPage({
             </span>
             공개 중
           </span>
+        )}
+        {/* ⭐ PR-1C-13 (PA7) — 종료 대회면 "종료 후 hub"(신규 라우트) CTA */}
+        {isCompleted && (
+          <Link
+            href={`/tournament-admin/tournaments/${id}/completed`}
+            className="btn btn--sm btn--primary"
+          >
+            <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
+              emoji_events
+            </span>
+            종료 후 hub
+          </Link>
         )}
       </div>
 
