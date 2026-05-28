@@ -29,7 +29,7 @@
 | **⑪ 운영 박제 (Phase 1C)** | 1C | ✅ 박제 종료 (PA3 SKIP 제외 15/16) | CLI | 2026-05-28 | **15 PR 박제 완료** (PA3 SKIP 1건 제외 전부). 머지 12 PR (`40d19db` UA1 / `9734de4` UA2+UC2 / `19dfa03` UB1 / `e4e629b` UA3 / `7e57690` UC1 / `08524bd` PA5 / `0cf3e1f` PA1 / `30f60a5` PA8 / `b468436` PA4 / `4f5d4cc` PA9 / `05d961d` PA6 / `32f4d2b` PA7). **🆕 대형 3 로컬 commit (미push)**: PR-1C-14 PA2 `d33177e` (진입점 sub-tab 4옵션 + draft 배너 [작성시각 hide=mock❌] + 3step flow / Legacy 보존 / 라우팅·API 0) / PR-1C-15 Teams `044527d` + PR-1C-16 Bracket `7694763` (carryover 잔여 rgba/#fff/rounded-full → 토큰). 모두 API/AppNav/가짜링크 0 / tsc 0 / PM 직접검증 회귀 6/6. **⏸ PR-1C-10 PA3 = SKIP** (시안 종별위임≠운영 협회생성 / planner 재설계 대기). **남은 작업 = 3 commit push + PA3 재설계만**. |
 | **⑫ 회귀 검수 (역박제 룰)** | 1C | ✅ 진행 중 (PR-1C-1~6) | CLI | 2026-05-28 | PR-1C-1~6 각 자체 회귀 6/6 + 추가 케이스 PASS. PR-1C-6 = 옵션 A (vban hide / mock 금지 / 데이터 흐름 100% 유지). 운영→시안 drift 0. |
 | **⑬ PR 결재** | 1C | ✅ 완료 | 수빈 | 2026-05-28 | 대형 3 박제 subin→dev (PR #652 `7da6fc4`) → dev→main (PR #653 `3de14c9`) 머지 완료. Vercel 운영 배포. subin=dev=main 정합. **Phase 1C 박제+머지 종료** (PA3 SKIP만 잔존) |
-| ⑭ Phase 완료 | 1 | ⏸ 보류 | Cowork | - | 본 ledger 갱신 + Phase 2 시작 결정 |
+| ⑭ Phase 완료 | 1 | ✅ 종료 (15/16) | CLI→Cowork | 2026-05-29 | **Phase 1C 종료** — 15 PR 박제+머지 완료. PR-1C-10 PA3 = ⏸ 보류 (planner DB 실측 재확인: 종별 운영자 DB 출처 부재 = TournamentDivisionRule 운영자필드0 + TournamentAdminMember 종별컬럼0 / 시안≠운영 근본 다름). **사용자 결재 (CLI 세션 2026-05-29) = Phase 2C 우선 진행 / PA3 의도(신규기능 vs 리디자인) 후결정** |
 
 ### Phase 1 + Phase 2 통합 다음 액션 (수빈 본인)
 
