@@ -1,207 +1,150 @@
 /* global React */
 // ============================================================
-// MyActivity.jsx — UC1 (마이페이지 통합 — "내 대회" 섹션 신설)
-//   진입: setRoute('myActivity')   /profile/activity
-//   복귀: setRoute('myPage')
+// BDR v2.20 — MyActivity (Phase 2B · UC1 보강)
+// 운영 박제 대상: /profile/activity
+// 진입: AppNav 계정 / 우측 utility / 더보기 마이페이지
+// 복귀: 카드 클릭 → 각 대회/경기 상세 / "더보기" → /games or /tournaments
+// 에러: my_games / my_tournaments / my_manner 빈 상태 = 안내 + CTA
 //
-//   B1 갭의 진입 보강 — MyRegistrationStatus 컴포넌트를 마이페이지 list 에 재사용.
-//   더보기 메뉴 신규 추가 ❌ — 마이페이지 안 카드로만 진입 (룰 §2 통과).
+// Phase 1B (v2.18) "내 대회" 섹션 보존 + 본 Phase 2B 보강:
+//   ① BG6 — "내 경기" 섹션 신규 (game_applications 조회)
+//      상태별 정렬: pending → approved → completed → rejected
+//   ② BG2 — "내 매너" 카드 신규 (평균 + flag 종류만 / 개별 건수 ❌)
+// 상단 카운트 = "내 대회 N · 내 경기 M · 평균 매너 X.Y"
+// A 등급
 // ============================================================
 
-(function () {
-  const { useState, useMemo } = React;
+function MyActivity() {
+  const myTn = window.MY_TOURNAMENTS || [];
+  const myGames = window.MY_GAMES || [];
+  const manner = window.MY_MANNER;
 
-  const SECTIONS = [
-    { key: 'tournaments', label: '내 대회',     ico: 'emoji_events' },
-    { key: 'games',       label: '내 신청 경기', ico: 'sports_basketball' },
-    { key: 'teams',       label: '내 팀',       ico: 'groups' },
-    { key: 'saved',       label: '저장한 항목', ico: 'bookmark' },
-  ];
+  const order = { pending: 0, approved: 1, live: 2, completed: 3, rejected: 4 };
+  const sortedGames = [...myGames].sort((a, b) => (order[a.status] ?? 9) - (order[b.status] ?? 9));
 
-  const STATUS_FILTERS = [
-    { key: 'all',         label: '전체' },
-    { key: 'pending',     label: '승인 대기' },
-    { key: 'approved',    label: '결제 대기' },
-    { key: 'in_progress', label: '진행 중' },
-    { key: 'completed',   label: '종료' },
-    { key: 'rejected',    label: '거절' },
-  ];
-
-  // status sort order — pending 상단, rejected 하단 (UC1 룰)
-  const STATUS_ORDER = {
-    pending: 0,
-    approved: 1,
-    in_progress: 2,
-    paid: 2,
-    completed: 3,
-    waitlist: 3,
-    rejected: 4,
-  };
-
-  function Sidebar({ active, onChange }) {
-    return (
-      <aside className="ma-side">
-        <div className="ma-side__profile">
-          <div className="ma-side__av">RDM</div>
-          <div className="ma-side__info">
-            <div className="ma-side__name">rdm_captain</div>
-            <div className="ma-side__handle">@rdm_captain</div>
-          </div>
-        </div>
-        <nav className="ma-side__nav">
-          <a className="ma-side__link" data-active={active === '__home' ? 'true' : 'false'}>
-            <span className="ico material-symbols-outlined">person</span>
-            <span>프로필</span>
-          </a>
-          <div className="ma-side__group">활동</div>
-          {SECTIONS.map(s => (
-            <a key={s.key} className="ma-side__link"
-               data-active={active === s.key ? 'true' : 'false'}
-               onClick={() => onChange(s.key)}>
-              <span className="ico material-symbols-outlined">{s.ico}</span>
-              <span>{s.label}</span>
-            </a>
-          ))}
-          <div className="ma-side__group">설정</div>
-          <a className="ma-side__link">
-            <span className="ico material-symbols-outlined">notifications</span>
-            <span>알림 설정</span>
-          </a>
-          <a className="ma-side__link">
-            <span className="ico material-symbols-outlined">manage_accounts</span>
-            <span>계정 설정</span>
-          </a>
-        </nav>
-      </aside>
-    );
-  }
-
-  function StatCard({ count, sub, accent }) {
-    return (
-      <div className={'ma-stat' + (accent ? ' ma-stat--accent' : '')}>
-        <span className="ma-stat__count">{count}</span>
-        <span className="ma-stat__sub">{sub}</span>
-      </div>
-    );
-  }
-
-  function EmptyState() {
-    return (
-      <div className="ma-empty">
-        <span className="ico material-symbols-outlined">emoji_events</span>
-        <div className="ma-empty__title">아직 신청한 대회가 없습니다</div>
-        <div className="ma-empty__sub">모집 중인 대회를 둘러보세요. 우리 동네 대회도 있습니다.</div>
-        <button className="btn btn--accent btn--touch">대회 둘러보기 →</button>
-      </div>
-    );
-  }
-
-  function TournamentsSection() {
-    const [filter, setFilter] = useState('all');
-
-    const all = window.MY_TOURNAMENTS || [];
-    const counts = useMemo(() => ({
-      all: all.length,
-      pending: all.filter(r => r.status === 'pending').length,
-      approved: all.filter(r => r.status === 'approved').length,
-      in_progress: all.filter(r => r.status === 'in_progress').length,
-      completed: all.filter(r => r.status === 'completed').length,
-      rejected: all.filter(r => r.status === 'rejected').length,
-    }), [all]);
-
-    const filtered = useMemo(() => {
-      const list = filter === 'all' ? all.slice() : all.filter(r => r.status === filter);
-      list.sort((a, b) => {
-        const oa = STATUS_ORDER[a.status] ?? 9;
-        const ob = STATUS_ORDER[b.status] ?? 9;
-        if (oa !== ob) return oa - ob;
-        return b.submitted_at.localeCompare(a.submitted_at);
-      });
-      return list;
-    }, [filter, all]);
-
-    return (
-      <div className="ma-tn">
-        <header className="ma-tn__head">
-          <window.Eyebrow>MY TOURNAMENTS · 내 대회</window.Eyebrow>
-          <h1 className="ma-tn__title">신청한 대회</h1>
-          <p className="ma-tn__sub">
-            내 대회 <b>{counts.all}</b>건 · 진행 중 <b>{counts.in_progress}</b>건
-            {counts.pending > 0 && <> · 승인 대기 <b className="ma-tn__accent">{counts.pending}</b>건</>}
-            {counts.approved > 0 && <> · 결제 대기 <b className="ma-tn__accent">{counts.approved}</b>건</>}
+  return (
+    <div className="gm-page">
+      <div className="gm-page__inner" style={{maxWidth:1100}}>
+        <header className="gm-page__head">
+          <div className="eyebrow">/profile/activity · 내 활동</div>
+          <h1 className="gm-page__title">내 활동</h1>
+          <p className="gm-page__sub">
+            내 대회 <strong>{myTn.length}건</strong> ·
+            내 경기 <strong>{myGames.length}건</strong> ·
+            평균 매너 <strong style={{color: manner.avg >= 4.5 ? 'var(--ok)' : manner.avg >= 3.0 ? 'var(--warn)' : 'var(--err)'}}>
+              {manner.avg.toFixed(1)} / 5
+            </strong>
           </p>
         </header>
 
-        {/* Stats strip */}
-        <div className="ma-stats">
-          <StatCard count={counts.pending} sub="승인 대기" accent={counts.pending > 0} />
-          <StatCard count={counts.approved} sub="결제 대기" accent={counts.approved > 0} />
-          <StatCard count={counts.in_progress} sub="진행 중" />
-          <StatCard count={counts.completed} sub="종료" />
-        </div>
+        {/* 3 섹션 1열 stack — 내 대회 (보존) → 내 경기 (신규) → 내 매너 (신규) */}
+        <div className="ma-stack">
 
-        {/* Filter chips */}
-        <div className="ma-filter">
-          {STATUS_FILTERS.map(f => (
-            <button key={f.key}
-              className={'ma-filter__chip' + (filter === f.key ? ' is-on' : '')}
-              onClick={() => setFilter(f.key)}>
-              {f.label}
-              <span className="ma-filter__count">{counts[f.key] ?? 0}</span>
-            </button>
-          ))}
-        </div>
-
-        {filtered.length === 0
-          ? <EmptyState />
-          : <ul className="ma-list">
-              {filtered.map(reg => (
-                <li key={reg.id}>
-                  <window.MyRegistrationStatus reg={reg} variant="compact" />
-                </li>
+          {/* ① 내 대회 (Phase 1B 보존) */}
+          <section className="gm-card">
+            <h3 className="gm-card__h">
+              <span className="ico material-symbols-outlined">military_tech</span>
+              내 대회
+              <span className="ma-count">{myTn.length}건</span>
+              <a className="ma-more" href="ua1-tournaments.html">전체 보기 →</a>
+            </h3>
+            <div className="ma-list">
+              {myTn.slice(0, 3).map(t => (
+                <div key={t.id} className="ma-row">
+                  <div className="ma-row__date">
+                    <span className="ma-row__d">{t.submitted_at?.slice(8, 10)}</span>
+                    <span className="ma-row__m">{t.submitted_at?.slice(5, 7)}월</span>
+                  </div>
+                  <div style={{flex:1, minWidth:0}}>
+                    <div className="ma-row__title">{t.tn_name}</div>
+                    <div className="ma-row__sub">{t.division} · {t.team_name}</div>
+                    <div className="ma-row__next">{t.next_action}</div>
+                  </div>
+                  <window.GMStatusBadge
+                    status={t.status}
+                    label={
+                      { pending:'승인 대기', approved:'결제 대기', in_progress:'진행 중', completed:'종료', rejected:'거절' }[t.status] || t.status
+                    }
+                  />
+                </div>
               ))}
-            </ul>}
-      </div>
-    );
-  }
-
-  function OtherSection({ label, ico }) {
-    return (
-      <div className="ma-other">
-        <window.Eyebrow>{label.toUpperCase()}</window.Eyebrow>
-        <h1 className="ma-tn__title">{label}</h1>
-        <div className="ma-other__placeholder">
-          <span className="ico material-symbols-outlined">{ico}</span>
-          <div>
-            <div className="ma-other__title">이 영역은 본 의뢰 범위 외</div>
-            <div className="ma-other__sub">
-              UC1 시안은 "내 대회" 섹션 신설만 해당. 다른 섹션 (내 신청 경기 / 내 팀 / 저장한 항목) 은
-              기존 마이페이지 hub 골격을 보존합니다. (Phase 13 박제)
             </div>
-          </div>
+          </section>
+
+          {/* ② 내 경기 (BG6 신규 — 상태별 정렬) */}
+          <section className="gm-card">
+            <h3 className="gm-card__h">
+              <span className="ico material-symbols-outlined" style={{color:'var(--accent)'}}>sports_basketball</span>
+              내 경기
+              <span className="ma-new">NEW · BG6</span>
+              <span className="ma-count">{myGames.length}건</span>
+              <a className="ma-more" href="p2-ua1-games.html">전체 보기 →</a>
+            </h3>
+            <div className="ma-list">
+              {sortedGames.map(g => (
+                <div key={g.id} className={'ma-row ma-row--game ma-row--' + g.status}>
+                  <div className="ma-row__date">
+                    <span className="ma-row__d">{g.starts_at?.slice(8, 10)}</span>
+                    <span className="ma-row__m">{g.starts_at?.slice(5, 7)}월</span>
+                  </div>
+                  <div style={{flex:1, minWidth:0}}>
+                    <div style={{display:'flex', alignItems:'center', gap:6, marginBottom:3, flexWrap:'wrap'}}>
+                      <window.GMKindBadge kind={g.kind} small />
+                      <span style={{fontFamily:'var(--ff-mono)', fontSize:10.5, color:'var(--ink-dim)', fontWeight:700}}>{g.time}</span>
+                    </div>
+                    <div className="ma-row__title">{g.title}</div>
+                    <div className="ma-row__sub">{g.host} · {g.court}</div>
+                    {/* BG1 step indicator (compact, sidebar 와 동일) */}
+                    {g.status !== 'completed' && (
+                      <div style={{marginTop:8}}>
+                        <window.ApplyStep
+                          stepIdx={g.step_idx}
+                          status={g.status === 'pending' ? 'pending' : g.status === 'rejected' ? 'rejected' : 'approved'}
+                          applied_at={g.applied_at?.slice(5)}
+                          approved_at={g.approved_at?.slice(5)}
+                          rejected_at={g.rejected_at?.slice(5)}
+                          reject_reason={g.reject_reason}
+                          compact
+                        />
+                      </div>
+                    )}
+                    {g.status === 'completed' && (
+                      <div style={{
+                        marginTop:6, padding:'5px 10px',
+                        background:'var(--cafe-blue-soft)', borderRadius:'var(--r-xs)',
+                        fontFamily:'var(--ff-mono)', fontSize:10.5, fontWeight:700, color:'var(--cafe-blue-deep)',
+                        display:'inline-flex', alignItems:'center', gap:5,
+                      }}>
+                        <span className="ico material-symbols-outlined" style={{fontSize:13}}>military_tech</span>
+                        종료 — 결과 보기
+                      </div>
+                    )}
+                  </div>
+                  <window.GMStatusBadge
+                    status={g.status}
+                    label={
+                      { pending:'승인 대기', approved:'참가 확정', live:'진행 중', completed:'종료', rejected:'거절' }[g.status]
+                    }
+                  />
+                </div>
+              ))}
+              {myGames.length === 0 && (
+                <div className="ma-empty">
+                  아직 신청한 경기가 없습니다.
+                  <a className="btn btn--sm btn--accent" href="p2-ua1-games.html">경기 둘러보기 →</a>
+                </div>
+              )}
+            </div>
+          </section>
+
+          {/* ③ 내 매너 (BG2 신규 — 평균 + flag 종류만 / 개별 건수 ❌) */}
+          <section>
+            <window.MannerCard data={manner} />
+          </section>
         </div>
       </div>
-    );
-  }
+    </div>
+  );
+}
 
-  window.MyActivity = function MyActivity({ setRoute, defaultSection = 'tournaments' }) {
-    const [section, setSection] = useState(defaultSection);
-    return (
-      <div className="ma-page">
-        <div className="ma-page__inner">
-          <window.Crumbs trail={['홈', '마이페이지', '내 활동']} />
-
-          <div className="ma-shell">
-            <Sidebar active={section} onChange={setSection} />
-            <main className="ma-main">
-              {section === 'tournaments' && <TournamentsSection />}
-              {section === 'games'       && <OtherSection label="내 신청 경기" ico="sports_basketball" />}
-              {section === 'teams'       && <OtherSection label="내 팀" ico="groups" />}
-              {section === 'saved'       && <OtherSection label="저장한 항목" ico="bookmark" />}
-            </main>
-          </div>
-        </div>
-      </div>
-    );
-  };
-})();
+window.MyActivity = MyActivity;

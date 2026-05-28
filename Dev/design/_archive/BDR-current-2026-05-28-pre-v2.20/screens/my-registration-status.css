@@ -1,0 +1,176 @@
+/* ============================================================
+   BDR v2.18 — my-registration-status.css
+   Shared by UA2 (sidebar) + UC1 (compact list cell)
+   토큰만 / `--color-*` 폐기 토큰 0
+   ============================================================ */
+
+.mrs {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+}
+
+/* ---------- sidebar variant (UA2) ---------- */
+.mrs--sidebar {
+  padding: 16px 18px;
+  display: flex; flex-direction: column; gap: 12px;
+}
+.mrs__sb-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+}
+.mrs__eyebrow {
+  font-family: var(--ff-mono); font-size: 10px; font-weight: 800;
+  letter-spacing: 0.14em; color: var(--ink-dim); text-transform: uppercase;
+}
+.mrs__sb-team {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px;
+  background: var(--bg-alt);
+  border-radius: var(--r-sm);
+}
+.mrs__sb-team-name { font-size: 14px; font-weight: 700; color: var(--ink); }
+.mrs__sb-next {
+  display: flex; align-items: center; gap: 6px;
+  padding: 8px 10px;
+  background: var(--cafe-blue-soft);
+  border: 1px solid var(--cafe-blue-hair);
+  border-radius: var(--r-sm);
+  font-size: 12.5px; font-weight: 600;
+  color: var(--cafe-blue-deep);
+}
+.mrs__sb-next .ico { font-family: 'Material Symbols Outlined'; font-size: 16px; }
+.mrs__sb-cta { width: 100%; }
+
+/* ---------- compact variant (UC1) ---------- */
+.mrs--compact {
+  padding: 14px 16px;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.mrs__head { display: flex; flex-direction: column; gap: 4px; }
+.mrs__title-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+.mrs__name {
+  margin: 0;
+  font-family: var(--ff-body);
+  font-size: 15px; font-weight: 700; color: var(--ink);
+  line-height: 1.35;
+  cursor: pointer;
+  word-break: keep-all;
+}
+.mrs__name:hover { color: var(--cafe-blue-deep); }
+.mrs__meta {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 12px; color: var(--ink-mute);
+  flex-wrap: wrap;
+}
+.mrs__sep { color: var(--ink-dim); }
+.mrs__sub { color: var(--ink-dim); }
+.mrs__foot {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 8px;
+  padding-top: 6px;
+  border-top: 1px dashed var(--border);
+}
+.mrs__next {
+  font-size: 12.5px; font-weight: 600; color: var(--ink-soft);
+  flex: 1; min-width: 0;
+}
+
+/* ---------- pill (status) ---------- */
+.mrs__pill {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 9px;
+  font-size: 11px; font-weight: 800;
+  border-radius: var(--r-sm);
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.mrs__pill .ico { font-family: 'Material Symbols Outlined'; font-size: 13px; }
+.mrs__pill.is-warn   { color: #8B5A0F; background: var(--warn-soft); }
+.mrs__pill.is-accent { color: var(--accent); background: var(--accent-soft); }
+.mrs__pill.is-ok     { color: var(--ok); background: var(--ok-soft); }
+.mrs__pill.is-navy   { color: var(--bdr-navy); background: var(--cafe-blue-soft); }
+.mrs__pill.is-mute   { color: var(--ink-mute); background: var(--bg-head); }
+.mrs__pill.is-err    { color: var(--err); background: var(--err-soft); }
+
+/* ---------- division chip ---------- */
+.mrs__div {
+  font-family: var(--ff-mono); font-size: 10.5px; font-weight: 800;
+  padding: 3px 7px;
+  background: var(--bg-head);
+  color: var(--ink-soft);
+  border-radius: var(--r-xs);
+  letter-spacing: 0.04em;
+}
+.mrs__div--lg {
+  padding: 5px 10px;
+  font-size: 11px;
+  background: var(--accent);
+  color: #fff;
+}
+
+/* ---------- steps ---------- */
+.mrs-steps {
+  list-style: none;
+  margin: 0; padding: 0;
+  display: flex;
+  align-items: center;
+}
+.mrs-step {
+  position: relative;
+  flex: 1;
+  display: flex; flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+.mrs-step__dot {
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-family: var(--ff-mono); font-size: 11px; font-weight: 800;
+  background: var(--bg-head);
+  color: var(--ink-dim);
+  border: 2px solid var(--bg-head);
+  position: relative;
+  z-index: 1;
+}
+.mrs-step__dot .ico { font-family: 'Material Symbols Outlined'; font-size: 14px; }
+.mrs-step__lbl {
+  font-size: 10.5px; font-weight: 700;
+  color: var(--ink-dim);
+}
+.mrs-step__line {
+  position: absolute;
+  top: 14px;
+  left: 50%;
+  width: 100%;
+  height: 2px;
+  background: var(--bg-head);
+  z-index: 0;
+}
+.mrs-step__cur {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: bdr-pulse 1.4s ease-in-out infinite;
+}
+
+.mrs-step.is-done .mrs-step__dot { background: var(--ok); border-color: var(--ok); color: #fff; }
+.mrs-step.is-done .mrs-step__lbl { color: var(--ink-soft); }
+.mrs-step.is-done .mrs-step__line { background: var(--ok); }
+
+.mrs-step.is-cur .mrs-step__dot { background: #fff; border-color: var(--accent); }
+.mrs-step.is-cur .mrs-step__lbl { color: var(--accent); font-weight: 800; }
+
+.mrs-step.is-err .mrs-step__dot { background: var(--err); border-color: var(--err); color: #fff; }
+.mrs-step.is-err .mrs-step__lbl { color: var(--err); }
+
+/* Mobile */
+@media (max-width: 720px) {
+  .mrs--sidebar { padding: 14px; }
+  .mrs-step__lbl { font-size: 9.5px; }
+  .mrs__name { font-size: 14.5px; }
+}
+.vp--mobile .mrs--sidebar { padding: 14px; }
+.vp--mobile .mrs-step__lbl { font-size: 9.5px; }
+.vp--mobile .mrs__name { font-size: 14.5px; }

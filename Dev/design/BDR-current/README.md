@@ -1,210 +1,189 @@
-# BDR v2.19 — 대회 생성/관리 흐름 전면 리디자인 (Phase 1A)
+# BDR v2.20 — 경기 영역 리디자인 (Phase 2)
 
-> **의뢰**: `uploads/tournament-admin-redesign-prompt-2026-05-25.md`
-> **선행 분석**: planner-architect 의 대회 생성/관리 UX 점검 (`.claude/scratchpad.md` `## 기획설계` 섹션)
-> **상위 계획서**: `tournament-user-admin-connectivity-plan-2026-05-25.md` (Phase 1 재구성)
-> **선행 박제**: BDR v2.18 (Phase 1B — 사용자 측 8 시안) sync 완료 (2026-05-25)
-> **운영 코드 변경**: **0** — 시안 박제만 (운영 박제는 Phase 1C 별 Phase)
-
----
-
-## v2.19 갱신 (2026-05-26) — Phase 1A
-
-### 수정 (7건)
-
-- **PA1 AdminTournamentAdminList** — A1 · 단일 hero CTA → 4 옵션 인라인 panel (Quick / Legacy / Prospectus / 협회) + 상태 탭 + 카드 list
-- **PA2 AdminTournamentWizard1Step** — A2 · 4 옵션 sub-tab + QuickCreate 압축 폼 + draft 복구 배너 + 3-step 흐름 안내
-- **PA3 AdminWizardAssociation** — A3 · 4-step stepper (협회 → 시리즈 → 종별 위임 → 권한) + 각 step 컨텍스트 가드 (super_admin 전용)
-- **PA4 AdminTournamentSetupHub** — B1 · depends_on 시각화 (잠금 STEP 7·8) + 잠금 toast + 모바일 sticky 공개 버튼. Phase 1B B7 (사용자 미리보기 카드) 보존
-- **PA5 AdminTournamentMatches** — C1 · PlaceholderValidationBanner 3-tone (err / warn / ok) 표준 + 기록 모드 + 매치 표
-- **PA6 AdminTournamentDivisions** — C2 · 종별 추가 hero CTA + 5 예시 + 멀티 종별 운영 안내 + 종별 카드 grid
-- **(보조) admin.css** — Phase 1A 9 신규 패턴 (entry-cta / wizard-stepper / vban / divisions / completed / playoffs / prospectus) 추가
-
-### 신규 (3건)
-
-- **PA7 AdminTournamentCompleted** — D1 · 종료 후 5 카드 hub (결과 / 통계 / 알기자 / 사진영상 / 사이트 archive) + 🏆 우승팀 hero. S5 종료 후 흐름 누락 해소
-- **PA8 AdminTournamentPlayoffs** — E1 · 5 섹션 탭 (순위표 / 8강 / 4강 / 결승 / 결과) + AdvancePlayoffsButton. G1 (playoffs 시안 부재) 해소
-- **PA9 AdminTournamentProspectus** — E2 · 4-step (PDF 업로드 → AI 분석 → 미리보기 → wizard 자동 채움) + 신뢰도 high/mid/low chip + 수동 입력 fallback. G2/G3 해소
+> **의뢰**:
+> - `uploads/game-admin-redesign-prompt-2026-05-25.md` (Phase 2A · 관리자 2 시안)
+> - `uploads/game-user-redesign-prompt-2026-05-25.md` (Phase 2B · 사용자 + 다리 8 시안)
+> **상위 계획서**: `game-user-admin-connectivity-plan-2026-05-25.md` (BG1~BG7 갭)
+> **선행 박제**:
+> - BDR v2.18 (Phase 1B — 대회 사용자 측 8 시안) sync 완료 (2026-05-25)
+> - BDR v2.19 (Phase 1A — 대회 관리자 측 10 시안) sync 완료 (2026-05-26)
+> **운영 코드 변경**: **0** — 시안 박제만 (운영 박제는 Phase 2C 별 Phase)
 
 ---
 
-## 파일 구조
+## v2.20 갱신 (2026-05-28) — Phase 2 (경기 영역 · 사용자↔관리자 연결 다리)
+
+### Phase 2A — 관리자 측 보강 (2건 · E 등급)
+
+- **UD1 AdminGames** — `/admin/games`
+  - BG1 · 신청 대기 배너 (상단) + status 변경 모달 + **"사용자에게 알림 보내기" 체크박스 기본 ✅** + "변경 + 알림" CTA
+  - BG5 · 우측 "최근 변경자" 컬럼 신규 (🏠 호스트 / 🛡️ super_admin / 🤖 시스템 + 시간) + 출처 filter chip
+- **UD2 AdminGameReports** — `/admin/game-reports`
+  - 3 탭 (신고 큐 / **매너 통계 신규** / 30일 추세)
+  - BG2 사용자 결재 룰 — **평균 평점 + flag 종류만 / 개별 평가 건수 ❌**
+  - 요약 카드 4 (전체 평가 / 평균 / 신고 발생률 / 가장 많이 받은 flag) + 평점 분포 + 상위/하위 매너 사용자 list
+
+### Phase 2B — 사용자 측 부분수정 (5건 · A 등급)
+
+- **UA1 Games** — `/games`
+  - BG7 · 상단 sticky LIVE chip row (UC2 와 동일 LiveChipRow 컴포넌트)
+  - BG4 · 종료 카드 hero 자리에 "🏆 우승팀 · MVP · 최종 score" 1줄
+  - v2.16 GameCard 디자인 언어 보존 (Date Tile / Area Chip / Pretendard 900)
+- **UA2 GameDetail** — `/games/[id]`
+  - BG1 · sidebar "내 신청 현황" step indicator 신규 (3 step + 단계별 시간 + /profile/activity 딥링크)
+  - BG4 분기 안내 → status='completed' 시 UB1 GameResult variant
+  - v2.16 Hero + 5 섹션 (Summary / About / Slots / ApplyPanel / HostPanel) 보존
+- **UA3 CreateGame** — `/games/new`
+  - BG5 · "신청 정책" 토글 — 자동 승인 (기본 ON) vs 호스트 수동
+  - BG3 보조 · 게스트 모집 토글 + 최소 경력 (1/2/3년/무제한) + 약관 동의 필수
+  - v2 wizard 3 카드 + 라이브 프리뷰 보존
+- **UA4 GuestApply** — `/games/[id]/guest-apply`
+  - BG3 · user.skill_level → experience_years 자동 추론 + prefill + ⓘ "내 프로필 실력에서 자동" 라벨 / 수정 가능 / "자동값으로" 복귀 버튼
+  - BG1 사후 안내 = "호스트 승인 시 알림으로 알려드립니다" 1줄 (마이페이지 step 과 통일)
+- **UA5 Live** — `/live/[id]`
+  - BG7 · Hero 라벨 강화 — 대회 매치 (🏆 var(--cafe-blue)) vs 일반 경기 (🏀 var(--accent)) 시각 분리
+  - 하단 "같은 대회 다음 매치" / "같은 호스트 다음 경기" 영역 신규
+
+### Phase 2B — 신규 (1건 · A 등급)
+
+- **UB1 GameResult** — `/games/[id]` · status='completed' variant
+  - BG4 ★★★★★ 핵심 — **같은 라우트 status 분기** (신규 라우트 ❌ / 더보기 가짜링크 룰 통과)
+  - 🏆 + MVP Hero (Pretendard 900 큰) + 최종 score (Home vs Away)
+  - 4 카드 = 참가자 (Concept B 5×2 보존) + MVP·Best 3 + 매너 평가 진입 (4/10 progress) + 호스트 한마디
+  - 데이터 출처 = `games.final_mvp_user_id` + `recomputeFinalMvp()` (운영 박제)
+
+### Phase 2B — 보강 (2건 · A 등급)
+
+- **UC1 MyActivity** — `/profile/activity`
+  - Phase 1B "내 대회" 섹션 보존 (변경 ❌)
+  - **"내 경기" 신규 (BG6)** — game_applications 조회 / 상태별 정렬 (pending → approved → live → completed → rejected) + step indicator (UA2 sidebar 와 동일 ApplyStep 컴포넌트)
+  - **"내 매너" 카드 신규 (BG2)** — 평균 평점 + 받은 flag 종류만 / 개별 건수 ❌ / 빈 상태 안내
+  - 상단 카운트 = "내 대회 N · 내 경기 M · 평균 매너 X.Y"
+- **UC2 Home** — `/`
+  - **BG7 ★★★★ — Hero 카로셀 위 sticky LIVE chip row 신규** (AppNav 바로 아래)
+  - **사용자 결정 §5 — Hero 카로셀 변경 ❌ (보존)** / 본 시안은 위 sticky 추가 영역만
+  - 라이브 0건 = 띠 hidden / 1~4건 = chip row / 5+ = 가로 스크롤 / chip 클릭 → /live/[id]
+  - 본문 변경 0
+
+---
+
+## 산출물 구조
 
 ```
-BDR v2.19/
-├── README.md                              (본 파일)
-├── index.html                             (Phase 1A + Phase 1B 통합 목차)
-├── tokens.css                             (v2.18 carryover · 변경 0)
-├── shell.css                              (v2.18 carryover · 변경 0)
-├── admin.css                              (v2.18 + Phase 1A 패턴 9건 추가)
-├── shared.jsx                             (v2.18 carryover · 변경 0)
+Dev/design/BDR v2.20/
+├── README.md                            ← 본 파일
+├── index.html                           ← v2.20 시안 목차 (Phase 2 + Phase 1A/1B carry-over)
+├── tokens.css                           ← v2.19 동일 (변경 ❌)
+├── shell.css                            ← v2.19 + Phase 2 추가 (LiveChipRow / ApplyStep / MannerCard / Game* / Live* / GameResult* / Home*)
+├── admin.css                            ← v2.19 + Phase 2 추가 (AGR 매너 통계 / 평점 분포 / 추세 차트)
+├── shared.jsx                           ← v2.19 동일 (AppNav frozen + AdminShell)
+├── game-shared.jsx                      ← NEW · Phase 2 데이터 + LiveChipRow / ApplyStep / MannerCard / KindBadge / StatusBadge
 │
-├── pa1-admin-list.html                    (PA1 preview · A1)
-├── pa2-admin-wizard.html                  (PA2 preview · A2)
-├── pa3-admin-assoc.html                   (PA3 preview · A3)
-├── pa5-admin-matches.html                 (PA5 preview · C1)
-├── pa6-admin-divisions.html               (PA6 preview · C2)
-├── pa7-admin-completed.html               (PA7 preview · D1 · NEW)
-├── pa8-admin-playoffs.html                (PA8 preview · E1 · NEW)
-├── pa9-admin-prospectus.html              (PA9 preview · E2 · NEW)
+├── Phase 2 시안 (10) · 신규 ───────────────────────────────────
+├── p2-ud1-admin-games.html              ← UD1 (BG1 + BG5)
+├── p2-ud2-admin-game-reports.html       ← UD2 (BG2)
+├── p2-ua1-games.html                    ← UA1 (BG7 + BG4)
+├── p2-ua2-game-detail.html              ← UA2 (BG1 + BG4 분기)
+├── p2-ua3-create-game.html              ← UA3 (BG5 + BG3 보조)
+├── p2-ua4-guest-apply.html              ← UA4 (BG3)
+├── p2-ua5-live.html                     ← UA5 (BG7)
+├── p2-ub1-game-result.html              ← UB1 NEW (BG4 ★★★★★)
+├── p2-uc1-my-activity.html              ← UC1 보강 (BG6 + BG2)
+├── p2-uc2-home.html                     ← UC2 보강 (BG7 ★★★★)
 │
-├── ud3-admin-setup.html                   (PA4 preview · B1 + B7 보강 · v2.18 파일 재활용)
+├── Phase 1A v2.19 carry-over (10) ──────────────────────────────
+├── pa1-admin-list.html ~ pa9-admin-prospectus.html
+├── ud1-admin-teams.html (대회 참가팀)
 │
-│  — v2.18 Phase 1B 시안 carryover (변경 0) —
-├── ua1-tournaments.html
-├── ua2-tournament-detail.html
-├── ua3-tournament-enroll.html
-├── ub1-tournament-completed.html
-├── uc1-my-activity.html
-├── ud1-admin-teams.html
-├── ud2-admin-bracket.html
+├── Phase 1B v2.18 carry-over (5) ──────────────────────────────
+├── ua1-tournaments.html ~ uc1-my-activity.html
+├── ud2-admin-bracket.html (대회 대진표)
+├── ud3-admin-setup.html (대회 셋업 — B1+B7)
 │
 └── screens/
-    │  — Phase 1A 신규 / 갱신 —
-    ├── AdminTournamentAdminList.jsx       (PA1 · A1 · 갱신)
-    ├── AdminTournamentWizard1Step.jsx     (PA2 · A2 · 갱신)
-    ├── AdminWizardAssociation.jsx         (PA3 · A3 · 갱신)
-    ├── AdminTournamentSetupHub.jsx        (PA4 · B1 · 갱신 — v2.18 B7 보존 위 B1 추가)
-    ├── AdminTournamentMatches.jsx         (PA5 · C1 · 갱신)
-    ├── AdminTournamentDivisions.jsx       (PA6 · C2 · 갱신)
-    ├── AdminTournamentCompleted.jsx       (PA7 · D1 · NEW)
-    ├── AdminTournamentPlayoffs.jsx        (PA8 · E1 · NEW)
-    ├── AdminTournamentProspectus.jsx      (PA9 · E2 · NEW)
+    ├── Phase 2 시안 jsx (10) ─────────────────────────────────
+    │   ├── AdminGames.jsx / AdminGameReports.jsx
+    │   ├── Games.jsx / GameDetail.jsx / CreateGame.jsx / GuestApply.jsx / Live.jsx
+    │   ├── GameResult.jsx
+    │   ├── MyActivity.jsx (Phase 1B "내 대회" 위에 보강)
+    │   └── Home.jsx (Hero 위 sticky 보강)
     │
-    │  — v2.18 Phase 1B 사용자 측 + 관리자 보강 (변경 0) —
-    ├── Tournaments.jsx + tournaments.css
-    ├── TournamentDetail.jsx + tournament-detail.css
-    ├── TournamentEnroll.jsx + tournament-enroll.css
-    ├── TournamentCompleted.jsx + tournament-completed.css
-    ├── MyActivity.jsx + my-activity.css
-    ├── MyRegistrationStatus.jsx + my-registration-status.css
-    ├── AdminTournamentTeams.jsx
-    └── AdminTournamentBracket.jsx
+    ├── Phase 1A/1B 시안 jsx (17) carry-over
+    │   └── AdminTournament*.jsx / Tournaments*.jsx / MyRegistrationStatus.jsx / 등 + css 6
+    │
+    └── _baseline/                       ← Phase 2 baseline 10 (CLI sync 참조용 / 운영 박제 원본)
+        ├── AdminGames.jsx / AdminGameReports.jsx
+        ├── Games.jsx / GameDetail.jsx / CreateGame.jsx / GuestApply.jsx / Live.jsx
+        ├── GameResult.jsx / Home.jsx / MyActivity.jsx
 ```
 
-→ **총 jsx 17 + css 11 + html 17** = 박제 단일 폴더 (CLAUDE.md §🗂️ 룰 준수).
+---
+
+## BG 양측 의존 검증 (박제 마지막 단계 의무)
+
+| 갭 | 영향도 | 사용자 측 시안 | 관리자 측 시안 | 데이터 출처 |
+|----|-------|--------------|-------------|-----------|
+| **BG1** 신청 알림 | ★★★ | UA2 step indicator + UC1 "내 경기" | UD1 status 변경 모달 + 알림 | `game_applications.status` |
+| **BG2** 매너 | ★★★ | UC1 "내 매너" 카드 | UD2 매너 통계 탭 | `game_player_ratings` 평균 + flags |
+| **BG3** 경력 자동 | ★★★ | UA3 게스트 토글 + UA4 자동 채우기 | — | `user.skill_level` → `experience_years` |
+| **BG4** MVP | ★★★★★ | UB1 GameResult variant + UA1 종료 카드 | — | `games.final_mvp_user_id` + `recomputeFinalMvp()` |
+| **BG5** 자동 승인 | ★★ | UA3 토글 | UD1 액션 출처 컬럼 | `games.host_id` vs super_admin |
+| **BG6** 통합 hub | ★★★★ | UC1 마이페이지 "내 경기" + "내 대회" | — | `game_applications` + `tournament_applications` |
+| **BG7** 라이브 | ★★★★ | UC2 홈 Hero 위 sticky + UA1 Games 상단 + UA5 진입점 | — | live data + WebSocket |
+
+**일관 룰:**
+- BG1 신청 데이터 모델 = UD1 큐 ↔ UA2 step ↔ UC1 "내 경기" 단계 동일
+- BG2 노출 룰 = UD2 통계 ↔ UC1 "내 매너" = 평균 + 종류만 / 개별 건수 ❌
+- BG7 LIVE chip row = UC2 + UA1 = 동일 LiveChipRow 컴포넌트 (game-shared.jsx)
 
 ---
 
-## S1~S9 사각지대 → 시안 매핑
+## 사용자 결정 §1~§8 보존 매트릭스
 
-| 사각지대 | 영향도 | 해소 시안 | 영역 |
-|---------|-------|---------|------|
-| S1 진입점 3중화 | ★★★★★ | PA1 + PA2 + PA3 (단일 CTA + sub-tab 4 옵션) | A |
-| S2 셋업 hub 진행도 | ★★★★ | PA4 (depends_on + 잠금 toast) | B |
-| S3 draft 복구 | ★★★★ | PA2 + PA9 (draft 복구 배너) | A + E |
-| S4 다중 종별 발견성 | ★★★★ | PA6 (종별 추가 hero + 5 예시) | C |
-| S5 종료 후 흐름 | ★★★ | PA7 (종료 후 5 카드 hub · NEW) | D |
-| S6 권한 분기 UI 비대칭 | ★★★ | PA1 / PA3 (권한 가드 + super_admin chip) | A |
-| S7 모바일 셋업 hub | ★★★ | PA4 (모바일 sticky 공개 버튼) | B |
-| S8 검증 피드백 산발 | ★★★ | PA5 (PlaceholderValidationBanner 3-tone 표준) | C |
-| S9 AppNav vs 어드민 정합 | ★★ | (운영 박제 단계에서 별도 처리 — Phase 1C) | — |
-
-→ S1~S8 = 8건 중 8건 시안 해소. S9 = 운영 박제 단계로 이관.
-
-## BDR-current/ 갭 3건 → 시안 매핑
-
-| 갭 | 시안 | 비고 |
-|----|------|------|
-| G1 playoffs hub | PA8 `AdminTournamentPlayoffs.jsx` (NEW) | 5 섹션 운영 패턴 |
-| G2 prospectus 진입점 | PA9 `AdminTournamentProspectus.jsx` (NEW) | PDF→AI 4-step |
-| G3 wizard 자동 채움 | PA9 (4-step → wizard 진입) | 미리보기 → wizard |
+| § | 결정 | 본 의뢰 영향 |
+|---|------|------------|
+| §1 AppNav 9 탭 | 강제 (A 등급) | 8 사용자 시안 모두 03 frozen 카피 |
+| §2 더보기 가짜링크 ❌ | 글로벌 | 신규 라우트 0 / 가짜링크 4건 0 |
+| §3 팀 페이지 레이팅 stat | 팀 한정 | UC1/UD2 매너 = 별 맥락 (충돌 0) |
+| §4 프로필 이모지 | 프로필 한정 | 직접 영향 0 |
+| **§5 Hero 카로셀** | **홈 한정** | **UC2 변경 ❌ / 위 sticky 추가만** |
+| §6 글로벌 카피 시안 우선 | 글로벌 | 본 시안 카피 우선 |
+| §7 모바일 (720px / 16px / 44px) | 글로벌 | 10 시안 모두 적용 ✅ |
+| §8 인증 captainId | 인증 일반 | 직접 영향 0 |
 
 ---
 
-## 자체 검수 (06-self-checklist) · E 등급 자체 영역
+## 회귀 방지 자체 검수 — 4 + 8 케이스
 
-본 의뢰는 **E 등급** (어드민 — AppNav 적용 외 / 자체 sidebar 셸).
-00-master-guide §13 룰 중 §A AppNav 7 룰은 적용 외. §B / §C / §D 만 강제.
+**4 케이스 (00 §회귀 방지 필수)**
 
-### §1 AppNav — 적용 외 (E 등급)
-- 본 의뢰 시안 = `<window.AdminShell />` (shared.jsx) 자체 sidebar 사용 / AppNav 그리지 않음
-- 위반 검수 4 케이스 자체 발생 0 (AppNav 없음)
+- ❌ main bar 우측 "더보기 ▼" / 아바타 노출 = 0
+- ❌ 모바일(≤768px) "☀ 라이트 ☾ 다크" 듀얼 라벨 = 0
+- ❌ 검색/쪽지/알림 box (.btn / .btn--sm) = 0
+- ✅ main bar 5 아이콘 순서 = [다크, 검색, 쪽지, 알림, 햄버거] 보존
 
-### §2 더보기 — 가짜링크 신규 0
-- gameResult / gameReport / guestApps / referee 신규 추가 ❌
-- 어드민 sidebar (`ADMIN_NAV_GROUPS`) 도 동일 — 가짜링크 신규 ❌
+**8 케이스 (06 §자체 검수)**
 
-### §3 디자인 토큰 ✅ 100%
-- `tokens.css` var(--*) 만 / hex 0건 / `--color-*` 폐기 토큰 0건 / lucide-react 0건
-- 색상: accent (BDR Red) / cafe-blue / bdr-navy / ok / warn / err / ink-* 토큰만
-- 핑크 · 살몬 · 코랄 · 따뜻한 베이지 ❌
-
-### §3 라운딩 ✅
-- 버튼 / 카드 4-8px (`--r-sm` 4px / `--r-md` 6px / `--r-lg` 8px)
-- pill `9999px` 0건 (acp-hero__trophy 만 50% 원형 — W=H 정사각형)
-
-### §4 아이콘 ✅
-- Material Symbols Outlined 100% / lucide-react 0건
-- 검증된 이모지: 🏆 (PA7 우승 hero)
-
-### §5 모바일 ✅ (룰 13 / 사용자 결정 §7)
-- 720px 분기: 모든 admin.css 섹션에 `@media (max-width: 720px)` + `.vp--mobile` 미러
-- iOS input 16px: PA2 QuickCreate `awz-form__input` `font-size: 16px`
-- 버튼 44px 터치: 모바일 sticky 공개 버튼 `.atsh-mobile-sticky .btn { min-height: 44px }`
-- 인라인 grid repeat(N, 1fr) 사용 시 720px 분기 ✅ (aen-grid / acp-grid / adv-grid / apl-bracket)
-
-### §6 연결성 ✅
-- 10 시안 모두 상단 JSDoc 매트릭스 (진입 / 복귀 / 에러)
-- 양측 연계: D1 (PA7) ↔ UB1 / E1 (PA8) → D1 / E2 (PA9) → A2 wizard
-
-### §7 E 등급 자체 영역 룰 ✅
-- 어드민 sidebar 자체 디자인 (shared.jsx ADMIN_NAV_GROUPS) — AppNav 가드 적용 외
-- 시안 검수 — 일반 사용자 시선 / 운영자 시선 분리 (PA4 의 B7 카드 = 운영자가 사용자 미리보기 진입)
-
-### §8 산출물 체크리스트 ✅
-- BDR v2.19/ 단일 폴더 / README 갱신 (본 파일)
-- 의뢰 시안 10건 모두 박제 (수정 7 + 신규 3) + admin.css 패턴 9건 추가
+- ✅ 하드코딩 색상 = 0 (var(--*) 토큰만)
+- ✅ lucide-react import = 0 (Material Symbols Outlined 만)
+- ✅ rounded-full / 9999px = 0
+- ✅ 가짜링크 (gameResult / gameReport / guestApps / referee) = 0
+- ✅ button border-radius 4px / 카드 6~8px 일관
+- ✅ placeholder 5단어 이내 / "예: " 시작 ❌
+- ✅ 720px 분기 / iOS input 16px / 버튼 44px
+- ✅ Pretendard + Archivo + JetBrains Mono 만
 
 ---
 
-## 사용자 결정 §1~§8 보존
+## 다음 단계
 
-| § | 결정 | v2.19 영향 |
-|---|------|----------|
-| §1 헤더 (AppNav) | 9 메인 탭 / 더보기 / utility bar | E 등급 — 적용 외 (어드민 sidebar 자체) |
-| §2 더보기 5그룹 | 가짜링크 4건 ❌ | 어드민 sidebar 도 가짜링크 신규 ❌ |
-| §3 팀 페이지 | 레이팅 stat 제거 | 영향 없음 |
-| §4 프로필 | 이모지 아이콘 / 사이드바 | 영향 없음 |
-| §5 메인 페이지 | Hero 카로셀 | 영향 없음 |
-| §6-1 글로벌 카피 | "서울 3x3 농구 커뮤니티" 보존 | 어드민 카피 — 일반 라벨 사용 |
-| §6-2 About 운영진 실명 ❌ | 일반 라벨 | PA3 종별 위임 TAM = `김민수` (mock 일반 라벨) / 실명 추가 ❌ |
-| §7 모바일 (720px / iOS 16px / 44px) | 글로벌 가드 | ✅ 10 시안 모두 적용 |
-| §8 인증/권한 | captainId 매칭 | PA3 super_admin 권한 가드 시안만 (운영 구현 Phase 1C) |
+1. **수빈** → 본 v2.20 zip 으로 CLI sync 의뢰 (Cowork 가 sync prompt 작성 → 운영 코드 패치)
+2. Phase 2C — 운영 박제 (CLI 가 baseline 10 jsx 를 운영 src/ 에 머지 + 본 시안의 BG 보강 추가)
+3. Phase 3 — BG8 자동 매칭 (별 Phase / 추천 알고리즘 + admin 대시보드)
 
 ---
 
-## 다음 단계 (Phase 1C — 운영 박제)
+## 이전 버전 README (carry-over 참고)
 
-본 시안 박제 완료 후 운영 코드 박제는 별 Phase. PR 그룹 제안:
-
-### Phase 1A 운영 박제 (10 PR 그룹)
-
-- **PR-A1** AdminTournamentAdminList — 단일 진입점 CTA + 4 옵션 모달
-- **PR-A2** AdminTournamentWizard1Step — sub-tab + draft 복구 (sessionStorage / DB draft 검출)
-- **PR-A3** AdminWizardAssociation — 4-step stepper UI + 종별 위임 권한 분리
-- **PR-B1** AdminTournamentSetupHub — depends_on 시각화 + 잠금 toast + 모바일 sticky (Phase 1B B7 위 추가)
-- **PR-C1** AdminTournamentMatches — PlaceholderValidationBanner 표준 (모든 어드민 페이지 baseline)
-- **PR-C2** AdminTournamentDivisions — 종별 추가 hero + 5 예시 라벨
-- **PR-D1** AdminTournamentCompleted (NEW) — 종료 후 hub 신규 라우트 + status=completed 분기 (UB1 사용자 측과 연계)
-- **PR-E1** AdminTournamentPlayoffs (NEW) — playoffs hub 5 섹션 + AdvancePlayoffsButton
-- **PR-E2** AdminTournamentProspectus (NEW) — PDF 분석 API + 미리보기 + wizard 자동 채움 (G2/G3)
-- **PR-css** admin.css 패턴 9건 운영 SCSS 변환
-
-Phase 1A + Phase 1B 합산 = **18 시안** + 1 컴포넌트 = 19 파일 / 8 + 10 = 18 PR.
-
----
-
-## 9 사각지대 전체 (참고)
-
-| # | 사각지대 | 영향도 | v2.19 처리 |
-|---|---------|-------|----------|
-| S1 | 대회 생성 진입점 3중화 | ★★★★★ | PA1 + PA2 + PA3 |
-| S2 | 셋업 hub 진행도 표기 미사용 | ★★★★ | PA4 |
-| S3 | 재진입 시 draft 복구 미지원 | ★★★★ | PA2 + PA9 |
-| S4 | 다중 종별 대회 흐름 발견성 약함 | ★★★★ | PA6 |
-| S5 | 종료 후 흐름 누락 | ★★★ | PA7 (NEW) |
-| S6 | 권한 분기 UI 비대칭 | ★★★ | PA1 / PA3 |
-| S7 | 모바일 (≤720px) 셋업 hub 미흡 | ★★★ | PA4 |
-| S8 | 에러 / 검증 피드백 산발 | ★★★ | PA5 (vban 표준) |
-| S9 | AppNav frozen vs 어드민 영역 정합 | ★★ | Phase 1C 운영 박제 단계 |
+Phase 1A 박제 내역은 `Dev/design/BDR v2.19/README.md` 참조.
+Phase 1B 박제 내역은 `Dev/design/BDR v2.18/README.md` 참조.

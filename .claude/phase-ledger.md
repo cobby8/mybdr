@@ -81,9 +81,9 @@
 | ⑥ git commit + push | 2A/2B | ⏳ 대기 | Cowork→수빈 | - | Phase 2 점검 리포트 + 의뢰 2건 + ledger 갱신 묶어 commit |
 | **⑦ Claude.ai 전달** | 2A + 2B 묶음 | ⏳ 대기 (묶음 1 sync 후) | **수빈 (수동)** | - | **통합 가이드 묶음 2** = `phase-1A+2-claude-ai-delivery-guide-2026-05-26.md` §1 묶음 2. Phase 1A sync 완료 후 진행 (옵션 B 권장). baseline 9 경기 임시 복원 + zip + Phase 2A/2B 의뢰서 2건 전달 |
 | ⑧ 시안 박제 | 2A + 2B | ⏸ 보류 | Claude.ai | - | ⑦ 후 시작. 합계 10 시안 |
-| ⑨ zip 출력 | 2A + 2B | ⏸ 보류 | Claude.ai | - | BDR v2.X (Phase 1A 전달 시점 결정) |
-| ⑩ sync 실행 | 2A + 2B | ⏸ 보류 | 수빈 | - | zip 도착 후 `sync-bdr-current.ps1` |
-| ⑪ 운영 박제 (Phase 2C) | 2C | ⏸ 보류 | CLI | - | sync 후 PR 그룹 ~10건 예상 |
+| ⑨ zip 출력 | 2A + 2B | ✅ 완료 | Claude.ai | 2026-05-28 | `uploads/BDR v2 (5).zip` (BDR v2.20) 도착 |
+| **⑩ sync 실행** | 2A + 2B | ✅ 완료 | CLI | 2026-05-28 | `sync-bdr-current.ps1 -NewVersion "v2.20"` 실행 (BOM 우회 0 / commit `5609c61` 영구 해결). BDR-current = 34 루트 (game-shared.jsx NEW) + screens 26 jsx + 6 css + `_baseline/` 10 jsx 보존 / pre-snapshot `_archive/BDR-current-2026-05-28-pre-v2.20/` (26 jsx). 회귀 4+8+특수 4 케이스 통과 (game-shared ✓ / _baseline 10 ✓ / Phase 1A admin carry-over diff 0 / 가짜링크 screens 직속 0 / lucide 0 / 9999px 주석만). 시안 css 하드코딩 hex 23건 = §6-1 시안 원본 → Phase 2C 박제 시 토큰 대체 대상. |
+| ⑪ 운영 박제 (Phase 2C) | 2C | ⏸ 보류 | CLI | - | sync 후 PR 그룹 ~10건 예상 / 시안 css hex 23건 토큰 대체 포함 |
 | ⑫ 회귀 검수 (역박제 룰) | 2C | ⏸ 보류 | CLI | - | CLAUDE.md §🔄 적용 |
 | ⑬ PR 결재 | 2C | ⏸ 보류 | 수빈 | - | subin → dev → main |
 | ⑭ Phase 완료 | 2 | ⏸ 보류 | Cowork | - | Phase 3 시작 결정 |
