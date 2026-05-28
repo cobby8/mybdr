@@ -9,6 +9,76 @@
 ## 기획설계 (planner-architect)
 (아직 없음)
 
+## 구현 기록 (developer / PR-1C-12 PA6 AdminTournamentDivisions 박제 — C2 다중 종별 발견성)
+
+📝 구현한 기능: 종별 운영 페이지에 시안 C2 시각 3요소 박제 — ① 멀티 종별 hero CTA + 5 예시(adv-hero) ② empty state 발견성 강화(adv-empty) ③ 종별 카드 헤더 code 모노 칩(adv-card__head). 데이터 패칭(GET division-rules) / format PATCH / settings / 진출 매핑 / 가이드 카드 100% 유지 (시각만)
+
+### 분석
+- **시안 source**: `BDR-current/screens/AdminTournamentDivisions.jsx` (153 LOC, mock DIVS 4종 + EXAMPLES 5종) + `admin.css` L962~1035 (adv-hero / adv-hero__cta / adv-grid / adv-card(__head·chip·meta·metric·settings·actions) / adv-empty)
+- **운영 baseline**: `[id]/divisions/page.tsx` (547 → 박제 후 확장). 종별 **운영 방식 설정** 페이지 — GET division-rules → 종별별 format select(8 enum) + GroupSettingsInputs(조 크기/개수/진출팀수) + 진출 매핑 실행 버튼 + settings JSON + 순위전 hub 안내 + 진행방식 가이드 + NextStepCTA. load/updateRule/advanceDivision 핸들러 보유
+- **핵심 판단 (운영 더 정밀한 구현 보존 — PR-1C-8/9/11 답습)**:
+  1. **시안 카드 메트릭(teams_now/teams_max/matches/정원%) = hide** — GET division-rules 가 code/label/format/settings/grade/fee 만 반환, 팀수/경기수 미반환. mock ❌ → 미표시 (새 query=stop condition 회피)
+  2. **시안 카드 액션 4버튼(format/참가팀/대진/delete) ≠ 박제** — 운영 카드는 이미 format select + 조 설정 input + 진출 매핑 버튼이 **더 정밀** (시안은 표시 위주). 시안 버튼 강제 = 기능 후퇴 → 운영 보존
+  3. **시안 grid(2-col) ≠ 강제** — 운영 종별 카드는 format select + settings input 으로 세로 정보량 많음. 2-col grid 강제 시 입력 UI 협소 → 운영 세로 space-y 리스트 보존. 시안 카드 **헤더 칩 시각만** 박제
+  4. **시각 신규 3요소만 박제**: hero CTA(운영 부재) + empty 발견성(운영 평면 텍스트) + code 모노 칩(운영 평면 텍스트)
+- **토큰 체계 결정**: 시안 adv-* = admin.css 토큰 / 운영 page.tsx = var(--color-*) Tailwind 기반 → 운영 토큰 + color-mix 틴트 인라인 박제 (admin.css import 회피 / 컴포넌트 추출 ❌ — page.tsx 모놀리식, 의뢰서 "기존 활용 가능 시 추출 ❌")
+- **"종별 추가" CTA 라우트 실재**: 기존 대회 종별 추가 = `/tournament-admin/tournaments/[id]/wizard` Step 2 참가 설정. divisions wizard L838 운영 자체 안내가 동일 경로 사용 + Glob 확인 (가짜링크 0)
+
+### 변경 파일
+| 경로 | 변경 | 신규/수정 | LOC |
+|------|------|----------|-----|
+| `.../[id]/divisions/page.tsx` | ① 헤더 직후 adv-hero 박제(멀티 종별 안내 h2 + 5 예시 칩 + "종별 추가" Link → wizard, accent 6%/25% color-mix 틴트) ② 서브헤더 "N 종별 등록됨 ·" 접두(rules.length) ③ empty state = 평면 텍스트 → category 아이콘 + 개념 안내 + 종별추가 CTA ④ 카드 헤더 = `code (label)` 평면 → code 모노 칩(info 12% 틴트) + label. **GET/PATCH/advance fetch / format select / GroupSettingsInputs / 가이드 0 변경** | 수정 | +75 |
+
+### 데이터 매핑 (전부 운영 진짜 — mock 0)
+| 시안 요소 | 운영 데이터 | 처리 |
+|---------|----------|------|
+| adv-hero 멀티 종별 안내 + 5 예시 | 정적 텍스트(데이터 무관) | 박제 (시각만) / "종별 추가" = wizard Step 2 실재 라우트 |
+| adv-card 메트릭(teams_now/max/matches/정원%) | **GET 미반환** | hide (mock ❌ / 새 query=stop 회피) |
+| adv-card 액션 4버튼 | 운영 format select+조설정+진출매핑 더 정밀 | **운영 보존** (시안 버튼 미박제) |
+| adv-card__head code 칩 + 종별명 | r.code / r.label | 진짜 — code 모노 칩(info 틴트) + label |
+| adv-empty | rules.length===0 분기 | category 아이콘 + 개념 안내 + 종별추가 CTA 박제 |
+| 종별 수 표기 | rules.length | 서브헤더 "N 종별 등록됨" |
+
+### 검증 결과
+- **tsc --noEmit**: 0 errors (EXIT=0)
+- **자체 회귀 6 케이스 + admin 특수**:
+  | # | 케이스 | 결과 |
+  |---|--------|------|
+  | 1 | AppNav dropdown/아바타 | OK (AppNav 변경 0 — admin divisions 만) |
+  | 2 | 모바일 듀얼 라벨 | OK (AppNav 변경 0) |
+  | 3 | 검색/쪽지/알림 box | OK (AppNav 변경 0) |
+  | 4 | 하드코딩 색상 | 0건 — 전부 var(--color-*)/color-mix. btn--accent 내 #fff = globals.css 운영 표준(내 코드 아님) — §6-1 불필요 |
+  | 5 | lucide-react | 0 (Material Symbols add_circle/add/category 만) |
+  | 6 | 9999px / rounded-full | 0 (전부 rounded-[4px]) |
+  | + | 가짜링크 | 0 ("종별 추가" CTA 2곳 = /tournament-admin/tournaments/[id]/wizard 실재 / divisions wizard L838 동일 경로) |
+  | + | /api/web/* snake_case | N/A (새 fetch 0 — code/label/format/settings/grade_max/fee_krw 응답 키 접근 0 변경) |
+  | + | API/Prisma/fetch/DB 변경 | 0 (load/updateRule/advanceDivision 100% 보존 / 시각 박제만) |
+
+### 알림
+- **시안 메트릭(팀수/경기/정원) hide**: GET 미반환 → 박제 시 새 query=stop → hide (mock ❌). 향후 count 확장 fetch 시 adv-card__meta 복원만
+- **시안 액션 4버튼 미박제 (운영 더 정밀 보존)**: 운영 카드 format select+조설정+진출매핑 이미 동작. 시안 표시용 버튼 강제 = 기능 후퇴 → 보존 (PR-1C-8/9/11 답습)
+- **2-col grid 미강제**: 운영 카드 세로 정보량 많음 → 협소화 회피, 세로 리스트 보존. 헤더 칩 시각만 박제
+- **"종별 추가" = 기존 대회 편집 마법사**: 종별 추가 전용 라우트 없음 → wizard Step 2(divisions L838 동일 경로). 가짜링크 0
+- **commit/push/PR 은 PM 담당**
+
+💡 tester 참고:
+- **로컬 검증**: `npm run dev` → http://localhost:3001/tournament-admin/tournaments/[id]/divisions (운영자/super_admin)
+  - **hero CTA**(헤더 아래 항상): accent 틴트 박스 "하나의 대회에 여러 종별을 같이 운영할 수 있어요" + 5 예시 칩 + "종별 추가" 버튼 → 대회 편집 마법사 이동
+  - **empty state**(종별 0건): category 아이콘 + "아직 등록된 종별이 없어요" + 개념 안내 + 종별추가 CTA
+  - **카드 헤더**: 각 종별 카드 좌상단 = code 모노 칩(파란 틴트) + 종별명
+- **정상 동작**: 종별 있는 대회 = hero + 카드(헤더 칩) / format select·조설정·진출매핑 = 기존 동작 / 종별 0건 = hero + empty / 서브헤더 "N 종별 등록됨"
+- **주의할 입력**: 모바일(≤sm) hero 세로 스택 + 예시 칩 wrap / format select·진출매핑 = 기존 PATCH·POST 100% 보존 / 운영 DB 영향 0
+
+⚠️ reviewer 참고:
+- **데이터 흐름 100% 보존**: load/updateRule/advanceDivision/GroupSettingsInputs / 응답 키 접근 0 변경. 본 PR = 표시 요소(hero/empty/code 칩)만 추가
+- **시안 메트릭/액션 미박제 = 의도된 보존**: 팀수/경기/정원 = GET 미반환(새 query=stop)→hide / 액션 4버튼 = 운영 더 정밀→보존. "시안 카드 누락"으로 보지 않도록
+- **color-mix 틴트**: 시안 accent-soft/cafe-blue-soft → 운영 var(--color-primary)/var(--color-info) color-mix % 틴트(하드코딩 0). 운영 error 배너 L242 패턴 동일
+- **btn--accent**: globals.css L286 운영 표준(시안에서도 사용). 내부 #fff = accent 배경 위 텍스트 관례
+- **API/Prisma/fetch/DB 0 변경**
+
+#### 수정 이력
+(아직 없음 — tester/reviewer 피드백 시 추가)
+
 ## 구현 기록 (developer / PR-1C-11 PA9 AdminTournamentProspectus 박제 — 4-step 진행도 + 수동 fallback)
 
 📝 구현한 기능: PDF→AI→wizard 요강 분석 페이지에 시안 E2 시각 2요소 박제 — ① 4-step 진행도 bar(apr-progress) ② 수동 입력 fallback(apr-fallback / done·failed 상태). AI 호출 흐름 / sessionStorage draft / mergeDraft / analyze-prospectus route / fetch 100% 유지 (시각만)
