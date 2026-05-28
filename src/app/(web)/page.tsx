@@ -38,15 +38,12 @@ export const metadata: Metadata = {
 // 왜 PromoCard 제거: 단일 promo 영역을 4종 슬라이드 카로셀로 교체 (4단계).
 // PromoCard 컴포넌트 파일 자체는 무수정 보존 — 다른 페이지에서 재사용 가능성.
 import { getWebSession } from "@/lib/auth/web-session";
-// 2026-05-29 Phase 2C UC2 — 진행 중 라이브 매치 조회용 (BG7 LIVE 띠).
-//   /api/live route 와 동일한 tournamentMatch 쿼리 패턴 재사용 (server 조회 — 정책 허용).
-import { prisma } from "@/lib/db/prisma";
 import { HeroCarousel } from "@/components/bdr-v2/hero-carousel";
 // 2026-05-29 Phase 2C UC2 (BG7) — Hero 카로셀 위 sticky LIVE chip row (UA1/UA5 공용 컴포넌트).
-import {
-  LiveChipRow,
-  type LiveChipItem,
-} from "@/components/bdr-v2/live-chip-row";
+import { LiveChipRow } from "@/components/bdr-v2/live-chip-row";
+// 2026-05-29 Phase 2C PR-2C-2 — LIVE 띠 데이터 공유 모듈 (홈·UA1 단일 source).
+//   PR-2C-1 의 로컬 prefetchLiveChips() 를 services/live-chips.ts 로 추출 (동작 동일).
+import { getLiveChips } from "@/lib/services/live-chips";
 // 2026-05-09 HomeHeader 제거 — 시안에 맞춰 재계획 예정.
 // 컴포넌트 자체는 src/components/bdr-v2/home-header.tsx 에 보존 (재부활 가능).
 import { StatsStrip } from "@/components/bdr-v2/stats-strip";
@@ -123,41 +120,6 @@ function tournamentAccent(idx: number): string {
   return TOURNAMENT_ACCENTS[idx % TOURNAMENT_ACCENTS.length];
 }
 
-/* -- BG7: 진행 중 라이브 매치(대회 경기) 조회 → LiveChipItem[] 매핑 --
- * 왜 tournamentMatch 인가:
- *   시안 LiveChipRow 의 "Q3 14-10"(라이브 스코어) / 팀 vs 팀 / 대회 round 는
- *   라이브 스코어 추적이 있는 tournamentMatch 에만 존재 (픽업 games 엔 라이브 스코어 필드 없음).
- *   /api/live route 와 동일한 status in ["live","in_progress"] 쿼리 패턴을 그대로 답습.
- * 결과 0건이면 빈 배열 → LiveChipRow 가 null 반환(띠 hide). 가짜 데이터 절대 생성 안 함.
- * take: 8 — Hero 위 띠라 과다 노출 방지 (5건+ 가로 스크롤). started_at desc = 최근 시작 우선. */
-async function prefetchLiveChips(): Promise<LiveChipItem[]> {
-  const matches = await prisma.tournamentMatch.findMany({
-    where: { status: { in: ["live", "in_progress"] } },
-    orderBy: { started_at: "desc" },
-    take: 8,
-    include: {
-      homeTeam: { include: { team: { select: { name: true } } } },
-      awayTeam: { include: { team: { select: { name: true } } } },
-      tournament: { select: { name: true } },
-    },
-  });
-
-  return matches.map((m) => {
-    // 팀명 — 미연결 매치 방어용 fallback (시안 "홈/원정" 톤 유지)
-    const home = m.homeTeam?.team?.name ?? "홈";
-    const away = m.awayTeam?.team?.name ?? "원정";
-    // 대회명 · round → meta (round 없으면 대회명만, 둘 다 없으면 빈 문자열)
-    const meta = [m.tournament?.name, m.roundName].filter(Boolean).join(" · ");
-    return {
-      id: Number(m.id),
-      title: `${home} vs ${away}`,
-      // 라이브 스코어 라벨 "14 - 10" (DB camelCase 필드 그대로 — null 시 0)
-      label: `${m.homeScore ?? 0} - ${m.awayScore ?? 0}`,
-      meta,
-    };
-  });
-}
-
 export default async function HomePage() {
   // 2026-05-02: 사용자별 hero 슬라이드 위해 session 조회 (login 사용자만 내경기 fallback)
   const session = await getWebSession().catch(() => null);
@@ -171,7 +133,7 @@ export default async function HomePage() {
       prefetchCommunity(),
       prefetchOpenTournaments(),
       prefetchHeroSlides(userId), // 진행 중 대회 우선 + 대회 0건 시 사용자 슬라이드
-      prefetchLiveChips(), // BG7 — 진행 중 라이브 매치 (0건이면 띠 hide)
+      getLiveChips(), // BG7 — 진행 중 라이브 매치 (0건이면 띠 hide) / 공유 모듈 (홈·UA1 단일 source)
     ]);
 
   // 성공한 결과만 추출 (실패 시 undefined → 빈 상태 fallback)

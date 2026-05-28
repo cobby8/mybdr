@@ -51,6 +51,8 @@ export interface GameCardProps {
   maxParticipants: number | null;
   /** 호스트 닉네임 */
   authorNickname: string | null;
+  /** [2026-05-29 Phase 2C·BG4] 종료 경기 최종 MVP 닉네임 — 종료(status=3) + 값 있을 때만 "🏆 MVP" 라인 노출. 없으면 hide */
+  finalMvpNickname?: string | null;
   /** 자동 파생 태그 — v2.16에서는 row1 칩으로 일부만 표시 (무료/마감임박만) */
   tags: string[];
 }
@@ -165,6 +167,7 @@ export function GameCard({
   currentParticipants,
   maxParticipants,
   authorNickname,
+  finalMvpNickname,
   tags,
 }: GameCardProps) {
   const kindClass = KIND_CLASS[gameType] ?? KIND_CLASS[0];
@@ -193,6 +196,13 @@ export function GameCard({
 
   // 호스트 이니셜
   const hostInitials = nicknameToInitials(authorNickname);
+
+  // [BG4] 종료 경기 MVP 라인 노출 판정.
+  //   종료 = status 3 (listGames 가 날짜 지난 모집/확정도 3 으로 override) + 4(취소)도 포함.
+  //   픽업 games 엔 우승팀 개념이 없어(의뢰서 §7 가정) MVP 닉네임만 표시.
+  //   finalMvpNickname 없으면 라인 자체를 렌더하지 않음(mock 금지 — 사용자 결재 2026-05-29).
+  const mvpName = finalMvpNickname?.trim();
+  const showChampLine = (status === 3 || status === 4) && !!mvpName;
 
   // 자동 태그 — v2.16 row1은 "무료" / "마감임박" / "주말" / "초보환영" 4종만 표시
   // (시안에서 자주 보이는 칩은 무료/마감임박 — 나머지는 기존 tags에서 가져옴)
@@ -287,6 +297,33 @@ export function GameCard({
           </div>
         </div>
       </div>
+
+      {/* [BG4] 종료 카드 우승/MVP 라인 — gcard__main 과 footer 사이 (시안 ga-card__champ 위치).
+       * 픽업 games 우승팀 개념 없음(의뢰서 §7) → "🏆 MVP [닉네임]" 1줄로 단순화.
+       * MVP 없으면 showChampLine=false → 라인 미렌더 (mock 금지).
+       * 색상 = var(--accent) 톤 (의뢰서 §3-UA1-2 지정) / 인라인 토큰만 (하드코딩 hex 금지). */}
+      {showChampLine && (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            padding: "6px 14px",
+            fontSize: 12.5,
+            fontWeight: 700,
+            // accent 톤 강조 배경 (라이트/다크 모두 대응 — color-mix 로 8% 틴트)
+            background: "color-mix(in srgb, var(--accent) 8%, var(--bg-elev))",
+            borderTop: "1px solid var(--border)",
+            color: "var(--accent)",
+          }}
+        >
+          {/* 🏆 = 유니코드 이모지 (색상 토큰 룰 무관 — 시안 ga-card__champ-trophy 동일) */}
+          <span aria-hidden="true">🏆</span>
+          <span>
+            MVP <strong>{mvpName}</strong>
+          </span>
+        </div>
+      )}
 
       {/* Footer — 호스트 + progress + 신청 버튼 */}
       <div className="gcard__foot">

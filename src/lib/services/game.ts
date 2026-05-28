@@ -99,6 +99,10 @@ export async function listGames(filters: GameListFilters = {}) {
       author_nickname: true,
       created_at: true,
       metadata: true, // [2026-04-20] tie-break 키(cafe_article_id) 접근용
+      // [2026-05-29 Phase 2C UA1·BG4] 종료 카드 "🏆 MVP" 라인용 — schema 기존 필드.
+      //   final_mvp 관계로 닉네임 1건만 join (값 없으면 null → 카드에서 라인 hide / mock 금지).
+      final_mvp_user_id: true,
+      final_mvp: { select: { nickname: true } },
     },
   });
 
