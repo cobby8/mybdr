@@ -180,8 +180,59 @@ export default function DivisionsSetupPage() {
         </Link>
         <h1 className="mt-1 text-xl font-bold sm:text-2xl">종별 운영 방식 설정</h1>
         <p className="mt-1 text-sm text-[var(--color-text-muted)]">
+          {/* 2026-05-28 PR-1C-12 — 등록 종별 수 표기 (시안 adv 서브헤더 매핑) */}
+          {rules.length > 0 ? `${rules.length} 종별 등록됨 · ` : ""}
           종별마다 다른 진행 방식(싱글/듀얼/링크제 등)을 설정합니다. 대진표 생성 전 박제 필수.
         </p>
+      </div>
+
+      {/*
+        2026-05-28 PR-1C-12 박제 — 시안 adv-hero (C2 다중 종별 발견성 / S4 갭 해소).
+        사유: "하나의 대회에 여러 종별" 안내가 운영에 부재 → 다종별 운영 발견성 강화.
+        시안 admin.css adv-hero 토큰(--accent-soft/--accent-deep) 대신 운영 var(--color-*) 인라인 박제.
+        "종별 추가" CTA = 기존 대회 편집 마법사 Step 2(참가 설정) 실재 라우트로 연결 (가짜링크 0).
+      */}
+      <div
+        className="flex flex-col gap-4 rounded-[4px] border p-5 sm:flex-row sm:items-center sm:justify-between"
+        style={{
+          // accent 8% 틴트 배경 — 시안 adv-hero accent-soft 그라데이션을 운영 토큰으로 치환
+          borderColor: "color-mix(in srgb, var(--color-primary) 25%, transparent)",
+          background: "color-mix(in srgb, var(--color-primary) 6%, transparent)",
+        }}
+      >
+        <div className="min-w-0">
+          <h2 className="text-base font-bold text-[var(--color-text-primary)]">
+            하나의 대회에 여러 종별을 같이 운영할 수 있어요
+          </h2>
+          <p className="mt-1 text-xs text-[var(--color-text-muted)] sm:text-sm">
+            예: 강남구협회장배 = U10 + U12 + U14 + U16 동시 운영. 종별별로 다른 진행 방식 · 다른 일정.
+          </p>
+          {/* 5 예시 칩 — 시안 adv-hero__examples (정적 안내, 데이터 무관) */}
+          <div className="mt-2.5 flex flex-wrap gap-1.5">
+            {["3x3 男 오픈", "3x3 女 오픈", "5x5 남자 19+", "5x5 혼성 U16", "5x5 시니어 35+"].map(
+              (ex) => (
+                <span
+                  key={ex}
+                  className="rounded-[4px] border bg-[var(--color-card)] px-2 py-1 text-[11px] font-medium"
+                  style={{
+                    borderColor: "color-mix(in srgb, var(--color-primary) 25%, transparent)",
+                    color: "var(--color-primary)",
+                  }}
+                >
+                  {ex}
+                </span>
+              ),
+            )}
+          </div>
+        </div>
+        {/* 종별 추가 CTA — 기존 대회 편집 마법사(Step 2 참가 설정) 로 이동 = 실재 라우트 */}
+        <Link
+          href={`/tournament-admin/tournaments/${tournamentId}/wizard`}
+          className="btn btn--accent inline-flex shrink-0 items-center justify-center gap-1.5"
+        >
+          <span className="material-symbols-outlined text-[18px]">add_circle</span>
+          종별 추가
+        </Link>
       </div>
 
       {error && (
@@ -198,8 +249,34 @@ export default function DivisionsSetupPage() {
       )}
 
       {rules.length === 0 ? (
-        <Card className="py-12 text-center text-[var(--color-text-muted)]">
-          <p className="text-sm">종별이 등록되지 않았습니다. 대회 마법사에서 종별을 먼저 추가하세요.</p>
+        /*
+          2026-05-28 PR-1C-12 박제 — 시안 adv-empty (빈 상태 발견성 강화).
+          사유: 운영 평면 텍스트 → 시안의 아이콘 + 종별 개념 안내 + 마법사 진입 CTA 로 보강.
+          dashed border = 시안 adv-empty 점선 박스를 운영 토큰으로 치환.
+        */
+        <Card>
+          <div className="flex flex-col items-center gap-2 py-10 text-center">
+            <span
+              className="material-symbols-outlined text-[48px]"
+              style={{ color: "var(--color-text-muted)" }}
+            >
+              category
+            </span>
+            <div className="text-base font-bold text-[var(--color-text-primary)]">
+              아직 등록된 종별이 없어요
+            </div>
+            <div className="max-w-md text-sm text-[var(--color-text-muted)]">
+              종별 = 대회 안의 별도 운영 단위. 위의 5 예시처럼 종별을 추가하면 종별마다 다른 진행
+              방식을 설정할 수 있어요.
+            </div>
+            <Link
+              href={`/tournament-admin/tournaments/${tournamentId}/wizard`}
+              className="btn btn--accent mt-2 inline-flex items-center gap-1.5"
+            >
+              <span className="material-symbols-outlined text-[18px]">add</span>
+              종별 추가
+            </Link>
+          </div>
         </Card>
       ) : (
         <div className="space-y-3">
@@ -207,8 +284,22 @@ export default function DivisionsSetupPage() {
             <Card key={r.id}>
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <p className="font-semibold text-[var(--color-text-primary)]">
-                    {r.code} <span className="ml-1 text-sm font-normal text-[var(--color-text-muted)]">({r.label})</span>
+                  {/*
+                    2026-05-28 PR-1C-12 박제 — 시안 adv-card__head (code 모노 칩 + 종별명).
+                    사유: 운영 평면 "code (label)" → 시안의 code 모노 칩(blue-soft 배경) + 라벨로 시각 강화.
+                    --color-info 8% 틴트 = 시안 adv-card__name 의 cafe-blue-soft 칩을 운영 토큰으로 치환.
+                  */}
+                  <p className="flex items-center gap-2 font-semibold text-[var(--color-text-primary)]">
+                    <span
+                      className="rounded-[4px] px-1.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wide"
+                      style={{
+                        color: "var(--color-info)",
+                        background: "color-mix(in srgb, var(--color-info) 12%, transparent)",
+                      }}
+                    >
+                      {r.code}
+                    </span>
+                    {r.label}
                   </p>
                   <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">
                     {/* 2026-05-12 룰 변경: 어린 학년 자유 참가 — gradeMax 이하 표시 */}

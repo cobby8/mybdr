@@ -1,0 +1,73 @@
+/* ==========================================================
+   PR-1C-8 — Playoffs 5 섹션 탭 시각 박제 (시안 admin.css E1 apl-tabs)
+   - source: Dev/design/BDR-current/admin.css L1130~1158
+   - 토큰 대체 (matches-admin.css 패턴 답습):
+       시안 --r-md → 운영 var(--radius-card)
+       시안 --r-sm → 운영 var(--radius-chip)
+   - 나머지 토큰(--bg-elev/--bg-alt/--bg-head/--border/--accent/--ink*/--ff-mono)은
+     운영 globals.css 에 모두 정의됨 → 그대로 사용
+   - #fff / rgba(255,255,255,...) = 운영 관례 (.btn--accent / .badge--red 등 accent
+     배경 위 텍스트 표준) → 시안 원본 동일 유지
+   - 시안 mock 섹션(apl-stands 순위표 / apl-bracket 8강 트리 / apl-final 결승 hero)은
+     운영 데이터(종별 N개 × 가변 라운드)와 달라 박제 ❌ — 운영 StandingsTable / FinalCard
+     (기존 Card 컴포넌트) 그대로 유지. 본 파일은 탭 시각만 (apl-tabs / apl-section).
+   ========================================================== */
+
+/* ── 5 섹션 탭 (apl-tabs) ───────────────────────────────── */
+.apl-tabs {
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card); /* 시안 --r-md 대체 */
+  padding: 6px;
+  display: flex;
+  gap: 4px;
+  margin-bottom: 14px;
+  overflow-x: auto;
+}
+.apl-tabs__tab {
+  flex: 1;
+  min-width: 0;
+  padding: 10px 14px;
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius-chip); /* 시안 --r-sm 대체 */
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink-soft);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  white-space: nowrap;
+  min-height: 44px; /* 모바일 터치 타깃 (BDR 룰 13) */
+}
+.apl-tabs__tab:hover {
+  background: var(--bg-alt);
+  color: var(--ink);
+}
+.apl-tabs__tab.is-on {
+  background: var(--accent);
+  color: #fff; /* accent 배경 위 텍스트 — 운영 .btn--accent 관례 동일 */
+  font-weight: 800;
+}
+.apl-tabs__num {
+  font-family: var(--ff-mono);
+  font-size: 10px;
+  font-weight: 800;
+  background: var(--bg-head);
+  color: var(--ink-mute);
+  padding: 1px 5px;
+  border-radius: 8px;
+}
+.apl-tabs__tab.is-on .apl-tabs__num {
+  background: rgba(255, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+/* ── 섹션 wrap (apl-section) ────────────────────────────── */
+.apl-section {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}

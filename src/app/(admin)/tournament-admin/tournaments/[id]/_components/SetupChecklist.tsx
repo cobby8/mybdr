@@ -19,7 +19,7 @@
 
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -83,8 +83,23 @@ export function SetupChecklist({
   // 공개 가드 — setup-status.ts 단일 source
   const gate = canPublish(progress);
 
+  // ⭐ PR-1C-9 (B1) — 잠금 카드 클릭 시 toast 안내 (시안 atsh-toast 박제).
+  //   사유: 운영 잠금 카드는 정적 div(클릭 무반응)였음 → 시안은 클릭 시 "선행 STEP 완료 후 진행" toast.
+  //   toast = { step, deps } / 2.4초 후 자동 사라짐 (시안 동일 타이밍).
+  const [toast, setToast] = useState<{ step: number; deps: number[] } | null>(
+    null
+  );
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const showLockToast = (step: number, deps: number[]) => {
+    setToast({ step, deps });
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(() => setToast(null), 2400);
+  };
+
   return (
-    <section className="mb-6">
+    // 이유: 시안 atsh-toast 가 position:absolute 우하단 → 컨테이너 relative 기준점 필요.
+    <section className="relative mb-6">
       {/* 상단 진행도 바 */}
       <div
         className="mb-4 rounded-[var(--radius-card)] border p-4"
@@ -120,7 +135,12 @@ export function SetupChecklist({
       {/* 체크리스트 8 카드 */}
       <div className="grid gap-3 sm:grid-cols-2">
         {progress.items.map((item) => (
-          <ChecklistCard key={item.key} item={item} />
+          <ChecklistCard
+            key={item.key}
+            item={item}
+            // PR-1C-9 (B1): 잠금 카드 클릭 시 toast 안내 (선행 STEP 번호 전달)
+            onLockClick={showLockToast}
+          />
         ))}
       </div>
 
@@ -131,6 +151,29 @@ export function SetupChecklist({
         isSitePublished={isSitePublished}
         hasSite={hasSite}
       />
+
+      {/* ⭐ PR-1C-9 (B1) — 잠금 카드 클릭 toast (시안 atsh-toast 박제, 우하단 고정) */}
+      {toast && (
+        <div
+          // 이유: 시안 atsh-toast = ink 배경 + 우하단 absolute. var(--color-*) 토큰만 사용.
+          //   다크 기본이라 배경은 text-primary(대비 높은 ink) / 글자는 배경색(반전) — 항상 대비 확보.
+          className="pointer-events-none absolute bottom-3 right-3 z-10 flex items-center gap-1.5 rounded-[var(--radius-chip)] px-3 py-2 text-xs font-medium shadow-lg"
+          style={{
+            backgroundColor: "var(--color-text-primary)",
+            color: "var(--bg)",
+          }}
+          role="status"
+        >
+          <span
+            className="material-symbols-outlined text-[16px]"
+            style={{ color: "var(--color-warning)" }}
+          >
+            lock
+          </span>
+          {toast.deps.map((d) => `${d}단계`).join(" · ")} 완료 후 {toast.step}단계
+          진행 가능
+        </div>
+      )}
     </section>
   );
 }
@@ -355,8 +398,17 @@ function PublishGate({
 // 개별 카드
 // ─────────────────────────────────────────────────────────────────────────
 
-function ChecklistCard({ item }: { item: ChecklistItem }) {
+function ChecklistCard({
+  item,
+  onLockClick,
+}: {
+  item: ChecklistItem;
+  // PR-1C-9 (B1): 잠금 카드 클릭 시 부모 toast 트리거 (선행 STEP 번호 전달)
+  onLockClick?: (step: number, deps: number[]) => void;
+}) {
   const isLocked = item.status === "locked";
+  // PR-1C-9 (B1): 시안 depends_on — 잠금 시 선행 STEP 번호 (없으면 빈 배열)
+  const deps = item.dependsOn ?? [];
 
   // 이유: 잠금 카드는 클릭 비활성 (Link 미사용). non-locked 만 Link wrapper.
   const inner = (
@@ -447,6 +499,17 @@ function ChecklistCard({ item }: { item: ChecklistItem }) {
               {item.lockedReason}
             </p>
           )}
+          {/* ⭐ PR-1C-9 (B1) — depends_on 시각화 (시안 atsh-item__dep 박제).
+              잠금 + 선행 STEP 있을 때만 "N단계 완료 후 진행" link 아이콘 행 노출. */}
+          {isLocked && deps.length > 0 && (
+            <p
+              className="mt-1 flex items-center gap-1 text-[11px]"
+              style={{ color: "var(--color-text-muted)" }}
+            >
+              <span className="material-symbols-outlined text-[13px]">link</span>
+              {deps.map((d) => `${d}단계`).join(" · ")} 완료 후 진행
+            </p>
+          )}
         </div>
 
         {/* 우측 화살표 (non-locked 만) */}
@@ -462,9 +525,20 @@ function ChecklistCard({ item }: { item: ChecklistItem }) {
     </div>
   );
 
-  // 잠금 = 정적 div / 그 외 = Link
+  // 잠금 = 클릭 시 toast (시안 atsh-item onClick) / 그 외 = Link
+  // 이유(PR-1C-9 B1): 기존엔 정적 div(무반응) → 시안은 클릭 시 선행 STEP toast 안내.
+  //   button 으로 감싸 onLockClick 호출 (deps 비어도 클릭은 가능 / toast 는 deps 있을 때 의미 있음).
   if (isLocked) {
-    return <div>{inner}</div>;
+    return (
+      <button
+        type="button"
+        onClick={() => onLockClick?.(item.step, deps)}
+        className="block w-full text-left"
+        aria-label={`${item.title} (잠김)`}
+      >
+        {inner}
+      </button>
+    );
   }
   return (
     <Link href={item.link} className="block">

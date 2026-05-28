@@ -2,49 +2,28 @@ import { prisma } from "@/lib/db/prisma";
 import { getWebSession } from "@/lib/auth/web-session";
 import { isSuperAdmin } from "@/lib/auth/is-super-admin";
 import { redirect } from "next/navigation";
-import { Card } from "@/components/ui/card";
-import { TOURNAMENT_STATUS_LABEL, TOURNAMENT_FORMAT_LABEL } from "@/lib/constants/tournament-status";
-import Link from "next/link";
-// Admin-7-A 박제 (BDR v2.14 AdminTournamentAdminList.jsx) — eyebrow + breadcrumbs + actions 헤더
 import { AdminPageHeader } from "@/components/admin/admin-page-header";
+// PR-1C-7 박제 (A1 AdminTournamentAdminList) — 4 옵션 진입 panel + 상태 탭 + 카드 list
+import { AdminEntryCta } from "./_components/admin-entry-cta";
+import {
+  AdminTournamentList,
+  type AdminTournamentRow,
+} from "./_components/admin-tournament-list";
 
 export const dynamic = "force-dynamic";
 
 /**
  * 본인 운영 대회 목록 — /tournament-admin/tournaments
  *
- * 2026-05-15 Admin-7-A 박제:
+ * 2026-05-28 PR-1C-7 (A1 진입점 통합) 박제:
+ *   - 단일 hero "+ 새 대회 만들기" Link → 4 옵션 인라인 panel (AdminEntryCta)
+ *     · Quick / 단계별 / PDF 요강 / 협회(super_admin) = 운영 실제 라우트 매핑
+ *   - <Card> 카드 리스트 → 시안 aen-tabs(상태 탭) + aen-row(카드) (AdminTournamentList)
+ *   - Prisma 쿼리 / super_admin 분기 / 데이터 패칭 = 비즈 0 변경 (시각만)
+ *
+ * 2026-05-15 Admin-7-A 박제 (이전):
  *   - raw <h1> + Link → AdminPageHeader (eyebrow/breadcrumbs/actions)
- *   - <Badge> → admin-stat-pill[data-tone] (status tone 매핑)
- *   - Card 컴포넌트 보존 (운영 UX) — 시안 admin-table 박제는 옵션 A 별 PR
- *   - Prisma 쿼리 / super_admin 분기 / format 표시 비즈 0 변경
  */
-
-// 시안 동일 4 tone 매핑 (Admin-5 패턴) — TOURNAMENT_STATUS_LABEL 의 키 전체 커버
-type StatusTone = "ok" | "warn" | "info" | "mute";
-const STATUS_TONE: Record<string, StatusTone> = {
-  // 준비중 → mute
-  draft: "mute",
-  upcoming: "mute",
-  // 접수중 → info (파란)
-  registration: "info",
-  registration_open: "info",
-  active: "info",
-  published: "info",
-  open: "info",
-  opening_soon: "info",
-  registration_closed: "info",
-  // 진행중 → ok (초록)
-  in_progress: "ok",
-  live: "ok",
-  ongoing: "ok",
-  group_stage: "ok",
-  // 종료 → mute (회색)
-  completed: "mute",
-  ended: "mute",
-  closed: "mute",
-  cancelled: "mute",
-};
 
 export default async function TournamentAdminTournamentsPage() {
   const session = await getWebSession();
@@ -56,24 +35,35 @@ export default async function TournamentAdminTournamentsPage() {
   const isSuper = isSuperAdmin(session);
   const userId = BigInt(session.sub);
 
-  const tournaments = await prisma.tournament.findMany({
-    where: isSuper
-      ? {}
-      : {
-          OR: [
-            { organizerId: userId },
-            { adminMembers: { some: { userId, isActive: true } } },
-          ],
-        },
-    orderBy: { createdAt: "desc" },
-  }).catch(() => []);
+  const tournaments = await prisma.tournament
+    .findMany({
+      where: isSuper
+        ? {}
+        : {
+            OR: [
+              { organizerId: userId },
+              { adminMembers: { some: { userId, isActive: true } } },
+            ],
+          },
+      orderBy: { createdAt: "desc" },
+    })
+    .catch(() => []);
+
+  // 클라이언트 컴포넌트 직렬화 — BigInt id / Date 를 string 으로 변환 (새 fetch ❌)
+  const rows: AdminTournamentRow[] = tournaments.map((t) => ({
+    id: String(t.id),
+    name: t.name,
+    status: t.status ?? null,
+    startDate: t.startDate ? t.startDate.toISOString() : null,
+    format: t.format ?? null,
+  }));
 
   // 헤더 라벨 분기 — super_admin 진입 시 "전체 대회" / 일반 "내 대회"
   const headerLabel = isSuper ? "전체 대회" : "내 대회";
 
   return (
     <div>
-      {/* Admin-7-A 박제: raw h1 + Link → AdminPageHeader (eyebrow + breadcrumbs + actions) */}
+      {/* AdminPageHeader 보존 — eyebrow + breadcrumbs (actions 의 단일 CTA 는 hero panel 로 이동) */}
       <AdminPageHeader
         eyebrow={`ADMIN · 대회 운영${isSuper ? " · SUPER" : ""}`}
         title={headerLabel}
@@ -83,55 +73,13 @@ export default async function TournamentAdminTournamentsPage() {
           { label: "대회 운영자 도구" },
           { label: headerLabel },
         ]}
-        actions={
-          <Link
-            href="/tournament-admin/tournaments/new/wizard"
-            className="btn btn--primary"
-            style={{ textDecoration: "none" }}
-          >
-            + 새 대회 만들기
-          </Link>
-        }
       />
 
-      {tournaments.length > 0 ? (
-        <div className="space-y-3">
-          {/* 2026-05-12 — <Link><Card> link color cascade 차단: 명시 색 박제 */}
-          {tournaments.map((t) => {
-            // Admin-7-A 박제: Badge → admin-stat-pill[data-tone] (status tone 폴백 mute)
-            const statusKey = t.status ?? "draft";
-            const statusLabel = TOURNAMENT_STATUS_LABEL[statusKey] ?? statusKey;
-            const statusTone: StatusTone = STATUS_TONE[statusKey] ?? "mute";
-            return (
-              <Link
-                key={t.id}
-                href={`/tournament-admin/tournaments/${t.id}`}
-                className="block text-[var(--color-text-primary)]"
-              >
-                <Card className="flex items-center justify-between hover:bg-[var(--color-elevated)] transition-colors cursor-pointer">
-                  <div>
-                    <p className="font-semibold text-[var(--color-text-primary)]">{t.name}</p>
-                    <p className="text-xs text-[var(--color-text-muted)]">
-                      {t.startDate ? t.startDate.toLocaleDateString("ko-KR") : "날짜 미정"}
-                      {t.format && ` · ${TOURNAMENT_FORMAT_LABEL[t.format] ?? t.format}`}
-                    </p>
-                  </div>
-                  <span className="admin-stat-pill" data-tone={statusTone}>
-                    {statusLabel}
-                  </span>
-                </Card>
-              </Link>
-            );
-          })}
-        </div>
-      ) : (
-        <Card className="py-12 text-center text-[var(--color-text-muted)]">
-          <div className="mb-2 text-lg font-semibold text-[var(--color-text-muted)]">No Tournaments</div>
-          관리하는 대회가 없습니다.{" "}
-          {/* 액션 링크 = accent 강조 (빨강 본문 금지) */}
-          <Link href="/tournament-admin/tournaments/new/wizard" className="text-[var(--color-accent)] hover:underline">새 대회 만들기</Link>
-        </Card>
-      )}
+      {/* PR-1C-7: 단일 hero CTA → 4 옵션 인라인 panel (협회 옵션 = super_admin 전용) */}
+      <AdminEntryCta isSuperAdmin={isSuper} />
+
+      {/* PR-1C-7: 상태 탭 + 검색 + 카드 list (클라이언트 필터 / 새 fetch ❌) */}
+      <AdminTournamentList rows={rows} />
     </div>
   );
 }
