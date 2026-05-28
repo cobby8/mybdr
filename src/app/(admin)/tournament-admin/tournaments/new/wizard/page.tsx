@@ -50,6 +50,20 @@ const GENDER_OPTIONS = [
   { value: "female", label: "여성" },
 ];
 
+// 2026-05-28 PR-1C-14 (PA2) — 진입점 sub-tab 4 옵션 (시안 AdminTournamentWizard1Step.jsx SUBTABS 박제).
+//   quick = 현재 QuickCreateForm 폼 / 나머지 3개 = 기존 라우트로 이동 (라우팅 구조 변경 ❌).
+//   adminOnly = showAssociationCard 권한일 때만 노출 (Phase 6 PR2 분기 재사용).
+const SUBTABS = [
+  { key: "quick", icon: "flash_on", label: "Quick", hint: "이름·시작일만", time: "1분", recommended: true, adminOnly: false },
+  { key: "legacy", icon: "list_alt", label: "단계별 설정", hint: "3-step", time: "5분", recommended: false, adminOnly: false },
+  { key: "prospectus", icon: "description", label: "PDF 요강", hint: "AI 추출", time: "3분", recommended: false, adminOnly: false },
+  { key: "association", icon: "workspace_premium", label: "협회 대회", hint: "super admin", time: "7분", recommended: false, adminOnly: true },
+] as const;
+
+// draft step(0~4) → 사람이 읽는 단계 라벨. 작성시각이 없으므로 진행도는 step 으로만 표시.
+//   wizard-types.ts WizardStep: 0 단체 / 1 시리즈 / 2 대회정보 / 3 참가설정 / 4 확인생성.
+const DRAFT_STEP_LABELS = ["단체", "시리즈", "대회 정보", "참가 설정", "확인·생성"] as const;
+
 // 토스 스타일 인풋 — surface 배경, border 없음, rounded-md
 const inputCls =
   "w-full rounded-md border-none bg-[var(--color-border)] px-4 py-3 text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/50";
@@ -126,6 +140,16 @@ function QuickCreateForm() {
   //   AppNav frozen 룰 (CLAUDE.md 13 룰) 위반 회피 — 더보기 메뉴 추가 ❌ / 일반 마법사 진입 카드 ✅.
   const [showAssociationCard, setShowAssociationCard] = useState(false);
 
+  // 2026-05-28 Phase 1C PR-1C-14 (PA2) — 시안 AdminTournamentWizard1Step.jsx 진입점 sub-tab.
+  // 이유: S3 사각지대(생성 방식 진입점 분산) 해소 — quick / legacy / prospectus / association 4 옵션을
+  //   sub-tab 으로 통합. quick 만 본 폼 표시, 나머지는 "전환 안내 카드" + 기존 라우트 이동 버튼.
+  //   라우팅 구조 변경 ❌ (탭은 상태 + router.push 만). association 탭은 showAssociationCard 권한일 때만.
+  const [subtab, setSubtab] = useState<"quick" | "legacy" | "prospectus" | "association">("quick");
+  // draft 복구 배너 dismiss 상태 — [새로 시작] 클릭 시 배너만 숨김 (sessionStorage 는 유지).
+  const [draftDismissed, setDraftDismissed] = useState(false);
+  // draft 복구 배너 표시용 메타 — loadDraft() 결과에서 제목/단계만 추출 (작성시각 미저장 → 표시 ❌).
+  const [draftMeta, setDraftMeta] = useState<{ title: string; step: number } | null>(null);
+
   // 필수 1: 대회 이름
   const [name, setName] = useState("");
   // 권장 (선택): 시작일 (날짜 입력 type=date — YYYY-MM-DD)
@@ -175,6 +199,9 @@ function QuickCreateForm() {
 
   // 2026-05-20 Phase 3 fix — prospectus AI 분석 후 sessionStorage draft 자동 채움 (QuickCreateForm).
   // 흐름: /wizard/prospectus → "이대로 wizard 진입" → saveDraft → /new/wizard → 본 useEffect → setName 등.
+  //
+  // 2026-05-28 PR-1C-14 — draft 복구 배너 메타도 본 useEffect 에서 추출 (loadDraft 1회 호출 재사용).
+  //   배너 표시 조건 = draftMeta !== null && !draftDismissed. 작성시각은 WizardDraft 에 미저장 → 표시 ❌.
   useEffect(() => {
     const draft = loadDraft();
     if (!draft) return;
@@ -182,6 +209,8 @@ function QuickCreateForm() {
     if (p.title) setName(p.title);
     if (p.schedule.startDate) setStartDate(p.schedule.startDate);
     if (draft.series_id) setSeriesId(String(draft.series_id));
+    // 배너 메타 — 제목(없으면 "(제목 미정)") + 단계(0~4). 작성시각 가짜 텍스트(mock) 금지.
+    setDraftMeta({ title: p.title?.trim() || "(제목 미정)", step: draft.step });
   }, []);
 
   useEffect(() => {
@@ -368,6 +397,95 @@ function QuickCreateForm() {
         }
       />
 
+      {/* === 2026-05-28 PR-1C-14 (PA2) — 진입점 sub-tab (4 옵션) ===
+          이유: 생성 방식 진입점이 헤더 actions(요강 분석) / association 카드 / ?legacy 링크로 분산(S3 사각지대).
+                시안처럼 quick/legacy/prospectus/association 을 sub-tab 으로 통합 → 한 화면에서 방식 전환.
+          박제 룰: 탭은 상태 + router.push 만. 라우팅 구조 / API / POST body 변경 0.
+                   association 탭은 showAssociationCard 권한일 때만 노출 (Phase 6 PR2 권한 분기 재사용). */}
+      <div role="tablist" className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+        {SUBTABS.filter((t) => !t.adminOnly || showAssociationCard).map((t) => {
+          const active = subtab === t.key;
+          return (
+            <button
+              key={t.key}
+              type="button"
+              role="tab"
+              aria-selected={active}
+              onClick={() => setSubtab(t.key)}
+              className={`flex flex-col gap-1 rounded-md border p-3 text-left transition-colors ${
+                active
+                  ? "border-[var(--color-info)] bg-[var(--color-info)]/10"
+                  : "border-[var(--color-border)] bg-[var(--color-elevated)] hover:bg-[var(--color-border)]"
+              }`}
+            >
+              <span className="flex items-center gap-1.5 text-sm font-bold text-[var(--color-text-primary)]">
+                <span
+                  className={`material-symbols-outlined text-lg ${
+                    active ? "text-[var(--color-info)]" : "text-[var(--color-text-muted)]"
+                  }`}
+                >
+                  {t.icon}
+                </span>
+                {t.label}
+                {/* 추천 칩 — quick 만. info 토큰 (admin 빨강 본문 금지). */}
+                {t.recommended && (
+                  <span className="rounded-[4px] bg-[var(--color-info)] px-1.5 py-0.5 text-[10px] font-bold text-white">
+                    추천
+                  </span>
+                )}
+              </span>
+              <span className="text-xs text-[var(--color-text-muted)]">
+                {t.hint} · ~{t.time}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* === 2026-05-28 PR-1C-14 (PA2) — draft 복구 배너 ===
+          이유: 작성 중이던 draft(sessionStorage)가 있으면 "이어하기"를 명시 노출 → 재진입 시 이탈 방지.
+          박제 룰: loadDraft() 결과 있을 때만(draftMeta) + dismiss 안 했을 때(!draftDismissed) 표시.
+                   작성시각은 WizardDraft 에 미저장 → 표시 ❌ (시안의 "2일 전" 가짜 텍스트 박제 금지).
+                   [이어하기] = 이미 위 useEffect 가 폼을 채워둠 → quick 탭 전환 + 배너 닫기로 안내.
+                   [새로 시작] = 배너만 dismiss (sessionStorage 는 다음 생성 성공 시 자연 덮어쓰기). */}
+      {draftMeta && !draftDismissed && (
+        <div className="mb-4 flex flex-col gap-3 rounded-md border border-[var(--color-info)]/40 bg-[var(--color-info)]/10 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-3">
+            <span className="material-symbols-outlined text-2xl text-[var(--color-info)]">history</span>
+            <div>
+              <div className="text-sm font-bold text-[var(--color-text-primary)]">
+                이전 작성 이어하기
+              </div>
+              {/* 제목 + 진행도(step/4). 단계 라벨은 DRAFT_STEP_LABELS 매핑. 작성시각 ❌. */}
+              <div className="mt-0.5 text-xs text-[var(--color-text-muted)]">
+                {draftMeta.title} · {DRAFT_STEP_LABELS[draftMeta.step] ?? "진행 중"} 단계 ({draftMeta.step}/4)
+              </div>
+            </div>
+          </div>
+          <div className="flex shrink-0 gap-2">
+            <button
+              type="button"
+              onClick={() => setDraftDismissed(true)}
+              className="btn btn--sm"
+            >
+              새로 시작
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                // 이어하기 — 폼은 이미 위 useEffect 가 채워둠. quick 탭으로 전환 + 배너 닫기만 수행.
+                setSubtab("quick");
+                setDraftDismissed(true);
+              }}
+              className="btn btn--sm btn--primary inline-flex items-center gap-1"
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: 16 }}>arrow_forward</span>
+              이어하기
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* 2026-05-15 Phase 6 PR2 — super_admin / association_admin 분기 카드.
           이유: 협회 마법사 진입점을 일반 사용자에게는 숨기고 권한 보유자에게만 안내.
           AppNav frozen 룰 위반 회피 (메인 탭 / 더보기 추가 ❌) — 일반 마법사 상단 카드 1건만 추가. */}
@@ -398,13 +516,48 @@ function QuickCreateForm() {
         </div>
       )}
 
+      {/* === 2026-05-28 PR-1C-14 (PA2) — quick 외 sub-tab 선택 시 "전환 안내 카드" ===
+          이유: legacy/prospectus/association 탭은 별도 라우트가 정답(라우팅 구조 변경 ❌).
+                각 방식 설명 + 기존 라우트로 이동 버튼만 표시 (시안 L170~191 패턴).
+          박제 룰: 이동 = router.push (legacy 는 ?legacy=1 쿼리). 새 라우트 생성 0 / fetch 0. */}
+      {subtab !== "quick" && (
+        <TossCard className="flex flex-col items-center gap-3 py-10 text-center hover:scale-100">
+          <span className="material-symbols-outlined text-5xl text-[var(--color-text-muted)]">
+            {SUBTABS.find((t) => t.key === subtab)?.icon}
+          </span>
+          <h3 className="text-lg font-bold text-[var(--color-text-primary)]">
+            {SUBTABS.find((t) => t.key === subtab)?.label} 방식으로 전환
+          </h3>
+          <p className="max-w-md text-sm text-[var(--color-text-muted)]">
+            {subtab === "legacy" && "3-step 마법사로 전환합니다. 대회 정보 → 참가 설정 → 확인·생성 순서로 진행해요."}
+            {subtab === "prospectus" && "PDF 요강을 업로드하면 AI 가 종별·신청 정책을 자동으로 추출합니다."}
+            {subtab === "association" && "협회 본체·사무국장·배정비를 한 번에 등록하는 협회 마법사로 전환합니다."}
+          </p>
+          <button
+            type="button"
+            onClick={() => {
+              // 기존 라우트로만 이동 — 라우팅 구조 변경 ❌.
+              if (subtab === "legacy") router.push("/tournament-admin/tournaments/new/wizard?legacy=1");
+              else if (subtab === "prospectus") router.push("/tournament-admin/tournaments/new/wizard/prospectus");
+              else if (subtab === "association") router.push("/tournament-admin/wizard/association");
+            }}
+            className="btn btn--primary inline-flex items-center gap-1"
+          >
+            <span className="material-symbols-outlined" style={{ fontSize: 16 }}>arrow_forward</span>
+            이 방식으로 전환
+          </button>
+        </TossCard>
+      )}
+
       {/* 에러 메시지 — color-mix 토큰 (admin 빨강 본문 금지 룰) */}
-      {error && (
+      {subtab === "quick" && error && (
         <div className="mb-4 rounded-md bg-[color-mix(in_srgb,var(--color-error)_10%,transparent)] px-4 py-3 text-sm text-[var(--color-error)]">
           {error}
         </div>
       )}
 
+      {/* quick 탭일 때만 생성 폼 노출 (다른 탭은 위 전환 카드). */}
+      {subtab === "quick" && (
       <form onSubmit={handleCreate} className="space-y-4">
         <TossCard className="space-y-4 hover:scale-100">
           <SectionTitle icon="edit_note">필수 정보</SectionTitle>
@@ -501,6 +654,26 @@ function QuickCreateForm() {
               </span>
             </p>
           </div>
+
+          {/* === 2026-05-28 PR-1C-14 (PA2) — 3-step flow 안내 (NOW / NEXT / THEN) ===
+              이유: 운영자가 "지금 입력 → 다음 셋업 → 공개" 전체 흐름을 미리 인지 → 입력 부담 완화.
+              박제 룰: 순수 텍스트 카드 3개. 클릭/이동 없음 → API 영향 0. info 토큰만 사용. */}
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+            {[
+              { num: "NOW", title: "기본 정보 입력", desc: "이름 · 시작일 · 시리즈" },
+              { num: "NEXT", title: "셋업 hub 8 카드", desc: "종별 · 팀 · 대진 · 사이트" },
+              { num: "THEN", title: "공개하기", desc: "사용자가 신청 시작" },
+            ].map((s) => (
+              <div
+                key={s.num}
+                className="rounded-md border border-[var(--color-border)] bg-[var(--color-elevated)] p-3"
+              >
+                <div className="text-xs font-bold text-[var(--color-info)]">{s.num}</div>
+                <div className="mt-1 text-sm font-bold text-[var(--color-text-primary)]">{s.title}</div>
+                <div className="mt-0.5 text-xs text-[var(--color-text-muted)]">{s.desc}</div>
+              </div>
+            ))}
+          </div>
         </TossCard>
 
         {/* === 생성 CTA — 풀와이드 / 모바일 친화 44px+ === */}
@@ -519,6 +692,7 @@ function QuickCreateForm() {
           </Link>
         </p>
       </form>
+      )}
     </div>
   );
 }
