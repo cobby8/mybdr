@@ -72,7 +72,7 @@ const STATUS_LABEL: Record<string, string> = {
 const STATUS_COLOR: Record<string, string> = {
   pending: "text-[var(--color-warning)] bg-[var(--color-warning)]/10",
   approved: "text-[var(--color-game-team)] bg-[var(--color-game-team)]/10",
-  rejected: "text-[var(--color-error)] bg-[rgba(239,68,68,0.1)]",
+  rejected: "text-[var(--color-error)] bg-[color-mix(in_srgb,var(--color-error)_10%,transparent)]",
   withdrawn: "text-[var(--color-text-muted)] bg-[var(--color-elevated)]",
 };
 
@@ -558,9 +558,9 @@ export default function TournamentTeamsPage() {
                   className="flex cursor-pointer items-center gap-3"
                   onClick={() => toggleTeam(tt.id)}
                 >
-                  {/* 팀 색상 아이콘 */}
+                  {/* 팀 색상 아이콘 — 정사각형(W=H) 원형은 룰 10에 따라 9999px 회피 → 50% */}
                   <div
-                    className="h-10 w-10 rounded-full"
+                    className="h-10 w-10 rounded-[50%]"
                     style={{ backgroundColor: tt.team.primaryColor ?? "var(--color-primary)" }}
                   />
                   <div>
@@ -765,7 +765,7 @@ export default function TournamentTeamsPage() {
                       <select
                         value={token?.category ?? ""}
                         onChange={(e) => changeCategory(expandedTeam.id, e.target.value)}
-                        className="rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase no-print"
+                        className="rounded-[4px] px-2 py-0.5 text-[10px] font-semibold uppercase no-print"
                         style={{
                           background: "color-mix(in srgb, var(--color-accent) 15%, transparent)",
                           color: "var(--color-accent)",
@@ -782,7 +782,7 @@ export default function TournamentTeamsPage() {
                     ) : (
                       token?.category && (
                         <span
-                          className="rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase"
+                          className="rounded-[4px] px-2 py-0.5 text-[10px] font-semibold uppercase"
                           style={{
                             background: "color-mix(in srgb, var(--color-accent) 15%, transparent)",
                             color: "var(--color-accent)",
@@ -944,7 +944,7 @@ export default function TournamentTeamsPage() {
                         onClick={() => updateStatus(expandedTeam.id, "approved")}
                         disabled={actionLoading === expandedTeam.id}
                         className="btn btn--sm"
-                        style={{ background: "var(--color-success)", color: "#fff", borderColor: "var(--color-success)" }}
+                        style={{ background: "var(--color-success)", color: "white", borderColor: "var(--color-success)" }}
                       >
                         승인
                       </button>
@@ -953,7 +953,7 @@ export default function TournamentTeamsPage() {
                         onClick={() => updateStatus(expandedTeam.id, "rejected")}
                         disabled={actionLoading === expandedTeam.id}
                         className="btn btn--sm"
-                        style={{ background: "var(--color-error)", color: "#fff", borderColor: "var(--color-error)" }}
+                        style={{ background: "var(--color-error)", color: "white", borderColor: "var(--color-error)" }}
                       >
                         거절
                       </button>
