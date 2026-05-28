@@ -1,13 +1,101 @@
 # 작업 스크래치패드
 
 ## 현재 작업
-- **요청**: PR-1C-4 UA3 TournamentEnroll B3 결제 보강 + 사후 안내 박제 (옵션 B / developer 수행)
-- **상태**: 박제 완료 — PM 검토/commit/push/PR 대기
-- **현재 담당**: pm (developer 산출물 검토 → tester/reviewer 병렬 검증 또는 PM 직접 검증 → commit)
-- **참고**: phase-ledger PR-1C-4 옵션 B (bank 단일) / manual·card / 토스 ❌ / API·route.ts·Prisma 변경 0 / 새 라우트 ❌
+- **요청**: Phase 2 v2.20 sync ✅ 완료 → 다음 = Phase 1C 잔여 12 PR batch (PR-1C-5~16) 진입 결재 대기
+- **상태**: Phase 2 sync commit `dca96f6` push 완료 / PR-1C-1~4 PR #650 누적
+- **현재 담당**: pm (batch 진입 사용자 결재 대기)
+- **참고**: phase-ledger source of truth — Phase 1 ⑪ = PR-1C-1~4 ✅ (잔여 12 PR) / Phase 2 ⑩ ✅ (Phase 2C 운영 박제 미진입) / batch 의뢰서 = `phase-1C-batch-cli-prompt-2026-05-28.md`
 
 ## 기획설계 (planner-architect)
 (아직 없음)
+
+## 구현 기록 (developer / PR-1C-5 UC1 MyActivity 박제)
+
+📝 구현한 기능: /profile/activity 마이페이지 활동 뷰에 시안 v2.20 승인 3건 박제
+- ① 대회 탭 카드 → `MyRegistrationStatus variant="compact"` 재사용 (PR-1C-2 결과 / 위치 이동 ❌ import 만)
+- ② 5 상태 필터 chip row 추가 (시안 `.ma-filter` / 탭=도메인 / 필터=상태 공존)
+- ③ 매너 카드 = 데이터 없음 → hide (mock ❌ / 운영 page.tsx 애초 미존재 → 추가 안 함으로 자동 충족)
+
+### 분석 (PM 결재 승인 방향 그대로)
+- **시안 v2.20 MyActivity.jsx** (151 LOC): `window.MY_TOURNAMENTS/MY_GAMES/MY_MANNER` mock + `window.GMStatusBadge/GMKindBadge/ApplyStep/MannerCard` 컴포넌트 의존 = 운영에 부재 → 시안 "재구성" ❌, 운영 위에 승인 3건만 얹는 것이 정답
+- **운영 page.tsx**: 이미 v2.18 박제 완료 (3탭 games/tournaments/teams + counters 4종 + 카드 borderBottom 행). 본 PR = 그 위에 필터/compact 추가
+- **시안 css 박제 범위 최소화**: `.ma-filter*` 5종 클래스만 박제. `.ma-page/.ma-shell/.ma-side*/.ma-stat*/.ma-list/.ma-empty` = 운영 자체 구현 보존 → 미박제 (중복 방지). 특히 `.ma-stat--accent` 의 `var(--accent-hair)` = 운영 globals.css 미정의 → stat 영역 자체를 박제 안 해 회피
+
+### 변경 파일
+| 경로 | 변경 | 신규/수정 | LOC |
+|------|------|----------|-----|
+| `_components/my-activity.css` | 시안 `.ma-filter` chip row 만 박제 — `.ma-filter`/`.ma-filter__chip`/`.is-on`/`.ma-filter__count` + 모바일 가로 스크롤. 토큰 대체: `--r-sm → --radius-chip` (운영 정의 6px). 나머지 (`--border-strong/--bg-elev/--bg-alt/--ink/--ink-soft/--ink-dim`) 운영 그대로. `#fff` 1건 = is-on chip `--ink` 배경 위 흰 글자 (시안 원본 §6-1) | 신규 | 84 |
+| `page.tsx` | imports +2 (MyRegistrationStatus + NormalizedReg 타입 / my-activity.css) / `STATUS_FILTERS` 5종 + `itemBucket()` 상태 분류 + `toNormalizedReg()` 변환 헬퍼 추가 / `statusFilter` state + `filterCounts` + `filteredItems` / `.ma-filter` chip row 렌더 (탭 nav 아래) / 본문 분기에 "대회 탭 → MyRegistrationStatus compact stack" + "필터 후 0건 안내" 추가 / 경기·팀 탭은 filteredItems 기반으로 / **미사용 TournamentCard 함수 90 LOC 제거** (compact 교체로 dead code) | 수정 | -102/+158 |
+| `tournaments/[id]/_components/my-registration-status.tsx` | `NormalizedReg` interface `export` 추가 (UC1 변환 헬퍼 타입 매칭용) — 컴포넌트 동작 변경 0 | 수정 | +3/-1 |
+
+### 데이터 매핑 결정 (TournamentItem → NormalizedReg)
+| 시안 reg 필드 | 운영 TournamentItem | 처리 |
+|---------|----------|------|
+| tn_name | tournament.name | 진짜 |
+| team_name | team.name | 진짜 |
+| status | item.status (pending/approved/registered/rejected/cancelled) | StatusKey 매핑 (rejected→rejected / cancelled→completed / approved·registered→approved / 그 외→pending) |
+| step_idx | status 도출 | approved=2 / pending=1 / 그 외=0 (운영 결제·진행 미구분 → 승인까지만) |
+| division | 운영 미포함 | "참가" 폴백 (mock ❌ / 데이터 없음 명시) |
+| next_action | status 도출 | "승인 대기 중"/"확정"/"거절" — 상태에서 도출 (mock 문구 ❌) |
+| submitted_at | created_at | formatApplied() 재사용 |
+
+### 검증 결과
+- **tsc --noEmit**: 0 errors (EXIT=0) — TournamentCard 제거 후 재검증도 0
+- **자체 회귀 검수 6 기본 케이스**:
+  | # | 케이스 | 결과 |
+  |---|--------|------|
+  | 1 | AppNav main bar 우측 dropdown/아바타 | OK (AppNav 변경 0 — profile/activity 만 수정) |
+  | 2 | 모바일 듀얼 라벨 | OK (AppNav 변경 0) |
+  | 3 | 검색/쪽지/알림 box | OK (AppNav 변경 0) |
+  | 4 | 하드코딩 색상 | 본 PR 신규 css = **하드코딩 0건** (시안 is-on chip `#fff`/`rgba(255,255,255,.7)` → `var(--bg)`/`color-mix(--bg 70%)` 치환 = 다크모드 대비 버그 동시 해결). page.tsx `#fff` 1건 = **기존 EmptyState CTA** (본 PR 무관) / 본 PR 신규 tsx 코드는 100% 토큰 |
+  | 5 | lucide-react import | 0 (Material Symbols 만) |
+  | 6 | 9999px / rounded-full | 0 (MyRegistrationStatus 의 step dot 50% 정사각은 기존 PR-1C-2 분 / 본 PR 신규 0) |
+  | - | 가짜링크 | 0 (`/tournaments/${id}` router.push + 기존 `/games`·`/teams`·`/tournaments` Link = 운영 라우트) |
+- **design 회귀 스크립트** (`scripts/check-design-regression.sh`): profile/activity·my-activity.css 매치 위반 0건
+
+### 알림
+- **시안 ↔ 운영 불일치 (디자인·API 변경 ❌)**:
+  - 시안 mock `MY_TOURNAMENTS` 의 `division/next_action` → 운영 TournamentItem 미포함 → `toNormalizedReg()` 폴백 ("참가" / status 도출 문구). 향후 /api/web/me/activity 응답에 division 추가 시 자연 흡수
+  - 시안 "내 경기" 섹션 (BG6 / `ApplyStep`·`GMKindBadge` 의존) → 운영은 기존 GameCard borderBottom 행 보존 (시안 신규 컴포넌트 미박제 — 운영 데이터 한계). 별 PR
+  - 시안 "내 매너" 카드 (BG2 / `MannerCard` + `MY_MANNER` mock) → 운영 데이터 부재 → **hide** (mock ❌). Phase 2 매너 API 후 별 작업
+  - 시안 좌측 사이드바 (`.ma-side` 프로필 + nav) → 운영은 단일 컬럼 `.page` + PageBackButton 보존 (시안 사이드바 미박제 — 운영 구조 보존)
+  - 시안 stat strip (`.ma-stat` 4종) → 운영이 이미 자체 Tailwind grid 로 counters 박제 (v2.18) → 보존
+- **3탭 구조 + counters 4종 보존**: games/tournaments/teams 탭 + 검토중/승인·확정/거절/취소 카운터 = 변경 0. 필터는 **추가** (탭 위에 공존)
+- **TournamentCard 90 LOC 제거**: compact 교체로 호출처 0 → dead code 정리 (가독성). STRING_STATUS/rowAccent/formatWhen 은 TeamCard·GameCard 가 계속 사용 → 보존
+- **API / fetch / Prisma / route.ts / DB 변경 0** — /api/web/me/activity 호출 3탭 병렬 fetch 동일
+- **commit/push/PR 은 PM 담당**
+
+💡 tester 참고:
+- **로컬 검증**: `npm run dev` → http://localhost:3001/profile/activity (로그인 필요)
+  - **필터 chip row** (탭 아래): "전체" + 검토중/승인·확정/거절/취소 (해당 탭에 카운트 > 0 인 상태만 chip 노출 / 전체는 항상)
+    - chip 클릭 → 현재 탭 항목을 해당 상태로 필터 (리스트 즉시 갱신)
+    - 활성 chip = `--ink` 배경 + 흰 글자 (다크/라이트 모두 대비 OK)
+  - **대회 탭**: 카드 = MyRegistrationStatus compact (대회명 + status pill + "참가" 부문 + 팀명 + 신청시각 + 5 STEPS 인디케이터 + next action + "대회 상세" 버튼)
+    - 카드 제목/버튼 클릭 → `/tournaments/${id}` 라우팅
+    - 5 STEPS: 신청→대기→승인→결제→진행 (운영은 승인까지만 step 진행 / 결제·진행 미구분)
+  - **경기 탭 / 팀 탭**: 기존 borderBottom 행 카드 100% 유지 (회귀 0). 팀 탭 pending = "신청 취소" 버튼 보존
+  - **탭 전환 시**: 필터 자동 "전체" 초기화
+  - **모바일 (≤720px)**: 필터 chip row 가로 스크롤
+- **정상 동작**:
+  - 대회 신청 0건 → EmptyState "아직 신청한 대회가 없어요" + CTA
+  - 대회 신청 있음 + "검토중" 필터 → pending 상태 대회 카드만 (compact)
+  - 필터로 0건 (이론상) → "해당 상태의 신청 내역이 없습니다"
+- **주의할 입력**:
+  - tournament.status = "registered" → "승인·확정" 버킷 (approved 동의어)
+  - tournament.status = "cancelled" → "취소" 버킷 / compact 에선 completed 톤
+  - division 데이터 없음 → compact 카드 "참가" 표시 (정상 / 운영 미포함)
+  - 운영 DB 영향 0 (API/fetch/schema 변경 0)
+
+- **🔧 다크모드 대비 버그 사전 해결 (시안 원본 변경)**: 시안 is-on chip `color:#fff` / count `rgba(255,255,255,.7)` 은 라이트모드 전제(`--ink`=어두운 배경 → 흰 글자 OK). 그러나 globals.css 확인 결과 **다크모드 `--ink: #F6F7F9`(밝은색)** → 흰 글자면 `--ink` 밝은 배경 + 흰 글자 = **대비 0 (텍스트 안 보임) 버그**. 운영은 다크모드 기본이라 그대로 박제 시 다크에서 칩 글자 사라짐. → `var(--bg)` 치환 (라이트 #F4F6FA / 다크 #0B0D10 = `--ink` 와 항상 반대 명암) + count 는 `color-mix(--bg 70%)`. **하드코딩 #fff 제거 + 다크 대비 동시 해결**. 시안 그대로보다 정확한 박제 (검수 사전 발견)
+
+⚠️ reviewer 참고:
+- **toNormalizedReg `division: "참가"` 폴백**: 운영 TournamentItem 에 부문 데이터 없어 고정 문구. mock 아닌 "데이터 없음" 명시 폴백. /api/web/me/activity 응답 확장 시 division 매핑만 추가하면 자연 흡수
+- **MyRegistrationStatus cross-route import**: `tournaments/[id]/_components/` → `profile/activity/page.tsx` import (위치 이동 ❌ / PR-1C-2 결정 준수). 컴포넌트가 route segment 폴더에 있지만 `_components` prefix 라 라우팅 비대상 → import 안전
+- **TournamentCard 90 LOC 제거**: dead code 정리. reviewer 가 "git history 보존 위해 주석 처리 선호" 시 되돌림 가능하나 기본은 제거 (가독성)
+- **NormalizedReg export**: 타입만 export 추가 / 런타임 변경 0
+
+#### 수정 이력
+(아직 없음 — tester/reviewer 피드백 시 추가)
 
 ## 구현 기록 (developer / PR-1C-4 UA3 B3 결제 보강 + 사후 안내 박제 / 옵션 B)
 
@@ -425,6 +513,9 @@
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
 |------|------|------|
+| 2026-05-28 | PR-1C-5 UC1 MyActivity 박제 (developer) | ✅ 시안 v2.20 승인 3건 박제 / 신규 1 (my-activity.css 88 — .ma-filter chip row) + 수정 2 (page.tsx -102/+158 = TournamentCard 90LOC 제거 + 필터/compact/헬퍼 추가 / my-registration-status.tsx NormalizedReg export +3) / ① 대회탭=MyRegistrationStatus compact 재사용 ② 5상태 필터 chip row ③ 매너 hide(mock❌) / 🔧 시안 #fff→var(--bg) 치환 = 다크모드 --ink밝음 대비0 버그 사전해결 / API·fetch·Prisma·DB 변경 0 / 3탭+counters 보존 / tsc 0 errors / 자체회귀 6/6 PASS / commit·push·PR PM 담당 |
+| 2026-05-28 | Phase 2 v2.20 BDR-current sync (PM) | ✅ commit `dca96f6` push / BDR-current = 34 루트 (game-shared.jsx NEW) + screens 26 jsx + 6 css + _baseline 10 / pre-snapshot 26 jsx / 회귀 4+8+특수 4 통과 (game-shared/baseline 10/carry-over diff 0/가짜링크 screens 직속 0/lucide 0) / BOM 우회 0 / 시안 css hex 23건 = Phase 2C 토큰 대체 대상 / ledger Phase 2 ⑨⑩ ✅ |
+| 2026-05-28 | PR-1C-1~4 commit/push (PM / PR #650 누적) | ✅ `40d19db`(UA1) `9734de4`(UA2+UC2) `19dfa03`(UB1) `e4e629b`(UA3 옵션B) + `5dc51e9`(gitignore chore) / 각 자체 회귀 통과 / ledger Phase 1 ⑪⑫ |
 | 2026-05-28 | PR-1C-4 UA3 TournamentEnroll B3 결제 보강 + 사후 안내 박제 (developer / 옵션 B) | ✅ 시안 박제 / 신규 3 (tournament-enroll.css 316 / enroll-step-payment.tsx 255 / enroll-success-hero.tsx 125) + 수정 1 (page.tsx 1563→1292 / -271 LOC / done 분기 + 결제 stage 컴포넌트화) / 옵션 B = bank 단일 (manual·card·토스 보류) / API·route.ts·payment_status·새 라우트 변경 0 / _v2/ 기존 4 컴포넌트 변경 0 / 5/4-step adaptive 보존 / 약관 동의 보존 / tsc 0 errors / 자체 회귀 6/6 + UA3 9/9 PASS / commit·push·PR PM 담당 |
 | 2026-05-28 | PR-1C-3 UB1 TournamentCompleted 박제 (developer) | ✅ 시안 박제 / 신규 7 (tournament-completed.css 343 / tournament-completed-hero.tsx 145 / tournament-final-standings-card.tsx 102 / tournament-mvp-best5-card.tsx 63 / tournament-gallery-card.tsx 75 / tournament-story-card.tsx 67 / tournament-next-edition-card.tsx 90) + 수정 1 (page.tsx 721→923 / status='completed' 분기 + select 4필드 추가 + standings query 1건) / 신규 라우트 ❌ / mock ❌ (갤러리/best5/통계 4종 중 3종 hide) / 다른 status 대회 회귀 0 / tsc 0 errors / 자체 회귀 6/6 + UB1 10/10 PASS / commit·push·PR PM 담당 |
 | 2026-05-28 | Phase 1C-2 UA2 TournamentDetail + UC2 MyRegistrationStatus 박제 (developer) | ✅ 시안 박제 / 신규 4 (my-registration-status.css 174 / tournament-detail.css 162 / tournament-division-chips.tsx 60 / tournament-operator-preview.tsx 64) + 수정 2 (my-registration-status.tsx 153→263 variant 분기 / page.tsx 684→720 sidebar+sticky chip row) / API·Prisma·AppNav 변경 0 / MyRegistrationStatus 위치 이동 ❌ / 기존 prop 시그니처 유지 / tsc 0 errors / 자체 회귀 6/6 + 추가 4/4 PASS / commit·push·PR PM 담당 |
@@ -432,9 +523,3 @@
 | 2026-05-26 | Phase 2 묶음 2 baseline 복원 + zip (의뢰서 §Step 1~3) | ✅ baseline 10 복원 (v2.18 pre-snapshot 9 + v2.19 MyActivity 1) / `Downloads/BDR-current-phase2.zip` 0.15 MB / commit 보류 (다음 sync 시 archive 자연 이동) / 사용자 Claude.ai 세션 2 진입 대기 |
 | 2026-05-26 | Phase 1A v2.19 sync + Step 0 BOM 영구 해결 | ✅ Step 0 commit `5609c61` (BOM) + sync commit `d5befb9` push / BDR-current = 23 파일 v2.19 cumulative / pre-snapshot 20 파일 보존 / 회귀 검수 6 통과 / 임시 우회 패턴 폐기 / ledger Phase 1 ⑩ (1A) ✅ |
 | 2026-05-26 | Phase 1B v2.18 BDR-current sync | ✅ commit `a71c9a3` + push / BDR-current = 15 파일 (jsx 9 UA1~UD3 + css 6) / pre-snapshot 149 파일 보존 / 회귀 검수 6 통과 / 인코딩 우회 = UTF-8 BOM 임시 파일 1회성 / ledger ⑩ ✅ |
-| 2026-05-25 | Phase 1 시안 의뢰 패키지 박제 (planner-architect) | ✅ `Dev/design/prompts/tournament-admin-redesign-prompt-2026-05-25.md` 617 LOC / 10 시안 정의 (수정 7 + 신규 3) / 9 사각지대 + 3 갭 매핑 / 13 룰 + 사용자 결정 §1~§8 보존 명시 |
-| 2026-05-25 | 대회 생성/관리 UX 점검 + 시안 설계 계획 (planner-architect) | ✅ 인벤토리 24 페이지 + 12 컴포넌트 / 9 사각지대 (S1~S9) / 갭 3건 / 4 Phase 계획 / 코드 변경 0 |
-| 2026-05-25 | Sprint 4 F4-γ LEGACY QS 형식 일괄 정정 (34건) | ✅ 139 매치 audit → LEGACY 44건 → 안전 34건 일괄 UPDATE / 사후 검증 34/34 OK / F2 cron false positive 해결 |
-| 2026-05-25 | Sprint 3 F4 옵션 A 안전 정정 — m257 quarterScores | ✅ 옵션 A 후보 1건 / Flutter legacy → nested 변환 / 사후 5/45 OK |
-| 2026-05-24 | 제 2회 BDR W 대학동아리 농구대회 결승 대진 박제 (m260) | ✅ UPDATE 1건 / 가드 7 통과 / home=이화여대 에폭시 vs away=한체대 KANCE |
-| 2026-05-23 | PR-6 backfill DRY-RUN | ✅ 후보 29건 / PBP_MATCHES_HEADER 4건 (m101/110/111/269) 안전 정정 대상 |

@@ -59,7 +59,8 @@ interface MyStatusResponse {
 }
 
 // 정규화된 reg 데이터 — sidebar / compact 양쪽이 동일 형식 사용
-interface NormalizedReg {
+// export: UC1 (PR-1C-5 마이페이지) 의 변환 헬퍼가 reg prop 타입을 맞추기 위해 사용
+export interface NormalizedReg {
   tn_name: string;
   division: string;
   team_name: string;
