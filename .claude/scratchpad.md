@@ -9,6 +9,84 @@
 ## 기획설계 (planner-architect)
 (아직 없음)
 
+## 구현 기록 (developer / PR-1C-8 PA8 AdminTournamentPlayoffs 박제)
+
+📝 구현한 기능: 순위전·결승 hub 를 시안 E1 5 섹션 탭 UX 로 박제 — 기존 5 섹션 세로 나열 → 4 탭 전환 (순위표 / 순위전 / 결승 / 결과). 데이터 흐름 / state / 핸들러 100% 유지 (시각만)
+
+### 분석
+- **시안 source**: `BDR-current/screens/AdminTournamentPlayoffs.jsx` (224 LOC) + `admin.css` L1130~1240 (apl-* / acp-card). 시안 = mock 5 탭 (순위표 / 8강 / 4강 / 결승 / 결과) 전환 UI
+- **운영 baseline**: `playoffs/page.tsx` (165 server) + `playoffs-client.tsx` (623 client). 종별 탭 + 5 섹션 (Banner / Advance / Standings / 순위전매치 / 결승) **세로 나열**. AdvancePlayoffsButton / PlaceholderValidationBanner / StandingsTable 기존 활용
+- **핵심 판단 (mock 데이터 왜곡 회피)**: 시안 8강/4강 = **고정 라운드 트리** (apl-bracket --cols 4/2). 운영 = 종별 N개 × **가변 라운드** (roundName "순위" 정규식 필터 + 종별 그룹핑). 시안 8강·4강 강제 2탭 분리 = 운영 데이터 왜곡 → **"순위전" 통합 탭으로 표현**
+- **시안 4 탭 ← 운영 매핑**: 순위표(standings)=Standings+Advance / 순위전(ranking)=rankingMatches 종별그룹 / 결승(final)=finalMatches FinalCard / 결과(result)=시안 static 안내 카드 (운영 데이터 0 — D1/PA7 종료 hub 연동 예정, PR-1C-13)
+- **토큰 검증**: 시안 apl-* 사용 토큰 중 `--r-md → var(--radius-card)` / `--r-sm → var(--radius-chip)` 대체. 나머지 (`--bg-elev/--bg-alt/--bg-head/--border/--accent/--ink*/--ff-mono`) = globals.css 전부 정의 → 그대로
+- **dead code 회피**: 시안 apl-stands(mock 순위표) / apl-bracket / apl-match / apl-final(결승 hero) 은 운영 StandingsTable·FinalCard(기존 Card)와 충돌 → 박제 ❌ (운영 컴포넌트 보존). 실제 사용 = apl-tabs + apl-section 만 → CSS 도 2 블록만 정의
+
+### 변경 파일
+| 경로 | 변경 | 신규/수정 | LOC |
+|------|------|----------|-----|
+| `.../playoffs/playoffs-admin.css` | 시안 E1 apl-tabs 박제 — `.apl-tabs`/`__tab`(is-on)/`__num` + `.apl-section`. 토큰 대체 `--r-md→--radius-card` / `--r-sm→--radius-chip`. 탭 min-height 44px(터치). is-on `#fff` = 운영 `.btn--accent` 관례 동일. 시안 mock 섹션(apl-stands/bracket/match/final) 미박제(운영 컴포넌트 보존) | 신규 | 75 |
+| `.../playoffs/playoffs-client.tsx` | import +1 (playoffs-admin.css) / `SectionKey`+`SECTION_TABS` 4 탭 상수 / `section` state (기본 standings) / return = 종별 탭 + Banner + Advance 보존 후 **5 섹션 세로 나열 → 4 탭 + `section===` 조건 섹션** 재구성. Banner = 탭 무관 항상 상단. standings 탭 = Standings+Advance / ranking = 순위전매치 / final = 결승 / result = static 안내 카드. **데이터 흐름 / rankingByDivision / finalByDivision / 핸들러 0 변경** | 수정 | 623 → 707 (+84) |
+
+### 데이터 매핑 (전부 운영 진짜 — mock 0)
+| 시안 탭 | 운영 데이터 | 처리 |
+|---------|----------|------|
+| 순위표 | divisionStandings (StandingsTable) | 진짜 — Advance 버튼 하단 동거 (시안 standings 흐름) |
+| 8강 / 4강 | rankingMatches (roundName "순위") | **"순위전" 1탭 통합** (8강·4강 고정 분리 ❌ / 종별 그룹핑 유지 = 데이터 왜곡 회피) |
+| 결승 | finalMatches (roundName "결승") + winner_team_id | 진짜 — FinalCard 그대로 |
+| 결과 박제 | 운영 데이터 0 | 시안 static 안내 카드 (mock ❌ / D1·PA7 종료 hub 연동 예정 안내성) |
+| 탭 카운트 | rankingMatches.length / finalMatches.length | 진짜 (시안 mock count 16/4/2/1 ❌) |
+
+### 검증 결과
+- **tsc --noEmit**: 0 errors (EXIT=0)
+- **자체 회귀 6 케이스 + admin 특수**:
+  | # | 케이스 | 결과 |
+  |---|--------|------|
+  | 1 | AppNav dropdown/아바타 | OK (AppNav 변경 0 — admin playoffs 만) |
+  | 2 | 모바일 듀얼 라벨 | OK (AppNav 변경 0) |
+  | 3 | 검색/쪽지/알림 box | OK (AppNav 변경 0) |
+  | 4 | 하드코딩 색상 | tsx 0건 (전부 var(--color-*)) / css `#fff`+`rgba(255,255,255,...)` = 운영 `.btn--accent`/`.badge--red` accent 배경 위 텍스트 표준 관례 동일 (globals.css 전역 15+ 사용처 확인) — §6-1 불필요 |
+  | 5 | lucide-react | 0 (Material Symbols 만) |
+  | 6 | 9999px / rounded-full | 0 (apl-tabs__num border-radius 8px = chip / 정사각 0) |
+  | + | 가짜링크 | 0 (라우팅 변경 0 — 탭 전환 = state 토글) |
+  | + | /api/web/* snake_case | N/A (새 fetch 0 — AdvancePlayoffsButton total_updated 등 기존 처리 보존) |
+  | + | API/Prisma/fetch/DB 변경 | 0 (page.tsx server fetch / client 데이터 로직 100% 보존) |
+
+### 알림
+- **시안 8강/4강 2탭 → "순위전" 1탭 통합 (데이터 왜곡 회피)**: 운영은 8강·4강 고정 라운드 트리가 아니라 종별 가변 라운드(roundName "순위" 정규식). 시안 mock 의 8강 4경기/4강 2경기 고정 구조 강제 = 운영 데이터 왜곡 + mock → 통합 탭으로 표현 (종별 그룹핑 + roundName sub-그룹 보존)
+- **"결과 박제" 탭 = static 안내 카드**: 운영 데이터 0 (우승/준우승/3위 결정전 자동 박제 = score-updater 가 결승 종료 후 수행). 시안 acp-card 안내 그대로 (mock ❌ / 동작 미구현 / D1·PA7 종료 hub 연동 예정 안내성)
+- **AdvancePlayoffsButton 기존 재사용**: 신규 추출 ❌ / 위치 이동 ❌. standings 탭 하단 동거 (시안 standings 섹션 = 순위표 + 진출 버튼 흐름). props (tournamentId/divisionCodes/onSuccess) 0 변경
+- **종별 탭 (Track A) 보존**: 강남구 다종별 종별 필터 탭 = 변경 0. 섹션 탭(순위표/순위전/결승/결과)과 **2축 공존** (종별 = 가로 필터 / 섹션 = 세로 전환)
+- **Banner 항상 상단**: PlaceholderValidationBanner = 탭 무관 항상 노출 (시안 의도 = 진입 즉시 사고 인지)
+- **commit/push/PR 은 PM 담당**
+
+💡 tester 참고:
+- **로컬 검증**: `npm run dev` → http://localhost:3001/tournament-admin/tournaments/[id]/playoffs (운영자/super_admin + 매치 생성 대회)
+  - 상단 = (종별 탭 — 다종별 시) + PlaceholderValidationBanner (placeholder 위반 시) + **4 섹션 탭** (순위표 / 순위전 N / 결승 N / 결과 박제)
+  - **순위표 탭** (기본): 종별 standings 표 (StandingsTable) + 하단 "예선 종료 → 순위전 진출" Advance 버튼 카드
+  - **순위전 탭**: 순위전 매치 종별 그룹 카드 (DivisionMatchGroup) / 0건 시 안내
+  - **결승 탭**: 결승 매치 + 우승팀 (FinalCard) / 0건 시 안내
+  - **결과 박제 탭**: static 안내 카드 ("결승 종료 후 입력" 칩 + 안내문)
+  - 탭 클릭 → 해당 섹션만 표시 (다른 섹션 hide) / 활성 탭 = accent 배경 흰 글자
+  - Advance 버튼 클릭 → 기존 confirm → POST advance-placeholders → 결과 모달 → router.refresh()
+- **정상 동작**:
+  - 순위전/결승 탭 num chip = 실제 매치 수 (0 이면 chip 표시 안 함)
+  - 종별 1개 대회 → 종별 탭 미렌더 (회귀 0) / 다종별 → 종별 탭 + 섹션 탭 공존
+  - 탭 전환 = 즉시 (데이터 재조회 0 / state 토글만)
+- **주의할 입력**:
+  - 매치 0건 대회 → 순위전·결승 탭 "매치 없습니다" 안내 (회귀 0)
+  - 종별 탭 전환 (전체 ↔ 단일) 시 → 순위전/결승 탭 카운트도 해당 종별로 갱신 (filteredMatches 연동)
+  - 운영 DB 영향 0
+
+⚠️ reviewer 참고:
+- **데이터 흐름 100% 보존**: rankingByDivision / finalByDivision / RANKING_ROUND_REGEX / FINAL_ROUND_REGEX / advanceDivisionCodes / visibleStandings 계산 0 변경. 탭은 표시 조건(`section===`)만 추가 — 기존 섹션 JSX 를 `<div className="apl-section">` 로 감싸고 탭 조건부 렌더만
+- **2축 탭 공존**: 종별 탭 (selectedDivision / 가로 필터) + 섹션 탭 (section / 세로 전환). 독립 state — 종별 변경 시 섹션 유지 / 섹션 변경 시 종별 유지
+- **css #fff 관례 일치**: apl-tabs is-on `#fff` = 운영 globals.css `.btn--accent`/`.badge--red`/`.app-nav__utility` 등 accent 배경 위 텍스트 표준 (전역 15+ 사용처). §6-1 시안 우선 예외 불필요 — 운영 관례 자체가 #fff
+- **dead CSS 제거**: 시안 apl-stands/bracket/match/final/bdr-pulse 박제 안 함 (운영 StandingsTable·FinalCard 기존 Card 보존 / JSX 미사용). CSS = apl-tabs + apl-section 2 블록만
+- **API/Prisma/fetch 0 변경**
+
+#### 수정 이력
+(아직 없음 — tester/reviewer 피드백 시 추가)
+
 ## 구현 기록 (developer / PR-1C-7 PA1 AdminTournamentAdminList 박제)
 
 📝 구현한 기능: admin 대회 목록 진입점 통합 — 단일 hero CTA → 4 옵션 인라인 panel + 상태 탭 + 카드 list (시각만 / Prisma·super_admin 분기 0 변경)
@@ -663,6 +741,7 @@
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
 |------|------|------|
+| 2026-05-28 | PR-1C-8 PA8 AdminTournamentPlayoffs 박제 (developer) | ✅ 시안 E1 5 섹션 탭 박제 / 신규 1 (playoffs-admin.css 75 — apl-tabs+apl-section, `--r-md→--radius-card`·`--r-sm→--radius-chip` 대체, is-on #fff=운영 .btn--accent 관례) + 수정 1 (playoffs-client.tsx 623→707 / +84 — 5 섹션 세로 나열→4 탭 전환 [순위표/순위전/결승/결과], section state, 데이터 흐름·rankingByDivision·finalByDivision·핸들러 0 변경) / 시안 8강·4강 2탭→"순위전" 1탭 통합 (운영 가변 라운드 데이터 왜곡 회피) / "결과 박제"=static 안내 (mock❌) / AdvancePlayoffsButton 기존 재사용 (추출·이동❌) / 종별 탭+섹션 탭 2축 공존 / API·Prisma·fetch·DB 변경 0 / tsc 0 errors / 자체 회귀 6/6+admin 특수 PASS / commit·push·PR PM 담당 |
 | 2026-05-28 | PR-1C-6 옵션 A Matches 표 시각 박제 (developer) | ✅ 시안 amt-table 박제 / 신규 1 (matches-admin.css 113 — amt-table 전체 + 모바일 분기, `--r-md→--radius-card`·`--r-xs→4px` 대체, 하드코딩 0) + 수정 1 (matches-client.tsx 순증 +33 — 라운드별 한 줄 카드→`<table amt-table>`, onClick=setSelectedMatch 행 단위 유지, 컬럼 7종, 승자 success 톤·STATUS 톤 보존) / vban·amt-mode 박제 보류 (mock❌ / ScoreModal 보존) / API·fetch·Prisma·DB 변경 0 / tsc 0 errors / 자체 회귀 6/6 PASS / commit·push·PR PM 담당 |
 | 2026-05-28 | PR-1C-5 UC1 MyActivity 박제 (developer) | ✅ 시안 v2.20 승인 3건 박제 / 신규 1 (my-activity.css 88 — .ma-filter chip row) + 수정 2 (page.tsx -102/+158 = TournamentCard 90LOC 제거 + 필터/compact/헬퍼 추가 / my-registration-status.tsx NormalizedReg export +3) / ① 대회탭=MyRegistrationStatus compact 재사용 ② 5상태 필터 chip row ③ 매너 hide(mock❌) / 🔧 시안 #fff→var(--bg) 치환 = 다크모드 --ink밝음 대비0 버그 사전해결 / API·fetch·Prisma·DB 변경 0 / 3탭+counters 보존 / tsc 0 errors / 자체회귀 6/6 PASS / commit·push·PR PM 담당 |
 | 2026-05-28 | Phase 2 v2.20 BDR-current sync (PM) | ✅ commit `dca96f6` push / BDR-current = 34 루트 (game-shared.jsx NEW) + screens 26 jsx + 6 css + _baseline 10 / pre-snapshot 26 jsx / 회귀 4+8+특수 4 통과 (game-shared/baseline 10/carry-over diff 0/가짜링크 screens 직속 0/lucide 0) / BOM 우회 0 / 시안 css hex 23건 = Phase 2C 토큰 대체 대상 / ledger Phase 2 ⑨⑩ ✅ |

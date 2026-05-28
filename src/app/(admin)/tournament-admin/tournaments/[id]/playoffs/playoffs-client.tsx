@@ -25,6 +25,14 @@
 //   이유(왜): 강남구 6 종별 박제 시 5 섹션 × 6 = 세로 약 6240px (운영 불가능).
 //   탭 1개로 단일 종별 표시 (또는 "전체") → 운영자 시각 단축.
 //   matches-client.tsx line 553~624 패턴 재사용 (검증된 패턴 / premature abstraction 회피).
+//
+// 2026-05-28 PR-1C-8 — E1 5 섹션 탭 시각 박제 (시안 AdminTournamentPlayoffs.jsx).
+//   이유(왜): 시안 = 5 섹션을 탭으로 전환 (순위표 / 순위전 / 결승 / 결과).
+//   기존 운영은 5 섹션 세로 나열 → 강남구 다종별 시 스크롤 과다.
+//   시안 탭 UX 도입 = 섹션 전환으로 시각 단축. 데이터 흐름 / state / 핸들러 100% 유지.
+//   가드: 시안 mock(8강/4강 고정 트리)은 운영 데이터(종별 N개 × 가변 라운드)와 달라
+//        8강·4강 강제 분리 ❌ (데이터 왜곡 회피). 순위전 매치는 통합 탭으로 표현.
+//        Banner / Advance = 모든 탭 상단 항상 노출 (시안 의도 = 진입 즉시 사고 인지 + trigger).
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Card } from "@/components/ui/card";
@@ -32,6 +40,8 @@ import type { DivisionStanding } from "@/lib/tournaments/division-advancement";
 import { AdvancePlayoffsButton } from "../_components/AdvancePlayoffsButton";
 import { PlaceholderValidationBanner } from "../_components/PlaceholderValidationBanner";
 import { StandingsTable } from "../_components/StandingsTable";
+// PR-1C-8 — 시안 E1 apl-* 클래스 (탭 / 결승 hero 시각). 토큰 대체본.
+import "./playoffs-admin.css";
 
 // ─────────────────────────────────────────────────────────────────────────
 // 외부에 export 하는 타입 (page.tsx server component 에서 import)
@@ -114,6 +124,22 @@ function getDivisionCode(m: PlayoffsMatch): string | null {
   return (s.division_code as string) ?? null;
 }
 
+// ─────────────────────────────────────────────────────────────────────────
+// PR-1C-8 — 5 섹션 탭 정의 (시안 AdminTournamentPlayoffs.jsx TABS 박제).
+//   시안 5 탭 = 순위표 / 8강 / 4강 / 결승 / 결과.
+//   운영 매핑: 8강·4강은 고정 라운드가 아니라 종별 가변 → "순위전" 통합 탭으로 표현
+//             (데이터 왜곡 회피). 카운트는 실제 데이터 기반 (mock ❌).
+//   icon = Material Symbols Outlined (시안 동일).
+// ─────────────────────────────────────────────────────────────────────────
+type SectionKey = "standings" | "ranking" | "final" | "result";
+
+const SECTION_TABS: Array<{ k: SectionKey; lbl: string; icon: string }> = [
+  { k: "standings", lbl: "순위표", icon: "leaderboard" },
+  { k: "ranking", lbl: "순위전", icon: "sports_basketball" },
+  { k: "final", lbl: "결승", icon: "emoji_events" },
+  { k: "result", lbl: "결과 박제", icon: "edit_note" },
+];
+
 export function PlayoffsClient({ tournamentId, divisionStandings, matches }: Props) {
   // Advance 버튼 성공 시 router.refresh() — server component 재실행으로 standings + matches 재조회
   const router = useRouter();
@@ -127,6 +153,12 @@ export function PlayoffsClient({ tournamentId, divisionStandings, matches }: Pro
   const [selectedDivision, setSelectedDivision] = useState<string | null>(
     searchParams?.get("division") ?? null,
   );
+
+  // ─────────────────────────────────────────────────────────────
+  // PR-1C-8 — 섹션 탭 state (시안 E1 5 탭 박제 / 운영 4 탭 매핑)
+  //   기본 = "standings" (시안 초기 tab 동일). 탭 전환 = 섹션 표시 토글만 (데이터 0 변경).
+  // ─────────────────────────────────────────────────────────────
+  const [section, setSection] = useState<SectionKey>("standings");
 
   // 종별 코드 목록 (Advance 버튼 props + 탭 렌더 source)
   const divisionCodes = divisionStandings.map((d) => d.code);
@@ -263,6 +295,7 @@ export function PlayoffsClient({ tournamentId, divisionStandings, matches }: Pro
           이유: 상단 노출 = 운영자가 진입 즉시 사고 인지 가능.
           검출 0건 = null 반환 (배너 미표시).
           Track A: filteredMatches (단일 종별 모드 = 해당 종별 매치만 검증) + applyFilter true 라벨.
+          PR-1C-8: 탭 무관 항상 상단 노출 (시안 의도 = 진입 즉시 사고 인지).
          ───────────────────────────────────────────────────────────── */}
       <PlaceholderValidationBanner
         matches={filteredMatches}
@@ -270,133 +303,228 @@ export function PlayoffsClient({ tournamentId, divisionStandings, matches }: Pro
       />
 
       {/* ─────────────────────────────────────────────────────────────
-          섹션 2 — Advance 버튼 (예선 종료 → 순위전 placeholder 일괄 매핑)
-          이유: 운영 흐름상 진입 즉시 보여야 함 (단계 10 trigger).
+          PR-1C-8 — 5 섹션 탭 바 (시안 E1 apl-tabs 박제)
+          이유: 시안 = 섹션을 탭으로 전환 → 세로 스크롤 단축 (강남구 다종별 운영성).
+          탭 카운트 = 실제 데이터 기반 (순위전 = rankingMatches / 결승 = finalMatches). mock ❌.
+          전환 = 섹션 표시 토글만 (데이터 / state 재계산 0).
          ───────────────────────────────────────────────────────────── */}
-      <Card>
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div className="flex-1">
-            <p className="text-sm font-semibold text-[var(--color-text-primary)]">
-              <span className="material-symbols-outlined align-middle text-[18px]" aria-hidden="true">
-                trending_up
+      <div className="apl-tabs" role="tablist">
+        {SECTION_TABS.map((t) => {
+          // 탭별 카운트 — 순위전 / 결승은 실제 매치 수. 순위표·결과는 카운트 없음.
+          const count =
+            t.k === "ranking"
+              ? rankingMatches.length
+              : t.k === "final"
+                ? finalMatches.length
+                : null;
+          return (
+            <button
+              key={t.k}
+              type="button"
+              role="tab"
+              aria-selected={section === t.k}
+              className={`apl-tabs__tab${section === t.k ? " is-on" : ""}`}
+              onClick={() => setSection(t.k)}
+            >
+              <span
+                className="material-symbols-outlined"
+                style={{ fontSize: 16 }}
+                aria-hidden="true"
+              >
+                {t.icon}
+              </span>
+              {t.lbl}
+              {count != null && <span className="apl-tabs__num">{count}</span>}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* ═══════════════════════════════════════════════════════════════
+          탭 1: 순위표 (standings) — 종별 standings 표 + Advance 버튼
+          시안 standings 섹션 = 순위표 + 하단 진출 버튼 흐름 박제.
+          ═══════════════════════════════════════════════════════════════ */}
+      {section === "standings" && (
+        <div className="apl-section">
+          {/* ─────────────────────────────────────────────────────────
+              섹션 1 — 종별 standings 표
+              이유: 운영자가 예선 결과 확인 후 Advance 클릭 흐름 (아래 진출 버튼과 자연 연결).
+             ───────────────────────────────────────────────────────── */}
+          <section>
+            <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
+              <span className="material-symbols-outlined align-middle text-[16px]" aria-hidden="true">
+                leaderboard
               </span>{" "}
-              예선 종료 → 순위전 진출
-            </p>
-            <p className="mt-1 text-xs text-[var(--color-text-muted)]">
-              모든 종별 standings 기반으로 순위전 placeholder 매치 (A조 N위 vs B조 N위) 자동 채움.
-              <br />
-              재호출 시 이미 채워진 슬롯은 보호됨 (idempotent).
-            </p>
-          </div>
-          <AdvancePlayoffsButton
-            tournamentId={tournamentId}
-            // Track A: 단일 종별 모드 = 해당 종별만 호출 / 전체 = 일괄 호출 (기존 동작)
-            divisionCodes={advanceDivisionCodes}
-            // server component 재실행 → standings + matches 재조회
-            onSuccess={() => router.refresh()}
-          />
-        </div>
-      </Card>
-
-      {/* ─────────────────────────────────────────────────────────────
-          섹션 1 — 종별 standings 표
-          이유: 운영자가 예선 결과 확인 후 Advance 클릭 흐름 (위 섹션 2 와 자연 연결).
-         ───────────────────────────────────────────────────────────── */}
-      <section>
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
-          <span className="material-symbols-outlined align-middle text-[16px]" aria-hidden="true">
-            leaderboard
-          </span>{" "}
-          종별 예선 결과 ({visibleStandings.length}
-          {selectedDivision ? "종별 (선택)" : "종별"})
-        </h2>
-        <div className="grid gap-4 lg:grid-cols-2">
-          {/* Track A: visibleStandings = 단일 종별 모드 = 해당 종별만 / 전체 = 전부 */}
-          {visibleStandings.map((d) => (
-            <StandingsTable
-              key={d.code}
-              divisionLabel={d.label === d.code ? d.code : `${d.label} (${d.code})`}
-              standings={d.standings}
-            />
-          ))}
-        </div>
-      </section>
-
-      {/* ─────────────────────────────────────────────────────────────
-          섹션 3 — 순위전 매치 목록 (자동 채움 결과 시각화)
-          이유: Advance 호출 후 결과 확인 = 다음 단계 (결승 진출 팀) 시각화.
-          종별 그룹핑 (강남구 4 종별 = 4 sub-Card).
-         ───────────────────────────────────────────────────────────── */}
-      <section>
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
-          <span className="material-symbols-outlined align-middle text-[16px]" aria-hidden="true">
-            sports_basketball
-          </span>{" "}
-          순위전 매치 ({rankingMatches.length}경기)
-        </h2>
-        {rankingMatches.length === 0 ? (
-          <Card className="py-8 text-center text-[var(--color-text-muted)]">
-            <p className="text-sm">순위전 매치가 없습니다.</p>
-            <p className="mt-1 text-xs">
-              종별 generator 가 순위전 placeholder 를 박제했는지 확인 (대진표 페이지).
-            </p>
-          </Card>
-        ) : (
-          <div className="space-y-3">
-            {Array.from(rankingByDivision.entries())
-              .sort(([a], [b]) => a.localeCompare(b))
-              .map(([code, divMatches]) => (
-                <DivisionMatchGroup
-                  key={code}
-                  divisionLabel={
-                    code === "_no_division"
-                      ? "종별 미지정"
-                      : labelByCode.get(code) ?? code
-                  }
-                  matches={divMatches}
+              종별 예선 결과 ({visibleStandings.length}
+              {selectedDivision ? "종별 (선택)" : "종별"})
+            </h2>
+            <div className="grid gap-4 lg:grid-cols-2">
+              {/* Track A: visibleStandings = 단일 종별 모드 = 해당 종별만 / 전체 = 전부 */}
+              {visibleStandings.map((d) => (
+                <StandingsTable
+                  key={d.code}
+                  divisionLabel={d.label === d.code ? d.code : `${d.label} (${d.code})`}
+                  standings={d.standings}
                 />
               ))}
-          </div>
-        )}
-      </section>
+            </div>
+          </section>
 
-      {/* ─────────────────────────────────────────────────────────────
-          섹션 4 — 결승전 정보 + 우승팀
-          이유: 단계 11 = 우승팀 결정 (시상 / 트로피 / 통계 동결 trigger).
-          현재 = 결승 매치 + winner_team_id 표시만 (자동 박제는 score-updater 가 수행).
-         ───────────────────────────────────────────────────────────── */}
-      <section>
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
-          <span className="material-symbols-outlined align-middle text-[16px]" aria-hidden="true">
-            emoji_events
-          </span>{" "}
-          결승전 & 우승팀 ({finalMatches.length}종별 결승)
-        </h2>
-        {finalMatches.length === 0 ? (
-          <Card className="py-8 text-center text-[var(--color-text-muted)]">
-            <p className="text-sm">결승 매치가 없습니다.</p>
-            <p className="mt-1 text-xs">
-              종별 generator 가 결승 매치를 박제했는지 확인 (대진표 페이지).
-            </p>
+          {/* ─────────────────────────────────────────────────────────
+              섹션 2 — Advance 버튼 (예선 종료 → 순위전 placeholder 일괄 매핑)
+              이유: 시안 = 순위표 하단 진출 버튼. 운영 흐름 = 단계 10 trigger.
+              AdvancePlayoffsButton 기존 컴포넌트 재사용 (위치·로직 0 변경).
+             ───────────────────────────────────────────────────────── */}
+          <Card>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-[var(--color-text-primary)]">
+                  <span className="material-symbols-outlined align-middle text-[18px]" aria-hidden="true">
+                    trending_up
+                  </span>{" "}
+                  예선 종료 → 순위전 진출
+                </p>
+                <p className="mt-1 text-xs text-[var(--color-text-muted)]">
+                  모든 종별 standings 기반으로 순위전 placeholder 매치 (A조 N위 vs B조 N위) 자동 채움.
+                  <br />
+                  재호출 시 이미 채워진 슬롯은 보호됨 (idempotent).
+                </p>
+              </div>
+              <AdvancePlayoffsButton
+                tournamentId={tournamentId}
+                // Track A: 단일 종별 모드 = 해당 종별만 호출 / 전체 = 일괄 호출 (기존 동작)
+                divisionCodes={advanceDivisionCodes}
+                // server component 재실행 → standings + matches 재조회
+                onSuccess={() => router.refresh()}
+              />
+            </div>
           </Card>
-        ) : (
-          <div className="grid gap-3 lg:grid-cols-2">
-            {Array.from(finalByDivision.entries())
-              .sort(([a], [b]) => a.localeCompare(b))
-              .map(([code, divFinals]) => (
-                <FinalCard
-                  key={code}
-                  divisionLabel={
-                    code === "_no_division"
-                      ? "종별 미지정"
-                      : labelByCode.get(code) ?? code
-                  }
-                  finals={divFinals}
-                />
-              ))}
-          </div>
-        )}
-      </section>
+        </div>
+      )}
+
+      {/* ═══════════════════════════════════════════════════════════════
+          탭 2: 순위전 (ranking) — 순위전 매치 목록 (시안 8강/4강 통합)
+          가드: 운영 데이터는 8강·4강 고정 라운드 없음 (종별 가변 라운드).
+               시안 8강/4강 강제 분리 ❌ → roundName 기준 종별 그룹핑 유지 (데이터 왜곡 회피).
+          ═══════════════════════════════════════════════════════════════ */}
+      {section === "ranking" && (
+        <div className="apl-section">
+          <section>
+            <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
+              <span className="material-symbols-outlined align-middle text-[16px]" aria-hidden="true">
+                sports_basketball
+              </span>{" "}
+              순위전 매치 ({rankingMatches.length}경기)
+            </h2>
+            {rankingMatches.length === 0 ? (
+              <Card className="py-8 text-center text-[var(--color-text-muted)]">
+                <p className="text-sm">순위전 매치가 없습니다.</p>
+                <p className="mt-1 text-xs">
+                  종별 generator 가 순위전 placeholder 를 박제했는지 확인 (대진표 페이지).
+                </p>
+              </Card>
+            ) : (
+              <div className="space-y-3">
+                {Array.from(rankingByDivision.entries())
+                  .sort(([a], [b]) => a.localeCompare(b))
+                  .map(([code, divMatches]) => (
+                    <DivisionMatchGroup
+                      key={code}
+                      divisionLabel={
+                        code === "_no_division"
+                          ? "종별 미지정"
+                          : labelByCode.get(code) ?? code
+                      }
+                      matches={divMatches}
+                    />
+                  ))}
+              </div>
+            )}
+          </section>
+        </div>
+      )}
+
+      {/* ═══════════════════════════════════════════════════════════════
+          탭 3: 결승 (final) — 결승전 정보 + 우승팀
+          시안 final 섹션 = 결승 hero 강조. 운영 = 결승 매치 + winner_team_id 표시.
+          ═══════════════════════════════════════════════════════════════ */}
+      {section === "final" && (
+        <div className="apl-section">
+          <section>
+            <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
+              <span className="material-symbols-outlined align-middle text-[16px]" aria-hidden="true">
+                emoji_events
+              </span>{" "}
+              결승전 & 우승팀 ({finalMatches.length}종별 결승)
+            </h2>
+            {finalMatches.length === 0 ? (
+              <Card className="py-8 text-center text-[var(--color-text-muted)]">
+                <p className="text-sm">결승 매치가 없습니다.</p>
+                <p className="mt-1 text-xs">
+                  종별 generator 가 결승 매치를 박제했는지 확인 (대진표 페이지).
+                </p>
+              </Card>
+            ) : (
+              <div className="grid gap-3 lg:grid-cols-2">
+                {Array.from(finalByDivision.entries())
+                  .sort(([a], [b]) => a.localeCompare(b))
+                  .map(([code, divFinals]) => (
+                    <FinalCard
+                      key={code}
+                      divisionLabel={
+                        code === "_no_division"
+                          ? "종별 미지정"
+                          : labelByCode.get(code) ?? code
+                      }
+                      finals={divFinals}
+                    />
+                  ))}
+              </div>
+            )}
+          </section>
+        </div>
+      )}
+
+      {/* ═══════════════════════════════════════════════════════════════
+          탭 4: 결과 박제 (result) — 시안 static 안내 카드 박제
+          가드: 운영 데이터 없음 (D1/PA7 종료 후 hub 연동 예정 — PR-1C-13).
+               시안 acp-card static 안내 그대로 (mock ❌ / 동작 미구현 / 안내성).
+          ═══════════════════════════════════════════════════════════════ */}
+      {section === "result" && (
+        <div className="apl-section">
+          <Card>
+            <div className="flex items-start gap-3">
+              <span
+                className="material-symbols-outlined flex-shrink-0"
+                style={{ color: "var(--color-info)", fontSize: 26 }}
+                aria-hidden="true"
+              >
+                emoji_events
+              </span>
+              <div className="flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h3 className="text-base font-bold text-[var(--color-text-primary)]">
+                    결과 박제 · 우승 / 준우승 / 3위 결정전
+                  </h3>
+                  <span
+                    className="rounded-[4px] px-2 py-0.5 text-[11px] font-semibold"
+                    style={{
+                      backgroundColor: "var(--color-elevated)",
+                      color: "var(--color-text-muted)",
+                    }}
+                  >
+                    결승 종료 후 입력
+                  </span>
+                </div>
+                <p className="mt-2 text-sm leading-relaxed text-[var(--color-text-muted)]">
+                  결승전 종료 시 자동으로 우승팀·준우승이 채워지고 3위 결정전 매치가 생성됩니다.
+                  종료 후 종료 hub 의 &ldquo;결과 박제&rdquo; 카드와 연동됩니다.
+                </p>
+              </div>
+            </div>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }
