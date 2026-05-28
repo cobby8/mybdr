@@ -7,10 +7,10 @@
 - **참고**: phase-ledger (`.claude/phase-ledger.md`) = Phase 1/2 source of truth
 
 ## 진행 현황 (Phase 1C 디자인 운영 박제)
-- **PR #650 누적 12 PR ✅**: PR-1C-1~9 + 11~13 (UA1/UA2+UC2/UB1/UA3/UC1/PA5/PA1/PA8/PA4/PA9/PA6/PA7)
+- **✅ main 머지 완료 (2026-05-28)**: PR #650 (subin→dev) + PR #651 (dev→main) `5976dca` / subin=dev=main 정합 / Vercel 운영 배포
+- **운영 반영 12 PR**: PR-1C-1~9 + 11~13 (UA1/UA2+UC2/UB1/UA3/UC1/PA5/PA1/PA8/PA4/PA9/PA6/PA7) + Phase 2 v2.20 sync + 워크플로우 인프라
 - **⏸ PR-1C-10 PA3 SKIP**: 시안(종별위임 마법사) ≠ 운영(협회생성 마법사) — planner 재설계 대기
-- **남은 작업 (새 세션)**: 대형 3 PR batch = PR-1C-14 PA2 Wizard1Step(1668) / 15 Teams(1599) / 16 Bracket(976) + PR-1C-10 PA3 재설계
-- **사용자 액션 대기**: PR #650 결재 (subin → dev → main / 12 PR + sync 누적)
+- **🔜 다음 세션 재개점**: 대형 3 PR batch = PR-1C-14 PA2 Wizard1Step(1668) → 15 Teams(1599) → 16 Bracket(976). batch 의뢰서 = `phase-1C-batch-cli-prompt-2026-05-28.md` §5 PR-1C-14~16. 새 세션 시작 시 `Read .claude/phase-ledger.md` 후 진입
 
 ## 기획설계 (planner-architect)
 (아직 없음)
@@ -31,6 +31,7 @@
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
 |------|------|------|
+| 2026-05-28 | subin → dev → main 머지 (PR #650 + #651) | ✅ Phase 1C 12 PR + Phase 2 v2.20 sync + 워크플로우 운영 반영 / main `5976dca` / subin=dev=main 0/0/0 정합 / Vercel 운영 배포 / 사용자 명시 승인 (dev→main classifier 차단 → 결재) |
 | 2026-05-28 | Phase 1C batch 현 세션 (PR-1C-5~13 / PA3 SKIP = 8 PR) | ✅ PR #650 누적 12 PR / 각 tsc 0 + 자체 회귀 6/6 / API·AppNav·가짜링크·DB 0 / mock❌(hide) / 운영 보존 판단 반복 / 대형 3 (PA2/Teams/Bracket) 새 세션 |
 | 2026-05-28 | PR-1C-13 PA7 Completed 신규 라우트 (`32f4d2b`) | ✅ 관리자 종료 hub 5 카드 + 🏆 hero / 가짜링크 0 (실재만 활성·없으면 disabled) / admin nav 미변경 (setup hub CTA) / mock hide |
 | 2026-05-28 | PR-1C-12 PA6 Divisions (`05d961d`) | ✅ 종별 hero CTA + empty state + code 칩 (S4 갭) / 메트릭·4버튼 운영 정밀 보존 |
