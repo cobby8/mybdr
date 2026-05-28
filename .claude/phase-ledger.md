@@ -88,6 +88,20 @@
 | ⑬ PR 결재 | 2C | ⏸ 보류 | 수빈 | - | subin → dev → main |
 | ⑭ Phase 완료 | 2 | ⏸ 보류 | Cowork | - | Phase 3 시작 결정 |
 
+### Phase 3 — 팀 영역 (시안 sync 완료)
+
+| 단계 | 영역 | 상태 | 책임자 | 갱신일 | 메모 |
+|------|------|------|------|------|------|
+| ⑩ sync 실행 | 3A+3B | ✅ 완료 | CLI | 2026-05-29 | v2.22 sync 안에 Phase 3(팀 7 시안) cumulative. `team-shared.jsx/css` 신규. TU1~TU5 + TA1/TA2 |
+| ⑪ 운영 박제 (3C) | 3C | ⏸ chain 3단계 | CLI | - | auto-chain 3단계 = 6 PR (TU3/TU1/TU5/TU2/TU4/TA) |
+
+### Phase 4 — 단체 영역 (시안 sync 완료)
+
+| 단계 | 영역 | 상태 | 책임자 | 갱신일 | 메모 |
+|------|------|------|------|------|------|
+| ⑩ sync 실행 | 4A+4B | ✅ 완료 | CLI | 2026-05-29 | v2.22 sync 독립. `org-shared.jsx/css` 신규. 4 가정 lock Q1~Q4. OU1~OU4 + OA1 + OO1~OO3 |
+| ⑪ 운영 박제 (4C) | 4C | ⏸ chain 4단계 | CLI | - | auto-chain 4단계 = 8 PR (OU1~4/OA1/OO1/OO3/OO2) |
+
 ---
 
 ## 완료 Phase (이력)

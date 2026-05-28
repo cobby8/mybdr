@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>OU3 · OrganizationApply (5-step 마법사) — BDR v2.22</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800;900&family=JetBrains+Mono:wght@500;700;800&family=Pretendard:wght@400;500;600;700;800;900&display=swap" />
+<link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Symbols+Outlined" />
+<link rel="stylesheet" href="tokens.css" />
+<link rel="stylesheet" href="shell.css" />
+<link rel="stylesheet" href="team-shared.css" />
+<link rel="stylesheet" href="org-shared.css" />
+</head>
+<body>
+<div class="showcase">
+  <header class="showcase-head">
+    <div class="eyebrow">BDR v2.22 · OU3 / 사용자 신규 · Phase 4B · BO1 · A 등급 · PA3 답습</div>
+    <h1>OrganizationApply 5-step 마법사 — /organizations/apply</h1>
+    <p>
+      <b>신규 박제</b> (운영 230 line 단일 form → 5-step 마법사 — Phase 1A PA3 협회 마법사 답습 단순화).
+      <strong>STEP 1</strong> 단체 기본 (이름+slug 자동) / <strong>STEP 2</strong> 활동 지역+공개 / <strong>STEP 3</strong> 연락 (이메일+웹사이트) / <strong>STEP 4</strong> 검토 메모 (운영자 only) / <strong>STEP 5</strong> 검토+제출.
+      제출 후 → <b>organizations.status='pending'</b> 박제 → 사이트 운영자 검토 (1-2일) → OA1 모달 BO1 결재 = <b>동일 필드 표시</b>.
+      Phase 1B UA3 대회 신청 답습 (BG1 step indicator 스타일) + Phase 1A PA3 단순화 (5 step → 3 step 보다 한 단계 늘림 — 협회 마법사가 시설 / 종별 등 복잡한 반면 단체 신청은 신규 등록만).
+    </p>
+    <nav class="showcase-nav" aria-label="Phase 4 시안">
+      <a href="index.html">v2.22 목차</a>
+      <a href="oa1-admin-organizations.html">OA1 단체 검수</a>
+      <a href="ou1-organizations.html">OU1 목록</a>
+      <a href="ou2-organization-detail.html">OU2 상세</a>
+      <a class="is-cur" href="ou3-organization-apply.html">OU3 신청</a>
+      <a href="ou4-series.html">OU4 시리즈</a>
+      <a href="oo1-orgadmin-list.html">OO1 내 단체</a>
+      <a href="oo2-orgadmin-detail.html">OO2 단체 대시보드</a>
+      <a href="oo3-series-admin.html">OO3 시리즈 관리</a>
+    </nav>
+  </header>
+
+  <section class="variant">
+    <header class="variant__head">
+      <span class="variant__num">OU3-A / 5-step 인터랙티브 · 기본 표시 = STEP 2</span>
+      <h2 class="variant__title">마법사 — 이전 / 다음 인터랙션 (모든 step 확인 가능)</h2>
+      <p class="variant__desc">데스크톱 PC 1240 + 모바일 375 동시. 기본 = STEP 2 (활동 지역). 하단 "이전" / "다음" 으로 STEP 1 ↔ 5 모두 확인.</p>
+    </header>
+    <div class="vp-strip">
+      <div class="vp vp--pc">
+        <div class="vp__chrome">
+          <span class="vp__lights"><span></span><span></span><span></span></span>
+          <span class="vp__url">mybdr.kr/organizations/apply</span>
+          <span class="vp__size">PC · 1240</span>
+        </div>
+        <div class="vp__body">
+          <div id="mount-pc-nav"></div>
+          <div id="mount-pc-form"></div>
+        </div>
+      </div>
+      <div class="vp vp--mobile">
+        <div class="vp__chrome">
+          <span class="vp__lights"><span></span><span></span><span></span></span>
+          <span class="vp__url">m · 단체 등록</span>
+          <span class="vp__size">375</span>
+        </div>
+        <div class="vp__body">
+          <div id="mount-mobile-nav"></div>
+          <div id="mount-mobile-form"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="variant">
+    <header class="variant__head">
+      <span class="variant__num">OU3-B / STEP 5 검토 → 제출 결과</span>
+      <h2 class="variant__title">제출 직후 — "신청 완료" 안내 화면</h2>
+      <p class="variant__desc">organizations.status='pending' 박제. "1-2일 검토 안내" + 이메일 + 카카오톡 알림 약속.</p>
+    </header>
+    <div class="vp-strip">
+      <div class="vp vp--pc">
+        <div class="vp__chrome">
+          <span class="vp__lights"><span></span><span></span><span></span></span>
+          <span class="vp__url">mybdr.kr/organizations/apply ✅</span>
+          <span class="vp__size">PC · 성공</span>
+        </div>
+        <div class="vp__body">
+          <div id="mount-pc-success-nav"></div>
+          <div id="mount-pc-success"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script type="text/babel" src="shared.jsx"></script>
+<script type="text/babel" src="game-shared.jsx"></script>
+<script type="text/babel" src="team-shared.jsx"></script>
+<script type="text/babel" src="org-shared.jsx"></script>
+<script type="text/babel" src="screens/OrganizationApply.jsx"></script>
+<script type="text/babel">
+  ReactDOM.createRoot(document.getElementById('mount-pc-nav')).render(<window.AppNav active="orgs" />);
+  ReactDOM.createRoot(document.getElementById('mount-pc-form')).render(<window.OrganizationApply initialStep={2} />);
+  ReactDOM.createRoot(document.getElementById('mount-mobile-nav')).render(<window.AppNav active="orgs" />);
+  ReactDOM.createRoot(document.getElementById('mount-mobile-form')).render(<window.OrganizationApply initialStep={5} />);
+  ReactDOM.createRoot(document.getElementById('mount-pc-success-nav')).render(<window.AppNav active="orgs" />);
+  ReactDOM.createRoot(document.getElementById('mount-pc-success')).render(<window.OrganizationApply success={true} />);
+</script>
+</body>
+</html>
