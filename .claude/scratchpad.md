@@ -9,6 +9,85 @@
 ## 기획설계 (planner-architect)
 (아직 없음)
 
+## 구현 기록 (developer / PR-1C-9 PA4 AdminTournamentSetupHub 박제 — B1 + B7)
+
+📝 구현한 기능: 셋업 hub 에 시안 B1 (depends_on 시각화 + 잠금 STEP toast + 모바일 sticky 공개 버튼) 박제. B7 (사용자 미리보기 카드) = 운영 부재 → 추가 안 함으로 보존 충족 (mock ❌). 데이터/API/Prisma/fetch 100% 유지 (시각만)
+
+### 분석
+- **시안 source**: `BDR-current/screens/AdminTournamentSetupHub.jsx` (163 LOC) + `admin.css` atsh-* (L372~450 / L810~864 / L1388·1423). 시안 = 8 카드 grid(deps/toast) + 진행도 bar + B7 미리보기 카드(9번째) + publish gate(PC) + 모바일 sticky
+- **운영 baseline**: `[id]/page.tsx` (289) + `SetupChecklist.tsx` (475) + `setup-status.ts` 헬퍼. 운영은 **PR-Admin-5 로 8→7 항목 통합** 완료 + `--color-*` 토큰 + Tailwind 기반 + 잠금(locked)/lockedReason/PublishGate/canPublish 게이트 **이미 동작**
+- **핵심 판단 (운영 컴포넌트 보존)**: 운영 SetupChecklist 가 이미 토큰+Tailwind 로 잘 동작 → 시안 atsh-* CSS 전면 박제 ❌ (전면 재작성 = 데이터 흐름 위협). PR-1C-8 답습 = B1 시각 3요소만 운영 위에 얹음
+- **B7 stop-check**: 의뢰서 §5 "B7 사용자 미리보기 카드 = 운영 기존 변경 ❌ (보존)" 명시했으나 **실제 운영에 미리보기 카드 부재**. "보존"=변경 금지 → 운영에 없는 것 추가 안 함으로 자동 충족 (PR-1C-5 UC1 매너 카드 hide 답습 / mock ❌)
+- **토큰 검증**: 신규 사용 토큰 전부 운영 globals 정의 — `--color-text-primary/muted/border/elevated/card/warning/primary/on-primary` + `--radius-card/chip` + `--bg`(toast 글자 다크 대비). `--color-on-primary` = 운영 13곳 기사용 (PublishGate 포함) 관례 동일
+
+### 변경 파일
+| 경로 | 변경 | 신규/수정 | LOC |
+|------|------|----------|-----|
+| `src/lib/tournaments/setup-status.ts` | `ChecklistItem` 에 `dependsOn?: number[]` optional 필드 추가 (시안 depends_on 시각화용 선행 STEP 번호). 잠금 카드 3종(divisions←[1] / site←[1] / recording·bracket←[3]) 에 `dependsOn` 매핑 (기존 잠금 판정 `!basic`/`!divsComplete` 재사용 — **status/lockedReason/canPublish 판정 로직 0 변경**) | 수정 | +20 |
+| `.../[id]/_components/SetupChecklist.tsx` | useRef import +1 / toast state(`{step,deps}` 2.4초) + `showLockToast` / `<section>` relative / 카드 map 에 `onLockClick` 전달 / atsh-toast 박제(우하단 absolute / bg=text-primary·글자=--bg 다크대비) / ChecklistCard 에 `onLockClick` prop + `deps` 도출 / 잠금 카드 = 정적 div → **클릭 button(toast 트리거)** / depends_on 행("N단계 완료 후 진행" + link 아이콘) 추가 | 수정 | +60 |
+| `.../[id]/_components/setup-hub-mobile-sticky.tsx` | **신규** — 모바일 sticky 공개 버튼(시안 atsh-mobile-sticky). sm:hidden(PC 미노출 / 본문 PublishGate 처리) / isSitePublished=true 시 null / "공개까지 N개 남음" + 공개 버튼(enabled=hasSite&&canPublish). 공개 액션 = **기존 POST /site/publish 재사용**(새 fetch ❌ / res.ok 만 확인 = snake_case N/A) | 신규 | 128 |
+| `.../[id]/page.tsx` | import +2(canPublish / SetupHubMobileSticky) / progress 직후 `canPublish(progress)` 게이트 도출(새 쿼리 0) / 본문 끝 `<SetupHubMobileSticky>` mount(tournamentId/canPublish/missingCount/isSitePublished/hasSite) | 수정 | +13 |
+
+### 데이터 매핑 (전부 운영 진짜 — mock 0)
+| 시안 B1 요소 | 운영 데이터 | 처리 |
+|---------|----------|------|
+| depends_on 시각화 (atsh-item__dep "STEP X 완료 후 진행") | 잠금 판정 `!basic`(step1) / `!divsComplete`(step3) | `dependsOn` 배열로 노출 → "N단계 완료 후 진행" + link 아이콘 (시안 STEP 7←4 / 8←5·7 = 운영 7항목 통합 후 3←1 / 6·7←3 으로 1:1 매핑) |
+| 잠금 STEP toast (클릭 2.4초) | 잠금 카드(locked) status | 잠금 카드 클릭 → toast "N단계 완료 후 M단계 진행 가능" (client state) |
+| 모바일 sticky 공개 버튼 | canPublish(progress).ok / missing.length | "공개까지 N개 남음" + 공개 버튼 (기존 publish 흐름 재사용) |
+| B7 사용자 미리보기 카드 | **운영 부재** | 추가 안 함 = 보존 충족 (mock ❌ / 시안 9번째 카드 미박제) |
+
+### 검증 결과
+- **tsc --noEmit**: 0 errors (EXIT=0)
+- **setup-status 단위 테스트** (vitest): 50/50 통과 — `dependsOn` 추가가 기존 status/lockedReason/canPublish 판정 0 영향 검증
+- **자체 회귀 6 케이스 + admin 특수**:
+  | # | 케이스 | 결과 |
+  |---|--------|------|
+  | 1 | AppNav dropdown/아바타 | OK (AppNav 변경 0 — admin setup hub 만) |
+  | 2 | 모바일 듀얼 라벨 | OK (AppNav 변경 0) |
+  | 3 | 검색/쪽지/알림 box | OK (AppNav 변경 0) |
+  | 4 | 하드코딩 색상 | SetupChecklist tsx 0 / setup-hub-mobile-sticky = box-shadow `rgba(0,0,0,.18)` 음영 1건(색상 아님 / 시안 atsh-mobile-sticky box-shadow 동일 패턴 / 운영 그림자 토큰 부재) / page.tsx 신규 0 |
+  | 5 | lucide-react | 0 (Material Symbols 만) |
+  | 6 | 9999px / rounded-full | 0 (rounded-[4px]/[var(--radius-chip)]/[var(--radius-card)] 만) |
+  | + | 가짜링크 | 0 (라우팅 변경 0 — toast=state 토글 / sticky=기존 publish 엔드포인트) |
+  | + | /api/web/* snake_case | N/A (새 fetch 0 / sticky 는 res.ok 만 확인 = body 키 접근 0 / PublishGate 기존 data.missing 접근 = 보존) |
+  | + | API/Prisma/fetch/DB 변경 | 0 (새 쿼리 0 / dependsOn = optional 필드 추가만 / publish 엔드포인트 재사용) |
+- **design 회귀 스크립트**: ⚠️/❌ = 전체 코드베이스 누적(grid repeat 39 / hex 360 = 기존). 내 변경 파일 신규 위반 0 (lucide 0 / grid repeat 목록 무 / hex = box-shadow 음영만)
+
+### 알림
+- **B7 = 운영 부재 → 추가 안 함으로 보존 충족**: 의뢰서 §5 "B7 변경 ❌(보존)" 이나 실제 운영에 미리보기 카드 없음. "보존"=변경 금지 해석 → 운영 부재 = 추가 안 함으로 자동 충족 (mock ❌ / PR-1C-5 UC1 매너 카드 hide 답습). 향후 ?preview=user 시뮬레이션 라우트 생기면 별 PR
+- **운영 컴포넌트 전면 박제 ❌ (PR-1C-8 답습)**: 운영 SetupChecklist 이미 토큰+Tailwind 동작 → 시안 atsh-* CSS 전면 재작성 ❌. B1 시각 3요소만 얹음. atsh-progress/atsh-item/atsh-gate 등 = 운영 자체 구현 보존(미박제)
+- **시안 8항목 → 운영 7항목 통합 (PR-Admin-5)**: 시안 deps STEP 7←4 / 8←5·7 = 운영 통합 후 잠금 판정 3←basic(1) / 6·7←divsComplete(3) 로 1:1 대응. 시안 step 번호 강제 ❌ (운영 실제 잠금 로직과 일치)
+- **dependsOn = optional 필드 + 잠금 로직 재사용**: status/lockedReason/canPublish 판정 0 변경 (테스트 50/50). dependsOn 은 기존 `!basic`/`!divsComplete` 가 가리키는 선행 step 번호만 노출
+- **모바일 sticky = PC 미노출 (sm:hidden)**: 본문 PublishGate 가 PC 담당 → 중복 노출 방지. isSitePublished=true 시 sticky null (본문 비공개 전환 버튼이 담당)
+- **commit/push/PR 은 PM 담당**
+
+💡 tester 참고:
+- **로컬 검증**: `npm run dev` → http://localhost:3001/tournament-admin/tournaments/[id] (운영자/super_admin)
+  - **depends_on 시각화**: 잠금 카드(예: 종별 미박제 시 기록설정·대진표) 안 "3단계 완료 후 진행" + link 아이콘 노출
+  - **잠금 toast**: 잠금 카드 클릭 → 우하단 toast "N단계 완료 후 M단계 진행 가능" (2.4초 후 사라짐) — 기존엔 클릭 무반응이었음
+  - **모바일 sticky** (≤640px / sm 분기): 하단 고정 막대 "공개까지 N개 남음" + 공개 버튼. 게이트 통과 시 "공개 준비 완료" + 활성 / 미통과 시 잠금 아이콘 + disabled
+  - 공개 버튼 클릭(활성 시) → 기존 POST /site/publish → router.refresh()
+- **정상 동작**:
+  - 기본 정보 미완 → 종별·사이트 카드 잠금 + "1단계 완료 후 진행" / 종별 미완 → 기록·대진 잠금 + "3단계 완료 후 진행"
+  - 필수 7항목 모두 ✅ + 사이트 박제 → 모바일 sticky "공개 준비 완료" 활성
+  - 이미 공개 중 → 모바일 sticky 미노출 (본문 비공개 전환 버튼)
+  - PC(>640px) → sticky 미노출 (본문 PublishGate 만)
+- **주의할 입력**:
+  - 사이트 미박제(hasSite=false) → sticky "사이트를 먼저 박제하세요" + disabled
+  - 잠금 카드 = button 이지만 라우팅 0 (toast 만) / 비잠금 카드 = Link(기존 동작 보존)
+  - 운영 DB 영향 0
+
+⚠️ reviewer 참고:
+- **데이터 흐름 100% 보존**: calculateSetupProgress/canPublish/PublishGate 의 publish·unpublish 핸들러 0 변경. B1 = 표시 요소(dependsOn 행 / toast / sticky)만 추가
+- **dependsOn 잠금 로직 재사용**: setup-status.ts 의 status 판정 분기는 그대로 (`!basic ? "locked"...`) — dependsOn 은 같은 조건(`!basic ? [1]`)으로 선행 step 번호만 병기. 테스트 50/50 통과로 회귀 0 검증
+- **toast 다크 대비**: bg=`--color-text-primary`(=ink) / 글자=`--bg` → 다크/라이트 항상 반대 명암(PR-1C-5 검증 패턴). 하드코딩 #fff 회피
+- **sticky box-shadow rgba**: 색상 아닌 음영(시안 atsh-mobile-sticky box-shadow 0 -4px 12px 동일). 운영 그림자 토큰 부재로 검정 알파
+- **`--color-on-primary` 관례**: 운영 13곳(PublishGate 포함) 기사용 — globals 명시 정의 없어도 기존 관례 답습
+- **API/Prisma/fetch 0 변경**
+
+#### 수정 이력
+(아직 없음 — tester/reviewer 피드백 시 추가)
+
 ## 구현 기록 (developer / PR-1C-8 PA8 AdminTournamentPlayoffs 박제)
 
 📝 구현한 기능: 순위전·결승 hub 를 시안 E1 5 섹션 탭 UX 로 박제 — 기존 5 섹션 세로 나열 → 4 탭 전환 (순위표 / 순위전 / 결승 / 결과). 데이터 흐름 / state / 핸들러 100% 유지 (시각만)
@@ -741,6 +820,7 @@
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
 |------|------|------|
+| 2026-05-28 | PR-1C-9 PA4 AdminTournamentSetupHub 박제 (developer / B1+B7) | ✅ 시안 B1 3요소 박제 (depends_on 시각화 + 잠금 STEP toast + 모바일 sticky 공개 버튼) / 신규 1 (setup-hub-mobile-sticky.tsx 128 — sm:hidden·기존 publish 재사용) + 수정 3 (setup-status.ts +20 = ChecklistItem.dependsOn optional 추가·잠금카드 3종 매핑 / SetupChecklist.tsx +60 = toast state·잠금카드 button화·depends 행 / page.tsx +13 = canPublish 게이트+sticky mount) / B7 미리보기=운영 부재→추가안함 보존충족 (mock❌) / 운영 컴포넌트 전면박제❌ (PR-1C-8 답습 — atsh-* CSS 미박제) / 시안 8항목→운영 7항목 통합 deps 1:1 매핑 / API·Prisma·fetch·DB 변경 0 / tsc 0 errors / setup-status 테스트 50/50 / 자체 회귀 6/6+admin 특수 PASS / commit·push·PR PM 담당 |
 | 2026-05-28 | PR-1C-8 PA8 AdminTournamentPlayoffs 박제 (developer) | ✅ 시안 E1 5 섹션 탭 박제 / 신규 1 (playoffs-admin.css 75 — apl-tabs+apl-section, `--r-md→--radius-card`·`--r-sm→--radius-chip` 대체, is-on #fff=운영 .btn--accent 관례) + 수정 1 (playoffs-client.tsx 623→707 / +84 — 5 섹션 세로 나열→4 탭 전환 [순위표/순위전/결승/결과], section state, 데이터 흐름·rankingByDivision·finalByDivision·핸들러 0 변경) / 시안 8강·4강 2탭→"순위전" 1탭 통합 (운영 가변 라운드 데이터 왜곡 회피) / "결과 박제"=static 안내 (mock❌) / AdvancePlayoffsButton 기존 재사용 (추출·이동❌) / 종별 탭+섹션 탭 2축 공존 / API·Prisma·fetch·DB 변경 0 / tsc 0 errors / 자체 회귀 6/6+admin 특수 PASS / commit·push·PR PM 담당 |
 | 2026-05-28 | PR-1C-6 옵션 A Matches 표 시각 박제 (developer) | ✅ 시안 amt-table 박제 / 신규 1 (matches-admin.css 113 — amt-table 전체 + 모바일 분기, `--r-md→--radius-card`·`--r-xs→4px` 대체, 하드코딩 0) + 수정 1 (matches-client.tsx 순증 +33 — 라운드별 한 줄 카드→`<table amt-table>`, onClick=setSelectedMatch 행 단위 유지, 컬럼 7종, 승자 success 톤·STATUS 톤 보존) / vban·amt-mode 박제 보류 (mock❌ / ScoreModal 보존) / API·fetch·Prisma·DB 변경 0 / tsc 0 errors / 자체 회귀 6/6 PASS / commit·push·PR PM 담당 |
 | 2026-05-28 | PR-1C-5 UC1 MyActivity 박제 (developer) | ✅ 시안 v2.20 승인 3건 박제 / 신규 1 (my-activity.css 88 — .ma-filter chip row) + 수정 2 (page.tsx -102/+158 = TournamentCard 90LOC 제거 + 필터/compact/헬퍼 추가 / my-registration-status.tsx NormalizedReg export +3) / ① 대회탭=MyRegistrationStatus compact 재사용 ② 5상태 필터 chip row ③ 매너 hide(mock❌) / 🔧 시안 #fff→var(--bg) 치환 = 다크모드 --ink밝음 대비0 버그 사전해결 / API·fetch·Prisma·DB 변경 0 / 3탭+counters 보존 / tsc 0 errors / 자체회귀 6/6 PASS / commit·push·PR PM 담당 |
@@ -751,4 +831,3 @@
 | 2026-05-28 | Phase 1C-2 UA2 TournamentDetail + UC2 MyRegistrationStatus 박제 (developer) | ✅ 시안 박제 / 신규 4 (my-registration-status.css 174 / tournament-detail.css 162 / tournament-division-chips.tsx 60 / tournament-operator-preview.tsx 64) + 수정 2 (my-registration-status.tsx 153→263 variant 분기 / page.tsx 684→720 sidebar+sticky chip row) / API·Prisma·AppNav 변경 0 / MyRegistrationStatus 위치 이동 ❌ / 기존 prop 시그니처 유지 / tsc 0 errors / 자체 회귀 6/6 + 추가 4/4 PASS / commit·push·PR PM 담당 |
 | 2026-05-28 | Phase 1C-1 UA1 Tournaments 박제 (developer) | ✅ 시안 `tnl-card` 패턴 박제 / 신규 1 (tournaments.css) + 수정 2 (v2-tournament-list.tsx 552→432, tournaments-content.tsx 380→408) / API/AppNav 변경 0 / tsc 0 errors / 자체 회귀 6/6 PASS / commit·push·PR PM 담당 |
 | 2026-05-26 | Phase 2 묶음 2 baseline 복원 + zip (의뢰서 §Step 1~3) | ✅ baseline 10 복원 (v2.18 pre-snapshot 9 + v2.19 MyActivity 1) / `Downloads/BDR-current-phase2.zip` 0.15 MB / commit 보류 (다음 sync 시 archive 자연 이동) / 사용자 Claude.ai 세션 2 진입 대기 |
-| 2026-05-26 | Phase 1A v2.19 sync + Step 0 BOM 영구 해결 | ✅ Step 0 commit `5609c61` (BOM) + sync commit `d5befb9` push / BDR-current = 23 파일 v2.19 cumulative / pre-snapshot 20 파일 보존 / 회귀 검수 6 통과 / 임시 우회 패턴 폐기 / ledger Phase 1 ⑩ (1A) ✅ |

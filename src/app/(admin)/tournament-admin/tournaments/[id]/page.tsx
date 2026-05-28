@@ -8,8 +8,9 @@ import {
   TOURNAMENT_STATUS_LABEL,
   TOURNAMENT_FORMAT_LABEL,
 } from "@/lib/constants/tournament-status";
-import { calculateSetupProgress } from "@/lib/tournaments/setup-status";
+import { calculateSetupProgress, canPublish } from "@/lib/tournaments/setup-status";
 import { SetupChecklist } from "./_components/SetupChecklist";
+import { SetupHubMobileSticky } from "./_components/setup-hub-mobile-sticky";
 
 // 이유: 시안 AdminTournamentSetupHub v2.14 의 상태 뱃지 패턴(`admin-stat-pill[data-tone]`)
 //   박제 — Admin-7-A `STATUS_TONE` 매핑과 일관 (17 status 키 4 tone 매핑).
@@ -123,6 +124,10 @@ export default async function TournamentAdminDetailPage({
       matchesCount: tournament._count.tournamentMatches,
     }
   );
+
+  // ⭐ PR-1C-9 (B1) — 모바일 sticky 공개 버튼용 게이트 (setup-status.ts 단일 source 재사용).
+  //   새 쿼리/계산 0 — 위 progress 결과를 canPublish() 로 한 줄 도출.
+  const publishGate = canPublish(progress);
 
   // 보조 액션 4개 — 체크리스트에 흡수되지 않는 운영성 진입점.
   //   참가팀 (정원 관리 vs 신청 정책 분리) / 관리자 / 기록원 / 공개 사이트 외부 링크.
@@ -284,6 +289,16 @@ export default async function TournamentAdminDetailPage({
           )}
         </div>
       </section>
+
+      {/* ⭐ PR-1C-9 (B1) — 모바일 sticky 공개 버튼 (시안 atsh-mobile-sticky 박제).
+          PC(sm 이상)는 컴포넌트 내부 sm:hidden 으로 미노출 — 본문 PublishGate 가 처리. */}
+      <SetupHubMobileSticky
+        tournamentId={id}
+        canPublish={publishGate.ok}
+        missingCount={publishGate.missing.length}
+        isSitePublished={!!site?.isPublished}
+        hasSite={!!site}
+      />
     </div>
   );
 }
