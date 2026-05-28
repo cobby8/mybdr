@@ -1,0 +1,118 @@
+/* ==========================================================
+   PR-1C-6 옵션 A — Matches 표 시각 박제 (시안 admin.css C1 amt-table)
+   - source: Dev/design/BDR-current/admin.css L933~960 + 모바일 분기 L1406~1408
+   - 토큰 대체: 시안 --r-md → 운영 --radius-card / --r-xs → 4px
+   - 나머지 토큰(--bg-elev/--bg-alt/--border/--ink*/--ff-mono/--cafe-blue-*)은
+     운영 globals.css 에 모두 정의됨 → 그대로 사용
+   - amt-mode (기록 모드 카드) 는 박제 안 함 — 운영 기록 모드 모달(ScoreModal) 보존
+   - vban (검증 배너 3-tone) 박제 안 함 — mock 금지
+   ========================================================== */
+
+/* 표 wrap — 카드형 컨테이너 (둥근 모서리 + 보더 + overflow 숨김) */
+.amt-table-wrap {
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card); /* 시안 --r-md 대체 */
+  overflow: hidden;
+}
+
+/* 표 본체 — 셀 보더 합쳐서 깔끔한 라인 */
+.amt-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+/* 헤더 행 — 모노 폰트 + 대문자 + 자간 (시안 thead 스타일) */
+.amt-table thead th {
+  text-align: left;
+  padding: 12px 14px;
+  font-family: var(--ff-mono);
+  font-size: 10.5px;
+  font-weight: 800;
+  color: var(--ink-dim);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  background: var(--bg-alt);
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+/* 본문 셀 — 행 구분선 + 수직 중앙 정렬 */
+.amt-table tbody td {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+
+/* 행 hover — 운영 클릭(모달 오픈) 가능 표시 */
+.amt-table tbody tr:hover {
+  background: var(--bg-alt);
+}
+
+/* 대진 — 팀명 굵게 + 가운데 'vs' 구분자 */
+.amt-table__teams {
+  font-weight: 700;
+}
+.amt-table__teams b {
+  color: var(--ink);
+}
+.amt-table__teams .vs {
+  color: var(--ink-dim);
+  font-family: var(--ff-mono);
+  font-size: 10.5px;
+  margin: 0 6px;
+  font-weight: 700;
+}
+
+/* 스코어 — 모노 폰트 + tabular-nums (숫자 폭 정렬) */
+.amt-table__score {
+  font-family: var(--ff-mono);
+  font-weight: 800;
+  font-size: 15px;
+  color: var(--ink);
+  font-feature-settings: "tnum";
+}
+/* 스코어 placeholder (— : —) — 점수 미입력 매치 */
+.amt-table__score--ph {
+  color: var(--ink-dim);
+  font-weight: 600;
+  font-size: 13px;
+}
+
+/* 코트(체육관) — cafe-blue soft 칩 */
+.amt-table__court {
+  font-family: var(--ff-mono);
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--cafe-blue-deep);
+  background: var(--cafe-blue-soft);
+  padding: 2px 7px;
+  border-radius: 4px; /* 시안 --r-xs 대체 */
+  white-space: nowrap;
+}
+
+/* 시간 — 모노 폰트 메타 */
+.amt-table__time {
+  font-family: var(--ff-mono);
+  font-size: 12px;
+  color: var(--ink-soft);
+  font-weight: 600;
+}
+
+/* 종별 코드 — 흐린 메타 */
+.amt-table__div {
+  font-size: 11.5px;
+  color: var(--ink-mute);
+  font-weight: 600;
+}
+
+/* 모바일 — 가로 스크롤 (시안 admin.css L1406~1408 박제) */
+@media (max-width: 768px) {
+  .amt-table-wrap {
+    overflow-x: auto;
+  }
+  .amt-table {
+    min-width: 600px;
+  }
+}

@@ -26,8 +26,8 @@
 | ⑧ 시안 박제 | 1A | ⏸ 보류 | Claude.ai | - | 1A 의뢰 전달 후 |
 | ⑨ zip 출력 | 1A | ⏸ 보류 | Claude.ai | - | 별 zip 묶음 — v2.19 또는 v2.18 갱신 |
 | **⑩ sync 실행** | 1A | ✅ 완료 | CLI | 2026-05-26 | `sync-bdr-current.ps1 -NewVersion "v2.19"` 실행 완료. BDR-current = 23 파일 (jsx 17 admin 11 + user 6 / css 6 user) — v2.19 cumulative (v2.18 user + Phase 1A admin) / pre-snapshot = `_archive/BDR-current-2026-05-26-pre-v2.19/` (v2.18 15 + baseline 5 = 20 파일 보존). 회귀 검수 6 케이스 통과. Step 0 BOM 영구 해결 commit `5609c61` (Phase 1B 임시 우회 패턴 폐기). |
-| **⑪ 운영 박제 (Phase 1C)** | 1C | 🔵 진행 중 (batch) | CLI | 2026-05-28 | PR #650 누적. **PR-1C-1~5 ✅** (`40d19db` UA1 / `9734de4` UA2+UC2 / `19dfa03` UB1 / `e4e629b` UA3 옵션B / `<PR-1C-5 commit>` UC1 MyActivity = MyRegistrationStatus compact 재사용 + 5 상태 필터 + 매너 hide + 다크 #fff→var(--bg) 토큰화). 모두 API/AppNav/새 라우트 변경 0 / tsc 0. 잔여 11 PR (PR-1C-6~16 = admin 9 + carryover 2). PR별 상세 = scratchpad 작업 로그. |
-| **⑫ 회귀 검수 (역박제 룰)** | 1C | ✅ 진행 중 (PR-1C-1~5) | CLI | 2026-05-28 | PR-1C-1~5 각 자체 회귀 6/6 + 추가 케이스 PASS. 운영→시안 drift 0. |
+| **⑪ 운영 박제 (Phase 1C)** | 1C | 🔵 진행 중 (batch) | CLI | 2026-05-28 | PR #650 누적. **PR-1C-1~6 ✅** (`40d19db` UA1 / `9734de4` UA2+UC2 / `19dfa03` UB1 / `e4e629b` UA3 옵션B / `7e57690` UC1 MyActivity / `<PR-1C-6 commit>` PA5 Matches = amt-table 시각 + matches-admin.css 신규 / vban 3-tone 보류 (mock 금지 / 운영 데이터 없음) + 기록 모드 모달 보존). 모두 API/AppNav/새 라우트 변경 0 / tsc 0. 잔여 10 PR (PR-1C-7~16 = admin 8 + carryover 2). **⚠️ matches 의뢰서 §5 전제 (74 line) ≠ 실제 (matches-client 731 line) — admin PR spec 재검토 필요 가능성**. PR별 상세 = scratchpad. |
+| **⑫ 회귀 검수 (역박제 룰)** | 1C | ✅ 진행 중 (PR-1C-1~6) | CLI | 2026-05-28 | PR-1C-1~6 각 자체 회귀 6/6 + 추가 케이스 PASS. PR-1C-6 = 옵션 A (vban hide / mock 금지 / 데이터 흐름 100% 유지). 운영→시안 drift 0. |
 | **⑬ PR 결재** | 1C | ⏸ 보류 | **수빈 (수동)** | - | subin → dev → main (CLAUDE.md §🚦) |
 | ⑭ Phase 완료 | 1 | ⏸ 보류 | Cowork | - | 본 ledger 갱신 + Phase 2 시작 결정 |
 

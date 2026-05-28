@@ -9,6 +9,78 @@
 ## 기획설계 (planner-architect)
 (아직 없음)
 
+## 구현 기록 (developer / PR-1C-6 옵션 A — Matches 표 시각 박제)
+
+📝 구현한 기능: 대회 관리 > 경기 관리 매치 목록을 시안 amt-table 표 스타일로 박제 (시각만 / 데이터·onClick 100% 유지)
+
+### 분석 (PM 승인 옵션 A 범위 그대로)
+- **시안 source**: `BDR-current/admin.css` L933~960 (amt-table) + `screens/AdminTournamentMatches.jsx` L136~175 (마크업). 컬럼 = 시간/코트/종별/대진/스코어/상태/(버튼)
+- **운영 baseline**: `matches-client.tsx` L644~719 = 라운드별 `<Card>` 한 줄 카드 리스트. `useRoundNameFallback`/`rounds`/`filteredMatches` 그룹화 로직 보유
+- **토큰 검증**: 시안 amt-table 사용 토큰 중 운영 globals.css 정의 여부 확인 — `--bg-elev/--bg-alt/--border/--ink/--ink-soft/--ink-mute/--ink-dim/--ff-mono/--cafe-blue-deep/--cafe-blue-soft` = **전부 정의됨** → 그대로 사용. 미정의 = `--r-md → --radius-card` / `--r-xs → 4px` 대체 (승인 계획 그대로)
+- **amt-mode (기록 모드 3-card)**: 박제 안 함 — 운영 기록 모드 = ScoreModal 안 select 토글 보존 (충돌 회피)
+- **vban (검증 배너 3-tone)**: 박제 안 함 (mock 금지) — 운영 PlaceholderValidationBanner 보존
+
+### 변경 파일
+| 경로 | 변경 | 신규/수정 | LOC |
+|------|------|----------|-----|
+| `.../matches/matches-admin.css` | 시안 amt-table 박제 — `.amt-table-wrap`/`.amt-table`/thead·tbody/`__teams`(+vs)/`__score`(+ph)/`__court`/`__time`/`__div` + 모바일 ≤768px 가로 스크롤. 토큰 대체: `--r-md → --radius-card` / `--r-xs → 4px`. 나머지 운영 globals 정의 그대로. 하드코딩 색상 0건 | 신규 | 113 |
+| `.../matches/matches-client.tsx` | import +1 (matches-admin.css) / L644~719 라운드별 한 줄 카드 리스트 → 라운드별 `<table class="amt-table">` 표로 교체 (라운드 헤더·그룹화·`onClick=setSelectedMatch` 행 단위 유지). 컬럼 7종 (시간/코트/종별/대진/스코어/상태/#번호). 승자 success 톤 보존 / STATUS_LABEL·STATUS_COLOR 보존 | 수정 | -64/+97 (순증 +33) |
+
+### 데이터 매핑 (전부 운영 진짜 — mock 0)
+| 시안 컬럼 | 운영 데이터 | 처리 |
+|---------|----------|------|
+| 시간 | scheduledAt | toLocaleDateString (null 시 "미정") |
+| 코트 | venue_name | amt-table__court 칩 (null 시 "-") |
+| 종별 | getMatchDivision(m) | amt-table__div (null 시 "-") |
+| 대진 | homeTeam.team.name vs awayTeam.team.name | 승자 = `text-[var(--color-success)]` 톤 보존 (미정 폴백) |
+| 스코어 | homeScore : awayScore | amt-table__score |
+| 상태 | STATUS_LABEL[status] + STATUS_COLOR[status] | 운영 톤 그대로 |
+| 버튼 (입력/수정/준비) | 운영은 행 전체 클릭 = 모달 | 버튼 대신 #match_number 표시 (onClick 흐름 보존) |
+
+### 검증 결과
+- **tsc --noEmit**: 0 errors (EXIT=0)
+- **자체 회귀 6 케이스**:
+  | # | 케이스 | 결과 |
+  |---|--------|------|
+  | 1 | AppNav main bar dropdown/아바타 | OK (AppNav 변경 0 — admin matches 페이지만) |
+  | 2 | 모바일 듀얼 라벨 | OK (AppNav 변경 0) |
+  | 3 | 검색/쪽지/알림 box | OK (AppNav 변경 0) |
+  | 4 | 하드코딩 색상 | css 0건 (전부 var(--*) + 4px radius) / tsx 0건 (success 톤도 토큰) — §6-1 예외 불필요 |
+  | 5 | lucide-react | 0 (Material Symbols 도 본 변경엔 미추가) |
+  | 6 | 9999px / rounded-full | 0 (matches-client L389 매치 = 기존 금지 안내 주석, 위반 아님) |
+  | - | 가짜링크 | 0 (라우팅 변경 0 — onClick=모달만) |
+- **LOC**: 순증 +33 (계획 +30~50 LOC 범위 내) + css 113줄 (계획 ~50줄 대비 다소 많으나 시안 amt-table 전체 + 모바일 분기 + 주석 포함 — 폭증 기준 +400 한참 미만)
+
+### 알림
+- **vban (검증 배너 3-tone) 박제 보류**: 옵션 A 범위 제외 (mock 금지). 운영 PlaceholderValidationBanner 보존 — 향후 vban 박제 = 별 PR (사용자 판단)
+- **amt-mode (기록 모드 3-card) 박제 보류**: 운영 기록 모드 토글 = ScoreModal 내 select 보존. 시안 3-card 모드 선택 UI 박제 시 운영 모달 흐름과 충돌 → 미박제
+- **시안 "입력/수정/준비" 버튼 → #번호 대체**: 운영은 행 전체 클릭이 이미 ScoreModal 오픈 → 별도 액션 버튼 불필요. 시안 버튼 자리에 경기 번호 표시 (정보 손실 0)
+- **Card import 유지**: 빈 상태("경기가 없습니다" L627 / "선택 종별 매치 없음" L640) 에서 계속 사용 → 제거 안 함
+- **API / fetch / Prisma / DB / route.ts 변경 0** — GET /matches·/teams 호출 동일, PATCH·recording-mode 동일
+- **commit/push/PR 은 PM 담당**
+
+💡 tester 참고:
+- **로컬 검증**: `npm run dev` → http://localhost:3001/tournament-admin/tournaments/[id]/matches (운영자 로그인 + 매치 생성된 대회)
+  - 라운드별로 **표(table)** 노출 — 헤더: 시간/코트/종별/대진/스코어/상태/# (모노 폰트 대문자)
+  - 행 hover → 배경 강조 (`--bg-alt`) / 행 클릭 → **기존 ScoreModal 오픈** (점수/상태/팀/기록모드 수정 — 회귀 0)
+  - 대진 셀: 홈 `vs` 원정, 승자 팀명 = 초록(success) 톤
+  - 스코어 셀: `N : M` 모노 폰트 / 종별·체육관 필터 적용 시 표도 즉시 갱신
+  - 모바일 (≤768px): 표 가로 스크롤 (min-width 600px)
+- **정상 동작**:
+  - scheduledAt null 매치 → 시간 "미정" / venue_name null → 코트 "-" / division 없음 → 종별 "-"
+  - 다중 종별/체육관 대회 → 상단 필터 chip 그대로 작동 (표가 필터 결과 반영)
+  - 매치 0건 → "경기가 없습니다" 카드 (회귀 0) / 필터 0건 → "선택 종별 매치 없음" 카드
+- **주의할 입력**:
+  - winner_team_id 설정된 매치 → 승자 팀명만 초록 / 미정 매치 → "미정" 텍스트
+  - paper 기록 모드 매치 → 모달에서 종이 기록지 이동 버튼 보존 (본 PR 미변경)
+  - 운영 DB 영향 0
+
+⚠️ reviewer 참고:
+- **표 변환 시 데이터/핸들러 100% 보존**: `setSelectedMatch(match)` onClick 을 `<div>` → `<tr>` 로 위치만 이동. 라운드 그룹화(`useRoundNameFallback`/`rounds`/`roundMatches`) 변경 0
+- **승자 success 톤**: 시안 amt-table 은 승자 강조 없음(중립 표) → 운영 기존 success 톤 정책 유지 위해 `<b className=...success>` 로 흡수 (시안 + 운영 정책 병합)
+- **css 113줄**: 시안 amt-table 전체(28줄) + 모바일(8줄) + 주석/포맷. amt-mode/vban 미박제로 시안 대비 축소. 향후 표 외 영역 박제 시 같은 파일 확장 가능
+- **API/Prisma 0 변경**
+
 ## 구현 기록 (developer / PR-1C-5 UC1 MyActivity 박제)
 
 📝 구현한 기능: /profile/activity 마이페이지 활동 뷰에 시안 v2.20 승인 3건 박제
@@ -513,6 +585,7 @@
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
 |------|------|------|
+| 2026-05-28 | PR-1C-6 옵션 A Matches 표 시각 박제 (developer) | ✅ 시안 amt-table 박제 / 신규 1 (matches-admin.css 113 — amt-table 전체 + 모바일 분기, `--r-md→--radius-card`·`--r-xs→4px` 대체, 하드코딩 0) + 수정 1 (matches-client.tsx 순증 +33 — 라운드별 한 줄 카드→`<table amt-table>`, onClick=setSelectedMatch 행 단위 유지, 컬럼 7종, 승자 success 톤·STATUS 톤 보존) / vban·amt-mode 박제 보류 (mock❌ / ScoreModal 보존) / API·fetch·Prisma·DB 변경 0 / tsc 0 errors / 자체 회귀 6/6 PASS / commit·push·PR PM 담당 |
 | 2026-05-28 | PR-1C-5 UC1 MyActivity 박제 (developer) | ✅ 시안 v2.20 승인 3건 박제 / 신규 1 (my-activity.css 88 — .ma-filter chip row) + 수정 2 (page.tsx -102/+158 = TournamentCard 90LOC 제거 + 필터/compact/헬퍼 추가 / my-registration-status.tsx NormalizedReg export +3) / ① 대회탭=MyRegistrationStatus compact 재사용 ② 5상태 필터 chip row ③ 매너 hide(mock❌) / 🔧 시안 #fff→var(--bg) 치환 = 다크모드 --ink밝음 대비0 버그 사전해결 / API·fetch·Prisma·DB 변경 0 / 3탭+counters 보존 / tsc 0 errors / 자체회귀 6/6 PASS / commit·push·PR PM 담당 |
 | 2026-05-28 | Phase 2 v2.20 BDR-current sync (PM) | ✅ commit `dca96f6` push / BDR-current = 34 루트 (game-shared.jsx NEW) + screens 26 jsx + 6 css + _baseline 10 / pre-snapshot 26 jsx / 회귀 4+8+특수 4 통과 (game-shared/baseline 10/carry-over diff 0/가짜링크 screens 직속 0/lucide 0) / BOM 우회 0 / 시안 css hex 23건 = Phase 2C 토큰 대체 대상 / ledger Phase 2 ⑨⑩ ✅ |
 | 2026-05-28 | PR-1C-1~4 commit/push (PM / PR #650 누적) | ✅ `40d19db`(UA1) `9734de4`(UA2+UC2) `19dfa03`(UB1) `e4e629b`(UA3 옵션B) + `5dc51e9`(gitignore chore) / 각 자체 회귀 통과 / ledger Phase 1 ⑪⑫ |
@@ -522,4 +595,3 @@
 | 2026-05-28 | Phase 1C-1 UA1 Tournaments 박제 (developer) | ✅ 시안 `tnl-card` 패턴 박제 / 신규 1 (tournaments.css) + 수정 2 (v2-tournament-list.tsx 552→432, tournaments-content.tsx 380→408) / API/AppNav 변경 0 / tsc 0 errors / 자체 회귀 6/6 PASS / commit·push·PR PM 담당 |
 | 2026-05-26 | Phase 2 묶음 2 baseline 복원 + zip (의뢰서 §Step 1~3) | ✅ baseline 10 복원 (v2.18 pre-snapshot 9 + v2.19 MyActivity 1) / `Downloads/BDR-current-phase2.zip` 0.15 MB / commit 보류 (다음 sync 시 archive 자연 이동) / 사용자 Claude.ai 세션 2 진입 대기 |
 | 2026-05-26 | Phase 1A v2.19 sync + Step 0 BOM 영구 해결 | ✅ Step 0 commit `5609c61` (BOM) + sync commit `d5befb9` push / BDR-current = 23 파일 v2.19 cumulative / pre-snapshot 20 파일 보존 / 회귀 검수 6 통과 / 임시 우회 패턴 폐기 / ledger Phase 1 ⑩ (1A) ✅ |
-| 2026-05-26 | Phase 1B v2.18 BDR-current sync | ✅ commit `a71c9a3` + push / BDR-current = 15 파일 (jsx 9 UA1~UD3 + css 6) / pre-snapshot 149 파일 보존 / 회귀 검수 6 통과 / 인코딩 우회 = UTF-8 BOM 임시 파일 1회성 / ledger ⑩ ✅ |
