@@ -1,5 +1,17 @@
 # MyBDR - Basketball Tournament Platform
 
+## 📚 문서 / 협업 흐름 (세 플랫폼)
+
+수빈은 **Cowork = 허브** / **Claude.ai = 시안** / **Claude CLI = 코드 박제** 세 플랫폼을 함께 사용. 갱신·결정·핸드오프는 다음 문서를 봄:
+
+- **`WORKFLOW.md`** (최상위) — 세 플랫폼 역할 / 명명 통일 (Phase NA/NB/NC, B/S/G, UA1~UD3) / 핸드오프 라이프사이클 13 단계 / source of truth 우선순위 7 단계 / **수빈 본인 수동 액션 5 단계 체크리스트**
+- **`.claude/phase-ledger.md`** — Phase 1~N 의 단계별 상태 (의뢰 / Claude.ai / zip / sync / 박제 / 검증) 실시간 ledger. 세 플랫폼이 같이 보고 갱신
+- **`scripts/sync-bdr-current.ps1`** — Claude.ai zip → BDR-current/ 자동 sync (§🗂️ 5단계 자동화)
+
+→ 신규 Phase 시작 시 WORKFLOW.md §부록 B "신규 Phase 표준 절차" 부터 시작.
+
+---
+
 ## 🚦 브랜치 / 워크플로우 (최우선)
 
 ### 브랜치
@@ -93,13 +105,16 @@ Dev/design/
     └── prompts/                  옛 phase-N / v2.X-cli-batch 등
 ```
 
-### 워크플로우 5단계 (새 zip 받았을 때)
+### 워크플로우 5단계 (새 zip 받았을 때) — **자동화됨**
 
-1. 새 zip 풀이 → 임시 폴더
-2. 기존 `BDR-current/` → `_archive/BDR vX.Y/` 이동 (옛 버전화)
-3. 새 zip 의 `Dev/design/BDR vX.Y/` → `BDR-current/` 카피
-4. zip 최상위 옛 시안 (있으면) → `_archive/v2-original/`
-5. `Dev/design/README.md` 갱신 + commit `design: BDR-current sync vX.Y`
+```powershell
+.\scripts\sync-bdr-current.ps1 -ZipPath "<zip 경로>" -NewVersion "v2.X" -DryRun  # 미리보기
+.\scripts\sync-bdr-current.ps1 -ZipPath "<zip 경로>" -NewVersion "v2.X"          # 실행
+```
+
+스크립트가 자동 처리: 1) zip 풀이 → 임시 폴더 / 2) 기존 `BDR-current/` → `_archive/BDR vX.Y/` 이동 / 3) 새 시안 → `BDR-current/` 카피 / 4) zip 최상위 옛 시안 → `_archive/v2-original/` / 5) `README.md` 갱신 + commit 명령 print.
+
+상세는 `WORKFLOW.md §6` 참조. 안전 가드: git uncommitted 자동 감지 / `-DryRun` 시뮬레이션 / 자동 commit ❌ (수빈 검토 후 수동).
 
 ### 명명 룰 — zip 파일명 ≠ 시안 버전
 

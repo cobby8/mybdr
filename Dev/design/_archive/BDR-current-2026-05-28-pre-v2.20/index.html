@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>BDR v2.19 · Phase 1A + Phase 1B 시안 목차</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800;900&family=JetBrains+Mono:wght@500;700;800&family=Pretendard:wght@400;500;600;700;800;900&display=swap" />
+<link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Symbols+Outlined" />
+<link rel="stylesheet" href="tokens.css" />
+<link rel="stylesheet" href="shell.css" />
+<style>
+.index-page { max-width: 1240px; margin: 0 auto; padding: 56px 32px 80px; }
+.index-hero { margin-bottom: 36px; }
+.index-hero h1 { font-family: var(--ff-display); font-size: 40px; font-weight: 900; letter-spacing: -0.025em; margin: 8px 0 12px; }
+.index-hero p { margin: 0; color: var(--ink-soft); max-width: 820px; font-size: 15px; line-height: 1.7; }
+
+.index-summary {
+  margin: 28px 0;
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;
+}
+.index-stat {
+  background: var(--bg-elev); border: 1px solid var(--border);
+  border-radius: var(--r-md); padding: 16px 20px;
+}
+.index-stat__v { font-family: var(--ff-display); font-size: 32px; font-weight: 900; letter-spacing: -0.02em; color: var(--ink); line-height: 1; }
+.index-stat__l { font-family: var(--ff-mono); font-size: 10.5px; font-weight: 700; color: var(--ink-mute); letter-spacing: 0.08em; text-transform: uppercase; margin-top: 8px; }
+.index-stat--accent .index-stat__v { color: var(--accent); }
+.index-stat--navy .index-stat__v { color: var(--bdr-navy); }
+
+.index-section { margin-top: 40px; }
+.index-section__h {
+  font-family: var(--ff-display); font-size: 22px; font-weight: 800; letter-spacing: -0.015em;
+  margin: 0 0 4px;
+  display: flex; align-items: center; gap: 10px;
+}
+.index-section__num {
+  font-family: var(--ff-mono); font-size: 11px; font-weight: 800;
+  color: var(--accent); letter-spacing: 0.1em;
+  background: var(--accent-soft);
+  padding: 3px 8px; border-radius: var(--r-xs);
+}
+.index-section__num--navy { color: var(--bdr-navy); background: var(--cafe-blue-soft); }
+.index-section__num--mute { color: var(--ink-mute); background: var(--bg-head); }
+.index-section__sub { margin: 4px 0 18px; font-size: 13.5px; color: var(--ink-mute); }
+
+.index-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+.index-card {
+  background: var(--bg-elev); border: 1px solid var(--border);
+  border-radius: var(--r-lg); padding: 20px 22px;
+  text-decoration: none; color: inherit;
+  display: flex; flex-direction: column; gap: 6px;
+  transition: border-color .12s, box-shadow .12s, transform .12s;
+}
+.index-card:hover { border-color: var(--accent-hair); box-shadow: var(--sh-md); transform: translateY(-1px); }
+.index-card__top { display: flex; align-items: baseline; gap: 8px; }
+.index-card__id {
+  font-family: var(--ff-mono); font-size: 11px; font-weight: 800;
+  color: var(--accent); letter-spacing: 0.1em;
+  background: var(--accent-soft);
+  padding: 3px 8px; border-radius: var(--r-xs);
+}
+.index-card__id--navy { color: var(--bdr-navy); background: var(--cafe-blue-soft); }
+.index-card__kind {
+  font-family: var(--ff-mono); font-size: 10px; font-weight: 700;
+  color: var(--ink-mute); letter-spacing: 0.06em; text-transform: uppercase;
+}
+.index-card__title { font-family: var(--ff-display); font-size: 16px; font-weight: 800; margin: 4px 0 2px; letter-spacing: -0.005em; }
+.index-card__route { font-family: var(--ff-mono); font-size: 11.5px; color: var(--cafe-blue-deep); }
+.index-card__desc { font-size: 12.5px; color: var(--ink-soft); line-height: 1.55; margin-top: 4px; }
+.index-card__tags { display: flex; gap: 4px; margin-top: 8px; flex-wrap: wrap; }
+.index-card__tag {
+  font-family: var(--ff-mono); font-size: 9.5px; font-weight: 800;
+  padding: 2px 6px;
+  background: var(--bg-head); color: var(--ink-soft);
+  border-radius: var(--r-xs); letter-spacing: 0.04em;
+}
+.index-card__tag--gap { background: var(--cafe-blue-soft); color: var(--cafe-blue-deep); }
+.index-card__tag--gap-s { background: #FBE9D1; color: #8B5A0F; }
+.index-card__tag--new { background: var(--accent); color: #fff; }
+
+.index-checks {
+  margin-top: 40px; padding: 24px 28px;
+  background: var(--bg-elev); border: 1px solid var(--border); border-radius: var(--r-lg);
+}
+.index-checks h3 { font-family: var(--ff-display); font-size: 16px; font-weight: 800; margin: 0 0 12px; }
+.index-checks ul { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 6px 16px; }
+.index-checks li { font-size: 13px; color: var(--ink-soft); display: flex; align-items: flex-start; gap: 6px; line-height: 1.55; }
+.index-checks li::before { content: '✓'; color: var(--ok); font-weight: 800; flex-shrink: 0; }
+
+@media (max-width: 720px) {
+  .index-summary { grid-template-columns: 1fr 1fr; }
+  .index-grid { grid-template-columns: 1fr; }
+  .index-checks ul { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+<div class="index-page">
+  <header class="index-hero">
+    <div class="eyebrow">BDR v2.19 · Phase 1A · 2026-05-26</div>
+    <h1>대회 생성/관리 흐름 전면 리디자인</h1>
+    <p>
+      <b>운영 코드 변경 0 — 시안 박제만.</b>
+      Phase 1A 의뢰 (대회 관리자 10 시안) + Phase 1B 보존 (대회 사용자 측 8 시안 — v2.18).
+      9 사각지대 중 S1/S2/S3/S4/S5/S7/S8 해소 + BDR-current 갭 G1/G2/G3 해소.
+      모두 E 등급 (어드민 영역) — AppNav 적용 외, 자체 sidebar 셸 사용.
+    </p>
+    <div class="index-summary">
+      <div class="index-stat"><div class="index-stat__v">10</div><div class="index-stat__l">Phase 1A 시안</div></div>
+      <div class="index-stat index-stat--accent"><div class="index-stat__v">3</div><div class="index-stat__l">신규 (D1 / E1 / E2)</div></div>
+      <div class="index-stat index-stat--navy"><div class="index-stat__v">7</div><div class="index-stat__l">사각지대 해소 (S1·2·3·4·5·7·8)</div></div>
+      <div class="index-stat"><div class="index-stat__v">0</div><div class="index-stat__l">운영 코드 변경</div></div>
+    </div>
+  </header>
+
+  <!-- ============ Phase 1A 영역 A — 진입점 통합 ============ -->
+  <section class="index-section">
+    <h2 class="index-section__h"><span class="index-section__num">A</span> 진입점 통합 (3 시안 · 수정)</h2>
+    <p class="index-section__sub">S1 진입점 3중화 해소 — 단일 hero CTA + 4 옵션 sub-tab (Quick / Legacy / Prospectus / 협회).</p>
+    <div class="index-grid">
+      <a class="index-card" href="pa1-admin-list.html">
+        <div class="index-card__top">
+          <span class="index-card__id">PA1</span>
+          <span class="index-card__kind">수정 · A1</span>
+        </div>
+        <div class="index-card__title">관리자 — 내 대회 목록</div>
+        <div class="index-card__route">/tournament-admin/tournaments</div>
+        <p class="index-card__desc">단일 hero CTA → 4 옵션 panel + 상태 탭 (전체/작성중/신청중/진행중/완료/보관) + 카드 list.</p>
+        <div class="index-card__tags">
+          <span class="index-card__tag index-card__tag--gap">S1</span>
+          <span class="index-card__tag index-card__tag--gap">S6</span>
+        </div>
+      </a>
+      <a class="index-card" href="pa2-admin-wizard.html">
+        <div class="index-card__top">
+          <span class="index-card__id">PA2</span>
+          <span class="index-card__kind">수정 · A2</span>
+        </div>
+        <div class="index-card__title">관리자 — Wizard QuickCreate</div>
+        <div class="index-card__route">/tournament-admin/tournaments/new/wizard</div>
+        <p class="index-card__desc">4 옵션 sub-tab + Quick 압축 폼 (이름/시작일/시리즈) + draft 복구 배너 + 3-step 흐름 안내.</p>
+        <div class="index-card__tags">
+          <span class="index-card__tag index-card__tag--gap">S1</span>
+          <span class="index-card__tag index-card__tag--gap">S3</span>
+        </div>
+      </a>
+      <a class="index-card" href="pa3-admin-assoc.html">
+        <div class="index-card__top">
+          <span class="index-card__id">PA3</span>
+          <span class="index-card__kind">수정 · A3 · super admin</span>
+        </div>
+        <div class="index-card__title">관리자 — 협회 마법사</div>
+        <div class="index-card__route">/tournament-admin/wizard/association</div>
+        <p class="index-card__desc">4-step stepper (협회 → 시리즈 → 종별 위임 → 권한) + 각 step 컨텍스트 가드.</p>
+        <div class="index-card__tags">
+          <span class="index-card__tag index-card__tag--gap">S1</span>
+          <span class="index-card__tag index-card__tag--gap">S6</span>
+        </div>
+      </a>
+    </div>
+  </section>
+
+  <!-- ============ Phase 1A 영역 B — 셋업 hub 강화 ============ -->
+  <section class="index-section">
+    <h2 class="index-section__h"><span class="index-section__num">B</span> 셋업 hub 강화 (1 시안 · 수정)</h2>
+    <p class="index-section__sub">S2 depends_on 시각화 + S7 모바일 sticky 공개 버튼. Phase 1B B7 카드 보존.</p>
+    <div class="index-grid">
+      <a class="index-card" href="ud3-admin-setup.html">
+        <div class="index-card__top">
+          <span class="index-card__id">PA4</span>
+          <span class="index-card__kind">수정 · B1 + B7 보존</span>
+        </div>
+        <div class="index-card__title">관리자 — 셋업 hub</div>
+        <div class="index-card__route">/tournament-admin/tournaments/[id]</div>
+        <p class="index-card__desc">depends_on 시각화 (잠금 STEP 7·8) + 잠금 toast + 모바일 sticky 공개 버튼 + B7 사용자 미리보기 카드.</p>
+        <div class="index-card__tags">
+          <span class="index-card__tag index-card__tag--gap">S2</span>
+          <span class="index-card__tag index-card__tag--gap">S7</span>
+          <span class="index-card__tag index-card__tag--gap-s">B7</span>
+        </div>
+      </a>
+    </div>
+  </section>
+
+  <!-- ============ Phase 1A 영역 C — 운영 진행 통합 ============ -->
+  <section class="index-section">
+    <h2 class="index-section__h"><span class="index-section__num">C</span> 운영 진행 통합 (2 시안 · 수정)</h2>
+    <p class="index-section__sub">S8 검증 피드백 산발 표준화 + S4 다중 종별 발견성 강화.</p>
+    <div class="index-grid">
+      <a class="index-card" href="pa5-admin-matches.html">
+        <div class="index-card__top">
+          <span class="index-card__id">PA5</span>
+          <span class="index-card__kind">수정 · C1</span>
+        </div>
+        <div class="index-card__title">관리자 — 경기 관리</div>
+        <div class="index-card__route">/tournament-admin/tournaments/[id]/matches</div>
+        <p class="index-card__desc">PlaceholderValidationBanner 표준 (err / warn / ok 3-tone) + 기록 모드 + 매치 표.</p>
+        <div class="index-card__tags">
+          <span class="index-card__tag index-card__tag--gap">S8</span>
+        </div>
+      </a>
+      <a class="index-card" href="pa6-admin-divisions.html">
+        <div class="index-card__top">
+          <span class="index-card__id">PA6</span>
+          <span class="index-card__kind">수정 · C2</span>
+        </div>
+        <div class="index-card__title">관리자 — 종별 운영</div>
+        <div class="index-card__route">/tournament-admin/tournaments/[id]/divisions</div>
+        <p class="index-card__desc">종별 추가 hero CTA + 5 예시 + 멀티 종별 운영 안내 + 종별 카드 grid.</p>
+        <div class="index-card__tags">
+          <span class="index-card__tag index-card__tag--gap">S4</span>
+        </div>
+      </a>
+    </div>
+  </section>
+
+  <!-- ============ Phase 1A 영역 D — 종료 흐름 신규 ============ -->
+  <section class="index-section">
+    <h2 class="index-section__h"><span class="index-section__num">D</span> 종료 흐름 신규 (1 시안 · NEW)</h2>
+    <p class="index-section__sub">S5 종료 후 흐름 누락 — 5 카드 hub 통합. UB1 사용자 종료 발표와 연계.</p>
+    <div class="index-grid">
+      <a class="index-card" href="pa7-admin-completed.html">
+        <div class="index-card__top">
+          <span class="index-card__id">PA7</span>
+          <span class="index-card__kind">신규 · D1</span>
+        </div>
+        <div class="index-card__title">관리자 — 종료 후 hub</div>
+        <div class="index-card__route">/tournament-admin/tournaments/[id] · status=completed</div>
+        <p class="index-card__desc">🏆 우승팀 hero + 5 카드 (결과 / 통계 / 알기자 / 사진영상 / 사이트 archive) + 다음 회차 CTA.</p>
+        <div class="index-card__tags">
+          <span class="index-card__tag index-card__tag--new">NEW</span>
+          <span class="index-card__tag index-card__tag--gap">S5</span>
+        </div>
+      </a>
+    </div>
+  </section>
+
+  <!-- ============ Phase 1A 영역 E — 운영 신규 기능 ============ -->
+  <section class="index-section">
+    <h2 class="index-section__h"><span class="index-section__num">E</span> 운영 신규 기능 (2 시안 · NEW · BDR-current 갭)</h2>
+    <p class="index-section__sub">G1 playoffs 시안 부재 + G2 prospectus 진입점 + G3 wizard 자동 채움.</p>
+    <div class="index-grid">
+      <a class="index-card" href="pa8-admin-playoffs.html">
+        <div class="index-card__top">
+          <span class="index-card__id">PA8</span>
+          <span class="index-card__kind">신규 · E1 · G1</span>
+        </div>
+        <div class="index-card__title">관리자 — 순위전 hub</div>
+        <div class="index-card__route">/tournament-admin/tournaments/[id]/playoffs</div>
+        <p class="index-card__desc">5 섹션 탭 (순위표 / 8강 / 4강 / 결승 / 결과) + AdvancePlayoffsButton + Final 큰 매치 카드.</p>
+        <div class="index-card__tags">
+          <span class="index-card__tag index-card__tag--new">NEW</span>
+          <span class="index-card__tag index-card__tag--gap-s">G1</span>
+        </div>
+      </a>
+      <a class="index-card" href="pa9-admin-prospectus.html">
+        <div class="index-card__top">
+          <span class="index-card__id">PA9</span>
+          <span class="index-card__kind">신규 · E2 · G2 + G3</span>
+        </div>
+        <div class="index-card__title">관리자 — Prospectus PDF→AI→wizard</div>
+        <div class="index-card__route">/tournament-admin/tournaments/new/wizard/prospectus</div>
+        <p class="index-card__desc">4-step (PDF 업로드 → AI 분석 → 미리보기 → wizard 자동 채움) + 신뢰도 high/mid/low chip + 수동 입력 fallback.</p>
+        <div class="index-card__tags">
+          <span class="index-card__tag index-card__tag--new">NEW</span>
+          <span class="index-card__tag index-card__tag--gap-s">G2</span>
+          <span class="index-card__tag index-card__tag--gap-s">G3</span>
+        </div>
+      </a>
+    </div>
+  </section>
+
+  <!-- ============ Phase 1B 보존 (v2.18 시안) ============ -->
+  <section class="index-section">
+    <h2 class="index-section__h"><span class="index-section__num index-section__num--mute">v2.18</span> Phase 1B 보존 — 대회 사용자 측 + 연결 다리 (8 시안)</h2>
+    <p class="index-section__sub">2026-05-25 박제 · sync 완료. 본 v2.19 에 그대로 carryover (변경 0). B1~B7 갭 7건 해소.</p>
+    <div class="index-grid">
+      <a class="index-card" href="ua1-tournaments.html">
+        <div class="index-card__top">
+          <span class="index-card__id index-card__id--navy">UA1</span>
+          <span class="index-card__kind">v2.18 · 전면교체</span>
+        </div>
+        <div class="index-card__title">대회 목록</div>
+        <div class="index-card__route">/tournaments</div>
+        <p class="index-card__desc">카드 grid + sticky 필터 + 정원 progress + status 뱃지 + 종료 카드 우승팀 라인.</p>
+      </a>
+      <a class="index-card" href="ua2-tournament-detail.html">
+        <div class="index-card__top">
+          <span class="index-card__id index-card__id--navy">UA2</span>
+          <span class="index-card__kind">v2.18 · 부분수정</span>
+        </div>
+        <div class="index-card__title">대회 상세</div>
+        <div class="index-card__route">/tournaments/[id]</div>
+        <p class="index-card__desc">종별 selector + 5 탭 + sidebar 5-단계 step + 대진표 버전 + 운영자 미리보기.</p>
+      </a>
+      <a class="index-card" href="ua3-tournament-enroll.html">
+        <div class="index-card__top">
+          <span class="index-card__id index-card__id--navy">UA3</span>
+          <span class="index-card__kind">v2.18 · 부분보강</span>
+        </div>
+        <div class="index-card__title">대회 신청</div>
+        <div class="index-card__route">/tournaments/[id]/join</div>
+        <p class="index-card__desc">5단계 stepper + 결제 강화 + 사후 안내.</p>
+      </a>
+      <a class="index-card" href="ub1-tournament-completed.html">
+        <div class="index-card__top">
+          <span class="index-card__id index-card__id--navy">UB1</span>
+          <span class="index-card__kind">v2.18 · status 분기</span>
+        </div>
+        <div class="index-card__title">대회 종료 발표</div>
+        <div class="index-card__route">/tournaments/[id] · status=completed</div>
+        <p class="index-card__desc">🏆 우승팀 hero + 5 카드 (MVP/베스트5 / 사진 / 알기자 / 다음 회차).</p>
+      </a>
+      <a class="index-card" href="uc1-my-activity.html">
+        <div class="index-card__top">
+          <span class="index-card__id index-card__id--navy">UC1</span>
+          <span class="index-card__kind">v2.18 · 부분수정</span>
+        </div>
+        <div class="index-card__title">마이페이지 — 내 대회</div>
+        <div class="index-card__route">/profile/activity</div>
+        <p class="index-card__desc">신청 대회 list + 상태별 정렬 + MyRegistrationStatus 컴포넌트.</p>
+      </a>
+      <a class="index-card" href="ud1-admin-teams.html">
+        <div class="index-card__top">
+          <span class="index-card__id index-card__id--navy">UD1</span>
+          <span class="index-card__kind">v2.18 · 관리자 보강</span>
+        </div>
+        <div class="index-card__title">참가팀 관리</div>
+        <div class="index-card__route">/tournament-admin/tournaments/[id]/teams</div>
+        <p class="index-card__desc">정원 진행도 + 알림 액션 bar + payment_status 컬럼.</p>
+      </a>
+      <a class="index-card" href="ud2-admin-bracket.html">
+        <div class="index-card__top">
+          <span class="index-card__id index-card__id--navy">UD2</span>
+          <span class="index-card__kind">v2.18 · 관리자 보강</span>
+        </div>
+        <div class="index-card__title">대진표 관리</div>
+        <div class="index-card__route">/tournament-admin/tournaments/[id]/bracket</div>
+        <p class="index-card__desc">publish 알림 체크박스 + 변경 이력 panel.</p>
+      </a>
+      <a class="index-card" href="ud3-admin-setup.html">
+        <div class="index-card__top">
+          <span class="index-card__id">PA4</span>
+          <span class="index-card__kind">v2.18 UD3 → v2.19 B1 강화</span>
+        </div>
+        <div class="index-card__title">관리자 — 셋업 hub (B1 + B7)</div>
+        <div class="index-card__route">/tournament-admin/tournaments/[id]</div>
+        <p class="index-card__desc">v2.18 B7 (사용자 미리보기 카드) 위에 v2.19 B1 (depends_on + 모바일 sticky) 추가.</p>
+      </a>
+    </div>
+  </section>
+
+  <section class="index-checks">
+    <h3>자체 검수 통과 (06-self-checklist) · E 등급 자체 영역</h3>
+    <ul>
+      <li>AppNav 적용 외 (E 등급) — 본 의뢰는 어드민 sidebar (TournamentAdminNav) 자체 셸 사용 / 위반 검수 4 케이스 자체 발생 0</li>
+      <li>더보기 — 가짜링크 4건 신규 ❌ (어드민 sidebar 도 동일)</li>
+      <li>디자인 토큰 — var(--*) 100% / hex 0 / lucide-react 0 / Material Symbols Outlined 100%</li>
+      <li>색상 — accent / cafe-blue / ok / warn / err 토큰만 / 핑크·살몬·코랄 ❌</li>
+      <li>라운딩 — 버튼·카드 4-8px / pill 9999px 0</li>
+      <li>모바일 (룰 13) — 720px 분기 + iOS input 16px (Quick 폼) + 버튼 44px (모바일 sticky 공개)</li>
+      <li>JSDoc 매트릭스 (06 §6) — 10 시안 모두 상단에 진입/복귀/에러 명시</li>
+      <li>사용자 결정 §1~§8 — E 등급 적용 외 / §7 모바일 가드 적용 의무 ✅</li>
+    </ul>
+  </section>
+</div>
+</body>
+</html>

@@ -19,6 +19,27 @@ import { Breadcrumb, type BreadcrumbItem } from "@/components/shared/breadcrumb"
 // 탭 전환 컴포넌트 (클라이언트) — lazy loading 방식으로 변경
 import { TournamentTabs } from "./_components/tournament-tabs";
 
+// UA2 시안 박제 (2026-05-28) — sidebar 영역 + sticky chip row 시각 갱신
+//  - MyRegistrationStatus: 신청 사용자 sidebar 풀카드 (UC2 공유 컴포넌트)
+//  - TournamentDivisionChips: 종별 선택 sticky chip row (B2 갭 해소)
+//  - TournamentOperatorPreview: 운영자 미리보기 toggle (B7 — isInsider 시만)
+import { MyRegistrationStatus } from "./_components/my-registration-status";
+import { TournamentDivisionChips } from "./_components/tournament-division-chips";
+import { TournamentOperatorPreview } from "./_components/tournament-operator-preview";
+// 시안 sticky chip row / sidebar 운영자 미리보기 등의 토큰화 css
+import "./_components/tournament-detail.css";
+
+// UB1 시안 박제 (2026-05-28) — 종료 발표 (status='completed' 분기)
+//  - 5 카드 grid (hero / 최종 순위 / MVP / 갤러리 / 알기자 / 다음 회차)
+//  - 시안 §5 6 컴포넌트 박제 — 데이터 없는 카드는 자동 hide
+import { TournamentCompletedHero } from "./_components/tournament-completed-hero";
+import { TournamentFinalStandingsCard } from "./_components/tournament-final-standings-card";
+import { TournamentMvpBest5Card } from "./_components/tournament-mvp-best5-card";
+import { TournamentGalleryCard } from "./_components/tournament-gallery-card";
+import { TournamentStoryCard } from "./_components/tournament-story-card";
+import { TournamentNextEditionCard } from "./_components/tournament-next-edition-card";
+import "./_components/tournament-completed.css";
+
 // 비공개 대회 가드 — 관계자(organizer/admin member/super_admin)만 접근
 import { getWebSession } from "@/lib/auth/web-session";
 import { isTournamentInsider } from "@/lib/auth/tournament-auth";
@@ -140,6 +161,27 @@ export default async function TournamentDetailPage({
       // settings JSON — contact_phone 등 부가 설정 포함
       settings: true,
       _count: { select: { tournamentTeams: true } },
+      // UB1 시안 박제 (2026-05-28) — 종료 발표용 champion / mvp relation
+      //  - champion_team_id: 우승 팀 (Tournament.teams relation, name="teams")
+      //  - mvp_player_id: MVP 선수 (users_tournaments_mvp_player_idTousers)
+      //  - status === 'completed' 분기에서만 사용되지만 select 추가 = 운영 회귀 0 (필드 추가만)
+      champion_team_id: true,
+      mvp_player_id: true,
+      teams: {
+        select: {
+          id: true,
+          name: true,
+          logoUrl: true,
+          _count: { select: { teamMembers: true } },
+        },
+      },
+      users_tournaments_mvp_player_idTousers: {
+        select: {
+          nickname: true,
+          name: true,
+          profile_image_url: true,
+        },
+      },
       // L3 D1: 소속 시리즈 + 단체 + 시리즈 내 모든 회차 (prev/next 계산용)
       // edition_number null 대회는 필터에서 제외되지만, DB는 asc로 뒤로 밀어 정렬만 통일
       tournament_series: {
@@ -234,6 +276,176 @@ export default async function TournamentDetailPage({
         nextTournamentId: next?.id ?? null,
       };
     }
+  }
+
+  // ========================================
+  // UB1 시안 박제 (2026-05-28) — status === 'completed' 분기
+  //   종료된 대회는 5 카드 grid (hero / 순위 / MVP / 갤러리 / 알기자 / 다음 회차) 로 완전 교체
+  //   기존 V2TournamentHero / V2RegistrationSidebar / Tabs 미렌더 (종료 후 무의미)
+  //   신규 라우트 추가 ❌ — 동일 [id]/page.tsx 안 분기 처리 (의뢰서 §2 룰)
+  // ========================================
+  if (tournament.status === "completed") {
+    // -- 최종 순위 (TournamentTeam.final_rank 1~3) 추가 쿼리 1건 --
+    //    final_rank 가 1~3 인 팀만 (시안 mock 도 4팀 = 우승/준우승/공동 3위×2)
+    //    final_rank 미설정 대회는 빈 배열 → standings 카드 자동 hide
+    const standingsRaw = await prisma.tournamentTeam.findMany({
+      where: {
+        tournamentId: id,
+        final_rank: { in: [1, 2, 3] },
+        status: { in: ["approved", "paid"] }, // 정상 승인된 팀만 (탈락/취소 제외)
+      },
+      select: {
+        final_rank: true,
+        team: {
+          select: {
+            id: true,
+            name: true,
+            logoUrl: true,
+          },
+        },
+      },
+      orderBy: { final_rank: "asc" },
+    });
+
+    // standings 컴포넌트 input 매핑 — final_rank null 안전 가드 + BigInt → string
+    const standings = standingsRaw
+      .filter((t): t is typeof t & { final_rank: number } => t.final_rank !== null)
+      .map((t) => ({
+        rank: t.final_rank,
+        teamId: t.team.id.toString(),
+        teamName: t.team.name,
+        teamLogoUrl: t.team.logoUrl ?? null,
+      }));
+
+    // -- champion (Tournament.teams relation) 매핑 --
+    //    champion_team_id null = 우승팀 미지정 → Hero fallback "종료된 대회"
+    //    팀 로스터 수 = TeamMember count (대회 엔트리는 운영 미저장 → 팀 전체 멤버수로 폴백)
+    const champion = tournament.teams
+      ? {
+          name: tournament.teams.name,
+          logoUrl: tournament.teams.logoUrl ?? null,
+          rosterCount: tournament.teams._count.teamMembers ?? null,
+        }
+      : null;
+
+    // -- MVP (User relation) 매핑 --
+    //    mvp_player_id null = MVP 카드 hide
+    //    소속팀명은 운영 User 모델에 직접 필드 없음 → null (향후 currentTeam 연동 시 확장)
+    const mvpUser = tournament.users_tournaments_mvp_player_idTousers;
+    const mvp = mvpUser
+      ? {
+          name: mvpUser.nickname ?? mvpUser.name ?? "MVP",
+          teamName: null as string | null, // 운영 미지원
+          profileImageUrl: mvpUser.profile_image_url ?? null,
+          statText: null as string | null, // 운영 미지원 — mock 사용 ❌
+        }
+      : null;
+
+    // -- next edition 도출 (별도 query ❌ — page.tsx 가 이미 series.tournaments fetch) --
+    //    series 안 현재 대회 이후 가장 가까운 edition_number 회차
+    //    is_public=false 시리즈는 위 L203 에서 이미 series=null 처리
+    let nextEdition: { id: string; name: string; startDate: Date | null } | null = null;
+    if (tournament.tournament_series && tournament.edition_number !== null) {
+      const seriesTournaments = tournament.tournament_series.tournaments;
+      const currentEdition = tournament.edition_number;
+      // edition_number 가 현재보다 크고 가장 가까운 회차 (asc 순)
+      const next = seriesTournaments.find(
+        (t) => t.edition_number !== null && t.edition_number > currentEdition!
+      );
+      if (next && next.edition_number !== null) {
+        nextEdition = {
+          id: next.id,
+          name: `${tournament.tournament_series.name} Vol.${next.edition_number}`,
+          startDate: next.startDate,
+        };
+      }
+    }
+
+    // -- 종별 라벨 (standings 카드 sub) --
+    //    단일 종별 = 그 이름 / 복수 = "전체" / 종별 미설정 = "전체"
+    //    categories 가공은 본 분기 후에 정의되므로 여기서 별도 추출
+    const completedCategories = (tournament.categories ?? {}) as Record<string, string[] | boolean>;
+    const completedDivisions: string[] = Object.entries(completedCategories).flatMap(
+      ([cat, divs]) => (Array.isArray(divs) ? divs : [cat])
+    );
+    const divisionLabel =
+      completedDivisions.length === 1
+        ? completedDivisions[0]
+        : completedDivisions.length > 1
+        ? "전체"
+        : "전체";
+
+    // -- 회차 라벨 (Hero eyebrow) --
+    const editionLabel = tournament.edition_number
+      ? `Vol.${tournament.edition_number}`
+      : null;
+
+    // -- breadcrumb 4단 또는 2단 (기존 page.tsx L519~ 동일 로직) --
+    const completedBreadcrumb: BreadcrumbItem[] = series
+      ? [
+          { label: "홈", href: "/" },
+          ...(series.organization
+            ? [{
+                label: series.organization.name,
+                href: `/organizations/${series.organization.slug}`,
+              }]
+            : []),
+          { label: series.name, href: `/series/${series.slug}` },
+          { label: tournament.name },
+        ]
+      : [
+          { label: "대회", href: "/tournaments" },
+          { label: tournament.name },
+        ];
+
+    return (
+      <div className="tc-page">
+        <div className="tc-inner">
+          {/* breadcrumb — tc-inner 안 다크 hero 위 배치 */}
+          <Breadcrumb items={completedBreadcrumb} />
+
+          {/* Hero — champion null 시 fallback "종료된 대회" */}
+          <TournamentCompletedHero
+            tournamentName={tournament.name}
+            editionLabel={editionLabel}
+            champion={champion}
+            endedAt={tournament.endDate}
+            venueName={tournament.venue_name}
+            divisions={completedDivisions}
+          />
+
+          {/* 5 카드 grid — 데이터 없는 카드는 컴포넌트 내부에서 자동 hide */}
+          <div className="tc-grid">
+            <TournamentFinalStandingsCard
+              standings={standings}
+              divisionLabel={divisionLabel}
+            />
+            <TournamentMvpBest5Card mvp={mvp} />
+            {/* 갤러리 — 운영 데이터 X → photos 빈 배열 → 카드 자동 미렌더 */}
+            <TournamentGalleryCard photos={[]} />
+            <TournamentStoryCard
+              description={tournament.description}
+              tournamentName={tournament.name}
+            />
+            <TournamentNextEditionCard nextEdition={nextEdition} />
+          </div>
+
+          {/* Share bar — URL 복사 / 다른 대회 보기 (운영 라우트 매핑) */}
+          <div className="tc-share">
+            <span className="tc-share__lbl">대회 결과</span>
+            <div className="tc-share__btns">
+              {/* 공유 액션은 클라이언트 사이드 share-tournament-button 재사용 가능하나
+                 본 PR 에서는 운영 라우트로 navigate (가짜링크 ❌). 시안 카카오/인스타 버튼은
+                 향후 클라이언트 share API 연결 시 자연 흡수 — 의뢰서 §3 제약 (mock ❌) */}
+              <Link href="/tournaments" className="btn">
+                <span className="ico material-symbols-outlined">emoji_events</span>
+                다른 대회 둘러보기
+              </Link>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   // ===== 내 신청 건수 조회 (배지 표시용) =====
@@ -585,6 +797,17 @@ export default async function TournamentDetailPage({
         {/* min-w-0: grid 자식이 내부 콘텐츠(예: 스크롤 테이블)로 인해
             최소폭이 튕기며 우측 aside를 밀어내지 않도록 축소 허용. 필수. */}
         <main className="min-w-0">
+          {/*
+            UA2 시안 박제 (2026-05-28) — 종별 sticky chip row (B2 갭 해소)
+            divisions 가 2개 이상일 때만 시안 패턴으로 노출. 단일 종별 대회는 칩 표시 자체가 무의미하므로 미노출.
+            현재는 시각 칩만 렌더 (탭 콘텐츠는 SSR 로 종별별 데이터를 이미 모두 포함 — 즉시 회귀 0).
+          */}
+          {divisions.length > 1 && (
+            <TournamentDivisionChips
+              divisions={Array.from(new Set(divisions.map((d) => d.division)))}
+            />
+          )}
+
           {/* 탭: 개요/규정은 서버 렌더링, 대진표/일정/참가팀은 클라이언트 lazy loading
               Bracket 탭 v2: 헤더/Status/사이드 카드용 메타를 서버 props로 전달.
               seriesEditions는 같은 series_id 내 다른 회차 select 라우팅용 (데이터 부족 시 빈 배열). */}
@@ -644,9 +867,25 @@ export default async function TournamentDetailPage({
 
         {/* 데스크톱(lg+) 전용 우측 영역: sticky 신청 카드 (Phase 2 Match v2).
             top-20 = 상단 네비 높이(h-16) + 약간의 숨통. 탭 전환 시 리마운트 없음.
-            6상태 CTA 분기 로직은 기존 RegistrationStickyCard와 동일, UI만 v2 스킨. */}
+            6상태 CTA 분기 로직은 기존 RegistrationStickyCard와 동일, UI만 v2 스킨.
+
+            UA2 시안 박제 (2026-05-28) — B1/B7 갭 해소:
+             - MyRegistrationStatus (sidebar variant): 신청한 사용자만 노출 (내부 SWR 자동 가드)
+             - TournamentOperatorPreview: isInsider 시만 노출 — B7 운영자 화면 전환 미리보기 toggle
+            */}
         <aside className="hidden lg:block">
           <div className="sticky top-20 flex flex-col gap-4">
+            {/* 내 참가 현황 (UA2 sidebar) — 로그인 + 신청 사용자만 (컴포넌트 내부에서 자동 가드) */}
+            {session && (
+              <MyRegistrationStatus
+                tournamentId={tournament.id}
+                variant="sidebar"
+              />
+            )}
+
+            {/* B7: 운영자 미리보기 (isInsider 한정) — 시안 L370~392 */}
+            {isInsider && <TournamentOperatorPreview />}
+
             <V2RegistrationSidebar
               tournamentId={tournament.id}
               registrationEndAt={tournament.registration_end_at}

@@ -869,3 +869,19 @@
 - **발견자**: planner-architect
 - **내용**: Supabase DB가 ap-south-1(인도 뭄바이)에 있으면, 한국에서 쿼리 1개당 150~300ms 네트워크 지연 발생. 홈페이지에서 6~8개 쿼리 실행 시 이것만으로 1.2~1.8초 낭비. 코드 최적화보다 DB 리전 변경이 근본 해결. 한국 리전으로 이전 후 쿼리당 ~20ms로 개선.
 - **참조횟수**: 0
+
+### [2026-05-28] 디자인 박제(Phase 1C) 4대 교훈 — 의뢰서 LOC ≠ 실제 / 운영 보존 / mock 금지 / 다크 토큰화
+- **분류**: lesson
+- **발견자**: developer + pm (Phase 1C batch PR-1C-1~13)
+- **내용**:
+  1. **의뢰서 LOC ≠ 실제 구조**: 의뢰서가 `page.tsx` 줄 수만 보고 "단순 박제" 산정 → 실제 UI는 `*-client.tsx`에 있어 괴리 (matches page 74 vs client 731). 박제 전 `Glob *client*.tsx` + `_components/` 확인 필수.
+  2. **운영 > 시안이면 보존**: admin은 운영이 더 정밀 (Divisions format select / Prospectus confidence % / Matches 모달). 시안 강제 시 기능 후퇴 → 시각만 박제 + 운영 기능 보존 (PR-1C-8/9/11/12 반복).
+  3. **mock 금지 → hide**: 시안 mock 수치(매치수/득점/조회/매너)는 운영 데이터 없으면 박제 안 함 (PR-1C-3/6/13). mock 삽입 ❌.
+  4. **시안 #fff 다크 버그**: 시안 라이트모드 전제 `color:#fff` → 다크 기본 운영서 글자 안 보임. `#fff → var(--bg)` 토큰화 = 하드코딩 제거 + 다크 대비 동시 해결 (PR-1C-5/7).
+- **참조횟수**: 0
+
+### [2026-05-28] Windows PowerShell 5.1 UTF-8 BOM 없는 .ps1 한글 깨짐 → BOM 영구 해결
+- **분류**: lesson + error
+- **발견자**: pm (Phase 1B/1A sync)
+- **내용**: PowerShell 5.1이 BOM 없는 `.ps1`을 cp949로 읽어 한글 깨짐 → 파싱 에러. 1차 우회 = `Get-Content -Encoding utf8`로 임시 BOM 파일 생성 실행. 영구 해결 = 원본을 `[System.Text.UTF8Encoding]::new($true)` BOM 재저장 + commit (`5609c61`). pwsh(PS7)은 UTF-8 기본이라 불필요. 이후 sync(v2.20) BOM 우회 0.
+- **참조횟수**: 0

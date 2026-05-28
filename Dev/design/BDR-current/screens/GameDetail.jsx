@@ -1,126 +1,220 @@
-/* global React, GAMES, TEAMS, Icon */
+/* global React */
+// ============================================================
+// BDR v2.20 — GameDetail (Phase 2B · UA2)
+// 운영 박제 대상: /games/[id]
+// 진입: Games (UA1) 카드 / Home 추천 / 마이 (UC1) 내 경기 / 알림
+// 복귀: 본인 신청 후 새로 진입 시 step indicator 본인 진행 상태 표시
+// 에러: status='completed' 분기 시 GameResult variant (UB1) 렌더
+//
+// BG1 = sidebar "내 신청 현황" step indicator (신청 / 호스트 승인 / 참가 확정)
+//   본인 신청 안 한 상태 = step hidden / ApplyPanel "신청하기" CTA 만
+//   본인 신청 = step + 단계별 시간 + /profile/activity 딥링크
+// BG4 = status='completed' 분기 → UB1 GameResult variant 안내
+// A 등급 (AppNav 강제)
+// ============================================================
 
-function GameDetail({ setRoute }) {
-  const g = GAMES[0];
-  const applicants = [
-    { name: 'hoops_m', level: 'L.6', pos: '가드', conf: true },
-    { name: 'ssg_pg', level: 'L.5', pos: '가드', conf: true },
-    { name: 'kim_j', level: 'L.4', pos: '포워드', conf: true },
-    { name: 'iron_c', level: 'L.7', pos: '센터', conf: true },
-    { name: 'pivot_mia', level: 'L.5', pos: '포워드', conf: true },
-    { name: 'block_k', level: 'L.4', pos: '가드', conf: true },
-    { name: 'dawn_r', level: 'L.3', pos: '포워드', conf: true },
-  ];
+function GameDetail() {
+  // 본인 신청 상태 토글 (시안 데모 — 실제는 game_applications 조회)
+  const [applyMode, setApplyMode] = React.useState('mine'); // 'guest' | 'mine'
+  const game = window.GM_DATA.list.find(g => g.id === 'gm-2'); // 마포 게스트 모집
+  const myApp = window.MY_GAMES.find(m => m.game_id === 'gm-2'); // 승인 대기 상태
 
   return (
-    <div className="page">
-      <div style={{display:'flex', gap:6, fontSize:12, color:'var(--ink-mute)', marginBottom:12}}>
-        <a onClick={()=>setRoute('home')} style={{cursor:'pointer'}}>홈</a>
-        <span>›</span>
-        <a onClick={()=>setRoute('games')} style={{cursor:'pointer'}}>경기</a>
-        <span>›</span>
-        <span style={{color:'var(--ink)'}}>{g.title}</span>
-      </div>
-
-      <div style={{display:'grid', gridTemplateColumns:'minmax(0,1fr) 340px', gap:24, alignItems:'flex-start'}}>
-        <div>
-          <div className="card" style={{padding:'24px 28px', marginBottom:16}}>
-            <div style={{display:'flex', gap:8, marginBottom:12}}>
-              <span className="badge badge--soft">{g.kind === 'pickup' ? '픽업' : g.kind === 'guest' ? '게스트' : '스크림'}</span>
-              {g.tags.map(t => <span key={t} className="badge badge--ghost">{t}</span>)}
-            </div>
-            <h1 style={{margin:'0 0 14px', fontSize:28, fontWeight:800, letterSpacing:'-0.015em'}}>{g.title}</h1>
-            <div style={{display:'grid', gridTemplateColumns:'repeat(2, 1fr)', gap:14, padding:'18px 20px', background:'var(--bg-alt)', borderRadius:8}}>
-              <div>
-                <div style={{fontSize:11, color:'var(--ink-dim)', fontWeight:700, letterSpacing:'.04em'}}>날짜</div>
-                <div style={{fontWeight:700, marginTop:3}}>{g.date}</div>
-              </div>
-              <div>
-                <div style={{fontSize:11, color:'var(--ink-dim)', fontWeight:700, letterSpacing:'.04em'}}>시간</div>
-                <div style={{fontWeight:700, marginTop:3, fontFamily:'var(--ff-mono)'}}>{g.time}</div>
-              </div>
-              <div>
-                <div style={{fontSize:11, color:'var(--ink-dim)', fontWeight:700, letterSpacing:'.04em'}}>장소</div>
-                <div style={{fontWeight:700, marginTop:3}}>{g.court} <span style={{color:'var(--ink-dim)', fontWeight:400, fontSize:12, marginLeft:4}}>{g.area}</span></div>
-              </div>
-              <div>
-                <div style={{fontSize:11, color:'var(--ink-dim)', fontWeight:700, letterSpacing:'.04em'}}>참가비</div>
-                <div style={{fontWeight:700, marginTop:3}}>{g.fee}</div>
-              </div>
-              <div>
-                <div style={{fontSize:11, color:'var(--ink-dim)', fontWeight:700, letterSpacing:'.04em'}}>수준</div>
-                <div style={{fontWeight:700, marginTop:3}}>{g.level}</div>
-              </div>
-              <div>
-                <div style={{fontSize:11, color:'var(--ink-dim)', fontWeight:700, letterSpacing:'.04em'}}>호스트</div>
-                <div style={{fontWeight:700, marginTop:3}}>{g.host}</div>
-              </div>
-            </div>
+    <div className="gm-page">
+      <div className="gm-page__inner" style={{maxWidth:1100}}>
+        {/* Hero */}
+        <div className="gd-hero" data-kind={game.kind}>
+          <div className="gd-hero__band">
+            <window.GMKindBadge kind={game.kind} />
+            <span className="gd-hero__meta">{game.area} · {game.court}</span>
+            <window.GMStatusBadge status="open" label="모집중" />
           </div>
-
-          <div className="card" style={{padding:'22px 26px', marginBottom:16}}>
-            <h2 style={{margin:'0 0 10px', fontSize:16, fontWeight:700}}>경기 안내</h2>
-            <p style={{color:'var(--ink-soft)', margin:0, lineHeight:1.7, fontSize:14}}>
-              매주 목요일 진행되는 미사강변체육관 정기 픽업입니다. 6:4 팀 분배, 21점 선취제로 진행되며 심판은 로테이션으로 돌아갑니다.
-              주차장 무료 이용 가능하고, 실내 탈의실·샤워실 완비되어 있습니다. 참가비는 코트 대여료 충당용입니다.
-              부상 방지를 위해 농구화 지참 필수입니다.
-            </p>
-          </div>
-
-          <div className="card" style={{padding:'22px 26px'}}>
-            <div style={{display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:14}}>
-              <h2 style={{margin:0, fontSize:16, fontWeight:700}}>참가자 <span style={{fontSize:12, color:'var(--ink-mute)', fontWeight:500, marginLeft:6}}>{g.applied}/{g.spots}</span></h2>
-              <span style={{fontSize:12, color:'var(--ink-dim)'}}>승인완료 {applicants.length}명 · 대기 0명</span>
+          <h1 className="gd-hero__title">{game.title}</h1>
+          <div className="gd-hero__sub">
+            <div className="gd-hero__when">
+              <span className="ico material-symbols-outlined">event</span>
+              <span><strong>2026.05.30 (토)</strong> · {game.time} · {game.duration}분</span>
             </div>
-            <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(200px, 1fr))', gap:8}}>
-              {applicants.map(a => (
-                <div key={a.name} style={{padding:'10px 12px', background:'var(--bg-alt)', borderRadius:6, display:'flex', alignItems:'center', gap:10}}>
-                  <div style={{width:32, height:32, borderRadius:'50%', background:'var(--ink-soft)', color:'var(--bg)', display:'grid', placeItems:'center', fontFamily:'var(--ff-mono)', fontSize:11, fontWeight:700}}>{a.name.slice(0,2).toUpperCase()}</div>
-                  <div style={{flex:1, minWidth:0}}>
-                    <div style={{fontWeight:700, fontSize:13, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis'}}>{a.name}</div>
-                    <div style={{fontSize:11, color:'var(--ink-dim)', fontFamily:'var(--ff-mono)'}}>{a.level} · {a.pos}</div>
-                  </div>
-                </div>
-              ))}
+            <div className="gd-hero__where">
+              <span className="ico material-symbols-outlined">place</span>
+              <span>{game.court}</span>
+            </div>
+            <div className="gd-hero__fee">
+              <span className="ico material-symbols-outlined">payments</span>
+              <span>참가비 <strong>{game.fee.toLocaleString()}원</strong></span>
             </div>
           </div>
         </div>
 
-        <aside style={{position:'sticky', top:120}}>
-          <div className="card" style={{padding:0, overflow:'hidden'}}>
-            <div style={{padding:'18px 20px', borderBottom:'1px solid var(--border)'}}>
-              <div style={{display:'flex', alignItems:'baseline', justifyContent:'space-between', marginBottom:10}}>
-                <div style={{fontSize:11, color:'var(--accent)', fontWeight:800, letterSpacing:'.1em'}}>참가 신청</div>
-                <div style={{fontFamily:'var(--ff-mono)', fontSize:12, fontWeight:700}}>{g.spots - g.applied}자리 남음</div>
-              </div>
-              <div style={{height:8, background:'var(--bg-alt)', borderRadius:4, overflow:'hidden'}}>
-                <div style={{width:`${(g.applied/g.spots)*100}%`, height:'100%', background: 'var(--cafe-blue)'}}/>
+        {/* 시안 데모용 토글 */}
+        <div className="ctrl" style={{marginTop:14, marginBottom:14, marginLeft:0, marginRight:0, gridTemplateColumns:'1fr'}}>
+          <div className="ctrl__group">
+            <div className="ctrl__lbl">시안 데모 — 본인 신청 상태 (BG1 step indicator)</div>
+            <div className="ctrl__btns">
+              <button className={'ctrl__btn' + (applyMode === 'guest' ? ' is-on' : '')} onClick={() => setApplyMode('guest')}>
+                미신청 (게스트 view)
+              </button>
+              <button className={'ctrl__btn' + (applyMode === 'mine' ? ' is-on' : '')} onClick={() => setApplyMode('mine')}>
+                신청 완료 (승인 대기)
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* 2 컬럼 — 본문 / sidebar */}
+        <div className="gd-grid">
+          <div className="gd-main">
+            {/* Summary card */}
+            <div className="gm-card">
+              <h3 className="gm-card__h"><span className="ico material-symbols-outlined">info</span> 경기 안내</h3>
+              <div className="gd-summary">
+                <div className="gd-summary__row">
+                  <span className="gd-summary__l">호스트</span>
+                  <span className="gd-summary__v"><strong>{game.host.name}</strong> · 평점 4.6</span>
+                </div>
+                <div className="gd-summary__row">
+                  <span className="gd-summary__l">종별</span>
+                  <span className="gd-summary__v">5x5 게스트 모집 / 자유 매칭</span>
+                </div>
+                <div className="gd-summary__row">
+                  <span className="gd-summary__l">신청 정책</span>
+                  <span className="gd-summary__v">
+                    {game.auto_approve ? '🟢 자동 승인' : '🟡 호스트 수동 승인'}
+                  </span>
+                </div>
+                {game.guest_allowed && (
+                  <div className="gd-summary__row">
+                    <span className="gd-summary__l">게스트 조건</span>
+                    <span className="gd-summary__v">최소 경력 {game.min_years}년 · 약관 동의 필수</span>
+                  </div>
+                )}
               </div>
             </div>
-            <div style={{padding:'18px 20px', display:'flex', flexDirection:'column', gap:12}}>
-              <div>
-                <div style={{fontSize:11, color:'var(--ink-dim)', fontWeight:700, marginBottom:4}}>신청자 정보</div>
-                <div style={{padding:'10px 12px', background:'var(--bg-alt)', borderRadius:6}}>
-                  <div style={{fontWeight:700, fontSize:13}}>rdm_captain</div>
-                  <div style={{fontSize:11, color:'var(--ink-dim)', fontFamily:'var(--ff-mono)', marginTop:2}}>L.8 · 가드 · 레이팅 1684</div>
-                </div>
-              </div>
-              <div>
-                <div style={{fontSize:11, color:'var(--ink-dim)', fontWeight:700, marginBottom:4}}>한마디 (선택)</div>
-                <textarea className="input" rows={3} defaultValue="목요일 오랜만에 뛰러 갑니다!" style={{resize:'vertical'}}/>
-              </div>
-              <label style={{display:'flex', alignItems:'center', gap:8, fontSize:12}}>
-                <input type="checkbox" defaultChecked/>
-                <span>취소 시 최소 3시간 전 통보에 동의</span>
-              </label>
-              <button className="btn btn--primary btn--xl">신청하기 · {g.fee}</button>
-              <div style={{display:'flex', gap:6}}>
-                <button className="btn btn--sm" style={{flex:1}}>💬 호스트 문의</button>
-                <button className="btn btn--sm" style={{flex:1}}>🔖 저장</button>
+
+            {/* About */}
+            <div className="gm-card">
+              <h3 className="gm-card__h"><span className="ico material-symbols-outlined">description</span> 호스트 소개</h3>
+              <p style={{margin:0, lineHeight:1.7, color:'var(--ink-soft)'}}>
+                마포 평일 야간 정기 모임입니다. 실력 무관 환영, 매너 우선. 부상 방지 위해 워밍업 15분 의무. 약속 시간 5분 이상 늦으시면 다음 신청자에게 자리 넘어갑니다.
+              </p>
+            </div>
+
+            {/* Participant slots (Concept B 5×2) */}
+            <div className="gm-card">
+              <h3 className="gm-card__h">
+                <span className="ico material-symbols-outlined">group</span>
+                참가자 ({game.spots_now}/{game.spots_max})
+                <span style={{marginLeft:'auto', fontFamily:'var(--ff-mono)', fontSize:11, fontWeight:700, color:'var(--ink-dim)'}}>
+                  남은 자리 {game.spots_max - game.spots_now}석
+                </span>
+              </h3>
+              <div className="gd-slots">
+                {['박수빈', '김지훈', '이태우', '박재현', '정성훈', '강민호', '윤호석', '한지원', '서태원', null].map((p, i) => (
+                  <div key={i} className={'gd-slot' + (p ? ' is-filled' : ' is-empty')}>
+                    <div className="gd-slot__avatar">{p ? p[0] : '+'}</div>
+                    <div className="gd-slot__name">{p || '빈자리'}</div>
+                  </div>
+                ))}
               </div>
             </div>
           </div>
-        </aside>
+
+          {/* Sidebar */}
+          <aside className="gd-side">
+            {/* BG1 — 내 신청 현황 (본인 신청한 경우만 노출) */}
+            {applyMode === 'mine' && (
+              <div className="gm-card gd-mine">
+                <h3 className="gm-card__h">
+                  <span className="ico material-symbols-outlined" style={{color:'var(--accent)'}}>where_to_vote</span>
+                  내 신청 현황
+                  <span className="gd-mine__chip">BG1</span>
+                </h3>
+                <window.ApplyStep
+                  stepIdx={1}
+                  status="pending"
+                  applied_at="5/27 22:30 신청"
+                  compact
+                />
+                <div className="gd-mine__note">
+                  <span className="ico material-symbols-outlined">schedule</span>
+                  관리자 승인 대기 중 — 보통 24시간 이내 결과 알림
+                </div>
+                <a href="#" className="gd-mine__link">
+                  마이페이지 "내 경기" 에서 모든 신청 보기
+                  <span className="ico material-symbols-outlined">arrow_forward</span>
+                </a>
+              </div>
+            )}
+
+            {/* ApplyPanel (미신청 시) */}
+            {applyMode === 'guest' && (
+              <div className="gm-card gd-apply">
+                <h3 className="gm-card__h"><span className="ico material-symbols-outlined">how_to_reg</span> 신청하기</h3>
+                <div className="gd-apply__fee">
+                  <span>참가비</span>
+                  <strong>{game.fee.toLocaleString()}원</strong>
+                </div>
+                <div className="gd-apply__progress">
+                  <div className="gd-apply__bar">
+                    <div className="gd-apply__fill" style={{width: `${game.spots_now / game.spots_max * 100}%`}} />
+                  </div>
+                  <span>{game.spots_now}/{game.spots_max}명</span>
+                </div>
+                <button className="btn btn--accent btn--touch" style={{width:'100%', marginTop:10}}>
+                  <span className="ico material-symbols-outlined">how_to_reg</span>
+                  게스트 신청하기
+                </button>
+                <div className="gd-apply__hint">
+                  호스트 승인 시 알림으로 알려드립니다
+                </div>
+              </div>
+            )}
+
+            {/* Quick info */}
+            <div className="gm-card">
+              <h3 className="gm-card__h"><span className="ico material-symbols-outlined">share</span> 공유</h3>
+              <div style={{display:'flex', gap:6, flexWrap:'wrap'}}>
+                <button className="btn btn--sm"><span className="ico material-symbols-outlined">link</span> 링크</button>
+                <button className="btn btn--sm"><span className="ico material-symbols-outlined">share</span> 카카오</button>
+                <button className="btn btn--sm"><span className="ico material-symbols-outlined">bookmark</span> 저장</button>
+              </div>
+            </div>
+          </aside>
+        </div>
+
+        {/* BG4 분기 안내 (status='completed' 시 UB1 GameResult 으로) */}
+        <div style={{
+          marginTop:18, padding:'12px 16px',
+          background:'var(--cafe-blue-soft)', borderLeft:'3px solid var(--cafe-blue)',
+          borderRadius:'0 var(--r-sm) var(--r-sm) 0',
+          fontSize:12, color:'var(--cafe-blue-deep)',
+          display:'flex', gap:8,
+        }}>
+          <span className="ico material-symbols-outlined" style={{fontSize:18, flexShrink:0}}>info</span>
+          <div>
+            <strong>BG4 분기</strong> — status='completed' 시 같은 라우트 (<code>/games/[id]</code>) 에서 UB1 GameResult variant 자동 렌더. 신규 라우트 X / 더보기 가짜링크 룰 통과.
+          </div>
+        </div>
+
+        {/* Mobile sticky bar */}
+        {applyMode === 'guest' && (
+          <div className="gd-mobile-sticky">
+            <div>
+              <div style={{fontSize:11, color:'var(--ink-mute)', fontWeight:700}}>참가비</div>
+              <div style={{fontFamily:'var(--ff-display)', fontSize:18, fontWeight:800}}>{game.fee.toLocaleString()}원</div>
+            </div>
+            <button className="btn btn--accent btn--touch">게스트 신청</button>
+          </div>
+        )}
+        {applyMode === 'mine' && (
+          <div className="gd-mobile-sticky">
+            <div style={{flex:1}}>
+              <div style={{fontSize:11, color:'var(--accent)', fontWeight:800, letterSpacing:'0.04em'}}>BG1 · 내 신청 현황</div>
+              <div style={{fontSize:13, fontWeight:700}}>호스트 승인 대기 — 5/27 22:30 신청</div>
+            </div>
+            <button className="btn btn--touch">마이로 →</button>
+          </div>
+        )}
       </div>
     </div>
   );

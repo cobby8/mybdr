@@ -24,6 +24,11 @@ import { EnrollStepper, type StepDef } from "./_v2/enroll-stepper";
 import { EnrollAside } from "./_v2/enroll-aside";
 import { EnrollPoster } from "./_v2/enroll-poster";
 import { EnrollStepDocs } from "./_v2/enroll-step-docs";
+// PR-1C-4 — UA3 B3 결제 step + 사후 안내 박제 (옵션 B: bank 단일)
+import { EnrollStepPayment } from "./_v2/enroll-step-payment";
+import { EnrollSuccessHero } from "./_v2/enroll-success-hero";
+// 시안 te-* 클래스 (te-pay / te-bill / te-bank / te-success) 박제 css
+import "./_v2/tournament-enroll.css";
 import { getDisplayName } from "@/lib/utils/player-display-name";
 // 5/9 마이그: 사이트 전역 휴대폰 입력 컴포넌트 (conventions.md 2026-05-08 룰)
 import { PhoneInput } from "@/components/inputs/phone-input";
@@ -403,122 +408,19 @@ export default function TournamentJoinPage() {
     : null;
 
   /* ---------------------------------------------------------------- */
-  /*  완료 화면 (별도)                                                   */
+  /*  완료 화면 (별도) — PR-1C-4: 시안 te-success hero 박제           */
   /* ---------------------------------------------------------------- */
+  // 왜 컴포넌트로 분리했나: 운영 inline 100+ LOC → 시안 te-success__*
+  //   클래스로 시각 갱신하면서 page.tsx 가독성 향상. 새 라우트 ❌
+  //   (의뢰서 §6 룰 — step=done 분기 안에서만 렌더).
   if (done && result) {
     return (
       <div className="page" style={{ maxWidth: 720, margin: "40px auto" }}>
-        <div className="card" style={{ padding: "40px 32px", textAlign: "center" }}>
-          {/* 성공 체크 */}
-          <div
-            style={{
-              width: 64,
-              height: 64,
-              margin: "0 auto 18px",
-              borderRadius: "50%",
-              background: "color-mix(in oklab, var(--ok) 18%, transparent)",
-              display: "grid",
-              placeItems: "center",
-            }}
-          >
-            <span
-              style={{
-                color: "var(--ok)",
-                fontSize: 32,
-                fontFamily: "var(--ff-display)",
-                fontWeight: 900,
-              }}
-            >
-              ✓
-            </span>
-          </div>
-          <h2
-            style={{
-              margin: 0,
-              fontSize: 22,
-              fontWeight: 800,
-              letterSpacing: "-0.01em",
-            }}
-          >
-            {result.message}
-          </h2>
-          <p style={{ marginTop: 8, fontSize: 13, color: "var(--ink-mute)" }}>
-            {result.status === "waiting"
-              ? `대기 순번: ${result.waiting_number}번`
-              : result.status === "approved"
-                ? "참가가 확정되었습니다."
-                : "주최자 승인 후 참가가 확정됩니다."}
-          </p>
-
-          {/* 입금 안내 — 기존 흐름 유지 */}
-          {tournament.bank_name && (
-            <div
-              style={{
-                margin: "20px auto 0",
-                maxWidth: 360,
-                padding: "16px 18px",
-                background: "var(--bg-alt)",
-                borderRadius: 6,
-                textAlign: "left",
-              }}
-            >
-              <p
-                style={{
-                  margin: 0,
-                  fontSize: 11,
-                  fontWeight: 800,
-                  letterSpacing: ".1em",
-                  color: "var(--ink-dim)",
-                }}
-              >
-                참가비 입금 안내
-              </p>
-              <p
-                style={{
-                  margin: "6px 0 2px",
-                  fontSize: 14,
-                  fontWeight: 700,
-                  fontFamily: "var(--ff-mono)",
-                }}
-              >
-                {tournament.bank_name} {tournament.bank_account}
-              </p>
-              <p style={{ margin: 0, fontSize: 12, color: "var(--ink-mute)" }}>
-                예금주 {tournament.bank_holder}
-              </p>
-            </div>
-          )}
-
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "center",
-              gap: 10,
-              marginTop: 24,
-              flexWrap: "wrap",
-            }}
-          >
-            {/* 1순위 CTA — 대회 직전 §C-1: 신청 후 다음 행동(내가 신청한 대회 확인)으로 자연 유도.
-                /games/my-games 의 'upcoming' 탭에 대회 신청도 함께 표시되므로 단순 라우트로 연결.
-                (tournament 전용 탭이 없으므로 ?tab=tournament 쿼리는 사용 X) */}
-            <button
-              type="button"
-              className="btn btn--primary"
-              style={{ minWidth: 200 }}
-              onClick={() => router.push("/games/my-games")}
-            >
-              내 신청 내역 보기 →
-            </button>
-            {/* 보조 액션 — 기존 흐름 보존 */}
-            <button
-              type="button"
-              className="btn"
-              onClick={() => router.push(`/tournaments/${id}`)}
-            >
-              대회 페이지로
-            </button>
-          </div>
-        </div>
+        <EnrollSuccessHero
+          result={result}
+          onMyApplications={() => router.push("/games/my-games")}
+          onTournamentDetail={() => router.push(`/tournaments/${id}`)}
+        />
       </div>
     );
   }
@@ -1276,200 +1178,27 @@ export default function TournamentJoinPage() {
           {/* ============= STAGE: docs (서류 — "준비 중" 박제) ============= */}
           {stage === "docs" && <EnrollStepDocs />}
 
-          {/* ============= STAGE: pay (결제 — 입금 안내 + 약관 + 제출) ============= */}
+          {/* ============= STAGE: pay (결제 — PR-1C-4 옵션 B 박제) =============
+              왜 컴포넌트로 분리했나: 운영 inline 200+ LOC → 시안 te-pay /
+                te-bill / te-bank / te-pay__note 클래스로 시각 갱신.
+              옵션 B 룰: bank 단일 결제수단만 노출 (manual / card ❌).
+              API/payment_status 변경 0 / 약관 동의 운영 흐름 보존.
+          */}
           {stage === "pay" && (
-            <div>
-              <h2 style={{ margin: "0 0 4px", fontSize: 18, fontWeight: 700 }}>
-                결제 · 신청 확인
-              </h2>
-              <p
-                style={{
-                  margin: "0 0 20px",
-                  fontSize: 13,
-                  color: "var(--ink-mute)",
-                }}
-              >
-                참가비 결제는 입금 후 운영팀이 확인합니다. (PG 결제는 추후 도입)
-              </p>
-
-              {/* 신청 요약 카드 — 시안 결제 영수증 박제 */}
-              <div
-                style={{
-                  padding: "20px 22px",
-                  background: "var(--bg-alt)",
-                  borderRadius: 6,
-                  marginBottom: 16,
-                }}
-              >
-                <div
-                  style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: 8,
-                    fontSize: 13,
-                  }}
-                >
-                  <div style={{ display: "flex", justifyContent: "space-between" }}>
-                    <span style={{ color: "var(--ink-mute)" }}>참가팀</span>
-                    <span style={{ fontWeight: 700 }}>
-                      {selectedTeam?.name ?? "—"}
-                    </span>
-                  </div>
-                  <div style={{ display: "flex", justifyContent: "space-between" }}>
-                    <span style={{ color: "var(--ink-mute)" }}>대표자</span>
-                    <span style={{ fontWeight: 700 }}>
-                      {managerName} ({managerPhone})
-                    </span>
-                  </div>
-                  {selectedCategory && (
-                    <div
-                      style={{ display: "flex", justifyContent: "space-between" }}
-                    >
-                      <span style={{ color: "var(--ink-mute)" }}>부문 / 디비전</span>
-                      <span style={{ fontWeight: 700 }}>
-                        {selectedCategory} · {selectedDivision || "—"}
-                      </span>
-                    </div>
-                  )}
-                  <div style={{ display: "flex", justifyContent: "space-between" }}>
-                    <span style={{ color: "var(--ink-mute)" }}>로스터</span>
-                    <span
-                      style={{
-                        fontWeight: 700,
-                        fontFamily: "var(--ff-mono)",
-                      }}
-                    >
-                      {selectedRosterCount}명
-                    </span>
-                  </div>
-                  <div
-                    style={{
-                      borderTop: "1px dashed var(--border)",
-                      paddingTop: 10,
-                      marginTop: 6,
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "baseline",
-                    }}
-                  >
-                    <span style={{ fontWeight: 700 }}>총 참가비</span>
-                    <span
-                      style={{
-                        fontFamily: "var(--ff-display)",
-                        fontSize: 24,
-                        fontWeight: 900,
-                        color: "var(--accent)",
-                      }}
-                    >
-                      {formatWon(feeForSelected ?? null)}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* 입금 안내 — 기존 흐름 유지 */}
-              {tournament.bank_name && (
-                <div
-                  style={{
-                    padding: "14px 16px",
-                    background: "var(--bg)",
-                    border: "1px solid var(--border)",
-                    borderRadius: 6,
-                    marginBottom: 16,
-                  }}
-                >
-                  <div
-                    style={{
-                      fontSize: 11,
-                      fontWeight: 800,
-                      letterSpacing: ".1em",
-                      color: "var(--ink-dim)",
-                      marginBottom: 6,
-                    }}
-                  >
-                    입금 계좌
-                  </div>
-                  <div
-                    style={{
-                      fontSize: 14,
-                      fontWeight: 700,
-                      fontFamily: "var(--ff-mono)",
-                    }}
-                  >
-                    {tournament.bank_name} {tournament.bank_account}
-                  </div>
-                  <div
-                    style={{
-                      fontSize: 12,
-                      color: "var(--ink-mute)",
-                      marginTop: 2,
-                    }}
-                  >
-                    예금주 {tournament.bank_holder}
-                  </div>
-                  <button
-                    type="button"
-                    className="btn btn--sm"
-                    style={{ marginTop: 10 }}
-                    onClick={() => {
-                      navigator.clipboard.writeText(
-                        `${tournament.bank_name ?? ""} ${tournament.bank_account ?? ""}`,
-                      );
-                    }}
-                  >
-                    계좌번호 복사
-                  </button>
-                  {tournament.fee_notes && (
-                    <p
-                      style={{
-                        marginTop: 10,
-                        fontSize: 12,
-                        color: "var(--ink-mute)",
-                      }}
-                    >
-                      {tournament.fee_notes}
-                    </p>
-                  )}
-                </div>
-              )}
-
-              {/* 약관 — 시안 박제 */}
-              <label
-                style={{
-                  display: "flex",
-                  gap: 8,
-                  alignItems: "flex-start",
-                  fontSize: 13,
-                  marginBottom: 8,
-                  cursor: "pointer",
-                }}
-              >
-                <input
-                  type="checkbox"
-                  checked={agreeRules}
-                  onChange={(e) => setAgreeRules(e.target.checked)}
-                  style={{ marginTop: 3, accentColor: "var(--accent)" }}
-                />
-                <span>대회 규정·환불 정책에 동의합니다</span>
-              </label>
-              <label
-                style={{
-                  display: "flex",
-                  gap: 8,
-                  alignItems: "flex-start",
-                  fontSize: 13,
-                  cursor: "pointer",
-                }}
-              >
-                <input
-                  type="checkbox"
-                  checked={agreeMedia}
-                  onChange={(e) => setAgreeMedia(e.target.checked)}
-                  style={{ marginTop: 3, accentColor: "var(--accent)" }}
-                />
-                <span>경기 촬영·중계·사진 공개에 동의합니다</span>
-              </label>
-            </div>
+            <EnrollStepPayment
+              tournament={tournament}
+              selectedTeam={selectedTeam}
+              managerName={managerName}
+              managerPhone={managerPhone}
+              selectedCategory={selectedCategory}
+              selectedDivision={selectedDivision}
+              selectedRosterCount={selectedRosterCount}
+              feeForSelected={feeForSelected ?? null}
+              agreeRules={agreeRules}
+              agreeMedia={agreeMedia}
+              onChangeAgreeRules={setAgreeRules}
+              onChangeAgreeMedia={setAgreeMedia}
+            />
           )}
 
           {/* ---------- 하단 네비게이션 ---------- */}

@@ -26,6 +26,7 @@ import Link from "next/link";
 import type { ProspectusAnalysisResult } from "@/lib/ai/prospectus-schema";
 import { ProspectusUploadDropzone } from "@/components/tournament/prospectus-upload-dropzone";
 import { ProspectusAnalysisPreview } from "@/components/tournament/prospectus-analysis-preview";
+import { ProspectusProgressSteps } from "@/components/tournament/prospectus-progress-steps";
 import {
   mapAnalysisToDraft,
 } from "@/lib/tournaments/prospectus-to-draft";
@@ -36,6 +37,35 @@ type AuthStatus = "loading" | "unauthenticated" | "unauthorized" | "authorized";
 type AnalyzeStatus = "idle" | "uploading" | "analyzing" | "done" | "failed";
 
 const ALLOWED_ROLES = ["super_admin", "organizer", "admin", "tournament_admin"];
+
+// 단계별 마법사 (수동 입력) fallback 라우트 — ?legacy=1 = 기존 3-step 폼 (wizard/page.tsx L94 실재)
+const MANUAL_WIZARD_HREF =
+  "/tournament-admin/tournaments/new/wizard?legacy=1";
+
+/**
+ * AnalyzeStatus → 4-step 진행도 번호 매핑 (PR-1C-11 시안 박제).
+ * ⚠️ 새 state 도입 0 — 기존 status 값만 step 번호로 환산 (시각 전용).
+ *   idle       = 1 (PDF 업로드 대기)
+ *   uploading  = 1 (아직 업로드 중 = 1단계)
+ *   analyzing  = 2 (AI 분석)
+ *   done       = 3 (미리보기)
+ *   failed     = 2 (분석 단계에서 실패 — 2단계 표시)
+ *   (4단계 wizard 진입 = "이대로 wizard 진입" 클릭 후 redirect 시점이라 본 페이지엔 미도달)
+ */
+function statusToStep(status: AnalyzeStatus): number {
+  switch (status) {
+    case "idle":
+    case "uploading":
+      return 1;
+    case "analyzing":
+    case "failed":
+      return 2;
+    case "done":
+      return 3;
+    default:
+      return 1;
+  }
+}
 
 export default function ProspectusAnalyzePage() {
   const router = useRouter();
@@ -199,6 +229,9 @@ export default function ProspectusAnalyzePage() {
         </p>
       </header>
 
+      {/* 4-step 진행도 bar (PR-1C-11 시안 apr-progress 박제) — 현재 status 를 step 번호로 매핑 */}
+      <ProspectusProgressSteps current={statusToStep(status)} />
+
       {/* 1. idle = 업로드 대기 */}
       {status === "idle" && (
         <ProspectusUploadDropzone onFile={handleFile} disabled={false} />
@@ -246,13 +279,22 @@ export default function ProspectusAnalyzePage() {
               </p>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={handleReset}
-            className="rounded-[4px] bg-[var(--color-accent)] px-4 py-2 text-sm font-medium text-white hover:opacity-90"
-          >
-            다시 시도
-          </button>
+          {/* 시안 의도: AI 분석 실패 = 수동 입력으로 전환 (Legacy wizard) — 재시도 + fallback 2개 노출 */}
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <button
+              type="button"
+              onClick={handleReset}
+              className="rounded-[4px] bg-[var(--color-accent)] px-4 py-2 text-sm font-medium text-white hover:opacity-90"
+            >
+              다시 시도
+            </button>
+            <Link
+              href={MANUAL_WIZARD_HREF}
+              className="inline-flex items-center justify-center rounded-[4px] border border-[var(--color-border)] px-4 py-2 text-sm font-medium text-[var(--color-text-primary)] hover:bg-[var(--color-background)]"
+            >
+              단계별 마법사로 직접 입력
+            </Link>
+          </div>
         </div>
       )}
 
@@ -264,6 +306,21 @@ export default function ProspectusAnalyzePage() {
             includeReview={includeReview}
             onIncludeReviewChange={setIncludeReview}
           />
+
+          {/* 수동 입력 fallback (시안 apr-fallback) — 추출 부족 시 단계별 마법사로 전환 */}
+          <div className="flex flex-col gap-2 rounded-[4px] border border-[var(--color-border)] bg-[var(--color-surface)] p-4 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm text-[var(--color-text-muted)]">
+              추출이 부족한가요?{" "}
+              <b className="text-[var(--color-text-primary)]">수동 입력으로 전환</b>
+              해서 처음부터 작성할 수 있어요.
+            </p>
+            <Link
+              href={MANUAL_WIZARD_HREF}
+              className="inline-flex shrink-0 items-center justify-center rounded-[4px] border border-[var(--color-border)] px-4 py-2 text-sm font-medium text-[var(--color-text-primary)] hover:bg-[var(--color-background)] sm:min-h-[44px]"
+            >
+              단계별 마법사로 전환
+            </Link>
+          </div>
 
           <div className="sticky bottom-0 flex flex-col gap-2 border-t border-[var(--color-border)] bg-[var(--color-background)] py-3 sm:flex-row sm:justify-end">
             <button

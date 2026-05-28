@@ -6,6 +6,13 @@ import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useToast } from "@/contexts/toast-context";
 // Phase 12 §G: 모바일 백버튼 (사용자 보고)
 import { PageBackButton } from "@/components/shared/page-back-button";
+// PR-1C-5 UC1: 대회 탭 카드 = MyRegistrationStatus compact 재사용 (위치 이동 ❌ / import 만)
+import {
+  MyRegistrationStatus,
+  type NormalizedReg,
+} from "@/app/(web)/tournaments/[id]/_components/my-registration-status";
+// PR-1C-5: 시안 v2.20 .ma-filter chip row 박제
+import "./_components/my-activity.css";
 
 /* ============================================================
  * /profile/activity — 내 활동 통합 뷰 (W4 M4)
@@ -91,6 +98,81 @@ const STRING_STATUS: Record<string, { label: string; tone: "warn" | "success" | 
   registered: { label: "등록", tone: "success" },
   cancelled: { label: "취소", tone: "muted" },
 };
+
+/* ============================================================
+ * PR-1C-5 시안 v2.20: 상태 필터 (탭=도메인 / 필터=상태 공존)
+ * ============================================================ */
+
+// 상태 버킷 — 도메인별 상태값(games=number / tournaments·teams=string)을
+// 4종 + 전체로 환산. page 의 counters 분류 기준과 동일.
+type StatusFilter = "all" | "pending" | "approved" | "rejected" | "cancelled";
+
+// 필터 chip 정의 — 시안 ma-filter (전체 + 4 상태)
+const STATUS_FILTERS: { key: StatusFilter; label: string }[] = [
+  { key: "all", label: "전체" },
+  { key: "pending", label: "검토중" },
+  { key: "approved", label: "승인·확정" },
+  { key: "rejected", label: "거절" },
+  { key: "cancelled", label: "취소" },
+];
+
+// 단일 item → 상태 버킷 (allItems 분류 로직과 동일 — 도메인별 분기)
+function itemBucket(item: GameItem | TournamentItem | TeamItem): StatusFilter {
+  // games — status 가 number (0=대기 1=승인 2=거부)
+  if (typeof item.status === "number") {
+    if (item.status === 0) return "pending";
+    if (item.status === 1) return "approved";
+    if (item.status === 2) return "rejected";
+    return "all";
+  }
+  // tournaments / teams — status 가 string
+  const s = item.status;
+  if (s === "pending") return "pending";
+  if (s === "approved" || s === "registered") return "approved";
+  if (s === "rejected") return "rejected";
+  if (s === "cancelled") return "cancelled";
+  return "all";
+}
+
+// TournamentItem → NormalizedReg 변환 (MyRegistrationStatus compact 용)
+// 운영 데이터에 없는 시안 필드는 폴백:
+//  - division → "참가" (운영 TournamentItem 에 부문 정보 미포함)
+//  - next_action → status 기반 안내 문구 (mock ❌ / 상태에서 도출)
+function toNormalizedReg(item: TournamentItem): NormalizedReg {
+  // 운영 status → 시안 StatusKey 매핑 (MyRegistrationStatus 와 동일 enum)
+  const statusKey =
+    item.status === "rejected"
+      ? "rejected"
+      : item.status === "cancelled"
+        ? "completed"
+        : item.status === "approved" || item.status === "registered"
+          ? "approved"
+          : "pending";
+
+  // step_idx — 신청(0) → 대기(1) → 승인(2) (운영은 결제/진행 미구분 → 승인까지만)
+  const stepIdx =
+    statusKey === "approved" ? 2 : statusKey === "pending" ? 1 : 0;
+
+  // next_action — 상태에서 도출 (데이터 없는 mock 문구 ❌)
+  const nextAction =
+    statusKey === "pending"
+      ? "운영진 승인을 기다리는 중입니다"
+      : statusKey === "approved"
+        ? "참가가 확정되었습니다"
+        : statusKey === "rejected"
+          ? "신청이 거절되었습니다"
+          : "";
+
+  return {
+    tn_name: item.tournament.name,
+    division: "참가", // 운영 데이터 미포함 → 폴백
+    team_name: item.team.name,
+    status: statusKey,
+    step_idx: stepIdx,
+    next_action: nextAction,
+    submitted_at: formatApplied(item.created_at),
+  };
+}
 
 function StatusBadge({ tone, label }: { tone: "warn" | "success" | "error" | "muted"; label: string }) {
   // CSS 변수 기반 배지 — 하드코딩 색상 금지 (CLAUDE.md)
@@ -230,8 +312,33 @@ export default function ProfileActivityPage() {
     teams: cache.teams.length,
   };
 
+  // PR-1C-5 시안 v2.20: 상태 필터 (탭과 공존 — 탭=도메인 / 필터=상태)
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+
+  // 현재 탭 항목을 상태 버킷별로 카운트 (chip 옆 숫자)
+  const filterCounts: Record<StatusFilter, number> = {
+    all: items.length,
+    pending: 0,
+    approved: 0,
+    rejected: 0,
+    cancelled: 0,
+  };
+  for (const it of items) {
+    const b = itemBucket(it);
+    if (b !== "all") filterCounts[b] += 1;
+  }
+
+  // 필터 적용된 리스트 — "전체" 면 그대로, 아니면 버킷 일치만
+  const filteredItems =
+    statusFilter === "all"
+      ? items
+      : (items as (GameItem | TournamentItem | TeamItem)[]).filter(
+          (it) => itemBucket(it) === statusFilter,
+        );
+
   function changeTab(next: Tab) {
     if (next === tab) return;
+    setStatusFilter("all"); // 탭 전환 시 필터 초기화 (다른 도메인 필터 잔존 방지)
     const params = new URLSearchParams(searchParams.toString());
     params.set("tab", next);
     router.replace(`${pathname}?${params.toString()}`);
@@ -434,6 +541,30 @@ export default function ProfileActivityPage() {
         </div>
       </nav>
 
+      {/* PR-1C-5 시안 v2.20: 상태 필터 chip row (.ma-filter)
+          탭=도메인 선택 / 필터=상태 선택 공존. loading 중에는 미노출 */}
+      {!loading && items.length > 0 && (
+        <div className="ma-filter" role="group" aria-label="상태 필터">
+          {STATUS_FILTERS.map((f) => {
+            const n = filterCounts[f.key];
+            // 카운트 0 인 상태 chip 은 숨김 (전체는 항상 노출)
+            if (f.key !== "all" && n === 0) return null;
+            return (
+              <button
+                key={f.key}
+                type="button"
+                className={`ma-filter__chip${statusFilter === f.key ? " is-on" : ""}`}
+                aria-pressed={statusFilter === f.key}
+                onClick={() => setStatusFilter(f.key)}
+              >
+                {f.label}
+                <span className="ma-filter__count">{n}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       {/* 본문 — 시안 v2(1)의 단일 카드(.card padding:0) 안에 borderBottom 행으로 묶음 */}
       {loading ? (
         <div
@@ -444,6 +575,27 @@ export default function ProfileActivityPage() {
         </div>
       ) : items.length === 0 ? (
         <EmptyState tab={tab} />
+      ) : filteredItems.length === 0 ? (
+        /* 필터 적용 후 0건 — 해당 상태 신청 없음 안내 (전체로 복귀 유도) */
+        <div
+          className="py-12 text-center text-sm"
+          style={{ color: "var(--ink-mute)" }}
+        >
+          해당 상태의 신청 내역이 없습니다.
+        </div>
+      ) : tab === "tournaments" ? (
+        /* PR-1C-5: 대회 탭 = MyRegistrationStatus compact 재사용 (시안 의도)
+           compact 카드는 자체 border/padding → 컨테이너 없이 gap stack */
+        <div className="flex flex-col gap-2.5">
+          {(filteredItems as TournamentItem[]).map((it) => (
+            <MyRegistrationStatus
+              key={it.id}
+              variant="compact"
+              reg={toNormalizedReg(it)}
+              onOpenTn={() => router.push(`/tournaments/${it.tournament.id}`)}
+            />
+          ))}
+        </div>
       ) : (
         <div
           className="card"
@@ -456,23 +608,15 @@ export default function ProfileActivityPage() {
           }}
         >
           {tab === "games" &&
-            (items as GameItem[]).map((it, i, arr) => (
+            (filteredItems as GameItem[]).map((it, i, arr) => (
               <GameCard
                 key={it.id}
                 item={it}
                 isLast={i === arr.length - 1}
               />
             ))}
-          {tab === "tournaments" &&
-            (items as TournamentItem[]).map((it, i, arr) => (
-              <TournamentCard
-                key={it.id}
-                item={it}
-                isLast={i === arr.length - 1}
-              />
-            ))}
           {tab === "teams" &&
-            (items as TeamItem[]).map((it, i, arr) => (
+            (filteredItems as TeamItem[]).map((it, i, arr) => (
               <TeamCard
                 key={it.id}
                 item={it}
@@ -680,97 +824,8 @@ function GameCard({ item, isLast }: { item: GameItem; isLast: boolean }) {
   );
 }
 
-function TournamentCard({
-  item,
-  isLast,
-}: {
-  item: TournamentItem;
-  isLast: boolean;
-}) {
-  const st = STRING_STATUS[item.status] ?? { label: item.status, tone: "muted" as const };
-  const t = item.tournament;
-  const when = formatWhen(t.start_date);
-  const href = `/tournaments/${t.id}`;
-  return (
-    <Link
-      href={href}
-      style={{
-        display: "grid",
-        gridTemplateColumns: "40px 1fr auto",
-        gap: 14,
-        alignItems: "center",
-        padding: "14px 18px",
-        borderBottom: isLast ? 0 : "1px solid var(--border)",
-        borderLeft: `3px solid ${rowAccent(st.tone)}`,
-        cursor: "pointer",
-        textDecoration: "none",
-        color: "inherit",
-      }}
-    >
-      <div>
-        <span
-          className="material-symbols-outlined"
-          style={{ fontSize: 22, color: "var(--ink-mute)" }}
-        >
-          emoji_events
-        </span>
-      </div>
-      <div style={{ minWidth: 0 }}>
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            marginBottom: 4,
-          }}
-        >
-          <StatusBadge tone={st.tone} label={st.label} />
-          {when && (
-            <span
-              style={{
-                fontSize: 11,
-                color: "var(--ink-dim)",
-                fontFamily: "var(--ff-mono)",
-              }}
-            >
-              {when}
-            </span>
-          )}
-        </div>
-        <div
-          style={{
-            fontWeight: 700,
-            fontSize: 15,
-            marginBottom: 2,
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
-            color: "var(--ink)",
-          }}
-        >
-          {t.name}
-        </div>
-        <div style={{ fontSize: 13, color: "var(--ink-mute)" }}>
-          {[
-            t.venue_name ?? t.city,
-            `팀: ${item.team.name}`,
-            formatApplied(item.created_at),
-          ]
-            .filter(Boolean)
-            .join(" · ")}
-        </div>
-      </div>
-      <div
-        style={{
-          fontSize: 12,
-          color: "var(--ink-dim)",
-          textAlign: "right",
-          whiteSpace: "nowrap",
-        }}
-      />
-    </Link>
-  );
-}
+/* PR-1C-5: 기존 TournamentCard 제거 — 대회 탭이 MyRegistrationStatus compact 로 교체됨
+ * (시안 v2.20 의도 / 의뢰서 §5 MyRegistrationStatus 재사용 핵심) */
 
 function TeamCard({
   item,

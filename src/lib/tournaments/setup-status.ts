@@ -171,6 +171,11 @@ export type ChecklistItem = {
   link: string;
   required: boolean; // 공개 필수 항목 여부 (2 시리즈는 false, 나머지 true)
   lockedReason?: string; // status=locked 일 때 안내 문구
+  // 2026-05-28 PR-1C-9 (B1) — 시안 depends_on 시각화용 선행 STEP 번호 배열.
+  //   잠금 카드에 "N단계 완료 후 진행" link 표시 + 클릭 toast 안내에 사용.
+  //   기존 잠금 판정 로직(!basic / !divsComplete)이 가리키는 선행 항목의 step 번호만 노출 — 판정 로직 변경 0.
+  //   비잠금 카드 또는 선행 없는 카드 = 빈 배열 또는 undefined (표시 0).
+  dependsOn?: number[];
   // 2026-05-16 PR-Admin-5 — UI 표시용 진행도 (예: 통합 #3 "종별 + 운영 방식" — "정의 4건 / 운영방식 2건").
   //   undefined 이면 status 만 표시 (기존 동작 유지).
   progress?: { current: number; total: number };
@@ -285,6 +290,8 @@ export function calculateSetupProgress(
       link: `${base}/divisions`,
       required: true,
       lockedReason: !basic ? "기본 정보를 먼저 박제하세요" : undefined,
+      // PR-1C-9 (B1): 잠금 시 선행 = 1단계 기본 정보 (잠금 판정 = !basic)
+      dependsOn: !basic ? [1] : undefined,
       // 진행도 표시 — 종별 정의된 경우에만 (정의 0이면 progress undefined = 표시 0)
       progress: divsDefined
         ? { current: rulesWithFormatCount, total: totalDivisionsCount }
@@ -314,6 +321,8 @@ export function calculateSetupProgress(
       link: `${base}/site`,
       required: true,
       lockedReason: !basic ? "기본 정보를 먼저 박제하세요" : undefined,
+      // PR-1C-9 (B1): 잠금 시 선행 = 1단계 기본 정보 (잠금 판정 = !basic)
+      dependsOn: !basic ? [1] : undefined,
     },
     {
       key: "recording",
@@ -325,6 +334,8 @@ export function calculateSetupProgress(
       link: `${base}/matches`,
       required: true,
       lockedReason: !divsComplete ? "종별 + 운영 방식을 먼저 박제하세요" : undefined,
+      // PR-1C-9 (B1): 잠금 시 선행 = 3단계 종별 + 운영 방식 (잠금 판정 = !divsComplete)
+      dependsOn: !divsComplete ? [3] : undefined,
     },
     {
       key: "bracket",
@@ -336,6 +347,8 @@ export function calculateSetupProgress(
       link: `${base}/bracket`,
       required: true,
       lockedReason: !divsComplete ? "종별 + 운영 방식을 먼저 박제하세요" : undefined,
+      // PR-1C-9 (B1): 잠금 시 선행 = 3단계 종별 + 운영 방식 (잠금 판정 = !divsComplete)
+      dependsOn: !divsComplete ? [3] : undefined,
     },
   ];
 

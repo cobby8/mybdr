@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/button";
 import { PlaceholderValidationBanner } from "../_components/PlaceholderValidationBanner";
 // 2026-05-16 PR-Admin-2 — 단일 순위전 진출 trigger (teams 페이지 헤더에서 이동 박제)
 import { AdvancePlayoffsButton } from "../_components/AdvancePlayoffsButton";
+// 2026-05-28 PR-1C-6 옵션 A — 매치 표 시각 박제 (시안 admin.css amt-table). 데이터/onClick 유지, 시각만.
+import "./matches-admin.css";
 
 type TeamInfo = {
   id: string;
@@ -656,61 +658,97 @@ export default function MatchesClient() {
                 <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
                   {roundLabel}
                 </h2>
-                <div className="space-y-2">
-                  {roundMatches.map((match) => (
-                    <div
-                      key={match.id}
-                      className="cursor-pointer"
-                      onClick={() => setSelectedMatch(match)}
-                    >
-                    <Card className="transition-colors hover:bg-[var(--color-elevated)]">
-                      <div className="flex items-center gap-4">
-                        {/* 경기 번호 */}
-                        <span className="w-8 text-center text-xs text-[var(--color-text-muted)]">
-                          #{match.match_number ?? "-"}
-                        </span>
+                {/* 2026-05-28 PR-1C-6 옵션 A — 라운드별 매치 목록을 시안 amt-table 표로 박제.
+                    데이터/그룹화/onClick(모달 오픈) 100% 유지, 시각만 한 줄 카드 → 표 행으로 변경.
+                    amt-table-wrap 이 overflow:hidden + border-radius 처리 → 모바일은 css 가 가로 스크롤. */}
+                <div className="amt-table-wrap">
+                  <table className="amt-table">
+                    <thead>
+                      <tr>
+                        <th>시간</th>
+                        <th>코트</th>
+                        <th>종별</th>
+                        <th>대진</th>
+                        <th>스코어</th>
+                        <th>상태</th>
+                        <th>#</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {roundMatches.map((match) => (
+                        // 행 전체 클릭 = 기존 모달 오픈 흐름 그대로 (onClick 유지)
+                        <tr
+                          key={match.id}
+                          className="cursor-pointer"
+                          onClick={() => setSelectedMatch(match)}
+                        >
+                          {/* 시간 — scheduledAt 있으면 날짜 표시 (운영 데이터 진짜) */}
+                          <td>
+                            {match.scheduledAt ? (
+                              <span className="amt-table__time">
+                                {new Date(match.scheduledAt).toLocaleDateString("ko-KR", {
+                                  month: "short",
+                                  day: "numeric",
+                                })}
+                              </span>
+                            ) : (
+                              <span className="amt-table__div">미정</span>
+                            )}
+                          </td>
 
-                        {/* 홈팀 */}
-                        <div className="flex-1 text-right">
-                          {/* 승자 팀명 = success 토큰 (승리=긍정 시맨틱). 빨강 본문 금지 */}
-                          <p className={`font-semibold ${match.winner_team_id === match.homeTeamId && match.homeTeamId ? "text-[var(--color-success)] font-bold" : ""}`}>
-                            {match.homeTeam?.team.name ?? "미정"}
-                          </p>
-                        </div>
+                          {/* 코트(체육관) — venue_name (null 시 '-') */}
+                          <td>
+                            {match.venue_name ? (
+                              <span className="amt-table__court">{match.venue_name}</span>
+                            ) : (
+                              <span className="amt-table__div">-</span>
+                            )}
+                          </td>
 
-                        {/* 점수 */}
-                        <div className="flex items-center gap-2 text-center">
-                          <span className="min-w-[2rem] text-xl font-bold">{match.homeScore}</span>
-                          <span className="text-[var(--color-text-muted)]">:</span>
-                          <span className="min-w-[2rem] text-xl font-bold">{match.awayScore}</span>
-                        </div>
+                          {/* 종별 — settings.division_code (null 시 '-') */}
+                          <td>
+                            <span className="amt-table__div">
+                              {getMatchDivision(match) ?? "-"}
+                            </span>
+                          </td>
 
-                        {/* 원정팀 */}
-                        <div className="flex-1">
-                          {/* 승자 팀명 = success 토큰 (승리=긍정 시맨틱). 빨강 본문 금지 */}
-                          <p className={`font-semibold ${match.winner_team_id === match.awayTeamId && match.awayTeamId ? "text-[var(--color-success)] font-bold" : ""}`}>
-                            {match.awayTeam?.team.name ?? "미정"}
-                          </p>
-                        </div>
+                          {/* 대진 — 홈 vs 원정. 승자 팀명 = success 톤 보존 (승리=긍정 시맨틱) */}
+                          <td>
+                            <span className="amt-table__teams">
+                              <b className={match.winner_team_id === match.homeTeamId && match.homeTeamId ? "text-[var(--color-success)]" : ""}>
+                                {match.homeTeam?.team.name ?? "미정"}
+                              </b>
+                              <span className="vs">vs</span>
+                              <b className={match.winner_team_id === match.awayTeamId && match.awayTeamId ? "text-[var(--color-success)]" : ""}>
+                                {match.awayTeam?.team.name ?? "미정"}
+                              </b>
+                            </span>
+                          </td>
 
-                        {/* 상태 */}
-                        <div className="w-20 text-right">
-                          <span className={`text-xs ${STATUS_COLOR[match.status] ?? "text-[var(--color-text-muted)]"}`}>
-                            {STATUS_LABEL[match.status] ?? match.status}
-                          </span>
-                          {match.scheduledAt && (
-                            <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">
-                              {new Date(match.scheduledAt).toLocaleDateString("ko-KR", {
-                                month: "short",
-                                day: "numeric",
-                              })}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    </Card>
-                    </div>
-                  ))}
+                          {/* 스코어 — homeScore : awayScore (운영 데이터 진짜) */}
+                          <td>
+                            <span className="amt-table__score">
+                              {match.homeScore} : {match.awayScore}
+                            </span>
+                          </td>
+
+                          {/* 상태 — 운영 STATUS_LABEL + STATUS_COLOR 톤 보존 */}
+                          <td>
+                            <span className={`text-xs font-semibold ${STATUS_COLOR[match.status] ?? "text-[var(--color-text-muted)]"}`}>
+                              {STATUS_LABEL[match.status] ?? match.status}
+                            </span>
+                          </td>
+
+                          {/* 경기 번호 — 시안 '입력/수정/준비' 버튼 대신 #번호 (행 클릭이 이미 모달 오픈) */}
+                          <td>
+                            <span className="amt-table__div">
+                              #{match.match_number ?? "-"}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               </div>
             );

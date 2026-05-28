@@ -1,167 +1,134 @@
-/* global React, GAMES, TEAMS, Avatar, Icon */
+/* global React */
+// ============================================================
+// BDR v2.20 — GuestApply (Phase 2B · UA4)
+// 운영 박제 대상: /games/[id]/guest-apply
+// 진입: GameDetail (UA2) ApplyPanel '게스트 신청'
+// 복귀: 신청 완료 → /games/[id] / 취소 → 이전 페이지
+// 에러: skill_level 없으면 수동 입력 fallback / 약관 미동의 = submit disabled
+//
+// BG3 = user.skill_level → experience_years 자동 추론 + prefill
+//   skill 1 → 1년 (입문) / 2 → 2년 / 3 → 5년 / 4 → 10년 / 5 → 15년+
+//   추론 옆 ⓘ "내 프로필 실력에서 자동" — 수정 가능
+// BG1 사후 = "호스트 승인 시 알림으로 알려드립니다" 1줄
+// A 등급
+// ============================================================
 
-function GuestApply({ setRoute }) {
-  const g = (typeof GAMES !== 'undefined' && GAMES[0]) || {
-    title:'토요 아침 픽업 @ 장충',
-    when:'2026.04.27 (토) 07:00 - 09:00',
-    court:'장충체육관 B코트',
-    host:{ name:'3POINT', tag:'3PT' },
-    level:'중급',
-    fee:'5,000원',
-  };
-
-  const [submitted, setSubmitted] = React.useState(false);
-  const [pos, setPos] = React.useState('G');
-  const [exp, setExp] = React.useState('2');
-  const [msg, setMsg] = React.useState('');
-  const [accept, setAccept] = React.useState({ insurance:true, cancel:false });
-
-  if (submitted) {
-    return (
-      <div className="page" style={{maxWidth:560}}>
-        <div className="card" style={{padding:'40px 36px', textAlign:'center'}}>
-          <div style={{width:72, height:72, borderRadius:'50%', background:'color-mix(in oklab, var(--ok) 16%, transparent)', color:'var(--ok)', display:'grid', placeItems:'center', fontSize:40, margin:'0 auto 18px', fontWeight:900}}>✓</div>
-          <h1 style={{margin:'0 0 6px', fontSize:22, fontWeight:800, letterSpacing:'-0.01em'}}>지원 완료</h1>
-          <p style={{margin:'0 0 6px', fontSize:13, color:'var(--ink-mute)', lineHeight:1.6}}>
-            <b style={{color:'var(--ink)'}}>{g.host.name}</b> 호스트가 검토 후 수락·거절을 알려줍니다.<br/>
-            보통 <b>2시간 이내</b> 응답이 와요.
-          </p>
-          <div style={{padding:'14px 16px', background:'var(--bg-alt)', borderRadius:6, margin:'20px 0 24px', textAlign:'left'}}>
-            <div style={{fontSize:11, color:'var(--ink-dim)', fontWeight:700, letterSpacing:'.08em', marginBottom:6}}>신청 요약</div>
-            <div style={{display:'grid', gridTemplateColumns:'80px 1fr', gap:8, fontSize:13}}>
-              <div style={{color:'var(--ink-dim)'}}>경기</div><div style={{fontWeight:700}}>{g.title}</div>
-              <div style={{color:'var(--ink-dim)'}}>일시</div><div style={{fontFamily:'var(--ff-mono)'}}>{g.when}</div>
-              <div style={{color:'var(--ink-dim)'}}>포지션</div><div style={{fontWeight:700}}>{pos}</div>
-              <div style={{color:'var(--ink-dim)'}}>참가비</div><div style={{fontFamily:'var(--ff-mono)'}}>{g.fee} (현장 결제)</div>
-            </div>
-          </div>
-          <div style={{display:'flex', gap:8, justifyContent:'center'}}>
-            <button className="btn btn--lg" onClick={()=>setRoute('guestApps')}>지원 현황 보기</button>
-            <button className="btn btn--primary btn--lg" onClick={()=>setRoute('games')}>다른 경기 찾기</button>
-          </div>
-        </div>
-      </div>
-    );
-  }
+function GuestApply() {
+  const userSkill = 3;  // 가정 — user.skill_level
+  const inferredYears = { 1: 1, 2: 2, 3: 5, 4: 10, 5: 15 }[userSkill];
+  const [years, setYears] = React.useState(inferredYears);
+  const [agreeTerms, setAgreeTerms] = React.useState(false);
+  const [agreePolicy, setAgreePolicy] = React.useState(false);
+  const [greeting, setGreeting] = React.useState('');
 
   return (
-    <div className="page">
-      <div style={{display:'flex', gap:6, fontSize:12, color:'var(--ink-mute)', marginBottom:12}}>
-        <a onClick={()=>setRoute('home')} style={{cursor:'pointer'}}>홈</a><span>›</span>
-        <a onClick={()=>setRoute('games')} style={{cursor:'pointer'}}>경기</a><span>›</span>
-        <a onClick={()=>setRoute('gameDetail')} style={{cursor:'pointer'}}>경기 상세</a><span>›</span>
-        <span style={{color:'var(--ink)'}}>게스트 지원</span>
-      </div>
+    <div className="gm-page">
+      <div className="gm-page__inner" style={{maxWidth:760}}>
+        <header className="gm-page__head">
+          <div className="eyebrow">/games/gm-2/guest-apply · 게스트 신청</div>
+          <h1 className="gm-page__title">게스트 신청</h1>
+          <p className="gm-page__sub">마포 평일 야간 5x5 · 김도현 호스트 · 5/30 (토) 21:00.</p>
+        </header>
 
-      <div style={{marginBottom:20}}>
-        <div className="eyebrow">GUEST APPLY · 게스트 지원</div>
-        <h1 style={{margin:'6px 0 0', fontSize:28, fontWeight:800, letterSpacing:'-0.02em'}}>게스트로 지원하기</h1>
-      </div>
+        <div className="gm-card" style={{marginBottom:14}}>
+          <h3 className="gm-card__h"><span className="ico material-symbols-outlined">badge</span> 내 정보</h3>
+          <div className="awz-form" style={{padding:0, border:0, background:'transparent', gap:14}}>
+            <div className="awz-form__row">
+              <label className="awz-form__lbl">닉네임</label>
+              <input className="awz-form__input" value="박수빈" readOnly style={{background:'var(--bg-alt)'}} />
+            </div>
 
-      <div style={{display:'grid', gridTemplateColumns:'minmax(0,1fr) 340px', gap:18, alignItems:'flex-start'}}>
-        <div className="card" style={{padding:'24px 28px'}}>
-          {/* Game summary */}
-          <div style={{padding:'14px 16px', background:'var(--bg-alt)', borderRadius:6, marginBottom:22}}>
-            <div style={{fontSize:11, color:'var(--ink-dim)', fontWeight:700, letterSpacing:'.08em', marginBottom:4}}>지원 대상</div>
-            <div style={{fontWeight:800, fontSize:15, marginBottom:4}}>{g.title}</div>
-            <div style={{fontSize:12, color:'var(--ink-mute)', fontFamily:'var(--ff-mono)'}}>{g.when} · {g.court} · {g.level}</div>
-          </div>
-
-          <h2 style={{margin:'0 0 12px', fontSize:16, fontWeight:700}}>내 정보</h2>
-          <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:14, marginBottom:18}}>
-            <div>
-              <label style={{fontSize:12, fontWeight:700, color:'var(--ink-dim)', display:'block', marginBottom:6}}>주 포지션 *</label>
-              <div style={{display:'flex', gap:6}}>
-                {['G','F','C'].map(p => (
-                  <button key={p} onClick={()=>setPos(p)} style={{
-                    flex:1, padding:'10px 0', background:pos===p?'var(--accent)':'var(--bg-alt)',
-                    color:pos===p?'#fff':'var(--ink)', border:0, borderRadius:4, cursor:'pointer',
-                    fontFamily:'var(--ff-display)', fontWeight:800, fontSize:15, letterSpacing:'.02em',
-                  }}>{p}</button>
-                ))}
+            {/* BG3 핵심 — skill_level 자동 채우기 */}
+            <div className="awz-form__row">
+              <label className="awz-form__lbl">
+                농구 경력
+                <span className="awz-form__req">필수</span>
+                <span className="ga-auto-fill">
+                  <span className="ico material-symbols-outlined">auto_awesome</span>
+                  내 프로필 실력 (L.{userSkill}) 에서 자동
+                </span>
+              </label>
+              <div style={{display:'flex', gap:8, alignItems:'center'}}>
+                <input
+                  className="awz-form__input"
+                  value={years}
+                  onChange={e => setYears(e.target.value)}
+                  type="number"
+                  style={{maxWidth:120}}
+                />
+                <span style={{fontSize:13, color:'var(--ink-soft)', fontWeight:600}}>년</span>
+                <button className="btn btn--sm" onClick={() => setYears(inferredYears)} disabled={years === inferredYears} style={{marginLeft:'auto'}}>
+                  <span className="ico material-symbols-outlined">restart_alt</span> 자동값으로
+                </button>
+              </div>
+              <div className="awz-form__hint">
+                {years === inferredYears
+                  ? `자동 추론값 = L.${userSkill} · 약 ${inferredYears}년 (수정 가능)`
+                  : `수정됨 — 원래 자동값은 ${inferredYears}년`}
               </div>
             </div>
-            <div>
-              <label style={{fontSize:12, fontWeight:700, color:'var(--ink-dim)', display:'block', marginBottom:6}}>구력</label>
-              <select className="input" value={exp} onChange={e=>setExp(e.target.value)}>
-                <option value="0">1년 미만</option>
-                <option value="1">1~3년</option>
-                <option value="2">3~5년</option>
-                <option value="3">5~10년</option>
-                <option value="4">10년 이상</option>
-              </select>
+
+            <div className="awz-form__row">
+              <label className="awz-form__lbl">알러지 / 특이사항</label>
+              <input className="awz-form__input" placeholder="없음" style={{fontSize:14}} />
+              <div className="awz-form__hint">호스트가 사전 인지하면 좋을 정보 — 선택</div>
             </div>
-          </div>
-
-          <div style={{padding:'12px 14px', background:'var(--bg-alt)', borderRadius:4, marginBottom:18, display:'grid', gridTemplateColumns:'40px 1fr auto', gap:10, alignItems:'center'}}>
-            <Avatar tag="ME" color="#0F5FCC" ink="#fff" size={40} radius={4}/>
-            <div>
-              <div style={{fontWeight:700}}>@me_player · Lv.6</div>
-              <div style={{fontSize:11, color:'var(--ink-dim)', fontFamily:'var(--ff-mono)'}}>매너 4.8 · 픽업 23회 · 노쇼 0</div>
-            </div>
-            <span className="badge badge--ok">인증</span>
-          </div>
-
-          <h2 style={{margin:'24px 0 10px', fontSize:16, fontWeight:700}}>호스트에게 한마디</h2>
-          <textarea
-            className="input"
-            rows={4}
-            value={msg}
-            onChange={e=>setMsg(e.target.value)}
-            placeholder="예: 슛이 좋은 편이고, 처음이지만 열심히 뛰겠습니다. 혹시 주차 가능할까요?"
-            style={{resize:'vertical'}}
-          />
-          <div style={{display:'flex', justifyContent:'space-between', marginTop:4}}>
-            <span style={{fontSize:11, color:'var(--ink-dim)'}}>수락 확률을 높이는 좋은 소개말을 적어주세요</span>
-            <span style={{fontSize:11, color:'var(--ink-dim)', fontFamily:'var(--ff-mono)'}}>{msg.length}/300</span>
-          </div>
-
-          <h2 style={{margin:'24px 0 10px', fontSize:16, fontWeight:700}}>약관 동의</h2>
-          <div style={{display:'flex', flexDirection:'column', gap:10}}>
-            {[
-              { k:'insurance', l:'스포츠 상해에 대한 본인 책임 이해', req:true },
-              { k:'cancel',    l:'수락 후 24시간 이내 취소 시 매너점수 차감 가능', req:true },
-            ].map(t => (
-              <label key={t.k} style={{display:'flex', gap:10, fontSize:13, cursor:'pointer', alignItems:'flex-start'}}>
-                <input type="checkbox" checked={accept[t.k]} onChange={e=>setAccept({...accept, [t.k]:e.target.checked})} style={{marginTop:3}}/>
-                <span><span style={{color:'var(--err)', fontWeight:800, marginRight:2}}>*</span>{t.l}</span>
-              </label>
-            ))}
-          </div>
-
-          <div style={{display:'flex', justifyContent:'space-between', marginTop:28, paddingTop:20, borderTop:'1px solid var(--border)'}}>
-            <button className="btn" onClick={()=>setRoute('gameDetail')}>← 취소</button>
-            <button
-              className="btn btn--primary btn--lg"
-              disabled={!accept.insurance || !accept.cancel}
-              onClick={()=>setSubmitted(true)}
-            >게스트로 지원하기</button>
           </div>
         </div>
 
-        <aside style={{display:'flex', flexDirection:'column', gap:14, position:'sticky', top:120}}>
-          <div className="card" style={{padding:'16px 18px', background:'var(--bg-alt)'}}>
-            <div style={{fontSize:11, color:'var(--ink-dim)', fontWeight:800, letterSpacing:'.1em', marginBottom:8}}>💡 호스트가 보는 것</div>
-            <ul style={{margin:0, paddingLeft:16, fontSize:12, lineHeight:1.7, color:'var(--ink-soft)'}}>
-              <li>내 아이디·매너점수·레벨</li>
-              <li>주 포지션과 구력</li>
-              <li>호스트에게 남긴 메시지</li>
-              <li>과거 픽업 이력 (노쇼 여부)</li>
-            </ul>
+        {/* 호스트 인사말 */}
+        <div className="gm-card" style={{marginBottom:14}}>
+          <h3 className="gm-card__h"><span className="ico material-symbols-outlined">edit_note</span> 호스트 인사말</h3>
+          <textarea
+            className="awz-form__input"
+            placeholder="간단한 자기소개 / 참가 동기"
+            value={greeting}
+            onChange={e => setGreeting(e.target.value)}
+            style={{minHeight:80, resize:'vertical', fontSize:14}}
+          />
+          <div className="awz-form__hint" style={{marginTop:4}}>호스트가 신청 검토 시 참고</div>
+        </div>
+
+        {/* 약관 스냅샷 (기존 보존) */}
+        <div className="gm-card" style={{marginBottom:14}}>
+          <h3 className="gm-card__h"><span className="ico material-symbols-outlined">gavel</span> 약관 동의</h3>
+          <div className="ga-terms">
+            <label className="ga-terms__row">
+              <input type="checkbox" checked={agreeTerms} onChange={e => setAgreeTerms(e.target.checked)} />
+              <span><strong>게스트 약관</strong> · 부상 면책 / 매너 의무 / 데이터 활용 동의 <a href="#">[전문 보기]</a></span>
+            </label>
+            <label className="ga-terms__row">
+              <input type="checkbox" checked={agreePolicy} onChange={e => setAgreePolicy(e.target.checked)} />
+              <span><strong>호스트 정책</strong> · 약속 시간 5분 늦으면 다음 신청자에게 자리 양보 <a href="#">[전문 보기]</a></span>
+            </label>
           </div>
-          <div className="card" style={{padding:'16px 18px'}}>
-            <div style={{fontSize:11, color:'var(--ink-dim)', fontWeight:700, marginBottom:6}}>예상 대기 시간</div>
-            <div style={{fontFamily:'var(--ff-display)', fontSize:24, fontWeight:900}}>~ 2시간</div>
-            <div style={{fontSize:11, color:'var(--ink-dim)', marginTop:2}}>이 호스트 평균 응답</div>
+        </div>
+
+        {/* BG1 사후 안내 — 호스트 승인 통보 */}
+        <div style={{
+          padding:'12px 14px', marginBottom:14,
+          background:'var(--cafe-blue-soft)', borderLeft:'3px solid var(--cafe-blue)',
+          borderRadius:'0 var(--r-sm) var(--r-sm) 0',
+          fontSize:12.5, color:'var(--cafe-blue-deep)',
+          display:'flex', gap:8,
+        }}>
+          <span className="ico material-symbols-outlined" style={{fontSize:18, flexShrink:0}}>notifications_active</span>
+          <div>
+            <strong>호스트 승인 시 알림으로 알려드립니다</strong> — 마이페이지 "내 경기" 의 step indicator (BG1) 도 함께 갱신됩니다.
           </div>
-          <div className="card" style={{padding:'14px 16px'}}>
-            <div style={{fontSize:11, color:'var(--ink-dim)', fontWeight:700, marginBottom:6}}>동시 지원</div>
-            <div style={{fontSize:12, lineHeight:1.6, color:'var(--ink-soft)'}}>
-              다른 경기 <b>2개</b>에 동시 지원 중. 어느 쪽이든 수락되면 자동으로 나머지는 취소됩니다.
-            </div>
-            <a onClick={()=>setRoute('guestApps')} style={{fontSize:11, color:'var(--cafe-blue)', cursor:'pointer', fontWeight:700, marginTop:6, display:'inline-block'}}>지원 현황 보기 →</a>
-          </div>
-        </aside>
+        </div>
+
+        <div className="awz-actions">
+          <button className="btn">취소</button>
+          <button
+            className="btn btn--accent btn--touch"
+            disabled={!agreeTerms || !agreePolicy}
+            style={{opacity: (!agreeTerms || !agreePolicy) ? 0.5 : 1}}
+          >
+            <span className="ico material-symbols-outlined">how_to_reg</span>
+            게스트 신청 완료
+          </button>
+        </div>
       </div>
     </div>
   );

@@ -1936,3 +1936,13 @@
 - **대안**: YouTube Analytics API (더 정확하지만 OAuth 필요, 구현 복잡도 높음)
 - **참조**: errors.md "YouTube Search API" / lessons.md "YouTube API"
 - **참조횟수**: 1
+
+### [2026-05-28] PR-1C-10 PA3 AdminWizardAssociation 박제 SKIP — 시안 ≠ 운영 (다른 기능)
+- **분류**: decision
+- **발견자**: developer + pm + 사용자 (Phase 1C batch)
+- **계기**: PA3 시안 박제 분석 중 시안과 운영이 같은 URL(`/wizard/association`)이나 완전히 다른 기능 발견.
+- **불일치**: 시안 AdminWizardAssociation = **종별위임/TAM 4-step 마법사** (협회→시리즈→종별위임→권한) / 운영 = **협회생성 5-step 마법사** (협회정보→사무국장→배정비단가→심판등록→확인). 시안의 종별위임/TAM/시리즈는 운영 DB에 데이터 출처 없음.
+- **결정**: 사용자 결재 = **옵션 C (SKIP)**. CLAUDE.md "DB 미지원 기능 시안 금지" 룰 + 시각만 박제하기엔 시안 의도(종별위임)가 운영에 부재 → 박제 보류. planner가 PA3 시안 의도(종별위임 신규 기능 vs 협회생성 리디자인) 재확인 후 재의뢰.
+- **대안**: 옵션 A (stepper 시각만 박제) = 운영 5-step에 시안 stepper 스타일만 / 옵션 B (planner 재확인). 사용자는 C 선택 (근본 괴리라 시각만 박제도 가치 제한적).
+- **참조**: lessons.md "[2026-05-28] 디자인 박제 4대 교훈" / phase-ledger Phase 1 ⑪
+- **참조횟수**: 0
