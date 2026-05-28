@@ -9,6 +9,84 @@
 ## 기획설계 (planner-architect)
 (아직 없음)
 
+## 구현 기록 (developer / PR-1C-7 PA1 AdminTournamentAdminList 박제)
+
+📝 구현한 기능: admin 대회 목록 진입점 통합 — 단일 hero CTA → 4 옵션 인라인 panel + 상태 탭 + 카드 list (시각만 / Prisma·super_admin 분기 0 변경)
+
+### 분석
+- **시안 source**: `BDR-current/screens/AdminTournamentAdminList.jsx` (A1) + `admin.css` L457~608(aen-*) + L1026~1035(adv-empty) + 모바일 L1391~1395. 구조 = hero CTA → panel toggle(4 옵션) + 상태 5탭 + 검색 + 카드 list
+- **운영 baseline**: `page.tsx` 137 line server component (Prisma findMany + super_admin 분기 + AdminPageHeader actions 단일 CTA + `<Card>` 카드 리스트). _components 0개
+- **토큰 검증**: 시안 aen-* 사용 토큰 중 운영 globals.css 미정의 = `--r-md`/`--r-sm`/`--r-xs`(→ `--radius-card`/`--radius-chip`/`4px`) + `--bdr-navy`(→ admin.css :root fallback `#1B3C87` CLAUDE.md §디자인 핵심값) + `--accent-hair`(→ `--accent-soft`). 나머지(--bg-elev/alt/head/--cafe-blue*/--ok-soft/--warn-soft/--ff-display/mono/--sh-sm) = 전부 globals 정의 → 그대로
+- **4 옵션 라우트 = 운영 실재 확인 (가짜링크 0)**: Quick `/tournament-admin/tournaments/new/wizard` / 단계별 `...wizard?legacy=1`(동일 페이지 쿼리) / PDF요강 `...wizard/prospectus` / 협회 `/tournament-admin/wizard/association`(super_admin) — Glob 4건 실재 검증
+- **server→client 분리**: panel toggle / 탭 / 검색 = 클라이언트 상태 필요 → page.tsx(server, Prisma fetch 유지)가 직렬화 데이터를 클라이언트 2 컴포넌트에 전달
+
+### 변경 파일
+| 경로 | 변경 | 신규/수정 | LOC |
+|------|------|----------|-----|
+| `src/styles/admin.css` | :root fallback +2(`--bdr-navy`/`--accent-hair`) / 끝에 aen-* 블록 박제(aen-hero·panel·grid·opt·tabs·list·row·pill + adv-empty + 모바일 ≤768). 토큰 대체 `--r-md→--radius-card`/`--r-sm→--radius-chip`/`--r-xs→4px`. is-on 탭 `#fff`→`var(--bg)`+color-mix(다크 대비 사전 치환) | 수정 | +212 |
+| `_components/admin-entry-cta.tsx` | hero CTA + 4 옵션 인라인 panel(클라이언트). 시안 button→Link 박제(운영 실제 라우트 직접 이동). 협회 옵션 = isSuperAdmin true 시만 노출 | 신규 | 175 |
+| `_components/admin-tournament-list.tsx` | 상태 5탭(전체/작성중/신청중/진행중/완료) + 대회명 검색 + aen-row 카드 list(클라이언트 필터). 운영 status(다양)→시안 4그룹(draft/apply/live/done) 매핑. 행 클릭=`/tournament-admin/tournaments/{id}` | 신규 | 218 |
+| `tournaments/page.tsx` | imports +2(AdminEntryCta/AdminTournamentList) / Card·Link·STATUS_TONE·TOURNAMENT_*LABEL import 제거 / findMany 결과 → 직렬화 rows(BigInt→String/Date→ISO) / AdminPageHeader actions 제거(hero panel 로 이동) / `<AdminEntryCta>`+`<AdminTournamentList>` 렌더. **Prisma where/orderBy/super_admin 분기 0 변경** | 수정 | 137→90 |
+
+### 데이터 매핑 (전부 운영 진짜 — mock 0)
+| 시안 행 컬럼 | 운영 데이터 | 처리 |
+|---------|----------|------|
+| 대회명 | t.name | 진짜 |
+| 공개여부 | status group | draft=비공개 / 그 외=공개 (운영 published flag 부재 → status 그룹 도출) |
+| 시리즈 | 운영 미fetch | format(TOURNAMENT_FORMAT_LABEL) 으로 대체 표기 / 미지정 시 "형식 미지정" (mock❌) |
+| 상태 pill | status → 4그룹(STATUS_GROUP) | aen-pill 4종(draft/apply/live/done) |
+| 시작일 | t.startDate | toLocaleDateString (null 시 "날짜 미정") |
+| 신청기간/본선기간/팀수 bar | 운영 미fetch | **컬럼 제거** (새 query=stop condition / mock❌). 그리드 6col→3col 축소 |
+
+### 검증 결과
+- **tsc --noEmit**: 0 errors (EXIT=0)
+- **자체 회귀 6 케이스 + admin 특수**:
+  | # | 케이스 | 결과 |
+  |---|--------|------|
+  | 1 | AppNav dropdown/아바타 | OK (AppNav 변경 0) |
+  | 2 | 모바일 듀얼 라벨 | OK (AppNav 변경 0) |
+  | 3 | 검색/쪽지/알림 box | OK (AppNav 변경 0) |
+  | 4 | 하드코딩 색상 | tsx 0 / css 5건(navy hero `#0F234F`+`#fff`×3 = navy·accent 고정배경 위 대비 / `--bdr-navy`#1B3C87 fallback) §6-1 시안 우선. is-on 탭 다크 대비 사전 치환 |
+  | 5 | lucide-react | 0 (Material Symbols만) |
+  | 6 | 9999px/rounded-full | 0 (radius 전부 --radius-card/--radius-chip/4px/8px) |
+  | + | 가짜링크 | 0 — 4 옵션 + 행 링크 = 운영 실재 라우트 (Glob 4건 확인) |
+  | + | /api/web/* snake_case | N/A (새 API/fetch 0 — Prisma model 직접 접근) |
+  | + | API/Prisma/fetch/DB 변경 | 0 (findMany where/orderBy 그대로 / select 변경 0) |
+
+### 알림
+- **시안 ↔ 운영 불일치 (디자인·API 변경 ❌)**:
+  - 시안 행 신청기간/본선기간/팀수 bar → 운영 page.tsx 미fetch → 컬럼 제거(새 query=stop). 향후 fetch 확장 시 aen-row 그리드 복원만 하면 흡수
+  - 시안 archived(보관) 탭 → 운영 status 4종에 보관 구분 없음 → 탭 제외(5탭: 전체/작성중/신청중/진행중/완료)
+  - 시안 시리즈 표기 → 운영 series 미fetch → format 으로 대체(mock❌). 시리즈 연결 시 자연 흡수
+  - 시안 검색=대회명+시리즈 → 운영 시리즈 미fetch → 대회명만 검색
+- **AdminPageHeader 보존**: eyebrow/breadcrumbs 유지 / actions 의 단일 "+ 새 대회 만들기" Link 만 제거(hero panel 로 진입점 이전)
+- **commit/push/PR 은 PM 담당**
+
+💡 tester 참고:
+- **로컬 검증**: `npm run dev` → http://localhost:3001/tournament-admin/tournaments (운영자/super_admin 로그인)
+  - 상단 navy hero "새 대회를 어떻게 만들까요?" + "새 대회 만들기" 버튼 → 클릭 시 4 옵션 panel 펼침/접힘 (expand_more/less 토글)
+  - 4 옵션 클릭 → 각 운영 wizard 라우트로 이동 (Quick/단계별/PDF요강 + super_admin 만 협회)
+  - 상태 탭(전체/작성중/신청중/진행중/완료) 클릭 → 카드 list 즉시 필터 / 탭별 카운트 chip
+  - 검색창에 대회명 입력 → 실시간 필터 / 행 클릭 → 기존 setup hub 이동
+- **정상 동작**:
+  - 일반 운영자 = "내 대회" + 협회 옵션 hide / super_admin = "전체 대회" + 협회 옵션 노출
+  - 대회 0건 → adv-empty "아직 운영하는 대회가 없습니다" (필터 초기화 버튼 hide)
+  - 필터/검색 0건 → adv-empty + "필터 초기화" 버튼
+  - status=draft → 비공개 pill / 그 외 → 공개 pill
+- **주의할 입력**:
+  - startDate null → "날짜 미정" / format null → "형식 미지정"
+  - status 가 STATUS_GROUP 미정의 값 → draft 그룹 폴백
+  - 운영 DB 영향 0
+
+⚠️ reviewer 참고:
+- **server→client 직렬화**: page.tsx 가 BigInt id→String / Date→ISO 변환 후 rows prop 전달. 클라이언트는 new Date(startDate) 로 재파싱(SSR/CSR 로케일 일치 — toLocaleDateString)
+- **css 하드코딩 5건 §6-1**: navy hero 그라데이션(#0F234F)·흰 글자/버튼(#fff)·--bdr-navy fallback(#1B3C87). 모두 navy/accent 고정 배경 위 대비용 또는 토큰 미정의 navy 셰이드. 향후 --bdr-navy globals 박제 시 var() 전환
+- **published flag 도출**: 운영 Tournament 에 published 컬럼 부재 → status group(draft=비공개) 으로 시안 공개/비공개 뱃지 도출. 실제 published 필드 추가 시 isPublished() 만 교체
+- **Prisma 0 변경**: where/orderBy/super_admin 분기 100% 보존. select 도 변경 0(findMany 전체 select → 클라이언트에 필요 5필드만 map)
+
+#### 수정 이력
+(아직 없음 — tester/reviewer 피드백 시 추가)
+
 ## 구현 기록 (developer / PR-1C-6 옵션 A — Matches 표 시각 박제)
 
 📝 구현한 기능: 대회 관리 > 경기 관리 매치 목록을 시안 amt-table 표 스타일로 박제 (시각만 / 데이터·onClick 100% 유지)
