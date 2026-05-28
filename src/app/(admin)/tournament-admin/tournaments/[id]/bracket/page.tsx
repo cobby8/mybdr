@@ -302,7 +302,7 @@ export default function BracketAdminPage() {
 
           <div className="flex items-center gap-2">
             {isActivated && (
-              <span className="rounded-full bg-[rgba(74,222,128,0.1)] px-3 py-1 text-xs font-medium text-[var(--color-success)]">
+              <span className="rounded-full bg-[color-mix(in_srgb,var(--color-success)_10%,transparent)] px-3 py-1 text-xs font-medium text-[var(--color-success)]">
                 ✓ 확정됨 (v{data?.activeVersion})
               </span>
             )}
@@ -311,7 +311,7 @@ export default function BracketAdminPage() {
               <button
                 onClick={activate}
                 disabled={activating || isActivated}
-                className="rounded-[4px] bg-[rgba(27,60,135,0.08)] px-4 py-2 text-sm font-medium text-[var(--color-info)] hover:bg-[rgba(0,102,255,0.15)] disabled:opacity-50"
+                className="rounded-[4px] bg-[color-mix(in_srgb,var(--color-info)_8%,transparent)] px-4 py-2 text-sm font-medium text-[var(--color-info)] hover:bg-[color-mix(in_srgb,var(--color-info)_15%,transparent)] disabled:opacity-50"
               >
                 {activating ? "처리 중..." : "최신 버전 확정"}
               </button>
@@ -346,7 +346,7 @@ export default function BracketAdminPage() {
                   key={v.id}
                   className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-xs ${
                     v.is_active
-                      ? "bg-[rgba(74,222,128,0.1)] text-[var(--color-success)]"
+                      ? "bg-[color-mix(in_srgb,var(--color-success)_10%,transparent)] text-[var(--color-success)]"
                       : "bg-[var(--color-elevated)] text-[var(--color-text-muted)]"
                   }`}
                 >
@@ -718,9 +718,9 @@ function DualMatchCard({ match }: { match: Match }) {
         <span
           className={`rounded-full px-2 py-0.5 ${
             completed
-              ? "bg-[rgba(74,222,128,0.1)] text-[var(--color-success)]"
+              ? "bg-[color-mix(in_srgb,var(--color-success)_10%,transparent)] text-[var(--color-success)]"
               : match.status === "in_progress"
-                ? "bg-[rgba(0,121,185,0.1)] text-[var(--color-info)]"
+                ? "bg-[color-mix(in_srgb,var(--color-info)_10%,transparent)] text-[var(--color-info)]"
                 : "bg-[var(--color-surface)] text-[var(--color-text-muted)]"
           }`}
         >
