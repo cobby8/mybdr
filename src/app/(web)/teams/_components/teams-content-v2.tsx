@@ -161,6 +161,14 @@ export function TeamsContentV2() {
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
 
+  // PR-3C-2 (TU1 보강 / BT2): 모집 상태 필터 — 클라이언트 측.
+  // 이유(왜): 시안 BT2 는 "모집 중 / 전체" 토글이 있는데, 운영 accepting_members 컬럼이 이미
+  //   응답(teams[].accepting_members)에 내려와 있어 새 쿼리/route 없이 client 필터로 처리 가능.
+  //   URL param 으로 빼지 않은 이유: 검색(q)/지역(city)/정렬(sort)은 서버가 처리하지만,
+  //   모집 상태는 서버 where 미지원 + 응답에 이미 플래그가 있어 클라이언트 즉시 필터가 단순함.
+  // 시안의 "매너 ★" 필터는 팀 단위 매너점수 컬럼이 schema 에 없어 미박제 (mock 금지).
+  const [recruitOnly, setRecruitOnly] = useState(false);
+
   // A-1: 현재 활성 city / sort — URL 쿼리 우선, 없으면 기본값
   const currentCity = searchParams.get("city") || "all";
   const currentSort = (searchParams.get("sort") || "wins") as "wins" | "newest" | "members";
@@ -203,6 +211,11 @@ export function TeamsContentV2() {
     setCurrentPage(1);
   }, [searchParams]);
 
+  // PR-3C-2: 모집 상태 필터 토글 시에도 1페이지로 리셋 (위 URL 필터와 동일 정책)
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [recruitOnly]);
+
   // URL q 가 외부(플로팅 필터)에서 바뀌면 로컬 검색 input 동기화
   useEffect(() => {
     setSearchLocal(searchParams.get("q") ?? "");
@@ -231,14 +244,22 @@ export function TeamsContentV2() {
     router.push(`${pathname}?${sp.toString()}`);
   };
 
+  // PR-3C-2 (TU1 보강 / BT2): 모집 중 팀 수 집계 (헤더 메타용).
+  // 기존 teams[] 응답의 accepting_members 플래그를 그대로 셈 — 새 쿼리 0.
+  const recruitingCount = teams.filter((t) => t.accepting_members).length;
+
+  // PR-3C-2: 모집 상태 필터 적용 — recruitOnly=true 면 모집 중인 팀만 노출.
+  // 서버가 내려준 전체 teams 를 클라이언트에서 좁히는 방식 (검색/지역/정렬과 독립적으로 결합).
+  const filteredTeams = recruitOnly ? teams.filter((t) => t.accepting_members) : teams;
+
   // 2026-05-02 Phase B 갱신: #랭크 PC ≥720px 한정 복원.
   // 2026-05-03: 페이지네이션 → 더보기 누적 슬라이스
   // 더보기 모드에서 globalIndex = i (slice 시작이 0이라 인덱스 그대로 랭크)
   const pageStartIndex = 0;
   const visibleCount = currentPage * TEAMS_PER_PAGE;
-  const paginatedTeams = teams.slice(0, visibleCount);
-  const hasMore = teams.length > visibleCount;
-  const remaining = Math.max(0, teams.length - visibleCount);
+  const paginatedTeams = filteredTeams.slice(0, visibleCount);
+  const hasMore = filteredTeams.length > visibleCount;
+  const remaining = Math.max(0, filteredTeams.length - visibleCount);
 
   return (
     // 모바일 좌우 여백 보강 — .page 컨테이너 padding 외에 추가 안전망 (2026-04-29)
@@ -259,6 +280,15 @@ export function TeamsContentV2() {
           <div className="eyebrow page-hero__eyebrow">팀 · TEAMS</div>
           <h1 className="page-hero__title">등록 팀 {teams.length}팀</h1>
           {/* 레이팅 순 라벨 제거 — PM 결정: 팀 레이팅은 미구현 기능이므로 표시 X (2026-04-29) */}
+          {/* PR-3C-2 (TU1 보강 / BT2): 시안 헤더 메타 박제 — "모집 중 M팀".
+              데이터 = 기존 teams[] 응답의 accepting_members 집계 (새 쿼리 0).
+              로딩 중(teams 비어있음)에는 0팀으로 깜빡이지 않도록 !loading 일 때만 노출. */}
+          {!loading && teams.length > 0 && (
+            <p style={{ fontSize: 13, color: "var(--ink-mute)", marginTop: 4 }}>
+              모집 중{" "}
+              <strong style={{ color: "var(--ok)" }}>{recruitingCount}</strong>팀
+            </p>
+          )}
         </div>
 
         <div
@@ -425,6 +455,59 @@ export function TeamsContentV2() {
         </div>
       </div>
 
+      {/* PR-3C-2 (TU1 보강 / BT2): 모집 상태 필터 칩 — 전체 / 모집 중.
+          시안 BT2 "상태" 그룹 박제. 정렬 칩과 동일한 .btn--sm 스타일 + 활성 톤 통일.
+          데이터 = teams[].accepting_members (클라이언트 필터, 새 쿼리 0).
+          매너 ★ 필터는 팀 매너점수 컬럼이 없어 미박제 (mock 금지). */}
+      <div
+        className="scrollbar-hide"
+        style={{
+          display: "flex",
+          gap: 8,
+          alignItems: "center",
+          marginBottom: 16,
+          flexWrap: "wrap",
+        }}
+      >
+        <span style={{ fontSize: 12, color: "var(--ink-dim)", marginRight: 2 }}>
+          상태
+        </span>
+        <button
+          type="button"
+          onClick={() => setRecruitOnly(false)}
+          aria-pressed={!recruitOnly}
+          className="btn btn--sm"
+          style={{
+            flexShrink: 0,
+            ...(!recruitOnly
+              ? { background: "var(--ink)", color: "var(--bg)", borderColor: "var(--ink)" }
+              : {}),
+          }}
+        >
+          전체
+        </button>
+        <button
+          type="button"
+          onClick={() => setRecruitOnly(true)}
+          aria-pressed={recruitOnly}
+          className="btn btn--sm"
+          style={{
+            flexShrink: 0,
+            ...(recruitOnly
+              ? { background: "var(--ok)", color: "#fff", borderColor: "var(--ok)" }
+              : {}),
+          }}
+        >
+          <span
+            className="material-symbols-outlined"
+            style={{ fontSize: 14, marginRight: 4, verticalAlign: -2 }}
+          >
+            person_add
+          </span>
+          모집 중
+        </button>
+      </div>
+
       {loading ? (
         <TeamsListSkeletonV2 />
       ) : (
@@ -453,8 +536,9 @@ export function TeamsContentV2() {
             })}
           </div>
 
-          {/* 빈 상태 */}
-          {teams.length === 0 && (
+          {/* 빈 상태 — PR-3C-2: 모집중 필터까지 적용한 filteredTeams 기준으로 판단.
+              (모집중 토글로 0건이 되는 경우도 빈 상태가 정확히 뜨도록) */}
+          {filteredTeams.length === 0 && (
             <div className="py-16 text-center">
               <span
                 className="material-symbols-outlined text-5xl mb-3 block"
@@ -463,7 +547,7 @@ export function TeamsContentV2() {
                 sports_basketball
               </span>
               <p className="text-sm mb-4" style={{ color: "var(--ink-mute)" }}>
-                {searchParams.get("q") || searchParams.get("city")
+                {searchParams.get("q") || searchParams.get("city") || recruitOnly
                   ? "조건에 맞는 팀이 없습니다"
                   : "등록된 팀이 없습니다"}
               </p>
