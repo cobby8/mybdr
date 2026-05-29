@@ -639,10 +639,16 @@ export function GameFormV2({
             onOpenPostcode={openKakaoPostcode}
           />
 
-          {/* 시안 3번 카드 — 신청 조건 */}
+          {/* 시안 3번 카드 — 신청 조건 + 신청 정책(BG5) + 게스트 옵션(BG3) */}
+          {/* [Phase 2C-5] 게스트 허용(allowGuests)을 이 카드 표면으로 끌어올림.
+           * 기존 state(allowGuests)·FormData 키(allow_guests) 그대로 — 데이터 흐름 무변경.
+           * 고급설정 아코디언의 중복 게스트 토글은 제거됨(같은 state라 중복). */}
           <ConditionsSection
             value={data.requirements}
             onChange={(v) => updateData("requirements", v)}
+            gameType={data.gameType}
+            allowGuests={data.allowGuests}
+            onAllowGuestsChange={(v) => updateData("allowGuests", v)}
           />
 
           {/* 시안 외 — 고급 설정 아코디언(DB 필드 보존) */}
