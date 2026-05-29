@@ -39,6 +39,11 @@ export const metadata: Metadata = {
 // PromoCard 컴포넌트 파일 자체는 무수정 보존 — 다른 페이지에서 재사용 가능성.
 import { getWebSession } from "@/lib/auth/web-session";
 import { HeroCarousel } from "@/components/bdr-v2/hero-carousel";
+// 2026-05-29 Phase 2C UC2 (BG7) — Hero 카로셀 위 sticky LIVE chip row (UA1/UA5 공용 컴포넌트).
+import { LiveChipRow } from "@/components/bdr-v2/live-chip-row";
+// 2026-05-29 Phase 2C PR-2C-2 — LIVE 띠 데이터 공유 모듈 (홈·UA1 단일 source).
+//   PR-2C-1 의 로컬 prefetchLiveChips() 를 services/live-chips.ts 로 추출 (동작 동일).
+import { getLiveChips } from "@/lib/services/live-chips";
 // 2026-05-09 HomeHeader 제거 — 시안에 맞춰 재계획 예정.
 // 컴포넌트 자체는 src/components/bdr-v2/home-header.tsx 에 보존 (재부활 가능).
 import { StatsStrip } from "@/components/bdr-v2/stats-strip";
@@ -120,13 +125,15 @@ export default async function HomePage() {
   const session = await getWebSession().catch(() => null);
   const userId = session ? BigInt(session.sub) : undefined;
 
-  // 4개 데이터를 병렬 프리페치 — 하나 실패해도 나머지는 정상 반영
-  const [statsResult, communityResult, tournamentsResult, heroResult] =
+  // 5개 데이터를 병렬 프리페치 — 하나 실패해도 나머지는 정상 반영
+  // (2026-05-29 Phase 2C UC2: liveResult = BG7 LIVE 띠용 진행 중 매치 추가)
+  const [statsResult, communityResult, tournamentsResult, heroResult, liveResult] =
     await Promise.allSettled([
       prefetchStats(),
       prefetchCommunity(),
       prefetchOpenTournaments(),
       prefetchHeroSlides(userId), // 진행 중 대회 우선 + 대회 0건 시 사용자 슬라이드
+      getLiveChips(), // BG7 — 진행 중 라이브 매치 (0건이면 띠 hide) / 공유 모듈 (홈·UA1 단일 source)
     ]);
 
   // 성공한 결과만 추출 (실패 시 undefined → 빈 상태 fallback)
@@ -141,6 +148,8 @@ export default async function HomePage() {
   // hero 슬라이드: prefetchHeroSlides 내부에서 정적 fallback 1개를 항상 보장하므로
   // rejected 시에만 빈 배열. 빈 배열이면 카로셀 렌더 skip.
   const heroSlides = heroResult.status === "fulfilled" ? heroResult.value : [];
+  // BG7 라이브 chip: 조회 실패/0건이면 빈 배열 → LiveChipRow 가 null 반환(띠 hide).
+  const liveChips = liveResult.status === "fulfilled" ? liveResult.value : [];
 
   // 공지·인기글: prefetchCommunity 상위 5건 (DB에 별도 "인기" 플래그가 없으므로
   // 최신 정렬 기준 상위 5건을 공지/인기 섹션에 매핑. 추후 likes 기준 정렬 가능)
@@ -156,6 +165,13 @@ export default async function HomePage() {
     // page: v2 globals.css의 .page 쉘 — max-width + 중앙 정렬 + 기본 상하 여백
     // (이전 "pb-10"은 좌우 maxw/gutter 제한이 없어 콘텐츠가 전폭으로 퍼져 시안과 어긋났음)
     <div className="page">
+      {/* BG7 (Phase 2C UC2) — AppNav 바로 아래 / Hero 카로셀 위 sticky LIVE chip row.
+       * 진행 중 라이브 매치(tournamentMatch live/in_progress) 0건이면 LiveChipRow 가
+       * null 반환 → 띠 전체 hidden (가짜 chip 절대 노출 안 함 — 사용자 결재 2026-05-29).
+       * 시안 Home.jsx 순서 답습: LIVE 띠 → (ProfileCtaCard) → Hero 카로셀.
+       * Hero 카로셀(§5)·본문 섹션·AppNav 는 변경 0. */}
+      <LiveChipRow items={liveChips} />
+
       {/* 0. 프로필 완성 CTA — Hero 카로셀 위 최상단 배치
        * 이유: 가입 흐름 1-step 단순화 (F1) 결과 신규 가입자는 포지션/지역/실력 미입력.
        *      Hero 보다 위에 두어 가장 먼저 시야에 노출 + 완성 후 X 닫기 시 7일 억제.

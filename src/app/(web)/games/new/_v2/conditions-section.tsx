@@ -15,6 +15,7 @@
  * ============================================================ */
 
 import { useEffect, useState } from "react";
+import type { GameType } from "./game-form";
 
 // 시안 고정 체크박스 6개 — 순서 유지 (label = requirements에 저장될 실제 문자열)
 export const CONDITION_OPTIONS = [
@@ -32,6 +33,10 @@ interface Props {
   // requirements 문자열 전체(체크박스 + 기타)
   value: string;
   onChange: (v: string) => void;
+  // [Phase 2C-5] 신청 정책(BG5) + 게스트 옵션(BG3) 박제
+  gameType: GameType;
+  allowGuests: boolean; // 실연결 — games.allow_guests
+  onAllowGuestsChange: (v: boolean) => void;
 }
 
 /**
@@ -65,7 +70,13 @@ function buildRequirements(checked: Set<ConditionOption>, extra: string): string
   return parts.join("\n");
 }
 
-export function ConditionsSection({ value, onChange }: Props) {
+export function ConditionsSection({
+  value,
+  onChange,
+  gameType,
+  allowGuests,
+  onAllowGuestsChange,
+}: Props) {
   // 최초 1회 value 파싱 → 로컬 상태로 분리 관리
   const [checked, setChecked] = useState<Set<ConditionOption>>(() => parseRequirements(value).checked);
   const [extra, setExtra] = useState<string>(() => parseRequirements(value).extra);
@@ -148,6 +159,220 @@ export function ConditionsSection({ value, onChange }: Props) {
           placeholder="예: 3점슈터 우대, 20~30대 선호"
           style={{ minHeight: 64, resize: "vertical" }}
         />
+      </div>
+
+      {/* ============================================================
+       * [Phase 2C-5] 신청 정책(BG5) + 게스트 옵션(BG3) — 시안 CreateGame 3번 카드
+       *
+       * 데이터 처리 원칙(mock 금지):
+       *  - BG3 게스트 허용 토글 = 실연결 (games.allow_guests 컬럼 존재)
+       *  - BG5 자동 승인 토글 = DB 컬럼 없음 → disabled 시각 박제 (schema 변경 금지)
+       *  - BG3 보조(최소 경력/약관) = 경기 생성 시점 저장 컬럼 없음 → disabled 시각 박제
+       * ============================================================ */}
+      <div
+        style={{
+          marginTop: 22,
+          paddingTop: 18,
+          borderTop: "1px solid var(--border)",
+        }}
+      >
+        <h3
+          style={{
+            margin: "0 0 12px",
+            fontSize: 14,
+            fontWeight: 700,
+            color: "var(--ink)",
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+          }}
+        >
+          <span className="material-symbols-outlined" style={{ fontSize: 18, color: "var(--ink-mute)" }}>
+            tune
+          </span>
+          신청 정책 · 게스트 옵션
+        </h3>
+
+        {/* --- BG5: 자동 승인 토글 (disabled — DB 컬럼 없음) --- */}
+        {/* 자동승인 정책 저장 컬럼이 games 모델에 없어 비활성 시각 박제.
+         * 현재 운영은 별도 승인 단계 없이 신청을 처리하므로 'ON 고정'으로 표시. */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            padding: "12px 14px",
+            background: "var(--bg-alt)",
+            borderRadius: 6,
+            marginBottom: 10,
+            opacity: 0.6, // disabled 시각 신호
+          }}
+        >
+          <div>
+            <p style={{ fontSize: 13, fontWeight: 600, color: "var(--ink)", margin: 0, display: "flex", alignItems: "center", gap: 6 }}>
+              자동 승인
+              <span
+                style={{
+                  fontSize: 10.5,
+                  fontWeight: 700,
+                  padding: "2px 7px",
+                  borderRadius: 4,
+                  background: "color-mix(in oklab, var(--ink-dim) 18%, transparent)",
+                  color: "var(--ink-mute)",
+                }}
+              >
+                준비 중
+              </span>
+            </p>
+            <p style={{ fontSize: 11, color: "var(--ink-mute)", margin: "2px 0 0" }}>
+              신청 즉시 참가 확정 — 호스트 수동 승인은 추후 지원 예정
+            </p>
+          </div>
+          {/* 비활성 토글: aria-disabled + disabled 버튼. 클릭 동작 없음(no-op). */}
+          <button
+            type="button"
+            role="switch"
+            aria-checked={true}
+            aria-disabled={true}
+            disabled
+            title="자동 승인 정책 설정은 추후 지원 예정입니다"
+            style={{
+              position: "relative",
+              height: 24,
+              width: 44,
+              flexShrink: 0,
+              borderRadius: 12,
+              border: "none",
+              cursor: "not-allowed",
+              background: "var(--cafe-blue)", // ON 고정 표시
+            }}
+          >
+            <span
+              style={{
+                position: "absolute",
+                top: 4,
+                left: 24,
+                height: 16,
+                width: 16,
+                borderRadius: "50%",
+                background: "var(--bg-elev)",
+              }}
+            />
+          </button>
+        </div>
+
+        {/* --- BG3: 게스트 신청 허용 토글 (실연결 — games.allow_guests) --- */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            padding: "12px 14px",
+            background: "var(--bg-alt)",
+            borderRadius: 6,
+            border: allowGuests ? "1px solid var(--cafe-blue)" : "1px solid transparent",
+          }}
+        >
+          <div>
+            <p style={{ fontSize: 13, fontWeight: 600, color: "var(--ink)", margin: 0 }}>게스트 신청 허용</p>
+            <p style={{ fontSize: 11, color: "var(--ink-mute)", margin: "2px 0 0" }}>
+              {gameType === "2"
+                ? "팀 외부 게스트가 신청 가능"
+                : "팀에 소속되지 않은 외부 게스트가 신청 가능"}
+            </p>
+          </div>
+          {/* 실연결 토글 — allowGuests state ↔ allow_guests 컬럼 */}
+          <button
+            type="button"
+            role="switch"
+            aria-checked={allowGuests}
+            onClick={() => onAllowGuestsChange(!allowGuests)}
+            style={{
+              position: "relative",
+              height: 24,
+              width: 44,
+              flexShrink: 0,
+              borderRadius: 12,
+              border: "none",
+              cursor: "pointer",
+              background: allowGuests ? "var(--cafe-blue)" : "var(--ink-dim)",
+              transition: "background .2s",
+            }}
+          >
+            <span
+              style={{
+                position: "absolute",
+                top: 4,
+                left: allowGuests ? 24 : 4,
+                height: 16,
+                width: 16,
+                borderRadius: "50%",
+                background: "var(--bg-elev)",
+                transition: "left .2s",
+              }}
+            />
+          </button>
+        </div>
+
+        {/* --- BG3 보조: 게스트 ON 시 최소 경력 / 약관 (disabled — 생성 시점 저장 컬럼 없음) --- */}
+        {/* game_applications.experience_years/accepted_terms 는 '신청자'가 신청 시점에 입력하는 값.
+         * 경기 생성 시점에 '최소 경력 기준'을 저장할 컬럼이 없어 비활성 시각 박제. */}
+        {allowGuests && (
+          <div
+            style={{
+              marginTop: 10,
+              padding: "12px 14px",
+              borderRadius: 6,
+              border: "1px dashed var(--border)",
+              opacity: 0.6, // disabled 시각 신호
+            }}
+          >
+            <p style={{ fontSize: 11.5, fontWeight: 700, color: "var(--ink-mute)", margin: "0 0 8px", display: "flex", alignItems: "center", gap: 6 }}>
+              게스트 세부 조건
+              <span
+                style={{
+                  fontSize: 10,
+                  fontWeight: 700,
+                  padding: "1px 6px",
+                  borderRadius: 4,
+                  background: "color-mix(in oklab, var(--ink-dim) 18%, transparent)",
+                  color: "var(--ink-mute)",
+                }}
+              >
+                준비 중
+              </span>
+            </p>
+            {/* 최소 경력 chip — disabled */}
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
+              {["1년 이상", "2년 이상", "3년 이상", "무제한"].map((label, i) => (
+                <button
+                  key={label}
+                  type="button"
+                  disabled
+                  style={{
+                    fontSize: 12,
+                    fontWeight: 600,
+                    padding: "5px 12px",
+                    borderRadius: 4,
+                    cursor: "not-allowed",
+                    border: i === 1 ? "1px solid var(--cafe-blue)" : "1px solid var(--border)",
+                    background: i === 1 ? "color-mix(in oklab, var(--cafe-blue) 12%, transparent)" : "var(--bg-alt)",
+                    color: "var(--ink-mute)",
+                  }}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 11.5, color: "var(--ink-mute)", cursor: "not-allowed" }}>
+              <input type="checkbox" defaultChecked disabled style={{ cursor: "not-allowed" }} />
+              <span>약관 동의 필수 — 게스트 신청 시 약관 동의 체크 표시</span>
+            </label>
+            <p style={{ fontSize: 11, color: "var(--ink-dim)", margin: "8px 0 0" }}>
+              최소 경력·약관 설정은 추후 지원 예정입니다.
+            </p>
+          </div>
+        )}
       </div>
     </section>
   );

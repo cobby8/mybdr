@@ -2,6 +2,9 @@ import type { Metadata } from "next";
 import { prisma } from "@/lib/db/prisma";
 import { listGames, type GameListFilters } from "@/lib/services/game";
 import type { KindTabBarCounts } from "@/components/bdr-v2/kind-tab-bar";
+// 2026-05-29 Phase 2C UA1 (BG7) — 페이지 상단 sticky LIVE chip row (홈과 동일 컴포넌트·데이터).
+import { LiveChipRow } from "@/components/bdr-v2/live-chip-row";
+import { getLiveChips } from "@/lib/services/live-chips";
 import {
   GamesClient,
   type GameForClient,
@@ -121,14 +124,19 @@ export default async function GamesPage({
   if (scheduledAt) countWhere.scheduled_at = scheduledAt;
 
   // 병렬 프리페치 — 하나 실패해도 나머지는 반영
-  const [gamesResult, typeCountResult] = await Promise.allSettled([
+  // (2026-05-29 Phase 2C UA1: liveResult = BG7 LIVE 띠용 진행 중 매치 — 홈과 동일 공유 모듈)
+  const [gamesResult, typeCountResult, liveResult] = await Promise.allSettled([
     listGames(serviceFilters),
     prisma.games.groupBy({
       by: ["game_type"],
       where: countWhere,
       _count: { _all: true },
     }),
+    getLiveChips(), // BG7 — 진행 중 라이브 매치 (0건이면 띠 hide)
   ]);
+
+  // BG7 라이브 chip: 조회 실패/0건이면 빈 배열 → LiveChipRow 가 null 반환(띠 hide).
+  const liveChips = liveResult.status === "fulfilled" ? liveResult.value : [];
 
   // 결과 직렬화 — GameForClient shape 로 평탄화
   const rawGames = gamesResult.status === "fulfilled" ? gamesResult.value : [];
@@ -148,6 +156,9 @@ export default async function GamesPage({
     feePerPerson: g.fee_per_person?.toString() ?? null, // Decimal → string
     skillLevel: g.skill_level,
     authorNickname: g.author_nickname ?? null,
+    // [2026-05-29 Phase 2C UA1·BG4] 종료 카드 "🏆 MVP" 라인용 닉네임.
+    //   final_mvp join 결과 (없으면 null → GameCard 에서 라인 hide / mock 금지).
+    finalMvpNickname: g.final_mvp?.nickname ?? null,
   }));
 
   // typeCounts 딕셔너리 변환 — route.ts L251~263 와 동일 결과
@@ -172,6 +183,12 @@ export default async function GamesPage({
     // 2026-05-03: 헤더 통합 — GamesClient 가 헤더(좌 title + 우 [필터][만들기]) + 탭 + chips + 카드 모두 렌더
     // 사유: 필터 토글을 "만들기" 좌측으로 이동 (사용자 요청) → filterOpen state 와 같은 client tree 필요
     <div className="page games-page">
+      {/* BG7 (Phase 2C UA1) — AppNav 바로 아래 / 헤더 위 sticky LIVE chip row.
+       * 진행 중 라이브 매치(tournamentMatch live/in_progress) 0건이면 LiveChipRow 가
+       * null 반환 → 띠 전체 hidden (가짜 chip 절대 노출 안 함 — 사용자 결재 2026-05-29).
+       * 시안 Games.jsx 순서 답습: LIVE 띠(BG7) → 헤더 → 필터 → 카드 그리드.
+       * 데이터 = 홈과 동일 공유 모듈 getLiveChips(). chip 클릭 → /live/[id]. */}
+      <LiveChipRow items={liveChips} />
       <GamesClient games={games} typeCounts={typeCounts} />
     </div>
   );

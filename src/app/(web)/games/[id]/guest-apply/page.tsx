@@ -123,6 +123,24 @@ export default async function GuestApplyPage({
     select: { name: true, nickname: true },
   });
 
+  // 5-1) [PR-2C-6 BG3] 본인(신청자) 프로필 조회 — 게스트 신청 폼 prefill 용
+  // 왜 추가했나: 기존 page.tsx 는 host 정보만 조회했고, 폼의 구력/포지션 기본값과
+  //   "내 프로필 미리보기" 박스가 하드코딩(mock)이었다. 본인 skill_level/position 을
+  //   실데이터로 가져와 신청 폼에 자동 채우기(prefill)하기 위한 server 조회 1건.
+  //   schema 변경 없음 — 기존 user 컬럼만 select. (데이터 정책 결재 2026-05-29 허용)
+  const me = await prisma.user.findUnique({
+    where: { id: currentUserId },
+    select: {
+      nickname: true,
+      name: true,
+      skill_level: true, // 문자열: beginner | intermediate | advanced | all | null
+      position: true, // 주 포지션 문자열 (Guard/Forward/Center 등 자유 입력 가능)
+      level: true, // 게이미피케이션 XP 레벨 (미리보기 Lv.N)
+      manner_score: true, // 매너 평균 (Decimal, 평가 0건이면 null)
+      total_games_participated: true, // 누적 참가 횟수 (픽업 이력)
+    },
+  });
+
   // 호스트 표시명: nickname > name > "호스트" 순서로 fallback
   const hostName = host?.nickname || host?.name || "호스트";
   // 시안 host.tag 는 식별용 짧은 라벨 — 닉네임 앞 3자 또는 "HOST"
@@ -145,6 +163,54 @@ export default async function GuestApplyPage({
     if (dow === 0 || dow === 6) tags.push("주말");
   }
   const areaLabel = [game.city, game.district].filter(Boolean).join(" ");
+
+  // [PR-2C-6 BG3] skill_level(문자열) → 구력 select 인덱스("0"~"4") 매핑
+  // 왜: 시안은 skill 숫자(1~5)를 가정했지만 운영 user.skill_level 은 문자열이다.
+  //   운영 폼은 이미 select 5종("1년미만"~"10년이상") 이므로, 본인 실력 문자열을
+  //   가장 가까운 구력 인덱스로 합리적 매핑해 기본값으로 제공한다 (수정 가능).
+  //   null/미설정이면 undefined 반환 → 폼이 기존 기본값("2") 유지 + 힌트 숨김.
+  function skillToExpIndex(skill: string | null | undefined): string | undefined {
+    switch (skill) {
+      case "beginner":
+        return "0"; // 1년 미만
+      case "intermediate":
+        return "2"; // 3~5년
+      case "advanced":
+        return "3"; // 5~10년
+      default:
+        return undefined; // "all" / null / 미상 → prefill 안 함
+    }
+  }
+
+  // skill_level 문자열 → 한글 라벨 (힌트 표시용). null 이면 undefined.
+  function skillKoLabel(skill: string | null | undefined): string | undefined {
+    switch (skill) {
+      case "beginner":
+        return "초급";
+      case "intermediate":
+        return "중급";
+      case "advanced":
+        return "고급";
+      default:
+        return undefined;
+    }
+  }
+
+  // position(자유 입력 문자열) → G/F/C 매핑. 한/영 흔한 표기를 폭넓게 수용.
+  // 매핑 안 되면 undefined → 폼이 기존 기본값("G") 유지.
+  function positionToGFC(p: string | null | undefined): "G" | "F" | "C" | undefined {
+    if (!p) return undefined;
+    const s = p.toLowerCase();
+    if (s.includes("center") || s.includes("센터") || s === "c") return "C";
+    if (s.includes("forward") || s.includes("포워드") || s === "f") return "F";
+    if (s.includes("guard") || s.includes("가드") || s === "g") return "G";
+    return undefined;
+  }
+
+  // 폼에 넘길 prefill 셋 — 모두 본인 user 실데이터(없으면 undefined → 폼이 기본값 유지)
+  const expDefault = skillToExpIndex(me?.skill_level);
+  const posDefault = positionToGFC(me?.position);
+  const skillLabel = skillKoLabel(me?.skill_level);
 
   return (
     <div className="page">
@@ -191,6 +257,16 @@ export default async function GuestApplyPage({
             fee: formatFee(game.fee_per_person),
           }}
           host={{ name: hostName, tag: hostTag }}
+          // [PR-2C-6 BG3] 본인 프로필 prefill — 모두 실데이터(없으면 undefined → 폼이 기본값 유지)
+          me={{
+            nickname: me?.nickname || me?.name || "나",
+            expDefault, // skill_level → 구력 select 기본값("0"~"4")
+            skillLabel, // 힌트용 실력 한글 라벨 (있을 때만 prefill 힌트 노출)
+            posDefault, // position → 주 포지션 기본값(G/F/C)
+            level: me?.level ?? null,
+            mannerScore: me?.manner_score ? Number(me.manner_score) : null,
+            gamesPlayed: me?.total_games_participated ?? null,
+          }}
         />
       </div>
     </div>

@@ -5,7 +5,8 @@
 //       시안 박제 본문은 이쪽으로 이전한다. server 가 검증한 game/host 정보를
 //       props 로 받아 그대로 렌더링한다.
 // API: POST /api/web/games/[id]/apply  (role: "guest" 분기 — B-3+B-4 에서 이미 구현)
-// 시안 출처: Dev/design/BDR v2 (1)/screens/GuestApply.jsx
+// 시안 출처: Dev/design/BDR-current/screens/GuestApply.jsx
+// [PR-2C-6 BG3 2026-05-29] 본인 프로필 prefill 박제 — 구력/포지션 기본값 + 미리보기 박스 실데이터화
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -26,6 +27,23 @@ export interface GuestApplyGameProps {
     name: string;
     tag: string; // 이니셜 등 호스트 식별자 (시안 라인 90 의 g.host.name)
   };
+  // [PR-2C-6 BG3] 본인 프로필 prefill 셋 — server 에서 실데이터로 채워 전달.
+  // 값이 없으면(undefined/null) 폼은 기존 기본값을 유지하고 prefill 힌트를 숨긴다(mock 금지).
+  me: {
+    nickname: string;
+    /** skill_level → 구력 select 기본값("0"~"4"). 미설정이면 undefined */
+    expDefault?: string;
+    /** 실력 한글 라벨(초급/중급/고급). 있을 때만 "내 프로필에서 자동" 힌트 노출 */
+    skillLabel?: string;
+    /** position → 주 포지션 기본값(G/F/C). 미설정이면 undefined */
+    posDefault?: "G" | "F" | "C";
+    /** 게이미피케이션 XP 레벨 (미리보기 Lv.N) */
+    level: number | null;
+    /** 매너 평균 (평가 0건이면 null) */
+    mannerScore: number | null;
+    /** 누적 참가 횟수 (픽업 이력) */
+    gamesPlayed: number | null;
+  };
 }
 
 // 시안의 구력 옵션 5종 — 0~4 인덱스로 시안 그대로 박제
@@ -45,13 +63,18 @@ const ACCEPT_ITEMS = [
 
 type AcceptKey = (typeof ACCEPT_ITEMS)[number]["k"];
 
-export function GuestApplyForm({ gameId, game, host }: GuestApplyGameProps) {
+export function GuestApplyForm({ gameId, game, host, me }: GuestApplyGameProps) {
   const router = useRouter();
+
+  // [PR-2C-6 BG3] prefill 기본값 — 본인 프로필 실데이터가 있으면 그 값으로,
+  //   없으면 기존 기본값("G" / "2")으로 fallback (mock 금지).
+  const initialPos = me.posDefault ?? "G";
+  const initialExp = me.expDefault ?? "2";
 
   // 시안 라인 13~17 박제: submitted/pos/exp/msg/accept 5개 state
   const [submitted, setSubmitted] = useState(false);
-  const [pos, setPos] = useState<"G" | "F" | "C">("G");
-  const [exp, setExp] = useState("2");
+  const [pos, setPos] = useState<"G" | "F" | "C">(initialPos);
+  const [exp, setExp] = useState(initialExp);
   const [msg, setMsg] = useState("");
   const [accept, setAccept] = useState<Record<AcceptKey, boolean>>({
     insurance: true,
@@ -313,11 +336,36 @@ export function GuestApplyForm({ gameId, game, host }: GuestApplyGameProps) {
                   fontSize: 12,
                   fontWeight: 700,
                   color: "var(--ink-dim)",
-                  display: "block",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
                   marginBottom: 6,
+                  flexWrap: "wrap",
                 }}
               >
                 구력
+                {/* [BG3] skill_level 로 prefill 됐을 때만 "내 프로필에서 자동" 힌트 노출.
+                    me.skillLabel 이 있으면(beginner/intermediate/advanced) prefill 한 것. */}
+                {me.skillLabel && me.expDefault && (
+                  <span
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 3,
+                      fontSize: 11,
+                      fontWeight: 700,
+                      color: "var(--cafe-blue)",
+                    }}
+                  >
+                    <span
+                      className="material-symbols-outlined"
+                      style={{ fontSize: 14 }}
+                    >
+                      auto_awesome
+                    </span>
+                    내 프로필 ({me.skillLabel}) 에서 자동
+                  </span>
+                )}
               </label>
               <select
                 className="input"
@@ -330,6 +378,34 @@ export function GuestApplyForm({ gameId, game, host }: GuestApplyGameProps) {
                   </option>
                 ))}
               </select>
+              {/* [BG3] prefill 된 자동값에서 사용자가 수정한 경우에만 "자동값으로" 복원 버튼 노출 */}
+              {me.skillLabel && me.expDefault && exp !== me.expDefault && (
+                <button
+                  type="button"
+                  onClick={() => setExp(me.expDefault!)}
+                  style={{
+                    marginTop: 6,
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 4,
+                    fontSize: 11,
+                    fontWeight: 700,
+                    color: "var(--cafe-blue)",
+                    background: "transparent",
+                    border: 0,
+                    cursor: "pointer",
+                    padding: 0,
+                  }}
+                >
+                  <span
+                    className="material-symbols-outlined"
+                    style={{ fontSize: 14 }}
+                  >
+                    restart_alt
+                  </span>
+                  자동값으로 되돌리기
+                </button>
+              )}
             </div>
           </div>
 
@@ -363,10 +439,15 @@ export function GuestApplyForm({ gameId, game, host }: GuestApplyGameProps) {
                 letterSpacing: ".02em",
               }}
             >
-              ME
+              {/* [BG3] mock "ME" → 본인 닉네임 첫 글자 실데이터 */}
+              {me.nickname.slice(0, 2).toUpperCase()}
             </div>
             <div>
-              <div style={{ fontWeight: 700 }}>@me_player · Lv.6</div>
+              {/* [BG3] mock "@me_player · Lv.6" → 본인 닉네임 + 실제 XP 레벨 */}
+              <div style={{ fontWeight: 700 }}>
+                {me.nickname}
+                {me.level != null && ` · Lv.${me.level}`}
+              </div>
               <div
                 style={{
                   fontSize: 11,
@@ -374,7 +455,10 @@ export function GuestApplyForm({ gameId, game, host }: GuestApplyGameProps) {
                   fontFamily: "var(--ff-mono)",
                 }}
               >
-                매너 4.8 · 픽업 23회 · 노쇼 0
+                {/* [BG3] mock "매너 4.8 · 픽업 23회 · 노쇼 0" → 실데이터.
+                    매너 평가 0건(null)이면 "평가 전", 참가 0회면 미표시 (mock 금지) */}
+                매너 {me.mannerScore != null ? me.mannerScore.toFixed(1) : "평가 전"}
+                {me.gamesPlayed != null && ` · 참가 ${me.gamesPlayed}회`}
               </div>
             </div>
             <span className="badge badge--ok">인증</span>

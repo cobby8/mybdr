@@ -1,58 +1,50 @@
 # 작업 스크래치패드
 
 ## 현재 작업
-- **요청**: Phase 1C 대형 3 PR batch 박제 (PA2 / Teams / Bracket)
-- **상태**: ✅ 박제+commit 완료 / 🔜 push + subin→dev→main 결재 대기
+- **요청**: Auto Chain Master — 4단계 chain (v2.22 sync + Phase 2C/3C/4C = 25 PR)
+- **상태**: ✅ **Auto Chain 전체 완료 (25/25 PR push)** / 다음 = 25 PR subin→dev→main 머지(수빈 수동) + Phase 5 선정
 - **현재 담당**: pm
-- **참고**: phase-ledger (`.claude/phase-ledger.md`) = Phase 1/2 source of truth
+- **의뢰서**: `Dev/design/prompts/auto-chain-master-cli-prompt-2026-05-29.md`
 
-## 진행 현황 (Phase 1C 디자인 운영 박제)
-- **✅ main 머지 완료 (2026-05-28)**: PR #650 (subin→dev) + PR #651 (dev→main) `5976dca` / Vercel 운영 배포
-- **운영 반영 12 PR**: PR-1C-1~9 + 11~13 (UA1/UA2+UC2/UB1/UA3/UC1/PA5/PA1/PA8/PA4/PA9/PA6/PA7)
-- **🆕 로컬 commit 3건 (미push)**: PR-1C-14 PA2 `d33177e` / PR-1C-15 Teams `044527d` / PR-1C-16 Bracket `7694763` (+ dev 머지 `1fa6731`)
-- **⏸ PR-1C-10 PA3 SKIP**: 시안(종별위임 마법사) ≠ 운영(협회생성 마법사) — planner 재설계 대기
-- **Phase 1C 집계**: 16개 중 **15 박제 완료** (12 머지 + 3 로컬) + PA3 1건 SKIP → 대형 3 batch 완료로 **Phase 1C 박제 본체 종료**
-- **🔜 다음**: ① 3 commit push (`git push origin subin`) ② subin→dev→main 결재 (사용자) ③ PA3 재설계 또는 Phase 2C 시작
+## 🔑 Auto Chain 정책 (사용자 결재 2026-05-29)
+- **데이터 통합 허용**: server 조회 + 새 web API route(`/api/web/*`) ✅. **금지(stop)**: `/api/v1`·DB schema·LOC>+2000·tsc실패·회귀6위반·디자인13룰위반. mock 금지(hide)
+- **결재 default 자동**: sync A / 2C 결제 B(disabled) / 3C 모달 A / 4C Q1~Q4 lock
+- **공유 컴포넌트**: `live-chip-row.tsx`(LiveChipRow) / `live-chips.ts`(getLiveChips) / `org-hierarchy-crumbs.tsx`(4C-2 신규)
 
-## 기획설계 (planner-architect)
-(없음 — 박제 작업 = 시안→운영, 설계 불필요)
+## Chain 진행 현황 (25 PR — 전체 완료)
+| 단계 | 내용 | 상태 |
+|------|------|------|
+| 1 | v2.22 sync | ✅ `dee2445` |
+| 2 | Phase 2C 경기 (10 PR) | ✅ **10/10** |
+| 3 | Phase 3C 팀 (6 PR) | ✅ **6/6** |
+| 4 | Phase 4C 단체 (8 PR) | ✅ **8/8** |
 
-## 구현 기록 (developer)
+## 🔜 chain 끝 후 다음 액션 (의뢰서 §5)
+- ☐ **25 PR subin → dev → main 결재** (수빈 수동 / main 머지 권한 = 원영+수빈)
+- ☐ Phase 5 영역 선정 (후보: 코트·장소 / 알림·메시지·검색 / 프로필·마이페이지 / 랭킹·커뮤니티 / About·마케팅)
+- ☐ PR-1C-10 PA3 재설계 결정 (보류 중)
 
-### PR-1C-14 PA2 Wizard1Step (`d33177e`, +175/-1) — 2026-05-28
-- 대상: `new/wizard/page.tsx` QuickCreateForm 만 (Legacy 무수정)
-- ① 4 옵션 sub-tab: quick=폼 / legacy·prospectus·association=전환 안내+`router.push`(기존 라우트, 가짜링크 0). association 탭=showAssociationCard 권한만
-- ② draft 배너: `loadDraft()` 있을 때만 + !dismiss. 제목+step/4(DRAFT_STEP_LABELS). **작성시각 미저장→hide (mock 금지)**. useEffect 1회 재사용
-- ③ 3-step flow: NOW/NEXT/THEN 순수 텍스트
-- 보존: 시리즈 select+InlineSeriesForm / 요강분석 진입점. 토큰: `--bg-alt`→`--color-elevated` / 활성=`--color-info`
-- ✅ tsc 0 / 추가 diff 하드코딩색·rgba·lucide·rounded-full 0 / 라우팅·API·POST body 0
+## 구현 기록 (developer) — chain 25 PR commit 맵
+### Phase 2C 경기 (10/10): `13feb36`·`70118ea`·`b796834`·`f4d8a2f`·`d0385a2`·`cd7e9af`·`390c22b`·`4681e51`·`1985fde`·`9292fe6`
+- 핵심: **game_applications.status=Int 0/1/2 단일진실** / MVP=games.final_mvp_user_id / 매너=평균+flag종류만 개별건수0 / 데이터없음→hide·disabled(mock금지) / docs `283bcd3`
+### Phase 3C 팀 (6/6): `50ee237`·`2ab8a6e`·`4eeb260`·`42e2cc6`·`204f78e`·`0b61922`
+- 핵심: **team_join_requests.status·team_member_requests.status=String / last_activity_at=DateTime?** / 권한=TeamOfficerPermissions 6키 / 전적=Team.wins/losses/draws 96팀0 hide / 운영 초과구현→비파괴 최소박제 / docs `b50b88e`
+### Phase 4C 단체 (8/8): `8ec6a54`·`8527d2a`·`f26614b`·`1280425`·`7dab1ad`·`5addf34`·`d169e0a`·`fa7b63b`
+- 핵심: **OrgHierarchyCrumbs 공용**(4C-2 신규→4C-4/8 재사용) / organizations.status 전부 approved / **BO1 컬럼**(name·description·region·contact_email·website_url·apply_note) OU3=OA1 일치 / **Q2 6탭·Q3 3-step·Q4 5-step lock 보존** / 운영 초과구현多→안내·위계칩·status통계 보강 위주 / 미지원 필드(founded_year·tournaments_count·color·정기성·officer toggle·ORG_ACTIVITY_LOG) hide
+- **공통(25 PR 전부)**: 매 PR tsc0 / 디자인13룰 / 회귀6 PASS / 새 schema·`/api/v1` 0 / mock 0 / stop condition 발동 0
 
-### PR-1C-16 Bracket (`7694763`) + PR-1C-15 Teams (`044527d`) carryover — 2026-05-28
-- Bracket: rgba→color-mix 6건 (success/info 톤). editor 무수정(위반0)
-- Teams: rgba→error토큰 1 / #fff→"white" 2 / rounded-full→[50%] 1(정사각형)·→[4px] 2(종별pill)
-- 유지: 모달 검은 오버레이 rgba(0,0,0,.5/.6)(다크 시각 역전 회피) / count chip bg-black/20(룰10 예외)
-- ✅ tsc 0 / API·데이터 0 변경 / 순수 시각 토큰만
-
-## 테스트 결과 (tester)
-PM 직접 검증 모드 (기존 12 PR 동일): git diff 실측 + tsc 0 + 회귀 grep(하드코딩색/lucide/가짜링크 0) + diff 정독. 회귀 6/6.
-
-## 리뷰 결과 (reviewer)
-(생략 — PM 직접 검증, 회귀 위험 낮음: UI 추가/기존 로직 미변경)
+## 진행 현황 (Phase 1C — 완료)
+- ✅ Phase 1C 15/16 박제+머지 (PR #650~#653) / PA3 SKIP 보류 (decisions.md) / subin=dev=main 정합
 
 ## 수정 요청
-| 요청자 | 대상 파일 | 문제 설명 | 상태 |
-|--------|----------|----------|------|
+| 요청자 | 대상 | 문제 | 상태 |
+|--------|------|------|------|
 
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
 |------|------|------|
-| 2026-05-28 | Phase 1C 대형 3 batch 박제 (PA2/Teams/Bracket) | ✅ commit 3건 (`d33177e`/`044527d`/`7694763`) / PM 직접검증 tsc 0+회귀 6/6+diff 정독 / API·라우팅·가짜링크 0 / mock❌ / 미push |
-| 2026-05-28 | subin←dev 머지 (작업 베이스 정합) | ✅ `1fa6731` / subin=dev 정합 (PR#650 머지커밋 흡수) |
-| 2026-05-28 | subin → dev → main 머지 (PR #650 + #651) | ✅ Phase 1C 12 PR + Phase 2 v2.20 sync / main `5976dca` / Vercel 배포 / 사용자 승인 |
-| 2026-05-28 | Phase 1C batch 현 세션 (PR-1C-5~13 / PA3 SKIP = 8 PR) | ✅ PR #650 누적 12 PR / 각 tsc 0 + 회귀 6/6 / mock❌(hide) / 운영 보존 |
-| 2026-05-28 | PR-1C-13 PA7 Completed 신규 라우트 (`32f4d2b`) | ✅ 관리자 종료 hub 5 카드 + 🏆 hero / 가짜링크 0 / admin nav 미변경 |
-| 2026-05-28 | PR-1C-12 PA6 Divisions (`05d961d`) | ✅ 종별 hero CTA + empty state + code 칩 / 메트릭·4버튼 운영 보존 |
-| 2026-05-28 | PR-1C-11 PA9 Prospectus (`4f5d4cc`) | ✅ 진행도 bar + 수동 fallback / 신뢰도 chip 운영 % 보존 / AI 로직 0 |
-| 2026-05-28 | PR-1C-9 PA4 SetupHub (`b468436`) | ✅ B1 depends_on 시각화 + 잠금 toast + 모바일 sticky / B7 운영 보존 |
-| 2026-05-28 | PR-1C-8 PA8 Playoffs (`30f60a5`) | ✅ 5섹션→4탭 / 8강·4강→순위전 통합 / 결과탭 static (mock❌) |
-| 2026-05-28 | PR-1C-7 PA1 AdminList (`0cf3e1f`) | ✅ 4 옵션 진입점 통합 (실재 라우트) / 다크 #fff→var(--bg) |
+| 2026-05-29 | **Phase 4C 완료 8/8** (4C-1~8) | ✅ `8ec6a54`·`8527d2a`·`f26614b`·`1280425`·`7dab1ad`·`5addf34`·`d169e0a`·`fa7b63b` push / 단체 영역 / OrgHierarchyCrumbs 공용 / Q2·Q3·Q4 lock / 각 tsc0 회귀0 mock0 |
+| 2026-05-29 | **Phase 3C 완료 6/6** (3C-1~6) | ✅ `50ee237`~`0b61922` push / 팀 영역 / status·권한 BT1~6 일치 / docs `b50b88e` |
+| 2026-05-29 | **Phase 2C 완료 10/10** (2C-1~10) | ✅ `13feb36`~`9292fe6` push / 경기 영역 / game_applications.status Int0/1/2 / docs `283bcd3` |
+| 2026-05-29 | Auto Chain 1단계 v2.22 sync (`dee2445`) | ✅ Phase 3 팀 + 4 단체 동시 / screens 33→46 / 회귀16 통과 |
+| 2026-05-29 | Auto Chain Master 사전 점검 | ✅ git/env/zip/v2.20 6/6 / 데이터 정책=통합 허용 |

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>BDR v2.20 · Phase 2 (경기 영역) + Phase 1A/1B 시안 목차</title>
+<title>BDR v2.22 · Phase 4 (단체 영역) + Phase 1A/1B/2/3 시안 목차</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800;900&family=JetBrains+Mono:wght@500;700;800&family=Pretendard:wght@400;500;600;700;800;900&display=swap" />
@@ -15,7 +15,6 @@
 .index-hero { margin-bottom: 36px; }
 .index-hero h1 { font-family: var(--ff-display); font-size: 40px; font-weight: 900; letter-spacing: -0.025em; margin: 8px 0 12px; }
 .index-hero p { margin: 0; color: var(--ink-soft); max-width: 820px; font-size: 15px; line-height: 1.7; }
-
 .index-summary { margin: 28px 0; display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
 .index-stat { background: var(--bg-elev); border: 1px solid var(--border); border-radius: var(--r-md); padding: 16px 20px; }
 .index-stat__v { font-family: var(--ff-display); font-size: 32px; font-weight: 900; letter-spacing: -0.02em; color: var(--ink); line-height: 1; }
@@ -23,7 +22,6 @@
 .index-stat--accent .index-stat__v { color: var(--accent); }
 .index-stat--navy .index-stat__v { color: var(--bdr-navy); }
 .index-stat--ok .index-stat__v { color: var(--ok); }
-
 .index-section { margin-top: 40px; }
 .index-section__h { font-family: var(--ff-display); font-size: 22px; font-weight: 800; letter-spacing: -0.015em; margin: 0 0 4px; display: flex; align-items: center; gap: 10px; }
 .index-section__num { font-family: var(--ff-mono); font-size: 11px; font-weight: 800; color: var(--accent); letter-spacing: 0.1em; background: var(--accent-soft); padding: 3px 8px; border-radius: var(--r-xs); }
@@ -31,7 +29,6 @@
 .index-section__num--mute { color: var(--ink-mute); background: var(--bg-head); }
 .index-section__num--ok { color: var(--ok); background: var(--ok-soft); }
 .index-section__sub { margin: 4px 0 18px; font-size: 13.5px; color: var(--ink-mute); }
-
 .index-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
 .index-card { background: var(--bg-elev); border: 1px solid var(--border); border-radius: var(--r-lg); padding: 20px 22px; text-decoration: none; color: inherit; display: flex; flex-direction: column; gap: 6px; transition: border-color .12s, box-shadow .12s, transform .12s; }
 .index-card:hover { border-color: var(--accent-hair); box-shadow: var(--sh-md); transform: translateY(-1px); }
@@ -45,18 +42,17 @@
 .index-card__desc { font-size: 12.5px; color: var(--ink-soft); line-height: 1.55; margin-top: 4px; }
 .index-card__tags { display: flex; gap: 4px; margin-top: 8px; flex-wrap: wrap; }
 .index-card__tag { font-family: var(--ff-mono); font-size: 9.5px; font-weight: 800; padding: 2px 6px; background: var(--bg-head); color: var(--ink-soft); border-radius: var(--r-xs); letter-spacing: 0.04em; }
-.index-card__tag--gap { background: var(--cafe-blue-soft); color: var(--cafe-blue-deep); }
-.index-card__tag--gap-s { background: #FBE9D1; color: #8B5A0F; }
-.index-card__tag--gap-bg { background: var(--accent-soft); color: var(--accent); }
+.index-card__tag--gap-bo { background: var(--cafe-blue-soft); color: var(--cafe-blue-deep); }
+.index-card__tag--gap-bt { background: var(--accent-soft); color: var(--accent); }
 .index-card__tag--new { background: var(--accent); color: #fff; }
-
+.index-card__tag--op-site { background: linear-gradient(135deg, #1A1E27, #404755); color: #F4C76C; }
+.index-card__tag--op-series { background: linear-gradient(135deg, #1B3C87, #0F234F); color: #C0CCDB; }
 .index-checks { margin-top: 40px; padding: 24px 28px; background: var(--bg-elev); border: 1px solid var(--border); border-radius: var(--r-lg); }
 .index-checks h3 { font-family: var(--ff-display); font-size: 16px; font-weight: 800; margin: 0 0 12px; }
 .index-checks ul { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 6px 16px; }
 .index-checks li { font-size: 13px; color: var(--ink-soft); display: flex; align-items: flex-start; gap: 6px; line-height: 1.55; }
 .index-checks li::before { content: '✓'; color: var(--ok); font-weight: 800; flex-shrink: 0; }
-.index-checks--bg2 li::before { color: var(--accent); }
-
+.index-checks--bo li::before { color: var(--cafe-blue); }
 @media (max-width: 720px) {
   .index-summary { grid-template-columns: 1fr 1fr; }
   .index-grid { grid-template-columns: 1fr; }
@@ -67,229 +63,215 @@
 <body>
 <div class="index-page">
   <header class="index-hero">
-    <div class="eyebrow">BDR v2.20 · Phase 2 · 2026-05-28</div>
-    <h1>경기 영역 리디자인 — 사용자↔관리자 연결 다리</h1>
+    <div class="eyebrow">BDR v2.22 · Phase 4 · 2026-05-28</div>
+    <h1>단체 영역 리디자인 — 사용자 + 단체 운영자 + Site Operator</h1>
     <p>
       <b>운영 코드 변경 0 — 시안 박제만.</b>
-      Phase 2A (관리자 2 시안) + Phase 2B (사용자 8 시안) = 총 <b>10 시안</b>.
-      <b>BG1~BG7 7 갭 모두 해소</b> — BG1 신청 알림 / BG2 매너 평가 / BG3 경력 자동 / BG4 MVP 시상 / BG5 자동 승인+출처 / BG6 통합 hub / BG7 라이브 진입점.
-      Phase 1A v2.19 (대회 관리자 10) + Phase 1B v2.18 (대회 사용자 8) carry-over (변경 ❌).
-      사용자 결정 §1~§8 보존 — 특히 §5 Hero 카로셀 보존 / BG2 평균+종류만.
+      Phase 4A (관리자 4 시안 · OA1 + OO1~OO3) + Phase 4B (사용자 4 시안 · OU1~OU4) = 총 <b>8 시안</b>.
+      <b>BO1~BO8 8 양측 다리</b> — BO1 신청 / BO2 위계 / BO3 멤버·권한 / BO4 시리즈 마법사 / BO5 super-admin / BO7 cross-domain 팀 / BO8 cross-domain 대회.
+      <b>3측 stakeholder</b> = 일반 사용자 / Series Operator (단체 운영자) / Site Operator (super-admin) — 2측 badge 시각 분리.
+      Phase 1A v2.19 + Phase 1B v2.18 + Phase 2 v2.20 + Phase 3 v2.21 carry-over (변경 ❌).
+      사용자 결정 §1~§8 보존 — 특히 §2 새 라우트 ❌ (OA1 모달 옵션 A · TA2 답습) / Phase 1A PA3 마법사 답습 / Phase 2 UD1 알림 체크박스.
     </p>
     <div class="index-summary">
-      <div class="index-stat"><div class="index-stat__v">10</div><div class="index-stat__l">Phase 2 시안 (2A + 2B)</div></div>
-      <div class="index-stat index-stat--accent"><div class="index-stat__v">1</div><div class="index-stat__l">신규 (UB1 GameResult)</div></div>
-      <div class="index-stat index-stat--ok"><div class="index-stat__v">7</div><div class="index-stat__l">갭 해소 (BG1~BG7)</div></div>
+      <div class="index-stat"><div class="index-stat__v">8</div><div class="index-stat__l">Phase 4 시안 (4A + 4B)</div></div>
+      <div class="index-stat index-stat--accent"><div class="index-stat__v">7</div><div class="index-stat__l">신규 (OU3, OU4, OO1, OO2, OO3, +)</div></div>
+      <div class="index-stat index-stat--ok"><div class="index-stat__v">8</div><div class="index-stat__l">갭 해소 (BO1~BO8)</div></div>
       <div class="index-stat"><div class="index-stat__v">0</div><div class="index-stat__l">운영 코드 변경</div></div>
     </div>
   </header>
 
-  <!-- ============ Phase 2A — 관리자 보강 (2) ============ -->
+  <!-- ============ Phase 4B — 사용자 측 + 위계 (4) ============ -->
   <section class="index-section">
-    <h2 class="index-section__h"><span class="index-section__num">2A</span> 관리자 보강 (2 시안 · E 등급)</h2>
-    <p class="index-section__sub">BG1 알림 액션 + BG2 매너 통계 + BG5 액션 출처.</p>
+    <h2 class="index-section__h"><span class="index-section__num index-section__num--navy">4B</span> 사용자 측 + 양측 연결 다리 (4 시안 · A 등급)</h2>
+    <p class="index-section__sub">BO1 신청 + BO2 위계 (단체 → 시리즈 → 회차 → 대회) + BO7 cross-domain 팀 + BO8 cross-domain 대회.</p>
     <div class="index-grid">
-      <a class="index-card" href="p2-ud1-admin-games.html">
-        <div class="index-card__top">
-          <span class="index-card__id">UD1</span>
-          <span class="index-card__kind">관리자 · 보강 · E 등급</span>
-        </div>
-        <div class="index-card__title">AdminGames — 전체 경기 + 알림 + 출처</div>
-        <div class="index-card__route">/admin/games</div>
-        <p class="index-card__desc">신청 대기 배너 (BG1) + status 변경 모달 (알림 체크박스 기본 ✅) + 액션 출처 컬럼 (🏠 호스트 / 🛡️ super_admin / 🤖 시스템) + 출처 filter.</p>
+      <a class="index-card" href="ou1-organizations.html">
+        <div class="index-card__top"><span class="index-card__id index-card__id--navy">OU1</span><span class="index-card__kind">사용자 · 보강 · A 등급</span></div>
+        <div class="index-card__title">Organizations — 목록 + 필터 + 추천 + 등록 CTA</div>
+        <div class="index-card__route">/organizations</div>
+        <p class="index-card__desc">공개 + 승인 단체만 노출. 지역/정렬 필터 + 내 지역 추천 row + 전체 grid 2열 + 단체 등록 CTA (→ OU3) + About 박스 위계 설명.</p>
         <div class="index-card__tags">
-          <span class="index-card__tag index-card__tag--gap-bg">BG1 ★★★</span>
-          <span class="index-card__tag index-card__tag--gap-bg">BG5 ★★</span>
+          <span class="index-card__tag index-card__tag--gap-bo">BO1</span>
+          <span class="index-card__tag index-card__tag--gap-bo">BO2</span>
         </div>
       </a>
-      <a class="index-card" href="p2-ud2-admin-game-reports.html">
-        <div class="index-card__top">
-          <span class="index-card__id">UD2</span>
-          <span class="index-card__kind">관리자 · 보강 · E 등급</span>
-        </div>
-        <div class="index-card__title">AdminGameReports — 매너 평가 검토</div>
-        <div class="index-card__route">/admin/game-reports</div>
-        <p class="index-card__desc">3 탭 (신고 큐 / 매너 통계 신규 / 30일 추세). <strong>BG2 사용자 결재 룰</strong> — 평균 평점 + flag 종류만 / 개별 평가 건수 ❌. 상위/하위 매너 사용자 list + 평점 분포.</p>
+      <a class="index-card" href="ou2-organization-detail.html">
+        <div class="index-card__top"><span class="index-card__id index-card__id--navy">OU2</span><span class="index-card__kind">사용자 · 보강 (4 탭) · A 등급</span></div>
+        <div class="index-card__title">OrganizationDetail — Hero + 4 탭 + sidebar (운영 액션)</div>
+        <div class="index-card__route">/organizations/[slug]</div>
+        <p class="index-card__desc">단체 상세. 4 탭 (overview / teams / events / members). events = 시리즈 → 회차 (BO2 위계). sidebar 다음 회차 (BO8) + 운영 액션 (admin only · TU2 답습 BT7).</p>
         <div class="index-card__tags">
-          <span class="index-card__tag index-card__tag--gap-bg">BG2 ★★★</span>
-          <span class="index-card__tag index-card__tag--new">NEW</span>
+          <span class="index-card__tag index-card__tag--gap-bo">BO2 ★★★</span>
+          <span class="index-card__tag index-card__tag--gap-bo">BO7</span>
+          <span class="index-card__tag index-card__tag--gap-bo">BO8</span>
         </div>
       </a>
-    </div>
-  </section>
-
-  <!-- ============ Phase 2B — 사용자 측 + 연결 다리 (8) ============ -->
-  <section class="index-section">
-    <h2 class="index-section__h"><span class="index-section__num">2B</span> 사용자 + 사용자↔관리자 연결 다리 (8 시안 · A 등급)</h2>
-    <p class="index-section__sub">부분수정 5 + 신규 1 (UB1) + 보강 2 (UC1 / UC2). AppNav 03 frozen 카피.</p>
-    <div class="index-grid">
-      <a class="index-card" href="p2-ua1-games.html">
-        <div class="index-card__top">
-          <span class="index-card__id index-card__id--navy">UA1</span>
-          <span class="index-card__kind">사용자 · 부분수정 · A 등급</span>
-        </div>
-        <div class="index-card__title">Games — Hero 위 LIVE 띠 + 종료 우승팀 라인</div>
-        <div class="index-card__route">/games</div>
-        <p class="index-card__desc">상단 sticky LIVE chip row (UC2 와 동일 컴포넌트) + 7칩 필터 + v2.16 GameCard 보존. 종료 카드 hero 자리에 🏆 우승/MVP/score 1줄.</p>
-        <div class="index-card__tags">
-          <span class="index-card__tag index-card__tag--gap-bg">BG7</span>
-          <span class="index-card__tag index-card__tag--gap-bg">BG4</span>
-        </div>
-      </a>
-      <a class="index-card" href="p2-ua2-game-detail.html">
-        <div class="index-card__top">
-          <span class="index-card__id index-card__id--navy">UA2</span>
-          <span class="index-card__kind">사용자 · 부분수정 · A 등급</span>
-        </div>
-        <div class="index-card__title">GameDetail — sidebar 신청 step indicator</div>
-        <div class="index-card__route">/games/[id]</div>
-        <p class="index-card__desc">v2.16 Hero + 5 섹션 보존. sidebar "내 신청 현황" step indicator 신규 (3 step + 단계별 시간 + /profile/activity 딥링크). status=completed 분기 → UB1.</p>
-        <div class="index-card__tags">
-          <span class="index-card__tag index-card__tag--gap-bg">BG1 ★★★</span>
-          <span class="index-card__tag index-card__tag--gap-bg">BG4 분기</span>
-        </div>
-      </a>
-      <a class="index-card" href="p2-ua3-create-game.html">
-        <div class="index-card__top">
-          <span class="index-card__id index-card__id--navy">UA3</span>
-          <span class="index-card__kind">사용자 · 부분수정 · A 등급</span>
-        </div>
-        <div class="index-card__title">CreateGame — 자동 승인 + 게스트 옵션</div>
-        <div class="index-card__route">/games/new</div>
-        <p class="index-card__desc">"신청 정책" 섹션 신규 — 자동 승인 토글 (기본 ON) / 게스트 모집 토글 + 최소 경력 + 약관 동의 필수. v2 wizard 3 카드 + 라이브 프리뷰 보존.</p>
-        <div class="index-card__tags">
-          <span class="index-card__tag index-card__tag--gap-bg">BG5</span>
-          <span class="index-card__tag index-card__tag--gap-bg">BG3 보조</span>
-        </div>
-      </a>
-      <a class="index-card" href="p2-ua4-guest-apply.html">
-        <div class="index-card__top">
-          <span class="index-card__id index-card__id--navy">UA4</span>
-          <span class="index-card__kind">사용자 · 부분수정 · A 등급</span>
-        </div>
-        <div class="index-card__title">GuestApply — skill_level 자동 채우기</div>
-        <div class="index-card__route">/games/[id]/guest-apply</div>
-        <p class="index-card__desc">user.skill_level → experience_years 자동 추론 + prefill + ⓘ "내 프로필 실력에서 자동" + 수정 가능. BG1 사후 안내 = "호스트 승인 시 알림" 1줄.</p>
-        <div class="index-card__tags">
-          <span class="index-card__tag index-card__tag--gap-bg">BG3</span>
-          <span class="index-card__tag index-card__tag--gap-bg">BG1 사후</span>
-        </div>
-      </a>
-      <a class="index-card" href="p2-ua5-live.html">
-        <div class="index-card__top">
-          <span class="index-card__id index-card__id--navy">UA5</span>
-          <span class="index-card__kind">사용자 · 부분수정 · A 등급</span>
-        </div>
-        <div class="index-card__title">Live — 대회/일반 분기 라벨 + 다음 경기</div>
-        <div class="index-card__route">/live/[id]</div>
-        <p class="index-card__desc">Hero 라벨 강화 — 대회 (🏆 카페블루) vs 일반 (🏀 액센트) 시각 분리. 하단 "같은 대회 다음 매치" / "같은 호스트 다음 경기" 영역 신규.</p>
-        <div class="index-card__tags">
-          <span class="index-card__tag index-card__tag--gap-bg">BG7</span>
-        </div>
-      </a>
-      <a class="index-card" href="p2-ub1-game-result.html">
-        <div class="index-card__top">
-          <span class="index-card__id index-card__id--navy">UB1</span>
-          <span class="index-card__kind">사용자 · 신규 (variant) · A 등급</span>
-        </div>
-        <div class="index-card__title">GameResult — /games/[id] status=completed variant</div>
-        <div class="index-card__route">/games/[id] · status='completed'</div>
-        <p class="index-card__desc">같은 라우트 status 분기 — 신규 라우트 ❌ / 더보기 가짜링크 룰 통과. 🏆 + MVP Hero (Pretendard 900) + 최종 score / 4 카드 (참가자 / Best / 매너 평가 진입 / 호스트 한마디).</p>
+      <a class="index-card" href="ou3-organization-apply.html">
+        <div class="index-card__top"><span class="index-card__id index-card__id--navy">OU3</span><span class="index-card__kind">사용자 · 신규 (5-step) · A 등급</span></div>
+        <div class="index-card__title">OrganizationApply — 5-step 마법사 (PA3 답습 단순화)</div>
+        <div class="index-card__route">/organizations/apply</div>
+        <p class="index-card__desc">신규 박제 (운영 230 line 단일 form → 5 step). 기본 / 지역·공개 / 연락 / 검토 메모 / 검토+제출. 제출 → status=pending → OA1 동일 필드 (BO1 다리). 성공 화면 = 1-2일 검토 안내.</p>
         <div class="index-card__tags">
           <span class="index-card__tag index-card__tag--new">NEW</span>
-          <span class="index-card__tag index-card__tag--gap-bg">BG4 ★★★★★</span>
+          <span class="index-card__tag index-card__tag--gap-bo">BO1 ★★★</span>
         </div>
       </a>
-      <a class="index-card" href="p2-uc1-my-activity.html">
-        <div class="index-card__top">
-          <span class="index-card__id index-card__id--navy">UC1</span>
-          <span class="index-card__kind">사용자 · 보강 · A 등급</span>
-        </div>
-        <div class="index-card__title">MyActivity — 내 경기 + 내 매너 (보강)</div>
-        <div class="index-card__route">/profile/activity</div>
-        <p class="index-card__desc">Phase 1B "내 대회" 보존 + "내 경기" 신규 (game_applications / 상태별 정렬 + step indicator) + "내 매너" 카드 신규 (평균 + flag 종류만 / 개별 건수 ❌).</p>
+      <a class="index-card" href="ou4-series.html">
+        <div class="index-card__top"><span class="index-card__id index-card__id--navy">OU4</span><span class="index-card__kind">사용자 · 신규 (list + detail) · A 등급</span></div>
+        <div class="index-card__title">Series — 시리즈 list (spotlight) + detail (회차 timeline)</div>
+        <div class="index-card__route">/series + /series/[slug]</div>
+        <p class="index-card__desc">신규 박제. list = spotlight + grid + About. detail = Hero (그라디언트) + 회차 timeline + sidebar (다음 회차 BO8 + 명예의 전당). 회차 row → /tournaments/[id] (BO8 cross-domain).</p>
         <div class="index-card__tags">
-          <span class="index-card__tag index-card__tag--gap-bg">BG6 ★★★★</span>
-          <span class="index-card__tag index-card__tag--gap-bg">BG2 ★★★</span>
+          <span class="index-card__tag index-card__tag--new">NEW</span>
+          <span class="index-card__tag index-card__tag--gap-bo">BO2</span>
+          <span class="index-card__tag index-card__tag--gap-bo">BO8 ★★</span>
         </div>
       </a>
-      <a class="index-card" href="p2-uc2-home.html">
-        <div class="index-card__top">
-          <span class="index-card__id index-card__id--navy">UC2</span>
-          <span class="index-card__kind">사용자 · 보강 · A 등급</span>
-        </div>
-        <div class="index-card__title">Home — Hero 위 sticky LIVE chip row</div>
-        <div class="index-card__route">/</div>
-        <p class="index-card__desc"><strong>사용자 결정 §5 Hero 카로셀 보존</strong> / 본 시안은 카로셀 위 sticky 추가 영역만. 라이브 0건 = 띠 hidden / 5+ 가로 스크롤. chip 클릭 → /live/[id].</p>
+    </div>
+  </section>
+
+  <!-- ============ Phase 4A — 관리자 측 (4) ============ -->
+  <section class="index-section">
+    <h2 class="index-section__h"><span class="index-section__num">4A</span> 관리자 측 (4 시안 · E 등급 · 2측 badge)</h2>
+    <p class="index-section__sub">OA1 = Site Operator (super-admin) · OO1~OO3 = Series Operator (단체 운영자) — 2측 badge 시각 분리.</p>
+    <div class="index-grid">
+      <a class="index-card" href="oa1-admin-organizations.html">
+        <div class="index-card__top"><span class="index-card__id">OA1</span><span class="index-card__kind">관리자 · 보강 · E 등급</span></div>
+        <div class="index-card__title">AdminOrganizations — Site Operator 단체 검수</div>
+        <div class="index-card__route">/admin/organizations</div>
+        <p class="index-card__desc">보강 박제 (운영 244 line + TA2 답습 모달). 4 상태 hero (대기/승인/보관/거절) + 필터 + 테이블 + 행 클릭 → 모달 (BO1 OU3 동일 필드 + BO5 정지/해산 + UD1 알림 체크박스).</p>
         <div class="index-card__tags">
-          <span class="index-card__tag index-card__tag--gap-bg">BG7 ★★★★</span>
-          <span class="index-card__tag index-card__tag--gap-s">§5 보존</span>
+          <span class="index-card__tag index-card__tag--gap-bo">BO1</span>
+          <span class="index-card__tag index-card__tag--gap-bo">BO5 ★★★</span>
+          <span class="index-card__tag index-card__tag--op-site">Site Operator</span>
+        </div>
+      </a>
+      <a class="index-card" href="oo1-orgadmin-list.html">
+        <div class="index-card__top"><span class="index-card__id">OO1</span><span class="index-card__kind">관리자 · 신규 · E 등급</span></div>
+        <div class="index-card__title">OrgAdminList + New — Series Operator 내 단체</div>
+        <div class="index-card__route">/tournament-admin/organizations + /new</div>
+        <p class="index-card__desc">신규 박제 (운영 224 list + 219 new). list = 본인 소속 단체 카드 (role) + 보관됨 분리 + "새 단체" CTA. new = DB 직접 생성 form (Site Operator only).</p>
+        <div class="index-card__tags">
+          <span class="index-card__tag index-card__tag--new">NEW</span>
+          <span class="index-card__tag index-card__tag--gap-bo">BO3</span>
+          <span class="index-card__tag index-card__tag--op-series">Series Operator</span>
+        </div>
+      </a>
+      <a class="index-card" href="oo2-orgadmin-detail.html">
+        <div class="index-card__top"><span class="index-card__id">OO2</span><span class="index-card__kind">관리자 · 신규 (6 sub-tab · 가장 큼) · E 등급</span></div>
+        <div class="index-card__title">OrgAdminDetail — 단체 대시보드 6 sub-tab (TU4 답습)</div>
+        <div class="index-card__route">/tournament-admin/organizations/[orgId]?tab=...</div>
+        <p class="index-card__desc">신규 박제 (운영 OO2+OO2b 거대 페이지). basic / members / series / editions / officers / activity 6 탭. officers = TU4 BT4 답습 (admin role 권한 위임). basic = OU3 신청 form 동일 필드 (BO1).</p>
+        <div class="index-card__tags">
+          <span class="index-card__tag index-card__tag--new">NEW</span>
+          <span class="index-card__tag index-card__tag--gap-bo">BO2</span>
+          <span class="index-card__tag index-card__tag--gap-bo">BO3 ★★★</span>
+          <span class="index-card__tag index-card__tag--op-series">Series Operator</span>
+        </div>
+      </a>
+      <a class="index-card" href="oo3-series-admin.html">
+        <div class="index-card__top"><span class="index-card__id">OO3</span><span class="index-card__kind">관리자 · 신규 (5-page) · E 등급</span></div>
+        <div class="index-card__title">SeriesAdmin — list + 3-step 마법사 + detail + 회차 모달</div>
+        <div class="index-card__route">/tournament-admin/series/*</div>
+        <p class="index-card__desc">신규 박제 (3 page). 마법사 = PA3 답습 단순화 (기본+단체 / 설명·로고·정기성 / 검토+첫 회차 옵션). 회차 추가 = 모달 (date / venue / maxTeams) — 새 라우트 ❌.</p>
+        <div class="index-card__tags">
+          <span class="index-card__tag index-card__tag--new">NEW</span>
+          <span class="index-card__tag index-card__tag--gap-bo">BO4 ★★</span>
+          <span class="index-card__tag index-card__tag--op-series">Series Operator</span>
         </div>
       </a>
     </div>
   </section>
 
-  <!-- ============ Phase 1A 보존 (v2.19 시안) ============ -->
+  <!-- ============ Phase 3 보존 (v2.21 시안) ============ -->
   <section class="index-section">
-    <h2 class="index-section__h"><span class="index-section__num index-section__num--mute">v2.19</span> Phase 1A 보존 — 대회 관리자 측 (10 시안)</h2>
-    <p class="index-section__sub">2026-05-26 박제. 본 v2.20 에 그대로 carry-over (변경 0). S1~S8 사각지대 해소 + BDR-current 갭 G1~G3.</p>
+    <h2 class="index-section__h"><span class="index-section__num index-section__num--mute">v2.21</span> Phase 3 보존 — 팀 영역 (7 시안)</h2>
+    <p class="index-section__sub">2026-05-28 박제. 본 v2.22 carry-over (변경 0). BT1~BT8 8 갭 해소.</p>
     <div class="index-grid">
-      <a class="index-card" href="pa1-admin-list.html"><div class="index-card__top"><span class="index-card__id">PA1</span><span class="index-card__kind">v2.19 · 수정</span></div><div class="index-card__title">관리자 — 내 대회 목록</div><div class="index-card__route">/tournament-admin/tournaments</div></a>
-      <a class="index-card" href="pa2-admin-wizard.html"><div class="index-card__top"><span class="index-card__id">PA2</span><span class="index-card__kind">v2.19 · 수정</span></div><div class="index-card__title">Wizard QuickCreate</div><div class="index-card__route">/tournament-admin/tournaments/new/wizard</div></a>
-      <a class="index-card" href="pa3-admin-assoc.html"><div class="index-card__top"><span class="index-card__id">PA3</span><span class="index-card__kind">v2.19 · 수정</span></div><div class="index-card__title">협회 마법사</div><div class="index-card__route">/tournament-admin/wizard/association</div></a>
-      <a class="index-card" href="ud3-admin-setup.html"><div class="index-card__top"><span class="index-card__id">PA4</span><span class="index-card__kind">v2.19 · 수정 + 보존</span></div><div class="index-card__title">셋업 hub (B1 + B7)</div><div class="index-card__route">/tournament-admin/tournaments/[id]</div></a>
-      <a class="index-card" href="pa5-admin-matches.html"><div class="index-card__top"><span class="index-card__id">PA5</span><span class="index-card__kind">v2.19 · 수정</span></div><div class="index-card__title">경기 관리</div><div class="index-card__route">/tournament-admin/tournaments/[id]/matches</div></a>
-      <a class="index-card" href="pa6-admin-divisions.html"><div class="index-card__top"><span class="index-card__id">PA6</span><span class="index-card__kind">v2.19 · 수정</span></div><div class="index-card__title">종별 운영</div><div class="index-card__route">/tournament-admin/tournaments/[id]/divisions</div></a>
-      <a class="index-card" href="pa7-admin-completed.html"><div class="index-card__top"><span class="index-card__id">PA7</span><span class="index-card__kind">v2.19 · NEW</span></div><div class="index-card__title">종료 후 hub</div><div class="index-card__route">/tournament-admin/tournaments/[id] · status=completed</div></a>
-      <a class="index-card" href="pa8-admin-playoffs.html"><div class="index-card__top"><span class="index-card__id">PA8</span><span class="index-card__kind">v2.19 · NEW</span></div><div class="index-card__title">순위전 hub</div><div class="index-card__route">/tournament-admin/tournaments/[id]/playoffs</div></a>
-      <a class="index-card" href="pa9-admin-prospectus.html"><div class="index-card__top"><span class="index-card__id">PA9</span><span class="index-card__kind">v2.19 · NEW</span></div><div class="index-card__title">Prospectus PDF→AI→wizard</div><div class="index-card__route">/tournament-admin/tournaments/new/wizard/prospectus</div></a>
-      <a class="index-card" href="ud1-admin-teams.html"><div class="index-card__top"><span class="index-card__id">UD1*</span><span class="index-card__kind">v2.18 · 관리자 보강</span></div><div class="index-card__title">참가팀 관리 (대회)</div><div class="index-card__route">/tournament-admin/tournaments/[id]/teams</div></a>
+      <a class="index-card" href="tu1-teams.html"><div class="index-card__top"><span class="index-card__id index-card__id--navy">TU1</span><span class="index-card__kind">v2.21 · 사용자</span></div><div class="index-card__title">Teams — 검색 + 필터 + 추천 + 전체</div><div class="index-card__route">/teams</div></a>
+      <a class="index-card" href="tu2-team-detail.html"><div class="index-card__top"><span class="index-card__id index-card__id--navy">TU2</span><span class="index-card__kind">v2.21 · 사용자</span></div><div class="index-card__title">TeamDetail — 5종 보강</div><div class="index-card__route">/teams/[id]</div></a>
+      <a class="index-card" href="tu3-team-manage.html"><div class="index-card__top"><span class="index-card__id index-card__id--navy">TU3</span><span class="index-card__kind">v2.21 · 신규 hub</span></div><div class="index-card__title">TeamManage — 운영 팀 hub (0/1/N)</div><div class="index-card__route">/teams/manage</div></a>
+      <a class="index-card" href="tu4-team-manage-detail.html"><div class="index-card__top"><span class="index-card__id index-card__id--navy">TU4</span><span class="index-card__kind">v2.21 · 신규 (6 탭)</span></div><div class="index-card__title">TeamManageDetail — 6 sub-tab 통합</div><div class="index-card__route">/teams/[id]/manage</div></a>
+      <a class="index-card" href="tu5-my-activity.html"><div class="index-card__top"><span class="index-card__id index-card__id--navy">TU5</span><span class="index-card__kind">v2.21 · 보강</span></div><div class="index-card__title">MyActivity — Phase 3 보강</div><div class="index-card__route">/profile/activity</div></a>
+      <a class="index-card" href="ta1-admin-teams.html"><div class="index-card__top"><span class="index-card__id">TA1+TA2</span><span class="index-card__kind">v2.21 · 신규</span></div><div class="index-card__title">AdminTeams + Modal — super-admin 팀 hub</div><div class="index-card__route">/admin/teams</div></a>
     </div>
   </section>
 
-  <!-- ============ Phase 1B 보존 (v2.18 시안) ============ -->
+  <!-- ============ Phase 2 보존 (v2.20) ============ -->
   <section class="index-section">
-    <h2 class="index-section__h"><span class="index-section__num index-section__num--mute">v2.18</span> Phase 1B 보존 — 대회 사용자 측 (5 시안)</h2>
-    <p class="index-section__sub">2026-05-25 박제. 본 v2.20 carry-over (변경 0). B1~B7 갭 해소.</p>
+    <h2 class="index-section__h"><span class="index-section__num index-section__num--mute">v2.20</span> Phase 2 보존 — 경기 영역 (10 시안)</h2>
     <div class="index-grid">
-      <a class="index-card" href="ua1-tournaments.html"><div class="index-card__top"><span class="index-card__id index-card__id--navy">UA1</span><span class="index-card__kind">v2.18 · 전면교체</span></div><div class="index-card__title">대회 목록</div><div class="index-card__route">/tournaments</div></a>
-      <a class="index-card" href="ua2-tournament-detail.html"><div class="index-card__top"><span class="index-card__id index-card__id--navy">UA2</span><span class="index-card__kind">v2.18 · 부분수정</span></div><div class="index-card__title">대회 상세</div><div class="index-card__route">/tournaments/[id]</div></a>
-      <a class="index-card" href="ua3-tournament-enroll.html"><div class="index-card__top"><span class="index-card__id index-card__id--navy">UA3</span><span class="index-card__kind">v2.18 · 부분보강</span></div><div class="index-card__title">대회 신청</div><div class="index-card__route">/tournaments/[id]/join</div></a>
-      <a class="index-card" href="ub1-tournament-completed.html"><div class="index-card__top"><span class="index-card__id index-card__id--navy">UB1</span><span class="index-card__kind">v2.18 · status 분기</span></div><div class="index-card__title">대회 종료 발표</div><div class="index-card__route">/tournaments/[id] · status=completed</div></a>
-      <a class="index-card" href="uc1-my-activity.html"><div class="index-card__top"><span class="index-card__id index-card__id--navy">UC1*</span><span class="index-card__kind">v2.18 → v2.20 보강</span></div><div class="index-card__title">마이페이지 — 내 대회 (Phase 1B)</div><div class="index-card__route">/profile/activity</div></a>
-      <a class="index-card" href="ud2-admin-bracket.html"><div class="index-card__top"><span class="index-card__id index-card__id--navy">UD2*</span><span class="index-card__kind">v2.18 · 관리자 보강</span></div><div class="index-card__title">대진표 관리 (대회)</div><div class="index-card__route">/tournament-admin/tournaments/[id]/bracket</div></a>
+      <a class="index-card" href="p2-ud1-admin-games.html"><div class="index-card__top"><span class="index-card__id">UD1</span><span class="index-card__kind">v2.20 · 관리자</span></div><div class="index-card__title">AdminGames — 알림 + 출처</div><div class="index-card__route">/admin/games</div></a>
+      <a class="index-card" href="p2-ud2-admin-game-reports.html"><div class="index-card__top"><span class="index-card__id">UD2</span><span class="index-card__kind">v2.20 · 관리자</span></div><div class="index-card__title">AdminGameReports — 매너 통계</div><div class="index-card__route">/admin/game-reports</div></a>
+      <a class="index-card" href="p2-ua1-games.html"><div class="index-card__top"><span class="index-card__id index-card__id--navy">UA1</span><span class="index-card__kind">v2.20</span></div><div class="index-card__title">Games — LIVE 띠</div><div class="index-card__route">/games</div></a>
+      <a class="index-card" href="p2-ua2-game-detail.html"><div class="index-card__top"><span class="index-card__id index-card__id--navy">UA2</span><span class="index-card__kind">v2.20</span></div><div class="index-card__title">GameDetail — step indicator</div><div class="index-card__route">/games/[id]</div></a>
+      <a class="index-card" href="p2-ua3-create-game.html"><div class="index-card__top"><span class="index-card__id index-card__id--navy">UA3</span><span class="index-card__kind">v2.20</span></div><div class="index-card__title">CreateGame</div><div class="index-card__route">/games/new</div></a>
+      <a class="index-card" href="p2-ua4-guest-apply.html"><div class="index-card__top"><span class="index-card__id index-card__id--navy">UA4</span><span class="index-card__kind">v2.20</span></div><div class="index-card__title">GuestApply</div><div class="index-card__route">/games/[id]/guest-apply</div></a>
+      <a class="index-card" href="p2-ua5-live.html"><div class="index-card__top"><span class="index-card__id index-card__id--navy">UA5</span><span class="index-card__kind">v2.20</span></div><div class="index-card__title">Live</div><div class="index-card__route">/live/[id]</div></a>
+      <a class="index-card" href="p2-ub1-game-result.html"><div class="index-card__top"><span class="index-card__id index-card__id--navy">UB1</span><span class="index-card__kind">v2.20</span></div><div class="index-card__title">GameResult</div><div class="index-card__route">/games/[id] · completed</div></a>
+      <a class="index-card" href="p2-uc1-my-activity.html"><div class="index-card__top"><span class="index-card__id index-card__id--navy">UC1</span><span class="index-card__kind">v2.20</span></div><div class="index-card__title">MyActivity (Phase 2)</div><div class="index-card__route">/profile/activity</div></a>
+      <a class="index-card" href="p2-uc2-home.html"><div class="index-card__top"><span class="index-card__id index-card__id--navy">UC2</span><span class="index-card__kind">v2.20</span></div><div class="index-card__title">Home</div><div class="index-card__route">/</div></a>
     </div>
   </section>
 
+  <!-- ============ Phase 1A + 1B 보존 ============ -->
+  <section class="index-section">
+    <h2 class="index-section__h"><span class="index-section__num index-section__num--mute">v2.18-19</span> Phase 1A + 1B 보존 — 대회 영역 (16 시안)</h2>
+    <div class="index-grid">
+      <a class="index-card" href="pa1-admin-list.html"><div class="index-card__top"><span class="index-card__id">PA1</span><span class="index-card__kind">v2.19</span></div><div class="index-card__title">내 대회 목록</div><div class="index-card__route">/tournament-admin/tournaments</div></a>
+      <a class="index-card" href="pa2-admin-wizard.html"><div class="index-card__top"><span class="index-card__id">PA2</span><span class="index-card__kind">v2.19</span></div><div class="index-card__title">Wizard QuickCreate</div><div class="index-card__route">.../new/wizard</div></a>
+      <a class="index-card" href="pa3-admin-assoc.html"><div class="index-card__top"><span class="index-card__id">PA3</span><span class="index-card__kind">v2.19</span></div><div class="index-card__title">협회 마법사 (Site Operator)</div><div class="index-card__route">.../wizard/association</div></a>
+      <a class="index-card" href="ud3-admin-setup.html"><div class="index-card__top"><span class="index-card__id">PA4</span><span class="index-card__kind">v2.19</span></div><div class="index-card__title">셋업 hub</div><div class="index-card__route">.../tournaments/[id]</div></a>
+      <a class="index-card" href="pa5-admin-matches.html"><div class="index-card__top"><span class="index-card__id">PA5</span><span class="index-card__kind">v2.19</span></div><div class="index-card__title">경기 관리</div><div class="index-card__route">.../matches</div></a>
+      <a class="index-card" href="pa6-admin-divisions.html"><div class="index-card__top"><span class="index-card__id">PA6</span><span class="index-card__kind">v2.19</span></div><div class="index-card__title">종별 운영</div><div class="index-card__route">.../divisions</div></a>
+      <a class="index-card" href="pa7-admin-completed.html"><div class="index-card__top"><span class="index-card__id">PA7</span><span class="index-card__kind">v2.19</span></div><div class="index-card__title">종료 후 hub</div><div class="index-card__route">.../tournaments/[id] · completed</div></a>
+      <a class="index-card" href="pa8-admin-playoffs.html"><div class="index-card__top"><span class="index-card__id">PA8</span><span class="index-card__kind">v2.19</span></div><div class="index-card__title">순위전 hub</div><div class="index-card__route">.../playoffs</div></a>
+      <a class="index-card" href="pa9-admin-prospectus.html"><div class="index-card__top"><span class="index-card__id">PA9</span><span class="index-card__kind">v2.19</span></div><div class="index-card__title">Prospectus PDF→AI</div><div class="index-card__route">.../wizard/prospectus</div></a>
+      <a class="index-card" href="ud1-admin-teams.html"><div class="index-card__top"><span class="index-card__id">UD1*</span><span class="index-card__kind">v2.18</span></div><div class="index-card__title">참가팀 관리</div><div class="index-card__route">.../tournaments/[id]/teams</div></a>
+      <a class="index-card" href="ua1-tournaments.html"><div class="index-card__top"><span class="index-card__id index-card__id--navy">UA1</span><span class="index-card__kind">v2.18</span></div><div class="index-card__title">대회 목록</div><div class="index-card__route">/tournaments</div></a>
+      <a class="index-card" href="ua2-tournament-detail.html"><div class="index-card__top"><span class="index-card__id index-card__id--navy">UA2</span><span class="index-card__kind">v2.18</span></div><div class="index-card__title">대회 상세</div><div class="index-card__route">/tournaments/[id]</div></a>
+      <a class="index-card" href="ua3-tournament-enroll.html"><div class="index-card__top"><span class="index-card__id index-card__id--navy">UA3</span><span class="index-card__kind">v2.18</span></div><div class="index-card__title">대회 신청</div><div class="index-card__route">.../join</div></a>
+      <a class="index-card" href="ub1-tournament-completed.html"><div class="index-card__top"><span class="index-card__id index-card__id--navy">UB1</span><span class="index-card__kind">v2.18</span></div><div class="index-card__title">대회 종료 발표</div><div class="index-card__route">.../[id] · completed</div></a>
+      <a class="index-card" href="uc1-my-activity.html"><div class="index-card__top"><span class="index-card__id index-card__id--navy">UC1</span><span class="index-card__kind">v2.18</span></div><div class="index-card__title">마이페이지 (Phase 1B 원본)</div><div class="index-card__route">/profile/activity</div></a>
+      <a class="index-card" href="ud2-admin-bracket.html"><div class="index-card__top"><span class="index-card__id index-card__id--navy">UD2*</span><span class="index-card__kind">v2.18</span></div><div class="index-card__title">대진표 관리</div><div class="index-card__route">.../bracket</div></a>
+    </div>
+  </section>
+
+  <!-- ============ 자체 검수 ============ -->
   <section class="index-checks">
-    <h3>회귀 방지 자체 검수 — 4 + 8 케이스 통과 (Phase 2 핵심)</h3>
+    <h3>회귀 방지 자체 검수 — 4 + 8 + Phase 4 특수 4 케이스 통과</h3>
     <ul>
-      <li>main bar 우측 "더보기 ▼" / 아바타 노출 ❌ — 8 사용자 시안 모두 AppNav 03 frozen 카피</li>
+      <li>main bar 우측 "더보기 ▼" / 아바타 노출 ❌ — 4 사용자 시안 모두 AppNav 03 frozen 카피</li>
       <li>모바일(≤768px) "☀ 라이트 ☾ 다크" 듀얼 라벨 ❌ — ThemeSwitch viewport 분기</li>
       <li>검색/쪽지/알림 box (.btn / .btn--sm) ❌ — app-nav__icon-btn 만</li>
       <li>main bar 5 아이콘 순서 [다크, 검색, 쪽지, 알림, 햄버거] 보존</li>
-      <li>하드코딩 색상 = 0 — var(--*) 토큰만 / `--color-*` 폐기 ❌</li>
+      <li>하드코딩 색상 = 0 — var(--*) 토큰만 / brand_color hex 는 단체 mock data only (운영 organizations.brand_color column)</li>
       <li>lucide-react import = 0 — Material Symbols Outlined 만</li>
-      <li>rounded-full / 9999px = 0 — 정사각형 W=H 원형은 50% OK</li>
+      <li>rounded-full / 9999px = 0 — 정사각형 W=H 원형은 50% OK (avatar)</li>
       <li>가짜링크 (gameResult / gameReport / guestApps / referee) = 0</li>
       <li>button border-radius 4px 일관 / 카드 6~8px</li>
       <li>placeholder 5단어 이내 / "예: " 시작 ❌</li>
       <li>720px 분기 / iOS input 16px / 버튼 44px 모두 적용</li>
       <li>Pretendard + Archivo + JetBrains Mono 만 (Inter / Roboto / Fraunces ❌)</li>
+      <li><b>Phase 4 특수</b> — 2측 badge 시각 분리 (Site Operator dark+gold vs Series Operator navy+silver) — OA1 / OO1~3 일관</li>
+      <li><b>Phase 4 특수</b> — 위계 breadcrumb (홈 → 단체 → 시리즈 → 회차 → 대회) — OU2 / OU4 / OO2 일관 OrgHierarchyCrumbs</li>
+      <li><b>Phase 4 특수</b> — OO2 6 sub-tab = ?tab=basic / members / series / editions / officers / activity 명확</li>
+      <li><b>Phase 4 특수</b> — OO3 시리즈 마법사 = PA3 답습 (Site Operator badge ❌ · Series Operator only)</li>
     </ul>
   </section>
 
-  <section class="index-checks index-checks--bg2">
-    <h3>BG 양측 의존 검증 — 박제 마지막 단계</h3>
+  <section class="index-checks index-checks--bo">
+    <h3>BO 양측 의존 검증 — 박제 마지막 단계 ✅</h3>
     <ul>
-      <li><b>BG1</b> 신청 큐 — UD1 (관리자) ↔ UA2 step indicator ↔ UC1 "내 경기" 단계 = 같은 데이터 모델 (game_applications.status)</li>
-      <li><b>BG2</b> 매너 — UD2 통계 ↔ UC1 "내 매너" = 평균 + flag 종류만 / 개별 건수 ❌ (사용자 결재 일관)</li>
-      <li><b>BG7</b> 라이브 — UC2 Home Hero 위 sticky 1행 ↔ UA1 Games 상단 띠 ↔ UA5 진입점 = 동일 LiveChipRow 컴포넌트</li>
-      <li><b>BG4</b> MVP — UB1 GameResult variant ↔ UA1 종료 카드 hero 자리 = 같은 데이터 (recomputeFinalMvp / final_mvp_user_id)</li>
-      <li><b>BG3</b> 경력 — UA3 게스트 토글 ↔ UA4 자동 채우기 = user.skill_level 자동 추론 → experience_years</li>
-      <li><b>BG5</b> 자동 승인 — UA3 토글 (호스트) ↔ UD1 액션 출처 컬럼 = 호스트/super_admin/시스템 시각 분리</li>
-      <li><b>BG6</b> 통합 hub — UC1 마이페이지에 "내 대회" + "내 경기" 단일 hub</li>
-      <li><b>사용자 결정 §5</b> — UC2 Hero 카로셀 변경 ❌ / 위 sticky 영역만 추가</li>
+      <li><b>BO1</b> 신청 — OU3 신청 form 필드 = OA1 승인 모달 표시 필드 = 동일 organizations 컬럼 (name / description / region / contact_email / website_url / apply_note)</li>
+      <li><b>BO2</b> 위계 — OU2 events-tab + OU4 series 위계 + OO2 series-tab 위계 = 동일 breadcrumb OrgHierarchyCrumbs 컴포넌트</li>
+      <li><b>BO3</b> 멤버 — OO2 owner/admin/member role 위임 = Phase 3 TU4 권한 위임 (시각 동일 toggle UI)</li>
+      <li><b>BO4</b> 시리즈 — OO3 마법사 = Phase 1A PA3 (4-step → 3-step 단순화) 시각 답습 · 회차 추가 = 모달</li>
+      <li><b>BO5</b> super-admin — OA1 활성/정지/해산 모달 (Phase 3 TA2 답습) + 알림 체크박스 (Phase 2 UD1 답습)</li>
+      <li><b>BO7</b> cross-domain 팀 — OU2 teams-tab + Phase 3 TU2 sidebar "운영 액션" 일관 (sidebar 카드 패턴)</li>
+      <li><b>BO8</b> cross-domain 대회 — OU4 회차 → Phase 1 대회 list / OU2 sidebar "다음 회차" → /tournaments/[id]</li>
+      <li>2 측 badge 시각 분리 — OperatorBadge (dark+gold · Site) vs SeriesOperatorBadge (navy+silver · Series)</li>
     </ul>
   </section>
 </div>

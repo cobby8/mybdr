@@ -163,54 +163,9 @@ export function AdvancedSection({ data, updateData }: Props) {
             </div>
           )}
 
-          {/* 게스트 허용 — 팀 대결(2)에서 의미있음. 기본 true */}
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              padding: "10px 14px",
-              background: "var(--bg-alt)",
-              borderRadius: 6,
-              marginBottom: 14,
-            }}
-          >
-            <div>
-              <p style={{ fontSize: 13, fontWeight: 600, color: "var(--ink)", margin: 0 }}>게스트 허용</p>
-              <p style={{ fontSize: 11, color: "var(--ink-mute)", margin: "2px 0 0" }}>팀 외 게스트의 참여를 받을지 여부</p>
-            </div>
-            <button
-              type="button"
-              role="switch"
-              aria-checked={data.allowGuests}
-              onClick={() => updateData("allowGuests", !data.allowGuests)}
-              style={{
-                position: "relative",
-                height: 24,
-                width: 44,
-                flexShrink: 0,
-                borderRadius: 12,
-                border: "none",
-                cursor: "pointer",
-                background: data.allowGuests ? "var(--cafe-blue)" : "var(--ink-dim)",
-                transition: "background .2s",
-              }}
-            >
-              <span
-                style={{
-                  position: "absolute",
-                  top: 4,
-                  left: data.allowGuests ? 24 : 4,
-                  height: 16,
-                  width: 16,
-                  borderRadius: "50%",
-                  // 토글 손잡이 — 토큰 사용
-                  background: "var(--bg-elev)",
-                  transition: "left .2s",
-                }}
-              />
-            </button>
-          </div>
+          {/* [Phase 2C-5] 게스트 허용 토글은 3번 카드(신청 정책·게스트 옵션)로 이동.
+           * 시안 BG3 = 신청 정책과 같은 카드에 게스트 옵션 노출. 중복 방지 위해 여기서 제거.
+           * allowGuests state·allow_guests FormData 키는 그대로 유지(데이터 흐름 무변경). */}
 
           {/* 유니폼 색상 (팀 대결에만 노출) */}
           {data.gameType === "2" && (

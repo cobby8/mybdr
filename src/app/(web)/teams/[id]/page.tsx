@@ -165,6 +165,12 @@ export default async function TeamDetailPage({
   // myManagedTeams: 본인이 운영진(captain/vice/manager)인 *다른* 팀들 — 매치 신청 모달의 from_team 후보
   let isFollowing = false;
   let myManagedTeams: { id: string; name: string }[] = [];
+  // PR-3C-4 TU2 보강 — BT4 "내 권한" 카드용 SSR 사전계산.
+  // myRole: 본인 멤버 role(없으면 null) / isCaptain: captain 자동 전체권한 판정
+  // grantedPermissions: TeamOfficerPermissions 위임 권한 키 → true 맵
+  let myRole: string | null = null;
+  let isCaptain = false;
+  let grantedPermissions: Record<string, boolean> = {};
   if (session?.sub) {
     try {
       const userId = BigInt(session.sub);
@@ -198,6 +204,27 @@ export default async function TeamDetailPage({
           (myMembership.role === "captain" ||
             myMembership.role === "vice" ||
             myMembership.role === "manager"));
+
+      // PR-3C-4 TU2 보강 — BT4 "내 권한" 카드 데이터.
+      // myRole: 본조회 teamMembers 재활용(추가 쿼리 0). captainId 본인이면 'captain' 보정.
+      myRole = myMembership?.role ?? (team.captainId === userId ? "captain" : null);
+      isCaptain = team.captainId === userId;
+      // 위임 권한 — captain 은 자동 전체권한(permissions.ts 룰 #1)이라 조회 불필요.
+      // 위임받은 운영진(captain 아님 + manage 가능)에 한해 활성 권한 row 1건 조회.
+      // 일반 멤버/비멤버는 조회 자체를 생략(불필요 SELECT 회피).
+      if (!isCaptain && canManage) {
+        const grant = await prisma.teamOfficerPermissions.findFirst({
+          where: { teamId: team.id, userId, revokedAt: null },
+          select: { permissions: true },
+        });
+        // permissions JSON 은 Prisma JsonValue → object 일 때만 boolean 키 추출.
+        const perms = grant?.permissions as Record<string, unknown> | null | undefined;
+        if (perms && typeof perms === "object") {
+          for (const [k, v] of Object.entries(perms)) {
+            if (v === true) grantedPermissions[k] = true;
+          }
+        }
+      }
       // pending 가입 신청이 있는지 (멤버가 아닌 경우에만 의미 있음)
       if (!isMember) {
         const pending = await prisma.team_join_requests.findFirst({
@@ -345,6 +372,11 @@ export default async function TeamDetailPage({
               isLoggedIn={isLoggedIn}
               isMember={isMember}
               hasPendingRequest={hasPendingRequest}
+              // PR-3C-4 TU2 보강 — BT4 내 권한 / BT7 운영 액션
+              canManage={canManage}
+              myRole={myRole}
+              isCaptain={isCaptain}
+              grantedPermissions={grantedPermissions}
             />
           </div>
         </div>

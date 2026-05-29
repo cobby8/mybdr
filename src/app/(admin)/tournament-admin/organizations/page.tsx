@@ -218,6 +218,34 @@ export default function OrganizationsListPage() {
           </Link>
         </div>
       )}
+
+      {/* 2026-05-29 OO1 박제 — 단체 운영자 역할 안내 박스 (시안 About 보강).
+          시안 문구는 "Site Operator 권한 있어야 직접 생성" 이라 적혀 있으나,
+          운영 POST 로직은 tournament_admin 누구나 생성 가능(관리자=즉시 승인 / 일반=검토 대기).
+          → mock(잘못된 정책) 박제 금지 룰에 따라 운영 실제 동작 기준 문구로 박제.
+          좌측 info 라인 강조 = --color-info 토큰 (시안 cafe-blue 대응). */}
+      {!loading && (
+        <div
+          className="mt-6 flex items-start gap-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-4 text-xs"
+          style={{ borderLeft: "3px solid var(--color-info)" }}
+        >
+          <span className="material-symbols-outlined flex-shrink-0 text-lg text-[var(--color-info)]">
+            info
+          </span>
+          <div className="leading-relaxed text-[var(--color-text-muted)]">
+            <b className="text-[var(--color-text-primary)]">단체 운영자</b>는
+            단체 내 시리즈와 회차를 만들 수 있습니다. 단체를 새로 만들면 운영진
+            검토 후 승인됩니다(관리자 계정은 즉시 승인). 일반 사용자는{" "}
+            <Link
+              href="/organizations/apply"
+              className="font-medium text-[var(--color-info)] underline"
+            >
+              단체 신청
+            </Link>{" "}
+            페이지에서 신청할 수 있습니다.
+          </div>
+        </div>
+      )}
     </div>
   );
 }

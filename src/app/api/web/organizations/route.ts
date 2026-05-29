@@ -34,6 +34,8 @@ export const POST = withWebAuth(async (req: Request, ctx: WebAuthContext) => {
     const contactEmail = (body.contact_email as string)?.trim() || null;
     const websiteUrl = (body.website_url as string)?.trim() || null;
     const applyNote = (body.apply_note as string)?.trim() || null; // 신청 메모
+    // 공개 여부 (OU3 STEP2 토글) — 미전달 시 기존 동작(공개) 유지
+    const isPublic = typeof body.is_public === "boolean" ? body.is_public : true;
 
     // 이름 필수 검증
     if (!name) {
@@ -73,7 +75,7 @@ export const POST = withWebAuth(async (req: Request, ctx: WebAuthContext) => {
           website_url: websiteUrl,
           owner_id: ctx.userId,
           status: initialStatus,     // 관리자=approved, 일반유저=pending
-          is_public: true,
+          is_public: isPublic,       // OU3 STEP2 공개 토글 (미전달 시 true)
           series_count: 0,
           apply_note: applyNote,     // 신청 메모
           ...(isAdmin && { approved_at: new Date(), approved_by: ctx.userId }), // 관리자 즉시 승인

@@ -34,6 +34,9 @@ const STATUS_INFO: Record<
   { label: string; tone: "success" | "warning" | "info" | "default" | "error" }
 > = {
   draft: { label: "준비중", tone: "default" },
+  // 왜 published 추가: 실측 결과 시리즈 회차 대부분이 published 상태인데
+  // 기존 매핑에 없어 raw 영문("published")이 노출됐다. "모집중"으로 매핑해 보강.
+  published: { label: "모집중", tone: "success" },
   registration_open: { label: "모집중", tone: "success" },
   registration_closed: { label: "접수마감", tone: "warning" },
   ongoing: { label: "진행중", tone: "info" },
@@ -101,7 +104,23 @@ export function SeriesDetailTabs({
 
       {/* editions — 회차 계보 (시안 박제, DB 회차 데이터 사용) */}
       {tab === "editions" && (
-        <div className="overflow-hidden rounded-[12px] border border-[var(--color-border)]">
+        <>
+          {/* BO8 위계 안내 — 회차 클릭 시 Phase 1 대회 상세로 이동(cross-domain).
+              시안 OU4 PAGE 2의 안내 문구 박제. 회차가 있을 때만 노출 */}
+          {editions.length > 0 && (
+            <div className="mb-2.5 flex items-center gap-1.5 text-[12.5px] text-[var(--color-text-muted)]">
+              <span
+                className="material-symbols-outlined text-sm"
+                style={{ color: "var(--color-info)" }}
+                aria-hidden
+              >
+                account_tree
+              </span>
+              회차를 누르면 해당{" "}
+              <b className="text-[var(--color-text)]">대회 상세</b>로 이동합니다
+            </div>
+          )}
+          <div className="overflow-hidden rounded-[12px] border border-[var(--color-border)]">
           {editions.length === 0 && (
             <div className="px-6 py-12 text-center text-[var(--color-text-muted)]">
               <p className="text-sm">아직 공개된 회차가 없습니다.</p>
@@ -113,8 +132,12 @@ export function SeriesDetailTabs({
                 label: e.status ?? "-",
                 tone: "default" as const,
               };
+            // 왜 published 포함: 실측상 모집/참가 가능한 회차는 published 상태.
+            // "참가" 버튼 노출 + 강조 배경 대상에 포함 (status 매핑과 일관)
             const isActive =
-              e.status === "registration_open" || e.status === "ongoing";
+              e.status === "registration_open" ||
+              e.status === "ongoing" ||
+              e.status === "published";
             return (
               <Link key={e.id} href={`/tournaments/${e.id}`}>
                 <div
@@ -176,7 +199,8 @@ export function SeriesDetailTabs({
               </Link>
             );
           })}
-        </div>
+          </div>
+        </>
       )}
 
       {/* honors — 명예의 전당 (DB winner 컬럼 미지원: 안내) */}

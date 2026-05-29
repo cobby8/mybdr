@@ -113,6 +113,38 @@ export default async function TeamsManageHubPage() {
     (m) => m.team && m.team.status !== "dissolved"
   );
 
+  // 2-C) [3C-1 박제] 멤버 only 팀 조회 — 시안 하단 "참여 중 (멤버 only)" 섹션용
+  // 이유(왜): 시안에는 "관리 권한은 없지만 멤버로 활동 중인 팀"을 hub 하단에 안내한다.
+  //   운영진 팀(위 activeTeams)과 구분해 "여긴 관리 못 함 → /teams/[id] 에서 확인" 동선을 준다.
+  //   mock 금지 원칙상 가짜 팀은 만들지 않고, 실제 멤버 only 팀이 있을 때만 표시한다.
+  // 조회 조건: status=active 멤버이면서 위 운영진 역할이 아닌 팀 = 일반 멤버로만 참여 중.
+  const memberOnlyRows = await prisma.teamMember.findMany({
+    where: {
+      userId,
+      status: "active",
+      role: { notIn: [...TEAM_MANAGER_ROLES] },
+    },
+    include: {
+      team: {
+        select: { id: true, name: true, city: true, district: true, status: true },
+      },
+    },
+    orderBy: { createdAt: "asc" },
+  });
+
+  // 운영진 팀 id 집합 (captain_id 보강분 포함) — 멤버 only 목록에서 중복 제거용
+  const managerTeamIds = new Set(
+    activeTeams.map((m) => m.team?.id?.toString()).filter(Boolean)
+  );
+
+  // 해산팀 제외 + 위 운영진 팀과 중복 제외 → 순수 "멤버로만 참여 중" 팀
+  const memberOnlyTeams = memberOnlyRows
+    .map((r) => r.team)
+    .filter(
+      (t): t is NonNullable<typeof t> =>
+        !!t && t.status !== "dissolved" && !managerTeamIds.has(t.id.toString())
+    );
+
   // 3-A) 0개 → 빈 상태 안내
   if (activeTeams.length === 0) {
     return (
@@ -132,11 +164,12 @@ export default async function TeamsManageHubPage() {
             textAlign: "center",
           }}
         >
+          {/* [3C-1 박제] 구형 --color-* 토큰 → 운영 v2 토큰(--ink/--ink-mute) 교정 */}
           <span
             className="material-symbols-outlined"
             style={{
               fontSize: 48,
-              color: "var(--color-text-muted)",
+              color: "var(--ink-mute)",
               marginBottom: 12,
               display: "inline-block",
             }}
@@ -148,7 +181,7 @@ export default async function TeamsManageHubPage() {
               margin: 0,
               fontSize: 18,
               fontWeight: 700,
-              color: "var(--color-text-primary)",
+              color: "var(--ink)",
               marginBottom: 6,
             }}
           >
@@ -158,12 +191,13 @@ export default async function TeamsManageHubPage() {
             style={{
               margin: 0,
               fontSize: 13,
-              color: "var(--color-text-secondary)",
+              color: "var(--ink-mute)",
               marginBottom: 20,
             }}
           >
-            팀을 직접 만들거나 가입 후 운영진으로 임명되면 이 페이지에 표시됩니다.
+            팀을 만들거나, 기존 팀에 가입해서 활동을 시작하세요.
           </p>
+          {/* CTA 2개 — 모바일 터치 타깃 44px 보강 (시안 btn--touch 대응) */}
           <div
             style={{
               display: "flex",
@@ -172,10 +206,10 @@ export default async function TeamsManageHubPage() {
               flexWrap: "wrap",
             }}
           >
-            <Link href="/teams/new" className="btn btn--primary">
-              새 팀 만들기
+            <Link href="/teams/new" className="btn btn--accent" style={{ minHeight: 44 }}>
+              + 팀 등록
             </Link>
-            <Link href="/teams" className="btn">
+            <Link href="/teams" className="btn" style={{ minHeight: 44 }}>
               팀 둘러보기
             </Link>
           </div>
@@ -202,41 +236,76 @@ export default async function TeamsManageHubPage() {
         />
       </div>
 
-      {/* 페이지 헤더 — 운영팀이 여러 개일 때만 표시 */}
-      <header style={{ marginBottom: 20 }}>
+      {/* [3C-1 박제] 시안 tu3-hero — 큰 카운트 + 제목/설명 + 우측 CTA
+          이유: 시안은 "운영 중인 팀 N개"를 강조하는 hero 카드를 hub 상단에 둔다.
+          기존 단순 header(eyebrow+h1+p)를 시안 hero 구조로 격상. 토큰은 운영 v2(--ink/--accent 등). */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 18,
+          flexWrap: "wrap",
+          padding: "18px 20px",
+          marginBottom: 20,
+          background: "var(--bg-elev)",
+          border: "1px solid var(--border)",
+          borderRadius: "var(--radius-card)",
+        }}
+      >
+        {/* 큰 카운트 숫자 — 운영 팀 개수 실값 */}
         <div
-          className="eyebrow"
           style={{
-            fontSize: 11,
-            fontWeight: 800,
-            letterSpacing: "0.14em",
-            color: "var(--color-text-muted)",
-            textTransform: "uppercase",
-            marginBottom: 8,
+            fontFamily: "var(--ff-display)",
+            fontWeight: 900,
+            fontSize: 48,
+            lineHeight: 1,
+            color: "var(--accent)",
+            letterSpacing: "-0.03em",
+            minWidth: 56,
+            textAlign: "center",
           }}
         >
-          MY TEAMS · 운영 팀 선택
+          {activeTeams.length}
         </div>
-        <h1
-          style={{
-            margin: 0,
-            fontSize: 24,
-            fontWeight: 800,
-            color: "var(--color-text-primary)",
-          }}
-        >
-          관리할 팀을 선택하세요
-        </h1>
-        <p
-          style={{
-            margin: "6px 0 0",
-            fontSize: 13,
-            color: "var(--color-text-secondary)",
-          }}
-        >
-          내가 운영진(팀장·부팀장·매니저)으로 등록된 팀 {activeTeams.length}개
-        </p>
-      </header>
+        {/* 제목 + 안내 — flex:1로 가운데 차지, CTA를 우측으로 밀어냄 */}
+        <div style={{ flex: 1, minWidth: 180 }}>
+          <div
+            className="eyebrow"
+            style={{
+              fontSize: 11,
+              fontWeight: 800,
+              letterSpacing: "0.14em",
+              color: "var(--ink-mute)",
+              textTransform: "uppercase",
+              marginBottom: 6,
+            }}
+          >
+            MY TEAMS · 운영 팀 선택
+          </div>
+          <h1
+            style={{
+              margin: 0,
+              fontSize: 20,
+              fontWeight: 800,
+              color: "var(--ink)",
+            }}
+          >
+            운영 중인 팀 {activeTeams.length}개
+          </h1>
+          <p style={{ margin: "5px 0 0", fontSize: 13, color: "var(--ink-mute)" }}>
+            카드를 클릭해 멤버 / 가입 신청 / 권한 위임 등을 관리하세요.
+          </p>
+        </div>
+        {/* 우측 CTA — 팀 둘러보기(ghost) + 새 팀 만들기(accent). 모바일 44px 터치 타깃 */}
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <Link href="/teams" className="btn btn--ghost" style={{ minHeight: 44 }}>
+            팀 둘러보기
+          </Link>
+          <Link href="/teams/new" className="btn btn--accent" style={{ minHeight: 44 }}>
+            + 팀 등록
+          </Link>
+        </div>
+      </div>
 
       {/* 카드 그리드 — sm까지 1열, md+ 2열 */}
       <div
@@ -302,11 +371,12 @@ export default async function TeamsManageHubPage() {
                   {tag}
                 </div>
                 <div style={{ minWidth: 0 }}>
+                  {/* [3C-1 박제] 구형 --color-* → 운영 v2 토큰(--ink/--ink-mute) 교정 */}
                   <div
                     style={{
                       fontSize: 15,
                       fontWeight: 700,
-                      color: "var(--color-text-primary)",
+                      color: "var(--ink)",
                       whiteSpace: "nowrap",
                       overflow: "hidden",
                       textOverflow: "ellipsis",
@@ -318,7 +388,7 @@ export default async function TeamsManageHubPage() {
                     style={{
                       marginTop: 3,
                       fontSize: 12,
-                      color: "var(--color-text-muted)",
+                      color: "var(--ink-mute)",
                       fontFamily: "var(--ff-mono)",
                     }}
                   >
@@ -330,7 +400,7 @@ export default async function TeamsManageHubPage() {
                   className="material-symbols-outlined"
                   aria-hidden
                   style={{
-                    color: "var(--color-text-muted)",
+                    color: "var(--ink-mute)",
                     fontSize: 20,
                   }}
                 >
@@ -342,16 +412,65 @@ export default async function TeamsManageHubPage() {
         })}
       </div>
 
-      {/* 하단 보조 액션 — 새 팀 만들기 */}
-      <div style={{ marginTop: 20, textAlign: "center" }}>
-        <Link
-          href="/teams/new"
-          className="btn"
-          style={{ fontSize: 12 }}
-        >
-          + 새 팀 만들기
-        </Link>
-      </div>
+      {/* [3C-1 박제] 시안 하단 "참여 중 (멤버 only)" 섹션
+          이유: 관리 권한 없이 멤버로만 참여 중인 팀을 별도 안내 (관리 동선과 혼동 방지).
+          mock 금지 — memberOnlyTeams 실데이터가 있을 때만 렌더, 0건이면 섹션 자체 hide. */}
+      {memberOnlyTeams.length > 0 && (
+        <div style={{ marginTop: 22 }}>
+          {/* 섹션 헤더 — 제목 + "관리 권한 없음" 힌트 */}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "baseline",
+              justifyContent: "space-between",
+              gap: 8,
+              flexWrap: "wrap",
+              marginBottom: 8,
+            }}
+          >
+            <h2 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "var(--ink-mute)" }}>
+              참여 중 (멤버 only)
+            </h2>
+            <span style={{ fontSize: 12, color: "var(--ink-dim)" }}>
+              관리 권한 없음 · 팀 상세에서 확인
+            </span>
+          </div>
+          {/* 멤버 only 팀 목록 — 각 팀 상세로 링크. 실제 팀명/지역 실값 */}
+          {memberOnlyTeams.map((t) => {
+            const loc = [t.city, t.district].filter(Boolean).join(" ");
+            return (
+              <p
+                key={t.id.toString()}
+                style={{
+                  margin: "0 0 8px",
+                  padding: "12px 14px",
+                  background: "var(--bg-elev)",
+                  border: "1px solid var(--border)",
+                  borderRadius: "var(--radius-chip)",
+                  fontSize: 12.5,
+                  color: "var(--ink-mute)",
+                }}
+              >
+                <span
+                  className="material-symbols-outlined"
+                  aria-hidden
+                  style={{ fontSize: 14, verticalAlign: -3, marginRight: 4 }}
+                >
+                  info
+                </span>
+                <strong style={{ color: "var(--ink)" }}>{t.name}</strong>
+                {loc ? ` · ${loc}` : ""} · 멤버로 활동 중 (운영 권한 없음).{" "}
+                <Link
+                  href={`/teams/${t.id.toString()}`}
+                  style={{ color: "var(--cafe-blue-deep)", fontWeight: 700 }}
+                >
+                  팀 상세 →
+                </Link>
+              </p>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
