@@ -2,7 +2,7 @@
 
 ## 현재 작업
 - **요청**: Auto Chain Master — 4단계 chain (v2.22 sync + Phase 2C/3C/4C = 25 PR)
-- **상태**: 🔵 2단계 Phase 2C 진행 **3/10** (2C-1·2·3 ✅) / 다음 재개점 = **PR-2C-4 UA5 Live**
+- **상태**: ✅ **2단계 Phase 2C 완료 10/10** (2C-1~10 모두 push) / 다음 = **3단계 Phase 3C (PR-3C-1 TU3 TeamManage)** — 사용자 결재 대기
 - **현재 담당**: pm
 - **의뢰서**: `Dev/design/prompts/auto-chain-master-cli-prompt-2026-05-29.md`
 
@@ -15,27 +15,33 @@
 | 단계 | 내용 | 상태 |
 |------|------|------|
 | 1 | v2.22 sync (Phase 3 팀 + 4 단체) | ✅ `dee2445` |
-| 2 | Phase 2C 경기 (10 PR) | 🔵 **3/10** (2C-1·2·3 ✅) |
-| 3 | Phase 3C 팀 (6 PR) | ⏸ |
+| 2 | Phase 2C 경기 (10 PR) | ✅ **10/10 완료** |
+| 3 | Phase 3C 팀 (6 PR) | 🔜 다음 (결재 대기) |
 | 4 | Phase 4C 단체 (8 PR) | ⏸ |
 
-## 🔜 다음 재개점 — PR-2C-4 부터 (새 세션 시 여기부터)
+## 🔜 다음 재개점 — 3단계 Phase 3C (팀 6 PR / 의뢰서 §6)
 | PR | 시안 | 운영 경로 | 핵심 |
 |----|------|----------|------|
-| **2C-4** | UA5 Live | `src/app/live/[id]/page.tsx` (**2662줄 거대**+16 _v2) | 대회/일반 분기 라벨 + 다음 경기 영역 / LiveChipRow 재사용 가능 / 거대 파일 주의 |
-| 2C-5 | UA3 CreateGame | `/games/new` | 자동승인 토글(BG5) + 게스트 옵션(BG3) |
-| 2C-6 | UA4 GuestApply | `/games/[id]/guest-apply` (page+form) | user.skill_level→experience prefill (BG3) / page.tsx는 host만 조회중 → 본인 user 조회 추가 |
-| 2C-7 | UA2 GameDetail | `/games/[id]` (703줄+5 _v2) | 신청 step indicator sidebar (BG1) |
-| 2C-8 | UB1 GameResult | `/games/[id]` status='completed' 분기 | MVP hero + 4카드 (신규 variant, 라우트 X) |
-| 2C-9 | UD1 AdminGames | `/admin/games` (admin-games-content) | BG1 알림 모달 + BG5 출처 컬럼 |
-| 2C-10 | UD2 AdminGameReports | `/admin` (신규 라우트?) | BG2 매너 통계 3탭 (game_player_ratings) |
+| **3C-1** | TU3 TeamManage hub | `/teams/manage` | 팀 관리 hub (113줄) |
+| 3C-2 | TU1 Teams 보강 | `/teams` | (97줄) |
+| 3C-3 | TU5 MyActivity 보강 | "내 팀" 섹션 | (277줄) |
+| 3C-4 | TU2 TeamDetail 보강 | `/teams/[id]` | (384줄) |
+| 3C-5 | TU4 TeamManageDetail | `/teams/[id]/manage` | 6 sub-tab 통합 (378줄) |
+| 3C-6 | TA1+TA2 AdminTeams | `/admin/teams` | 모달 통합 (380줄·결재 default=모달 A) |
 
-→ 이후 3단계 Phase 3C (6 PR: TU3/TU1/TU5/TU2/TU4/TA) / 4단계 Phase 4C (8 PR: OU1~4/OA1/OO1/OO3/OO2). 의뢰서 §6·§7 참조.
+→ 의존 검증: BT1 TU4큐=TU5"내 신청"=team_join_requests.status / BT4 권한위임=TeamOfficerPermissions / BT6 TU2 stats=TA1 wins/losses/draws. 4단계 Phase 4C (8 PR) = 의뢰서 §7.
 
 ## 구현 기록 (developer) — Phase 2C
 - **2C-1 UC2 Home** (`13feb36`): LiveChipRow 공유 컴포넌트 신규 + page.tsx 진행중 tournamentMatch 조회. Hero·본문·AppNav 무변경. 0건 hide
 - **2C-2 UA1 Games** (`70118ea`): LIVE 띠 재사용 + 종료 MVP 라인(BG4) + game.ts final_mvp select / getLiveChips 공유 추출(홈 동작 보존)
 - **2C-3 UC1 MyActivity** (`b796834`): 내 경기 상태정렬 + 내 매너 카드(평균+flag종류만, 개별건수 0) + route type=manner 분기
+- **2C-4 UA5 Live** (`f4d8a2f`): `src/app/live/[id]/page.tsx` 헤더 라벨 강화만 박제(+약25줄). 시안 BG7 2요소 중 (1)Hero 라벨=박제: 트로피 아이콘(emoji_events)+round_name 결합("대회명 · 라운드", round null시 대회명만)·색 var(--color-info) (2)다음경기 영역=신규 추가 X — LiveMatchCardRail(same_day_matches)이 이미 동일 역할 구현됨 + mock 금지. 시안 픽업분기=운영 데이터에 없음(라이브=대회 매치 전용 tournament_id NOT NULL)→미적용. 데이터: 기존 조회값만 사용(새 쿼리 0). tsc0 회귀0(헤더 1곳 보강, 거대파일 미교체)
+- **2C-5 UA3 CreateGame** (`d0385a2`): `/games/new` v2 단일폼 3번카드(conditions-section.tsx)에 신청정책(BG5)+게스트옵션(BG3) 박제. 변경파일 3: `_v2/conditions-section.tsx`(주 박제 +227) / `_v2/game-form.tsx`(ConditionsSection에 gameType·allowGuests·onAllowGuestsChange props 전달) / `_v2/advanced-section.tsx`(중복 게스트 토글 제거 -51, allowGuests state·allow_guests키 유지). **데이터 처리**: BG3 게스트허용 토글=**실연결**(games.allow_guests 컬럼 존재, 기존 advanced에 숨겨진 토글을 카드 표면으로 끌어올림, FormData 무변경) / BG5 자동승인 토글=**disabled 시각박제**(games 모델에 자동승인 컬럼 0, schema변경금지→ON 고정+'준비중' 배지+not-allowed) / BG3보조 최소경력·약관=**disabled 시각박제**(game_applications.experience_years/accepted_terms는 신청자 신청시점 입력값, 경기생성 시점 저장컬럼 0). 새 API·쿼리·schema 0. tsc0. LOC +242/-56
+- **2C-6 UA4 GuestApply** (`cd7e9af`): `/games/[id]/guest-apply` 폼에 본인 프로필 prefill(BG3) 박제. 변경파일 2: `page.tsx`(본인 user 조회 server findUnique 1건 추가, **host 조회 보존** / skill_level·position·level·manner_score·total_games_participated select / skill→exp인덱스·position→GFC·skill→한글라벨 매핑 함수 + me prop 전달 +76) / `_components/guest-apply-form.tsx`(me prop 인터페이스 추가 / exp·pos 초기값 하드코딩"2"·"G"→prefill / 구력 select에 auto_awesome "내 프로필에서 자동" 힌트 + restart_alt "자동값으로 되돌리기" 버튼 / 미리보기 박스 mock 4값 실데이터 교체 +100/-8). **데이터 처리**: ⚠️시안은 skill 숫자(1~5)→년수 가정이나 운영 user.skill_level=**문자열**(beginner/intermediate/advanced/all/null)·운영폼은 이미 구력 select 5종 → skill_level→select인덱스 **실값 매핑**(beginner→0/intermediate→2/advanced→3, all·null→prefill생략 기본"2"유지+힌트숨김 mock금지) / position→G/F/C 한영표기 폭넓게 매핑(미매핑시 기본"G") / 미리보기박스: nickname·level·manner_score(null시"평가 전")·total_games_participated(0/null시 미표시) 전부 **실데이터**. 본인 user 조회=server component findUnique 1건(새 route 아님, 정책 허용). 새 API·schema 0. tsc0 EXIT0. LOC +168/-8
+- **2C-7 UA2 GameDetail** (`390c22b`): `/games/[id]` 상세에 내 신청 진행 step indicator(BG1) 박제. 변경파일 2: `_v2/apply-step.tsx`(신규 249줄 — 3단계 [신청 완료→호스트 승인→참가 확정] 인디케이터 컴포넌트 + status별 분기 + KST 타임스탬프 포맷) / `page.tsx`(import 1줄 + ApplyPanel 위에 "내 신청 현황" 카드 +95줄, 기존 로직 0 변경). **status 매핑 일치 검증**: `game_applications.status`=**Int**(문자열 enum 아님, schema `@default(0)`) **0=대기/1=승인/2=거절** — `my-games/page.tsx`(L31~34)·`api/web/me/activity/route.ts`(2C-3 UC1, L97 주석 "0=대기/1=승인/2=거부")·`apply-panel.tsx`(L51)에서 **전부 동일 0/1/2** 확인 → 새 매핑 임의 생성 0, 단일 진실 그대로 사용. step 분기: status=0→신청완료done·호스트승인current(승인대기중)·참가확정pending / status=1→3단계 all done / status=2→신청완료done·신청거절(BDR Red)·참가확정pending. **본인 application 조회**: 기존 `myApplication`(page.tsx L140 `applications.find(a.user_id===session.sub)`, IDOR 안전) **그대로 재사용 — 새 조회 0**. listGameApplications는 findMany(select없음)라 created_at·approved_at·rejected_at 전체 컬럼 반환 → ApplyStep에 타임스탬프 전달 가능(추가 쿼리 0). **미신청 처리**: `myApplication`이 null이면 카드 자체 미렌더(mock 금지 준수, "아직 신청 안함" 가짜표시 0). 운영=단일칼럼(시안 sidebar 없음)이라 ApplyPanel 위 카드로 배치. 디자인13룰: var(--*)토큰만(ok/accent/bdr-red/ink-* + info폴백)·Material Symbols만·AppNav무변경·원형은 50%(정사각 예외룰). 새 API·route·schema·쿼리 0. tsc0 EXIT0. LOC +344(신규249+page95). 거대파일(이제 798줄)=카드1개 추가만, 기존 신청/상세/MVP/카페댓글 로직 회귀 0
+- **2C-9 UD1 AdminGames** (`1985fde`): `/admin/games` 관리자 경기관리에 BG1 신청현황 박제 + BG5 출처컬럼 hide. 변경파일 **2**: `page.tsx`(games select에 `game_applications` 조회 추가 — id·status·is_guest·created_at·approved_at·rejected_at·신청자 users.nickname/email / serialized에 `applications[]`·`pendingCount` 추가 +26) / `admin-games-content.tsx`(BG1 박제 +144). **BG1 status 매핑 일치 검증**: `game_applications.status`=**Int 0=대기/1=승인/2=거절** — 2C-7 UA2 apply-step·2C-3 UC1 activity route·apply-panel·my-games·`api/web/games/[id]/applications/[appId]/route.ts`(approve→1/reject→2) **전부 동일 단일 진실** → 새 매핑 0. 박제 3요소: (1)상단 신청대기 배너(totalPending>0일 때만, 시안 atm-notify-bar→var(--color-primary-soft) 카드) (2)테이블 "신청 대기" 컬럼 신규(pendingCount>0 person_add 뱃지/0건 "—") (3)상세 모달 "신청 현황" 섹션(신청자 닉네임·게스트여부·신청/승인/거절 KST시간·status 0/1/2 admin-stat-pill[data-tone] warn/ok/err). **데이터 출처**: 기존 page.tsx는 game_applications 미조회 → **server findMany 조회 추가**(games select 내 nested, 새 route 아님, 정책 허용). **DB 실측**: game_applications 전체 **0건**(운영DB 신청 데이터 없음) — 구조는 실데이터 조회(0건이면 배너 숨김·컬럼 "—"·모달 "신청 내역 없음"), **mock 0**(가짜 신청자 생성 안 함, 실신청 생기면 자동 표시). **승인/거절 액션 미구현**: 승인/거절은 **호스트 권한**(applications PATCH route가 `game.organizer_id !== userId` 검증) → admin 화면은 **조회 전용** + "호스트가 처리" 안내문(권한충돌 회피, 가짜 액션버튼 0). **BG5 출처/최근변경자 컬럼=hide**: games 모델에 host/admin/system 출처 분류 컬럼 **없음**(cloned_from_id·template_id·is_recurring=생성단서지만 시안 "최근 변경자" 개념과 다름) / admin_logs game.status_change=**1건만**(super_admin 액션만, host/system 출처 추적 안 됨) → mock 금지 원칙상 **컬럼 자체 미추가**. 새 route·schema·`/api/v1` 0. tsc0 EXIT0. LOC +170(stop>+2000 미해당). 디자인13룰: var(--color-*)토큰만(primary/primary-soft/text-*/border/border-subtle/elevated)·Material Symbols(notifications_active·person_add·person)만·AppNav무변경·admin-stat-pill 기존패턴 재사용. 회귀: 기존 상태변경 모달폼·페이지네이션·탭·검색 무변경(섹션 추가만)
+- **2C-10 UD2 AdminGameReports** (`9292fe6`): `/admin/game-reports` **기존 신고 큐 페이지를 3탭 구조로 확장** — 매너 통계(BG2)+30일 추세 추가. **운영 라우트=기존 활용**(신규 라우트 생성 0, 시안 박제 대상 `/admin/game-reports`와 정확히 일치). 변경파일 **2**: `src/app/api/web/admin/game-reports/stats/route.ts`(신규 +216, 통계 집계 route) / `src/app/(admin)/admin/game-reports/page.tsx`(3탭 구조 +570/-68). **탭 구성**: (1)매너 통계(기본탭,신규) (2)신고 큐(**기존 로직 100% 보존**, ReportQueueTab 컴포넌트로 분리만) (3)30일 추세(신규). **BG2 집계 = 2C-3 UC1 동일 원칙 검증**: 신규 stats route가 UC1 manner 집계(`api/web/me/activity` type=manner L114~148)의 **평균=rating합/건수 + flagKinds=Set distinct(건수 미집계)** 원칙을 그대로 따름 → **개별 건수(예 no_show 3회) 절대 노출 0**. top_flag는 "가장 흔한 종류" 판별용 내부 카운트만(건수 응답 제외) / report_rate=flags있는 평가 "비율"만 / 사용자별 flagKinds=Set 종류만(flagTotal은 하위판정 임계값용, 응답 매핑 제외) / distribution=평점 구간별 비율(%)만(개별 평가자·본문 0). **통계 종류**: 요약4(전체건수·평균·신고율·top_flag종류) / 평점분포 / 상위매너(평균4.5+&평가10+, 평균만) / 하위매너(평균3.0- or flags5+, 평균+flag종류만) / 30일추세(일별 평균·건수, KST날짜). **DB 실측**: game_player_ratings **0건** + game_reports **0건**(운영 매너평가 데이터 없음) → stats route가 0건이면 빈 통계 객체 반환 + 프론트 EmptyStats 빈상태("아직 매너 평가 데이터가 없습니다") **mock 0**(실데이터 쌓이면 자동 표시). **권한 가드**: 신규 stats route = `getWebSession()+isSuperAdmin()` 재검증(기존 game-reports route 동일 패턴) + layout.tsx admin 가드. **하위매너 경고/정지 버튼=disabled 시각박제**(동작은 후속작업, 가짜 액션 0). **status매핑**: game_reports.status=String(submitted/reviewed/dismissed) 기존 statusBadge 그대로(game_applications Int와 무관, 별 테이블). 디자인13룰: **운영 토큰 교정** — 시안 `--color-danger`→운영 정의 **`--color-error`**(11곳 일괄)·시안 `--color-surface-bright`(운영 미정의)→**`--color-card`**·var(--color-success/warning/info/primary/border/text-*)만·Material Symbols(insights·flag·trending_up·bar_chart·workspace_premium·report·verified_user·timeline·warning)만·AppNav무변경·정사각 50%(rounded-full 게이지바=시안 dist 바 동일). 새 `/api/v1`·schema·db push 0. tsc0 EXIT0. LOC +786/-68(stop>+2000 미해당). 신고 큐 기존 기능(필터탭·신고카드·플래그칩·코멘트·페이지네이션) 렌더 회귀 0(컴포넌트 분리+탭래핑만)
+- **2C-8 UB1 GameResult** (`4681e51`): `/games/[id]` **종료(status===3) variant**에 결과 hero(BG4) 박제. 변경파일 **1**: `page.tsx`(기존 status===3 한 줄 MVP 띠 L328~419 → 시안 gr-hero 구조 결과 hero 카드로 격상, 신규 라우트·컴포넌트 0). **종료 status 값**: `status===3`(Int) — page.tsx·game.ts listGames(L142 날짜 지난 모집1/확정2도 3 override)·game-card·UA5 전부 동일. **MVP 소스 일치 검증**(BG4 양측): `finalMvp` = `game.final_mvp_user_id` (page.tsx L241~257 status===3일 때만 findUnique, **기존 로직 그대로**) = **2C-2(`70118ea`) game.ts listGames에 추가한 `final_mvp` 와 동일 schema 컬럼** = UA1 종료카드 MVP 라인·UA5 동일 소스 → **새 MVP 조회 로직 0**. getGame()은 findUnique(select없음)라 ended_at 등 games 전체 컬럼 반환(추가 쿼리 0). **mock 금지 — hide 처리**: ❌스코어(home:away)=games 점수 컬럼 0 → 미표시 / ❌우승·준우승 팀=픽업 games 팀/우승 개념 0(2C-2 동일 결론) → 미표시 / ❌Best 3 개인스탯=개인 득점 데이터 0 → 미표시 / ❌호스트 한마디=games 호스트 종료메시지 컬럼 0 → 미표시. **박제한 것**: 🏆"결과 발표" 태그 + ended_at 종료일시(있을 때만, KST `ko-KR` long date, null이면 라인 hide) + **MVP 큰 강조**(트로피 원형 메달 48px 정사각→50%라운딩 예외룰·var(--accent)·이름 22px 900·getDisplayName 실명우선·PlayerLink 유지 / finalMvp null이면 military_tech 아이콘+"아직 확정 전" fallback) + **평가 진행 상태**(reportCount/participantCount, 기존값 재사용). 카드1 참가자=기존 ParticipantsSlotBoard 유지 / 카드3 매너평가 진입=기존 /report 링크+진행상태 유지(중복 박제 0). 디자인13룰: var(--accent/surface-2/border/ink/ink-dim/ink-mute)토큰만·🏆 유니코드 이모지(game-card BG4 동일, 색상룰 무관)·military_tech Material Symbols·AppNav무변경·정사각 50% 예외. status!==3 분기(모집/확정/취소) **렌더 회귀 0**(띠 영역만 교체, hero·ribbon·summary·about·slotboard·applystep·applypanel·카페댓글·하단CTA 무변경). 새 API·route·schema·쿼리 0. tsc0 EXIT0. LOC +208/-66(stop>+2000 미해당). 거대파일(798줄)=status===3 띠 1곳 in-place 교체
 
 ## 진행 현황 (Phase 1C — 완료)
 - ✅ Phase 1C 15/16 박제+머지 (PR #650~#653) / PA3 SKIP 보류 (decisions.md) / subin=dev=main 정합
@@ -47,13 +53,13 @@
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
 |------|------|------|
+| 2026-05-29 | **Phase 2C 완료 (10/10)** PR-2C-10 박제 (UD2 AdminGameReports) | ✅ `9292fe6` push / `/admin/game-reports` 3탭 확장(매너통계+신고큐보존+30일추세) / 신규 stats route(super_admin가드+403) / 집계=UC1 동일(평균+flag종류, 개별건수0) / DB 0건→빈상태 mock0 / 토큰교정 danger→error·surface-bright→card / tsc0 LOC+786/-68 |
+| 2026-05-29 | Phase 2C PR-2C-9 박제 (UD1 AdminGames) | ✅ `1985fde` push / 관리자 경기관리 BG1 신청현황(배너+신청대기 컬럼+모달 섹션) / status=Int0/1/2 통일 / game_applications nested 조회 추가(새route0) / DB 0건→빈상태 mock0 / 승인거절=호스트권한이라 조회전용 / BG5 출처컬럼=컬럼없음 hide / tsc0 LOC+170 |
+| 2026-05-29 | Phase 2C PR-2C-8 박제 (UB1 GameResult) | ✅ `4681e51` push / 종료(status3) MVP 띠→결과 hero(BG4) / MVP=final_mvp_user_id 재사용(2C-2·UA5 동일소스, 새조회0) / 박제:발표태그·종료일시·MVP강조·평가진행 / hide:스코어·우승팀·개인스탯·호스트한마디(데이터없음 mock금지) / status!==3 회귀0 새route·쿼리0 tsc0 LOC+208/-66 |
+| 2026-05-29 | Phase 2C PR-2C-7 박제 (UA2 GameDetail) | ✅ `390c22b` push / 신청 step indicator(BG1) 3단계[신청완료→호스트승인→참가확정] / 신규 _v2/apply-step.tsx + page.tsx 카드 / status매핑=Int0/1/2(UC1·apply-panel 동일, 새매핑0) / myApplication 재사용(IDOR안전,새쿼리0) / 미신청 미렌더(mock금지) / tsc0 LOC+344 |
+| 2026-05-29 | Phase 2C PR-2C-6 박제 (UA4 GuestApply) | ✅ `cd7e9af` push / 게스트신청폼 본인 프로필 prefill(BG3) / 본인 user 조회 server findUnique 1건 추가(currentUserId, IDOR안전, host조회 보존) / skill_level→구력select·position→GFC 실값매핑(all·null prefill생략) / 미리보기 mock4값→실데이터 / 새schema·route0 tsc0 LOC+168/-8 |
+| 2026-05-29 | Phase 2C PR-2C-5 박제 (UA3 CreateGame) | ✅ `d0385a2` push / 3번카드에 신청정책(BG5)+게스트옵션(BG3) / BG3게스트허용=실연결(allow_guests, advanced→카드표면) / BG5자동승인+BG3최소경력·약관=disabled시각박제(컬럼없음·schema금지) / advanced 중복토글 제거 / 새API·쿼리·schema 0 / tsc0 LOC+242/-56 |
+| 2026-05-29 | Phase 2C PR-2C-4 박제 (UA5 Live) | ✅ `f4d8a2f` push / Hero 대회 라벨 강화(트로피+대회명·라운드, var--color-info) / 픽업분기·다음경기=데이터없음 미적용(LiveMatchCardRail 기존활용) / 새쿼리0 tsc0 회귀6 PASS / 거대파일(2662줄) 헤더1곳만 보강 |
 | 2026-05-29 | Phase 2C PR-2C-1·2·3 박제 (UC2/UA1/UC1) | ✅ `13feb36`/`70118ea`/`b796834` push / LiveChipRow·getLiveChips 공유 / 각 tsc0 회귀0 / 데이터 통합(server 조회+route 확장) |
 | 2026-05-29 | Auto Chain 1단계 v2.22 sync (`dee2445`) | ✅ Phase 3 팀 + 4 단체 동시 / screens 33→46 / team·org-shared 신규 / 회귀16 통과 / pre-snapshot |
 | 2026-05-29 | Auto Chain Master 사전 점검 | ✅ git/env/zip/v2.20 6/6 / 데이터 정책=통합 허용(직전 결재 우선) |
-| 2026-05-29 | PR-1C-10 PA3 갭 분석 + Phase 1C 종료 | ✅ 결론 B(SKIP) DB실측 / Phase 1C 15/16 종료 |
-| 2026-05-28 | Phase 1C 대형 3 박제+머지 (PA2/Teams/Bracket) | ✅ #652→#653 / 운영 배포 |
-| 2026-05-28 | subin→dev→main 머지 (#650+#651) | ✅ 12 PR + v2.20 sync |
-| 2026-05-28 | Phase 1C batch (PR-1C-5~13, PA3 SKIP) | ✅ 8 PR |
-| 2026-05-28 | PR-1C-13 PA7 Completed (32f4d2b) | ✅ 종료 hub |
-| 2026-05-28 | PR-1C-12 PA6 Divisions (05d961d) | ✅ 종별 hero |
-| 2026-05-28 | PR-1C-11 PA9 Prospectus (4f5d4cc) | ✅ 진행도 bar |
