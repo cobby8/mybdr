@@ -59,6 +59,9 @@ import {
 // [v2.16 Phase 3-1c] ApplyRibbon (hero 아래 빠른 액션) + MobileStickyBar (모바일 하단 fixed)
 import { ApplyRibbon } from "./_v2/apply-ribbon";
 import { MobileStickyBar } from "./_v2/mobile-sticky-bar";
+// [Phase 2C · UA2 BG1] 내 신청 진행 단계 인디케이터 — 본인 신청 상태(0/1/2)를
+// [신청 완료 → 호스트 승인 → 참가 확정] 3단계로 시각화. 미신청(null)은 미렌더(mock 금지).
+import { ApplyStep } from "./_v2/apply-step";
 
 export const revalidate = 30;
 
@@ -468,6 +471,98 @@ export default async function GameDetailPage({
                   return list;
                 })()}
               />
+            )}
+
+            {/* [Phase 2C · UA2 BG1] 내 신청 현황 — 본인이 이미 신청한 경우만 노출.
+             * 시안 GameDetail.jsx BG1 sidebar "내 신청 현황" step indicator 박제.
+             * 운영은 단일 칼럼이라 sidebar 대신 ApplyPanel 바로 위 카드로 배치.
+             * 데이터: 기존 myApplication(이미 본인 것만 안전 추출 — IDOR 안전) 재사용.
+             * 새 조회 0. 미신청(myApplication=null)이면 렌더 자체를 건너뜀 → mock 금지 준수.
+             * status 매핑(0/1/2)은 my-games/activity(2C-3)/apply-panel 과 동일 단일 진실. */}
+            {myApplication && !isHost && (
+              <section className="card" style={{ padding: "16px 20px" }}>
+                <h3
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
+                    margin: "0 0 14px",
+                    fontSize: 14,
+                    fontWeight: 800,
+                    color: "var(--ink)",
+                  }}
+                >
+                  <span
+                    className="material-symbols-outlined"
+                    style={{ fontSize: 18, color: "var(--accent)" }}
+                    aria-hidden
+                  >
+                    where_to_vote
+                  </span>
+                  내 신청 현황
+                </h3>
+
+                {/* 3단계 step indicator — created_at/approved_at/rejected_at 전달.
+                 * 이 값들은 listGameApplications(findMany, select 없음)가 전체 컬럼을
+                 * 반환하므로 추가 조회 없이 myApplication 에서 그대로 사용 가능. */}
+                <ApplyStep
+                  status={myApplication.status}
+                  appliedAt={myApplication.created_at}
+                  approvedAt={myApplication.approved_at}
+                  rejectedAt={myApplication.rejected_at}
+                />
+
+                {/* 상태별 한 줄 안내 + 마이페이지 딥링크 (시안 gd-mine__note/__link 정합) */}
+                <div
+                  style={{
+                    marginTop: 14,
+                    paddingTop: 12,
+                    borderTop: "1px solid var(--border)",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
+                    fontSize: 12,
+                    color: "var(--ink-dim)",
+                  }}
+                >
+                  <span
+                    className="material-symbols-outlined"
+                    style={{ fontSize: 16 }}
+                    aria-hidden
+                  >
+                    {myApplication.status === 1
+                      ? "check_circle"
+                      : myApplication.status === 2
+                        ? "info"
+                        : "schedule"}
+                  </span>
+                  <span>
+                    {myApplication.status === 1
+                      ? "참가가 확정되었습니다. 경기 시간에 맞춰 방문해 주세요."
+                      : myApplication.status === 2
+                        ? "이번 신청은 거절되었습니다. 다른 경기를 찾아보세요."
+                        : "호스트 승인 대기 중 — 결과는 알림으로 알려드립니다."}
+                  </span>
+                </div>
+                <Link
+                  href="/games/my-games"
+                  className="btn btn--sm"
+                  style={{
+                    marginTop: 10,
+                    textDecoration: "none",
+                    width: "100%",
+                    justifyContent: "center",
+                  }}
+                >
+                  내 경기에서 모든 신청 보기
+                  <span
+                    className="material-symbols-outlined"
+                    style={{ fontSize: 16, marginLeft: 4 }}
+                  >
+                    arrow_forward
+                  </span>
+                </Link>
+              </section>
             )}
 
             {/* [v2.16 Phase 3-1c] ApplyPanel — V2 단일 칼럼 본문 안으로 이동 (이전 우측 sticky).
