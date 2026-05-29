@@ -1157,9 +1157,28 @@ export default function LiveBoxScorePage() {
           {/*
             토너먼트명 — 모바일에서 미니스코어 자리 확보 위해 sm:inline 으로 PC 만 노출.
             모바일은 미니스코어가 더 중요 (라이브 중계 시 가장 자주 보고 싶은 정보).
+
+            2026-05-29 (Phase 2C · PR-2C-4 UA5 Live · BG7) — Hero 라벨 강화 박제.
+            시안 Live.jsx lv-hero__label 의도: 대회 매치임을 시각적으로 강조 + 라운드 노출.
+            운영 라이브 페이지는 대회 매치 전용(tournament_id NOT NULL)이라 시안의 "픽업" 분기는 미적용.
+            트로피 아이콘(emoji_events)으로 대회 매치임을 명시 + round_name 있으면 "대회명 · 라운드" 결합.
+            아이콘: Material Symbols 만 사용(13룰 §C — 이모지 🏆 대체). round_name NULL 시 대회명만(NULL 안전).
+            데이터: 이미 조회 중인 match.tournament_name / match.round_name 만 사용 (새 쿼리 0).
           */}
-          <span className="text-base truncate ml-1 hidden sm:inline" style={{ color: "var(--color-text-secondary)" }}>
-            {match.tournament_name}
+          <span
+            className="text-base truncate ml-1 hidden sm:inline-flex items-center gap-1"
+            style={{ color: "var(--color-text-secondary)" }}
+          >
+            <span
+              className="material-symbols-outlined"
+              style={{ fontSize: 18, color: "var(--color-info)" }}
+              aria-hidden
+            >
+              emoji_events
+            </span>
+            {match.round_name
+              ? `${match.tournament_name} · ${match.round_name}`
+              : match.tournament_name}
           </span>
         </div>
         {/* 2026-05-17 사용자 결재 (옵션 C) — 모바일 미니스코어 제거.
