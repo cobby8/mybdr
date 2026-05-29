@@ -1944,5 +1944,6 @@
 - **불일치**: 시안 AdminWizardAssociation = **종별위임/TAM 4-step 마법사** (협회→시리즈→종별위임→권한) / 운영 = **협회생성 5-step 마법사** (협회정보→사무국장→배정비단가→심판등록→확인). 시안의 종별위임/TAM/시리즈는 운영 DB에 데이터 출처 없음.
 - **결정**: 사용자 결재 = **옵션 C (SKIP)**. CLAUDE.md "DB 미지원 기능 시안 금지" 룰 + 시각만 박제하기엔 시안 의도(종별위임)가 운영에 부재 → 박제 보류. planner가 PA3 시안 의도(종별위임 신규 기능 vs 협회생성 리디자인) 재확인 후 재의뢰.
 - **대안**: 옵션 A (stepper 시각만 박제) = 운영 5-step에 시안 stepper 스타일만 / 옵션 B (planner 재확인). 사용자는 C 선택 (근본 괴리라 시각만 박제도 가치 제한적).
-- **참조**: lessons.md "[2026-05-28] 디자인 박제 4대 교훈" / phase-ledger Phase 1 ⑪
-- **참조횟수**: 0
+- **재확인 [2026-05-29]**: planner DB 실측 재확인 — `TournamentDivisionRule` 운영자(userId) 필드 0 + `TournamentAdminMember` division/category 컬럼 0 → 종별별 운영자 배정 데이터 출처 부재 확정. 사용자 결재 = Phase 1C 를 **15/16 으로 종료** (PA3 보류 / 의도 = 신규기능 vs 협회생성 리디자인 후결정) + Phase 2C 우선 진행.
+- **참조**: lessons.md "[2026-05-28] 디자인 박제 4대 교훈" / phase-ledger Phase 1 ⑪⑭
+- **참조횟수**: 1

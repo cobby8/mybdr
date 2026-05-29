@@ -59,6 +59,9 @@ import {
 // [v2.16 Phase 3-1c] ApplyRibbon (hero 아래 빠른 액션) + MobileStickyBar (모바일 하단 fixed)
 import { ApplyRibbon } from "./_v2/apply-ribbon";
 import { MobileStickyBar } from "./_v2/mobile-sticky-bar";
+// [Phase 2C · UA2 BG1] 내 신청 진행 단계 인디케이터 — 본인 신청 상태(0/1/2)를
+// [신청 완료 → 호스트 승인 → 참가 확정] 3단계로 시각화. 미신청(null)은 미렌더(mock 금지).
+import { ApplyStep } from "./_v2/apply-step";
 
 export const revalidate = 30;
 
@@ -319,99 +322,241 @@ export default async function GameDetailPage({
         <div>
           {/* 단일 컬럼 메인 스택 */}
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-            {/* Phase 10-1 B-8 — 종료된 경기 hero 띠: MVP 배지 + 평가 진행 상태.
-             * SummaryCard 위에 한 줄짜리 카드로 띄워 종료된 경기의 결과 요약을
-             * 가장 먼저 인지할 수 있도록 한다. status===3 (완료) 일 때만 노출. */}
+            {/* ============================================================
+             * [Phase 2C · UB1 BG4] 종료 경기 결과 hero (GameResult.jsx 박제)
+             *
+             * 왜 기존 한 줄 띠를 hero 카드로 격상하는가:
+             *   시안 UB1(GameResult)은 종료된 경기를 "결과 발표" 톤으로 가장 먼저
+             *   인지시키는 화면이다. 기존 Phase 10-1 의 한 줄짜리 MVP 배지 띠를
+             *   시안 gr-hero 구조(🏆 트로피 + 결과 발표 태그 + MVP 큰 강조 +
+             *   종료 일시 + 평가 진행 상태)로 끌어올린다.
+             *
+             * ⚠️ mock 금지 — 운영 데이터에 없는 요소는 박제하지 않는다:
+             *   - 스코어(home:away 점수): games 모델에 점수 컬럼 없음 → 미표시
+             *   - 우승/준우승 팀: 픽업 games 에 팀/우승 개념 없음(2C-2 동일 결론) → 미표시
+             *   - Best 3 개인 스탯: 개인 득점 데이터 없음 → 미표시
+             *   - 호스트 한마디: games 에 호스트 종료 메시지 컬럼 없음 → 미표시
+             *   → 시안 4카드 중 운영 데이터로 채울 수 있는 MVP + 평가 진행만 hero 로 박제.
+             *
+             * 데이터: 기존 finalMvp(L239~) / reportCount / participantCount 재사용.
+             *   final_mvp_user_id 는 UA1(2C-2, game.ts)·UA5 종료 카드와 동일 소스.
+             *   새 쿼리 0. status===3(완료) 일 때만 노출. */}
             {game.status === 3 && (
               <section
                 className="card"
                 style={{
-                  display: "flex",
-                  flexWrap: "wrap",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  gap: 10,
-                  padding: "12px 16px",
+                  padding: 0,
+                  overflow: "hidden",
                 }}
               >
-                {/* MVP 배지 — final_mvp_user_id 가 확정된 경우에만 강조 색으로 노출.
-                 * 미확정인 경우엔 "아직 확정 전" 보조 라벨을 보여 운영 흐름을 암시. */}
-                {finalMvp ? (
-                  // 4단계 A: MVP 시상 PlayerLink — 흰 글자 위에 underline hover. style 으로 색상 inherit 보장.
-                  <PlayerLink
-                    userId={finalMvp.id}
-                    style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: 6,
-                      padding: "6px 12px",
-                      borderRadius: 4,
-                      background: "var(--accent)",
-                      color: "#fff",
-                      fontWeight: 700,
-                      fontSize: 13,
-                      lineHeight: 1.2,
-                      textDecoration: "none",
-                    }}
-                  >
-                    <span
-                      className="material-symbols-outlined"
-                      style={{ fontSize: 18 }}
-                      aria-hidden
-                    >
-                      military_tech
-                    </span>
-                    {/* 5/9 displayName P0 — 공식 기록(시상)은 실명 우선.
-                     * getDisplayName: name → nickname → fallback 순. 영문 nickname 회귀 방지. */}
-                    MVP · {getDisplayName(finalMvp, undefined, "익명")}
-                  </PlayerLink>
-                ) : (
-                  <span
-                    style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: 6,
-                      padding: "6px 12px",
-                      borderRadius: 4,
-                      background: "var(--surface-2)",
-                      color: "var(--ink-mute)",
-                      fontWeight: 600,
-                      fontSize: 13,
-                      lineHeight: 1.2,
-                    }}
-                  >
-                    <span
-                      className="material-symbols-outlined"
-                      style={{ fontSize: 18 }}
-                      aria-hidden
-                    >
-                      military_tech
-                    </span>
-                    MVP 확정 전
-                  </span>
-                )}
-
-                {/* 평가 진행 상태 — 제출된 game_reports 수 / 모집단 수.
-                 * 모집단은 호스트 + 승인된 참가자(status===1) 수로 정의. */}
-                <span
+                {/* 상단 밴드 — "🏆 결과 발표" 태그 + 종료 일시(ended_at 있을 때만) */}
+                <div
                   style={{
-                    display: "inline-flex",
+                    display: "flex",
+                    flexWrap: "wrap",
                     alignItems: "center",
-                    gap: 4,
-                    fontSize: 13,
-                    color: "var(--ink-mute)",
-                    fontFamily: "var(--ff-mono)",
+                    gap: 8,
+                    padding: "10px 16px",
+                    background: "var(--surface-2)",
+                    borderBottom: "1px solid var(--border)",
                   }}
                 >
                   <span
-                    className="material-symbols-outlined"
-                    style={{ fontSize: 16, color: "var(--ink-dim)" }}
-                    aria-hidden
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 4,
+                      fontSize: 12,
+                      fontWeight: 800,
+                      color: "var(--accent)",
+                      letterSpacing: "0.02em",
+                    }}
                   >
-                    rate_review
+                    {/* 🏆 = 유니코드 이모지 — 시안 gr-hero__tag 동일 (색상 토큰 룰 무관) */}
+                    <span aria-hidden="true">🏆</span>
+                    결과 발표
                   </span>
-                  {reportCount}/{participantCount}명 평가 완료
-                </span>
+                  {/* ended_at 있을 때만 종료 일시 — 없으면 라인 자체를 숨김(mock 금지).
+                   * KST 기준 "YYYY.M.D 종료" 한 줄. */}
+                  {game.ended_at && (
+                    <span
+                      style={{
+                        marginLeft: "auto",
+                        fontSize: 12,
+                        color: "var(--ink-dim)",
+                        fontFamily: "var(--ff-mono)",
+                      }}
+                    >
+                      {new Date(game.ended_at).toLocaleDateString("ko-KR", {
+                        timeZone: "Asia/Seoul",
+                        year: "numeric",
+                        month: "long",
+                        day: "numeric",
+                      })}{" "}
+                      종료
+                    </span>
+                  )}
+                </div>
+
+                {/* 본문 — MVP 큰 강조(시안 gr-hero__mvp) + 평가 진행 상태 */}
+                <div
+                  style={{
+                    display: "flex",
+                    flexWrap: "wrap",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    gap: 16,
+                    padding: "16px 20px",
+                  }}
+                >
+                  {/* MVP 강조 — final_mvp_user_id 가 확정된 경우 트로피 + 이름 크게.
+                   * 미확정인 경우엔 "아직 확정 전" 보조 라벨로 운영 흐름을 암시. */}
+                  {finalMvp ? (
+                    // 4단계 A: MVP 시상 PlayerLink — 텍스트 색 inherit, hover underline.
+                    <PlayerLink
+                      userId={finalMvp.id}
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 12,
+                        textDecoration: "none",
+                        color: "var(--ink)",
+                        minWidth: 0,
+                      }}
+                    >
+                      {/* 트로피 원형 메달 — 정사각(W=H) 이므로 50% 라운딩 허용(토큰 룰 예외). */}
+                      <span
+                        aria-hidden="true"
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          width: 48,
+                          height: 48,
+                          borderRadius: "50%",
+                          flexShrink: 0,
+                          fontSize: 24,
+                          background: "var(--accent)",
+                          color: "#fff",
+                        }}
+                      >
+                        🏆
+                      </span>
+                      <span style={{ minWidth: 0 }}>
+                        {/* MVP 라벨 — gr-hero__mvp-lbl */}
+                        <span
+                          style={{
+                            display: "block",
+                            fontSize: 11,
+                            fontWeight: 800,
+                            letterSpacing: "0.08em",
+                            textTransform: "uppercase",
+                            color: "var(--accent)",
+                            fontFamily: "var(--ff-mono)",
+                          }}
+                        >
+                          MVP
+                        </span>
+                        {/* MVP 이름 크게 — 시안 gr-hero__mvp-name (Pretendard 900 톤).
+                         * 5/9 displayName P0 — 공식 기록(시상)은 실명 우선. */}
+                        <span
+                          style={{
+                            display: "block",
+                            fontSize: 22,
+                            fontWeight: 900,
+                            color: "var(--ink)",
+                            lineHeight: 1.2,
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          {getDisplayName(finalMvp, undefined, "익명")}
+                        </span>
+                      </span>
+                    </PlayerLink>
+                  ) : (
+                    <span
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 12,
+                        color: "var(--ink-mute)",
+                        minWidth: 0,
+                      }}
+                    >
+                      <span
+                        aria-hidden="true"
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          width: 48,
+                          height: 48,
+                          borderRadius: "50%",
+                          flexShrink: 0,
+                          background: "var(--surface-2)",
+                          border: "1px solid var(--border)",
+                        }}
+                      >
+                        <span
+                          className="material-symbols-outlined"
+                          style={{ fontSize: 24, color: "var(--ink-dim)" }}
+                        >
+                          military_tech
+                        </span>
+                      </span>
+                      <span style={{ minWidth: 0 }}>
+                        <span
+                          style={{
+                            display: "block",
+                            fontSize: 11,
+                            fontWeight: 800,
+                            letterSpacing: "0.08em",
+                            textTransform: "uppercase",
+                            color: "var(--ink-dim)",
+                            fontFamily: "var(--ff-mono)",
+                          }}
+                        >
+                          MVP
+                        </span>
+                        <span
+                          style={{
+                            display: "block",
+                            fontSize: 16,
+                            fontWeight: 700,
+                            color: "var(--ink-mute)",
+                            lineHeight: 1.2,
+                          }}
+                        >
+                          아직 확정 전
+                        </span>
+                      </span>
+                    </span>
+                  )}
+
+                  {/* 평가 진행 상태 — 제출된 game_reports 수 / 모집단 수.
+                   * 모집단은 호스트 + 승인된 참가자(status===1) 수로 정의. */}
+                  <span
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 4,
+                      fontSize: 13,
+                      color: "var(--ink-mute)",
+                      fontFamily: "var(--ff-mono)",
+                    }}
+                  >
+                    <span
+                      className="material-symbols-outlined"
+                      style={{ fontSize: 16, color: "var(--ink-dim)" }}
+                      aria-hidden
+                    >
+                      rate_review
+                    </span>
+                    {reportCount}/{participantCount}명 평가 완료
+                  </span>
+                </div>
               </section>
             )}
 
@@ -468,6 +613,98 @@ export default async function GameDetailPage({
                   return list;
                 })()}
               />
+            )}
+
+            {/* [Phase 2C · UA2 BG1] 내 신청 현황 — 본인이 이미 신청한 경우만 노출.
+             * 시안 GameDetail.jsx BG1 sidebar "내 신청 현황" step indicator 박제.
+             * 운영은 단일 칼럼이라 sidebar 대신 ApplyPanel 바로 위 카드로 배치.
+             * 데이터: 기존 myApplication(이미 본인 것만 안전 추출 — IDOR 안전) 재사용.
+             * 새 조회 0. 미신청(myApplication=null)이면 렌더 자체를 건너뜀 → mock 금지 준수.
+             * status 매핑(0/1/2)은 my-games/activity(2C-3)/apply-panel 과 동일 단일 진실. */}
+            {myApplication && !isHost && (
+              <section className="card" style={{ padding: "16px 20px" }}>
+                <h3
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
+                    margin: "0 0 14px",
+                    fontSize: 14,
+                    fontWeight: 800,
+                    color: "var(--ink)",
+                  }}
+                >
+                  <span
+                    className="material-symbols-outlined"
+                    style={{ fontSize: 18, color: "var(--accent)" }}
+                    aria-hidden
+                  >
+                    where_to_vote
+                  </span>
+                  내 신청 현황
+                </h3>
+
+                {/* 3단계 step indicator — created_at/approved_at/rejected_at 전달.
+                 * 이 값들은 listGameApplications(findMany, select 없음)가 전체 컬럼을
+                 * 반환하므로 추가 조회 없이 myApplication 에서 그대로 사용 가능. */}
+                <ApplyStep
+                  status={myApplication.status}
+                  appliedAt={myApplication.created_at}
+                  approvedAt={myApplication.approved_at}
+                  rejectedAt={myApplication.rejected_at}
+                />
+
+                {/* 상태별 한 줄 안내 + 마이페이지 딥링크 (시안 gd-mine__note/__link 정합) */}
+                <div
+                  style={{
+                    marginTop: 14,
+                    paddingTop: 12,
+                    borderTop: "1px solid var(--border)",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
+                    fontSize: 12,
+                    color: "var(--ink-dim)",
+                  }}
+                >
+                  <span
+                    className="material-symbols-outlined"
+                    style={{ fontSize: 16 }}
+                    aria-hidden
+                  >
+                    {myApplication.status === 1
+                      ? "check_circle"
+                      : myApplication.status === 2
+                        ? "info"
+                        : "schedule"}
+                  </span>
+                  <span>
+                    {myApplication.status === 1
+                      ? "참가가 확정되었습니다. 경기 시간에 맞춰 방문해 주세요."
+                      : myApplication.status === 2
+                        ? "이번 신청은 거절되었습니다. 다른 경기를 찾아보세요."
+                        : "호스트 승인 대기 중 — 결과는 알림으로 알려드립니다."}
+                  </span>
+                </div>
+                <Link
+                  href="/games/my-games"
+                  className="btn btn--sm"
+                  style={{
+                    marginTop: 10,
+                    textDecoration: "none",
+                    width: "100%",
+                    justifyContent: "center",
+                  }}
+                >
+                  내 경기에서 모든 신청 보기
+                  <span
+                    className="material-symbols-outlined"
+                    style={{ fontSize: 16, marginLeft: 4 }}
+                  >
+                    arrow_forward
+                  </span>
+                </Link>
+              </section>
             )}
 
             {/* [v2.16 Phase 3-1c] ApplyPanel — V2 단일 칼럼 본문 안으로 이동 (이전 우측 sticky).

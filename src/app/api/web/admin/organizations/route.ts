@@ -47,6 +47,10 @@ export async function GET(req: NextRequest) {
     status: org.status,
     apply_note: org.apply_note,
     contact_email: org.contact_email,
+    // OA1 박제(BO1) — 모달 신청 정보 표시용 추가 컬럼 (OU3 신청 form 동일 컬럼)
+    // 조회 전용 노출, schema 변경 없음
+    description: org.description,
+    website_url: org.website_url,
     rejection_reason: org.rejection_reason,
     owner: {
       id: org.owner.id.toString(),

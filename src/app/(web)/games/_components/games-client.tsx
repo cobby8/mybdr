@@ -52,6 +52,8 @@ export interface GameForClient {
   feePerPerson: string | null;
   skillLevel: string | null;
   authorNickname: string | null;
+  /** [2026-05-29 Phase 2C·BG4] 종료 경기 최종 MVP 닉네임 — 없으면 null (라인 hide) */
+  finalMvpNickname: string | null;
 }
 
 export interface GamesClientProps {
@@ -261,6 +263,7 @@ export function GamesClient({ games, typeCounts }: GamesClientProps) {
             currentParticipants={g.currentParticipants}
             maxParticipants={g.maxParticipants}
             authorNickname={g.authorNickname}
+            finalMvpNickname={g.finalMvpNickname}
             tags={deriveTags(g)}
           />
         ))}

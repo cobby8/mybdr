@@ -78,6 +78,52 @@ type TeamItem = {
   };
 };
 
+// PR-3C-3 (TU5 "내 팀"): 내가 active 멤버인 팀 현황 — /api/web/me/activity?type=myteams
+// ⚠️ "teams"(가입 신청 이력)와 다른 개념 — 이미 소속된 팀 목록.
+// 팀 매너 평균 필드 없음(운영 DB 미집계 → hide). pending 3종은 운영진 팀만 실값.
+type MyTeamItem = {
+  id: string;
+  role: string; // "captain" | "vice" | "manager" | "member" | (비표준 role)
+  is_operator: boolean; // 운영진(captain/vice/manager 또는 captainId 본인) 여부
+  last_activity_at: string | null; // 마지막 활동 (NULL → hide)
+  pending_join: number; // BT1 가입 신청 pending (운영진 팀만 / 멤버 팀=0)
+  pending_change: number; // BT2 멤버 변경 신청 pending
+  pending_match: number; // BT5 받은 매치 신청 pending
+  team: {
+    id: string;
+    uuid: string | null;
+    name: string;
+    logo_url: string | null;
+    city: string | null;
+    district: string | null;
+    members_count: number;
+    primary_color: string | null;
+    secondary_color: string | null;
+  };
+};
+
+// PR-2C-3 (BG2): 내 매너 집계 응답 타입 — /api/web/me/activity?type=manner
+// ⚠️ flag "종류"(flag_kinds)만 / 개별 건수 필드 없음 (사용자 결재 — 건수 노출 ❌)
+type MannerData = {
+  avg: number; // 평균 평점 (0 = 평가 없음)
+  total_evaluations: number; // 평가 받은 건수 (OK / flag별 건수만 ❌)
+  flag_kinds: string[]; // 받은 flag 종류 (키워드만)
+};
+
+// PR-2C-3: 운영 flag → 한국어 라벨 + 이모지 맵.
+// 이유: 시안 MANNER_FLAG_LABELS 는 시안 더미 flag(on_time/good_attitude 등)용이라
+//      운영 DB 의 실제 flag(game-report.ts PLAYER_FLAGS 6종)와 키가 다르다.
+//      운영 데이터 기준으로 재작성해야 키워드가 매칭된다(미매칭 시 flag 원문 노출).
+// 운영 flags = 부정 신고만 6종 (positive flag 없음 → 부정 키워드만 표시).
+const MANNER_FLAG_LABELS: Record<string, { label: string; emoji: string }> = {
+  no_show: { label: "노쇼", emoji: "🚫" },
+  late: { label: "지각", emoji: "⚠" },
+  poor_manner: { label: "매너 불량", emoji: "⚠" },
+  foul: { label: "과한 파울", emoji: "⚠" },
+  verbal: { label: "언어 폭력", emoji: "🚫" },
+  cheat: { label: "부정행위", emoji: "🚫" },
+};
+
 // 탭 탭바 정의 — 순서: 경기(가장 빈번) → 대회 → 팀
 const TABS: { key: Tab; label: string; icon: string }[] = [
   { key: "games", label: "내 경기 신청", icon: "sports_basketball" },
@@ -237,6 +283,15 @@ function formatApplied(iso: string) {
   }
 }
 
+// PR-2C-3 (BG2): 매너 평균 → tone 색상.
+// 시안 룰 그대로: 4.5+ = ok(녹) / 3.0~4.4 = warn(주황) / 3.0- = danger(빨)
+// 토큰 매핑: 시안 --err → 운영 --danger (운영 globals.css 에 --err 없음)
+function mannerToneColor(avg: number): string {
+  if (avg >= 4.5) return "var(--ok)";
+  if (avg >= 3.0) return "var(--warn)";
+  return "var(--danger)";
+}
+
 export default function ProfileActivityPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -257,6 +312,14 @@ export default function ProfileActivityPage() {
     teams: TeamItem[];
   }>({ games: [], tournaments: [], teams: [] });
   const [loading, setLoading] = useState(true);
+
+  // PR-2C-3 (BG2): 내 매너 집계 — 탭과 무관하게 화면 상단 카드 + 카운트 한 줄에 사용.
+  // null = 아직 로드 전 (로드 후엔 항상 객체 / 평가 0건도 avg:0 객체로 옴)
+  const [manner, setManner] = useState<MannerData | null>(null);
+
+  // PR-3C-3 (TU5 "내 팀"): 내가 active 멤버인 팀 목록 — 탭과 무관(상단 단독 섹션).
+  // null = 로드 전 (로드 후엔 배열 / 소속 팀 0개면 빈 배열 → 빈 상태 카드)
+  const [myTeams, setMyTeams] = useState<MyTeamItem[] | null>(null);
 
   // 단일 탭 refetch — cancel/action 후 해당 탭만 갱신
   const loadOne = useCallback(async (type: Tab) => {
@@ -279,7 +342,7 @@ export default function ProfileActivityPage() {
     (async () => {
       setLoading(true);
       try {
-        const [g, t, te] = await Promise.all([
+        const [g, t, te, m, mt] = await Promise.all([
           fetch("/api/web/me/activity?type=games", { credentials: "include" }).then((r) =>
             r.ok ? (r.json() as Promise<{ items?: GameItem[] }>) : { items: [] },
           ),
@@ -289,6 +352,14 @@ export default function ProfileActivityPage() {
           fetch("/api/web/me/activity?type=teams", { credentials: "include" }).then((r) =>
             r.ok ? (r.json() as Promise<{ items?: TeamItem[] }>) : { items: [] },
           ),
+          // PR-2C-3 (BG2): 내 매너 집계 — manner 단일 객체 응답 (items 아님)
+          fetch("/api/web/me/activity?type=manner", { credentials: "include" }).then((r) =>
+            r.ok ? (r.json() as Promise<{ manner?: MannerData }>) : { manner: undefined },
+          ),
+          // PR-3C-3 (TU5): 내 팀 현황 — items 배열 응답
+          fetch("/api/web/me/activity?type=myteams", { credentials: "include" }).then((r) =>
+            r.ok ? (r.json() as Promise<{ items?: MyTeamItem[] }>) : { items: [] },
+          ),
         ]);
         if (cancelled) return;
         setCache({
@@ -296,6 +367,10 @@ export default function ProfileActivityPage() {
           tournaments: Array.isArray(t.items) ? t.items : [],
           teams: Array.isArray(te.items) ? te.items : [],
         });
+        // manner 응답 반영 (없으면 null 유지 → 카드/카운트 숨김)
+        setManner(m.manner ?? null);
+        // PR-3C-3: 내 팀 반영 (없으면 빈 배열 → 빈 상태 카드)
+        setMyTeams(Array.isArray(mt.items) ? mt.items : []);
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -329,12 +404,25 @@ export default function ProfileActivityPage() {
   }
 
   // 필터 적용된 리스트 — "전체" 면 그대로, 아니면 버킷 일치만
-  const filteredItems =
+  const filteredItemsRaw =
     statusFilter === "all"
       ? items
       : (items as (GameItem | TournamentItem | TeamItem)[]).filter(
           (it) => itemBucket(it) === statusFilter,
         );
+
+  // PR-2C-3 (BG6): 내 경기 탭만 상태별 정렬 적용.
+  // 의뢰서 §3-UC1-1 정렬: 🟡 승인대기(0) 상단 → 🟢 확정(1) → ❌ 취소·거부(2) 하단.
+  // 같은 상태 안에서는 created_at 역순(신청 시각 최신 우선 — API 가 이미 desc 정렬).
+  // (대회·팀 탭은 기존 동작 보존 — 정렬 변경 ❌)
+  const GAME_STATUS_ORDER: Record<number, number> = { 0: 0, 1: 1, 2: 2 };
+  const filteredItems =
+    tab === "games"
+      ? [...(filteredItemsRaw as GameItem[])].sort(
+          (a, b) =>
+            (GAME_STATUS_ORDER[a.status] ?? 9) - (GAME_STATUS_ORDER[b.status] ?? 9),
+        )
+      : filteredItemsRaw;
 
   function changeTab(next: Tab) {
     if (next === tab) return;
@@ -440,6 +528,30 @@ export default function ProfileActivityPage() {
           <div style={{ fontSize: 13, color: "var(--ink-mute)" }}>
             경기 · 대회 · 팀 가입 신청을 한 화면에서
           </div>
+          {/* PR-2C-3 §3-UC1-3: 상단 카운트 한 줄 — 내 대회 N · 내 경기 M · 평균 매너 X.Y
+              매너는 평가 1건 이상일 때만 노출 (mock ❌ / 0건이면 "평균 매너" 생략) */}
+          <div style={{ fontSize: 13, color: "var(--ink-mute)", marginTop: 4 }}>
+            내 대회{" "}
+            <strong style={{ color: "var(--ink)" }}>{counts.tournaments}</strong> · 내 경기{" "}
+            <strong style={{ color: "var(--ink)" }}>{counts.games}</strong>
+            {/* PR-3C-3: 내 팀 K — 소속 팀 1개 이상일 때만 노출 (0이면 생략) */}
+            {myTeams && myTeams.length > 0 && (
+              <>
+                {" "}
+                · 내 팀{" "}
+                <strong style={{ color: "var(--accent)" }}>{myTeams.length}</strong>
+              </>
+            )}
+            {manner && manner.total_evaluations > 0 && (
+              <>
+                {" "}
+                · 평균 매너{" "}
+                <strong style={{ color: mannerToneColor(manner.avg) }}>
+                  {manner.avg.toFixed(1)}
+                </strong>
+              </>
+            )}
+          </div>
         </div>
       </div>
 
@@ -540,6 +652,15 @@ export default function ProfileActivityPage() {
           })}
         </div>
       </nav>
+
+      {/* PR-3C-3 (TU5 "내 팀"): 내가 소속(active)인 팀 현황 — 탭과 무관 단독 섹션.
+          loading 끝 + myTeams 응답 도착 시 노출. 소속 0개면 빈 상태 카드.
+          매너 카드 위(가장 상단)에 배치 — 시안 v2.21 "내 팀" 섹션 우선순위. */}
+      {!loading && myTeams && <MyTeamsSection teams={myTeams} />}
+
+      {/* PR-2C-3 (BG2): 내 매너 카드 — 탭과 무관(본인 매너 종합). 탭 콘텐츠 위 배치.
+          loading 끝 + manner 응답 도착 시에만 노출. 평가 0건도 카드(빈 상태)로 노출 */}
+      {!loading && manner && <MannerCard data={manner} />}
 
       {/* PR-1C-5 시안 v2.20: 상태 필터 chip row (.ma-filter)
           탭=도메인 선택 / 필터=상태 선택 공존. loading 중에는 미노출 */}
@@ -931,6 +1052,524 @@ function TeamCard({
           </button>
         )}
       </div>
+    </div>
+  );
+}
+
+/* ============================================================
+ * PR-3C-3 (TU5) — 내 팀 섹션
+ *
+ * 이유: 내가 소속(active)된 팀 현황을 내 활동 화면 상단에서 한눈에.
+ *      운영진(captain/vice/manager)인 팀은 처리 대기 건(가입/변경/매치)을
+ *      칩으로 표시해 TU4(팀 관리 인박스)로의 진입점을 제공.
+ *
+ * 박제 원칙(mock ❌):
+ *   - 팀 매너 평균: 운영 DB 미집계 → 표시 안 함(시안의 manner_avg 생략)
+ *   - pending 칩: 운영진 팀만 실 count. 멤버 팀은 칩 없음(권한 밖 데이터 ❌)
+ *   - last_activity_at NULL → "활동 기록" 줄 hide
+ *
+ * 시안: BDR-current/screens/MyActivity.jsx "내 팀" 섹션 (운영 토큰/Material Symbol).
+ * ============================================================ */
+
+// team_members.role → 한국어 라벨 + tone. 비표준 role 은 "멤버" fallback.
+const ROLE_LABELS: Record<string, { label: string; isOperator: boolean }> = {
+  captain: { label: "팀장", isOperator: true },
+  vice: { label: "부팀장", isOperator: true },
+  manager: { label: "매니저", isOperator: true },
+  member: { label: "멤버", isOperator: false },
+  player: { label: "선수", isOperator: false },
+};
+
+// 마지막 활동 시각 → "M월 D일" 짧은 표기 (NULL 이면 호출부에서 hide)
+function formatActivityDate(iso: string | null): string | null {
+  if (!iso) return null;
+  try {
+    const d = new Date(iso);
+    return d.toLocaleDateString("ko-KR", {
+      timeZone: "Asia/Seoul",
+      month: "long",
+      day: "numeric",
+    });
+  } catch {
+    return null;
+  }
+}
+
+// 팀 로고 자리표시 — 로고 없으면 팀 색상 그라디언트 + 이니셜(디자인 룰: 이미지 없으면 대체)
+function TeamLogo({
+  logoUrl,
+  name,
+  color1,
+  color2,
+}: {
+  logoUrl: string | null;
+  name: string;
+  color1: string | null;
+  color2: string | null;
+}) {
+  const initial = name.trim().charAt(0) || "T";
+  // 원형 — 정사각형 W=H 이므로 50% 허용(디자인 룰 §4-1: pill 9999px 회피용 50% OK)
+  if (logoUrl) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={logoUrl}
+        alt={name}
+        width={40}
+        height={40}
+        style={{ width: 40, height: 40, borderRadius: "50%", objectFit: "cover", flexShrink: 0 }}
+      />
+    );
+  }
+  return (
+    <div
+      style={{
+        width: 40,
+        height: 40,
+        borderRadius: "50%",
+        flexShrink: 0,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        // 색상 없으면 토큰 폴백 — 하드코딩 금지 룰 준수
+        background: `linear-gradient(135deg, ${color1 || "var(--accent)"}, ${color2 || "var(--cafe-blue)"})`,
+        color: "#fff",
+        fontWeight: 800,
+        fontSize: 16,
+        fontFamily: "var(--ff-display)",
+      }}
+      aria-hidden
+    >
+      {initial}
+    </div>
+  );
+}
+
+function MyTeamsSection({ teams }: { teams: MyTeamItem[] }) {
+  return (
+    <section
+      className="card"
+      style={{
+        padding: "16px 18px",
+        border: "1px solid var(--border)",
+        borderRadius: 4,
+        background: "var(--bg-card)",
+        marginBottom: 12,
+      }}
+    >
+      {/* 헤더: groups 아이콘 + "내 팀" + 팀 수 + 팀 관리 링크 */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 8,
+          marginBottom: teams.length > 0 ? 12 : 0,
+        }}
+      >
+        <h3
+          style={{
+            margin: 0,
+            fontSize: 15,
+            fontWeight: 700,
+            color: "var(--ink)",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+          }}
+        >
+          <span
+            className="material-symbols-outlined"
+            style={{ fontSize: 18, color: "var(--accent)" }}
+            aria-hidden
+          >
+            groups
+          </span>
+          내 팀
+          {teams.length > 0 && (
+            <span
+              style={{
+                fontSize: 12,
+                color: "var(--ink-mute)",
+                fontWeight: 600,
+                fontFamily: "var(--ff-mono)",
+              }}
+            >
+              {teams.length}팀
+            </span>
+          )}
+        </h3>
+        {teams.length > 0 && (
+          <Link
+            href="/teams"
+            style={{ fontSize: 12, color: "var(--ink-mute)", textDecoration: "none" }}
+          >
+            팀 찾기 →
+          </Link>
+        )}
+      </div>
+
+      {teams.length === 0 ? (
+        // 빈 상태 — 소속 팀 0개 (mock 데이터 ❌ / CTA 만)
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: 10,
+            padding: "20px 0 8px",
+            textAlign: "center",
+          }}
+        >
+          <p style={{ fontSize: 13, color: "var(--ink-mute)", margin: 0 }}>
+            아직 가입한 팀이 없어요
+          </p>
+          <Link
+            href="/teams"
+            className="inline-flex items-center gap-1"
+            style={{
+              padding: "8px 16px",
+              fontSize: 12,
+              fontWeight: 700,
+              backgroundColor: "var(--accent)",
+              color: "#fff",
+              borderRadius: 4,
+              textDecoration: "none",
+            }}
+          >
+            팀 둘러보기
+            <span className="material-symbols-outlined" style={{ fontSize: 16 }} aria-hidden>
+              arrow_forward
+            </span>
+          </Link>
+        </div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {teams.map((t) => (
+            <MyTeamRow key={t.id} item={t} />
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+// 개별 팀 행 — 로고 + 팀명/role + 메타 + pending 칩(운영진만) + 상세/관리 링크
+function MyTeamRow({ item }: { item: MyTeamItem }) {
+  const roleInfo = ROLE_LABELS[item.role] ?? { label: "멤버", isOperator: false };
+  const location = [item.team.city, item.team.district].filter(Boolean).join(" ");
+  const activity = formatActivityDate(item.last_activity_at);
+  const hasPending =
+    item.pending_join > 0 || item.pending_change > 0 || item.pending_match > 0;
+  const href = `/teams/${item.team.uuid ?? item.team.id}`;
+
+  return (
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: "40px 1fr auto",
+        gap: 12,
+        alignItems: "center",
+        padding: "10px 0",
+        borderTop: "1px solid var(--border)",
+      }}
+    >
+      <TeamLogo
+        logoUrl={item.team.logo_url}
+        name={item.team.name}
+        color1={item.team.primary_color}
+        color2={item.team.secondary_color}
+      />
+
+      <div style={{ minWidth: 0 }}>
+        {/* 팀명 + role 배지 */}
+        <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+          <span
+            style={{
+              fontWeight: 700,
+              fontSize: 14,
+              color: "var(--ink)",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {item.team.name}
+          </span>
+          <span
+            style={{
+              fontSize: 10.5,
+              fontWeight: 700,
+              padding: "1px 7px",
+              borderRadius: 4,
+              // 운영진 = accent 톤 / 멤버 = 중립 톤 (정의된 토큰만 사용)
+              backgroundColor: roleInfo.isOperator
+                ? "color-mix(in srgb, var(--accent) 14%, transparent)"
+                : "color-mix(in srgb, var(--ink-mute) 12%, transparent)",
+              color: roleInfo.isOperator ? "var(--accent)" : "var(--ink-mute)",
+            }}
+          >
+            {roleInfo.label}
+          </span>
+        </div>
+
+        {/* 메타: 지역 · 멤버수 · 마지막 활동(NULL 이면 생략) */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            marginTop: 3,
+            fontSize: 11.5,
+            color: "var(--ink-mute)",
+            flexWrap: "wrap",
+          }}
+        >
+          {location && (
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}>
+              <span className="material-symbols-outlined" style={{ fontSize: 13 }} aria-hidden>
+                place
+              </span>
+              {location}
+            </span>
+          )}
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}>
+            <span className="material-symbols-outlined" style={{ fontSize: 13 }} aria-hidden>
+              groups
+            </span>
+            {item.team.members_count}명
+          </span>
+          {activity && (
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}>
+              <span className="material-symbols-outlined" style={{ fontSize: 13 }} aria-hidden>
+                schedule
+              </span>
+              {activity} 활동
+            </span>
+          )}
+        </div>
+
+        {/* pending 칩 — 운영진 팀만 실 count (BT1 가입 / BT2 변경 / BT5 매치) */}
+        {hasPending && (
+          <div
+            style={{
+              display: "flex",
+              gap: 6,
+              marginTop: 6,
+              flexWrap: "wrap",
+            }}
+          >
+            {item.pending_join > 0 && (
+              <PendingChip icon="how_to_reg" label={`가입 ${item.pending_join}`} tone="accent" />
+            )}
+            {item.pending_change > 0 && (
+              <PendingChip icon="edit_note" label={`변경 ${item.pending_change}`} tone="blue" />
+            )}
+            {item.pending_match > 0 && (
+              <PendingChip icon="handshake" label={`매치 ${item.pending_match}`} tone="blue" />
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* 우측: 운영진 = 관리 / 멤버 = 상세 (라우트는 동일 팀 상세로 — 관리 탭은 팀 상세 내부) */}
+      <Link
+        href={href}
+        className="btn btn--sm"
+        style={{ textDecoration: "none", whiteSpace: "nowrap" }}
+      >
+        {roleInfo.isOperator ? "관리" : "상세"}
+      </Link>
+    </div>
+  );
+}
+
+// pending 칩 — accent(가입) / blue(변경·매치) 두 톤
+function PendingChip({
+  icon,
+  label,
+  tone,
+}: {
+  icon: string;
+  label: string;
+  tone: "accent" | "blue";
+}) {
+  const color = tone === "accent" ? "var(--accent)" : "var(--cafe-blue)";
+  return (
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 3,
+        fontSize: 11,
+        fontWeight: 700,
+        padding: "2px 8px",
+        borderRadius: 4,
+        backgroundColor: `color-mix(in srgb, ${color} 12%, transparent)`,
+        color,
+      }}
+    >
+      <span className="material-symbols-outlined" style={{ fontSize: 13 }} aria-hidden>
+        {icon}
+      </span>
+      {label}
+    </span>
+  );
+}
+
+/* ============================================================
+ * PR-2C-3 (BG2) — 내 매너 카드
+ *
+ * 이유: 본인이 받은 매너 평가를 한눈에. ★ 노출 룰 엄격(사용자 결재):
+ *      평균 평점 + flag "종류"(키워드)만 노출. flag별 개별 건수 절대 ❌.
+ *      (예 "노쇼 2회" 같은 건수 표시 금지 — 위축/낙인 방지)
+ *
+ * 데이터: data.flag_kinds 는 API 가 이미 distinct(Set) 처리한 "종류" 배열.
+ *        이 컴포넌트에서도 건수는 일절 계산/표시하지 않는다.
+ *
+ * 시안: BDR-current/game-shared.jsx MannerCard 박제 (운영 토큰/인라인 매핑).
+ * ============================================================ */
+function MannerCard({ data }: { data: MannerData }) {
+  const hasRatings = data.total_evaluations > 0;
+  // 평균 색상 tone — 모듈 헬퍼 재사용 (헤더 카운트와 동일 기준)
+  const toneColor = mannerToneColor(data.avg);
+
+  return (
+    <div
+      className="card"
+      style={{
+        padding: "16px 18px",
+        border: "1px solid var(--border)",
+        borderRadius: 4,
+        background: "var(--bg-card)",
+        marginBottom: 12,
+      }}
+    >
+      {/* 헤더: 제목 + "최근 50건 평균" 힌트 */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 8,
+          marginBottom: 12,
+        }}
+      >
+        <h3
+          style={{
+            margin: 0,
+            fontSize: 15,
+            fontWeight: 700,
+            color: "var(--ink)",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+          }}
+        >
+          <span
+            className="material-symbols-outlined"
+            style={{ fontSize: 18, color: "var(--accent)" }}
+            aria-hidden
+          >
+            handshake
+          </span>
+          내 매너 평가
+        </h3>
+        <span
+          style={{
+            fontSize: 11,
+            color: "var(--ink-dim)",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 4,
+          }}
+          title="최근 50건 평균"
+        >
+          <span
+            className="material-symbols-outlined"
+            style={{ fontSize: 14 }}
+            aria-hidden
+          >
+            info
+          </span>
+          최근 50건 평균
+        </span>
+      </div>
+
+      {hasRatings ? (
+        <>
+          {/* 큰 숫자 = 평균 평점 + tone 색상 분기 */}
+          <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+            <span
+              style={{
+                fontFamily: "var(--ff-display)",
+                fontSize: 40,
+                fontWeight: 900,
+                lineHeight: 1,
+                color: toneColor,
+              }}
+            >
+              {data.avg.toFixed(1)}
+            </span>
+            <span style={{ fontSize: 14, color: "var(--ink-mute)", fontWeight: 600 }}>
+              / 5.0
+            </span>
+          </div>
+          {/* 평가 받은 "횟수"는 노출 OK (flag별 건수만 ❌) */}
+          <div style={{ fontSize: 12, color: "var(--ink-mute)", marginTop: 6 }}>
+            {data.total_evaluations}명에게 평가 받음
+          </div>
+
+          {/* 받은 flag 종류 — 키워드만 (건수 표시 ❌) */}
+          {data.flag_kinds.length > 0 && (
+            <div style={{ marginTop: 12 }}>
+              <div
+                style={{
+                  fontSize: 11,
+                  color: "var(--ink-mute)",
+                  marginBottom: 6,
+                }}
+              >
+                받은 평가 키워드{" "}
+                <span style={{ color: "var(--ink-dim)", fontWeight: 500 }}>
+                  (종류만 / 건수 ❌)
+                </span>
+              </div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                {data.flag_kinds.map((f) => {
+                  // 운영 flag → 라벨 매핑 (미정의 flag 는 원문 fallback)
+                  const lab = MANNER_FLAG_LABELS[f] ?? { label: f, emoji: "·" };
+                  return (
+                    <span
+                      key={f}
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 4,
+                        fontSize: 11.5,
+                        fontWeight: 600,
+                        padding: "3px 9px",
+                        borderRadius: 4,
+                        // 부정 flag → danger 톤(연한 배경) — 운영은 부정 flag만
+                        backgroundColor:
+                          "color-mix(in srgb, var(--danger) 12%, transparent)",
+                        color: "var(--danger)",
+                      }}
+                    >
+                      {lab.emoji} {lab.label}
+                    </span>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </>
+      ) : (
+        // 빈 상태 — 평가 0건
+        <div style={{ fontSize: 13, color: "var(--ink-mute)", padding: "8px 0" }}>
+          아직 매너 평가가 없습니다. 더 많은 경기에 참가해보세요.
+        </div>
+      )}
     </div>
   );
 }

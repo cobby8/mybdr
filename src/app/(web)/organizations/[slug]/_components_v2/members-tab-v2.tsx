@@ -60,10 +60,33 @@ export function MembersTabV2({ members }: MembersTabV2Props) {
     );
   }
 
+  // BO3: role 집계 — owner/admin = 관리자, member = 멤버 (실측값)
+  const adminCount = members.filter(
+    (m) => m.role === "owner" || m.role === "admin",
+  ).length;
+  const memberCount = members.length - adminCount;
+
   return (
-    // 시안 4열 고정. 모바일은 2열로 자연스럽게 축소
-    <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-      {members.map((m) => {
+    <div className="flex flex-col gap-3">
+      {/* BO3 헤더 — 운영 멤버 요약 (관리자 N · 멤버 N) */}
+      <div className="flex items-center justify-between">
+        <h2 className="flex items-center gap-1.5 text-base font-bold text-[var(--color-text-primary)]">
+          <span className="material-symbols-outlined text-lg">
+            shield_person
+          </span>
+          운영 멤버
+        </h2>
+        <span
+          className="text-[11px] font-bold text-[var(--color-text-muted)]"
+          style={{ fontFamily: "var(--font-space-grotesk), monospace" }}
+        >
+          관리자 {adminCount} · 멤버 {memberCount}
+        </span>
+      </div>
+
+      {/* 시안 4열 고정. 모바일은 2열로 자연스럽게 축소 */}
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+        {members.map((m) => {
         const sinceYear =
           m.created_at instanceof Date
             ? m.created_at.getFullYear()
@@ -105,9 +128,10 @@ export function MembersTabV2({ members }: MembersTabV2Props) {
             >
               {sinceYear ? `since ${sinceYear}` : "since 준비 중"}
             </div>
-          </Link>
-        );
-      })}
+            </Link>
+          );
+        })}
+      </div>
     </div>
   );
 }

@@ -37,6 +37,22 @@ export const GET = withWebAuth(
               slug: true,
               tournaments_count: true,
               created_at: true,
+              // 2026-05-29 4C-8 OO2 editions 탭 — 시리즈별 회차(tournaments) 통합 보기용.
+              // server 조회만 추가 (schema 변경 0). edition_number desc → 최신 회차 위로.
+              tournaments: {
+                orderBy: [{ edition_number: "desc" }, { startDate: "desc" }],
+                select: {
+                  id: true,
+                  name: true,
+                  edition_number: true,
+                  status: true,
+                  startDate: true,
+                  city: true,
+                  district: true,
+                  venue_address: true,
+                  maxTeams: true,
+                },
+              },
             },
           },
         },
@@ -90,6 +106,18 @@ export const GET = withWebAuth(
           slug: s.slug,
           tournamentsCount: s.tournaments_count,
           createdAt: s.created_at,
+          // 4C-8 OO2 editions 탭용 — 시리즈 소속 회차 목록 (실값만, mock 0)
+          tournaments: s.tournaments.map((t) => ({
+            id: t.id.toString(),
+            name: t.name,
+            editionNumber: t.edition_number,
+            status: t.status,
+            startDate: t.startDate,
+            city: t.city,
+            district: t.district,
+            venueAddress: t.venue_address,
+            maxTeams: t.maxTeams,
+          })),
         })),
       });
     } catch {
