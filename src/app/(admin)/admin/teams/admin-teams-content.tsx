@@ -150,14 +150,19 @@ export function AdminTeamsContent({ teams, updateStatusAction }: Props) {
                 ["멤버수", `${selected.membersCount}명`],
               ]}
             />
-            <ModalInfoSection
-              title="전적"
-              rows={[
-                ["승", `${selected.wins}W`],
-                ["패", `${selected.losses}L`],
-                ["무", `${selected.draws}D`],
-              ]}
-            />
+            {/* 2026-05-29 PR-3C-6 TA2 박제 — 전적 조건부 hide.
+                BG6/BT6 = Team.wins/losses/draws. 운영 96팀 대부분 0W0L0D라
+                전부 0이면 의미 없는 노이즈 → 미표시. 미래에 값 들어오면 자동 표시(mock 금지). */}
+            {selected.wins + selected.losses + selected.draws > 0 && (
+              <ModalInfoSection
+                title="전적"
+                rows={[
+                  ["승", `${selected.wins}W`],
+                  ["패", `${selected.losses}L`],
+                  ["무", `${selected.draws}D`],
+                ]}
+              />
+            )}
             <ModalInfoSection
               title="기타"
               rows={[["생성일", fmtDate(selected.createdAt)]]}

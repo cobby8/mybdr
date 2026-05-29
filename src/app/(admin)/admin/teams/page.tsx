@@ -22,7 +22,7 @@ export default async function AdminTeamsPage({
       }
     : undefined;
 
-  const [teams, totalCount] = await Promise.all([
+  const [teams, totalCount, statusGroups] = await Promise.all([
     prisma.team.findMany({
       where,
       orderBy: { createdAt: "desc" },
@@ -43,7 +43,31 @@ export default async function AdminTeamsPage({
       },
     }),
     prisma.team.count({ where }),
+    // 2026-05-29 PR-3C-6 TA1 박제 — Hero status 통계 띠용 전체 분포 집계.
+    // 목록(take:50)·검색필터(where)와 별개로 "전체 96팀" 기준 status 분포를
+    // 정확히 보여주기 위해 where 없이 groupBy 1건 추가 (새 route 아님, server 조회).
+    prisma.team.groupBy({
+      by: ["status"],
+      _count: { _all: true },
+    }),
   ]);
+
+  // status별 건수 맵 — 실측: active 84 / inactive 8 / merged 2 / dissolved 2
+  const statusCounts: Record<string, number> = {};
+  for (const g of statusGroups) {
+    // status가 null인 레코드는 "active"로 합산 (직렬화 기본값과 일치)
+    statusCounts[g.status ?? "active"] =
+      (statusCounts[g.status ?? "active"] ?? 0) + g._count._all;
+  }
+
+  // TA1 통계 띠 항목 정의 (실 status 값만, 0건은 hide).
+  // tone = admin-stat-pill 톤: active=ok / inactive=err / merged=info / dissolved=mute
+  const statusStats: { key: string; label: string; tone: string }[] = [
+    { key: "active", label: "활동중", tone: "ok" },
+    { key: "inactive", label: "비활성", tone: "err" },
+    { key: "merged", label: "통합됨", tone: "info" },
+    { key: "dissolved", label: "해산됨", tone: "mute" },
+  ];
 
   // 직렬화
   const serialized = teams.map((t) => ({
@@ -71,6 +95,22 @@ export default async function AdminTeamsPage({
         searchDefaultValue={q ?? ""}
         breadcrumbs={[{ label: "ADMIN" }, { label: "콘텐츠" }, { label: "팀 관리" }]}
       />
+
+      {/* 2026-05-29 PR-3C-6 TA1 박제 — Hero status 통계 띠.
+          AdminPageHeader는 그대로 두고 아래에 실 status 분포 칩을 배치.
+          0건 status는 미표시(hide), 실값이 들어오면 자동 표시(mock 금지). */}
+      <div className="flex flex-wrap items-center gap-2 px-1 pb-4">
+        {statusStats.map((s) => {
+          const count = statusCounts[s.key] ?? 0;
+          if (count === 0) return null; // 0건은 띠에서 숨김
+          return (
+            <span key={s.key} className="admin-stat-pill" data-tone={s.tone}>
+              {s.label} {count}
+            </span>
+          );
+        })}
+      </div>
+
       <AdminTeamsContent
         teams={serialized}
         updateStatusAction={updateTeamStatusAction}
