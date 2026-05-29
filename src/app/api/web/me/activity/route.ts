@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db/prisma";
 import { apiSuccess, apiError } from "@/lib/api/response";
 
 /**
- * GET /api/web/me/activity?type=tournaments|games|teams|manner&limit=20
+ * GET /api/web/me/activity?type=tournaments|games|teams|myteams|manner&limit=20
  *
  * 이유: W4 M4 "내 활동 통합 뷰"(/profile/activity)에서 3개 탭의 데이터를
  *      각각 호출한다. 탭이 바뀔 때만 해당 type 데이터만 fetch → 초기 페인트
@@ -148,6 +148,124 @@ export const GET = withWebAuth(async (req: Request, _routeCtx, ctx: WebAuthConte
       });
     }
 
+    if (type === "myteams") {
+      /* PR-3C-3 (TU5 "내 팀"): 내가 현재 소속(active)인 팀 현황.
+       * ⚠️ "teams"(가입 신청 이력)와 다른 개념 — 이건 이미 멤버인 팀 목록.
+       *
+       * 박제 요소(실값만 / mock ❌):
+       *   - 팀명·지역·멤버수·내 role·마지막 활동(last_activity_at) — TeamMember+Team 실값
+       *   - 운영진(captain/vice/manager)인 팀에 한해 pending 카운트 3종:
+       *     · BT1 가입 신청  = team_join_requests.status='pending'
+       *     · BT2 멤버 변경  = team_member_requests.status='pending'
+       *     · BT5 매치 신청  = team_match_requests(to_team).status='pending'
+       *   - 팀 매너 평균: 운영 DB에 팀 단위 매너 집계 컬럼 없음 → 응답에서 제외(프론트 hide)
+       *
+       * IDOR: userId = session 본인 고정. pending count 도 본인이 운영진인 팀만 조회.
+       *
+       * 운영진 판정 룰(teams/[id]/route.ts 동일): team.captainId === me 가 1순위 신뢰,
+       *   team_members.role ∈ {captain,vice,manager} 가 fallback. role 은 'director' 등
+       *   비표준 값이 섞여 있어 captainId 직접 매칭을 우선한다.
+       */
+      const TEAM_MANAGER_ROLES = ["captain", "vice", "manager"];
+
+      // 1) 내가 active 멤버인 팀들 — 팀 정보 + 내 role/last_activity_at 동봉
+      const memberships = await prisma.teamMember.findMany({
+        where: { userId: ctx.userId, status: "active" },
+        orderBy: { last_activity_at: { sort: "desc", nulls: "last" } },
+        take: limit,
+        include: {
+          team: {
+            select: {
+              id: true,
+              uuid: true,
+              name: true,
+              logoUrl: true,
+              city: true,
+              district: true,
+              members_count: true,
+              captainId: true, // 운영진 1순위 판정용
+              primaryColor: true,
+              secondaryColor: true,
+            },
+          },
+        },
+      });
+
+      // 2) 운영진인 팀 id 만 추려 pending 카운트를 묶음 조회(N+1 회피).
+      //    captainId 본인 OR role 이 운영진 → 운영진으로 인정.
+      const operatorTeamIds = memberships
+        .filter(
+          (m) =>
+            m.team.captainId === ctx.userId ||
+            TEAM_MANAGER_ROLES.includes(m.role ?? ""),
+        )
+        .map((m) => m.teamId);
+
+      // pending 카운트를 teamId 별 Map 으로 모은다(운영진 팀이 없으면 빈 Map).
+      const joinPendingMap = new Map<bigint, number>();
+      const changePendingMap = new Map<bigint, number>();
+      const matchPendingMap = new Map<bigint, number>();
+
+      if (operatorTeamIds.length > 0) {
+        // BT1 가입 신청 pending — team_join_requests.status='pending'
+        const joinGroups = await prisma.team_join_requests.groupBy({
+          by: ["team_id"],
+          where: { team_id: { in: operatorTeamIds }, status: "pending" },
+          _count: { _all: true },
+        });
+        for (const g of joinGroups) joinPendingMap.set(g.team_id, g._count._all);
+
+        // BT2 멤버 변경 신청 pending — team_member_requests.status='pending'
+        const changeGroups = await prisma.teamMemberRequest.groupBy({
+          by: ["teamId"],
+          where: { teamId: { in: operatorTeamIds }, status: "pending" },
+          _count: { _all: true },
+        });
+        for (const g of changeGroups)
+          changePendingMap.set(g.teamId, g._count._all);
+
+        // BT5 받은 매치 신청 pending — team_match_requests(to_team).status='pending'
+        const matchGroups = await prisma.team_match_requests.groupBy({
+          by: ["to_team_id"],
+          where: { to_team_id: { in: operatorTeamIds }, status: "pending" },
+          _count: { _all: true },
+        });
+        for (const g of matchGroups)
+          matchPendingMap.set(g.to_team_id, g._count._all);
+      }
+
+      return apiSuccess({
+        items: memberships.map((m) => {
+          const isOperator =
+            m.team.captainId === ctx.userId ||
+            TEAM_MANAGER_ROLES.includes(m.role ?? "");
+          return {
+            id: m.id.toString(),
+            // 내 role — captainId 본인이면 비표준 role 이라도 'captain' 으로 보정
+            role: m.team.captainId === ctx.userId ? "captain" : (m.role ?? "member"),
+            isOperator,
+            // last_activity_at NULL → null 그대로(프론트가 hide), 값 있으면 ISO
+            lastActivityAt: m.last_activity_at,
+            // 운영진 팀만 pending 카운트(멤버 팀은 0 — 권한 밖 데이터 노출 ❌)
+            pendingJoin: isOperator ? (joinPendingMap.get(m.teamId) ?? 0) : 0,
+            pendingChange: isOperator ? (changePendingMap.get(m.teamId) ?? 0) : 0,
+            pendingMatch: isOperator ? (matchPendingMap.get(m.teamId) ?? 0) : 0,
+            team: {
+              id: m.team.id.toString(),
+              uuid: m.team.uuid,
+              name: m.team.name,
+              logoUrl: m.team.logoUrl,
+              city: m.team.city,
+              district: m.team.district,
+              membersCount: m.team.members_count ?? 0,
+              primaryColor: m.team.primaryColor,
+              secondaryColor: m.team.secondaryColor,
+            },
+          };
+        }),
+      });
+    }
+
     if (type === "teams") {
       /* 내 팀 가입 신청 이력. 인덱스: team_join_requests.user_id */
       const rows = await prisma.team_join_requests.findMany({
@@ -178,7 +296,7 @@ export const GET = withWebAuth(async (req: Request, _routeCtx, ctx: WebAuthConte
       });
     }
 
-    return apiError("type 파라미터가 필요합니다 (tournaments | games | teams).", 400, "INVALID_TYPE");
+    return apiError("type 파라미터가 필요합니다 (tournaments | games | teams | myteams | manner).", 400, "INVALID_TYPE");
   } catch {
     return apiError("활동 내역을 불러오지 못했습니다.", 500);
   }
