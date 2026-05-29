@@ -1,5 +1,7 @@
 import { TeamJoinButtonV2 } from "./team-join-button-v2";
 import { TeamMatchRequestModalV2 } from "./team-match-request-modal";
+// PR-3C-4 TU2 보강 — BT4 내 권한 + BT7 운영 액션 카드
+import { TeamOpsCardV2 } from "./team-ops-card-v2";
 
 /**
  * TeamSideCardV2
@@ -42,6 +44,11 @@ type Props = {
   isLoggedIn: boolean;
   isMember: boolean; // 멤버면 "가입 신청" 자체를 숨긴다
   hasPendingRequest: boolean; // pending 신청 있으면 disabled "신청 완료"
+  // PR-3C-4 TU2 보강 — BT4 내 권한 / BT7 운영 액션 (SSR 사전계산값 전달)
+  canManage: boolean;
+  myRole: string | null;
+  isCaptain: boolean;
+  grantedPermissions: Record<string, boolean>;
 };
 
 export function TeamSideCardV2({
@@ -53,6 +60,10 @@ export function TeamSideCardV2({
   isLoggedIn,
   isMember,
   hasPendingRequest,
+  canManage,
+  myRole,
+  isCaptain,
+  grantedPermissions,
 }: Props) {
   // 정확히 5칸을 유지 (빈 칸은 "-"로 채움) — 시안 일관성 위해
   const cells: ("W" | "L" | "-")[] = [...recentForm];
@@ -132,6 +143,17 @@ export function TeamSideCardV2({
           />
         </div>
       </div>
+
+      {/* ── PR-3C-4 TU2 보강: 운영 액션(BT7) + 내 권한(BT4) ──
+          isMember 가 아니면 TeamOpsCardV2 내부에서 null 반환(가짜 카드 0). */}
+      <TeamOpsCardV2
+        teamId={teamId}
+        isMember={isMember}
+        canManage={canManage}
+        myRole={myRole}
+        isCaptain={isCaptain}
+        grantedPermissions={grantedPermissions}
+      />
 
       {/* ── 카드 2: 연락 ── */}
       <div className="card" style={{ padding: "16px 20px" }}>
