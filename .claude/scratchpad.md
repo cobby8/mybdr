@@ -2,7 +2,7 @@
 
 ## 현재 작업
 - **요청**: Auto Chain Master — 4단계 chain (v2.22 sync + Phase 2C/3C/4C = 25 PR)
-- **상태**: ✅ **Auto Chain 전체 완료 (25/25 PR push)** / 다음 = 25 PR subin→dev→main 머지(수빈 수동) + Phase 5 선정
+- **상태**: ✅ **Auto Chain 25 PR 운영 반영 완료** (#654 subin→dev / #655 dev→main 머지 / Vercel 운영 배포). 다음 = Phase 5 선정 / ⚠️다음 작업 시작 시 subin에 dev 동기화 필요(main에 merge commit 추가됨)
 - **현재 담당**: pm
 - **의뢰서**: `Dev/design/prompts/auto-chain-master-cli-prompt-2026-05-29.md`
 
@@ -20,7 +20,8 @@
 | 4 | Phase 4C 단체 (8 PR) | ✅ **8/8** |
 
 ## 🔜 chain 끝 후 다음 액션 (의뢰서 §5)
-- ☐ **25 PR subin → dev → main 결재** (수빈 수동 / main 머지 권한 = 원영+수빈)
+- ✅ **25 PR subin → dev → main 머지 완료** (#654 / #655 / 운영 배포 `6f22c02`)
+- ☐ 다음 작업 시작 시 `git checkout dev && git pull` → subin에 dev 머지 (main merge commit 동기화)
 - ☐ Phase 5 영역 선정 (후보: 코트·장소 / 알림·메시지·검색 / 프로필·마이페이지 / 랭킹·커뮤니티 / About·마케팅)
 - ☐ PR-1C-10 PA3 재설계 결정 (보류 중)
 
@@ -43,6 +44,7 @@
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
 |------|------|------|
+| 2026-05-29 | **Auto Chain 25 PR 운영 반영** (subin→dev #654 → dev→main #655) | ✅ 머지 완료 / main=`6f22c02` / Vercel 운영 배포 / dev=main 정합 |
 | 2026-05-29 | **Phase 4C 완료 8/8** (4C-1~8) | ✅ `8ec6a54`·`8527d2a`·`f26614b`·`1280425`·`7dab1ad`·`5addf34`·`d169e0a`·`fa7b63b` push / 단체 영역 / OrgHierarchyCrumbs 공용 / Q2·Q3·Q4 lock / 각 tsc0 회귀0 mock0 |
 | 2026-05-29 | **Phase 3C 완료 6/6** (3C-1~6) | ✅ `50ee237`~`0b61922` push / 팀 영역 / status·권한 BT1~6 일치 / docs `b50b88e` |
 | 2026-05-29 | **Phase 2C 완료 10/10** (2C-1~10) | ✅ `13feb36`~`9292fe6` push / 경기 영역 / game_applications.status Int0/1/2 / docs `283bcd3` |
