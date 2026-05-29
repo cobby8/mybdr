@@ -884,8 +884,19 @@ export default function TeamManagePage({ params }: { params: Promise<{ id: strin
         <div className="min-w-0">
           <div className="text-[10px] font-extrabold tracking-widest opacity-85">CAPTAIN VIEW · 팀 관리</div>
           <div className="mt-1 truncate text-xl font-extrabold sm:text-2xl">{teamData?.name ?? "팀 관리"}</div>
-          <div className="mt-0.5 font-mono text-xs opacity-85">
-            멤버 {members.length}명 · 신청 대기 {requests.length}건
+          <div className="mt-0.5 flex flex-wrap items-center gap-x-1 font-mono text-xs opacity-85">
+            {/* 멤버수 + 신청 대기 = 운영 고유 유용 메타 (기존 유지) */}
+            <span>멤버 {members.length}명 · 신청 대기 {requests.length}건</span>
+            {/* 시안 TeamMiniHero 지역(place) 메타 박제 — teamData(settings/matches 탭 진입 시 로드)의 city/district 실값.
+                새 쿼리 없이 기존 teamData 값만 사용. 둘 다 없으면 라인 자체 미표시(mock 금지).
+                시안 매너 평균·승패(wins/losses)는 팀 단위 컬럼 없음/96팀 0 → 박제 제외(hide). */}
+            {(teamData?.city || teamData?.district) && (
+              <span className="inline-flex items-center gap-0.5">
+                <span aria-hidden>·</span>
+                <span className="material-symbols-outlined" style={{ fontSize: 13 }}>place</span>
+                {[teamData?.city, teamData?.district].filter(Boolean).join(" ")}
+              </span>
+            )}
           </div>
         </div>
         <Link
