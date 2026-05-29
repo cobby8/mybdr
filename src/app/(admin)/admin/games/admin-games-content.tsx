@@ -12,6 +12,18 @@ import {
   ModalInfoSection,
 } from "@/components/admin/admin-detail-modal";
 
+// 2026-05-29 PR-2C-9 (UD1 BG1) — 신청 1건 (game_applications 직렬화)
+// status: 0=대기 / 1=승인 / 2=거절 (game_applications.status 단일 진실, 2C-7 확정)
+interface GameApplication {
+  id: string;
+  status: number;
+  isGuest: boolean;
+  applicantName: string;
+  createdAt: string;
+  approvedAt: string | null;
+  rejectedAt: string | null;
+}
+
 interface SerializedGame {
   id: string;
   title: string | null;
@@ -25,7 +37,19 @@ interface SerializedGame {
   createdAt: string;
   hostName: string | null;
   hostEmail: string;
+  // BG1 — 신청 현황 (실데이터, mock 없음)
+  applications: GameApplication[];
+  pendingCount: number;
 }
+
+// BG1 — 신청 상태 라벨 (game_applications.status 0/1/2 단일 진실 그대로)
+const APP_STATUS_LABEL: Record<number, string> = {
+  0: "대기", 1: "승인", 2: "거절",
+};
+// 신청 상태별 톤 — 대기=warn / 승인=ok / 거절=err (admin-stat-pill data-tone)
+const APP_STATUS_TONE: Record<number, "mute" | "info" | "ok" | "warn" | "err" | "accent"> = {
+  0: "warn", 1: "ok", 2: "err",
+};
 
 interface Pagination {
   page: number;
@@ -100,8 +124,43 @@ export function AdminGamesContent({ games, updateStatusAction, pagination }: Pro
   const rangeStart = (page - 1) * pageSize + 1;
   const rangeEnd = Math.min(page * pageSize, totalCount);
 
+  // BG1 — 현재 페이지 내 전체 대기(status=0) 신청 합계 (시안 totalPending)
+  const totalPending = games.reduce((s, g) => s + g.pendingCount, 0);
+
+  const fmtDateTime = (iso: string | null) =>
+    iso
+      ? new Date(iso).toLocaleString("ko-KR", {
+          month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit",
+        })
+      : "-";
+
   return (
     <>
+      {/* BG1 — 신청 대기 알림 배너 (대기 건수 > 0 일 때만, 시안 atm-notify-bar 박제) */}
+      {totalPending > 0 && (
+        <div
+          className="mb-3 flex items-center justify-between gap-3 rounded-md px-4 py-3"
+          style={{
+            background: "var(--color-primary-soft, var(--color-elevated))",
+            border: "1px solid var(--color-border)",
+          }}
+        >
+          <div className="flex items-center gap-3">
+            <span className="material-symbols-outlined" style={{ color: "var(--color-primary)" }}>
+              notifications_active
+            </span>
+            <div>
+              <p className="text-sm font-bold" style={{ color: "var(--color-text-primary)" }}>
+                신청 대기 {totalPending}건 — 호스트 승인 필요
+              </p>
+              <p className="text-xs" style={{ color: "var(--color-text-muted)" }}>
+                현재 페이지 기준 / 행 클릭 시 경기별 신청 현황 확인
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       <AdminStatusTabs tabs={tabs} activeTab={activeTab} onChange={setActiveTab} />
 
       {/* 페이지 크기 선택 */}
@@ -131,6 +190,8 @@ export function AdminGamesContent({ games, updateStatusAction, pagination }: Pro
               <th className="px-5 py-4 font-medium">제목</th>
               <th className="w-[60px] px-3 py-4 font-medium">유형</th>
               <th className="w-[80px] px-3 py-4 font-medium">상태</th>
+              {/* BG1 — 신청 대기 컬럼 신규 */}
+              <th className="w-[80px] px-3 py-4 font-medium">신청 대기</th>
               <th className="w-[95px] px-4 py-4 font-medium">예정일 ↓</th>
             </tr>
           </thead>
@@ -153,6 +214,25 @@ export function AdminGamesContent({ games, updateStatusAction, pagination }: Pro
                   <span className="admin-stat-pill" data-tone={STATUS_TONE[g.status] ?? "mute"}>
                     {STATUS_LABEL[g.status] ?? "알 수 없음"}
                   </span>
+                </td>
+                {/* BG1 — 신청 대기 건수 (실데이터, 0건이면 — 표시 / mock 없음) */}
+                <td data-label="신청 대기" className="px-3 py-3">
+                  {g.pendingCount > 0 ? (
+                    <span
+                      className="inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs font-bold"
+                      style={{
+                        background: "var(--color-primary-soft, var(--color-elevated))",
+                        color: "var(--color-primary)",
+                      }}
+                    >
+                      <span className="material-symbols-outlined" style={{ fontSize: "14px" }}>
+                        person_add
+                      </span>
+                      {g.pendingCount}
+                    </span>
+                  ) : (
+                    <span style={{ color: "var(--color-text-muted)" }}>—</span>
+                  )}
                 </td>
                 {/* whitespace-nowrap으로 날짜 줄바꿈 방지 */}
                 <td data-label="예정일" className="whitespace-nowrap px-4 py-3" style={{ color: "var(--color-text-muted)" }}>
@@ -259,6 +339,70 @@ export function AdminGamesContent({ games, updateStatusAction, pagination }: Pro
                 ["생성일", fmtDate(selected.createdAt)],
               ]}
             />
+
+            {/* BG1 — 신청 현황: game_applications status 0/1/2 실데이터 (조회 전용) */}
+            <div>
+              <p className="mb-1.5 flex items-center gap-1.5 text-[11px] font-black uppercase tracking-widest pr-1" style={{ color: "var(--color-text-muted)" }}>
+                신청 현황
+                {selected.pendingCount > 0 && (
+                  <span
+                    className="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-bold normal-case tracking-normal"
+                    style={{
+                      background: "var(--color-primary-soft, var(--color-elevated))",
+                      color: "var(--color-primary)",
+                    }}
+                  >
+                    대기 {selected.pendingCount}
+                  </span>
+                )}
+              </p>
+              {selected.applications.length === 0 ? (
+                // 신청 0건 — mock 없이 빈 상태 그대로 표시
+                <div
+                  className="rounded-md border px-4 py-3 text-sm"
+                  style={{ borderColor: "var(--color-border)", color: "var(--color-text-muted)" }}
+                >
+                  신청 내역이 없습니다.
+                </div>
+              ) : (
+                <div className="overflow-hidden rounded-md border" style={{ borderColor: "var(--color-border)" }}>
+                  {selected.applications.map((a, i) => (
+                    <div
+                      key={a.id}
+                      className="flex items-center gap-2 px-4 py-2"
+                      style={i > 0 ? { borderTop: "1px solid var(--color-border-subtle)" } : undefined}
+                    >
+                      <span className="material-symbols-outlined" style={{ fontSize: "18px", color: "var(--color-text-muted)" }}>
+                        {a.isGuest ? "person_add" : "person"}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium" style={{ color: "var(--color-text-primary)" }}>
+                          {a.applicantName}
+                          {a.isGuest && (
+                            <span className="ml-1.5 text-[10px] font-normal" style={{ color: "var(--color-text-muted)" }}>
+                              게스트
+                            </span>
+                          )}
+                        </p>
+                        <p className="text-[11px]" style={{ color: "var(--color-text-muted)" }}>
+                          신청 {fmtDateTime(a.createdAt)}
+                          {a.status === 1 && a.approvedAt && ` · 승인 ${fmtDateTime(a.approvedAt)}`}
+                          {a.status === 2 && a.rejectedAt && ` · 거절 ${fmtDateTime(a.rejectedAt)}`}
+                        </p>
+                      </div>
+                      {/* status 0/1/2 라벨 (단일 진실) */}
+                      <span className="admin-stat-pill shrink-0" data-tone={APP_STATUS_TONE[a.status] ?? "mute"}>
+                        {APP_STATUS_LABEL[a.status] ?? "알 수 없음"}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {/* 승인/거절은 호스트 권한 (PATCH /api/web/games/[id]/applications/[appId]) — admin 화면은 조회 전용 */}
+              <p className="mt-1.5 text-[11px]" style={{ color: "var(--color-text-muted)" }}>
+                신청 승인·거절은 경기 호스트가 처리합니다 (조회 전용).
+              </p>
+            </div>
           </div>
         </AdminDetailModal>
       )}
