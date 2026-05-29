@@ -89,7 +89,13 @@ export default async function OrganizationDetailPage({
       series: {
         where: { status: "active", is_public: true },
         orderBy: { created_at: "desc" },
-        include: {
+        // BO2: 시리즈 메타(누적 회수/소개)도 위계 카드에 노출 (쿼리 row 변경 없음, 컬럼만 추가)
+        select: {
+          id: true,
+          slug: true,
+          name: true,
+          description: true,
+          tournaments_count: true,
           tournaments: {
             orderBy: { startDate: "desc" },
             take: 3,
@@ -176,11 +182,16 @@ export default async function OrganizationDetailPage({
       {tab === "events" && (
         <EventsTabV2
           orgSlug={slug}
+          // BO2 위계 안내(단체 → 시리즈 → 대회)용 단체명
+          orgName={org.name}
           // BigInt id → 클라 컴포넌트 props로 넘길 일은 없으나 prop 타입 맞춤
           series={org.series.map((s) => ({
             id: s.id,
             slug: s.slug,
             name: s.name,
+            // BO2: 시리즈 메타 (누적 회수 / 소개)
+            description: s.description,
+            tournamentsCount: s.tournaments_count ?? 0,
             tournaments: s.tournaments.map((t) => ({
               id: Number(t.id),
               name: t.name,
