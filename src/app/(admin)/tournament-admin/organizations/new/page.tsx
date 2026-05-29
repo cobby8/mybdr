@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 /* ============================================================
  * 단체 생성 폼 — /tournament-admin/organizations/new
@@ -69,9 +70,39 @@ export default function NewOrganizationPage() {
 
   return (
     <div className="mx-auto max-w-lg">
+      {/* 2026-05-29 OO1 박제 — "내 단체로 돌아가기" 뒤로가기 링크 (시안 헤더 보강) */}
+      <Link
+        href="/tournament-admin/organizations"
+        className="mb-1 inline-flex items-center gap-1 text-xs font-medium text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
+      >
+        <span className="material-symbols-outlined text-sm">arrow_back</span>
+        내 단체로 돌아가기
+      </Link>
       <h1 className="mb-6 text-xl font-bold text-[var(--color-text-primary)]">
         새 단체 만들기
       </h1>
+
+      {/* 2026-05-29 OO1 박제 — 승인 흐름 안내 박스 (시안 warn 박스 보강).
+          시안은 "Site Operator 권한 필요" 라 적혀 있으나 운영 POST 는 tournament_admin
+          누구나 생성 가능(관리자=즉시 승인 / 일반=검토 대기) → 운영 실제 동작 기준으로 박제.
+          --color-warning 토큰 + color-mix 부드러운 배경 (admin 빨강 본문 금지 룰 회피). */}
+      <div
+        className="mb-5 flex items-start gap-2 rounded p-3 text-xs leading-relaxed"
+        style={{
+          color: "var(--color-text-secondary)",
+          backgroundColor:
+            "color-mix(in srgb, var(--color-warning) 12%, transparent)",
+          border: "1px solid color-mix(in srgb, var(--color-warning) 30%, transparent)",
+        }}
+      >
+        <span className="material-symbols-outlined flex-shrink-0 text-base text-[var(--color-warning)]">
+          shield
+        </span>
+        <div>
+          단체를 만들면 운영진 검토 후 승인됩니다(관리자 계정은 즉시 승인).
+          승인 전까지는 비공개 상태로 표시됩니다.
+        </div>
+      </div>
 
       <form onSubmit={handleSubmit} className="space-y-5">
         {/* 에러 메시지 — --danger 토큰 사용 (#E24C4B) + color-mix로 부드러운 배경 */}
