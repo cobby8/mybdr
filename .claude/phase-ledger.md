@@ -83,24 +83,24 @@
 | ⑧ 시안 박제 | 2A + 2B | ⏸ 보류 | Claude.ai | - | ⑦ 후 시작. 합계 10 시안 |
 | ⑨ zip 출력 | 2A + 2B | ✅ 완료 | Claude.ai | 2026-05-28 | `uploads/BDR v2 (5).zip` (BDR v2.20) 도착 |
 | **⑩ sync 실행** | 2A + 2B | ✅ 완료 | CLI | 2026-05-28 | `sync-bdr-current.ps1 -NewVersion "v2.20"` 실행 (BOM 우회 0 / commit `5609c61` 영구 해결). BDR-current = 34 루트 (game-shared.jsx NEW) + screens 26 jsx + 6 css + `_baseline/` 10 jsx 보존 / pre-snapshot `_archive/BDR-current-2026-05-28-pre-v2.20/` (26 jsx). 회귀 4+8+특수 4 케이스 통과 (game-shared ✓ / _baseline 10 ✓ / Phase 1A admin carry-over diff 0 / 가짜링크 screens 직속 0 / lucide 0 / 9999px 주석만). 시안 css 하드코딩 hex 23건 = §6-1 시안 원본 → Phase 2C 박제 시 토큰 대체 대상. |
-| ⑪ 운영 박제 (Phase 2C) | 2C | ⏸ 보류 | CLI | - | sync 후 PR 그룹 ~10건 예상 / 시안 css hex 23건 토큰 대체 포함 |
-| ⑫ 회귀 검수 (역박제 룰) | 2C | ⏸ 보류 | CLI | - | CLAUDE.md §🔄 적용 |
-| ⑬ PR 결재 | 2C | ⏸ 보류 | 수빈 | - | subin → dev → main |
-| ⑭ Phase 완료 | 2 | ⏸ 보류 | Cowork | - | Phase 3 시작 결정 |
+| ⑪ 운영 박제 (Phase 2C) | 2C | ✅ 완료 (10/10) | CLI | 2026-05-29 | auto-chain 2단계 10 PR push. `13feb36`~`9292fe6`. game_applications.status Int0/1/2 단일진실 / MVP=final_mvp_user_id / 매너 평균+flag종류만 / 각 tsc0 회귀6 mock0 / 새schema·api/v1 0 |
+| ⑫ 회귀 검수 (역박제 룰) | 2C | ✅ 완료 | CLI | 2026-05-29 | 각 PR 자체 회귀 6/6 PASS (더보기/RDM/--color/lucide/9999px/가짜링크). 운영→시안 drift 0 |
+| ⑬ PR 결재 | 2C | ⏸ 대기 (수빈 수동) | 수빈 | - | subin → dev → main (chain 25 PR 일괄) |
+| ⑭ Phase 완료 | 2 | ⏸ 머지 후 | Cowork | - | 머지 완료 시 종료 |
 
 ### Phase 3 — 팀 영역 (시안 sync 완료)
 
 | 단계 | 영역 | 상태 | 책임자 | 갱신일 | 메모 |
 |------|------|------|------|------|------|
 | ⑩ sync 실행 | 3A+3B | ✅ 완료 | CLI | 2026-05-29 | v2.22 sync 안에 Phase 3(팀 7 시안) cumulative. `team-shared.jsx/css` 신규. TU1~TU5 + TA1/TA2 |
-| ⑪ 운영 박제 (3C) | 3C | ⏸ chain 3단계 | CLI | - | auto-chain 3단계 = 6 PR (TU3/TU1/TU5/TU2/TU4/TA) |
+| ⑪ 운영 박제 (3C) | 3C | ✅ 완료 (6/6) | CLI | 2026-05-29 | auto-chain 3단계 6 PR push. `50ee237`~`0b61922` (TU3/TU1/TU5/TU2/TU4/TA). team_join_requests·member_requests.status=String / TeamOfficerPermissions / 운영 초과구현→비파괴 최소박제 / 각 tsc0 회귀6 mock0. PR 결재 수빈 수동 대기 |
 
 ### Phase 4 — 단체 영역 (시안 sync 완료)
 
 | 단계 | 영역 | 상태 | 책임자 | 갱신일 | 메모 |
 |------|------|------|------|------|------|
 | ⑩ sync 실행 | 4A+4B | ✅ 완료 | CLI | 2026-05-29 | v2.22 sync 독립. `org-shared.jsx/css` 신규. 4 가정 lock Q1~Q4. OU1~OU4 + OA1 + OO1~OO3 |
-| ⑪ 운영 박제 (4C) | 4C | ⏸ chain 4단계 | CLI | - | auto-chain 4단계 = 8 PR (OU1~4/OA1/OO1/OO3/OO2) |
+| ⑪ 운영 박제 (4C) | 4C | ✅ 완료 (8/8) | CLI | 2026-05-29 | auto-chain 4단계 8 PR push. `8ec6a54`~`fa7b63b` (OU1~4/OA1/OO1/OO3/OO2). OrgHierarchyCrumbs 공용(4C-2 신규) / BO1 컬럼 OU3=OA1 / Q2 6탭·Q3 3-step·Q4 5-step lock 보존 / 미지원필드 hide / 각 tsc0 회귀6 mock0. PR 결재 수빈 수동 대기 |
 
 ---
 
@@ -163,3 +163,4 @@ Phase 번호 ↑    영역 ↑
 | 2026-05-26 | **통합 가이드 작성** = `phase-1A+2-claude-ai-delivery-guide-2026-05-26.md` (다른 세션 Phase 1A 가이드 superset + Phase 2 baseline 9 추가) | Phase 1A + Phase 2 묶음 전달 결정 — 옵션 B (2 세션 분리) 권장 |
 | 2026-05-26 | **사용자 결재 — 옵션 B 채택** (2 세션 분리 / 대회 → 경기 순) | 가이드 §0-0 결재 결과 명시 |
 | 2026-05-28 | **Phase 1C 대형 3 박제 완료** (PR-1C-14 PA2 `d33177e` / 15 Teams `044527d` / 16 Bracket `7694763`) — 15/16 박제 종료 (PA3 SKIP 제외) | 새 세션 batch / 3 commit 미push / push+결재 대기 |
+| 2026-05-29 | **Auto Chain 전체 완료 (25 PR)** — Phase 2C ⑪⑫ ✅ (10 PR) / Phase 3C ⑪ ✅ (6 PR) / Phase 4C ⑪ ✅ (8 PR) + v2.22 sync(dee2445) | CLI auto-chain 1 session 완수 / subin push 완료 / subin→dev→main 머지 수빈 수동 대기 |
