@@ -31,6 +31,8 @@ type OrgCardData = {
   description: string | null;
   membersCount: number;
   seriesCount: number;
+  // OU1 보강: "신규" 정렬용 (ISO 문자열). 카드 렌더에는 미사용
+  createdAt: string;
 };
 
 export function OrgCardV2({ org }: { org: OrgCardData }) {

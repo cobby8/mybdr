@@ -40,6 +40,8 @@ export default async function OrganizationsPage() {
         region: true,
         series_count: true,
         description: true,
+        // OU1 보강: "신규" 정렬용. founded_year 컬럼이 없어 created_at으로 대체
+        created_at: true,
         _count: { select: { members: { where: { is_active: true } } } },
       },
       take: 50,
@@ -56,6 +58,8 @@ export default async function OrganizationsPage() {
     description: org.description,
     membersCount: org._count.members,
     seriesCount: org.series_count,
+    // 정렬(신규)용 — 클라에서 비교만 하므로 ISO 문자열로 전달
+    createdAt: org.created_at.toISOString(),
   }));
 
   return (
@@ -71,7 +75,8 @@ export default async function OrganizationsPage() {
             리그 · 협회 · 동호회
           </h1>
           <div className="mt-1 text-[13px] text-[var(--color-text-muted)]">
-            여러 팀을 아우르는 {orgs.length}개의 농구 단체
+            여러 팀을 아우르는 {orgs.length}개의 농구 단체. 단체 페이지에서 소속
+            시리즈와 누적 우승팀을 확인할 수 있습니다.
           </div>
         </div>
         {/* 단체 등록 버튼 (라벨: PM 지시 "단체 등록"). 기존 /apply 라우트 유지 */}
@@ -86,6 +91,40 @@ export default async function OrganizationsPage() {
 
       {/* 클라 컨테이너: 필터 chip + 그리드 */}
       <OrgsListV2 orgs={cardData} />
+
+      {/* About box (OU1 시안 박제) — "단체란?" 정적 안내. cafe-blue 토큰 사용 */}
+      <div
+        className="mt-6 flex items-start gap-3.5 rounded-lg p-[18px_22px]"
+        style={{
+          background: "var(--cafe-blue-soft)",
+          border: "1px solid var(--cafe-blue-hair)",
+          borderLeft: "3px solid var(--cafe-blue)",
+        }}
+      >
+        <span
+          className="material-symbols-outlined flex-shrink-0 text-2xl"
+          style={{ color: "var(--cafe-blue-deep)" }}
+        >
+          lightbulb
+        </span>
+        <div>
+          <div
+            className="mb-1 font-extrabold"
+            style={{ color: "var(--cafe-blue-deep)" }}
+          >
+            단체란?
+          </div>
+          <div
+            className="text-[13px] leading-[1.6]"
+            style={{ color: "var(--ink-soft)" }}
+          >
+            여러 팀을 아우르는 <b>리그 / 협회 / 동호회 연합</b>입니다. 단체는{" "}
+            <b>시리즈</b>를 만들고 시리즈마다 <b>회차(대회)</b>가 누적됩니다.
+            본인이 단체를 운영하고 싶다면 <b>&quot;단체 등록&quot;</b> 으로 신청 후
+            사이트 운영자 승인을 받으세요 (1-2일 소요).
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

@@ -1,73 +1,170 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { OrgCardV2, type OrgCardData } from "./org-card-v2";
 
 /* ============================================================
- * 단체 목록 V2 — 클라이언트 컨테이너
+ * 단체 목록 V2 — 클라이언트 컨테이너 (OU1 보강 박제)
  *
- * - 종류 필터 chip: 전체 / 리그 / 협회 / 동호회
- *   ⚠️ DB에 kind 필드가 아직 없음 → "전체" 외 클릭 시 alert + 시각적 비활성화
- *      (Phase 3 Orgs에서 organizations.kind 컬럼 추가 후 실제 필터링 구현)
- * - 그리드: auto-fill minmax(300px, 1fr) → 폭 따라 1~3열 자동 배치
+ * 시안(OrganizationsList.jsx) 구성을 운영 실데이터로 박제:
+ *   - 지역 필터 chip: region prefix(앞 단어)로 자동 생성 + 실제 필터링
+ *     (기존 kind 필터는 DB에 kind 컬럼 없어 alert 처리였음 → 실동작 지역 필터로 교체)
+ *   - 정렬: 시리즈 많은 순 / 신규(created_at)
+ *     ⚠️ 시안의 "대회 많은 순"은 tournaments_count 컬럼이 DB에 없어 제외 (mock 금지)
+ *   - 검색: 단체명 / 지역 텍스트 매칭
+ *   - 그리드: auto-fill minmax(300px, 1fr) → 폭 따라 1~3열 자동 배치
+ *
+ * 추천 row(내 지역)는 시안에 있으나 운영 단체 수가 적고 세션 활동지역
+ * 기준이 불명확해 hide (mock 금지). 데이터 충분/지역 기준 확정 시 후속 보강.
  * ============================================================ */
 
-const KINDS = ["전체", "리그", "협회", "동호회"] as const;
-type Kind = (typeof KINDS)[number];
+type SortKey = "series" | "newest";
+
+const SORTS: { v: SortKey; l: string }[] = [
+  { v: "series", l: "시리즈 많은 순" },
+  { v: "newest", l: "신규" },
+];
 
 export function OrgsListV2({ orgs }: { orgs: OrgCardData[] }) {
-  const [filter, setFilter] = useState<Kind>("전체");
+  const [region, setRegion] = useState<string>("all"); // "all" 또는 region prefix
+  const [sort, setSort] = useState<SortKey>("series");
+  const [query, setQuery] = useState("");
 
-  // "전체" 외 클릭 시 준비 중 안내. 실제 필터링은 Phase 3 Orgs까지 보류
-  const handleFilterClick = (k: Kind) => {
-    if (k === "전체") {
-      setFilter("전체");
-      return;
+  // 지역 chip 목록 = region 앞 단어(공백 split 첫 토큰)의 고유 집합
+  // 예: "서울시 강남구" → "서울시". region 없는 단체는 chip 생성 제외
+  const regions = useMemo(() => {
+    const set = new Set<string>();
+    for (const o of orgs) {
+      if (o.region) set.add(o.region.split(" ")[0]);
     }
-    alert("준비 중인 기능입니다");
-  };
+    return ["all", ...set];
+  }, [orgs]);
+
+  // 필터(지역) → 검색 → 정렬 순으로 파생 목록 계산
+  const filtered = useMemo(() => {
+    let list = orgs;
+
+    // 지역 필터: "all"이 아니면 region이 해당 prefix로 시작하는 단체만
+    if (region !== "all") {
+      list = list.filter((o) => o.region?.startsWith(region));
+    }
+
+    // 검색: 단체명 또는 지역에 query 포함(대소문자 무시)
+    const q = query.trim().toLowerCase();
+    if (q) {
+      list = list.filter(
+        (o) =>
+          o.name.toLowerCase().includes(q) ||
+          (o.region ?? "").toLowerCase().includes(q),
+      );
+    }
+
+    // 정렬: 시리즈 많은 순 / 신규(created_at 내림차순)
+    return [...list].sort((a, b) => {
+      if (sort === "series") return b.seriesCount - a.seriesCount;
+      // newest: ISO 문자열은 사전순 = 시간순이므로 문자열 비교로 충분
+      return b.createdAt.localeCompare(a.createdAt);
+    });
+  }, [orgs, region, query, sort]);
 
   return (
     <>
-      {/* 필터 chip 그룹 */}
-      <div className="mb-4 flex flex-wrap gap-2">
-        {KINDS.map((k) => {
-          const isActive = filter === k;
-          const isDisabled = k !== "전체"; // 전체만 실제 동작
-          return (
-            <button
-              key={k}
-              type="button"
-              onClick={() => handleFilterClick(k)}
-              title={isDisabled ? "준비 중인 기능입니다" : undefined}
-              className="rounded border px-3 py-1.5 text-xs font-medium transition-colors"
-              style={{
-                background: isActive
-                  ? "var(--color-info)"
-                  : "var(--color-surface)",
-                color: isActive ? "#fff" : "var(--color-text-primary)",
-                borderColor: isActive
-                  ? "var(--color-info)"
-                  : "var(--color-border)",
-                opacity: isDisabled ? 0.55 : 1,
-                cursor: isDisabled ? "not-allowed" : "pointer",
-              }}
-            >
-              {k}
-            </button>
-          );
-        })}
+      {/* 필터 바: 지역 chip + 정렬 chip + 검색 */}
+      <div className="mb-4 flex flex-wrap items-center gap-2">
+        {/* 지역 그룹 */}
+        <span className="text-[10.5px] font-extrabold uppercase tracking-[0.06em] text-[var(--color-text-muted)]">
+          지역
+        </span>
+        <div className="flex flex-wrap gap-1">
+          {regions.map((r) => {
+            const isActive = region === r;
+            return (
+              <button
+                key={r}
+                type="button"
+                onClick={() => setRegion(r)}
+                className="rounded border px-3 py-1.5 text-xs font-medium transition-colors"
+                style={{
+                  background: isActive
+                    ? "var(--color-info)"
+                    : "var(--color-surface)",
+                  color: isActive ? "#fff" : "var(--color-text-primary)",
+                  borderColor: isActive
+                    ? "var(--color-info)"
+                    : "var(--color-border)",
+                }}
+              >
+                {r === "all" ? "전체" : r}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* 구분선 */}
+        <span className="mx-1 h-4 w-px bg-[var(--color-border)]" />
+
+        {/* 정렬 그룹 */}
+        <span className="text-[10.5px] font-extrabold uppercase tracking-[0.06em] text-[var(--color-text-muted)]">
+          정렬
+        </span>
+        <div className="flex gap-1">
+          {SORTS.map((s) => {
+            const isActive = sort === s.v;
+            return (
+              <button
+                key={s.v}
+                type="button"
+                onClick={() => setSort(s.v)}
+                className="rounded border px-3 py-1.5 text-xs font-medium transition-colors"
+                style={{
+                  background: isActive
+                    ? "var(--color-info)"
+                    : "var(--color-surface)",
+                  color: isActive ? "#fff" : "var(--color-text-primary)",
+                  borderColor: isActive
+                    ? "var(--color-info)"
+                    : "var(--color-border)",
+                }}
+              >
+                {s.l}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* 우측 검색 (남는 공간 밀어내기) */}
+        <div className="ml-auto flex min-w-[200px] items-center gap-1.5 rounded border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1.5">
+          <span className="material-symbols-outlined text-base text-[var(--color-text-muted)]">
+            search
+          </span>
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="단체명 / 지역"
+            className="w-full bg-transparent text-sm text-[var(--color-text-primary)] outline-none placeholder:text-[var(--color-text-muted)]"
+          />
+        </div>
+      </div>
+
+      {/* 전체 단체 섹션 헤더 + 개수 */}
+      <div className="mb-2 flex items-baseline gap-2">
+        <h2 className="text-base font-extrabold text-[var(--color-text-primary)]">
+          전체 단체
+        </h2>
+        <span className="text-xs text-[var(--color-text-muted)]">
+          {filtered.length}개
+        </span>
       </div>
 
       {/* 단체 카드 그리드 */}
-      {orgs.length > 0 ? (
+      {filtered.length > 0 ? (
         <div
           className="grid gap-3.5"
           style={{
             gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))",
           }}
         >
-          {orgs.map((org) => (
+          {filtered.map((org) => (
             <OrgCardV2 key={org.id} org={org} />
           ))}
         </div>
@@ -77,7 +174,9 @@ export function OrgsListV2({ orgs }: { orgs: OrgCardData[] }) {
             corporate_fare
           </span>
           <p className="mt-2 text-[var(--color-text-muted)]">
-            아직 등록된 단체가 없습니다.
+            {orgs.length === 0
+              ? "아직 등록된 단체가 없습니다."
+              : "조건에 맞는 단체가 없습니다."}
           </p>
         </div>
       )}
