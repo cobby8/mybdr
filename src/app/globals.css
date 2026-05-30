@@ -4805,3 +4805,77 @@ html.dark {
 }
 .cu-hot-row__v { font-family: var(--ff-mono); font-size: 10.5px; font-weight: 700; color: var(--ink-dim); flex-shrink: 0; }
 .cu-side-empty { font-size: 12px; color: var(--ink-dim); padding: 8px 0; }
+
+/* ============================================================
+   CU2 — Community detail (Phase 5C-3 · BDR v2.23 CommunityDetail 박제 · BC4 + BC2)
+   시안 comm-shared.css cu2- 블록 → 운영 토큰 치환(5C-2 규칙 답습):
+     --r-md→--radius-card / --r-sm·--r-xs→--radius-chip
+     --accent-deep→--bdr-red-ink / --accent-hair→--accent-soft
+   community 전용 prefix(cu2-) 유지 — 타 페이지(cu1-/comm- 포함) 충돌 0.
+   cat-badge/comm-author/cu-side-card 는 5C-2 가 이미 추가 — 재정의 안 함.
+   ============================================================ */
+
+/* breadcrumb — cu2-crumbs 자체로 완결(공유 .crumbs 의존 회피) */
+.cu2-crumbs {
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  margin-bottom: 10px; white-space: nowrap;
+  font-family: var(--ff-mono); font-size: 11.5px; font-weight: 700; color: var(--ink-mute);
+}
+.cu2-crumbs a { color: var(--ink-mute); text-decoration: none; }
+.cu2-crumbs a:hover { color: var(--ink-soft); }
+.cu2-crumbs .sep { color: var(--border-strong); }
+.cu2-crumbs .cur { color: var(--ink); }
+
+/* grid: main + side 2열 */
+.cu2-grid {
+  display: grid; grid-template-columns: minmax(0, 1fr) 280px;
+  gap: 16px; align-items: flex-start;
+}
+@media (max-width: 980px) { .cu2-grid { grid-template-columns: 1fr; } }
+.cu2-main { min-width: 0; display: flex; flex-direction: column; gap: 16px; }
+
+/* article card */
+.cu2-article {
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  overflow: hidden;
+}
+.cu2-article__head { padding: 22px 26px 18px; border-bottom: 1px solid var(--border); }
+.cu2-article__badges { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; flex-wrap: wrap; }
+.cu2-article__title {
+  font-family: var(--ff-display); font-size: 25px; font-weight: 900;
+  letter-spacing: -0.02em; line-height: 1.25; margin: 0 0 14px; color: var(--ink);
+}
+.cu2-article__meta {
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  font-family: var(--ff-mono); font-size: 11.5px; font-weight: 700; color: var(--ink-mute);
+}
+.cu2-article__meta-stat { display: inline-flex; align-items: center; gap: 3px; }
+.cu2-article__meta-stat .ico { font-family: 'Material Symbols Outlined'; font-size: 15px; }
+.cu2-article__meta-sep { color: var(--border-strong); }
+/* body */
+.cu2-article__body { padding: 24px 26px; }
+.cu2-article__p { font-size: 14.5px; line-height: 1.8; color: var(--ink-soft); margin: 0 0 14px; }
+.cu2-article__p:last-child { margin-bottom: 0; }
+/* reactions */
+.cu2-react {
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  padding: 20px 26px; border-top: 1px solid var(--border); flex-wrap: wrap;
+}
+.cu2-share {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 11px 18px; background: var(--bg-elev); border: 1px solid var(--border-strong);
+  border-radius: var(--radius-chip); cursor: pointer; font-weight: 700; font-size: 13px; color: var(--ink-soft);
+}
+.cu2-share .ico { font-family: 'Material Symbols Outlined'; font-size: 17px; }
+
+/* comments */
+.cu2-comments { background: var(--bg-elev); border: 1px solid var(--border); border-radius: var(--radius-card); padding: 20px 22px; }
+.cu2-comments__h { display: flex; align-items: baseline; gap: 8px; margin: 0 0 14px; }
+.cu2-comments__h-t { font-family: var(--ff-display); font-size: 17px; font-weight: 800; margin: 0; }
+.cu2-comments__h-n { color: var(--accent); font-weight: 900; font-size: 16px; font-family: var(--ff-display); }
+
+/* CU2 sidebar (실데이터 PostDetailSidebar 컨테이너) */
+.cu2-side { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+@media (max-width: 980px) { .cu2-side { margin-top: 4px; } }

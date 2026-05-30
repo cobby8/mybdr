@@ -113,6 +113,40 @@
 - CSS 신규 클래스 community prefix 충돌 0 / 시안→운영 토큰 치환 정합
 - 모바일: 기존 CommunityMobileTabs 제거하고 cu1-chips로 통합 — 모바일 카테고리 전환 회귀 여부
 
+### 5C-3 — CU2 CommunityDetail → /community/[id] 박제 (BC4 + BC2)
+
+📝 구현한 기능: 시안 CU2(article + 좋아요·댓글 + 추천 사이드)를 운영 `/community/[id]`(CommunityPostPage)에 박제. **데이터/서버액션 0 변경** — getPost·세션·댓글·좋아요/팔로우 쿼리, 알기자 linkify/Hero/갤러리, draft 가드, 카페 댓글 디코드 전부 보존. 인라인 style JSX → 시안 cu2- 클래스 마크업으로 교체.
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| `src/app/(web)/community/[id]/page.tsx` | JSX 렌더만 교체: breadcrumb→cu2-crumbs / 본문 카드→cu2-article(헤더 cat-badge+comm-author / body cu2-article__p / react cu2-react) / 댓글→cu2-comments 래퍼 / 우측 추천=PostDetailSidebar를 cu2-side에 배치. **데이터 패칭 블록(1~225줄) 무변경** | 수정 (+217/-287) |
+| `src/app/globals.css` | CU2 전용 CSS append(cu2-crumbs/cu2-grid/cu2-main/cu2-article*/cu2-react/cu2-share/cu2-comments*/cu2-side). 토큰 치환 5C-2 규칙 답습 | 수정 (+74) |
+
+핵심 결정 (Auto Chain lock 반영):
+- **CU2-G 알기자 hero band(대회 cross-domain) = hide**: 시안은 `post.tournament` 객체 사용. 운영엔 대회명 cross-domain 객체 출처 없음 → A4 lock·mock 0 → band 박제 안 함. 알기자 사진(NewsPhotoHero)은 본문 안에서 기존 그대로 노출되어 정보 손실 0
+- **CU2-C 좋아요/공유 = 운영 컴포넌트 우선**: 시안 cu2-like는 mock onClick(useState). 운영 LikeButtonV2/ShareButtonV2(실동작 server action) 그대로 보존. 톤만 cu2-react 래퍼. 스크랩=DB미지원 disabled / 신고=A2 lock(hide) disabled "준비 중"
+- **CU2-D 댓글 = 운영 실데이터**: 시안 mock COMM_COMMENTS·cu2-cform 드롭. 기존 CommentForm/CommentList(A1 comments 모델 + 카페 댓글 합산) 그대로. cu2-comments 헤더 톤만
+- **CU2-E sidebar 추천 = hide**: 시안 "작성자 다른 글/카테고리 다른 글"은 mock 추가쿼리 필요 → A4·mock 0 → hide. 기존 PostDetailSidebar(실데이터: 작성자/실시간 인기글/이벤트)를 cu2-side 컬럼에 그대로 배치
+- **레이아웃**: comm-page 신규 클래스 회피 — 운영 `.page > .with-aside > main`(5C-2/원본 답습) 유지, main 안에서 cu2-grid 2열
+- **토큰 치환**: --r-md→--radius-card / --r-sm·--r-xs→--radius-chip / --accent-deep→--bdr-red-ink / --accent-hair→--accent-soft. 하드코딩 색상 0
+- **prefix 충돌 0**: cu2-* = globals.css(정의) + page.tsx(사용) 2파일만. cu1-/comm-/타 페이지 충돌 grep 0 확인. cat-badge/comm-author/cu-side-card는 5C-2 추가분 재사용(재정의 안 함)
+
+보존(0 변경): getPost cache·status=published 가드 / getWebSession / comments·likes·follows 병렬 쿼리 / isAlkijaPost linkify+news_photo fetch / decodeHtmlEntities / getCafeComments / categoryLabelMap / formatRelativeTime / generateMetadata / PostActions·LikeButtonV2·ShareButtonV2·CommentForm·CommentList·PostDetailSidebar·CommunityAsideNav
+
+💡 tester 참고:
+- 테스트: `/community/[id]` 진입 → 일반 글/알기자(news) 글/카페 크롤링 글/본인 글 각각 / 좋아요 토글 / 댓글 작성·삭제 / 공유
+- 정상: cat-badge 카테고리 색상 / 작성자 아바타·이니셜 / 조회·좋아요·댓글 메타 / 좋아요 실반영 / 댓글 등록·삭제 / 본인 글=PostActions 노출 / 우측 PostDetailSidebar 정상
+- 주의 입력: 알기자(news+tournament_match_id) 글=본문 자동링크+Hero/갤러리 사진 보존 / 카페 댓글 있는 글=댓글 합산 카운트 / 비로그인=좋아요/댓글 로그인 유도 / draft URL 직접 접근=notFound
+
+⚠️ reviewer 참고:
+- 데이터 패칭 블록(1~225줄) diff 0 — fetch/쿼리/server action 라인 변경 없음 확인
+- cu2- prefix 충돌 0 / 시안→운영 토큰 치환 정합 / 하드코딩 색상 0
+- 알기자 hero band·추천 사이드·mock 댓글 hide 처리(A4·mock 0)가 정보 손실 없이 기존 실데이터로 대체됐는지
+
+#### 수정 이력
+| 회차 | 날짜 | 수정 내용 | 수정 파일 | 사유 |
+|------|------|----------|----------|------|
+
 ## 진행 현황 (Phase 1C — 완료)
 - ✅ Phase 1C 15/16 박제+머지 (PR #650~#653) / PA3 SKIP 보류 (decisions.md) / subin=dev=main 정합
 
@@ -123,6 +157,7 @@
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
 |------|------|------|
+| 2026-05-31 | 5C-3 CU2 CommunityDetail → /community/[id] 박제 (BC4+BC2) | ✅ page.tsx UI만 교체(데이터 0변경)+globals.css cu2- append / tsc0 / 알기자hero·추천·mock댓글 hide / stop 0 (미커밋) |
 | 2026-05-30 | Phase 1~4 종료 마킹 + git 동기화 + Phase 5 대기 모드 진입 | ✅ dev→subin 동기화(`0c61175` push) / phase-ledger Phase 2/3/4 ⑬⑭ ✅ 종료 / Phase 5 zip(BDR v2 (8)) 도착 대기 |
 | 2026-05-29 | **Auto Chain 25 PR 운영 반영** (subin→dev #654 → dev→main #655) | ✅ 머지 완료 / main=`6f22c02` / Vercel 운영 배포 / dev=main 정합 |
 | 2026-05-29 | **Phase 4C 완료 8/8** (4C-1~8) | ✅ `8ec6a54`·`8527d2a`·`f26614b`·`1280425`·`7dab1ad`·`5addf34`·`d169e0a`·`fa7b63b` push / 단체 영역 / OrgHierarchyCrumbs 공용 / Q2·Q3·Q4 lock / 각 tsc0 회귀0 mock0 |
