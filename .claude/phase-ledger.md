@@ -141,9 +141,10 @@
 | 단계 | 영역 | 상태 | 책임자 | 갱신일 | 메모 |
 |------|------|------|------|------|------|
 | ⑩ sync 실행 | 6.3A+6.3B | ✅ 완료 | CLI | 2026-05-31 | v2.26 sync. `growth-shared.jsx/css` 신규(152+216). ProfileGrowth/WeeklyReport/ProfileSettings 3 jsx. Phase 1~6.2 carry-over diff 0 / pre-snapshot `_archive/BDR-current-2026-05-31-pre-v2.26/` |
-| ⑪ 운영 박제 (6.3C) | 6.3C | ⏳ 대기 | CLI | 2026-05-31 | auto-chain 3 PR (1 GU2 WeeklyReport / 2 GU1 ProfileGrowth / 3 GU3 ProfileSettings). 모두 보강 |
+| ⑪ 운영 박제 (6.3C) | 6.3C | ✅ 완료 (3/3) | CLI | 2026-05-31 | auto-chain 3 commit. `280c9ef`(1 GU2 WeeklyReport·BG2) / `b9e6516`(2 GU1 ProfileGrowth·BG1) / `acbd0b2`(3 GU3 ProfileSettings·BG3). 모두 보강(데이터 패칭·액션 0 변경) / placeholder warn-soft 통일 / BG3 billing link 활성 / 각 tsc0 |
+| ⑫ 회귀 검수 | 6.3C | ✅ 완료 | CLI | 2026-05-31 | KPI/마일스톤=출처 상이로 표기 정합(데이터 0 변경) / 이모지 PU4 정합 / danger 2차 confirm / stop 발동 0. prefix 충돌 0 |
 | ⑬ PR 결재 | 6.3C | ⏳ 대기 | 수빈 | - | chain subin→dev→main 머지 |
-| ⑭ Phase 완료 | 6.3 | ⏳ 대기 | CLI→Cowork | - | ★ Phase 6 묶음(6.1+6.2+6.3 = 16 시안) 종료 |
+| ⑭ Phase 완료 | 6.3 | ⏳ 대기 | CLI→Cowork | - | ★ Phase 6 묶음(6.1+6.2+6.3 = 16 시안) 종료 — dev→main 머지 시 |
 
 ---
 
