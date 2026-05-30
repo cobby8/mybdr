@@ -4927,3 +4927,69 @@ html.dark {
 }
 .ru1-source__tag--p2 { color: var(--accent); background: var(--accent-soft); }
 .ru1-source__tag--p3 { color: var(--ok); background: var(--ok-soft); }
+
+/* ============================================================
+   Phase 6.1C-1 — PU4 ProfileAchievements Hero (pf-achv- prefix)
+   /profile/achievements 전용. v2.24 시안 pm-hero 톤 박제.
+   - pf-achv- 네임스페이스 (타 페이지 충돌 0)
+   - 토큰만 사용 + Hero 다크 그라디언트는 시안 pm-hero 와 동일 리터럴
+     (ru1-leader Hero 답습 — 다크 밴드 한정 rgba/hex 허용)
+   - 라운딩 운영 컨벤션(4/8/10px) · 720px 모바일 분기
+   ============================================================ */
+.pf-achv-hero {
+  position: relative; overflow: hidden;
+  background: linear-gradient(135deg, #1A1E27 0%, #233056 55%, #1B3C87 100%);
+  color: #fff;
+  border-radius: 10px;
+  padding: 24px 28px;
+  margin-bottom: 18px;
+}
+/* 우상단 BDR Red glow (시안 pm-hero::after) */
+.pf-achv-hero::after {
+  content: ''; position: absolute; top: -60px; right: -30px;
+  width: 240px; height: 240px;
+  background: radial-gradient(circle, rgba(227,27,35,.22), transparent 68%);
+  pointer-events: none;
+}
+.pf-achv-hero__row { display: flex; align-items: flex-start; gap: 18px; position: relative; z-index: 1; }
+/* 골드 원형 military_tech 아이콘 (시안 pm-hero__av gold) */
+.pf-achv-hero__av {
+  width: 72px; height: 72px; border-radius: 50%; flex-shrink: 0;
+  background: #B47A11; color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  border: 3px solid rgba(255,255,255,.18);
+}
+.pf-achv-hero__av .material-symbols-outlined { font-size: 36px; }
+.pf-achv-hero__body { flex: 1; min-width: 0; }
+.pf-achv-hero__namerow { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.pf-achv-hero__eyebrow {
+  font-family: var(--ff-mono); font-size: 10px; font-weight: 800;
+  letter-spacing: 0.12em; color: rgba(255,255,255,.6); text-transform: uppercase;
+}
+/* 획득/전체 카운트 칩 (시안 pm-lvl__n) */
+.pf-achv-hero__count {
+  font-family: var(--ff-mono); font-size: 11px; font-weight: 800;
+  background: rgba(255,255,255,.16); color: #fff;
+  padding: 3px 8px; border-radius: 4px; letter-spacing: 0.04em;
+}
+.pf-achv-hero__name {
+  font-family: var(--ff-display); font-size: 28px; font-weight: 900;
+  letter-spacing: -0.02em; margin: 4px 0 0;
+}
+.pf-achv-hero__meta {
+  display: flex; gap: 16px; flex-wrap: wrap; margin-top: 12px;
+  font-size: 12.5px; color: rgba(255,255,255,.82);
+}
+.pf-achv-hero__meta > span { display: inline-flex; align-items: center; gap: 5px; }
+.pf-achv-hero__meta .material-symbols-outlined { font-size: 15px; opacity: .85; }
+.pf-achv-hero__bio {
+  margin: 12px 0 0; font-size: 13px; color: rgba(255,255,255,.78);
+  line-height: 1.6; max-width: 620px;
+}
+
+@media (max-width: 720px) {
+  .pf-achv-hero { padding: 20px 18px; }
+  .pf-achv-hero__av { width: 58px; height: 58px; }
+  .pf-achv-hero__av .material-symbols-outlined { font-size: 30px; }
+  .pf-achv-hero__name { font-size: 23px; }
+}
