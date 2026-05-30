@@ -1,119 +1,92 @@
-# BDR v2.22 — Phase 4 (단체 영역) 박제
+# BDR v2.24 — Phase 6.1 (프로필·마이페이지 본체) 박제
 
-> **박제일**: 2026-05-28
-> **선행**: Phase 1A v2.19 (대회 관리자 10) + Phase 1B v2.18 (대회 사용자 8) + Phase 2 v2.20 (경기 10) + Phase 3 v2.21 (팀 7) carry-over
-> **선행 의뢰**: `org-user-redesign-prompt-2026-05-28.md` + `org-admin-redesign-prompt-2026-05-28.md` + `organization-user-admin-connectivity-plan-2026-05-28.md`
-> **결재 결과**:
->   - Q1 Series Operator badge 시각 = **navy + silver** (Site Operator dark+gold 와 분리) ✅
->   - Q2 OO2 6 sub-tab 순서 = basic / members / series / editions / officers / activity ✅
->   - Q3 OO3 마법사 3-step = 기본+단체 / 설명·로고·정기성 / 검토+첫 회차 옵션 ✅
->   - Q4 OU3 5-step = 기본 / 지역·공개 / 연락 / 검토 메모 / 검토+제출 ✅
+> **박제일**: 2026-05-30
+> **선행**: Phase 1A v2.19 + 1B v2.18 + 2 v2.20 + 3 v2.21 + 4 v2.22 + 5 v2.23 carry-over
+> **선행 의뢰**: `profile-user-redesign-prompt-2026-05-30.md` + `profile-admin-redesign-prompt-2026-05-30.md` + `profile-user-admin-connectivity-plan-2026-05-30.md`
+> **분할**: Phase 6.1 (본체 6) ← 본 박제 / 6.2 (결제·구독) + 6.3 (성장 분석) 후속 별 의뢰
 
 ---
 
-## 1. Phase 4 박제 시안 = 8 (사용자 4 + 관리자 4)
+## 1. Phase 6.1 박제 시안 = 6 (사용자 5 + super-admin 1)
 
-### Phase 4B — 사용자 측 + 양측 다리 (OU1~OU4 · A 등급)
+### Phase 6.1B — 사용자 측 (PU1~PU5 · A 등급)
 
 | ID | 화면 | 라우트 | 분류 | 주 갭 |
 |----|------|--------|------|-------|
-| OU1 | Organizations list | `/organizations` | 보강 | BO1 등록 CTA + BO2 위계 |
-| OU2 | OrganizationDetail (4 탭) | `/organizations/[slug]` | 보강 (4 탭) | BO2 + BO7 + BO8 |
-| OU3 | OrganizationApply (5-step) | `/organizations/apply` | **신규** | BO1 ★★★ |
-| OU4 | Series list + detail | `/series` + `/series/[slug]` | **신규** | BO2 + BO8 ★★ |
+| PU1 | ProfileMain (보강) | `/profile` | 보강 | BP1 + BP6 (카운트 동기화 + 활동 진입) |
+| PU2 | ProfileEdit (보강) | `/profile/edit` | 보강 | BP4 (결제 link out + privacy 토글 + 저장 동기화) |
+| PU3 | ProfileBasketball (신규) | `/profile/basketball` | **신규** | BP2 ★★★★ (농구 캐릭터 + 시즌 stat 5 + 선호 chip 8 + 우승) |
+| PU4 | ProfileAchievements (보강) | `/profile/achievements` | 보강 | BP3 (배지 grid + 우승 자동 + MVP 누적) |
+| PU5 | UserPublicProfile (신규) | `/users/[id]` | **신규** | BP1 ★★★★★ (공개 시야 + privacy 필터 + preview) |
 
-### Phase 4A — 관리자 측 (OA1 + OO1~OO3 · E 등급 · 2측)
+### Phase 6.1A — 관리자 측 (PA1 · E 등급 · super-admin)
 
 | ID | 화면 | 라우트 | 분류 | 측 | 주 갭 |
 |----|------|--------|------|----|-------|
-| OA1 | AdminOrganizations | `/admin/organizations` | 보강 | **Site Operator** | BO1 + BO5 ★★★ |
-| OO1 | OrgAdminList + New | `/tournament-admin/organizations` + `/new` | **신규** | **Series Operator** | BO3 |
-| OO2 | OrgAdminDetail (6 sub-tab · 가장 큼) | `/tournament-admin/organizations/[orgId]` | **신규** | **Series Operator** | BO2 + BO3 ★★★ |
-| OO3 | SeriesAdmin (list + 3-step + detail) | `/tournament-admin/series/*` | **신규** | **Series Operator** | BO4 ★★ |
+| PA1 | AdminUsers | `/admin/users` | **신규** | **Site Operator** | BP5 (Hero stat + 4 탭 + 필터 + 모달) |
 
 ---
 
-## 2. BO 양측 의존 검증
+## 2. BP 양측·cross-domain 의존 검증 ✅
 
-| BO | 등급 | 사용자 측 ↔ 관리자 측 | 데이터 모델 |
-|----|------|---------------------|-----------|
-| BO1 | ★★★ | OU3 신청 form ↔ OA1 모달 동일 필드 | `organizations.{name/description/region/contact_email/website_url/apply_note}` |
-| BO2 | ★★★ | OU2 events + OU4 위계 ↔ OO2 series-tab 위계 | OrgHierarchyCrumbs 공용 컴포넌트 |
-| BO3 | ★★ | (OO2 only — 단체 내부) | `organization_members.role` (owner/admin/member) |
-| BO4 | ★★ | (OO3 only) | `tournament_series` + `tournament_editions` |
-| BO5 | ★★★ | (OA1 only — super-admin) | `organizations.status` (pending/approved/rejected/archived) |
-| BO7 | ★ | OU2 teams-tab → Phase 3 TU2 ↔ (다리 없음) | `Team` cross-domain |
-| BO8 | ★★ | OU2 sidebar + OU4 회차 → Phase 1 대회 ↔ (다리 없음) | `tournaments.id` cross-domain |
+| BP | 등급 | 의존 | 데이터 |
+|----|------|------|--------|
+| BP1 | ★★★★★ | PU1 본인 ↔ PU5 공개 | 동일 `USER_ME` · `publicView()` privacy_settings 필터 (이메일/연락처/결제 hide) |
+| BP2 | ★★★★ | PU3 시즌 stat | UserSeasonStat + Phase 2 BG4 (이달 MVP) + Phase 3 BT6 (팀 wins) cross-domain |
+| BP3 | ★★★ | PU4 업적 | user_badges + Phase 1A PA7 (우승 자동) + Phase 2 BG4 (MVP 누적) |
+| BP4 | ★★★★ | PU2 → PU1 동기화 | User.* 편집 / 결제 = 6.2 link out "준비 중" |
+| BP5 | ★★ | PA1 super-admin 검수 | User.status / suspended_at / isAdmin (본인 자기 정지 가드) |
+| BP6 | ★★★ | PU1 → UC1 진입 | 카운트(대회/경기/팀/단체/평점) = UC1 활동 동일 source |
 
 ---
 
 ## 3. carry-over (변경 ❌)
 
-### 파일
-- `tokens.css` / `shell.css` / `shared.jsx` / `game-shared.jsx` / `team-shared.jsx` / `team-shared.css` 모두 v2.21 그대로
-- Phase 1A v2.19 (관리자 10 시안 + admin.css)
-- Phase 1B v2.18 (사용자 6 시안)
-- Phase 2 v2.20 (사용자 8 + 관리자 2)
-- Phase 3 v2.21 (팀 7)
+### 파일 — v2.23 그대로
+- `tokens.css` / `shell.css` / `shared.jsx` / `game-shared.jsx` / `team-shared.jsx` / `team-shared.css` / `org-shared.jsx` / `org-shared.css` / `comm-shared.jsx` / `comm-shared.css` / `admin.css`
+- Phase 1~5 = 41 wrapper + 39 jsx + _baseline 모두 carry-over (운영 코드 변경 0)
 
 ### 신규 추가
-- `org-shared.jsx` — 단체/시리즈 mock + OrgLogo / SeriesOperatorBadge / OrgStatusBadge / OrgHierarchyCrumbs / OrgCard / SeriesCard / OrgHero / SeriesOperatorShell
-- `org-shared.css` — Phase 4 전용 스타일 (.org-card / .ou1-page / .ou2-* / .ou3-* / .ou4-* / .ops-shell / .oo1-* / .oo2-* / .oo3-* / .oa1-*)
-- `screens/AdminOrganizations.jsx` (OA1) — BO5 모달
-- `screens/OrganizationsList.jsx` (OU1)
-- `screens/OrganizationDetail.jsx` (OU2)
-- `screens/OrganizationApply.jsx` (OU3)
-- `screens/Series.jsx` (OU4 — SeriesList + SeriesDetail)
-- `screens/OrgAdmin.jsx` (OO1 — OrgAdminList + OrgAdminNew)
-- `screens/OrgAdminDetail.jsx` (OO2 — 6 sub-tab)
-- `screens/SeriesAdmin.jsx` (OO3 — SeriesAdminList + SeriesAdminNew + SeriesAdminDetail)
-- 8 wrapper HTML (oa1 / ou1~4 / oo1~3)
+- `profile-shared.jsx` — Phase 6.1 mock (USER_ME / SEASON_STAT / CAREER_STAT / PREFERRED 8 / ME_CHAMPIONS / BADGE_CATALOG / ME_RECENT_* / ADMIN_USERS) + mini components (LevelBadge / SkillChip / StatCard / BadgeTile / UserStatusBadge / PageBack / `publicView()`)
+- `profile-shared.css` — Phase 6.1 전용 (.pm-* / .pm-hero / .pm-counts / .pm-stat / .pm-badge / .pm-chip / .pm-priv / .pm-utable / .pm-ubadge)
+- `screens/Profile.jsx` (PU1) / `ProfileEdit.jsx` (PU2) / `ProfileBasketball.jsx` (PU3) / `ProfileAchievements.jsx` (PU4) / `UserPublicProfile.jsx` (PU5) / `AdminUsers.jsx` (PA1)
+- 6 wrapper HTML (pu1~pu5 / pa1)
 
 ---
 
-## 4. 자체 검수 — 4 + 8 + Phase 4 특수 4 통과 ✅
+## 4. 자체 검수 — 4 frozen + 8 self + Phase 6 특수 4 통과 ✅
 
-### AppNav 4 케이스 (OU1~OU4 사용자 시안)
-- ✅ main bar 우측 "더보기 ▼" / 아바타 = 0 (AppNav 03 frozen 카피)
-- ✅ 모바일(≤768px) 듀얼 라벨 = 0
-- ✅ 검색/쪽지/알림 box (.btn) = 0 (`.app-nav__icon-btn` 만)
-- ✅ main bar 5 아이콘 순서 = [검색, 쪽지, 알림, 다크, 햄버거]
+### AppNav frozen 4 (사용자 시안 — shared.jsx 03 카피)
+- ✅ main bar 우측 "더보기 ▼" / 아바타 = 0 (shared.jsx AppNav frozen 카피)
+- ✅ 모바일(≤768px) 듀얼 라벨 = 0 (ThemeSwitch viewport 분기 — shell.css)
+- ✅ 검색/쪽지/알림 box (.btn) = 0 — `app-nav__icon-btn` 만
+- ✅ main bar 아이콘 = [검색, 쪽지, 알림, 다크, 햄버거] 순서 보존
 
-### 13 룰 8 케이스
-- ✅ 하드코딩 색상 = 0 — `var(--*)` 토큰만 (예외: `organizations.brand_color` 운영 column · 단체 mock data only)
+### 13 룰 8
+- ✅ 하드코딩 색상 = 0 — `var(--*)` 토큰만 (예외: 팀 `color` mock data column · gold `#F4C76C`·`#B47A11` = 기존 시안 trophy 토큰 답습)
 - ✅ lucide-react = 0 — Material Symbols Outlined 만
-- ✅ rounded-full / 9999px = 0 — 정사각형 50% 만 (OrgLogo / avatar)
-- ✅ 가짜링크 = 0 (gameResult / gameReport / guestApps / referee)
+- ✅ 9999px = 0 — 정사각형 50% (avatar/dot/toggle) 만
+- ✅ 가짜링크 (gameResult / gameReport / guestApps / referee) = 0
 - ✅ button 4px / 카드 6~8px
 - ✅ placeholder 5단어 이내 / "예: " 시작 0
-- ✅ 720px 분기 / iOS input 16px / 버튼 44px
+- ✅ 720px 분기 / iOS input 16px / 버튼 44px (.pm-input 16px · .pm-hbtn 44px)
 - ✅ Pretendard + Archivo + JetBrains Mono 만
 
-### Phase 4 특수 4 케이스
-- ✅ **2 측 badge 시각 분리** — Site Operator (`OperatorBadge` · dark+gold) vs Series Operator (`SeriesOperatorBadge` · navy+silver) 모든 시안 일관
-- ✅ **위계 breadcrumb** (홈 → 단체 → 시리즈 → 회차 → 대회) — OU2 / OU4 / OO2 모두 동일 `OrgHierarchyCrumbs` 컴포넌트
-- ✅ **OO2 6 sub-tab** = `?tab=basic / members / series / editions / officers / activity` 명확
-- ✅ **OO3 시리즈 마법사** = PA3 답습 (Site Operator badge ❌ · Series Operator only) · 회차 추가 = 모달 (옵션 A 답습)
+### Phase 6 특수 4
+- ✅ **BP1 본인/공개 분기** — PU1 == PU5 동일 `USER_ME` 데이터, `publicView()` 1곳 필터로 시각 분리 (비공개 필드 hide 일관)
+- ✅ **PU3 5 stat + 8 chip 모바일 responsive** — .pm-stats / .pm-pref 720 + .vp--mobile 분기 (2열)
+- ✅ **PU2 거대 carry-over** — 5섹션 단일 스크롤 유지 · 시각 작은 변경만 (결제 link out / privacy 토글 / 저장 안내)
+- ✅ **PA1 Site Operator + 자기 정지 가드** — OperatorBadge + `is_me` / `isAdmin` 행 = 변경 가드 · 결제·은행 read-only
 
 ---
 
-## 5. 결재 결과 — 4 가정 lock (의뢰서 결정 0)
-
-작업 시작 시 §4 첫 응답 form 안 commit:
-
-- **Q1 Series Operator badge** = `linear-gradient(135deg, #1B3C87, #0F234F)` + silver `apartment` icon → Site Operator dark+gold 와 시각 분리
-- **Q2 OO2 6 sub-tab 순서** = basic → members → series → editions → officers → activity (의뢰서 명시 순서 보존)
-- **Q3 OO3 3-step** = 기본 (이름+소속) / 설명·로고·정기성 / 검토+첫 회차 모달 trigger 옵션 — PA3 4-step 협회 마법사 단순화
-- **Q4 OU3 5-step** = 단체 기본 / 활동 지역·공개 / 연락 / 검토 메모 / 검토+제출 (이후 success 화면 = 1-2일 검토 안내)
+## 5. 회귀 방지 — 위반 자동 검수 4 케이스 ✅
+- ❌ main bar 우측 "더보기 ▼" dropdown / 아바타 = 0
+- ❌ 모바일(≤768px) 듀얼 라벨 = 0
+- ❌ 검색/쪽지/알림 버튼 border/bg 박스 = 0
+- ✅ main bar 아이콘 순서 frozen 카피 보존
 
 ---
 
-## 6. 다음 단계 (Cowork)
-
-1. zip 자동 묶음 (BDR v2.22/ 폴더 = 약 100 파일)
-2. Phase 4 sync CLI 의뢰서 자동 작성 (`phase-4-v2.22-sync-cli-prompt-2026-05-XX.md`)
-3. 수빈에게 "CLI 던질 prompt" 안내 — 운영 코드 변경 0 (carry-over).
-
----
-
-**박제 끝.** v2.21 carry-over 위 신규 8 시안 + org-shared.jsx/css 추가. 운영 코드 변경 0.
+**박제 끝.** v2.23 carry-over 위 신규 6 시안 + profile-shared.jsx/css 추가. 운영 코드 변경 0.
+후속 6.2 (결제·구독·예약) + 6.3 (성장 분석) 별 의뢰 예고.

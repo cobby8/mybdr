@@ -50,12 +50,26 @@ export async function generateMetadata({
   const user = await prisma.user
     .findUnique({
       where: { id: BigInt(id) },
-      select: { ...USER_DISPLAY_SELECT, position: true },
+      // 6.1C-6: privacy_settings 추가 — title 실명 노출도 공개 설정 존중 (본문 분기와 일관)
+      select: { ...USER_DISPLAY_SELECT, position: true, privacy_settings: true },
     })
     .catch(() => null);
   if (!user) return { title: "선수 프로필 | MyBDR" };
+  // 6.1C-6: profile 비공개 계정은 title 도 일반화 (메타에 실명/닉네임 노출 방지)
+  const priv =
+    user.privacy_settings && typeof user.privacy_settings === "object"
+      ? (user.privacy_settings as Record<string, string>)
+      : {};
+  // 운영 default: profile=all, realName=none (PU2 와 동일)
+  if ((priv.profile ?? "all") !== "all") {
+    return { title: "선수 프로필 | MyBDR" };
+  }
   // 선수명단 실명 표시 규칙 (conventions.md 2026-05-01)
-  const displayName = getDisplayName(user);
+  // realName 비공개(기본 none)면 name 가려 닉네임 fallback → title 에 실명 미노출
+  const realNameVisible = (priv.realName ?? "none") === "all";
+  const displayName = getDisplayName(
+    realNameVisible ? user : { name: null, nickname: user.nickname },
+  );
   return {
     title: `${displayName} 프로필 | MyBDR`,
     description: `${displayName}의 경기 기록과 능력치를 확인하세요.`,
@@ -120,6 +134,9 @@ export default async function UserProfilePage({
           total_games_hosted: true,
           total_games_participated: true,
           profile_image_url: true,
+          // 6.1C-6 PU5: 공개 설정 존중 — 운영 PU2(profile/edit) PRIVACY_ROWS 7키 실저장값.
+          // select 1줄만 add (기존 12쿼리 무변경). 본인 preview 는 아래 분기에서 bypass.
+          privacy_settings: true,
           xp: true,
           createdAt: true,
           last_login_at: true,
@@ -425,6 +442,86 @@ export default async function UserProfilePage({
 
   if (!user) return notFound();
 
+  // ============================================================
+  // 6.1C-6 PU5: 공개 설정(privacy_settings) 존중
+  //
+  // 왜: 운영 profile/edit §4 공개 설정 7항목(profile/realName/contact/record/
+  //     review/area/body) × 3옵션(all/friends/none)이 privacy_settings 로 실저장됨.
+  //     공개 프로필(PU5)이 이 설정을 무시하고 전부 노출하면 사용자 의도 위반.
+  //
+  // 어떻게:
+  // - 운영 PU2 default 값과 100% 일치하는 fallback (null/미설정 계정 = 운영 동작 동일).
+  // - friends 옵션: 운영에 "친구(friend)" 개념 자체가 없음(follows=단방향 팔로우뿐).
+  //   → fail-safe 원칙(모호하면 hide 우선): 비본인 viewer 에게 friends=none 과 동일 hide.
+  //   → 비본인에게 노출 = 해당 key 가 정확히 "all" 일 때만.
+  // - 본인 preview(isOwner && preview==="1") = 모든 필터 bypass (자기 미리보기는 전부 표시).
+  // ============================================================
+
+  // 운영 PU2(profile/edit/page.tsx L232~240) default 와 동일 — null/미설정 계정 fallback
+  const PRIVACY_DEFAULTS: Record<string, string> = {
+    profile: "all",
+    realName: "none",
+    contact: "friends",
+    record: "all",
+    review: "all",
+    area: "all",
+    body: "friends",
+  };
+  // 저장값이 object 면 default 위에 머지 (운영 GET 초기화 setPrivacy 와 동일 패턴)
+  const savedPrivacy =
+    user.privacy_settings && typeof user.privacy_settings === "object"
+      ? (user.privacy_settings as Record<string, string>)
+      : {};
+  const effectivePrivacy = { ...PRIVACY_DEFAULTS, ...savedPrivacy };
+
+  // 본인이 ?preview=1 로 보는 경우 = 필터 bypass (위에서 isOwner && preview!=="1" 는 이미 redirect)
+  const bypassPrivacy = isOwner;
+  // 비본인에게 노출 가능? = 본인 preview 거나, 해당 key 가 정확히 "all"
+  // (friends/none 은 fail-safe 로 hide — 운영에 친구 판정 로직 부재)
+  const canShow = (key: string): boolean =>
+    bypassPrivacy || effectivePrivacy[key] === "all";
+
+  // profile 키 = 프로필 페이지 자체 공개 여부. 비본인 + 비공개면 안내 화면 early return.
+  if (!canShow("profile")) {
+    return (
+      <div className="page">
+        <div
+          className="card"
+          style={{
+            padding: "48px 24px",
+            textAlign: "center",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: 12,
+          }}
+        >
+          <span
+            className="material-symbols-outlined"
+            style={{ fontSize: 48, color: "var(--ink-dim)" }}
+            aria-hidden
+          >
+            lock
+          </span>
+          <h1 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: "var(--ink)" }}>
+            비공개 프로필입니다
+          </h1>
+          <p style={{ margin: 0, fontSize: 14, color: "var(--ink-dim)", lineHeight: 1.6 }}>
+            이 회원은 프로필을 비공개로 설정했습니다.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // 각 표시 영역의 노출 여부 (canShow 결과 캐싱 — 아래 JSX/변환에서 재사용)
+  const showRealName = canShow("realName"); // 실명(user.name) — false 면 닉네임만
+  const showRecord = canShow("record"); // 경기 기록(스탯/이력/활동 match·mvp)
+  const showReview = canShow("review"); // 매너 평가(evaluation_rating)
+  const showArea = canShow("area"); // 활동 지역(city/district)
+  const showBody = canShow("body"); // 신장/체중(height/weight)
+  // contact(휴대폰·이메일)는 PU5 가 애초에 미페칭 — 노출 0 (별도 처리 불필요)
+
   const isFollowing = !!followRecord;
 
   // ---- 레벨 ----
@@ -475,23 +572,36 @@ export default async function UserProfilePage({
   const threeMade = Number(statAgg?._sum?.threePointersMade ?? 0);
   const threeAttempted = Number(statAgg?._sum?.threePointersAttempted ?? 0);
   const threePctSum = threeAttempted > 0 ? (threeMade / threeAttempted) * 100 : 0;
-  const seasonStats = {
-    games: gamesPlayed,
-    winRate: playerStats?.winRate ?? null,
-    ppg: gamesPlayed > 0 ? Number(avgPoints.toFixed(1)) : null,
-    rpg: gamesPlayed > 0 ? Number(avgRebounds.toFixed(1)) : null,
-    apg: gamesPlayed > 0 ? Number(avgAssists.toFixed(1)) : null,
-    // 2026-05-17 mpg = flutter 매치 수 기준 (paper 매치만 있으면 null)
-    mpg: flutterCount > 0 ? Number(avgMinutes.toFixed(1)) : null,
-    fgPct: fgAttempted > 0 ? Number(fgPctSum.toFixed(1)) : null,
-    threePct: threeAttempted > 0 ? Number(threePctSum.toFixed(1)) : null,
-  };
+  // 6.1C-6: record 비공개면 모든 스탯 null + 경기수 0 (CareerStatsGrid 자연 빈상태)
+  const seasonStats = showRecord
+    ? {
+        games: gamesPlayed,
+        winRate: playerStats?.winRate ?? null,
+        ppg: gamesPlayed > 0 ? Number(avgPoints.toFixed(1)) : null,
+        rpg: gamesPlayed > 0 ? Number(avgRebounds.toFixed(1)) : null,
+        apg: gamesPlayed > 0 ? Number(avgAssists.toFixed(1)) : null,
+        // 2026-05-17 mpg = flutter 매치 수 기준 (paper 매치만 있으면 null)
+        mpg: flutterCount > 0 ? Number(avgMinutes.toFixed(1)) : null,
+        fgPct: fgAttempted > 0 ? Number(fgPctSum.toFixed(1)) : null,
+        threePct: threeAttempted > 0 ? Number(threePctSum.toFixed(1)) : null,
+      }
+    : {
+        games: 0,
+        winRate: null,
+        ppg: null,
+        rpg: null,
+        apg: null,
+        mpg: null,
+        fgPct: null,
+        threePct: null,
+      };
 
   // ---- 최근 경기 변환 (PlayerMatchCard props 매핑) ----
   // 5/9 변경: board__row 단순 행 → 카드형 (대회상세 ScheduleTimeline 패턴)
   // playerSide 판별: ttp.tournamentTeamId === match.homeTeamId/awayTeamId 비교
   // 승/패 (W/L): 본인 팀 기준, status==="completed" 일 때만 의미 있음
-  const recentGameRows: PlayerMatchCardProps[] = recentGames
+  // 6.1C-6: record 비공개면 최근 경기 목록 전체 비노출 (빈 배열)
+  const recentGameRows: PlayerMatchCardProps[] = (showRecord ? recentGames : [])
     .filter((g) => g.tournamentMatch != null) // tournamentMatch 가 NULL 인 경우 제외 (안전)
     .map((g) => {
       const m = g.tournamentMatch!;
@@ -541,10 +651,11 @@ export default async function UserProfilePage({
   // 5/9 Phase 2 — Q2=A fix: gamesPlayed = statAgg._count.id (matchPlayerStat 통일)
   //   사유: user.total_games_participated 카운터가 백필 누락 케이스 발견 ("경기 참가 0" 버그)
   //   통산 카드와 동일 source 로 일관 (errors.md "데이터 소스 분기" 패턴 회피)
+  // 6.1C-6: record 비공개면 경기 참가/주최 카운트도 0 (가입일은 기록 범주 아님 → 유지)
   const activity = {
     joinedAt: user.createdAt?.toISOString() ?? null,
-    gamesPlayed, // Q2 fix — statAgg._count.id 재활용 (matchPlayerStat 실측)
-    gamesHosted: user.total_games_hosted ?? 0,
+    gamesPlayed: showRecord ? gamesPlayed : 0, // Q2 fix — statAgg._count.id 재활용
+    gamesHosted: showRecord ? user.total_games_hosted ?? 0 : 0,
     lastSeen: null as string | null,
     // lastLoginAt 은 Hero 의 "최근 접속" 에 사용하므로 여기는 null 로 두고 relative 문자열만 Hero 가 계산
   };
@@ -555,7 +666,8 @@ export default async function UserProfilePage({
   const activityEvents: ActivityEvent[] = [];
 
   // (a) match 이벤트 — recentGames 의 종료 매치만 (scheduledAt 있고 status=ended)
-  for (const g of recentGames) {
+  // 6.1C-6: record 비공개면 경기 활동(match) 미노출 (루프 skip)
+  for (const g of showRecord ? recentGames : []) {
     const m = g.tournamentMatch;
     if (!m) continue;
     if (!m.scheduledAt) continue; // NULL 매치 제외 (시간 비교 불가)
@@ -590,7 +702,8 @@ export default async function UserProfilePage({
   }
 
   // (b) mvp 이벤트 — mvpMatches → mvp 타입 매핑
-  for (const m of mvpMatches) {
+  // 6.1C-6: MVP 수상 = 경기 기록 범주 → record 비공개면 미노출 (루프 skip)
+  for (const m of showRecord ? mvpMatches : []) {
     const date = m.ended_at ?? m.scheduledAt;
     if (!date) continue;
     activityEvents.push({
@@ -673,7 +786,8 @@ export default async function UserProfilePage({
   //   (1) minutes — DB 단위 = 초 → 모달 표시 단위 = 분 (/60 변환). 박스스코어 (formatGameClock) 만 초 사용
   //   (2) won — winner_team_id 기준 (NBA 표준 / 라이브 매치 winner=null 분모 제외) — 상단 통산 winRate 와 일관
   //   (3) FG/3P/FT made/attempted raw 전달 — 모달 buildRow 에서 sum/sum 계산 (매치별 % 평균 X)
-  const allStatsRows: AllStatsRow[] = allStatsForModal
+  // 6.1C-6: record 비공개면 통산 모달 raw rows 도 빈 배열 (모달 [더보기] 버튼 미노출)
+  const allStatsRows: AllStatsRow[] = (showRecord ? allStatsForModal : [])
     .filter((r) => r.tournamentMatch != null)
     .map((r) => {
       const m = r.tournamentMatch!;
@@ -710,7 +824,9 @@ export default async function UserProfilePage({
     });
 
   // ---- Hero / 평점 ----
-  const evaluationRating = user.evaluation_rating != null ? Number(user.evaluation_rating) : null;
+  // 6.1C-6: review(매너 평가) 비공개면 별점 미노출 (null → Hero showRating false)
+  const evaluationRating =
+    showReview && user.evaluation_rating != null ? Number(user.evaluation_rating) : null;
 
   // followersCount/followingCount 는 현재 UI 에 노출하지 않지만 반환된 값은 차후 확장용
   void followersCount;
@@ -721,13 +837,16 @@ export default async function UserProfilePage({
       <PlayerHero
         user={{
           nickname: user.nickname,
-          name: user.name,
+          // 6.1C-6: realName 비공개면 name=null → getDisplayName 이 닉네임 fallback (실명 hide)
+          name: showRealName ? user.name : null,
           profile_image_url: user.profile_image_url,
           position: user.position,
-          height: user.height,
-          weight: user.weight,
-          city: user.city,
-          district: user.district,
+          // 6.1C-6: body 비공개면 신장/체중 hide (Hero physical strip "-" 표시)
+          height: showBody ? user.height : null,
+          weight: showBody ? user.weight : null,
+          // 6.1C-6: area 비공개면 활동 지역 hide (Hero meta 에서 location 제외)
+          city: showArea ? user.city : null,
+          district: showArea ? user.district : null,
           bio: user.bio,
           gender: user.gender,
           evaluation_rating: evaluationRating,

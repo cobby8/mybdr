@@ -9,6 +9,16 @@
 //   시안 source: Dev/design/BDR-current/screens/AdminCommunity.jsx (v2.9)
 //   - 카테고리 뱃지: badge--soft → admin-stat-pill data-tone="mute" (시안 type_label 박제)
 //   - 상태 뱃지: 신규 추가 (hidden=warn / 그 외=ok). 시안 status_tone 패턴 일관
+//
+// 2026-05-31 5C-5 CA1 박제 (BDR v2.23 · BC6 · OA1 답습)
+//   시안 source: Dev/design/BDR-current/screens/AdminCommunity.jsx (v2.23)
+//   - Hero 4-stat (전체/핀/신고/삭제됨) — posts 배열 실측 집계. 추가 쿼리 0
+//     · 핀: community_posts에 핀 필드 부재 → "—" hide (mock 0)
+//     · 신고: 신고(Report) 데이터 모델 운영 부재 (A2 lock) → "—" hide
+//   - 상태 탭: 시안 활성/핀/신고/삭제됨 → 운영 활성/삭제됨 2탭만 (핀·신고 hide)
+//   - 카테고리 chip 필터: 동적 (운영 레거시 taxonomy — 존재 카테고리만)
+//   - 모달: 삭제됨 글 = 복구버튼 hide(복구 액션 부재) / 핀버튼·알림 체크박스 hide
+//   - page.tsx 서버쿼리·requireSuperAdmin·hide/unhide/delete 3 액션 0 변경
 
 import { useState } from "react";
 import { AdminStatusTabs } from "@/components/admin/admin-status-tabs";
@@ -22,10 +32,12 @@ import {
 const STATUS_LABEL: Record<string, string> = {
   published: "게시중",
   hidden: "숨김",
+  deleted: "삭제됨",
 };
-const STATUS_TONE: Record<string, "ok" | "warn" | "mute"> = {
+const STATUS_TONE: Record<string, "ok" | "warn" | "mute" | "err"> = {
   published: "ok",
   hidden: "warn",
+  deleted: "err",
 };
 
 // 서버에서 직렬화된 게시글 타입
@@ -67,23 +79,39 @@ export function AdminCommunityContent({
   unhidePostAction,
   deletePostAction,
 }: Props) {
-  const [activeTab, setActiveTab] = useState("all");
+  // 5C-5 CA1 — 상태 탭(활성/삭제됨) + 카테고리 chip 필터 분리
+  //   시안의 status 탭(활성/핀/신고/삭제됨) 중 핀·신고는 hide → 활성/삭제됨 2탭만
+  const [statusTab, setStatusTab] = useState("active");
+  const [catFilter, setCatFilter] = useState("all");
   const [selected, setSelected] = useState<SerializedPost | null>(null);
 
-  // 탭: 전체 + 카테고리별
-  const filtered =
-    activeTab === "all"
-      ? posts
-      : posts.filter((p) => p.category === activeTab);
+  // 5C-5 CA1 — Hero 4-stat 실측 집계 (posts 배열 기준, 추가 쿼리 0)
+  //   삭제됨 = status "deleted" / 활성 = 그 외(published·hidden·draft 등)
+  const deletedPosts = posts.filter((p) => p.status === "deleted");
+  const activePosts = posts.filter((p) => p.status !== "deleted");
 
-  // 동적 탭 생성 — 존재하는 카테고리만 탭으로 표시
-  const categoryKeys = [...new Set(posts.map((p) => p.category).filter(Boolean))] as string[];
-  const tabs = [
-    { key: "all", label: "전체", count: posts.length },
+  // 5C-5 CA1 — 상태 탭으로 1차 분류 후, 카테고리 chip으로 2차 필터
+  const tabPosts = statusTab === "deleted" ? deletedPosts : activePosts;
+  const filtered =
+    catFilter === "all"
+      ? tabPosts
+      : tabPosts.filter((p) => p.category === catFilter);
+
+  // 5C-5 CA1 — 상태 탭 (활성/삭제됨 2탭). 시안 핀·신고 탭은 데이터/모델 부재로 hide
+  const statusTabs = [
+    { key: "active", label: "활성", count: activePosts.length },
+    { key: "deleted", label: "삭제됨", count: deletedPosts.length },
+  ];
+
+  // 5C-5 CA1 — 카테고리 chip: 동적 (운영 레거시 taxonomy — 현재 탭에 존재하는 카테고리만)
+  const categoryKeys = [
+    ...new Set(tabPosts.map((p) => p.category).filter(Boolean)),
+  ] as string[];
+  const catChips = [
+    { key: "all", label: "전체" },
     ...categoryKeys.map((key) => ({
       key,
       label: CATEGORY_LABEL[key] ?? key,
-      count: posts.filter((p) => p.category === key).length,
     })),
   ];
 
@@ -92,7 +120,64 @@ export function AdminCommunityContent({
 
   return (
     <>
-      <AdminStatusTabs tabs={tabs} activeTab={activeTab} onChange={setActiveTab} />
+      {/* 5C-5 CA1 — Hero 4-stat (전체/핀/신고/삭제됨) 실측 집계. 핀·신고는 데이터/모델 부재 "—" hide
+          OA1(단체 관리) Hero 4분면 grid 패턴 답습 */}
+      <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+        {[
+          { label: "전체", value: posts.length, tone: "ok" as const },
+          // 핀: community_posts 핀 필드 부재 → mock 0 → "—"
+          { label: "핀", value: "—", tone: "mute" as const },
+          // 신고: 신고(Report) 모델 운영 부재 (A2 lock) → "—"
+          { label: "신고", value: "—", tone: "mute" as const },
+          { label: "삭제됨", value: deletedPosts.length, tone: "err" as const },
+        ].map((s) => (
+          <div
+            key={s.label}
+            className="rounded-md border border-[var(--color-border)] bg-[var(--color-card)] px-4 py-3"
+          >
+            {/* 숫자: 상태별 토큰 색 (OA1 Hero stat 톤 매핑 동일) */}
+            <div
+              className="text-2xl font-black tabular-nums"
+              style={{
+                color:
+                  s.tone === "ok"
+                    ? "var(--color-success)"
+                    : s.tone === "err"
+                      ? "var(--color-error)"
+                      : "var(--color-text-muted)",
+              }}
+            >
+              {s.value}
+            </div>
+            <div className="mt-0.5 text-xs font-medium text-[var(--color-text-muted)]">
+              {s.label}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* 5C-5 CA1 — 상태 탭 (활성/삭제됨). 탭 전환 시 카테고리 필터 초기화 */}
+      <AdminStatusTabs
+        tabs={statusTabs}
+        activeTab={statusTab}
+        onChange={(k) => {
+          setStatusTab(k);
+          setCatFilter("all");
+        }}
+      />
+
+      {/* 5C-5 CA1 — 카테고리 chip 필터 (동적, 운영 레거시 taxonomy). (web) .btn 패턴 */}
+      <div className="mb-4 flex flex-wrap gap-2">
+        {catChips.map((c) => (
+          <button
+            key={c.key}
+            onClick={() => setCatFilter(c.key)}
+            className={`btn btn--sm ${catFilter === c.key ? "btn--primary" : ""}`}
+          >
+            {c.label}
+          </button>
+        ))}
+      </div>
 
       {/* 2026-05-04: <Card> wrapper 제거 — (web) board 와 동일 단순 구조 */}
       <div className="overflow-x-auto admin-table-wrap">
@@ -109,16 +194,21 @@ export function AdminCommunityContent({
           <tbody>
             {filtered.map((p) => {
               const isHidden = p.status === "hidden";
+              // 5C-5 CA1 — 삭제됨 글도 prefix + dim 처리 (삭제됨 탭 표시용)
+              const isDeleted = p.status === "deleted";
               return (
                 <tr
                   key={p.id}
                   onClick={() => setSelected(p)}
-                  className={`cursor-pointer ${isHidden ? "opacity-60" : ""}`}
+                  className={`cursor-pointer ${isHidden || isDeleted ? "opacity-60" : ""}`}
                 >
                   <td data-primary="true" className="px-5 py-3">
                     <p className="truncate font-medium" style={{ color: "var(--color-text-primary)" }}>
                       {isHidden && (
                         <span className="mr-1.5 text-xs" style={{ color: "var(--color-error)" }}>[숨김]</span>
+                      )}
+                      {isDeleted && (
+                        <span className="mr-1.5 text-xs" style={{ color: "var(--color-error)" }}>[삭제됨]</span>
                       )}
                       {p.title}
                     </p>
@@ -155,36 +245,44 @@ export function AdminCommunityContent({
           onClose={() => setSelected(null)}
           title={selected.title}
           actions={
-            <div className="flex items-center gap-2">
-              {/* 숨김/복원 토글 */}
-              <form action={selected.status === "hidden" ? unhidePostAction : hidePostAction}>
-                <input type="hidden" name="post_id" value={selected.id} />
-                <button
-                  type="submit"
-                  className={`inline-flex items-center gap-1 rounded-[8px] px-3 py-2 text-sm font-medium transition-colors ${
-                    selected.status === "hidden"
-                      ? "bg-[var(--color-success)]/10 text-[var(--color-success)] hover:bg-[var(--color-success)]/20"
-                      : "bg-[var(--color-warning)]/10 text-[var(--color-warning)] hover:bg-[var(--color-warning)]/20"
-                  }`}
-                >
-                  <span className="material-symbols-outlined text-base">
-                    {selected.status === "hidden" ? "visibility" : "visibility_off"}
-                  </span>
-                  {selected.status === "hidden" ? "복원" : "숨김"}
-                </button>
-              </form>
-              {/* 삭제 */}
-              <form action={deletePostAction}>
-                <input type="hidden" name="post_id" value={selected.id} />
-                <button
-                  type="submit"
-                  className="inline-flex items-center gap-1 rounded-[8px] bg-[var(--color-error)]/10 px-3 py-2 text-sm font-medium text-[var(--color-error)] transition-colors hover:bg-[var(--color-error)]/20"
-                >
-                  <span className="material-symbols-outlined text-base">delete</span>
-                  삭제
-                </button>
-              </form>
-            </div>
+            // 5C-5 CA1 — 삭제됨 글은 액션 hide (복구 서버 액션 부재 → mock 0).
+            //   활성(published·hidden 등) 글에만 기존 숨김/삭제 액션 노출 (0 변경)
+            selected.status === "deleted" ? (
+              <span className="text-xs text-[var(--color-text-muted)]">
+                삭제된 게시글입니다 (복구 미지원)
+              </span>
+            ) : (
+              <div className="flex items-center gap-2">
+                {/* 숨김/복원 토글 */}
+                <form action={selected.status === "hidden" ? unhidePostAction : hidePostAction}>
+                  <input type="hidden" name="post_id" value={selected.id} />
+                  <button
+                    type="submit"
+                    className={`inline-flex items-center gap-1 rounded-[8px] px-3 py-2 text-sm font-medium transition-colors ${
+                      selected.status === "hidden"
+                        ? "bg-[var(--color-success)]/10 text-[var(--color-success)] hover:bg-[var(--color-success)]/20"
+                        : "bg-[var(--color-warning)]/10 text-[var(--color-warning)] hover:bg-[var(--color-warning)]/20"
+                    }`}
+                  >
+                    <span className="material-symbols-outlined text-base">
+                      {selected.status === "hidden" ? "visibility" : "visibility_off"}
+                    </span>
+                    {selected.status === "hidden" ? "복원" : "숨김"}
+                  </button>
+                </form>
+                {/* 삭제 */}
+                <form action={deletePostAction}>
+                  <input type="hidden" name="post_id" value={selected.id} />
+                  <button
+                    type="submit"
+                    className="inline-flex items-center gap-1 rounded-[8px] bg-[var(--color-error)]/10 px-3 py-2 text-sm font-medium text-[var(--color-error)] transition-colors hover:bg-[var(--color-error)]/20"
+                  >
+                    <span className="material-symbols-outlined text-base">delete</span>
+                    삭제
+                  </button>
+                </form>
+              </div>
+            )
           }
         >
           <div className="space-y-4">

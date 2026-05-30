@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>UB1 · 대회 종료 발표 — BDR v2.18</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800;900&family=JetBrains+Mono:wght@500;700;800&family=Pretendard:wght@400;500;600;700;800;900&display=swap" />
+<link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Symbols+Outlined" />
+<link rel="stylesheet" href="tokens.css" />
+<link rel="stylesheet" href="shell.css" />
+<link rel="stylesheet" href="screens/tournament-completed.css" />
+</head>
+<body>
+<div class="showcase">
+  <header class="showcase-head">
+    <div class="eyebrow">BDR v2.18 · UB1 / 신규 (status='completed' variant)</div>
+    <h1>대회 종료 발표 — /tournaments/[id] (status='completed')</h1>
+    <p>
+      Phase 1A D1 (관리자 종료 hub) 의 사용자 카운터파트. 같은 라우트 status 분기 — 신규 라우트 / 더보기 가짜링크 ❌.
+      Hero (🏆 + 우승팀) + 5 카드 (final standings / MVP·베스트5 / 사진 / 알기자 / 다음 회차) + 공유 CTA.
+    </p>
+    <nav class="showcase-nav">
+      <a href="index.html">목차</a>
+      <a href="ua1-tournaments.html">UA1 목록</a>
+      <a href="ua2-tournament-detail.html">UA2 상세</a>
+      <a href="ua3-tournament-enroll.html">UA3 신청</a>
+      <a class="is-cur" href="ub1-tournament-completed.html">UB1 종료</a>
+      <a href="uc1-my-activity.html">UC1 마이</a>
+      <a href="ud1-admin-teams.html">UD1 팀</a>
+      <a href="ud2-admin-bracket.html">UD2 대진</a>
+      <a href="ud3-admin-setup.html">UD3 셋업</a>
+    </nav>
+  </header>
+
+  <section class="variant">
+    <header class="variant__head">
+      <span class="variant__num">UB1 / PC + MOBILE</span>
+      <h2 class="variant__title">우승팀 hero + 5 카드 + 공유</h2>
+      <p class="variant__desc">트로피 톤 hero. 5 카드 = final standings / MVP·베스트5 / 사진 / 알기자 / 다음 회차.</p>
+    </header>
+    <div class="vp-strip">
+      <div class="vp vp--pc-wide">
+        <div class="vp__chrome">
+          <span class="vp__lights"><span></span><span></span><span></span></span>
+          <span class="vp__url">mybdr.kr/tournaments/tn-5 (completed)</span>
+          <span class="vp__size">PC · 1320</span>
+        </div>
+        <div class="vp__body">
+          <div id="m-pc-nav"></div>
+          <div id="m-pc"></div>
+        </div>
+      </div>
+      <div class="vp vp--mobile">
+        <div class="vp__chrome">
+          <span class="vp__lights"><span></span><span></span><span></span></span>
+          <span class="vp__url">m · 종료 발표</span>
+          <span class="vp__size">375</span>
+        </div>
+        <div class="vp__body">
+          <div id="m-mob-nav"></div>
+          <div id="m-mob"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script type="text/babel" src="shared.jsx"></script>
+<script type="text/babel" src="screens/TournamentCompleted.jsx"></script>
+<script type="text/babel">
+  const noop = () => {};
+  ReactDOM.createRoot(document.getElementById('m-pc-nav')).render(<window.AppNav active="tn" />);
+  ReactDOM.createRoot(document.getElementById('m-pc')).render(<window.TournamentCompleted setRoute={noop} />);
+  ReactDOM.createRoot(document.getElementById('m-mob-nav')).render(<window.AppNav active="tn" />);
+  ReactDOM.createRoot(document.getElementById('m-mob')).render(<window.TournamentCompleted setRoute={noop} />);
+</script>
+</body>
+</html>

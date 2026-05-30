@@ -174,69 +174,53 @@ export function AchievementsContent({ earnedBadges }: AchievementsContentProps) 
         <span style={{ color: "var(--ink)" }}>업적</span>
       </div>
 
-      {/* Header — 시안 L48-67 */}
-      <div
-        className="card"
-        style={{
-          padding: "28px 32px",
-          marginBottom: 18,
-          display: "grid",
-          gridTemplateColumns: "1fr auto",
-          gap: 24,
-          alignItems: "center",
-        }}
-      >
-        <div>
-          <div className="eyebrow">ACHIEVEMENTS</div>
-          <h1
-            style={{
-              margin: "4px 0 6px",
-              fontSize: 32,
-              fontWeight: 800,
-              letterSpacing: "-0.02em",
-            }}
-          >
-            내가 걸어온 기록
-          </h1>
-          <p style={{ margin: 0, color: "var(--ink-mute)", fontSize: 14 }}>
-            경기·팀·커뮤니티 활동으로 모은 업적 배지. 희소도가 낮을수록 귀한
-            배지입니다.
-          </p>
-        </div>
-        {/* 통계 3셀 (획득/전체/달성률) */}
-        <div style={{ display: "flex", gap: 18 }}>
-          {[
-            { l: "획득", v: earnedItems.length, c: "var(--accent)" },
-            { l: "전체", v: allBadges.length, c: "var(--ink)" },
-            { l: "달성률", v: `${achievementPct}%`, c: "var(--ok)" },
-          ].map((s) => (
-            <div key={s.l} style={{ textAlign: "center", minWidth: 80 }}>
-              <div
-                style={{
-                  fontFamily: "var(--ff-display)",
-                  fontSize: 32,
-                  fontWeight: 900,
-                  color: s.c,
-                  letterSpacing: "-0.02em",
-                }}
-              >
-                {s.v}
-              </div>
-              <div
-                style={{
-                  fontSize: 10,
-                  color: "var(--ink-dim)",
-                  fontWeight: 700,
-                  letterSpacing: ".08em",
-                  textTransform: "uppercase",
-                }}
-              >
-                {s.l}
-              </div>
+      {/* ============================================================
+       * Hero 배너 — PU4 v2.24 톤 박제 (BP3)
+       *
+       * 왜 교체했나(시각 정합):
+       * - 시안 PU4 는 평면 card 헤더가 아니라 다크 그라디언트 Hero 배너
+       *   (pm-hero 톤: 군청 그라디언트 + military_tech 아이콘 원형 + 요약 meta).
+       *   운영은 평면 card 였음 → v2.24 톤으로 시각 보강.
+       * - 데이터는 0 변경: 기존 계산값(earnedItems/allBadges/achievementPct)만 사용.
+       *   cross-domain(우승/MVP 누적)은 page.tsx 미페칭 → 시안의 champion·MVP 카드는
+       *   배치하지 않음(mock 0). meta 줄도 배지 실측치만 노출.
+       * ============================================================ */}
+      <header className="pf-achv-hero">
+        {/* 좌: 아이콘 + 타이틀 + 안내 카피 */}
+        <div className="pf-achv-hero__row">
+          <div className="pf-achv-hero__av">
+            <span className="material-symbols-outlined">military_tech</span>
+          </div>
+          <div className="pf-achv-hero__body">
+            <div className="pf-achv-hero__namerow">
+              <div className="pf-achv-hero__eyebrow">ACHIEVEMENTS</div>
+              <span className="pf-achv-hero__count">
+                {earnedItems.length} / {allBadges.length}
+              </span>
             </div>
-          ))}
+            <h1 className="pf-achv-hero__name">내가 걸어온 기록</h1>
+            {/* 요약 meta — 배지 실측치만(획득/전체/달성률). cross-domain 제외 */}
+            <div className="pf-achv-hero__meta">
+              <span>
+                <span className="material-symbols-outlined">workspace_premium</span>
+                배지 {earnedItems.length}개 획득
+              </span>
+              <span>
+                <span className="material-symbols-outlined">grid_view</span>
+                전체 {allBadges.length}종
+              </span>
+              <span>
+                <span className="material-symbols-outlined">trending_up</span>
+                달성률 {achievementPct}%
+              </span>
+            </div>
+            <p className="pf-achv-hero__bio">
+              경기·팀·커뮤니티 활동으로 모은 업적 배지. 희소도가 낮을수록 귀한
+              배지입니다.
+            </p>
+          </div>
         </div>
-      </div>
+      </header>
 
       {/* 최근 획득 4건 — earned 1개 이상일 때만 표시 (시안 L70-83) */}
       {recent4.length > 0 && (

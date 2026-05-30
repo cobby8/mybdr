@@ -398,6 +398,15 @@ export default async function ProfilePage() {
     { label: "RTG", value: rtg },
   ];
 
+  // PU1 v2.24 보강 — BP6 카운트 strip (운영 실데이터만)
+  // 이유: 시안 PU1 의 5칸 카운트(대회/경기/팀/단체/매너) 중 page.tsx 가 실제 페칭하는
+  //   3종(팀/호스트/매너)만 노출. 미페칭(대회·단체·참가경기)은 쿼리 추가 금지 위해 제외(hide).
+  const counts = {
+    teams: teamMembers.length, // 실데이터 (active 팀 목록 길이)
+    hosted: Number(user.total_games_hosted ?? 0), // 실데이터 (호스트 누적 — Int)
+    manner: evaluationRating != null ? evaluationRating.toFixed(1) : "—", // 실데이터
+  };
+
   // 본인 공개 프로필 — /users/[id]?preview=1
   // 2026-05-02: ?preview=1 query 추가 — users/[id]/page.tsx 의 isOwner→/profile redirect (D-P7) 우회.
   // 본인이 다른 사람 시점으로 자기 공개 프로필 미리보기 가능.
@@ -432,9 +441,31 @@ export default async function ProfilePage() {
                   <span className="mypage__dot" />
                 </>
               )}
-              <span>{positionLabel}</span>
-              <span className="mypage__dot" />
-              <span className="t-mono">통산</span>
+              {/* PU1 v2.24 보강 — Hero meta (포지션·지역·매너). 데이터는 이미 페칭됨, 쿼리 추가 0 */}
+              <span className="pu1-meta">
+                <span className="material-symbols-outlined">sports_basketball</span>
+                {positionLabel}
+              </span>
+              {/* 지역 — city/district 둘 다 있을 때만 노출 (운영 실데이터, 없으면 hide) */}
+              {(user.city || user.district) && (
+                <>
+                  <span className="mypage__dot" />
+                  <span className="pu1-meta">
+                    <span className="material-symbols-outlined">location_on</span>
+                    {[user.city, user.district].filter(Boolean).join(" ")}
+                  </span>
+                </>
+              )}
+              {/* 매너 평점 — evaluation_rating (실데이터, null 이면 hide) */}
+              {evaluationRating != null && (
+                <>
+                  <span className="mypage__dot" />
+                  <span className="pu1-meta pu1-meta--manner">
+                    <span className="material-symbols-outlined">favorite</span>
+                    매너 {evaluationRating.toFixed(1)}
+                  </span>
+                </>
+              )}
             </div>
             <div className="mypage__id-badges">
               <span className="badge badge--red">L.{level?.level ?? 1}</span>
@@ -456,6 +487,24 @@ export default async function ProfilePage() {
           </Link>
         </div>
       </header>
+
+      {/* PU1 v2.24 보강 — BP6 카운트 strip (운영 실데이터만 · 미페칭 항목 hide) */}
+      {/* 내 팀=teamMembers.length / 호스트=total_games_hosted / 매너=evaluation_rating */}
+      {/* 시안 PU1 의 "내 대회·참가 경기·내 단체" 는 page.tsx 미페칭 → 쿼리 추가 금지 위해 미배치 (mock 0) */}
+      <div className="pu1-counts">
+        <Link href="/profile/activity" className="pu1-count">
+          <div className="pu1-count__v">{counts.teams}</div>
+          <div className="pu1-count__l">내 팀</div>
+        </Link>
+        <Link href="/profile/activity" className="pu1-count">
+          <div className="pu1-count__v">{counts.hosted}</div>
+          <div className="pu1-count__l">호스트</div>
+        </Link>
+        <Link href="/profile/activity" className="pu1-count pu1-count--accent">
+          <div className="pu1-count__v">{counts.manner}</div>
+          <div className="pu1-count__l">매너 평점</div>
+        </Link>
+      </div>
 
       {/* 5/6 — 소속 팀 카드 (히어로 바로 아래 풀 width) — 각 팀 활동 관리 + 팀페이지 이동 */}
       <TeamsListCard teams={teamsList} />

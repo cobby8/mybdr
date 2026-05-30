@@ -4638,3 +4638,528 @@ html.dark {
 .recurrence-preview b {
   font-weight: 800;
 }
+
+/* ============================================================
+   CU1 — Community list (Phase 5C-2 · BDR v2.23 CommunityList 박제 · BC2)
+   시안 comm-shared.css → 운영 토큰 치환:
+     --r-md→--radius-card / --r-sm·--r-xs→--radius-chip
+     --accent-deep→--bdr-red-ink / --accent-hair→--accent-soft
+   community 전용 prefix(cu1-/cu-post/cat-badge/comm-author/cu-side-card/cu-hot-row)
+   유지 — 타 페이지(경기/팀/단체) 클래스 충돌 방지.
+   ============================================================ */
+
+/* 카테고리 색상 badge (data-cat → 토큰 색상) */
+.cat-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 2px 8px;
+  font-family: var(--ff-mono); font-size: 10.5px; font-weight: 800;
+  border-radius: var(--radius-chip); letter-spacing: 0.02em;
+  white-space: nowrap;
+  color: var(--ink-mute); background: var(--bg-head);
+}
+.cat-badge .material-symbols-outlined { font-size: 13px; }
+.cat-badge[data-cat="news"]        { color: var(--accent); background: var(--accent-soft); }
+.cat-badge[data-cat="general"]     { color: var(--cafe-blue-deep); background: var(--cafe-blue-soft); }
+.cat-badge[data-cat="recruit"]     { color: var(--ok); background: var(--ok-soft); }
+.cat-badge[data-cat="review"]      { color: var(--ink-soft); background: var(--bg-head); }
+.cat-badge[data-cat="qna"]         { color: var(--cafe-blue-deep); background: var(--cafe-blue-soft); }
+.cat-badge[data-cat="info"]        { color: var(--ok); background: var(--ok-soft); }
+.cat-badge[data-cat="marketplace"] { color: var(--cafe-blue-deep); background: var(--cafe-blue-soft); }
+.cat-badge[data-cat="notice"]      { color: var(--ink-soft); background: var(--bg-head); }
+
+/* 작성자 chip */
+.comm-author { display: inline-flex; align-items: center; gap: 7px; min-width: 0; }
+.comm-author__av {
+  border-radius: 50%;
+  background: var(--cafe-blue); color: #fff;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-family: var(--ff-display); font-weight: 800;
+  flex-shrink: 0;
+}
+.comm-author__name {
+  display: inline-flex; align-items: center; gap: 3px;
+  font-size: 12.5px; font-weight: 700; color: var(--ink);
+  min-width: 0;
+}
+
+/* sticky category chip row (BC2) */
+.cu1-chips {
+  display: flex; gap: 6px; overflow-x: auto;
+  padding: 10px 12px;
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  margin-bottom: 14px;
+  position: sticky; top: 0; z-index: 5;
+  -webkit-overflow-scrolling: touch;
+}
+.cu1-chips::-webkit-scrollbar { height: 4px; }
+.cu1-chips::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 2px; }
+.cu1-chip {
+  flex-shrink: 0;
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 7px 13px;
+  font-size: 12.5px; font-weight: 700;
+  background: var(--bg-alt); border: 1px solid var(--border);
+  border-radius: var(--radius-chip); color: var(--ink-soft);
+  cursor: pointer; white-space: nowrap;
+}
+.cu1-chip:hover { background: var(--bg-head); }
+.cu1-chip .material-symbols-outlined { font-size: 15px; }
+.cu1-chip.is-on { background: var(--ink); color: #fff; border-color: var(--ink); font-weight: 800; }
+.cu1-chip.is-on.is-alkija { background: var(--accent); border-color: var(--bdr-red-ink); }
+
+/* main grid (list + sidebar) */
+.cu1-grid {
+  display: grid; grid-template-columns: minmax(0, 1fr) 280px;
+  gap: 16px; align-items: flex-start;
+}
+@media (max-width: 980px) { .cu1-grid { grid-template-columns: 1fr; } }
+.cu1-list { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+
+/* post row card */
+.cu-post {
+  display: grid; grid-template-columns: 1fr auto;
+  gap: 14px; align-items: center;
+  padding: 14px 16px;
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  text-decoration: none; color: inherit;
+  transition: border-color .12s, box-shadow .12s;
+}
+.cu-post:hover { border-color: var(--border-strong); box-shadow: var(--sh-sm); }
+.cu-post.is-pinned { border-color: var(--accent-soft); background: linear-gradient(180deg, var(--accent-soft) 0%, var(--bg-elev) 36%); }
+.cu-post.is-alkija { border-left: 3px solid var(--accent); }
+.cu-post__body { min-width: 0; }
+.cu-post__top { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 6px; }
+.cu-post__pin {
+  display: inline-flex; align-items: center; gap: 2px;
+  font-family: var(--ff-mono); font-size: 9.5px; font-weight: 800;
+  color: var(--accent); letter-spacing: 0.04em;
+}
+.cu-post__pin .material-symbols-outlined { font-size: 13px; }
+.cu-post__title {
+  font-family: var(--ff-display); font-size: 15.5px; font-weight: 800;
+  letter-spacing: -0.01em; color: var(--ink); line-height: 1.35;
+  margin: 0 0 5px;
+  display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden;
+}
+.cu-post__excerpt {
+  font-size: 12.5px; color: var(--ink-mute); line-height: 1.5;
+  margin: 0 0 8px;
+  display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden;
+}
+.cu-post__meta {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  font-family: var(--ff-mono); font-size: 11px; font-weight: 700; color: var(--ink-dim);
+}
+.cu-post__meta-stat { display: inline-flex; align-items: center; gap: 3px; }
+.cu-post__meta-stat .material-symbols-outlined { font-size: 14px; }
+.cu-post__meta-stat.is-hot { color: var(--accent); }
+.cu-post__dot { color: var(--border-strong); }
+/* thumb (news thumbnail_url 전용 — image_count 미지원 hide) */
+.cu-post__thumb {
+  width: 76px; height: 76px; flex-shrink: 0;
+  border-radius: var(--radius-chip);
+  background: var(--bg-head);
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+.cu-post__thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+@media (max-width: 720px) {
+  .cu-post { grid-template-columns: 1fr; }
+  .cu-post__thumb { width: 100%; height: 120px; }
+}
+
+/* sidebar */
+.cu1-side { display: flex; flex-direction: column; gap: 12px; }
+@media (max-width: 980px) { .cu1-side { display: none; } }
+.cu-side-card {
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  padding: 14px 16px;
+}
+.cu-side-card__h {
+  font-family: var(--ff-display); font-size: 14px; font-weight: 800;
+  margin: 0 0 10px; display: flex; align-items: center; gap: 6px;
+}
+.cu-side-card__h .material-symbols-outlined { font-size: 17px; color: var(--accent); }
+.cu-hot-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 7px 0;
+  border-bottom: 1px dashed var(--border);
+  text-decoration: none; color: inherit;
+}
+.cu-hot-row:last-child { border-bottom: 0; }
+.cu-hot-row__rank {
+  width: 18px; text-align: center; flex-shrink: 0;
+  font-family: var(--ff-display); font-size: 15px; font-weight: 900; color: var(--ink-dim);
+}
+.cu-hot-row:nth-child(2) .cu-hot-row__rank,
+.cu-hot-row:nth-child(3) .cu-hot-row__rank { color: var(--accent); }
+.cu-hot-row__title {
+  flex: 1; min-width: 0; font-size: 12.5px; font-weight: 600; color: var(--ink-soft);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.cu-hot-row__v { font-family: var(--ff-mono); font-size: 10.5px; font-weight: 700; color: var(--ink-dim); flex-shrink: 0; }
+.cu-side-empty { font-size: 12px; color: var(--ink-dim); padding: 8px 0; }
+
+/* ============================================================
+   CU2 — Community detail (Phase 5C-3 · BDR v2.23 CommunityDetail 박제 · BC4 + BC2)
+   시안 comm-shared.css cu2- 블록 → 운영 토큰 치환(5C-2 규칙 답습):
+     --r-md→--radius-card / --r-sm·--r-xs→--radius-chip
+     --accent-deep→--bdr-red-ink / --accent-hair→--accent-soft
+   community 전용 prefix(cu2-) 유지 — 타 페이지(cu1-/comm- 포함) 충돌 0.
+   cat-badge/comm-author/cu-side-card 는 5C-2 가 이미 추가 — 재정의 안 함.
+   ============================================================ */
+
+/* breadcrumb — cu2-crumbs 자체로 완결(공유 .crumbs 의존 회피) */
+.cu2-crumbs {
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  margin-bottom: 10px; white-space: nowrap;
+  font-family: var(--ff-mono); font-size: 11.5px; font-weight: 700; color: var(--ink-mute);
+}
+.cu2-crumbs a { color: var(--ink-mute); text-decoration: none; }
+.cu2-crumbs a:hover { color: var(--ink-soft); }
+.cu2-crumbs .sep { color: var(--border-strong); }
+.cu2-crumbs .cur { color: var(--ink); }
+
+/* grid: main + side 2열 */
+.cu2-grid {
+  display: grid; grid-template-columns: minmax(0, 1fr) 280px;
+  gap: 16px; align-items: flex-start;
+}
+@media (max-width: 980px) { .cu2-grid { grid-template-columns: 1fr; } }
+.cu2-main { min-width: 0; display: flex; flex-direction: column; gap: 16px; }
+
+/* article card */
+.cu2-article {
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  overflow: hidden;
+}
+.cu2-article__head { padding: 22px 26px 18px; border-bottom: 1px solid var(--border); }
+.cu2-article__badges { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; flex-wrap: wrap; }
+.cu2-article__title {
+  font-family: var(--ff-display); font-size: 25px; font-weight: 900;
+  letter-spacing: -0.02em; line-height: 1.25; margin: 0 0 14px; color: var(--ink);
+}
+.cu2-article__meta {
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  font-family: var(--ff-mono); font-size: 11.5px; font-weight: 700; color: var(--ink-mute);
+}
+.cu2-article__meta-stat { display: inline-flex; align-items: center; gap: 3px; }
+.cu2-article__meta-stat .ico { font-family: 'Material Symbols Outlined'; font-size: 15px; }
+.cu2-article__meta-sep { color: var(--border-strong); }
+/* body */
+.cu2-article__body { padding: 24px 26px; }
+.cu2-article__p { font-size: 14.5px; line-height: 1.8; color: var(--ink-soft); margin: 0 0 14px; }
+.cu2-article__p:last-child { margin-bottom: 0; }
+/* reactions */
+.cu2-react {
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  padding: 20px 26px; border-top: 1px solid var(--border); flex-wrap: wrap;
+}
+.cu2-share {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 11px 18px; background: var(--bg-elev); border: 1px solid var(--border-strong);
+  border-radius: var(--radius-chip); cursor: pointer; font-weight: 700; font-size: 13px; color: var(--ink-soft);
+}
+.cu2-share .ico { font-family: 'Material Symbols Outlined'; font-size: 17px; }
+
+/* comments */
+.cu2-comments { background: var(--bg-elev); border: 1px solid var(--border); border-radius: var(--radius-card); padding: 20px 22px; }
+.cu2-comments__h { display: flex; align-items: baseline; gap: 8px; margin: 0 0 14px; }
+.cu2-comments__h-t { font-family: var(--ff-display); font-size: 17px; font-weight: 800; margin: 0; }
+.cu2-comments__h-n { color: var(--accent); font-weight: 900; font-size: 16px; font-family: var(--ff-display); }
+
+/* CU2 sidebar (실데이터 PostDetailSidebar 컨테이너) */
+.cu2-side { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+@media (max-width: 980px) { .cu2-side { margin-top: 4px; } }
+
+/* ============================================================
+   RU1 — Rankings (5C-4 · BC1 팀 승수 리더 + BC7 출처 footer)
+   시안 comm-shared.css .ru1-* 포팅. 토큰 치환: --r-md→--radius-card / --r-sm→--radius-chip.
+   MVP hero·코트 chip·부문 chip·시안 board/podium = 운영 V2 컴포넌트 보존으로 미포팅.
+   prefix 충돌 0: globals.css 정의 + rankings-content.tsx 사용 2파일만 (cu1-/cu2-/comm- 무관).
+   ============================================================ */
+
+/* RU1-C / BC1 — 팀 승수 리더 hero (cafe-blue 그라디언트 위 흰 텍스트) */
+.ru1-leader {
+  position: relative; overflow: hidden;
+  background: linear-gradient(135deg, var(--cafe-blue) 0%, var(--cafe-blue-deep) 100%);
+  color: #fff; border-radius: var(--radius-card); padding: 18px 20px;
+  display: flex; align-items: center; gap: 16px;
+}
+.ru1-leader__logo {
+  width: 64px; height: 64px; border-radius: var(--radius-chip); flex-shrink: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-family: var(--ff-display); font-weight: 900; font-size: 26px; color: #fff;
+  background: rgba(255,255,255,.16); border: 1px solid rgba(255,255,255,.25);
+}
+.ru1-leader__body { min-width: 0; }
+.ru1-leader__lbl { font-family: var(--ff-mono); font-size: 9.5px; font-weight: 800; color: rgba(255,255,255,.8); letter-spacing: 0.12em; text-transform: uppercase; }
+.ru1-leader__name { font-family: var(--ff-display); font-size: 22px; font-weight: 900; letter-spacing: -0.015em; line-height: 1.1; margin: 2px 0; }
+.ru1-leader__rec { font-family: var(--ff-mono); font-size: 13px; font-weight: 800; }
+.ru1-leader__src { font-family: var(--ff-mono); font-size: 10px; color: rgba(255,255,255,.62); margin-top: 5px; display: inline-flex; align-items: center; gap: 4px; }
+.ru1-leader__src .material-symbols-outlined { font-size: 13px; }
+
+/* RU1-E / BC7 — 데이터 출처 footer */
+.ru1-source {
+  margin-top: 16px; padding: 14px 16px;
+  background: var(--bg-alt); border: 1px solid var(--border); border-radius: var(--radius-card);
+}
+.ru1-source__h {
+  font-family: var(--ff-mono); font-size: 10px; font-weight: 800;
+  color: var(--ink-dim); letter-spacing: 0.08em; text-transform: uppercase; margin: 0 0 8px;
+  display: flex; align-items: center; gap: 5px;
+}
+.ru1-source__h .material-symbols-outlined { font-size: 14px; }
+.ru1-source__row { display: flex; gap: 8px; padding: 4px 0; font-size: 12px; color: var(--ink-mute); line-height: 1.5; }
+.ru1-source__row b { color: var(--ink-soft); font-weight: 700; }
+.ru1-source__tag {
+  flex-shrink: 0; font-family: var(--ff-mono); font-size: 9.5px; font-weight: 800;
+  color: var(--cafe-blue-deep); background: var(--cafe-blue-soft);
+  padding: 1px 6px; border-radius: var(--radius-chip); height: fit-content; letter-spacing: 0.02em;
+}
+.ru1-source__tag--p2 { color: var(--accent); background: var(--accent-soft); }
+.ru1-source__tag--p3 { color: var(--ok); background: var(--ok-soft); }
+
+/* ============================================================
+   Phase 6.1C-1 — PU4 ProfileAchievements Hero (pf-achv- prefix)
+   /profile/achievements 전용. v2.24 시안 pm-hero 톤 박제.
+   - pf-achv- 네임스페이스 (타 페이지 충돌 0)
+   - 토큰만 사용 + Hero 다크 그라디언트는 시안 pm-hero 와 동일 리터럴
+     (ru1-leader Hero 답습 — 다크 밴드 한정 rgba/hex 허용)
+   - 라운딩 운영 컨벤션(4/8/10px) · 720px 모바일 분기
+   ============================================================ */
+.pf-achv-hero {
+  position: relative; overflow: hidden;
+  background: linear-gradient(135deg, #1A1E27 0%, #233056 55%, #1B3C87 100%);
+  color: #fff;
+  border-radius: 10px;
+  padding: 24px 28px;
+  margin-bottom: 18px;
+}
+/* 우상단 BDR Red glow (시안 pm-hero::after) */
+.pf-achv-hero::after {
+  content: ''; position: absolute; top: -60px; right: -30px;
+  width: 240px; height: 240px;
+  background: radial-gradient(circle, rgba(227,27,35,.22), transparent 68%);
+  pointer-events: none;
+}
+.pf-achv-hero__row { display: flex; align-items: flex-start; gap: 18px; position: relative; z-index: 1; }
+/* 골드 원형 military_tech 아이콘 (시안 pm-hero__av gold) */
+.pf-achv-hero__av {
+  width: 72px; height: 72px; border-radius: 50%; flex-shrink: 0;
+  background: #B47A11; color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  border: 3px solid rgba(255,255,255,.18);
+}
+.pf-achv-hero__av .material-symbols-outlined { font-size: 36px; }
+.pf-achv-hero__body { flex: 1; min-width: 0; }
+.pf-achv-hero__namerow { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.pf-achv-hero__eyebrow {
+  font-family: var(--ff-mono); font-size: 10px; font-weight: 800;
+  letter-spacing: 0.12em; color: rgba(255,255,255,.6); text-transform: uppercase;
+}
+/* 획득/전체 카운트 칩 (시안 pm-lvl__n) */
+.pf-achv-hero__count {
+  font-family: var(--ff-mono); font-size: 11px; font-weight: 800;
+  background: rgba(255,255,255,.16); color: #fff;
+  padding: 3px 8px; border-radius: 4px; letter-spacing: 0.04em;
+}
+.pf-achv-hero__name {
+  font-family: var(--ff-display); font-size: 28px; font-weight: 900;
+  letter-spacing: -0.02em; margin: 4px 0 0;
+}
+.pf-achv-hero__meta {
+  display: flex; gap: 16px; flex-wrap: wrap; margin-top: 12px;
+  font-size: 12.5px; color: rgba(255,255,255,.82);
+}
+.pf-achv-hero__meta > span { display: inline-flex; align-items: center; gap: 5px; }
+.pf-achv-hero__meta .material-symbols-outlined { font-size: 15px; opacity: .85; }
+.pf-achv-hero__bio {
+  margin: 12px 0 0; font-size: 13px; color: rgba(255,255,255,.78);
+  line-height: 1.6; max-width: 620px;
+}
+
+@media (max-width: 720px) {
+  .pf-achv-hero { padding: 20px 18px; }
+  .pf-achv-hero__av { width: 58px; height: 58px; }
+  .pf-achv-hero__av .material-symbols-outlined { font-size: 30px; }
+  .pf-achv-hero__name { font-size: 23px; }
+}
+
+/* ============================================================
+   PU3 · ProfileBasketball (내 농구) — 농구 캐릭터 / 시즌 stat / 선호 chip / 입상
+   Phase 6.1C-4 · BP2 cross-domain 실데이터 박제 · prefix pu3-
+   토큰만 사용 (var(--color-*)) · 라운딩 4/8px · 720px 분기
+   ============================================================ */
+.pu3-card { padding: 18px 20px; }
+.pu3-card__head {
+  display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px;
+}
+.pu3-card__h {
+  display: inline-flex; align-items: center; gap: 7px;
+  font-size: 15px; font-weight: 800; color: var(--color-text-primary);
+  margin: 0;
+}
+.pu3-card__h .material-symbols-outlined { font-size: 19px; color: var(--color-primary); }
+.pu3-card__more {
+  display: inline-flex; align-items: center; gap: 2px;
+  font-size: 12px; font-weight: 700; color: var(--color-text-muted);
+  text-decoration: none; transition: color .15s;
+}
+.pu3-card__more:hover { color: var(--color-primary); }
+.pu3-card__more .material-symbols-outlined { font-size: 16px; }
+
+/* PU3-A 농구 캐릭터 */
+.pu3-char {
+  display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 16px;
+}
+.pu3-char__item {
+  display: flex; flex-direction: column; gap: 4px;
+  padding: 10px 14px; border: 1px solid var(--color-border);
+  border-radius: 8px; background: var(--color-surface); min-width: 92px;
+}
+.pu3-char__lbl {
+  font-size: 11px; font-weight: 700; color: var(--color-text-muted);
+  letter-spacing: .03em;
+}
+.pu3-char__v { font-size: 14px; font-weight: 800; color: var(--color-text-primary); }
+.pu3-skill {
+  display: inline-flex; align-items: center; align-self: flex-start;
+  font-size: 12.5px; font-weight: 800; color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary) 12%, transparent);
+  padding: 3px 9px; border-radius: 4px;
+}
+.pu3-sec-title {
+  font-size: 11px; font-weight: 700; color: var(--color-text-muted);
+  letter-spacing: .06em; text-transform: uppercase; margin-bottom: 8px;
+}
+.pu3-strengths { display: flex; flex-wrap: wrap; gap: 7px; }
+.pu3-strength {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 12.5px; font-weight: 700; color: var(--color-text-secondary);
+  background: var(--color-surface); border: 1px solid var(--color-border);
+  padding: 5px 10px; border-radius: 4px;
+}
+.pu3-strength .material-symbols-outlined { font-size: 14px; color: var(--color-primary); }
+
+/* PU3-B 시즌 stat 5종 grid */
+.pu3-stats {
+  display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px;
+}
+.pu3-stat {
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  padding: 14px 8px; border: 1px solid var(--color-border);
+  border-radius: 8px; background: var(--color-surface); text-align: center;
+}
+.pu3-stat__ico { font-size: 22px; color: var(--color-text-muted); margin-bottom: 2px; }
+.pu3-stat__v {
+  font-family: var(--ff-display, inherit); font-size: 20px; font-weight: 900;
+  color: var(--color-text-primary); line-height: 1.1;
+}
+.pu3-stat__l { font-size: 11.5px; font-weight: 700; color: var(--color-text-secondary); }
+.pu3-stat__sub { font-size: 10.5px; font-weight: 600; color: var(--color-text-muted); }
+.pu3-stat--gold .pu3-stat__ico { color: var(--color-tier-gold, #C9A227); }
+.pu3-stat--red .pu3-stat__ico { color: var(--color-primary); }
+.pu3-stat--blue .pu3-stat__ico { color: var(--color-info, #0079B9); }
+.pu3-cross-note {
+  display: flex; align-items: flex-start; gap: 7px; margin-top: 12px;
+  padding: 10px 12px; border-radius: 8px;
+  background: var(--color-surface); border: 1px solid var(--color-border);
+  font-size: 12px; color: var(--color-text-muted); line-height: 1.5;
+}
+.pu3-cross-note .material-symbols-outlined { font-size: 16px; color: var(--color-info, #0079B9); flex-shrink: 0; }
+.pu3-cross-note strong { color: var(--color-text-secondary); font-weight: 800; }
+
+/* PU3-C 선호 정보 chip (읽기 전용) */
+.pu3-pref { display: flex; flex-direction: column; gap: 14px; }
+.pu3-pref__head { display: flex; align-items: center; gap: 6px; margin-bottom: 7px; }
+.pu3-pref__head .material-symbols-outlined { font-size: 16px; color: var(--color-text-muted); }
+.pu3-pref__lbl { font-size: 12.5px; font-weight: 800; color: var(--color-text-primary); }
+.pu3-pref__count {
+  font-size: 10.5px; font-weight: 800; color: var(--color-text-muted);
+  background: var(--color-surface); border: 1px solid var(--color-border);
+  border-radius: 4px; padding: 1px 6px; margin-left: 2px;
+}
+.pu3-pref__chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.pu3-chip {
+  font-size: 12px; font-weight: 700; color: var(--color-text-secondary);
+  background: var(--color-surface); border: 1px solid var(--color-border);
+  padding: 4px 10px; border-radius: 4px;
+}
+
+/* PU3-D 입상 이력 */
+.pu3-champ {
+  display: flex; align-items: center; gap: 11px;
+  padding: 11px 0; border-bottom: 1px solid var(--color-border);
+}
+.pu3-champ:last-child { border-bottom: none; }
+.pu3-champ__medal { font-size: 22px; line-height: 1; flex-shrink: 0; }
+.pu3-champ__body { flex: 1; min-width: 0; }
+.pu3-champ__tn {
+  font-size: 13.5px; font-weight: 800; color: var(--color-text-primary);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.pu3-champ__meta { font-size: 11.5px; font-weight: 600; color: var(--color-text-muted); margin-top: 2px; }
+.pu3-champ__place {
+  font-size: 11px; font-weight: 800; color: var(--color-tier-gold, #C9A227);
+  background: color-mix(in srgb, var(--color-tier-gold, #C9A227) 14%, transparent);
+  padding: 3px 9px; border-radius: 4px; flex-shrink: 0;
+}
+
+@media (max-width: 720px) {
+  .pu3-card { padding: 16px; }
+  .pu3-stats { grid-template-columns: repeat(2, 1fr); }
+  .pu3-char__item { min-width: 0; flex: 1 1 calc(50% - 5px); }
+}
+
+/* ============================================================
+   6.1C-5(PA1) AdminUsers Hero stat strip — /admin/users
+   시안 source: Dev/design/BDR-current/screens/AdminUsers.jsx (oa1-hero__stats)
+   운영 토큰만 사용 / 라운딩 8px / 720px 모바일 분기 / 4-stat (전체·활성·정지·관리자)
+   data-tone: ok=활성(success) / err=정지(error) / warn=관리자(warning)
+   ============================================================ */
+.pa1-hero-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.pa1-hero-stat {
+  border: 1px solid var(--color-border);
+  background: var(--color-card);
+  border-radius: 8px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.pa1-hero-stat__num {
+  font-family: var(--font-space-grotesk, inherit);
+  font-size: 22px;
+  font-weight: 800;
+  line-height: 1.1;
+  color: var(--color-text-primary);
+  font-variant-numeric: tabular-nums;
+}
+.pa1-hero-stat__num[data-tone="ok"] { color: var(--color-success); }
+.pa1-hero-stat__num[data-tone="err"] { color: var(--color-error); }
+.pa1-hero-stat__num[data-tone="warn"] { color: var(--color-warning); }
+.pa1-hero-stat__lbl {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+@media (max-width: 720px) {
+  .pa1-hero-stats { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+  .pa1-hero-stat { padding: 10px 12px; }
+  .pa1-hero-stat__num { font-size: 19px; }
+}
