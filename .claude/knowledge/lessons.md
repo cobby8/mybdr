@@ -885,3 +885,9 @@
 - **발견자**: pm (Phase 1B/1A sync)
 - **내용**: PowerShell 5.1이 BOM 없는 `.ps1`을 cp949로 읽어 한글 깨짐 → 파싱 에러. 1차 우회 = `Get-Content -Encoding utf8`로 임시 BOM 파일 생성 실행. 영구 해결 = 원본을 `[System.Text.UTF8Encoding]::new($true)` BOM 재저장 + commit (`5609c61`). pwsh(PS7)은 UTF-8 기본이라 불필요. 이후 sync(v2.20) BOM 우회 0.
 - **참조횟수**: 0
+
+### [2026-05-31] 경기일 명단 Flutter 진행 검수 표준 + ttp 계정 정합성 3패턴
+- **분류**: lesson
+- **발견자**: pm
+- **내용**: 경기 당일 PDF 출전 명단을 받아 "Flutter 기록앱 진행 가능?" 판단하는 표준 절차 + 발견된 ttp 계정 정합성 3패턴. **진행 가능 6조건**: ①대회 status·apiToken 존재(Flutter connect) ②오늘 매치(TournamentMatch scheduledAt) 생성+home/away 배정 ③settings.recording_mode=flutter(paper 아님) ④팀 TournamentTeam 등록(status=pending이어도 기록됨 — 과거 completed로 입증) ⑤TTP 명단 PDF 대조(등번호·이름) ⑥등번호 팀내 유니크. **검수법**: PDF 명단을 코드 hash로 박제→DB ttp와 diff(누락/이름불일치/추가/계정상태). **ttp 계정 3패턴**: (A)**merged 잔재 연결** — ttp.userId가 status=merged 죽은계정 가리킴→실팀원 kakao active 계정으로 재연결(ttp.userId UPDATE, tournamentTeamId+userId UNIQUE 충돌 사전확인). 오늘 stat이 통산 누락 방지. (B)**placeholder** — 미가입 선수 정상(실가입 시 mergeTempMember 자동승계). (C)**동일선수 등번호 중복 ttp** — 같은선수 6/7번 2 row, 한쪽 userId=null. 등번호 변경 이력+빈stat 혼선. 정리=실기록 보유 ttp의 stat/PBP를 정식 ttp로 이전(ttpId UPDATE)+빈 중복 stat DELETE+잉여 ttp 비활성화. **MatchPlayerStat @@unique(matchId,ttpId)** 때문에 충돌 매치는 빈쪽 DELETE→실기록 UPDATE 순서 필수. PBP는 tournament_team_player_id UPDATE(local_id 불변). **점수 안전**: 이전/삭제 대상이 0점·빈 데이터면 home/away score·박스스코어 영향 0(같은 팀내 ttpId 이동). made PBP(points_scored>0) 있으면 점수영향 → 사전 차단 가드. 보조참조(assist/rebound/block/steal/fouled/sub player_id)도 0건 확인. 실사례: 셋업 0·7번 재연결 + 몽키즈 윤주노 6→7 이전(m113 실stat+PBP4 이전·빈stat 2 DELETE·6번 비활성화).
+- **참조횟수**: 0
