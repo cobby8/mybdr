@@ -11,7 +11,7 @@
 |----|------|------|
 | 6.1C-1 | PU4 Achievements → /profile/achievements | ✅ 박제(tsc0) — 커밋 대기 |
 | 6.1C-2 | PU1 ProfileMain → /profile (보강) | ⏳ |
-| 6.1C-3 | PU2 ProfileEdit → /profile/edit (보강) | ⏳ |
+| 6.1C-3 | PU2 ProfileEdit → /profile/edit (보강) | ✅ 박제(tsc0) — 커밋 대기 |
 | 6.1C-4 | PU3 ProfileBasketball → /profile/basketball | ⏳ |
 | 6.1C-5 | PA1 AdminUsers → /admin/users | ⏳ |
 | 6.1C-6 | PU5 UserPublicProfile → /users/[id] | ⏳ |
@@ -111,9 +111,39 @@
 - 다크모드 카운트 칸 각진 처리(border-radius 0 + border 2px)는 운영 `.mypage__hero`·`.mypage__avatar` 패턴 답습
 - stop condition: 없음
 
+### 6.1C-3 · PU2 ProfileEdit → /profile/edit (보강 +84 LOC)
+
+📝 구현: 운영 거대 편집 페이지(1689 line) **데이터 패칭/PATCH/state/서버액션 0 변경**. 시안 PU2 정합 위해 (1) §4 공개설정 **오안내 정정**, (2) §4.5 결제·정산 **실 link out** 신규, (3) save bar 동기화 안내 보강 — **문구 + link out + 안내**만.
+
+| 파일 | 변경 | 신규/수정 |
+|------|------|----------|
+| `src/app/(web)/profile/edit/page.tsx` | ①§4 priv-note "곧 제공/시각 박제" 오안내 → 실저장 정확 문구(privacy_settings가 PATCH로 실제 저장됨) ②파일헤더+PRIVACY_ROWS+§4 주석 "백엔드 미구현"→"실저장" 정정 ③§4.5 결제·정산 섹션 신규 — `/profile/billing` 실 Link out(mock 0, "준비 중" ❌) ④sticky save bar 기본 안내 → "마이페이지·공개 프로필에 바로 반영" 동기화 보강 | 수정 |
+| `src/app/(web)/profile/edit/edit-profile.css` | `pu2-billing-` prefix +46 line (link out 카드 — 운영 토큰 --border/--bg-alt/--bg-elev/--accent/--ink/--ink-mute, 라운딩 4px, hover, 720px 분기) | 수정 |
+
+정합 결과:
+- **데이터 0 변경**: GET/PATCH /api/web/profile·privacy state(7×3)·PRIVACY_ROWS/OPTIONS·setPrivacy·handleSave payload·환불계좌·탈퇴모달 전부 미수정. diff 매칭된 fetch/PATCH/privacy_settings 라인 = **전부 주석/안내 텍스트뿐** (로직 0)
+- **오안내 정정 핵심**: 운영 코드가 실제로 `payload.privacy_settings = privacy`(line 531)로 PATCH 저장 + GET 초기화(line 291)함에도 주석·priv-note만 "미구현/곧 제공/시각 박제"로 잘못 적혀 있던 것 → 실저장 정확 문구로 교체
+- **운영 3옵션 chip 유지**: 전체/친구/비공개 chip·로직 무변경 (시안 on-off 토글로 교체 ❌ — 저장 schema 상이)
+- **BP4 실 link out**: `/profile/billing`(구독+결제내역 탭 허브 — 이미 운영 중)으로 실제 연결. "준비 중/Phase 6.2" ❌ (실 페이지 존재 확인)
+- 미리보기 링크: form state에 public_id 부재 → 본인 식별자 URL 무리하게 끌어오면 데이터 패칭 변경 위험 → 텍스트 안내만 ("공개 프로필에 반영")
+- prefix 충돌 0: `pu2-billing` page.tsx·css 2곳만 / 타 페이지 0 / `--accent`(운영 토큰, `--primary` 미존재 확인 후 치환)
+- tsc --noEmit EXIT 0
+
+💡 tester 참고:
+- 테스트: `/profile/edit` 로그인 후 진입 → §4 공개 설정 / §4-2 결제·정산 / 하단 save bar 확인
+- 정상: §4 priv-note = "저장 시 즉시 적용되어 공개 프로필에 반영" (구 "곧 제공" 사라짐) / §4-2 결제 카드 클릭 → `/profile/billing` 이동 / save bar 기본 문구 = "저장하면 마이페이지·공개 프로필에 바로 반영됩니다."
+- 실저장 확인: 공개 chip 변경 → 저장 → reload 후 chip 상태 유지되면 정상(PATCH 저장됨)
+- 주의: 결제 카드 hover 시 테두리 빨강(--accent) / 모바일(≤720px) 카드 세로 스택 / 저장 시 1.5초 후 reload(기존 동작 유지)
+
+⚠️ reviewer 참고:
+- 특별 확인: handleSave payload(line 531 privacy_settings)·PATCH·setPrivacy·PRIVACY_ROWS diff 0 — 문구/주석/link out/CSS만 변경
+- "곧 제공" 오안내가 실제로 오기였음 (코드는 실저장 중) — 정정이 정합 맞춤
+- stop condition: 없음
+
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
 |------|------|------|
+| 2026-05-31 | **Phase 6.1C-3** PU2 ProfileEdit 보강 (BP4) | ✅ priv 오안내 정정+결제 link out(`/profile/billing`)+save bar 동기화 / page.tsx+edit-profile.css(`pu2-billing-`) +84 / tsc0 / 데이터0변경 / 커밋 대기 |
 | 2026-05-31 | **Phase 6.1C-1** PU4 Achievements Hero 박제 | ✅ achievements-content.tsx Hero(`pf-achv-`)+globals.css +66 / tsc0 / 데이터0변경 / 커밋 대기 |
 | 2026-05-31 | **Phase 5 chain 완료** (sync v2.23 + 5C 6 PR) | ✅ `7e2d0f1`·`68fc5c3`·`c058f6e`·`70c6c6c`·`a2e01e0`·`3e3423f`·`7ff69b6` push / PR #656 / ledger Phase5 ⑩⑪⑫ ✅ / stop 0 |
 | 2026-05-30 | Phase 1~4 종료 마킹 + git 동기화 + Phase 5 대기 | ✅ dev→subin(`0c61175`) / ledger 2/3/4 ⑬⑭ ✅ |

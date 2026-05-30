@@ -14,9 +14,10 @@
  *  - §1 기본 정보: 닉네임 + 중복확인 + 실명 + 지역 + 등번호 + 시작연도 + 생년월일 + 자기소개+AI
  *  - §2 플레이 정보: 포지션 5칩 (시안은 단일, 운영은 multi — 운영 multi 보존) + 신장체중 + 사용손 + 실력수준 + 강점
  *  - §3 연락 정보: 이메일 + 휴대폰 + 인스타 + 유튜브 + 소셜 연동 표시
- *  - §4 공개 설정: 7항목 × 3옵션 chip (시안 placeholder — 백엔드 미구현 안내)
+ *  - §4 공개 설정: 7항목 × 3옵션 chip (전체/친구/비공개) — privacy_settings PATCH 실저장
+ *  - §4.5 결제·정산 (Phase 6.1C-3 BP4): /profile/billing 실 link out (구독·결제 허브)
  *  - §5 추가 설정 (NEW): 환불 계좌 (BANKS) + Danger Zone 회원 탈퇴
- *  - Sticky save bar 하단 (시안 박제)
+ *  - Sticky save bar 하단 (시안 박제) — 저장 시 PU1/공개 프로필 동기화 안내
  *
  * 보존 (변경 금지):
  *  - GET /api/web/profile (초기 로드)
@@ -140,7 +141,9 @@ const SOCIAL_PROVIDERS: Record<string, { label: string; icon: string; color: str
   naver: { label: "네이버", icon: "language", color: "#03C75A" },
 };
 
-// 시안 §4 공개 설정 7항목 × 3옵션 (UI placeholder — 백엔드 미구현)
+// 시안 §4 공개 설정 7항목 × 3옵션 (전체/친구/비공개) — 실저장
+//   handleSave payload.privacy_settings (line 531) 로 PATCH 실제 저장됨.
+//   (구 주석 "백엔드 미구현"은 오기 — privacy_settings는 GET 초기화 + PATCH 저장 모두 연동됨)
 const PRIVACY_ROWS = [
   { id: "profile", l: "프로필 전체", d: "나의 프로필 페이지 자체" },
   { id: "realName", l: "실명", d: "본명 노출 여부" },
@@ -1370,13 +1373,15 @@ export default function ProfileEditPage() {
       </section>
 
       {/* ============================================================
-          §4 공개 설정 — 7항목 × 3옵션 (시안 박제 — UI placeholder, 백엔드 미구현)
+          §4 공개 설정 — 7항목 × 3옵션 (전체/친구/비공개) — privacy_settings 실저장
+            저장 시 handleSave payload.privacy_settings 로 PATCH 반영 → 공개 프로필(PU5)에 적용.
           ============================================================ */}
       <section id="sec-privacy" className="edit-profile__sec">
         <header className="edit-profile__sec-head">
           <h3>④ 공개 설정</h3>
           <p>
             항목별 노출 범위. <strong>전체 공개 / 친구 공개 / 비공개</strong> 3단계.
+            <br />저장하면 공개 프로필에 바로 적용됩니다.
           </p>
         </header>
         <div className="edit-profile__priv">
@@ -1401,9 +1406,33 @@ export default function ProfileEditPage() {
             </div>
           ))}
         </div>
+        {/* 오안내 정정 (6.1C-3): 실제로 privacy_settings 가 PATCH 저장되므로
+            "곧 제공" 문구 제거 → 실저장 안내로 교체. mock 0 */}
         <div className="edit-profile__priv-note">
-          ⓘ 세부 공개 범위 저장은 곧 제공됩니다. (현재는 시각 박제)
+          ⓘ 선택한 공개 범위는 <strong>저장</strong> 시 즉시 적용되어 다른 사용자가
+          보는 공개 프로필에 반영됩니다.
         </div>
+      </section>
+
+      {/* ============================================================
+          §4.5 결제·정산 (6.1C-3 BP4) — 시안 PU2 §5 박제
+            "준비 중" ❌ — /profile/billing(구독+결제 내역 허브)이 이미 운영 중이므로
+            실 link out 으로 박제. mock 0.
+          ============================================================ */}
+      <section id="sec-billing" className="edit-profile__sec">
+        <header className="edit-profile__sec-head">
+          <h3>④-2 결제 · 정산</h3>
+          <p>구독·결제 내역·환불 정산은 별도 결제 허브에서 관리합니다.</p>
+        </header>
+        <Link href="/profile/billing" className="pu2-billing-link">
+          <span className="pu2-billing-info">
+            <span className="pu2-billing-label">결제 관리</span>
+            <span className="pu2-billing-desc">
+              구독 상태 · 결제 내역 확인 및 관리
+            </span>
+          </span>
+          <span className="pu2-billing-go">결제 허브로 이동 →</span>
+        </Link>
       </section>
 
       {/* ============================================================
@@ -1538,7 +1567,10 @@ export default function ProfileEditPage() {
           role={error ? "alert" : undefined}
           aria-live={error || successMsg ? "polite" : undefined}
         >
-          {error || successMsg || "변경사항이 있으면 저장을 눌러주세요."}
+          {/* 6.1C-3: 기본 안내에 PU1/공개 프로필 동기화 명확화 (save bar 동기화 안내 보강) */}
+          {error ||
+            successMsg ||
+            "저장하면 마이페이지·공개 프로필에 바로 반영됩니다."}
         </div>
         <div className="edit-profile__actions">
           {saved && <span className="edit-profile__saved">✓ 저장됨</span>}
