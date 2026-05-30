@@ -212,6 +212,38 @@
 - refund API IDOR: 본인 결제만(route.ts) — 본 페이지는 본인 결제 목록이므로 제약 없음(6.2C-5 admin 과 달리 정상)
 - 환불 모달을 refundModal 변수로 추출 → 결제 내역/환불 뷰 둘 다 마운트(트리거는 환불 탭만). 중복 렌더 0(view 분기 return)
 
+### 6.2C-7 — BU2 PricingCheckout → /pricing/checkout (BB5 토스, 결제창 팝업 방식)
+
+📝 구현한 기능: 시안 BU2 박제 — 3 step indicator(플랜 선택→결제 정보[현재]→결제 완료) + 플랜 요약(실데이터 toLocaleString) + 결제자 정보 readOnly(person 헤더) + **결제 수단 칩 3종 + 토스 결제창 안내 박스** + 약관 4종+전체동의. 토스 위젯 흐름(SDK 로드/requestPayment/confirm/me·plan fetch/handlePay/disabled) 0 변경.
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| src/app/(web)/pricing/checkout/page.tsx | 본문 시각만 BU2 톤 교체: 3 step indicator(인라인) / bl-summary 톤 플랜요약 / 결제자 정보 person 아이콘 헤더 / 결제수단 카드 신규(칩 3종+lock 안내 박스, mock 스켈레톤 미재현) / 약관 카드 시안 톤(전체동의+필수·선택 뱃지+보기 링크). PM_METHODS/method state(시각용)/allChecked/toggleAllTerms 추가 | 수정 (+305/-57, 순 +248) |
+
+🔒 토스 위젯 흐름 보존 검증 (PM 필수):
+- SDK 로드 useEffect (js.tosspayments.com/v2/standard) — **0 변경**
+- `toss.requestPayment({ method:"CARD", amount, orderId, orderName, successUrl(.../confirm?planId), failUrl(/pricing/fail), customerEmail, customerName })` — **한 글자도 미변경**
+- confirm route / fail URL / plan fetch(`/api/web/plans/{id}`) / me fetch(2회: readOnly + handlePay) / handlePay 401 redirect / disabled(allRequiredAgreed) — **전부 0 변경**
+- 결제수단 칩 selection state(method) = **시각 표시용 only** → requestPayment 인자 불변(항상 CARD 고정)
+
+⚠️ stop condition 여부: **없음**
+- 토스 mock 여부: **없음** (가짜 카드입력 스켈레톤 bl-pm-skel 미재현 → "결제창 안내 박스 + 결제수단 칩"으로 박제. 실 카드입력은 토스 결제창 팝업 담당)
+- /api/v1·DB schema 변경 0 / LOC +248(<+2000) / tsc 0 / 회귀 0(결제 흐름 불변) / 13룰 위반 0
+- bu2-/bb- prefix 신설 **0** / bl-* import **0** (전부 인라인 + var(--*) 토큰 / 운영 기존 `card`·Material Symbols 만 사용)
+- accent 배경 위 텍스트 = `#fff` (운영 .btn--accent 컨벤션 동일 / 하드코딩 신규 색상 아님)
+
+💡 tester 참고:
+- 테스트: /pricing/checkout?planId={id} → step 2단계(결제 정보) 강조 / 플랜 요약(실 가격) / 결제자 readOnly(me) / 결제수단 칩(카드 기본 선택, 클릭 토글) / lock 안내 박스 / 약관 5줄(전체동의+4종)
+- 전체동의 클릭 → 4종 일괄 on/off. 필수 3종 미체크 시 "필수 약관 3건 동의 시 결제 가능" + 버튼 disabled
+- 필수 3종 체크 → "결제하기" 활성 → 클릭 시 토스 결제창 팝업(요금제 0원 아닐 때). 결제수단 칩을 가상계좌/간편 선택해도 토스 결제창은 동일(CARD 고정) — 정상
+- 정상: tsc 0 / 결제 완료 → /api/web/payments/confirm?planId 경유 success / 취소·실패 → fail
+- 주의: 비로그인 결제 시도 → handlePay 에서 401 → /login?redirect=... 자동 이동(기존 보존)
+
+⚠️ reviewer 참고:
+- 결제수단 칩 method state 는 UI 시각용 — requestPayment 에 미반영(주석 명시). 토스가 결제창에서 실제 수단 선택 담당. 이중 선택 UX는 의도된 시안 박제(가짜 위젯 회피)
+- step current=1 하드코딩(이 페이지=결제 정보 단계 고정). 동적 step 불필요
+- 약관 "보기" 링크는 상세 미연결(시각 박제) — 시안과 동일. 약관 본문 라우트는 별도 과제
+
 ## 수정 요청
 | 요청자 | 대상 | 문제 | 상태 |
 |--------|------|------|------|
