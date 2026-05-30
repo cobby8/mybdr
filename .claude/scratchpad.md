@@ -182,6 +182,41 @@
 | 회차 | 날짜 | 수정 내용 | 수정 파일 | 사유 |
 |------|------|----------|----------|------|
 
+### 5C-5 — CA1 AdminCommunity → /admin/community 박제 (BC6 · OA1 답습)
+
+📝 구현한 기능: 시안 CA1(Site Operator hub: Hero 4-stat + 상태 탭 + 카테고리 chip + 검수 모달)를 운영 `/admin/community`(AdminCommunityContent)에 박제. **page.tsx 서버쿼리·requireSuperAdmin·hide/unhide/delete 3 서버액션 0 변경**. client UI만 OA1(단체 관리) 패턴으로 재구성. **신규 CSS 0** — 기존 admin 공용 클래스(admin-table/admin-stat-pill/admin-status-tabs/btn) + Tailwind 유틸만 재사용 → ca1- prefix 불필요, 타 페이지 충돌 0.
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| `src/app/(admin)/admin/community/admin-community-content.tsx` | Hero 4-stat grid(전체/핀/신고/삭제됨, posts 배열 실측 집계·추가쿼리0) + 상태 탭(활성/삭제됨 2탭) + 동적 카테고리 chip 필터 분리. 모달 액션: 삭제됨=복구 hide / 활성=기존 숨김·삭제 0변경. STATUS_LABEL/TONE에 deleted 추가. 행 [삭제됨] prefix+dim | 수정 (+142/-44) |
+
+핵심 결정 (Auto Chain lock + PM 정합 반영):
+- **page.tsx 0 변경**: 서버쿼리(take:100·status필터없음)·requireSuperAdmin·hidePostAction/unhidePostAction/deletePostAction 시그니처 전부 보존. Hero 집계는 client에서 전달받은 posts로 (새 쿼리/API 0)
+- **Hero 4-stat 실측**: 전체=posts.length / 핀="—"(community_posts 핀 필드 부재 mock 0) / 신고="—"(신고 Report 모델 운영 부재 A2 lock) / 삭제됨=status "deleted" 집계(실측 1건). OA1 Hero 4분면 grid 톤 매핑 답습
+- **상태 탭**: 시안 활성/핀/신고/삭제됨 4탭 → 핀·신고 hide(데이터/모델 부재) → **활성/삭제됨 2탭**. 활성=status!=deleted / 삭제됨=status=deleted. AdminStatusTabs 재사용
+- **카테고리 chip**: 동적(운영 레거시 taxonomy — 현재 탭에 존재하는 category만). 탭 전환 시 catFilter 초기화. (web) .btn 패턴
+- **deleted 탭=실데이터**: status="deleted" 1건 실존(deletePostAction은 DB delete지만 별경로 deleted status 데이터 존재). **복구 버튼 hide**(복구 서버 액션 부재 mock 0) → "삭제된 게시글입니다 (복구 미지원)" 안내
+- **핀 버튼·알림 체크박스 hide**: 시안 모달 핀/핀해제 버튼·알림 발송 체크박스(Phase 2 UD1) → 핀 필드·알림 발송 로직 부재 → 미박제(mock 0)
+- **hidden status 보존**: 활성 탭에 published+hidden 포함, hidden 글 [숨김] prefix + 모달 숨김/복원 토글 기존 그대로
+- **OA1 답습·AdminDetailModal 재사용**: Hero grid·필터·모달 = organizations admin(OA1) 패턴 동일. AdminDetailModal/ModalInfoSection 0 변경 재사용. 시안 oa1-*/ca1-* CSS 클래스는 미사용(운영 admin 디자인 시스템 우선)
+
+보존(0 변경): page.tsx 전체 / admin-community.ts 3 서버액션 / AdminPageHeader / AdminDetailModal·ModalInfoSection / 모달 게시글 정보·통계·일시 섹션 / CATEGORY_LABEL
+
+💡 tester 참고:
+- 테스트: `/admin/community` super-admin 진입 → Hero 4-stat(전체 N·핀 —·신고 —·삭제됨 N) / 활성·삭제됨 탭 전환 / 카테고리 chip 필터 / 행 클릭 모달 → 활성 글=숨김·삭제 / 삭제됨 글=안내(액션 없음)
+- 정상: 활성 탭=published+hidden / 삭제됨 탭=deleted 글(현재 1건) [삭제됨] prefix / 숨김 글 [숨김]+dim / 숨김↔복원 토글 / 삭제 시 행 제거+revalidate / 카테고리 chip=현재 탭 존재 카테고리만
+- 주의 입력: 비super-admin=서버액션 throw(권한) / deleted 글 모달=복구버튼 없음 / 카테고리 chip 탭 전환 시 all 리셋 / posts 0건=빈 상태
+
+⚠️ reviewer 참고:
+- page.tsx·admin-community.ts diff 0 — 서버쿼리/액션 라인 변경 없음 확인
+- Hero 핀·신고 "—" hide + 복구 버튼 hide + 핀·알림 체크박스 hide가 mock 0 원칙 부합하는지
+- 신규 CSS 0 (기존 admin 공용 클래스 재사용) → prefix 충돌 0 확인
+- 상태 탭(active/deleted) + 카테고리 chip 2단 필터 정합 (탭 전환 시 catFilter 리셋)
+
+#### 수정 이력
+| 회차 | 날짜 | 수정 내용 | 수정 파일 | 사유 |
+|------|------|----------|----------|------|
+
 ## 진행 현황 (Phase 1C — 완료)
 - ✅ Phase 1C 15/16 박제+머지 (PR #650~#653) / PA3 SKIP 보류 (decisions.md) / subin=dev=main 정합
 
@@ -192,6 +227,7 @@
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
 |------|------|------|
+| 2026-05-31 | 5C-5 CA1 AdminCommunity → /admin/community 박제 (BC6·OA1답습) | ✅ admin-community-content UI재구성(page.tsx·3서버액션 0변경)+신규CSS0(admin공용클래스재사용) / tsc0 / Hero4-stat실측·상태탭(활성/삭제됨)·카테고리chip / 핀·신고·복구·알림체크박스 hide·deleted실데이터 / +142/-44 LOC / stop 0 (미커밋) |
 | 2026-05-31 | 5C-4 RU1 Rankings → /rankings 박제 (BC1+BC7) | ✅ rankings-content UI추가(데이터 0변경)+globals.css ru1- append / tsc0 / MVP·코트·매너 hide·팀리더 1위 실데이터·footer 2행 / V2 4컴포넌트 보존 / +118 LOC / stop 0 (미커밋) |
 | 2026-05-31 | 5C-3 CU2 CommunityDetail → /community/[id] 박제 (BC4+BC2) | ✅ page.tsx UI만 교체(데이터 0변경)+globals.css cu2- append / tsc0 / 알기자hero·추천·mock댓글 hide / stop 0 (미커밋) |
 | 2026-05-30 | Phase 1~4 종료 마킹 + git 동기화 + Phase 5 대기 모드 진입 | ✅ dev→subin 동기화(`0c61175` push) / phase-ledger Phase 2/3/4 ⑬⑭ ✅ 종료 / Phase 5 zip(BDR v2 (8)) 도착 대기 |
