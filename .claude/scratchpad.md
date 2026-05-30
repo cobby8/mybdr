@@ -277,6 +277,39 @@
 - warn-soft 3곳 톤: var(--color-warning) color-mix 비율 의도적 차등(배지 14%/텍스트 100%/박스배경 5%·border 36%·아이콘 70%) — placeholder 강도별 시각 위계
 - gu2-/bg- prefix 신설 0 / 신규 CSS·토큰 0 (전부 인라인 + 기존 var(--*) 토큰)
 
+### 6.3C-2 — GU1 ProfileGrowth → /profile/growth (BG1 정합)
+
+📝 구현한 기능: 시안 GU1 정합 보강. PM 승인대로 ① "준비 중" placeholder 배지 4곳 → warn-soft 톤 통일(6.3C-1 weekly-report 동일 패턴) ② PU4 정합 = 마일스톤 이모지 유지(Material Symbols 강제 ❌) ③ SWR 2종·마일스톤 매핑·page 구조 0 변경.
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| src/app/(web)/profile/growth/page.tsx | "준비 중" 배지 4곳 muted-gray(var(--ink-dim)+var(--bg-alt)) → warn-soft(var(--color-warning) 14% bg / 100% color / 32% border + schedule 아이콘) 통일: ① 주간 경기수 ② 평균 평점 ③ 마일스톤 isDummy(커뮤니티/팀멤버추천) ④ 구간별 상세 분석. 헤더 주석 6.3C-2 정합 메모 추가 | 수정 (+49/-8, 순 +41) |
+
+설계 정합 (PM 승인 100% 일치):
+- "준비 중" warn-soft 4곳 통일 ✅ — 6.3C-1 (6.3C-1 ComingSoonBadge) 와 동일 비율(14%/100%/32%) + schedule 아이콘. 하드코딩 색상 0, var(--color-warning) 토큰만
+- PU4 정합 = 마일스톤 이모지(🏀⭐🎯🔥💬🤝) 유지 ✅ — 시안 GU1 MilestoneTile 도 이모지 사용 → BG1 정합(Material Symbols 강제 ❌, 운영 growth 게이미피케이션 이모지 톤 유지)
+- SWR 2종(`/api/web/profile/gamification` + `/api/web/profile/season-stats`) **0 변경** ✅
+- 마일스톤 6종 매핑(누적경기/평점/MVP/연속출석/커뮤니티/팀멤버추천) · isDummy 분기 · 835줄 page 구조 **0 변경** ✅
+- gu1-/bg- prefix 신설 **0** / 신규 CSS·토큰 **0** (전부 인라인 + 기존 var(--*) 토큰)
+
+🔑 사전 검증:
+- `--color-warning` 토큰: 6.3C-1 에서 globals.css L2773/L2801 (라이트/다크 양쪽 `var(--warn)` #E8A33B) 확인 완료 — 재사용
+
+⚠️ stop condition 여부: **없음**
+- /api/v1·DB schema 변경 0 / LOC +41(<+2000) / tsc 0 / 회귀 0(데이터 패칭·구조 불변) / 13룰 위반 0 / gu1-·bg- prefix 충돌 0
+
+💡 tester 참고:
+- 테스트: /profile/growth → "준비 중" 배지 4곳 모두 노랑(warn) 톤 + schedule 시계 아이콘: ① 주간 경기수 카드 ② 평균 평점 카드 ③ 마일스톤 "커뮤니티 활동"·"팀 멤버 추천" 카드 ④ 하단 "구간별 상세 분석" 박스
+- 데이터 회귀 0 확인: HERO 레벨/XP/스트릭, 마일스톤 6종 값(누적경기/평점/MVP/연속출석/커뮤니티/팀멤버추천), 12주 추이 spark/line, "경기 찾기"→/games CTA 모두 기존과 동일
+- 마일스톤 이모지 유지 확인: 🏀⭐🎯🔥💬🤝 (Material Symbols 변환 ❌)
+- 라이트/다크 양쪽 warn 톤 가독성 확인 (--color-warning 양쪽 정의됨)
+- 정상: tsc 0 / SWR 2종 패칭 동일
+
+⚠️ reviewer 참고:
+- BG1 정합 = "마일스톤 6 = PU4 user_badges 정합"이나 운영 마일스톤은 이미 season-stats + gamification 으로 매핑된 초과구현 상태 → 데이터 정합(badge icon/이름) 재배선은 데이터 패칭 0 변경 원칙상 미적용(PM 판단). 이모지 톤 유지 + placeholder 통일만 적용
+- warn-soft 4곳 비율 균일(14%/100%/32%) — 6.3C-1 ComingSoonBadge 와 정확히 동일. 단 6.3C-1 은 공통 컴포넌트(ComingSoonBadge) 추출, 6.3C-2 는 인라인 4곳(운영 growth 가 클래스/컴포넌트 아닌 인라인 스타일 페이지 → 기존 패턴 답습)
+- "구간별 상세 분석" 부모 박스는 기존 opacity 0.65 placeholder 시각 유지(배지만 warn-soft). 6.3C-1 다음주 추천 박스(dashed warn)와 달리 박스 톤 미변경 — PM 승인 범위 = "배지 4곳"
+
 ## 수정 요청
 | 요청자 | 대상 | 문제 | 상태 |
 |--------|------|------|------|
@@ -284,6 +317,7 @@
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
 |------|------|------|
+| 2026-05-31 | **Phase 6.3C-2** GU1 ProfileGrowth BG1 정합 ("준비 중" warn-soft 4곳 통일 + PU4 이모지 유지) | ✅ tsc 0 / +49-8 / SWR 2종·구조 0 변경 / stop 없음 |
 | 2026-05-31 | **Phase 6.3C-1** GU2 WeeklyReport BG2 정합 (placeholder warn-soft 3곳 + 이메일구독 link + "준비 중" 통일) | ✅ tsc 0 / +23-13 / 데이터 패칭 0 변경 / stop 없음 |
 | 2026-05-31 | **Phase 5+6.1 dev→main 운영 반영** (#658) | ✅ main `26586af` Vercel success / ledger ⑬⑭ ✅ 종료 |
 | 2026-05-31 | **Phase 6.1 chain** (v2.24 sync + 6.1C 6 PR #657) | ✅ `29178b9`+`cc78745`~`f29a3ca` / BP1 privacy·BP5 가드·BP2 server조회 / stop 0 |
