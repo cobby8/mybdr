@@ -1,82 +1,84 @@
-# BDR v2.24 — Phase 6.1 (프로필·마이페이지 본체) 박제
+# BDR v2.25 — Phase 6.2 (결제·구독·예약) 박제
 
-> **박제일**: 2026-05-30
-> **선행**: Phase 1A v2.19 + 1B v2.18 + 2 v2.20 + 3 v2.21 + 4 v2.22 + 5 v2.23 carry-over
-> **선행 의뢰**: `profile-user-redesign-prompt-2026-05-30.md` + `profile-admin-redesign-prompt-2026-05-30.md` + `profile-user-admin-connectivity-plan-2026-05-30.md`
-> **분할**: Phase 6.1 (본체 6) ← 본 박제 / 6.2 (결제·구독) + 6.3 (성장 분석) 후속 별 의뢰
+> **박제일**: 2026-05-31
+> **선행**: Phase 1A v2.19 + 1B v2.18 + 2 v2.20 + 3 v2.21 + 4 v2.22 + 5 v2.23 + 6.1 v2.24 carry-over
+> **선행 의뢰**: `billing-user-redesign-prompt` + `billing-admin-redesign-prompt` + `billing-user-admin-connectivity-plan` (2026-05-30)
+> **특수성**: 토스페이먼츠 = **운영 실연결** (route /payments/confirm + /[id]/refund) → mock 0 박제
 
 ---
 
-## 1. Phase 6.1 박제 시안 = 6 (사용자 5 + super-admin 1)
+## 1. Phase 6.2 박제 시안 = 7 (사용자 5 + super-admin 2)
 
-### Phase 6.1B — 사용자 측 (PU1~PU5 · A 등급)
+### Phase 6.2B — 사용자 측 (BU1~BU5 · A 등급)
 
 | ID | 화면 | 라우트 | 분류 | 주 갭 |
 |----|------|--------|------|-------|
-| PU1 | ProfileMain (보강) | `/profile` | 보강 | BP1 + BP6 (카운트 동기화 + 활동 진입) |
-| PU2 | ProfileEdit (보강) | `/profile/edit` | 보강 | BP4 (결제 link out + privacy 토글 + 저장 동기화) |
-| PU3 | ProfileBasketball (신규) | `/profile/basketball` | **신규** | BP2 ★★★★ (농구 캐릭터 + 시즌 stat 5 + 선호 chip 8 + 우승) |
-| PU4 | ProfileAchievements (보강) | `/profile/achievements` | 보강 | BP3 (배지 grid + 우승 자동 + MVP 누적) |
-| PU5 | UserPublicProfile (신규) | `/users/[id]` | **신규** | BP1 ★★★★★ (공개 시야 + privacy 필터 + preview) |
+| BU1 | Pricing | `/pricing` | **신규** | BB1 ★★★★★ (멤버십 플랜 list + 비교) |
+| BU2 | PricingCheckout | `/pricing/checkout` | **신규** | BB5 ★★★★ (토스 위젯 + 3 step + 약관) |
+| BU3 | ProfileBilling | `/profile/billing` | **신규** | BB1+BB2 ★★★★★ (3 sub-tab 구독+이력 hub) |
+| BU4 | ProfileBookings | `/profile/bookings` | 보강 | BB4 ★★★ (예약 4 탭 + 취소·환불 모달) |
+| BU5 | PricingResult | `/pricing/success` + `/fail` | **신규** | BB3 ★★★ (성공/실패 통합) |
 
-### Phase 6.1A — 관리자 측 (PA1 · E 등급 · super-admin)
+### Phase 6.2A — 관리자 측 (BA1+BA2 · E 등급 · super-admin)
 
-| ID | 화면 | 라우트 | 분류 | 측 | 주 갭 |
-|----|------|--------|------|----|-------|
-| PA1 | AdminUsers | `/admin/users` | **신규** | **Site Operator** | BP5 (Hero stat + 4 탭 + 필터 + 모달) |
+| ID | 화면 | 라우트 | 분류 | 주 갭 |
+|----|------|--------|------|-------|
+| BA1 | AdminPayments | `/admin/payments` | **신규** | BB2+BB6 (Hero stat + 4 탭 + 환불 모달) |
+| BA2 | AdminPlans | `/admin/plans` | **신규** | BB1 (플랜 carad grid + 생성·수정 모달) |
 
 ---
 
-## 2. BP 양측·cross-domain 의존 검증 ✅
+## 2. BB 양측·cross-domain 의존 검증 ✅
 
-| BP | 등급 | 의존 | 데이터 |
+| BB | 등급 | 의존 | 데이터 |
 |----|------|------|--------|
-| BP1 | ★★★★★ | PU1 본인 ↔ PU5 공개 | 동일 `USER_ME` · `publicView()` privacy_settings 필터 (이메일/연락처/결제 hide) |
-| BP2 | ★★★★ | PU3 시즌 stat | UserSeasonStat + Phase 2 BG4 (이달 MVP) + Phase 3 BT6 (팀 wins) cross-domain |
-| BP3 | ★★★ | PU4 업적 | user_badges + Phase 1A PA7 (우승 자동) + Phase 2 BG4 (MVP 누적) |
-| BP4 | ★★★★ | PU2 → PU1 동기화 | User.* 편집 / 결제 = 6.2 link out "준비 중" |
-| BP5 | ★★ | PA1 super-admin 검수 | User.status / suspended_at / isAdmin (본인 자기 정지 가드) |
-| BP6 | ★★★ | PU1 → UC1 진입 | 카운트(대회/경기/팀/단체/평점) = UC1 활동 동일 source |
+| BB1 | ★★★★★ | BU1 list ↔ BU3 구독 ↔ BA2 플랜 | 동일 `PLANS` (가격/혜택/구독자 수) |
+| BB2 | ★★★★ | BU3 이력 ↔ BA1 결제 list | 동일 `payments` (status 4종 · 토스 키) |
+| BB3 | ★★★ | BU5 결과 (단독) | 토스 confirm/fail 리다이렉트 |
+| BB4 | ★★★ | BU4 예약 | `court_bookings` + Phase 7 cross-domain |
+| BB5 | ★★★★ | BU2 토스 위젯 | 운영 confirm API (requestPayment 인자 보존) |
+| BB6 | ★★ | BA1 환불 | refund API + Phase 2 UD1 알림 |
+| BB7 | ★★ | Phase 6.1 PU2 → BU3 link out | carry-over (link 활성) |
 
 ---
 
 ## 3. carry-over (변경 ❌)
 
-### 파일 — v2.23 그대로
-- `tokens.css` / `shell.css` / `shared.jsx` / `game-shared.jsx` / `team-shared.jsx` / `team-shared.css` / `org-shared.jsx` / `org-shared.css` / `comm-shared.jsx` / `comm-shared.css` / `admin.css`
-- Phase 1~5 = 41 wrapper + 39 jsx + _baseline 모두 carry-over (운영 코드 변경 0)
+### 파일 — v2.24 그대로
+- `tokens.css` / `shell.css` / `shared.jsx` (AppNav frozen + AdminShell) / `game-shared.*` / `team-shared.*` (OperatorBadge) / `org-shared.*` (oa1-*) / `comm-shared.*` (ca1-tabs) / `profile-shared.*` (USER_ME / PageBack) / `admin.css`
+- Phase 1~6.1 = 47 wrapper + 45 jsx + _baseline 모두 carry-over (운영 코드 변경 0)
 
 ### 신규 추가
-- `profile-shared.jsx` — Phase 6.1 mock (USER_ME / SEASON_STAT / CAREER_STAT / PREFERRED 8 / ME_CHAMPIONS / BADGE_CATALOG / ME_RECENT_* / ADMIN_USERS) + mini components (LevelBadge / SkillChip / StatCard / BadgeTile / UserStatusBadge / PageBack / `publicView()`)
-- `profile-shared.css` — Phase 6.1 전용 (.pm-* / .pm-hero / .pm-counts / .pm-stat / .pm-badge / .pm-chip / .pm-priv / .pm-utable / .pm-ubadge)
-- `screens/Profile.jsx` (PU1) / `ProfileEdit.jsx` (PU2) / `ProfileBasketball.jsx` (PU3) / `ProfileAchievements.jsx` (PU4) / `UserPublicProfile.jsx` (PU5) / `AdminUsers.jsx` (PA1)
-- 6 wrapper HTML (pu1~pu5 / pa1)
+- `billing-shared.jsx` — Phase 6.2 mock (PLANS / MY_SUBSCRIPTION / MY_PAYMENTS / MY_BOOKINGS / ADMIN_PAYMENTS + 단일 source) + mini components (won / PayStatusBadge / PriceTag / StepIndicator / PlanCard / PageBackBilling) + helpers (payDate / dateK / PAY_STATUS / BOOKING_STATUS)
+- `billing-shared.css` — Phase 6.2 전용 (.bl-* : pstat / price / steps / plan / compare / widget / terms / subtabs / sub / pay-row / booking / result / ptable / pcard / modal)
+- `screens/Pricing.jsx` (BU1) / `PricingCheckout.jsx` (BU2) / `ProfileBilling.jsx` (BU3) / `ProfileBookings.jsx` (BU4) / `PricingResult.jsx` (BU5) / `AdminPayments.jsx` (BA1) / `AdminPlans.jsx` (BA2)
+- 7 wrapper HTML (bu1~bu5 / ba1~ba2)
 
 ---
 
-## 4. 자체 검수 — 4 frozen + 8 self + Phase 6 특수 4 통과 ✅
+## 4. 자체 검수 — 4 frozen + 8 self + Phase 6.2 특수 4 통과 ✅
 
 ### AppNav frozen 4 (사용자 시안 — shared.jsx 03 카피)
 - ✅ main bar 우측 "더보기 ▼" / 아바타 = 0 (shared.jsx AppNav frozen 카피)
-- ✅ 모바일(≤768px) 듀얼 라벨 = 0 (ThemeSwitch viewport 분기 — shell.css)
+- ✅ 모바일(≤768px) 듀얼 라벨 = 0 (ThemeSwitch viewport 분기)
 - ✅ 검색/쪽지/알림 box (.btn) = 0 — `app-nav__icon-btn` 만
-- ✅ main bar 아이콘 = [검색, 쪽지, 알림, 다크, 햄버거] 순서 보존
+- ✅ main bar 아이콘 = [검색, 쪽지, 알림, 다크, 햄버거] 순서 보존 · 사용자 시안 active="more"
 
 ### 13 룰 8
-- ✅ 하드코딩 색상 = 0 — `var(--*)` 토큰만 (예외: 팀 `color` mock data column · gold `#F4C76C`·`#B47A11` = 기존 시안 trophy 토큰 답습)
+- ✅ 하드코딩 색상 = 0 — `var(--*)` 토큰만 (예외: 토스 brand `#0064FF`/`#0064FF` = 토스페이먼츠 공식 브랜드 식별색 — 위젯 시각 박제 한정)
 - ✅ lucide-react = 0 — Material Symbols Outlined 만
-- ✅ 9999px = 0 — 정사각형 50% (avatar/dot/toggle) 만
+- ✅ 9999px = 0 — 정사각형 50% (avatar/icon/toggle) 만
 - ✅ 가짜링크 (gameResult / gameReport / guestApps / referee) = 0
 - ✅ button 4px / 카드 6~8px
 - ✅ placeholder 5단어 이내 / "예: " 시작 0
-- ✅ 720px 분기 / iOS input 16px / 버튼 44px (.pm-input 16px · .pm-hbtn 44px)
+- ✅ 720px 분기 / iOS input 16px (.pm-input) / 버튼 44px (.bl-plan__cta · .bl-paybtn)
 - ✅ Pretendard + Archivo + JetBrains Mono 만
 
-### Phase 6 특수 4
-- ✅ **BP1 본인/공개 분기** — PU1 == PU5 동일 `USER_ME` 데이터, `publicView()` 1곳 필터로 시각 분리 (비공개 필드 hide 일관)
-- ✅ **PU3 5 stat + 8 chip 모바일 responsive** — .pm-stats / .pm-pref 720 + .vp--mobile 분기 (2열)
-- ✅ **PU2 거대 carry-over** — 5섹션 단일 스크롤 유지 · 시각 작은 변경만 (결제 link out / privacy 토글 / 저장 안내)
-- ✅ **PA1 Site Operator + 자기 정지 가드** — OperatorBadge + `is_me` / `isAdmin` 행 = 변경 가드 · 결제·은행 read-only
+### Phase 6.2 특수 4
+- ✅ **토스 위젯 시각 박제 = mock 0** — BU2 `.bl-widget` (결제수단 chip + 카드 skeleton + 토스 브랜딩) · requestPayment 인자 미변경 안내
+- ✅ **결제 금액 천 단위 구분** — `won()` / `wonRaw()` = `₩9,900` 형식 전 시안 통일
+- ✅ **status 색 분리** — `PAY_STATUS` = 성공 ok / 실패 err / 환불 neutral / 대기 warn (`.bl-pstat[data-tone]`)
+- ✅ **BU3 3 sub-tab** = subscription / history / refund 명확 (운영 ?tab= 답습)
 
 ---
 
@@ -88,5 +90,6 @@
 
 ---
 
-**박제 끝.** v2.23 carry-over 위 신규 6 시안 + profile-shared.jsx/css 추가. 운영 코드 변경 0.
-후속 6.2 (결제·구독·예약) + 6.3 (성장 분석) 별 의뢰 예고.
+**박제 끝.** v2.24 carry-over 위 신규 7 시안 + billing-shared.jsx/css 추가. 운영 코드 변경 0.
+가정: 환불 form 별 컬럼 미확인 → BU3 환불 탭 inline 처리 + BA1 환불 모달(refund API). subscription 취소 = 운영 DELETE 흐름 답습.
+후속 6.3 (성장 분석) 별 의뢰 예고.

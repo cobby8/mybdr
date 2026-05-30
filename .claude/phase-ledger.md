@@ -126,6 +126,15 @@
 | ⑬ PR 결재 | 6.1C | ✅ 완료 | 수빈 | 2026-05-31 | subin→dev #657 + dev→main #658 머지 (운영 `26586af`) |
 | ⑭ Phase 완료 | 6.1 | ✅ 종료 | CLI→Cowork | 2026-05-31 | 프로필 본체 운영 반영 완료 (#658) |
 
+### Phase 6.2 — 결제 · 구독 · 예약 영역
+
+| 단계 | 영역 | 상태 | 책임자 | 갱신일 | 메모 |
+|------|------|------|------|------|------|
+| ⑩ sync 실행 | 6.2A+6.2B | ✅ 완료 | CLI | 2026-05-31 | v2.25 sync. `billing-shared.jsx/css` 신규(260+333 line). Pricing/PricingCheckout/PricingResult/ProfileBilling/ProfileBookings/AdminPayments/AdminPlans 7 jsx. Phase 1~6.1 carry-over diff 0 / pre-snapshot `_archive/BDR-current-2026-05-31-pre-v2.25/`. ★ 토스 위젯 실연결 |
+| ⑪ 운영 박제 (6.2C) | 6.2C | ⏳ 대기 | CLI | 2026-05-31 | auto-chain 7 PR (1 BU5 / 2 BU1 / 3 BU4 / 4 AdminPlans / 5 AdminPayments / 6 BU3 / 7 BU2). LOC 작은→큰. 토스 실연결 mock 0 |
+| ⑬ PR 결재 | 6.2C | ⏳ 대기 | 수빈 | - | chain subin→dev→main 머지 |
+| ⑭ Phase 완료 | 6.2 | ⏳ 대기 | CLI→Cowork | - | 결제·구독·예약 운영 반영 |
+
 ---
 
 ## 완료 Phase (이력)

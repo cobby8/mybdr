@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>BDR v2.25 · Phase 6.2 (결제·구독·예약) + Phase 1~6.1 시안 목차</title>
+<title>BDR v2.24 · Phase 6.1 (프로필·마이페이지) + Phase 1~5 시안 목차</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800;900&family=JetBrains+Mono:wght@500;700;800&family=Pretendard:wght@400;500;600;700;800;900&display=swap" />
@@ -63,106 +63,27 @@
 <body>
 <div class="index-page">
   <header class="index-hero">
-    <div class="eyebrow">BDR v2.25 · Phase 6.2 · 2026-05-31</div>
-    <h1>결제·구독·예약 리디자인 — 멤버십 + 토스 결제 + 환불 관리</h1>
+    <div class="eyebrow">BDR v2.24 · Phase 6.1 · 2026-05-30</div>
+    <h1>프로필·마이페이지 본체 리디자인 — 본인 + 공개 프로필 + Site Operator</h1>
     <p>
-      <b>운영 코드 변경 0 — 시안 박제만. 토스페이먼츠 운영 실연결 (mock 0 · 실 데이터).</b>
-      Phase 6.2B (사용자 5 시안 · BU1~BU5) + Phase 6.2A (관리자 2 시안 · BA1+BA2) = 총 <b>7 시안</b>.
-      <b>BB1~BB7 양측·cross-domain 다리</b> — BB1 멤버십 구독 · BB2 결제 이력 · BB3 결제 결과 · BB4 코트 예약 · BB5 토스 위젯 confirm · BB6 super-admin 환불 · BB7 PU2 link out.
-      <b>BB1 핵심</b> = BU1(list) + BU3(현재 구독) + BA2(관리) = 동일 <b>PLANS</b> 컬럼. <b>BB2</b> = BU3 결제 이력 + BA1 결제 list = 동일 <b>payments</b> (성공/실패/환불 status · 토스 키).
-      <b>cross-domain</b> = BU4 코트 예약 (Phase 7 court_bookings). Phase 1~6.1 carry-over (변경 ❌). 후속 6.3 (성장 분석) 별 의뢰 예고.
+      <b>운영 코드 변경 0 — 시안 박제만.</b>
+      Phase 6.1B (사용자 5 시안 · PU1~PU5) + Phase 6.1A (관리자 1 시안 · PA1) = 총 <b>6 시안</b>.
+      <b>BP1~BP6 양측·cross-domain 다리</b> — BP1 본인↔공개 정합 · BP2 농구 시즌 stat · BP3 업적 cross-domain · BP4 편집 동기화 · BP5 super-admin 검수 · BP6 활동 진입.
+      <b>BP1 핵심</b> = PU1(본인) + PU5(공개) = 동일 User 데이터 / <b>privacy_settings 분기</b>로 시각 분리 (비공개 필드 hide).
+      <b>cross-domain</b> = 이달의 MVP (Phase 2 BG4) · 팀 전적 (Phase 3 BT6) · 대회 우승 (Phase 1A PA7) — 동일 데이터 컬럼 자동 집계.
+      Phase 1~5 carry-over (변경 ❌). 후속 6.2 (결제·구독) + 6.3 (성장 분석) 별 의뢰 예고.
     </p>
     <div class="index-summary">
-      <div class="index-stat"><div class="index-stat__v">7</div><div class="index-stat__l">Phase 6.2 시안 (6.2B + 6.2A)</div></div>
-      <div class="index-stat index-stat--accent"><div class="index-stat__v">6</div><div class="index-stat__l">신규 (BU1~3·5, BA1·2)</div></div>
-      <div class="index-stat index-stat--ok"><div class="index-stat__v">7</div><div class="index-stat__l">갭 해소 (BB1~BB7)</div></div>
+      <div class="index-stat"><div class="index-stat__v">6</div><div class="index-stat__l">Phase 6.1 시안 (6.1B + 6.1A)</div></div>
+      <div class="index-stat index-stat--accent"><div class="index-stat__v">3</div><div class="index-stat__l">신규 (PU3, PU5, PA1)</div></div>
+      <div class="index-stat index-stat--ok"><div class="index-stat__v">6</div><div class="index-stat__l">갭 해소 (BP1~BP6)</div></div>
       <div class="index-stat"><div class="index-stat__v">0</div><div class="index-stat__l">운영 코드 변경</div></div>
     </div>
   </header>
 
-  <!-- ============ Phase 6.2B — 사용자 측 (5) ============ -->
-  <section class="index-section">
-    <h2 class="index-section__h"><span class="index-section__num index-section__num--navy">6.2B</span> 결제·구독·예약 사용자 (5 시안 · A 등급)</h2>
-    <p class="index-section__sub">BB1 멤버십 + BB2 결제 이력 + BB3 결과 + BB4 예약 cross-domain + BB5 토스 위젯. 토스페이먼츠 운영 실연결 · mock 0.</p>
-    <div class="index-grid">
-      <a class="index-card" href="bu1-pricing.html">
-        <div class="index-card__top"><span class="index-card__id index-card__id--navy">BU1</span><span class="index-card__kind">사용자 · 신규 · A 등급</span></div>
-        <div class="index-card__title">Pricing — 멤버십 플랜 list + 비교</div>
-        <div class="index-card__route">/pricing</div>
-        <p class="index-card__desc">플랜 grid (무료 / BDR+ / BDR PRO · plans 모델) + 본인 현재 구독 badge (user_subscriptions) + 플랜 비교 표. "선택" CTA → BU2. BB1 = BU3 현재 구독 = BA2 플랜 동일 PLANS.</p>
-        <div class="index-card__tags"><span class="index-card__tag index-card__tag--new">NEW</span><span class="index-card__tag index-card__tag--gap-bt">BB1 ★★★★★</span></div>
-      </a>
-      <a class="index-card" href="bu2-pricing-checkout.html">
-        <div class="index-card__top"><span class="index-card__id index-card__id--navy">BU2</span><span class="index-card__kind">사용자 · 신규 · A 등급</span></div>
-        <div class="index-card__title">PricingCheckout — 토스 위젯 + 3 step</div>
-        <div class="index-card__route">/pricing/checkout</div>
-        <p class="index-card__desc">3 step (플랜 선택 → 결제 정보 → 결제 완료) + 결제자 정보(readOnly) + 토스페이먼츠 위젯 시각 박제(mock 0) + 약관 4종 + 결제 CTA(필수 동의 시 활성) → BU5.</p>
-        <div class="index-card__tags"><span class="index-card__tag index-card__tag--new">NEW</span><span class="index-card__tag index-card__tag--gap-bt">BB5 ★★★★</span></div>
-      </a>
-      <a class="index-card" href="bu3-profile-billing.html">
-        <div class="index-card__top"><span class="index-card__id index-card__id--navy">BU3</span><span class="index-card__kind">사용자 · 신규 (3 sub-tab) · A 등급</span></div>
-        <div class="index-card__title">ProfileBilling — 구독 + 이력 hub</div>
-        <div class="index-card__route">/profile/billing</div>
-        <p class="index-card__desc">3 sub-tab (?tab=subscription / history / refund). 구독(현재 plan + 다음 결제일 + 남은 기간 + 결제 수단 + 변경·취소) / 결제 이력(payments · 영수증) / 환불. BB1 + BB2 양측 정합.</p>
-        <div class="index-card__tags"><span class="index-card__tag index-card__tag--new">NEW</span><span class="index-card__tag index-card__tag--gap-bt">BB1 + BB2 ★★★★★</span></div>
-      </a>
-      <a class="index-card" href="bu4-profile-bookings.html">
-        <div class="index-card__top"><span class="index-card__id index-card__id--navy">BU4</span><span class="index-card__kind">사용자 · 보강 · A 등급</span></div>
-        <div class="index-card__title">ProfileBookings — 코트 예약 4 탭</div>
-        <div class="index-card__route">/profile/bookings</div>
-        <p class="index-card__desc">4 탭 (예정 / 진행 중 / 종료 / 취소·환불) + 예약 카드(코트 + 날짜 + 시간 + 금액 + 상태) + "예약 취소" → payment-cancel(환불 정책 모달). Phase 7 코트 cross-domain (본인 예약만).</p>
-        <div class="index-card__tags"><span class="index-card__tag index-card__tag--gap-bt">BB4 ★★★</span></div>
-      </a>
-      <a class="index-card" href="bu5-pricing-result.html">
-        <div class="index-card__top"><span class="index-card__id index-card__id--navy">BU5</span><span class="index-card__kind">사용자 · 신규 (통합) · A 등급</span></div>
-        <div class="index-card__title">PricingResult — 결제 성공 / 실패</div>
-        <div class="index-card__route">/pricing/success + /fail</div>
-        <p class="index-card__desc">성공 🎉 hero(ok) + 결제 정보 + "구독 보기"(→BU3) / 영수증. 실패 ⚠ hero(warn) + 토스 에러 코드 매핑 + "다시 결제"(→BU2). 시안 데모 토글로 두 상태 박제.</p>
-        <div class="index-card__tags"><span class="index-card__tag index-card__tag--new">NEW</span><span class="index-card__tag index-card__tag--gap-bt">BB3 ★★★</span></div>
-      </a>
-    </div>
-  </section>
-
-  <!-- ============ Phase 6.2A — 관리자 측 (2) ============ -->
-  <section class="index-section">
-    <h2 class="index-section__h"><span class="index-section__num">6.2A</span> 결제·플랜 관리자 (2 시안 · E 등급 · super-admin)</h2>
-    <p class="index-section__sub">BA1 결제 hub + 환불 모달 + BA2 플랜 관리. Phase 4 OA1 + Phase 2 UD1 답습 (Site Operator badge + 알림 ✅).</p>
-    <div class="index-grid">
-      <a class="index-card" href="ba1-admin-payments.html">
-        <div class="index-card__top"><span class="index-card__id">BA1</span><span class="index-card__kind">관리자 · 신규 · E 등급</span></div>
-        <div class="index-card__title">AdminPayments — Site Operator 결제 hub</div>
-        <div class="index-card__route">/admin/payments</div>
-        <p class="index-card__desc">신규 박제(운영 66 line + refund API → OA1 답습). Hero stat(이번달/성공/환불/실패) + Site Operator badge + 검색·기간 필터 + 4 탭(성공/실패/환불됨/환불 대기) + 결제 테이블 + 환불 모달(Phase 2 UD1 알림 ✅).</p>
-        <div class="index-card__tags"><span class="index-card__tag index-card__tag--new">NEW</span><span class="index-card__tag index-card__tag--gap-bt">BB2 + BB6</span><span class="index-card__tag index-card__tag--op-site">Site Operator</span></div>
-      </a>
-      <a class="index-card" href="ba2-admin-plans.html">
-        <div class="index-card__top"><span class="index-card__id">BA2</span><span class="index-card__kind">관리자 · 신규 · E 등급</span></div>
-        <div class="index-card__title">AdminPlans — Site Operator 요금제 관리</div>
-        <div class="index-card__route">/admin/plans</div>
-        <p class="index-card__desc">신규 박제(운영 397 line · plans CRUD). Hero stat(전체/활성/구독자 합계) + Site Operator badge + 플랜 카드 grid(이름 + 가격 + 혜택 + 구독자 수 + 활성/비활성 + 수정·복제·비활성화) + 생성·수정 모달. BB1 = BU1/BU3 동일 PLANS.</p>
-        <div class="index-card__tags"><span class="index-card__tag index-card__tag--new">NEW</span><span class="index-card__tag index-card__tag--gap-bt">BB1</span><span class="index-card__tag index-card__tag--op-site">Site Operator</span></div>
-      </a>
-    </div>
-  </section>
-
-  <!-- ============ Phase 6.2 BB 의존 검증 ============ -->
-  <section class="index-checks index-checks--bo">
-    <h3>BB 양측·cross-domain 의존 검증 + Phase 6.2 특수 4 — 박제 마지막 단계 ✅</h3>
-    <ul>
-      <li><b>BB1</b> 멤버십 — BU1 플랜 list = BU3 "현재 구독" = BA2 플랜 = 동일 PLANS 컬럼(가격/혜택/구독자 수)</li>
-      <li><b>BB2</b> 결제 — BU3 결제 이력 = BA1 결제 list = 동일 payments(성공/실패/환불 status · 토스 결제 키)</li>
-      <li><b>BB3</b> 결과 — BU5 성공/실패 = 토스 confirm/fail 리다이렉트 답습 (성공 ok / 실패 warn + 에러 코드)</li>
-      <li><b>BB4</b> 예약 — BU4 = court_bookings + Phase 7 코트 cross-domain (본인 예약만 · payment-cancel 환불)</li>
-      <li><b>BB5</b> 토스 위젯 — BU2 위젯 시각 박제 = 운영 confirm API 실 흐름 (requestPayment 인자 보존)</li>
-      <li><b>BB6</b> super-admin — BA1 환불 모달 = refund API (Phase 2 UD1 알림 ✅) · Site Operator badge</li>
-      <li><b>BB7</b> PU2 link out — Phase 6.1 PU2 결제 섹션 → BU3 ProfileBilling 활성 (carry-over)</li>
-      <li><b>특수</b> 토스 위젯 시각 박제 = mock 0 · 금액 천 단위 ₩(₩9,900) · status 색 분리(ok/err/neutral/warn) · BU3 ?tab=subscription/history/refund</li>
-    </ul>
-  </section>
-
   <!-- ============ Phase 6.1B — 사용자 측 (5) ============ -->
   <section class="index-section">
-    <h2 class="index-section__h"><span class="index-section__num index-section__num--mute">v2.24</span> 프로필·마이페이지 사용자 (5 시안 · A 등급)</h2>
+    <h2 class="index-section__h"><span class="index-section__num index-section__num--navy">6.1B</span> 프로필·마이페이지 사용자 (5 시안 · A 등급)</h2>
     <p class="index-section__sub">BP1 본인↔공개 정합 + BP2 농구 stat + BP3 업적 cross-domain + BP4 편집 + BP6 활동 진입.</p>
     <div class="index-grid">
       <a class="index-card" href="pu1-profile.html">
@@ -205,7 +126,7 @@
 
   <!-- ============ Phase 6.1A — 관리자 측 (1) ============ -->
   <section class="index-section">
-    <h2 class="index-section__h"><span class="index-section__num index-section__num--mute">v2.24</span> 프로필·마이페이지 관리자 (1 시안 · E 등급 · super-admin)</h2>
+    <h2 class="index-section__h"><span class="index-section__num">6.1A</span> 관리자 측 (1 시안 · E 등급 · super-admin)</h2>
     <p class="index-section__sub">PA1 = Site Operator (super-admin) 사용자 검수 hub — Phase 4 OA1 + Phase 5 CA1 답습.</p>
     <div class="index-grid">
       <a class="index-card" href="pa1-admin-users.html">
