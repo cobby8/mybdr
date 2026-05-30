@@ -13,7 +13,7 @@
 | 6.2C-2 | BU1 Pricing → /pricing (BB1 플랜 list) | ✅ 구현 (tsc 0) |
 | 6.2C-3 | BU4 ProfileBookings → /profile/bookings 보강 (BB4) | ✅ 구현 (tsc 0, Option A 톤만) |
 | 6.2C-4 | AdminPlans → /admin/plans (BB1 BA2) | ⏳ |
-| 6.2C-5 | AdminPayments → /admin/payments (BB2 BA1 환불) | ⏳ |
+| 6.2C-5 | AdminPayments → /admin/payments (BB2 BA1 환불) | ✅ 구현 (tsc 0, Option A) |
 | 6.2C-6 | BU3 ProfileBilling → /profile/billing (BB1+BB2 3 sub-tab) | ⏳ |
 | 6.2C-7 | BU2 PricingCheckout → /pricing/checkout (BB5 토스 위젯 실임베드) | ⏳ |
 - lock: 토스 = 운영 실연결(confirm/refund API, mock 0) / OA1 답습(BA1/BA2 모달) / 결제 status 색분리 / BB7 Phase6.1 PU2 결제링크 활성
@@ -139,6 +139,42 @@
 - 파싱 보정 `data.data ?? data`: 현재 /api/admin/plans 가 배열 직반환이면 `?.data` undefined → 원본 배열 사용(호환). apiSuccess 래핑으로 바뀌어도 자동 대응. raw 응답 curl 1회 확인 권장
 - subscribers/features 컬럼 hide 는 운영 plans 스키마 미보유 근거 (시안은 mock 데이터). DB schema 변경 0
 - 복제 버튼 시안에 있으나 신규 mutation(POST 복제 API) 필요 → PM 지시로 미배치
+
+### 6.2C-5 — AdminPayments → /admin/payments (BB2 BA1 환불, Option A)
+
+📝 구현한 기능: 시안 BA1 박제. ① Hero 3카드→4-stat 실집계(총결제액/성공건수/환불합계/실패건수) ② 4탭→실재 status 3탭(성공/실패/환불됨, refund_wait mock 제외) ③ 테이블 액션 열 추가(paid=환불 버튼/refunded=환불일) ④ 환불 모달 신설 → 기존 refund API 실호출. 권한가드·환불 API·조회 0 변경 / 신규 mutation 0.
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| src/app/(admin)/admin/payments/page.tsx | stats 4종 확장(failedCount/refundedCount/refundedSum, 기존 groupBy 재사용 추가 쿼리 0) + 직렬화 refundedAt/tossPaymentKey 추가(조회 컬럼 변경 0) | 수정 (+14/-1) |
+| src/app/(admin)/admin/payments/admin-payments-content.tsx | Hero 4-stat / 4탭(refund_wait 제외) / 액션 열 / 환불 모달(AdminDetailModal actions prop 재사용) → POST `/api/web/payments/[id]/refund` 실호출 + router.refresh() | 수정 (+209/-18) |
+
+총 LOC: +223 / -18 (순 +205) — LOC>+2000 stop 미해당. **추가 쿼리 0** (기존 findMany+groupBy 재사용).
+
+⚠️ IDOR 제약 메모 (PM 필수 지시 반영):
+- refund API(route.ts §본인 결제만)는 `payment.user_id === ctx.userId` 인 결제만 환불 허용. admin 이 **타인 결제** 환불 시 → API 403("본인의 결제만 환불할 수 있습니다.") 반환.
+- UI 처리: 403/400 응답을 모달 refundError 로 **자연 표시** (가짜 성공 mock ❌). submitRefund catch 에서 `data.error` 문자열 그대로 노출.
+- **코드 주석 명시**: 환불 모달 블록 상단 + submitRefund 함수 상단에 IDOR 제약 주석 작성.
+- **추후 과제**: admin-scoped(타인 결제) 환불은 API 확장(권한 가드 + 토스 환불) 필요 — 금전 민감, 별도 과제.
+
+설계 정합 (Option A 100%):
+- 권한가드·환불 API·조회 0 변경 ✅ / Hero 4stat·탭 실집계(refund_wait mock 제외) ✅
+- 환불 모달=기존 refund API POST 실호출, 신규 mutation 0 ✅ / 403 에러 자연 표시 ✅
+- status 색분리(STATUS_TONE 기존) / toLocaleString ✅ / admin 공용 클래스 재사용(AdminDetailModal·AdminStatusTabs·CARD_CLASS·admin-stat-pill) ✅
+- ba1-/bb- prefix 직접 클래스 0 (운영 destructive 버튼 패턴 btn--sm+inline color-error 재사용 / 토큰 var(--color-*)만) ✅
+- 신규 토큰 0 (--color-info/--color-error/--color-success/--color-elevated 기존 보유) ✅
+
+💡 tester 참고:
+- 테스트: /admin/payments(super-admin) → Hero 4카드 / 탭 성공·실패·환불됨 / paid 행 "환불" 버튼 → 모달
+- 환불 모달 "환불 처리" 클릭: **본인(admin) 결제**면 성공 → 모달 닫힘 + 목록 새로고침(상태 환불됨). **타인 결제**면 403 에러 메시지 모달에 빨강 박스로 표시(가짜 성공 ❌)
+- 7일 초과/이미 환불 등: API 400 → 에러 메시지 표시
+- 행 클릭(액션 열 제외) → 기존 결제 상세 모달 회귀 0
+- 정상: tsc 0 / refund_wait 탭 없음(mock 제외 의도)
+
+⚠️ reviewer 참고:
+- IDOR: admin 화면이지만 refund API 가 본인 결제만 허용 → admin 의 타인 환불은 현재 불가(403). 이는 의도된 안전 동작(금전). admin-scoped 환불 확장은 별도 과제(주석·보고 명시)
+- 환불 사유 input 은 API 가 현재 서버 고정 사유 사용 → body.reason 키만 전달(확장 대비). 실제 DB refund_reason 은 API 가 "사용자 환불 요청" 고정
+- router.refresh()로 force-dynamic 페이지 재패칭(상태 갱신). 낙관적 업데이트 미사용(서버 진실 우선)
 
 ## 수정 요청
 | 요청자 | 대상 | 문제 | 상태 |
