@@ -4,7 +4,7 @@
    - 토큰 대체 (matches-admin.css 패턴 답습):
        시안 --r-md → 운영 var(--radius-card)
        시안 --r-sm → 운영 var(--radius-chip)
-   - 나머지 토큰(--bg-elev/--bg-alt/--bg-head/--border/--accent/--ink*/--ff-mono)은
+   - 나머지 토큰(--bg-elev, --bg-alt, --bg-head, --border, --accent, --ink 계열, --ff-mono)은
      운영 globals.css 에 모두 정의됨 → 그대로 사용
    - #fff / rgba(255,255,255,...) = 운영 관례 (.btn--accent / .badge--red 등 accent
      배경 위 텍스트 표준) → 시안 원본 동일 유지

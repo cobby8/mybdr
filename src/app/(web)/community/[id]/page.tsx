@@ -224,313 +224,243 @@ export default async function CommunityPostPage({ params }: { params: Promise<{ 
   const viewsCount = post.view_count ?? 0;
 
   return (
-    // 시안 .page > .with-aside (좌 CommunityAside + 우 main) — BoardList 와 동일 레이아웃
+    // 5C-3 박제: 운영 .page > .with-aside 레이아웃 유지(5C-2/원본 답습 — comm-page 신규 클래스 회피).
+    // main 안에서 시안 CU2 .cu2-grid (글 본문/댓글 + 추천 사이드) 2열 적용.
+    // CommunityAsideNav(좌 게시판 트리)는 그대로 — PostDetail엔 활성 카테고리 개념 없어 null
     <div className="page">
       <div className="with-aside">
-        {/* 좌측: 게시판 그룹 트리 (BoardList 와 동일 컴포넌트 재사용)
-            PostDetail 에는 활성 카테고리 개념이 없으므로 "전체글" 활성. 항목 클릭 시 /community 로 이동 */}
         <CommunityAsideNav activeCategory={null} />
 
         <main>
-          {/* 1. 브레드크럼 — 시안 그대로 (홈 › 카테고리 › 글 상세) */}
-          <nav
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-              fontSize: 12,
-              color: "var(--ink-mute)",
-              marginBottom: 10,
-              whiteSpace: "nowrap",
-              flexWrap: "wrap",
-            }}
-          >
-            <Link href="/" style={{ color: "var(--ink-mute)" }}>홈</Link>
-            <span>›</span>
-            {/* 카테고리 → /community?category=... 이동 */}
-            <Link
-              href={categoryKey ? `/community?category=${categoryKey}` : "/community"}
-              style={{ color: "var(--ink-mute)" }}
-            >
+          {/* breadcrumb — 시안 .crumbs.cu2-crumbs (홈 › 카테고리 › 글 상세) */}
+          <nav className="crumbs cu2-crumbs">
+            <Link href="/">홈</Link>
+            <span className="sep">›</span>
+            {/* 카테고리 → /community?category=... 이동 (기존 동작 보존) */}
+            <Link href={categoryKey ? `/community?category=${categoryKey}` : "/community"}>
               {categoryLabel}
             </Link>
-            <span>›</span>
-            <span style={{ color: "var(--ink)" }}>글 상세</span>
+            <span className="sep">›</span>
+            <span className="cur">글 상세</span>
           </nav>
 
-          {/* 2. 본문 카드 — 시안 .card padding:0 + 헤더/Body/Reactions/Nav 4섹션 */}
-          <article className="card" style={{ padding: 0, overflow: "hidden" }}>
-            {/* 2-1. 헤더 — badge--soft + 제목 + 작성자/메타 */}
-            <header style={{ padding: "22px 26px 18px", borderBottom: "1px solid var(--border)" }}>
-              {/* 카테고리 배지 (시안 badge--soft) */}
-              <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 10 }}>
-                <span className="badge badge--soft">{categoryLabel}</span>
-              </div>
-              {/* 제목 — 시안 24px / 700 / lh 1.3 */}
-              <h1
-                style={{
-                  margin: "0 0 14px",
-                  fontSize: 24,
-                  fontWeight: 700,
-                  letterSpacing: "-0.01em",
-                  lineHeight: 1.3,
-                  color: "var(--ink)",
-                }}
-              >
-                {decodeHtmlEntities(post.title)}
-              </h1>
+          {/* 시안 .cu2-grid = main(글 본문/댓글) + side(추천) 2열 */}
+          <div className="cu2-grid">
+            <main className="cu2-main">
+              {/* CU2-G 알기자 hero band(대회 cross-domain) = 시안엔 post.tournament 객체 사용.
+                  운영엔 대회명 cross-domain 객체 출처 없음(A4 lock·mock 0) → band hide.
+                  알기자 사진(NewsPhotoHero)은 본문 안에서 기존 그대로 노출하므로 정보 손실 0. */}
 
-              {/* 작성자 + 메타 (시안 좌: 작성자 우: 날짜·조회·댓글·좋아요) */}
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 10,
-                  fontSize: 13,
-                  color: "var(--ink-mute)",
-                  flexWrap: "wrap",
-                }}
-              >
-                {/* 작성자 박스 */}
-                <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
-                  {post.users?.profile_image_url ? (
-                    <Image
-                      src={post.users.profile_image_url}
-                      alt={post.users.nickname ?? ""}
-                      width={32}
-                      height={32}
-                      style={{ width: 32, height: 32, borderRadius: "50%", objectFit: "cover", flexShrink: 0 }}
-                    />
-                  ) : (
-                    // 시안 패턴: cafe-blue 톤 이니셜 박스
-                    <div
-                      style={{
-                        width: 32,
-                        height: 32,
-                        borderRadius: "50%",
-                        background: "var(--cafe-blue-soft)",
-                        color: "var(--cafe-blue-deep)",
-                        display: "grid",
-                        placeItems: "center",
-                        fontWeight: 700,
-                        fontSize: 13,
-                        flexShrink: 0,
-                      }}
-                    >
-                      {displayNickname.charAt(0)}
+              {/* CU2-A — article (헤더/Body/Reactions/Nav) */}
+              <article className="cu2-article">
+                {/* 헤더 — cat-badge(5C-2 공유) + 제목 + 작성자/메타 */}
+                <header className="cu2-article__head">
+                  <div className="cu2-article__badges">
+                    {/* 카테고리 배지 — data-cat 으로 색상 분기 (5C-2 cat-badge 재사용) */}
+                    <span className="cat-badge" data-cat={categoryKey}>{categoryLabel}</span>
+                  </div>
+                  <h1 className="cu2-article__title">{decodeHtmlEntities(post.title)}</h1>
+
+                  <div className="cu2-article__meta">
+                    {/* 작성자 — 시안 comm-author 톤(5C-2 공유). 이미지/이니셜 분기는 운영 데이터 보존 */}
+                    <span className="comm-author">
+                      {post.users?.profile_image_url ? (
+                        <Image
+                          src={post.users.profile_image_url}
+                          alt={post.users.nickname ?? ""}
+                          width={28}
+                          height={28}
+                          className="comm-author__av"
+                          style={{ width: 28, height: 28, objectFit: "cover" }}
+                        />
+                      ) : (
+                        // 이니셜 박스 — cafe-blue 톤
+                        <span className="comm-author__av" style={{ width: 28, height: 28, fontSize: 12 }}>
+                          {displayNickname.charAt(0)}
+                        </span>
+                      )}
+                      <span className="comm-author__name">{decodeHtmlEntities(displayNickname)}</span>
+                    </span>
+                    <span className="cu2-article__meta-sep">·</span>
+                    <span>{formatRelativeTime(post.created_at)}</span>
+                    <span className="cu2-article__meta-sep">·</span>
+                    {/* 조회 / 좋아요 / 댓글 — Material Symbols (시안 그대로) */}
+                    <span className="cu2-article__meta-stat" title="조회수">
+                      <span className="ico material-symbols-outlined">visibility</span>
+                      {viewsCount.toLocaleString()}
+                    </span>
+                    <span className="cu2-article__meta-stat" title="좋아요수">
+                      <span className="ico material-symbols-outlined">favorite</span>
+                      {likesCount}
+                    </span>
+                    <span className="cu2-article__meta-stat" title="댓글수">
+                      <span className="ico material-symbols-outlined">chat_bubble</span>
+                      {totalCommentsCount}
+                    </span>
+
+                    {/* 본인 게시글 = 수정/삭제 (기존 PostActions 그대로 보존) */}
+                    {isPostOwner && (
+                      <span style={{ marginLeft: 4 }}>
+                        <PostActions postPublicId={id} />
+                      </span>
+                    )}
+                  </div>
+                </header>
+
+                {/* CU2-B — body. 알기자 linkify/Hero/갤러리 로직 100% 보존, 래퍼만 시안 클래스로 교체.
+                    D3: DB block type 미지원 → 줄바꿈 split <p> 그대로 */}
+                <div className="cu2-article__body">
+                  {/* Hero 사진 — 알기자 게시물 + 사진 1장 이상 시 본문 위 (보존) */}
+                  {isAlkijaPost && newsPhotos.length > 0 && (
+                    <div style={{ margin: "0 0 20px" }}>
+                      <NewsPhotoHero photos={newsPhotos} />
                     </div>
                   )}
-                  <div style={{ minWidth: 0 }}>
-                    <div style={{ display: "flex", gap: 6, alignItems: "center", whiteSpace: "nowrap" }}>
-                      <b style={{ color: "var(--ink)" }}>{decodeHtmlEntities(displayNickname)}</b>
-                      {/* LevelBadge 자리 — DB users.xp 기반 등급 미구현. 추후 구현 목록에 기록 */}
+
+                  {/* 본문 (보존) */}
+                  {isAlkijaPost && linkifyEntries.length > 0 ? (
+                    <LinkifyNewsBody
+                      content={decodeHtmlEntities(post.content) ?? ""}
+                      entries={linkifyEntries}
+                    />
+                  ) : (
+                    decodeHtmlEntities(post.content)?.split("\n").map((line, i) => (
+                      <p key={i} className="cu2-article__p">{line}</p>
+                    ))
+                  )}
+
+                  {/* 갤러리 — Hero 외 사진 grid (보존) */}
+                  {isAlkijaPost && newsPhotos.length > 1 && (
+                    <div style={{ margin: "20px 0 0" }}>
+                      <NewsPhotoGallery photos={newsPhotos} excludeHero />
                     </div>
-                    {/* 작성글 수: 시안에 있지만 사이드바 PostDetailSidebar 에 이미 노출되므로 여기는 시각적 부담 줄여 생략 */}
+                  )}
+                </div>
+
+                {/* CU2-C — Reactions. 운영 LikeButtonV2/ShareButtonV2(실동작)는 그대로 보존.
+                    시안 cu2-like는 mock onClick이므로 운영 실동작 컴포넌트 우선.
+                    신고 = A2 lock(hide) → disabled "준비 중" / 스크랩 = DB 미지원 disabled */}
+                <div className="cu2-react">
+                  {/* 좋아요 — v2 박제 (데이터 로직 100% 보존) */}
+                  <LikeButtonV2
+                    postPublicId={id}
+                    initialLiked={isLiked}
+                    initialCount={likesCount}
+                    isLoggedIn={isLoggedIn}
+                  />
+                  {/* 공유 — v2 박제 */}
+                  <ShareButtonV2 />
+                  {/* 스크랩 — DB 미지원 → disabled "준비 중" */}
+                  <button
+                    disabled
+                    title="스크랩 준비 중"
+                    className="cu2-share"
+                    style={{ cursor: "not-allowed", opacity: 0.55 }}
+                  >
+                    <span className="ico material-symbols-outlined">bookmark</span>
+                    스크랩
+                  </button>
+                  {/* 신고 — A2 lock(hide) → disabled "준비 중" (DB 신고 모델 미연동) */}
+                  <button
+                    disabled
+                    title="신고 준비 중"
+                    className="cu2-share"
+                    style={{ cursor: "not-allowed", opacity: 0.55 }}
+                  >
+                    <span className="ico material-symbols-outlined">flag</span>
+                    신고
+                  </button>
+                </div>
+
+                {/* CU2 Nav — 이전/다음 글 (D4: DB 쿼리 추가 X → placeholder "준비 중") */}
+                <div style={{ display: "flex", borderTop: "1px solid var(--border)" }}>
+                  <div
+                    style={{
+                      flex: 1,
+                      padding: "14px 18px",
+                      borderRight: "1px solid var(--border)",
+                      fontSize: 13,
+                      color: "var(--ink-dim)",
+                    }}
+                    title="준비 중"
+                  >
+                    ← 이전글: 준비 중
+                  </div>
+                  <div
+                    style={{
+                      flex: 1,
+                      padding: "14px 18px",
+                      fontSize: 13,
+                      color: "var(--ink-dim)",
+                      textAlign: "right",
+                    }}
+                    title="준비 중"
+                  >
+                    다음글: 준비 중 →
                   </div>
                 </div>
+              </article>
 
-                {/* 우측 메타 — flex:1 spacer 후 우정렬
-                    시안: Icon.eye / Icon.msg / Icon.heart Material Symbols 로 박제 */}
-                <span style={{ flex: 1 }} />
-                <span>{formatRelativeTime(post.created_at)}</span>
-                <span>·</span>
-                <span title="조회수" style={{ display: "inline-flex", alignItems: "center", gap: 3 }}>
-                  <span className="material-symbols-outlined" style={{ fontSize: 16, verticalAlign: -3 }}>
-                    visibility
-                  </span>
-                  {viewsCount.toLocaleString()}
-                </span>
-                <span>·</span>
-                <span title="댓글수" style={{ display: "inline-flex", alignItems: "center", gap: 3 }}>
-                  <span className="material-symbols-outlined" style={{ fontSize: 16, verticalAlign: -3 }}>
-                    chat_bubble
-                  </span>
-                  {totalCommentsCount}
-                </span>
-                <span>·</span>
-                <span title="좋아요수" style={{ display: "inline-flex", alignItems: "center", gap: 3 }}>
-                  <span className="material-symbols-outlined" style={{ fontSize: 16, verticalAlign: -3 }}>
-                    favorite
-                  </span>
-                  {likesCount}
-                </span>
-
-                {/* 본인 게시글이면 수정/삭제 드롭다운만 추가 (시안에는 없지만 운영 필수) */}
-                {isPostOwner && (
-                  <span style={{ marginLeft: 4 }}>
-                    <PostActions postPublicId={id} />
-                  </span>
-                )}
-              </div>
-            </header>
-
-            {/* 2-2. Body — 시안 padding 28px 26px / fs 15 / lh 1.8 / color ink-soft.
-                   D3 결정: DB가 block type 미지원 → 줄바꿈 split <p> 그대로 (h3/img 미적용)
-                   2026-05-04: 알기자 (BDR NEWS) 게시물은 LinkifyNewsBody + Hero/갤러리 사진 마운트 */}
-            <div
-              style={{
-                padding: "28px 26px",
-                fontSize: 15,
-                lineHeight: 1.8,
-                color: "var(--ink-soft)",
-              }}
-            >
-              {/* Hero 사진 — 알기자 게시물 + 사진 1장 이상 시 본문 위 */}
-              {isAlkijaPost && newsPhotos.length > 0 && (
-                <div style={{ margin: "0 0 20px" }}>
-                  <NewsPhotoHero photos={newsPhotos} />
+              {/* CU2-D — 댓글. 기존 CommentForm/CommentList 그대로(A1 실데이터).
+                  시안 .cu2-comments 래퍼 톤만 적용 */}
+              <section className="cu2-comments">
+                <div className="cu2-comments__h">
+                  <h3 className="cu2-comments__h-t">댓글</h3>
+                  <span className="cu2-comments__h-n">{totalCommentsCount}</span>
                 </div>
-              )}
 
-              {/* 본문 */}
-              {isAlkijaPost && linkifyEntries.length > 0 ? (
-                <LinkifyNewsBody
-                  content={decodeHtmlEntities(post.content) ?? ""}
-                  entries={linkifyEntries}
-                />
-              ) : (
-                decodeHtmlEntities(post.content)?.split("\n").map((line, i) => (
-                  <p key={i} style={{ margin: "0 0 14px" }}>{line}</p>
-                ))
-              )}
+                {/* 댓글 입력 — 기존 컴포넌트 그대로 (D6) */}
+                <CommentForm postId={id} />
 
-              {/* 갤러리 — Hero 외 사진 grid (본문 아래) */}
-              {isAlkijaPost && newsPhotos.length > 1 && (
-                <div style={{ margin: "20px 0 0" }}>
-                  <NewsPhotoGallery photos={newsPhotos} excludeHero />
+                {/* 댓글 리스트 — DB 댓글 + 카페 댓글 합산 (D7, 보존) */}
+                <div style={{ marginTop: 18 }}>
+                  <CommentList
+                    comments={[
+                      // 카페 댓글 (크롤링 원본 — 먼저 표시, HTML entity 디코드 적용)
+                      ...cafeComments.map((c, i) => ({
+                        id: `cafe-${i}`,
+                        userId: "",
+                        content: decodeHtmlEntities(c.text),
+                        likesCount: 0,
+                        createdAt: c.date || "",
+                        isPostAuthor: false,
+                        nickname: decodeHtmlEntities(c.nickname) || "익명",
+                        profileImage: null as string | null,
+                        isReply: c.is_reply,
+                      })),
+                      // DB 댓글 (사이트에서 직접 작성)
+                      ...comments
+                        .filter((c) => c.status !== "deleted")
+                        .map((c) => ({
+                          id: c.id.toString(),
+                          userId: c.user_id.toString(),
+                          content: c.content,
+                          likesCount: c.likes_count,
+                          createdAt: c.created_at.toISOString(),
+                          isPostAuthor: c.user_id === post.user_id,
+                          nickname: c.users?.nickname ?? "익명",
+                          profileImage: c.users?.profile_image_url ?? null,
+                        })),
+                    ]}
+                    postPublicId={id}
+                    currentUserId={currentUserId}
+                  />
                 </div>
-              )}
-            </div>
+              </section>
+            </main>
 
-            {/* 2-3. Reactions — 시안 좋아요/공유/스크랩 3버튼 가로 정렬 (.btn.btn--lg 통일)
-                   v2 박제: LikeButtonV2 + ShareButtonV2 (데이터 로직은 기존과 100% 동일, UI 만 시안 박제)
-                   스크랩은 DB 미지원 → disabled "준비 중" 유지 */}
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "center",
-                alignItems: "center",
-                gap: 10,
-                padding: "18px 26px",
-                borderTop: "1px solid var(--border)",
-                flexWrap: "wrap",
-              }}
-            >
-              {/* 좋아요 — v2 박제 (시안 .btn.btn--lg minWidth:140) */}
-              <LikeButtonV2
-                postPublicId={id}
-                initialLiked={isLiked}
-                initialCount={likesCount}
+            {/* CU2-E — sidebar. 시안 추천(작성자 다른 글/카테고리 다른 글)은 mock 추가쿼리 필요 → A4 lock·mock 0 → hide.
+                기존 PostDetailSidebar(실데이터: 작성자 카드/실시간 인기글/이벤트)는 그대로 우측 컬럼 배치 */}
+            <aside className="cu2-side">
+              <PostDetailSidebar
+                authorId={post.user_id}
+                authorNickname={displayNickname}
+                authorImage={post.users?.profile_image_url ?? null}
+                isFollowing={isFollowing}
                 isLoggedIn={isLoggedIn}
-              />
-              {/* 공유 — v2 박제 (시안 .btn.btn--lg) */}
-              <ShareButtonV2 />
-              {/* 스크랩 — 시안에 있으나 DB 미지원 → disabled "준비 중" (.btn.btn--lg 톤 통일) */}
-              <button
-                disabled
-                title="스크랩 준비 중"
-                className="btn btn--lg"
-                style={{ cursor: "not-allowed", opacity: 0.55 }}
-              >
-                <span
-                  className="material-symbols-outlined"
-                  style={{ fontSize: 18, verticalAlign: -3, marginRight: 6 }}
-                >
-                  bookmark
-                </span>
-                스크랩
-              </button>
-            </div>
-
-            {/* 2-4. Nav — 시안 이전/다음 글 (D4 결정: DB 쿼리 추가 X → placeholder "준비 중") */}
-            <div style={{ display: "flex", borderTop: "1px solid var(--border)" }}>
-              <div
-                style={{
-                  flex: 1,
-                  padding: "14px 18px",
-                  borderRight: "1px solid var(--border)",
-                  fontSize: 13,
-                  color: "var(--ink-dim)",
-                }}
-                title="준비 중"
-              >
-                ← 이전글: 준비 중
-              </div>
-              <div
-                style={{
-                  flex: 1,
-                  padding: "14px 18px",
-                  fontSize: 13,
-                  color: "var(--ink-dim)",
-                  textAlign: "right",
-                }}
-                title="준비 중"
-              >
-                다음글: 준비 중 →
-              </div>
-            </div>
-          </article>
-
-          {/* 3. 댓글 섹션 — 시안 헤더(댓글 + accent N) + CommentForm + CommentList */}
-          <section style={{ marginTop: 24 }}>
-            <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 12 }}>
-              <h3 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: "var(--ink)" }}>댓글</h3>
-              <span style={{ color: "var(--accent)", fontWeight: 800, fontSize: 16 }}>
-                {totalCommentsCount}
-              </span>
-            </div>
-
-            {/* 댓글 입력 — 기존 컴포넌트 그대로 (D6) */}
-            <CommentForm postId={id} />
-
-            {/* 댓글 리스트 — DB 댓글 + 카페 댓글 합쳐서 한 번에 (D7) */}
-            <div style={{ marginTop: 24 }}>
-              <CommentList
-                comments={[
-                  // 카페 댓글 (크롤링 원본 — 먼저 표시, HTML entity 디코드 적용)
-                  ...cafeComments.map((c, i) => ({
-                    id: `cafe-${i}`,
-                    userId: "",
-                    content: decodeHtmlEntities(c.text),
-                    likesCount: 0,
-                    createdAt: c.date || "",
-                    isPostAuthor: false,
-                    nickname: decodeHtmlEntities(c.nickname) || "익명",
-                    profileImage: null as string | null,
-                    isReply: c.is_reply,
-                  })),
-                  // DB 댓글 (사이트에서 직접 작성)
-                  ...comments
-                    .filter((c) => c.status !== "deleted")
-                    .map((c) => ({
-                      id: c.id.toString(),
-                      userId: c.user_id.toString(),
-                      content: c.content,
-                      likesCount: c.likes_count,
-                      createdAt: c.created_at.toISOString(),
-                      isPostAuthor: c.user_id === post.user_id,
-                      nickname: c.users?.nickname ?? "익명",
-                      profileImage: c.users?.profile_image_url ?? null,
-                    })),
-                ]}
-                postPublicId={id}
                 currentUserId={currentUserId}
               />
-            </div>
-          </section>
-
-          {/* 4. 본문 하단 누적 사이드 항목들 (D1-c)
-                 — 기존 PostDetailSidebar 컴포넌트 그대로 호출. 기존 grid 12열 우측 컬럼이 아니라
-                   main 안에서 1열 누적 형태로 노출. 작성자 카드 / 실시간 인기글 / 이벤트 배너 3블록 */}
-          <div style={{ marginTop: 32 }}>
-            <PostDetailSidebar
-              authorId={post.user_id}
-              authorNickname={displayNickname}
-              authorImage={post.users?.profile_image_url ?? null}
-              isFollowing={isFollowing}
-              isLoggedIn={isLoggedIn}
-              currentUserId={currentUserId}
-            />
+            </aside>
           </div>
         </main>
       </div>
