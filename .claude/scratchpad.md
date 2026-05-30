@@ -45,6 +45,8 @@
 - ⏸ **PR #656 머지 결재** (수빈 — subin→dev→main, #654/#655 답습)
 - ⏸ Phase 6 영역 결재 (Cowork 별 의뢰)
 - ☐ PR-1C-10 PA3 재설계 결정 (보류 중)
+- ⏸ **[멤버검수] 셋업팀 6번 하주호 계정연결 대기** — 대회 d83e8b83(열혈농구단 SEASON2 전국 최강전)/ttId=232/teamId=196. 6번 하주호 ttp(id=4556) 이미 존재·**userId=null**(셋업팀 유일 미연결). 하주호 mybdr 미가입(placeholder조차 없음). 연결경로: ①실가입+셋업팀 TeamMember active 가입(name/nick="하주호") → `/api/web/tournaments/[id]/link-players`(linkPlayersToUsers) 자동매칭 OR ②placeholder 계정 생성 후 ttp 연결 → 실가입 시 mergeTempMember 자동병합. 가입 완료 후 재요청 필요
+- 📌 참고: placeholder↔실가입 연결기능 = `src/lib/teams/merge-placeholder-user.ts`(mergePlaceholderUser) + `merge-temp-member.ts`(팀가입시 자동). 시스템 placeholder User 78명. 셋업팀 0번 이준호(uid2957)·7번 이영기(uid2955) ttp가 status=merged 계정 가리킴(실팀원 2872/2867과 불일치 — 정합성 점검 후보)
 
 ## 이전 Phase (완료 이력)
 - ✅ Phase 1C 15/16 박제+머지 (#650~#653) / PA3 SKIP 보류
@@ -80,6 +82,34 @@
 ⚠️ reviewer 참고:
 - Hero 다크 그라디언트 리터럴 hex(#1A1E27 등) = 시안 pm-hero + 운영 ru1-leader Hero 동일 패턴(다크 밴드 한정 허용). 토큰 위반 아님
 - 데이터 0 변경 확인 포인트: page.tsx·badge-catalog.ts diff 없음
+
+### 6.1C-2 · PU1 ProfileMain → /profile (보강 +119 LOC)
+
+📝 구현: 운영 3-tier hub(831 line) **전부 보존**. 시안 PU1 정합 위해 시각 보강 2종만 추가 — (1) Hero meta 포지션·지역·매너, (2) BP6 카운트 strip(운영 실데이터 3종). **교체 ❌ / 데이터 패칭 0 변경**.
+
+| 파일 | 변경 | 신규/수정 |
+|------|------|----------|
+| `src/app/(web)/profile/page.tsx` | Hero `mypage__id-meta`에 포지션(sports_basketball)·지역(location_on·city/district 둘 다 null이면 hide)·매너(favorite·evaluation_rating null이면 hide) meta 추가 + Hero 직후 `pu1-counts` strip(내 팀 teamMembers.length / 호스트 total_games_hosted / 매너 evaluation_rating). `counts` 객체 변환부 추가 | 수정 |
+| `src/app/(web)/profile/mypage.css` | `pu1-meta`·`pu1-counts`/`pu1-count` prefix +70 line (운영 토큰 --bg-elev/--border/--ink-mute/--accent, 다크 각진 처리 답습, 720px 모바일 분기) | 수정 |
+
+정합 결과:
+- **데이터 패칭 0 변경**: Promise.all 8쿼리·getPlayerStats·서버액션 전부 미수정. counts 3종 전부 **이미 페칭된 데이터** 재사용(teamMembers.length / user.total_games_hosted / evaluationRating). 신규 쿼리 0 / mock 0
+- **미페칭 hide**: 시안 5칸 카운트(대회/참가경기/팀/단체/매너) 중 대회·단체·참가경기 = page.tsx 미페칭 → 쿼리 추가 금지 위해 미배치(hide). 팀/호스트/매너 3종만
+- **운영 보존**: 3-tier hub(Tier1 큰4/Tier2 중4/Tier3 작2)·aside(다음경기 D-N/이적진행/최근활동5/도움)·TeamsListCard·IA 색인·Spark·force-dynamic·휴면복구·활동추적 전부 미수정
+- **null 가드**: 지역(city·district 둘 다 없으면 hide) / 매너(evaluation_rating null이면 hide) → 빈 데이터 계정 안전
+- prefix 충돌 0: `pu1-` mypage.css·globals.css 둘 다 0건, `pf-achv-`(6.1C-1)·타 페이지와 충돌 0
+- tsc --noEmit EXIT 0
+
+💡 tester 참고:
+- 테스트: `/profile` 로그인 후 진입
+- 정상: Hero 닉네임 줄 아래 meta = [팀명 · 포지션 · 지역 · 매너 N.N] / Hero 아래 카운트 칩 3개(내 팀 N / 호스트 N / 매너 N.N — 매너 칸 빨강 강조) / 그 아래 기존 소속팀 카드·3-tier hub·aside 전부 그대로
+- 주의: 지역 미입력 계정 → 지역 meta 숨김 정상 / evaluation_rating null 계정 → 매너 meta·카운트 "—" 정상 / 팀 0개 → 내 팀 카운트 0 / 모바일(≤720px) → 카운트 strip 좌우 16px 패딩 + 컴팩트
+- 비로그인 → 기존 로그인 유도 화면(미변경)
+
+⚠️ reviewer 참고:
+- 특별 확인: Promise.all/getPlayerStats/page.tsx 쿼리 select 절 diff 0 (데이터 패칭 절대 미변경) — counts는 기존 변수 재사용만
+- 다크모드 카운트 칸 각진 처리(border-radius 0 + border 2px)는 운영 `.mypage__hero`·`.mypage__avatar` 패턴 답습
+- stop condition: 없음
 
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
