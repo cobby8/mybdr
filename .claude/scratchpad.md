@@ -111,6 +111,35 @@
 - 아이콘 1종 룰 → kind 3아이콘으로 확장됨(시안 BU4가 stadium 사용 → 톤 답습 근거). 헤더 주석에 명시
 - 상태 배지 색은 STATUS_TONE(기존 토큰) color-mix soft 배경 — 신규 토큰/하드코딩 0
 
+### 6.2C-4 — AdminPlans → /admin/plans (BB1 BA2 카드 grid)
+
+📝 구현한 기능: 시안 BA2 AdminPlans 박제. 플랜 list 를 admin-table → BB1 카드 grid 로 교체. CRUD 시그니처·권한가드·프로모션 관리·생성/수정 모달 100% 보존.
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| src/app/(admin)/admin/plans/page.tsx | 테이블→카드 grid(기존 CARD_CLASS/CARD_STYLE 재사용) / 카드=이름+활성배지(admin-stat-pill)+타입·기능키 태그+가격(0원→무료, ₩천단위, /월·/회)+설명+수정·토글·삭제 / 파싱 보정 `data.data ?? data`(plans·promoStats 양쪽) / 헤더 주석 갱신 | 수정 (+80/-62, 순 +18) |
+
+설계 정합 (PM 승인 100% 일치):
+- 테이블 → BB1 카드 grid ✅ (grid-cols 1/2/3 반응형, 기존 토큰만)
+- CRUD 시그니처(handleSave/Toggle/Delete/openEdit/openCreate) · 권한가드(API route 측) 0 변경 ✅
+- subscribers·features hide ✅ (운영 plans 미보유 컬럼 → mock 0) / 복제 버튼 미배치 ✅ (신규 mutation 0)
+- 프로모션 관리 카드 보존 ✅ / 생성·수정 모달 보존 ✅ / AdminPageHeader 보존 ✅
+- 파싱 보정 `data.data ?? data` ✅ (apiSuccess snake_case 래핑 대비, 액션 0 변경 — 배열 직반환도 호환)
+- 운영 토큰 var(--color-*) 사용 ✅ / 신규 ba2-·bb- prefix 0 ✅ (admin 공용 admin-stat-pill·CARD_CLASS 재사용)
+- Hero/OperatorBadge(시안 oa1) 미도입: 운영 미보유 시안 전용 컴포넌트 → AdminPageHeader 유지 (PM "테이블→BB1 카드 grid" 범위)
+- 비활성 플랜 opacity 0.6 (시안 bl-pcard--off 톤 답습)
+
+💡 tester 참고:
+- 테스트: /admin/plans → 플랜 카드 grid(이름/활성배지/타입·기능키 태그/가격/설명) / "수정" → 모달 / "비활성화↔활성화" 토글 / "삭제"(confirm)
+- 0원 플랜은 "무료" 표기, 유료는 ₩9,900 형식 + /월(monthly)·/회(one_time)
+- 프로모션 관리(팀장/대회관리자 종료 버튼) 회귀 0 / "+ 요금제 추가" 모달 회귀 0
+- 정상: tsc 0 / CRUD 동작 보존 / 구독자 있는 플랜 삭제 시 비활성화 alert 유지
+
+⚠️ reviewer 참고:
+- 파싱 보정 `data.data ?? data`: 현재 /api/admin/plans 가 배열 직반환이면 `?.data` undefined → 원본 배열 사용(호환). apiSuccess 래핑으로 바뀌어도 자동 대응. raw 응답 curl 1회 확인 권장
+- subscribers/features 컬럼 hide 는 운영 plans 스키마 미보유 근거 (시안은 mock 데이터). DB schema 변경 0
+- 복제 버튼 시안에 있으나 신규 mutation(POST 복제 API) 필요 → PM 지시로 미배치
+
 ## 수정 요청
 | 요청자 | 대상 | 문제 | 상태 |
 |--------|------|------|------|
