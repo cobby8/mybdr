@@ -1012,3 +1012,9 @@
   6. 레이아웃: PC(lg 이상) 화면은 NBA 2K 콘솔 메뉴처럼 다중 열 그리드로 설계하되, 모바일은 기존의 1열 스크롤 구조가 적합하므로 이를 유지.
 - **참조횟수**: 0
 
+
+### [2026-05-30] placeholder 선수 계정 수동 셋업 표준 (대회 운영)
+- **분류**: convention
+- **발견자**: pm
+- **내용**: 미가입 선수를 대회 명단에 "실가입 시 자동승계 가능" 상태로 넣는 표준 = User+TeamMember+TTP 3종 + members_count. ① User: email=`placeholder-{teamId}-{jersey}@bdr.placeholder`, name=실명, nickname=null, provider="placeholder", status="placeholder", passwordDigest=bcrypt(랜덤·로그인불가), last_login_at=null. ② TeamMember: teamId/userId/jerseyNumber, status="active", role="member". ③ TTP.userId=ph. ④ team.members_count +1. **트랜잭션 1회**로 묶기. 사전검증(ttp userId=null·email/jersey 중복0) 필수. 이후 실가입자가 같은 팀 가입하면 `mergeTempMember`(merge-temp-member.ts)가 provider=placeholder+last_login=null+name/nick 매칭으로 자동 감지 → `mergePlaceholderUser`로 ttp/tm/기록 승계(stat·PBP는 ttp.id 불변이라 보존). 참조 사례: 이찬희(uid3276)·고재필(uid3275). placeholder는 `linkPlayersToUsers` 자동매칭에서는 제외됨(가입 hook 경로만).
+- **참조횟수**: 0
