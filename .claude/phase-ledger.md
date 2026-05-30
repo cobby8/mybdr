@@ -106,6 +106,15 @@
 | ⑬ PR 결재 | 4C | ✅ 완료 | 수빈 | 2026-05-29 | chain 25 PR 일괄 머지 (#654/#655) |
 | ⑭ Phase 완료 | 4 | ✅ 종료 | CLI→Cowork | 2026-05-29 | 단체 영역 운영 반영 완료 (#654/#655 머지) |
 
+### Phase 5 — 랭킹 · 커뮤니티 영역
+
+| 단계 | 영역 | 상태 | 책임자 | 갱신일 | 메모 |
+|------|------|------|------|------|------|
+| ⑩ sync 실행 | 5A+5B | ✅ 완료 | CLI | 2026-05-30 | v2.23 sync. `comm-shared.jsx/css` 신규(300+841 line). Rankings + CommunityList/Detail/New/Edit + AdminCommunity 6 jsx. 4 가정 lock A1~A4. Phase 1~4 carry-over diff 0 / pre-snapshot `_archive/BDR-current-2026-05-30-pre-v2.23/`. 회귀 검수 통과 |
+| ⑪ 운영 박제 (5C) | 5C | ⏳ 대기 | CLI | 2026-05-30 | auto-chain 6 PR (5C-1 CU4 / 5C-2 CU1 / 5C-3 CU2 / 5C-4 RU1 / 5C-5 CA1 / 5C-6 CU3). LOC 작은→큰 순 |
+| ⑬ PR 결재 | 5C | ⏳ 대기 | 수빈 | - | chain 6 PR 일괄 머지 (subin→dev→main) |
+| ⑭ Phase 완료 | 5 | ⏳ 대기 | CLI→Cowork | - | 랭킹·커뮤니티 운영 반영 |
+
 ---
 
 ## 완료 Phase (이력)
@@ -169,3 +178,4 @@ Phase 번호 ↑    영역 ↑
 | 2026-05-28 | **Phase 1C 대형 3 박제 완료** (PR-1C-14 PA2 `d33177e` / 15 Teams `044527d` / 16 Bracket `7694763`) — 15/16 박제 종료 (PA3 SKIP 제외) | 새 세션 batch / 3 commit 미push / push+결재 대기 |
 | 2026-05-29 | **Auto Chain 전체 완료 (25 PR)** — Phase 2C ⑪⑫ ✅ (10 PR) / Phase 3C ⑪ ✅ (6 PR) / Phase 4C ⑪ ✅ (8 PR) + v2.22 sync(dee2445) | CLI auto-chain 1 session 완수 / subin push 완료 / subin→dev→main 머지 수빈 수동 대기 |
 | 2026-05-29 | **Phase 2/3/4 운영 반영 완료** — subin→dev `#654` → dev→main `#655` (운영 `6f22c02`) | 25 PR 일괄 머지 / Vercel 운영 배포 / Phase 2 ⑬⑭ ✅ 종료 / Phase 3·4 동일 머지로 운영 반영 |
+| 2026-05-30 | **Phase 5 신규 + v2.23 sync ⑩ ✅** — 랭킹·커뮤니티 영역. `comm-shared` 신규 / 6 jsx / carry-over diff 0 | Auto Chain Phase 5C 6 PR 박제 시작 |
