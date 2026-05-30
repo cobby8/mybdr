@@ -2,7 +2,7 @@
    PR-1C-6 옵션 A — Matches 표 시각 박제 (시안 admin.css C1 amt-table)
    - source: Dev/design/BDR-current/admin.css L933~960 + 모바일 분기 L1406~1408
    - 토큰 대체: 시안 --r-md → 운영 --radius-card / --r-xs → 4px
-   - 나머지 토큰(--bg-elev/--bg-alt/--border/--ink*/--ff-mono/--cafe-blue-*)은
+   - 나머지 토큰(--bg-elev, --bg-alt, --border, --ink 계열, --ff-mono, --cafe-blue 계열)은
      운영 globals.css 에 모두 정의됨 → 그대로 사용
    - amt-mode (기록 모드 카드) 는 박제 안 함 — 운영 기록 모드 모달(ScoreModal) 보존
    - vban (검증 배너 3-tone) 박제 안 함 — mock 금지
