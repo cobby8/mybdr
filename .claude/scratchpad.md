@@ -310,6 +310,43 @@
 - warn-soft 4곳 비율 균일(14%/100%/32%) — 6.3C-1 ComingSoonBadge 와 정확히 동일. 단 6.3C-1 은 공통 컴포넌트(ComingSoonBadge) 추출, 6.3C-2 는 인라인 4곳(운영 growth 가 클래스/컴포넌트 아닌 인라인 스타일 페이지 → 기존 패턴 답습)
 - "구간별 상세 분석" 부모 박스는 기존 opacity 0.65 placeholder 시각 유지(배지만 warn-soft). 6.3C-1 다음주 추천 박스(dashed warn)와 달리 박스 톤 미변경 — PM 승인 범위 = "배지 4곳"
 
+### 6.3C-3 — GU3 ProfileSettings → /profile/settings (BG3 정합)
+
+📝 구현한 기능: 시안 GU3 박제 — ① GU3-A billing "/profile/billing" link 활성(isPaid 실데이터 시만 미리보기 강조 btn--primary) ② GU3-C danger 2차 confirm("삭제합니다" 텍스트 입력 + accent 경고박스) ③ GU3-D IdentityVerify 시각 강화(상태 아이콘 + verified soft pill). **GET 패칭·withdraw API·비번 confirm·name_verified 분기 0 변경 / 인라인 + var(--*) 토큰만**.
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| src/app/(web)/profile/settings/_components_v2/billing-section-v2.tsx | GU3-A: 하단 버튼 위 `Link href=/profile/billing` 추가(시안 "결제·구독 관리" credit_card btn). isPaid면 btn--primary(그라디언트 카드 톤 연결)·무료면 일반 btn — 미리보기 강조 isPaid 시만. summary prop·fetch·기존 2버튼 0 변경 | 수정 (+24/-3, 순 +21) |
+| src/app/(web)/profile/settings/_components_v2/danger-section-v2.tsx | GU3-C: ① accent 경고박스(error 아이콘 + "되돌릴 수 없습니다", accent-soft 배경/bdr-red-ink 텍스트) ② "삭제합니다" 텍스트 input(confirmText state) ③ 삭제 버튼 disabled = phraseOk && password(2중 가드) + handleDelete 앞단 phrase 가드. **withdraw DELETE API·PasswordInput·router.replace 0 변경** | 수정 (+112/-18, 순 +94) |
+| src/app/(web)/profile/settings/_components_v2/account-section-v2.tsx | GU3-D: 본인인증 행 시각 강화 — 좌측 상태 아이콘(인증=verified_user 초록/미인증=shield muted) + verified 뱃지 ok-soft 배경 pill(color-mix). **link(/onboarding/identity)·name_verified 분기·미인증 버튼 0 변경** | 수정 (+30/-7, 순 +23) |
+
+총 LOC: +169 / -25 (순 +144) — LOC>+2000 stop 미해당.
+
+설계 정합 (PM 승인 100% 일치):
+- billing link 활성 = isPaid(is_paid_member 실데이터) 시만 미리보기 강조(btn--primary) / 무료는 일반 진입 — mock 0 ✅
+- danger 2차 confirm = "삭제합니다" 입력 + accent 경고박스 ✅ / **비번 confirm·withdraw 액션 0 변경**(phrase 가드는 기존 비번 검증 앞에 추가, API body·호출 동일) ✅
+- IdentityVerify 시각 강화 = link·동작 보존(href·분기·onboarding 단일 진입점 유지) ✅
+- GET 패칭 0 변경(세 컴포넌트 모두 fetch 신규 0) ✅ / 전부 인라인 + var(--*) ✅
+
+🔑 토큰 검증 (구현 전 확인):
+- danger accent: `--accent`(globals.css L104) / `--accent-soft`(L105) 운영 존재. 시안 전용 `--accent-deep`→`--bdr-red-ink`(L28) / `--accent-hair`→`--accent-soft` 매핑(globals.css L4646 주석 가이드 준수). danger BDR Red = var(--accent)/--bdr-red-ink 토큰만 ✅
+- billing/account: `--cafe-blue`(L96) / `--ok`(L50) 기존 보유
+- 13룰 §10 pill 회피: GU3-D verified 뱃지 가로 pill → borderRadius 9999 ❌ → **4px(BDR 버튼 표준) 적용** (시안 gw-verify pill이나 운영 룰 우선)
+
+⚠️ stop condition 여부: **없음**
+- /api/v1·DB schema 변경 0 / LOC +144(<+2000) / tsc 0(EXIT=0) / 회귀 0(데이터·동작 불변) / 13룰 위반 0 / gu3-·bg- prefix 신설 0
+
+💡 tester 참고:
+- 테스트: /profile/settings ① 결제·멤버십 섹션 하단 "결제·구독 관리"(credit_card) → /profile/billing 이동(유료=primary 강조/무료=일반) ② 계정 관리 → "계정 삭제" → 모달: accent 경고박스 + "삭제합니다" 입력 + 비번. 둘 다 충족 전 "영구 삭제" disabled ③ 계정·보안 → 본인인증 행: 인증완료(verified_user 초록 + ok pill "인증 완료") / 미인증(shield + "본인인증 →" 버튼)
+- danger 2중 가드: "삭제합니다" 정확 일치 + 비번 입력 → 활성. 둘 중 하나만이면 disabled(title 안내). 활성 후 클릭 → 기존 withdraw DELETE → /login replace(회귀 0)
+- billing isPaid 토글: is_paid_member=true면 그라디언트 카드 + primary 버튼 / false면 알트 카드 + 일반 버튼
+- 정상: tsc 0 / 비번 confirm·withdraw API·onboarding/identity 진입 모두 기존 동작 보존
+
+⚠️ reviewer 참고:
+- danger 2차 confirm은 **추가 가드**(기존 비번 confirm 위에). withdraw API body(`{password}`)·메서드(DELETE)·credentials 0 변경. confirmText는 클라 가드 only(서버 미전송) — 시안 UX 의도
+- billing Link 진입점만 추가, 기존 router.push 2버튼(플랜 변경/구독 취소)·SettingsRow 4행 보존(중복 진입 = 시안 구조)
+- GU3-D verified 뱃지 borderRadius 4(9999 회피, 13룰 §10) — color-mix ok-soft 배경/border, 신규 토큰 0
+
 ## 수정 요청
 | 요청자 | 대상 | 문제 | 상태 |
 |--------|------|------|------|
@@ -317,6 +354,7 @@
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
 |------|------|------|
+| 2026-05-31 | **Phase 6.3C-3** GU3 ProfileSettings BG3 정합 (billing /profile/billing link 활성 isPaid시 + danger 2차 confirm "삭제합니다"+경고박스 + IdentityVerify 시각강화) | ✅ tsc 0 / +169-25 / GET·withdraw·비번 0 변경 / stop 없음 |
 | 2026-05-31 | **Phase 6.3C-2** GU1 ProfileGrowth BG1 정합 ("준비 중" warn-soft 4곳 통일 + PU4 이모지 유지) | ✅ tsc 0 / +49-8 / SWR 2종·구조 0 변경 / stop 없음 |
 | 2026-05-31 | **Phase 6.3C-1** GU2 WeeklyReport BG2 정합 (placeholder warn-soft 3곳 + 이메일구독 link + "준비 중" 통일) | ✅ tsc 0 / +23-13 / 데이터 패칭 0 변경 / stop 없음 |
 | 2026-05-31 | **Phase 5+6.1 dev→main 운영 반영** (#658) | ✅ main `26586af` Vercel success / ledger ⑬⑭ ✅ 종료 |
@@ -325,4 +363,3 @@
 | 2026-05-31 | 빌드 fix: admin CSS 주석 `*/` Turbopack 실패 | ✅ `bdd5e32` / errors.md 기록 |
 | 2026-05-31 | 경기일 Flutter 검수 + ttp 정합성 3패턴 | ✅ lessons.md 기록 (셋업·몽키즈) |
 | 2026-05-30 | placeholder 선수 셋업 (하주호) | ✅ conventions.md / uid3516 |
-| 2026-05-29 | Auto Chain 25 PR 운영 반영 (#654/#655) | ✅ main `6f22c02` |

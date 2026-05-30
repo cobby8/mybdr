@@ -87,17 +87,32 @@ export function AccountSectionV2({ user }: Props) {
           gap: 12,
         }}
       >
-        <div>
-          <div style={{ fontWeight: 600, fontSize: 14 }}>본인인증</div>
-          <div
-            style={{ fontSize: 12, color: "var(--ink-mute)", marginTop: 2 }}
+        {/* GU3-D — BG3 시각 강화: 좌측 상태 아이콘(인증=verified 초록 / 미인증=shield 안내) 추가.
+            link(/onboarding/identity)·name_verified 분기·동작은 0 변경 — 시각만 보강 */}
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <span
+            className="material-symbols-outlined"
+            style={{
+              fontSize: 22,
+              flexShrink: 0,
+              color: user?.name_verified ? "var(--ok)" : "var(--ink-mute)",
+            }}
           >
-            {user?.name_verified
-              ? `실명 인증 완료${user?.name ? ` · ${user.name}` : ""}`
-              : "대회 출전 · 팀 활동에는 본인인증이 필요합니다"}
+            {user?.name_verified ? "verified_user" : "shield"}
+          </span>
+          <div>
+            <div style={{ fontWeight: 600, fontSize: 14 }}>본인인증</div>
+            <div
+              style={{ fontSize: 12, color: "var(--ink-mute)", marginTop: 2 }}
+            >
+              {user?.name_verified
+                ? `실명 인증 완료${user?.name ? ` · ${user.name}` : ""}`
+                : "대회 출전 · 팀 활동에는 본인인증이 필요합니다"}
+            </div>
           </div>
         </div>
         {user?.name_verified ? (
+          /* GU3-D — verified 뱃지 시각 강화: 텍스트 → ok-soft 배경 pill (시안 gw-verify[data-ok] 톤) */
           <span
             style={{
               display: "inline-flex",
@@ -105,14 +120,18 @@ export function AccountSectionV2({ user }: Props) {
               gap: 4,
               fontSize: 12,
               color: "var(--ok)",
-              fontWeight: 600,
+              fontWeight: 700,
               flexShrink: 0,
+              padding: "4px 10px",
+              borderRadius: 4,
+              background: "color-mix(in oklab, var(--ok) 12%, transparent)",
+              border: "1px solid color-mix(in oklab, var(--ok) 28%, transparent)",
             }}
           >
             <span className="material-symbols-outlined" style={{ fontSize: 14 }}>
               verified
             </span>
-            인증완료
+            인증 완료
           </span>
         ) : (
           <Link
