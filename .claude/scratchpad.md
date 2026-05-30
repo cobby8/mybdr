@@ -84,6 +84,35 @@
 | 회차 | 날짜 | 수정 내용 | 수정 파일 | 사유 |
 |------|------|----------|----------|------|
 
+### 5C-2 — CU1 CommunityList → /community 박제 (BC2)
+
+📝 구현한 기능: 시안 CU1(카테고리 chip + cu-post 카드 리스트 + 사이드바)를 운영 `/community`(CommunityContent)에 박제. **데이터 패칭 0 변경** — API fetch / SSR fallback / preferFilter / searchParams / 정렬 4종 / 더보기 전부 보존, UI 렌더링(board 테이블 → cu1 카드)만 교체.
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| `src/app/(web)/community/_components/community-content.tsx` | board 테이블 → `.cu1-chips`(8종 칩) + `.cu1-grid`(cu-post 카드 리스트 + 인기글 사이드바). PostRow→PostCard 교체. CHIP_CATEGORIES 상수 + hotPosts useMemo(실데이터 파생) 추가. 미사용 V2Pager import·totalPages 정리 | 수정 (+258/-102) |
+| `src/app/globals.css` | CU1 전용 CSS 포팅(comm prefix: cat-badge/comm-author/cu1-chips/cu1-grid/cu-post/cu-side-card/cu-hot-row). 시안 토큰→운영 토큰 치환(--r-md→--radius-card / --accent-deep→--bdr-red-ink 등) | 수정 (+167) |
+
+핵심 결정 (정합 lock 반영):
+- **카테고리 taxonomy 유지(mock 아님)**: CHIP_CATEGORIES = 운영 8종(news/general/recruit/review/qna/info/marketplace/notice) + 전체글. 칩 클릭 = 기존 handleCategoryChange(URL ?category=) 재사용
+- **미데이터 hide**: team.name / is_official(verified) / image_count(+N 썸네일) → 박제 안 함. tournament 알기자 band → hide(A4 cross-domain mock 0). thumbnail_url(news Hero)만 썸네일 노출
+- **이 주 인기 글 = 실데이터 파생**: mock COMM_HOT 드롭. 로드된 posts를 view_count desc 정렬 slice 5 (별도 API 추가 0)
+- **내 활동 카드(7/34/12/5) = mock 드롭** (mock 0 원칙)
+- **시안 전용 토큰→운영 토큰 치환**: --r-md/--r-sm/--r-xs / --accent-deep / --accent-hair. review badge #8B5A0F 하드코딩 → --ink-soft/--bg-head 토큰 치환(13룰 하드코딩 금지)
+- **community 전용 prefix 유지**: cu1-/cu-post/cat-badge/comm-author/cu-side-card/cu-hot-row — 타 페이지(경기/팀/단체) 클래스 충돌 0 (포팅 전 grep 검증)
+
+보존(0 변경): `/api/web/community` fetch / prefetchCommunity SSR fallback / usePreferFilter / searchParams 동기화 / 정렬 4종 / LoadMoreButton 누적 페이지네이션 / 검색·정렬 토글 헤더 / CommunityAside(좌측 트리)
+
+💡 tester 참고:
+- 테스트: `/community` 진입 → 칩 8종 클릭(카테고리 필터 URL 동기화) → 카드 리스트 렌더 / 우측 "이 주 인기 글" 5건 / 더보기 누적 / 검색·정렬 토글
+- 정상: 카드=제목·미리보기·작성자·시간·조회·좋아요·댓글 표시 / news 글=좌측 빨간 띠 / 공지=고정 칩+강조 / 인기글=조회순 상위 5
+- 주의 입력: thumbnail_url 있는 news 글(우측 썸네일) / posts 0건(빈 상태 board + 첫 글쓰기 CTA) / view_count>1500(조회수 is-hot 강조)
+
+⚠️ reviewer 참고:
+- board 테이블→카드 전환 시 데이터 패칭/상태 로직 0 변경 동일성 (diff에 fetch/api/searchParams 라인 0 확인)
+- CSS 신규 클래스 community prefix 충돌 0 / 시안→운영 토큰 치환 정합
+- 모바일: 기존 CommunityMobileTabs 제거하고 cu1-chips로 통합 — 모바일 카테고리 전환 회귀 여부
+
 ## 진행 현황 (Phase 1C — 완료)
 - ✅ Phase 1C 15/16 박제+머지 (PR #650~#653) / PA3 SKIP 보류 (decisions.md) / subin=dev=main 정합
 

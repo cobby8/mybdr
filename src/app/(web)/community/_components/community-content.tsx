@@ -28,8 +28,7 @@ import Link from "next/link";
 import { usePreferFilter } from "@/contexts/prefer-filter-context";
 import { decodeHtmlEntities } from "@/lib/utils/decode-html";
 import { LoadMoreButton } from "@/components/load-more-button";
-import { CommunityAside, CommunityMobileTabs } from "./community-aside";
-import { V2Pager } from "@/components/bdr-v2/v2-pager";
+import { CommunityAside } from "./community-aside";
 
 // API에서 내려오는 게시글 데이터 타입 (apiSuccess가 snake_case로 자동 변환)
 interface PostFromApi {
@@ -92,6 +91,21 @@ const CATEGORY_TO_GROUP: Record<string, "메인" | "플레이" | "이야기"> = 
   qna:         "이야기",
   info:        "이야기",
 };
+
+// 2026-05-30 (5C-2): 시안 CU1 카테고리 chip row — 운영 8종 taxonomy 그대로.
+// 운영 액션/표시 카테고리(community_posts.category)를 시안 칩 형태로만 박제.
+// alkija(news)는 강조색 칩(is-alkija) 적용. 데이터 출처/패칭 변경 0.
+const CHIP_CATEGORIES: { key: string | null; label: string; icon: string; alkija?: boolean }[] = [
+  { key: null,          label: "전체글",    icon: "apps" },
+  { key: "news",        label: "BDR NEWS", icon: "newspaper",   alkija: true },
+  { key: "general",     label: "자유게시판", icon: "forum" },
+  { key: "recruit",     label: "팀원모집",  icon: "group_add" },
+  { key: "review",      label: "대회후기",  icon: "rate_review" },
+  { key: "qna",         label: "질문답변",  icon: "help" },
+  { key: "info",        label: "정보공유",  icon: "lightbulb" },
+  { key: "marketplace", label: "농구장터",  icon: "storefront" },
+  { key: "notice",      label: "공지사항",  icon: "campaign" },
+];
 
 // -- 날짜 포맷 (MM-DD) — 시안의 p.date.slice(5) 패턴 --
 function formatBoardDate(isoString: string | null): string {
@@ -242,7 +256,7 @@ export function CommunityContent({ fallbackPosts }: CommunityContentProps) {
   // 이유: 시안에서 pinned는 항상 상단 고정. DB에 is_pinned 컬럼이 없으므로
   //       category=notice를 사실상 공지로 간주해 항상 상단 노출.
   //       단, 사용자가 notice 카테고리를 선택한 경우엔 분리하지 않음(자체 목록).
-  const { pinnedPosts, regularPosts, totalPages, paginatedRegular, hasMore, remaining } = useMemo(() => {
+  const { pinnedPosts, regularPosts, paginatedRegular, hasMore, remaining } = useMemo(() => {
     const isNoticeBoard = category === "notice";
     const pinned = isNoticeBoard ? [] : posts.filter((p) => p.category === "notice");
     const rest = isNoticeBoard ? posts : posts.filter((p) => p.category !== "notice");
@@ -269,12 +283,20 @@ export function CommunityContent({ fallbackPosts }: CommunityContentProps) {
     return {
       pinnedPosts: pinned,
       regularPosts: sorted,
-      totalPages: Math.ceil(sorted.length / POSTS_PER_PAGE),
       paginatedRegular: slice,
       hasMore: sorted.length > visibleCount,
       remaining: Math.max(0, sorted.length - visibleCount),
     };
   }, [posts, sortKey, currentPage, category]);
+
+  // 2026-05-30 (5C-2): 이 주 인기 글 — 시안 COMM_HOT 자리. mock 금지 → 실데이터 파생.
+  // 현재 로드된 posts(공지+일반 전체)를 view_count 내림차순 정렬해 상위 5건.
+  // 별도 API/패칭 추가 0 (이미 로드된 데이터 재사용).
+  const hotPosts = useMemo(() => {
+    return [...posts]
+      .sort((a, b) => (b.view_count ?? 0) - (a.view_count ?? 0))
+      .slice(0, 5);
+  }, [posts]);
 
   const hasFilters = !!(category || appliedQuery || preferFilter);
 
@@ -464,15 +486,30 @@ export function CommunityContent({ fallbackPosts }: CommunityContentProps) {
           </div>
           )}
 
-          {/* 3. 모바일 카테고리 가로 탭 — 2026-05-04 위치 swap (사용자 요청).
-              이유: "정렬 바 → 카테고리 탭 → 첫 게시글" 순서가 첫 게시글 직전 분류 변경에 가장 자연스러움.
-              .aside-mobile-tabs 는 lg+ 에서 CSS 미디어쿼리로 자동 숨김 → 데스크톱 영향 0. */}
-          <CommunityMobileTabs
-            activeCategory={category}
-            onSelect={handleCategoryChange}
-          />
+          {/* 3. 카테고리 chip row (BC2) — 2026-05-30 (5C-2) 시안 CU1 박제.
+              운영 8종 taxonomy 그대로. 칩 클릭 = 기존 handleCategoryChange(URL ?category=) 재사용.
+              sticky chip — 데스크톱/모바일 공통. (기존 CommunityMobileTabs 는 제거하고 이 칩으로 통합) */}
+          <div className="cu1-chips" role="tablist">
+            {CHIP_CATEGORIES.map((c) => {
+              // 활성: key=null 칩은 카테고리 미선택 시, 그 외는 key 일치 시
+              const isOn = c.key === null ? !category : category === c.key;
+              return (
+                <button
+                  key={c.key ?? "all"}
+                  type="button"
+                  role="tab"
+                  aria-selected={isOn}
+                  className={`cu1-chip${isOn ? " is-on" : ""}${c.alkija ? " is-alkija" : ""}`}
+                  onClick={() => handleCategoryChange(c.key)}
+                >
+                  <span className="material-symbols-outlined" aria-hidden="true">{c.icon}</span>
+                  {c.label}
+                </button>
+              );
+            })}
+          </div>
 
-          {/* 4. 게시글 테이블 — 로딩/빈상태/정상 분기 */}
+          {/* 4. 본문 그리드 — 좌: 게시글 카드 리스트 / 우: 이 주 인기 글 (실데이터 파생) */}
           {loading ? (
             <BoardSkeleton />
           ) : posts.length === 0 ? (
@@ -496,40 +533,52 @@ export function CommunityContent({ fallbackPosts }: CommunityContentProps) {
               </Link>
             </div>
           ) : (
-            <div className="board">
-              {/* 헤더 행 */}
-              <div className="board__head">
-                <div>번호</div>
-                <div>제목</div>
-                <div>작성자</div>
-                <div>날짜</div>
-                <div>조회</div>
-                <div>추천</div>
+            <div className="cu1-grid">
+              {/* 좌측: 게시글 카드 리스트 (공지 핀 → 일반 정렬·페이지네이션) */}
+              <div className="cu1-list">
+                {/* 공지 핀 — 항상 상단 (카테고리=notice 선택 시는 분리 안 함) */}
+                {pinnedPosts.map((p) => (
+                  <PostCard key={`pin-${p.id}`} post={p} pinned />
+                ))}
+                {/* 일반 글 — 정렬 + 더보기 누적 슬라이스 */}
+                {paginatedRegular.map((p) => (
+                  <PostCard key={p.id} post={p} />
+                ))}
+
+                {/* 더보기 버튼 — 기존 누적 페이지네이션 보존 */}
+                <LoadMoreButton
+                  hasMore={hasMore ?? false}
+                  onMore={() => setCurrentPage((p) => p + 1)}
+                  remaining={remaining}
+                />
               </div>
 
-              {/* 공지 핀 — 항상 상단 (단, 카테고리=notice 선택 시에는 분리 안 함) */}
-              {pinnedPosts.map((p) => (
-                <PostRow key={`pin-${p.id}`} post={p} pinned />
-              ))}
-
-              {/* 일반 글 — 정렬 + 페이지네이션 적용된 슬라이스 */}
-              {paginatedRegular.map((p, idx) => {
-                // 시안의 번호 채번: 단순 인덱스(역순). 페이지마다 1부터 다시 시작
-                // 정확히 시안과 똑같이 하려면 전체 글 수 - (현재 인덱스) 계산
-                const globalIndex = (currentPage - 1) * POSTS_PER_PAGE + idx;
-                const displayNum = regularPosts.length - globalIndex;
-                return <PostRow key={p.id} post={p} num={displayNum} />;
-              })}
+              {/* 우측 사이드바: 이 주 인기 글 (실데이터 파생 — mock 금지).
+                  내 활동 카드는 mock 데이터(7/34/12/5)라 박제 제외(drop). */}
+              <aside className="cu1-side">
+                <div className="cu-side-card">
+                  <h4 className="cu-side-card__h">
+                    <span className="material-symbols-outlined" aria-hidden="true">local_fire_department</span>
+                    이 주 인기 글
+                  </h4>
+                  {hotPosts.length === 0 ? (
+                    <div className="cu-side-empty">표시할 인기 글이 없습니다</div>
+                  ) : (
+                    hotPosts.map((p, i) => (
+                      <Link
+                        key={p.id}
+                        className="cu-hot-row"
+                        href={`/community/${p.public_id}`}
+                      >
+                        <span className="cu-hot-row__rank">{i + 1}</span>
+                        <span className="cu-hot-row__title">{decodeHtmlEntities(p.title)}</span>
+                        <span className="cu-hot-row__v">{p.view_count.toLocaleString()}</span>
+                      </Link>
+                    ))
+                  )}
+                </div>
+              </aside>
             </div>
-          )}
-
-          {/* 2026-05-03: 페이지네이션 → 더보기 버튼 */}
-          {!loading && (
-            <LoadMoreButton
-              hasMore={hasMore ?? false}
-              onMore={() => setCurrentPage((p) => p + 1)}
-              remaining={remaining}
-            />
           )}
         </main>
       </div>
@@ -538,78 +587,83 @@ export function CommunityContent({ fallbackPosts }: CommunityContentProps) {
 }
 
 /**
- * PostRow — 게시판 행 1줄 (시안 .board__row)
+ * PostCard — 게시글 카드 1개 (시안 .cu-post · Phase 5C-2 박제)
  *
- * pinned=true면 .notice 클래스 + "공지" 배지. false면 일반 글 + 새글 N 뱃지.
- * has_image는 DB 미지원이라 false 고정.
+ * 시안 CU1 카드 구조를 박제하되, board API 미제공 필드는 hide:
+ *   - team.name (작성자 옆 소속 팀)  → hide (API 미제공)
+ *   - is_official (작성자 verified) → hide (API 미제공)
+ *   - image_count (썸네일 +N)        → hide (API 미제공) / thumbnail_url 만 노출
+ *   - tournament 알기자 band         → hide (A4 cross-domain mock 0)
+ *
+ * pinned=true → 고정(공지) 칩 + is-pinned 강조. news → is-alkija 좌측 띠.
+ * 표시 데이터: category badge / 제목 / content_preview / 작성자 / 시간 / 조회 / 좋아요 / 댓글.
  */
-function PostRow({ post, pinned, num }: { post: PostFromApi; pinned?: boolean; num?: number }) {
-  // 공지는 글 내용에 카테고리 표시 안 함 (시안 그대로 "공지" 단일 배지)
+function PostCard({ post, pinned }: { post: PostFromApi; pinned?: boolean }) {
   const isNew = !pinned && isNewPost(post.created_at);
-  // 추천(좋아요) 칸 — likes_count 직접 표시 (시안의 views/30 폴백 사용 안 함)
-  const recommendCount = post.likes_count ?? 0;
+  // news 카테고리 = BDR NEWS(알기자) → 좌측 강조 띠
+  const isAlkija = post.category === "news";
+  // 조회수 1500 초과 시 "is-hot" 강조 (시안 동일 임계)
+  const isHotView = (post.view_count ?? 0) > 1500;
 
   return (
     <Link
       href={`/community/${post.public_id}`}
-      className={`board__row${pinned ? " notice" : ""}`}
-      style={{ display: "grid", textDecoration: "none" }}
+      className={`cu-post${pinned ? " is-pinned" : ""}${isAlkija ? " is-alkija" : ""}`}
     >
-      {/* 번호 칸 — 공지면 "공지" 라벨, 아니면 숫자 */}
-      <div className="num" data-label="번호">
-        {pinned ? "공지" : (num ?? post.id)}
-      </div>
+      <div className="cu-post__body">
+        {/* 상단: 고정 칩 + 카테고리 badge (+ 새글 N) */}
+        <div className="cu-post__top">
+          {pinned && (
+            <span className="cu-post__pin">
+              <span className="material-symbols-outlined" aria-hidden="true">push_pin</span>
+              고정
+            </span>
+          )}
+          {post.category && (
+            <span className="cat-badge" data-cat={post.category}>
+              {CATEGORY_LABEL[post.category] ?? post.category}
+            </span>
+          )}
+          {isNew && <span className="badge badge--new">N</span>}
+        </div>
 
-      {/* 제목 칸 — 배지/이미지/제목/댓글수/N뱃지 */}
-      <div className="title" data-label="제목">
-        {pinned && <span className="badge badge--blue">공지</span>}
-        {/* 2026-05-04: 알기자 (BDR NEWS) Hero 사진 썸네일 — news 카테고리 + 사진 1장 이상 시 노출 */}
-        {post.thumbnail_url && (
-          <img
-            src={post.thumbnail_url}
-            alt=""
-            loading="lazy"
-            style={{
-              width: 28,
-              height: 28,
-              borderRadius: 4,
-              objectFit: "cover",
-              verticalAlign: "middle",
-              marginRight: 6,
-              border: "1px solid var(--color-border)",
-            }}
-          />
+        {/* 제목 */}
+        <h3 className="cu-post__title">{decodeHtmlEntities(post.title)}</h3>
+
+        {/* 본문 미리보기 — content_preview (board API 제공) */}
+        {post.content_preview && (
+          <p className="cu-post__excerpt">{decodeHtmlEntities(post.content_preview)}</p>
         )}
-        <span>{decodeHtmlEntities(post.title)}</span>
-        {post.comments_count > 0 && (
-          <span className="comment-count">[{post.comments_count}]</span>
-        )}
-        {isNew && (
-          <span className="badge badge--new" style={{ marginLeft: 4 }}>
-            N
+
+        {/* 메타: 작성자 · 시간 · 조회 · 좋아요 · 댓글 (team / is_official 은 API 미제공 hide) */}
+        <div className="cu-post__meta">
+          <span className="comm-author">
+            <span className="comm-author__name">{decodeHtmlEntities(post.author_nickname)}</span>
           </span>
-        )}
+          <span className="cu-post__dot">·</span>
+          <span>{formatBoardDate(post.created_at)}</span>
+          <span className="cu-post__dot">·</span>
+          <span className={`cu-post__meta-stat${isHotView ? " is-hot" : ""}`}>
+            <span className="material-symbols-outlined" aria-hidden="true">visibility</span>
+            {post.view_count.toLocaleString()}
+          </span>
+          <span className="cu-post__meta-stat">
+            <span className="material-symbols-outlined" aria-hidden="true">favorite</span>
+            {(post.likes_count ?? 0).toLocaleString()}
+          </span>
+          <span className="cu-post__meta-stat">
+            <span className="material-symbols-outlined" aria-hidden="true">chat_bubble</span>
+            {(post.comments_count ?? 0).toLocaleString()}
+          </span>
+        </div>
       </div>
 
-      {/* 작성자 */}
-      <div data-label="작성자" style={{ fontSize: 12 }}>
-        {decodeHtmlEntities(post.author_nickname)}
-      </div>
-
-      {/* 날짜 (MM-DD) */}
-      <div data-label="날짜" style={{ fontSize: 12, color: "var(--ink-dim)" }}>
-        {formatBoardDate(post.created_at)}
-      </div>
-
-      {/* 조회수 */}
-      <div data-label="조회" style={{ fontSize: 12, color: "var(--ink-dim)" }}>
-        {post.view_count.toLocaleString()}
-      </div>
-
-      {/* 추천(좋아요) 수 — 공지는 "-" 표시 (시안 그대로) */}
-      <div data-label="추천" style={{ fontSize: 12, color: "var(--ink-dim)" }}>
-        {pinned ? "-" : recommendCount.toLocaleString()}
-      </div>
+      {/* 우측 썸네일 — thumbnail_url(news Hero 사진) 있을 때만. image_count 미지원이므로 +N 카운트 hide */}
+      {post.thumbnail_url && (
+        <div className="cu-post__thumb">
+          <img src={post.thumbnail_url} alt="" loading="lazy" />
+        </div>
+      )}
     </Link>
   );
 }
