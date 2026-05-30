@@ -14,6 +14,8 @@ import {
 import Link from "next/link";
 import { AdminPageHeader } from "@/components/admin/admin-page-header";
 import { AdminUsersTable } from "./admin-users-table";
+// 6.1C-5(PA1) 박제: 본인 자기 정지 가드 표시용 — 현재 로그인 슈퍼관리자 식별
+import { getWebSession } from "@/lib/auth/web-session";
 
 export const dynamic = "force-dynamic";
 
@@ -36,6 +38,24 @@ export default async function AdminUsersPage({
     : undefined;
 
   const superAdminCount = await prisma.user.count({ where: { isAdmin: true } });
+
+  // 6.1C-5(PA1) 박제: 현재 로그인 슈퍼관리자 id (본인 자기 정지 가드 표시용)
+  //   session.sub = userId(string). 본인 행은 액션 버튼 대신 "본인" 읽기전용 표시
+  const session = await getWebSession();
+  const currentUserId = session?.sub ?? null;
+
+  // 6.1C-5(PA1) 박제: Hero 4-stat 실측용 status groupBy (1 쿼리)
+  //   왜: 시안 Hero(전체/활성/정지/관리자) 카운트는 첫 50명이 아닌 전체 DB 기준이어야 정확
+  //   where 미적용(전체 기준) — superAdminCount/totalCount 와 동일 전체 통계 컨텍스트
+  const statusGroups = await prisma.user.groupBy({
+    by: ["status"],
+    _count: { _all: true },
+  });
+  // status 값별 카운트 맵 (null/기타 status 는 정지로 미분류 — 활성/정지만 노출)
+  const activeCount =
+    statusGroups.find((g) => g.status === "active")?._count._all ?? 0;
+  const suspendedCount =
+    statusGroups.find((g) => g.status === "suspended")?._count._all ?? 0;
 
   // 2026-05-04: 정렬 변경 — 기존 [membershipType desc, createdAt desc] →
   //             [isAdmin desc, createdAt desc]
@@ -121,6 +141,27 @@ export default async function AdminUsersPage({
         }
       />
 
+      {/* 6.1C-5(PA1) 박제: Hero 4-stat strip — 시안 oa1-hero__stats 패턴 (전체/활성/정지/관리자)
+          전부 실측 (totalCount / status groupBy / superAdminCount). 우승(titles)은 미페칭이라 hide */}
+      <div className="pa1-hero-stats">
+        <div className="pa1-hero-stat">
+          <div className="pa1-hero-stat__num">{totalCount.toLocaleString()}</div>
+          <div className="pa1-hero-stat__lbl">전체</div>
+        </div>
+        <div className="pa1-hero-stat">
+          <div className="pa1-hero-stat__num" data-tone="ok">{activeCount.toLocaleString()}</div>
+          <div className="pa1-hero-stat__lbl">활성</div>
+        </div>
+        <div className="pa1-hero-stat">
+          <div className="pa1-hero-stat__num" data-tone="err">{suspendedCount.toLocaleString()}</div>
+          <div className="pa1-hero-stat__lbl">정지</div>
+        </div>
+        <div className="pa1-hero-stat">
+          <div className="pa1-hero-stat__num" data-tone="warn">{superAdminCount.toLocaleString()}</div>
+          <div className="pa1-hero-stat__lbl">관리자</div>
+        </div>
+      </div>
+
       {error && (
         <div
           className="mb-4 rounded-[12px] px-4 py-3 text-sm"
@@ -137,6 +178,7 @@ export default async function AdminUsersPage({
         initialUsers={serializedUsers}
         totalCount={totalCount}
         searchQuery={q ?? null}
+        currentUserId={currentUserId}
         loadMoreAction={loadMoreUsersAction}
         updateUserRoleAction={updateUserRoleAction}
         updateUserStatusAction={updateUserStatusAction}

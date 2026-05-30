@@ -7,11 +7,14 @@ import { getWebSession } from "@/lib/auth/web-session";
 import { adminLog } from "@/lib/admin/log";
 import { MAX_SUPER_ADMINS } from "@/lib/auth/roles";
 
+// 6.1C-5(PA1) 박제: session 을 반환하도록 변경 — 본인 자기 정지 가드에서 session.sub 재사용
+//   (기존 호출부는 반환값 무시 — 동작 무변경)
 async function requireSuperAdmin() {
   const session = await getWebSession();
   if (!session || session.role !== "super_admin") {
     throw new Error("권한이 없습니다.");
   }
+  return session;
 }
 
 export async function updateUserRoleAction(formData: FormData): Promise<void> {
@@ -40,12 +43,17 @@ export async function updateUserRoleAction(formData: FormData): Promise<void> {
 }
 
 export async function toggleUserAdminAction(formData: FormData): Promise<void> {
-  await requireSuperAdmin();
+  const session = await requireSuperAdmin();
 
   const userId = formData.get("user_id") as string;
   const makeAdmin = formData.get("make_admin") === "true";
 
   if (!userId) return;
+
+  // 6.1C-5(PA1) 박제: 본인 자기 권한 해제 가드 — 본인의 슈퍼관리자 해제 차단 (권한 잠금 사고 방지)
+  if (session.sub === userId) {
+    redirect(`/admin/users?error=${encodeURIComponent("본인 계정의 슈퍼관리자 권한은 변경할 수 없습니다.")}`);
+  }
 
   // 슈퍼관리자 최대 4명 제한
   if (makeAdmin) {
@@ -106,10 +114,15 @@ export async function endPromotionAction(formData: FormData): Promise<{ error?: 
 }
 
 export async function forceWithdrawUserAction(formData: FormData): Promise<void> {
-  await requireSuperAdmin();
+  const session = await requireSuperAdmin();
 
   const userId = formData.get("user_id") as string;
   if (!userId) return;
+
+  // 6.1C-5(PA1) 박제: 본인 자기 탈퇴 가드 — 본인 계정 강제탈퇴 차단
+  if (session.sub === userId) {
+    redirect(`/admin/users?error=${encodeURIComponent("본인 계정은 강제탈퇴할 수 없습니다.")}`);
+  }
 
   const user = await prisma.user.findUnique({ where: { id: BigInt(userId) }, select: { email: true, isAdmin: true } });
   if (!user) return;
@@ -140,10 +153,15 @@ export async function forceWithdrawUserAction(formData: FormData): Promise<void>
 }
 
 export async function deleteUserAction(formData: FormData): Promise<void> {
-  await requireSuperAdmin();
+  const session = await requireSuperAdmin();
 
   const userId = formData.get("user_id") as string;
   if (!userId) return;
+
+  // 6.1C-5(PA1) 박제: 본인 자기 삭제 가드 — 본인 계정 완전 삭제 차단
+  if (session.sub === userId) {
+    redirect(`/admin/users?error=${encodeURIComponent("본인 계정은 삭제할 수 없습니다.")}`);
+  }
 
   const user = await prisma.user.findUnique({ where: { id: BigInt(userId) }, select: { email: true, isAdmin: true } });
   if (!user) return;
@@ -163,12 +181,17 @@ export async function deleteUserAction(formData: FormData): Promise<void> {
 }
 
 export async function updateUserStatusAction(formData: FormData): Promise<void> {
-  await requireSuperAdmin();
+  const session = await requireSuperAdmin();
 
   const userId = formData.get("user_id") as string;
   const status = formData.get("status") as string;
 
   if (!userId || !["active", "suspended"].includes(status)) return;
+
+  // 6.1C-5(PA1) 박제: 본인 자기 정지 가드 — 본인 계정 상태 변경 차단 (로그인 불가 사고 방지)
+  if (session.sub === userId) {
+    redirect(`/admin/users?error=${encodeURIComponent("본인 계정은 상태를 변경할 수 없습니다 (자기 정지 방지).")}`);
+  }
 
   const prev = await prisma.user.findUnique({ where: { id: BigInt(userId) }, select: { status: true, email: true } });
 

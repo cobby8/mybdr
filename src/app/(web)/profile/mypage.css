@@ -132,6 +132,67 @@
 }
 [data-theme="dark"] .mypage__count-pip { border-radius: 2px; }
 
+/* ---------- PU1 v2.24 보강 — Hero meta (포지션·지역·매너) ---------- */
+/* 이유: 시안 PU1 Hero 의 meta 3종 정합. 운영 토큰(--ink-mute)만 사용 */
+.pu1-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+.pu1-meta .material-symbols-outlined {
+  font-size: 15px;
+  color: var(--ink-dim);
+  line-height: 1;
+}
+/* 매너는 강조색 아이콘 (BDR Red 계열) — 시안 favorite 강조 답습 */
+.pu1-meta--manner .material-symbols-outlined { color: var(--accent); }
+
+/* ---------- PU1 v2.24 보강 — BP6 카운트 strip ---------- */
+/* 이유: 시안 PU1 카운트 strip 정합. 운영 실데이터 3종만 (팀/호스트/매너) */
+.pu1-counts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 18px;
+}
+.pu1-count {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 14px 8px;
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  text-decoration: none;
+  color: inherit;
+  transition: border-color .15s, transform .15s;
+}
+.pu1-count:hover {
+  border-color: var(--accent);
+  transform: translateY(-1px);
+}
+.pu1-count__v {
+  font-family: var(--ff-display);
+  font-weight: 900;
+  font-size: 22px;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+.pu1-count__l {
+  font-size: 12px;
+  color: var(--ink-mute);
+}
+/* 매너 칸 강조 — 값에 accent 색 (시안 accent 칩 답습) */
+.pu1-count--accent .pu1-count__v { color: var(--accent); }
+/* 다크모드 — 운영 카드 각진 처리 답습 (border-radius 0 + 두꺼운 border) */
+[data-theme="dark"] .pu1-count {
+  border-width: 2px;
+  border-color: var(--border-strong);
+  border-radius: 0;
+}
+[data-theme="dark"] .pu1-count:hover { border-color: var(--accent); }
+
 /* ---------- MAIN GRID ---------- */
 .mypage__grid {
   display: grid;
@@ -726,6 +787,15 @@
   .mypage__id-meta { font-size: 12px; gap: 6px; }
   .mypage__id-badges { margin-top: 8px; gap: 4px; }
   .mypage__id-badges .badge { font-size: 10px; padding: 2px 6px; }
+
+  /* PU1 v2.24 보강 — 카운트 strip 모바일 (좌우 패딩 + 컴팩트) */
+  .pu1-counts {
+    margin: 0 16px 12px;
+    gap: 8px;
+  }
+  .pu1-count { padding: 12px 6px; }
+  .pu1-count__v { font-size: 19px; }
+  .pu1-count__l { font-size: 11px; }
 
   /* Hero actions — segmented bar, full-width primary */
   .mypage__hero-actions {

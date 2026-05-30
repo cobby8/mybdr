@@ -102,6 +102,9 @@ export default async function BasketballPage() {
     pendingTransfers,
     nextTournamentMatch,
     gameApplications,
+    // ===== PU3 BP2 신규 (userId 독립 — 1차 Promise.all 동시 실행) =====
+    seasonStat, // 15) UserSeasonStat 현재 시즌 1건
+    mvpLast30, // 16) 이달의 MVP — games.final_mvp_user_id 최근 30일 count (BG4)
   ] = await Promise.all([
     // 1) user + 소속 팀 (공개 프로필 패턴 카피 + 본인 한정)
     prisma.user
@@ -125,6 +128,20 @@ export default async function BasketballPage() {
           xp: true,
           createdAt: true,
           last_login_at: true,
+          // ===== PU3 신규 — 농구 캐릭터 / 선호 정보 / 매너 (전부 실재 컬럼, 본인 한정) =====
+          dominant_hand: true, // "L"/"R"/"B" (운영 저장값)
+          skill_level: true, // "초보/초중급/중급/중상급/상급" 한글
+          strengths: true, // Json 배열 (STYLES_12 한글 라벨)
+          manner_count: true, // 매너 평가 누적 건수 (Hero·시즌카드 sub 표기)
+          subscription_status: true, // PRO 뱃지 판정 (LevelBadge 답습)
+          // 선호 정보 chip 7종 (preferred_positions 는 User 미존재 → 시안 8그룹 중 1그룹 hide)
+          preferred_divisions: true,
+          preferred_regions: true,
+          preferred_days: true,
+          preferred_time_slots: true,
+          preferred_skill_levels: true,
+          preferred_game_types: true,
+          preferred_board_categories: true,
           teamMembers: {
             where: { status: "active" },
             include: {
@@ -491,10 +508,84 @@ export default async function BasketballPage() {
         take: 5,
       })
       .catch(() => []),
+
+    // 15) UserSeasonStat — 현재 시즌(올해) 1건 (실재 모델 user_season_stats / @@unique user_id+season_year)
+    //   본인 한정 where user_id — IDOR 0. 데이터 0건(빈 테이블)이면 null → 카드 "데이터 없음" 자연 처리
+    prisma.userSeasonStat
+      .findUnique({
+        where: {
+          user_id_season_year: {
+            user_id: userId,
+            season_year: new Date().getFullYear(),
+          },
+        },
+        select: {
+          season_year: true,
+          season_label: true,
+          games_played: true,
+          wins: true,
+          losses: true,
+          avg_rating: true,
+          mvp_count: true,
+          rank_position: true,
+        },
+      })
+      .catch(() => null),
+
+    // 16) 이달의 MVP (BG4 cross-domain) — games.final_mvp_user_id 가 본인인 최근 30일 게임 수
+    //   final_mvp_user_id = mvp-aggregate.ts(recomputeFinalMvp) 가 채우는 실 캐시 컬럼. mock 0.
+    //   집계 비용 최소화: 단순 count (groupBy/평점 재계산 불필요 — 이미 확정된 캐시값 카운트만)
+    prisma.games
+      .count({
+        where: {
+          final_mvp_user_id: userId,
+          // 최근 30일 — created_at 기준 (games 테이블 표준 타임스탬프)
+          created_at: { gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) },
+        },
+      })
+      .catch(() => 0),
   ]);
 
   // user 가 없으면 세션 무효 — 로그인으로
   if (!user) redirect("/login?redirect=/profile/basketball");
+
+  // ===== PU3 BP2 2차 조회 — 본인 active 소속팀 id 확정 후 cross-domain 통합 =====
+  // 1차 Promise.all 시점엔 user.teamMembers 미확정 → user 확정 후 팀 id 의존 쿼리 2종 병렬
+  const myActiveTeamIds = user.teamMembers
+    .filter((tm) => tm.team && tm.team.status === "active")
+    .map((tm) => tm.team.id);
+
+  const [primaryTeamRecord, championTournaments] = await Promise.all([
+    // 17) 대표 팀 전적 (BT6 cross-domain) — Team.wins/losses (실재 컬럼). draws 컬럼 없음 → hide
+    //   대표팀 = myTeams[0] = teamMembers[0].team (joined_at desc 정렬 첫 항목)
+    myActiveTeamIds.length > 0
+      ? prisma.team
+          .findUnique({
+            where: { id: myActiveTeamIds[0] },
+            select: { id: true, name: true, wins: true, losses: true },
+          })
+          .catch(() => null)
+      : Promise.resolve(null),
+
+    // 18) 우승 이력 (PA7 cross-domain) — Tournament.champion_team_id ∈ 본인 소속팀 (실재 FK)
+    //   champion_team_id 는 우승팀만 표현 (준우승/3위 컬럼 schema 없음 → placed='우승' 단일)
+    myActiveTeamIds.length > 0
+      ? prisma.tournament
+          .findMany({
+            where: { champion_team_id: { in: myActiveTeamIds } },
+            select: {
+              id: true,
+              name: true,
+              endDate: true,
+              champion_team_id: true,
+              teams: { select: { id: true, name: true } }, // 우승 당시 팀명
+            },
+            orderBy: { endDate: { sort: "desc", nulls: "last" } },
+            take: 6,
+          })
+          .catch(() => [])
+      : Promise.resolve([]),
+  ]);
 
   // ---- 레벨 (Hero 표시) ----
   const level = getProfileLevelInfo(user.xp);
@@ -832,6 +923,68 @@ export default async function BasketballPage() {
   // ---- Hero / 평점 ----
   const evaluationRating = user.evaluation_rating != null ? Number(user.evaluation_rating) : null;
 
+  // ===== PU3 신규 — 농구 캐릭터 파생값 (실데이터 변환) =====
+  // 시안 HAND_LABEL(right/left/both) 과 운영 저장값("L"/"R"/"B") 상이 → 운영값 기준 매핑
+  const HAND_LABEL: Record<string, string> = { L: "왼손", R: "오른손", B: "양손" };
+  const handLabel = user.dominant_hand ? HAND_LABEL[user.dominant_hand] ?? null : null;
+  // skill_level 은 운영이 이미 한글("초보/중급/...") 저장 → 그대로 표시
+  const skillLabel = user.skill_level ?? null;
+  // strengths Json → 문자열 배열 안전 변환 (STYLES_12 한글 라벨 그대로)
+  const strengthList: string[] = Array.isArray(user.strengths)
+    ? (user.strengths as unknown[]).filter((s): s is string => typeof s === "string")
+    : [];
+  // 농구 캐릭터 카드 표시 여부 — 손/실력/강점/포지션 중 하나라도 있으면 노출, 전부 없으면 hide
+  const hasCharacter =
+    handLabel != null || skillLabel != null || strengthList.length > 0 || !!user.position;
+
+  // ===== PU3 선호 정보 chip 7종 (preferred_positions 는 User 미존재 → 시안 8그룹 중 1그룹 hide) =====
+  // 각 preferred_* Json 을 안전 문자열 배열로 변환. 선택값 0건인 그룹은 그룹 자체 hide.
+  const toStrArr = (v: unknown): string[] =>
+    Array.isArray(v) ? (v as unknown[]).filter((x): x is string => typeof x === "string") : [];
+  const preferredGroups = [
+    { key: "divisions", label: "선호 종별", ico: "category", values: toStrArr(user.preferred_divisions) },
+    { key: "regions", label: "활동 지역", ico: "location_on", values: toStrArr(user.preferred_regions) },
+    { key: "days", label: "선호 요일", ico: "event", values: toStrArr(user.preferred_days) },
+    { key: "time_slots", label: "선호 시간", ico: "schedule", values: toStrArr(user.preferred_time_slots) },
+    { key: "skill_levels", label: "선호 수준", ico: "trending_up", values: toStrArr(user.preferred_skill_levels) },
+    { key: "game_types", label: "선호 유형", ico: "sports_basketball", values: toStrArr(user.preferred_game_types) },
+    { key: "board_categories", label: "관심 게시판", ico: "tag", values: toStrArr(user.preferred_board_categories) },
+  ].filter((g) => g.values.length > 0); // 선택 0건 그룹 hide
+
+  // ===== PU3 시즌 stat 5종 (BP2 cross-domain 실데이터) =====
+  // 1) 참가 경기 / 2) 호스트 — UserSeasonStat 없으면 user 누적치 fallback (둘 다 실 컬럼)
+  const seasonGamesPlayed = seasonStat?.games_played ?? null;
+  const seasonHosted = user.total_games_hosted ?? 0;
+  // 3) 이달의 MVP — games.final_mvp 최근 30일 count (BG4)
+  const mvpMonthCount = mvpLast30 ?? 0;
+  // 4) 매너 평점 — evaluation_rating + manner_count (실 컬럼)
+  const mannerCount = user.manner_count ?? 0;
+  // 5) 팀 전적 — Team.wins/losses (BT6). draws 컬럼 없음 → 승-패만 표기
+  const teamWins = primaryTeamRecord?.wins ?? null;
+  const teamLosses = primaryTeamRecord?.losses ?? null;
+  const teamRecordTeamName = primaryTeamRecord?.name ?? null;
+  // 시즌 라벨 (UserSeasonStat 없으면 올해)
+  const seasonLabel = seasonStat?.season_label ?? `${new Date().getFullYear()}`;
+  // 시즌 카드 자체 표시 여부 — 시즌 stat 또는 cross-domain 값 중 하나라도 있으면 노출
+  const hasSeasonData =
+    seasonStat != null ||
+    mvpMonthCount > 0 ||
+    teamWins != null ||
+    evaluationRating != null ||
+    seasonHosted > 0;
+
+  // ===== PU3 우승 이력 (PA7 cross-domain — champion_team_id ∈ 본인 소속팀) =====
+  // schema 상 champion_team_id 는 우승팀만 표현 (준우승/3위 컬럼 없음) → placed='우승' 단일
+  const championRows = championTournaments.map((t) => ({
+    id: t.id,
+    tournamentName: t.name,
+    teamName: t.teams?.name ?? teamRecordTeamName ?? "소속 팀",
+    // endDate 'YYYY.MM' 표기 (없으면 미정)
+    dateLabel: t.endDate
+      ? `${t.endDate.getFullYear()}.${String(t.endDate.getMonth() + 1).padStart(2, "0")}`
+      : "기간 미정",
+  }));
+
   // ---- 참가 대회 변환 (운영 영역 ⑦) ----
   // 중복 제거 (한 대회에 여러 ttp 가능 — tournament.id 기준 dedup)
   const tournamentMap = new Map<string, { id: string; name: string; status: string | null }>();
@@ -897,8 +1050,168 @@ export default async function BasketballPage() {
         // actionSlot 미전달 → 본인 페이지 = 팔로우/메시지 버튼 미렌더링 (PlayerHero 자체가 actionSlot 없으면 미노출)
       />
 
+      {/* PU3-A 농구 캐릭터 (실데이터 — dominant_hand/position/skill_level/strengths) */}
+      {/* 전부 미입력 계정이면 카드 자체 hide (mock 채우기 금지) */}
+      {hasCharacter && (
+        <section className="card pu3-card">
+          <h2 className="pu3-card__h">
+            <span className="material-symbols-outlined">badge</span>농구 캐릭터
+          </h2>
+          <div className="pu3-char">
+            {handLabel && (
+              <div className="pu3-char__item">
+                <span className="pu3-char__lbl">주 사용 손</span>
+                <span className="pu3-char__v">{handLabel}</span>
+              </div>
+            )}
+            {user.position && (
+              <div className="pu3-char__item">
+                <span className="pu3-char__lbl">포지션</span>
+                <span className="pu3-char__v">{user.position}</span>
+              </div>
+            )}
+            {skillLabel && (
+              <div className="pu3-char__item">
+                <span className="pu3-char__lbl">실력 수준</span>
+                <span className="pu3-skill">{skillLabel}</span>
+              </div>
+            )}
+          </div>
+          {strengthList.length > 0 && (
+            <>
+              <div className="pu3-sec-title">강점</div>
+              <div className="pu3-strengths">
+                {strengthList.map((st) => (
+                  <span key={st} className="pu3-strength">
+                    <span className="material-symbols-outlined">bolt</span>
+                    {st}
+                  </span>
+                ))}
+              </div>
+            </>
+          )}
+        </section>
+      )}
+
+      {/* PU3-B 시즌 stat 5종 (BP2 cross-domain 실데이터) — 데이터 0이면 카드 hide */}
+      {hasSeasonData && (
+        <section className="card pu3-card">
+          <div className="pu3-card__head">
+            <h2 className="pu3-card__h">
+              <span className="material-symbols-outlined">leaderboard</span>
+              {seasonLabel} 시즌 기록
+            </h2>
+          </div>
+          <div className="pu3-stats">
+            {/* 참가 경기 — UserSeasonStat (없으면 표기 생략 대신 0) */}
+            <div className="pu3-stat">
+              <span className="material-symbols-outlined pu3-stat__ico">sports_basketball</span>
+              <div className="pu3-stat__v">{seasonGamesPlayed ?? "—"}</div>
+              <div className="pu3-stat__l">참가 경기</div>
+            </div>
+            {/* 호스트 — user.total_games_hosted */}
+            <div className="pu3-stat">
+              <span className="material-symbols-outlined pu3-stat__ico">add_circle</span>
+              <div className="pu3-stat__v">{seasonHosted}</div>
+              <div className="pu3-stat__l">호스트</div>
+            </div>
+            {/* 이달의 MVP — games.final_mvp 30일 (cross-domain) */}
+            <div className="pu3-stat pu3-stat--gold">
+              <span className="material-symbols-outlined pu3-stat__ico">local_fire_department</span>
+              <div className="pu3-stat__v">{mvpMonthCount}</div>
+              <div className="pu3-stat__l">이달의 MVP</div>
+              <div className="pu3-stat__sub">최근 30일</div>
+            </div>
+            {/* 매너 평점 — evaluation_rating + manner_count */}
+            <div className="pu3-stat pu3-stat--red">
+              <span className="material-symbols-outlined pu3-stat__ico">favorite</span>
+              <div className="pu3-stat__v">{evaluationRating != null ? evaluationRating.toFixed(1) : "—"}</div>
+              <div className="pu3-stat__l">매너 평점</div>
+              <div className="pu3-stat__sub">{mannerCount}회</div>
+            </div>
+            {/* 팀 전적 — Team.wins/losses (cross-domain). draws 컬럼 없음 → 승-패만 */}
+            {teamWins != null && teamLosses != null && (
+              <div className="pu3-stat pu3-stat--blue">
+                <span className="material-symbols-outlined pu3-stat__ico">military_tech</span>
+                <div className="pu3-stat__v">{teamWins}승</div>
+                <div className="pu3-stat__l">팀 전적</div>
+                <div className="pu3-stat__sub">{teamLosses}패</div>
+              </div>
+            )}
+          </div>
+          <div className="pu3-cross-note">
+            <span className="material-symbols-outlined">hub</span>
+            <span>
+              <strong>cross-domain</strong> — 이달의 MVP는 경기 영역
+              {teamRecordTeamName ? `, 팀 전적은 소속 팀(${teamRecordTeamName})` : ""} 에서 자동
+              집계됩니다.
+            </span>
+          </div>
+        </section>
+      )}
+
       {/* ③ 통산 8열 + [더보기 →] 모달 (CareerStatsSection client wrapper) */}
       <CareerStatsSection stats={careerStats} allStatsRows={allStatsRows} />
+
+      {/* PU3-C 선호 정보 chip 7종 (preferred_* 실데이터 — 읽기 전용 / positions 그룹 미존재 hide) */}
+      {preferredGroups.length > 0 && (
+        <section className="card pu3-card">
+          <div className="pu3-card__head">
+            <h2 className="pu3-card__h">
+              <span className="material-symbols-outlined">tune</span>선호 정보
+            </h2>
+            <Link href="/profile/edit" className="pu3-card__more">
+              편집
+              <span className="material-symbols-outlined">chevron_right</span>
+            </Link>
+          </div>
+          <div className="pu3-pref">
+            {preferredGroups.map((g) => (
+              <div key={g.key} className="pu3-pref__group">
+                <div className="pu3-pref__head">
+                  <span className="material-symbols-outlined">{g.ico}</span>
+                  <span className="pu3-pref__lbl">{g.label}</span>
+                  <span className="pu3-pref__count">{g.values.length}</span>
+                </div>
+                <div className="pu3-pref__chips">
+                  {g.values.map((opt) => (
+                    <span key={opt} className="pu3-chip">
+                      {opt}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* PU3-D 입상 이력 (PA7 cross-domain — champion_team_id ∈ 본인 소속팀 실데이터) */}
+      {/* schema 상 우승만 표현(준우승/3위 컬럼 없음). 0건이면 카드 hide */}
+      {championRows.length > 0 && (
+        <section className="card pu3-card">
+          <div className="pu3-card__head">
+            <h2 className="pu3-card__h">
+              <span className="material-symbols-outlined">emoji_events</span>입상 이력
+            </h2>
+            <Link href="/profile/achievements" className="pu3-card__more">
+              업적
+            </Link>
+          </div>
+          {championRows.map((ch) => (
+            <div key={ch.id} className="pu3-champ">
+              <span className="pu3-champ__medal">🥇</span>
+              <div className="pu3-champ__body">
+                <div className="pu3-champ__tn">{ch.tournamentName}</div>
+                <div className="pu3-champ__meta">
+                  {ch.teamName} · {ch.dateLabel}
+                </div>
+              </div>
+              <span className="pu3-champ__place">우승</span>
+            </div>
+          ))}
+        </section>
+      )}
 
       {/* ④ 활동 로그 5건 (공개 프로필 ActivityLog 직접 재사용) */}
       <div className="card" style={{ padding: "18px 20px" }}>

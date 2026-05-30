@@ -2,6 +2,17 @@
 <!-- 담당: debugger, tester | 최대 30항목 -->
 <!-- 이 프로젝트에서 반복되는 에러 패턴, 함정, 주의사항을 기록 -->
 
+### [2026-05-31] CSS 주석 내 `*/` 조기종료 → Turbopack(Next 16) 빌드 실패 (tsc 통과해도 발생)
+- **분류**: errors (빌드 / CSS 파싱)
+- **발견자**: pm (Phase 5 PR #656 Vercel preview 빌드 실패)
+- **증상**: `npx tsc --noEmit` 는 통과(0)하지만 Vercel `next build`(Turbopack) 가 `Parsing CSS source code failed / Unexpected token Delim('/')` 로 실패. 머지 차단(mergeStateStatus UNSTABLE).
+- **근본 원인**: CSS 주석 블록 안에 토큰을 나열하다 `--ink*/--ff-mono` 처럼 `*` 뒤 `/` 가 붙어 **`*/` 시퀀스가 주석을 조기 종료** → 뒤 텍스트가 실제 CSS로 파싱돼 깨짐. 구 webpack/lightningcss 는 관대했으나 Turbopack CSS 파서가 엄격해 표면화.
+- **해결**: 주석 내 토큰 나열을 `/` 구분자 대신 쉼표/한글로 변경 (`--ink*/--ff-mono` → `--ink 계열, --ff-mono`). 런타임/시각 영향 0.
+- **예방**:
+  1. 박제 CSS 주석에 `*/` 가 의도치 않게 들어가지 않게 (특히 `*` wildcard + `/` 구분자 조합 주의)
+  2. **tsc 만으로 빌드 안전 보장 안 됨** — CSS/Turbopack 파싱 에러는 tsc가 못 잡음. 큰 박제 chain 후 머지 전 Vercel preview 빌드(또는 로컬 next build) 확인 권장
+  3. 검색: `grep -rn '\*/[^ \t]' --include=*.css src/ | grep -v '\*/$'` 로 조기종료 위험 패턴 사전 탐지
+
 ### [2026-05-25] Flutter legacy quarter_scores 형식 잔존 — `{Q4:{home,away}, current_quarter}` (Sprint 3 F4 발견)
 - **분류**: errors (데이터 형식 / Flutter app 버전별 분포)
 - **발견자**: pm (Sprint 3 F4 옵션 A audit matchId 257 EXECUTE 시점)
