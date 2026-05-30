@@ -2,20 +2,20 @@
 
 ## 현재 작업
 - **요청**: Phase 6.1 Auto Chain — v2.24 sync + Phase 6.1C 박제 6 PR (프로필 본체)
-- **상태**: 🔵 진행 중 — sync v2.24 ✅ `29178b9` / 6.1C 6 PR 박제 진행
-- **현재 담당**: pm → developer
+- **상태**: ✅ **완료** — sync `29178b9` + 6.1C 6/6 박제 push + **PR #657**(subin→dev) / Vercel 빌드 pass. 수빈 머지 결재 대기
+- **현재 담당**: pm (chain 종료)
 - **의뢰서**: `Dev/design/prompts/phase-6.1-auto-chain-cli-prompt-2026-05-30.md`
 
-### Phase 6.1C 진행 (6 PR / 운영 라우트 전부 존재 — _v2 고도화 상태)
-| PR | 시안 → 운영 | 상태 |
+### Phase 6.1C 완료 (6/6 ✅)
+| PR | 시안 → 운영 | commit |
 |----|------|------|
-| 6.1C-1 | PU4 Achievements → /profile/achievements | ✅ 박제(tsc0) — 커밋 대기 |
-| 6.1C-2 | PU1 ProfileMain → /profile (보강) | ⏳ |
-| 6.1C-3 | PU2 ProfileEdit → /profile/edit (보강) | ✅ 박제(tsc0) — 커밋 대기 |
-| 6.1C-4 | PU3 ProfileBasketball → /profile/basketball | ✅ 박제(tsc0·옵션B server조회 실데이터) — 커밋 대기 |
-| 6.1C-5 | PA1 AdminUsers → /admin/users | ✅ 박제(tsc0·groupBy 1쿼리·자기정지 가드 4 redirect) — 커밋 대기 |
-| 6.1C-6 | PU5 UserPublicProfile → /users/[id] | ✅ 박제(tsc0·privacy_settings 7키 존중·friends=hide fail-safe·본인 preview bypass) — 커밋 대기 |
-- lock: BP1 publicView() privacy(PU1본인=PU5공개 동일 User, 이메일/연락처/결제 hide) / BP2 cross-domain mock 0 / BP4 결제=Phase6.2 link out "준비 중" / BP5 OA1 답습 본인 자기정지 가드
+| 6.1C-1 | PU4 Achievements → /profile/achievements (BP3) | `cc78745` |
+| 6.1C-2 | PU1 ProfileMain → /profile 보강 (BP6) | `77dacdd` |
+| 6.1C-3 | PU2 ProfileEdit → /profile/edit 보강 (BP4) | `a7d4f13` |
+| 6.1C-4 | PU3 ProfileBasketball → /profile/basketball (BP2 server조회4) | `39f6a0c` |
+| 6.1C-5 | PA1 AdminUsers → /admin/users (BP5 자기정지가드) | `fd53cbe` |
+| 6.1C-6 | PU5 UserPublicProfile → /users/[id] (BP1 publicView) | `f29a3ca` |
+- sync `29178b9` / ledger `e6d2840` / **PR #657** / stop 발동 0 / Vercel 빌드 ✅
 
 ### Phase 5 (직전) — subin→dev #656 머지(`9619be8`) / dev→main 보류
 
