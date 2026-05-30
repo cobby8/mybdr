@@ -14,7 +14,7 @@
 | 6.1C-3 | PU2 ProfileEdit → /profile/edit (보강) | ✅ 박제(tsc0) — 커밋 대기 |
 | 6.1C-4 | PU3 ProfileBasketball → /profile/basketball | ✅ 박제(tsc0·옵션B server조회 실데이터) — 커밋 대기 |
 | 6.1C-5 | PA1 AdminUsers → /admin/users | ✅ 박제(tsc0·groupBy 1쿼리·자기정지 가드 4 redirect) — 커밋 대기 |
-| 6.1C-6 | PU5 UserPublicProfile → /users/[id] | ⏳ |
+| 6.1C-6 | PU5 UserPublicProfile → /users/[id] | ✅ 박제(tsc0·privacy_settings 7키 존중·friends=hide fail-safe·본인 preview bypass) — 커밋 대기 |
 - lock: BP1 publicView() privacy(PU1본인=PU5공개 동일 User, 이메일/연락처/결제 hide) / BP2 cross-domain mock 0 / BP4 결제=Phase6.2 link out "준비 중" / BP5 OA1 답습 본인 자기정지 가드
 
 ### Phase 5 (직전) — subin→dev #656 머지(`9619be8`) / dev→main 보류
@@ -45,8 +45,8 @@
 - ⏸ **PR #656 머지 결재** (수빈 — subin→dev→main, #654/#655 답습)
 - ⏸ Phase 6 영역 결재 (Cowork 별 의뢰)
 - ☐ PR-1C-10 PA3 재설계 결정 (보류 중)
-- ⏸ **[멤버검수] 셋업팀 6번 하주호 계정연결 대기** — 대회 d83e8b83(열혈농구단 SEASON2 전국 최강전)/ttId=232/teamId=196. 6번 하주호 ttp(id=4556) 이미 존재·**userId=null**(셋업팀 유일 미연결). 하주호 mybdr 미가입(placeholder조차 없음). 연결경로: ①실가입+셋업팀 TeamMember active 가입(name/nick="하주호") → `/api/web/tournaments/[id]/link-players`(linkPlayersToUsers) 자동매칭 OR ②placeholder 계정 생성 후 ttp 연결 → 실가입 시 mergeTempMember 자동병합. 가입 완료 후 재요청 필요
-- 📌 참고: placeholder↔실가입 연결기능 = `src/lib/teams/merge-placeholder-user.ts`(mergePlaceholderUser) + `merge-temp-member.ts`(팀가입시 자동). 시스템 placeholder User 78명. 셋업팀 0번 이준호(uid2957)·7번 이영기(uid2955) ttp가 status=merged 계정 가리킴(실팀원 2872/2867과 불일치 — 정합성 점검 후보)
+- ✅ **[멤버검수] 셋업팀 6번 하주호 placeholder 생성+연결 완료** — 대회 d83e8b83/ttId=232/teamId=196. ph User uid=**3516**(placeholder-196-6@bdr.placeholder, status=placeholder) + TeamMember id=2740(j6 active) + ttp 4556 userId=3516 연결 + team196 members_count→24. 4-write 트랜잭션, 사전·사후 검증 통과. 하주호 실가입+셋업팀 가입 시 mergeTempMember 자동승계 대기
+- ☐ **[후속 점검 후보]** 셋업팀 0번 이준호(ttp→uid2957)·7번 이영기(ttp→uid2955)가 status=merged 잔재계정 가리킴 — 실팀원(2872/2867 kakao active)과 불일치. ttp 재연결 필요 여부 별도 검토
 
 ## 이전 Phase (완료 이력)
 - ✅ Phase 1C 15/16 박제+머지 (#650~#653) / PA3 SKIP 보류
@@ -215,9 +215,56 @@
 - 본인 가드 server(redirect)+UI 이중 — redirect가 source of truth, UI는 헛클릭 방지
 - stop condition: 없음
 
+### 6.1C-6 · PU5 UserPublicProfile → /users/[id] (privacy 존중 +~80 LOC)
+
+📝 구현: 운영 PU5 공개 프로필(769 line, 12쿼리) **데이터 패칭 0 변경(select에 privacy_settings 1줄 add만)**. 운영 PU2(profile/edit §4)에서 실저장되는 `privacy_settings` 7키를 공개 프로필에서 **존중**하도록 표시 분기 추가. 운영 _v2 컴포넌트(PlayerHero/OverviewTab/ActionButtons) **무변경 — 넘기는 props만 거름**.
+
+| 파일 | 변경 | 신규/수정 |
+|------|------|----------|
+| `src/app/(web)/users/[id]/page.tsx` | ①user select에 `privacy_settings: true` 1줄 add ②`PRIVACY_DEFAULTS`(운영 PU2 default 동일)+`effectivePrivacy` 머지+`canShow(key)` 헬퍼 ③profile 비공개→비공개 안내 화면 early return(notFound 아님) ④record→seasonStats/recentGameRows/allStatsRows/activity카운트/activityEvents(match·mvp) 거름 ⑤review→evaluationRating ⑥area→city/district ⑦body→height/weight ⑧realName→name(null시 닉네임 fallback) ⑨generateMetadata도 profile/realName 존중 | 수정 |
+
+privacy key → 표시필드 매핑 (운영 PU2 PRIVACY_ROWS 기준):
+| key | 운영 default | PU5 제어 대상 | hide 처리 |
+|-----|-----------|--------------|----------|
+| profile | all | 페이지 자체 | 비공개 안내 화면 early return |
+| realName | **none** | user.name (displayName/secondary/title) | name→null=닉네임만 |
+| contact | friends | 휴대폰·이메일 | **PU5 미페칭=노출0**(작업 불필요·BP1 stop 미발동) |
+| record | all | 스탯/통산/최근경기/활동(match·mvp)/경기·주최 카운트 | 빈값·빈배열·루프skip |
+| review | all | evaluation_rating(★별점) | null→Hero showRating false |
+| area | all | city/district(Hero meta 지역) | null→location 제외 |
+| body | **friends** | height/weight(Hero physical) | null→"-" |
+
+핵심 판단(friends): 운영에 **"친구(friend)" 개념 부재**(follows=단방향 팔로우뿐, grep lib friend 로직 0). fail-safe(PM 가드#2 모호하면 hide 우선) → 비본인 viewer에게 **friends=none 동일 hide**. 비본인 노출 = key가 정확히 "all"일 때만. 기본값이 friends인 contact(이미 미페칭)·body는 비본인에게 가려짐(운영 의도 = 친구만 공개인데 친구판정 불가 → 안전하게 hide).
+
+정합 결과:
+- **데이터 패칭 0 변경**: 12쿼리 전부 무변경 / select에 privacy_settings 1줄 add만 (가드#4 충족) / mock 0 / DB schema 0 / /api/v1 0
+- **민감3종(이메일/연락처/결제) 노출 0**: PU5 애초에 미페칭 → BP1 stop 미발동 (검증: page.tsx user select에 email/phone/account_* 키 없음 — 위 매핑 contact 행)
+- **본인 preview bypass**: `isOwner` true면 `canShow` 전부 통과 → 본인 미리보기(?preview=1)는 모든 영역 표시. 기존 redirect/preview 로직 무변경
+- **FollowButton 보존**: ActionButtons(targetUserId/initialFollowed/isLoggedIn) prop·실기능 무변경
+- **소속단체 hide**: PU5는 애초에 단체(org) 미배치 — 팀(team)만 노출, 단체 없음(확인 완료)
+- 운영 _v2 컴포넌트 0 변경: PlayerHero/OverviewTab/ActivityLog/StatsDetailModal/CareerStatsGrid/ActionButtons 미수정 — 전부 props 레벨 거름
+- prefix 충돌 0: 비공개 안내 화면 = 인라인 스타일만(globals.css 미추가) / `pu5-` 운영 src/ 0건(시안 파일만)
+- tsc --noEmit EXIT 0
+
+💡 tester 참고:
+- 테스트: 타 계정으로 `/users/[다른유저id]` 진입
+- 정상(기본값 계정): 프로필 노출 / 실명 hide(닉네임만, realName 기본 none) / 신장·체중 hide(body 기본 friends) / 경기기록·매너·지역 노출(전부 기본 all)
+- 본인 검증: `/users/[본인id]?preview=1` → 모든 영역 표시(필터 bypass) / `/users/[본인id]`(preview 없음) → /profile redirect(기존)
+- privacy 변경 검증: profile/edit §4에서 "경기 기록"=비공개 저장 → 타 계정으로 공개프로필 보면 시즌스탯 "-"·최근경기 빈·통산 더보기 버튼 사라짐 / "프로필 전체"=비공개 → "비공개 프로필입니다" 안내 화면
+- 주의 입력: privacy_settings=null 계정(미설정) → 운영 PU2 default 동작 동일(실명·신장체중 hide / 기록·매너·지역 공개) / friends 설정 항목은 비본인에게 hide(친구판정 불가 fail-safe)
+
+⚠️ reviewer 참고:
+- 특별 확인: 12쿼리 select diff = privacy_settings 1줄 add만(나머지 0) / _v2 컴포넌트 파일 diff 0(props 레벨만 거름)
+- friends=hide fail-safe 결정 — 운영에 친구 개념 부재로 friends 옵션이 비본인에게 정의 불가 → 노출보다 hide 선택(PM 가드#2). 추후 친구 기능 구현 시 friends 분기 재검토 포인트
+- PRIVACY_DEFAULTS = 운영 PU2 L232~240 default 리터럴 복제 (source of truth = PU2) — PU2 default 변경 시 동기화 필요
+- generateMetadata도 profile/realName 존중(별도 findUnique·본문 12쿼리 무관) — title에 비공개 실명 노출 방지
+- stop condition: 없음 (publicView 분기 검증 = 민감3종 미페칭 확인 / 본인 preview bypass 정상 / friends fail-safe hide)
+
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
 |------|------|------|
+| 2026-05-31 | **Phase 6.1C-6** PU5 UserPublicProfile (privacy 존중) | ✅ privacy_settings 7키 존중(select 1줄 add·12쿼리 무변경) / friends=hide fail-safe(운영 친구개념 부재) / 본인 preview bypass / 민감3종 미페칭=노출0 / page.tsx +~80 / tsc0 / _v2 컴포넌트 0변경(props 거름) / 커밋 대기 |
+| 2026-05-30 | **멤버검수** 셋업팀 6번 하주호 placeholder 생성+연결 | ✅ 운영DB 4-write 트랜잭션 (ph User uid3516+TeamMember2740+ttp4556 연결+members_count24) / 사전·사후검증 통과 / conventions+1·index 갱신 / 임시스크립트 정리 / 실가입 시 자동승계 대기 |
 | 2026-05-31 | **Phase 6.1C-5** PA1 AdminUsers (BP5 자기정지 가드) | ✅ Hero 4-stat(status groupBy 1쿼리 실측)+본인 가드(4 server action redirect + UI 가드박스) / page.tsx·actions·table·globals.css(`pa1-`) +90/+44 / tsc0 / titles hide / 기존 역할탭·lazy detail·배번·프로필편집 보존 / 커밋 대기 |
 | 2026-05-31 | **Phase 6.1C-4** PU3 ProfileBasketball (옵션 B server조회 BP2) | ✅ 서버쿼리4종(UserSeasonStat/games.final_mvp 30일/Team전적/champion우승) 실데이터 박제 + 시안4요소(캐릭터/시즌5카드/선호chip/입상) / page.tsx+globals.css(`pu3-`) +439 / tsc0 / 데이터삭제0 / mock0·schema0·/api/v1 0 / 커밋 대기 |
 | 2026-05-31 | **Phase 6.1C-3** PU2 ProfileEdit 보강 (BP4) | ✅ priv 오안내 정정+결제 link out(`/profile/billing`)+save bar 동기화 / page.tsx+edit-profile.css(`pu2-billing-`) +84 / tsc0 / 데이터0변경 / 커밋 대기 |
@@ -226,5 +273,3 @@
 | 2026-05-30 | Phase 1~4 종료 마킹 + git 동기화 + Phase 5 대기 | ✅ dev→subin(`0c61175`) / ledger 2/3/4 ⑬⑭ ✅ |
 | 2026-05-29 | Auto Chain 25 PR 운영 반영 (#654→#655) | ✅ main=`6f22c02` / Vercel 배포 |
 | 2026-05-29 | Phase 4C 완료 8/8 | ✅ `8ec6a54`~`fa7b63b` / OrgHierarchyCrumbs 공용 / Q2·Q3·Q4 lock |
-| 2026-05-29 | Phase 3C 완료 6/6 | ✅ `50ee237`~`0b61922` / status·권한 BT1~6 / docs `b50b88e` |
-| 2026-05-29 | Phase 2C 완료 10/10 | ✅ `13feb36`~`9292fe6` / game_applications.status Int / docs `283bcd3` |
