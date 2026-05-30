@@ -1,10 +1,24 @@
 # 작업 스크래치패드
 
 ## 현재 작업
-- **요청**: Auto Chain Master — 4단계 chain (v2.22 sync + Phase 2C/3C/4C = 25 PR)
-- **상태**: ⏸ **Phase 5 (랭킹·커뮤니티) Claude.ai 박제 대기** / Auto Chain 25 PR 운영 반영 완료(#654/#655 `6f22c02`) / Phase 1~4 ⑭ ✅ 종료 마킹 / git 동기화 완료(subin=dev=main / merge `0c61175`)
-- **현재 담당**: pm
-- **의뢰서**: `Dev/design/prompts/auto-chain-master-cli-prompt-2026-05-29.md`
+- **요청**: Phase 5 Auto Chain — v2.23 sync + Phase 5C 박제 6 PR (랭킹·커뮤니티)
+- **상태**: 🔵 진행 중 — 1단계 v2.23 sync ✅ `7e2d0f1` / 2단계 5C 6 PR 박제 진행
+- **현재 담당**: pm → developer (5C-1)
+- **의뢰서**: `Dev/design/prompts/phase-5-auto-chain-cli-prompt-2026-05-30.md`
+
+### Phase 5C 진행 현황 (6 PR)
+| PR | 시안 → 운영 | 상태 |
+|----|------|------|
+| 5C-1 | CU4 CommunityEdit → /community/[id]/edit (+공용 wizard 생성) | 🔵 박제 중 |
+| 5C-2 | CU1 CommunityList → /community | ⏳ |
+| 5C-3 | CU2 CommunityDetail → /community/[id] | ⏳ |
+| 5C-4 | RU1 Rankings → /rankings | ⏳ |
+| 5C-5 | CA1 AdminCommunity → /admin/community | ⏳ |
+| 5C-6 | CU3 CommunityNew → /community/new (공용 wizard 재사용) | ⏳ |
+
+### Phase 5 lock (자동 결재 default)
+- A1 댓글=운영 comments 모델 실사용 / A2 신고=hide / A3 카테고리 8종(news/notice 추가, 작성 7종 notice제외) / A4 cross-domain mock 0
+- 데이터 통합=server 조회 + `/api/web/*` 허용 / stop=`/api/v1`·DB schema·LOC>+2000·tsc실패·회귀6·13룰
 
 ## 🔑 Auto Chain 정책 (사용자 결재 2026-05-29)
 - **데이터 통합 허용**: server 조회 + 새 web API route(`/api/web/*`) ✅. **금지(stop)**: `/api/v1`·DB schema·LOC>+2000·tsc실패·회귀6위반·디자인13룰위반. mock 금지(hide)
@@ -35,6 +49,40 @@
 ### Phase 4C 단체 (8/8): `8ec6a54`·`8527d2a`·`f26614b`·`1280425`·`7dab1ad`·`5addf34`·`d169e0a`·`fa7b63b`
 - 핵심: **OrgHierarchyCrumbs 공용**(4C-2 신규→4C-4/8 재사용) / organizations.status 전부 approved / **BO1 컬럼**(name·description·region·contact_email·website_url·apply_note) OU3=OA1 일치 / **Q2 6탭·Q3 3-step·Q4 5-step lock 보존** / 운영 초과구현多→안내·위계칩·status통계 보강 위주 / 미지원 필드(founded_year·tournaments_count·color·정기성·officer toggle·ORG_ACTIVITY_LOG) hide
 - **공통(25 PR 전부)**: 매 PR tsc0 / 디자인13룰 / 회귀6 PASS / 새 schema·`/api/v1` 0 / mock 0 / stop condition 발동 0
+
+## 구현 기록 (developer) — Phase 5C
+
+### 5C-1 — CU4 CommunityEdit + CU3 CommunityNew 공용 wizard 박제 (BC5)
+
+📝 구현한 기능: 시안 CU3(5-step 마법사) + CU4(수정)를 **공용 컴포넌트 1개**로 박제. BC5 룰(별 컴포넌트 ❌) 준수 — new/edit가 `mode` prop만 달리하여 `CommunityWizard` 공유.
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| `src/app/(web)/community/_components/community-wizard.tsx` | 공용 5-step 마법사 (STEP1 카테고리/2 유형/3 본문+이미지/4 추가정보/5 미리보기). create/update 액션 mode 분기. hidden input으로 멀티스텝→단일 전송 | 신규 (+562) |
+| `src/app/(web)/community/new/page.tsx` | wizard `mode="new"` 호출 래퍼로 교체 (400→26줄) | 수정 |
+| `src/app/(web)/community/[id]/edit/page.tsx` | fetch prefill + isOwner 가드 보존 + 정상 시 wizard `mode="edit"` 호출 (698→184줄) | 수정 |
+
+핵심 결정 (Auto Chain lock 반영):
+- **STEP1 카테고리**: 운영 액션 처리 6종(general/recruit/review/qna/info/marketplace)만 노출. news=검수+대회연결 미지원 / notice=운영진 전용 → 작성 제외 (자동 결재)
+- **STEP2 유형**: 서버 미처리 → 선택 UI는 두되 disabled 톤 + "준비 중" 안내 (서버 미전송)
+- **STEP3 본문**: 실동작. 이미지 URL = new 실동작 / edit prefill 보존(updatePostAction 미처리이므로 안내 문구 추가)
+- **STEP4 추가 정보**: A4 lock(cross-domain mock 0) → 대회/팀 입력 hide. **5-step 구조 보존 위해 "추가 정보(준비 중)" 안내 단계로 유지** (PM 지시 — 4-step처럼 안 보이게)
+- **STEP5 미리보기+제출**: 실동작 (form submit → create/update 액션)
+
+보존 (0 변경): createPostAction/updatePostAction 시그니처 / hidden public_id·images JSON / edit fetch prefill / isOwner 가드 lock view / CommunityAsideNav
+
+💡 tester 참고:
+- 테스트: `/community/new` 진입 → STEP1~5 진행 → 게시 → 상세 redirect / `/community/[id]/edit` 본인 글 진입 → prefill 확인 → 수정 완료
+- 정상: new=글 작성+리다이렉트 / edit=본인 글 prefill+수정 반영 / 타인 글 edit=lock view
+- 주의 입력: edit 진입 글의 category가 news/notice면 STEP1 카드엔 없으나 hidden으로 보존되어 데이터 손실 0 (submit 시 유지). STEP2 type/STEP4 메타는 서버 미전송 확인
+
+⚠️ reviewer 참고:
+- 멀티스텝 입력을 hidden input으로 단일 form 전송하는 패턴 (state→hidden 동기화) 정합성
+- BC5 공용 컴포넌트 단일화 — new/edit 양쪽 동작 동일성
+
+#### 수정 이력
+| 회차 | 날짜 | 수정 내용 | 수정 파일 | 사유 |
+|------|------|----------|----------|------|
 
 ## 진행 현황 (Phase 1C — 완료)
 - ✅ Phase 1C 15/16 박제+머지 (PR #650~#653) / PA3 SKIP 보류 (decisions.md) / subin=dev=main 정합
