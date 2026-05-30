@@ -121,7 +121,8 @@
 | 단계 | 영역 | 상태 | 책임자 | 갱신일 | 메모 |
 |------|------|------|------|------|------|
 | ⑩ sync 실행 | 6.1A+6.1B | ✅ 완료 | CLI | 2026-05-31 | v2.24 sync. `profile-shared.jsx/css` 신규(293+395 line). Profile/Edit/Basketball/Achievements/UserPublicProfile/AdminUsers 6 jsx. Phase 1~5 carry-over diff 0 / pre-snapshot `_archive/BDR-current-2026-05-31-pre-v2.24/`. publicView() privacy 보존 |
-| ⑪ 운영 박제 (6.1C) | 6.1C | ⏳ 대기 | CLI | 2026-05-31 | auto-chain 6 PR (1 PU4 / 2 PU1 / 3 PU2 / 4 PU3 / 5 PA1 / 6 PU5). LOC 작은→큰 순 |
+| ⑪ 운영 박제 (6.1C) | 6.1C | ✅ 완료 (6/6) | CLI | 2026-05-31 | auto-chain 6 commit. `cc78745`(1 PU4·BP3) / `77dacdd`(2 PU1·BP6 보강) / `a7d4f13`(3 PU2·BP4) / `39f6a0c`(4 PU3·BP2 cross-domain 서버쿼리4) / `fd53cbe`(5 PA1·BP5 자기정지가드) / `f29a3ca`(6 PU5·BP1 publicView). 데이터 정책=server조회 허용 / 각 tsc0 회귀6 / mock 0 / DB schema·api/v1 0 |
+| ⑫ 회귀 검수 | 6.1C | ✅ 완료 | CLI | 2026-05-31 | BP1 publicView privacy 7키 분기(민감3종 미페칭 노출0) / BP5 자기정지 서버가드 보강 / BP2 schema 검증후 실재필드만 / stop 발동 0. prefix pf-achv-/pu1-/pu2-/pu3-/pa1-/pu5- 충돌 0 |
 | ⑬ PR 결재 | 6.1C | ⏳ 대기 | 수빈 | - | chain subin→dev→main 머지 |
 | ⑭ Phase 완료 | 6.1 | ⏳ 대기 | CLI→Cowork | - | 프로필 본체 운영 반영 |
 
