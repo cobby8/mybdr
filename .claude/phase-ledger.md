@@ -94,6 +94,8 @@
 |------|------|------|------|------|------|
 | ⑩ sync 실행 | 3A+3B | ✅ 완료 | CLI | 2026-05-29 | v2.22 sync 안에 Phase 3(팀 7 시안) cumulative. `team-shared.jsx/css` 신규. TU1~TU5 + TA1/TA2 |
 | ⑪ 운영 박제 (3C) | 3C | ✅ 완료 (6/6) | CLI | 2026-05-29 | auto-chain 3단계 6 PR push. `50ee237`~`0b61922` (TU3/TU1/TU5/TU2/TU4/TA). team_join_requests·member_requests.status=String / TeamOfficerPermissions / 운영 초과구현→비파괴 최소박제 / 각 tsc0 회귀6 mock0. PR 결재 수빈 수동 대기 |
+| ⑬ PR 결재 | 3C | ✅ 완료 | 수빈 | 2026-05-29 | chain 25 PR 일괄 머지 (#654/#655) |
+| ⑭ Phase 완료 | 3 | ✅ 종료 | CLI→Cowork | 2026-05-29 | 팀 영역 운영 반영 완료 (#654/#655 머지) |
 
 ### Phase 4 — 단체 영역 (시안 sync 완료)
 
@@ -101,6 +103,8 @@
 |------|------|------|------|------|------|
 | ⑩ sync 실행 | 4A+4B | ✅ 완료 | CLI | 2026-05-29 | v2.22 sync 독립. `org-shared.jsx/css` 신규. 4 가정 lock Q1~Q4. OU1~OU4 + OA1 + OO1~OO3 |
 | ⑪ 운영 박제 (4C) | 4C | ✅ 완료 (8/8) | CLI | 2026-05-29 | auto-chain 4단계 8 PR push. `8ec6a54`~`fa7b63b` (OU1~4/OA1/OO1/OO3/OO2). OrgHierarchyCrumbs 공용(4C-2 신규) / BO1 컬럼 OU3=OA1 / Q2 6탭·Q3 3-step·Q4 5-step lock 보존 / 미지원필드 hide / 각 tsc0 회귀6 mock0. PR 결재 수빈 수동 대기 |
+| ⑬ PR 결재 | 4C | ✅ 완료 | 수빈 | 2026-05-29 | chain 25 PR 일괄 머지 (#654/#655) |
+| ⑭ Phase 완료 | 4 | ✅ 종료 | CLI→Cowork | 2026-05-29 | 단체 영역 운영 반영 완료 (#654/#655 머지) |
 
 ---
 

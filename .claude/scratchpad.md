@@ -2,7 +2,7 @@
 
 ## 현재 작업
 - **요청**: Auto Chain Master — 4단계 chain (v2.22 sync + Phase 2C/3C/4C = 25 PR)
-- **상태**: ✅ **Auto Chain 25 PR 운영 반영 완료** (#654 subin→dev / #655 dev→main 머지 / Vercel 운영 배포). 다음 = Phase 5 선정 / ⚠️다음 작업 시작 시 subin에 dev 동기화 필요(main에 merge commit 추가됨)
+- **상태**: ⏸ **Phase 5 (랭킹·커뮤니티) Claude.ai 박제 대기** / Auto Chain 25 PR 운영 반영 완료(#654/#655 `6f22c02`) / Phase 1~4 ⑭ ✅ 종료 마킹 / git 동기화 완료(subin=dev=main / merge `0c61175`)
 - **현재 담당**: pm
 - **의뢰서**: `Dev/design/prompts/auto-chain-master-cli-prompt-2026-05-29.md`
 
@@ -21,8 +21,10 @@
 
 ## 🔜 chain 끝 후 다음 액션 (의뢰서 §5)
 - ✅ **25 PR subin → dev → main 머지 완료** (#654 / #655 / 운영 배포 `6f22c02`)
-- ☐ 다음 작업 시작 시 `git checkout dev && git pull` → subin에 dev 머지 (main merge commit 동기화)
-- ☐ Phase 5 영역 선정 (후보: 코트·장소 / 알림·메시지·검색 / 프로필·마이페이지 / 랭킹·커뮤니티 / About·마케팅)
+- ✅ **git 동기화 완료** (dev → subin merge `0c61175` push)
+- ✅ **Phase 1~4 종료 마킹** (phase-ledger 2/3/4 ⑬⑭ ✅)
+- ⏸ **Phase 5 (랭킹·커뮤니티) Claude.ai 박제 zip 도착 대기** (`BDR v2 (8).zip` 또는 차상 신규 / 의뢰서 묶음 7건 Cowork 자동 생성됨)
+- ☐ Phase 5 zip 도착 시 → Cowork가 sync 의뢰서 자동 작성 → CLI sync 1단계 (Phase 4 답습)
 - ☐ PR-1C-10 PA3 재설계 결정 (보류 중)
 
 ## 구현 기록 (developer) — chain 25 PR commit 맵
@@ -44,6 +46,7 @@
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
 |------|------|------|
+| 2026-05-30 | Phase 1~4 종료 마킹 + git 동기화 + Phase 5 대기 모드 진입 | ✅ dev→subin 동기화(`0c61175` push) / phase-ledger Phase 2/3/4 ⑬⑭ ✅ 종료 / Phase 5 zip(BDR v2 (8)) 도착 대기 |
 | 2026-05-29 | **Auto Chain 25 PR 운영 반영** (subin→dev #654 → dev→main #655) | ✅ 머지 완료 / main=`6f22c02` / Vercel 운영 배포 / dev=main 정합 |
 | 2026-05-29 | **Phase 4C 완료 8/8** (4C-1~8) | ✅ `8ec6a54`·`8527d2a`·`f26614b`·`1280425`·`7dab1ad`·`5addf34`·`d169e0a`·`fa7b63b` push / 단체 영역 / OrgHierarchyCrumbs 공용 / Q2·Q3·Q4 lock / 각 tsc0 회귀0 mock0 |
 | 2026-05-29 | **Phase 3C 완료 6/6** (3C-1~6) | ✅ `50ee237`~`0b61922` push / 팀 영역 / status·권한 BT1~6 일치 / docs `b50b88e` |
