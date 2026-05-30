@@ -2,6 +2,13 @@
 <!-- 담당: debugger, tester | 최대 30항목 -->
 <!-- 이 프로젝트에서 반복되는 에러 패턴, 함정, 주의사항을 기록 -->
 
+### [2026-05-31] PowerShell `git commit -m @'...'@` 본문에 큰따옴표(") 포함 시 파싱 깨짐
+- **분류**: errors (도구 / PowerShell)
+- **발견자**: pm (Phase 6.2C-3 / 6.3C-1 commit 2회 재발)
+- **증상**: `git commit -m @'...'@ | Out-String` 한 줄 명령에서 메시지 본문에 `"준비 중"` 같은 큰따옴표가 있으면 `error: pathspec '...' did not match` — 따옴표 뒤 텍스트가 git 인자로 분리됨.
+- **해결**: commit 메시지 본문에서 큰따옴표 제거(`준비중`/작은따옴표/괄호로 대체). 또는 메시지를 별도 단순 문자열로.
+- **예방**: PowerShell로 한국어 commit 메시지 작성 시 **본문에 `"` 쓰지 말 것**. 강조는 따옴표 없이.
+
 ### [2026-05-31] CSS 주석 내 `*/` 조기종료 → Turbopack(Next 16) 빌드 실패 (tsc 통과해도 발생)
 - **분류**: errors (빌드 / CSS 파싱)
 - **발견자**: pm (Phase 5 PR #656 Vercel preview 빌드 실패)
