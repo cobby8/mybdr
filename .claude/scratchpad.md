@@ -11,7 +11,7 @@
 |----|------|------|
 | 6.2C-1 | BU5 PricingResult → /pricing/success+/fail (BB3) | ✅ 구현 (tsc 0) |
 | 6.2C-2 | BU1 Pricing → /pricing (BB1 플랜 list) | ✅ 구현 (tsc 0) |
-| 6.2C-3 | BU4 ProfileBookings → /profile/bookings 보강 (BB4) | ⏳ |
+| 6.2C-3 | BU4 ProfileBookings → /profile/bookings 보강 (BB4) | ✅ 구현 (tsc 0, Option A 톤만) |
 | 6.2C-4 | AdminPlans → /admin/plans (BB1 BA2) | ⏳ |
 | 6.2C-5 | AdminPayments → /admin/payments (BB2 BA1 환불) | ⏳ |
 | 6.2C-6 | BU3 ProfileBilling → /profile/billing (BB1+BB2 3 sub-tab) | ⏳ |
@@ -83,6 +83,33 @@
 ⚠️ reviewer 참고:
 - page.tsx async 서버 컴포넌트 + getWebSession 추가 → revalidate=300은 plans 조회에만 의미, session 의존부는 동적. 캐시-동적 혼합 정상 동작 확인 요망
 - pricing-content `use client` 제거 — Link만 사용하므로 서버 컴포넌트 OK. 기존 토글 인터랙션 완전 제거됨
+
+### 6.2C-3 — BU4 ProfileBookings → /profile/bookings 보강 (BB4, Option A 톤만)
+
+📝 구현한 기능: 시안 BU4 카드 톤 답습(시각만). PM Option A 승인 — 운영 BookingsListV2 3종(코트/토너/게스트) 통합 초과구현 보존 + 취소 액션 0 변경(상세 경로 유지) + 환불 흐름 새 진입점 미신설.
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| src/app/(web)/profile/bookings/_bookings-list-v2.tsx | KIND_ICON 추가(stadium/emoji_events/group) + 종류 배지에 kind 아이콘 prefix + 상태 점(●) → soft 배경 배지(bl-bstat 톤). 헤더 주석 갱신 | 수정 (+31/-3) |
+| src/app/(web)/profile/bookings/page.tsx | 변경 없음 (데이터 0 변경) | — |
+
+설계 정합 (PM Option A 100% 일치):
+- 카드 시각만 BU4 톤(stadium 아이콘 + 상태 배지) / 데이터·필터·Link·탭 구조 0 변경 ✅
+- 코트 link `/courts/[id]` 실존 → 유지 ✅ (page.tsx href 무변경)
+- 취소 모달 미신설 — 상세 경로 보존(기능 손실 0) ✅
+- page.tsx 0 변경 ✅
+- bu4-/bb- prefix 0 (인라인 스타일만) / mock 0 / status 색은 운영 실 status(upcoming/done/cancelled)만 ✅
+- 날짜 블록(큰 숫자) 미적용: 운영은 sub 문자열만 보유(date 분리 필드 없음) → 데이터 0 변경 위해 제외 (PM 승인 범위 내)
+
+💡 tester 참고:
+- 테스트: /profile/bookings → 카드 종류 배지 앞 아이콘(코트=stadium / 토너=트로피 / 게스트=group) / 상태 배지가 soft 배경 톤(예약중=초록 / 완료=회색 / 취소=빨강) 노출
+- 탭/칩 필터 회귀 0 확인: 전체↔코트↔토너↔게스트 / 예약중↔완료↔취소 AND 필터 정상
+- 카드 클릭 → 기존 href 그대로(코트 /courts/[id], 토너 /tournaments/[id], 게스트 /games/[id])
+- 정상: tsc 0 / 취소 모달 없음(상세 경로) — Option A 의도
+
+⚠️ reviewer 참고:
+- 아이콘 1종 룰 → kind 3아이콘으로 확장됨(시안 BU4가 stadium 사용 → 톤 답습 근거). 헤더 주석에 명시
+- 상태 배지 색은 STATUS_TONE(기존 토큰) color-mix soft 배경 — 신규 토큰/하드코딩 0
 
 ## 수정 요청
 | 요청자 | 대상 | 문제 | 상태 |
