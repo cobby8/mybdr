@@ -113,8 +113,17 @@
 | ⑩ sync 실행 | 5A+5B | ✅ 완료 | CLI | 2026-05-30 | v2.23 sync. `comm-shared.jsx/css` 신규(300+841 line). Rankings + CommunityList/Detail/New/Edit + AdminCommunity 6 jsx. 4 가정 lock A1~A4. Phase 1~4 carry-over diff 0 / pre-snapshot `_archive/BDR-current-2026-05-30-pre-v2.23/`. 회귀 검수 통과 |
 | ⑪ 운영 박제 (5C) | 5C | ✅ 완료 (6/6) | CLI | 2026-05-31 | auto-chain 5 commit push. `68fc5c3`(5C-1 CU4+CU3 공용 wizard·BC5 5C-6 흡수) / `c058f6e`(5C-2 CU1) / `70c6c6c`(5C-3 CU2·BC4) / `a2e01e0`(5C-4 RU1·BC1/BC7) / `3e3423f`(5C-5 CA1·OA1 답습). 공용 `community-wizard.tsx` 신규. A1 댓글 실데이터 / A2 신고 hide / A4 cross-domain·MVP·핀 hide(mock 0) / 데이터 패칭·서버액션 0 변경 / 각 tsc0 회귀6. PR 결재 수빈 수동 대기 |
 | ⑫ 회귀 검수 | 5C | ✅ 완료 | CLI | 2026-05-31 | 각 PR 자체 회귀 6 PASS / 데이터 패칭 0 변경 / stop condition 발동 0. globals.css cu1-/cu2-/ru1- prefix 충돌 0 |
-| ⑬ PR 결재 | 5C | ⏳ 대기 | 수빈 | - | chain subin→dev→main 머지 |
-| ⑭ Phase 완료 | 5 | ⏳ 대기 | CLI→Cowork | - | 랭킹·커뮤니티 운영 반영 |
+| ⑬ PR 결재 | 5C | 🔵 진행 중 | 수빈 | 2026-05-31 | subin→dev #656 머지 완료(`9619be8`). dev→main 운영 반영 보류 중 |
+| ⑭ Phase 완료 | 5 | ⏳ 대기 | CLI→Cowork | - | 랭킹·커뮤니티 운영 반영 (dev→main 대기) |
+
+### Phase 6.1 — 프로필 본체 영역
+
+| 단계 | 영역 | 상태 | 책임자 | 갱신일 | 메모 |
+|------|------|------|------|------|------|
+| ⑩ sync 실행 | 6.1A+6.1B | ✅ 완료 | CLI | 2026-05-31 | v2.24 sync. `profile-shared.jsx/css` 신규(293+395 line). Profile/Edit/Basketball/Achievements/UserPublicProfile/AdminUsers 6 jsx. Phase 1~5 carry-over diff 0 / pre-snapshot `_archive/BDR-current-2026-05-31-pre-v2.24/`. publicView() privacy 보존 |
+| ⑪ 운영 박제 (6.1C) | 6.1C | ⏳ 대기 | CLI | 2026-05-31 | auto-chain 6 PR (1 PU4 / 2 PU1 / 3 PU2 / 4 PU3 / 5 PA1 / 6 PU5). LOC 작은→큰 순 |
+| ⑬ PR 결재 | 6.1C | ⏳ 대기 | 수빈 | - | chain subin→dev→main 머지 |
+| ⑭ Phase 완료 | 6.1 | ⏳ 대기 | CLI→Cowork | - | 프로필 본체 운영 반영 |
 
 ---
 

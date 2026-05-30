@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>BDR v2.24 · Phase 6.1 (프로필·마이페이지) + Phase 1~5 시안 목차</title>
+<title>BDR v2.23 · Phase 5 (랭킹·커뮤니티) + Phase 1~4 시안 목차</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800;900&family=JetBrains+Mono:wght@500;700;800&family=Pretendard:wght@400;500;600;700;800;900&display=swap" />
@@ -63,81 +63,24 @@
 <body>
 <div class="index-page">
   <header class="index-hero">
-    <div class="eyebrow">BDR v2.24 · Phase 6.1 · 2026-05-30</div>
-    <h1>프로필·마이페이지 본체 리디자인 — 본인 + 공개 프로필 + Site Operator</h1>
+    <div class="eyebrow">BDR v2.23 · Phase 5 · 2026-05-30</div>
+    <h1>랭킹·커뮤니티 영역 리디자인 — 사용자 + 단독 작성자 + Site Operator</h1>
     <p>
       <b>운영 코드 변경 0 — 시안 박제만.</b>
-      Phase 6.1B (사용자 5 시안 · PU1~PU5) + Phase 6.1A (관리자 1 시안 · PA1) = 총 <b>6 시안</b>.
-      <b>BP1~BP6 양측·cross-domain 다리</b> — BP1 본인↔공개 정합 · BP2 농구 시즌 stat · BP3 업적 cross-domain · BP4 편집 동기화 · BP5 super-admin 검수 · BP6 활동 진입.
-      <b>BP1 핵심</b> = PU1(본인) + PU5(공개) = 동일 User 데이터 / <b>privacy_settings 분기</b>로 시각 분리 (비공개 필드 hide).
-      <b>cross-domain</b> = 이달의 MVP (Phase 2 BG4) · 팀 전적 (Phase 3 BT6) · 대회 우승 (Phase 1A PA7) — 동일 데이터 컬럼 자동 집계.
-      Phase 1~5 carry-over (변경 ❌). 후속 6.2 (결제·구독) + 6.3 (성장 분석) 별 의뢰 예고.
+      Phase 5B (사용자 5 시안 · RU1 + CU1~CU4) + Phase 5A (관리자 1 시안 · CA1) = 총 <b>6 시안</b>.
+      <b>BC1~BC7 양측·cross-domain 다리</b> — BC1 부문/MVP/wins · BC2 대회 알기자 · BC3 작성 마법사 · BC4 좋아요·댓글 · BC5 수정 · BC6 super-admin · BC7 랭킹 정합.
+      <b>3측 stakeholder</b> = 일반 사용자 / 단독 작성자(본인 글) / Site Operator (super-admin).
+      <b>cross-domain</b> = 이달의 MVP (경기 영역 최종 MVP) · 팀 승수 리더 (팀 전적) · 대회 알기자 (대회 영역) — 동일 데이터 컬럼.
+      Phase 1A v2.19 + Phase 1B v2.18 + Phase 2 v2.20 + Phase 3 v2.21 + Phase 4 v2.22 carry-over (변경 ❌).
+      사용자 결정 §1~§8 보존 — 새 라우트 ❌ / AppNav 03 frozen 카피 / CU3 마법사 = UA3 + OU3 답습 / CA1 = OA1 답습.
     </p>
     <div class="index-summary">
-      <div class="index-stat"><div class="index-stat__v">6</div><div class="index-stat__l">Phase 6.1 시안 (6.1B + 6.1A)</div></div>
-      <div class="index-stat index-stat--accent"><div class="index-stat__v">3</div><div class="index-stat__l">신규 (PU3, PU5, PA1)</div></div>
-      <div class="index-stat index-stat--ok"><div class="index-stat__v">6</div><div class="index-stat__l">갭 해소 (BP1~BP6)</div></div>
+      <div class="index-stat"><div class="index-stat__v">6</div><div class="index-stat__l">Phase 5 시안 (5B + 5A)</div></div>
+      <div class="index-stat index-stat--accent"><div class="index-stat__v">3</div><div class="index-stat__l">신규 (CU3, CU4, CA1)</div></div>
+      <div class="index-stat index-stat--ok"><div class="index-stat__v">7</div><div class="index-stat__l">갭 해소 (BC1~BC7)</div></div>
       <div class="index-stat"><div class="index-stat__v">0</div><div class="index-stat__l">운영 코드 변경</div></div>
     </div>
   </header>
-
-  <!-- ============ Phase 6.1B — 사용자 측 (5) ============ -->
-  <section class="index-section">
-    <h2 class="index-section__h"><span class="index-section__num index-section__num--navy">6.1B</span> 프로필·마이페이지 사용자 (5 시안 · A 등급)</h2>
-    <p class="index-section__sub">BP1 본인↔공개 정합 + BP2 농구 stat + BP3 업적 cross-domain + BP4 편집 + BP6 활동 진입.</p>
-    <div class="index-grid">
-      <a class="index-card" href="pu1-profile.html">
-        <div class="index-card__top"><span class="index-card__id index-card__id--navy">PU1</span><span class="index-card__kind">사용자 · 보강 · A 등급</span></div>
-        <div class="index-card__title">ProfileMain — 마이페이지 hub (카운트 동기화)</div>
-        <div class="index-card__route">/profile</div>
-        <p class="index-card__desc">상단 카운트(내 대회/경기/팀/단체/평점) = UC1 활동 동일 source(BP6) + 내 활동 진입 CTA. 농구 미니(→PU3) + 업적 미니(→PU4) + 편집(→PU2) + 공개 프로필 미리보기(→PU5).</p>
-        <div class="index-card__tags"><span class="index-card__tag index-card__tag--gap-bt">BP1 ★★★★★</span><span class="index-card__tag index-card__tag--gap-bt">BP6</span></div>
-      </a>
-      <a class="index-card" href="pu3-profile-basketball.html">
-        <div class="index-card__top"><span class="index-card__id index-card__id--navy">PU3</span><span class="index-card__kind">사용자 · 신규 · A 등급</span></div>
-        <div class="index-card__title">ProfileBasketball — 농구 캐릭터 + 시즌 stat</div>
-        <div class="index-card__route">/profile/basketball</div>
-        <p class="index-card__desc">신규 핵심. 농구 캐릭터(손/실력/강점) + 시즌 stat 5종(참가/호스트/이달 MVP/평점/팀 전적) + 선호 chip 8종 선택 UX + 우승 이력. 이달 MVP·팀 전적·우승 cross-domain 자동 집계.</p>
-        <div class="index-card__tags"><span class="index-card__tag index-card__tag--new">NEW</span><span class="index-card__tag index-card__tag--gap-bt">BP2 ★★★★</span></div>
-      </a>
-      <a class="index-card" href="pu4-profile-achievements.html">
-        <div class="index-card__top"><span class="index-card__id index-card__id--navy">PU4</span><span class="index-card__kind">사용자 · 보강 · A 등급</span></div>
-        <div class="index-card__title">ProfileAchievements — 배지 grid + 우승 자동</div>
-        <div class="index-card__route">/profile/achievements</div>
-        <p class="index-card__desc">user_badges grid(획득+잠금) 시각 보강 + 대회 우승 자동 표시(Phase 1A PA7 · champion_team_id) + MVP 누적(Phase 2 BG4) + 시즌 stat 미니(→PU3).</p>
-        <div class="index-card__tags"><span class="index-card__tag index-card__tag--gap-bt">BP3 ★★★</span></div>
-      </a>
-      <a class="index-card" href="pu5-user-public.html">
-        <div class="index-card__top"><span class="index-card__id index-card__id--navy">PU5</span><span class="index-card__kind">사용자 · 신규 · A 등급</span></div>
-        <div class="index-card__title">UserPublicProfile — 공개 프로필 (privacy 필터)</div>
-        <div class="index-card__route">/users/[id]</div>
-        <p class="index-card__desc">신규 핵심. BP1 공개 시야 = PU1 과 동일 User 데이터, privacy_settings 필터링. 공개 stat + 활동 미리보기(경기/팀/단체) + 비공개 필드 hide(이메일·연락처·결제). 본인 = preview 모드.</p>
-        <div class="index-card__tags"><span class="index-card__tag index-card__tag--new">NEW</span><span class="index-card__tag index-card__tag--gap-bt">BP1 ★★★★★</span></div>
-      </a>
-      <a class="index-card" href="pu2-profile-edit.html">
-        <div class="index-card__top"><span class="index-card__id index-card__id--navy">PU2</span><span class="index-card__kind">사용자 · 보강 (시각 작게) · A 등급</span></div>
-        <div class="index-card__title">ProfileEdit — 5섹션 편집 (privacy 토글)</div>
-        <div class="index-card__route">/profile/edit</div>
-        <p class="index-card__desc">거대 carry-over(1689 line). 시각 작은 변경: 결제 섹션 = Phase 6.2 link out "준비 중"(PU2-A) + privacy 토글 명확화(공개/비공개 PU2-B) + 저장=PU1 동기화 안내(PU2-C).</p>
-        <div class="index-card__tags"><span class="index-card__tag index-card__tag--gap-bt">BP4 ★★★★</span></div>
-      </a>
-    </div>
-  </section>
-
-  <!-- ============ Phase 6.1A — 관리자 측 (1) ============ -->
-  <section class="index-section">
-    <h2 class="index-section__h"><span class="index-section__num">6.1A</span> 관리자 측 (1 시안 · E 등급 · super-admin)</h2>
-    <p class="index-section__sub">PA1 = Site Operator (super-admin) 사용자 검수 hub — Phase 4 OA1 + Phase 5 CA1 답습.</p>
-    <div class="index-grid">
-      <a class="index-card" href="pa1-admin-users.html">
-        <div class="index-card__top"><span class="index-card__id">PA1</span><span class="index-card__kind">관리자 · 신규 · E 등급</span></div>
-        <div class="index-card__title">AdminUsers — Site Operator 유저 관리</div>
-        <div class="index-card__route">/admin/users</div>
-        <p class="index-card__desc">신규 박제(운영 152 line → OA1 답습). Hero stat(전체/활성/정지/관리자·봇/신규) + Site Operator badge + 검색·필터(상태/가입/활동/매너) + 4 탭 + 상태 모달(UD1 알림 ✅). 본인 자기 정지 ❌ / 결제·은행 read-only.</p>
-        <div class="index-card__tags"><span class="index-card__tag index-card__tag--new">NEW</span><span class="index-card__tag index-card__tag--gap-bo">BP5</span><span class="index-card__tag index-card__tag--op-site">Site Operator</span></div>
-      </a>
-    </div>
-  </section>
 
   <!-- ============ Phase 5B — 사용자 측 (5) ============ -->
   <section class="index-section">

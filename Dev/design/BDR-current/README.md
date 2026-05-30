@@ -1,101 +1,92 @@
-# BDR v2.23 — Phase 5 (랭킹 · 커뮤니티 영역) 박제
+# BDR v2.24 — Phase 6.1 (프로필·마이페이지 본체) 박제
 
 > **박제일**: 2026-05-30
-> **선행**: Phase 1A v2.19 + Phase 1B v2.18 + Phase 2 v2.20 + Phase 3 v2.21 + Phase 4 v2.22 carry-over
-> **선행 의뢰**: `ranking-community-user-redesign-prompt-2026-05-30.md` + `ranking-community-admin-redesign-prompt-2026-05-30.md` + `ranking-community-user-admin-connectivity-plan-2026-05-30.md`
-> **결재 결과 (가정 lock — 의뢰서 결정 0)**:
->   - A1 댓글 = 운영 `comments` 모델 확인됨 (`commentable_type="CommunityPost"`) → CU2 댓글 실제 표시 (mock 최소) ✅
->   - A2 신고/Report = 모델 미확인 → CA1 "신고" 탭 hide (준비 중) · CU2 신고 버튼 비활성 ✅
->   - A3 카테고리 = 운영 8종 (자유게시판/팀원모집/대회후기/농구장터/질문답변/정보공유/공지사항/BDR NEWS=알기자) ✅
->   - A4 BC1 = "이달의 MVP" = 경기 최종 MVP 30일 / "팀 승수 리더" = 팀 전적 상위 ✅
+> **선행**: Phase 1A v2.19 + 1B v2.18 + 2 v2.20 + 3 v2.21 + 4 v2.22 + 5 v2.23 carry-over
+> **선행 의뢰**: `profile-user-redesign-prompt-2026-05-30.md` + `profile-admin-redesign-prompt-2026-05-30.md` + `profile-user-admin-connectivity-plan-2026-05-30.md`
+> **분할**: Phase 6.1 (본체 6) ← 본 박제 / 6.2 (결제·구독) + 6.3 (성장 분석) 후속 별 의뢰
 
 ---
 
-## 1. Phase 5 박제 시안 = 6 (사용자 5 + 관리자 1)
+## 1. Phase 6.1 박제 시안 = 6 (사용자 5 + super-admin 1)
 
-### Phase 5B — 사용자 측 + cross-domain (RU1 + CU1~CU4 · A 등급)
+### Phase 6.1B — 사용자 측 (PU1~PU5 · A 등급)
 
 | ID | 화면 | 라우트 | 분류 | 주 갭 |
 |----|------|--------|------|-------|
-| RU1 | Rankings (보강) | `/rankings` | 보강 | BC1 부문/MVP/wins + BC7 출처 |
-| CU1 | CommunityList (보강) | `/community` | 보강 | BC2 카테고리 chip |
-| CU2 | CommunityDetail (보강) | `/community/[id]` | 보강 | BC4 좋아요·댓글 + BC2 알기자 |
-| CU3 | CommunityNew (5-step 마법사) | `/community/new` | **신규** | BC3 ★★★ |
-| CU4 | CommunityEdit (CU3 재사용) | `/community/[id]/edit` | **신규** | BC5 prefill |
+| PU1 | ProfileMain (보강) | `/profile` | 보강 | BP1 + BP6 (카운트 동기화 + 활동 진입) |
+| PU2 | ProfileEdit (보강) | `/profile/edit` | 보강 | BP4 (결제 link out + privacy 토글 + 저장 동기화) |
+| PU3 | ProfileBasketball (신규) | `/profile/basketball` | **신규** | BP2 ★★★★ (농구 캐릭터 + 시즌 stat 5 + 선호 chip 8 + 우승) |
+| PU4 | ProfileAchievements (보강) | `/profile/achievements` | 보강 | BP3 (배지 grid + 우승 자동 + MVP 누적) |
+| PU5 | UserPublicProfile (신규) | `/users/[id]` | **신규** | BP1 ★★★★★ (공개 시야 + privacy 필터 + preview) |
 
-### Phase 5A — 관리자 측 (CA1 · E 등급 · super-admin)
+### Phase 6.1A — 관리자 측 (PA1 · E 등급 · super-admin)
 
 | ID | 화면 | 라우트 | 분류 | 측 | 주 갭 |
 |----|------|--------|------|----|-------|
-| CA1 | AdminCommunity | `/admin/community` | **신규** | **Site Operator** | BC6 |
+| PA1 | AdminUsers | `/admin/users` | **신규** | **Site Operator** | BP5 (Hero stat + 4 탭 + 필터 + 모달) |
 
 ---
 
-## 2. BC 양측·cross-domain 의존 검증
+## 2. BP 양측·cross-domain 의존 검증 ✅
 
-| BC | 등급 | 의존 | 데이터 |
+| BP | 등급 | 의존 | 데이터 |
 |----|------|------|--------|
-| BC1 | ★★★★ | RU1 MVP/wins ↔ 경기/팀 영역 | 경기 최종 MVP(30일) + 팀 전적(wins/losses/draws) |
-| BC2 | ★★★ | CU1/CU2 알기자 ↔ Phase 1A 대회 | community_posts.category="news" + tournament 연결 |
-| BC3 | ★★★ | CU3 마법사 (Phase 1B UA3 + Phase 4 OU3 답습) | community_posts (신규) |
-| BC4 | ★★★ | CU2 좋아요/댓글 | community_post_likes + comments |
-| BC5 | ★★ | CU4 = CU3 재사용 (prefill) | community_posts (수정) |
-| BC6 | ★★ | CA1 super-admin 검수 | community_posts.is_pinned / status |
-| BC7 | ★★★ | RU1 데이터 출처 footer | 경기 / 팀 / 코트 cross-domain |
+| BP1 | ★★★★★ | PU1 본인 ↔ PU5 공개 | 동일 `USER_ME` · `publicView()` privacy_settings 필터 (이메일/연락처/결제 hide) |
+| BP2 | ★★★★ | PU3 시즌 stat | UserSeasonStat + Phase 2 BG4 (이달 MVP) + Phase 3 BT6 (팀 wins) cross-domain |
+| BP3 | ★★★ | PU4 업적 | user_badges + Phase 1A PA7 (우승 자동) + Phase 2 BG4 (MVP 누적) |
+| BP4 | ★★★★ | PU2 → PU1 동기화 | User.* 편집 / 결제 = 6.2 link out "준비 중" |
+| BP5 | ★★ | PA1 super-admin 검수 | User.status / suspended_at / isAdmin (본인 자기 정지 가드) |
+| BP6 | ★★★ | PU1 → UC1 진입 | 카운트(대회/경기/팀/단체/평점) = UC1 활동 동일 source |
 
 ---
 
 ## 3. carry-over (변경 ❌)
 
-### 파일 — v2.22 그대로
-- `tokens.css` / `shell.css` / `shared.jsx` / `game-shared.jsx` / `team-shared.jsx` / `team-shared.css` / `org-shared.jsx` / `org-shared.css` / `admin.css`
-- Phase 1A v2.19 (10) + Phase 1B v2.18 (6) + Phase 2 v2.20 (10) + Phase 3 v2.21 (7) + Phase 4 v2.22 (8) = 41 wrapper + 39 jsx + _baseline 10 모두 carry-over
+### 파일 — v2.23 그대로
+- `tokens.css` / `shell.css` / `shared.jsx` / `game-shared.jsx` / `team-shared.jsx` / `team-shared.css` / `org-shared.jsx` / `org-shared.css` / `comm-shared.jsx` / `comm-shared.css` / `admin.css`
+- Phase 1~5 = 41 wrapper + 39 jsx + _baseline 모두 carry-over (운영 코드 변경 0)
 
 ### 신규 추가
-- `comm-shared.jsx` — Phase 5 mock (COMM_CATEGORIES / COMM_TYPES / COMM_POSTS / COMM_DETAIL / COMM_COMMENTS / RANK_PLAYERS / RANK_TEAMS / RANK_MVP / RANK_TEAM_LEADER) + mini components (CategoryBadge / PostTypeIcon / CommAuthor / CommunityAsideNav / commTime / commNum)
-- `comm-shared.css` — Phase 5 전용 (.comm-* / .cat-badge / .cu-post / .cu1-* / .cu2-* / .ru1-* / .cw-* / .ca1-*)
-- `screens/Rankings.jsx` (RU1)
-- `screens/CommunityList.jsx` (CU1)
-- `screens/CommunityDetail.jsx` (CU2)
-- `screens/CommunityNew.jsx` (CU3 — `CommunityWizard` + `CommunityNew`)
-- `screens/CommunityEdit.jsx` (CU4 — CommunityWizard 재사용)
-- `screens/AdminCommunity.jsx` (CA1)
-- 6 wrapper HTML (ru1 / cu1~4 / ca1)
+- `profile-shared.jsx` — Phase 6.1 mock (USER_ME / SEASON_STAT / CAREER_STAT / PREFERRED 8 / ME_CHAMPIONS / BADGE_CATALOG / ME_RECENT_* / ADMIN_USERS) + mini components (LevelBadge / SkillChip / StatCard / BadgeTile / UserStatusBadge / PageBack / `publicView()`)
+- `profile-shared.css` — Phase 6.1 전용 (.pm-* / .pm-hero / .pm-counts / .pm-stat / .pm-badge / .pm-chip / .pm-priv / .pm-utable / .pm-ubadge)
+- `screens/Profile.jsx` (PU1) / `ProfileEdit.jsx` (PU2) / `ProfileBasketball.jsx` (PU3) / `ProfileAchievements.jsx` (PU4) / `UserPublicProfile.jsx` (PU5) / `AdminUsers.jsx` (PA1)
+- 6 wrapper HTML (pu1~pu5 / pa1)
 
 ---
 
-## 4. 자체 검수 — 4 + 8 + Phase 5 특수 4 통과 ✅
+## 4. 자체 검수 — 4 frozen + 8 self + Phase 6 특수 4 통과 ✅
 
-### AppNav frozen 4 케이스 (사용자 시안 — shared.jsx 03 카피)
-- ✅ main bar 우측 "더보기 ▼" / 아바타 = 0
-- ✅ 모바일(≤768px) 듀얼 라벨 = 0 (ThemeSwitch viewport 분기)
+### AppNav frozen 4 (사용자 시안 — shared.jsx 03 카피)
+- ✅ main bar 우측 "더보기 ▼" / 아바타 = 0 (shared.jsx AppNav frozen 카피)
+- ✅ 모바일(≤768px) 듀얼 라벨 = 0 (ThemeSwitch viewport 분기 — shell.css)
 - ✅ 검색/쪽지/알림 box (.btn) = 0 — `app-nav__icon-btn` 만
-- ✅ main bar 아이콘 = [검색, 쪽지, 알림, 다크, 햄버거] (frozen 카피)
+- ✅ main bar 아이콘 = [검색, 쪽지, 알림, 다크, 햄버거] 순서 보존
 
-### 13 룰 8 케이스
-- ✅ 하드코딩 색상 = 0 — `var(--*)` 토큰만 (예외: team/org `brand_color` mock data column · cat-badge는 토큰 매핑)
+### 13 룰 8
+- ✅ 하드코딩 색상 = 0 — `var(--*)` 토큰만 (예외: 팀 `color` mock data column · gold `#F4C76C`·`#B47A11` = 기존 시안 trophy 토큰 답습)
 - ✅ lucide-react = 0 — Material Symbols Outlined 만
-- ✅ rounded-full / 9999px = 0 — 정사각형 50% (avatar) 만
+- ✅ 9999px = 0 — 정사각형 50% (avatar/dot/toggle) 만
 - ✅ 가짜링크 (gameResult / gameReport / guestApps / referee) = 0
 - ✅ button 4px / 카드 6~8px
 - ✅ placeholder 5단어 이내 / "예: " 시작 0
-- ✅ 720px 분기 / iOS input 16px / 버튼 44px
+- ✅ 720px 분기 / iOS input 16px / 버튼 44px (.pm-input 16px · .pm-hbtn 44px)
 - ✅ Pretendard + Archivo + JetBrains Mono 만
 
-### Phase 5 특수 4 케이스
-- ✅ **BC1 cross-domain** — RU1 MVP/wins = 경기/팀 영역 동일 데이터 컬럼 출처 (mock 0 — 운영 데이터 없으면 hide)
-- ✅ **CU3 5-step 마법사** — Phase 1B UA3 + Phase 4 OU3 답습 시각 일관 (.ou3-* 재사용 · 사후 안내 hero + CTA)
-- ✅ **CU4 = CU3 재사용** — CommunityWizard 단일 컴포넌트 (별 컴포넌트 ❌ · LOC 최소)
-- ✅ **CA1 Site Operator badge** — Phase 4 OA1 답습 (OperatorBadge dark+gold + UD1 알림 체크박스)
+### Phase 6 특수 4
+- ✅ **BP1 본인/공개 분기** — PU1 == PU5 동일 `USER_ME` 데이터, `publicView()` 1곳 필터로 시각 분리 (비공개 필드 hide 일관)
+- ✅ **PU3 5 stat + 8 chip 모바일 responsive** — .pm-stats / .pm-pref 720 + .vp--mobile 분기 (2열)
+- ✅ **PU2 거대 carry-over** — 5섹션 단일 스크롤 유지 · 시각 작은 변경만 (결제 link out / privacy 토글 / 저장 안내)
+- ✅ **PA1 Site Operator + 자기 정지 가드** — OperatorBadge + `is_me` / `isAdmin` 행 = 변경 가드 · 결제·은행 read-only
 
 ---
 
 ## 5. 회귀 방지 — 위반 자동 검수 4 케이스 ✅
 - ❌ main bar 우측 "더보기 ▼" dropdown / 아바타 = 0
-- ❌ 모바일(≤768px) "☀ 라이트 ☾ 다크" 듀얼 라벨 = 0
-- ❌ 검색/쪽지/알림 버튼 border/bg 박스 (.btn) = 0
+- ❌ 모바일(≤768px) 듀얼 라벨 = 0
+- ❌ 검색/쪽지/알림 버튼 border/bg 박스 = 0
 - ✅ main bar 아이콘 순서 frozen 카피 보존
 
 ---
 
-**박제 끝.** v2.22 carry-over 위 신규 6 시안 + comm-shared.jsx/css 추가. 운영 코드 변경 0.
+**박제 끝.** v2.23 carry-over 위 신규 6 시안 + profile-shared.jsx/css 추가. 운영 코드 변경 0.
+후속 6.2 (결제·구독·예약) + 6.3 (성장 분석) 별 의뢰 예고.
