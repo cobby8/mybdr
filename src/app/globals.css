@@ -4993,3 +4993,129 @@ html.dark {
   .pf-achv-hero__av .material-symbols-outlined { font-size: 30px; }
   .pf-achv-hero__name { font-size: 23px; }
 }
+
+/* ============================================================
+   PU3 · ProfileBasketball (내 농구) — 농구 캐릭터 / 시즌 stat / 선호 chip / 입상
+   Phase 6.1C-4 · BP2 cross-domain 실데이터 박제 · prefix pu3-
+   토큰만 사용 (var(--color-*)) · 라운딩 4/8px · 720px 분기
+   ============================================================ */
+.pu3-card { padding: 18px 20px; }
+.pu3-card__head {
+  display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px;
+}
+.pu3-card__h {
+  display: inline-flex; align-items: center; gap: 7px;
+  font-size: 15px; font-weight: 800; color: var(--color-text-primary);
+  margin: 0;
+}
+.pu3-card__h .material-symbols-outlined { font-size: 19px; color: var(--color-primary); }
+.pu3-card__more {
+  display: inline-flex; align-items: center; gap: 2px;
+  font-size: 12px; font-weight: 700; color: var(--color-text-muted);
+  text-decoration: none; transition: color .15s;
+}
+.pu3-card__more:hover { color: var(--color-primary); }
+.pu3-card__more .material-symbols-outlined { font-size: 16px; }
+
+/* PU3-A 농구 캐릭터 */
+.pu3-char {
+  display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 16px;
+}
+.pu3-char__item {
+  display: flex; flex-direction: column; gap: 4px;
+  padding: 10px 14px; border: 1px solid var(--color-border);
+  border-radius: 8px; background: var(--color-surface); min-width: 92px;
+}
+.pu3-char__lbl {
+  font-size: 11px; font-weight: 700; color: var(--color-text-muted);
+  letter-spacing: .03em;
+}
+.pu3-char__v { font-size: 14px; font-weight: 800; color: var(--color-text-primary); }
+.pu3-skill {
+  display: inline-flex; align-items: center; align-self: flex-start;
+  font-size: 12.5px; font-weight: 800; color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary) 12%, transparent);
+  padding: 3px 9px; border-radius: 4px;
+}
+.pu3-sec-title {
+  font-size: 11px; font-weight: 700; color: var(--color-text-muted);
+  letter-spacing: .06em; text-transform: uppercase; margin-bottom: 8px;
+}
+.pu3-strengths { display: flex; flex-wrap: wrap; gap: 7px; }
+.pu3-strength {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 12.5px; font-weight: 700; color: var(--color-text-secondary);
+  background: var(--color-surface); border: 1px solid var(--color-border);
+  padding: 5px 10px; border-radius: 4px;
+}
+.pu3-strength .material-symbols-outlined { font-size: 14px; color: var(--color-primary); }
+
+/* PU3-B 시즌 stat 5종 grid */
+.pu3-stats {
+  display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px;
+}
+.pu3-stat {
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  padding: 14px 8px; border: 1px solid var(--color-border);
+  border-radius: 8px; background: var(--color-surface); text-align: center;
+}
+.pu3-stat__ico { font-size: 22px; color: var(--color-text-muted); margin-bottom: 2px; }
+.pu3-stat__v {
+  font-family: var(--ff-display, inherit); font-size: 20px; font-weight: 900;
+  color: var(--color-text-primary); line-height: 1.1;
+}
+.pu3-stat__l { font-size: 11.5px; font-weight: 700; color: var(--color-text-secondary); }
+.pu3-stat__sub { font-size: 10.5px; font-weight: 600; color: var(--color-text-muted); }
+.pu3-stat--gold .pu3-stat__ico { color: var(--color-tier-gold, #C9A227); }
+.pu3-stat--red .pu3-stat__ico { color: var(--color-primary); }
+.pu3-stat--blue .pu3-stat__ico { color: var(--color-info, #0079B9); }
+.pu3-cross-note {
+  display: flex; align-items: flex-start; gap: 7px; margin-top: 12px;
+  padding: 10px 12px; border-radius: 8px;
+  background: var(--color-surface); border: 1px solid var(--color-border);
+  font-size: 12px; color: var(--color-text-muted); line-height: 1.5;
+}
+.pu3-cross-note .material-symbols-outlined { font-size: 16px; color: var(--color-info, #0079B9); flex-shrink: 0; }
+.pu3-cross-note strong { color: var(--color-text-secondary); font-weight: 800; }
+
+/* PU3-C 선호 정보 chip (읽기 전용) */
+.pu3-pref { display: flex; flex-direction: column; gap: 14px; }
+.pu3-pref__head { display: flex; align-items: center; gap: 6px; margin-bottom: 7px; }
+.pu3-pref__head .material-symbols-outlined { font-size: 16px; color: var(--color-text-muted); }
+.pu3-pref__lbl { font-size: 12.5px; font-weight: 800; color: var(--color-text-primary); }
+.pu3-pref__count {
+  font-size: 10.5px; font-weight: 800; color: var(--color-text-muted);
+  background: var(--color-surface); border: 1px solid var(--color-border);
+  border-radius: 4px; padding: 1px 6px; margin-left: 2px;
+}
+.pu3-pref__chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.pu3-chip {
+  font-size: 12px; font-weight: 700; color: var(--color-text-secondary);
+  background: var(--color-surface); border: 1px solid var(--color-border);
+  padding: 4px 10px; border-radius: 4px;
+}
+
+/* PU3-D 입상 이력 */
+.pu3-champ {
+  display: flex; align-items: center; gap: 11px;
+  padding: 11px 0; border-bottom: 1px solid var(--color-border);
+}
+.pu3-champ:last-child { border-bottom: none; }
+.pu3-champ__medal { font-size: 22px; line-height: 1; flex-shrink: 0; }
+.pu3-champ__body { flex: 1; min-width: 0; }
+.pu3-champ__tn {
+  font-size: 13.5px; font-weight: 800; color: var(--color-text-primary);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.pu3-champ__meta { font-size: 11.5px; font-weight: 600; color: var(--color-text-muted); margin-top: 2px; }
+.pu3-champ__place {
+  font-size: 11px; font-weight: 800; color: var(--color-tier-gold, #C9A227);
+  background: color-mix(in srgb, var(--color-tier-gold, #C9A227) 14%, transparent);
+  padding: 3px 9px; border-radius: 4px; flex-shrink: 0;
+}
+
+@media (max-width: 720px) {
+  .pu3-card { padding: 16px; }
+  .pu3-stats { grid-template-columns: repeat(2, 1fr); }
+  .pu3-char__item { min-width: 0; flex: 1 1 calc(50% - 5px); }
+}

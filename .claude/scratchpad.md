@@ -12,7 +12,7 @@
 | 6.1C-1 | PU4 Achievements → /profile/achievements | ✅ 박제(tsc0) — 커밋 대기 |
 | 6.1C-2 | PU1 ProfileMain → /profile (보강) | ⏳ |
 | 6.1C-3 | PU2 ProfileEdit → /profile/edit (보강) | ✅ 박제(tsc0) — 커밋 대기 |
-| 6.1C-4 | PU3 ProfileBasketball → /profile/basketball | ⏳ |
+| 6.1C-4 | PU3 ProfileBasketball → /profile/basketball | ✅ 박제(tsc0·옵션B server조회 실데이터) — 커밋 대기 |
 | 6.1C-5 | PA1 AdminUsers → /admin/users | ⏳ |
 | 6.1C-6 | PU5 UserPublicProfile → /users/[id] | ⏳ |
 - lock: BP1 publicView() privacy(PU1본인=PU5공개 동일 User, 이메일/연락처/결제 hide) / BP2 cross-domain mock 0 / BP4 결제=Phase6.2 link out "준비 중" / BP5 OA1 답습 본인 자기정지 가드
@@ -140,9 +140,49 @@
 - "곧 제공" 오안내가 실제로 오기였음 (코드는 실저장 중) — 정정이 정합 맞춤
 - stop condition: 없음
 
+### 6.1C-4 · PU3 ProfileBasketball → /profile/basketball (옵션 B server 조회 +439 LOC)
+
+📝 구현: 운영 1068 line 페이지 **데이터 0 삭제(순수 추가)**. PM 정정 옵션 B 채택 — schema 실재 확인 후 **server 조회 4종 추가**로 BP2 cross-domain 시안 4요소를 **실데이터** 박제 (mock 0). DB schema·/api/v1 0.
+
+| 파일 | 변경 | 신규/수정 |
+|------|------|----------|
+| `src/app/(web)/profile/basketball/page.tsx` | user select에 PU3 필드 12종 추가(dominant_hand/skill_level/strengths/manner_count/subscription_status/preferred_* 7종) + 서버쿼리 4종(15 UserSeasonStat / 16 games.final_mvp 30일 count / 17 Team.wins·losses / 18 Tournament.champion_team_id 우승) + 파생가공 + JSX 4요소(A 농구캐릭터 / B 시즌stat 5카드 / C 선호chip 7 / D 입상이력) | 수정 |
+| `src/app/globals.css` | `pu3-` prefix +126 line (토큰만 var(--color-*), 라운딩 4/8px, 720px 분기) | 수정 |
+
+추가한 서버 쿼리 목록 (전부 실재 모델/컬럼·본인 한정 IDOR 0):
+- 15) `prisma.userSeasonStat.findUnique` (user_id+올해 season_year unique) — 시즌 참가경기/매너/MVP
+- 16) `prisma.games.count` (final_mvp_user_id=본인 + created_at 30일) — BG4 이달의 MVP
+- 17) `prisma.team.findUnique` (대표팀 wins/losses) — BT6 팀 전적 (2차 조회, user.teamMembers 확정 후)
+- 18) `prisma.tournament.findMany` (champion_team_id ∈ 본인 active팀) — PA7 우승 이력 (2차 조회)
+
+시안 요소별 실데이터/hide 판정:
+- A 농구캐릭터: dominant_hand(운영 "L/R/B"→한글 매핑)·position·skill_level(한글 그대로)·strengths(Json) **실데이터**. 전부 미입력 시 카드 hide
+- B 시즌 5카드: 참가경기(UserSeasonStat)·호스트(total_games_hosted)·MVP(games 30일)·매너(evaluation_rating+manner_count)·팀전적(Team wins/losses) **실데이터**. UserSeasonStat 0건이면 "—" 자연처리, 데이터 전무 시 카드 hide. **draws hide**(Team 무승부 컬럼 schema 없음)
+- C 선호chip: preferred_* 7종 **실데이터** chip(읽기전용). **preferred_positions hide**(User 미존재) → 시안 8그룹 중 7그룹. 선택 0건 그룹 개별 hide
+- D 입상이력: champion_team_id=본인팀 대회 **실데이터**. **준우승/3위 hide**(champion_team_id는 우승만 표현 — 순위 컬럼 schema 없음), placed='우승' 단일
+
+정합 결과:
+- **데이터 삭제 0**: git diff 삭제라인 0 = 운영 기존 14쿼리 select·career-stats·pending·next-match·픽업게임·소속팀 전부 보존. 신규는 select 확장 + 쿼리 4 append만
+- **mock 0 / DB schema 0 / /api/v1 0 / LOC +439(<2000)**
+- prefix 충돌 0: `pu3-` 운영 src/ = globals.css+basketball/page.tsx 2곳만 / `pf-achv-`(6.1C-1)·`pu1-`·`pu2-`와 충돌 0
+- tsc --noEmit EXIT 0 (모델명 userSeasonStat/games/team/tournament·unique키 user_id_season_year 전부 검증)
+
+💡 tester 참고:
+- 테스트: `/profile/basketball` 로그인 후 진입
+- 정상: ②Hero 아래 [농구캐릭터 카드] → [시즌 기록 5카드 grid + cross-domain 안내] → ③통산8열(운영) → [선호 정보 chip] → [입상 이력] 순. 이하 ④활동~⑩주간리포트 운영 그대로
+- 주의 입력: ①UserSeasonStat 0건 계정 → 참가경기 "—", 카드는 다른 실데이터(매너/호스트) 있으면 노출 / ②선호 전부 미입력 → 선호 카드 hide / ③소속팀 없는 계정 → 팀전적·입상 둘 다 hide / ④우승 이력 없는 팀 → 입상 카드 hide / ⑤dominant_hand null → 손 meta 생략
+- cross-domain 실측 확인: 본인이 final_mvp인 게임 최근30일 있으면 "이달의 MVP" 카운트 >0 / 소속팀 champion인 대회 있으면 입상 이력 노출
+
+⚠️ reviewer 참고:
+- 특별 확인: 기존 14쿼리 select 절 diff 0 (운영 데이터 패칭 무변경) — 신규 4쿼리는 전부 append/2차조회
+- 17/18 2차 조회 분리 사유: champion/팀전적은 user.teamMembers(active팀 id) 의존 → 1차 Promise.all에서 불가 → user 확정 후 별도 Promise.all 2병렬 (over-fetch 회피)
+- 16 MVP count는 final_mvp_user_id 캐시값 단순 count (recomputeFinalMvp 재계산 호출 ❌ — 집계비용 0)
+- stop condition: 없음
+
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
 |------|------|------|
+| 2026-05-31 | **Phase 6.1C-4** PU3 ProfileBasketball (옵션 B server조회 BP2) | ✅ 서버쿼리4종(UserSeasonStat/games.final_mvp 30일/Team전적/champion우승) 실데이터 박제 + 시안4요소(캐릭터/시즌5카드/선호chip/입상) / page.tsx+globals.css(`pu3-`) +439 / tsc0 / 데이터삭제0 / mock0·schema0·/api/v1 0 / 커밋 대기 |
 | 2026-05-31 | **Phase 6.1C-3** PU2 ProfileEdit 보강 (BP4) | ✅ priv 오안내 정정+결제 link out(`/profile/billing`)+save bar 동기화 / page.tsx+edit-profile.css(`pu2-billing-`) +84 / tsc0 / 데이터0변경 / 커밋 대기 |
 | 2026-05-31 | **Phase 6.1C-1** PU4 Achievements Hero 박제 | ✅ achievements-content.tsx Hero(`pf-achv-`)+globals.css +66 / tsc0 / 데이터0변경 / 커밋 대기 |
 | 2026-05-31 | **Phase 5 chain 완료** (sync v2.23 + 5C 6 PR) | ✅ `7e2d0f1`·`68fc5c3`·`c058f6e`·`70c6c6c`·`a2e01e0`·`3e3423f`·`7ff69b6` push / PR #656 / ledger Phase5 ⑩⑪⑫ ✅ / stop 0 |
@@ -151,4 +191,3 @@
 | 2026-05-29 | Phase 4C 완료 8/8 | ✅ `8ec6a54`~`fa7b63b` / OrgHierarchyCrumbs 공용 / Q2·Q3·Q4 lock |
 | 2026-05-29 | Phase 3C 완료 6/6 | ✅ `50ee237`~`0b61922` / status·권한 BT1~6 / docs `b50b88e` |
 | 2026-05-29 | Phase 2C 완료 10/10 | ✅ `13feb36`~`9292fe6` / game_applications.status Int / docs `283bcd3` |
-| 2026-05-29 | Auto Chain 1단계 v2.22 sync (`dee2445`) | ✅ screens 33→46 / 회귀16 |
