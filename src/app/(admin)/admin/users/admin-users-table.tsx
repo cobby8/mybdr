@@ -207,6 +207,8 @@ interface Props {
   initialUsers: SerializedUser[];
   totalCount: number;
   searchQuery: string | null;
+  // 6.1C-5(PA1) 박제: 현재 로그인 슈퍼관리자 id — 본인 자기 정지 가드 UI 표시용
+  currentUserId: string | null;
   loadMoreAction: (
     offset: number,
     q: string | null,
@@ -229,6 +231,7 @@ export function AdminUsersTable({
   initialUsers,
   totalCount,
   searchQuery,
+  currentUserId,
   loadMoreAction,
   updateUserRoleAction,
   updateUserStatusAction,
@@ -376,6 +379,8 @@ export function AdminUsersTable({
       {selectedUser && (() => {
         const u = selectedUser;
         const role = getRoleInfo(u.membershipType);
+        // 6.1C-5(PA1) 박제: 본인 여부 — 관리 탭 위험 액션(상태/슈퍼관리자/탈퇴/삭제) 가드 표시
+        const isMe = currentUserId != null && u.id === currentUserId;
         return (
           <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm" onClick={(e) => { if (e.target === e.currentTarget) closeModal(); }}>
             <div className="w-full max-w-md max-h-[90vh] overflow-hidden rounded-t-[20px] sm:rounded-[20px] bg-[var(--color-card)] shadow-[0_-8px_40px_rgba(0,0,0,0.2)] sm:shadow-[0_8px_40px_rgba(0,0,0,0.2)] flex flex-col animate-slide-up sm:animate-fade-in">
@@ -394,6 +399,8 @@ export function AdminUsersTable({
                       {u.nickname ?? "-"}
                       {/* 관리자 라벨: warning 토큰 (그라디언트 배경 위지만 시맨틱 강조 의미 유지) */}
                       {u.isAdmin && <span className="text-(--color-warning) text-xs">★ 관리자</span>}
+                      {/* 6.1C-5(PA1) 박제: 본인 계정 표시 — 자기 정지 가드 컨텍스트 */}
+                      {isMe && <span className="rounded-full bg-white/25 px-1.5 py-0.5 text-[10px] text-white">나</span>}
                     </h2>
                     <p className="text-xs text-white/70">{u.email}</p>
                   </div>
@@ -566,6 +573,21 @@ export function AdminUsersTable({
                       </form>
                     </div>
 
+                    {/* 6.1C-5(PA1) 박제: 본인 계정이면 위험 액션(슈퍼관리자/상태/탈퇴/삭제) 전부 가드 박스로 대체
+                        — server action 에서도 redirect 로 차단되지만 UI 헛클릭 사전 방지 (시안 pm-guard 패턴) */}
+                    {isMe ? (
+                      <div
+                        className="rounded-[14px] border p-4 flex items-start gap-2"
+                        style={{ borderColor: "var(--color-border)", background: "var(--color-surface)" }}
+                      >
+                        <span className="material-symbols-outlined" style={{ fontSize: 18, color: "var(--color-text-muted)" }}>shield_person</span>
+                        <p className="text-xs" style={{ color: "var(--color-text-muted)" }}>
+                          본인 계정은 상태·슈퍼관리자 권한·탈퇴·삭제를 변경할 수 없습니다 (자기 정지 방지).
+                          역할(멤버십) 변경만 가능합니다.
+                        </p>
+                      </div>
+                    ) : (
+                      <>
                     {/* 슈퍼관리자 */}
                     <div className="rounded-[14px] border p-4 flex items-center justify-between" style={{ borderColor: "var(--color-border)" }}>
                       <div>
@@ -639,6 +661,8 @@ export function AdminUsersTable({
                           </div>
                         )}
                       </div>
+                    )}
+                      </>
                     )}
                   </div>
                 )}

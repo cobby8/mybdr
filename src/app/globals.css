@@ -5119,3 +5119,47 @@ html.dark {
   .pu3-stats { grid-template-columns: repeat(2, 1fr); }
   .pu3-char__item { min-width: 0; flex: 1 1 calc(50% - 5px); }
 }
+
+/* ============================================================
+   6.1C-5(PA1) AdminUsers Hero stat strip — /admin/users
+   시안 source: Dev/design/BDR-current/screens/AdminUsers.jsx (oa1-hero__stats)
+   운영 토큰만 사용 / 라운딩 8px / 720px 모바일 분기 / 4-stat (전체·활성·정지·관리자)
+   data-tone: ok=활성(success) / err=정지(error) / warn=관리자(warning)
+   ============================================================ */
+.pa1-hero-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.pa1-hero-stat {
+  border: 1px solid var(--color-border);
+  background: var(--color-card);
+  border-radius: 8px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.pa1-hero-stat__num {
+  font-family: var(--font-space-grotesk, inherit);
+  font-size: 22px;
+  font-weight: 800;
+  line-height: 1.1;
+  color: var(--color-text-primary);
+  font-variant-numeric: tabular-nums;
+}
+.pa1-hero-stat__num[data-tone="ok"] { color: var(--color-success); }
+.pa1-hero-stat__num[data-tone="err"] { color: var(--color-error); }
+.pa1-hero-stat__num[data-tone="warn"] { color: var(--color-warning); }
+.pa1-hero-stat__lbl {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+@media (max-width: 720px) {
+  .pa1-hero-stats { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+  .pa1-hero-stat { padding: 10px 12px; }
+  .pa1-hero-stat__num { font-size: 19px; }
+}

@@ -13,7 +13,7 @@
 | 6.1C-2 | PU1 ProfileMain → /profile (보강) | ⏳ |
 | 6.1C-3 | PU2 ProfileEdit → /profile/edit (보강) | ✅ 박제(tsc0) — 커밋 대기 |
 | 6.1C-4 | PU3 ProfileBasketball → /profile/basketball | ✅ 박제(tsc0·옵션B server조회 실데이터) — 커밋 대기 |
-| 6.1C-5 | PA1 AdminUsers → /admin/users | ⏳ |
+| 6.1C-5 | PA1 AdminUsers → /admin/users | ✅ 박제(tsc0·groupBy 1쿼리·자기정지 가드 4 redirect) — 커밋 대기 |
 | 6.1C-6 | PU5 UserPublicProfile → /users/[id] | ⏳ |
 - lock: BP1 publicView() privacy(PU1본인=PU5공개 동일 User, 이메일/연락처/결제 hide) / BP2 cross-domain mock 0 / BP4 결제=Phase6.2 link out "준비 중" / BP5 OA1 답습 본인 자기정지 가드
 
@@ -179,9 +179,46 @@
 - 16 MVP count는 final_mvp_user_id 캐시값 단순 count (recomputeFinalMvp 재계산 호출 ❌ — 집계비용 0)
 - stop condition: 없음
 
+### 6.1C-5 · PA1 AdminUsers → /admin/users (보강 +90 LOC + CSS 44)
+
+📝 구현: 운영 고도화 페이지(역할탭/lazy detail/배번/프로필편집/모든 액션) **전부 보존**. 시안 PA1 정합 위해 (1) Hero 4-stat strip, (2) 본인 자기정지 가드(4 server action redirect + UI 가드 박스) 추가. **page → actions → table 순. 데이터 패칭 = status groupBy 1쿼리만 추가**.
+
+| 파일 | 변경 | 신규/수정 |
+|------|------|----------|
+| `src/app/(admin)/admin/users/page.tsx` | getWebSession sub 주입(currentUserId) + status groupBy 1쿼리(activeCount/suspendedCount 실측) + AdminPageHeader 직후 `pa1-hero-stats` 4-stat strip(전체 totalCount/활성/정지/관리자 superAdminCount) + table에 currentUserId prop | 수정 |
+| `src/app/actions/admin-users.ts` | requireSuperAdmin→session 반환 / 4액션(updateUserStatus·toggleUserAdmin·forceWithdraw·delete)에 `session.sub===userId` 시 `redirect(/admin/users?error=)` 본인 가드 (기존 isAdmin redirect 동일 패턴) | 수정 |
+| `src/app/(admin)/admin/users/admin-users-table.tsx` | currentUserId prop + isMe 계산 + 모달 헤더 "나" 배지 + 관리탭 위험3블록(슈퍼관리자/상태/위험영역)을 isMe 시 가드 박스 1개로 대체(역할변경은 유지) | 수정 |
+| `src/app/globals.css` | `pa1-hero-stat` prefix +44 line (운영 토큰 var(--color-*), 라운딩 8px, data-tone ok/err/warn, 720px 2열 분기) | 수정 |
+
+추가 쿼리/가드:
+- 신규 쿼리 1: `prisma.user.groupBy({by:['status'],_count})` — Hero 활성/정지 실측 (전체 기준, where 미적용)
+- 신규 가드 4(redirect): updateUserStatus/toggleUserAdmin/forceWithdraw/delete 본인 차단 (자기정지/권한잠금/자기탈퇴/자기삭제 방지)
+
+정합 결과:
+- **데이터 패칭 거의 0**: 기존 findMany/count/loadMore/getUserDetail/모든 server action select·로직 전부 미수정. 신규 = groupBy 1쿼리 + session 읽기뿐
+- **기존 보존**: 역할탭(전체/일반/호스트/관리자)·DataTableV2 6컬럼·lazy detail(팀/대회/활동/구독)·배번 인라인수정(TournamentRow)·프로필 긴급변경폼·더보기 무한스크롤 전부 미수정
+- **titles(우승🏆) hide**: 시안 우승 컬럼 = 운영 user select 미페칭 → Hero stat·테이블 컬럼 미배치 (쿼리 추가 금지 준수, 4-stat만)
+- **자기정지 가드**: server(redirect 4) + UI(가드박스) 이중. session.sub=string vs u.id=string 직접 비교
+- prefix 충돌 0: `pa1-` 운영 src/ = globals.css+page.tsx 2곳만, `pf-achv-`/`pu1-`/`pu2-`/`pu3-`와 충돌 0
+- tsc --noEmit EXIT 0 / mock 0 / DB schema 0 / /api/v1 0 / globals.css 공백무시 +44줄(순수 추가, 기존 손상 0)
+
+💡 tester 참고:
+- 테스트: `/admin/users` super_admin 로그인 후 진입
+- 정상: AdminPageHeader 아래 Hero 4-stat(전체 N / 활성 N 초록 / 정지 N 빨강 / 관리자 N 노랑) → 기존 역할탭·테이블 그대로 / 행 클릭 모달 동일
+- 본인 가드: 본인 행 클릭 → 모달 헤더 "나" 배지 / 관리 탭 = 역할변경만 노출, 슈퍼관리자/상태/위험영역 대신 "본인 계정은 변경 불가" 가드 박스
+- server 가드 검증: (가드박스로 막혀 UI론 불가하지만) 만약 본인 user_id로 상태변경 호출 시 → `/admin/users?error=본인 계정은...` redirect → 상단 error 배너
+- 주의: status=null/withdrawn 계정 → Hero 활성/정지 어디에도 미집계(활성·정지만 노출) / 검색(q) 중에도 Hero는 전체 통계(의도) / 모바일(≤720px) Hero 2열
+
+⚠️ reviewer 참고:
+- 특별 확인: 기존 server action select/로직 diff 0 (requireSuperAdmin은 return session 추가만, 호출부 무영향) / findMany·loadMore·getUserDetail select 무변경
+- groupBy where 미적용 = 의도(superAdminCount/totalCount와 동일 전체 통계 컨텍스트). 검색 시 Hero가 전체 유지되는 게 자연스러움
+- 본인 가드 server(redirect)+UI 이중 — redirect가 source of truth, UI는 헛클릭 방지
+- stop condition: 없음
+
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
 |------|------|------|
+| 2026-05-31 | **Phase 6.1C-5** PA1 AdminUsers (BP5 자기정지 가드) | ✅ Hero 4-stat(status groupBy 1쿼리 실측)+본인 가드(4 server action redirect + UI 가드박스) / page.tsx·actions·table·globals.css(`pa1-`) +90/+44 / tsc0 / titles hide / 기존 역할탭·lazy detail·배번·프로필편집 보존 / 커밋 대기 |
 | 2026-05-31 | **Phase 6.1C-4** PU3 ProfileBasketball (옵션 B server조회 BP2) | ✅ 서버쿼리4종(UserSeasonStat/games.final_mvp 30일/Team전적/champion우승) 실데이터 박제 + 시안4요소(캐릭터/시즌5카드/선호chip/입상) / page.tsx+globals.css(`pu3-`) +439 / tsc0 / 데이터삭제0 / mock0·schema0·/api/v1 0 / 커밋 대기 |
 | 2026-05-31 | **Phase 6.1C-3** PU2 ProfileEdit 보강 (BP4) | ✅ priv 오안내 정정+결제 link out(`/profile/billing`)+save bar 동기화 / page.tsx+edit-profile.css(`pu2-billing-`) +84 / tsc0 / 데이터0변경 / 커밋 대기 |
 | 2026-05-31 | **Phase 6.1C-1** PU4 Achievements Hero 박제 | ✅ achievements-content.tsx Hero(`pf-achv-`)+globals.css +66 / tsc0 / 데이터0변경 / 커밋 대기 |
