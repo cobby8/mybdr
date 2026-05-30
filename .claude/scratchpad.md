@@ -14,7 +14,7 @@
 | 6.2C-3 | BU4 ProfileBookings → /profile/bookings 보강 (BB4) | ✅ 구현 (tsc 0, Option A 톤만) |
 | 6.2C-4 | AdminPlans → /admin/plans (BB1 BA2) | ⏳ |
 | 6.2C-5 | AdminPayments → /admin/payments (BB2 BA1 환불) | ✅ 구현 (tsc 0, Option A) |
-| 6.2C-6 | BU3 ProfileBilling → /profile/billing (BB1+BB2 3 sub-tab) | ⏳ |
+| 6.2C-6 | BU3 ProfileBilling → /profile/billing (BB1+BB2 3 sub-tab) | ✅ 구현 (tsc 0, Option A) |
 | 6.2C-7 | BU2 PricingCheckout → /pricing/checkout (BB5 토스 위젯 실임베드) | ⏳ |
 - lock: 토스 = 운영 실연결(confirm/refund API, mock 0) / OA1 답습(BA1/BA2 모달) / 결제 status 색분리 / BB7 Phase6.1 PU2 결제링크 활성
 - 데이터 정책: server 조회 통합 허용 / stop = `/api/v1`·DB schema·LOC>+2000·tsc실패·회귀6·13룰·토스 mock
@@ -175,6 +175,42 @@
 - IDOR: admin 화면이지만 refund API 가 본인 결제만 허용 → admin 의 타인 환불은 현재 불가(403). 이는 의도된 안전 동작(금전). admin-scoped 환불 확장은 별도 과제(주석·보고 명시)
 - 환불 사유 input 은 API 가 현재 서버 고정 사유 사용 → body.reason 키만 전달(확장 대비). 실제 DB refund_reason 은 API 가 "사용자 환불 요청" 고정
 - router.refresh()로 force-dynamic 페이지 재패칭(상태 갱신). 낙관적 업데이트 미사용(서버 진실 우선)
+
+### 6.2C-6 — BU3 ProfileBilling → /profile/billing (3 sub-tab, Option A)
+
+📝 구현한 기능: 시안 BU3 박제 — 2탭(구독/결제 내역) → **3탭**(구독/결제 내역/환불). Option A 승인대로 결제 내역 행 inline 환불 버튼 → 환불 전용 탭으로 이전. 환불 탭=can_refund/refunded 분리. 데이터 패칭·user_subscriptions 해지·refund API 호출 0 변경 / 기존 refund 모달·handleRefund 공유(신규 mutation 0).
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| src/app/(web)/profile/billing/page.tsx | ① VALID_TABS+TabKey에 "refund" 추가(URL ?tab=refund 보존) ② 탭 바 "환불" TabButton 추가 ③ PaymentsSection→PaymentsHub(view:"payments"\|"refund")로 통합 — 동일 payments SWR·환불 모달·handleRefund 공유(추가 fetch 0) ④ 결제 내역 뷰: inline 환불 버튼 제거(영수증만) ⑤ 환불 뷰 신규: 안내 note + 환불 가능(can_refund) + 환불 완료(refunded) 분리 ⑥ RefundRow 컴포넌트 신규(시안 bl-pay-row 톤→인라인) | 수정 (+345/-95, 순 +250) |
+
+설계 정합 (PM Option A 100% 일치):
+- 데이터 패칭 0 변경 ✅ (환불 탭도 /api/web/profile/payments 공유 — PaymentsHub 단일 SWR, 추가 fetch 0)
+- user_subscriptions 해지(SubscriptionSection DELETE)·refund API(POST /api/web/payments/[id]/refund) 호출 0 변경 ✅
+- 기존 refund 모달·handleRefund 공유 / 신규 mutation 0 ✅
+- 구독 카드·결제내역=실데이터 보존 + BU3 톤 ✅ (SubscriptionSection 무변경 / 결제내역 보드 무변경 except 환불버튼 제거)
+- 환불 탭=can_refund(서버 산출: paid+7일 이내)/refunded(환불 완료) 분리 ✅
+- VALID_TABS에 refund 추가(URL ?tab=refund 보존) ✅
+- 토스키 등 운영 payments 미보유 값 mock 안 함(hide) ✅ (시안 toss_key/method_brand/last4/days_left 미박제)
+- bu3-/bb- prefix 직접 클래스 0 ✅ (기존 인라인 톤 재사용 / var(--*) 토큰만 / 신규 CSS·토큰 0)
+
+🔗 BB7 확인 (PM 지시):
+- /profile/edit:1427 "결제·정산" link → /profile/billing (?tab 미지정 → subscription 기본) ✅ 정상 진입
+- /pricing/success:181 "내 구독 보기" → /profile/billing (?tab 미지정 → subscription 기본) ✅ 정상 진입
+- 두 진입 모두 기본 탭(구독) 도착. 환불 탭 추가는 진입 동작에 영향 0.
+
+💡 tester 참고:
+- 테스트: /profile/billing?tab=refund → 환불 안내 note + "환불 가능 결제"(can_refund 건, 환불 신청 버튼) + "환불 완료"(refunded 건, line-through+환불일)
+- 환불 신청 클릭 → 기존 환불 모달(환불하시겠습니까?) → "환불하기" → refund API POST → 목록 새로고침
+- 결제 내역 탭(?tab=payments): 행에 환불 버튼 없음(영수증만) — Option A 이전 확인
+- 환불 가능·완료 0건: "환불 가능한 결제가 없습니다" + 환불 완료 빈 카드
+- 탭 URL 보존: ?tab=subscription/payments/refund 직접 진입 정상 / 그 외 값은 subscription fallback
+- 정상: tsc 0 / 구독 탭(해지 모달)·결제 내역 보드 회귀 0
+
+⚠️ reviewer 참고:
+- PaymentsSection→PaymentsHub 리네임: 결제 내역+환불 두 뷰가 동일 SWR(page state 포함) 공유. 환불 탭은 page=1 기준 payments만 봄(페이지네이션은 결제 내역 뷰에만 노출) — 환불 가능 건은 보통 최신이라 page1로 충분, 단 20건+ 환불 가능 시 2페이지 이후는 환불 탭 미표시(한계 메모)
+- refund API IDOR: 본인 결제만(route.ts) — 본 페이지는 본인 결제 목록이므로 제약 없음(6.2C-5 admin 과 달리 정상)
+- 환불 모달을 refundModal 변수로 추출 → 결제 내역/환불 뷰 둘 다 마운트(트리거는 환불 탭만). 중복 렌더 0(view 분기 return)
 
 ## 수정 요청
 | 요청자 | 대상 | 문제 | 상태 |

@@ -23,8 +23,11 @@ import { TossCard } from "@/components/toss/toss-card";
 // Phase 12 §G: 모바일 백버튼 (사용자 보고)
 import { PageBackButton } from "@/components/shared/page-back-button";
 
-type TabKey = "subscription" | "payments";
-const VALID_TABS: TabKey[] = ["subscription", "payments"];
+// Phase 6.2C-6 (BU3): 환불 탭 추가 → 3-tab IA (구독 / 결제 내역 / 환불)
+// 이유: 시안 BU3 가 환불을 별도 sub-tab 으로 분리. 운영도 결제 내역 행 inline 환불 버튼 →
+//       환불 전용 탭으로 이전 (Option A). 환불 가능/완료 결제를 한 곳에 모아 가독성↑.
+type TabKey = "subscription" | "payments" | "refund";
+const VALID_TABS: TabKey[] = ["subscription", "payments", "refund"];
 
 export default function ProfileBillingPage() {
   const router = useRouter();
@@ -100,6 +103,13 @@ export default function ProfileBillingPage() {
           onClick={() => handleTabChange("payments")}
           controls="panel-payments"
         />
+        {/* Phase 6.2C-6: 환불 탭 (시안 BU3 RefundTab) */}
+        <TabButton
+          label="환불"
+          active={activeTab === "refund"}
+          onClick={() => handleTabChange("refund")}
+          controls="panel-refund"
+        />
       </div>
 
       {/* ============ 탭 패널 (조건부 렌더) ============ */}
@@ -113,13 +123,18 @@ export default function ProfileBillingPage() {
         </div>
       )}
 
-      {activeTab === "payments" && (
+      {/* 결제 내역 + 환불 = 동일 payments 데이터 공유 (PaymentsHub).
+          이유: 환불 탭도 같은 /api/web/profile/payments 를 보므로, 두 탭을 한 컴포넌트가
+                관리해 SWR 키와 환불 모달/handleRefund 를 공유 → 추가 fetch·중복 mutation 0. */}
+      {(activeTab === "payments" || activeTab === "refund") && (
         <div
           role="tabpanel"
-          id="panel-payments"
-          aria-labelledby="tab-payments"
+          id={activeTab === "payments" ? "panel-payments" : "panel-refund"}
+          aria-labelledby={
+            activeTab === "payments" ? "tab-payments" : "tab-refund"
+          }
         >
-          <PaymentsSection />
+          <PaymentsHub view={activeTab} />
         </div>
       )}
     </div>
@@ -619,10 +634,15 @@ function SubscriptionSection() {
 }
 
 /* ============================================================
- * PaymentsSection — 결제 내역 서브 섹션 (기존 /profile/payments 이식)
+ * PaymentsHub — 결제 내역 + 환불 통합 섹션 (Phase 6.2C-6)
  *
- * 원본: src/app/(web)/profile/payments/page.tsx
- * 변경: 상단 "뒤로" + h1 제거, 나머지 동일
+ * 원본: src/app/(web)/profile/payments/page.tsx → /profile/billing 결제 탭
+ * 변경 (6.2C-6):
+ *  - view prop("payments" | "refund")으로 두 뷰 분기. 동일 payments SWR 공유 →
+ *    환불 탭이 별도 fetch 안 함 (추가 fetch 0).
+ *  - 결제 내역 뷰: 영수증 링크만 (inline 환불 버튼 제거 → 환불 탭으로 이전 = Option A).
+ *  - 환불 뷰: 환불 안내 note + 환불 가능 결제(can_refund) + 환불 완료(refunded) 분리 (시안 BU3 RefundTab).
+ *  - 환불 모달 / handleRefund 는 공유 (기존 refund API POST 그대로, 신규 mutation 0).
  * ============================================================ */
 
 interface PaymentItem {
@@ -670,7 +690,7 @@ function formatAmount(amount: number): string {
   return amount.toLocaleString("ko-KR") + "원";
 }
 
-function PaymentsSection() {
+function PaymentsHub({ view }: { view: "payments" | "refund" }) {
   const [page, setPage] = useState(1);
   const [refundTarget, setRefundTarget] = useState<PaymentItem | null>(null);
   const [refunding, setRefunding] = useState(false);
@@ -718,9 +738,206 @@ function PaymentsSection() {
 
   // 4열 board grid 정의
   // 이유: 데스크톱에서 결제일/내역/금액/상태 컬럼 너비를 고정해 정렬을 안정시키고,
-  //       상태 컬럼은 라벨+inline 액션(영수증/환불)을 모두 담아야 해서 폭을 크게(220px) 잡음.
+  //       상태 컬럼은 라벨+영수증을 담아야 해서 폭을 크게(220px) 잡음.
   const BOARD_COLUMNS = "140px 1fr 120px 220px";
 
+  // 환불 탭용 분리 (시안 BU3 RefundTab): can_refund=서버 산출(paid + 7일 이내) / refunded=환불 완료
+  const refundable = payments.filter((p) => p.can_refund);
+  const refunded = payments.filter((p) => p.status === "refunded");
+
+  // 환불 확인 모달 (결제 내역/환불 두 뷰 공통 — 환불 탭에서만 트리거되지만 마운트는 공유)
+  const refundModal = refundTarget && (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center"
+      style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
+      onClick={() => !refunding && setRefundTarget(null)}
+    >
+      <div
+        className="w-[90%] max-w-[360px] rounded-md p-6"
+        style={{ backgroundColor: "var(--bg-elev)" }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex justify-center mb-4">
+          <div
+            className="flex h-14 w-14 items-center justify-center rounded-full"
+            style={{ backgroundColor: "var(--bg-alt)" }}
+          >
+            <span
+              className="material-symbols-outlined text-3xl"
+              style={{ color: "var(--danger)" }}
+            >
+              currency_exchange
+            </span>
+          </div>
+        </div>
+
+        <h2
+          className="text-center text-lg font-bold mb-2"
+          style={{ color: "var(--ink)" }}
+        >
+          환불하시겠습니까?
+        </h2>
+        <p
+          className="text-center text-sm mb-6"
+          style={{ color: "var(--ink-mute)" }}
+        >
+          {formatAmount(refundTarget.final_amount)}이 환불됩니다.
+          <br />
+          환불 후에는 되돌릴 수 없습니다.
+        </p>
+
+        <div className="flex gap-3">
+          <button
+            className="flex-1 py-3 rounded text-sm font-bold"
+            style={{
+              backgroundColor: "var(--bg-alt)",
+              color: "var(--ink-mute)",
+            }}
+            onClick={() => setRefundTarget(null)}
+            disabled={refunding}
+          >
+            취소
+          </button>
+          <button
+            className="flex-1 py-3 rounded text-sm font-bold"
+            style={{
+              backgroundColor: "var(--danger)",
+              color: "#fff",
+              opacity: refunding ? 0.6 : 1,
+            }}
+            onClick={handleRefund}
+            disabled={refunding}
+          >
+            {refunding ? "처리중..." : "환불하기"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
+  // ====== 환불 뷰 (시안 BU3 RefundTab) ======
+  if (view === "refund") {
+    return (
+      <div className="space-y-4">
+        {/* 환불 안내 note (시안 bl-refund-note 톤 → 운영 인라인) */}
+        <div
+          style={{
+            display: "flex",
+            gap: 12,
+            padding: "16px 18px",
+            background: "var(--bg-alt)",
+            border: "1px solid var(--border)",
+            borderRadius: 4,
+            marginBottom: 4,
+          }}
+        >
+          <span
+            className="material-symbols-outlined"
+            style={{
+              fontSize: 22,
+              color: "var(--cafe-blue, var(--accent))",
+              flexShrink: 0,
+            }}
+          >
+            info
+          </span>
+          <div>
+            <div
+              style={{ fontSize: 13.5, fontWeight: 800, color: "var(--ink)" }}
+            >
+              환불은 결제 항목별로 신청합니다
+            </div>
+            <div
+              style={{
+                fontSize: 12.5,
+                color: "var(--ink-mute)",
+                lineHeight: 1.6,
+                marginTop: 4,
+              }}
+            >
+              결제 후 7일 이내 결제 건만 환불할 수 있어요. 구독 결제는 다음 결제일
+              전 <strong style={{ color: "var(--ink-soft)" }}>구독 취소</strong>로
+              처리됩니다. 환불은 결제 수단으로 영업일 기준 3~5일 내 입금돼요.
+            </div>
+          </div>
+        </div>
+
+        {/* 환불 가능 결제 (can_refund) */}
+        {refundable.length > 0 && (
+          <div className="space-y-2">
+            <div
+              style={{
+                fontSize: 14,
+                fontWeight: 700,
+                color: "var(--ink)",
+                marginTop: 12,
+              }}
+            >
+              환불 가능 결제
+            </div>
+            {refundable.map((p) => (
+              <RefundRow
+                key={p.id}
+                p={p}
+                onRefund={() => setRefundTarget(p)}
+              />
+            ))}
+          </div>
+        )}
+
+        {/* 환불 완료 (refunded) */}
+        <div className="space-y-2">
+          <div
+            style={{
+              fontSize: 14,
+              fontWeight: 700,
+              color: "var(--ink)",
+              marginTop: 12,
+            }}
+          >
+            환불 완료
+          </div>
+          {refunded.length > 0 ? (
+            refunded.map((p) => (
+              <RefundRow key={p.id} p={p} refundedView />
+            ))
+          ) : (
+            <TossCard>
+              <div className="py-10 text-center">
+                <span
+                  className="material-symbols-outlined text-4xl mb-3 block"
+                  style={{ color: "var(--ink-dim)" }}
+                >
+                  undo
+                </span>
+                <p className="text-sm" style={{ color: "var(--ink-mute)" }}>
+                  환불 내역이 없습니다
+                </p>
+              </div>
+            </TossCard>
+          )}
+        </div>
+
+        {/* 환불 가능·완료 모두 0건 → 안내 (note 외 빈 상태) */}
+        {refundable.length === 0 && refunded.length === 0 && (
+          <p
+            style={{
+              fontSize: 12,
+              color: "var(--ink-dim)",
+              textAlign: "center",
+              padding: "4px 0 12px",
+            }}
+          >
+            환불 가능한 결제가 없습니다.
+          </p>
+        )}
+
+        {refundModal}
+      </div>
+    );
+  }
+
+  // ====== 결제 내역 뷰 (기존) ======
   return (
     <div className="space-y-6">
       {payments.length === 0 ? (
@@ -885,6 +1102,7 @@ function PaymentsSection() {
                   </span>
 
                   {/* 영수증: 결제완료 건만 노출 — pricing/success 페이지 재활용 */}
+                  {/* 6.2C-6: 환불 버튼은 결제 내역 탭에서 제거 → 환불 탭으로 이전 (Option A) */}
                   {p.status === "paid" && (
                     <Link
                       href={`/pricing/success?orderId=${encodeURIComponent(
@@ -908,26 +1126,6 @@ function PaymentsSection() {
                       </span>
                       영수증
                     </Link>
-                  )}
-
-                  {/* 환불: API에서 can_refund=true 일 때만 — 모달 트리거 */}
-                  {p.can_refund && (
-                    <button
-                      type="button"
-                      onClick={() => setRefundTarget(p)}
-                      style={{
-                        fontSize: 12,
-                        fontWeight: 700,
-                        padding: "2px 10px",
-                        borderRadius: "var(--radius-chip, 4px)",
-                        color: "var(--danger)",
-                        backgroundColor: "transparent",
-                        border: "1px solid var(--danger)",
-                        cursor: "pointer",
-                      }}
-                    >
-                      환불
-                    </button>
                   )}
                 </div>
               </div>
@@ -965,74 +1163,126 @@ function PaymentsSection() {
         </div>
       )}
 
-      {/* 환불 확인 모달 */}
-      {refundTarget && (
+      {/* 환불 확인 모달 (공통 변수 — 결제 내역 뷰에서도 마운트하나 트리거는 환불 탭) */}
+      {refundModal}
+    </div>
+  );
+}
+
+/* ============================================================
+ * RefundRow — 환불 탭 결제 행 (시안 BU3 bl-pay-row 톤 → 운영 인라인)
+ *  - refundedView=false: 환불 가능 결제 ("환불 신청" 버튼)
+ *  - refundedView=true:  환불 완료 결제 (금액 line-through + 환불일)
+ * ============================================================ */
+function RefundRow({
+  p,
+  onRefund,
+  refundedView = false,
+}: {
+  p: PaymentItem;
+  onRefund?: () => void;
+  refundedView?: boolean;
+}) {
+  const dateStr = (p.paid_at ? new Date(p.paid_at) : new Date(p.created_at))
+    .toLocaleDateString("ko-KR", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    });
+
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 14,
+        padding: "14px 16px",
+        border: "1px solid var(--border)",
+        borderRadius: 4,
+        background: "var(--bg-elev)",
+      }}
+    >
+      {/* 내역 + 메타 */}
+      <div style={{ flex: 1, minWidth: 0 }}>
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center"
-          style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
-          onClick={() => !refunding && setRefundTarget(null)}
+          style={{
+            fontSize: 14,
+            fontWeight: 700,
+            color: "var(--ink)",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}
         >
-          <div
-            className="w-[90%] max-w-[360px] rounded-md p-6"
-            style={{ backgroundColor: "var(--bg-elev)" }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex justify-center mb-4">
-              <div
-                className="flex h-14 w-14 items-center justify-center rounded-full"
-                style={{ backgroundColor: "var(--bg-alt)" }}
-              >
-                <span
-                  className="material-symbols-outlined text-3xl"
-                  style={{ color: "var(--danger)" }}
-                >
-                  currency_exchange
-                </span>
-              </div>
-            </div>
-
-            <h2
-              className="text-center text-lg font-bold mb-2"
-              style={{ color: "var(--ink)" }}
-            >
-              환불하시겠습니까?
-            </h2>
-            <p
-              className="text-center text-sm mb-6"
-              style={{ color: "var(--ink-mute)" }}
-            >
-              {formatAmount(refundTarget.final_amount)}이 환불됩니다.
-              <br />
-              환불 후에는 되돌릴 수 없습니다.
-            </p>
-
-            <div className="flex gap-3">
-              <button
-                className="flex-1 py-3 rounded text-sm font-bold"
-                style={{
-                  backgroundColor: "var(--bg-alt)",
-                  color: "var(--ink-mute)",
-                }}
-                onClick={() => setRefundTarget(null)}
-                disabled={refunding}
-              >
-                취소
-              </button>
-              <button
-                className="flex-1 py-3 rounded text-sm font-bold"
-                style={{
-                  backgroundColor: "var(--danger)",
-                  color: "#fff",
-                  opacity: refunding ? 0.6 : 1,
-                }}
-                onClick={handleRefund}
-                disabled={refunding}
-              >
-                {refunding ? "처리중..." : "환불하기"}
-              </button>
-            </div>
-          </div>
+          {p.description || p.payable_type}
         </div>
+        <div
+          style={{
+            fontFamily: "var(--ff-mono)",
+            fontSize: 11,
+            color: "var(--ink-mute)",
+            marginTop: 3,
+          }}
+        >
+          {dateStr}
+          {p.payment_method ? ` · ${p.payment_method}` : ""}
+          {refundedView && p.refunded_at
+            ? ` · 환불 ${new Date(p.refunded_at).toLocaleDateString("ko-KR")}`
+            : ""}
+        </div>
+      </div>
+
+      {/* 금액 — 환불 완료는 line-through 음소거 */}
+      <div
+        style={{
+          fontFamily: "var(--ff-mono)",
+          fontWeight: 700,
+          fontSize: 15,
+          whiteSpace: "nowrap",
+          color: refundedView ? "var(--ink-mute)" : "var(--ink)",
+          textDecoration: refundedView ? "line-through" : "none",
+        }}
+      >
+        {formatAmount(
+          refundedView && p.refund_amount ? p.refund_amount : p.final_amount
+        )}
+      </div>
+
+      {/* 액션: 환불 가능 → 환불 신청 버튼 / 환불 완료 → 상태 배지 */}
+      {refundedView ? (
+        <span
+          className="badge"
+          style={{
+            color: "var(--ink-mute)",
+            backgroundColor: "var(--bg-alt)",
+            border: "1px solid var(--border)",
+            fontSize: 11,
+            fontWeight: 700,
+            padding: "2px 8px",
+            borderRadius: "var(--radius-chip, 4px)",
+            whiteSpace: "nowrap",
+          }}
+        >
+          환불완료
+        </span>
+      ) : (
+        <button
+          type="button"
+          onClick={onRefund}
+          style={{
+            fontSize: 12,
+            fontWeight: 700,
+            padding: "4px 12px",
+            borderRadius: "var(--radius-chip, 4px)",
+            color: "var(--danger)",
+            backgroundColor: "transparent",
+            border: "1px solid var(--danger)",
+            cursor: "pointer",
+            whiteSpace: "nowrap",
+          }}
+        >
+          환불 신청
+        </button>
       )}
     </div>
   );
