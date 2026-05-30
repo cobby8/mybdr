@@ -244,6 +244,39 @@
 - step current=1 하드코딩(이 페이지=결제 정보 단계 고정). 동적 step 불필요
 - 약관 "보기" 링크는 상세 미연결(시각 박제) — 시안과 동일. 약관 본문 라우트는 별도 과제
 
+## 구현 기록 (developer) — Phase 6.3C
+
+### 6.3C-1 — GU2 WeeklyReport → /profile/weekly-report (BG2 정합)
+
+📝 구현한 기능: 시안 GU2 정합 보강. PM 판단(데이터 출처 상이 → 표기/톤 정합만, 데이터 패칭 0 변경 우선) 승인대로 ① placeholder warn-soft 3곳 통일 ② 이메일 구독 link 경로 변경 ③ "곧 제공"→"준비 중" 카피 통일 ④ page 구조·KPI 매핑·데이터 패칭 0 변경.
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| src/app/(web)/profile/weekly-report/page.tsx | ① ComingSoonBadge: muted-gray → warn-soft(var(--color-warning) color-mix 14% bg / 32% border) + 라벨 "곧 제공"→"준비 중" ② 평점 KPI placeholder 텍스트 muted→var(--color-warning) ③ §05 다음주 추천 dashed 박스: subtle→warn-soft(배경 5% + dashed 36% + 아이콘 70%) ④ 이메일 구독 link `/profile/notification-settings`→`/profile/settings?section=notify` ⑤ 헤더 주석 2곳 경로/카피 정합 | 수정 (+23/-13, 순 +10) |
+
+설계 정합 (PM 승인 100% 일치):
+- BG2 정합 판단 정확: KPI 4 데이터 출처 상이(시안 PU3 시즌 stat vs 운영 weekly-report SWR) → 표기/톤 정합만, **데이터 패칭 0 변경** ✅
+- page.tsx 구조·KPI 매핑(경기/평균평점/XP/활동시간)·SWR(`/api/web/profile/weekly-report`)·revalidate·직렬화 **0 변경** ✅
+- placeholder warn-soft 3곳 통일 (ComingSoonBadge / 평점 placeholder / 다음주 추천 박스) — 하드코딩 색상 0, var(--color-warning) color-mix만 ✅
+- 이메일 구독 → /profile/settings?section=notify (section-key.ts VALID_SECTIONS 유효 확인됨) ✅
+- "곧 제공" → "준비 중" 통일 (배지 + 헤더 주석) ✅
+
+🔑 사전 검증 (구현 전 확인):
+- `--color-warning` 토큰: globals.css L2773/L2801 (라이트/다크 양쪽 정의 `var(--warn)` #E8A33B) — 존재 확인
+- `?section=notify`: section-key.ts VALID_SECTIONS 7키 중 하나 — 유효 확인 (resolveSection 통과)
+
+💡 tester 참고:
+- 테스트: /profile/weekly-report → §02 하이라이트·§05 다음주 추천 배지 "준비 중"(warn 노랑 톤) / §01 KPI "평균 평점" 카드 "평점 시스템 준비 중"(warn 톤) / §05 박스 dashed 노랑 톤 + recommend 아이콘 노랑
+- 푸터 "이메일 구독 관리" 클릭 → /profile/settings?section=notify (notify 섹션 활성 도착)
+- 데이터 회귀 0 확인: KPI 4 값(경기/XP/활동시간 실데이터, 평점 "-") / §04 TOP3 코트 / §06 지난주 비교 모두 기존과 동일
+- 라이트/다크 양쪽 warn 톤 가독성 확인 (--color-warning 양쪽 정의됨)
+- 정상: tsc 0 / SWR 패칭 동일 / "12주 성장 추이 보기" link(/profile/growth) 무변경
+
+⚠️ reviewer 참고:
+- 데이터 정합(KPI=PU3 시즌 stat)은 **의도적으로 미적용** — 출처 상이(weekly-report API vs UserSeasonStat), 데이터 패칭 0 변경 우선(PM 판단). 추후 PU3 정합은 API 통합 별도 과제
+- warn-soft 3곳 톤: var(--color-warning) color-mix 비율 의도적 차등(배지 14%/텍스트 100%/박스배경 5%·border 36%·아이콘 70%) — placeholder 강도별 시각 위계
+- gu2-/bg- prefix 신설 0 / 신규 CSS·토큰 0 (전부 인라인 + 기존 var(--*) 토큰)
+
 ## 수정 요청
 | 요청자 | 대상 | 문제 | 상태 |
 |--------|------|------|------|
@@ -251,6 +284,7 @@
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
 |------|------|------|
+| 2026-05-31 | **Phase 6.3C-1** GU2 WeeklyReport BG2 정합 (placeholder warn-soft 3곳 + 이메일구독 link + "준비 중" 통일) | ✅ tsc 0 / +23-13 / 데이터 패칭 0 변경 / stop 없음 |
 | 2026-05-31 | **Phase 5+6.1 dev→main 운영 반영** (#658) | ✅ main `26586af` Vercel success / ledger ⑬⑭ ✅ 종료 |
 | 2026-05-31 | **Phase 6.1 chain** (v2.24 sync + 6.1C 6 PR #657) | ✅ `29178b9`+`cc78745`~`f29a3ca` / BP1 privacy·BP5 가드·BP2 server조회 / stop 0 |
 | 2026-05-31 | **Phase 5 chain** (v2.23 sync + 5C 6 PR #656) | ✅ `7e2d0f1`+`68fc5c3`~`3e3423f` / 공용 wizard·mock 0 / stop 0 |

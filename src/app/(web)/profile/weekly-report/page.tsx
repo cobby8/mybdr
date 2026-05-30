@@ -8,12 +8,12 @@
  *
  * 시안 출처: Dev/design/BDR-current/screens/ProfileWeeklyReport.jsx (D등급)
  * 진입: /profile "주간 리포트" 카드 / 알림 "주간 리포트가 도착했어요"
- * 복귀: AppNav 뒤로 / "이메일 구독 관리" → /profile/notification-settings
+ * 복귀: AppNav 뒤로 / "이메일 구독 관리" → /profile/settings?section=notify
  *
  * Hybrid 옵션 B 채택 사유:
  * - 시안 신규 섹션 (Highlight + 다음 주 추천) 박제로 디자인 v2.4 일관성 확보
  * - 운영 진짜 데이터 (TOP 3 코트 / 지난주 상세 비교) 손실 0
- * - DB 미지원 신규는 명확한 "곧 제공" 안내 + placeholder
+ * - DB 미지원 신규는 명확한 "준비 중" 안내 + placeholder (warn-soft 톤 통일)
  *
  * 박제 후 구조:
  *   01. KPI 4종 (시안 v2.4 매핑: 경기 / 평균 평점 / XP / 활동 시간)
@@ -173,9 +173,11 @@ function Section({
   );
 }
 
-// "곧 제공" placeholder 라벨 — 시안 신규 섹션 (DB 미지원) 공통 안내
+// "준비 중" placeholder 라벨 — 시안 신규 섹션 (DB 미지원) 공통 안내
 // Why: 시안 v2.4 신설 섹션 (Highlight + 다음 주 추천) 은 DB/추천엔진 미지원이므로
 //      디자인 위치만 확보하고 사용자에게 명시적 안내. 사일런트 더미 표시 금지
+// Phase 6.3C: placeholder 톤을 warn-soft (var(--color-warning) color-mix) 로 통일 +
+//             라벨 카피 "준비 중" 통일 (하드코딩 색상 금지 — 토큰만 사용)
 function ComingSoonBadge() {
   return (
     <span
@@ -188,16 +190,17 @@ function ComingSoonBadge() {
         letterSpacing: "0.08em",
         textTransform: "uppercase",
         padding: "3px 8px",
-        background: "color-mix(in oklab, var(--color-text-muted) 12%, transparent)",
-        color: "var(--color-text-secondary)",
+        // warn-soft 배경 — DB 미지원 placeholder 공통 톤 (var(--color-warning) 토큰 기반)
+        background: "color-mix(in oklab, var(--color-warning) 14%, transparent)",
+        color: "var(--color-warning)",
         borderRadius: 4,
-        border: "1px solid var(--color-border-subtle)",
+        border: "1px solid color-mix(in oklab, var(--color-warning) 32%, transparent)",
       }}
     >
       <span className="material-symbols-outlined" style={{ fontSize: 12 }}>
         schedule
       </span>
-      곧 제공
+      준비 중
     </span>
   );
 }
@@ -586,10 +589,11 @@ export default function WeeklyReportPage() {
                   <Delta now={k.val} prev={k.prev} prevWeek={prevWeekLabel} />
                 ) : !k.hasData ? (
                   // 평점 시스템 추후 연동 — 사용자에게 명시적으로 안내
+                  // Phase 6.3C: placeholder warn-soft 톤 통일 (var(--color-warning))
                   <span
                     style={{
                       fontSize: 11,
-                      color: "var(--color-text-muted)",
+                      color: "var(--color-warning)",
                       fontFamily: "var(--ff-mono, ui-monospace, monospace)",
                     }}
                   >
@@ -921,8 +925,11 @@ export default function WeeklyReportPage() {
         <div
           style={{
             padding: "20px 22px",
-            background: "var(--color-surface, var(--color-bg-card))",
-            border: "1px dashed var(--color-border-subtle)", // dashed = placeholder 시각 신호
+            // Phase 6.3C: placeholder warn-soft 통일 — dashed border + 옅은 warn 배경
+            background:
+              "color-mix(in oklab, var(--color-warning) 5%, var(--color-surface, var(--color-bg-card)))",
+            border:
+              "1px dashed color-mix(in oklab, var(--color-warning) 36%, transparent)", // dashed warn = 준비 중 시각 신호
             borderRadius: 4,
             textAlign: "center",
           }}
@@ -931,7 +938,8 @@ export default function WeeklyReportPage() {
             className="material-symbols-outlined"
             style={{
               fontSize: 32,
-              color: "var(--color-text-disabled)",
+              // Phase 6.3C: placeholder 아이콘 warn-soft 톤
+              color: "color-mix(in oklab, var(--color-warning) 70%, transparent)",
               display: "block",
               marginBottom: 8,
             }}
@@ -1075,9 +1083,11 @@ export default function WeeklyReportPage() {
       >
         매주 월요일 오전 9시에 받아보고 있습니다.
         <br />
-        {/* 사용자 결정: 이메일 구독 관리 → /profile/notification-settings */}
+        {/* Phase 6.3C: 이메일 구독 관리 → 통합 settings notify 섹션 (GU3 link 정합)
+            구 /profile/notification-settings → /profile/settings?section=notify
+            section=notify 는 VALID_SECTIONS 유효 키 (section-key.ts 확인) */}
         <Link
-          href="/profile/notification-settings"
+          href="/profile/settings?section=notify"
           style={{
             color: "var(--cafe-blue, #0079B9)",
             cursor: "pointer",
