@@ -4879,3 +4879,51 @@ html.dark {
 /* CU2 sidebar (실데이터 PostDetailSidebar 컨테이너) */
 .cu2-side { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
 @media (max-width: 980px) { .cu2-side { margin-top: 4px; } }
+
+/* ============================================================
+   RU1 — Rankings (5C-4 · BC1 팀 승수 리더 + BC7 출처 footer)
+   시안 comm-shared.css .ru1-* 포팅. 토큰 치환: --r-md→--radius-card / --r-sm→--radius-chip.
+   MVP hero·코트 chip·부문 chip·시안 board/podium = 운영 V2 컴포넌트 보존으로 미포팅.
+   prefix 충돌 0: globals.css 정의 + rankings-content.tsx 사용 2파일만 (cu1-/cu2-/comm- 무관).
+   ============================================================ */
+
+/* RU1-C / BC1 — 팀 승수 리더 hero (cafe-blue 그라디언트 위 흰 텍스트) */
+.ru1-leader {
+  position: relative; overflow: hidden;
+  background: linear-gradient(135deg, var(--cafe-blue) 0%, var(--cafe-blue-deep) 100%);
+  color: #fff; border-radius: var(--radius-card); padding: 18px 20px;
+  display: flex; align-items: center; gap: 16px;
+}
+.ru1-leader__logo {
+  width: 64px; height: 64px; border-radius: var(--radius-chip); flex-shrink: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-family: var(--ff-display); font-weight: 900; font-size: 26px; color: #fff;
+  background: rgba(255,255,255,.16); border: 1px solid rgba(255,255,255,.25);
+}
+.ru1-leader__body { min-width: 0; }
+.ru1-leader__lbl { font-family: var(--ff-mono); font-size: 9.5px; font-weight: 800; color: rgba(255,255,255,.8); letter-spacing: 0.12em; text-transform: uppercase; }
+.ru1-leader__name { font-family: var(--ff-display); font-size: 22px; font-weight: 900; letter-spacing: -0.015em; line-height: 1.1; margin: 2px 0; }
+.ru1-leader__rec { font-family: var(--ff-mono); font-size: 13px; font-weight: 800; }
+.ru1-leader__src { font-family: var(--ff-mono); font-size: 10px; color: rgba(255,255,255,.62); margin-top: 5px; display: inline-flex; align-items: center; gap: 4px; }
+.ru1-leader__src .material-symbols-outlined { font-size: 13px; }
+
+/* RU1-E / BC7 — 데이터 출처 footer */
+.ru1-source {
+  margin-top: 16px; padding: 14px 16px;
+  background: var(--bg-alt); border: 1px solid var(--border); border-radius: var(--radius-card);
+}
+.ru1-source__h {
+  font-family: var(--ff-mono); font-size: 10px; font-weight: 800;
+  color: var(--ink-dim); letter-spacing: 0.08em; text-transform: uppercase; margin: 0 0 8px;
+  display: flex; align-items: center; gap: 5px;
+}
+.ru1-source__h .material-symbols-outlined { font-size: 14px; }
+.ru1-source__row { display: flex; gap: 8px; padding: 4px 0; font-size: 12px; color: var(--ink-mute); line-height: 1.5; }
+.ru1-source__row b { color: var(--ink-soft); font-weight: 700; }
+.ru1-source__tag {
+  flex-shrink: 0; font-family: var(--ff-mono); font-size: 9.5px; font-weight: 800;
+  color: var(--cafe-blue-deep); background: var(--cafe-blue-soft);
+  padding: 1px 6px; border-radius: var(--radius-chip); height: fit-content; letter-spacing: 0.02em;
+}
+.ru1-source__tag--p2 { color: var(--accent); background: var(--accent-soft); }
+.ru1-source__tag--p3 { color: var(--ok); background: var(--ok-soft); }

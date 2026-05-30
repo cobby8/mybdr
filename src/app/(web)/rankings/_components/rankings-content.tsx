@@ -168,8 +168,15 @@ export function RankingsContent() {
             <EmptyState icon="groups" message="등록된 팀 랭킹이 없습니다" />
           ) : (
             <>
+              {/* RU1-C / BC1 — 팀 승수 리더 (Phase 3 Team.wins 1위 실데이터)
+                  이유: 시안 RU1은 MVP+리더 cross-domain hero 2열이나,
+                        MVP는 final_mvp 쿼리 부재(mock 0)로 hide → 리더 1열만 박제.
+                        titles(우승 횟수)는 DB 미지원 → 전적(승·패·무)만 노출. */}
+              <TeamLeaderHero team={teamRankings[0]} />
               <V2Podium items={podiumItems} />
               <V2TeamBoard teams={teamRankings} />
+              {/* RU1-E / BC7 — 데이터 출처 footer (경기·팀 2행 실집계 기준) */}
+              <RankingSourceFooter />
             </>
           )}
         </>
@@ -189,6 +196,8 @@ export function RankingsContent() {
                 sort={playerSort}
                 onSortChange={setPlayerSort}
               />
+              {/* RU1-E / BC7 — 데이터 출처 footer (경기·팀 2행 실집계 기준) */}
+              <RankingSourceFooter />
             </>
           )}
         </>
@@ -251,6 +260,67 @@ function BoardSkeleton() {
           <div style={{ height: 14, background: "var(--bg-alt)", borderRadius: 2 }} />
         </div>
       ))}
+    </div>
+  );
+}
+
+// RU1-C / BC1 — 팀 승수 리더 hero (Phase 3 Team.wins 1위)
+// 이유: 시안 ru1-leader 마크업 박제. team 1위 실데이터(name/wins/losses/draws).
+//       titles(우승)는 DB 미지원 → 전적 문구만 노출 (mock 0).
+//       시안 토큰 치환: --r-md→--radius-card.
+function TeamLeaderHero({ team }: { team: TeamRanking }) {
+  // 로고 자리: 팀명 첫 글자 이니셜 (이미지 없음 → 이니셜 대체 룰)
+  const initial = team.name?.[0] ?? "?";
+  // 배경색: primary_color(흰색 제외) → secondary → accent (V2Podium 동일 가드)
+  const bg =
+    team.primary_color &&
+    team.primary_color.toLowerCase() !== "#ffffff" &&
+    team.primary_color.toLowerCase() !== "#fff"
+      ? team.primary_color
+      : team.secondary_color ?? "var(--accent)";
+
+  return (
+    <div className="ru1-leader" style={{ marginBottom: 16 }}>
+      <div className="ru1-leader__logo" style={{ background: bg }}>
+        {initial}
+      </div>
+      <div className="ru1-leader__body">
+        <div className="ru1-leader__lbl">팀 승수 리더</div>
+        <div className="ru1-leader__name">{team.name}</div>
+        <div className="ru1-leader__rec">
+          {team.wins}승 {team.losses}패 {team.draws}무
+        </div>
+        <div className="ru1-leader__src">
+          <span className="material-symbols-outlined">groups</span>
+          팀 전적 동기화
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// RU1-E / BC7 — 데이터 출처 footer (경기·팀 2행 실집계 기준)
+// 이유: 시안 3행 중 코트 행은 코트 cross-domain hide(mock 0) → 경기·팀 2행만.
+//       문구는 실제 집계 기준(공식전 기록 / 팀 전적 동기화) 반영.
+function RankingSourceFooter() {
+  return (
+    <div className="ru1-source">
+      <h4 className="ru1-source__h">
+        <span className="material-symbols-outlined">info</span>
+        데이터 출처
+      </h4>
+      <div className="ru1-source__row">
+        <span className="ru1-source__tag ru1-source__tag--p2">경기</span>
+        <span>
+          <b>개인 부문</b> — 공식전 경기 기록 집계 기반.
+        </span>
+      </div>
+      <div className="ru1-source__row">
+        <span className="ru1-source__tag ru1-source__tag--p3">팀</span>
+        <span>
+          <b>팀 부문 / 승수 리더</b> — 팀 전적(승·패·무) 동기화. 매주 월요일 갱신.
+        </span>
+      </div>
     </div>
   );
 }

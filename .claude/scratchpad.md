@@ -12,7 +12,7 @@
 | 5C-1 | CU4 CommunityEdit → /community/[id]/edit (+공용 wizard 생성) | 🔵 박제 중 |
 | 5C-2 | CU1 CommunityList → /community | ⏳ |
 | 5C-3 | CU2 CommunityDetail → /community/[id] | ⏳ |
-| 5C-4 | RU1 Rankings → /rankings | ⏳ |
+| 5C-4 | RU1 Rankings → /rankings | ✅ 박제 완료 (미커밋) |
 | 5C-5 | CA1 AdminCommunity → /admin/community | ⏳ |
 | 5C-6 | CU3 CommunityNew → /community/new (공용 wizard 재사용) | ⏳ |
 
@@ -147,6 +147,41 @@
 | 회차 | 날짜 | 수정 내용 | 수정 파일 | 사유 |
 |------|------|----------|----------|------|
 
+### 5C-4 — RU1 Rankings → /rankings 박제 (BC1 + BC7)
+
+📝 구현한 기능: 시안 RU1(cross-domain hero + 부문 chip + 출처 footer)를 운영 `/rankings`(RankingsContent)에 박제. **데이터 패칭 0 변경** — fetch(`/api/web/rankings?type=`)·mode 토글·podiumItems 가공·playerSort·외부BDR 부 전환 전부 보존. V2Podium·V2PlayerBoard·V2TeamBoard·BdrRankingTable 4컴포넌트 보존. 시안 신규 UI는 실데이터 가능分만 선별 추가, 나머지 hide.
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| `src/app/(web)/rankings/_components/rankings-content.tsx` | team 모드: `TeamLeaderHero`(ru1-leader, teamRankings[0] 실데이터) + `RankingSourceFooter`(ru1-source 경기·팀 2행) 추가. player 모드: footer 추가. 보조 컴포넌트 2개 신규. **fetch/state/podium 가공/onSortChange/PlayerSortKey 시그니처 무변경** | 수정 (+70/-0) |
+| `src/app/globals.css` | RU1 CSS append — `ru1-leader*`(cafe-blue 그라디언트 hero) + `ru1-source*`(출처 footer). 토큰 치환(--r-md→--radius-card / --r-sm·--r-xs→--radius-chip). 아이콘 셀렉터 `.ico`→`.material-symbols-outlined` | 수정 (+48/-0) |
+
+핵심 결정 (Auto Chain lock 반영):
+- **RU1-B MVP Hero = hide**: rankings API에 `final_mvp` 쿼리 없음 + 추측 schema·새 쿼리 금지 → mock 0 (PM lock). 시안 hero 2열(MVP+리더) 중 MVP 열 미박제
+- **RU1-C 팀 승수 리더 = team모드 1위 실데이터**: `teamRankings[0]`(team API wins DESC 1위) name/wins/losses/draws. **titles(우승)=DB 미지원 hide** → 전적 문구만. 로고=이니셜 대체, 배경=primary_color 가드(흰색 제외→secondary→accent, V2Podium 동일 가드)
+- **RU1-D 코트 chip = hide**: cross-domain 코트 + 하드코딩 코트명 → mock 0
+- **RU1-A 매너 chip = hide**: 매너 정렬 키 없음. 기존 V2PlayerBoard 정렬(rating/ppg/apg/rpg) 시그니처 보존
+- **RU1-E / BC7 footer = 경기·팀 2행**: 코트 행은 코트 hide 연동 제거. 문구=실집계 기준(공식전 경기 기록 / 팀 전적 동기화·매주 월요일). team·player 모드 양쪽 노출
+- **시안 ru1-podium/ru1-board 미포팅**: 운영 V2Podium/V2PlayerBoard/V2TeamBoard 보존(시안 board 마크업 박제 안 함)
+- **토큰 치환**: --r-md→--radius-card / --r-sm·--r-xs→--radius-chip. 하드코딩 색상 0(hero 그라디언트 위 흰 텍스트 rgba white는 13룰 핑크/살몬/코랄 무관)
+- **prefix 충돌 0**: ru1- = globals.css(정의)+rankings-content.tsx(사용) 2파일만. cu1-/cu2-/comm- grep 0 확인
+
+보존(0 변경): fetch `/api/web/rankings?type=team|player` / BdrRankingTable bdr fetch / mode 3종 토글 / bdrDivision 부 전환 / podiumItems 가공 / playerSort·setPlayerSort / EmptyState·BoardSkeleton / V2Podium·V2PlayerBoard(onSortChange/PlayerSortKey)·V2TeamBoard·BdrRankingTable
+
+💡 tester 참고:
+- 테스트: `/rankings` 진입 → 팀/선수/외부BDR 토글 / 팀 모드=상단 승수 리더 hero(1위 실팀) + 포디움 + 보드 + footer / 선수 모드=포디움 + 정렬 pills + 보드 + footer / 외부BDR=일반·대학 부 전환(기존 그대로)
+- 정상: 리더 hero=team 1위 팀명·전적(승패무)·이니셜 로고 / footer=경기·팀 2행 / 선수 정렬 pills 동작 / 외부BDR carry-over
+- 주의 입력: teamRankings 0건(EmptyState, hero·footer 미노출) / 팀 primary_color=#FFFFFF(secondary/accent 폴백) / 팀명 1글자 이니셜
+
+⚠️ reviewer 참고:
+- 데이터 패칭(fetch/useEffect/state/podiumItems) diff 0 — UI 추가만 확인
+- MVP hide(final_mvp 부재)·코트 hide(cross-domain)·titles hide(DB 부재)가 mock 0 원칙 부합하는지
+- ru1- prefix 충돌 0 / 토큰 치환 정합 / onSortChange·PlayerSortKey 시그니처 보존
+
+#### 수정 이력
+| 회차 | 날짜 | 수정 내용 | 수정 파일 | 사유 |
+|------|------|----------|----------|------|
+
 ## 진행 현황 (Phase 1C — 완료)
 - ✅ Phase 1C 15/16 박제+머지 (PR #650~#653) / PA3 SKIP 보류 (decisions.md) / subin=dev=main 정합
 
@@ -157,6 +192,7 @@
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
 |------|------|------|
+| 2026-05-31 | 5C-4 RU1 Rankings → /rankings 박제 (BC1+BC7) | ✅ rankings-content UI추가(데이터 0변경)+globals.css ru1- append / tsc0 / MVP·코트·매너 hide·팀리더 1위 실데이터·footer 2행 / V2 4컴포넌트 보존 / +118 LOC / stop 0 (미커밋) |
 | 2026-05-31 | 5C-3 CU2 CommunityDetail → /community/[id] 박제 (BC4+BC2) | ✅ page.tsx UI만 교체(데이터 0변경)+globals.css cu2- append / tsc0 / 알기자hero·추천·mock댓글 hide / stop 0 (미커밋) |
 | 2026-05-30 | Phase 1~4 종료 마킹 + git 동기화 + Phase 5 대기 모드 진입 | ✅ dev→subin 동기화(`0c61175` push) / phase-ledger Phase 2/3/4 ⑬⑭ ✅ 종료 / Phase 5 zip(BDR v2 (8)) 도착 대기 |
 | 2026-05-29 | **Auto Chain 25 PR 운영 반영** (subin→dev #654 → dev→main #655) | ✅ 머지 완료 / main=`6f22c02` / Vercel 운영 배포 / dev=main 정합 |
@@ -164,4 +200,3 @@
 | 2026-05-29 | **Phase 3C 완료 6/6** (3C-1~6) | ✅ `50ee237`~`0b61922` push / 팀 영역 / status·권한 BT1~6 일치 / docs `b50b88e` |
 | 2026-05-29 | **Phase 2C 완료 10/10** (2C-1~10) | ✅ `13feb36`~`9292fe6` push / 경기 영역 / game_applications.status Int0/1/2 / docs `283bcd3` |
 | 2026-05-29 | Auto Chain 1단계 v2.22 sync (`dee2445`) | ✅ Phase 3 팀 + 4 단체 동시 / screens 33→46 / 회귀16 통과 |
-| 2026-05-29 | Auto Chain Master 사전 점검 | ✅ git/env/zip/v2.20 6/6 / 데이터 정책=통합 허용 |
