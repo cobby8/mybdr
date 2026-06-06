@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>UA2 · 대회 상세 — BDR v2.18</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800;900&family=JetBrains+Mono:wght@500;700;800&family=Pretendard:wght@400;500;600;700;800;900&display=swap" />
+<link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Symbols+Outlined" />
+<link rel="stylesheet" href="tokens.css" />
+<link rel="stylesheet" href="shell.css" />
+<link rel="stylesheet" href="screens/my-registration-status.css" />
+<link rel="stylesheet" href="screens/tournament-detail.css" />
+</head>
+<body>
+<div class="showcase">
+  <header class="showcase-head">
+    <div class="eyebrow">BDR v2.18 · UA2 / 부분수정</div>
+    <h1>대회 상세 — /tournaments/[id]</h1>
+    <p>
+      Hero (B7 status / B4 정원) + 종별 selector sticky chip row (B2) + 5 탭 (개요/일정/대진표/참가팀/규정).
+      Sidebar = MyRegistrationStatus 5-단계 step indicator (B1) + 운영자 전환 (B7).
+      대진표 탭은 버전 메타 (B5) + 본인 팀 하이라이트.
+    </p>
+    <nav class="showcase-nav">
+      <a href="index.html">목차</a>
+      <a href="ua1-tournaments.html">UA1 목록</a>
+      <a class="is-cur" href="ua2-tournament-detail.html">UA2 상세</a>
+      <a href="ua3-tournament-enroll.html">UA3 신청</a>
+      <a href="ub1-tournament-completed.html">UB1 종료</a>
+      <a href="uc1-my-activity.html">UC1 마이</a>
+      <a href="ud1-admin-teams.html">UD1 팀</a>
+      <a href="ud2-admin-bracket.html">UD2 대진</a>
+      <a href="ud3-admin-setup.html">UD3 셋업</a>
+    </nav>
+  </header>
+
+  <section class="variant">
+    <header class="variant__head">
+      <span class="variant__num">UA2 / PC + MOBILE — 일반 사용자</span>
+      <h2 class="variant__title">5 탭 + 종별 selector + sidebar 보강</h2>
+      <p class="variant__desc">탭 / 종별 chip 클릭 가능. Sidebar 의 "내 참가 현황" 카드 = 5-단계 step (현재 = 결제 대기, D-2).</p>
+    </header>
+    <div class="vp-strip">
+      <div class="vp vp--pc-wide">
+        <div class="vp__chrome">
+          <span class="vp__lights"><span></span><span></span><span></span></span>
+          <span class="vp__url">mybdr.kr/tournaments/tn-2</span>
+          <span class="vp__size">PC · 1320</span>
+        </div>
+        <div class="vp__body">
+          <div id="m-pc-nav"></div>
+          <div id="m-pc"></div>
+        </div>
+      </div>
+      <div class="vp vp--mobile">
+        <div class="vp__chrome">
+          <span class="vp__lights"><span></span><span></span><span></span></span>
+          <span class="vp__url">m · 상세</span>
+          <span class="vp__size">375</span>
+        </div>
+        <div class="vp__body">
+          <div id="m-mob-nav"></div>
+          <div id="m-mob"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="variant">
+    <header class="variant__head">
+      <span class="variant__num">UA2 / PC — 운영자 권한 (B7)</span>
+      <h2 class="variant__title">운영자 미리보기 토글이 sidebar에 노출</h2>
+      <p class="variant__desc">isAdmin=true 일 때 sidebar 에 "관리자 / 사용자 (미리보기)" 토글. 사용자 권한 hidden 시뮬레이션.</p>
+    </header>
+    <div class="vp-strip">
+      <div class="vp vp--pc-wide">
+        <div class="vp__chrome">
+          <span class="vp__lights"><span></span><span></span><span></span></span>
+          <span class="vp__url">mybdr.kr/tournaments/tn-2?preview=user</span>
+          <span class="vp__size">PC · 1320</span>
+        </div>
+        <div class="vp__body">
+          <div id="m-pc-admin-nav"></div>
+          <div id="m-pc-admin"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script type="text/babel" src="shared.jsx"></script>
+<script type="text/babel" src="screens/MyRegistrationStatus.jsx"></script>
+<script type="text/babel" src="screens/TournamentDetail.jsx"></script>
+<script type="text/babel">
+  const noop = () => {};
+  ReactDOM.createRoot(document.getElementById('m-pc-nav')).render(<window.AppNav active="tn" />);
+  ReactDOM.createRoot(document.getElementById('m-pc')).render(<window.TournamentDetail setRoute={noop} isAdmin={false} />);
+  ReactDOM.createRoot(document.getElementById('m-mob-nav')).render(<window.AppNav active="tn" />);
+  ReactDOM.createRoot(document.getElementById('m-mob')).render(<window.TournamentDetail setRoute={noop} isAdmin={false} />);
+  ReactDOM.createRoot(document.getElementById('m-pc-admin-nav')).render(<window.AppNav active="tn" />);
+  ReactDOM.createRoot(document.getElementById('m-pc-admin')).render(<window.TournamentDetail setRoute={noop} isAdmin={true} />);
+</script>
+</body>
+</html>

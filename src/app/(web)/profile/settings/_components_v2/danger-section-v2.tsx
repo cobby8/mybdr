@@ -26,8 +26,17 @@ export function DangerSectionV2() {
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // GU3-C — BG3 2차 confirm: "삭제합니다" 텍스트 입력 (비번 confirm 위에 추가하는 2중 가드)
+  const [confirmText, setConfirmText] = useState("");
+  // 시안 매직 워드 — 정확히 일치해야 삭제 버튼 활성
+  const DELETE_PHRASE = "삭제합니다";
 
   const handleDelete = async () => {
+    // GU3-C 2차 confirm — "삭제합니다" 텍스트 일치 가드 (버튼 disabled 와 이중 안전)
+    if (confirmText !== DELETE_PHRASE) {
+      setError(`확인을 위해 "${DELETE_PHRASE}"를 입력해주세요.`);
+      return;
+    }
     if (!password) {
       setError("비밀번호를 입력해주세요.");
       return;
@@ -95,6 +104,7 @@ export function DangerSectionV2() {
         onAction={() => {
           setError(null);
           setPassword("");
+          setConfirmText("");
           setConfirmOpen(true);
         }}
       />
@@ -150,6 +160,78 @@ export function DangerSectionV2() {
               계정 삭제 후 모든 활동 기록이 익명화되며 복구할 수 없습니다. 본인
               확인을 위해 현재 비밀번호를 입력하세요.
             </p>
+
+            {/* GU3-C — 시안 accent 경고 박스 (error 아이콘 + "되돌릴 수 없습니다").
+                accent-soft 배경 / accent-deep(=bdr-red-ink 매핑) 텍스트 — 운영 토큰만 */}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "flex-start",
+                gap: 10,
+                padding: "12px 14px",
+                marginBottom: 14,
+                borderRadius: 8,
+                background: "var(--accent-soft)",
+                // 시안 --accent-hair → 운영 매핑(globals.css L4646): --accent-soft
+                border: "1px solid var(--accent-soft)",
+              }}
+            >
+              <span
+                className="material-symbols-outlined"
+                style={{ fontSize: 18, color: "var(--accent)", flexShrink: 0 }}
+              >
+                error
+              </span>
+              <div>
+                {/* 시안 --accent-deep → 운영 매핑: --bdr-red-ink */}
+                <div
+                  style={{
+                    fontWeight: 700,
+                    fontSize: 13,
+                    color: "var(--bdr-red-ink)",
+                  }}
+                >
+                  되돌릴 수 없습니다
+                </div>
+                <div
+                  style={{
+                    fontSize: 12,
+                    color: "var(--bdr-red-ink)",
+                    marginTop: 2,
+                    lineHeight: 1.45,
+                  }}
+                >
+                  경기·팀·대회·결제 기록이 모두 영구 삭제됩니다.
+                </div>
+              </div>
+            </div>
+
+            {/* GU3-C 2차 confirm — "삭제합니다" 텍스트 입력 (비번 confirm 위 추가 가드) */}
+            <label
+              htmlFor="delete-confirm-phrase"
+              style={{
+                display: "block",
+                fontSize: 12,
+                color: "var(--ink-mute)",
+                marginBottom: 6,
+              }}
+            >
+              확인을 위해{" "}
+              <strong style={{ color: "var(--accent)" }}>{DELETE_PHRASE}</strong>
+              를 입력하세요
+            </label>
+            <input
+              id="delete-confirm-phrase"
+              type="text"
+              value={confirmText}
+              onChange={(e) => setConfirmText(e.target.value)}
+              disabled={submitting}
+              placeholder={DELETE_PHRASE}
+              autoComplete="off"
+              className="pm-input"
+              style={{ width: "100%", marginBottom: 12 }}
+            />
+
             {/* 2026-05-04: PasswordInput (보기 버튼 통합) + autoComplete="current-password"
                 (계정 삭제 본인 확인 = 현재 비밀번호 자동 채움 활성) */}
             <PasswordInput
@@ -182,21 +264,39 @@ export function DangerSectionV2() {
               >
                 취소
               </button>
-              <button
-                type="button"
-                className="btn btn--sm"
-                onClick={handleDelete}
-                disabled={submitting}
-                style={{
-                  background: "var(--accent)",
-                  color: "#fff",
-                  borderColor: "var(--accent)",
-                  opacity: submitting ? 0.7 : 1,
-                  cursor: submitting ? "wait" : "pointer",
-                }}
-              >
-                {submitting ? "삭제 중..." : "삭제"}
-              </button>
+              {(() => {
+                // GU3-C — "삭제합니다" 입력 + 비번 둘 다 충족해야 활성 (2중 가드)
+                const phraseOk = confirmText === DELETE_PHRASE;
+                const canDelete = phraseOk && !!password && !submitting;
+                return (
+                  <button
+                    type="button"
+                    className="btn btn--sm"
+                    onClick={handleDelete}
+                    disabled={!canDelete}
+                    style={{
+                      background: "var(--accent)",
+                      color: "#fff",
+                      borderColor: "var(--accent)",
+                      opacity: canDelete ? 1 : 0.5,
+                      cursor: submitting
+                        ? "wait"
+                        : canDelete
+                          ? "pointer"
+                          : "not-allowed",
+                    }}
+                    title={
+                      !phraseOk
+                        ? `"${DELETE_PHRASE}"를 입력하세요`
+                        : !password
+                          ? "비밀번호를 입력하세요"
+                          : undefined
+                    }
+                  >
+                    {submitting ? "삭제 중..." : "영구 삭제"}
+                  </button>
+                );
+              })()}
             </div>
           </div>
         </div>

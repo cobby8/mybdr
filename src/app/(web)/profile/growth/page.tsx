@@ -35,6 +35,14 @@
  * DB 미구현 (더미 + "준비 중" 배지):
  *  - 12주 주간 경기수 spark / 평점 line — UserSeasonStat 은 시즌 누적만, 주간 집계 별도 큐
  *  - 마일스톤 중 커뮤니티 활동 (집계 미구현)
+ *
+ * Phase 6.3C-2 보강 (BG1 정합 — 2026-05-31):
+ *  - "준비 중" placeholder 배지 4곳 톤 통일 → warn-soft (var(--color-warning) color-mix + schedule 아이콘)
+ *    · 6.3C-1 (weekly-report) 와 동일 패턴: 14% bg / 100% color / 32% border / schedule 아이콘
+ *    · 기존 muted-gray (var(--ink-dim) + var(--bg-alt)) → warn-soft 로 교체 (하드코딩 색상 0, 토큰만)
+ *  - PU4 정합: 마일스톤 이모지(🏀⭐🎯🔥💬🤝) 유지 — 시안 GU1 MilestoneTile 도 이모지 사용
+ *    (BG1 정합 = Material Symbols 강제 ❌, 운영 게이미피케이션 이모지 톤 유지)
+ *  - SWR 2종(gamification + season-stats) · 마일스톤 매핑 · page 구조 0 변경 (placeholder 톤만 통일)
  */
 
 import useSWR from "swr";
@@ -478,17 +486,26 @@ export default function GrowthPage() {
             </h3>
             <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
               {/* 준비 중 배지 — DB 집계 미구현 명시 */}
+              {/* Phase 6.3C-2: warn-soft 톤 통일 (6.3C-1 weekly-report 와 동일 패턴) */}
               <span
                 style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 3,
                   fontSize: 10,
                   fontWeight: 800,
                   letterSpacing: ".12em",
-                  color: "var(--ink-dim)",
-                  background: "var(--bg-alt)",
+                  // warn-soft — DB 미지원 placeholder 공통 톤 (var(--color-warning) 토큰 기반)
+                  color: "var(--color-warning)",
+                  background: "color-mix(in oklab, var(--color-warning) 14%, transparent)",
+                  border: "1px solid color-mix(in oklab, var(--color-warning) 32%, transparent)",
                   padding: "3px 8px",
                   borderRadius: 4,
                 }}
               >
+                <span className="material-symbols-outlined" style={{ fontSize: 12 }}>
+                  schedule
+                </span>
                 준비 중
               </span>
               <span style={{ fontSize: 11, color: "var(--ink-dim)" }}>
@@ -573,17 +590,25 @@ export default function GrowthPage() {
               평균 평점 추이
             </h3>
             <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+              {/* Phase 6.3C-2: warn-soft 톤 통일 */}
               <span
                 style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 3,
                   fontSize: 10,
                   fontWeight: 800,
                   letterSpacing: ".12em",
-                  color: "var(--ink-dim)",
-                  background: "var(--bg-alt)",
+                  color: "var(--color-warning)",
+                  background: "color-mix(in oklab, var(--color-warning) 14%, transparent)",
+                  border: "1px solid color-mix(in oklab, var(--color-warning) 32%, transparent)",
                   padding: "3px 8px",
                   borderRadius: 4,
                 }}
               >
+                <span className="material-symbols-outlined" style={{ fontSize: 12 }}>
+                  schedule
+                </span>
                 준비 중
               </span>
               <span style={{ fontSize: 11, color: "var(--ink-dim)" }}>
@@ -664,17 +689,25 @@ export default function GrowthPage() {
               <div style={{ display: "flex", gap: 4 }}>
                 {m.isDummy && (
                   // 더미 데이터 표시 — DB 미구현 명시
+                  // Phase 6.3C-2: warn-soft 톤 통일 (PU4 미지원 마일스톤 placeholder)
                   <span
                     style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 3,
                       fontSize: 10,
                       fontWeight: 800,
                       letterSpacing: ".1em",
-                      color: "var(--ink-dim)",
-                      background: "var(--bg-alt)",
+                      color: "var(--color-warning)",
+                      background: "color-mix(in oklab, var(--color-warning) 14%, transparent)",
+                      border: "1px solid color-mix(in oklab, var(--color-warning) 32%, transparent)",
                       padding: "3px 8px",
                       borderRadius: 4,
                     }}
                   >
+                    <span className="material-symbols-outlined" style={{ fontSize: 12 }}>
+                      schedule
+                    </span>
                     준비 중
                   </span>
                 )}
@@ -811,17 +844,25 @@ export default function GrowthPage() {
           flexWrap: "wrap",
         }}
       >
+        {/* Phase 6.3C-2: warn-soft 톤 통일 */}
         <span
           style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 4,
             fontSize: 11,
             fontWeight: 800,
             letterSpacing: ".12em",
-            color: "var(--ink-dim)",
-            background: "var(--bg-alt)",
+            color: "var(--color-warning)",
+            background: "color-mix(in oklab, var(--color-warning) 14%, transparent)",
+            border: "1px solid color-mix(in oklab, var(--color-warning) 32%, transparent)",
             padding: "4px 10px",
             borderRadius: 4,
           }}
         >
+          <span className="material-symbols-outlined" style={{ fontSize: 13 }}>
+            schedule
+          </span>
           준비 중
         </span>
         <div

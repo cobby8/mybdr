@@ -1,275 +1,365 @@
 # 작업 스크래치패드
 
 ## 현재 작업
-- **요청**: Phase 6.1 Auto Chain — v2.24 sync + Phase 6.1C 박제 6 PR (프로필 본체)
-- **상태**: ✅ **완료** — sync `29178b9` + 6.1C 6/6 박제 push + **PR #657**(subin→dev) / Vercel 빌드 pass. 수빈 머지 결재 대기
-- **현재 담당**: pm (chain 종료)
-- **의뢰서**: `Dev/design/prompts/phase-6.1-auto-chain-cli-prompt-2026-05-30.md`
+- **요청**: Phase 6.2 Auto Chain — v2.25 sync + Phase 6.2C 박제 7 PR (결제·구독·예약)
+- **상태**: 🔵 진행 중 — §2 점검 통과 / sync 진행
+- **현재 담당**: pm → developer
+- **의뢰서**: `Dev/design/prompts/phase-6.2-auto-chain-cli-prompt-2026-05-31.md`
 
-### Phase 6.1C 완료 (6/6 ✅)
-| PR | 시안 → 운영 | commit |
+### Phase 6.2C 진행 (7 PR / ★ 토스페이먼츠 실연결 mock 0)
+| PR | 시안 → 운영 | 상태 |
 |----|------|------|
-| 6.1C-1 | PU4 Achievements → /profile/achievements (BP3) | `cc78745` |
-| 6.1C-2 | PU1 ProfileMain → /profile 보강 (BP6) | `77dacdd` |
-| 6.1C-3 | PU2 ProfileEdit → /profile/edit 보강 (BP4) | `a7d4f13` |
-| 6.1C-4 | PU3 ProfileBasketball → /profile/basketball (BP2 server조회4) | `39f6a0c` |
-| 6.1C-5 | PA1 AdminUsers → /admin/users (BP5 자기정지가드) | `fd53cbe` |
-| 6.1C-6 | PU5 UserPublicProfile → /users/[id] (BP1 publicView) | `f29a3ca` |
-- sync `29178b9` / ledger `e6d2840` / **PR #657** / stop 발동 0 / Vercel 빌드 ✅
+| 6.2C-1 | BU5 PricingResult → /pricing/success+/fail (BB3) | ✅ 구현 (tsc 0) |
+| 6.2C-2 | BU1 Pricing → /pricing (BB1 플랜 list) | ✅ 구현 (tsc 0) |
+| 6.2C-3 | BU4 ProfileBookings → /profile/bookings 보강 (BB4) | ✅ 구현 (tsc 0, Option A 톤만) |
+| 6.2C-4 | AdminPlans → /admin/plans (BB1 BA2) | ⏳ |
+| 6.2C-5 | AdminPayments → /admin/payments (BB2 BA1 환불) | ✅ 구현 (tsc 0, Option A) |
+| 6.2C-6 | BU3 ProfileBilling → /profile/billing (BB1+BB2 3 sub-tab) | ✅ 구현 (tsc 0, Option A) |
+| 6.2C-7 | BU2 PricingCheckout → /pricing/checkout (BB5 토스 위젯 실임베드) | ⏳ |
+- lock: 토스 = 운영 실연결(confirm/refund API, mock 0) / OA1 답습(BA1/BA2 모달) / 결제 status 색분리 / BB7 Phase6.1 PU2 결제링크 활성
+- 데이터 정책: server 조회 통합 허용 / stop = `/api/v1`·DB schema·LOC>+2000·tsc실패·회귀6·13룰·토스 mock
 
-### Phase 5 (직전) — subin→dev #656 머지(`9619be8`) / dev→main 보류
+## 완료 Phase (이력)
+- ✅ **Phase 5+6.1 운영 반영** (dev→main #658 / main `26586af` Vercel 배포 success)
+  - Phase 5C 6: 커뮤니티 5 + 랭킹 + AdminCommunity / 공용 community-wizard (#656)
+  - Phase 6.1C 6: 프로필 업적/메인/수정/농구/AdminUsers/공개프로필 (#657)
+  - 핵심: BP1 publicView privacy 7키 / BP5 자기정지 가드 서버보강 / BP2 server조회 cross-domain / 빌드 fix(CSS `*/` Turbopack)
+- ✅ Phase 1C 15/16 (#650~#653) / Auto Chain 25 PR 2C·3C·4C (#654/#655)
 
-### Phase 5C 진행 현황 (6/6 ✅)
-| PR | 시안 → 운영 | commit |
-|----|------|------|
-| 5C-1+6 | CU4 Edit + CU3 New 공용 `community-wizard.tsx` (BC5) | `68fc5c3` |
-| 5C-2 | CU1 CommunityList → /community (BC2) | `c058f6e` |
-| 5C-3 | CU2 CommunityDetail → /community/[id] (BC4) | `70c6c6c` |
-| 5C-4 | RU1 Rankings → /rankings (BC1/BC7) | `a2e01e0` |
-| 5C-5 | CA1 AdminCommunity → /admin/community (OA1) | `3e3423f` |
-- sync `7e2d0f1` / ledger `7ff69b6` / **PR #656** subin→dev / stop condition 발동 0
+## 구현 기록 (developer) — Phase 6.2C
 
-### Phase 5 lock (적용 결과)
-- A1 댓글=운영 comments 실데이터 / A2 신고=hide / A4 cross-domain·MVP·핀 hide(mock 0)
-- 데이터 패칭·서버액션·권한가드 0 변경 / 매 commit tsc0 / 회귀6 PASS / `/api/v1`·DB schema 0 / LOC<+2000
-- globals.css cu1-/cu2-/ru1- prefix 충돌 0 / 시안 토큰→운영 토큰 치환
+### 6.2C-1 — BU5 PricingResult → /pricing/success + /fail (BB3)
 
-### 5C 핵심 hide 결정 (mock 0)
-- 5C-1: news/notice 작성 제외(6종) / STEP4 cross-domain hide / type·images 미지원 안내
-- 5C-2: team·is_official·image_count·tournament hide / 인기글 실데이터 파생 / mock 내활동 드롭
-- 5C-3: 알기자 hero·mock 추천·신고 hide / 운영 댓글·좋아요·사이드바 컴포넌트 보존
-- 5C-4: MVP Hero·매너·코트·titles hide / 팀 승수 리더=team모드 1위 실데이터
-- 5C-5: 신고·핀·알림·복구 hide / deleted 탭 실데이터 / 동적 카테고리 / Hero stat 실측
+📝 구현한 기능: 시안 PricingResult success 델타 박제 (제목 🎉 / "내 구독 보기"→/profile/billing BB7 / 결제 항목 조건부 행). fail은 거의 유지(운영 13코드 매핑이 시안 4코드보다 충실 → 보존).
 
-## 🔜 다음 액션
-- ⏸ **PR #656 머지 결재** (수빈 — subin→dev→main, #654/#655 답습)
-- ⏸ Phase 6 영역 결재 (Cowork 별 의뢰)
-- ☐ PR-1C-10 PA3 재설계 결정 (보류 중)
-- ✅ **[멤버검수] 셋업팀 6번 하주호 placeholder 생성+연결 완료** — 대회 d83e8b83/ttId=232/teamId=196. ph User uid=**3516**(placeholder-196-6@bdr.placeholder, status=placeholder) + TeamMember id=2740(j6 active) + ttp 4556 userId=3516 연결 + team196 members_count→24. 4-write 트랜잭션, 사전·사후 검증 통과. 하주호 실가입+셋업팀 가입 시 mergeTempMember 자동승계 대기
-- ☐ **[후속 점검 후보]** 셋업팀 0번 이준호(ttp→uid2957)·7번 이영기(ttp→uid2955)가 status=merged 잔재계정 가리킴 — 실팀원(2872/2867 kakao active)과 불일치. ttp 재연결 필요 여부 별도 검토
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| src/app/(web)/pricing/success/page.tsx | 제목 🎉 추가 / plan 쿼리 조건부 "결제 항목" 행 / 버튼 시안 순서([내 구독 보기 cafe-blue→/profile/billing, 영수증 인쇄, 요금제 보기]) / 중복 하단 링크 제거 | 수정 (+30/-21, 순 +9) |
+| src/app/(web)/pricing/fail/page.tsx | 변경 없음 (정합 "거의 유지") | — |
 
-## 이전 Phase (완료 이력)
-- ✅ Phase 1C 15/16 박제+머지 (#650~#653) / PA3 SKIP 보류
-- ✅ Auto Chain 25 PR (v2.22 sync + 2C/3C/4C) 운영 반영 (#654/#655 / main `6f22c02`)
-- ✅ Phase 1~4 ⑭ 종료 마킹
+설계 정합 (PM 승인):
+- confirm route · searchParams 수신 0 변경 (plan 추출만 read 추가, mock 0)
+- 인라인 톤 유지 (billing-shared.css 운영 미유입 / 신규 CSS 0 → bu5-/bb- prefix 충돌 0)
+- "내 구독 보기" → /profile/billing (BB7 — 기존 ?tab=payments 결제내역 버튼 대체)
+- 플랜명 등 미전달 값 mock 안 함: plan 쿼리 있을 때만 "결제 항목" 행 노출 / 부연설명은 운영 일반 문구 유지(BDR PRO 하드코딩 ❌)
+- 신규 토큰 0 (--cafe-blue/--cafe-blue-deep/--ok globals.css 기존 보유)
+
+💡 tester 참고:
+- 테스트: /pricing/success?orderId=X&amount=9900&method=카드&paymentKey=tviva…&plan=BDR%20PRO%20월%20구독 → 🎉 제목 / "결제 항목" 행 노출 / "내 구독 보기" 클릭 → /profile/billing
+- plan 쿼리 제거 시: "결제 항목" 행 사라짐 (나머지 정상) — mock 0 정상 동작
+- /pricing/fail?code=NOT_ENOUGH_BALANCE 등: 무변경 (회귀 0 확인용)
+- 정상: tsc 0 / 인쇄(window.print) 동작 보존
+
+⚠️ reviewer 참고:
+- "내 구독 보기" 버튼이 btn--primary 미사용 + 인라인 cafe-blue 직접 지정 (시안 BU3 진입 버튼 톤 답습). btn--primary도 cafe-blue지만 시안 톤 명시 위해 인라인 유지
+- searchParams `plan` 키는 운영 confirm flow가 현재 전달하지 않을 수 있음 → 그래서 조건부(없으면 숨김). 추후 confirm에서 plan 부착 시 자동 노출
+
+### 6.2C-2 — BU1 Pricing → /pricing (BB1 플랜 list 실 데이터)
+
+📝 구현한 기능: 시안 BU1 Pricing 박제. mock(PRICING 3종 tier/비교표 8행/월간연간 토글/alert CTA) 전면 제거 → 운영 plans 실 데이터 카드 grid + CTA 실연결.
+
+🔑 핵심 발견 (설계 결정 근거):
+- 시안 BU1 = tier 3종(무료/BDR+/PRO) + 비교표 + 월간/연간 토글
+- 운영 plans 실데이터 = feature_key 4종 (팀생성권 ₩9,900 1회 / 픽업게임 ₩49,000 월 / 체육관대관 ₩49,000 월 / 대회생성 ₩199,000 월) — tier·연간가격·features 다중 컬럼 없음
+- → 비교표·토글·features 목록 매핑 불가 → 제거 (mock 0 원칙, PM 승인). description 단일 컬럼만 렌더.
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| src/app/(web)/pricing/page.tsx | 서버 async 전환: prisma.plans.findMany(is_active,price asc) + getWebSession→user_subscriptions(status=active) current 표시. metadata·revalidate=300 보존. BigInt→string 직렬화 후 props 전달 | 수정 (+76/-... 순증 일부) |
+| src/app/(web)/pricing/_v2/pricing-content.tsx | `use client` 제거(토글 useState 삭제→인터랙션 0). 카드 grid 렌더 / CTA `Link href=/pricing/checkout?planId={id}` 실연결 / current=true 카드는 disabled "이용 중인 플랜" / plans 0건 시 안내(mock 카드 ❌) | 수정 (-207 순감) |
+
+설계 정합 (PM 승인 방침 100% 일치):
+- plans 실데이터 카드 grid ✅ / 비교표·토글 제거 ✅ / CTA `/pricing/checkout?planId={id}` 실연결 ✅ / mock 0 ✅ / metadata·revalidate 보존 ✅
+- 총 순 LOC -107 (175 add / 282 del) — LOC>+2000 stop 미해당
+- BB1 정합: CTA planId → 기존 /pricing/checkout 가 `/api/web/plans/{id}` fetch (변경 0). plans 컬럼 = checkout/BA2 동일 source
+- 가격 천 단위 통일 (₩49,000) / plan_type 라벨 "/ 월" · "/ 회"
+
+💡 tester 참고:
+- 테스트: /pricing → 카드 4종(팀생성권/픽업게임/체육관대관/대회생성) 노출 / 각 가격·설명 / "선택" 클릭 → /pricing/checkout?planId={id} 이동
+- 로그인 + 활성 구독 있으면: 해당 플랜 카드 "현재 구독 중" 리본 + "이용 중인 플랜" disabled
+- 비로그인: 모든 카드 결제 진입 가능 (current 없음) — 정상
+- 정상: tsc 0 / checkout flow 회귀 0 (planId 쿼리 그대로 수신)
+
+⚠️ reviewer 참고:
+- page.tsx async 서버 컴포넌트 + getWebSession 추가 → revalidate=300은 plans 조회에만 의미, session 의존부는 동적. 캐시-동적 혼합 정상 동작 확인 요망
+- pricing-content `use client` 제거 — Link만 사용하므로 서버 컴포넌트 OK. 기존 토글 인터랙션 완전 제거됨
+
+### 6.2C-3 — BU4 ProfileBookings → /profile/bookings 보강 (BB4, Option A 톤만)
+
+📝 구현한 기능: 시안 BU4 카드 톤 답습(시각만). PM Option A 승인 — 운영 BookingsListV2 3종(코트/토너/게스트) 통합 초과구현 보존 + 취소 액션 0 변경(상세 경로 유지) + 환불 흐름 새 진입점 미신설.
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| src/app/(web)/profile/bookings/_bookings-list-v2.tsx | KIND_ICON 추가(stadium/emoji_events/group) + 종류 배지에 kind 아이콘 prefix + 상태 점(●) → soft 배경 배지(bl-bstat 톤). 헤더 주석 갱신 | 수정 (+31/-3) |
+| src/app/(web)/profile/bookings/page.tsx | 변경 없음 (데이터 0 변경) | — |
+
+설계 정합 (PM Option A 100% 일치):
+- 카드 시각만 BU4 톤(stadium 아이콘 + 상태 배지) / 데이터·필터·Link·탭 구조 0 변경 ✅
+- 코트 link `/courts/[id]` 실존 → 유지 ✅ (page.tsx href 무변경)
+- 취소 모달 미신설 — 상세 경로 보존(기능 손실 0) ✅
+- page.tsx 0 변경 ✅
+- bu4-/bb- prefix 0 (인라인 스타일만) / mock 0 / status 색은 운영 실 status(upcoming/done/cancelled)만 ✅
+- 날짜 블록(큰 숫자) 미적용: 운영은 sub 문자열만 보유(date 분리 필드 없음) → 데이터 0 변경 위해 제외 (PM 승인 범위 내)
+
+💡 tester 참고:
+- 테스트: /profile/bookings → 카드 종류 배지 앞 아이콘(코트=stadium / 토너=트로피 / 게스트=group) / 상태 배지가 soft 배경 톤(예약중=초록 / 완료=회색 / 취소=빨강) 노출
+- 탭/칩 필터 회귀 0 확인: 전체↔코트↔토너↔게스트 / 예약중↔완료↔취소 AND 필터 정상
+- 카드 클릭 → 기존 href 그대로(코트 /courts/[id], 토너 /tournaments/[id], 게스트 /games/[id])
+- 정상: tsc 0 / 취소 모달 없음(상세 경로) — Option A 의도
+
+⚠️ reviewer 참고:
+- 아이콘 1종 룰 → kind 3아이콘으로 확장됨(시안 BU4가 stadium 사용 → 톤 답습 근거). 헤더 주석에 명시
+- 상태 배지 색은 STATUS_TONE(기존 토큰) color-mix soft 배경 — 신규 토큰/하드코딩 0
+
+### 6.2C-4 — AdminPlans → /admin/plans (BB1 BA2 카드 grid)
+
+📝 구현한 기능: 시안 BA2 AdminPlans 박제. 플랜 list 를 admin-table → BB1 카드 grid 로 교체. CRUD 시그니처·권한가드·프로모션 관리·생성/수정 모달 100% 보존.
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| src/app/(admin)/admin/plans/page.tsx | 테이블→카드 grid(기존 CARD_CLASS/CARD_STYLE 재사용) / 카드=이름+활성배지(admin-stat-pill)+타입·기능키 태그+가격(0원→무료, ₩천단위, /월·/회)+설명+수정·토글·삭제 / 파싱 보정 `data.data ?? data`(plans·promoStats 양쪽) / 헤더 주석 갱신 | 수정 (+80/-62, 순 +18) |
+
+설계 정합 (PM 승인 100% 일치):
+- 테이블 → BB1 카드 grid ✅ (grid-cols 1/2/3 반응형, 기존 토큰만)
+- CRUD 시그니처(handleSave/Toggle/Delete/openEdit/openCreate) · 권한가드(API route 측) 0 변경 ✅
+- subscribers·features hide ✅ (운영 plans 미보유 컬럼 → mock 0) / 복제 버튼 미배치 ✅ (신규 mutation 0)
+- 프로모션 관리 카드 보존 ✅ / 생성·수정 모달 보존 ✅ / AdminPageHeader 보존 ✅
+- 파싱 보정 `data.data ?? data` ✅ (apiSuccess snake_case 래핑 대비, 액션 0 변경 — 배열 직반환도 호환)
+- 운영 토큰 var(--color-*) 사용 ✅ / 신규 ba2-·bb- prefix 0 ✅ (admin 공용 admin-stat-pill·CARD_CLASS 재사용)
+- Hero/OperatorBadge(시안 oa1) 미도입: 운영 미보유 시안 전용 컴포넌트 → AdminPageHeader 유지 (PM "테이블→BB1 카드 grid" 범위)
+- 비활성 플랜 opacity 0.6 (시안 bl-pcard--off 톤 답습)
+
+💡 tester 참고:
+- 테스트: /admin/plans → 플랜 카드 grid(이름/활성배지/타입·기능키 태그/가격/설명) / "수정" → 모달 / "비활성화↔활성화" 토글 / "삭제"(confirm)
+- 0원 플랜은 "무료" 표기, 유료는 ₩9,900 형식 + /월(monthly)·/회(one_time)
+- 프로모션 관리(팀장/대회관리자 종료 버튼) 회귀 0 / "+ 요금제 추가" 모달 회귀 0
+- 정상: tsc 0 / CRUD 동작 보존 / 구독자 있는 플랜 삭제 시 비활성화 alert 유지
+
+⚠️ reviewer 참고:
+- 파싱 보정 `data.data ?? data`: 현재 /api/admin/plans 가 배열 직반환이면 `?.data` undefined → 원본 배열 사용(호환). apiSuccess 래핑으로 바뀌어도 자동 대응. raw 응답 curl 1회 확인 권장
+- subscribers/features 컬럼 hide 는 운영 plans 스키마 미보유 근거 (시안은 mock 데이터). DB schema 변경 0
+- 복제 버튼 시안에 있으나 신규 mutation(POST 복제 API) 필요 → PM 지시로 미배치
+
+### 6.2C-5 — AdminPayments → /admin/payments (BB2 BA1 환불, Option A)
+
+📝 구현한 기능: 시안 BA1 박제. ① Hero 3카드→4-stat 실집계(총결제액/성공건수/환불합계/실패건수) ② 4탭→실재 status 3탭(성공/실패/환불됨, refund_wait mock 제외) ③ 테이블 액션 열 추가(paid=환불 버튼/refunded=환불일) ④ 환불 모달 신설 → 기존 refund API 실호출. 권한가드·환불 API·조회 0 변경 / 신규 mutation 0.
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| src/app/(admin)/admin/payments/page.tsx | stats 4종 확장(failedCount/refundedCount/refundedSum, 기존 groupBy 재사용 추가 쿼리 0) + 직렬화 refundedAt/tossPaymentKey 추가(조회 컬럼 변경 0) | 수정 (+14/-1) |
+| src/app/(admin)/admin/payments/admin-payments-content.tsx | Hero 4-stat / 4탭(refund_wait 제외) / 액션 열 / 환불 모달(AdminDetailModal actions prop 재사용) → POST `/api/web/payments/[id]/refund` 실호출 + router.refresh() | 수정 (+209/-18) |
+
+총 LOC: +223 / -18 (순 +205) — LOC>+2000 stop 미해당. **추가 쿼리 0** (기존 findMany+groupBy 재사용).
+
+⚠️ IDOR 제약 메모 (PM 필수 지시 반영):
+- refund API(route.ts §본인 결제만)는 `payment.user_id === ctx.userId` 인 결제만 환불 허용. admin 이 **타인 결제** 환불 시 → API 403("본인의 결제만 환불할 수 있습니다.") 반환.
+- UI 처리: 403/400 응답을 모달 refundError 로 **자연 표시** (가짜 성공 mock ❌). submitRefund catch 에서 `data.error` 문자열 그대로 노출.
+- **코드 주석 명시**: 환불 모달 블록 상단 + submitRefund 함수 상단에 IDOR 제약 주석 작성.
+- **추후 과제**: admin-scoped(타인 결제) 환불은 API 확장(권한 가드 + 토스 환불) 필요 — 금전 민감, 별도 과제.
+
+설계 정합 (Option A 100%):
+- 권한가드·환불 API·조회 0 변경 ✅ / Hero 4stat·탭 실집계(refund_wait mock 제외) ✅
+- 환불 모달=기존 refund API POST 실호출, 신규 mutation 0 ✅ / 403 에러 자연 표시 ✅
+- status 색분리(STATUS_TONE 기존) / toLocaleString ✅ / admin 공용 클래스 재사용(AdminDetailModal·AdminStatusTabs·CARD_CLASS·admin-stat-pill) ✅
+- ba1-/bb- prefix 직접 클래스 0 (운영 destructive 버튼 패턴 btn--sm+inline color-error 재사용 / 토큰 var(--color-*)만) ✅
+- 신규 토큰 0 (--color-info/--color-error/--color-success/--color-elevated 기존 보유) ✅
+
+💡 tester 참고:
+- 테스트: /admin/payments(super-admin) → Hero 4카드 / 탭 성공·실패·환불됨 / paid 행 "환불" 버튼 → 모달
+- 환불 모달 "환불 처리" 클릭: **본인(admin) 결제**면 성공 → 모달 닫힘 + 목록 새로고침(상태 환불됨). **타인 결제**면 403 에러 메시지 모달에 빨강 박스로 표시(가짜 성공 ❌)
+- 7일 초과/이미 환불 등: API 400 → 에러 메시지 표시
+- 행 클릭(액션 열 제외) → 기존 결제 상세 모달 회귀 0
+- 정상: tsc 0 / refund_wait 탭 없음(mock 제외 의도)
+
+⚠️ reviewer 참고:
+- IDOR: admin 화면이지만 refund API 가 본인 결제만 허용 → admin 의 타인 환불은 현재 불가(403). 이는 의도된 안전 동작(금전). admin-scoped 환불 확장은 별도 과제(주석·보고 명시)
+- 환불 사유 input 은 API 가 현재 서버 고정 사유 사용 → body.reason 키만 전달(확장 대비). 실제 DB refund_reason 은 API 가 "사용자 환불 요청" 고정
+- router.refresh()로 force-dynamic 페이지 재패칭(상태 갱신). 낙관적 업데이트 미사용(서버 진실 우선)
+
+### 6.2C-6 — BU3 ProfileBilling → /profile/billing (3 sub-tab, Option A)
+
+📝 구현한 기능: 시안 BU3 박제 — 2탭(구독/결제 내역) → **3탭**(구독/결제 내역/환불). Option A 승인대로 결제 내역 행 inline 환불 버튼 → 환불 전용 탭으로 이전. 환불 탭=can_refund/refunded 분리. 데이터 패칭·user_subscriptions 해지·refund API 호출 0 변경 / 기존 refund 모달·handleRefund 공유(신규 mutation 0).
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| src/app/(web)/profile/billing/page.tsx | ① VALID_TABS+TabKey에 "refund" 추가(URL ?tab=refund 보존) ② 탭 바 "환불" TabButton 추가 ③ PaymentsSection→PaymentsHub(view:"payments"\|"refund")로 통합 — 동일 payments SWR·환불 모달·handleRefund 공유(추가 fetch 0) ④ 결제 내역 뷰: inline 환불 버튼 제거(영수증만) ⑤ 환불 뷰 신규: 안내 note + 환불 가능(can_refund) + 환불 완료(refunded) 분리 ⑥ RefundRow 컴포넌트 신규(시안 bl-pay-row 톤→인라인) | 수정 (+345/-95, 순 +250) |
+
+설계 정합 (PM Option A 100% 일치):
+- 데이터 패칭 0 변경 ✅ (환불 탭도 /api/web/profile/payments 공유 — PaymentsHub 단일 SWR, 추가 fetch 0)
+- user_subscriptions 해지(SubscriptionSection DELETE)·refund API(POST /api/web/payments/[id]/refund) 호출 0 변경 ✅
+- 기존 refund 모달·handleRefund 공유 / 신규 mutation 0 ✅
+- 구독 카드·결제내역=실데이터 보존 + BU3 톤 ✅ (SubscriptionSection 무변경 / 결제내역 보드 무변경 except 환불버튼 제거)
+- 환불 탭=can_refund(서버 산출: paid+7일 이내)/refunded(환불 완료) 분리 ✅
+- VALID_TABS에 refund 추가(URL ?tab=refund 보존) ✅
+- 토스키 등 운영 payments 미보유 값 mock 안 함(hide) ✅ (시안 toss_key/method_brand/last4/days_left 미박제)
+- bu3-/bb- prefix 직접 클래스 0 ✅ (기존 인라인 톤 재사용 / var(--*) 토큰만 / 신규 CSS·토큰 0)
+
+🔗 BB7 확인 (PM 지시):
+- /profile/edit:1427 "결제·정산" link → /profile/billing (?tab 미지정 → subscription 기본) ✅ 정상 진입
+- /pricing/success:181 "내 구독 보기" → /profile/billing (?tab 미지정 → subscription 기본) ✅ 정상 진입
+- 두 진입 모두 기본 탭(구독) 도착. 환불 탭 추가는 진입 동작에 영향 0.
+
+💡 tester 참고:
+- 테스트: /profile/billing?tab=refund → 환불 안내 note + "환불 가능 결제"(can_refund 건, 환불 신청 버튼) + "환불 완료"(refunded 건, line-through+환불일)
+- 환불 신청 클릭 → 기존 환불 모달(환불하시겠습니까?) → "환불하기" → refund API POST → 목록 새로고침
+- 결제 내역 탭(?tab=payments): 행에 환불 버튼 없음(영수증만) — Option A 이전 확인
+- 환불 가능·완료 0건: "환불 가능한 결제가 없습니다" + 환불 완료 빈 카드
+- 탭 URL 보존: ?tab=subscription/payments/refund 직접 진입 정상 / 그 외 값은 subscription fallback
+- 정상: tsc 0 / 구독 탭(해지 모달)·결제 내역 보드 회귀 0
+
+⚠️ reviewer 참고:
+- PaymentsSection→PaymentsHub 리네임: 결제 내역+환불 두 뷰가 동일 SWR(page state 포함) 공유. 환불 탭은 page=1 기준 payments만 봄(페이지네이션은 결제 내역 뷰에만 노출) — 환불 가능 건은 보통 최신이라 page1로 충분, 단 20건+ 환불 가능 시 2페이지 이후는 환불 탭 미표시(한계 메모)
+- refund API IDOR: 본인 결제만(route.ts) — 본 페이지는 본인 결제 목록이므로 제약 없음(6.2C-5 admin 과 달리 정상)
+- 환불 모달을 refundModal 변수로 추출 → 결제 내역/환불 뷰 둘 다 마운트(트리거는 환불 탭만). 중복 렌더 0(view 분기 return)
+
+### 6.2C-7 — BU2 PricingCheckout → /pricing/checkout (BB5 토스, 결제창 팝업 방식)
+
+📝 구현한 기능: 시안 BU2 박제 — 3 step indicator(플랜 선택→결제 정보[현재]→결제 완료) + 플랜 요약(실데이터 toLocaleString) + 결제자 정보 readOnly(person 헤더) + **결제 수단 칩 3종 + 토스 결제창 안내 박스** + 약관 4종+전체동의. 토스 위젯 흐름(SDK 로드/requestPayment/confirm/me·plan fetch/handlePay/disabled) 0 변경.
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| src/app/(web)/pricing/checkout/page.tsx | 본문 시각만 BU2 톤 교체: 3 step indicator(인라인) / bl-summary 톤 플랜요약 / 결제자 정보 person 아이콘 헤더 / 결제수단 카드 신규(칩 3종+lock 안내 박스, mock 스켈레톤 미재현) / 약관 카드 시안 톤(전체동의+필수·선택 뱃지+보기 링크). PM_METHODS/method state(시각용)/allChecked/toggleAllTerms 추가 | 수정 (+305/-57, 순 +248) |
+
+🔒 토스 위젯 흐름 보존 검증 (PM 필수):
+- SDK 로드 useEffect (js.tosspayments.com/v2/standard) — **0 변경**
+- `toss.requestPayment({ method:"CARD", amount, orderId, orderName, successUrl(.../confirm?planId), failUrl(/pricing/fail), customerEmail, customerName })` — **한 글자도 미변경**
+- confirm route / fail URL / plan fetch(`/api/web/plans/{id}`) / me fetch(2회: readOnly + handlePay) / handlePay 401 redirect / disabled(allRequiredAgreed) — **전부 0 변경**
+- 결제수단 칩 selection state(method) = **시각 표시용 only** → requestPayment 인자 불변(항상 CARD 고정)
+
+⚠️ stop condition 여부: **없음**
+- 토스 mock 여부: **없음** (가짜 카드입력 스켈레톤 bl-pm-skel 미재현 → "결제창 안내 박스 + 결제수단 칩"으로 박제. 실 카드입력은 토스 결제창 팝업 담당)
+- /api/v1·DB schema 변경 0 / LOC +248(<+2000) / tsc 0 / 회귀 0(결제 흐름 불변) / 13룰 위반 0
+- bu2-/bb- prefix 신설 **0** / bl-* import **0** (전부 인라인 + var(--*) 토큰 / 운영 기존 `card`·Material Symbols 만 사용)
+- accent 배경 위 텍스트 = `#fff` (운영 .btn--accent 컨벤션 동일 / 하드코딩 신규 색상 아님)
+
+💡 tester 참고:
+- 테스트: /pricing/checkout?planId={id} → step 2단계(결제 정보) 강조 / 플랜 요약(실 가격) / 결제자 readOnly(me) / 결제수단 칩(카드 기본 선택, 클릭 토글) / lock 안내 박스 / 약관 5줄(전체동의+4종)
+- 전체동의 클릭 → 4종 일괄 on/off. 필수 3종 미체크 시 "필수 약관 3건 동의 시 결제 가능" + 버튼 disabled
+- 필수 3종 체크 → "결제하기" 활성 → 클릭 시 토스 결제창 팝업(요금제 0원 아닐 때). 결제수단 칩을 가상계좌/간편 선택해도 토스 결제창은 동일(CARD 고정) — 정상
+- 정상: tsc 0 / 결제 완료 → /api/web/payments/confirm?planId 경유 success / 취소·실패 → fail
+- 주의: 비로그인 결제 시도 → handlePay 에서 401 → /login?redirect=... 자동 이동(기존 보존)
+
+⚠️ reviewer 참고:
+- 결제수단 칩 method state 는 UI 시각용 — requestPayment 에 미반영(주석 명시). 토스가 결제창에서 실제 수단 선택 담당. 이중 선택 UX는 의도된 시안 박제(가짜 위젯 회피)
+- step current=1 하드코딩(이 페이지=결제 정보 단계 고정). 동적 step 불필요
+- 약관 "보기" 링크는 상세 미연결(시각 박제) — 시안과 동일. 약관 본문 라우트는 별도 과제
+
+## 구현 기록 (developer) — Phase 6.3C
+
+### 6.3C-1 — GU2 WeeklyReport → /profile/weekly-report (BG2 정합)
+
+📝 구현한 기능: 시안 GU2 정합 보강. PM 판단(데이터 출처 상이 → 표기/톤 정합만, 데이터 패칭 0 변경 우선) 승인대로 ① placeholder warn-soft 3곳 통일 ② 이메일 구독 link 경로 변경 ③ "곧 제공"→"준비 중" 카피 통일 ④ page 구조·KPI 매핑·데이터 패칭 0 변경.
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| src/app/(web)/profile/weekly-report/page.tsx | ① ComingSoonBadge: muted-gray → warn-soft(var(--color-warning) color-mix 14% bg / 32% border) + 라벨 "곧 제공"→"준비 중" ② 평점 KPI placeholder 텍스트 muted→var(--color-warning) ③ §05 다음주 추천 dashed 박스: subtle→warn-soft(배경 5% + dashed 36% + 아이콘 70%) ④ 이메일 구독 link `/profile/notification-settings`→`/profile/settings?section=notify` ⑤ 헤더 주석 2곳 경로/카피 정합 | 수정 (+23/-13, 순 +10) |
+
+설계 정합 (PM 승인 100% 일치):
+- BG2 정합 판단 정확: KPI 4 데이터 출처 상이(시안 PU3 시즌 stat vs 운영 weekly-report SWR) → 표기/톤 정합만, **데이터 패칭 0 변경** ✅
+- page.tsx 구조·KPI 매핑(경기/평균평점/XP/활동시간)·SWR(`/api/web/profile/weekly-report`)·revalidate·직렬화 **0 변경** ✅
+- placeholder warn-soft 3곳 통일 (ComingSoonBadge / 평점 placeholder / 다음주 추천 박스) — 하드코딩 색상 0, var(--color-warning) color-mix만 ✅
+- 이메일 구독 → /profile/settings?section=notify (section-key.ts VALID_SECTIONS 유효 확인됨) ✅
+- "곧 제공" → "준비 중" 통일 (배지 + 헤더 주석) ✅
+
+🔑 사전 검증 (구현 전 확인):
+- `--color-warning` 토큰: globals.css L2773/L2801 (라이트/다크 양쪽 정의 `var(--warn)` #E8A33B) — 존재 확인
+- `?section=notify`: section-key.ts VALID_SECTIONS 7키 중 하나 — 유효 확인 (resolveSection 통과)
+
+💡 tester 참고:
+- 테스트: /profile/weekly-report → §02 하이라이트·§05 다음주 추천 배지 "준비 중"(warn 노랑 톤) / §01 KPI "평균 평점" 카드 "평점 시스템 준비 중"(warn 톤) / §05 박스 dashed 노랑 톤 + recommend 아이콘 노랑
+- 푸터 "이메일 구독 관리" 클릭 → /profile/settings?section=notify (notify 섹션 활성 도착)
+- 데이터 회귀 0 확인: KPI 4 값(경기/XP/활동시간 실데이터, 평점 "-") / §04 TOP3 코트 / §06 지난주 비교 모두 기존과 동일
+- 라이트/다크 양쪽 warn 톤 가독성 확인 (--color-warning 양쪽 정의됨)
+- 정상: tsc 0 / SWR 패칭 동일 / "12주 성장 추이 보기" link(/profile/growth) 무변경
+
+⚠️ reviewer 참고:
+- 데이터 정합(KPI=PU3 시즌 stat)은 **의도적으로 미적용** — 출처 상이(weekly-report API vs UserSeasonStat), 데이터 패칭 0 변경 우선(PM 판단). 추후 PU3 정합은 API 통합 별도 과제
+- warn-soft 3곳 톤: var(--color-warning) color-mix 비율 의도적 차등(배지 14%/텍스트 100%/박스배경 5%·border 36%·아이콘 70%) — placeholder 강도별 시각 위계
+- gu2-/bg- prefix 신설 0 / 신규 CSS·토큰 0 (전부 인라인 + 기존 var(--*) 토큰)
+
+### 6.3C-2 — GU1 ProfileGrowth → /profile/growth (BG1 정합)
+
+📝 구현한 기능: 시안 GU1 정합 보강. PM 승인대로 ① "준비 중" placeholder 배지 4곳 → warn-soft 톤 통일(6.3C-1 weekly-report 동일 패턴) ② PU4 정합 = 마일스톤 이모지 유지(Material Symbols 강제 ❌) ③ SWR 2종·마일스톤 매핑·page 구조 0 변경.
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| src/app/(web)/profile/growth/page.tsx | "준비 중" 배지 4곳 muted-gray(var(--ink-dim)+var(--bg-alt)) → warn-soft(var(--color-warning) 14% bg / 100% color / 32% border + schedule 아이콘) 통일: ① 주간 경기수 ② 평균 평점 ③ 마일스톤 isDummy(커뮤니티/팀멤버추천) ④ 구간별 상세 분석. 헤더 주석 6.3C-2 정합 메모 추가 | 수정 (+49/-8, 순 +41) |
+
+설계 정합 (PM 승인 100% 일치):
+- "준비 중" warn-soft 4곳 통일 ✅ — 6.3C-1 (6.3C-1 ComingSoonBadge) 와 동일 비율(14%/100%/32%) + schedule 아이콘. 하드코딩 색상 0, var(--color-warning) 토큰만
+- PU4 정합 = 마일스톤 이모지(🏀⭐🎯🔥💬🤝) 유지 ✅ — 시안 GU1 MilestoneTile 도 이모지 사용 → BG1 정합(Material Symbols 강제 ❌, 운영 growth 게이미피케이션 이모지 톤 유지)
+- SWR 2종(`/api/web/profile/gamification` + `/api/web/profile/season-stats`) **0 변경** ✅
+- 마일스톤 6종 매핑(누적경기/평점/MVP/연속출석/커뮤니티/팀멤버추천) · isDummy 분기 · 835줄 page 구조 **0 변경** ✅
+- gu1-/bg- prefix 신설 **0** / 신규 CSS·토큰 **0** (전부 인라인 + 기존 var(--*) 토큰)
+
+🔑 사전 검증:
+- `--color-warning` 토큰: 6.3C-1 에서 globals.css L2773/L2801 (라이트/다크 양쪽 `var(--warn)` #E8A33B) 확인 완료 — 재사용
+
+⚠️ stop condition 여부: **없음**
+- /api/v1·DB schema 변경 0 / LOC +41(<+2000) / tsc 0 / 회귀 0(데이터 패칭·구조 불변) / 13룰 위반 0 / gu1-·bg- prefix 충돌 0
+
+💡 tester 참고:
+- 테스트: /profile/growth → "준비 중" 배지 4곳 모두 노랑(warn) 톤 + schedule 시계 아이콘: ① 주간 경기수 카드 ② 평균 평점 카드 ③ 마일스톤 "커뮤니티 활동"·"팀 멤버 추천" 카드 ④ 하단 "구간별 상세 분석" 박스
+- 데이터 회귀 0 확인: HERO 레벨/XP/스트릭, 마일스톤 6종 값(누적경기/평점/MVP/연속출석/커뮤니티/팀멤버추천), 12주 추이 spark/line, "경기 찾기"→/games CTA 모두 기존과 동일
+- 마일스톤 이모지 유지 확인: 🏀⭐🎯🔥💬🤝 (Material Symbols 변환 ❌)
+- 라이트/다크 양쪽 warn 톤 가독성 확인 (--color-warning 양쪽 정의됨)
+- 정상: tsc 0 / SWR 2종 패칭 동일
+
+⚠️ reviewer 참고:
+- BG1 정합 = "마일스톤 6 = PU4 user_badges 정합"이나 운영 마일스톤은 이미 season-stats + gamification 으로 매핑된 초과구현 상태 → 데이터 정합(badge icon/이름) 재배선은 데이터 패칭 0 변경 원칙상 미적용(PM 판단). 이모지 톤 유지 + placeholder 통일만 적용
+- warn-soft 4곳 비율 균일(14%/100%/32%) — 6.3C-1 ComingSoonBadge 와 정확히 동일. 단 6.3C-1 은 공통 컴포넌트(ComingSoonBadge) 추출, 6.3C-2 는 인라인 4곳(운영 growth 가 클래스/컴포넌트 아닌 인라인 스타일 페이지 → 기존 패턴 답습)
+- "구간별 상세 분석" 부모 박스는 기존 opacity 0.65 placeholder 시각 유지(배지만 warn-soft). 6.3C-1 다음주 추천 박스(dashed warn)와 달리 박스 톤 미변경 — PM 승인 범위 = "배지 4곳"
+
+### 6.3C-3 — GU3 ProfileSettings → /profile/settings (BG3 정합)
+
+📝 구현한 기능: 시안 GU3 박제 — ① GU3-A billing "/profile/billing" link 활성(isPaid 실데이터 시만 미리보기 강조 btn--primary) ② GU3-C danger 2차 confirm("삭제합니다" 텍스트 입력 + accent 경고박스) ③ GU3-D IdentityVerify 시각 강화(상태 아이콘 + verified soft pill). **GET 패칭·withdraw API·비번 confirm·name_verified 분기 0 변경 / 인라인 + var(--*) 토큰만**.
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| src/app/(web)/profile/settings/_components_v2/billing-section-v2.tsx | GU3-A: 하단 버튼 위 `Link href=/profile/billing` 추가(시안 "결제·구독 관리" credit_card btn). isPaid면 btn--primary(그라디언트 카드 톤 연결)·무료면 일반 btn — 미리보기 강조 isPaid 시만. summary prop·fetch·기존 2버튼 0 변경 | 수정 (+24/-3, 순 +21) |
+| src/app/(web)/profile/settings/_components_v2/danger-section-v2.tsx | GU3-C: ① accent 경고박스(error 아이콘 + "되돌릴 수 없습니다", accent-soft 배경/bdr-red-ink 텍스트) ② "삭제합니다" 텍스트 input(confirmText state) ③ 삭제 버튼 disabled = phraseOk && password(2중 가드) + handleDelete 앞단 phrase 가드. **withdraw DELETE API·PasswordInput·router.replace 0 변경** | 수정 (+112/-18, 순 +94) |
+| src/app/(web)/profile/settings/_components_v2/account-section-v2.tsx | GU3-D: 본인인증 행 시각 강화 — 좌측 상태 아이콘(인증=verified_user 초록/미인증=shield muted) + verified 뱃지 ok-soft 배경 pill(color-mix). **link(/onboarding/identity)·name_verified 분기·미인증 버튼 0 변경** | 수정 (+30/-7, 순 +23) |
+
+총 LOC: +169 / -25 (순 +144) — LOC>+2000 stop 미해당.
+
+설계 정합 (PM 승인 100% 일치):
+- billing link 활성 = isPaid(is_paid_member 실데이터) 시만 미리보기 강조(btn--primary) / 무료는 일반 진입 — mock 0 ✅
+- danger 2차 confirm = "삭제합니다" 입력 + accent 경고박스 ✅ / **비번 confirm·withdraw 액션 0 변경**(phrase 가드는 기존 비번 검증 앞에 추가, API body·호출 동일) ✅
+- IdentityVerify 시각 강화 = link·동작 보존(href·분기·onboarding 단일 진입점 유지) ✅
+- GET 패칭 0 변경(세 컴포넌트 모두 fetch 신규 0) ✅ / 전부 인라인 + var(--*) ✅
+
+🔑 토큰 검증 (구현 전 확인):
+- danger accent: `--accent`(globals.css L104) / `--accent-soft`(L105) 운영 존재. 시안 전용 `--accent-deep`→`--bdr-red-ink`(L28) / `--accent-hair`→`--accent-soft` 매핑(globals.css L4646 주석 가이드 준수). danger BDR Red = var(--accent)/--bdr-red-ink 토큰만 ✅
+- billing/account: `--cafe-blue`(L96) / `--ok`(L50) 기존 보유
+- 13룰 §10 pill 회피: GU3-D verified 뱃지 가로 pill → borderRadius 9999 ❌ → **4px(BDR 버튼 표준) 적용** (시안 gw-verify pill이나 운영 룰 우선)
+
+⚠️ stop condition 여부: **없음**
+- /api/v1·DB schema 변경 0 / LOC +144(<+2000) / tsc 0(EXIT=0) / 회귀 0(데이터·동작 불변) / 13룰 위반 0 / gu3-·bg- prefix 신설 0
+
+💡 tester 참고:
+- 테스트: /profile/settings ① 결제·멤버십 섹션 하단 "결제·구독 관리"(credit_card) → /profile/billing 이동(유료=primary 강조/무료=일반) ② 계정 관리 → "계정 삭제" → 모달: accent 경고박스 + "삭제합니다" 입력 + 비번. 둘 다 충족 전 "영구 삭제" disabled ③ 계정·보안 → 본인인증 행: 인증완료(verified_user 초록 + ok pill "인증 완료") / 미인증(shield + "본인인증 →" 버튼)
+- danger 2중 가드: "삭제합니다" 정확 일치 + 비번 입력 → 활성. 둘 중 하나만이면 disabled(title 안내). 활성 후 클릭 → 기존 withdraw DELETE → /login replace(회귀 0)
+- billing isPaid 토글: is_paid_member=true면 그라디언트 카드 + primary 버튼 / false면 알트 카드 + 일반 버튼
+- 정상: tsc 0 / 비번 confirm·withdraw API·onboarding/identity 진입 모두 기존 동작 보존
+
+⚠️ reviewer 참고:
+- danger 2차 confirm은 **추가 가드**(기존 비번 confirm 위에). withdraw API body(`{password}`)·메서드(DELETE)·credentials 0 변경. confirmText는 클라 가드 only(서버 미전송) — 시안 UX 의도
+- billing Link 진입점만 추가, 기존 router.push 2버튼(플랜 변경/구독 취소)·SettingsRow 4행 보존(중복 진입 = 시안 구조)
+- GU3-D verified 뱃지 borderRadius 4(9999 회피, 13룰 §10) — color-mix ok-soft 배경/border, 신규 토큰 0
 
 ## 수정 요청
 | 요청자 | 대상 | 문제 | 상태 |
 |--------|------|------|------|
 
-## 구현 기록 (developer) — Phase 6.1C
-
-### 6.1C-1 · PU4 ProfileAchievements → /profile/achievements
-
-📝 구현: 운영 `_v2` 업적 페이지 상단 평면 card 헤더를 **PU4 v2.24 Hero 배너**로 교체 (시각 토큰/레이아웃 정합). 데이터 패칭 0 변경.
-
-| 파일 | 변경 | 신규/수정 |
-|------|------|----------|
-| `src/app/(web)/profile/achievements/_v2/achievements-content.tsx` | 평면 헤더 → 다크 그라디언트 Hero(`pf-achv-hero` · military_tech 골드 원형 + 획득/전체 카운트칩 + 요약 meta 3종 + 안내 카피). 기존 계산값(earnedItems/allBadges/achievementPct)만 사용 | 수정 |
-| `src/app/globals.css` | `pf-achv-` prefix Hero CSS +66 line (다크 그라디언트는 ru1-leader 답습 리터럴, 라운딩 4/8/10px, 720px 분기) | 수정 |
-
-정합 결과:
-- 데이터 0 변경: page.tsx·badge-catalog.ts 미수정 / 신규 쿼리 0 / mock 0
-- cross-domain hide: 시안 champion 카드·MVP 누적 StatCard 미배치 (page.tsx 미페칭 — 쿼리 추가 금지 준수)
-- 운영 보존: 필터 칩·4열 그리드·최근획득4·달성률·tier/lock 로직 전부 유지
-- prefix 충돌 0 (`pf-achv-` 신규) / `--r-lg` 등 시안 전용 토큰 미사용 → 운영 리터럴 치환
-
-💡 tester 참고:
-- 테스트: `/profile/achievements` 로그인 후 진입
-- 정상: 상단 다크 군청 Hero 배너 + 골드 military_tech 아이콘 + "획득 N / 전체 M" 칩 + meta 3줄(배지 N개/전체 M종/달성률 P%) / 하단 필터·그리드 기존대로
-- 주의: 배지 0건 계정(neewbie) → Hero 카운트 0/16, meta 0개/16종/0%, 최근획득 섹션 숨김 정상 / 비로그인 → 기존 로그인 유도 화면
-
-⚠️ reviewer 참고:
-- Hero 다크 그라디언트 리터럴 hex(#1A1E27 등) = 시안 pm-hero + 운영 ru1-leader Hero 동일 패턴(다크 밴드 한정 허용). 토큰 위반 아님
-- 데이터 0 변경 확인 포인트: page.tsx·badge-catalog.ts diff 없음
-
-### 6.1C-2 · PU1 ProfileMain → /profile (보강 +119 LOC)
-
-📝 구현: 운영 3-tier hub(831 line) **전부 보존**. 시안 PU1 정합 위해 시각 보강 2종만 추가 — (1) Hero meta 포지션·지역·매너, (2) BP6 카운트 strip(운영 실데이터 3종). **교체 ❌ / 데이터 패칭 0 변경**.
-
-| 파일 | 변경 | 신규/수정 |
-|------|------|----------|
-| `src/app/(web)/profile/page.tsx` | Hero `mypage__id-meta`에 포지션(sports_basketball)·지역(location_on·city/district 둘 다 null이면 hide)·매너(favorite·evaluation_rating null이면 hide) meta 추가 + Hero 직후 `pu1-counts` strip(내 팀 teamMembers.length / 호스트 total_games_hosted / 매너 evaluation_rating). `counts` 객체 변환부 추가 | 수정 |
-| `src/app/(web)/profile/mypage.css` | `pu1-meta`·`pu1-counts`/`pu1-count` prefix +70 line (운영 토큰 --bg-elev/--border/--ink-mute/--accent, 다크 각진 처리 답습, 720px 모바일 분기) | 수정 |
-
-정합 결과:
-- **데이터 패칭 0 변경**: Promise.all 8쿼리·getPlayerStats·서버액션 전부 미수정. counts 3종 전부 **이미 페칭된 데이터** 재사용(teamMembers.length / user.total_games_hosted / evaluationRating). 신규 쿼리 0 / mock 0
-- **미페칭 hide**: 시안 5칸 카운트(대회/참가경기/팀/단체/매너) 중 대회·단체·참가경기 = page.tsx 미페칭 → 쿼리 추가 금지 위해 미배치(hide). 팀/호스트/매너 3종만
-- **운영 보존**: 3-tier hub(Tier1 큰4/Tier2 중4/Tier3 작2)·aside(다음경기 D-N/이적진행/최근활동5/도움)·TeamsListCard·IA 색인·Spark·force-dynamic·휴면복구·활동추적 전부 미수정
-- **null 가드**: 지역(city·district 둘 다 없으면 hide) / 매너(evaluation_rating null이면 hide) → 빈 데이터 계정 안전
-- prefix 충돌 0: `pu1-` mypage.css·globals.css 둘 다 0건, `pf-achv-`(6.1C-1)·타 페이지와 충돌 0
-- tsc --noEmit EXIT 0
-
-💡 tester 참고:
-- 테스트: `/profile` 로그인 후 진입
-- 정상: Hero 닉네임 줄 아래 meta = [팀명 · 포지션 · 지역 · 매너 N.N] / Hero 아래 카운트 칩 3개(내 팀 N / 호스트 N / 매너 N.N — 매너 칸 빨강 강조) / 그 아래 기존 소속팀 카드·3-tier hub·aside 전부 그대로
-- 주의: 지역 미입력 계정 → 지역 meta 숨김 정상 / evaluation_rating null 계정 → 매너 meta·카운트 "—" 정상 / 팀 0개 → 내 팀 카운트 0 / 모바일(≤720px) → 카운트 strip 좌우 16px 패딩 + 컴팩트
-- 비로그인 → 기존 로그인 유도 화면(미변경)
-
-⚠️ reviewer 참고:
-- 특별 확인: Promise.all/getPlayerStats/page.tsx 쿼리 select 절 diff 0 (데이터 패칭 절대 미변경) — counts는 기존 변수 재사용만
-- 다크모드 카운트 칸 각진 처리(border-radius 0 + border 2px)는 운영 `.mypage__hero`·`.mypage__avatar` 패턴 답습
-- stop condition: 없음
-
-### 6.1C-3 · PU2 ProfileEdit → /profile/edit (보강 +84 LOC)
-
-📝 구현: 운영 거대 편집 페이지(1689 line) **데이터 패칭/PATCH/state/서버액션 0 변경**. 시안 PU2 정합 위해 (1) §4 공개설정 **오안내 정정**, (2) §4.5 결제·정산 **실 link out** 신규, (3) save bar 동기화 안내 보강 — **문구 + link out + 안내**만.
-
-| 파일 | 변경 | 신규/수정 |
-|------|------|----------|
-| `src/app/(web)/profile/edit/page.tsx` | ①§4 priv-note "곧 제공/시각 박제" 오안내 → 실저장 정확 문구(privacy_settings가 PATCH로 실제 저장됨) ②파일헤더+PRIVACY_ROWS+§4 주석 "백엔드 미구현"→"실저장" 정정 ③§4.5 결제·정산 섹션 신규 — `/profile/billing` 실 Link out(mock 0, "준비 중" ❌) ④sticky save bar 기본 안내 → "마이페이지·공개 프로필에 바로 반영" 동기화 보강 | 수정 |
-| `src/app/(web)/profile/edit/edit-profile.css` | `pu2-billing-` prefix +46 line (link out 카드 — 운영 토큰 --border/--bg-alt/--bg-elev/--accent/--ink/--ink-mute, 라운딩 4px, hover, 720px 분기) | 수정 |
-
-정합 결과:
-- **데이터 0 변경**: GET/PATCH /api/web/profile·privacy state(7×3)·PRIVACY_ROWS/OPTIONS·setPrivacy·handleSave payload·환불계좌·탈퇴모달 전부 미수정. diff 매칭된 fetch/PATCH/privacy_settings 라인 = **전부 주석/안내 텍스트뿐** (로직 0)
-- **오안내 정정 핵심**: 운영 코드가 실제로 `payload.privacy_settings = privacy`(line 531)로 PATCH 저장 + GET 초기화(line 291)함에도 주석·priv-note만 "미구현/곧 제공/시각 박제"로 잘못 적혀 있던 것 → 실저장 정확 문구로 교체
-- **운영 3옵션 chip 유지**: 전체/친구/비공개 chip·로직 무변경 (시안 on-off 토글로 교체 ❌ — 저장 schema 상이)
-- **BP4 실 link out**: `/profile/billing`(구독+결제내역 탭 허브 — 이미 운영 중)으로 실제 연결. "준비 중/Phase 6.2" ❌ (실 페이지 존재 확인)
-- 미리보기 링크: form state에 public_id 부재 → 본인 식별자 URL 무리하게 끌어오면 데이터 패칭 변경 위험 → 텍스트 안내만 ("공개 프로필에 반영")
-- prefix 충돌 0: `pu2-billing` page.tsx·css 2곳만 / 타 페이지 0 / `--accent`(운영 토큰, `--primary` 미존재 확인 후 치환)
-- tsc --noEmit EXIT 0
-
-💡 tester 참고:
-- 테스트: `/profile/edit` 로그인 후 진입 → §4 공개 설정 / §4-2 결제·정산 / 하단 save bar 확인
-- 정상: §4 priv-note = "저장 시 즉시 적용되어 공개 프로필에 반영" (구 "곧 제공" 사라짐) / §4-2 결제 카드 클릭 → `/profile/billing` 이동 / save bar 기본 문구 = "저장하면 마이페이지·공개 프로필에 바로 반영됩니다."
-- 실저장 확인: 공개 chip 변경 → 저장 → reload 후 chip 상태 유지되면 정상(PATCH 저장됨)
-- 주의: 결제 카드 hover 시 테두리 빨강(--accent) / 모바일(≤720px) 카드 세로 스택 / 저장 시 1.5초 후 reload(기존 동작 유지)
-
-⚠️ reviewer 참고:
-- 특별 확인: handleSave payload(line 531 privacy_settings)·PATCH·setPrivacy·PRIVACY_ROWS diff 0 — 문구/주석/link out/CSS만 변경
-- "곧 제공" 오안내가 실제로 오기였음 (코드는 실저장 중) — 정정이 정합 맞춤
-- stop condition: 없음
-
-### 6.1C-4 · PU3 ProfileBasketball → /profile/basketball (옵션 B server 조회 +439 LOC)
-
-📝 구현: 운영 1068 line 페이지 **데이터 0 삭제(순수 추가)**. PM 정정 옵션 B 채택 — schema 실재 확인 후 **server 조회 4종 추가**로 BP2 cross-domain 시안 4요소를 **실데이터** 박제 (mock 0). DB schema·/api/v1 0.
-
-| 파일 | 변경 | 신규/수정 |
-|------|------|----------|
-| `src/app/(web)/profile/basketball/page.tsx` | user select에 PU3 필드 12종 추가(dominant_hand/skill_level/strengths/manner_count/subscription_status/preferred_* 7종) + 서버쿼리 4종(15 UserSeasonStat / 16 games.final_mvp 30일 count / 17 Team.wins·losses / 18 Tournament.champion_team_id 우승) + 파생가공 + JSX 4요소(A 농구캐릭터 / B 시즌stat 5카드 / C 선호chip 7 / D 입상이력) | 수정 |
-| `src/app/globals.css` | `pu3-` prefix +126 line (토큰만 var(--color-*), 라운딩 4/8px, 720px 분기) | 수정 |
-
-추가한 서버 쿼리 목록 (전부 실재 모델/컬럼·본인 한정 IDOR 0):
-- 15) `prisma.userSeasonStat.findUnique` (user_id+올해 season_year unique) — 시즌 참가경기/매너/MVP
-- 16) `prisma.games.count` (final_mvp_user_id=본인 + created_at 30일) — BG4 이달의 MVP
-- 17) `prisma.team.findUnique` (대표팀 wins/losses) — BT6 팀 전적 (2차 조회, user.teamMembers 확정 후)
-- 18) `prisma.tournament.findMany` (champion_team_id ∈ 본인 active팀) — PA7 우승 이력 (2차 조회)
-
-시안 요소별 실데이터/hide 판정:
-- A 농구캐릭터: dominant_hand(운영 "L/R/B"→한글 매핑)·position·skill_level(한글 그대로)·strengths(Json) **실데이터**. 전부 미입력 시 카드 hide
-- B 시즌 5카드: 참가경기(UserSeasonStat)·호스트(total_games_hosted)·MVP(games 30일)·매너(evaluation_rating+manner_count)·팀전적(Team wins/losses) **실데이터**. UserSeasonStat 0건이면 "—" 자연처리, 데이터 전무 시 카드 hide. **draws hide**(Team 무승부 컬럼 schema 없음)
-- C 선호chip: preferred_* 7종 **실데이터** chip(읽기전용). **preferred_positions hide**(User 미존재) → 시안 8그룹 중 7그룹. 선택 0건 그룹 개별 hide
-- D 입상이력: champion_team_id=본인팀 대회 **실데이터**. **준우승/3위 hide**(champion_team_id는 우승만 표현 — 순위 컬럼 schema 없음), placed='우승' 단일
-
-정합 결과:
-- **데이터 삭제 0**: git diff 삭제라인 0 = 운영 기존 14쿼리 select·career-stats·pending·next-match·픽업게임·소속팀 전부 보존. 신규는 select 확장 + 쿼리 4 append만
-- **mock 0 / DB schema 0 / /api/v1 0 / LOC +439(<2000)**
-- prefix 충돌 0: `pu3-` 운영 src/ = globals.css+basketball/page.tsx 2곳만 / `pf-achv-`(6.1C-1)·`pu1-`·`pu2-`와 충돌 0
-- tsc --noEmit EXIT 0 (모델명 userSeasonStat/games/team/tournament·unique키 user_id_season_year 전부 검증)
-
-💡 tester 참고:
-- 테스트: `/profile/basketball` 로그인 후 진입
-- 정상: ②Hero 아래 [농구캐릭터 카드] → [시즌 기록 5카드 grid + cross-domain 안내] → ③통산8열(운영) → [선호 정보 chip] → [입상 이력] 순. 이하 ④활동~⑩주간리포트 운영 그대로
-- 주의 입력: ①UserSeasonStat 0건 계정 → 참가경기 "—", 카드는 다른 실데이터(매너/호스트) 있으면 노출 / ②선호 전부 미입력 → 선호 카드 hide / ③소속팀 없는 계정 → 팀전적·입상 둘 다 hide / ④우승 이력 없는 팀 → 입상 카드 hide / ⑤dominant_hand null → 손 meta 생략
-- cross-domain 실측 확인: 본인이 final_mvp인 게임 최근30일 있으면 "이달의 MVP" 카운트 >0 / 소속팀 champion인 대회 있으면 입상 이력 노출
-
-⚠️ reviewer 참고:
-- 특별 확인: 기존 14쿼리 select 절 diff 0 (운영 데이터 패칭 무변경) — 신규 4쿼리는 전부 append/2차조회
-- 17/18 2차 조회 분리 사유: champion/팀전적은 user.teamMembers(active팀 id) 의존 → 1차 Promise.all에서 불가 → user 확정 후 별도 Promise.all 2병렬 (over-fetch 회피)
-- 16 MVP count는 final_mvp_user_id 캐시값 단순 count (recomputeFinalMvp 재계산 호출 ❌ — 집계비용 0)
-- stop condition: 없음
-
-### 6.1C-5 · PA1 AdminUsers → /admin/users (보강 +90 LOC + CSS 44)
-
-📝 구현: 운영 고도화 페이지(역할탭/lazy detail/배번/프로필편집/모든 액션) **전부 보존**. 시안 PA1 정합 위해 (1) Hero 4-stat strip, (2) 본인 자기정지 가드(4 server action redirect + UI 가드 박스) 추가. **page → actions → table 순. 데이터 패칭 = status groupBy 1쿼리만 추가**.
-
-| 파일 | 변경 | 신규/수정 |
-|------|------|----------|
-| `src/app/(admin)/admin/users/page.tsx` | getWebSession sub 주입(currentUserId) + status groupBy 1쿼리(activeCount/suspendedCount 실측) + AdminPageHeader 직후 `pa1-hero-stats` 4-stat strip(전체 totalCount/활성/정지/관리자 superAdminCount) + table에 currentUserId prop | 수정 |
-| `src/app/actions/admin-users.ts` | requireSuperAdmin→session 반환 / 4액션(updateUserStatus·toggleUserAdmin·forceWithdraw·delete)에 `session.sub===userId` 시 `redirect(/admin/users?error=)` 본인 가드 (기존 isAdmin redirect 동일 패턴) | 수정 |
-| `src/app/(admin)/admin/users/admin-users-table.tsx` | currentUserId prop + isMe 계산 + 모달 헤더 "나" 배지 + 관리탭 위험3블록(슈퍼관리자/상태/위험영역)을 isMe 시 가드 박스 1개로 대체(역할변경은 유지) | 수정 |
-| `src/app/globals.css` | `pa1-hero-stat` prefix +44 line (운영 토큰 var(--color-*), 라운딩 8px, data-tone ok/err/warn, 720px 2열 분기) | 수정 |
-
-추가 쿼리/가드:
-- 신규 쿼리 1: `prisma.user.groupBy({by:['status'],_count})` — Hero 활성/정지 실측 (전체 기준, where 미적용)
-- 신규 가드 4(redirect): updateUserStatus/toggleUserAdmin/forceWithdraw/delete 본인 차단 (자기정지/권한잠금/자기탈퇴/자기삭제 방지)
-
-정합 결과:
-- **데이터 패칭 거의 0**: 기존 findMany/count/loadMore/getUserDetail/모든 server action select·로직 전부 미수정. 신규 = groupBy 1쿼리 + session 읽기뿐
-- **기존 보존**: 역할탭(전체/일반/호스트/관리자)·DataTableV2 6컬럼·lazy detail(팀/대회/활동/구독)·배번 인라인수정(TournamentRow)·프로필 긴급변경폼·더보기 무한스크롤 전부 미수정
-- **titles(우승🏆) hide**: 시안 우승 컬럼 = 운영 user select 미페칭 → Hero stat·테이블 컬럼 미배치 (쿼리 추가 금지 준수, 4-stat만)
-- **자기정지 가드**: server(redirect 4) + UI(가드박스) 이중. session.sub=string vs u.id=string 직접 비교
-- prefix 충돌 0: `pa1-` 운영 src/ = globals.css+page.tsx 2곳만, `pf-achv-`/`pu1-`/`pu2-`/`pu3-`와 충돌 0
-- tsc --noEmit EXIT 0 / mock 0 / DB schema 0 / /api/v1 0 / globals.css 공백무시 +44줄(순수 추가, 기존 손상 0)
-
-💡 tester 참고:
-- 테스트: `/admin/users` super_admin 로그인 후 진입
-- 정상: AdminPageHeader 아래 Hero 4-stat(전체 N / 활성 N 초록 / 정지 N 빨강 / 관리자 N 노랑) → 기존 역할탭·테이블 그대로 / 행 클릭 모달 동일
-- 본인 가드: 본인 행 클릭 → 모달 헤더 "나" 배지 / 관리 탭 = 역할변경만 노출, 슈퍼관리자/상태/위험영역 대신 "본인 계정은 변경 불가" 가드 박스
-- server 가드 검증: (가드박스로 막혀 UI론 불가하지만) 만약 본인 user_id로 상태변경 호출 시 → `/admin/users?error=본인 계정은...` redirect → 상단 error 배너
-- 주의: status=null/withdrawn 계정 → Hero 활성/정지 어디에도 미집계(활성·정지만 노출) / 검색(q) 중에도 Hero는 전체 통계(의도) / 모바일(≤720px) Hero 2열
-
-⚠️ reviewer 참고:
-- 특별 확인: 기존 server action select/로직 diff 0 (requireSuperAdmin은 return session 추가만, 호출부 무영향) / findMany·loadMore·getUserDetail select 무변경
-- groupBy where 미적용 = 의도(superAdminCount/totalCount와 동일 전체 통계 컨텍스트). 검색 시 Hero가 전체 유지되는 게 자연스러움
-- 본인 가드 server(redirect)+UI 이중 — redirect가 source of truth, UI는 헛클릭 방지
-- stop condition: 없음
-
-### 6.1C-6 · PU5 UserPublicProfile → /users/[id] (privacy 존중 +~80 LOC)
-
-📝 구현: 운영 PU5 공개 프로필(769 line, 12쿼리) **데이터 패칭 0 변경(select에 privacy_settings 1줄 add만)**. 운영 PU2(profile/edit §4)에서 실저장되는 `privacy_settings` 7키를 공개 프로필에서 **존중**하도록 표시 분기 추가. 운영 _v2 컴포넌트(PlayerHero/OverviewTab/ActionButtons) **무변경 — 넘기는 props만 거름**.
-
-| 파일 | 변경 | 신규/수정 |
-|------|------|----------|
-| `src/app/(web)/users/[id]/page.tsx` | ①user select에 `privacy_settings: true` 1줄 add ②`PRIVACY_DEFAULTS`(운영 PU2 default 동일)+`effectivePrivacy` 머지+`canShow(key)` 헬퍼 ③profile 비공개→비공개 안내 화면 early return(notFound 아님) ④record→seasonStats/recentGameRows/allStatsRows/activity카운트/activityEvents(match·mvp) 거름 ⑤review→evaluationRating ⑥area→city/district ⑦body→height/weight ⑧realName→name(null시 닉네임 fallback) ⑨generateMetadata도 profile/realName 존중 | 수정 |
-
-privacy key → 표시필드 매핑 (운영 PU2 PRIVACY_ROWS 기준):
-| key | 운영 default | PU5 제어 대상 | hide 처리 |
-|-----|-----------|--------------|----------|
-| profile | all | 페이지 자체 | 비공개 안내 화면 early return |
-| realName | **none** | user.name (displayName/secondary/title) | name→null=닉네임만 |
-| contact | friends | 휴대폰·이메일 | **PU5 미페칭=노출0**(작업 불필요·BP1 stop 미발동) |
-| record | all | 스탯/통산/최근경기/활동(match·mvp)/경기·주최 카운트 | 빈값·빈배열·루프skip |
-| review | all | evaluation_rating(★별점) | null→Hero showRating false |
-| area | all | city/district(Hero meta 지역) | null→location 제외 |
-| body | **friends** | height/weight(Hero physical) | null→"-" |
-
-핵심 판단(friends): 운영에 **"친구(friend)" 개념 부재**(follows=단방향 팔로우뿐, grep lib friend 로직 0). fail-safe(PM 가드#2 모호하면 hide 우선) → 비본인 viewer에게 **friends=none 동일 hide**. 비본인 노출 = key가 정확히 "all"일 때만. 기본값이 friends인 contact(이미 미페칭)·body는 비본인에게 가려짐(운영 의도 = 친구만 공개인데 친구판정 불가 → 안전하게 hide).
-
-정합 결과:
-- **데이터 패칭 0 변경**: 12쿼리 전부 무변경 / select에 privacy_settings 1줄 add만 (가드#4 충족) / mock 0 / DB schema 0 / /api/v1 0
-- **민감3종(이메일/연락처/결제) 노출 0**: PU5 애초에 미페칭 → BP1 stop 미발동 (검증: page.tsx user select에 email/phone/account_* 키 없음 — 위 매핑 contact 행)
-- **본인 preview bypass**: `isOwner` true면 `canShow` 전부 통과 → 본인 미리보기(?preview=1)는 모든 영역 표시. 기존 redirect/preview 로직 무변경
-- **FollowButton 보존**: ActionButtons(targetUserId/initialFollowed/isLoggedIn) prop·실기능 무변경
-- **소속단체 hide**: PU5는 애초에 단체(org) 미배치 — 팀(team)만 노출, 단체 없음(확인 완료)
-- 운영 _v2 컴포넌트 0 변경: PlayerHero/OverviewTab/ActivityLog/StatsDetailModal/CareerStatsGrid/ActionButtons 미수정 — 전부 props 레벨 거름
-- prefix 충돌 0: 비공개 안내 화면 = 인라인 스타일만(globals.css 미추가) / `pu5-` 운영 src/ 0건(시안 파일만)
-- tsc --noEmit EXIT 0
-
-💡 tester 참고:
-- 테스트: 타 계정으로 `/users/[다른유저id]` 진입
-- 정상(기본값 계정): 프로필 노출 / 실명 hide(닉네임만, realName 기본 none) / 신장·체중 hide(body 기본 friends) / 경기기록·매너·지역 노출(전부 기본 all)
-- 본인 검증: `/users/[본인id]?preview=1` → 모든 영역 표시(필터 bypass) / `/users/[본인id]`(preview 없음) → /profile redirect(기존)
-- privacy 변경 검증: profile/edit §4에서 "경기 기록"=비공개 저장 → 타 계정으로 공개프로필 보면 시즌스탯 "-"·최근경기 빈·통산 더보기 버튼 사라짐 / "프로필 전체"=비공개 → "비공개 프로필입니다" 안내 화면
-- 주의 입력: privacy_settings=null 계정(미설정) → 운영 PU2 default 동작 동일(실명·신장체중 hide / 기록·매너·지역 공개) / friends 설정 항목은 비본인에게 hide(친구판정 불가 fail-safe)
-
-⚠️ reviewer 참고:
-- 특별 확인: 12쿼리 select diff = privacy_settings 1줄 add만(나머지 0) / _v2 컴포넌트 파일 diff 0(props 레벨만 거름)
-- friends=hide fail-safe 결정 — 운영에 친구 개념 부재로 friends 옵션이 비본인에게 정의 불가 → 노출보다 hide 선택(PM 가드#2). 추후 친구 기능 구현 시 friends 분기 재검토 포인트
-- PRIVACY_DEFAULTS = 운영 PU2 L232~240 default 리터럴 복제 (source of truth = PU2) — PU2 default 변경 시 동기화 필요
-- generateMetadata도 profile/realName 존중(별도 findUnique·본문 12쿼리 무관) — title에 비공개 실명 노출 방지
-- stop condition: 없음 (publicView 분기 검증 = 민감3종 미페칭 확인 / 본인 preview bypass 정상 / friends fail-safe hide)
-
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
 |------|------|------|
-| 2026-05-31 | **Phase 6.1C-6** PU5 UserPublicProfile (privacy 존중) | ✅ privacy_settings 7키 존중(select 1줄 add·12쿼리 무변경) / friends=hide fail-safe(운영 친구개념 부재) / 본인 preview bypass / 민감3종 미페칭=노출0 / page.tsx +~80 / tsc0 / _v2 컴포넌트 0변경(props 거름) / 커밋 대기 |
-| 2026-05-30 | **멤버검수** 셋업팀 6번 하주호 placeholder 생성+연결 | ✅ 운영DB 4-write 트랜잭션 (ph User uid3516+TeamMember2740+ttp4556 연결+members_count24) / 사전·사후검증 통과 / conventions+1·index 갱신 / 임시스크립트 정리 / 실가입 시 자동승계 대기 |
-| 2026-05-31 | **Phase 6.1C-5** PA1 AdminUsers (BP5 자기정지 가드) | ✅ Hero 4-stat(status groupBy 1쿼리 실측)+본인 가드(4 server action redirect + UI 가드박스) / page.tsx·actions·table·globals.css(`pa1-`) +90/+44 / tsc0 / titles hide / 기존 역할탭·lazy detail·배번·프로필편집 보존 / 커밋 대기 |
-| 2026-05-31 | **Phase 6.1C-4** PU3 ProfileBasketball (옵션 B server조회 BP2) | ✅ 서버쿼리4종(UserSeasonStat/games.final_mvp 30일/Team전적/champion우승) 실데이터 박제 + 시안4요소(캐릭터/시즌5카드/선호chip/입상) / page.tsx+globals.css(`pu3-`) +439 / tsc0 / 데이터삭제0 / mock0·schema0·/api/v1 0 / 커밋 대기 |
-| 2026-05-31 | **Phase 6.1C-3** PU2 ProfileEdit 보강 (BP4) | ✅ priv 오안내 정정+결제 link out(`/profile/billing`)+save bar 동기화 / page.tsx+edit-profile.css(`pu2-billing-`) +84 / tsc0 / 데이터0변경 / 커밋 대기 |
-| 2026-05-31 | **Phase 6.1C-1** PU4 Achievements Hero 박제 | ✅ achievements-content.tsx Hero(`pf-achv-`)+globals.css +66 / tsc0 / 데이터0변경 / 커밋 대기 |
-| 2026-05-31 | **Phase 5 chain 완료** (sync v2.23 + 5C 6 PR) | ✅ `7e2d0f1`·`68fc5c3`·`c058f6e`·`70c6c6c`·`a2e01e0`·`3e3423f`·`7ff69b6` push / PR #656 / ledger Phase5 ⑩⑪⑫ ✅ / stop 0 |
-| 2026-05-30 | Phase 1~4 종료 마킹 + git 동기화 + Phase 5 대기 | ✅ dev→subin(`0c61175`) / ledger 2/3/4 ⑬⑭ ✅ |
-| 2026-05-29 | Auto Chain 25 PR 운영 반영 (#654→#655) | ✅ main=`6f22c02` / Vercel 배포 |
-| 2026-05-29 | Phase 4C 완료 8/8 | ✅ `8ec6a54`~`fa7b63b` / OrgHierarchyCrumbs 공용 / Q2·Q3·Q4 lock |
+| 2026-05-31 | **Phase 6.3C-3** GU3 ProfileSettings BG3 정합 (billing /profile/billing link 활성 isPaid시 + danger 2차 confirm "삭제합니다"+경고박스 + IdentityVerify 시각강화) | ✅ tsc 0 / +169-25 / GET·withdraw·비번 0 변경 / stop 없음 |
+| 2026-05-31 | **Phase 6.3C-2** GU1 ProfileGrowth BG1 정합 ("준비 중" warn-soft 4곳 통일 + PU4 이모지 유지) | ✅ tsc 0 / +49-8 / SWR 2종·구조 0 변경 / stop 없음 |
+| 2026-05-31 | **Phase 6.3C-1** GU2 WeeklyReport BG2 정합 (placeholder warn-soft 3곳 + 이메일구독 link + "준비 중" 통일) | ✅ tsc 0 / +23-13 / 데이터 패칭 0 변경 / stop 없음 |
+| 2026-05-31 | **Phase 5+6.1 dev→main 운영 반영** (#658) | ✅ main `26586af` Vercel success / ledger ⑬⑭ ✅ 종료 |
+| 2026-05-31 | **Phase 6.1 chain** (v2.24 sync + 6.1C 6 PR #657) | ✅ `29178b9`+`cc78745`~`f29a3ca` / BP1 privacy·BP5 가드·BP2 server조회 / stop 0 |
+| 2026-05-31 | **Phase 5 chain** (v2.23 sync + 5C 6 PR #656) | ✅ `7e2d0f1`+`68fc5c3`~`3e3423f` / 공용 wizard·mock 0 / stop 0 |
+| 2026-05-31 | 빌드 fix: admin CSS 주석 `*/` Turbopack 실패 | ✅ `bdd5e32` / errors.md 기록 |
+| 2026-05-31 | 경기일 Flutter 검수 + ttp 정합성 3패턴 | ✅ lessons.md 기록 (셋업·몽키즈) |
+| 2026-05-30 | placeholder 선수 셋업 (하주호) | ✅ conventions.md / uid3516 |

@@ -30,6 +30,8 @@ function ReceiptContent() {
   const paymentKey = searchParams.get("paymentKey") ?? "";
   const amount = Number(searchParams.get("amount")) || 0;
   const method = searchParams.get("method") ?? "카드";
+  // 결제 항목(플랜명) — 시안 BB3 "결제 항목" 행. URL로 전달될 때만 노출(미전달 시 mock 금지)
+  const plan = searchParams.get("plan") ?? "";
 
   // 현재 시각을 결제 시각으로 표시 — 기존 보존
   const paidAt = new Date().toLocaleString("ko-KR", {
@@ -90,7 +92,7 @@ function ReceiptContent() {
             letterSpacing: "-0.01em",
           }}
         >
-          결제가 완료됐어요
+          결제가 완료됐어요 🎉
         </h1>
 
         {/* 부연 설명 */}
@@ -145,6 +147,14 @@ function ReceiptContent() {
             fontSize: 13,
           }}
         >
+          {/* 결제 항목(플랜명) — 시안 BB3 첫 행. plan 쿼리 있을 때만 (미전달 시 행 자체 숨김) */}
+          {plan && (
+            <>
+              <div style={{ color: "var(--ink-dim)" }}>결제 항목</div>
+              <div>{plan}</div>
+            </>
+          )}
+
           <div style={{ color: "var(--ink-dim)" }}>주문번호</div>
           <div style={{ fontFamily: "var(--ff-mono)", fontSize: 12 }}>{orderId}</div>
 
@@ -164,15 +174,25 @@ function ReceiptContent() {
           )}
         </div>
 
-        {/* 버튼 — 시안 톤 grid gap=8, btn--primary btn--xl + 인쇄/홈으로 */}
+        {/* 버튼 — 시안 BB3 순서: 내 구독 보기 / 영수증 인쇄 / 요금제 보기 */}
         <div style={{ display: "grid", gap: 8 }}>
+          {/* 내 구독 보기 — BB7 정합: Phase 6.1 결제 섹션과 동일하게 /profile/billing 진입. cafe-blue 톤 */}
           <Link
-            href="/"
-            className="btn btn--primary btn--xl"
-            style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6, textDecoration: "none" }}
+            href="/profile/billing"
+            className="btn btn--xl"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 6,
+              textDecoration: "none",
+              background: "var(--cafe-blue)",
+              color: "#fff",
+              borderColor: "var(--cafe-blue-deep)",
+            }}
           >
-            <span className="material-symbols-outlined" style={{ fontSize: 18 }}>home</span>
-            홈으로 가기
+            <span className="material-symbols-outlined" style={{ fontSize: 18 }}>card_membership</span>
+            내 구독 보기
           </Link>
           {/* 인쇄 버튼 — 동작 100% 보존 (window.print) */}
           <button
@@ -184,26 +204,15 @@ function ReceiptContent() {
             <span className="material-symbols-outlined" style={{ fontSize: 18 }}>print</span>
             영수증 인쇄
           </button>
-          {/* 결제 내역 — 기존 /profile/billing?tab=payments 라우트 보존 (Day 8 코멘트 그대로) */}
+          {/* 요금제 보기 — /pricing 라우트 (시안 BU1) */}
           <Link
-            href="/profile/billing?tab=payments"
+            href="/pricing"
             className="btn"
             style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", textDecoration: "none" }}
           >
-            결제 내역 보기
+            요금제 보기
           </Link>
         </div>
-      </div>
-
-      {/* 카드 아래 보조 링크 (기존 보존) */}
-      <div className="mt-6 flex justify-center gap-4">
-        <Link
-          href="/pricing"
-          className="text-xs transition-colors hover:underline"
-          style={{ color: "var(--ink-mute)" }}
-        >
-          요금제 보기
-        </Link>
       </div>
     </div>
   );

@@ -1,92 +1,73 @@
-# BDR v2.24 — Phase 6.1 (프로필·마이페이지 본체) 박제
+# BDR v2.26 — Phase 6.3 (마이페이지 후반부) 박제 · Phase 6 묶음 종료
 
-> **박제일**: 2026-05-30
-> **선행**: Phase 1A v2.19 + 1B v2.18 + 2 v2.20 + 3 v2.21 + 4 v2.22 + 5 v2.23 carry-over
-> **선행 의뢰**: `profile-user-redesign-prompt-2026-05-30.md` + `profile-admin-redesign-prompt-2026-05-30.md` + `profile-user-admin-connectivity-plan-2026-05-30.md`
-> **분할**: Phase 6.1 (본체 6) ← 본 박제 / 6.2 (결제·구독) + 6.3 (성장 분석) 후속 별 의뢰
+> **박제일**: 2026-05-31
+> **선행**: Phase 1A v2.19 + 1B v2.18 + 2 v2.20 + 3 v2.21 + 4 v2.22 + 5 v2.23 + 6.1 v2.24 + 6.2 v2.25 carry-over
+> **선행 의뢰**: `growth-settings-user-redesign-prompt` + `growth-settings-user-connectivity-plan` (2026-05-31)
+> **특수**: 모두 옛 v2 박제됨 (보강 의뢰) — GU1 v2.2 / GU2 v2.4 / GU3 v2.3
+> **★ Phase 6 묶음 종료**: 6.1 본체 6 + 6.2 결제 7 + 6.3 후반부 3 = **총 16 시안**
 
 ---
 
-## 1. Phase 6.1 박제 시안 = 6 (사용자 5 + super-admin 1)
-
-### Phase 6.1B — 사용자 측 (PU1~PU5 · A 등급)
+## 1. Phase 6.3 박제 시안 = 3 (사용자 보강)
 
 | ID | 화면 | 라우트 | 분류 | 주 갭 |
 |----|------|--------|------|-------|
-| PU1 | ProfileMain (보강) | `/profile` | 보강 | BP1 + BP6 (카운트 동기화 + 활동 진입) |
-| PU2 | ProfileEdit (보강) | `/profile/edit` | 보강 | BP4 (결제 link out + privacy 토글 + 저장 동기화) |
-| PU3 | ProfileBasketball (신규) | `/profile/basketball` | **신규** | BP2 ★★★★ (농구 캐릭터 + 시즌 stat 5 + 선호 chip 8 + 우승) |
-| PU4 | ProfileAchievements (보강) | `/profile/achievements` | 보강 | BP3 (배지 grid + 우승 자동 + MVP 누적) |
-| PU5 | UserPublicProfile (신규) | `/users/[id]` | **신규** | BP1 ★★★★★ (공개 시야 + privacy 필터 + preview) |
-
-### Phase 6.1A — 관리자 측 (PA1 · E 등급 · super-admin)
-
-| ID | 화면 | 라우트 | 분류 | 측 | 주 갭 |
-|----|------|--------|------|----|-------|
-| PA1 | AdminUsers | `/admin/users` | **신규** | **Site Operator** | BP5 (Hero stat + 4 탭 + 필터 + 모달) |
+| GU1 | ProfileGrowth | `/profile/growth` | 보강 | BG1 ★★★ (게이미피케이션 + 마일스톤 PU4 정합) |
+| GU2 | WeeklyReport | `/profile/weekly-report` | 보강 | BG2 ★★★ (KPI 4 PU3 정합 + placeholder 정리) |
+| GU3 | ProfileSettings | `/profile/settings` | 보강 | BG3 ★★★★ (7섹션 + billing link 활성 + danger 강화) |
 
 ---
 
-## 2. BP 양측·cross-domain 의존 검증 ✅
+## 2. BG cross-domain 의존 검증 ✅
 
-| BP | 등급 | 의존 | 데이터 |
+| BG | 등급 | 의존 | 데이터 |
 |----|------|------|--------|
-| BP1 | ★★★★★ | PU1 본인 ↔ PU5 공개 | 동일 `USER_ME` · `publicView()` privacy_settings 필터 (이메일/연락처/결제 hide) |
-| BP2 | ★★★★ | PU3 시즌 stat | UserSeasonStat + Phase 2 BG4 (이달 MVP) + Phase 3 BT6 (팀 wins) cross-domain |
-| BP3 | ★★★ | PU4 업적 | user_badges + Phase 1A PA7 (우승 자동) + Phase 2 BG4 (MVP 누적) |
-| BP4 | ★★★★ | PU2 → PU1 동기화 | User.* 편집 / 결제 = 6.2 link out "준비 중" |
-| BP5 | ★★ | PA1 super-admin 검수 | User.status / suspended_at / isAdmin (본인 자기 정지 가드) |
-| BP6 | ★★★ | PU1 → UC1 진입 | 카운트(대회/경기/팀/단체/평점) = UC1 활동 동일 source |
+| BG1 | ★★★ | GU1 마일스톤 → PU4 / PU3 | user_badges + UserSeasonStat 동일 source / 시각 정합 |
+| BG2 | ★★★ | GU2 KPI 4 → PU3 | 시즌 stat (경기/평점/XP/활동시간 · 평점=미지원 placeholder) |
+| BG3 | ★★★★ | GU3 billing → BU3 | Phase 6.2 ProfileBilling link 활성 (MY_SUBSCRIPTION 미리보기) |
 
 ---
 
 ## 3. carry-over (변경 ❌)
 
-### 파일 — v2.23 그대로
-- `tokens.css` / `shell.css` / `shared.jsx` / `game-shared.jsx` / `team-shared.jsx` / `team-shared.css` / `org-shared.jsx` / `org-shared.css` / `comm-shared.jsx` / `comm-shared.css` / `admin.css`
-- Phase 1~5 = 41 wrapper + 39 jsx + _baseline 모두 carry-over (운영 코드 변경 0)
+### 파일 — v2.25 그대로
+- `tokens.css` / `shell.css` / `shared.jsx` (AppNav frozen) / `game-shared.*` / `team-shared.*` / `org-shared.*` / `comm-shared.*` / `profile-shared.*` (USER_ME / BADGE_CATALOG / SEASON_STAT / LevelBadge) / `billing-shared.*` (MY_SUBSCRIPTION / won / dateK) / `admin.css`
+- Phase 1~6.2 = 모든 wrapper + jsx + _baseline carry-over (운영 코드 변경 0)
 
 ### 신규 추가
-- `profile-shared.jsx` — Phase 6.1 mock (USER_ME / SEASON_STAT / CAREER_STAT / PREFERRED 8 / ME_CHAMPIONS / BADGE_CATALOG / ME_RECENT_* / ADMIN_USERS) + mini components (LevelBadge / SkillChip / StatCard / BadgeTile / UserStatusBadge / PageBack / `publicView()`)
-- `profile-shared.css` — Phase 6.1 전용 (.pm-* / .pm-hero / .pm-counts / .pm-stat / .pm-badge / .pm-chip / .pm-priv / .pm-utable / .pm-ubadge)
-- `screens/Profile.jsx` (PU1) / `ProfileEdit.jsx` (PU2) / `ProfileBasketball.jsx` (PU3) / `ProfileAchievements.jsx` (PU4) / `UserPublicProfile.jsx` (PU5) / `AdminUsers.jsx` (PA1)
-- 6 wrapper HTML (pu1~pu5 / pa1)
+- `growth-shared.jsx` — Phase 6.3 mock (GROWTH / WEEKLY / SETTINGS_SECTIONS) + mini components (GrowthSpark / GrowthLine / MilestoneTile / KpiCard / ComingSoon / gwXpPct)
+- `growth-shared.css` — Phase 6.3 전용 (.gw-* : soon / trend / spark / line / mile / goal / report / section / kpi / ph / insight / court / compare / settings / snav / stabs / panel / srow / verify / billing / navedit / danger)
+- `screens/ProfileGrowth.jsx` (GU1) / `WeeklyReport.jsx` (GU2) / `ProfileSettings.jsx` (GU3)
+- 3 wrapper HTML (gu1~gu3)
 
 ---
 
-## 4. 자체 검수 — 4 frozen + 8 self + Phase 6 특수 4 통과 ✅
+## 4. 자체 검수 — 4 frozen + 8 self + Phase 6.3 특수 3 통과 ✅
 
-### AppNav frozen 4 (사용자 시안 — shared.jsx 03 카피)
-- ✅ main bar 우측 "더보기 ▼" / 아바타 = 0 (shared.jsx AppNav frozen 카피)
-- ✅ 모바일(≤768px) 듀얼 라벨 = 0 (ThemeSwitch viewport 분기 — shell.css)
-- ✅ 검색/쪽지/알림 box (.btn) = 0 — `app-nav__icon-btn` 만
-- ✅ main bar 아이콘 = [검색, 쪽지, 알림, 다크, 햄버거] 순서 보존
+### AppNav frozen 4 (shared.jsx 03 카피)
+- ✅ main bar 우측 "더보기 ▼" / 아바타 = 0 · 사용자 시안 active="more"
+- ✅ 모바일(≤768px) 듀얼 라벨 = 0 · 검색/쪽지/알림 box = 0 · 아이콘 순서 보존
 
 ### 13 룰 8
-- ✅ 하드코딩 색상 = 0 — `var(--*)` 토큰만 (예외: 팀 `color` mock data column · gold `#F4C76C`·`#B47A11` = 기존 시안 trophy 토큰 답습)
-- ✅ lucide-react = 0 — Material Symbols Outlined 만
-- ✅ 9999px = 0 — 정사각형 50% (avatar/dot/toggle) 만
-- ✅ 가짜링크 (gameResult / gameReport / guestApps / referee) = 0
-- ✅ button 4px / 카드 6~8px
-- ✅ placeholder 5단어 이내 / "예: " 시작 0
-- ✅ 720px 분기 / iOS input 16px / 버튼 44px (.pm-input 16px · .pm-hbtn 44px)
+- ✅ 하드코딩 색상 = 0 — `var(--*)` 토큰만 (마일스톤 gold `#B47A11`/`#FBF0D6` = 기존 trophy 토큰 답습)
+- ✅ lucide-react = 0 · Material Symbols Outlined 만 · 9999px = 0 (원형 50%)
+- ✅ 가짜링크 = 0 · button 4px / 카드 6~8px · placeholder 5단어 이내
+- ✅ 720px 분기 / iOS input 16px / 버튼 44px (.gw-snav__item · .gw-danger__btn)
 - ✅ Pretendard + Archivo + JetBrains Mono 만
+- ✅ GU1 line 차트 = 경량 SVG polyline (데이터 시각화 · 일러스트 SVG 아님)
 
-### Phase 6 특수 4
-- ✅ **BP1 본인/공개 분기** — PU1 == PU5 동일 `USER_ME` 데이터, `publicView()` 1곳 필터로 시각 분리 (비공개 필드 hide 일관)
-- ✅ **PU3 5 stat + 8 chip 모바일 responsive** — .pm-stats / .pm-pref 720 + .vp--mobile 분기 (2열)
-- ✅ **PU2 거대 carry-over** — 5섹션 단일 스크롤 유지 · 시각 작은 변경만 (결제 link out / privacy 토글 / 저장 안내)
-- ✅ **PA1 Site Operator + 자기 정지 가드** — OperatorBadge + `is_me` / `isAdmin` 행 = 변경 가드 · 결제·은행 read-only
+### Phase 6.3 특수 3
+- ✅ **"곧 제공"/"준비 중" placeholder = warn-soft tone 통일** (`.gw-soon` / `.gw-ph` — GU1 12주 추이·구간 분석 / GU2 Highlight·추천)
+- ✅ **GU3 billing 섹션 link 활성** = BU3 ProfileBilling 진입 + 현재 구독 미리보기 (plan + 다음 결제일)
+- ✅ **danger zone = BDR Red + 2차 confirm 모달** ("삭제합니다" 입력 시 영구 삭제 버튼 활성)
 
 ---
 
 ## 5. 회귀 방지 — 위반 자동 검수 4 케이스 ✅
-- ❌ main bar 우측 "더보기 ▼" dropdown / 아바타 = 0
-- ❌ 모바일(≤768px) 듀얼 라벨 = 0
-- ❌ 검색/쪽지/알림 버튼 border/bg 박스 = 0
-- ✅ main bar 아이콘 순서 frozen 카피 보존
+- ❌ main bar 우측 "더보기 ▼" / 아바타 = 0 · 모바일 듀얼 라벨 = 0 · 검색/쪽지/알림 box = 0 · 아이콘 순서 보존
+- ✅ GU3 ?section= 매핑 (preferences/notification-settings wrapper redirect 보존 · 변경 ❌)
 
 ---
 
-**박제 끝.** v2.23 carry-over 위 신규 6 시안 + profile-shared.jsx/css 추가. 운영 코드 변경 0.
-후속 6.2 (결제·구독·예약) + 6.3 (성장 분석) 별 의뢰 예고.
+**박제 끝.** v2.25 carry-over 위 신규 3 시안 + growth-shared.jsx/css 추가. 운영 코드 변경 0.
+**Phase 6 묶음 = 16 시안 완전 종료** (6.1 본체 6 + 6.2 결제 7 + 6.3 후반부 3).
