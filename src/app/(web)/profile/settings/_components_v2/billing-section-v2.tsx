@@ -14,6 +14,7 @@
  *  - 데이터가 없으면 시안의 placeholder 문구로 대체 (자리 유지).
  * ============================================================ */
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { SettingsHeader, SettingsRow } from "./settings-ui";
 
@@ -112,8 +113,32 @@ export function BillingSectionV2({ summary }: { summary: BillingSummary | null }
         onAction={() => router.push("/profile/subscription")}
       />
 
+      {/* GU3-A — BG3 정합: BU3(/profile/billing) 진입 link 활성.
+          시안 "결제·구독 관리" btn--primary. isPaid(실데이터 is_paid_member)면 cafe-blue
+          그라디언트 카드와 톤 연결(btn--primary), 무료면 일반 btn 진입 — 미리보기 강조는 isPaid 시만.
+          데이터 fetch 0 / router.push 신규 0 (Link 진입점만 추가) */}
+      <div style={{ marginTop: 16 }}>
+        <Link
+          href="/profile/billing"
+          className={isPaid ? "btn btn--primary" : "btn"}
+          style={{
+            width: "100%",
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 6,
+            textDecoration: "none",
+          }}
+        >
+          <span className="material-symbols-outlined" style={{ fontSize: 18 }}>
+            credit_card
+          </span>
+          결제·구독 관리
+        </Link>
+      </div>
+
       {/* 시안 하단 2버튼: 플랜 변경 / 구독 취소 */}
-      <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
+      <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
         <button
           type="button"
           className="btn btn--sm"

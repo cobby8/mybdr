@@ -9,6 +9,12 @@
 // - AdminPageHeader 에 eyebrow="ADMIN · 비즈니스" + breadcrumbs + actions(결제 내역 링크)
 // - 상태 `.badge--soft` 인라인 색상 → `admin-stat-pill[data-tone]` (active=ok / withdrawn=mute)
 // - 프로모션 종료 버튼 / 모달 / fetch / Server Action 100% 보존
+// 2026-05-31: Phase 6.2C-4 박제 (BDR v2.25 · BA2 · BB1)
+// - 플랜 list: admin-table → 카드 grid (시안 BB1 bl-pgrid 답습). 기존 CARD_CLASS/CARD_STYLE 재사용 → 신규 CSS 0
+// - 카드 = 이름 + 활성배지(admin-stat-pill) + 타입/기능키 태그 + 가격(0원→무료, 천단위) + 설명 + 수정/토글/삭제
+// - subscribers·features hide (운영 plans 미보유 컬럼, mock 0) / 복제 버튼 미배치 (신규 mutation 0)
+// - 파싱 보정: data.data ?? data (apiSuccess snake_case 래핑 대비, 액션 0 변경)
+// - CRUD 시그니처·권한가드·프로모션 관리·생성/수정 모달 100% 보존
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
@@ -69,10 +75,13 @@ export default function AdminPlansPage() {
       fetch("/api/admin/plans"),
       fetch("/api/admin/promo-stats"),
     ]);
-    const plansData = await plansRes.json();
+    // 파싱 보정: apiSuccess() 가 { success, data } 로 래핑할 경우 data 추출 (배열 직반환도 호환)
+    const plansJson = await plansRes.json();
+    const plansData = plansJson?.data ?? plansJson;
     setPlans(Array.isArray(plansData) ? plansData : []);
     if (statsRes.ok) {
-      const statsData = await statsRes.json();
+      const statsJson = await statsRes.json();
+      const statsData = statsJson?.data ?? statsJson;
       setPromoStats(Array.isArray(statsData) ? statsData : []);
     }
     setLoading(false);
@@ -234,67 +243,76 @@ export default function AdminPlansPage() {
           등록된 요금제가 없습니다.
         </div>
       ) : (
-        <div className="overflow-x-auto admin-table-wrap">
-          {/* admin-table: 모바일 ≤720px 카드 변환 (globals.css [Admin Phase B]) */}
-          <table className="admin-table w-full table-fixed text-sm">
-            <colgroup>
-              <col />
-              <col className="w-[130px]" />
-              <col className="w-[90px]" />
-              <col className="w-[105px]" />
-              <col className="w-[75px]" />
-              <col className="w-[165px]" />
-            </colgroup>
-            <thead>
-              <tr>
-                <th className="pb-3 pr-4">이름</th>
-                <th className="pb-3 pr-4">기능 키</th>
-                <th className="pb-3 pr-4">타입</th>
-                <th className="pb-3 pr-4">금액</th>
-                <th className="pb-3 pr-4">상태</th>
-                <th className="pb-3">관리</th>
-              </tr>
-            </thead>
-            <tbody>
-              {plans.map((plan) => (
-                <tr key={plan.id}>
-                  <td data-primary="true" className="py-3 pr-4 font-medium">
-                    {plan.name}
-                    {plan.description && (
-                      <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>{plan.description}</div>
-                    )}
-                  </td>
-                  <td data-label="기능 키" className="py-3 pr-4 font-mono text-xs" style={{ color: "var(--color-text-muted)" }}>{plan.feature_key}</td>
-                  <td data-label="타입" className="py-3 pr-4 text-xs" style={{ color: "var(--color-text-muted)" }}>{PLAN_TYPE_LABELS[plan.plan_type] ?? plan.plan_type}</td>
-                  <td data-label="금액" className="py-3 pr-4 font-semibold">{plan.price.toLocaleString()}원</td>
-                  <td data-label="상태" className="py-3 pr-4">
-                    {/* 시안 v2.14 — admin-stat-pill (active=ok / 비활성=mute) */}
-                    <span
-                      className="admin-stat-pill"
-                      data-tone={plan.is_active ? "ok" : "mute"}
-                    >
-                      {plan.is_active ? "활성" : "비활성"}
+        // 시안 BB1 bl-pgrid 박제 — admin-table → 카드 grid. 기존 CARD_CLASS/CARD_STYLE 재사용 (신규 CSS 0)
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {plans.map((plan) => {
+            // 기능 키 라벨 매핑 (기존 FEATURE_KEY_OPTIONS 재사용, 미매핑 시 원문 노출)
+            const featureLabel = FEATURE_KEY_OPTIONS.find((o) => o.value === plan.feature_key)?.label ?? plan.feature_key;
+            return (
+              <div
+                key={plan.id}
+                className={`${CARD_CLASS} flex flex-col`}
+                // 비활성 플랜은 흐리게 (시안 bl-pcard--off 톤 답습)
+                style={{ ...CARD_STYLE, opacity: plan.is_active ? 1 : 0.6 }}
+              >
+                {/* 상단: 이름 + 활성 배지 */}
+                <div className="mb-3 flex items-start justify-between gap-2">
+                  <span className="font-semibold" style={{ color: "var(--color-text-primary)" }}>{plan.name}</span>
+                  <span className="admin-stat-pill" data-tone={plan.is_active ? "ok" : "mute"}>
+                    {plan.is_active ? "활성" : "비활성"}
+                  </span>
+                </div>
+
+                {/* 타입 / 기능 키 태그 */}
+                <div className="mb-3 flex flex-wrap gap-1.5">
+                  <span
+                    className="rounded-[6px] px-2 py-0.5 text-xs font-medium"
+                    style={{ background: "var(--color-surface)", color: "var(--color-text-secondary)" }}
+                  >
+                    {PLAN_TYPE_LABELS[plan.plan_type] ?? plan.plan_type}
+                  </span>
+                  <span
+                    className="rounded-[6px] px-2 py-0.5 text-xs font-medium"
+                    style={{ background: "var(--color-surface)", color: "var(--color-text-muted)" }}
+                  >
+                    {featureLabel}
+                  </span>
+                </div>
+
+                {/* 가격 (0원 → "무료", 천 단위 통일) */}
+                <div className="mb-2 flex items-baseline gap-1">
+                  <span className="text-2xl font-bold" style={{ color: "var(--color-text-primary)" }}>
+                    {plan.price === 0 ? "무료" : `₩${plan.price.toLocaleString()}`}
+                  </span>
+                  {plan.price > 0 && (
+                    <span className="text-xs" style={{ color: "var(--color-text-muted)" }}>
+                      {plan.plan_type === "monthly" ? "/ 월" : "/ 회"}
                     </span>
-                  </td>
-                  <td data-actions="true" className="py-3">
-                    <div className="flex gap-2">
-                      <button onClick={() => openEdit(plan)} className="btn btn--sm">수정</button>
-                      <button onClick={() => handleToggle(plan)} className="btn btn--sm">
-                        {plan.is_active ? "비활성화" : "활성화"}
-                      </button>
-                      <button
-                        onClick={() => handleDelete(plan)}
-                        className="btn btn--sm"
-                        style={{ borderColor: "var(--color-error)", color: "var(--color-error)" }}
-                      >
-                        삭제
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                  )}
+                </div>
+
+                {/* 설명 (운영 단일 description 컬럼만 — features 다중 컬럼 미보유로 hide) */}
+                {plan.description && (
+                  <p className="mb-4 text-sm" style={{ color: "var(--color-text-muted)" }}>{plan.description}</p>
+                )}
+
+                {/* 액션: 수정 / 토글 / 삭제 — 기존 핸들러 그대로 (CRUD 0 변경 / 복제 버튼 미배치) */}
+                <div className="mt-auto flex flex-wrap gap-2 pt-2">
+                  <button onClick={() => openEdit(plan)} className="btn btn--sm">수정</button>
+                  <button onClick={() => handleToggle(plan)} className="btn btn--sm">
+                    {plan.is_active ? "비활성화" : "활성화"}
+                  </button>
+                  <button
+                    onClick={() => handleDelete(plan)}
+                    className="btn btn--sm"
+                    style={{ borderColor: "var(--color-error)", color: "var(--color-error)" }}
+                  >
+                    삭제
+                  </button>
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
 

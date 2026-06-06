@@ -12,10 +12,15 @@
  *
  * 박제 룰:
  *   - var(--*) 토큰만, 하드코딩 색상 0
- *   - Material Symbols Outlined 1종 (chevron_right)
+ *   - Material Symbols Outlined (chevron_right + kind 아이콘 stadium/emoji_events/group — 6.2C-3)
  *   - radius 4px (border-radius:3 → 시안 그대로 두 군데, 칩은 var(--radius-chip))
- *   - alert 신규 X (취소 액션은 시안에 없으므로 제거)
+ *   - alert 신규 X (취소 액션은 상세 경로 보존 — 모달 미신설)
  *   - 모바일 분기: 인라인 grid 대신 flex-wrap, hscroll
+ *
+ * 6.2C-3 (Phase 6.2C BU4 톤 보강 — Option A):
+ *   - 시안 BU4(ProfileBookings) 카드 톤 답습: kind 아이콘(stadium 등) + 상태 soft 배경 배지
+ *   - 데이터/필터/Link/탭 구조 0 변경 — 시각만 보강
+ *   - 날짜 블록(큰 숫자)은 sub 문자열만 보유(date 분리 필드 없음) → 데이터 0 변경 위해 미적용
  *
  * 변경: 시안의 onClick(setRoute(...)) → Next.js Link href
  * 보존: 시안 인라인 스타일 1:1 그대로 (className 추가 없이 인라인 우선)
@@ -56,6 +61,15 @@ const STATUS_TONE: Record<BookingItemV2["status"], string> = {
   upcoming: "var(--ok)",
   done: "var(--ink-dim)",
   cancelled: "var(--bdr-red)",
+};
+
+// 6.2C-3 (BU4 톤) — kind별 Material Symbols 아이콘.
+// 시안 BU4 코트 카드의 stadium 아이콘 톤 답습. (코트=stadium / 토너=emoji_events / 게스트=group)
+// 데이터·Link 변경 0 — 시각 보강만.
+const KIND_ICON: Record<BookingItemV2["kind"], string> = {
+  court: "stadium",
+  tournament: "emoji_events",
+  guest: "group",
 };
 
 export function BookingsListV2({ items }: { items: BookingItemV2[] }) {
@@ -259,8 +273,12 @@ export function BookingsListV2({ items }: { items: BookingItemV2[] }) {
                     flexWrap: "wrap",
                   }}
                 >
+                  {/* 종류 배지 — 6.2C-3: 시안 BU4 톤으로 kind 아이콘 prefix 추가 (stadium 등) */}
                   <span
                     style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 3,
                       fontSize: 10,
                       fontWeight: 800,
                       letterSpacing: ".1em",
@@ -270,16 +288,26 @@ export function BookingsListV2({ items }: { items: BookingItemV2[] }) {
                       borderRadius: 3,
                     }}
                   >
+                    <span
+                      className="material-symbols-outlined"
+                      style={{ fontSize: 13, lineHeight: 1 }}
+                    >
+                      {KIND_ICON[it.kind]}
+                    </span>
                     {KIND_LABEL[it.kind]}
                   </span>
+                  {/* 상태 배지 — 6.2C-3: 시안 BU4 bl-bstat 톤 답습 (점 → soft 배경 배지) */}
                   <span
                     style={{
                       fontSize: 10,
                       fontWeight: 700,
                       color: STATUS_TONE[it.status],
+                      background: `color-mix(in oklab, ${STATUS_TONE[it.status]} 14%, transparent)`,
+                      padding: "2px 8px",
+                      borderRadius: "var(--radius-chip)",
                     }}
                   >
-                    ● {STATUS_LABEL[it.status]}
+                    {STATUS_LABEL[it.status]}
                   </span>
                 </div>
                 {/* 제목 — 시안 L108 */}

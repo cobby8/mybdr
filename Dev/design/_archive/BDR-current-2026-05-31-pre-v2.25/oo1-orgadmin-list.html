@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>OO1 · OrgAdminList + New — BDR v2.22</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800;900&family=JetBrains+Mono:wght@500;700;800&family=Pretendard:wght@400;500;600;700;800;900&display=swap" />
+<link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Symbols+Outlined" />
+<link rel="stylesheet" href="tokens.css" />
+<link rel="stylesheet" href="shell.css" />
+<link rel="stylesheet" href="team-shared.css" />
+<link rel="stylesheet" href="org-shared.css" />
+</head>
+<body>
+<div class="showcase">
+  <header class="showcase-head">
+    <div class="eyebrow">BDR v2.22 · OO1 / 관리자 신규 · Phase 4A · BO3 · E 등급 · Series Operator</div>
+    <h1>OrgAdminList + New — /tournament-admin/organizations + /new</h1>
+    <p>
+      <b>OO1 신규 박제</b> (운영 224 line list + 219 line new form) — Series Operator (단체 운영자) 영역.
+      카드 클릭 → <strong>OO2</strong> (단체 대시보드 6 sub-tab) — BO3 멤버 / 시리즈 진입.
+      list = 본인 소속 단체 (role: owner / admin / member) + 보관된 단체 분리 + "새 단체 만들기" CTA (Site Operator only).
+      new form = OU3 신청 form 동일 필드 (BO3 다리 — 사용자 결정 §1~§8 보존).
+      <strong>Series Operator badge</strong> (navy + silver — Site Operator 의 dark+gold 와 시각 분리) — topbar 우측.
+      shell = ops-shell (AdminShell ❌ — Site Operator 와 시각 분리).
+    </p>
+    <nav class="showcase-nav" aria-label="Phase 4 시안">
+      <a href="index.html">v2.22 목차</a>
+      <a href="oa1-admin-organizations.html">OA1 단체 검수</a>
+      <a href="ou1-organizations.html">OU1 목록</a>
+      <a href="ou2-organization-detail.html">OU2 상세</a>
+      <a href="ou3-organization-apply.html">OU3 신청</a>
+      <a href="ou4-series.html">OU4 시리즈</a>
+      <a class="is-cur" href="oo1-orgadmin-list.html">OO1 내 단체</a>
+      <a href="oo2-orgadmin-detail.html">OO2 단체 대시보드</a>
+      <a href="oo3-series-admin.html">OO3 시리즈 관리</a>
+    </nav>
+  </header>
+
+  <section class="variant">
+    <header class="variant__head">
+      <span class="variant__num">OO1-A / 내 단체 list · /tournament-admin/organizations</span>
+      <h2 class="variant__title">소속 단체 카드 그리드 + 보관된 단체 분리</h2>
+      <p class="variant__desc">PC 1320 (ops-sidebar 220 + content). 활성 단체 2 + 보관된 단체 1 (서초농구클럽).</p>
+    </header>
+    <div class="vp-strip">
+      <div class="vp vp--pc-wide" style="width:1320px;">
+        <div class="vp__chrome">
+          <span class="vp__lights"><span></span><span></span><span></span></span>
+          <span class="vp__url">mybdr.kr/tournament-admin/organizations</span>
+          <span class="vp__size">PC · 1320 (단체 운영)</span>
+        </div>
+        <div class="vp__body">
+          <div id="mount-pc-list"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="variant">
+    <header class="variant__head">
+      <span class="variant__num">OO1-B / 새 단체 만들기 · /tournament-admin/organizations/new</span>
+      <h2 class="variant__title">DB 직접 생성 form (Site Operator only)</h2>
+      <p class="variant__desc">일반 사용자는 OU3 (/organizations/apply) 신청 사용. 본 페이지는 Site Operator 권한이 있을 때만 노출.</p>
+    </header>
+    <div class="vp-strip">
+      <div class="vp vp--pc-wide" style="width:1320px;">
+        <div class="vp__chrome">
+          <span class="vp__lights"><span></span><span></span><span></span></span>
+          <span class="vp__url">mybdr.kr/tournament-admin/organizations/new</span>
+          <span class="vp__size">PC · 1320 (단체 운영)</span>
+        </div>
+        <div class="vp__body">
+          <div id="mount-pc-new"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script type="text/babel" src="shared.jsx"></script>
+<script type="text/babel" src="game-shared.jsx"></script>
+<script type="text/babel" src="team-shared.jsx"></script>
+<script type="text/babel" src="org-shared.jsx"></script>
+<script type="text/babel" src="screens/OrgAdmin.jsx"></script>
+<script type="text/babel">
+  function ListShell() {
+    return (
+      <window.SeriesOperatorShell active="orgs" crumbTrail={['단체 운영', '내 단체']}>
+        <window.OrgAdminList/>
+      </window.SeriesOperatorShell>
+    );
+  }
+  function NewShell() {
+    return (
+      <window.SeriesOperatorShell active="orgs" crumbTrail={['단체 운영', '내 단체', '새 단체 만들기']}>
+        <window.OrgAdminNew/>
+      </window.SeriesOperatorShell>
+    );
+  }
+  ReactDOM.createRoot(document.getElementById('mount-pc-list')).render(<ListShell/>);
+  ReactDOM.createRoot(document.getElementById('mount-pc-new')).render(<NewShell/>);
+</script>
+</body>
+</html>
