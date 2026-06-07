@@ -15,7 +15,7 @@
 | 8C-4 | VP3 PartnerCampaigns → /partner-admin/campaigns (BV6) | ⏳ |
 | 8C-5 | VU1 Courts → /courts 보강 (BV1) | ⏳ |
 | 8C-6 | VA1 AdminCourtsPartners → /admin/courts + /admin/partners (BV7) | ⏳ |
-| 8C-7 | VU2 CourtDetail → /courts/[id] 보강 (BV3) | ⏳ |
+| 8C-7 | VU2 CourtDetail → /courts/[id] 보강 (BV3) | ✅ |
 | 8C-8 | VU3 CourtBooking 통합 → /booking + payment-fail + checkin (BV2) | ⏳ |
 - lock: VU3 토스=Phase6.2 BU2 실연결 답습(mock 0) / 2측 badge(Court Operator navy+silver / Site Operator dark+gold 분리) / 옛 carry-over(VU1 Phase3 v2·VU2 v3·VU4 v2.2 큰변경❌) / Phase4 OO2/OA1+6.1 PA1+6.2 BA1 모달 답습
 - 데이터 정책: server 조회 허용 / stop = `/api/v1`·DB schema·LOC>+2000·tsc실패·회귀6·토스 mock·옛박제 큰변경·badge 통합
@@ -184,6 +184,31 @@
 - 2라우트 통합 ❌ = PM 지시(분리 유지). 시안은 단일 통합 4탭이나 운영 courts(서버)/partners(클라) 구조·패칭 보존
 - hero stat where 미적용(전체 기준)은 의도 — 현황 지표는 검색과 무관. totalCount만 검색 반영(기존 subtitle 일관)
 
+### 8C-7 — VU2 CourtDetail → /courts/[id] 보강 (BV3 ★ 옛 v3 carry-over)
+
+📝 구현: 옛 v3 carry-over 셸 보존(큰 시각 변경❌) 위 1점 보강만. 5항목 세부 별점 평균 카드 상단에 **평점 헤더 1개** 추가 — reviews 의 rating 평균(useMemo, 반올림 .1) + StarRating(정수 반올림) + "리뷰 N개". 데이터·액션·탭·hero·ContextReviews·삭제·작성폼 0 변경.
+
+| 파일 | 변경 | 신규/수정 |
+|------|------|----------|
+| src/app/(web)/courts/[id]/_components/court-reviews-section.tsx | overallAverage useMemo + 평점 헤더 div(평균숫자+StarRating+리뷰수) (+38 −0 ≈ LOC +38) | 수정 |
+
+- 데이터 패칭 0 변경: SWR `/api/web/courts/${courtId}/reviews` / DELETE / ReviewForm POST 0. reviews 배열 재사용만(신규 쿼리 0)
+- overallAverage = reviews 의 rating 평균(reduce/length, 반올림 .1) — categoryAverages 와 동일 패턴
+- StarRating 은 `Math.round(overallAverage)` 정수값 전달(컴포넌트 시그니처 그대로)
+- 카드 자체는 기존(`reviews.length > 0` 조건부) — 헤더는 카드 내부 h3 위 1개만 추가
+- var(--*)만: ink/ink-mute/border-subtle. hex 0
+- tsc --noEmit = 0
+- prefix 충돌 0: vu2-/bv- 식별자 미도입. className/style 전부 운영 토큰. 주석 표기만
+
+💡 tester 참고:
+- 테스트: /courts/[id] 진입 → 리뷰 1건+ 있는 코트의 "세부 항목 평균" 카드 최상단에 평점 헤더(큰 평균숫자 + 별 + "리뷰 N개") 노출
+- 정상: 평균 숫자 = 전체 rating 평균(.1 단위) / 별점은 정수 반올림 / 리뷰 0건 코트는 카드 자체 미노출(헤더도 안 보임)
+- 주의: 리뷰 1건(평균=그 값) / rating 소수 평균(예 3.7→별 4개 반올림 표시 정상)
+
+⚠️ reviewer 참고:
+- 헤더 1개만 추가(PM 승인 범위). hero/탭/ContextReviews/삭제버튼/사진/작성폼 0 변경
+- 별점 정수 반올림 = StarRating value 정수 시그니처 답습(소수 별 미지원). 숫자는 .1 정밀 표기로 보완
+
 ## 수정 요청
 | 요청자 | 대상 | 문제 | 상태 |
 |--------|------|------|------|
@@ -191,6 +216,7 @@
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
 |------|------|------|
+| 2026-06-07 | **8C-7** VU2 CourtDetail → /courts/[id] (BV3) | ✅ 5항목 평균 카드에 평점 헤더1(overallAverage+StarRating+리뷰N) / 데이터·액션·탭·hero 0 / var(--*)만 / tsc 0 / 충돌 0 |
 | 2026-06-07 | **8C-6** VA1 AdminCourtsPartners → /admin/courts + /admin/partners (BV7) | ✅ 2라우트 보존 / SiteOperatorBadge 공용 신규(dark+gold) 양쪽 박제 / courts hero stat4 + count쿼리3(count-only) / 신고 탭·모달·액션 미생성 / 패칭·가드 0 / tsc 0 / 충돌 0 |
 | 2026-06-07 | **8C-4** VP3 PartnerCampaigns → /partner-admin/campaigns (BV6) | ✅ 인라인폼 유지 / VP3 톤4(badge·grid2열·필터칩·헤더합계) / mock회피 / handleCreate 0 / [id] 0 / tsc 0 / 충돌 0 |
 | 2026-06-07 | **8C-3** VP2 PartnerVenue → /partner-admin/venue (BV5) | ✅ 옵션A VP2 셸+2탭(기본/시간가격) / badge + operating_hours read-only + fee편집 / 정책·통계 미생성 / handleSave 0 / tsc 0 / 충돌 0 |
