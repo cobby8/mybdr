@@ -96,6 +96,17 @@ export default function QrCheckinPage() {
       <div style={{ alignSelf: "stretch", marginBottom: 8 }}>
         <PageBackButton fallbackHref={`/courts/${courtId}`} />
       </div>
+      {/* eyebrow — 시안 "현장 체크인 · CHECK-IN" 정보성 라벨 (성공/이미체크인 시만 노출)
+          이유: loading/error 는 transitional 상태라 라벨이 어색 → 결과 도달 상태에서만 표시 */}
+      {(status === "success" || status === "already") && (
+        <div
+          className="mb-2 text-[11px] font-extrabold tracking-[0.12em]"
+          style={{ color: "var(--color-text-muted)" }}
+        >
+          현장 체크인 · CHECK-IN
+        </div>
+      )}
+
       {/* 상태 아이콘 */}
       <span
         className={`material-symbols-outlined mb-4 ${spin ? "animate-spin" : ""}`}

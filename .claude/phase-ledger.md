@@ -133,8 +133,8 @@
 | ⑩ sync 실행 | 6.2A+6.2B | ✅ 완료 | CLI | 2026-05-31 | v2.25 sync. `billing-shared.jsx/css` 신규(260+333 line). Pricing/PricingCheckout/PricingResult/ProfileBilling/ProfileBookings/AdminPayments/AdminPlans 7 jsx. Phase 1~6.1 carry-over diff 0 / pre-snapshot `_archive/BDR-current-2026-05-31-pre-v2.25/`. ★ 토스 위젯 실연결 |
 | ⑪ 운영 박제 (6.2C) | 6.2C | ✅ 완료 (7/7) | CLI | 2026-05-31 | auto-chain 7 commit. `dc31be2`(1 BU5·BB3) / `cb2ee63`(2 BU1·BB1 plans 실조회) / `682e275`(3 BU4·BB4 톤) / `f08a488`(4 AdminPlans·BB1 카드) / `d44af40`(5 AdminPayments·BB2 환불 실연결) / `2ce5c80`(6 BU3·BB1/BB2/BB7 3탭) / `51b4378`(7 BU2·BB5 토스 흐름 0 변경). 토스 SDK·requestPayment·confirm·refund API 0 변경 / mock 0 / 각 tsc0. BB7=PU2 결제링크 활성(6.1C-3) |
 | ⑫ 회귀 검수 | 6.2C | ✅ 완료 | CLI | 2026-05-31 | 토스 위젯 mock 0(가짜 카드입력 미재현) / refund IDOR(본인만, admin타인=별도과제 기록) / plans 실데이터 일관(pricing=AdminPlans=billing) / stop 발동 0. prefix bu1~5-/ba1-2- 충돌 0 |
-| ⑬ PR 결재 | 6.2C | 🔵 진행 중 | 수빈 | 2026-05-31 | subin→dev #659 (빌드 pass) / 머지 대기 |
-| ⑭ Phase 완료 | 6.2 | ⏳ 대기 | CLI→Cowork | - | 결제·구독·예약 운영 반영 |
+| ⑬ PR 결재 | 6.2C | ✅ 완료 | 수빈 | 2026-06-06 | subin→dev #659 + dev→main #660 머지 (운영 `32153c7`) |
+| ⑭ Phase 완료 | 6.2 | ✅ 종료 | CLI→Cowork | 2026-06-06 | 결제·구독·예약 운영 반영 완료 (#660) |
 
 ### Phase 6.3 — 마이페이지 후반부 (성장·주간리포트·설정) · Phase 6 묶음 종료
 
@@ -143,8 +143,28 @@
 | ⑩ sync 실행 | 6.3A+6.3B | ✅ 완료 | CLI | 2026-05-31 | v2.26 sync. `growth-shared.jsx/css` 신규(152+216). ProfileGrowth/WeeklyReport/ProfileSettings 3 jsx. Phase 1~6.2 carry-over diff 0 / pre-snapshot `_archive/BDR-current-2026-05-31-pre-v2.26/` |
 | ⑪ 운영 박제 (6.3C) | 6.3C | ✅ 완료 (3/3) | CLI | 2026-05-31 | auto-chain 3 commit. `280c9ef`(1 GU2 WeeklyReport·BG2) / `b9e6516`(2 GU1 ProfileGrowth·BG1) / `acbd0b2`(3 GU3 ProfileSettings·BG3). 모두 보강(데이터 패칭·액션 0 변경) / placeholder warn-soft 통일 / BG3 billing link 활성 / 각 tsc0 |
 | ⑫ 회귀 검수 | 6.3C | ✅ 완료 | CLI | 2026-05-31 | KPI/마일스톤=출처 상이로 표기 정합(데이터 0 변경) / 이모지 PU4 정합 / danger 2차 confirm / stop 발동 0. prefix 충돌 0 |
-| ⑬ PR 결재 | 6.3C | ⏳ 대기 | 수빈 | - | chain subin→dev→main 머지 |
-| ⑭ Phase 완료 | 6.3 | ⏳ 대기 | CLI→Cowork | - | ★ Phase 6 묶음(6.1+6.2+6.3 = 16 시안) 종료 — dev→main 머지 시 |
+| ⑬ PR 결재 | 6.3C | ✅ 완료 | 수빈 | 2026-06-06 | subin→dev #659 + dev→main #660 머지 (운영 `32153c7`) |
+| ⑭ Phase 완료 | 6.3 | ✅ 종료 | CLI→Cowork | 2026-06-06 | ★ Phase 6 묶음(6.1+6.2+6.3 = 16 시안) 운영 반영 완료 (#658/#660) |
+
+### Phase 7 — 인증 · 온보딩 영역 (AppNav 미적용 standalone)
+
+| 단계 | 영역 | 상태 | 책임자 | 갱신일 | 메모 |
+|------|------|------|------|------|------|
+| ⑩ sync 실행 | 7A+7B | ✅ 완료 | CLI | 2026-06-07 | v2.27 sync. `auth-shared.jsx/css` 신규(162+197). LoginSignup/Onboarding/PasswordRecovery/Verify 4 jsx. Phase 1~6.3 carry-over diff 0 / pre-snapshot `_archive/BDR-current-2026-06-07-pre-v2.27/` / ★ AppNav 미적용 standalone |
+| ⑪ 운영 박제 (7C) | 7C | ✅ 완료 (4/4) | CLI | 2026-06-07 | auto-chain 4 commit. `cd261b5`(1 AU1·BA1 강도미터+OAuth통일) / `62d8e92`(2 AU3·BA3 forgot hero) / `8fa3671`(3 AU4·BA4/BA5 verify 톤) / `239b779`(4 AU2·BA2 OnboardingStepper). ★ 사용자 결정=AppNav **현상유지**(해석 A, layout 0 변경) / Phase 10-5 wrapper·12-5 IdentityVerifyButton 0 변경 / 각 tsc0 |
+| ⑫ 회귀 검수 | 7C | ✅ 완료 | CLI | 2026-06-07 | OAuth=활성 provider만(Apple hide) / verified 결과 카드 hide(API 미제공 mock 0) / 강도미터 5단계 정합 / IdentityVerifyButton mock 0 변경 / stop 발동 0 |
+| ⑬ PR 결재 | 7C | 🔵 진행 중 | 수빈 | 2026-06-07 | subin→dev #661 (빌드 pass) / 머지 대기 |
+| ⑭ Phase 완료 | 7 | ⏳ 대기 | CLI→Cowork | - | 인증·온보딩 운영 반영 |
+
+### Phase 8 — 코트 · 장소 영역 (3측 stakeholder)
+
+| 단계 | 영역 | 상태 | 책임자 | 갱신일 | 메모 |
+|------|------|------|------|------|------|
+| ⑩ sync 실행 | 8A+8B | ✅ 완료 | CLI | 2026-06-07 | v2.28 sync. `court-shared.jsx/css` 신규(15594+23133 byte). Courts/CourtDetail/CourtBooking/VenueDetail/PartnerAdmin/PartnerVenue/PartnerCampaigns/AdminCourtsPartners 8 jsx. Phase 1~7 carry-over diff 0 / pre-snapshot `_archive/BDR-current-2026-06-07-pre-v2.28/` |
+| ⑪ 운영 박제 (8C) | 8C | ✅ 완료 (8/8) | CLI | 2026-06-07 | auto-chain 8 commit. `972a883`(1 VP1·BV4) / `c72095b`(2 VU4·BV8) / `fbc225c`(3 VP2·BV5) / `19389a4`(4 VP3·BV6) / `717b1f2`(5 VU1·BV1) / `8cbe909`(6 VA1·BV7 SiteOperatorBadge 공용) / `519ad5d`(7 VU2·BV3) / `cdd6f69`(8 VU3·BV2 토스 BU2 보존). 2측 badge 분리(Court navy+silver / Site dark+gold) / 데이터·액션 0 변경 / 각 tsc0 |
+| ⑫ 회귀 검수 | 8C | ✅ 완료 | CLI | 2026-06-07 | VU3 토스 위젯 mock 0(가짜 위젯 미박제 6.2C-7 답습) / 즐겨찾기·앰배서더·venue코트list·정책통계탭 hide(모델 부재 mock 0) / 옛 박제(v2·v3·v2.2) 큰변경 0 / stop 발동 0 |
+| ⑬ PR 결재 | 8C | ⏳ 대기 | 수빈 | - | chain subin→dev→main 머지 |
+| ⑭ Phase 완료 | 8 | ⏳ 대기 | CLI→Cowork | - | 코트·장소 운영 반영 |
 
 ---
 

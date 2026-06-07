@@ -101,6 +101,14 @@ export function CourtReviewsSection({ courtId, currentUserId }: CourtReviewsSect
     [reviews]
   );
 
+  // 평점 헤더용 전체 평점 평균 — 5항목 평균 카드 상단에 노출 (reviews 의 rating 평균)
+  // 데이터 재사용만(신규 패칭 0). 반올림 .1 단위 + StarRating 은 정수 반올림 값 전달
+  const overallAverage = useMemo(() => {
+    if (reviews.length === 0) return 0;
+    const sum = reviews.reduce((acc, r) => acc + r.rating, 0);
+    return Math.round((sum / reviews.length) * 10) / 10;
+  }, [reviews]);
+
   // ContextReviews 가 받는 형태로 변환 (author/rating/date/body)
   const contextReviews = useMemo<ContextReviewItem[]>(
     () =>
@@ -155,6 +163,38 @@ export function CourtReviewsSection({ courtId, currentUserId }: CourtReviewsSect
             padding: "18px 22px",
           }}
         >
+          {/* 평점 헤더 — 전체 평점 평균 + 별점 + 리뷰 수 (5항목 평균 위 1개) */}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              marginBottom: 14,
+              paddingBottom: 12,
+              borderBottom: "1px solid var(--border-subtle)",
+            }}
+          >
+            {/* 큰 평균 숫자 */}
+            <strong
+              style={{
+                fontSize: 28,
+                fontWeight: 800,
+                lineHeight: 1,
+                letterSpacing: "-0.02em",
+                color: "var(--ink)",
+              }}
+            >
+              {overallAverage.toFixed(1)}
+            </strong>
+            <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+              {/* 별점 — 평균을 정수 반올림하여 표시 */}
+              <StarRating value={Math.round(overallAverage)} size={15} />
+              {/* 리뷰 개수 */}
+              <span style={{ fontSize: 12, color: "var(--ink-mute)" }}>
+                리뷰 {reviews.length}개
+              </span>
+            </div>
+          </div>
           <h3
             style={{
               margin: 0,

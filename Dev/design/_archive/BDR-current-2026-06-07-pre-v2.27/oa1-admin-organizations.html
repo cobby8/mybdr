@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>OA1 · AdminOrganizations (super-admin 단체 검수) — BDR v2.22</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800;900&family=JetBrains+Mono:wght@500;700;800&family=Pretendard:wght@400;500;600;700;800;900&display=swap" />
+<link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Symbols+Outlined" />
+<link rel="stylesheet" href="tokens.css" />
+<link rel="stylesheet" href="shell.css" />
+<link rel="stylesheet" href="team-shared.css" />
+<link rel="stylesheet" href="org-shared.css" />
+</head>
+<body>
+<div class="showcase">
+  <header class="showcase-head">
+    <div class="eyebrow">BDR v2.22 · OA1 / 관리자 보강 · Phase 4A · BO1 + BO5 · super-admin only (Site Operator)</div>
+    <h1>단체 검수 hub + 검수 모달 — /admin/organizations</h1>
+    <p>
+      <b>OA1 보강 박제</b> (운영 244 line 위 TA2 답습) — Site Operator 단체 신청 검수 + 활성 단체 정지/해산 관리.
+      Hero 4 상태 분포 (대기 / 승인 / 보관 / 거절) + 4 탭 필터 + 검색. 행 클릭 → <strong>TA2 옵션 A 답습 모달</strong> — side-panel · 새 라우트 ❌.
+      모달 안 신청 정보 (BO1 OU3 신청 form 동일 필드) + 운영 활동 통계 (BO5) + 하단 CTA = 승인 / 거절 / 정지 / 해산 (status 별 분기).
+      <strong>Phase 2 UD1 답습</strong> "사용자 알림 ✅ 체크박스 기본 ✅" — 카카오톡 + 이메일.
+      Phase 3 TA1+TA2 carry-over (변경 ❌) — Site Operator badge 시각 일관.
+    </p>
+    <nav class="showcase-nav" aria-label="Phase 4 시안">
+      <a href="index.html">v2.22 목차</a>
+      <a class="is-cur" href="oa1-admin-organizations.html">OA1 단체 검수</a>
+      <a href="ou1-organizations.html">OU1 목록</a>
+      <a href="ou2-organization-detail.html">OU2 상세</a>
+      <a href="ou3-organization-apply.html">OU3 신청</a>
+      <a href="ou4-series.html">OU4 시리즈</a>
+      <a href="oo1-orgadmin-list.html">OO1 내 단체</a>
+      <a href="oo2-orgadmin-detail.html">OO2 단체 대시보드</a>
+      <a href="oo3-series-admin.html">OO3 시리즈 관리</a>
+    </nav>
+  </header>
+
+  <section class="variant">
+    <header class="variant__head">
+      <span class="variant__num">OA1 / Admin · E 등급 · super-admin only · Site Operator</span>
+      <h2 class="variant__title">단체 hub + 검수 모달 (옵션 A 답습 · 새 라우트 ❌)</h2>
+      <p class="variant__desc">PC 1320 (admin sidebar 240 + content) 1뷰. 행 클릭 → OA1 모달 inline 노출 (실제 운영은 portal 모달). 기본 표시 = pending 행 1번 = "송파농구연맹".</p>
+    </header>
+    <div class="vp-strip">
+      <div class="vp vp--pc-wide" style="width:1320px;">
+        <div class="vp__chrome">
+          <span class="vp__lights"><span></span><span></span><span></span></span>
+          <span class="vp__url">mybdr.kr/admin/organizations</span>
+          <span class="vp__size">PC · 1320 (admin)</span>
+        </div>
+        <div class="vp__body">
+          <div id="mount-pc"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script type="text/babel" src="shared.jsx"></script>
+<script type="text/babel" src="game-shared.jsx"></script>
+<script type="text/babel" src="team-shared.jsx"></script>
+<script type="text/babel" src="org-shared.jsx"></script>
+<script type="text/babel" src="screens/AdminOrganizations.jsx"></script>
+<script type="text/babel">
+  function AdminOrgsWithShell() {
+    return (
+      <window.AdminShell active="orgs" tournamentName="" crumbTrail={['관리자', '외부 관리', '단체 검수']}>
+        <window.AdminOrganizations />
+      </window.AdminShell>
+    );
+  }
+  ReactDOM.createRoot(document.getElementById('mount-pc')).render(<AdminOrgsWithShell />);
+</script>
+</body>
+</html>

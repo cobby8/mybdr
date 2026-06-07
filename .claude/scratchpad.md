@@ -1,351 +1,242 @@
 # 작업 스크래치패드
 
 ## 현재 작업
-- **요청**: Phase 6.2 Auto Chain — v2.25 sync + Phase 6.2C 박제 7 PR (결제·구독·예약)
-- **상태**: 🔵 진행 중 — §2 점검 통과 / sync 진행
+- **요청**: Phase 8 Auto Chain — v2.28 sync + Phase 8C 박제 8 PR (코트·장소)
+- **상태**: 🔵 진행 중 — §2 통과 / sync v2.28 ✅ / 8C 박제 진행
 - **현재 담당**: pm → developer
-- **의뢰서**: `Dev/design/prompts/phase-6.2-auto-chain-cli-prompt-2026-05-31.md`
+- **의뢰서**: `Dev/design/prompts/phase-8-auto-chain-cli-prompt-2026-06-07.md`
 
-### Phase 6.2C 진행 (7 PR / ★ 토스페이먼츠 실연결 mock 0)
+### Phase 8C 진행 (8 PR / ★ 3측 stakeholder)
 | PR | 시안 → 운영 | 상태 |
 |----|------|------|
-| 6.2C-1 | BU5 PricingResult → /pricing/success+/fail (BB3) | ✅ 구현 (tsc 0) |
-| 6.2C-2 | BU1 Pricing → /pricing (BB1 플랜 list) | ✅ 구현 (tsc 0) |
-| 6.2C-3 | BU4 ProfileBookings → /profile/bookings 보강 (BB4) | ✅ 구현 (tsc 0, Option A 톤만) |
-| 6.2C-4 | AdminPlans → /admin/plans (BB1 BA2) | ⏳ |
-| 6.2C-5 | AdminPayments → /admin/payments (BB2 BA1 환불) | ✅ 구현 (tsc 0, Option A) |
-| 6.2C-6 | BU3 ProfileBilling → /profile/billing (BB1+BB2 3 sub-tab) | ✅ 구현 (tsc 0, Option A) |
-| 6.2C-7 | BU2 PricingCheckout → /pricing/checkout (BB5 토스 위젯 실임베드) | ⏳ |
-- lock: 토스 = 운영 실연결(confirm/refund API, mock 0) / OA1 답습(BA1/BA2 모달) / 결제 status 색분리 / BB7 Phase6.1 PU2 결제링크 활성
-- 데이터 정책: server 조회 통합 허용 / stop = `/api/v1`·DB schema·LOC>+2000·tsc실패·회귀6·13룰·토스 mock
+| 8C-1 | VP1 PartnerAdmin → /partner-admin (BV4) | ⏳ |
+| 8C-2 | VU4 VenueDetail → /venues/[slug] 보강 (BV8) | ✅ |
+| 8C-3 | VP2 PartnerVenue → /partner-admin/venue (BV5) | ✅ |
+| 8C-4 | VP3 PartnerCampaigns → /partner-admin/campaigns (BV6) | ⏳ |
+| 8C-5 | VU1 Courts → /courts 보강 (BV1) | ⏳ |
+| 8C-6 | VA1 AdminCourtsPartners → /admin/courts + /admin/partners (BV7) | ⏳ |
+| 8C-7 | VU2 CourtDetail → /courts/[id] 보강 (BV3) | ✅ |
+| 8C-8 | VU3 CourtBooking 통합 → /booking + payment-fail + checkin (BV2) | ⏳ |
+- lock: VU3 토스=Phase6.2 BU2 실연결 답습(mock 0) / 2측 badge(Court Operator navy+silver / Site Operator dark+gold 분리) / 옛 carry-over(VU1 Phase3 v2·VU2 v3·VU4 v2.2 큰변경❌) / Phase4 OO2/OA1+6.1 PA1+6.2 BA1 모달 답습
+- 데이터 정책: server 조회 허용 / stop = `/api/v1`·DB schema·LOC>+2000·tsc실패·회귀6·토스 mock·옛박제 큰변경·badge 통합
 
 ## 완료 Phase (이력)
-- ✅ **Phase 5+6.1 운영 반영** (dev→main #658 / main `26586af` Vercel 배포 success)
-  - Phase 5C 6: 커뮤니티 5 + 랭킹 + AdminCommunity / 공용 community-wizard (#656)
-  - Phase 6.1C 6: 프로필 업적/메인/수정/농구/AdminUsers/공개프로필 (#657)
-  - 핵심: BP1 publicView privacy 7키 / BP5 자기정지 가드 서버보강 / BP2 server조회 cross-domain / 빌드 fix(CSS `*/` Turbopack)
-- ✅ Phase 1C 15/16 (#650~#653) / Auto Chain 25 PR 2C·3C·4C (#654/#655)
+- ✅ **Phase 7** (인증·온보딩 4, v2.27, PR #661 빌드 pass / 머지 대기) — AppNav 현상유지(해석A) / 10-5·12-5 가드 보존
+- ✅ **Phase 6 묶음** (6.1+6.2+6.3 = 16 시안 / #658·#660 / main `32153c7`) — 토스 실연결 mock 0 / BP1 privacy
+- ✅ Phase 5 (#658) / Phase 1~4 (#653/#655)
+- 누적: Phase 1~7 = 54 시안 박제 (Phase 1~6 운영 반영 / Phase 7 머지 대기)
 
-## 구현 기록 (developer) — Phase 6.2C
+## 구현 기록 (developer) — Phase 8C
 
-### 6.2C-1 — BU5 PricingResult → /pricing/success + /fail (BB3)
+### 8C-1 — VP1 PartnerAdmin → /partner-admin (BV4 Court Operator hub)
 
-📝 구현한 기능: 시안 PricingResult success 델타 박제 (제목 🎉 / "내 구독 보기"→/profile/billing BB7 / 결제 항목 조건부 행). fail은 거의 유지(운영 13코드 매핑이 시안 4코드보다 충실 → 보존).
+📝 구현: VP1 navy hero 셸 박제 + Court Operator badge(navy+silver). mock(매출·예약·코트리스트) hide / hero stat = 실 캠페인 통계(노출·클릭·CTR + 총 캠페인) / quick action 기존 실링크(campaigns·venue) 유지 / cross-domain note(토스 결제 연동 안내, 정보성) 추가.
 
-| 파일 경로 | 변경 내용 | 신규/수정 |
-|----------|----------|----------|
-| src/app/(web)/pricing/success/page.tsx | 제목 🎉 추가 / plan 쿼리 조건부 "결제 항목" 행 / 버튼 시안 순서([내 구독 보기 cafe-blue→/profile/billing, 영수증 인쇄, 요금제 보기]) / 중복 하단 링크 제거 | 수정 (+30/-21, 순 +9) |
-| src/app/(web)/pricing/fail/page.tsx | 변경 없음 (정합 "거의 유지") | — |
+| 파일 | 변경 | 신규/수정 |
+|------|------|----------|
+| src/app/(web)/partner-admin/page.tsx | navy hero + Court Operator badge + hero stat 실통계 + cross-domain note (+81 −57) | 수정 |
 
-설계 정합 (PM 승인):
-- confirm route · searchParams 수신 0 변경 (plan 추출만 read 추가, mock 0)
-- 인라인 톤 유지 (billing-shared.css 운영 미유입 / 신규 CSS 0 → bu5-/bb- prefix 충돌 0)
-- "내 구독 보기" → /profile/billing (BB7 — 기존 ?tab=payments 결제내역 버튼 대체)
-- 플랜명 등 미전달 값 mock 안 함: plan 쿼리 있을 때만 "결제 항목" 행 노출 / 부연설명은 운영 일반 문구 유지(BDR PRO 하드코딩 ❌)
-- 신규 토큰 0 (--cafe-blue/--cafe-blue-deep/--ok globals.css 기존 보유)
+- layout.tsx(권한 가드) 0 변경 / useSWR 2종(`/api/web/partner/me`·`/stats`) 0 변경
+- badge 분리: Court Operator navy+silver (`#1B3C87→#2A4D9E` + silver `#C0CCDB`) — Site Operator dark+gold와 분리
+- prefix 충돌 0: 운영 className 전부 Tailwind. vp1-/bv-/cv-/bl- 식별자 미도입 (주석 내 시안 참조 2건만)
+- tsc --noEmit = 0
 
 💡 tester 참고:
-- 테스트: /pricing/success?orderId=X&amount=9900&method=카드&paymentKey=tviva…&plan=BDR%20PRO%20월%20구독 → 🎉 제목 / "결제 항목" 행 노출 / "내 구독 보기" 클릭 → /profile/billing
-- plan 쿼리 제거 시: "결제 항목" 행 사라짐 (나머지 정상) — mock 0 정상 동작
-- /pricing/fail?code=NOT_ENOUGH_BALANCE 등: 무변경 (회귀 0 확인용)
-- 정상: tsc 0 / 인쇄(window.print) 동작 보존
+- 테스트: 파트너 계정으로 /partner-admin 진입 → navy hero + Court Operator badge + 통계 4종(노출/클릭/CTR/총캠페인) 표시
+- 정상: mock 코트 리스트/매출 없음(hide) / quick action 2개(campaigns·venue) 링크 동작 / cross-domain note 표시
+- 주의: super_admin 진입 시 sentinel "(super_admin 권한으로 진입)" + 통계 데이터 없을 때 0 표시
 
 ⚠️ reviewer 참고:
-- "내 구독 보기" 버튼이 btn--primary 미사용 + 인라인 cafe-blue 직접 지정 (시안 BU3 진입 버튼 톤 답습). btn--primary도 cafe-blue지만 시안 톤 명시 위해 인라인 유지
-- searchParams `plan` 키는 운영 confirm flow가 현재 전달하지 않을 수 있음 → 그래서 조건부(없으면 숨김). 추후 confirm에서 plan 부착 시 자동 노출
+- hero gradient·badge는 시안 hex 직접 박제(Court Operator 측 색 = navy+silver 분리 요구). 운영 var(--color-*) 토큰에 없는 색이라 인라인 hex 사용 — 의도된 예외
 
-### 6.2C-2 — BU1 Pricing → /pricing (BB1 플랜 list 실 데이터)
+### 8C-2 — VU4 VenueDetail → /venues/[slug] 보강 (BV8 cross-domain venue)
 
-📝 구현한 기능: 시안 BU1 Pricing 박제. mock(PRICING 3종 tier/비교표 8행/월간연간 토글/alert CTA) 전면 제거 → 운영 plans 실 데이터 카드 grid + CTA 실연결.
+📝 구현: v2.2 carry-over 셸 보존(큰 시각 변경❌) 위 2점 보강만. (1) hero badge에 골대 수(court.hoops_count) 실데이터 노출 — 시설 정보 카드에만 있던 값을 hero 진입 시점으로 격상. (2) 리뷰 별점 하드코딩 #F59E0B → var(--warn)(=globals.css #E8A33B) 토큰 교정. BV8 코트 list = venue↔court 그룹핑 필드 부재로 hide(mock 0) 정합 유지.
 
-🔑 핵심 발견 (설계 결정 근거):
-- 시안 BU1 = tier 3종(무료/BDR+/PRO) + 비교표 + 월간/연간 토글
-- 운영 plans 실데이터 = feature_key 4종 (팀생성권 ₩9,900 1회 / 픽업게임 ₩49,000 월 / 체육관대관 ₩49,000 월 / 대회생성 ₩199,000 월) — tier·연간가격·features 다중 컬럼 없음
-- → 비교표·토글·features 목록 매핑 불가 → 제거 (mock 0 원칙, PM 승인). description 단일 컬럼만 렌더.
+| 파일 | 변경 | 신규/수정 |
+|------|------|----------|
+| src/app/(web)/venues/[slug]/page.tsx | hero 골대수 badge 실데이터 + 별점 var(--warn) 토큰 교정 (+8 −2 ≈ LOC +6) | 수정 |
 
-| 파일 경로 | 변경 내용 | 신규/수정 |
-|----------|----------|----------|
-| src/app/(web)/pricing/page.tsx | 서버 async 전환: prisma.plans.findMany(is_active,price asc) + getWebSession→user_subscriptions(status=active) current 표시. metadata·revalidate=300 보존. BigInt→string 직렬화 후 props 전달 | 수정 (+76/-... 순증 일부) |
-| src/app/(web)/pricing/_v2/pricing-content.tsx | `use client` 제거(토글 useState 삭제→인터랙션 0). 카드 grid 렌더 / CTA `Link href=/pricing/checkout?planId={id}` 실연결 / current=true 카드는 disabled "이용 중인 플랜" / plans 0건 시 안내(mock 카드 ❌) | 수정 (-207 순감) |
-
-설계 정합 (PM 승인 방침 100% 일치):
-- plans 실데이터 카드 grid ✅ / 비교표·토글 제거 ✅ / CTA `/pricing/checkout?planId={id}` 실연결 ✅ / mock 0 ✅ / metadata·revalidate 보존 ✅
-- 총 순 LOC -107 (175 add / 282 del) — LOC>+2000 stop 미해당
-- BB1 정합: CTA planId → 기존 /pricing/checkout 가 `/api/web/plans/{id}` fetch (변경 0). plans 컬럼 = checkout/BA2 동일 source
-- 가격 천 단위 통일 (₩49,000) / plan_type 라벨 "/ 월" · "/ 회"
+- 데이터 패칭 0 변경: hoops_count는 기존 findUnique 전체 select에 포함된 필드(시설 정보 L444서 이미 사용) → 신규 쿼리 0
+- var(--warn) 토큰 존재 검증: src/app/globals.css:51 `--warn: #E8A33B` 정의 확인 (색 빠짐 없음)
+- v2.2 carry-over 구조 보존: hero/갤러리/리뷰/사이드바 레이아웃 0 변경 (보강만)
+- tsc --noEmit = 0
+- prefix 충돌 0: vu4-/bv- 식별자 미도입 (주석 8C-2/v2.28 표기만, grep 0건)
 
 💡 tester 참고:
-- 테스트: /pricing → 카드 4종(팀생성권/픽업게임/체육관대관/대회생성) 노출 / 각 가격·설명 / "선택" 클릭 → /pricing/checkout?planId={id} 이동
-- 로그인 + 활성 구독 있으면: 해당 플랜 카드 "현재 구독 중" 리본 + "이용 중인 플랜" disabled
-- 비로그인: 모든 카드 결제 진입 가능 (current 없음) — 정상
-- 정상: tsc 0 / checkout flow 회귀 0 (planId 쿼리 그대로 수신)
+- 테스트: /venues/[코트id] 진입 → hero 좌상단 badge 줄에 `골대 N개` 노출(hoops_count 있는 코트) / 리뷰 별점 노란색(앰버) 정상
+- 정상: hoops_count null/0 코트는 골대 badge 미노출(기존 동작) / 별점 색 #F59E0B→#E8A33B 미세 변화(거의 동일 앰버)
+- 주의: hoops_count 0인 코트(badge 숨김), 리뷰 0건 코트(리뷰 카드 자체 미노출 — 별점 코드 도달 안 함)
 
 ⚠️ reviewer 참고:
-- page.tsx async 서버 컴포넌트 + getWebSession 추가 → revalidate=300은 plans 조회에만 의미, session 의존부는 동적. 캐시-동적 혼합 정상 동작 확인 요망
-- pricing-content `use client` 제거 — Link만 사용하므로 서버 컴포넌트 OK. 기존 토글 인터랙션 완전 제거됨
+- BV8 코트 list hide = venue↔court 그룹핑 DB 필드 부재로 의도적 mock 0(정합). 운영 court_infos는 단일 코트 엔티티 → venue 묶음 불가
+- var(--warn)은 #F59E0B와 다른 hex(#E8A33B)지만 동일 앰버 계열 — 토큰 정합 우선(하드코딩 색상 금지 룰)
 
-### 6.2C-3 — BU4 ProfileBookings → /profile/bookings 보강 (BB4, Option A 톤만)
+### 8C-3 — VP2 PartnerVenue → /partner-admin/venue (BV5 ★★★ Court Operator)
 
-📝 구현한 기능: 시안 BU4 카드 톤 답습(시각만). PM Option A 승인 — 운영 BookingsListV2 3종(코트/토너/게스트) 통합 초과구현 보존 + 취소 액션 0 변경(상세 경로 유지) + 환불 흐름 새 진입점 미신설.
+📝 구현: 옵션 A 채택 — VP2 셸 + 2 sub-tab(기본정보 / 시간·가격)만 박제. Court Operator badge(navy+silver, 8C-1 답습) + "대관 정보 관리" 헤더 + cv-vtabs 시안 셸을 운영 토큰 탭바로 박제. 기본정보 탭=대관여부/신청URL/담당자연락처 / 시간·가격 탭=fee 편집(기존 유지)+operating_hours read-only 표시(요일별, gw-srow 박제). 정책·통계 탭 미생성(DB 미지원 mock → 박제 0). handleSave·useEffect·인터페이스·`/api/web/partner/venue` PATCH = 0 변경.
 
-| 파일 경로 | 변경 내용 | 신규/수정 |
-|----------|----------|----------|
-| src/app/(web)/profile/bookings/_bookings-list-v2.tsx | KIND_ICON 추가(stadium/emoji_events/group) + 종류 배지에 kind 아이콘 prefix + 상태 점(●) → soft 배경 배지(bl-bstat 톤). 헤더 주석 갱신 | 수정 (+31/-3) |
-| src/app/(web)/profile/bookings/page.tsx | 변경 없음 (데이터 0 변경) | — |
+| 파일 | 변경 | 신규/수정 |
+|------|------|----------|
+| src/app/(web)/partner-admin/venue/page.tsx | VP2 셸 + 2 sub-tab + badge + operating_hours read-only (+130 −23) | 수정 |
 
-설계 정합 (PM Option A 100% 일치):
-- 카드 시각만 BU4 톤(stadium 아이콘 + 상태 배지) / 데이터·필터·Link·탭 구조 0 변경 ✅
-- 코트 link `/courts/[id]` 실존 → 유지 ✅ (page.tsx href 무변경)
-- 취소 모달 미신설 — 상세 경로 보존(기능 손실 0) ✅
-- page.tsx 0 변경 ✅
-- bu4-/bb- prefix 0 (인라인 스타일만) / mock 0 / status 색은 운영 실 status(upcoming/done/cancelled)만 ✅
-- 날짜 블록(큰 숫자) 미적용: 운영은 sub 문자열만 보유(date 분리 필드 없음) → 데이터 0 변경 위해 제외 (PM 승인 범위 내)
+- 데이터 패칭 0 변경: handleSave(PATCH 4필드 그대로) / useEffect(빈 로직 보존) / CourtVenueInfo 인터페이스 0 변경
+- operating_hours: 기존 인터페이스에 이미 있던 필드를 read-only 표시만 (저장 대상 추가 0, fee만 편집)
+- tab 상태 = 페이지 전역(코트별 X) — 시안 단일 탭바 셸 답습
+- badge: Court Operator navy+silver(#1B3C87→#2A4D9E + silver #C0CCDB) — 8C-1과 동일 hex(Site Operator dark+gold와 분리)
+- tsc --noEmit = 0
+- prefix 충돌 0: vp2-/bv-/cv-/gw-/pm-/bl- 식별자 미도입. className 전부 Tailwind+var(--color-*). 주석 내 시안 참조 2건(.cv-vtabs / .gw-srow)만
 
 💡 tester 참고:
-- 테스트: /profile/bookings → 카드 종류 배지 앞 아이콘(코트=stadium / 토너=트로피 / 게스트=group) / 상태 배지가 soft 배경 톤(예약중=초록 / 완료=회색 / 취소=빨강) 노출
-- 탭/칩 필터 회귀 0 확인: 전체↔코트↔토너↔게스트 / 예약중↔완료↔취소 AND 필터 정상
-- 카드 클릭 → 기존 href 그대로(코트 /courts/[id], 토너 /tournaments/[id], 게스트 /games/[id])
-- 정상: tsc 0 / 취소 모달 없음(상세 경로) — Option A 의도
+- 테스트: 파트너 계정 /partner-admin/venue 진입 → Court Operator badge + "대관 정보 관리" + 탭바 2개(기본 정보 / 시간·가격) 표시. 탭 전환 시 폼 그룹 교체
+- 정상: 기본정보=대관여부/URL/연락처 / 시간·가격=비용 input + 영업시간 read-only 리스트. 저장 버튼은 두 탭 공통(코트 카드별 개별 저장)
+- 주의: courts.length===0 빈 상태(현재 API 미구현 → 항상 빈 상태 안내) / operating_hours null인 코트(영업시간 "정보 없음" 안내) / DAY_LABELS 미매핑 key(원본 표시)
 
 ⚠️ reviewer 참고:
-- 아이콘 1종 룰 → kind 3아이콘으로 확장됨(시안 BU4가 stadium 사용 → 톤 답습 근거). 헤더 주석에 명시
-- 상태 배지 색은 STATUS_TONE(기존 토큰) color-mix soft 배경 — 신규 토큰/하드코딩 0
+- 옵션 A: 정책·통계 탭 의도적 미생성(시안 mock = DB 미지원). 사진/매출/평점/추세 차트 박제 0
+- badge hex 인라인 = 8C-1 답습(운영 var 토큰에 navy+silver 없음 — 의도된 예외)
+- 현재 courts 조회 API 미구현 → 폼은 빈 상태에서만 안내 노출(실데이터 렌더는 API 추가 후). 셸 박제가 목적이라 패칭 미구현은 기존 상태 보존
 
-### 6.2C-4 — AdminPlans → /admin/plans (BB1 BA2 카드 grid)
+### 8C-4 — VP3 PartnerCampaigns → /partner-admin/campaigns (BV6 ★★★ Court Operator)
 
-📝 구현한 기능: 시안 BA2 AdminPlans 박제. 플랜 list 를 admin-table → BB1 카드 grid 로 교체. CRUD 시그니처·권한가드·프로모션 관리·생성/수정 모달 100% 보존.
+📝 구현: 인라인 폼 유지(모달 전환❌) — VP3 톤 4가지만 박제. 시안 mock 필드(revenue·budget·period·상세모달)는 운영 Campaign 인터페이스 부재로 회피. handleCreate POST·useSWR·formData·인라인 form·statusConfig·카드 내부 통계 0 변경.
 
-| 파일 경로 | 변경 내용 | 신규/수정 |
-|----------|----------|----------|
-| src/app/(admin)/admin/plans/page.tsx | 테이블→카드 grid(기존 CARD_CLASS/CARD_STYLE 재사용) / 카드=이름+활성배지(admin-stat-pill)+타입·기능키 태그+가격(0원→무료, ₩천단위, /월·/회)+설명+수정·토글·삭제 / 파싱 보정 `data.data ?? data`(plans·promoStats 양쪽) / 헤더 주석 갱신 | 수정 (+80/-62, 순 +18) |
+| 파일 | 변경 | 신규/수정 |
+|------|------|----------|
+| src/app/(web)/partner-admin/campaigns/page.tsx | VP3 톤 4종(Court Operator badge / grid 2열 / 필터칩 rounded-full+border / 헤더 노출·클릭 합계) (+62 −31, 순 +31) | 수정 |
 
-설계 정합 (PM 승인 100% 일치):
-- 테이블 → BB1 카드 grid ✅ (grid-cols 1/2/3 반응형, 기존 토큰만)
-- CRUD 시그니처(handleSave/Toggle/Delete/openEdit/openCreate) · 권한가드(API route 측) 0 변경 ✅
-- subscribers·features hide ✅ (운영 plans 미보유 컬럼 → mock 0) / 복제 버튼 미배치 ✅ (신규 mutation 0)
-- 프로모션 관리 카드 보존 ✅ / 생성·수정 모달 보존 ✅ / AdminPageHeader 보존 ✅
-- 파싱 보정 `data.data ?? data` ✅ (apiSuccess snake_case 래핑 대비, 액션 0 변경 — 배열 직반환도 호환)
-- 운영 토큰 var(--color-*) 사용 ✅ / 신규 ba2-·bb- prefix 0 ✅ (admin 공용 admin-stat-pill·CARD_CLASS 재사용)
-- Hero/OperatorBadge(시안 oa1) 미도입: 운영 미보유 시안 전용 컴포넌트 → AdminPageHeader 유지 (PM "테이블→BB1 카드 grid" 범위)
-- 비활성 플랜 opacity 0.6 (시안 bl-pcard--off 톤 답습)
+- VP3 톤 4가지:
+  ① Court Operator badge — navy+silver(#1B3C87→#2A4D9E + silver #C0CCDB), 8C-1 답습 hex. 헤더 h2 위 배치
+  ② 카드 grid 2열 — 목록 `space-y-3` → `grid sm:grid-cols-2 gap-3` (로딩/빈상태는 grid 깨짐 방지 위해 별도 분기, 스켈레톤 3→4개)
+  ③ 필터칩 톤 — `rounded` → `rounded-full` + 비활성 칩 border 추가 (시안 cv-fchip 톤)
+  ④ 헤더 합계 — `노출 N · 클릭 N` toLocaleString (campaigns reduce). 시안엔 매출(revenue)까지 있으나 운영 mock 부재로 노출·클릭만
+- [id]/page.tsx = **0 변경** (git diff 미등장 확인)
+- 데이터 패칭 0 변경: handleCreate(POST formData 그대로) / useSWR(apiUrl) / mutate / formData 5필드 유지
+- tsc --noEmit = 0
+- prefix 충돌 0: vp3-/bv-/cv-/bl-/pm-/gw- 식별자 미도입. className 전부 Tailwind+var(--color-*). 주석 내 시안 참조 2건(cv-fchip / cv-cmp-grid)만(grep 식별자 0)
 
 💡 tester 참고:
-- 테스트: /admin/plans → 플랜 카드 grid(이름/활성배지/타입·기능키 태그/가격/설명) / "수정" → 모달 / "비활성화↔활성화" 토글 / "삭제"(confirm)
-- 0원 플랜은 "무료" 표기, 유료는 ₩9,900 형식 + /월(monthly)·/회(one_time)
-- 프로모션 관리(팀장/대회관리자 종료 버튼) 회귀 0 / "+ 요금제 추가" 모달 회귀 0
-- 정상: tsc 0 / CRUD 동작 보존 / 구독자 있는 플랜 삭제 시 비활성화 alert 유지
+- 테스트: 파트너 계정 /partner-admin/campaigns 진입 → 상단 Court Operator badge + "캠페인 관리" + 노출·클릭 합계 줄 / 필터칩 pill 형태(활성=red, 비활성=border) / 캠페인 2개 이상 시 2열 grid
+- 정상: "새 캠페인" 클릭 → 인라인 폼 토글(모달 아님) → 생성 시 POST + 목록 갱신(기존 동작 동일). 카드 클릭 → /campaigns/[id] 이동
+- 주의: 캠페인 0건(빈상태 1열 center 유지) / 로딩(스켈레톤 4개 2열) / 모바일(<640px)에서 grid 1열로 떨어짐
 
 ⚠️ reviewer 참고:
-- 파싱 보정 `data.data ?? data`: 현재 /api/admin/plans 가 배열 직반환이면 `?.data` undefined → 원본 배열 사용(호환). apiSuccess 래핑으로 바뀌어도 자동 대응. raw 응답 curl 1회 확인 권장
-- subscribers/features 컬럼 hide 는 운영 plans 스키마 미보유 근거 (시안은 mock 데이터). DB schema 변경 0
-- 복제 버튼 시안에 있으나 신규 mutation(POST 복제 API) 필요 → PM 지시로 미배치
+- badge hex 인라인 = 8C-1 답습(운영 var 토큰에 navy+silver 없음 — 의도된 예외)
+- 시안 매출·예산·기간·상세모달 의도적 미박제(운영 Campaign 인터페이스 부재 mock). 헤더 합계도 노출·클릭만(매출 제외)
+- 인라인 폼 유지 = PM 승인사항(모달 전환❌). 시안 모달 폼 박제 0
 
-### 6.2C-5 — AdminPayments → /admin/payments (BB2 BA1 환불, Option A)
+### 8C-5 — VU1 Courts → /courts 보강 (BV1 ★★★★ 발견성)
 
-📝 구현한 기능: 시안 BA1 박제. ① Hero 3카드→4-stat 실집계(총결제액/성공건수/환불합계/실패건수) ② 4탭→실재 status 3탭(성공/실패/환불됨, refund_wait mock 제외) ③ 테이블 액션 열 추가(paid=환불 버튼/refunded=환불일) ④ 환불 모달 신설 → 기존 refund API 실호출. 권한가드·환불 API·조회 0 변경 / 신규 mutation 0.
+📝 구현: Phase 3 v2 carry-over 셸 보존(큰 시각 변경❌) 위 발견성 2점 보강만. (1) 코트 등록 신청 CTA — 5필터칩 직후 배치, `/courts/submit` 실라우트 link(cv-submit-cta 톤 cafe-blue 답습). (2) cross-domain 랭킹 link — 좌측 카드 컬럼 맨 아래, `/rankings` 실라우트 link(cv-xlink 톤). 즐겨찾기(favOnly·user_favorite_courts)·앰배서더(court_ambassadors) = 모델 부재로 hide(mock 0). 시안 검색 input = 클라 필터 로직 추가 필요(패칭 변경 영역) → 이번 보강 제외.
 
-| 파일 경로 | 변경 내용 | 신규/수정 |
-|----------|----------|----------|
-| src/app/(admin)/admin/payments/page.tsx | stats 4종 확장(failedCount/refundedCount/refundedSum, 기존 groupBy 재사용 추가 쿼리 0) + 직렬화 refundedAt/tossPaymentKey 추가(조회 컬럼 변경 0) | 수정 (+14/-1) |
-| src/app/(admin)/admin/payments/admin-payments-content.tsx | Hero 4-stat / 4탭(refund_wait 제외) / 액션 열 / 환불 모달(AdminDetailModal actions prop 재사용) → POST `/api/web/payments/[id]/refund` 실호출 + router.refresh() | 수정 (+209/-18) |
+| 파일 | 변경 | 신규/수정 |
+|------|------|----------|
+| src/app/(web)/courts/_components/courts-content-v2.tsx | CTA(/courts/submit) + 랭킹 link(/rankings) 발견성 2점 (+103 −2 ≈ LOC +101) | 수정 |
 
-총 LOC: +223 / -18 (순 +205) — LOC>+2000 stop 미해당. **추가 쿼리 0** (기존 findMany+groupBy 재사용).
-
-⚠️ IDOR 제약 메모 (PM 필수 지시 반영):
-- refund API(route.ts §본인 결제만)는 `payment.user_id === ctx.userId` 인 결제만 환불 허용. admin 이 **타인 결제** 환불 시 → API 403("본인의 결제만 환불할 수 있습니다.") 반환.
-- UI 처리: 403/400 응답을 모달 refundError 로 **자연 표시** (가짜 성공 mock ❌). submitRefund catch 에서 `data.error` 문자열 그대로 노출.
-- **코드 주석 명시**: 환불 모달 블록 상단 + submitRefund 함수 상단에 IDOR 제약 주석 작성.
-- **추후 과제**: admin-scoped(타인 결제) 환불은 API 확장(권한 가드 + 토스 환불) 필요 — 금전 민감, 별도 과제.
-
-설계 정합 (Option A 100%):
-- 권한가드·환불 API·조회 0 변경 ✅ / Hero 4stat·탭 실집계(refund_wait mock 제외) ✅
-- 환불 모달=기존 refund API POST 실호출, 신규 mutation 0 ✅ / 403 에러 자연 표시 ✅
-- status 색분리(STATUS_TONE 기존) / toLocaleString ✅ / admin 공용 클래스 재사용(AdminDetailModal·AdminStatusTabs·CARD_CLASS·admin-stat-pill) ✅
-- ba1-/bb- prefix 직접 클래스 0 (운영 destructive 버튼 패턴 btn--sm+inline color-error 재사용 / 토큰 var(--color-*)만) ✅
-- 신규 토큰 0 (--color-info/--color-error/--color-success/--color-elevated 기존 보유) ✅
+- 데이터 패칭 0 변경: page.tsx·filtered·정렬·히트맵·근접감지·KakaoMap 0 변경. Link 2개 추가만(import 기존)
+- 즐겨찾기·앰배서더 hide = user_favorite_courts·court_ambassadors 모델 운영 미연결(PM 승인 mock 0)
+- 실라우트 검증: /courts/submit/page.tsx · /rankings/page.tsx 존재 확인 (dead link 0)
+- Phase 3 v2 carry-over 구조 보존: 좌측 카드 그리드 + 우측 sticky 지도 + 5필터칩 + 히트맵 0 변경(보강만)
+- tsc --noEmit = 0
+- prefix 충돌 0: vu1-/bv- 식별자 미도입. className 전부 Tailwind+인라인 var(--color-*). 주석 내 시안 참조 3건(cv-submit-cta / cv-xlink)만(grep 식별자 0)
 
 💡 tester 참고:
-- 테스트: /admin/payments(super-admin) → Hero 4카드 / 탭 성공·실패·환불됨 / paid 행 "환불" 버튼 → 모달
-- 환불 모달 "환불 처리" 클릭: **본인(admin) 결제**면 성공 → 모달 닫힘 + 목록 새로고침(상태 환불됨). **타인 결제**면 403 에러 메시지 모달에 빨강 박스로 표시(가짜 성공 ❌)
-- 7일 초과/이미 환불 등: API 400 → 에러 메시지 표시
-- 행 클릭(액션 열 제외) → 기존 결제 상세 모달 회귀 0
-- 정상: tsc 0 / refund_wait 탭 없음(mock 제외 의도)
+- 테스트: /courts 진입 → 5필터칩 아래 "찾는 코트가 없나요?" CTA 카드(클릭 → /courts/submit) / 좌측 카드 목록 맨 아래 "코트별 체크인 랭킹" 링크(클릭 → /rankings)
+- 정상: CTA·랭킹 link 모두 실페이지 이동(404 아님) / 기존 필터·지도·히트맵·근접감지 동작 동일 / 빈 상태에서도 랭킹 link 노출
+- 주의: 빈 상태(필터 0건)일 때 랭킹 link 여전히 노출(의도) / cafe-blue 토큰 미정의 환경 fallback(var(--bg-elev)/var(--accent)) 동작 확인
 
 ⚠️ reviewer 참고:
-- IDOR: admin 화면이지만 refund API 가 본인 결제만 허용 → admin 의 타인 환불은 현재 불가(403). 이는 의도된 안전 동작(금전). admin-scoped 환불 확장은 별도 과제(주석·보고 명시)
-- 환불 사유 input 은 API 가 현재 서버 고정 사유 사용 → body.reason 키만 전달(확장 대비). 실제 DB refund_reason 은 API 가 "사용자 환불 요청" 고정
-- router.refresh()로 force-dynamic 페이지 재패칭(상태 갱신). 낙관적 업데이트 미사용(서버 진실 우선)
+- 즐겨찾기/앰배서더/검색 의도적 미박제 = 모델/패칭 영역(PM 승인 mock 0). 시안 cv-fav·cv-amb·cv-search 박제 0
+- cafe-blue 계열은 운영 globals.css 정의 시 사용 / 미정의 시 fallback(var(--cafe-blue-soft, var(--bg-elev)) 식). 기존 5필터칩(L428)도 동일 fallback 패턴 답습
+- CTA·랭킹 모두 `<Link>` affordance(chevron) — 시안 btn 대신 카드 전체 클릭(모바일 안전)
 
-### 6.2C-6 — BU3 ProfileBilling → /profile/billing (3 sub-tab, Option A)
+### 8C-6 — VA1 AdminCourtsPartners → /admin/courts + /admin/partners (BV7 ★★ Site Operator)
 
-📝 구현한 기능: 시안 BU3 박제 — 2탭(구독/결제 내역) → **3탭**(구독/결제 내역/환불). Option A 승인대로 결제 내역 행 inline 환불 버튼 → 환불 전용 탭으로 이전. 환불 탭=can_refund/refunded 분리. 데이터 패칭·user_subscriptions 해지·refund API 호출 0 변경 / 기존 refund 모달·handleRefund 공유(신규 mutation 0).
+📝 구현: 2라우트 구조 보존(통합❌). VA1 톤 = Site Operator 뱃지(dark+gold) 양쪽 박제 + courts hero stat strip(전체/활성/미승인/신고). SiteOperatorBadge 공용 컴포넌트 신규(team-shared .operator-badge 박제, Court Operator navy+silver와 hex 분리). 신고 = court_reports active(미처리) count-only만 hero에 포함(탭/모달/액션 미생성). mock(매출·평점·신고리스트·편집제안 탭) 박제 0.
 
-| 파일 경로 | 변경 내용 | 신규/수정 |
-|----------|----------|----------|
-| src/app/(web)/profile/billing/page.tsx | ① VALID_TABS+TabKey에 "refund" 추가(URL ?tab=refund 보존) ② 탭 바 "환불" TabButton 추가 ③ PaymentsSection→PaymentsHub(view:"payments"\|"refund")로 통합 — 동일 payments SWR·환불 모달·handleRefund 공유(추가 fetch 0) ④ 결제 내역 뷰: inline 환불 버튼 제거(영수증만) ⑤ 환불 뷰 신규: 안내 note + 환불 가능(can_refund) + 환불 완료(refunded) 분리 ⑥ RefundRow 컴포넌트 신규(시안 bl-pay-row 톤→인라인) | 수정 (+345/-95, 순 +250) |
+| 파일 | 변경 | 신규/수정 |
+|------|------|----------|
+| src/components/admin/site-operator-badge.tsx | SiteOperatorBadge 공용 컴포넌트(dark+gold) 신규 (+44) | 신규 |
+| src/app/(admin)/admin/courts/page.tsx | badge(actions) + hero stat strip 4종 + count 쿼리 3개 (+45 −3 ≈ LOC +42) | 수정 |
+| src/app/(admin)/admin/partners/page.tsx | badge(actions, 등록버튼 옆) (+9 −3 ≈ LOC +6) | 수정 |
 
-설계 정합 (PM Option A 100% 일치):
-- 데이터 패칭 0 변경 ✅ (환불 탭도 /api/web/profile/payments 공유 — PaymentsHub 단일 SWR, 추가 fetch 0)
-- user_subscriptions 해지(SubscriptionSection DELETE)·refund API(POST /api/web/payments/[id]/refund) 호출 0 변경 ✅
-- 기존 refund 모달·handleRefund 공유 / 신규 mutation 0 ✅
-- 구독 카드·결제내역=실데이터 보존 + BU3 톤 ✅ (SubscriptionSection 무변경 / 결제내역 보드 무변경 except 환불버튼 제거)
-- 환불 탭=can_refund(서버 산출: paid+7일 이내)/refunded(환불 완료) 분리 ✅
-- VALID_TABS에 refund 추가(URL ?tab=refund 보존) ✅
-- 토스키 등 운영 payments 미보유 값 mock 안 함(hide) ✅ (시안 toss_key/method_brand/last4/days_left 미박제)
-- bu3-/bb- prefix 직접 클래스 0 ✅ (기존 인라인 톤 재사용 / var(--*) 토큰만 / 신규 CSS·토큰 0)
-
-🔗 BB7 확인 (PM 지시):
-- /profile/edit:1427 "결제·정산" link → /profile/billing (?tab 미지정 → subscription 기본) ✅ 정상 진입
-- /pricing/success:181 "내 구독 보기" → /profile/billing (?tab 미지정 → subscription 기본) ✅ 정상 진입
-- 두 진입 모두 기본 탭(구독) 도착. 환불 탭 추가는 진입 동작에 영향 0.
+- 합계 LOC ≈ +92 (신규 44 + courts 42 + partners 6) — stop LOC>+2000 무관
+- **추가 count 쿼리 3개** (전부 court_infos/court_reports `.count()` — count-only, server 허용 범위):
+  ① `court_infos.count({status:"active"})` = 활성
+  ② `court_infos.count({status:"pending"})` = 미승인
+  ③ `court_reports.count({status:"active"})` = 신고 pending(미처리) — court_reports.status default=active=미처리
+- hero stat = 검색 q 무관(전체 현황 지표) / 기존 totalCount(검색 반영)는 그대로 subtitle·전체stat 공용
+- 데이터 패칭·권한가드·액션 0 변경: courts(findMany/server actions/AdminCourtsContent 0) / partners(fetch/handleStatusChange/handleCreate/state/테이블 0)
+- 권한 가드 = (admin)/layout 레벨(페이지 내 0 변경)
+- badge 분리: Site Operator dark+gold(`#1A1E27→#404755` + gold `#F4C76C`) — Court Operator navy+silver(8C-1~4)와 hex 명확 분리
+- admin 공용 클래스 재사용: pa1-hero-stats / pa1-hero-stat__num[data-tone] / admin-pageheader actions slot (운영 admin.css 기존 정의). 시안 oa1-hero/ca1-tabs/cv-atable는 운영 미정의라 미사용
+- tsc --noEmit = 0
+- prefix 충돌 0: va1-/bv-/cv-atable/oa1-hero/ca1-tab 식별자 미도입 (grep 0건, courts·partners 양쪽)
 
 💡 tester 참고:
-- 테스트: /profile/billing?tab=refund → 환불 안내 note + "환불 가능 결제"(can_refund 건, 환불 신청 버튼) + "환불 완료"(refunded 건, line-through+환불일)
-- 환불 신청 클릭 → 기존 환불 모달(환불하시겠습니까?) → "환불하기" → refund API POST → 목록 새로고침
-- 결제 내역 탭(?tab=payments): 행에 환불 버튼 없음(영수증만) — Option A 이전 확인
-- 환불 가능·완료 0건: "환불 가능한 결제가 없습니다" + 환불 완료 빈 카드
-- 탭 URL 보존: ?tab=subscription/payments/refund 직접 진입 정상 / 그 외 값은 subscription fallback
-- 정상: tsc 0 / 구독 탭(해지 모달)·결제 내역 보드 회귀 0
+- 테스트: super-admin 계정 /admin/courts 진입 → 헤더 우측 "Site Operator"(dark+gold) 뱃지 + 검색폼 / 헤더 아래 stat strip 4개(전체 코트/활성/미승인/신고). /admin/partners 진입 → 헤더 우측 Site Operator 뱃지 + "파트너 등록" 버튼 나란히
+- 정상: stat 숫자 전부 실측(DB count) / 코트 테이블·승인 액션·검색·파트너 목록·상태변경 모두 기존 동작 동일 / 신고 stat 숫자만 노출(클릭 액션 없음)
+- 주의: court_reports 0건 환경(신고 stat=0 표시) / status=active 코트 0건(활성=0) / 검색 시 전체stat은 검색 반영(totalCount), 활성/미승인/신고 stat은 전체 기준(의도)
 
 ⚠️ reviewer 참고:
-- PaymentsSection→PaymentsHub 리네임: 결제 내역+환불 두 뷰가 동일 SWR(page state 포함) 공유. 환불 탭은 page=1 기준 payments만 봄(페이지네이션은 결제 내역 뷰에만 노출) — 환불 가능 건은 보통 최신이라 page1로 충분, 단 20건+ 환불 가능 시 2페이지 이후는 환불 탭 미표시(한계 메모)
-- refund API IDOR: 본인 결제만(route.ts) — 본 페이지는 본인 결제 목록이므로 제약 없음(6.2C-5 admin 과 달리 정상)
-- 환불 모달을 refundModal 변수로 추출 → 결제 내역/환불 뷰 둘 다 마운트(트리거는 환불 탭만). 중복 렌더 0(view 분기 return)
+- badge hex 인라인(공용 컴포넌트) = 운영 var 토큰에 dark+gold 없음(의도된 예외, Court Operator 측과 동일 정책). 2측 badge 시각 분리 lock 준수
+- 신고 탭/모달/액션 의도적 미생성 = PM 지시(액션 0 변경). 신고 pending count만 hero stat 포함(server count 허용 범위). 시안 reports/edits 탭 + 상태 모달 박제 0
+- 2라우트 통합 ❌ = PM 지시(분리 유지). 시안은 단일 통합 4탭이나 운영 courts(서버)/partners(클라) 구조·패칭 보존
+- hero stat where 미적용(전체 기준)은 의도 — 현황 지표는 검색과 무관. totalCount만 검색 반영(기존 subtitle 일관)
 
-### 6.2C-7 — BU2 PricingCheckout → /pricing/checkout (BB5 토스, 결제창 팝업 방식)
+### 8C-7 — VU2 CourtDetail → /courts/[id] 보강 (BV3 ★ 옛 v3 carry-over)
 
-📝 구현한 기능: 시안 BU2 박제 — 3 step indicator(플랜 선택→결제 정보[현재]→결제 완료) + 플랜 요약(실데이터 toLocaleString) + 결제자 정보 readOnly(person 헤더) + **결제 수단 칩 3종 + 토스 결제창 안내 박스** + 약관 4종+전체동의. 토스 위젯 흐름(SDK 로드/requestPayment/confirm/me·plan fetch/handlePay/disabled) 0 변경.
+📝 구현: 옛 v3 carry-over 셸 보존(큰 시각 변경❌) 위 1점 보강만. 5항목 세부 별점 평균 카드 상단에 **평점 헤더 1개** 추가 — reviews 의 rating 평균(useMemo, 반올림 .1) + StarRating(정수 반올림) + "리뷰 N개". 데이터·액션·탭·hero·ContextReviews·삭제·작성폼 0 변경.
 
-| 파일 경로 | 변경 내용 | 신규/수정 |
-|----------|----------|----------|
-| src/app/(web)/pricing/checkout/page.tsx | 본문 시각만 BU2 톤 교체: 3 step indicator(인라인) / bl-summary 톤 플랜요약 / 결제자 정보 person 아이콘 헤더 / 결제수단 카드 신규(칩 3종+lock 안내 박스, mock 스켈레톤 미재현) / 약관 카드 시안 톤(전체동의+필수·선택 뱃지+보기 링크). PM_METHODS/method state(시각용)/allChecked/toggleAllTerms 추가 | 수정 (+305/-57, 순 +248) |
+| 파일 | 변경 | 신규/수정 |
+|------|------|----------|
+| src/app/(web)/courts/[id]/_components/court-reviews-section.tsx | overallAverage useMemo + 평점 헤더 div(평균숫자+StarRating+리뷰수) (+38 −0 ≈ LOC +38) | 수정 |
 
-🔒 토스 위젯 흐름 보존 검증 (PM 필수):
-- SDK 로드 useEffect (js.tosspayments.com/v2/standard) — **0 변경**
-- `toss.requestPayment({ method:"CARD", amount, orderId, orderName, successUrl(.../confirm?planId), failUrl(/pricing/fail), customerEmail, customerName })` — **한 글자도 미변경**
-- confirm route / fail URL / plan fetch(`/api/web/plans/{id}`) / me fetch(2회: readOnly + handlePay) / handlePay 401 redirect / disabled(allRequiredAgreed) — **전부 0 변경**
-- 결제수단 칩 selection state(method) = **시각 표시용 only** → requestPayment 인자 불변(항상 CARD 고정)
-
-⚠️ stop condition 여부: **없음**
-- 토스 mock 여부: **없음** (가짜 카드입력 스켈레톤 bl-pm-skel 미재현 → "결제창 안내 박스 + 결제수단 칩"으로 박제. 실 카드입력은 토스 결제창 팝업 담당)
-- /api/v1·DB schema 변경 0 / LOC +248(<+2000) / tsc 0 / 회귀 0(결제 흐름 불변) / 13룰 위반 0
-- bu2-/bb- prefix 신설 **0** / bl-* import **0** (전부 인라인 + var(--*) 토큰 / 운영 기존 `card`·Material Symbols 만 사용)
-- accent 배경 위 텍스트 = `#fff` (운영 .btn--accent 컨벤션 동일 / 하드코딩 신규 색상 아님)
+- 데이터 패칭 0 변경: SWR `/api/web/courts/${courtId}/reviews` / DELETE / ReviewForm POST 0. reviews 배열 재사용만(신규 쿼리 0)
+- overallAverage = reviews 의 rating 평균(reduce/length, 반올림 .1) — categoryAverages 와 동일 패턴
+- StarRating 은 `Math.round(overallAverage)` 정수값 전달(컴포넌트 시그니처 그대로)
+- 카드 자체는 기존(`reviews.length > 0` 조건부) — 헤더는 카드 내부 h3 위 1개만 추가
+- var(--*)만: ink/ink-mute/border-subtle. hex 0
+- tsc --noEmit = 0
+- prefix 충돌 0: vu2-/bv- 식별자 미도입. className/style 전부 운영 토큰. 주석 표기만
 
 💡 tester 참고:
-- 테스트: /pricing/checkout?planId={id} → step 2단계(결제 정보) 강조 / 플랜 요약(실 가격) / 결제자 readOnly(me) / 결제수단 칩(카드 기본 선택, 클릭 토글) / lock 안내 박스 / 약관 5줄(전체동의+4종)
-- 전체동의 클릭 → 4종 일괄 on/off. 필수 3종 미체크 시 "필수 약관 3건 동의 시 결제 가능" + 버튼 disabled
-- 필수 3종 체크 → "결제하기" 활성 → 클릭 시 토스 결제창 팝업(요금제 0원 아닐 때). 결제수단 칩을 가상계좌/간편 선택해도 토스 결제창은 동일(CARD 고정) — 정상
-- 정상: tsc 0 / 결제 완료 → /api/web/payments/confirm?planId 경유 success / 취소·실패 → fail
-- 주의: 비로그인 결제 시도 → handlePay 에서 401 → /login?redirect=... 자동 이동(기존 보존)
+- 테스트: /courts/[id] 진입 → 리뷰 1건+ 있는 코트의 "세부 항목 평균" 카드 최상단에 평점 헤더(큰 평균숫자 + 별 + "리뷰 N개") 노출
+- 정상: 평균 숫자 = 전체 rating 평균(.1 단위) / 별점은 정수 반올림 / 리뷰 0건 코트는 카드 자체 미노출(헤더도 안 보임)
+- 주의: 리뷰 1건(평균=그 값) / rating 소수 평균(예 3.7→별 4개 반올림 표시 정상)
 
 ⚠️ reviewer 참고:
-- 결제수단 칩 method state 는 UI 시각용 — requestPayment 에 미반영(주석 명시). 토스가 결제창에서 실제 수단 선택 담당. 이중 선택 UX는 의도된 시안 박제(가짜 위젯 회피)
-- step current=1 하드코딩(이 페이지=결제 정보 단계 고정). 동적 step 불필요
-- 약관 "보기" 링크는 상세 미연결(시각 박제) — 시안과 동일. 약관 본문 라우트는 별도 과제
+- 헤더 1개만 추가(PM 승인 범위). hero/탭/ContextReviews/삭제버튼/사진/작성폼 0 변경
+- 별점 정수 반올림 = StarRating value 정수 시그니처 답습(소수 별 미지원). 숫자는 .1 정밀 표기로 보완
 
-## 구현 기록 (developer) — Phase 6.3C
+### 8C-8 — VU3 CourtBooking 통합 → /booking + payment-fail + checkin (BV2 ★★★★★)
 
-### 6.3C-1 — GU2 WeeklyReport → /profile/weekly-report (BG2 정합)
+📝 구현: 시안 wizard 통합·QR·가짜 토스 위젯 미박제. PM 승인 **정보성 톤 4종**만 박제. 토스 흐름(SDK 로드/requestPayment/successUrl/failUrl/payment-cancel)·예약/cancel/checkin 액션·약관 게이트 0 변경.
 
-📝 구현한 기능: 시안 GU2 정합 보강. PM 판단(데이터 출처 상이 → 표기/톤 정합만, 데이터 패칭 0 변경 우선) 승인대로 ① placeholder warn-soft 3곳 통일 ② 이메일 구독 link 경로 변경 ③ "곧 제공"→"준비 중" 카피 통일 ④ page 구조·KPI 매핑·데이터 패칭 0 변경.
+| 파일 | 변경 | 신규/수정 |
+|------|------|----------|
+| src/app/(web)/courts/[id]/booking/_booking-client.tsx | 결제수단 안내 칩(PAY_METHODS 3종 비활성) + "토스 안전결제창에서 선택" lock 안내 + 결제 버튼 lock 아이콘 (+83 −0) | 수정 |
+| src/app/(web)/courts/[id]/booking/payment-fail/page.tsx | code 박스 → bl-result__errchip 톤("오류 코드" 라벨 + code 칩 accent) (+18 −5 ≈ LOC +13) | 수정 |
+| src/app/(web)/courts/[id]/checkin/page.tsx | "현장 체크인 · CHECK-IN" eyebrow(성공/이미체크인 시만) (+11 −0) | 수정 |
 
-| 파일 경로 | 변경 내용 | 신규/수정 |
-|----------|----------|----------|
-| src/app/(web)/profile/weekly-report/page.tsx | ① ComingSoonBadge: muted-gray → warn-soft(var(--color-warning) color-mix 14% bg / 32% border) + 라벨 "곧 제공"→"준비 중" ② 평점 KPI placeholder 텍스트 muted→var(--color-warning) ③ §05 다음주 추천 dashed 박스: subtle→warn-soft(배경 5% + dashed 36% + 아이콘 70%) ④ 이메일 구독 link `/profile/notification-settings`→`/profile/settings?section=notify` ⑤ 헤더 주석 2곳 경로/카피 정합 | 수정 (+23/-13, 순 +10) |
-
-설계 정합 (PM 승인 100% 일치):
-- BG2 정합 판단 정확: KPI 4 데이터 출처 상이(시안 PU3 시즌 stat vs 운영 weekly-report SWR) → 표기/톤 정합만, **데이터 패칭 0 변경** ✅
-- page.tsx 구조·KPI 매핑(경기/평균평점/XP/활동시간)·SWR(`/api/web/profile/weekly-report`)·revalidate·직렬화 **0 변경** ✅
-- placeholder warn-soft 3곳 통일 (ComingSoonBadge / 평점 placeholder / 다음주 추천 박스) — 하드코딩 색상 0, var(--color-warning) color-mix만 ✅
-- 이메일 구독 → /profile/settings?section=notify (section-key.ts VALID_SECTIONS 유효 확인됨) ✅
-- "곧 제공" → "준비 중" 통일 (배지 + 헤더 주석) ✅
-
-🔑 사전 검증 (구현 전 확인):
-- `--color-warning` 토큰: globals.css L2773/L2801 (라이트/다크 양쪽 정의 `var(--warn)` #E8A33B) — 존재 확인
-- `?section=notify`: section-key.ts VALID_SECTIONS 7키 중 하나 — 유효 확인 (resolveSection 통과)
+- 톤 4종: ① 결제수단 안내 칩(card/transfer/easy, 시안 VU3_PM 답습 — 비활성 정보성 only, 가짜 위젯 미박제) ② 안전결제 lock 아이콘(bl-widget__note + bl-paybtn 톤) ③ payment-fail errchip 톤 ④ checkin eyebrow
+- 합계 LOC ≈ +107 — stop LOC>+2000 무관
+- **토스 흐름 보존**: requestPayment/successUrl/failUrl/customerEmail 인자·SDK 동적로드·MeInfo 조회 0 변경 / payment-cancel API useEffect 0 변경 / checkin POST(method:qr) 0 변경 / 약관 4종 게이트(allRequiredAgreed) 0 변경
+- 가짜 토스 위젯(bl-pm-skel 카드번호 입력 등) 미박제 — 정보성 안내 칩만(실 수단 선택=토스 안전결제창)
+- 결제수단 칩·lock 안내는 isPaid(유료)일 때만 노출 / checkin eyebrow는 success·already 상태만(loading/error transitional 제외)
+- var(--*)만: ink-soft/ink-dim/border/bg-alt/accent + checkin은 var(--color-text-muted) (기존 토큰 답습). hex 0
+- tsc --noEmit = 0
+- prefix 충돌 0: vu3-/bv-/cv-/bl- 식별자 미도입. className 전부 Tailwind+인라인 var(--*). 주석 내 시안 참조 3건(bl-widget__note/bl-paybtn/bl-result__errchip)만(grep 식별자 0)
 
 💡 tester 참고:
-- 테스트: /profile/weekly-report → §02 하이라이트·§05 다음주 추천 배지 "준비 중"(warn 노랑 톤) / §01 KPI "평균 평점" 카드 "평점 시스템 준비 중"(warn 톤) / §05 박스 dashed 노랑 톤 + recommend 아이콘 노랑
-- 푸터 "이메일 구독 관리" 클릭 → /profile/settings?section=notify (notify 섹션 활성 도착)
-- 데이터 회귀 0 확인: KPI 4 값(경기/XP/활동시간 실데이터, 평점 "-") / §04 TOP3 코트 / §06 지난주 비교 모두 기존과 동일
-- 라이트/다크 양쪽 warn 톤 가독성 확인 (--color-warning 양쪽 정의됨)
-- 정상: tsc 0 / SWR 패칭 동일 / "12주 성장 추이 보기" link(/profile/growth) 무변경
+- 테스트: /courts/[id]/booking 진입 → 유료 코트 우측 요약카드 결제버튼 위 결제수단 칩 3개(카드/계좌이체/간편결제, 클릭 비활성) + "토스 안전결제창에서 선택" lock 안내 + 결제버튼 lock 아이콘. payment-fail 진입(매핑 안된 code) → "오류 코드" 라벨+code 칩. checkin QR 진입 성공 → "현장 체크인 · CHECK-IN" eyebrow
+- 정상: 무료 코트는 결제수단 칩/lock 안내 미노출(기존대로) / 결제 흐름·약관 게이트·체크인 동작 전부 기존 동일 / errchip은 매핑 안된 code 만 노출
+- 주의: 무료 코트(칩 hide) / 매핑된 code(USER_CANCEL 등 — errchip 미노출, 한글 메시지만) / checkin loading·error(eyebrow 미노출)
 
 ⚠️ reviewer 참고:
-- 데이터 정합(KPI=PU3 시즌 stat)은 **의도적으로 미적용** — 출처 상이(weekly-report API vs UserSeasonStat), 데이터 패칭 0 변경 우선(PM 판단). 추후 PU3 정합은 API 통합 별도 과제
-- warn-soft 3곳 톤: var(--color-warning) color-mix 비율 의도적 차등(배지 14%/텍스트 100%/박스배경 5%·border 36%·아이콘 70%) — placeholder 강도별 시각 위계
-- gu2-/bg- prefix 신설 0 / 신규 CSS·토큰 0 (전부 인라인 + 기존 var(--*) 토큰)
-
-### 6.3C-2 — GU1 ProfileGrowth → /profile/growth (BG1 정합)
-
-📝 구현한 기능: 시안 GU1 정합 보강. PM 승인대로 ① "준비 중" placeholder 배지 4곳 → warn-soft 톤 통일(6.3C-1 weekly-report 동일 패턴) ② PU4 정합 = 마일스톤 이모지 유지(Material Symbols 강제 ❌) ③ SWR 2종·마일스톤 매핑·page 구조 0 변경.
-
-| 파일 경로 | 변경 내용 | 신규/수정 |
-|----------|----------|----------|
-| src/app/(web)/profile/growth/page.tsx | "준비 중" 배지 4곳 muted-gray(var(--ink-dim)+var(--bg-alt)) → warn-soft(var(--color-warning) 14% bg / 100% color / 32% border + schedule 아이콘) 통일: ① 주간 경기수 ② 평균 평점 ③ 마일스톤 isDummy(커뮤니티/팀멤버추천) ④ 구간별 상세 분석. 헤더 주석 6.3C-2 정합 메모 추가 | 수정 (+49/-8, 순 +41) |
-
-설계 정합 (PM 승인 100% 일치):
-- "준비 중" warn-soft 4곳 통일 ✅ — 6.3C-1 (6.3C-1 ComingSoonBadge) 와 동일 비율(14%/100%/32%) + schedule 아이콘. 하드코딩 색상 0, var(--color-warning) 토큰만
-- PU4 정합 = 마일스톤 이모지(🏀⭐🎯🔥💬🤝) 유지 ✅ — 시안 GU1 MilestoneTile 도 이모지 사용 → BG1 정합(Material Symbols 강제 ❌, 운영 growth 게이미피케이션 이모지 톤 유지)
-- SWR 2종(`/api/web/profile/gamification` + `/api/web/profile/season-stats`) **0 변경** ✅
-- 마일스톤 6종 매핑(누적경기/평점/MVP/연속출석/커뮤니티/팀멤버추천) · isDummy 분기 · 835줄 page 구조 **0 변경** ✅
-- gu1-/bg- prefix 신설 **0** / 신규 CSS·토큰 **0** (전부 인라인 + 기존 var(--*) 토큰)
-
-🔑 사전 검증:
-- `--color-warning` 토큰: 6.3C-1 에서 globals.css L2773/L2801 (라이트/다크 양쪽 `var(--warn)` #E8A33B) 확인 완료 — 재사용
-
-⚠️ stop condition 여부: **없음**
-- /api/v1·DB schema 변경 0 / LOC +41(<+2000) / tsc 0 / 회귀 0(데이터 패칭·구조 불변) / 13룰 위반 0 / gu1-·bg- prefix 충돌 0
-
-💡 tester 참고:
-- 테스트: /profile/growth → "준비 중" 배지 4곳 모두 노랑(warn) 톤 + schedule 시계 아이콘: ① 주간 경기수 카드 ② 평균 평점 카드 ③ 마일스톤 "커뮤니티 활동"·"팀 멤버 추천" 카드 ④ 하단 "구간별 상세 분석" 박스
-- 데이터 회귀 0 확인: HERO 레벨/XP/스트릭, 마일스톤 6종 값(누적경기/평점/MVP/연속출석/커뮤니티/팀멤버추천), 12주 추이 spark/line, "경기 찾기"→/games CTA 모두 기존과 동일
-- 마일스톤 이모지 유지 확인: 🏀⭐🎯🔥💬🤝 (Material Symbols 변환 ❌)
-- 라이트/다크 양쪽 warn 톤 가독성 확인 (--color-warning 양쪽 정의됨)
-- 정상: tsc 0 / SWR 2종 패칭 동일
-
-⚠️ reviewer 참고:
-- BG1 정합 = "마일스톤 6 = PU4 user_badges 정합"이나 운영 마일스톤은 이미 season-stats + gamification 으로 매핑된 초과구현 상태 → 데이터 정합(badge icon/이름) 재배선은 데이터 패칭 0 변경 원칙상 미적용(PM 판단). 이모지 톤 유지 + placeholder 통일만 적용
-- warn-soft 4곳 비율 균일(14%/100%/32%) — 6.3C-1 ComingSoonBadge 와 정확히 동일. 단 6.3C-1 은 공통 컴포넌트(ComingSoonBadge) 추출, 6.3C-2 는 인라인 4곳(운영 growth 가 클래스/컴포넌트 아닌 인라인 스타일 페이지 → 기존 패턴 답습)
-- "구간별 상세 분석" 부모 박스는 기존 opacity 0.65 placeholder 시각 유지(배지만 warn-soft). 6.3C-1 다음주 추천 박스(dashed warn)와 달리 박스 톤 미변경 — PM 승인 범위 = "배지 4곳"
-
-### 6.3C-3 — GU3 ProfileSettings → /profile/settings (BG3 정합)
-
-📝 구현한 기능: 시안 GU3 박제 — ① GU3-A billing "/profile/billing" link 활성(isPaid 실데이터 시만 미리보기 강조 btn--primary) ② GU3-C danger 2차 confirm("삭제합니다" 텍스트 입력 + accent 경고박스) ③ GU3-D IdentityVerify 시각 강화(상태 아이콘 + verified soft pill). **GET 패칭·withdraw API·비번 confirm·name_verified 분기 0 변경 / 인라인 + var(--*) 토큰만**.
-
-| 파일 경로 | 변경 내용 | 신규/수정 |
-|----------|----------|----------|
-| src/app/(web)/profile/settings/_components_v2/billing-section-v2.tsx | GU3-A: 하단 버튼 위 `Link href=/profile/billing` 추가(시안 "결제·구독 관리" credit_card btn). isPaid면 btn--primary(그라디언트 카드 톤 연결)·무료면 일반 btn — 미리보기 강조 isPaid 시만. summary prop·fetch·기존 2버튼 0 변경 | 수정 (+24/-3, 순 +21) |
-| src/app/(web)/profile/settings/_components_v2/danger-section-v2.tsx | GU3-C: ① accent 경고박스(error 아이콘 + "되돌릴 수 없습니다", accent-soft 배경/bdr-red-ink 텍스트) ② "삭제합니다" 텍스트 input(confirmText state) ③ 삭제 버튼 disabled = phraseOk && password(2중 가드) + handleDelete 앞단 phrase 가드. **withdraw DELETE API·PasswordInput·router.replace 0 변경** | 수정 (+112/-18, 순 +94) |
-| src/app/(web)/profile/settings/_components_v2/account-section-v2.tsx | GU3-D: 본인인증 행 시각 강화 — 좌측 상태 아이콘(인증=verified_user 초록/미인증=shield muted) + verified 뱃지 ok-soft 배경 pill(color-mix). **link(/onboarding/identity)·name_verified 분기·미인증 버튼 0 변경** | 수정 (+30/-7, 순 +23) |
-
-총 LOC: +169 / -25 (순 +144) — LOC>+2000 stop 미해당.
-
-설계 정합 (PM 승인 100% 일치):
-- billing link 활성 = isPaid(is_paid_member 실데이터) 시만 미리보기 강조(btn--primary) / 무료는 일반 진입 — mock 0 ✅
-- danger 2차 confirm = "삭제합니다" 입력 + accent 경고박스 ✅ / **비번 confirm·withdraw 액션 0 변경**(phrase 가드는 기존 비번 검증 앞에 추가, API body·호출 동일) ✅
-- IdentityVerify 시각 강화 = link·동작 보존(href·분기·onboarding 단일 진입점 유지) ✅
-- GET 패칭 0 변경(세 컴포넌트 모두 fetch 신규 0) ✅ / 전부 인라인 + var(--*) ✅
-
-🔑 토큰 검증 (구현 전 확인):
-- danger accent: `--accent`(globals.css L104) / `--accent-soft`(L105) 운영 존재. 시안 전용 `--accent-deep`→`--bdr-red-ink`(L28) / `--accent-hair`→`--accent-soft` 매핑(globals.css L4646 주석 가이드 준수). danger BDR Red = var(--accent)/--bdr-red-ink 토큰만 ✅
-- billing/account: `--cafe-blue`(L96) / `--ok`(L50) 기존 보유
-- 13룰 §10 pill 회피: GU3-D verified 뱃지 가로 pill → borderRadius 9999 ❌ → **4px(BDR 버튼 표준) 적용** (시안 gw-verify pill이나 운영 룰 우선)
-
-⚠️ stop condition 여부: **없음**
-- /api/v1·DB schema 변경 0 / LOC +144(<+2000) / tsc 0(EXIT=0) / 회귀 0(데이터·동작 불변) / 13룰 위반 0 / gu3-·bg- prefix 신설 0
-
-💡 tester 참고:
-- 테스트: /profile/settings ① 결제·멤버십 섹션 하단 "결제·구독 관리"(credit_card) → /profile/billing 이동(유료=primary 강조/무료=일반) ② 계정 관리 → "계정 삭제" → 모달: accent 경고박스 + "삭제합니다" 입력 + 비번. 둘 다 충족 전 "영구 삭제" disabled ③ 계정·보안 → 본인인증 행: 인증완료(verified_user 초록 + ok pill "인증 완료") / 미인증(shield + "본인인증 →" 버튼)
-- danger 2중 가드: "삭제합니다" 정확 일치 + 비번 입력 → 활성. 둘 중 하나만이면 disabled(title 안내). 활성 후 클릭 → 기존 withdraw DELETE → /login replace(회귀 0)
-- billing isPaid 토글: is_paid_member=true면 그라디언트 카드 + primary 버튼 / false면 알트 카드 + 일반 버튼
-- 정상: tsc 0 / 비번 confirm·withdraw API·onboarding/identity 진입 모두 기존 동작 보존
-
-⚠️ reviewer 참고:
-- danger 2차 confirm은 **추가 가드**(기존 비번 confirm 위에). withdraw API body(`{password}`)·메서드(DELETE)·credentials 0 변경. confirmText는 클라 가드 only(서버 미전송) — 시안 UX 의도
-- billing Link 진입점만 추가, 기존 router.push 2버튼(플랜 변경/구독 취소)·SettingsRow 4행 보존(중복 진입 = 시안 구조)
-- GU3-D verified 뱃지 borderRadius 4(9999 회피, 13룰 §10) — color-mix ok-soft 배경/border, 신규 토큰 0
+- 정보성 톤 4종만(PM 승인) — wizard 통합·QR hero·가짜 토스 위젯·성공/실패 토글 미박제. 토스 실연결 흐름 보존(mock 0)
+- 결제수단 칩 = 비활성 `<span>`(button 아님) — 실제 선택은 토스 안전결제창. 오해 방지 위해 lock 안내 동반
+- stop condition: **없음** (토스 mock 미사용 / DB·api/v1·LOC·회귀·badge 통합 무관)
 
 ## 수정 요청
 | 요청자 | 대상 | 문제 | 상태 |
@@ -354,12 +245,16 @@
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
 |------|------|------|
-| 2026-05-31 | **Phase 6.3C-3** GU3 ProfileSettings BG3 정합 (billing /profile/billing link 활성 isPaid시 + danger 2차 confirm "삭제합니다"+경고박스 + IdentityVerify 시각강화) | ✅ tsc 0 / +169-25 / GET·withdraw·비번 0 변경 / stop 없음 |
-| 2026-05-31 | **Phase 6.3C-2** GU1 ProfileGrowth BG1 정합 ("준비 중" warn-soft 4곳 통일 + PU4 이모지 유지) | ✅ tsc 0 / +49-8 / SWR 2종·구조 0 변경 / stop 없음 |
-| 2026-05-31 | **Phase 6.3C-1** GU2 WeeklyReport BG2 정합 (placeholder warn-soft 3곳 + 이메일구독 link + "준비 중" 통일) | ✅ tsc 0 / +23-13 / 데이터 패칭 0 변경 / stop 없음 |
-| 2026-05-31 | **Phase 5+6.1 dev→main 운영 반영** (#658) | ✅ main `26586af` Vercel success / ledger ⑬⑭ ✅ 종료 |
-| 2026-05-31 | **Phase 6.1 chain** (v2.24 sync + 6.1C 6 PR #657) | ✅ `29178b9`+`cc78745`~`f29a3ca` / BP1 privacy·BP5 가드·BP2 server조회 / stop 0 |
-| 2026-05-31 | **Phase 5 chain** (v2.23 sync + 5C 6 PR #656) | ✅ `7e2d0f1`+`68fc5c3`~`3e3423f` / 공용 wizard·mock 0 / stop 0 |
-| 2026-05-31 | 빌드 fix: admin CSS 주석 `*/` Turbopack 실패 | ✅ `bdd5e32` / errors.md 기록 |
-| 2026-05-31 | 경기일 Flutter 검수 + ttp 정합성 3패턴 | ✅ lessons.md 기록 (셋업·몽키즈) |
-| 2026-05-30 | placeholder 선수 셋업 (하주호) | ✅ conventions.md / uid3516 |
+| 2026-06-07 | **8C-8** VU3 CourtBooking → /booking+payment-fail+checkin (BV2) | ✅ 정보성 톤4(결제수단칩+lock안내 / 버튼 lock / errchip톤 / checkin eyebrow) / 토스흐름·cancel·checkin·약관게이트 0 / 가짜위젯 미박제(mock0) / tsc 0 / 충돌 0 / stop 없음 |
+| 2026-06-07 | **8C-7** VU2 CourtDetail → /courts/[id] (BV3) | ✅ 5항목 평균 카드에 평점 헤더1(overallAverage+StarRating+리뷰N) / 데이터·액션·탭·hero 0 / var(--*)만 / tsc 0 / 충돌 0 |
+| 2026-06-07 | **8C-6** VA1 AdminCourtsPartners → /admin/courts + /admin/partners (BV7) | ✅ 2라우트 보존 / SiteOperatorBadge 공용 신규(dark+gold) 양쪽 박제 / courts hero stat4 + count쿼리3(count-only) / 신고 탭·모달·액션 미생성 / 패칭·가드 0 / tsc 0 / 충돌 0 |
+| 2026-06-07 | **8C-4** VP3 PartnerCampaigns → /partner-admin/campaigns (BV6) | ✅ 인라인폼 유지 / VP3 톤4(badge·grid2열·필터칩·헤더합계) / mock회피 / handleCreate 0 / [id] 0 / tsc 0 / 충돌 0 |
+| 2026-06-07 | **8C-3** VP2 PartnerVenue → /partner-admin/venue (BV5) | ✅ 옵션A VP2 셸+2탭(기본/시간가격) / badge + operating_hours read-only + fee편집 / 정책·통계 미생성 / handleSave 0 / tsc 0 / 충돌 0 |
+| 2026-06-07 | **8C-2** VU4 VenueDetail → /venues/[slug] (BV8) | ✅ 골대수 hero badge 실데이터 + 별점 var(--warn) 교정 / list hide(mock0) / 패칭0 / tsc 0 / 충돌 0 |
+| 2026-06-07 | **8C-1** VP1 PartnerAdmin → /partner-admin (BV4) | ✅ navy hero + Court Operator badge / mock hide / 실통계 / tsc 0 / 충돌 0 |
+| 2026-06-07 | Phase 8 v2.28 sync | ✅ court-shared + 8 jsx / carry diff 0 |
+| 2026-06-07 | **Phase 7 chain** (v2.27 + 7C 4 PR #661) | ✅ `788501f`+`cd261b5`~`239b779` / AppNav 현상유지 / stop 0 |
+| 2026-06-06 | **Phase 6.2+6.3 dev→main** (#660) | ✅ main `32153c7` Vercel success / Phase 6 묶음 종료 |
+| 2026-05-31 | Phase 6.3 chain (v2.26 + 3 PR) | ✅ 보강 / stop 0 |
+| 2026-05-31 | Phase 6.2 chain (v2.25 + 7 PR) | ✅ 토스 실연결 mock 0 |
+| 2026-05-31 | Phase 6.1 chain (v2.24 + 6 PR #657) | ✅ BP1 privacy·BP5 가드 |

@@ -182,22 +182,33 @@ export default function PaymentFailPage() {
           예약은 자동으로 취소 처리됩니다. 다시 시도해주세요.
         </p>
 
-        {/* 디버깅용 원본 정보 — 매핑 못 한 code/reason 만 표시 (문의 시 활용) */}
+        {/* 디버깅용 원본 정보 — 매핑 못 한 code/reason 만 표시 (문의 시 활용)
+            시안 bl-result__errchip 톤: "오류 코드" 라벨 + code 를 분리한 칩 형태 */}
         {reasonKey && !REASON_LABELS[reasonKey] && (
           <div
             style={{
               margin: "0 auto 24px",
               maxWidth: 380,
-              padding: "8px 12px",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 8,
+              padding: "6px 12px",
               borderRadius: 4,
               border: "1px solid var(--border)",
               background: "var(--bg-alt)",
-              fontFamily: "var(--ff-mono)",
               fontSize: 11,
-              color: "var(--ink-dim)",
             }}
           >
-            code: {reasonKey}
+            <span style={{ color: "var(--ink-dim)", fontWeight: 700 }}>오류 코드</span>
+            <code
+              style={{
+                fontFamily: "var(--ff-mono)",
+                color: "var(--accent)",
+                fontWeight: 700,
+              }}
+            >
+              {reasonKey}
+            </code>
           </div>
         )}
 

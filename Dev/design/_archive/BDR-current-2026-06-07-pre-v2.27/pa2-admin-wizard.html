@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>PA2 · 관리자 — Wizard QuickCreate — BDR v2.19</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800;900&family=JetBrains+Mono:wght@500;700;800&family=Pretendard:wght@400;500;600;700;800;900&display=swap" />
+<link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Symbols+Outlined" />
+<link rel="stylesheet" href="tokens.css" />
+<link rel="stylesheet" href="shell.css" />
+<link rel="stylesheet" href="admin.css" />
+</head>
+<body>
+<div class="showcase">
+  <header class="showcase-head">
+    <div class="eyebrow">BDR v2.19 · PA2 / QuickCreate 통합 (E 등급)</div>
+    <h1>관리자 — 새 대회 만들기 (Quick) — /tournament-admin/tournaments/new/wizard</h1>
+    <p>4 옵션 sub-tab (Quick / Legacy / Prospectus / 협회) + draft 복구 배너 + 다음 단계 안내. S3 재진입 갭 해소.</p>
+    <nav class="showcase-nav">
+      <a href="index.html">목차</a>
+      <a href="pa1-admin-list.html">PA1 목록</a>
+      <a class="is-cur" href="pa2-admin-wizard.html">PA2 Quick</a>
+      <a href="pa3-admin-assoc.html">PA3 협회</a>
+      <a href="ud3-admin-setup.html">PA4 셋업</a>
+      <a href="pa5-admin-matches.html">PA5 경기</a>
+      <a href="pa6-admin-divisions.html">PA6 종별</a>
+      <a href="pa7-admin-completed.html">PA7 종료</a>
+      <a href="pa8-admin-playoffs.html">PA8 순위전</a>
+      <a href="pa9-admin-prospectus.html">PA9 PDF</a>
+    </nav>
+  </header>
+
+  <section class="variant">
+    <header class="variant__head">
+      <span class="variant__num">PA2 / PC + MOBILE</span>
+      <h2 class="variant__title">sub-tab 4 옵션 + Quick 폼 + draft 복구</h2>
+      <p class="variant__desc">진입점 sub-tab 가로 + QuickCreate 1-step 폼. draft 복구 배너 → 이어하기 CTA.</p>
+    </header>
+    <div class="vp-strip">
+      <div class="vp vp--pc-wide">
+        <div class="vp__chrome">
+          <span class="vp__lights"><span></span><span></span><span></span></span>
+          <span class="vp__url">mybdr.kr/tournament-admin/tournaments/new/wizard</span>
+          <span class="vp__size">PC · 1320</span>
+        </div>
+        <div class="vp__body">
+          <div id="m-pc"></div>
+        </div>
+      </div>
+      <div class="vp vp--mobile">
+        <div class="vp__chrome">
+          <span class="vp__lights"><span></span><span></span><span></span></span>
+          <span class="vp__url">m · 새 대회 만들기</span>
+          <span class="vp__size">375</span>
+        </div>
+        <div class="vp__body">
+          <div id="m-mob"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script type="text/babel" src="shared.jsx"></script>
+<script type="text/babel" src="screens/AdminTournamentWizard1Step.jsx"></script>
+<script type="text/babel">
+  ReactDOM.createRoot(document.getElementById('m-pc')).render(<window.AdminTournamentWizard1Step />);
+  ReactDOM.createRoot(document.getElementById('m-mob')).render(<window.AdminTournamentWizard1Step />);
+</script>
+</body>
+</html>

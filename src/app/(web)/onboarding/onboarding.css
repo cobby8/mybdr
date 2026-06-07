@@ -1,0 +1,136 @@
+/* ============================================================
+ * onboarding.css — Phase 7C-4 (AU2 시안 박제 · standalone)
+ *
+ * 이유 (왜):
+ *   1) 시안 AU2 단계 진행 표시기(AuStepper) 스타일을 운영 5 page 상단에 박제.
+ *      → au-* prefix 충돌 0 을 위해 ob2- prefix 로 격리.
+ *   2) onboarding step component(basketball/environment/preferences)가
+ *      .chip/.chip--active 를 쓰지만, 이 정의는 profile/edit/edit-profile.css 에만
+ *      존재 → onboarding 은 그 css 를 import 하지 않아 .chip 이 미정의(브라우저
+ *      기본 button 으로 깨짐) 상태였다. 본 파일에 .chip 베이스를 자체 박제하여
+ *      edit-profile.css 전역 의존을 끊고 onboarding 내부로 격리한다.
+ *
+ * 어떻게:
+ *   - globals.css 토큰만 사용 (하드코딩 색 0).
+ *   - ob2-stepper: 시안 .au-stepper 스타일 1:1 박제 (토큰 매핑 동일).
+ *   - .chip: edit-profile.css 끝 베이스 정의와 동일 규격 박제 (동작 보존).
+ * ============================================================ */
+
+/* ===== 단계 진행 표시기 (시안 AuStepper 박제) ===== */
+.ob2-stepper {
+  display: flex;
+  margin: 0 0 24px;
+  padding: 0;
+  list-style: none;
+}
+.ob2-sstep {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 7px;
+  position: relative;
+}
+/* 단계 사이 연결선 — 이전/현재 단계는 accent, todo 는 border */
+.ob2-sstep::before {
+  content: "";
+  position: absolute;
+  top: 15px;
+  left: -50%;
+  width: 100%;
+  height: 2px;
+  background: var(--border);
+  z-index: 0;
+}
+.ob2-sstep:first-child::before {
+  display: none;
+}
+.ob2-sstep[data-s="done"]::before,
+.ob2-sstep[data-s="on"]::before {
+  background: var(--accent);
+}
+/* dot — 32px 원형 (정사각 W=H 이므로 50% 허용: 디자인 룰 §4-1) */
+.ob2-sstep__dot {
+  position: relative;
+  z-index: 1;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--ff-mono);
+  font-size: 12.5px;
+  font-weight: 800;
+  background: var(--bg-elev);
+  border: 2px solid var(--border);
+  color: var(--ink-dim);
+}
+.ob2-sstep__dot .ico {
+  font-family: "Material Symbols Outlined";
+  font-size: 17px;
+}
+.ob2-sstep[data-s="on"] .ob2-sstep__dot {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.ob2-sstep[data-s="done"] .ob2-sstep__dot {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
+}
+.ob2-sstep__lbl {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--ink-mute);
+  text-align: center;
+}
+.ob2-sstep[data-s="on"] .ob2-sstep__lbl,
+.ob2-sstep[data-s="done"] .ob2-sstep__lbl {
+  color: var(--ink);
+}
+
+/* ===== chip 베이스 — onboarding 격리 박제 =====
+ * globals.css 에 .chip 정의 없음 + edit-profile.css 에만 존재 →
+ * onboarding 이 그 css 를 import 안 해 미정의였던 것을 여기서 자체 제공.
+ * 규격은 edit-profile.css 끝 베이스 정의와 동일 (동작 1:1 보존). */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 36px;
+  padding: 0 14px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--ink-soft);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+.chip:hover {
+  border-color: var(--ink-mute);
+  color: var(--ink);
+}
+.chip--active {
+  border-color: var(--accent);
+  background: color-mix(in oklab, var(--accent) 10%, transparent);
+  color: var(--accent);
+  font-weight: 700;
+}
+.chip--active:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.chip:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* iOS 자동 줌 차단 + 44px 터치 (컨벤션 §모바일) */
+@media (max-width: 720px) {
+  .chip {
+    min-height: 44px;
+  }
+}

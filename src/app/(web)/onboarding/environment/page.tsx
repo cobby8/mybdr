@@ -18,6 +18,9 @@ import { redirect } from "next/navigation";
 import { getAuthUser } from "@/lib/auth/get-auth-user";
 import { prisma } from "@/lib/db/prisma";
 import { EnvironmentStep } from "./_components/environment-step";
+// Phase 7C-4 — 단계 진행 표시기 + .chip 격리 박제 (AU2 시안)
+import { OnboardingStepper } from "../_components/onboarding-stepper";
+import "../onboarding.css";
 
 export const dynamic = "force-dynamic";
 
@@ -67,18 +70,10 @@ export default async function OnboardingEnvironmentPage() {
         padding: "32px 16px",
       }}
     >
+      {/* Phase 7C-4 — eyebrow 텍스트 대신 시각 stepper (활동환경 = 2단계, current=1) */}
+      <OnboardingStepper current={1} />
+
       <header style={{ marginBottom: 24, textAlign: "center" }}>
-        <p
-          className="eyebrow"
-          style={{
-            fontSize: 11,
-            color: "var(--ink-mute)",
-            marginBottom: 8,
-            letterSpacing: "0.08em",
-          }}
-        >
-          STEP 2 / 10
-        </p>
         <h1 style={{ fontSize: 24, fontWeight: 800, marginBottom: 8, color: "var(--ink)" }}>
           활동 환경
         </h1>
