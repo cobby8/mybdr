@@ -161,7 +161,8 @@
 | 단계 | 영역 | 상태 | 책임자 | 갱신일 | 메모 |
 |------|------|------|------|------|------|
 | ⑩ sync 실행 | 8A+8B | ✅ 완료 | CLI | 2026-06-07 | v2.28 sync. `court-shared.jsx/css` 신규(15594+23133 byte). Courts/CourtDetail/CourtBooking/VenueDetail/PartnerAdmin/PartnerVenue/PartnerCampaigns/AdminCourtsPartners 8 jsx. Phase 1~7 carry-over diff 0 / pre-snapshot `_archive/BDR-current-2026-06-07-pre-v2.28/` |
-| ⑪ 운영 박제 (8C) | 8C | ⏳ 대기 | CLI | 2026-06-07 | auto-chain 8 PR (1 VP1 / 2 VU4 / 3 VP2 / 4 VP3 / 5 VU1 / 6 VA1 / 7 VU2 / 8 VU3). ★ VU3 토스=BU2 답습 / 2측 badge / 옛 carry-over |
+| ⑪ 운영 박제 (8C) | 8C | ✅ 완료 (8/8) | CLI | 2026-06-07 | auto-chain 8 commit. `972a883`(1 VP1·BV4) / `c72095b`(2 VU4·BV8) / `fbc225c`(3 VP2·BV5) / `19389a4`(4 VP3·BV6) / `717b1f2`(5 VU1·BV1) / `8cbe909`(6 VA1·BV7 SiteOperatorBadge 공용) / `519ad5d`(7 VU2·BV3) / `cdd6f69`(8 VU3·BV2 토스 BU2 보존). 2측 badge 분리(Court navy+silver / Site dark+gold) / 데이터·액션 0 변경 / 각 tsc0 |
+| ⑫ 회귀 검수 | 8C | ✅ 완료 | CLI | 2026-06-07 | VU3 토스 위젯 mock 0(가짜 위젯 미박제 6.2C-7 답습) / 즐겨찾기·앰배서더·venue코트list·정책통계탭 hide(모델 부재 mock 0) / 옛 박제(v2·v3·v2.2) 큰변경 0 / stop 발동 0 |
 | ⑬ PR 결재 | 8C | ⏳ 대기 | 수빈 | - | chain subin→dev→main 머지 |
 | ⑭ Phase 완료 | 8 | ⏳ 대기 | CLI→Cowork | - | 코트·장소 운영 반영 |
 
