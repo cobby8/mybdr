@@ -209,6 +209,35 @@
 - 헤더 1개만 추가(PM 승인 범위). hero/탭/ContextReviews/삭제버튼/사진/작성폼 0 변경
 - 별점 정수 반올림 = StarRating value 정수 시그니처 답습(소수 별 미지원). 숫자는 .1 정밀 표기로 보완
 
+### 8C-8 — VU3 CourtBooking 통합 → /booking + payment-fail + checkin (BV2 ★★★★★)
+
+📝 구현: 시안 wizard 통합·QR·가짜 토스 위젯 미박제. PM 승인 **정보성 톤 4종**만 박제. 토스 흐름(SDK 로드/requestPayment/successUrl/failUrl/payment-cancel)·예약/cancel/checkin 액션·약관 게이트 0 변경.
+
+| 파일 | 변경 | 신규/수정 |
+|------|------|----------|
+| src/app/(web)/courts/[id]/booking/_booking-client.tsx | 결제수단 안내 칩(PAY_METHODS 3종 비활성) + "토스 안전결제창에서 선택" lock 안내 + 결제 버튼 lock 아이콘 (+83 −0) | 수정 |
+| src/app/(web)/courts/[id]/booking/payment-fail/page.tsx | code 박스 → bl-result__errchip 톤("오류 코드" 라벨 + code 칩 accent) (+18 −5 ≈ LOC +13) | 수정 |
+| src/app/(web)/courts/[id]/checkin/page.tsx | "현장 체크인 · CHECK-IN" eyebrow(성공/이미체크인 시만) (+11 −0) | 수정 |
+
+- 톤 4종: ① 결제수단 안내 칩(card/transfer/easy, 시안 VU3_PM 답습 — 비활성 정보성 only, 가짜 위젯 미박제) ② 안전결제 lock 아이콘(bl-widget__note + bl-paybtn 톤) ③ payment-fail errchip 톤 ④ checkin eyebrow
+- 합계 LOC ≈ +107 — stop LOC>+2000 무관
+- **토스 흐름 보존**: requestPayment/successUrl/failUrl/customerEmail 인자·SDK 동적로드·MeInfo 조회 0 변경 / payment-cancel API useEffect 0 변경 / checkin POST(method:qr) 0 변경 / 약관 4종 게이트(allRequiredAgreed) 0 변경
+- 가짜 토스 위젯(bl-pm-skel 카드번호 입력 등) 미박제 — 정보성 안내 칩만(실 수단 선택=토스 안전결제창)
+- 결제수단 칩·lock 안내는 isPaid(유료)일 때만 노출 / checkin eyebrow는 success·already 상태만(loading/error transitional 제외)
+- var(--*)만: ink-soft/ink-dim/border/bg-alt/accent + checkin은 var(--color-text-muted) (기존 토큰 답습). hex 0
+- tsc --noEmit = 0
+- prefix 충돌 0: vu3-/bv-/cv-/bl- 식별자 미도입. className 전부 Tailwind+인라인 var(--*). 주석 내 시안 참조 3건(bl-widget__note/bl-paybtn/bl-result__errchip)만(grep 식별자 0)
+
+💡 tester 참고:
+- 테스트: /courts/[id]/booking 진입 → 유료 코트 우측 요약카드 결제버튼 위 결제수단 칩 3개(카드/계좌이체/간편결제, 클릭 비활성) + "토스 안전결제창에서 선택" lock 안내 + 결제버튼 lock 아이콘. payment-fail 진입(매핑 안된 code) → "오류 코드" 라벨+code 칩. checkin QR 진입 성공 → "현장 체크인 · CHECK-IN" eyebrow
+- 정상: 무료 코트는 결제수단 칩/lock 안내 미노출(기존대로) / 결제 흐름·약관 게이트·체크인 동작 전부 기존 동일 / errchip은 매핑 안된 code 만 노출
+- 주의: 무료 코트(칩 hide) / 매핑된 code(USER_CANCEL 등 — errchip 미노출, 한글 메시지만) / checkin loading·error(eyebrow 미노출)
+
+⚠️ reviewer 참고:
+- 정보성 톤 4종만(PM 승인) — wizard 통합·QR hero·가짜 토스 위젯·성공/실패 토글 미박제. 토스 실연결 흐름 보존(mock 0)
+- 결제수단 칩 = 비활성 `<span>`(button 아님) — 실제 선택은 토스 안전결제창. 오해 방지 위해 lock 안내 동반
+- stop condition: **없음** (토스 mock 미사용 / DB·api/v1·LOC·회귀·badge 통합 무관)
+
 ## 수정 요청
 | 요청자 | 대상 | 문제 | 상태 |
 |--------|------|------|------|
@@ -216,6 +245,7 @@
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
 |------|------|------|
+| 2026-06-07 | **8C-8** VU3 CourtBooking → /booking+payment-fail+checkin (BV2) | ✅ 정보성 톤4(결제수단칩+lock안내 / 버튼 lock / errchip톤 / checkin eyebrow) / 토스흐름·cancel·checkin·약관게이트 0 / 가짜위젯 미박제(mock0) / tsc 0 / 충돌 0 / stop 없음 |
 | 2026-06-07 | **8C-7** VU2 CourtDetail → /courts/[id] (BV3) | ✅ 5항목 평균 카드에 평점 헤더1(overallAverage+StarRating+리뷰N) / 데이터·액션·탭·hero 0 / var(--*)만 / tsc 0 / 충돌 0 |
 | 2026-06-07 | **8C-6** VA1 AdminCourtsPartners → /admin/courts + /admin/partners (BV7) | ✅ 2라우트 보존 / SiteOperatorBadge 공용 신규(dark+gold) 양쪽 박제 / courts hero stat4 + count쿼리3(count-only) / 신고 탭·모달·액션 미생성 / 패칭·가드 0 / tsc 0 / 충돌 0 |
 | 2026-06-07 | **8C-4** VP3 PartnerCampaigns → /partner-admin/campaigns (BV6) | ✅ 인라인폼 유지 / VP3 톤4(badge·grid2열·필터칩·헤더합계) / mock회피 / handleCreate 0 / [id] 0 / tsc 0 / 충돌 0 |
