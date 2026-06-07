@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>BDR v2.28 · Phase 8 (코트·장소) + 전체 시안 목차</title>
+<title>BDR v2.27 · Phase 7 (온보딩·회원가입·인증) + 전체 시안 목차</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800;900&family=JetBrains+Mono:wght@500;700;800&family=Pretendard:wght@400;500;600;700;800;900&display=swap" />
@@ -47,7 +47,6 @@
 .index-card__tag--new { background: var(--accent); color: #fff; }
 .index-card__tag--op-site { background: linear-gradient(135deg, #1A1E27, #404755); color: #F4C76C; }
 .index-card__tag--op-series { background: linear-gradient(135deg, #1B3C87, #0F234F); color: #C0CCDB; }
-.index-card__tag--op-court { background: linear-gradient(135deg, #1B3C87, #2A4D9E); color: #C0CCDB; }
 .index-checks { margin-top: 40px; padding: 24px 28px; background: var(--bg-elev); border: 1px solid var(--border); border-radius: var(--r-lg); }
 .index-checks h3 { font-family: var(--ff-display); font-size: 16px; font-weight: 800; margin: 0 0 12px; }
 .index-checks ul { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 6px 16px; }
@@ -64,112 +63,26 @@
 <body>
 <div class="index-page">
   <header class="index-hero">
-    <div class="eyebrow">BDR v2.28 · Phase 8 · 2026-06-07</div>
-    <h1>코트·장소 — 발견·예약·대관·광고 / 3 측 stakeholder</h1>
+    <div class="eyebrow">BDR v2.27 · Phase 7 · 2026-05-31</div>
+    <h1>온보딩·회원가입·인증 — 첫 사용자 진입 / conversion funnel</h1>
     <p>
-      <b>운영 코드 변경 0 — 시안 박제만. 3 측 (사용자 + 파트너 Court Operator + super-admin Site Operator).</b>
-      Phase 8 = 총 <b>8 시안</b> — 사용자 4 (VU1~VU4) + 파트너 3 (VP1~VP3) + super-admin 1 (VA1). 가장 큰 묶음.
-      <b>BV1~BV8 다리</b> — BV1 발견성 · BV2 예약(토스 BU2 답습) · BV3 리뷰·신고 · BV4 파트너 hub · BV5 venue · BV6 츠페인 · BV7 super-admin 검수 · BV8 cross-domain.
-      <b>cross-domain</b> = Phase 1 venue · Phase 2 court_id · Phase 5 랜킹 · <b>Phase 6.2 BU4 예약(court_bookings)</b> = 동일 source. 토스 실연결 mock 0. Phase 1~7 carry-over (변경 ❌).
+      <b>운영 코드 변경 0 — 시안 박제만. 사용자 측만 (admin ❌) · AppNav 미적용 standalone.</b>
+      Phase 7 = 사용자 <b>4 시안</b> (AU1~AU4). 첫 진입 / 가입 전환 핵심.
+      <b>BA1~BA5 다리</b> — BA1 로그인·가입 일관 · BA2 온보딩 5-step · BA3 비밀번호 · BA4 인증 · BA5 IdentityVerifyButton cross-domain.
+      <b>cross-domain</b> = Phase 12-5 <b>IdentityVerifyButton</b> (AU2 step3 + Phase 6.1 PU2 + Phase 6.3 GU3 재사용) · verified_* 컬럼 = AU4 결과 → PU2/GU3 success badge 자동. Phase 1~6.3 carry-over (변경 ❌).
     </p>
     <div class="index-summary">
-      <div class="index-stat"><div class="index-stat__v">8</div><div class="index-stat__l">Phase 8 시안 (3 측)</div></div>
-      <div class="index-stat index-stat--accent"><div class="index-stat__v">6</div><div class="index-stat__l">신규 (VU3·VP1~3·VA1)</div></div>
-      <div class="index-stat index-stat--ok"><div class="index-stat__v">8</div><div class="index-stat__l">갭 해소 (BV1~BV8)</div></div>
+      <div class="index-stat"><div class="index-stat__v">4</div><div class="index-stat__l">Phase 7 시안 (AU1~AU4)</div></div>
+      <div class="index-stat index-stat--accent"><div class="index-stat__v">3</div><div class="index-stat__l">신규 통합 (AU1·AU2·AU3)</div></div>
+      <div class="index-stat index-stat--ok"><div class="index-stat__v">5</div><div class="index-stat__l">갭 해소 (BA1~BA5)</div></div>
       <div class="index-stat"><div class="index-stat__v">0</div><div class="index-stat__l">운영 코드 변경</div></div>
     </div>
   </header>
 
-  <!-- ============ Phase 8B — 사용자 측 (4) ============ -->
-  <section class="index-section">
-    <h2 class="index-section__h"><span class="index-section__num index-section__num--navy">8B</span> 코트·장소 사용자 (4 시안 · A 등급)</h2>
-    <p class="index-section__sub">BV1 발견성 + BV2 예약(토스 BU2 답습) + BV3 리뷰·신고 + BV8 cross-domain. Phase 6.2 BU4 예약 정합.</p>
-    <div class="index-grid">
-      <a class="index-card" href="vu1-courts.html">
-        <div class="index-card__top"><span class="index-card__id index-card__id--navy">VU1</span><span class="index-card__kind">사용자 · 보강 · A 등급</span></div>
-        <div class="index-card__title">Courts — 코트 발견성</div>
-        <div class="index-card__route">/courts</div>
-        <p class="index-card__desc">검색 + 필터(지역/가격/평점/즐겨찾기) + 지도 토글 + 코트 카드(즐겨찾기·앵배서더 badge) + "코트 등록 신청" + Phase 5 랜킹 cross-domain.</p>
-        <div class="index-card__tags"><span class="index-card__tag index-card__tag--gap-bt">BV1 ★★★★</span></div>
-      </a>
-      <a class="index-card" href="vu2-court-detail.html">
-        <div class="index-card__top"><span class="index-card__id index-card__id--navy">VU2</span><span class="index-card__kind">사용자 · 보강 · A 등급</span></div>
-        <div class="index-card__title">CourtDetail — 4탭 + 신고·편집 모달</div>
-        <div class="index-card__route">/courts/[id]</div>
-        <p class="index-card__desc">Hero(평점+즐겨찾기+예약 CTA→VU3) + 4 탭(개요/리뷰 5항목 평균/예약 가능 시간/신고·편집) + 신고·편집 제안 모달 + cross-domain Phase 1/2/5.</p>
-        <div class="index-card__tags"><span class="index-card__tag index-card__tag--gap-bt">BV3 ★★★★</span></div>
-      </a>
-      <a class="index-card" href="vu3-court-booking.html">
-        <div class="index-card__top"><span class="index-card__id index-card__id--navy">VU3</span><span class="index-card__kind">사용자 · 통합 신규 · A 등급</span></div>
-        <div class="index-card__title">CourtBooking — 3-step 예약 wizard</div>
-        <div class="index-card__route">/courts/[id]/booking + payment-fail + checkin</div>
-        <p class="index-card__desc">통합 신규(574 → 3-step). 시간 선택 → 결제(<b>Phase 6.2 BU2 토스 위젯 답습 mock 0</b>) → 사후(성공 hero+QR+체크인 / 실패 BU5 답습). 별 화면 = 체크인 QR(court_checkins).</p>
-        <div class="index-card__tags"><span class="index-card__tag index-card__tag--new">NEW</span><span class="index-card__tag index-card__tag--gap-bt">BV2 ★★★★★</span></div>
-      </a>
-      <a class="index-card" href="vu4-venue-detail.html">
-        <div class="index-card__top"><span class="index-card__id index-card__id--navy">VU4</span><span class="index-card__kind">사용자 · 보강 · A 등급</span></div>
-        <div class="index-card__title">VenueDetail — 공개 SEO 체육관</div>
-        <div class="index-card__route">/venues/[slug]</div>
-        <p class="index-card__desc">공개 SEO(비로그인 열람). Hero(venue+위치) + 사진 갤러리 + 안 코트 list(cross-domain → VU2) + 리뷰 요약 + 비로그인 가입 CTA(→ AU1). 큰 carry-over.</p>
-        <div class="index-card__tags"><span class="index-card__tag index-card__tag--gap-bt">BV8 cross-domain</span></div>
-      </a>
-    </div>
-  </section>
-
-  <!-- ============ Phase 8A — 파트너 + super-admin (4) ============ -->
-  <section class="index-section">
-    <h2 class="index-section__h"><span class="index-section__num">8A</span> 코트·장소 관리자 (4 시안 · E 등급 · 2 측)</h2>
-    <p class="index-section__sub">VP1~VP3 = Court Operator (파트너 · navy+silver) · VA1 = Site Operator (super-admin · dark+gold). 2 측 badge 시각 분리.</p>
-    <div class="index-grid">
-      <a class="index-card" href="vp1-partner-admin.html">
-        <div class="index-card__top"><span class="index-card__id">VP1</span><span class="index-card__kind">파트너 · 신규 · E 등급</span></div>
-        <div class="index-card__title">PartnerAdmin — Court Operator hub</div>
-        <div class="index-card__route">/partner-admin</div>
-        <p class="index-card__desc">신규(205). Hero(내 코트/예약/매출/평점) + 운영 코트 list(예약·매출·평점·status) + "새 코트" + "츠페인" CTA. 매출 = Phase 6.2 court_bookings cross-domain.</p>
-        <div class="index-card__tags"><span class="index-card__tag index-card__tag--new">NEW</span><span class="index-card__tag index-card__tag--gap-bt">BV4 ★★★</span><span class="index-card__tag index-card__tag--op-court">Court Operator</span></div>
-      </a>
-      <a class="index-card" href="vp2-partner-venue.html">
-        <div class="index-card__top"><span class="index-card__id">VP2</span><span class="index-card__kind">파트너 · 신규 · E 등급</span></div>
-        <div class="index-card__title">PartnerVenue — 대관 4 sub-tab</div>
-        <div class="index-card__route">/partner-admin/venue</div>
-        <p class="index-card__desc">신규(259 · Phase 4 OO2 답습). 4 sub-tab — 기본 정보 / 시간·가격(영업시간·가격정책) / 정책(예약·환불·규정) / 통계(예약·매출·평점 추세).</p>
-        <div class="index-card__tags"><span class="index-card__tag index-card__tag--new">NEW</span><span class="index-card__tag index-card__tag--gap-bt">BV5 ★★★</span><span class="index-card__tag index-card__tag--op-court">Court Operator</span></div>
-      </a>
-      <a class="index-card" href="vp3-partner-campaigns.html">
-        <div class="index-card__top"><span class="index-card__id">VP3</span><span class="index-card__kind">파트너 · 통합 신규 · E 등급</span></div>
-        <div class="index-card__title">PartnerCampaigns — 광고 츠페인 통합</div>
-        <div class="index-card__route">/partner-admin/campaigns + /[id]</div>
-        <p class="index-card__desc">통합 신규(721). 츠페인 카드 grid(노출/클릭/매출 + status) + 상태 필터 + "새 츠페인" 모달(예산/대상/기간/자산) + 상세 모달(partners).</p>
-        <div class="index-card__tags"><span class="index-card__tag index-card__tag--new">NEW</span><span class="index-card__tag index-card__tag--gap-bt">BV6 ★★★</span><span class="index-card__tag index-card__tag--op-court">Court Operator</span></div>
-      </a>
-      <a class="index-card" href="va1-admin-courts.html">
-        <div class="index-card__top"><span class="index-card__id">VA1</span><span class="index-card__kind">super-admin · 통합 신규 · E 등급</span></div>
-        <div class="index-card__title">AdminCourtsPartners — Site Operator 통합</div>
-        <div class="index-card__route">/admin/courts + /admin/partners</div>
-        <p class="index-card__desc">통합 신규(411 · Phase 4 OA1 + 6.1 PA1 답습). Hero(전체/활성/미승인/파트너) + 4 탭(코트/파트너/신고 court_reports/편집 court_edit_suggestions) + 상태 모달(Phase 2 UD1 답습 · 알림 ✅).</p>
-        <div class="index-card__tags"><span class="index-card__tag index-card__tag--new">NEW</span><span class="index-card__tag index-card__tag--gap-bt">BV7 ★★</span><span class="index-card__tag index-card__tag--op-site">Site Operator</span></div>
-      </a>
-    </div>
-  </section>
-
-  <!-- ============ Phase 8 BV 의존 검증 ============ -->
-  <section class="index-checks index-checks--bo">
-    <h3>BV 양측·cross-domain 의존 검증 + Phase 8 특수 — 박제 마지막 단계 ✅</h3>
-    <ul>
-      <li><b>BV1</b> 발견성 — VU1 검색/필터/지도 + 즐겨찾기(user_favorite_courts) + 앵배서더(court_ambassadors) badge 시각 분리</li>
-      <li><b>BV2</b> 예약 — VU3 3-step = Phase 6.2 BU2 토스 위젯 답습(mock 0) + court_bookings + court_checkins 체크인</li>
-      <li><b>BV3</b> 리뷰·신고 — VU2 5항목 평균(v3 carry) + court_reports 신고 + court_edit_suggestions 편집 모달</li>
-      <li><b>BV4~BV6</b> 파트너 — VP1 hub(매출) + VP2 venue 4 sub-tab(OO2 답습) + VP3 츠페인(partners) · Court Operator badge</li>
-      <li><b>BV7</b> super-admin — VA1 코트 승인/파트너 검수/신고·편집 처리(OA1 + PA1 답습) · 상태 모달 알림 ✅ · Site Operator badge</li>
-      <li><b>BV8</b> cross-domain — Phase 1 venue / Phase 2 court_id / Phase 5 랜킹 / <b>Phase 6.2 BU4 예약(court_bookings)</b> = 동일 source</li>
-      <li><b>특수</b> 3 측 badge 시각 분리 (Court Operator navy+silver / Site Operator dark+gold) · VU3 토스 위젯 mock 0 · 금액 천 단위 ₩ · 5항목 평균 v3 carry</li>
-    </ul>
-  </section>
-
   <!-- ============ Phase 7 — 온보딩·회원가입·인증 (4) ============ -->
   <section class="index-section">
-    <h2 class="index-section__h"><span class="index-section__num index-section__num--mute">v2.27</span> 온보딩·회원가입·인증 (4 시안 · A 등급 · 사용자 측)</h2>
-    <p class="index-section__sub">Phase 7 보존 — 첫 사용자 진입 / conversion funnel. AppNav 미적용 standalone. BA1~BA5.</p>
+    <h2 class="index-section__h"><span class="index-section__num index-section__num--navy">7</span> 온보딩·회원가입·인증 (4 시안 · A 등급 · 사용자 측)</h2>
+    <p class="index-section__sub">첫 사용자 진입 / conversion funnel. AppNav 미적용 standalone. BA1 로그인·가입 + BA2 온보딩 5-step + BA3 비밀번호 + BA4·BA5 인증 cross-domain.</p>
     <div class="index-grid">
       <a class="index-card" href="au1-login-signup.html">
         <div class="index-card__top"><span class="index-card__id index-card__id--navy">AU1</span><span class="index-card__kind">사용자 · 신규 통합 · A 등급</span></div>

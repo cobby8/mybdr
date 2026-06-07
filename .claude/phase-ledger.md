@@ -153,8 +153,17 @@
 | ⑩ sync 실행 | 7A+7B | ✅ 완료 | CLI | 2026-06-07 | v2.27 sync. `auth-shared.jsx/css` 신규(162+197). LoginSignup/Onboarding/PasswordRecovery/Verify 4 jsx. Phase 1~6.3 carry-over diff 0 / pre-snapshot `_archive/BDR-current-2026-06-07-pre-v2.27/` / ★ AppNav 미적용 standalone |
 | ⑪ 운영 박제 (7C) | 7C | ✅ 완료 (4/4) | CLI | 2026-06-07 | auto-chain 4 commit. `cd261b5`(1 AU1·BA1 강도미터+OAuth통일) / `62d8e92`(2 AU3·BA3 forgot hero) / `8fa3671`(3 AU4·BA4/BA5 verify 톤) / `239b779`(4 AU2·BA2 OnboardingStepper). ★ 사용자 결정=AppNav **현상유지**(해석 A, layout 0 변경) / Phase 10-5 wrapper·12-5 IdentityVerifyButton 0 변경 / 각 tsc0 |
 | ⑫ 회귀 검수 | 7C | ✅ 완료 | CLI | 2026-06-07 | OAuth=활성 provider만(Apple hide) / verified 결과 카드 hide(API 미제공 mock 0) / 강도미터 5단계 정합 / IdentityVerifyButton mock 0 변경 / stop 발동 0 |
-| ⑬ PR 결재 | 7C | ⏳ 대기 | 수빈 | - | chain subin→dev→main 머지 |
+| ⑬ PR 결재 | 7C | 🔵 진행 중 | 수빈 | 2026-06-07 | subin→dev #661 (빌드 pass) / 머지 대기 |
 | ⑭ Phase 완료 | 7 | ⏳ 대기 | CLI→Cowork | - | 인증·온보딩 운영 반영 |
+
+### Phase 8 — 코트 · 장소 영역 (3측 stakeholder)
+
+| 단계 | 영역 | 상태 | 책임자 | 갱신일 | 메모 |
+|------|------|------|------|------|------|
+| ⑩ sync 실행 | 8A+8B | ✅ 완료 | CLI | 2026-06-07 | v2.28 sync. `court-shared.jsx/css` 신규(15594+23133 byte). Courts/CourtDetail/CourtBooking/VenueDetail/PartnerAdmin/PartnerVenue/PartnerCampaigns/AdminCourtsPartners 8 jsx. Phase 1~7 carry-over diff 0 / pre-snapshot `_archive/BDR-current-2026-06-07-pre-v2.28/` |
+| ⑪ 운영 박제 (8C) | 8C | ⏳ 대기 | CLI | 2026-06-07 | auto-chain 8 PR (1 VP1 / 2 VU4 / 3 VP2 / 4 VP3 / 5 VU1 / 6 VA1 / 7 VU2 / 8 VU3). ★ VU3 토스=BU2 답습 / 2측 badge / 옛 carry-over |
+| ⑬ PR 결재 | 8C | ⏳ 대기 | 수빈 | - | chain subin→dev→main 머지 |
+| ⑭ Phase 완료 | 8 | ⏳ 대기 | CLI→Cowork | - | 코트·장소 운영 반영 |
 
 ---
 

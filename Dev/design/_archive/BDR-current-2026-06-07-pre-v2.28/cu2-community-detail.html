@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>CU2 · CommunityDetail — BDR v2.23</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800;900&family=JetBrains+Mono:wght@500;700;800&family=Pretendard:wght@400;500;600;700;800;900&display=swap" />
+<link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Symbols+Outlined" />
+<link rel="stylesheet" href="tokens.css" />
+<link rel="stylesheet" href="shell.css" />
+<link rel="stylesheet" href="team-shared.css" />
+<link rel="stylesheet" href="org-shared.css" />
+<link rel="stylesheet" href="comm-shared.css" />
+</head>
+<body>
+<div class="showcase">
+  <header class="showcase-head">
+    <div class="eyebrow">BDR v2.23 · CU2 / 사용자 보강 · Phase 5B · BC4 + BC2 · A 등급</div>
+    <h1>CommunityDetail — /community/[id]</h1>
+    <p><b>CU2 보강 박제</b> — Hero band + 좋아요 카드(<strong>BC4</strong>) + 댓글(운영 comments 모델 확인) + sidebar 추천(작성자/카테고리 다른 글) + 본인 글 수정·삭제 가드 + <strong>대회 알기자 hero badge</strong>(BC2 cross-domain Phase 1A). Phase 1~4 carry-over (변경 ❌) — AppNav "커뮤니티" 탭 활성.</p>
+    <nav class="showcase-nav" aria-label="Phase 5 시안">
+      <a href="index.html">v2.23 목차</a>
+      <a href="ru1-rankings.html">RU1 랭킹</a>
+      <a href="cu1-community-list.html">CU1 커뮤니티</a>
+      <a class="is-cur" href="cu2-community-detail.html">CU2 상세</a>
+      <a href="cu3-community-new.html">CU3 글쓰기</a>
+      <a href="cu4-community-edit.html">CU4 수정</a>
+      <a href="ca1-admin-community.html">CA1 검수</a>
+    </nav>
+  </header>
+
+  <section class="variant">
+    <header class="variant__head">
+      <span class="variant__num">CU2 / PC + MOBILE · A 등급</span>
+      <h2 class="variant__title">CommunityDetail</h2>
+      <p class="variant__desc">데스크톱 PC 1240 + 모바일 375 동시. AppNav active="comm".</p>
+    </header>
+    <div class="vp-strip">
+      <div class="vp vp--pc">
+        <div class="vp__chrome"><span class="vp__lights"><span></span><span></span><span></span></span><span class="vp__url">mybdr.kr/community/mapo-cup-7-final</span><span class="vp__size">PC · 1240</span></div>
+        <div class="vp__body"><div id="mount-pc-nav"></div><div id="mount-pc"></div></div>
+      </div>
+      <div class="vp vp--mobile">
+        <div class="vp__chrome"><span class="vp__lights"><span></span><span></span><span></span></span><span class="vp__url">m · 글 상세</span><span class="vp__size">375</span></div>
+        <div class="vp__body"><div id="mount-mobile-nav"></div><div id="mount-mobile"></div></div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script type="text/babel" src="shared.jsx"></script>
+<script type="text/babel" src="game-shared.jsx"></script>
+<script type="text/babel" src="team-shared.jsx"></script>
+<script type="text/babel" src="comm-shared.jsx"></script>
+<script type="text/babel" src="screens/CommunityDetail.jsx"></script>
+<script type="text/babel">
+  ReactDOM.createRoot(document.getElementById('mount-pc-nav')).render(<window.AppNav active="comm" />);
+  ReactDOM.createRoot(document.getElementById('mount-pc')).render(<window.CommunityDetail />);
+  ReactDOM.createRoot(document.getElementById('mount-mobile-nav')).render(<window.AppNav active="comm" />);
+  ReactDOM.createRoot(document.getElementById('mount-mobile')).render(<window.CommunityDetail />);
+</script>
+</body>
+</html>
