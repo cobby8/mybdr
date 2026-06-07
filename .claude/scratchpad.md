@@ -12,7 +12,7 @@
 | 7C-1 | AU1 LoginSignup → /login + /signup (BA1 OAuth 4) | ✅ (해석A·현상유지) |
 | 7C-2 | AU3 PasswordRecovery → /forgot-password + /reset-password (BA3) | ⏳ |
 | 7C-3 | AU4 Verify → /verify 보강 (BA4/BA5) | ⏳ |
-| 7C-4 | AU2 Onboarding 5-step → /onboarding/* (BA2) | ⏳ |
+| 7C-4 | AU2 Onboarding 5-step → /onboarding/* (BA2) | ✅ (stepper 박제·standalone) |
 - lock: AppNav 미적용 standalone 유지 / OAuth=활성 provider만(없으면 hide) / Phase 10-5 server wrapper+onboarding_completed_at 가드 보존 / Phase 12-5 IdentityVerifyButton mock 보존 / 강도미터 5단계 색
 - 데이터 정책: server 조회 허용 / stop = `/api/v1`·DB schema·LOC>+2000·tsc실패·회귀6·AppNav 적용·10-5/12-5 가드 변경
 
@@ -91,6 +91,36 @@
 
 #### stop condition: **없음** (IdentityVerifyButton **0 변경** 명시 / verified 카드 DB·select 미변경 / `/api/v1`·DB schema·LOC>+2000·tsc실패·회귀·10-5/12-5 가드 모두 0 / au4-·ba- prefix 충돌 0)
 
+### 7C-4 (AU2 Onboarding 5-step → /onboarding/* 박제, BA2)
+📝 구현: 시안 AU2 AuStepper(단계 진행 표시기)를 운영 5 라우트 상단에 박제. wizard 통합(라우팅 변경)=stop → 각 page 의 단조 eyebrow 텍스트("STEP N / 10")를 시각 stepper 로 교체. 부수로 onboarding 의 edit-profile.css 전역 `.chip` 암묵 의존(stale)을 onboarding.css 로 격리.
+
+| 파일 | 변경 내용 | 신규/수정 | LOC |
+|------|----------|----------|-----|
+| onboarding/_components/onboarding-stepper.tsx | 시안 AuStepper 박제 server component (5단계 done/on/todo, ob2- class) | 신규 | +53 |
+| onboarding/onboarding.css | ob2-stepper 스타일(시안 1:1) + `.chip`/`.chip--active` 베이스 격리 박제 | 신규 | +136 |
+| onboarding/identity/page.tsx | eyebrow→`<OnboardingStepper current={0}>` + css import | 수정 | (4 page 합 +24/-44) |
+| onboarding/environment/page.tsx | eyebrow→stepper current=1 + css import | 수정 | ↑ |
+| onboarding/basketball/page.tsx | eyebrow→stepper current=2 + css import | 수정 | ↑ |
+| onboarding/preferences/page.tsx | eyebrow→stepper current=3 + css import | 수정 | ↑ |
+
+- stepper 5단계 = 운영 실제 진입 순서: 본인인증(0)→활동환경(1)→농구정보(2)→선호(3)→완료(4). preferences = 4번째(선호) 단계 = "step=4 실라우트" (setup 은 redirect 폐기 = stepper 미장착, 0 변경).
+- `.chip` 격리: step component(basketball/environment/preferences)가 `.chip`/`.chip--active` 쓰나 정의는 profile/edit/edit-profile.css 끝에만 존재 + onboarding 은 그 css 미import → 미정의(브라우저 기본 button 깨짐) 상태였음. onboarding.css 에 동일 규격 베이스 박제 → component className **0 변경**으로 동작 보존 + 전역 의존 끊음.
+- 토큰 정합: 시안 `--accent`/`--accent-soft`/`--bg-elev`/`--ink-dim`/`--border`/`--ff-mono`/`--ink-mute`/`--ink` 전부 globals.css 실재 확인. 하드코딩 색 0. dot 원형 50%(정사각 W=H, 디자인 룰 §4-1 허용).
+- prefix 충돌 0: ob2- 신규 prefix, au-* (시안) 운영 미이식, .chip 은 edit-profile.css 와 동일 규격이나 각 라우트가 자기 css 만 import(scope 분리).
+
+보존(검증됨): 5 page 전부 getAuthUser·prisma select·redirect 가드·단계 검증 로직 0 변경(Phase 10-5 server wrapper + onboarding_completed_at 가드). setup/page.tsx redirect 폐기 0 변경. 모든 step _components/*.tsx(select·chip className·PhoneInput·IdentityVerifyButton Phase 12-5) 0 변경. AppNav 미적용 standalone 현상유지.
+
+💡 tester 참고:
+- /onboarding/identity 진입 시 상단에 5단계 stepper 노출(1 본인인증=강조 accent / 2~5=todo 회색). /environment 는 1번 체크 완료(✓)+2번 강조, 순차로 진행 표시.
+- /onboarding/basketball·environment·preferences chip(포지션/지역/스타일 등) 클릭 시 선택 토글 정상(accent 테두리+배경). 미선택은 기본 회색. → **이전에 .chip 미정의로 깨졌을 가능성, 본 PR 로 정상화**.
+- preferences = stepper 4번째(선호) 강조. setup 직접 접근 시 /profile/edit redirect 회귀 0.
+- 정상: tsc 0. 모바일(≤720px) chip 44px 터치.
+- 주의 입력: 각 단계 redirect 가드(이전 단계 미완료 시 거기로) 회귀 0 — identity 미완료 상태로 /basketball 직접 접근 시 /onboarding/identity 로 튕김 확인.
+
+⚠️ reviewer 참고: (1) `.chip` 베이스를 onboarding.css 에 박제한 격리 판단(edit-profile.css 와 규격 중복이나 라우트별 css import scope 분리로 충돌 0) 타당성. (2) stepper 단계 순서를 시안(농구먼저)이 아닌 운영 라우팅 순서(본인인증먼저)로 매핑한 판단.
+
+#### stop condition: **없음** (10-5 server wrapper·redirect 가드·select **0 변경** 명시 / 12-5 IdentityVerifyButton·MockIdentityModal **0 변경** 명시 / step _components select·chip className 0 변경 / setup redirect 0 변경 / `/api/v1`·DB schema·LOC>+2000(순증~+169)·tsc실패·회귀·AppNav 적용 모두 0 / ob2-·au- prefix 충돌 0)
+
 ## 완료 Phase (이력)
 - ✅ **Phase 6 묶음 운영 반영** (6.1+6.2+6.3 = 16 시안 / dev→main #658·#660 / main `32153c7` Vercel success)
   - 6.2 토스 실연결 mock 0 / 6.3 보강 placeholder warn-soft 통일 / BP1 privacy·BP5 가드
@@ -104,6 +134,7 @@
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
 |------|------|------|
+| 2026-06-07 | **Phase 7C-4 박제** (AU2 → onboarding 5 page stepper + .chip 격리) | ✅ tsc 0 / 신규 stepper(+53)+css(+136)·page +24/-44(순증~+169) / 10-5·12-5 가드 0변경·setup 0변경 / stop 0 |
 | 2026-06-07 | **Phase 7C-3 박제** (AU4 → verify 입력·코드 톤 보강) | ✅ tsc 0 / +24/-20(실질+4) / verified카드 hide·SMS흐름 0변경·IdentityVerifyButton 0변경 / stop 0 |
 | 2026-06-07 | **Phase 7C-2 박제** (AU3 → forgot-password 결과 hero) | ✅ tsc 0 / +93 / reset 0변경·토큰정합 OK / stop 0 |
 | 2026-06-07 | **Phase 7C-1 박제** (AU1 → signup 강도미터+OAuth통일) | ✅ tsc 0 / +78/-8 / 현상유지 stop 0 |
@@ -112,4 +143,3 @@
 | 2026-05-31 | **Phase 6.3 chain** (v2.26 + 6.3C 3 PR) | ✅ `832bd2e`+`280c9ef`~`acbd0b2` / 보강 / stop 0 |
 | 2026-05-31 | **Phase 6.2 chain** (v2.25 + 6.2C 7 PR) | ✅ `8d90aa0`+`dc31be2`~`51b4378` / 토스 실연결 mock 0 |
 | 2026-05-31 | **Phase 6.1 chain** (v2.24 + 6.1C 6 PR #657) | ✅ BP1 privacy·BP5 가드·BP2 server조회 |
-| 2026-05-31 | **Phase 5 chain** (v2.23 + 5C 6 PR #656) | ✅ 공용 wizard·mock 0 |
