@@ -2,10 +2,9 @@
 
 ## 현재 작업
 - **요청**: PR-MYBDR-SOCIAL — 모바일 OAuth `/api/v1/auth/kakao`·`google` 신설 (백엔드 기능)
-- **상태**: 🔵 진행 중 — 계획 승인 / developer 구현
-- **현재 담당**: pm → developer
-- **결정**: /api/v1 신규 추가라 바로 진행(원영 공지=PR 본문 명시) / google aud+iss 검증 / 탈퇴=403 / rate-limit IP / 모바일 신규=토큰만
-- **설계**: upsertOAuthUser 공용 추출(oauth.ts, handleOAuthLogin 외부 시그니처 불변=웹콜백 회귀0) / kakao·google route 신규 / login 동형 응답 / env 5키 present / google-auth-library 불필요(tokeninfo HTTP)
+- **상태**: ✅ **완료** — `72eb2df` push + **PR #663**(subin→dev) 빌드 pass. 머지 결재 대기
+- **현재 담당**: pm (완료)
+- **결과**: upsertOAuthUser 공용 추출(웹콜백 회귀0) / kakao·google route(aud+iss) / proxy.ts PUBLIC 등록(tester 발견 버그 fix) / reviewer 보안 통과 + tester 4/4 / errors.md 기록(proxy 게이트 함정). ⚠️ 원영 공지 대상(PR 본문 명시). 실토큰 성공경로=Flutter팀 위임
 
 ## 완료 Phase (이력)
 - ✅ **Phase 7** (인증·온보딩 4, v2.27, PR #661 빌드 pass / 머지 대기) — AppNav 현상유지(해석A) / 10-5·12-5 가드 보존
