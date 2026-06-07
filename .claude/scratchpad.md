@@ -150,6 +150,40 @@
 - cafe-blue 계열은 운영 globals.css 정의 시 사용 / 미정의 시 fallback(var(--cafe-blue-soft, var(--bg-elev)) 식). 기존 5필터칩(L428)도 동일 fallback 패턴 답습
 - CTA·랭킹 모두 `<Link>` affordance(chevron) — 시안 btn 대신 카드 전체 클릭(모바일 안전)
 
+### 8C-6 — VA1 AdminCourtsPartners → /admin/courts + /admin/partners (BV7 ★★ Site Operator)
+
+📝 구현: 2라우트 구조 보존(통합❌). VA1 톤 = Site Operator 뱃지(dark+gold) 양쪽 박제 + courts hero stat strip(전체/활성/미승인/신고). SiteOperatorBadge 공용 컴포넌트 신규(team-shared .operator-badge 박제, Court Operator navy+silver와 hex 분리). 신고 = court_reports active(미처리) count-only만 hero에 포함(탭/모달/액션 미생성). mock(매출·평점·신고리스트·편집제안 탭) 박제 0.
+
+| 파일 | 변경 | 신규/수정 |
+|------|------|----------|
+| src/components/admin/site-operator-badge.tsx | SiteOperatorBadge 공용 컴포넌트(dark+gold) 신규 (+44) | 신규 |
+| src/app/(admin)/admin/courts/page.tsx | badge(actions) + hero stat strip 4종 + count 쿼리 3개 (+45 −3 ≈ LOC +42) | 수정 |
+| src/app/(admin)/admin/partners/page.tsx | badge(actions, 등록버튼 옆) (+9 −3 ≈ LOC +6) | 수정 |
+
+- 합계 LOC ≈ +92 (신규 44 + courts 42 + partners 6) — stop LOC>+2000 무관
+- **추가 count 쿼리 3개** (전부 court_infos/court_reports `.count()` — count-only, server 허용 범위):
+  ① `court_infos.count({status:"active"})` = 활성
+  ② `court_infos.count({status:"pending"})` = 미승인
+  ③ `court_reports.count({status:"active"})` = 신고 pending(미처리) — court_reports.status default=active=미처리
+- hero stat = 검색 q 무관(전체 현황 지표) / 기존 totalCount(검색 반영)는 그대로 subtitle·전체stat 공용
+- 데이터 패칭·권한가드·액션 0 변경: courts(findMany/server actions/AdminCourtsContent 0) / partners(fetch/handleStatusChange/handleCreate/state/테이블 0)
+- 권한 가드 = (admin)/layout 레벨(페이지 내 0 변경)
+- badge 분리: Site Operator dark+gold(`#1A1E27→#404755` + gold `#F4C76C`) — Court Operator navy+silver(8C-1~4)와 hex 명확 분리
+- admin 공용 클래스 재사용: pa1-hero-stats / pa1-hero-stat__num[data-tone] / admin-pageheader actions slot (운영 admin.css 기존 정의). 시안 oa1-hero/ca1-tabs/cv-atable는 운영 미정의라 미사용
+- tsc --noEmit = 0
+- prefix 충돌 0: va1-/bv-/cv-atable/oa1-hero/ca1-tab 식별자 미도입 (grep 0건, courts·partners 양쪽)
+
+💡 tester 참고:
+- 테스트: super-admin 계정 /admin/courts 진입 → 헤더 우측 "Site Operator"(dark+gold) 뱃지 + 검색폼 / 헤더 아래 stat strip 4개(전체 코트/활성/미승인/신고). /admin/partners 진입 → 헤더 우측 Site Operator 뱃지 + "파트너 등록" 버튼 나란히
+- 정상: stat 숫자 전부 실측(DB count) / 코트 테이블·승인 액션·검색·파트너 목록·상태변경 모두 기존 동작 동일 / 신고 stat 숫자만 노출(클릭 액션 없음)
+- 주의: court_reports 0건 환경(신고 stat=0 표시) / status=active 코트 0건(활성=0) / 검색 시 전체stat은 검색 반영(totalCount), 활성/미승인/신고 stat은 전체 기준(의도)
+
+⚠️ reviewer 참고:
+- badge hex 인라인(공용 컴포넌트) = 운영 var 토큰에 dark+gold 없음(의도된 예외, Court Operator 측과 동일 정책). 2측 badge 시각 분리 lock 준수
+- 신고 탭/모달/액션 의도적 미생성 = PM 지시(액션 0 변경). 신고 pending count만 hero stat 포함(server count 허용 범위). 시안 reports/edits 탭 + 상태 모달 박제 0
+- 2라우트 통합 ❌ = PM 지시(분리 유지). 시안은 단일 통합 4탭이나 운영 courts(서버)/partners(클라) 구조·패칭 보존
+- hero stat where 미적용(전체 기준)은 의도 — 현황 지표는 검색과 무관. totalCount만 검색 반영(기존 subtitle 일관)
+
 ## 수정 요청
 | 요청자 | 대상 | 문제 | 상태 |
 |--------|------|------|------|
@@ -157,6 +191,7 @@
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
 |------|------|------|
+| 2026-06-07 | **8C-6** VA1 AdminCourtsPartners → /admin/courts + /admin/partners (BV7) | ✅ 2라우트 보존 / SiteOperatorBadge 공용 신규(dark+gold) 양쪽 박제 / courts hero stat4 + count쿼리3(count-only) / 신고 탭·모달·액션 미생성 / 패칭·가드 0 / tsc 0 / 충돌 0 |
 | 2026-06-07 | **8C-4** VP3 PartnerCampaigns → /partner-admin/campaigns (BV6) | ✅ 인라인폼 유지 / VP3 톤4(badge·grid2열·필터칩·헤더합계) / mock회피 / handleCreate 0 / [id] 0 / tsc 0 / 충돌 0 |
 | 2026-06-07 | **8C-3** VP2 PartnerVenue → /partner-admin/venue (BV5) | ✅ 옵션A VP2 셸+2탭(기본/시간가격) / badge + operating_hours read-only + fee편집 / 정책·통계 미생성 / handleSave 0 / tsc 0 / 충돌 0 |
 | 2026-06-07 | **8C-2** VU4 VenueDetail → /venues/[slug] (BV8) | ✅ 골대수 hero badge 실데이터 + 별점 var(--warn) 교정 / list hide(mock0) / 패칭0 / tsc 0 / 충돌 0 |

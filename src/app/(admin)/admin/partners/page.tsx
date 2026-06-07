@@ -13,6 +13,8 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { AdminPageHeader } from "@/components/admin/admin-page-header";
+// 8C-6 박제 — VA1 Site Operator 뱃지 (dark+gold, /admin/courts 와 공용)
+import { SiteOperatorBadge } from "@/components/admin/site-operator-badge";
 
 // 파트너 타입 정의
 interface Partner {
@@ -112,13 +114,17 @@ export default function AdminPartnersPage() {
           { label: "파트너 관리" },
         ]}
         actions={
-          <button
-            onClick={() => setShowForm(!showForm)}
-            className="btn btn--primary"
-          >
-            <span className="material-symbols-outlined" style={{ fontSize: 16 }}>add</span>
-            파트너 등록
-          </button>
+          // 8C-6 박제 — VA1: Site Operator 뱃지(dark+gold) + 기존 등록 버튼
+          <div className="flex items-center gap-2">
+            <SiteOperatorBadge />
+            <button
+              onClick={() => setShowForm(!showForm)}
+              className="btn btn--primary"
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: 16 }}>add</span>
+              파트너 등록
+            </button>
+          </div>
         }
       />
 
