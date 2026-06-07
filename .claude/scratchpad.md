@@ -67,6 +67,30 @@
 
 #### stop condition: **없음** (AppNav 미적용 유지 / `/api/v1`·DB schema·LOC>+2000·tsc실패·회귀·10-5/12-5 가드 모두 0)
 
+### 7C-3 (AU4 Verify → /verify 보강, BA4/BA5)
+📝 구현: 시안 AU4 Verify 입력·코드 단계 UI 톤 보강만. verified 결과 카드는 **hide**(API verified 필드 미제공 + DB/select 변경=stop + mock 0). verify SMS 흐름·라우팅 0 변경.
+
+| 파일 | 변경 내용 | 신규/수정 | LOC |
+|------|----------|----------|-----|
+| src/app/(web)/verify/page.tsx | input 버튼 sms 아이콘 / code 라벨 우측 timer 아이콘+카운트다운 통합 / 하단 카운트다운 제거→재전송만 / 안내 카피 시안 톤 | 수정 | +24/-20 (실질 +4) |
+
+- verified 결과 카드 hide 근거: 시안 `window.VERIFIED.name/phone/birth/at` = 데모 mock. 운영 complete API 응답에 verified 필드 없음 + 추가 시 DB/select 변경 = stop. 따라서 결과 카드·데모 토글(성공/실패)·실패 retry 카드 **미이식**.
+- 톤 보강 3건: (1) input "인증번호 받기" 버튼 좌측 `sms` Material Symbol (발송 중엔 숨김) (2) code 단계 라벨 우측 `timer` 아이콘+`fmt(secondsLeft)` 통합(`--color-accent`) (3) 안내 카피 "~받으려면 ~필요해요" 시안 톤.
+- 카운트다운 위치 이동: 기존 하단 "남은 시간 mm:ss + 재전송" 행 → 카운트다운은 라벨 우측으로, 하단은 "인증번호 재전송"만. 카운트다운 중복 0 / sendCode 동작 보존.
+- 색: `--color-accent`(카운트다운/아이콘)·`--color-text-muted`·`--color-on-accent` 전부 기존 사용 토큰. 하드코딩 0. 시안 `--accent`/`--cafe-blue-deep`/`--warn-soft`(결과 카드용) = 결과 카드 미이식으로 불필요.
+
+보존(검증됨): sendCode·handleSubmit·fetch `/api/web/verify/send-code`·`/complete`·`/api/web/profile` 분기(profile_completed/onboarding_completed_at)·router.push·needsEmail/needsPhone·PhoneInput·secondsLeft useEffect·fmt·skipable 전부 0 변경. IdentityVerifyButton·MockIdentityModal **0 변경**(무관). AppNav 미적용 standalone 현상유지.
+
+💡 tester 참고:
+- /verify?missing=phone 입력 단계: "인증번호 받기" 버튼 좌측 sms 아이콘 노출. 발송 중엔 아이콘 숨김.
+- 코드 단계: 라벨 우측에 timer 아이콘+카운트다운(180→0). 하단 "인증번호 재전송" 클릭 시 카운트다운 리셋(기존 동작).
+- 인증 완료 후 라우팅(profile/complete · onboarding/setup · /) 회귀 0. 정상: tsc 0.
+- 주의 입력: 6자리 미만 코드 "인증 확인" 비활성 그대로. /verify?missing=email(이메일만) 분기 회귀 0.
+
+⚠️ reviewer 참고: verified 결과 카드 미이식 판단(API 미제공+stop) 타당성 / 카운트다운 라벨 이동 후 하단 재전송만 남긴 레이아웃 정합.
+
+#### stop condition: **없음** (IdentityVerifyButton **0 변경** 명시 / verified 카드 DB·select 미변경 / `/api/v1`·DB schema·LOC>+2000·tsc실패·회귀·10-5/12-5 가드 모두 0 / au4-·ba- prefix 충돌 0)
+
 ## 완료 Phase (이력)
 - ✅ **Phase 6 묶음 운영 반영** (6.1+6.2+6.3 = 16 시안 / dev→main #658·#660 / main `32153c7` Vercel success)
   - 6.2 토스 실연결 mock 0 / 6.3 보강 placeholder warn-soft 통일 / BP1 privacy·BP5 가드
@@ -80,6 +104,7 @@
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
 |------|------|------|
+| 2026-06-07 | **Phase 7C-3 박제** (AU4 → verify 입력·코드 톤 보강) | ✅ tsc 0 / +24/-20(실질+4) / verified카드 hide·SMS흐름 0변경·IdentityVerifyButton 0변경 / stop 0 |
 | 2026-06-07 | **Phase 7C-2 박제** (AU3 → forgot-password 결과 hero) | ✅ tsc 0 / +93 / reset 0변경·토큰정합 OK / stop 0 |
 | 2026-06-07 | **Phase 7C-1 박제** (AU1 → signup 강도미터+OAuth통일) | ✅ tsc 0 / +78/-8 / 현상유지 stop 0 |
 | 2026-06-07 | Phase 7 v2.27 sync | ✅ auth-shared + 4 jsx / carry diff 0 |
@@ -88,4 +113,3 @@
 | 2026-05-31 | **Phase 6.2 chain** (v2.25 + 6.2C 7 PR) | ✅ `8d90aa0`+`dc31be2`~`51b4378` / 토스 실연결 mock 0 |
 | 2026-05-31 | **Phase 6.1 chain** (v2.24 + 6.1C 6 PR #657) | ✅ BP1 privacy·BP5 가드·BP2 server조회 |
 | 2026-05-31 | **Phase 5 chain** (v2.23 + 5C 6 PR #656) | ✅ 공용 wizard·mock 0 |
-| 2026-05-31 | 빌드 fix(CSS `*/` Turbopack) + here-string 함정 | ✅ errors.md 기록 |

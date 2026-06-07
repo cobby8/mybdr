@@ -169,9 +169,10 @@ export default function VerifyPage() {
           className="mb-6 text-sm leading-relaxed"
           style={{ color: "var(--color-text-muted)" }}
         >
+          {/* 안내 카피 — v2.27 AU4 시안 톤 보강 ("~받으려면 ~필요해요") */}
           {needsPhone
-            ? "매치 신청·대회 운영 알림을 받으려면 전화번호 인증이 필요합니다. SMS로 6자리 인증번호를 발송합니다."
-            : "서비스 알림 수신을 위해 이메일 인증이 필요합니다."}
+            ? "매치 신청·대회 알림을 받으려면 전화번호 인증이 필요해요. SMS로 6자리 인증번호를 보냅니다."
+            : "서비스 알림 수신을 위해 이메일 인증이 필요해요."}
         </p>
 
         {/* 시안 박제: 2단계 progress bar */}
@@ -274,12 +275,17 @@ export default function VerifyPage() {
               <button
                 onClick={handleSubmit}
                 disabled={sending || !phone}
-                className="w-full rounded-[12px] py-3 text-sm font-semibold transition-all active:scale-[0.98] disabled:opacity-50"
+                // v2.27 AU4 시안 톤: 텍스트 좌측 sms 아이콘 (inline-flex 정렬 추가)
+                className="flex w-full items-center justify-center gap-1.5 rounded-[12px] py-3 text-sm font-semibold transition-all active:scale-[0.98] disabled:opacity-50"
                 style={{
                   backgroundColor: "var(--color-accent)",
                   color: "var(--color-on-accent)",
                 }}
               >
+                {/* 발송 중에는 아이콘 숨김 — 텍스트만 노출 */}
+                {!sending && (
+                  <span className="material-symbols-outlined text-[18px]">sms</span>
+                )}
                 {sending ? "발송 중..." : "인증번호 받기"}
               </button>
             </div>
@@ -312,11 +318,21 @@ export default function VerifyPage() {
                 </div>
               )}
               <div>
+                {/* v2.27 AU4 시안 톤: 라벨 행 우측에 timer 아이콘 + 카운트다운 통합 */}
                 <label
-                  className="mb-1.5 block text-xs font-bold"
+                  className="mb-1.5 flex items-center justify-between text-xs font-bold"
                   style={{ color: "var(--color-text-muted)" }}
                 >
-                  인증번호 6자리
+                  <span>인증번호 6자리</span>
+                  <span
+                    className="inline-flex items-center gap-1 font-mono"
+                    style={{ color: "var(--color-accent)" }}
+                  >
+                    <span className="material-symbols-outlined text-[14px]">
+                      timer
+                    </span>
+                    {fmt(secondsLeft)}
+                  </span>
                 </label>
                 <input
                   type="text"
@@ -336,20 +352,8 @@ export default function VerifyPage() {
                   }}
                 />
               </div>
-              {/* 시안 박제: 카운트다운 + 재전송 */}
-              <div
-                className="flex items-center justify-between text-xs"
-                style={{ color: "var(--color-text-muted)" }}
-              >
-                <span>
-                  남은 시간{" "}
-                  <b
-                    className="font-mono"
-                    style={{ color: "var(--color-accent)" }}
-                  >
-                    {fmt(secondsLeft)}
-                  </b>
-                </span>
+              {/* v2.27 AU4 시안 톤: 카운트다운은 라벨 우측으로 이동 → 하단은 재전송만 */}
+              <div className="text-center">
                 <button
                   type="button"
                   onClick={sendCode}
@@ -357,7 +361,7 @@ export default function VerifyPage() {
                   className="text-xs font-semibold underline-offset-2 hover:underline disabled:opacity-50"
                   style={{ color: "var(--color-accent)" }}
                 >
-                  재전송
+                  인증번호 재전송
                 </button>
               </div>
               <button
