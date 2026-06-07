@@ -25,11 +25,34 @@ interface CourtVenueInfo {
   contact_phone: string | null;
 }
 
+// ──────────────────────────────────────────────────────────
+// 8C-3 — VP2 PartnerVenue 셸 박제 (BV5 ★★★ Court Operator)
+// 옵션 A: VP2 셸 + 2 sub-tab(기본정보 / 시간·가격)만 박제.
+//   - 정책·통계 탭 미생성 (시안 mock — DB 미지원 → 박제 0)
+//   - operating_hours = read-only 표시 (편집 X) / fee = 기존 편집 유지
+//   - 데이터 패칭 · handleSave · /api/web/partner/venue PATCH = 0 변경
+// ──────────────────────────────────────────────────────────
+
+// VP2 sub-tab 정의 — 시안 4탭 중 옵션 A로 2탭만 채택 (정책·통계 제외)
+const VP2_TABS = [
+  { key: "basic", lbl: "기본 정보", ico: "badge" },
+  { key: "hours", lbl: "시간·가격", ico: "schedule" },
+] as const;
+type Vp2TabKey = (typeof VP2_TABS)[number]["key"];
+
+// 요일 라벨 — operating_hours read-only 표시용 (DB key → 한글)
+const DAY_LABELS: Record<string, string> = {
+  mon: "월", tue: "화", wed: "수", thu: "목",
+  fri: "금", sat: "토", sun: "일",
+};
+
 export default function VenueManagePage() {
   const [courts, setCourts] = useState<CourtVenueInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<string | null>(null); // 저장 중인 court id
   const [editForm, setEditForm] = useState<Record<string, Record<string, string>>>({});
+  // VP2 sub-tab 상태 — 코트별이 아닌 페이지 전역 (시안 셸 단일 탭바)
+  const [tab, setTab] = useState<Vp2TabKey>("basic");
 
   // 파트너 소유 코트 목록 조회 (간단한 방식: partner/me에서 owner를 파악 후 코트 조회)
   // 실제로는 별도 API가 필요하지만, 여기서는 클라이언트에서 직접 처리
@@ -78,14 +101,58 @@ export default function VenueManagePage() {
 
   return (
     <div className="space-y-6">
-      {/* 헤더 */}
+      {/* ──────────────────────────────────────────────────────────
+          VP2 박제 — Court Operator 헤더 + sub-tab 바
+          시안 .pm-page 헤더(badge + 타이틀 + 저장 버튼)를 운영 토큰으로 박제.
+          저장 버튼은 코트 카드별 개별 저장(기존 handleSave)이라 헤더엔 미배치.
+          ────────────────────────────────────────────────────────── */}
       <div>
-        <h2 className="text-xl font-bold" style={{ color: "var(--color-text-primary)" }}>
-          대관 관리
+        {/* Court Operator badge — navy+silver (8C-1 답습, Site Operator dark+gold 와 분리) */}
+        <span
+          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-[10.5px] font-extrabold uppercase tracking-wider"
+          style={{
+            background: "linear-gradient(135deg, #1B3C87 0%, #2A4D9E 100%)",
+            border: "1px solid #3A5BA8",
+            color: "#fff",
+          }}
+        >
+          {/* silver 아이콘 (#C0CCDB) — badge 측 구분 색 */}
+          <span className="material-symbols-outlined text-[13px]" style={{ color: "#C0CCDB" }}>
+            stadium
+          </span>
+          Court Operator
+        </span>
+        <h2 className="text-xl font-bold mt-2.5" style={{ color: "var(--color-text-primary)" }}>
+          대관 정보 관리
         </h2>
         <p className="text-sm mt-1" style={{ color: "var(--color-text-muted)" }}>
           등록된 체육관의 대관 정보를 설정하세요.
         </p>
+      </div>
+
+      {/* VP2 sub-tab 바 — 시안 .cv-vtabs 박제 (기본 정보 / 시간·가격 2탭) */}
+      <div
+        className="flex gap-1 rounded-lg p-1"
+        style={{ backgroundColor: "var(--color-surface)" }}
+      >
+        {VP2_TABS.map((t) => {
+          const on = tab === t.key; // 활성 탭 여부
+          return (
+            <button
+              key={t.key}
+              onClick={() => setTab(t.key)}
+              className="flex items-center gap-1.5 px-4 py-2 rounded text-sm font-medium transition-colors"
+              style={{
+                // 활성 탭은 primary 배경 / 비활성은 투명 + muted 텍스트
+                backgroundColor: on ? "var(--color-primary)" : "transparent",
+                color: on ? "#fff" : "var(--color-text-muted)",
+              }}
+            >
+              <span className="material-symbols-outlined text-base">{t.ico}</span>
+              {t.lbl}
+            </button>
+          );
+        })}
       </div>
 
       {loading ? (
@@ -155,7 +222,8 @@ export default function VenueManagePage() {
                   </div>
                 </div>
 
-                {/* 대관 정보 폼 */}
+                {/* ── 기본 정보 탭 ── 대관 가능 여부 / 신청 URL / 담당자 연락처 */}
+                {tab === "basic" && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {/* 대관 가능 여부 */}
                   <div>
@@ -175,25 +243,6 @@ export default function VenueManagePage() {
                       <option value="true">가능</option>
                       <option value="false">불가</option>
                     </select>
-                  </div>
-
-                  {/* 대관 비용 */}
-                  <div>
-                    <label className="block text-xs font-medium mb-1" style={{ color: "var(--color-text-secondary)" }}>
-                      대관 비용 (원)
-                    </label>
-                    <input
-                      type="number"
-                      value={form.fee ?? String(court.fee ?? "")}
-                      onChange={(e) => updateField(court.id, "fee", e.target.value)}
-                      className="w-full rounded border px-3 py-2 text-sm outline-none"
-                      style={{
-                        backgroundColor: "var(--color-surface)",
-                        borderColor: "var(--color-border)",
-                        color: "var(--color-text-primary)",
-                      }}
-                      placeholder="시간당 대관료"
-                    />
                   </div>
 
                   {/* 대관 신청 URL */}
@@ -234,6 +283,64 @@ export default function VenueManagePage() {
                     />
                   </div>
                 </div>
+                )}
+
+                {/* ── 시간·가격 탭 ── 대관 비용(편집) / 영업시간(read-only) */}
+                {tab === "hours" && (
+                <div className="space-y-4">
+                  {/* 대관 비용 — 기존 fee 편집 유지 (handleSave 그대로) */}
+                  <div>
+                    <label className="block text-xs font-medium mb-1" style={{ color: "var(--color-text-secondary)" }}>
+                      대관 비용 (원)
+                    </label>
+                    <input
+                      type="number"
+                      value={form.fee ?? String(court.fee ?? "")}
+                      onChange={(e) => updateField(court.id, "fee", e.target.value)}
+                      className="w-full sm:w-1/2 rounded border px-3 py-2 text-sm outline-none"
+                      style={{
+                        backgroundColor: "var(--color-surface)",
+                        borderColor: "var(--color-border)",
+                        color: "var(--color-text-primary)",
+                      }}
+                      placeholder="시간당 대관료"
+                    />
+                  </div>
+
+                  {/* 영업시간 — operating_hours read-only 표시 (시안 .gw-srow 박제, 편집 X)
+                      DB operating_hours 필드를 요일별로 노출만. 저장 대상 아님. */}
+                  <div>
+                    <label className="block text-xs font-medium mb-2" style={{ color: "var(--color-text-secondary)" }}>
+                      영업 시간
+                    </label>
+                    {court.operating_hours && Object.keys(court.operating_hours).length > 0 ? (
+                      <div
+                        className="rounded border divide-y"
+                        style={{ borderColor: "var(--color-border)" }}
+                      >
+                        {Object.entries(court.operating_hours).map(([day, hours]) => (
+                          <div
+                            key={day}
+                            className="flex items-center justify-between px-3 py-2 text-sm"
+                            style={{ borderColor: "var(--color-border)" }}
+                          >
+                            {/* 요일 라벨 — DAY_LABELS 매핑 없으면 원본 key 노출 */}
+                            <span style={{ color: "var(--color-text-secondary)" }}>
+                              {DAY_LABELS[day] ?? day}
+                            </span>
+                            <span style={{ color: "var(--color-text-primary)" }}>{hours}</span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      // operating_hours 없으면 안내 (시안 mock 대신 빈 상태)
+                      <p className="text-xs" style={{ color: "var(--color-text-muted)" }}>
+                        등록된 영업시간 정보가 없습니다.
+                      </p>
+                    )}
+                  </div>
+                </div>
+                )}
 
                 {/* 저장 버튼 */}
                 <div className="flex justify-end">

@@ -11,7 +11,7 @@
 |----|------|------|
 | 8C-1 | VP1 PartnerAdmin → /partner-admin (BV4) | ⏳ |
 | 8C-2 | VU4 VenueDetail → /venues/[slug] 보강 (BV8) | ✅ |
-| 8C-3 | VP2 PartnerVenue → /partner-admin/venue (BV5) | ⏳ |
+| 8C-3 | VP2 PartnerVenue → /partner-admin/venue (BV5) | ✅ |
 | 8C-4 | VP3 PartnerCampaigns → /partner-admin/campaigns (BV6) | ⏳ |
 | 8C-5 | VU1 Courts → /courts 보강 (BV1) | ⏳ |
 | 8C-6 | VA1 AdminCourtsPartners → /admin/courts + /admin/partners (BV7) | ⏳ |
@@ -72,6 +72,31 @@
 - BV8 코트 list hide = venue↔court 그룹핑 DB 필드 부재로 의도적 mock 0(정합). 운영 court_infos는 단일 코트 엔티티 → venue 묶음 불가
 - var(--warn)은 #F59E0B와 다른 hex(#E8A33B)지만 동일 앰버 계열 — 토큰 정합 우선(하드코딩 색상 금지 룰)
 
+### 8C-3 — VP2 PartnerVenue → /partner-admin/venue (BV5 ★★★ Court Operator)
+
+📝 구현: 옵션 A 채택 — VP2 셸 + 2 sub-tab(기본정보 / 시간·가격)만 박제. Court Operator badge(navy+silver, 8C-1 답습) + "대관 정보 관리" 헤더 + cv-vtabs 시안 셸을 운영 토큰 탭바로 박제. 기본정보 탭=대관여부/신청URL/담당자연락처 / 시간·가격 탭=fee 편집(기존 유지)+operating_hours read-only 표시(요일별, gw-srow 박제). 정책·통계 탭 미생성(DB 미지원 mock → 박제 0). handleSave·useEffect·인터페이스·`/api/web/partner/venue` PATCH = 0 변경.
+
+| 파일 | 변경 | 신규/수정 |
+|------|------|----------|
+| src/app/(web)/partner-admin/venue/page.tsx | VP2 셸 + 2 sub-tab + badge + operating_hours read-only (+130 −23) | 수정 |
+
+- 데이터 패칭 0 변경: handleSave(PATCH 4필드 그대로) / useEffect(빈 로직 보존) / CourtVenueInfo 인터페이스 0 변경
+- operating_hours: 기존 인터페이스에 이미 있던 필드를 read-only 표시만 (저장 대상 추가 0, fee만 편집)
+- tab 상태 = 페이지 전역(코트별 X) — 시안 단일 탭바 셸 답습
+- badge: Court Operator navy+silver(#1B3C87→#2A4D9E + silver #C0CCDB) — 8C-1과 동일 hex(Site Operator dark+gold와 분리)
+- tsc --noEmit = 0
+- prefix 충돌 0: vp2-/bv-/cv-/gw-/pm-/bl- 식별자 미도입. className 전부 Tailwind+var(--color-*). 주석 내 시안 참조 2건(.cv-vtabs / .gw-srow)만
+
+💡 tester 참고:
+- 테스트: 파트너 계정 /partner-admin/venue 진입 → Court Operator badge + "대관 정보 관리" + 탭바 2개(기본 정보 / 시간·가격) 표시. 탭 전환 시 폼 그룹 교체
+- 정상: 기본정보=대관여부/URL/연락처 / 시간·가격=비용 input + 영업시간 read-only 리스트. 저장 버튼은 두 탭 공통(코트 카드별 개별 저장)
+- 주의: courts.length===0 빈 상태(현재 API 미구현 → 항상 빈 상태 안내) / operating_hours null인 코트(영업시간 "정보 없음" 안내) / DAY_LABELS 미매핑 key(원본 표시)
+
+⚠️ reviewer 참고:
+- 옵션 A: 정책·통계 탭 의도적 미생성(시안 mock = DB 미지원). 사진/매출/평점/추세 차트 박제 0
+- badge hex 인라인 = 8C-1 답습(운영 var 토큰에 navy+silver 없음 — 의도된 예외)
+- 현재 courts 조회 API 미구현 → 폼은 빈 상태에서만 안내 노출(실데이터 렌더는 API 추가 후). 셸 박제가 목적이라 패칭 미구현은 기존 상태 보존
+
 ## 수정 요청
 | 요청자 | 대상 | 문제 | 상태 |
 |--------|------|------|------|
@@ -79,6 +104,7 @@
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
 |------|------|------|
+| 2026-06-07 | **8C-3** VP2 PartnerVenue → /partner-admin/venue (BV5) | ✅ 옵션A VP2 셸+2탭(기본/시간가격) / badge + operating_hours read-only + fee편집 / 정책·통계 미생성 / handleSave 0 / tsc 0 / 충돌 0 |
 | 2026-06-07 | **8C-2** VU4 VenueDetail → /venues/[slug] (BV8) | ✅ 골대수 hero badge 실데이터 + 별점 var(--warn) 교정 / list hide(mock0) / 패칭0 / tsc 0 / 충돌 0 |
 | 2026-06-07 | **8C-1** VP1 PartnerAdmin → /partner-admin (BV4) | ✅ navy hero + Court Operator badge / mock hide / 실통계 / tsc 0 / 충돌 0 |
 | 2026-06-07 | Phase 8 v2.28 sync | ✅ court-shared + 8 jsx / carry diff 0 |
