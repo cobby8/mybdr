@@ -42,6 +42,31 @@
 
 #### stop condition: **없음** (AppNav 미적용 유지=현상유지 / `/api/v1`·DB·LOC>+2000·tsc실패·회귀 모두 0)
 
+### 7C-2 (AU3 PasswordRecovery → /forgot-password 보강, BA3)
+📝 구현: 시안 AU3 ForgotView 박제. forgot-password 단일 파일 보강. reset-password는 이미 박제 완료(v2(1)) → **0 변경**.
+
+| 파일 | 변경 내용 | 신규/수정 | LOC |
+|------|----------|----------|-----|
+| src/app/(web)/forgot-password/page.tsx | 전송 성공 시 결과 hero(mark_email_read+안내+"다른 이메일 재전송") 신규 / 입력폼 send 아이콘·시안 톤 정리 | 수정 | +195/-102 (실질 +93) |
+| src/app/(web)/reset-password/page.tsx | 무변경 — StepIndicator·강도미터·성공이동·액션 0 변경 | 무변경 | 0 |
+
+- 결과 hero: message 수신 시 입력폼 대체 → mark_email_read 아이콘(`--cafe-blue-soft`/`--cafe-blue`) + 이메일 강조 안내 + "다른 이메일로 다시 보내기"(handleRetry로 상태 초기화 복귀).
+- 토큰 정합 확인: 강도미터(reset)는 `--color-error/warning/success` 사용 → globals.css에서 `--danger/--warn/--ok`로 매핑 = 7C-1(signup)과 **동일 색**. 정합 OK, reset 무변경 타당.
+- 토큰 실재: `--danger`(#E24C4B)·`--warn`(#E8A33B)·`--ok`(#1CA05E)·`--bg-head`·`--cafe-blue-soft`·`--accent-soft` 전부 globals.css 존재 확인. 하드코딩 색 0.
+- PasswordInput carry: forgot엔 비번칸 없음(해당 없음) / reset은 기존 visibility 토글 유지(0 변경).
+
+보존(검증됨): handleSubmit·fetch `/api/web/auth/forgot-password`·응답 message/reset_token·devToken 표시·`/reset-password?token=` 링크 전부 유지. AppNav 미적용 standalone 현상유지. mock 0.
+
+💡 tester 참고:
+- /forgot-password 이메일 입력 후 "재설정 링크 전송" → 성공 시 결과 hero("메일을 확인하세요" + 입력 이메일 강조) 노출.
+- 결과 화면에서 "다른 이메일로 다시 보내기" 클릭 시 입력 폼으로 복귀(이메일 값 유지).
+- 개발 환경: 응답에 reset_token 있으면 hero 안에 토큰 + "재설정 페이지로 이동" 링크 노출.
+- /reset-password 회귀 0(무변경). 정상: tsc 0.
+
+⚠️ reviewer 참고: reset-password 강도미터 색 토큰(`--color-error` 계열)이 7C-1(`--danger` 계열)과 globals.css alias로 동일색임을 근거로 reset 무변경 처리 — 정합 판단 타당성.
+
+#### stop condition: **없음** (AppNav 미적용 유지 / `/api/v1`·DB schema·LOC>+2000·tsc실패·회귀·10-5/12-5 가드 모두 0)
+
 ## 완료 Phase (이력)
 - ✅ **Phase 6 묶음 운영 반영** (6.1+6.2+6.3 = 16 시안 / dev→main #658·#660 / main `32153c7` Vercel success)
   - 6.2 토스 실연결 mock 0 / 6.3 보강 placeholder warn-soft 통일 / BP1 privacy·BP5 가드
@@ -55,6 +80,7 @@
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
 |------|------|------|
+| 2026-06-07 | **Phase 7C-2 박제** (AU3 → forgot-password 결과 hero) | ✅ tsc 0 / +93 / reset 0변경·토큰정합 OK / stop 0 |
 | 2026-06-07 | **Phase 7C-1 박제** (AU1 → signup 강도미터+OAuth통일) | ✅ tsc 0 / +78/-8 / 현상유지 stop 0 |
 | 2026-06-07 | Phase 7 v2.27 sync | ✅ auth-shared + 4 jsx / carry diff 0 |
 | 2026-06-06 | **Phase 6.2+6.3 dev→main 운영 반영** (#660) | ✅ main `32153c7` Vercel success / Phase 6 묶음 종료 |
