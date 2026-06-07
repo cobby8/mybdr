@@ -125,6 +125,31 @@
 - 시안 매출·예산·기간·상세모달 의도적 미박제(운영 Campaign 인터페이스 부재 mock). 헤더 합계도 노출·클릭만(매출 제외)
 - 인라인 폼 유지 = PM 승인사항(모달 전환❌). 시안 모달 폼 박제 0
 
+### 8C-5 — VU1 Courts → /courts 보강 (BV1 ★★★★ 발견성)
+
+📝 구현: Phase 3 v2 carry-over 셸 보존(큰 시각 변경❌) 위 발견성 2점 보강만. (1) 코트 등록 신청 CTA — 5필터칩 직후 배치, `/courts/submit` 실라우트 link(cv-submit-cta 톤 cafe-blue 답습). (2) cross-domain 랭킹 link — 좌측 카드 컬럼 맨 아래, `/rankings` 실라우트 link(cv-xlink 톤). 즐겨찾기(favOnly·user_favorite_courts)·앰배서더(court_ambassadors) = 모델 부재로 hide(mock 0). 시안 검색 input = 클라 필터 로직 추가 필요(패칭 변경 영역) → 이번 보강 제외.
+
+| 파일 | 변경 | 신규/수정 |
+|------|------|----------|
+| src/app/(web)/courts/_components/courts-content-v2.tsx | CTA(/courts/submit) + 랭킹 link(/rankings) 발견성 2점 (+103 −2 ≈ LOC +101) | 수정 |
+
+- 데이터 패칭 0 변경: page.tsx·filtered·정렬·히트맵·근접감지·KakaoMap 0 변경. Link 2개 추가만(import 기존)
+- 즐겨찾기·앰배서더 hide = user_favorite_courts·court_ambassadors 모델 운영 미연결(PM 승인 mock 0)
+- 실라우트 검증: /courts/submit/page.tsx · /rankings/page.tsx 존재 확인 (dead link 0)
+- Phase 3 v2 carry-over 구조 보존: 좌측 카드 그리드 + 우측 sticky 지도 + 5필터칩 + 히트맵 0 변경(보강만)
+- tsc --noEmit = 0
+- prefix 충돌 0: vu1-/bv- 식별자 미도입. className 전부 Tailwind+인라인 var(--color-*). 주석 내 시안 참조 3건(cv-submit-cta / cv-xlink)만(grep 식별자 0)
+
+💡 tester 참고:
+- 테스트: /courts 진입 → 5필터칩 아래 "찾는 코트가 없나요?" CTA 카드(클릭 → /courts/submit) / 좌측 카드 목록 맨 아래 "코트별 체크인 랭킹" 링크(클릭 → /rankings)
+- 정상: CTA·랭킹 link 모두 실페이지 이동(404 아님) / 기존 필터·지도·히트맵·근접감지 동작 동일 / 빈 상태에서도 랭킹 link 노출
+- 주의: 빈 상태(필터 0건)일 때 랭킹 link 여전히 노출(의도) / cafe-blue 토큰 미정의 환경 fallback(var(--bg-elev)/var(--accent)) 동작 확인
+
+⚠️ reviewer 참고:
+- 즐겨찾기/앰배서더/검색 의도적 미박제 = 모델/패칭 영역(PM 승인 mock 0). 시안 cv-fav·cv-amb·cv-search 박제 0
+- cafe-blue 계열은 운영 globals.css 정의 시 사용 / 미정의 시 fallback(var(--cafe-blue-soft, var(--bg-elev)) 식). 기존 5필터칩(L428)도 동일 fallback 패턴 답습
+- CTA·랭킹 모두 `<Link>` affordance(chevron) — 시안 btn 대신 카드 전체 클릭(모바일 안전)
+
 ## 수정 요청
 | 요청자 | 대상 | 문제 | 상태 |
 |--------|------|------|------|
