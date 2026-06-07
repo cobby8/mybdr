@@ -1,24 +1,11 @@
 # 작업 스크래치패드
 
 ## 현재 작업
-- **요청**: Phase 8 Auto Chain — v2.28 sync + Phase 8C 박제 8 PR (코트·장소)
-- **상태**: 🔵 진행 중 — §2 통과 / sync v2.28 ✅ / 8C 박제 진행
+- **요청**: PR-MYBDR-SOCIAL — 모바일 OAuth `/api/v1/auth/kakao`·`google` 신설 (백엔드 기능)
+- **상태**: 🔵 진행 중 — 계획 승인 / developer 구현
 - **현재 담당**: pm → developer
-- **의뢰서**: `Dev/design/prompts/phase-8-auto-chain-cli-prompt-2026-06-07.md`
-
-### Phase 8C 진행 (8 PR / ★ 3측 stakeholder)
-| PR | 시안 → 운영 | 상태 |
-|----|------|------|
-| 8C-1 | VP1 PartnerAdmin → /partner-admin (BV4) | ⏳ |
-| 8C-2 | VU4 VenueDetail → /venues/[slug] 보강 (BV8) | ✅ |
-| 8C-3 | VP2 PartnerVenue → /partner-admin/venue (BV5) | ✅ |
-| 8C-4 | VP3 PartnerCampaigns → /partner-admin/campaigns (BV6) | ⏳ |
-| 8C-5 | VU1 Courts → /courts 보강 (BV1) | ⏳ |
-| 8C-6 | VA1 AdminCourtsPartners → /admin/courts + /admin/partners (BV7) | ⏳ |
-| 8C-7 | VU2 CourtDetail → /courts/[id] 보강 (BV3) | ✅ |
-| 8C-8 | VU3 CourtBooking 통합 → /booking + payment-fail + checkin (BV2) | ⏳ |
-- lock: VU3 토스=Phase6.2 BU2 실연결 답습(mock 0) / 2측 badge(Court Operator navy+silver / Site Operator dark+gold 분리) / 옛 carry-over(VU1 Phase3 v2·VU2 v3·VU4 v2.2 큰변경❌) / Phase4 OO2/OA1+6.1 PA1+6.2 BA1 모달 답습
-- 데이터 정책: server 조회 허용 / stop = `/api/v1`·DB schema·LOC>+2000·tsc실패·회귀6·토스 mock·옛박제 큰변경·badge 통합
+- **결정**: /api/v1 신규 추가라 바로 진행(원영 공지=PR 본문 명시) / google aud+iss 검증 / 탈퇴=403 / rate-limit IP / 모바일 신규=토큰만
+- **설계**: upsertOAuthUser 공용 추출(oauth.ts, handleOAuthLogin 외부 시그니처 불변=웹콜백 회귀0) / kakao·google route 신규 / login 동형 응답 / env 5키 present / google-auth-library 불필요(tokeninfo HTTP)
 
 ## 완료 Phase (이력)
 - ✅ **Phase 7** (인증·온보딩 4, v2.27, PR #661 빌드 pass / 머지 대기) — AppNav 현상유지(해석A) / 10-5·12-5 가드 보존
@@ -238,13 +225,115 @@
 - 결제수단 칩 = 비활성 `<span>`(button 아님) — 실제 선택은 토스 안전결제창. 오해 방지 위해 lock 안내 동반
 - stop condition: **없음** (토스 mock 미사용 / DB·api/v1·LOC·회귀·badge 통합 무관)
 
+## 구현 기록 (developer) — PR-MYBDR-SOCIAL (모바일 OAuth)
+
+📝 구현: 모바일 OAuth 2 엔드포인트(`/api/v1/auth/kakao`·`google`) 신설 + upsert 로직 공용 추출. 웹 콜백 3종(kakao/google/naver callback) 무수정(외부 시그니처 불변).
+
+| 파일 | 변경 | 신규/수정 |
+|------|------|----------|
+| src/lib/auth/oauth.ts | OAuthProfile export + WithdrawnUserError 클래스 + upsertOAuthUser 추출(handleOAuthLogin이 호출, withdrawn=throw→catch redirect 보존) (+63 −29) | 수정 |
+| src/lib/validation/auth.ts | kakaoMobileSchema(access_token) + googleMobileSchema(id_token) (+13) | 수정 |
+| src/app/api/v1/auth/kakao/route.ts | kapi.kakao.com/v2/user/me 검증 → upsert → JWT (≈122 LOC) | 신규 |
+| src/app/api/v1/auth/google/route.ts | tokeninfo 검증 + aud + iss 둘 다 검증 → upsert → JWT (≈140 LOC) | 신규 |
+
+- **upsertOAuthUser 시그니처**: `export async function upsertOAuthUser(profile: OAuthProfile): Promise<User>` (Response/쿠키/redirect 없음, user만 반환 / withdrawn=throw)
+- **웹 콜백 호출부 무수정 확인**: git status에 callback/kakao·google·naver route.ts 미등장 ✅ (handleOAuthLogin 외부 시그니처 불변)
+- rate-limit: IP 기준 — isLoginBlocked(ip)→429 / 성공 시 clearLoginAttempts(ip) / 토큰검증 실패 시 recordLoginAttempt(ip,ip)
+- google: aud!==GOOGLE_CLIENT_ID→401 INVALID_GOOGLE_AUD / iss∉{accounts.google.com, https://accounts.google.com}→401 INVALID_GOOGLE_ISS
+- 탈퇴: WithdrawnUserError→403 ACCOUNT_WITHDRAWN(모바일) / 웹은 /login?withdrawn=expired redirect 보존
+- 외부 fetch: try/catch + AbortSignal.timeout(5s) / 시크릿 로그 출력 0
+- 응답: login route와 100% 동형 token + user{id,email,nickname,avatarUrl(→avatar_url),membershipType,isAdmin}
+- DB schema 변경 0 / prisma migrate 0 / 기존 /api/v1 라우트 변경 0(신규만)
+- tsc --noEmit = 0
+
+💡 tester 참고:
+- 테스트(kakao): `POST /api/v1/auth/kakao {access_token}` → 유효 토큰 시 token+user 반환 / 무효 access_token → 401 INVALID_KAKAO_TOKEN
+- 테스트(google): `POST /api/v1/auth/google {id_token}` → 유효 시 token+user / 무효 → 401 INVALID_GOOGLE_TOKEN / 타앱 토큰(aud 불일치) → 401 INVALID_GOOGLE_AUD
+- 정상: 신규 가입 시 토큰만 발급(verify/redirect 유도 ❌) / 기존 회원 재로그인 시 동일 user
+- 주의 입력: 빈 body(422) / 잘못된 JSON(422) / access_token·id_token 누락(422) / 탈퇴회원 토큰(403 ACCOUNT_WITHDRAWN) / 5분내 11회 시도(429 RATE_LIMITED)
+- 회귀 확인: 웹 OAuth 로그인(kakao/google/naver callback) 정상 동작 — handleOAuthLogin 무변경
+
+⚠️ reviewer 참고:
+- upsertOAuthUser 추출 시 withdrawn 처리를 redirect→throw로 통일(2곳). handleOAuthLogin이 catch에서 기존 redirect 글자 그대로 보존 — 웹 회귀 0 확인 필요
+- 기존 else 분기 `prisma.user.update` 결과를 `user`에 재할당(보강 필드를 반환 user에 반영). 기존엔 update 결과 미사용이었음 — 모바일이 보강 직후 최신 user로 토큰/응답 생성하도록 의도
+
+#### 수정 이력
+| 회차 | 날짜 | 수정 내용 | 수정 파일 | 사유 |
+|------|------|----------|----------|------|
+| 1차 | 2026-06-08 | `PUBLIC_API_ROUTES` 배열(L66 이후)에 `/api/v1/auth/kakao`·`/api/v1/auth/google` 2줄 추가 — login과 동일 prefix 매칭(`startsWith`)으로 public 등록 → proxy early-reject(L116~128) 우회, Bearer 없는 모바일 OAuth 호출이 핸들러까지 도달 | src/proxy.ts | tester critical: PUBLIC_API_ROUTES 누락으로 JWT 없는 모바일 OAuth가 핸들러 전 401 UNAUTHORIZED 차단 → 로그인 불능 |
+
+- 매칭 방식 확인: `isPublicApiRoute`는 `pathname.startsWith(route)` (prefix 일치) — 정확 경로만 등록하면 충분
+- tsc --noEmit = 0
+
+## 테스트 결과 (tester) — PR-MYBDR-SOCIAL (모바일 OAuth)
+
+### ✅ 재검증 (2026-06-08, proxy.ts 1차 수정 후) — PASS
+- tsc --noEmit = **0 (PASS)**
+- dev 서버: 기존 3001(PID 11384) 재사용. proxy 변경 이미 반영됨(재시작 불필요 — curl 결과로 확정). 내가 띄운 서버 아니므로 종료 대상 0. 다른 node 무영향.
+- proxy.ts L66~68 `PUBLIC_API_ROUTES`에 kakao·google 2줄 추가 확인(prefix `startsWith` 매칭) → early-reject(L118~130) 우회 정상.
+
+#### 재검증 curl — 모바일 실조건 (Authorization 헤더 없음)
+| # | 케이스 | 기대 | 실제 | 결과 |
+|---|--------|------|------|------|
+| 1 ★ | kakao `{}` | 422 VALIDATION_ERROR | **422** `{"error":[{"field":"access_token",...}],"code":"VALIDATION_ERROR"}` | ✅ PASS (401→422 전환 확정) |
+| 2 ★ | google `{}` | 422 VALIDATION_ERROR | **422** `{"error":[{"field":"id_token",...}],"code":"VALIDATION_ERROR"}` | ✅ PASS (401→422 전환 확정) |
+| 3 | kakao `{"access_token":"invalid"}` | 401 INVALID_KAKAO_TOKEN | **401** `{"error":"Invalid Kakao token","code":"INVALID_KAKAO_TOKEN"}` | ✅ PASS (핸들러 도달+외부검증 실패) |
+| 4 | google `{"id_token":"invalid"}` | 401 INVALID_GOOGLE_TOKEN | **401** `{"error":"Invalid Google token","code":"INVALID_GOOGLE_TOKEN"}` | ✅ PASS (핸들러 도달+외부검증 실패) |
+
+→ 핵심 전환(★) 2건 모두 401(proxy 차단)→422(핸들러 validation 도달) 확정. 무효 토큰 401 2건은 핸들러가 실제 kapi/tokeninfo 외부검증까지 수행함을 입증. 응답 shape = apiError(`{error, code}`) snake_case 정상.
+
+### 📊 종합: **PASS (4/4)** — proxy.ts 수정으로 모바일 OAuth 게이트 차단 해소. tsc 0 + 재검증 4종 전부 통과. 실 토큰 정상경로(token+user 발급)는 실 토큰 필요로 Flutter 팀 위임(reviewer 코드 확인 완료).
+
+<details><summary>이전 FAIL 기록 (proxy 수정 전, 2026-06-08)</summary>
+
+`src/proxy.ts` `PUBLIC_API_ROUTES`에 kakao·google 누락 → JWT 없는 모바일 호출이 핸들러 도달 전 401 UNAUTHORIZED 차단(런타임 통합 버그, reviewer 정적분석 미포착). 핸들러 로직 자체(더미 Bearer로 proxy 우회 검증)는 422/401 정상이었음. 종합 FAIL → 1차 수정으로 해결.
+</details>
+
+## 리뷰 결과 (reviewer) — PR-MYBDR-SOCIAL
+
+📊 종합 판정: **통과 (머지 가능)** — critical/major 0건. minor 권장 2건.
+
+### 웹 콜백 회귀 판정: ✅ PASS
+- 근거1: git status에 `src/app/api/auth/callback/*` 미등장 → 웹 콜백 3종(kakao/google/naver) 무수정 확정
+- 근거2: `handleOAuthLogin` 외부 시그니처 불변 `(profile): Promise<Response>` — diff L140
+- 근거3: upsert 로직 손실/변형 0. withdrawn(provider+uid·email 양분기) / email 연결 update / 신규 생성 / 보강 update / matchPlayersByPhone(2곳) 전부 글자 그대로 이동
+- 근거4: withdrawn 처리만 redirect→throw로 통일. handleOAuthLogin catch에서 `/login?withdrawn=expired` redirect 동일 보존 (diff L146~148). verify/쿠키/safeRedirect/bdr_redirect 분기 무변경 (L153~177)
+
+### aud/iss/kakao 검증 견고성: ✅ PASS
+- **google aud**: `tokenInfo.aud !== process.env.GOOGLE_CLIENT_ID` → 401. env.ts L10 `z.string().min(1)` 부팅 검증 → undefined/빈문자 배포 불가 = 우회 구멍 0. aud 누락 시 string!==env → 401
+- **google iss**: Set{accounts.google.com, https://accounts.google.com} 정확. 누락(`!tokenInfo.iss`) → 401
+- **google sub**: 없으면 401. tokeninfo !ok(400) → 401. timeout/파싱실패 catch → 401
+- **kakao**: kapi !ok(401) → 401 / id 없음 → 401 / network·timeout catch → 401. id 위조 불가(카카오 응답 신뢰)
+- 검증 모델 적절: 웹=authcode flow(secret 보유→aud/iss 불요) vs 모바일=id_token 직수신→aud+iss 필수 정확 구현
+
+### 기타 점검
+- upsertOAuthUser user 재할당(L121): update 결과를 user에 재할당 → 토큰/응답에 보강 필드 최신 반영. 부작용 0 (웹은 어차피 동일 user 사용)
+- rate-limit: isLoginBlocked(ip)→429 / 실패마다 recordLoginAttempt(ip,ip) / 성공 clearLoginAttempts(ip). 순서·식별자 정합 (recordLoginAttempt(id,ipAddr) 시그니처 일치)
+- 응답 동형: login route와 user 6필드 100% 동일 (id/email/nickname/avatarUrl/membershipType/isAdmin)
+- 시크릿 노출 0: access_token/id_token 로그 출력 없음. catch는 시크릿 미포함 메시지만. console.error는 error 객체만(토큰 미포함)
+- 외부 fetch: try/catch + AbortSignal.timeout(5s) 양쪽 적용
+- tsc --noEmit = 0
+
+✅ 잘된 점:
+- withdrawn redirect→throw 추출이 깔끔. 호출부가 플랫폼별 응답(웹 redirect / 모바일 403) 담당 — 관심사 분리 정석
+- 모바일 id_token aud+iss 검증을 빠뜨리지 않음 (id_token 직수신 시 가장 흔한 보안 누락 지점)
+- login route 패턴(safeParse·rate-limit·동형 응답) 일관 답습
+
+🟡 권장 수정 (minor, 머지 차단 아님):
+1. [google/route.ts:88] iss 검증을 aud 검증(L82)보다 **먼저** 두는 것이 통상 순서(발급자 먼저 확인 후 대상 확인). 현재도 둘 다 검증하므로 보안상 동일 — 가독성 차원만. 수정 불필요해도 무방
+2. [kakao·google route] rate-limit이 IP 단독 기준. 공유 IP(회사/카페 NAT)에서 정상 사용자가 차단될 수 있음(10회/5분). login route는 email+IP 병행이나 모바일은 email 사전 미확보라 IP 단독 = 의도된 trade-off. 향후 모니터링 권장 (현 구조 수용)
+
 ## 수정 요청
 | 요청자 | 대상 | 문제 | 상태 |
 |--------|------|------|------|
+| reviewer | — | critical/major 없음. minor 2건 권장(머지 차단 아님) | 통과 |
+| tester | src/proxy.ts | 🚨 `PUBLIC_API_ROUTES`에 kakao·google 누락 → JWT 없는 모바일 호출이 핸들러 도달 전 401 차단 | ✅ 해결 (2026-06-08 1차 수정 + tester 재검증 PASS: kakao/google `{}`→422 전환 확정, 무효토큰→401 확정) |
 
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
 |------|------|------|
+| 2026-06-08 | **PR-MYBDR-SOCIAL** proxy.ts 수정 재검증 (tester) | ✅ PASS 4/4 — kakao/google `{}`→422(401전환확정★) / 무효토큰→401(핸들러 외부검증 도달) / tsc 0 / 서버 무종료 |
+| 2026-06-08 | **PR-MYBDR-SOCIAL** 모바일 OAuth /api/v1/auth/kakao·google 신설 | ✅ upsertOAuthUser 공용추출(WithdrawnUserError throw) / 웹콜백 3종 무수정 / google aud+iss검증 / 탈퇴=403 / rate-limit IP / 토큰만발급 / fetch timeout 5s / tsc 0 |
 | 2026-06-07 | **8C-8** VU3 CourtBooking → /booking+payment-fail+checkin (BV2) | ✅ 정보성 톤4(결제수단칩+lock안내 / 버튼 lock / errchip톤 / checkin eyebrow) / 토스흐름·cancel·checkin·약관게이트 0 / 가짜위젯 미박제(mock0) / tsc 0 / 충돌 0 / stop 없음 |
 | 2026-06-07 | **8C-7** VU2 CourtDetail → /courts/[id] (BV3) | ✅ 5항목 평균 카드에 평점 헤더1(overallAverage+StarRating+리뷰N) / 데이터·액션·탭·hero 0 / var(--*)만 / tsc 0 / 충돌 0 |
 | 2026-06-07 | **8C-6** VA1 AdminCourtsPartners → /admin/courts + /admin/partners (BV7) | ✅ 2라우트 보존 / SiteOperatorBadge 공용 신규(dark+gold) 양쪽 박제 / courts hero stat4 + count쿼리3(count-only) / 신고 탭·모달·액션 미생성 / 패칭·가드 0 / tsc 0 / 충돌 0 |
