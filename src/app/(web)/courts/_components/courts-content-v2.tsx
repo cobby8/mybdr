@@ -508,6 +508,47 @@ export function CourtsContentV2({ courts, cities }: CourtsContentV2Props) {
         </div>
       </div>
 
+      {/* ─── 8C-5 보강 ①: 코트 등록 신청 CTA (VU1 cv-submit-cta 박제) ───
+          이유: 시안 VU1 의 "발견성" 핵심 = 찾는 코트가 없을 때 등록 유도.
+                실라우트 /courts/submit 존재 → mock 0 으로 실제 링크 연결.
+          색: var(--color-*) 토큰만 사용 (cafe-blue 계열 = 시안 cv-submit-cta 톤 답습). */}
+      <Link
+        href="/courts/submit"
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 12,
+          padding: "16px 20px",
+          background: "var(--cafe-blue-soft, var(--bg-elev))",
+          border: "1px solid var(--cafe-blue-hair, var(--border))",
+          borderRadius: "var(--radius-card)",
+          marginBottom: 16,
+          textDecoration: "none",
+        }}
+      >
+        <span
+          className="material-symbols-outlined"
+          style={{ fontSize: 24, color: "var(--cafe-blue-deep, var(--accent))", flexShrink: 0 }}
+        >
+          add_location_alt
+        </span>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 13.5, fontWeight: 800, color: "var(--ink)" }}>
+            찾는 코트가 없나요?
+          </div>
+          <div style={{ fontSize: 12, color: "var(--ink-mute)", marginTop: 1 }}>
+            새 코트를 등록 신청하면 검수 후 추가됩니다.
+          </div>
+        </div>
+        {/* 우측 화살표 — 시안 btn 대신 link affordance (모바일에서도 안전) */}
+        <span
+          className="material-symbols-outlined"
+          style={{ fontSize: 20, color: "var(--cafe-blue-deep, var(--accent))", flexShrink: 0 }}
+        >
+          chevron_right
+        </span>
+      </Link>
+
       {/* ─── 시안 그리드: 좌측 카드 + 우측 sticky 지도 ─── */}
       <div
         style={{
@@ -611,6 +652,59 @@ export function CourtsContentV2({ courts, cities }: CourtsContentV2Props) {
               </button>
             </div>
           )}
+
+          {/* ─── 8C-5 보강 ②: cross-domain 랭킹 link (VU1 cv-xlink + Phase 5 RU1) ───
+              이유: 시안 VU1 하단 "코트별 체크인 랭킹" cross-domain 진입.
+                    실라우트 /rankings 존재 → mock 0 으로 실제 링크 연결.
+              위치: 좌측 카드 컬럼 맨 아래 (빈 상태와 무관하게 항상 노출 = 발견성 보강). */}
+          <Link
+            href="/rankings"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 12,
+              padding: "13px 16px",
+              marginTop: 16,
+              border: "1px solid var(--border)",
+              borderRadius: "var(--radius-card)",
+              background: "var(--bg-elev)",
+              textDecoration: "none",
+            }}
+          >
+            <span
+              style={{
+                width: 38,
+                height: 38,
+                borderRadius: "var(--radius-chip)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                flexShrink: 0,
+                background: "color-mix(in srgb, var(--accent) 12%, transparent)",
+              }}
+            >
+              <span
+                className="material-symbols-outlined"
+                style={{ fontSize: 20, color: "var(--accent)" }}
+              >
+                leaderboard
+              </span>
+            </span>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 13.5, fontWeight: 700, color: "var(--ink)" }}>
+                코트별 체크인 랭킹
+              </div>
+              <div style={{ fontSize: 11.5, color: "var(--ink-mute)", marginTop: 1 }}>
+                코트마다 TOP 플레이어를 확인하세요
+              </div>
+            </div>
+            <span
+              className="material-symbols-outlined"
+              style={{ fontSize: 18, color: "var(--ink-dim)", flexShrink: 0 }}
+            >
+              chevron_right
+            </span>
+          </Link>
         </div>
 
         {/* ─── 우측: sticky 지도 (B 변형 — 기존 KakaoMap 임베드) ─── */}

@@ -53,6 +53,13 @@ export default function PartnerCampaignsPage() {
   const apiUrl = filter === "all" ? "/api/web/partner/campaigns" : `/api/web/partner/campaigns?status=${filter}`;
   const { data: campaigns } = useSWR<Campaign[]>(apiUrl, fetcher);
 
+  // VP3 톤④ — 헤더 합계. 시안은 매출(revenue)까지 노출하나 운영 Campaign 에 revenue 필드 부재(mock)라
+  // 실데이터인 노출·클릭 합계만 reduce 로 산출 (mock 필드 회피).
+  const totals = (campaigns ?? []).reduce(
+    (acc, c) => ({ impressions: acc.impressions + c.impressions, clicks: acc.clicks + c.clicks }),
+    { impressions: 0, clicks: 0 },
+  );
+
   // 필터 탭 목록
   const filterTabs = [
     { key: "all", label: "전체" },
@@ -88,11 +95,32 @@ export default function PartnerCampaignsPage() {
 
   return (
     <div className="space-y-6">
-      {/* 헤더 */}
-      <div className="flex items-center justify-between">
-        <h2 className="text-xl font-bold" style={{ color: "var(--color-text-primary)" }}>
-          캠페인 관리
-        </h2>
+      {/* 헤더 — VP3 톤①(Court Operator badge) + 톤④(노출·클릭 합계) */}
+      <div className="flex items-start justify-between gap-3 flex-wrap">
+        <div>
+          {/* 톤① Court Operator badge — navy+silver (8C-1 답습 hex / Site Operator dark+gold 와 분리) */}
+          <span
+            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-[10.5px] font-extrabold uppercase tracking-wider"
+            style={{
+              background: "linear-gradient(135deg, #1B3C87 0%, #2A4D9E 100%)",
+              border: "1px solid #3A5BA8",
+              color: "#fff",
+            }}
+          >
+            {/* silver 아이콘 (#C0CCDB) — badge 측 구분 색 */}
+            <span className="material-symbols-outlined text-[13px]" style={{ color: "#C0CCDB" }}>
+              stadium
+            </span>
+            Court Operator
+          </span>
+          <h2 className="text-xl font-bold mt-2" style={{ color: "var(--color-text-primary)" }}>
+            캠페인 관리
+          </h2>
+          {/* 톤④ 헤더 합계 — 실데이터 노출·클릭만 (매출은 mock 회피) */}
+          <p className="text-xs mt-1" style={{ color: "var(--color-text-muted)" }}>
+            노출 {totals.impressions.toLocaleString()} · 클릭 {totals.clicks.toLocaleString()}
+          </p>
+        </div>
         <button
           onClick={() => setShowForm(!showForm)}
           className="flex items-center gap-1.5 px-4 py-2 rounded text-sm font-medium transition-colors active:scale-95"
@@ -250,15 +278,16 @@ export default function PartnerCampaignsPage() {
         </form>
       )}
 
-      {/* 필터 탭 */}
-      <div className="flex gap-1 overflow-x-auto no-scrollbar">
+      {/* 필터 탭 — VP3 톤③ cv-fchip 톤(rounded-full + 비활성 칩 border) */}
+      <div className="flex gap-1.5 overflow-x-auto no-scrollbar">
         {filterTabs.map((tab) => (
           <button
             key={tab.key}
             onClick={() => setFilter(tab.key)}
-            className="px-3 py-1.5 rounded text-xs font-medium whitespace-nowrap transition-colors"
+            className="px-3.5 py-1.5 rounded-full border text-xs font-medium whitespace-nowrap transition-colors"
             style={{
               backgroundColor: filter === tab.key ? "var(--color-primary)" : "var(--color-surface)",
+              borderColor: filter === tab.key ? "var(--color-primary)" : "var(--color-border)",
               color: filter === tab.key ? "#fff" : "var(--color-text-secondary)",
             }}
           >
@@ -267,11 +296,11 @@ export default function PartnerCampaignsPage() {
         ))}
       </div>
 
-      {/* 캠페인 목록 */}
-      <div className="space-y-3">
-        {!campaigns ? (
-          // 로딩 스켈레톤
-          Array.from({ length: 3 }).map((_, i) => (
+      {/* 캠페인 목록 — VP3 톤② 카드 grid 2열 (cv-cmp-grid). 로딩/빈상태는 grid 깨짐 방지 위해 별도 분기 */}
+      {!campaigns ? (
+        // 로딩 스켈레톤
+        <div className="grid sm:grid-cols-2 gap-3">
+          {Array.from({ length: 4 }).map((_, i) => (
             <div
               key={i}
               className="rounded-lg border p-4 animate-pulse"
@@ -280,21 +309,23 @@ export default function PartnerCampaignsPage() {
               <div className="h-4 rounded w-1/3 mb-2" style={{ backgroundColor: "var(--color-surface)" }} />
               <div className="h-3 rounded w-1/2" style={{ backgroundColor: "var(--color-surface)" }} />
             </div>
-          ))
-        ) : campaigns.length === 0 ? (
-          <div className="text-center py-12">
-            <span
-              className="material-symbols-outlined text-4xl mb-2 block"
-              style={{ color: "var(--color-text-disabled)" }}
-            >
-              campaign
-            </span>
-            <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>
-              등록된 캠페인이 없습니다.
-            </p>
-          </div>
-        ) : (
-          campaigns.map((c) => {
+          ))}
+        </div>
+      ) : campaigns.length === 0 ? (
+        <div className="text-center py-12">
+          <span
+            className="material-symbols-outlined text-4xl mb-2 block"
+            style={{ color: "var(--color-text-disabled)" }}
+          >
+            campaign
+          </span>
+          <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>
+            등록된 캠페인이 없습니다.
+          </p>
+        </div>
+      ) : (
+        <div className="grid sm:grid-cols-2 gap-3">
+          {campaigns.map((c) => {
             const cfg = statusConfig[c.status] ?? statusConfig.draft;
             const ctr = c.impressions > 0 ? ((c.clicks / c.impressions) * 100).toFixed(1) : "0.0";
 
@@ -347,9 +378,9 @@ export default function PartnerCampaignsPage() {
                 </div>
               </Link>
             );
-          })
-        )}
-      </div>
+          })}
+        </div>
+      )}
     </div>
   );
 }

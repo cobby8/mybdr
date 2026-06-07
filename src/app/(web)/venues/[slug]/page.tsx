@@ -209,6 +209,11 @@ export default async function VenueDetailPage({ params }: { params: Promise<Page
               {/* 좌측 상단 뱃지: 유형 + 대관/평점 */}
               <div style={{ position: "absolute", left: 16, top: 16, display: "flex", gap: 6, flexWrap: "wrap" }}>
                 <span className="badge badge--soft">{typeLabel}</span>
+                {/* v2.28 보강(8C-2): 골대 수 hero badge — 실데이터(court.hoops_count) 노출 */}
+                {/* Why: 코트 핵심 스펙(골대 수)을 hero 진입 시점에 바로 노출. 시설 정보 카드에만 있던 값 격상 */}
+                {court.hoops_count ? (
+                  <span className="badge badge--soft">골대 {court.hoops_count}개</span>
+                ) : null}
                 {court.rental_available && <span className="badge badge--soft">대관 가능</span>}
                 {court.is_free && <span className="badge badge--soft">무료</span>}
                 {court.average_rating && Number(court.average_rating) > 0 && (
@@ -333,8 +338,8 @@ export default async function VenueDetailPage({ params }: { params: Promise<Page
                   >
                     <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
                       <b style={{ fontSize: 13 }}>{r.users?.nickname ?? "익명"}</b>
-                      {/* 별점 — 시안 톤(★ 5칸) */}
-                      <span style={{ color: "#F59E0B", fontSize: 13 }}>
+                      {/* 별점 — 시안 톤(★ 5칸) / v2.28 보강(8C-2): 하드코딩 #F59E0B → var(--warn) 토큰 교정 */}
+                      <span style={{ color: "var(--warn)", fontSize: 13 }}>
                         {"★".repeat(r.rating)}
                         <span style={{ color: "var(--border)" }}>{"★".repeat(Math.max(0, 5 - r.rating))}</span>
                       </span>

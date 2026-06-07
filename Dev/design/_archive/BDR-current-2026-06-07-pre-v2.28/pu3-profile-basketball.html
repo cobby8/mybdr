@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>PU3 · ProfileBasketball 신규 — BDR v2.24</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800;900&family=JetBrains+Mono:wght@500;700;800&family=Pretendard:wght@400;500;600;700;800;900&display=swap" />
+<link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Symbols+Outlined" />
+<link rel="stylesheet" href="tokens.css" />
+<link rel="stylesheet" href="shell.css" />
+<link rel="stylesheet" href="team-shared.css" />
+<link rel="stylesheet" href="profile-shared.css" />
+</head>
+<body>
+<div class="showcase">
+  <header class="showcase-head">
+    <div class="eyebrow">BDR v2.24 · PU3 / 사용자 신규 · Phase 6.1B · BP2 ★★★★ · A 등급</div>
+    <h1>ProfileBasketball 신규 — /profile/basketball</h1>
+    <p>
+      <b>PU3 신규 핵심 박제</b> (운영 1068 line · 박제 ❌). <strong>농구 캐릭터</strong>(주 사용 손·실력·강점) + <strong>시즌 stat 5종</strong>(참가/호스트/이달 MVP/평점/팀 전적) + <strong>선호 chip 8종</strong>(선택 UX) + <strong>우승 이력</strong>.
+      <strong>BP2 cross-domain</strong> = 이달의 MVP(Phase 2 BG4 · final_mvp 30일) + 팀 전적(Phase 3 BT6 · 소속 팀 wins) + 우승(Phase 1A PA7).
+    </p>
+    <nav class="showcase-nav" aria-label="Phase 6.1 시안">
+      <a href="index.html">v2.24 목차</a>
+      <a href="pu1-profile.html">PU1 마이</a>
+      <a class="is-cur" href="pu3-profile-basketball.html">PU3 농구</a>
+      <a href="pu4-profile-achievements.html">PU4 업적</a>
+      <a href="pu5-user-public.html">PU5 공개</a>
+      <a href="pu2-profile-edit.html">PU2 편집</a>
+      <a href="pa1-admin-users.html">PA1 검수</a>
+    </nav>
+  </header>
+
+  <section class="variant">
+    <header class="variant__head">
+      <span class="variant__num">PU3 / PC + MOBILE · A 등급 · 신규</span>
+      <h2 class="variant__title">농구 캐릭터 + 시즌 stat + 선호 chip + 우승 (cross-domain)</h2>
+      <p class="variant__desc">선호 chip = 클릭 토글. AppNav active="more".</p>
+    </header>
+    <div class="vp-strip">
+      <div class="vp vp--pc">
+        <div class="vp__chrome"><span class="vp__lights"><span></span><span></span><span></span></span><span class="vp__url">mybdr.kr/profile/basketball</span><span class="vp__size">PC · 1240</span></div>
+        <div class="vp__body"><div id="mount-pc-nav"></div><div id="mount-pc"></div></div>
+      </div>
+      <div class="vp vp--mobile">
+        <div class="vp__chrome"><span class="vp__lights"><span></span><span></span><span></span></span><span class="vp__url">m · 내 농구</span><span class="vp__size">375</span></div>
+        <div class="vp__body"><div id="mount-mobile-nav"></div><div id="mount-mobile"></div></div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script type="text/babel" src="shared.jsx"></script>
+<script type="text/babel" src="team-shared.jsx"></script>
+<script type="text/babel" src="profile-shared.jsx"></script>
+<script type="text/babel" src="screens/ProfileBasketball.jsx"></script>
+<script type="text/babel">
+  ReactDOM.createRoot(document.getElementById('mount-pc-nav')).render(<window.AppNav active="more" />);
+  ReactDOM.createRoot(document.getElementById('mount-pc')).render(<window.ProfileBasketball />);
+  ReactDOM.createRoot(document.getElementById('mount-mobile-nav')).render(<window.AppNav active="more" />);
+  ReactDOM.createRoot(document.getElementById('mount-mobile')).render(<window.ProfileBasketball />);
+</script>
+</body>
+</html>

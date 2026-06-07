@@ -53,6 +53,15 @@ const PURPOSES = [
   { id: "private", l: "개인 연습", d: "혼자/소규모" },
 ] as const;
 
+// 결제수단 안내 칩 — 시안 VU3_PM(card/transfer/easy) 답습 (정보성 only)
+// 이유: 실제 결제 수단 선택은 토스 안전결제창에서 이루어지므로(requestPayment),
+//       여기서는 "어떤 수단을 쓸 수 있는지"만 비활성 칩으로 안내한다. 가짜 위젯/입력폼 미박제.
+const PAY_METHODS = [
+  { label: "카드", ico: "credit_card" },
+  { label: "계좌이체", ico: "account_balance" },
+  { label: "간편결제", ico: "bolt" },
+] as const;
+
 // 약관 4종 — 필수 3 + 선택 1
 // 이유: PG사 결제 약관 / 개인정보 제3자 제공 동의 / 환불 규정은 결제 진행 필수.
 //       마케팅은 선택이므로 결제 차단 조건에서 제외.
@@ -846,12 +855,86 @@ export function BookingClient({ court }: { court: CourtData }) {
                 </div>
               )}
 
+              {/* 결제수단 안내 칩 — 유료일 때만. 시안 VU3 결제 위젯 톤(정보성 only)
+                  이유: 실제 수단 선택은 토스 안전결제창에서 이뤄짐 → 가능 수단만 비활성 칩으로 안내.
+                        가짜 카드번호 입력 위젯은 박제하지 않음(토스 흐름 보존) */}
+              {isPaid && (
+                <div style={{ marginBottom: 12 }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: 6,
+                      marginBottom: 8,
+                    }}
+                  >
+                    {PAY_METHODS.map((m) => (
+                      <span
+                        key={m.label}
+                        style={{
+                          flex: 1,
+                          display: "flex",
+                          flexDirection: "column",
+                          alignItems: "center",
+                          gap: 4,
+                          padding: "8px 4px",
+                          border: "1px solid var(--border)",
+                          borderRadius: 4,
+                          background: "var(--bg-alt)",
+                          fontSize: 11,
+                          fontWeight: 700,
+                          color: "var(--ink-soft)",
+                        }}
+                      >
+                        <span
+                          className="material-symbols-outlined"
+                          style={{ fontSize: 18, color: "var(--ink-dim)" }}
+                          aria-hidden
+                        >
+                          {m.ico}
+                        </span>
+                        {m.label}
+                      </span>
+                    ))}
+                  </div>
+                  {/* 안전결제 안내 — lock 아이콘 + "토스 안전결제창에서 선택" (시안 bl-widget__note 톤) */}
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 6,
+                      fontSize: 11,
+                      color: "var(--ink-dim)",
+                      lineHeight: 1.4,
+                    }}
+                  >
+                    <span
+                      className="material-symbols-outlined"
+                      style={{ fontSize: 14 }}
+                      aria-hidden
+                    >
+                      lock
+                    </span>
+                    결제 수단은 토스페이먼츠 안전결제창에서 선택합니다.
+                  </div>
+                </div>
+              )}
+
               <button
                 className="btn btn--primary btn--xl"
                 style={{ width: "100%", justifyContent: "center" }}
                 onClick={handleSubmit}
                 disabled={submitDisabled}
               >
+                {/* 유료 결제 버튼에 안전결제 lock 아이콘 (시안 bl-paybtn 톤) */}
+                {isPaid && !submitting && hour !== null && (
+                  <span
+                    className="material-symbols-outlined"
+                    style={{ fontSize: 16 }}
+                    aria-hidden
+                  >
+                    lock
+                  </span>
+                )}
                 {submitLabel}
               </button>
 

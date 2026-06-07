@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>undefined — BDR v2.28</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800;900&family=JetBrains+Mono:wght@500;700;800&family=Pretendard:wght@400;500;600;700;800;900&display=swap" />
+<link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Symbols+Outlined" />
+<link rel="stylesheet" href="tokens.css" />
+<link rel="stylesheet" href="shell.css" />
+<link rel="stylesheet" href="team-shared.css" />
+<link rel="stylesheet" href="org-shared.css" />
+<link rel="stylesheet" href="comm-shared.css" />
+<link rel="stylesheet" href="profile-shared.css" />
+<link rel="stylesheet" href="billing-shared.css" />
+<link rel="stylesheet" href="growth-shared.css" />
+<link rel="stylesheet" href="auth-shared.css" />
+<link rel="stylesheet" href="court-shared.css" />
+<link rel="stylesheet" href="admin.css" />
+</head>
+<body>
+<div class="showcase">
+  <header class="showcase-head">
+    <div class="eyebrow">BDR v2.28 · VP3 / 파트너 통합 신규 · Phase 8A · BV6 ★★★ · E 등급 · Court Operator</div>
+    <h1>PartnerCampaigns — /partner-admin/campaigns + /[id]</h1>
+    <p><b>VP3 캠페인 통합 신규</b> (운영 campaigns+[id] 721). Court Operator. 캠페인 카드 grid(노출/클릭/매출 + status) + 상태 필터 + <strong>"새 캠페인" 모달</strong>(예산/대상/기간/자산) + 상세 모달(partners 모델). 새 라우트 ❌.</p>
+    <nav class="showcase-nav" aria-label="Phase 8 시안">
+      <a href="index.html">v2.28 목차</a>
+      <a href="vu1-courts.html">VU1 코트</a>
+      <a href="vu2-court-detail.html">VU2 상세</a>
+      <a href="vu3-court-booking.html">VU3 예약</a>
+      <a href="vu4-venue-detail.html">VU4 venue</a>
+      <a href="vp1-partner-admin.html">VP1 파트너</a>
+      <a href="vp2-partner-venue.html">VP2 대관</a>
+      <a class="is-cur" href="vp3-partner-campaigns.html">VP3 캠페인</a>
+      <a href="va1-admin-courts.html">VA1 super-admin</a>
+    </nav>
+  </header>
+
+  <section class="variant">
+    <header class="variant__head">
+      <span class="variant__num">PartnerCampaigns / PC + MOBILE</span>
+      <h2 class="variant__title">광고 캠페인 — 통합 hub</h2>
+      <p class="variant__desc">데스크톱 1240 + 모바일 375. 카드 grid · 생성/상세 모달.</p>
+    </header>
+    <div class="vp-strip">
+      <div class="vp vp--pc">
+        <div class="vp__chrome"><span class="vp__lights"><span></span><span></span><span></span></span><span class="vp__url">mybdr.kr/partner-admin/campaigns</span><span class="vp__size">PC · 1240</span></div>
+        <div class="vp__body"><div id="mount-pc"></div></div>
+      </div>
+      <div class="vp vp--mobile">
+        <div class="vp__chrome"><span class="vp__lights"><span></span><span></span><span></span></span><span class="vp__url">m · 캠페인</span><span class="vp__size">375</span></div>
+        <div class="vp__body"><div id="mount-mobile"></div></div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script type="text/babel" src="shared.jsx"></script>
+<script type="text/babel" src="game-shared.jsx"></script>
+<script type="text/babel" src="team-shared.jsx"></script>
+<script type="text/babel" src="org-shared.jsx"></script>
+<script type="text/babel" src="profile-shared.jsx"></script>
+<script type="text/babel" src="billing-shared.jsx"></script>
+<script type="text/babel" src="growth-shared.jsx"></script>
+<script type="text/babel" src="auth-shared.jsx"></script>
+<script type="text/babel" src="court-shared.jsx"></script>
+<script type="text/babel" src="screens/PartnerCampaigns.jsx"></script>
+<script type="text/babel">
+  ReactDOM.createRoot(document.getElementById('mount-pc')).render(<window.PartnerCampaigns />);
+  ReactDOM.createRoot(document.getElementById('mount-mobile')).render(<window.PartnerCampaigns />);
+</script>
+</body>
+</html>
