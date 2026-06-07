@@ -97,6 +97,34 @@
 - badge hex 인라인 = 8C-1 답습(운영 var 토큰에 navy+silver 없음 — 의도된 예외)
 - 현재 courts 조회 API 미구현 → 폼은 빈 상태에서만 안내 노출(실데이터 렌더는 API 추가 후). 셸 박제가 목적이라 패칭 미구현은 기존 상태 보존
 
+### 8C-4 — VP3 PartnerCampaigns → /partner-admin/campaigns (BV6 ★★★ Court Operator)
+
+📝 구현: 인라인 폼 유지(모달 전환❌) — VP3 톤 4가지만 박제. 시안 mock 필드(revenue·budget·period·상세모달)는 운영 Campaign 인터페이스 부재로 회피. handleCreate POST·useSWR·formData·인라인 form·statusConfig·카드 내부 통계 0 변경.
+
+| 파일 | 변경 | 신규/수정 |
+|------|------|----------|
+| src/app/(web)/partner-admin/campaigns/page.tsx | VP3 톤 4종(Court Operator badge / grid 2열 / 필터칩 rounded-full+border / 헤더 노출·클릭 합계) (+62 −31, 순 +31) | 수정 |
+
+- VP3 톤 4가지:
+  ① Court Operator badge — navy+silver(#1B3C87→#2A4D9E + silver #C0CCDB), 8C-1 답습 hex. 헤더 h2 위 배치
+  ② 카드 grid 2열 — 목록 `space-y-3` → `grid sm:grid-cols-2 gap-3` (로딩/빈상태는 grid 깨짐 방지 위해 별도 분기, 스켈레톤 3→4개)
+  ③ 필터칩 톤 — `rounded` → `rounded-full` + 비활성 칩 border 추가 (시안 cv-fchip 톤)
+  ④ 헤더 합계 — `노출 N · 클릭 N` toLocaleString (campaigns reduce). 시안엔 매출(revenue)까지 있으나 운영 mock 부재로 노출·클릭만
+- [id]/page.tsx = **0 변경** (git diff 미등장 확인)
+- 데이터 패칭 0 변경: handleCreate(POST formData 그대로) / useSWR(apiUrl) / mutate / formData 5필드 유지
+- tsc --noEmit = 0
+- prefix 충돌 0: vp3-/bv-/cv-/bl-/pm-/gw- 식별자 미도입. className 전부 Tailwind+var(--color-*). 주석 내 시안 참조 2건(cv-fchip / cv-cmp-grid)만(grep 식별자 0)
+
+💡 tester 참고:
+- 테스트: 파트너 계정 /partner-admin/campaigns 진입 → 상단 Court Operator badge + "캠페인 관리" + 노출·클릭 합계 줄 / 필터칩 pill 형태(활성=red, 비활성=border) / 캠페인 2개 이상 시 2열 grid
+- 정상: "새 캠페인" 클릭 → 인라인 폼 토글(모달 아님) → 생성 시 POST + 목록 갱신(기존 동작 동일). 카드 클릭 → /campaigns/[id] 이동
+- 주의: 캠페인 0건(빈상태 1열 center 유지) / 로딩(스켈레톤 4개 2열) / 모바일(<640px)에서 grid 1열로 떨어짐
+
+⚠️ reviewer 참고:
+- badge hex 인라인 = 8C-1 답습(운영 var 토큰에 navy+silver 없음 — 의도된 예외)
+- 시안 매출·예산·기간·상세모달 의도적 미박제(운영 Campaign 인터페이스 부재 mock). 헤더 합계도 노출·클릭만(매출 제외)
+- 인라인 폼 유지 = PM 승인사항(모달 전환❌). 시안 모달 폼 박제 0
+
 ## 수정 요청
 | 요청자 | 대상 | 문제 | 상태 |
 |--------|------|------|------|
@@ -104,6 +132,7 @@
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
 |------|------|------|
+| 2026-06-07 | **8C-4** VP3 PartnerCampaigns → /partner-admin/campaigns (BV6) | ✅ 인라인폼 유지 / VP3 톤4(badge·grid2열·필터칩·헤더합계) / mock회피 / handleCreate 0 / [id] 0 / tsc 0 / 충돌 0 |
 | 2026-06-07 | **8C-3** VP2 PartnerVenue → /partner-admin/venue (BV5) | ✅ 옵션A VP2 셸+2탭(기본/시간가격) / badge + operating_hours read-only + fee편집 / 정책·통계 미생성 / handleSave 0 / tsc 0 / 충돌 0 |
 | 2026-06-07 | **8C-2** VU4 VenueDetail → /venues/[slug] (BV8) | ✅ 골대수 hero badge 실데이터 + 별점 var(--warn) 교정 / list hide(mock0) / 패칭0 / tsc 0 / 충돌 0 |
 | 2026-06-07 | **8C-1** VP1 PartnerAdmin → /partner-admin (BV4) | ✅ navy hero + Court Operator badge / mock hide / 실통계 / tsc 0 / 충돌 0 |
@@ -113,4 +142,3 @@
 | 2026-05-31 | Phase 6.3 chain (v2.26 + 3 PR) | ✅ 보강 / stop 0 |
 | 2026-05-31 | Phase 6.2 chain (v2.25 + 7 PR) | ✅ 토스 실연결 mock 0 |
 | 2026-05-31 | Phase 6.1 chain (v2.24 + 6 PR #657) | ✅ BP1 privacy·BP5 가드 |
-| 2026-05-31 | Phase 5 chain (v2.23 + 6 PR #656) | ✅ 공용 wizard |
