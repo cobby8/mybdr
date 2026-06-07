@@ -2,6 +2,14 @@
 <!-- 담당: debugger, tester | 최대 30항목 -->
 <!-- 이 프로젝트에서 반복되는 에러 패턴, 함정, 주의사항을 기록 -->
 
+### [2026-06-08] 신규 /api/v1 public 엔드포인트 = `src/proxy.ts` PUBLIC_API_ROUTES 등록 필수 (정적 리뷰 미검출)
+- **분류**: errors (proxy / 인증 게이트)
+- **발견자**: tester (PR-MYBDR-SOCIAL 모바일 OAuth)
+- **증상**: `/api/v1/auth/kakao`·`google` 신규 라우트가 핸들러 로직은 정상(tsc 0, reviewer 정적 통과)인데, 실제 호출 시 **핸들러 도달 전 401 UNAUTHORIZED**. 모바일 OAuth는 JWT 없이 호출되는 로그인 경로라 영원히 401 → 기능 불능.
+- **근본 원인**: `src/proxy.ts`의 `PUBLIC_API_ROUTES`(prefix `startsWith` 매칭)에 신규 라우트 미등록 → proxy가 `/api/v1` 비공개 경로로 간주, Bearer/Token 헤더 없으면 early-reject 401.
+- **해결**: `PUBLIC_API_ROUTES`에 신규 public 라우트 추가(`/api/v1/auth/login`과 동일 패턴).
+- **예방**: **JWT 없이 호출되는 신규 /api/v1 엔드포인트(로그인/공개 조회 등)는 proxy.ts PUBLIC_API_ROUTES 등록을 반드시 동반.** 정적 코드 리뷰로는 안 잡힘 → **런타임 curl(헤더 없이) 검증 필수**. reviewer(정적)+tester(런타임) 병렬이 이 클래스 버그를 잡는 이유.
+
 ### [2026-05-31] PowerShell `git commit -m @'...'@` 본문에 큰따옴표(") 포함 시 파싱 깨짐
 - **분류**: errors (도구 / PowerShell)
 - **발견자**: pm (Phase 6.2C-3 / 6.3C-1 commit 2회 재발)

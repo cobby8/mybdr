@@ -1,4 +1,5 @@
 import { cookies } from "next/headers";
+import type { User } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { generateToken } from "./jwt";
 import { WEB_SESSION_COOKIE } from "./web-session";
@@ -14,7 +15,9 @@ const COOKIE_OPTIONS = {
   path: "/",
 };
 
-interface OAuthProfile {
+// 2026-06-08 모바일 OAuth(/api/v1) 추가를 위해 export.
+//   웹 콜백(handleOAuthLogin) + 모바일 라우트(upsertOAuthUser)가 공유.
+export interface OAuthProfile {
   provider: string;
   uid: string;
   email?: string | null;
@@ -24,13 +27,31 @@ interface OAuthProfile {
 }
 
 /**
- * OAuth 로그인/가입 공통 처리
+ * 탈퇴 회원이 OAuth로 재로그인 시도 시 throw.
+ * - 웹 콜백(handleOAuthLogin): catch → /login?withdrawn=expired redirect (기존 동작 보존)
+ * - 모바일 라우트(/api/v1/auth/*): catch → 403 "ACCOUNT_WITHDRAWN"
+ * 이유: upsert 로직은 Response를 모르게(순수 user 처리) 유지하고,
+ *       플랫폼별 응답 분기는 호출부가 담당하도록 에러로 신호 전달.
+ */
+export class WithdrawnUserError extends Error {
+  constructor() {
+    super("ACCOUNT_WITHDRAWN");
+    this.name = "WithdrawnUserError";
+  }
+}
+
+/**
+ * OAuth 사용자 upsert (순수 user 처리 — Response/쿠키/리다이렉트 없음).
  * 1. provider+uid로 기존 유저 검색
  * 2. 없으면 email로 검색 (기존 계정 연결)
  * 3. 그래도 없으면 새 유저 생성
- * 4. JWT 발급 + 쿠키 설정
+ * 4. 기존 유저 프로필/phone 보강
+ * 탈퇴(status="withdrawn") 시 WithdrawnUserError throw → 호출부가 플랫폼별 응답 처리.
+ *
+ * 2026-06-08: 웹 콜백(handleOAuthLogin) + 모바일(/api/v1/auth/*)이 공유하도록 추출.
+ *   기존 handleOAuthLogin 내부 로직을 글자 그대로 옮김 (단, withdrawn redirect → throw로 통일).
  */
-export async function handleOAuthLogin(profile: OAuthProfile): Promise<Response> {
+export async function upsertOAuthUser(profile: OAuthProfile): Promise<User> {
   const { provider, uid, email, nickname, profileImage, phone } = profile;
 
   // 1. provider+uid로 검색
@@ -38,12 +59,9 @@ export async function handleOAuthLogin(profile: OAuthProfile): Promise<Response>
     where: { provider, uid },
   });
 
-  // 2026-05-05 fix: 탈퇴 회원 OAuth 재로그인 차단 (newer-style callback 3종 = kakao/google/naver 일괄).
-  //   본질: handleOAuthLogin 은 callback/[provider]/route.ts 가 위임 호출 — 단일 위치 fix.
-  //   분기: provider+uid 매칭 또는 email 매칭 후 status="withdrawn" 검증 → /login?withdrawn=expired
+  // 2026-05-05 fix: 탈퇴 회원 OAuth 재로그인 차단 (provider+uid 매칭). throw → 호출부 분기.
   if (user && user.status === "withdrawn") {
-    const baseUrlEarly = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3001";
-    return Response.redirect(new URL("/login?withdrawn=expired", baseUrlEarly));
+    throw new WithdrawnUserError();
   }
 
   // 2. email로 기존 계정 검색 → OAuth 연결
@@ -52,8 +70,7 @@ export async function handleOAuthLogin(profile: OAuthProfile): Promise<Response>
     if (user) {
       // 2026-05-05 fix: email 매칭 분기에서도 탈퇴 회원 차단 (uid 재연결 ❌)
       if (user.status === "withdrawn") {
-        const baseUrlEarly = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3001";
-        return Response.redirect(new URL("/login?withdrawn=expired", baseUrlEarly));
+        throw new WithdrawnUserError();
       }
       await prisma.user.update({
         where: { id: user.id },
@@ -100,7 +117,8 @@ export async function handleOAuthLogin(profile: OAuthProfile): Promise<Response>
     }
     if (!user.phone && phone) updates.phone = phone;
     if (Object.keys(updates).length > 0) {
-      await prisma.user.update({ where: { id: user.id }, data: updates });
+      // 보강한 필드를 반환 user에도 반영 (재조회 없이 최신 상태 유지)
+      user = await prisma.user.update({ where: { id: user.id }, data: updates });
 
       // 기존 유저의 phone이 새로 저장되었으면 미연결 선수 자동 매칭
       if (updates.phone) {
@@ -109,6 +127,27 @@ export async function handleOAuthLogin(profile: OAuthProfile): Promise<Response>
         } catch { /* 매칭 실패해도 로그인 흐름에 영향 없음 */ }
       }
     }
+  }
+
+  return user;
+}
+
+/**
+ * OAuth 로그인/가입 공통 처리 (웹 콜백 전용 — Response 반환).
+ * upsertOAuthUser로 user 확보 후 JWT 쿠키 + redirect 분기.
+ * 외부 시그니처 불변 → kakao/google/naver 웹 콜백 3종 무수정.
+ */
+export async function handleOAuthLogin(profile: OAuthProfile): Promise<Response> {
+  let user: User;
+  try {
+    user = await upsertOAuthUser(profile);
+  } catch (e) {
+    // 탈퇴 회원: 기존 동작 그대로 /login?withdrawn=expired 로 redirect 보존
+    if (e instanceof WithdrawnUserError) {
+      const baseUrlEarly = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3001";
+      return Response.redirect(new URL("/login?withdrawn=expired", baseUrlEarly));
+    }
+    throw e;
   }
 
   // 4. JWT + 쿠키

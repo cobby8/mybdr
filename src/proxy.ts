@@ -64,6 +64,8 @@ function extractSubdomain(hostname: string, searchParams?: URLSearchParams): str
 
 const PUBLIC_API_ROUTES = [
   "/api/v1/auth/login",
+  "/api/v1/auth/kakao",  // 모바일 카카오 OAuth — JWT 없이 호출 (proxy 401 차단 방지)
+  "/api/v1/auth/google", // 모바일 구글 OAuth — JWT 없이 호출 (proxy 401 차단 방지)
   "/api/v1/site-templates",
   "/api/v1/tournaments/connect", // 대회 API 토큰 연결 (JWT 불필요, 토큰 자체가 인증)
 ];
