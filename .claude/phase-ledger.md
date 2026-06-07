@@ -146,6 +146,15 @@
 | ⑬ PR 결재 | 6.3C | ✅ 완료 | 수빈 | 2026-06-06 | subin→dev #659 + dev→main #660 머지 (운영 `32153c7`) |
 | ⑭ Phase 완료 | 6.3 | ✅ 종료 | CLI→Cowork | 2026-06-06 | ★ Phase 6 묶음(6.1+6.2+6.3 = 16 시안) 운영 반영 완료 (#658/#660) |
 
+### Phase 7 — 인증 · 온보딩 영역 (AppNav 미적용 standalone)
+
+| 단계 | 영역 | 상태 | 책임자 | 갱신일 | 메모 |
+|------|------|------|------|------|------|
+| ⑩ sync 실행 | 7A+7B | ✅ 완료 | CLI | 2026-06-07 | v2.27 sync. `auth-shared.jsx/css` 신규(162+197). LoginSignup/Onboarding/PasswordRecovery/Verify 4 jsx. Phase 1~6.3 carry-over diff 0 / pre-snapshot `_archive/BDR-current-2026-06-07-pre-v2.27/` / ★ AppNav 미적용 standalone |
+| ⑪ 운영 박제 (7C) | 7C | ⏳ 대기 | CLI | 2026-06-07 | auto-chain 4 PR (1 AU1 LoginSignup / 2 AU3 PasswordRecovery / 3 AU4 Verify / 4 AU2 Onboarding 5-step). AppNav 0 / Phase 10-5 wrapper·12-5 IdentityVerifyButton 보존 |
+| ⑬ PR 결재 | 7C | ⏳ 대기 | 수빈 | - | chain subin→dev→main 머지 |
+| ⑭ Phase 완료 | 7 | ⏳ 대기 | CLI→Cowork | - | 인증·온보딩 운영 반영 |
+
 ---
 
 ## 완료 Phase (이력)
