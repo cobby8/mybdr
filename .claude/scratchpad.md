@@ -198,6 +198,26 @@
 
 📊 종합: 12/12 통과 (tsc0 / 강조색 가드 전항 / 회귀 5항 / 역박제) — lint만 환경제약 실행불가(대체검증 완료)
 
+### 재검증 (2026-06-10, PM 의뢰서 기준 — 커밋 a9cb476+508325a 대상)
+> 박제는 이미 커밋됨: `a9cb476` feat(ui) 7 src파일(+82/-49) / `508325a` design(sync) BDR-current 2파일. working tree는 문서(.claude)만 변경.
+
+| # | 검증 항목 | 결과 | 근거 |
+|---|----------|------|------|
+| 1 | tsc --noEmit | ✅ PASS | EXIT=0 (재실행). lint은 프로젝트 미구성(기존상태)으로 tsc 갈음 |
+| 2 | status==='completed' 분기 보존(L287) | ✅ PASS | page.tsx 박제 diff = 심판버튼(L835~864) 단1곳. L287/111/45·221/51 보존 라인 무변경 (HEAD=박제커밋 동일 확인) |
+| 2 | ALLOWED_TABS(L111)·isTournamentInsider·generateMetadata(L51) 보존 | ✅ PASS | grep으로 라인 존재+diff 범위 밖 확인 |
+| 2 | API·Prisma 패칭 0변경 | ✅ PASS | prisma.tournament/tournamentTeam 패칭(L53·125·291·456·488) diff 범위 밖. /api/v1·web API 0변경 |
+| 2 | mock 박제 0 (실데이터 와이어 유지) | ✅ PASS | const TEAMS/MATCHES/GROUPS·Tweaks 패널 0건. grep 잡힌 "mock"은 전부 "mock❌" 주석 |
+| 3 | cafe-blue 적용처 5종 | ✅ PASS | pill탭활성(.td-pill.on) / 팀필터칩(schedule L451·453·465·467) / 조별순위 세로막대·승헤더·승점(group-standings L93·138·148·249) / 우승예측 %바폴백(prediction L66) = 전부 var(--cafe-blue) |
+| 3 | 빨강 보존처 | ✅ PASS | 승자점수(--color-primary)·LIVE·진행중stat·btn--primary 다크 무변경. td-detail.css 잔존 --accent(L83·86·89·144)=기존 LIVE배지·종별칩, diff 범위 밖 의도적 보존 |
+| 3 | #0F5FCC 0 / --cta 0 / --accent 신규 0 | ✅ PASS | 박제 7파일 grep 0건 (잡힌 join/referee #0F5FCC·my-reg/enroll --accent = 작업대상 외 무변경 파일). globals 라이트(#0F5FCC L96)/다크(#3B82F6 L150) 토큰으로 다크 자동대응 |
+| 4 | CSS `*/` 조기종료 0 (Turbopack 함정 errors.md60) | ✅ PASS | td-detail.css append영역(L167~219) 주석 정상 개폐. `\*/.+\S` grep 0건 |
+| 5 | 심판배정요청 버튼 제거 / Tweaks 패널 0 | ✅ PASS | referee-request Link JSX 완전삭제(주석만 잔존). Tweaks 패널 0 |
+| 6 | AppNav(shared) 변경 0 | ✅ PASS | 두 박제 커밋 stat에 shared/AppNav 0건 |
+| 역박제 | BDR-current 정합 | ✅ PASS | tournament-detail.css 밑줄형→pill+활성 cafe-blue, 운영 .td-pill.on 1:1 정합 (주석 "빨강(--accent) 아님" 명시) |
+
+📊 재검증 종합: **전항 PASS** — 의뢰서 6대 검증영역 모두 통과. 수정 요청 0건. 박제 안전(머지 가능). 로컬 3001 육안은 PM/사용자 별도 수행.
+
 ### 로컬 3001 육안 — 미실행 (PM 안내)
 - 3001 포트 LISTEN 없음(`netstat :3001`=NO_3001_LISTENER) = dev 서버 미가동. 의뢰 지침대로 **tester가 새로 띄우지 않음**.
 - 정적검증 12/12 통과로 박제 자체 안전. **육안 확인 권장**(PM이 3001 띄운 뒤): ⓐ진행중 상세 pill탭 활성 cafe-blue / ⓑ팀필터칩 활성 cafe-blue(빨강❌) / ⓒ승자점수 빨강유지 / ⓓ심판버튼 미노출(운영자 포함) / ⓔHero compact / ⓕ종료 대회 상세=기존동일.
@@ -224,6 +244,20 @@
 
 ⚠️ 머지 전 권장(리스킨 특성): tsc·코드검토는 PASS. 시각 회귀(빨강 오박0/종료뷰 무변경/모바일 pill 스크롤)는 코드상 안전 확인됐으나 로컬 3001 육안 1회(tester 6단계) 권장.
 
+### 🔁 reviewer 2차 재검증 (2026-06-10 — 커밋 기준 직접 검증)
+- **검증 방식**: 작업이 이미 커밋(`a9cb476` feat 7파일 +82/-49 / `508325a` 역박제 2파일)됨 → working tree diff 아닌 **커밋 diff 직접 통독 + grep + tsc 실측**.
+- **APPROVE 재확인** — critical 0 / major 0 / minor 1 (변동 없음). 9파일(src7+역박제2) 전수 검증 통과:
+  - 강조색 가드: 커밋 diff 전체 `#0F5FCC`/`#0f5fcc` 0 / 추가라인 `var(--cta)` 0 / 추가라인 `var(--accent)` 0 (grep PASS).
+  - 강조색 치환 정확: schedule 팀필터칩(전체+팀버튼)·group-standings(세로막대 L90·승헤더 L138·승점헤더 L148·승점셀 L249)·prediction %바폴백 L66 = `var(--cafe-blue)`. tabs `.td-pill.on` = cafe-blue.
+  - 빨강 의미색 보존: schedule 승자점수 L697 `homeWins ? var(--color-primary)`(=bdr-red) 그대로 / LIVE L175 `--color-status-live` / 종별필터 L60~69·337·346 getDivisionColorVar / 날짜칩 L417·431 `--color-primary` 전부 무변경.
+  - 토큰 다크대응: globals.css cafe-blue 라이트 L96·97(#0F5FCC/#0A4CA6) + 다크 L150·151(#3B82F6/#1E3A8A) 실측 확인.
+  - isInsider: page.tsx L218 선언 → L221·225 가드 + L871 `{isInsider && <TournamentOperatorPreview/>}` 사용 → 미사용 warn 0. 심판버튼 JSX(referee-request Link)만 제거.
+  - CSS `*/` 함정: tournament-detail.css 전체 `*/[^ ]` 0건(PASS).
+  - 종료분기/ALLOWED_TABS/generateMetadata/Prisma: page.tsx 코드변경 라인에 미출현 = 무변경.
+  - 역박제 정합: BDR-current tournament-detail.css `.td-tab.is-active` = cafe-blue/cafe-blue-deep, 밑줄형 `--accent` 제거 → 운영 `.td-pill.on` 1:1 정합.
+  - **tsc --noEmit = 0 (EXIT=0 직접 재실행 확인)**.
+- **결론**: 이미 커밋된 박제 = 보고 내용과 100% 일치(거짓보고 0). 머지 가능. 잔여 = 로컬 3001 육안 1회(시각 회귀 최종 확인용, 코드상 안전).
+
 ## 수정 요청
 | 요청자 | 대상 파일 | 문제 설명 | 상태 |
 |--------|----------|----------|------|
@@ -236,6 +270,8 @@
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
 |------|------|------|
+| 2026-06-10 | **대회상세 td-redesign 리스킨 2차 재검증** (tester) | ✅ 전항 PASS. 박제 이미 커밋됨(`a9cb476`7파일+82/-49 / `508325a`역박제2)기준 재검증. tsc EXIT=0 / 강조색가드(박제7파일 #0F5FCC·--cta·--accent 추가0 / cafe-blue 5종=pill탭·팀필터칩·조별순위막대·승·승점·예측%바 / globals 라이트L96+다크L150 토큰) / 빨강보존(승자점수·LIVE·진행중stat·td-detail.css 기존--accent diff밖) / CSS`*/`조기종료0(append L167~219) / 종료분기L287·ALLOWED_TABS L111·generateMetadata·Prisma패칭·API 무변경(diff=심판버튼1곳) / isInsider유지(L871사용) / mock·Tweaks0 / AppNav0 / 역박제1:1정합. 수정요청0 머지가능 |
+| 2026-06-10 | **대회상세 td-redesign 리스킨 2차 재검증** (reviewer) | ✅ APPROVE 재확인. 커밋(`a9cb476` 7파일+82/-49 / `508325a` 역박제2)기준 직접 통독+grep+tsc 실측. 강조색가드(#0F5FCC·--cta·--accent 추가라인0 / 팀필터칩·조별순위·예측%바=cafe-blue) / 빨강의미색보존(승자점수L697·LIVE·종별·날짜칩 무변경) / 다크토큰(globals 라이트L96+다크L150) / isInsider유지·심판버튼만제거 / CSS`*/`0 / 종료분기·ALLOWED_TABS무변경 / 역박제1:1정합 / tsc EXIT=0. 보고=실커밋 100%일치(거짓0). critical0/major0/minor1. 머지가능 |
 | 2026-06-10 | **대회상세 강조색 잔여2파일 cafe-blue 치환** (developer) | ✅ group-standings(세로막대L93·승헤더L138·승점헤더L148·승점셀L249)+v2-bracket-prediction(%바폴백L66) `--color-primary`→`var(--cafe-blue)` 5지점. 데이터/로직0변경 색토큰만. 승자점수·LIVE·진행중stat·종별필터 보존. **src 전체 7파일(이전5+이번2)**. tsc0 / npm lint은 프로젝트 ESLint미구성으로 실행불가(기존상태·치환무관) PM판단요청. 미커밋 |
 | 2026-06-10 | **대회상세 td-redesign 리스킨 검증** (tester) | ✅ 정적 12/12 통과. tsc0 / 강조색가드(변경5파일 #0F5FCC·--cta·--accent 0, 탭·팀필터칩=cafe-blue, 승자점수 bdr-red유지) / 회귀5항(status분기·ALLOWED_TABS·isTournamentInsider·심판버튼완전제거·isInsider유지) / BDR-current역박제정합. lint만 환경제약(cwd공백+eslint v9 flat없음)으로 실행불가→isInsider미사용warn은 grep+diff로 대체확인. 3001 미가동→육안은 PM안내(tester가 안띄움) |
 | 2026-06-10 | **대회상세 td-redesign 리스킨 리뷰** (reviewer) | ✅ 통과(머지가능) critical0/major0/minor1. 강조색가드§3 완벽(cafe-blue / #0F5FCC·--cta·--accent 0) / 빨강의미색4종 보존(팀필터칩만 치환·승자점수·종별·날짜칩 무변경) / status분기·API·schema·isInsider 0변경 / referee버튼만제거(죽은링크0) / CSS `*/`함정0 / tsc0 직접확인. minor=hero #0B0D10(기존값)·#fff(기존관행) 토큰엄격화 후속후보 |
@@ -244,11 +280,3 @@
 | 2026-06-10 | **대회상세 재구성 기획설계** (planner) | ✅ 시안8파일+운영page923줄+_components33개 통독 → 본질=재구성아닌 강조색 cafe-blue통일+최소침습리스킨(운영이미 실데이터 와이어완료) / 5지점 강조색치환+pill탭+심판버튼제거+hero compact / 보존목록·빨강의미색4종·다크토큰·TeamCardV2금지 확정 → developer 위임 |
 | 2026-06-10 | **대회상세 재구성 박제** §2 점검 (pm) | ✅ subin/트리클린(문서만)/dev=0커밋 머지불필요/zip존재/종료분기 L287~401·진행중뷰 L712~909 확인 → planner 위임 |
 | 2026-06-09 | 제10회 BDR YOUNGMAN GAME 4강·결승 일정 생성 | ✅ 조기반 크로스대진 수동INSERT3(SF1·SF2·결승)/결승 next_match_id연결/errors.md기록 |
-| 2026-06-08 | 종료 대회 상세 열람 복원 시안 의뢰서 작성 | ✅ 원인=UB1(5/28)종료화면 early return(디자인의도) / restore 의뢰서 작성 |
-| 2026-06-08 | 대회 종료 오표시 수정 (제10회 BDR YOUNGMAN GAME) | ✅ DB status completed오염 → in_progress UPDATE(승인+사전후검증)/코드0 |
-| 2026-06-08 | PR-MYBDR-SOCIAL proxy.ts 재검증 (tester) | ✅ PASS 4/4 — kakao/google {}→422 / 무효토큰→401 / tsc0 |
-| 2026-06-08 | PR-MYBDR-SOCIAL 모바일 OAuth 신설 | ✅ upsert공용추출/웹콜백무수정/aud+iss검증/탈퇴403/tsc0 |
-| 2026-06-07 | 8C-8 VU3 CourtBooking → /booking+payment-fail+checkin | ✅ 정보성톤4/토스흐름0/가짜위젯미박제/tsc0 |
-| 2026-06-07 | 8C-7 VU2 CourtDetail → /courts/[id] | ✅ 평점헤더1/데이터·액션0/var(--*)만/tsc0 |
-| 2026-06-07 | 8C-6 VA1 AdminCourtsPartners → /admin/courts+partners | ✅ 2라우트보존/SiteOperatorBadge공용/hero stat4/tsc0 |
-| 2026-06-07 | 8C-4 VP3 PartnerCampaigns → /partner-admin/campaigns | ✅ 인라인폼유지/VP3톤4/mock회피/tsc0 |
