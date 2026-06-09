@@ -154,6 +154,8 @@
   }
 
   // ---------- Tabs ----------
+  // td-redesign (BDR v2.29) 역박제 2026-06-10: 밑줄형 → pill 탭 + 활성 cafe-blue 강조.
+  // 마크업(td-tabs/td-tab)은 유지하고 tournament-detail.css 의 .td-tabs/.td-tab 규칙만 pill 로 갱신.
   function TabBar({ active, onChange }) {
     return (
       <div className="td-tabs" role="tablist">
