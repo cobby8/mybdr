@@ -2,6 +2,14 @@
 <!-- 담당: debugger, tester | 최대 30항목 -->
 <!-- 이 프로젝트에서 반복되는 에러 패턴, 함정, 주의사항을 기록 -->
 
+### [2026-06-10] 시안 박제 강조색 함정 — CSS `--cta:var(--accent)`(폴백) ≠ 런타임 inline 확정값
+- **분류**: errors (디자인 박제 / 강조색)
+- **발견자**: pm (대회상세 재구성 박제 v2(9))
+- **증상**: 시안 td-redesign.css L5 `.tdr{--cta:var(--accent)}` → `--accent`=`--bdr-red`(#E31B23 빨강). 이걸 그대로 카피하면 탭 활성/필터칩/CTA가 빨강으로 잘못 박힘.
+- **근본 원인**: 시안 CSS의 `--cta:var(--accent)`는 **CSS 폴백일 뿐**. 실제 확정값은 jsx L390 `TWEAK_DEFAULTS={accent:'#0F5FCC'}` + L402 `style={{'--cta':t.accent}}` 로 **런타임 inline 주입**되는 `#0F5FCC`(cafe-blue). Tweaks 패널(데모용)이 inline 주입하므로 CSS만 보면 빨강으로 오인.
+- **해결**: 박제 시 강조색(탭 활성/필터칩/CTA/순위표 stat hl) = `var(--cafe-blue)`. 시안 `var(--cta)`/`var(--accent)` 강조 → 전부 `var(--cafe-blue)` 치환. **승자 점수만** `var(--bdr-red)` 의미색 고정(의도된 빨강). `#0F5FCC` 하드코딩❌ / `--cta` 신토큰 신설❌.
+- **예방**: **시안 박제 시 CSS 변수 폴백값(`var(--x, fallback)` / `--token:var(--other)`)을 확정 색으로 오인 금지.** Tweaks/데모 패널이 있으면 jsx의 런타임 inline 주입값(`TWEAK_DEFAULTS`·`style={{}}`)이 실제 확정값. HANDOFF.md/의뢰서 확정 색 명시를 우선 신뢰. + **PM은 커밋 전 `git status`로 실제 변경 파일을 교차검증** — developer 최종 보고(5파일)와 실제 변경(7파일)이 달라 검수 누락 위험 있었음(이번엔 동일 cafe-blue 치환 패턴이라 안전).
+
 ### [2026-06-09] full_league_knockout 자동 4강 생성 = 조(group) 무시 → 2개조 대회 같은 조 재대결 함정
 - **분류**: errors (대진표 / knockout 시드)
 - **발견자**: pm (제10회 BDR YOUNGMAN GAME 4강 일정 세팅)

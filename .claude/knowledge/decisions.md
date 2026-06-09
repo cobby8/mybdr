@@ -2,6 +2,19 @@
 <!-- 담당: planner-architect | 최대 30항목 -->
 <!-- "왜 A 대신 B를 선택했는지" 기술 결정의 배경과 이유를 기록 -->
 
+### [2026-06-10] 대회상세 "재구성 박제" → 전면 재구성 대신 "최소 침습 리스킨" 채택
+- **분류**: decision (박제 범위 해석 — 시안 vs 운영 우열 판단)
+- **발견자**: planner-architect
+- **계기**: 의뢰서가 "대회 상세 재구성 시안 운영 박제"로 표현 → 시안 jsx(422줄)를 통째 박제하는 전면 재구성으로 오해 위험. 통독 결과 시안 6영역(Hero/pill탭/매치카드/조별순위/팀카드/사이드바) 전부 운영에 동일 구조 v2 컴포넌트 + 실데이터 와이어 완료 상태.
+- **선택지**:
+  | 옵션 | 내용 | 판정 |
+  |------|------|------|
+  | A 전면 재구성 | 시안 td-redesign.jsx/css 통째 박제 + mock→실데이터 재와이어 | ❌ 회귀 위험 大 / LOC↑ / 이미 와이어된 기능(필터·LIVE·TeamLink) 깎임 |
+  | **B 최소 침습 리스킨** | 강조색 cafe-blue 통일(5지점) + pill탭 + hero compact + 심판버튼 제거. 데이터 컴포넌트 내부 JSX 보존 | ✅ 채택 |
+- **채택 사유**: CLAUDE.md "운영 > 시안이면 보존(시각만 박제)" + Phase 1C 4대 교훈(시안 통째 박제 금지). 운영 schedule-timeline은 시안 매치카드보다 기능 풍부(4필터/LIVE/TeamLink) → 시안으로 덮으면 퇴행. 예상 +150~250 LOC(전면 재구성 시 +1000+ 대비).
+- **핵심 룰**: ① 강조색 `var(--cafe-blue)`(빨강 #E31B23/--accent 아님 / #0F5FCC 하드코딩 ❌ / --cta 신토큰 ❌) ② 승자점수·LIVE·진행중 stat = 빨강 의미색 유지 ③ status==='completed' 분기·API·Prisma·ALLOWED_TABS·TeamCardV2 0 변경 ④ 심판배정버튼만 제거(isInsider 변수는 OperatorPreview/가드서 유지).
+- **참조횟수**: 0
+
 ### [2026-05-21] 점수 정합성 F3 Sprint 우선순위 상향 — paper 모드 정밀 조사 근거 (F3 Sprint 3 → Sprint 1)
 - **분류**: decision (Sprint 우선순위 재세팅)
 - **발견자**: pm (paper 모드 정밀 조사 후 사용자 우려 반영)
