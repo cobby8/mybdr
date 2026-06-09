@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>GU1 · ProfileGrowth (성장) — BDR v2.26</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800;900&family=JetBrains+Mono:wght@500;700;800&family=Pretendard:wght@400;500;600;700;800;900&display=swap" />
+<link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Symbols+Outlined" />
+<link rel="stylesheet" href="tokens.css" />
+<link rel="stylesheet" href="shell.css" />
+<link rel="stylesheet" href="team-shared.css" />
+<link rel="stylesheet" href="comm-shared.css" />
+<link rel="stylesheet" href="profile-shared.css" />
+<link rel="stylesheet" href="billing-shared.css" />
+<link rel="stylesheet" href="growth-shared.css" />
+</head>
+<body>
+<div class="showcase">
+  <header class="showcase-head">
+    <div class="eyebrow">BDR v2.26 · GU1 / 사용자 보강 · Phase 6.3 · BG1 ★★★ · A 등급</div>
+    <h1>ProfileGrowth — /profile/growth</h1>
+    <p><b>GU1 보강 박제</b> (운영 835 line · v2.2 P1-1). 게이미피케이션 hero(레벨·XP = PU1 시각 일관) + 12주 추이(spark + line · DB 미지원 "준비 중") + <strong>마일스톤 6</strong>(PU4 user_badges 정합) + 다음 목표 progress·CTA. AppNav frozen · 더보기 활성.</p>
+    <nav class="showcase-nav" aria-label="Phase 6.3 시안">
+      <a href="index.html">v2.26 목차</a>
+      <a class="is-cur" href="gu1-profile-growth.html">GU1 성장</a>
+      <a href="gu2-weekly-report.html">GU2 주간리포트</a>
+      <a href="gu3-profile-settings.html">GU3 설정</a>
+    </nav>
+  </header>
+
+  <section class="variant">
+    <header class="variant__head">
+      <span class="variant__num">ProfileGrowth / PC + MOBILE · A 등급</span>
+      <h2 class="variant__title">내 성장 — 게이미피케이션 + 마일스톤</h2>
+      <p class="variant__desc">데스크톱 1240 + 모바일 375. AppNav active="more".</p>
+    </header>
+    <div class="vp-strip">
+      <div class="vp vp--pc">
+        <div class="vp__chrome"><span class="vp__lights"><span></span><span></span><span></span></span><span class="vp__url">mybdr.kr/profile/growth</span><span class="vp__size">PC · 1240</span></div>
+        <div class="vp__body"><div id="mount-pc-nav"></div><div id="mount-pc"></div></div>
+      </div>
+      <div class="vp vp--mobile">
+        <div class="vp__chrome"><span class="vp__lights"><span></span><span></span><span></span></span><span class="vp__url">m · 성장</span><span class="vp__size">375</span></div>
+        <div class="vp__body"><div id="mount-mobile-nav"></div><div id="mount-mobile"></div></div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script type="text/babel" src="shared.jsx"></script>
+<script type="text/babel" src="team-shared.jsx"></script>
+<script type="text/babel" src="profile-shared.jsx"></script>
+<script type="text/babel" src="billing-shared.jsx"></script>
+<script type="text/babel" src="growth-shared.jsx"></script>
+<script type="text/babel" src="screens/ProfileGrowth.jsx"></script>
+<script type="text/babel">
+  ReactDOM.createRoot(document.getElementById('mount-pc-nav')).render(<window.AppNav active="more" />);
+  ReactDOM.createRoot(document.getElementById('mount-pc')).render(<window.ProfileGrowth />);
+  ReactDOM.createRoot(document.getElementById('mount-mobile-nav')).render(<window.AppNav active="more" />);
+  ReactDOM.createRoot(document.getElementById('mount-mobile')).render(<window.ProfileGrowth />);
+</script>
+</body>
+</html>

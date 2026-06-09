@@ -1,0 +1,269 @@
+/* ============================================================
+   BDR v2.28 — court-shared.css
+   Phase 8 (코트·장소) 전용. VU1~VU4 + VP1~VP3 + VA1. 3 측.
+   토큰만 · 라운딩 4/8px · iOS input 16px · 버튼 44px · 720 분기. cv-* 네임스페이스.
+   재사용: oa1-* (org admin) · ca1-tabs (comm) · bl-modal/bl-widget (billing) · pm-* (profile).
+   ============================================================ */
+
+/* ---------- Star rating ---------- */
+.cv-stars { position: relative; display: inline-flex; align-items: center; font-family: Arial, sans-serif; line-height: 1; white-space: nowrap; }
+.cv-stars__off { color: var(--border-strong); letter-spacing: 1px; }
+.cv-stars__on { position: absolute; left: 0; top: 0; overflow: hidden; color: #F5A623; letter-spacing: 1px; white-space: nowrap; }
+.cv-stars__num { margin-left: 5px; font-family: var(--ff-mono); font-weight: 800; color: var(--ink-soft); font-size: 0.92em; }
+
+/* ---------- Favorite button ---------- */
+.cv-fav { display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--border); background: var(--bg-elev); color: var(--ink-mute); cursor: pointer; }
+.cv-fav .ico { font-family: 'Material Symbols Outlined'; font-size: 20px; }
+.cv-fav.is-on { color: var(--accent); border-color: var(--accent-hair); }
+.cv-fav.is-on .ico { font-variation-settings: 'FILL' 1; }
+.cv-fav--float { position: absolute; top: 10px; right: 10px; background: rgba(255,255,255,.92); box-shadow: var(--sh-sm); border: 0; }
+
+/* ---------- Ambassador badge ---------- */
+.cv-amb { display: inline-flex; align-items: center; gap: 4px; font-family: var(--ff-mono); font-size: 10.5px; font-weight: 800; padding: 4px 9px; border-radius: var(--r-xs); background: #FBF0D6; color: #B47A11; letter-spacing: 0.02em; }
+.cv-amb .ico { font-family: 'Material Symbols Outlined'; font-size: 14px; }
+.cv-amb--compact { padding: 3px 7px; font-size: 9.5px; }
+
+/* ---------- Status badge ---------- */
+.cv-stat { display: inline-flex; align-items: center; font-family: var(--ff-mono); font-size: 10.5px; font-weight: 800; padding: 3px 9px; border-radius: var(--r-xs); }
+.cv-stat[data-tone="ok"]      { background: var(--ok-soft); color: var(--ok); }
+.cv-stat[data-tone="warn"]    { background: var(--warn-soft); color: #8B5A0F; }
+.cv-stat[data-tone="err"]     { background: var(--accent-soft); color: var(--err); }
+.cv-stat[data-tone="neutral"] { background: var(--bg-head); color: var(--ink-soft); }
+.cv-stat[data-tone="mute"]    { background: var(--bg-head); color: var(--ink-mute); }
+
+/* ---------- Court Operator badge (파트너 · navy+silver · Series Operator 답습) ---------- */
+.court-operator-badge {
+  display: inline-flex; align-items: center; gap: 5px; padding: 4px 9px;
+  background: linear-gradient(135deg, #1B3C87 0%, #2A4D9E 100%);
+  border: 1px solid #3A5BA8; border-radius: var(--r-xs);
+  font-family: var(--ff-mono); font-size: 10.5px; font-weight: 800; color: #fff;
+  letter-spacing: 0.08em; text-transform: uppercase;
+}
+.court-operator-badge .ico { font-family: 'Material Symbols Outlined'; font-size: 13px; color: #C0CCDB; }
+
+/* ============================================================
+   VU1 — Courts list
+   ============================================================ */
+.cv-toolbar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 16px; }
+.cv-search { flex: 1; min-width: 220px; display: flex; align-items: center; gap: 8px; padding: 0 12px; height: 44px; background: var(--bg-elev); border: 1px solid var(--border-strong); border-radius: var(--r-sm); }
+.cv-search .ico { font-family: 'Material Symbols Outlined'; font-size: 20px; color: var(--ink-dim); }
+.cv-search input { flex: 1; border: 0; background: none; outline: none; font-size: 16px; color: var(--ink); font-family: var(--ff-body); }
+.cv-viewtoggle { display: inline-flex; border: 1px solid var(--border-strong); border-radius: var(--r-sm); overflow: hidden; }
+.cv-viewtoggle button { display: inline-flex; align-items: center; gap: 5px; padding: 0 14px; height: 44px; background: var(--bg-elev); border: 0; font-size: 13px; font-weight: 700; color: var(--ink-mute); cursor: pointer; }
+.cv-viewtoggle button .ico { font-family: 'Material Symbols Outlined'; font-size: 18px; }
+.cv-viewtoggle button.is-on { background: var(--cafe-blue); color: #fff; }
+
+.cv-filters { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 18px; align-items: center; }
+.cv-fchip { display: inline-flex; align-items: center; gap: 5px; padding: 7px 13px; min-height: 36px; border-radius: var(--r-sm); border: 1px solid var(--border); background: var(--bg-elev); font-size: 12.5px; font-weight: 700; color: var(--ink-soft); cursor: pointer; }
+.cv-fchip .ico { font-family: 'Material Symbols Outlined'; font-size: 16px; }
+.cv-fchip.is-on { border-color: var(--cafe-blue); background: var(--cafe-blue-soft); color: var(--cafe-blue-deep); }
+.cv-fchip select { border: 0; background: none; font-size: 12.5px; font-weight: 700; color: inherit; outline: none; cursor: pointer; }
+
+/* layout: list + optional map */
+.cv-layout { display: grid; grid-template-columns: 1fr; gap: 16px; }
+.cv-layout--map { grid-template-columns: minmax(0,1fr) 380px; }
+.cv-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.cv-layout--map .cv-grid { grid-template-columns: repeat(2, 1fr); }
+.cv-map { position: sticky; top: 16px; height: 560px; border-radius: var(--r-md); border: 1px solid var(--border); overflow: hidden; background:
+  repeating-linear-gradient(0deg, var(--bg-alt) 0 24px, var(--bg-elev) 24px 48px),
+  repeating-linear-gradient(90deg, transparent 0 24px, var(--border) 24px 25px); }
+.cv-map__note { position: absolute; inset: 0; display: grid; place-items: center; font-family: var(--ff-mono); font-size: 12px; color: var(--ink-dim); }
+.cv-map__pin { position: absolute; width: 28px; height: 28px; border-radius: 50% 50% 50% 0; background: var(--accent); transform: rotate(-45deg); border: 2px solid #fff; box-shadow: var(--sh-sm); }
+.cv-map__pin span { transform: rotate(45deg); display: block; color: #fff; font-size: 13px; text-align: center; line-height: 24px; font-family: 'Material Symbols Outlined'; }
+
+/* court card */
+.cv-card { display: flex; flex-direction: column; background: var(--bg-elev); border: 1px solid var(--border); border-radius: var(--r-md); overflow: hidden; text-decoration: none; transition: box-shadow .14s, transform .14s; }
+.cv-card:hover { box-shadow: var(--sh-md); transform: translateY(-2px); }
+.cv-card__photo { position: relative; height: 130px; display: grid; place-items: center;
+  background: repeating-linear-gradient(45deg, var(--bg-alt) 0 12px, var(--bg-head) 12px 24px); }
+.cv-card__photo[data-type="outdoor"] { background: repeating-linear-gradient(45deg, #E8F0E4 0 12px, #DDE9D6 12px 24px); }
+.cv-card__photo-ico { font-family: 'Material Symbols Outlined'; font-size: 40px; color: var(--ink-dim); opacity: 0.5; }
+.cv-card__type { position: absolute; top: 10px; left: 10px; font-family: var(--ff-mono); font-size: 10px; font-weight: 800; padding: 3px 8px; border-radius: var(--r-xs); background: rgba(20,24,31,.7); color: #fff; }
+.cv-card__amb { position: absolute; bottom: 10px; left: 10px; width: 26px; height: 26px; border-radius: 50%; background: #FBF0D6; display: flex; align-items: center; justify-content: center; }
+.cv-card__amb .ico { font-family: 'Material Symbols Outlined'; font-size: 15px; color: #B47A11; }
+.cv-card__body { padding: 13px 15px 15px; flex: 1; display: flex; flex-direction: column; }
+.cv-card__name { font-size: 15px; font-weight: 800; color: var(--ink); }
+.cv-card__loc { display: flex; align-items: center; gap: 3px; font-size: 11.5px; color: var(--ink-mute); margin: 4px 0 8px; }
+.cv-card__loc .ico { font-family: 'Material Symbols Outlined'; font-size: 14px; color: var(--ink-dim); }
+.cv-card__meta { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.cv-card__rev { font-family: var(--ff-mono); font-size: 11px; color: var(--ink-dim); }
+.cv-card__foot { display: flex; align-items: center; justify-content: space-between; margin-top: auto; }
+.cv-card__fee { font-family: var(--ff-display); font-size: 15px; font-weight: 800; color: var(--ink); }
+.cv-card__fee[data-free="true"] { color: var(--ok); }
+.cv-card__live { display: inline-flex; align-items: center; gap: 4px; font-family: var(--ff-mono); font-size: 10.5px; font-weight: 700; color: var(--ok); }
+.cv-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--ok); box-shadow: 0 0 0 3px var(--ok-soft); }
+
+.cv-submit-cta { display: flex; align-items: center; gap: 12px; padding: 16px 20px; background: var(--cafe-blue-soft); border: 1px solid var(--cafe-blue-hair); border-radius: var(--r-md); margin-bottom: 18px; }
+.cv-submit-cta .ico { font-family: 'Material Symbols Outlined'; font-size: 24px; color: var(--cafe-blue-deep); }
+.cv-submit-cta__body { flex: 1; }
+.cv-submit-cta__t { font-size: 13.5px; font-weight: 800; color: var(--ink); }
+.cv-submit-cta__d { font-size: 12px; color: var(--ink-mute); margin-top: 1px; }
+
+/* ============================================================
+   VU2 — CourtDetail
+   ============================================================ */
+.cv-hero { position: relative; border-radius: var(--r-lg); overflow: hidden; border: 1px solid var(--border); margin-bottom: 18px; }
+.cv-hero__photo { height: 200px; position: relative;
+  background: repeating-linear-gradient(45deg, var(--bg-alt) 0 16px, var(--bg-head) 16px 32px); }
+.cv-hero__badges { position: absolute; top: 16px; left: 16px; display: flex; gap: 6px; flex-wrap: wrap; }
+.cv-hero__body { padding: 18px 22px; background: var(--bg-elev); display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.cv-hero__name { font-family: var(--ff-display); font-size: 26px; font-weight: 900; letter-spacing: -0.02em; color: var(--ink); }
+.cv-hero__loc { font-size: 13px; color: var(--ink-mute); margin: 5px 0 9px; display: flex; align-items: center; gap: 4px; }
+.cv-hero__loc .ico { font-family: 'Material Symbols Outlined'; font-size: 16px; }
+.cv-hero__meta { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.cv-hero__actions { display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
+
+.cv-tabbar { display: flex; gap: 22px; border-bottom: 1px solid var(--border); margin-bottom: 18px; overflow-x: auto; }
+.cv-tab { position: relative; padding: 12px 2px; margin-bottom: -1px; font-size: 14px; font-weight: 700; color: var(--ink-mute); background: none; border: 0; border-bottom: 2px solid transparent; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.cv-tab .ico { font-family: 'Material Symbols Outlined'; font-size: 18px; }
+.cv-tab.is-on { color: var(--cafe-blue-deep); border-bottom-color: var(--cafe-blue); }
+
+/* info grid */
+.cv-infogrid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+.cv-info { padding: 14px; background: var(--bg-alt); border-radius: var(--r-sm); }
+.cv-info__l { font-family: var(--ff-mono); font-size: 10px; font-weight: 700; color: var(--ink-dim); letter-spacing: 0.04em; text-transform: uppercase; }
+.cv-info__v { font-size: 14px; font-weight: 700; color: var(--ink); margin-top: 5px; display: flex; align-items: center; gap: 4px; }
+.cv-info__v .ico { font-family: 'Material Symbols Outlined'; font-size: 16px; color: var(--cafe-blue); }
+
+/* rating 5항목 */
+.cv-rate5 { display: grid; gap: 9px; }
+.cv-rate-row { display: grid; grid-template-columns: 70px 1fr 34px; gap: 10px; align-items: center; }
+.cv-rate-row__l { font-size: 12.5px; color: var(--ink-soft); font-weight: 600; }
+.cv-rate-row__track { height: 7px; background: var(--bg-head); border-radius: 4px; overflow: hidden; }
+.cv-rate-row__fill { height: 100%; background: #F5A623; border-radius: 4px; }
+.cv-rate-row__v { font-family: var(--ff-mono); font-size: 12px; font-weight: 800; color: var(--ink-soft); text-align: right; }
+
+/* review */
+.cv-review { padding: 14px 0; border-bottom: 1px solid var(--border); }
+.cv-review:last-child { border-bottom: 0; }
+.cv-review__head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.cv-review__av { width: 34px; height: 34px; border-radius: 50%; background: var(--cafe-blue); color: #fff; display: flex; align-items: center; justify-content: center; font-family: var(--ff-display); font-weight: 800; font-size: 13px; flex-shrink: 0; }
+.cv-review__who { flex: 1; min-width: 0; }
+.cv-review__name { font-size: 13.5px; font-weight: 800; color: var(--ink); }
+.cv-review__date { font-family: var(--ff-mono); font-size: 10.5px; color: var(--ink-mute); }
+.cv-review__text { font-size: 13px; color: var(--ink-soft); line-height: 1.6; }
+.cv-review__photo { margin-top: 9px; width: 84px; height: 84px; border-radius: var(--r-sm); border: 1px solid var(--border);
+  background: repeating-linear-gradient(45deg, var(--bg-alt) 0 8px, var(--bg-head) 8px 16px); display: grid; place-items: center; font-family: var(--ff-mono); font-size: 9px; color: var(--ink-dim); }
+
+/* slot grid (예약 가능 시간) */
+.cv-slots { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.cv-slot { padding: 12px 8px; border-radius: var(--r-sm); border: 1px solid var(--border); background: var(--bg-elev); text-align: center; cursor: pointer; }
+.cv-slot:disabled { opacity: 0.4; cursor: not-allowed; background: var(--bg-alt); }
+.cv-slot.is-on { border-color: var(--accent); background: var(--accent-soft); }
+.cv-slot__t { font-family: var(--ff-display); font-size: 15px; font-weight: 800; color: var(--ink); }
+.cv-slot__s { font-family: var(--ff-mono); font-size: 10px; color: var(--ink-mute); margin-top: 2px; }
+.cv-slot.is-on .cv-slot__t { color: var(--accent-deep); }
+
+/* cross-domain link rows */
+.cv-xlink { display: flex; align-items: center; gap: 12px; padding: 13px 16px; border: 1px solid var(--border); border-radius: var(--r-md); text-decoration: none; margin-bottom: 8px; background: var(--bg-elev); }
+.cv-xlink:hover { background: var(--bg-alt); }
+.cv-xlink__ico { width: 38px; height: 38px; border-radius: var(--r-sm); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.cv-xlink__ico .ico { font-family: 'Material Symbols Outlined'; font-size: 20px; }
+.cv-xlink__body { flex: 1; min-width: 0; }
+.cv-xlink__t { font-size: 13.5px; font-weight: 700; color: var(--ink); }
+.cv-xlink__d { font-size: 11.5px; color: var(--ink-mute); margin-top: 1px; }
+.cv-xlink__arr { font-family: 'Material Symbols Outlined'; font-size: 18px; color: var(--ink-dim); }
+
+/* ============================================================
+   VU3 — CourtBooking (3-step · 토스 BU2 답습 → bl-* 재사용)
+   ============================================================ */
+.cv-booking-court { display: flex; align-items: center; gap: 12px; padding: 14px 16px; background: var(--bg-alt); border: 1px solid var(--border); border-radius: var(--r-md); margin-bottom: 18px; }
+.cv-booking-court__ico { width: 44px; height: 44px; border-radius: var(--r-sm); background: var(--cafe-blue-soft); display: grid; place-items: center; flex-shrink: 0; }
+.cv-booking-court__ico .ico { font-family: 'Material Symbols Outlined'; font-size: 24px; color: var(--cafe-blue-deep); }
+.cv-booking-court__name { font-size: 15px; font-weight: 800; color: var(--ink); }
+.cv-booking-court__loc { font-size: 12px; color: var(--ink-mute); margin-top: 2px; }
+
+.cv-date-row { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; margin-bottom: 16px; }
+.cv-date { flex-shrink: 0; width: 56px; padding: 10px 0; border-radius: var(--r-sm); border: 1px solid var(--border); background: var(--bg-elev); text-align: center; cursor: pointer; }
+.cv-date.is-on { border-color: var(--accent); background: var(--accent-soft); }
+.cv-date__w { font-family: var(--ff-mono); font-size: 10px; color: var(--ink-mute); }
+.cv-date__d { font-family: var(--ff-display); font-size: 18px; font-weight: 800; color: var(--ink); margin-top: 3px; }
+.cv-date.is-on .cv-date__d { color: var(--accent-deep); }
+
+/* booking summary + QR */
+.cv-qr { width: 160px; height: 160px; margin: 0 auto 16px; border-radius: var(--r-md); border: 1px solid var(--border); background: var(--bg-elev); display: grid; place-items: center; position: relative;
+  background-image: repeating-linear-gradient(0deg, var(--ink) 0 6px, transparent 6px 12px), repeating-linear-gradient(90deg, var(--ink) 0 6px, transparent 6px 12px);
+  background-size: 12px 12px; background-position: center; }
+.cv-qr__inner { width: 120px; height: 120px; background: var(--bg-elev); display: grid; place-items: center; }
+.cv-qr__inner .ico { font-family: 'Material Symbols Outlined'; font-size: 40px; color: var(--ink); }
+
+/* ============================================================
+   VP1~VP3 — 파트너 (Court Operator)
+   ============================================================ */
+.cv-partner-hero { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; flex-wrap: wrap; padding: 22px 24px; border-radius: var(--r-lg);
+  background: linear-gradient(120deg, #16213E 0%, #1B3C87 70%, #24489A 100%); color: #fff; margin-bottom: 20px; }
+.cv-partner-hero__title { font-family: var(--ff-display); font-size: 24px; font-weight: 900; letter-spacing: -0.02em; margin: 10px 0 3px; }
+.cv-partner-hero__sub { font-family: var(--ff-mono); font-size: 11.5px; color: rgba(255,255,255,.72); }
+.cv-partner-hero__stats { display: flex; gap: 26px; flex-wrap: wrap; }
+.cv-partner-hero__stat-num { font-family: var(--ff-display); font-size: 26px; font-weight: 900; letter-spacing: -0.02em; }
+.cv-partner-hero__stat-lbl { font-family: var(--ff-mono); font-size: 10px; font-weight: 700; color: rgba(255,255,255,.6); text-transform: uppercase; letter-spacing: 0.04em; margin-top: 3px; }
+
+.cv-pcourt { display: grid; grid-template-columns: 1fr auto auto auto auto; gap: 16px; align-items: center; padding: 16px 18px; border: 1px solid var(--border); border-radius: var(--r-md); background: var(--bg-elev); margin-bottom: 8px; }
+.cv-pcourt__name { font-size: 14.5px; font-weight: 800; color: var(--ink); }
+.cv-pcourt__loc { font-size: 11.5px; color: var(--ink-mute); margin-top: 2px; }
+.cv-pcourt__stat { text-align: right; }
+.cv-pcourt__stat-v { font-family: var(--ff-display); font-size: 16px; font-weight: 800; color: var(--ink); font-feature-settings: "tnum"; }
+.cv-pcourt__stat-l { font-family: var(--ff-mono); font-size: 9.5px; color: var(--ink-dim); text-transform: uppercase; margin-top: 1px; }
+
+/* venue 4 sub-tab */
+.cv-vtabs { display: flex; gap: 4px; background: var(--bg-alt); padding: 4px; border-radius: var(--r-md); margin-bottom: 18px; flex-wrap: wrap; }
+.cv-vtab { flex: 1; min-width: 100px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 10px; border: 0; background: none; border-radius: var(--r-sm); font-size: 13px; font-weight: 700; color: var(--ink-mute); cursor: pointer; }
+.cv-vtab .ico { font-family: 'Material Symbols Outlined'; font-size: 18px; }
+.cv-vtab.is-on { background: var(--bg-elev); color: var(--cafe-blue-deep); box-shadow: var(--sh-sm); }
+
+/* campaign card */
+.cv-cmp-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+.cv-cmp { border: 1px solid var(--border); border-radius: var(--r-md); background: var(--bg-elev); padding: 18px 20px; cursor: pointer; }
+.cv-cmp:hover { box-shadow: var(--sh-sm); }
+.cv-cmp__top { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
+.cv-cmp__title { font-size: 14.5px; font-weight: 800; color: var(--ink); }
+.cv-cmp__head { font-size: 12px; color: var(--ink-mute); margin-top: 3px; }
+.cv-cmp__metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; padding-top: 12px; border-top: 1px solid var(--border); }
+.cv-cmp__m-v { font-family: var(--ff-display); font-size: 16px; font-weight: 800; color: var(--ink); font-feature-settings: "tnum"; }
+.cv-cmp__m-l { font-family: var(--ff-mono); font-size: 9.5px; color: var(--ink-dim); text-transform: uppercase; margin-top: 2px; }
+.cv-cmp__period { font-family: var(--ff-mono); font-size: 10.5px; color: var(--ink-mute); margin-top: 10px; }
+
+/* ============================================================
+   VA1 — super-admin (Site Operator · oa1 재사용 + cv table)
+   ============================================================ */
+.cv-atable { background: var(--bg-elev); border: 1px solid var(--border); border-radius: var(--r-md); overflow: hidden; }
+.cv-atable__head, .cv-atable__row { display: grid; gap: 14px; align-items: center; }
+.cv-courts-cols { grid-template-columns: 2fr 1.4fr 1fr 0.9fr 1fr; }
+.cv-partners-cols { grid-template-columns: 2fr 1fr 1fr 1fr 1fr; }
+.cv-reports-cols { grid-template-columns: 1.6fr 2.4fr 1fr 1fr; }
+.cv-edits-cols { grid-template-columns: 1.4fr 1fr 2fr 1fr 1fr; }
+.cv-atable__head { padding: 11px 18px; background: var(--bg-head); border-bottom: 1px solid var(--border); font-family: var(--ff-mono); font-size: 10px; font-weight: 700; color: var(--ink-dim); letter-spacing: 0.06em; text-transform: uppercase; }
+.cv-atable__row { padding: 14px 18px; border-bottom: 1px solid var(--border); cursor: pointer; }
+.cv-atable__row:last-child { border-bottom: 0; }
+.cv-atable__row:hover { background: var(--bg-alt); }
+.cv-a-name { font-size: 13.5px; font-weight: 800; color: var(--ink); }
+.cv-a-sub { font-family: var(--ff-mono); font-size: 10.5px; color: var(--ink-mute); margin-top: 2px; }
+.cv-a-cell { font-size: 12.5px; color: var(--ink-soft); }
+.cv-a-edit { font-family: var(--ff-mono); font-size: 11.5px; }
+.cv-a-edit del { color: var(--ink-dim); }
+.cv-a-edit ins { color: var(--ok); text-decoration: none; font-weight: 700; }
+.cv-a-act { display: flex; justify-content: flex-end; gap: 6px; }
+
+/* ============================================================
+   Mobile (720px)
+   ============================================================ */
+@media (max-width: 720px) {
+  .cv-grid, .cv-layout--map .cv-grid { grid-template-columns: 1fr; }
+  .cv-layout--map { grid-template-columns: 1fr; }
+  .cv-map { display: none; }
+  .cv-infogrid { grid-template-columns: 1fr 1fr; }
+  .cv-slots { grid-template-columns: repeat(3, 1fr); }
+  .cv-cmp-grid { grid-template-columns: 1fr; }
+  .cv-pcourt { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .cv-atable__head { display: none; }
+  .cv-atable__row { grid-template-columns: 1fr !important; gap: 6px; }
+}
+.vp--mobile .cv-grid, .vp--mobile .cv-layout--map .cv-grid { grid-template-columns: 1fr; }
+.vp--mobile .cv-layout--map { grid-template-columns: 1fr; }
+.vp--mobile .cv-map { display: none; }
+.vp--mobile .cv-infogrid { grid-template-columns: 1fr 1fr; }
+.vp--mobile .cv-slots { grid-template-columns: repeat(3, 1fr); }
+.vp--mobile .cv-cmp-grid { grid-template-columns: 1fr; }
+.vp--mobile .cv-pcourt { grid-template-columns: 1fr 1fr; gap: 10px; }
+.vp--mobile .cv-atable__head { display: none; }
+.vp--mobile .cv-atable__row { grid-template-columns: 1fr !important; gap: 6px; }

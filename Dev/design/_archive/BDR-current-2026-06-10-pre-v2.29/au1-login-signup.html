@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>AU1 · LoginSignup — BDR v2.27</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800;900&family=JetBrains+Mono:wght@500;700;800&family=Pretendard:wght@400;500;600;700;800;900&display=swap" />
+<link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Symbols+Outlined" />
+<link rel="stylesheet" href="tokens.css" />
+<link rel="stylesheet" href="shell.css" />
+<link rel="stylesheet" href="profile-shared.css" />
+<link rel="stylesheet" href="growth-shared.css" />
+<link rel="stylesheet" href="auth-shared.css" />
+</head>
+<body>
+<div class="showcase">
+  <header class="showcase-head">
+    <div class="eyebrow">BDR v2.27 · AU1 / 사용자 신규 통합 · Phase 7 · BA1 ★★★★★ · A 등급</div>
+    <h1>LoginSignup — /login + /signup</h1>
+    <p><b>AU1 신규 통합 박제</b> (운영 549+311 line). 로그인/회원가입 <strong>탭 토글</strong> 같은 시각 패턴 + BDR 브랜드 hero + <strong>OAuth 4종</strong>(카카오/네이버/구글/애플). 로그인 = 이메일+비번+자동로그인+비번찾기(→AU3) · 회원가입 = +비번 강도+약관 3. 사후 = 온보딩(→AU2). AppNav 미적용 standalone.</p>
+    <nav class="showcase-nav" aria-label="Phase 7 시안">
+      <a href="index.html">v2.27 목차</a>
+      <a class="is-cur" href="au1-login-signup.html">AU1 로그인·가입</a>
+      <a href="au2-onboarding.html">AU2 온보딩</a>
+      <a href="au3-password-recovery.html">AU3 비밀번호</a>
+      <a href="au4-verify.html">AU4 인증</a>
+    </nav>
+  </header>
+
+  <section class="variant">
+    <header class="variant__head">
+      <span class="variant__num">LoginSignup / PC + MOBILE · A 등급</span>
+      <h2 class="variant__title">로그인 · 회원가입 통합 entry</h2>
+      <p class="variant__desc">데스크톱 1240 + 모바일 375. 탭 토글 · OAuth 4.</p>
+    </header>
+    <div class="vp-strip">
+      <div class="vp vp--pc">
+        <div class="vp__chrome"><span class="vp__lights"><span></span><span></span><span></span></span><span class="vp__url">mybdr.kr/login</span><span class="vp__size">PC · 1240</span></div>
+        <div class="vp__body"><div id="mount-pc"></div></div>
+      </div>
+      <div class="vp vp--mobile">
+        <div class="vp__chrome"><span class="vp__lights"><span></span><span></span><span></span></span><span class="vp__url">m · 로그인</span><span class="vp__size">375</span></div>
+        <div class="vp__body"><div id="mount-mobile"></div></div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script type="text/babel" src="profile-shared.jsx"></script>
+<script type="text/babel" src="auth-shared.jsx"></script>
+<script type="text/babel" src="screens/LoginSignup.jsx"></script>
+<script type="text/babel">
+  ReactDOM.createRoot(document.getElementById('mount-pc')).render(<window.LoginSignup />);
+  ReactDOM.createRoot(document.getElementById('mount-mobile')).render(<window.LoginSignup />);
+</script>
+</body>
+</html>

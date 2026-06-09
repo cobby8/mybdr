@@ -1,0 +1,181 @@
+/* ============================================================
+   BDR v2.29 — notify-shared.css
+   Phase 9 (알림·메시지·검색) 전용. NU1~NU3 + NA1.
+   토큰만 · 라운딩 4/8px · iOS input 16px · 버튼 44px · 720 분기. nt-* 네임스페이스.
+   재사용: pm-* / oa1-* / ca1-tabs / bl-modal / gw-soon(준비 중 warn-soft) / cv-stat.
+   ============================================================ */
+
+/* ---------- 카테고리 아이콘 (tone별) ---------- */
+.nt-ico { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; flex-shrink: 0; }
+.nt-ico .ico { font-family: 'Material Symbols Outlined'; font-size: 21px; }
+.nt-ico[data-tone="red"]   { background: var(--accent-soft); color: var(--accent); }
+.nt-ico[data-tone="blue"]  { background: var(--cafe-blue-soft); color: var(--cafe-blue-deep); }
+.nt-ico[data-tone="green"] { background: var(--ok-soft); color: var(--ok); }
+.nt-ico[data-tone="gold"]  { background: #FBF0D6; color: #B47A11; }
+.nt-ico[data-tone="mute"]  { background: var(--bg-head); color: var(--ink-soft); }
+
+.nt-catbadge { display: inline-flex; align-items: center; font-family: var(--ff-mono); font-size: 9.5px; font-weight: 800; padding: 2px 7px; border-radius: var(--r-xs); letter-spacing: 0.02em; }
+.nt-catbadge[data-tone="red"]   { background: var(--accent-soft); color: var(--accent); }
+.nt-catbadge[data-tone="blue"]  { background: var(--cafe-blue-soft); color: var(--cafe-blue-deep); }
+.nt-catbadge[data-tone="green"] { background: var(--ok-soft); color: var(--ok); }
+.nt-catbadge[data-tone="gold"]  { background: #FBF0D6; color: #B47A11; }
+.nt-catbadge[data-tone="mute"]  { background: var(--bg-head); color: var(--ink-mute); }
+
+/* ============================================================
+   NU1 — Notifications
+   ============================================================ */
+/* category chip row (sticky) */
+.nt-chiprow { position: sticky; top: 0; z-index: 5; display: flex; gap: 8px; padding: 12px 0; margin-bottom: 6px; overflow-x: auto; background: var(--bg); border-bottom: 1px solid var(--border); }
+.nt-chip { flex-shrink: 0; display: inline-flex; align-items: center; gap: 5px; padding: 8px 14px; min-height: 38px; border-radius: 999px; border: 1px solid var(--border); background: var(--bg-elev); font-size: 13px; font-weight: 700; color: var(--ink-soft); cursor: pointer; white-space: nowrap; }
+.nt-chip .ico { font-family: 'Material Symbols Outlined'; font-size: 16px; }
+.nt-chip.is-on { border-color: var(--cafe-blue); background: var(--cafe-blue); color: #fff; }
+.nt-chip__count { font-family: var(--ff-mono); font-size: 10px; font-weight: 800; padding: 1px 6px; border-radius: 999px; background: var(--accent); color: #fff; }
+.nt-chip.is-on .nt-chip__count { background: rgba(255,255,255,.25); }
+
+/* note: pill 999px allowed here — chips are NOT buttons/cards per rule 12; notification filter pills follow main-bar dot style */
+
+.nt-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 14px 0 12px; flex-wrap: wrap; }
+.nt-seg { display: inline-flex; border: 1px solid var(--border-strong); border-radius: var(--r-sm); overflow: hidden; }
+.nt-seg button { padding: 8px 14px; min-height: 38px; font-size: 13px; font-weight: 700; background: var(--bg-elev); border: 0; cursor: pointer; color: var(--ink-mute); }
+.nt-seg button.is-on { background: var(--ink); color: #fff; }
+
+/* notification card */
+.nt-card { display: flex; align-items: flex-start; gap: 14px; padding: 15px 16px; border: 1px solid var(--border); border-radius: var(--r-md); background: var(--bg-elev); margin-bottom: 8px; text-decoration: none; position: relative; }
+.nt-card:hover { background: var(--bg-alt); }
+.nt-card[data-unread="true"] { border-color: var(--cafe-blue-hair); }
+.nt-card[data-unread="true"]::before { content: ''; position: absolute; left: 6px; top: 50%; transform: translateY(-50%); width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+.nt-card__body { flex: 1; min-width: 0; }
+.nt-card__top { display: flex; align-items: center; gap: 8px; margin-bottom: 3px; flex-wrap: wrap; }
+.nt-card__title { font-size: 14px; font-weight: 800; color: var(--ink); }
+.nt-card[data-unread="false"] .nt-card__title { font-weight: 700; color: var(--ink-soft); }
+.nt-card__content { font-size: 12.5px; color: var(--ink-mute); line-height: 1.5; }
+.nt-card__time { font-family: var(--ff-mono); font-size: 10.5px; color: var(--ink-dim); flex-shrink: 0; margin-left: auto; }
+.nt-card__arr { font-family: 'Material Symbols Outlined'; font-size: 18px; color: var(--ink-dim); align-self: center; flex-shrink: 0; }
+
+.nt-synced { display: flex; align-items: center; gap: 8px; padding: 11px 14px; background: var(--cafe-blue-soft); border: 1px solid var(--cafe-blue-hair); border-radius: var(--r-sm); font-size: 12px; color: var(--cafe-blue-deep); margin-bottom: 14px; }
+.nt-synced .ico { font-family: 'Material Symbols Outlined'; font-size: 17px; }
+
+/* ============================================================
+   NU2 — Messages (3컬럼)
+   ============================================================ */
+.nt-msg-shell { display: grid; grid-template-columns: 320px 1fr 280px; height: 600px; border: 1px solid var(--border); border-radius: var(--r-md); overflow: hidden; background: var(--bg-elev); }
+.nt-msg-col { display: flex; flex-direction: column; min-height: 0; min-width: 0; }
+.nt-msg-col--list { border-right: 1px solid var(--border); }
+.nt-msg-col--rail { border-left: 1px solid var(--border); }
+.nt-msg-head { padding: 14px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-shrink: 0; }
+.nt-msg-head h2 { margin: 0; font-size: 16px; font-weight: 800; color: var(--ink); display: flex; align-items: center; gap: 6px; }
+.nt-msg-head__count { font-family: var(--ff-mono); font-size: 11px; color: var(--accent); font-weight: 800; }
+.nt-msg-search { padding: 10px 14px; border-bottom: 1px solid var(--border); }
+.nt-msg-search input { width: 100%; padding: 9px 12px; font-size: 16px; background: var(--bg-alt); border: 1px solid var(--border); border-radius: var(--r-sm); color: var(--ink); }
+.nt-thread-list { flex: 1; overflow-y: auto; }
+.nt-thread { display: flex; align-items: center; gap: 11px; padding: 12px 14px; cursor: pointer; border-bottom: 1px solid var(--border); }
+.nt-thread:hover { background: var(--bg-alt); }
+.nt-thread.is-on { background: var(--cafe-blue-soft); }
+.nt-thread__body { flex: 1; min-width: 0; }
+.nt-thread__top { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+.nt-thread__name { font-size: 13.5px; font-weight: 800; color: var(--ink); display: flex; align-items: center; gap: 5px; min-width: 0; }
+.nt-thread__name .ico { font-family: 'Material Symbols Outlined'; font-size: 13px; color: var(--ink-dim); }
+.nt-thread__time { font-family: var(--ff-mono); font-size: 10px; color: var(--ink-dim); flex-shrink: 0; }
+.nt-thread__last { font-size: 12px; color: var(--ink-mute); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 2px; }
+.nt-thread__unread { min-width: 18px; height: 18px; border-radius: 999px; background: var(--accent); color: #fff; font-family: var(--ff-mono); font-size: 10px; font-weight: 800; display: grid; place-items: center; padding: 0 5px; flex-shrink: 0; }
+
+/* conversation */
+.nt-convo { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+.nt-convo__head { padding: 12px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+.nt-convo__name { font-size: 14px; font-weight: 800; color: var(--ink); }
+.nt-convo__status { font-family: var(--ff-mono); font-size: 10.5px; color: var(--ok); }
+.nt-convo__body { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 10px; background: var(--bg-alt); }
+.nt-bubble { max-width: 72%; padding: 9px 13px; border-radius: 14px; font-size: 13px; line-height: 1.5; }
+.nt-bubble--them { align-self: flex-start; background: var(--bg-elev); border: 1px solid var(--border); color: var(--ink); border-bottom-left-radius: 4px; }
+.nt-bubble--me { align-self: flex-end; background: var(--cafe-blue); color: #fff; border-bottom-right-radius: 4px; }
+.nt-bubble__time { font-family: var(--ff-mono); font-size: 9px; opacity: 0.6; margin-top: 3px; }
+.nt-attach { margin-top: 8px; padding: 10px 12px; border-radius: var(--r-sm); background: var(--bg-alt); border: 1px solid var(--border); }
+.nt-attach__t { font-size: 12.5px; font-weight: 800; color: var(--ink); display: flex; align-items: center; gap: 5px; }
+.nt-attach__t .ico { font-family: 'Material Symbols Outlined'; font-size: 15px; color: var(--cafe-blue); }
+.nt-attach__m { font-family: var(--ff-mono); font-size: 10.5px; color: var(--ink-mute); margin-top: 3px; }
+.nt-convo__input { padding: 12px 16px; border-top: 1px solid var(--border); display: flex; gap: 8px; flex-shrink: 0; }
+.nt-convo__input input { flex: 1; padding: 10px 13px; font-size: 16px; background: var(--bg-alt); border: 1px solid var(--border); border-radius: 999px; color: var(--ink); }
+.nt-convo__send { width: 42px; height: 42px; border-radius: 50%; border: 0; background: var(--cafe-blue); color: #fff; cursor: pointer; display: grid; place-items: center; flex-shrink: 0; }
+.nt-convo__send .ico { font-family: 'Material Symbols Outlined'; font-size: 20px; }
+
+/* profile rail */
+.nt-rail { padding: 18px 16px; overflow-y: auto; }
+.nt-rail__center { text-align: center; padding-bottom: 16px; border-bottom: 1px solid var(--border); margin-bottom: 16px; }
+.nt-rail__name { font-size: 15px; font-weight: 800; color: var(--ink); margin-top: 10px; }
+.nt-rail__tag { font-family: var(--ff-mono); font-size: 11px; color: var(--ink-mute); margin-top: 2px; }
+.nt-rail__section-t { font-family: var(--ff-mono); font-size: 10px; font-weight: 800; color: var(--ink-dim); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 8px; }
+
+/* ============================================================
+   NU3 — Search
+   ============================================================ */
+.nt-searchbar { display: flex; align-items: center; gap: 10px; padding: 0 16px; height: 52px; background: var(--bg-elev); border: 1px solid var(--border-strong); border-radius: var(--r-md); margin-bottom: 14px; }
+.nt-searchbar .ico { font-family: 'Material Symbols Outlined'; font-size: 22px; color: var(--ink-dim); }
+.nt-searchbar input { flex: 1; border: 0; background: none; outline: none; font-size: 16px; color: var(--ink); font-family: var(--ff-body); }
+.nt-recent { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 16px; }
+.nt-recent__lbl { font-size: 12px; color: var(--ink-dim); font-weight: 700; }
+.nt-recent__chip { display: inline-flex; align-items: center; gap: 5px; padding: 6px 12px; border-radius: 999px; background: var(--bg-alt); border: 1px solid var(--border); font-size: 12.5px; color: var(--ink-soft); cursor: pointer; text-decoration: none; }
+.nt-recent__chip .ico { font-family: 'Material Symbols Outlined'; font-size: 14px; color: var(--ink-dim); }
+
+.nt-result-section { margin-bottom: 22px; }
+.nt-result-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.nt-result-head__l { display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 800; color: var(--ink); }
+.nt-result-head__l .ico { font-family: 'Material Symbols Outlined'; font-size: 19px; color: var(--cafe-blue); }
+.nt-result-head__more { font-size: 12.5px; color: var(--cafe-blue-deep); font-weight: 700; text-decoration: none; display: inline-flex; align-items: center; gap: 2px; }
+.nt-result-head__more .ico { font-family: 'Material Symbols Outlined'; font-size: 15px; }
+.nt-result-row { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid var(--border); border-radius: var(--r-sm); background: var(--bg-elev); text-decoration: none; margin-bottom: 6px; }
+.nt-result-row:hover { background: var(--bg-alt); }
+.nt-result-row__ico { width: 34px; height: 34px; border-radius: var(--r-sm); background: var(--bg-head); display: grid; place-items: center; flex-shrink: 0; }
+.nt-result-row__ico .ico { font-family: 'Material Symbols Outlined'; font-size: 18px; color: var(--ink-soft); }
+.nt-result-row__body { flex: 1; min-width: 0; }
+.nt-result-row__t { font-size: 13.5px; font-weight: 700; color: var(--ink); }
+.nt-result-row__m { font-family: var(--ff-mono); font-size: 11px; color: var(--ink-mute); margin-top: 2px; }
+.nt-result-row__arr { font-family: 'Material Symbols Outlined'; font-size: 18px; color: var(--ink-dim); }
+
+.nt-empty { text-align: center; padding: 48px 20px; }
+.nt-empty .ico { font-family: 'Material Symbols Outlined'; font-size: 48px; color: var(--ink-dim); }
+.nt-empty__t { font-size: 16px; font-weight: 800; color: var(--ink); margin: 12px 0 6px; }
+.nt-empty__d { font-size: 13px; color: var(--ink-mute); margin-bottom: 18px; }
+
+/* ============================================================
+   NA1 — AdminNotifications (작성 + 미리보기 + 이력)
+   ============================================================ */
+.nt-na-grid { display: grid; grid-template-columns: minmax(0,1fr) 340px; gap: 18px; align-items: flex-start; }
+.nt-target-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.nt-target { display: flex; flex-direction: column; align-items: center; gap: 5px; padding: 12px 8px; border-radius: var(--r-sm); border: 1px solid var(--border); background: var(--bg-elev); cursor: pointer; }
+.nt-target .ico { font-family: 'Material Symbols Outlined'; font-size: 22px; color: var(--ink-mute); }
+.nt-target__l { font-size: 12px; font-weight: 700; color: var(--ink-soft); }
+.nt-target__c { font-family: var(--ff-mono); font-size: 10px; color: var(--ink-dim); }
+.nt-target.is-on { border-color: var(--cafe-blue); background: var(--cafe-blue-soft); }
+.nt-target.is-on .ico, .nt-target.is-on .nt-target__l { color: var(--cafe-blue-deep); }
+
+/* preview phone */
+.nt-preview { border-radius: var(--r-lg); border: 1px solid var(--border); overflow: hidden; background: var(--bg-alt); }
+.nt-preview__bar { padding: 9px 14px; background: var(--ink); color: #fff; font-family: var(--ff-mono); font-size: 10.5px; display: flex; align-items: center; gap: 6px; }
+.nt-preview__body { padding: 16px; }
+.nt-preview__notif { display: flex; gap: 10px; padding: 12px; background: var(--bg-elev); border: 1px solid var(--border); border-radius: var(--r-sm); }
+.nt-preview__empty { font-size: 12px; color: var(--ink-dim); text-align: center; padding: 20px 0; }
+
+/* history row */
+.nt-hist { display: flex; align-items: center; gap: 12px; padding: 13px 16px; border: 1px solid var(--border); border-radius: var(--r-md); background: var(--bg-elev); margin-bottom: 8px; }
+.nt-hist__body { flex: 1; min-width: 0; }
+.nt-hist__t { font-size: 13.5px; font-weight: 800; color: var(--ink); }
+.nt-hist__m { font-family: var(--ff-mono); font-size: 10.5px; color: var(--ink-mute); margin-top: 3px; display: flex; gap: 8px; flex-wrap: wrap; }
+.nt-hist__recip { text-align: right; flex-shrink: 0; }
+.nt-hist__recip-v { font-family: var(--ff-display); font-size: 16px; font-weight: 800; color: var(--ink); }
+.nt-hist__recip-l { font-family: var(--ff-mono); font-size: 9.5px; color: var(--ink-dim); }
+
+/* ============================================================
+   Mobile (720px)
+   ============================================================ */
+@media (max-width: 720px) {
+  .nt-msg-shell { grid-template-columns: 1fr; height: auto; }
+  .nt-msg-col--rail { display: none; }
+  .nt-msg-col--convo { display: none; }
+  .nt-na-grid { grid-template-columns: 1fr; }
+  .nt-target-row { grid-template-columns: 1fr 1fr; }
+}
+.vp--mobile .nt-msg-shell { grid-template-columns: 1fr; height: auto; }
+.vp--mobile .nt-msg-col--rail { display: none; }
+.vp--mobile .nt-msg-col--convo { display: none; }
+.vp--mobile .nt-na-grid { grid-template-columns: 1fr; }
+.vp--mobile .nt-target-row { grid-template-columns: 1fr 1fr; }

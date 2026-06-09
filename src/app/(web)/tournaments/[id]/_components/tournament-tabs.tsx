@@ -355,27 +355,18 @@ export function TournamentTabs({
 
   return (
     <div>
-      {/* 탭 네비게이션: 배경색 카드 스타일 (구분감 있는 세그먼트 디자인)
-          2026-05-02: hero ↔ 탭 ↔ 콘텐츠 여백 콤팩트 (사용자 요청) — mb-6/8 → mb-3/4 */}
-      <div
-        className="-mx-4 mb-3 flex gap-0 overflow-x-auto p-1 sm:mx-0 sm:gap-1 sm:rounded-lg sm:mb-4 [&::-webkit-scrollbar]:hidden"
-        style={{
-          backgroundColor: "var(--color-surface)",
-          scrollbarWidth: "none",
-          msOverflowStyle: "none",
-        }}
-      >
+      {/* 탭 네비게이션: td-redesign 시안 pill 탭 스킨 (.td-pilltabs / .td-pill).
+          2026-06-10 리스킨: 활성 탭 = cafe-blue 강조 (.on), 비활성 = ink-mute.
+          스타일은 tournament-detail.css 의 .td-pilltabs/.td-pill 에 토큰화 박제됨.
+          탭 로직(handleTabChange / ?tab= 라우팅 / lazy loading)은 0 변경 — className/마크업만 교체. */}
+      <div className="td-pilltabs mb-3 sm:mb-4">
         {TAB_META.map((tab) => {
           const isActive = activeTab === tab.key;
           return (
             <button
               key={tab.key}
               onClick={() => handleTabChange(tab.key)}
-              className={`flex-1 whitespace-nowrap rounded-md px-3 py-2.5 text-sm font-medium transition-all sm:px-4 ${
-                isActive
-                  ? "bg-[var(--color-card)] text-[var(--color-text-primary)] shadow-sm font-bold"
-                  : "text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]"
-              }`}
+              className={`td-pill${isActive ? " on" : ""}`}
             >
               {tab.label}
             </button>
