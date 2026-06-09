@@ -331,6 +331,9 @@
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
 |------|------|------|
+| 2026-06-09 | **제10회 BDR YOUNGMAN GAME 4강·결승 일정 생성** | ✅ 6팀 2개조 예선 종료 후 knockout 0건 → 조 기반 크로스 대진 수동 INSERT 3건(SF1 YBC vs 슬로우 10:30/SF2 PRISM vs 우아한 11:30/결승 13:00, 6/14 스포라운드) / 결승 next_match_id 연결(advanceWinner 전진) / 자동생성=조무시 재대결 회피 / errors.md 기록 / 안전가드+사후검증 |
+| 2026-06-08 | **종료 대회 상세 열람 복원 시안 의뢰서 작성** | ✅ 원인=UB1(5/28) 종료화면이 일반 탭(일정/대진표/참가팀) 완전 교체+early return(디자인 의도, DB 이슈 X) / `completed-tournament-detail-restore-prompt-2026-06-08.md` 의뢰서 작성→Claude.ai 시안 의뢰 대기 |
+| 2026-06-08 | **대회 종료 오표시 수정** (제10회 BDR YOUNGMAN GAME) | ✅ 원인=DB status `completed` 오염(날짜 무관, page.tsx는 status만 신뢰) / completed→in_progress 단건 UPDATE(사용자승인+사전후검증) / errors.md 기록 / 코드변경 0 |
 | 2026-06-08 | **PR-MYBDR-SOCIAL** proxy.ts 수정 재검증 (tester) | ✅ PASS 4/4 — kakao/google `{}`→422(401전환확정★) / 무효토큰→401(핸들러 외부검증 도달) / tsc 0 / 서버 무종료 |
 | 2026-06-08 | **PR-MYBDR-SOCIAL** 모바일 OAuth /api/v1/auth/kakao·google 신설 | ✅ upsertOAuthUser 공용추출(WithdrawnUserError throw) / 웹콜백 3종 무수정 / google aud+iss검증 / 탈퇴=403 / rate-limit IP / 토큰만발급 / fetch timeout 5s / tsc 0 |
 | 2026-06-07 | **8C-8** VU3 CourtBooking → /booking+payment-fail+checkin (BV2) | ✅ 정보성 톤4(결제수단칩+lock안내 / 버튼 lock / errchip톤 / checkin eyebrow) / 토스흐름·cancel·checkin·약관게이트 0 / 가짜위젯 미박제(mock0) / tsc 0 / 충돌 0 / stop 없음 |
@@ -338,11 +341,3 @@
 | 2026-06-07 | **8C-6** VA1 AdminCourtsPartners → /admin/courts + /admin/partners (BV7) | ✅ 2라우트 보존 / SiteOperatorBadge 공용 신규(dark+gold) 양쪽 박제 / courts hero stat4 + count쿼리3(count-only) / 신고 탭·모달·액션 미생성 / 패칭·가드 0 / tsc 0 / 충돌 0 |
 | 2026-06-07 | **8C-4** VP3 PartnerCampaigns → /partner-admin/campaigns (BV6) | ✅ 인라인폼 유지 / VP3 톤4(badge·grid2열·필터칩·헤더합계) / mock회피 / handleCreate 0 / [id] 0 / tsc 0 / 충돌 0 |
 | 2026-06-07 | **8C-3** VP2 PartnerVenue → /partner-admin/venue (BV5) | ✅ 옵션A VP2 셸+2탭(기본/시간가격) / badge + operating_hours read-only + fee편집 / 정책·통계 미생성 / handleSave 0 / tsc 0 / 충돌 0 |
-| 2026-06-07 | **8C-2** VU4 VenueDetail → /venues/[slug] (BV8) | ✅ 골대수 hero badge 실데이터 + 별점 var(--warn) 교정 / list hide(mock0) / 패칭0 / tsc 0 / 충돌 0 |
-| 2026-06-07 | **8C-1** VP1 PartnerAdmin → /partner-admin (BV4) | ✅ navy hero + Court Operator badge / mock hide / 실통계 / tsc 0 / 충돌 0 |
-| 2026-06-07 | Phase 8 v2.28 sync | ✅ court-shared + 8 jsx / carry diff 0 |
-| 2026-06-07 | **Phase 7 chain** (v2.27 + 7C 4 PR #661) | ✅ `788501f`+`cd261b5`~`239b779` / AppNav 현상유지 / stop 0 |
-| 2026-06-06 | **Phase 6.2+6.3 dev→main** (#660) | ✅ main `32153c7` Vercel success / Phase 6 묶음 종료 |
-| 2026-05-31 | Phase 6.3 chain (v2.26 + 3 PR) | ✅ 보강 / stop 0 |
-| 2026-05-31 | Phase 6.2 chain (v2.25 + 7 PR) | ✅ 토스 실연결 mock 0 |
-| 2026-05-31 | Phase 6.1 chain (v2.24 + 6 PR #657) | ✅ BP1 privacy·BP5 가드 |

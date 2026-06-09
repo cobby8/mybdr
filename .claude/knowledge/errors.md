@@ -2,6 +2,25 @@
 <!-- 담당: debugger, tester | 최대 30항목 -->
 <!-- 이 프로젝트에서 반복되는 에러 패턴, 함정, 주의사항을 기록 -->
 
+### [2026-06-09] full_league_knockout 자동 4강 생성 = 조(group) 무시 → 2개조 대회 같은 조 재대결 함정
+- **분류**: errors (대진표 / knockout 시드)
+- **발견자**: pm (제10회 BDR YOUNGMAN GAME 4강 일정 세팅)
+- **증상**: 6팀 2개조 조별리그 대회. 예선 종료됐는데 4강 일정이 없음 + 자동 생성을 쓰면 대진이 틀림.
+- **근본 원인 2가지**:
+  1. **자동 trigger 미작동**: `matches/[matchId]/route.ts` L289~ `auto-knockout-gen`(예선 완료 시 4강 자동 생성)은 try/catch로 실패를 삼킴. 과거 완료가 Flutter sync 등 다른 경로였거나 에러로 skip되면 4강 0건 잔존. → 수동 생성 필요.
+  2. **`calculateLeagueRanking`(tournament-seeding.ts L19)가 groupName 완전 무시** — 전체 팀을 승률→득실차→다득점으로만 시드. `buildKnockoutBracket`은 1위vs4위/2위vs3위 표준 매칭. 2개조 대회는 조1위끼리 상위시드/조2위끼리 하위시드가 되어 **같은 조 팀이 4강 재대결**(예: B1 PRISM vs B2 슬로우). 조별리그+토너먼트 의미 붕괴.
+- **해결**: 자동(`generateKnockoutMatches`/`POST /bracket/knockout`) 쓰지 말고 **조 기반 크로스 대진 수동 INSERT**. SF1=A1 vs B2, SF2=B1 vs A2. 결승 먼저 INSERT→id 확보→준결승에 `next_match_id`=결승 연결(승자 전진 `advanceWinner`가 next_match_id 기반, 없으면 전진 안 함). round_number(준결승1/결승2)·bracket_position(SF1=0/SF2=1/결승0).
+- **예방**: **2개조+ 조별리그 대회의 knockout은 자동 생성 금지** — 조 무시 시드로 같은 조 재대결 발생. 크로스 대진 수동 박제. (NBA seedingMode도 조 미반영). 향후 generator에 group-aware 크로스 시드 옵션 추가 검토.
+
+### [2026-06-08] 대회 상세 "종료" 표시 = `status` 필드 기반 (날짜 무관) — DB 값 오염 시 미래 대회도 종료로 보임
+- **분류**: errors (대회 상태 / 데이터 정합)
+- **발견자**: pm (제10회 BDR YOUNGMAN GAME 종료 오표시 신고)
+- **증상**: 대회 기간이 미래(6/5~6/14, 오늘 6/8 진행 중)인데 상세 페이지가 "종료된 대회" 화면 노출.
+- **근본 원인**: `src/app/(web)/tournaments/[id]/page.tsx` 287줄 `if (tournament.status === "completed")` — 화면은 **날짜를 계산하지 않고 DB `status` 값만 신뢰**. DB의 status가 `completed`로 저장돼 있어 종료 화면 분기. (updatedAt 기준 관리자가 수동 종료 처리한 것으로 추정, 자동 종료 cron 없음)
+- **해결**: DB `tournament.status` `completed` → `in_progress` 단건 UPDATE (사용자 승인 + 사전/사후 검증). 즉시 정상 표시.
+- **status 값 종류**: `draft` / `published`(공개·모집) / `in_progress`(경기 진행) / `completed`(종료) / `cancelled`(취소).
+- **예방**: 대회 상태는 날짜 자동 계산이 아니라 **수동 status 필드**다. 종료 오표시 신고 = 먼저 DB status 값 확인(코드 버그 아닌 데이터 문제일 가능성 높음). 관리자 종료 처리 실수 방지를 위해 종료 버튼에 기간 미경과 경고 추가 검토 여지.
+
 ### [2026-06-08] 신규 /api/v1 public 엔드포인트 = `src/proxy.ts` PUBLIC_API_ROUTES 등록 필수 (정적 리뷰 미검출)
 - **분류**: errors (proxy / 인증 게이트)
 - **발견자**: tester (PR-MYBDR-SOCIAL 모바일 OAuth)
