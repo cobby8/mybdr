@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>PU5 · UserPublicProfile 신규 — BDR v2.24</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800;900&family=JetBrains+Mono:wght@500;700;800&family=Pretendard:wght@400;500;600;700;800;900&display=swap" />
+<link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Symbols+Outlined" />
+<link rel="stylesheet" href="tokens.css" />
+<link rel="stylesheet" href="shell.css" />
+<link rel="stylesheet" href="team-shared.css" />
+<link rel="stylesheet" href="profile-shared.css" />
+</head>
+<body>
+<div class="showcase">
+  <header class="showcase-head">
+    <div class="eyebrow">BDR v2.24 · PU5 / 사용자 신규 · Phase 6.1B · BP1 ★★★★★ · A 등급</div>
+    <h1>UserPublicProfile 신규 — /users/[id]</h1>
+    <p>
+      <b>PU5 신규 핵심 박제</b> (운영 769 line · 박제 ❌). <strong>BP1 공개 시야</strong> = PU1 과 동일 User 데이터, <strong>privacy_settings 필터링</strong>으로 시각 분리.
+      공개 stat + 활동 미리보기(경기/팀/단체) + <strong>비공개 필드 hide</strong>(이메일·연락처·결제). 본인 시야 = <strong>preview 모드</strong>(PU1-G 진입). 신고 = Report 모델 미확인 → hide.
+    </p>
+    <nav class="showcase-nav" aria-label="Phase 6.1 시안">
+      <a href="index.html">v2.24 목차</a>
+      <a href="pu1-profile.html">PU1 마이</a>
+      <a href="pu3-profile-basketball.html">PU3 농구</a>
+      <a href="pu4-profile-achievements.html">PU4 업적</a>
+      <a class="is-cur" href="pu5-user-public.html">PU5 공개</a>
+      <a href="pu2-profile-edit.html">PU2 편집</a>
+      <a href="pa1-admin-users.html">PA1 검수</a>
+    </nav>
+  </header>
+
+  <section class="variant">
+    <header class="variant__head">
+      <span class="variant__num">PU5 / PC + MOBILE · A 등급 · 신규</span>
+      <h2 class="variant__title">공개 프로필 (privacy 필터) — 본인 preview 모드</h2>
+      <p class="variant__desc">데스크톱 1240 + 모바일 375. AppNav active="more".</p>
+    </header>
+    <div class="vp-strip">
+      <div class="vp vp--pc">
+        <div class="vp__chrome"><span class="vp__lights"><span></span><span></span><span></span></span><span class="vp__url">mybdr.kr/users/1?preview=1</span><span class="vp__size">PC · 1240</span></div>
+        <div class="vp__body"><div id="mount-pc-nav"></div><div id="mount-pc"></div></div>
+      </div>
+      <div class="vp vp--mobile">
+        <div class="vp__chrome"><span class="vp__lights"><span></span><span></span><span></span></span><span class="vp__url">m · 공개 프로필</span><span class="vp__size">375</span></div>
+        <div class="vp__body"><div id="mount-mobile-nav"></div><div id="mount-mobile"></div></div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script type="text/babel" src="shared.jsx"></script>
+<script type="text/babel" src="team-shared.jsx"></script>
+<script type="text/babel" src="profile-shared.jsx"></script>
+<script type="text/babel" src="screens/UserPublicProfile.jsx"></script>
+<script type="text/babel">
+  ReactDOM.createRoot(document.getElementById('mount-pc-nav')).render(<window.AppNav active="more" />);
+  ReactDOM.createRoot(document.getElementById('mount-pc')).render(<window.UserPublicProfile />);
+  ReactDOM.createRoot(document.getElementById('mount-mobile-nav')).render(<window.AppNav active="more" />);
+  ReactDOM.createRoot(document.getElementById('mount-mobile')).render(<window.UserPublicProfile />);
+</script>
+</body>
+</html>

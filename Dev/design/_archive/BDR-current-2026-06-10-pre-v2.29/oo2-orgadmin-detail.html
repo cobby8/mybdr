@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>OO2 · OrgAdminDetail (6 sub-tab) — BDR v2.22</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800;900&family=JetBrains+Mono:wght@500;700;800&family=Pretendard:wght@400;500;600;700;800;900&display=swap" />
+<link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Symbols+Outlined" />
+<link rel="stylesheet" href="tokens.css" />
+<link rel="stylesheet" href="shell.css" />
+<link rel="stylesheet" href="team-shared.css" />
+<link rel="stylesheet" href="org-shared.css" />
+</head>
+<body>
+<div class="showcase">
+  <header class="showcase-head">
+    <div class="eyebrow">BDR v2.22 · OO2 / 관리자 신규 (가장 큼) · Phase 4A · BO2 + BO3 · E 등급 · Series Operator</div>
+    <h1>OrgAdminDetail 6 sub-tab — /tournament-admin/organizations/[orgId]</h1>
+    <p>
+      <b>OO2 신규 박제</b> (운영 OO2 head 300+tail line + OO2b members 247 line · <strong>거대 페이지 통합</strong>) — Phase 3 TU4 6 sub-tab 답습.
+      6 탭 = <strong>?tab=basic / members / series / editions / officers / activity</strong>.
+      basic = OU3 신청 form 동일 필드 (BO1 일관) + 편집 + owner 위험영역 (보관).
+      members = invite + role + 제거 (Phase 4 OO2b carry-over).
+      series = 단체 시리즈 list + 새 시리즈 CTA → OO3 wizard.
+      editions = 회차 일정 통합 (BO2 위계).
+      <strong>officers = TU4 BT4 답습</strong> — admin role 권한 위임 toggle (owner only).
+      activity = 활동 이력 로그.
+    </p>
+    <nav class="showcase-nav" aria-label="Phase 4 시안">
+      <a href="index.html">v2.22 목차</a>
+      <a href="oa1-admin-organizations.html">OA1 단체 검수</a>
+      <a href="ou1-organizations.html">OU1 목록</a>
+      <a href="ou2-organization-detail.html">OU2 상세</a>
+      <a href="ou3-organization-apply.html">OU3 신청</a>
+      <a href="ou4-series.html">OU4 시리즈</a>
+      <a href="oo1-orgadmin-list.html">OO1 내 단체</a>
+      <a class="is-cur" href="oo2-orgadmin-detail.html">OO2 단체 대시보드</a>
+      <a href="oo3-series-admin.html">OO3 시리즈 관리</a>
+    </nav>
+  </header>
+
+  <section class="variant">
+    <header class="variant__head">
+      <span class="variant__num">OO2 / PC · 인터랙티브 — 6 sub-tab</span>
+      <h2 class="variant__title">단체 대시보드 — 탭 클릭으로 전환</h2>
+      <p class="variant__desc">PC 1320 (단체 운영 sidebar 220 + content). 기본 = <b>basic</b> 탭. 상단 6 탭 클릭으로 전환 — 모바일 가로 스크롤 가능.</p>
+    </header>
+    <div class="vp-strip">
+      <div class="vp vp--pc-wide" style="width:1320px;">
+        <div class="vp__chrome">
+          <span class="vp__lights"><span></span><span></span><span></span></span>
+          <span class="vp__url">mybdr.kr/tournament-admin/organizations/org-1?tab=basic</span>
+          <span class="vp__size">PC · 1320</span>
+        </div>
+        <div class="vp__body">
+          <div id="mount-pc-basic"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="variant">
+    <header class="variant__head">
+      <span class="variant__num">OO2 / 멤버 탭 — ?tab=members</span>
+      <h2 class="variant__title">멤버 list + 초대 form + role 변경 (BO3)</h2>
+      <p class="variant__desc">OO2b 운영 ref 답습 — invite (이메일 + role) + role 표시 + owner 제거 불가.</p>
+    </header>
+    <div class="vp-strip">
+      <div class="vp vp--pc-wide" style="width:1320px;">
+        <div class="vp__chrome">
+          <span class="vp__lights"><span></span><span></span><span></span></span>
+          <span class="vp__url">mybdr.kr/tournament-admin/organizations/org-1?tab=members</span>
+          <span class="vp__size">PC · 1320</span>
+        </div>
+        <div class="vp__body">
+          <div id="mount-pc-members"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="variant">
+    <header class="variant__head">
+      <span class="variant__num">OO2 / 권한 위임 탭 — ?tab=officers (TU4 BT4 답습)</span>
+      <h2 class="variant__title">admin role 권한 위임 toggle (owner only · BO3)</h2>
+      <p class="variant__desc">시리즈 생성 / 회차 추가 / 멤버 초대 / 단체 정보 수정 / 단체 보관 / 소유권 이양 6 권한 — 각 admin role 멤버별 토글. TU4 BT4 시각 답습.</p>
+    </header>
+    <div class="vp-strip">
+      <div class="vp vp--pc-wide" style="width:1320px;">
+        <div class="vp__chrome">
+          <span class="vp__lights"><span></span><span></span><span></span></span>
+          <span class="vp__url">mybdr.kr/tournament-admin/organizations/org-1?tab=officers</span>
+          <span class="vp__size">PC · 1320</span>
+        </div>
+        <div class="vp__body">
+          <div id="mount-pc-officers"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="variant">
+    <header class="variant__head">
+      <span class="variant__num">OO2 / 활동 이력 탭 — ?tab=activity</span>
+      <h2 class="variant__title">단체 + 시리즈 + 멤버 통합 액티비티 로그</h2>
+      <p class="variant__desc">최근 30일 액션. kind chip 색상 = 시리즈(navy) / 멤버(green) / 대회(red) / 단체(gray) / 운영자(dark+gold).</p>
+    </header>
+    <div class="vp-strip">
+      <div class="vp vp--pc-wide" style="width:1320px;">
+        <div class="vp__chrome">
+          <span class="vp__lights"><span></span><span></span><span></span></span>
+          <span class="vp__url">mybdr.kr/tournament-admin/organizations/org-1?tab=activity</span>
+          <span class="vp__size">PC · 1320</span>
+        </div>
+        <div class="vp__body">
+          <div id="mount-pc-activity"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script type="text/babel" src="shared.jsx"></script>
+<script type="text/babel" src="game-shared.jsx"></script>
+<script type="text/babel" src="team-shared.jsx"></script>
+<script type="text/babel" src="org-shared.jsx"></script>
+<script type="text/babel" src="screens/OrgAdminDetail.jsx"></script>
+<script type="text/babel">
+  function Shell({ initialTab }) {
+    return (
+      <window.SeriesOperatorShell active="orgs" crumbTrail={['단체 운영', '내 단체', '강남구농구협회']}>
+        <window.OrgAdminDetail initialTab={initialTab}/>
+      </window.SeriesOperatorShell>
+    );
+  }
+  ReactDOM.createRoot(document.getElementById('mount-pc-basic')).render(<Shell initialTab="basic"/>);
+  ReactDOM.createRoot(document.getElementById('mount-pc-members')).render(<Shell initialTab="members"/>);
+  ReactDOM.createRoot(document.getElementById('mount-pc-officers')).render(<Shell initialTab="officers"/>);
+  ReactDOM.createRoot(document.getElementById('mount-pc-activity')).render(<Shell initialTab="activity"/>);
+</script>
+</body>
+</html>
