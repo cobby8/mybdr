@@ -443,28 +443,30 @@ export function ScheduleTimeline({ matches, teams, selectedDate: selectedDatePro
       {/* 팀 필터 버튼 그룹: 가로 스크롤 (5/9 사용자 결정 — 날짜 탭과 동일 크기로 축소) */}
       {teams.length > 0 && (
         <div className="mb-6 flex gap-1.5 overflow-x-auto pb-2" style={{ scrollbarWidth: "none" }}>
-          {/* "전체" 버튼 */}
+          {/* "전체" 버튼
+              2026-06-10 td-redesign: 팀 필터칩 활성색 = cafe-blue (시안 .tdr-chip.on 강조색).
+              ⚠️ 날짜칩(--color-primary)·종별필터(getDivisionColorVar)·승자점수(--color-primary)는 무변경. */}
           <button
             onClick={() => setSelectedTeam(null)}
             className="flex-shrink-0 whitespace-nowrap rounded-md px-3 py-1.5 text-xs font-medium transition-colors"
             style={{
-              backgroundColor: selectedTeam === null ? "var(--color-primary)" : "var(--color-elevated)",
+              backgroundColor: selectedTeam === null ? "var(--cafe-blue)" : "var(--color-elevated)",
               color: selectedTeam === null ? "white" : "var(--color-text-secondary)",
-              border: `1px solid ${selectedTeam === null ? "var(--color-primary)" : "var(--color-border)"}`,
+              border: `1px solid ${selectedTeam === null ? "var(--cafe-blue)" : "var(--color-border)"}`,
             }}
           >
             전체
           </button>
-          {/* 각 팀 버튼 */}
+          {/* 각 팀 버튼 — 활성칩 cafe-blue 강조 */}
           {teams.map((team) => (
             <button
               key={team.id}
               onClick={() => setSelectedTeam(team.id === selectedTeam ? null : team.id)}
               className="flex-shrink-0 whitespace-nowrap rounded-md px-3 py-1.5 text-xs font-medium transition-colors"
               style={{
-                backgroundColor: selectedTeam === team.id ? "var(--color-primary)" : "var(--color-elevated)",
+                backgroundColor: selectedTeam === team.id ? "var(--cafe-blue)" : "var(--color-elevated)",
                 color: selectedTeam === team.id ? "white" : "var(--color-text-secondary)",
-                border: `1px solid ${selectedTeam === team.id ? "var(--color-primary)" : "var(--color-border)"}`,
+                border: `1px solid ${selectedTeam === team.id ? "var(--cafe-blue)" : "var(--color-border)"}`,
               }}
             >
               {team.name}

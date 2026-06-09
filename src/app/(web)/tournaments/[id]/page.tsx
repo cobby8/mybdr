@@ -835,7 +835,9 @@ export default async function TournamentDetailPage({
             }
           />
 
-          {/* 다음 액션 유도: 다른 대회 탐색 + (운영자 한정) 심판 배정 요청 */}
+          {/* 다음 액션 유도: 다른 대회 탐색 (td-redesign 시안: 심판 배정 요청 버튼 제거됨)
+           * 2026-06-10 리스킨: HANDOFF §6 "심판 배정 요청 버튼 제거 (요청 반영)" 에 따라 JSX 제거.
+           * isInsider 변수 자체는 비공개 가드 + 사이드바 OperatorPreview(아래)에서 계속 사용하므로 유지. */}
           <div className="mt-6 flex flex-wrap gap-3">
             <Link
               href="/tournaments"
@@ -844,24 +846,6 @@ export default async function TournamentDetailPage({
               <span className="material-symbols-outlined text-base">emoji_events</span>
               다른 대회 보기
             </Link>
-
-            {/* P0-A: 운영자 전용 CTA — 심판 배정 요청 (박제 라우트 진입점)
-             * 노출 조건: insider(organizer | tournamentAdminMember(active) | super_admin)
-             * 위치: 토너먼트 상세 메인 영역 하단. 일반 참가자에게는 노출되지 않음. */}
-            {isInsider && (
-              <Link
-                href={`/tournaments/${id}/referee-request`}
-                className="flex items-center gap-1.5 rounded-lg border px-4 py-2.5 text-sm font-medium transition-colors hover:opacity-90"
-                style={{
-                  borderColor: "var(--color-primary)",
-                  color: "var(--color-primary)",
-                  backgroundColor: "transparent",
-                }}
-              >
-                <span className="material-symbols-outlined text-base">sports_kabaddi</span>
-                심판 배정 요청
-              </Link>
-            )}
           </div>
         </main>
 
