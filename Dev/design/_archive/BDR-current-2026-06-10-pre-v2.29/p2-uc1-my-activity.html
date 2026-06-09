@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>MyActivity · 내 활동 — BDR v2.20</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800;900&family=JetBrains+Mono:wght@500;700;800&family=Pretendard:wght@400;500;600;700;800;900&display=swap" />
+<link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Symbols+Outlined" />
+<link rel="stylesheet" href="tokens.css" />
+<link rel="stylesheet" href="shell.css" />
+</head>
+<body>
+<div class="showcase">
+  <header class="showcase-head">
+    <div class="eyebrow">BDR v2.20 · MyActivity / 사용자 보강 · BG6 + BG2 · Phase 2B</div>
+    <h1>내 활동 — /profile/activity</h1>
+    <p><b>BG6 · "내 경기" 섹션 신규</b> — game_applications 조회 / 상태별 정렬 (승인 대기 → 참가 확정 → 진행 → 종료 → 거절) + step indicator (UA2 sidebar 와 동일 톤). <b>BG2 · "내 매너" 카드 신규</b> — 평균 평점 + 받은 flag 종류만 / 개별 평가 건수 ❌ (사용자 결재 룰). Phase 1B "내 대회" 섹션 carry-over (변경 ❌). AppNav 03 frozen.</p>
+    <nav class="showcase-nav" aria-label="Phase 2 시안">
+      <a href="index.html">목차</a>
+      <a href="p2-ud1-admin-games.html">UD1 AdminGames</a>
+      <a href="p2-ud2-admin-game-reports.html">UD2 매너통계</a>
+      <a href="p2-ua1-games.html">UA1 Games</a>
+      <a href="p2-ua2-game-detail.html">UA2 상세</a>
+      <a href="p2-ua3-create-game.html">UA3 생성</a>
+      <a href="p2-ua4-guest-apply.html">UA4 게스트</a>
+      <a href="p2-ua5-live.html">UA5 Live</a>
+      <a href="p2-ub1-game-result.html">UB1 결과</a>
+      <a class="is-cur" href="p2-uc1-my-activity.html">UC1 마이</a>
+      <a href="p2-uc2-home.html">UC2 홈</a>
+    </nav>
+  </header>
+
+  <section class="variant">
+    <header class="variant__head">
+      <span class="variant__num">MyActivity / PC + MOBILE · A 등급</span>
+      <h2 class="variant__title">내 활동</h2>
+      <p class="variant__desc">데스크톱 PC 1240 + 모바일 375 동시 미리보기.</p>
+    </header>
+    <div class="vp-strip">
+      <div class="vp vp--pc">
+        <div class="vp__chrome">
+          <span class="vp__lights"><span></span><span></span><span></span></span>
+          <span class="vp__url">mybdr.kr/profile/activity</span>
+          <span class="vp__size">PC · 1240</span>
+        </div>
+        <div class="vp__body">
+          <div id="mount-pc-nav"></div>
+          <div id="mount-pc"></div>
+        </div>
+      </div>
+      <div class="vp vp--mobile">
+        <div class="vp__chrome">
+          <span class="vp__lights"><span></span><span></span><span></span></span>
+          <span class="vp__url">m · 내 활동</span>
+          <span class="vp__size">375</span>
+        </div>
+        <div class="vp__body">
+          <div id="mount-mobile-nav"></div>
+          <div id="mount-mobile"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script type="text/babel" src="shared.jsx"></script>
+<script type="text/babel" src="game-shared.jsx"></script>
+<script type="text/babel" src="screens/MyActivity.jsx"></script>
+<script type="text/babel">
+  ReactDOM.createRoot(document.getElementById('mount-pc-nav')).render(<window.AppNav active="home" />);
+  ReactDOM.createRoot(document.getElementById('mount-pc')).render(<window.MyActivity />);
+  ReactDOM.createRoot(document.getElementById('mount-mobile-nav')).render(<window.AppNav active="home" />);
+  ReactDOM.createRoot(document.getElementById('mount-mobile')).render(<window.MyActivity />);
+</script>
+</body>
+</html>

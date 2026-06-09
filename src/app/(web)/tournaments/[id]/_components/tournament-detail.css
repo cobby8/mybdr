@@ -164,6 +164,60 @@
 .td-side__preview-btn + .td-side__preview-btn { border-left: 1px solid var(--border-strong); }
 .td-side__preview-btn.is-on { background: var(--cafe-blue); color: #fff; font-weight: 800; }
 
+/* ============================================================
+   td-redesign (BDR v2.29 대회상세 재구성) — pill 탭 스킨
+   원본: Dev/design/BDR-current/screens/... td-redesign.css (.tdr-pilltabs/.tdr-pill)
+   박제 시 토큰 대체:
+   - --r-lg / --r-md  -> var(--radius-card)
+   - --cta            -> var(--cafe-blue)  ⭐ (강조색 가드 — 빨강 금지)
+   - --bg-elev/--ink* -> 운영 globals 동일 토큰
+   tdr-* 통째 복붙 금지 — pill 탭에 필요한 규칙만 토큰화 append.
+   pill 9999px 금지 — radius-card(4px 톤) 사용.
+   ============================================================ */
+
+/* 탭 컨테이너: 가로 pill 그룹 (시안 .tdr-pilltabs L52~53) */
+.td-pilltabs {
+  display: flex;
+  gap: 4px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  padding: 6px;
+}
+
+/* 개별 탭 (시안 .tdr-pill L54~55) — 비활성 = ink-mute */
+.td-pill {
+  flex: 1;
+  border: 1px solid transparent;
+  background: transparent;
+  cursor: pointer;
+  padding: 11px 10px;
+  border-radius: var(--radius-card);
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: 14.5px;
+  color: var(--color-text-muted);
+  transition: 0.1s;
+  white-space: nowrap;
+}
+.td-pill:hover { color: var(--color-text-secondary); background: var(--color-elevated); }
+
+/* 활성 탭 (.on) — PM 설계서: 강조색 cafe-blue 배경 + 흰 텍스트.
+   ⚠️ 시안 .tdr-pill.on 은 bg-elev 미묘 강조였으나, 운영 박제 결정 = cafe-blue 강조 (강조색 가드표). */
+.td-pill.on {
+  background: var(--cafe-blue);
+  border-color: var(--cafe-blue-deep);
+  color: #fff;
+  font-weight: 800;
+}
+
+/* 모바일: 가로 스크롤 (시안 L231~232) */
+@media (max-width: 720px) {
+  .td-pilltabs { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .td-pilltabs::-webkit-scrollbar { display: none; }
+  .td-pill { flex: none; padding: 11px 14px; }
+}
+
 /* ---------- Mobile ---------- */
 @media (max-width: 720px) {
   .td-page__inner { padding: 14px 14px 100px; }

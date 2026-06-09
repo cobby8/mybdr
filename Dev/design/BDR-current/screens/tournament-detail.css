@@ -129,25 +129,38 @@
 .td-divchip:hover { background: var(--bg-alt); color: var(--ink); }
 .td-divchip.is-on { background: var(--accent); color: #fff; border-color: var(--accent-deep); }
 
-.td-tabs { display: flex; gap: 2px; overflow-x: auto; }
+/* td-redesign (BDR v2.29) — pill 탭 스킨 (운영 박제 역동기화 2026-06-10)
+   기존 밑줄형(border-bottom --accent) → pill 그룹 + 활성=cafe-blue 강조.
+   운영 src tournament-detail.css .td-pilltabs/.td-pill 와 1:1 정합. */
+.td-tabs {
+  display: flex; gap: 4px; overflow-x: auto;
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  padding: 6px;
+}
 .td-tab {
-  display: inline-flex; align-items: center; gap: 6px;
-  padding: 12px 16px;
-  font-family: var(--ff-body); font-size: 14px; font-weight: 600;
+  flex: 1;
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 11px 12px;
+  font-family: var(--ff-display); font-size: 14px; font-weight: 700;
   color: var(--ink-mute);
   background: transparent;
-  border: 0;
-  border-bottom: 2px solid transparent;
+  border: 1px solid transparent;
+  border-radius: var(--r-md);
   cursor: pointer; white-space: nowrap;
-  margin-bottom: -1px;
+  transition: 0.1s;
 }
-.td-tab:hover { color: var(--ink); }
+.td-tab:hover { color: var(--ink-soft); background: var(--bg-head); }
 .td-tab .ico { font-family: 'Material Symbols Outlined'; font-size: 18px; }
 .td-tab.is-active {
-  color: var(--ink);
-  border-bottom-color: var(--accent);
+  /* 강조색 = cafe-blue (운영 src .td-pill.on 정합), 빨강(--accent) 아님 */
+  background: var(--cafe-blue);
+  border-color: var(--cafe-blue-deep);
+  color: #fff;
   font-weight: 800;
 }
+.td-tab.is-active .ico { color: #fff; }
 
 /* ---------- Body ---------- */
 .td-body {

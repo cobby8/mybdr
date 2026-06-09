@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>BDR v2.28 · Phase 8 (코트·장소) + 전체 시안 목차</title>
+<title>BDR v2.29 · Phase 9 (알림·메시지·검색) + 전체 시안 목차</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800;900&family=JetBrains+Mono:wght@500;700;800&family=Pretendard:wght@400;500;600;700;800;900&display=swap" />
@@ -64,25 +64,81 @@
 <body>
 <div class="index-page">
   <header class="index-hero">
-    <div class="eyebrow">BDR v2.28 · Phase 8 · 2026-06-07</div>
-    <h1>코트·장소 — 발견·예약·대관·광고 / 3 측 stakeholder</h1>
+    <div class="eyebrow">BDR v2.29 · Phase 9 · 2026-06-07</div>
+    <h1>알림·메시지·검색 — 알림 카테고리 + 통합 검색 + 발송 hub</h1>
     <p>
-      <b>운영 코드 변경 0 — 시안 박제만. 3 측 (사용자 + 파트너 Court Operator + super-admin Site Operator).</b>
-      Phase 8 = 총 <b>8 시안</b> — 사용자 4 (VU1~VU4) + 파트너 3 (VP1~VP3) + super-admin 1 (VA1). 가장 큰 묶음.
-      <b>BV1~BV8 다리</b> — BV1 발견성 · BV2 예약(토스 BU2 답습) · BV3 리뷰·신고 · BV4 파트너 hub · BV5 venue · BV6 츠페인 · BV7 super-admin 검수 · BV8 cross-domain.
-      <b>cross-domain</b> = Phase 1 venue · Phase 2 court_id · Phase 5 랜킹 · <b>Phase 6.2 BU4 예약(court_bookings)</b> = 동일 source. 토스 실연결 mock 0. Phase 1~7 carry-over (변경 ❌).
+      <b>운영 코드 변경 0 — 시안 박제만. 사용자 3 + super-admin 1.</b>
+      Phase 9 = 총 <b>4 시안</b> — NU1 알림 + NU2 메시지 + NU3 검색 + NA1 관리자 발송.
+      <b>BN1~BN4 다리</b> — BN1 알림 카테고리(NotifCategory + main bar 카운트) · BN2 메시지(DB 미지원 carry) · BN3 검색(cross-domain) · BN4 발송.
+      <b>특수</b> = messages 모델 없음(DB 0%) → 정적 더미 carry + <b>"준비 중" warn-soft</b> · NU3 = Phase 1~8 전역 검색 · NA1 = Phase 4 OA1 답습. Phase 1~8 carry-over (변경 ❌).
     </p>
     <div class="index-summary">
-      <div class="index-stat"><div class="index-stat__v">8</div><div class="index-stat__l">Phase 8 시안 (3 측)</div></div>
-      <div class="index-stat index-stat--accent"><div class="index-stat__v">6</div><div class="index-stat__l">신규 (VU3·VP1~3·VA1)</div></div>
-      <div class="index-stat index-stat--ok"><div class="index-stat__v">8</div><div class="index-stat__l">갭 해소 (BV1~BV8)</div></div>
+      <div class="index-stat"><div class="index-stat__v">4</div><div class="index-stat__l">Phase 9 시안 (사용자 3 + admin 1)</div></div>
+      <div class="index-stat index-stat--accent"><div class="index-stat__v">1</div><div class="index-stat__l">신규 (NA1)</div></div>
+      <div class="index-stat index-stat--ok"><div class="index-stat__v">4</div><div class="index-stat__l">갭 해소 (BN1~BN4)</div></div>
       <div class="index-stat"><div class="index-stat__v">0</div><div class="index-stat__l">운영 코드 변경</div></div>
     </div>
   </header>
 
+  <!-- ============ Phase 9B — 사용자 측 (3) ============ -->
+  <section class="index-section">
+    <h2 class="index-section__h"><span class="index-section__num index-section__num--navy">9B</span> 알림·메시지·검색 사용자 (3 시안 · A 등급)</h2>
+    <p class="index-section__sub">BN1 알림 카테고리 + BN2 메시지 carry(준비 중) + BN3 검색 cross-domain Phase 1~8.</p>
+    <div class="index-grid">
+      <a class="index-card" href="nu1-notifications.html">
+        <div class="index-card__top"><span class="index-card__id index-card__id--navy">NU1</span><span class="index-card__kind">사용자 · 보강 · A 등급</span></div>
+        <div class="index-card__title">Notifications — 알림 카테고리</div>
+        <div class="index-card__route">/notifications</div>
+        <p class="index-card__desc">Hero + 카테고리 chip sticky(전체/대회/경기/팀/커뮤니티/시스템 · NotifCategory) + 읽음/안읽음 토글 + 카드 list + "모두 읽음" + main bar 카운트 동기화 + deep link(Phase 1~8).</p>
+        <div class="index-card__tags"><span class="index-card__tag index-card__tag--gap-bt">BN1 ★★★★</span></div>
+      </a>
+      <a class="index-card" href="nu2-messages.html">
+        <div class="index-card__top"><span class="index-card__id index-card__id--navy">NU2</span><span class="index-card__kind">사용자 · 보강 carry · A 등급</span></div>
+        <div class="index-card__title">Messages — 3컬럼 메신저</div>
+        <div class="index-card__route">/messages</div>
+        <p class="index-card__desc">보강 carry(운영 655 · Phase 8 v2 · <b>DB 미지원 정적 더미</b>). 3컬럼(스레드/대화/프로필 레일) + mock 더미 carry(변경 ❌) + <b>"준비 중" warn-soft 통일</b>(GU2 답습). 모바일 list↔convo 분기.</p>
+        <div class="index-card__tags"><span class="index-card__tag index-card__tag--gap-bt">BN2 ★★★</span></div>
+      </a>
+      <a class="index-card" href="nu3-search.html">
+        <div class="index-card__top"><span class="index-card__id index-card__id--navy">NU3</span><span class="index-card__kind">사용자 · 보강 carry · A 등급</span></div>
+        <div class="index-card__title">Search — 통합 검색 cross-domain</div>
+        <div class="index-card__route">/search?q=...</div>
+        <p class="index-card__desc">보강 carry(운영 261 · BDR v2). 검색바(자동완성+최근) + 카테고리 chip(전체/경기/대회/팀/코트/유저/커뮤니티) + 카테고리별 결과 섹션(각 5 + "더 보기") + 빈 상태. <b>cross-domain Phase 1~8</b>.</p>
+        <div class="index-card__tags"><span class="index-card__tag index-card__tag--gap-bt">BN3 ★★★</span></div>
+      </a>
+    </div>
+  </section>
+
+  <!-- ============ Phase 9A — super-admin (1) ============ -->
+  <section class="index-section">
+    <h2 class="index-section__h"><span class="index-section__num">9A</span> 알림 관리자 (1 시안 · E 등급 · Site Operator)</h2>
+    <p class="index-section__sub">NA1 = Site Operator (super-admin). Phase 4 OA1 + 6.1 PA1 + 6.2 BA1 + 8 VA1 답습.</p>
+    <div class="index-grid">
+      <a class="index-card" href="na1-admin-notifications.html">
+        <div class="index-card__top"><span class="index-card__id">NA1</span><span class="index-card__kind">super-admin · 신규 · E 등급</span></div>
+        <div class="index-card__title">AdminNotifications — Site Operator 발송</div>
+        <div class="index-card__route">/admin/notifications</div>
+        <p class="index-card__desc">신규(251 · OA1 답습). Hero(발송 이력/이달/수신자) + 작성 form(<b>target chip 4종</b> 전체/일반/팀장/관리자 + 제목/본문/카테고리/URL + 미리보기) + 발송 이력 + <b>발송 확인 모달</b>("X명에게 발송"). BN4 = NU1 수신.</p>
+        <div class="index-card__tags"><span class="index-card__tag index-card__tag--new">NEW</span><span class="index-card__tag index-card__tag--gap-bt">BN4 ★★</span><span class="index-card__tag index-card__tag--op-site">Site Operator</span></div>
+      </a>
+    </div>
+  </section>
+
+  <!-- ============ Phase 9 BN 의존 검증 ============ -->
+  <section class="index-checks index-checks--bo">
+    <h3>BN 양측·cross-domain 의존 검증 + Phase 9 특수 3 — 박제 마지막 단계 ✅</h3>
+    <ul>
+      <li><b>BN1</b> 알림 카테고리 — NU1 NotifCategory(대회/경기/팀/커뮤니티/시스템) chip + main bar 아이콘 빨간 점 카운트 동기화</li>
+      <li><b>BN2</b> 메시지 — NU2 DB 미지원(messages 모델 없음) → 정적 더미 carry + "준비 중" warn-soft (제거 ❌ · 운영 지침)</li>
+      <li><b>BN3</b> 검색 — NU3 카테고리 chip = Phase 1 대회 / Phase 2 경기 / Phase 3 팀 / Phase 8 코트 / 유저 / 커뮤니티 cross-domain 진입</li>
+      <li><b>BN4</b> 발송 — NA1 target 분리(전체/일반/팀장/관리자) + 발송 모달 confirm → NU1 수신(notifications.*) 표시</li>
+      <li><b>특수</b> main bar 카운트 동기화 · "준비 중" warn-soft tone · NU3 Phase 1~8 cross-domain · NA1 발송 confirm(실수 방지)</li>
+    </ul>
+  </section>
+
   <!-- ============ Phase 8B — 사용자 측 (4) ============ -->
   <section class="index-section">
-    <h2 class="index-section__h"><span class="index-section__num index-section__num--navy">8B</span> 코트·장소 사용자 (4 시안 · A 등급)</h2>
+    <h2 class="index-section__h"><span class="index-section__num index-section__num--mute">v2.28</span> 코트·장소 사용자 (4 시안 · A 등급)</h2>
     <p class="index-section__sub">BV1 발견성 + BV2 예약(토스 BU2 답습) + BV3 리뷰·신고 + BV8 cross-domain. Phase 6.2 BU4 예약 정합.</p>
     <div class="index-grid">
       <a class="index-card" href="vu1-courts.html">
@@ -118,7 +174,7 @@
 
   <!-- ============ Phase 8A — 파트너 + super-admin (4) ============ -->
   <section class="index-section">
-    <h2 class="index-section__h"><span class="index-section__num">8A</span> 코트·장소 관리자 (4 시안 · E 등급 · 2 측)</h2>
+    <h2 class="index-section__h"><span class="index-section__num index-section__num--mute">v2.28</span> 코트·장소 관리자 (4 시안 · E 등급 · 2 측)</h2>
     <p class="index-section__sub">VP1~VP3 = Court Operator (파트너 · navy+silver) · VA1 = Site Operator (super-admin · dark+gold). 2 측 badge 시각 분리.</p>
     <div class="index-grid">
       <a class="index-card" href="vp1-partner-admin.html">

@@ -1,88 +1,72 @@
-# BDR v2.28 — Phase 8 (코트·장소) 박제
+# BDR v2.29 — Phase 9 (알림·메시지·검색) 박제
 
 > **박제일**: 2026-06-07
-> **선행**: Phase 1~7 완료 carry-over
-> **선행 의뢰**: `courts-venues-user-redesign-prompt` + `courts-venues-partner-admin-redesign-prompt` + `courts-venues-user-partner-admin-connectivity-plan` (2026-05-31)
-> **특수**: ★ **3 측 stakeholder** (사용자 + 파트너 Court Operator + super-admin Site Operator) · 가장 큰 묶음 (8 시안 · ~3198 LOC)
+> **선행**: Phase 1~8 완료 carry-over
+> **선행 의뢰**: `notify-message-search-user-redesign-prompt` + `notify-admin-redesign-prompt` + `notify-message-search-connectivity-plan` (2026-06-07)
+> **특수**: messages 모델 없음 (DB 0%) → 정적 더미 carry + "준비 중" / NotifCategory main bar 카운트 동기화
 
 ---
 
-## 1. Phase 8 박제 시안 = 8 (3 측)
-
-### Phase 8B — 사용자 측 (VU1~VU4 · A 등급)
+## 1. Phase 9 박제 시안 = 4 (사용자 3 + super-admin 1)
 
 | ID | 화면 | 라우트 | 분류 | 주 갭 |
 |----|------|--------|------|-------|
-| VU1 | Courts | `/courts` | 보강 | BV1 ★★★★ (발견성 검색·필터·지도·즐겨찾기·앰배서더) |
-| VU2 | CourtDetail | `/courts/[id]` | 보강 | BV3 ★★★★ (4탭·리뷰 5항목·신고·편집 모달) |
-| VU3 | CourtBooking | `/courts/[id]/booking + payment-fail + checkin` | **통합 신규** | BV2 ★★★★★ (3-step·토스 BU2 답습·체크인) |
-| VU4 | VenueDetail | `/venues/[slug]` | 보강 | BV8 (공개 SEO·안 코트 list cross-domain) |
-
-### Phase 8A — 관리자 측 (VP1~VP3 + VA1 · E 등급 · 2 측)
-
-| ID | 화면 | 라우트 | 측 | 주 갭 |
-|----|------|--------|----|-------|
-| VP1 | PartnerAdmin | `/partner-admin` | Court Operator | BV4 ★★★ (hub·매출·코트 list) |
-| VP2 | PartnerVenue | `/partner-admin/venue` | Court Operator | BV5 ★★★ (4 sub-tab·OO2 답습) |
-| VP3 | PartnerCampaigns | `/partner-admin/campaigns + /[id]` | Court Operator | BV6 ★★★ (캠페인 통합·모달) |
-| VA1 | AdminCourtsPartners | `/admin/courts + /admin/partners` | Site Operator | BV7 ★★ (4탭·코트·파트너·신고·편집) |
+| NU1 | Notifications | `/notifications` | 보강 | BN1 ★★★★ (카테고리 chip + 카운트 동기화) |
+| NU2 | Messages | `/messages` | 보강 carry | BN2 ★★★ (3컬럼 · DB 미지원 "준비 중") |
+| NU3 | Search | `/search` | 보강 carry | BN3 ★★★ (cross-domain Phase 1~8) |
+| NA1 | AdminNotifications | `/admin/notifications` | **신규** | BN4 ★★ (발송 form + 모달 · Site Operator) |
 
 ---
 
-## 2. BV 양측·cross-domain 의존 검증 ✅
+## 2. BN 양측·cross-domain 의존 검증 ✅
 
-| BV | 등급 | 의존 | 데이터 |
+| BN | 등급 | 의존 | 데이터 |
 |----|------|------|--------|
-| BV1 | ★★★★ | VU1 발견성 | user_favorite_courts + court_ambassadors |
-| BV2 | ★★★★★ | VU3 예약 | Phase 6.2 BU2 토스 위젯 + court_bookings + court_checkins |
-| BV3 | ★★★★ | VU2 리뷰·신고 | court_reviews(v3) + court_reports + court_edit_suggestions |
-| BV4 | ★★★ | VP1 hub | court_bookings 매출 cross-domain |
-| BV5 | ★★★ | VP2 venue | court_infos + 운영시간·가격·정책 |
-| BV6 | ★★★ | VP3 캠페인 | partners + campaigns |
-| BV7 | ★★ | VA1 검수 | court_reports + court_edit_suggestions (OA1 + PA1 답습) |
-| BV8 | ★★★ | cross-domain | Phase 1 venue / Phase 2 court_id / Phase 5 랭킹 / Phase 6.2 BU4 예약 |
+| BN1 | ★★★★ | NU1 카테고리 | NotifCategory enum + main bar 카운트 (전 Phase) |
+| BN2 | ★★★ | NU2 carry | (단독 · DB 미지원 정적 더미) |
+| BN3 | ★★★ | NU3 검색 | Phase 1~8 결과 진입 link (game/tournament/team/court/user/community) |
+| BN4 | ★★ | NA1 발송 → NU1 수신 | notifications.* (target 분리) |
 
 ---
 
 ## 3. carry-over (변경 ❌)
 
-### 파일 — v2.27 그대로
-- `tokens.css` / `shell.css` / `shared.jsx` / `game·team·org·comm·profile·billing·growth·auth-shared.*` (OperatorBadge / SeriesOperatorBadge / oa1-* / ca1-tabs / bl-modal·widget / StepIndicator / GrowthSpark) / `admin.css`
-- Phase 1~7 = 모든 wrapper + jsx + _baseline carry-over (운영 코드 변경 0)
+### 파일 — v2.28 그대로
+- `tokens.css` / `shell.css` / `shared.jsx` / `team·org·comm·profile·billing·growth·auth·court-shared.*` (OperatorBadge / oa1-* / pm-chip / gw-soon·gw-ph / bl-modal / cv-xlink) / `admin.css`
+- Phase 1~8 = 모든 wrapper + jsx + _baseline carry-over (운영 코드 변경 0)
 
 ### 신규 추가
-- `court-shared.jsx` — Phase 8 mock (COURTS / COURT_RATING_5 / COURT_REVIEWS / BOOKING_SLOTS / PARTNER / PARTNER_COURTS / CAMPAIGNS / VENUE_HOURS·PRICE / ADMIN_COURTS / ADMIN_PARTNERS / COURT_REPORTS / COURT_EDITS) + mini components (StarRating / FavButton / AmbassadorBadge / CvStatusBadge / **CourtOperatorBadge** / CourtCard / courtFee)
-- `court-shared.css` — Phase 8 전용 (.cv-* : stars / fav / amb / stat / court-operator-badge / toolbar / card / hero / tabbar / rate5 / review / slots / xlink / booking / qr / partner-hero / pcourt / vtabs / cmp / atable)
-- `screens/Courts.jsx` (VU1) / `CourtDetail.jsx` (VU2) / `CourtBooking.jsx` (VU3) / `VenueDetail.jsx` (VU4) / `PartnerAdmin.jsx` (VP1) / `PartnerVenue.jsx` (VP2) / `PartnerCampaigns.jsx` (VP3) / `AdminCourtsPartners.jsx` (VA1)
-- 8 wrapper HTML (vu1~vu4 / vp1~vp3 / va1)
+- `notify-shared.jsx` — Phase 9 mock (NOTIF_CATS / NOTIFICATIONS / MSG_THREADS·CONVO / SEARCH_CATS·RESULTS·RECENT·SUGGEST / NA1_TARGETS·HISTORY·STATS) + mini components (NotifIcon / CatBadge / MsgAvatar)
+- `notify-shared.css` — Phase 9 전용 (.nt-* : ico / catbadge / chiprow·chip / card / msg-shell·thread·convo·bubble·rail / searchbar / result / na-grid·target·preview·hist)
+- `screens/Notifications.jsx` (NU1) / `Messages.jsx` (NU2) / `Search.jsx` (NU3) / `AdminNotifications.jsx` (NA1)
+- 4 wrapper HTML (nu1~nu3 / na1)
 
 ---
 
-## 4. 자체 검수 — 13 룰 + Phase 8 특수 4 통과 ✅
+## 4. 자체 검수 — 13 룰 + Phase 9 특수 3 통과 ✅
 
 ### 13 룰
-- ✅ 하드코딩 색상 = 토큰만 (예외: 별점 #F5A623 = 평점 표준색 / Court Operator navy gradient = Series Operator 답습 / 앰배서더 gold = trophy 토큰)
-- ✅ lucide-react = 0 · Material Symbols Outlined 만 · 9999px = 0 (원형 50%)
+- ✅ 하드코딩 색상 = 토큰만 (예외: 카테고리 gold #FBF0D6/#B47A11 = trophy 토큰 / 메시지 스레드 아바타 색 = 정적 더미 carry 운영 박제값)
+- ✅ lucide-react = 0 · Material Symbols Outlined 만
+- ✅ 9999px = 알림 카테고리 chip + 메시지 unread 점 + 검색 recent chip 한정 (main-bar dot 스타일 · 버튼/카드 아님 — 룰 12는 button/card 4px 대상)
 - ✅ 가짜링크 = 0 · button 4px / 카드 8px · placeholder 5단어 이내
-- ✅ iOS input 16px (.cv-search input) / 버튼 44px / 720px 분기 (3 측 grid 모두)
+- ✅ iOS input 16px (.nt-searchbar / .nt-msg-search / .pm-input) / 버튼 44px / 720px 분기
 - ✅ Pretendard + Archivo + JetBrains Mono 만
-- ✅ AppNav frozen — 사용자 시안(VU1~4) active="court" · 파트너·super-admin은 자체 영역(AppNav 외)
+- ✅ AppNav frozen — 사용자 시안(NU1~3) active="more" (알림/검색은 더보기 그룹) · NA1 standalone
 
-### Phase 8 특수 4
-- ✅ **VU3 3-step wizard = Phase 6.2 BU2 답습 시각 일관** (bl-widget / bl-pm / StepIndicator 재사용 · 토스 mock 0)
-- ✅ **즐겨찾기/앰배서더 badge 시각 분리** (.cv-fav 빨강 fill / .cv-amb gold)
-- ✅ **5항목 평균 = v3 carry / 시각 통일** (.cv-rate5 시설/접근성/관리/혼잡도/만족)
-- ✅ **cross-domain link Phase 1/2/5/6.2 정합** (.cv-xlink — 대회/경기/랭킹/예약)
-- ✅ **3 측 badge 시각 분리** — Court Operator(navy+silver) vs Site Operator(dark+gold) vs 사용자(badge 없음)
+### Phase 9 특수 3
+- ✅ **NU1 main bar 카운트 동기화** — 상단 알림 아이콘 빨간 점 카운트 = unread 합계 (안내 + 카테고리별 chip count)
+- ✅ **NU2 "준비 중" warn-soft tone** — gw-ph / gw-soon 재사용 (Phase 6.3 GU2 답습) · DB 미지원 제거 ❌
+- ✅ **NU3 카테고리 chip = Phase 1~5 cross-domain** — 경기/대회/팀/코트/유저/커뮤니티 결과 → 각 Phase list 진입
 
 ---
 
 ## 5. 회귀 방지 ✅
-- ❌ Phase 1~7 시안 변경 = 0 · 새 라우트 = 0
-- ✅ VA1 모달 = Phase 2 UD1 답습 (알림 ✅ 기본 체크)
-- ✅ Phase 6.2 court_bookings = VU3 예약 + VP1 매출 + BU4 ProfileBookings 동일 source
+- ❌ Phase 1~8 시안 변경 = 0 · 새 라우트 = 0 · messages 모델 신설 = 0
+- ✅ NA1 모달 = Phase 2 UD1 답습 (발송 confirm "X명에게 발송" · 활동 로그 기록)
+- ✅ NotifCategory = NU1 표시 + NA1 발송 동일 enum (tournament/game/team/community/system)
 
 ---
 
-**박제 끝.** v2.27 carry-over 위 신규 8 시안 + court-shared.jsx/css 추가. 운영 코드 변경 0.
-가정: 지도 = 카카오맵 placeholder(운영 실연결) · 캠페인/예약 통계 = mock · 토스 위젯 시각 박제(mock 0).
+**박제 끝.** v2.28 carry-over 위 신규 4 시안 + notify-shared.jsx/css 추가. 운영 코드 변경 0.
+가정: messages = DB 0% 정적 더미 carry + "준비 중"(운영 지침 — 제거 금지) · 검색 결과 = mock · main bar 카운트 = 안내 텍스트(실 연동은 운영 시점).

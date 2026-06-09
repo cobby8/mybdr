@@ -87,10 +87,10 @@ export function GroupStandings({
       {/* 섹션 헤더 */}
       <div className="mb-6 flex items-center gap-2">
         <h3 className="text-xl font-bold flex items-center gap-2">
-          {/* 빨간 세로 막대 */}
+          {/* 세로 막대 — cafe-blue 강조색 통일 (구 빨강 --color-primary) */}
           <span
             className="w-1.5 h-6 rounded-sm"
-            style={{ backgroundColor: "var(--color-primary)" }}
+            style={{ backgroundColor: "var(--cafe-blue)" }}
           />
           조별리그 순위표 (Group Stage)
         </h3>
@@ -135,7 +135,7 @@ export function GroupStandings({
                       <th className="px-2 py-4 text-center sm:px-6">경기</th>
                       <th
                         className="px-2 py-4 text-center sm:px-6"
-                        style={{ color: "var(--color-primary)" }}
+                        style={{ color: "var(--cafe-blue)" }}
                       >
                         승
                       </th>
@@ -145,7 +145,7 @@ export function GroupStandings({
                       {showWinPoints && (
                         <th
                           className="px-2 py-4 text-center sm:px-6"
-                          style={{ color: "var(--color-primary)" }}
+                          style={{ color: "var(--cafe-blue)" }}
                           title="승점 (강남구협회장배 규정)"
                         >
                           승점
@@ -246,7 +246,7 @@ export function GroupStandings({
                           {showWinPoints && (
                             <td
                               className="px-2 py-4 text-center font-bold sm:px-6"
-                              style={{ color: "var(--color-primary)" }}
+                              style={{ color: "var(--cafe-blue)" }}
                             >
                               {team.winPoints ?? 0}
                             </td>

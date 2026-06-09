@@ -2,6 +2,23 @@
 <!-- 담당: planner-architect, developer | 최대 30항목 -->
 <!-- 프로젝트의 폴더 구조, 파일 역할, 핵심 패턴을 기록 -->
 
+### [2026-06-10] 대회 상세 페이지 컴포넌트 맵 — 진행중 뷰 vs 종료 뷰 + 강조색 2체계
+- **분류**: architecture (tournaments/[id]/page.tsx 구조 + 토큰 체계)
+- **발견자**: planner-architect (대회상세 재구성 박제 분석 중)
+- **내용**:
+  - **page.tsx(923줄) = 단일 라우트 2분기**: ① `status==='completed'`(L287~449) = UB1 종료 뷰(tc-page / TournamentCompletedHero + 5카드 grid) ② 그 외 = 진행중 뷰(L712~) = breadcrumb + V2TournamentHero + SeriesCard + TournamentTabs + aside(MyRegistrationStatus/OperatorPreview/V2RegistrationSidebar/V2BracketPrediction). **신규 라우트 0 — 한 파일 분기.**
+  - **진행중 뷰 컴포넌트 ↔ 데이터 source** (전부 실데이터 와이어 완료, mock 0):
+    - Hero = `v2-tournament-hero.tsx` (Prisma 직결, accent=primary_color 폴백 #E31B23)
+    - 탭 = `tournament-tabs.tsx` (overview/규정=SSR / schedule·bracket·teams=SWR lazy). overview엔 `bracket/_components/tournament-dashboard-header`
+    - schedule 탭 = `schedule-timeline.tsx` (public-schedule API / 팀·날짜·종별·체육관 4필터 / LIVE뱃지 / TeamLink) — **시안 매치카드보다 운영이 풍부**
+    - bracket 탭 = `tournament-tabs→V2BracketWrapper` (public-bracket). 내부 = `v2-bracket-status-bar`(stat 5칸) + `[id]/bracket/_components/group-standings`(조별 A/B 순위표) / `league-standings` / `BracketView`(SVG) / `DivisionsView`(강남구 다종별) / `V2DualBracketView`(dual)
+    - teams 탭 = `TeamsTabContent` → `teams/_components/team-card-v2`(공유 — 변경 시 /teams 회귀)
+    - 사이드바 = `tournament-operator-preview`(isInsider) + `v2-registration-sidebar`(6상태 CTA) + `v2-bracket-prediction`(투표 준비중 disabled)
+  - **강조색 2체계 공존** (globals.css): ⓐ `--color-*`(스케일 토큰 — tabs/schedule/status-bar/prediction/group-standings 사용) ⓑ `--cafe-blue`(#0F5FCC라이트/#3B82F6다크)·`--accent`(=`--bdr-red`빨강)·`--bdr-red`(hero/sidebar 사용). btn--primary=cafe-blue(L283). **시안 강조색 #0F5FCC = `--cafe-blue` 토큰 이미 존재.** `--color-primary`/`--accent`=빨강.
+  - **빨강 의미색(치환 ❌)**: 승자 점수 `--bdr-red` / LIVE `--color-status-live` / 진행중 stat `--color-error`.
+  - **public API 3종**: `/api/web/tournaments/[id]/public-schedule|public-bracket|public-teams` — apiSuccess snake_case → fetcher convertKeysToCamelCase.
+- **참조횟수**: 0
+
 ### [2026-05-15] 마법사 통합 wizard 인프라 — Phase 1 lib + Phase 5 API (시안 무관 영역)
 - **분류**: architecture (대회 관리자 통합 마법사 / 단체→시리즈→대회→회차)
 - **발견자**: developer

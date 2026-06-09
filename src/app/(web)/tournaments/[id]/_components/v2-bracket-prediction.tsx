@@ -63,7 +63,7 @@ export function V2BracketPrediction({ predictions = [] }: V2BracketPredictionPro
                   className="h-full rounded-full"
                   style={{
                     width: `${Math.min(p.pct, 100)}%`,
-                    backgroundColor: p.color ?? "var(--color-primary)",
+                    backgroundColor: p.color ?? "var(--cafe-blue)",
                   }}
                 />
               </div>

@@ -168,6 +168,18 @@
 
 ---
 
+### Phase 9 — 알림·메시지·검색 영역
+
+| 단계 | 영역 | 상태 | 책임자 | 갱신일 | 메모 |
+|------|------|------|------|------|------|
+| ⑩ sync 실행 | 9A+9B | ✅ 완료 | CLI | 2026-06-10 | v2.29 incremental sync. `notify-shared.jsx/css` 신규(148+181). Notifications/Messages/Search/AdminNotifications 4 jsx. Phase 1~8 carry-over diff 0 / pre-snapshot `_archive/BDR-current-2026-06-10-pre-v2.29/`. messages DB 0% = 정적 더미 "준비 중" carry. 회귀 17 케이스 통과 (shared.jsx 9→10 notify 추가 / 의뢰서 §3 "11"은 v2.28 기준 착오) |
+| ⑪ 운영 박제 (9C) | 9C | ⏸ 보류 | CLI | - | PR 4 예상 (NU1 Notifications + NU2 Messages carry + NU3 Search + NA1 AdminNotifications). Cowork batch 의뢰서 후속 |
+| ⑫ 회귀 검수 | 9C | ⏸ 보류 | | | |
+| ⑬ PR 결재 | 9C | ⏸ 보류 | 수빈 | | |
+| ⑭ Phase 완료 | 9 | ⏸ 보류 | | | |
+
+---
+
 ## 완료 Phase (이력)
 
 > Phase 단위 완료 시 본 섹션으로 이동.
@@ -230,3 +242,4 @@ Phase 번호 ↑    영역 ↑
 | 2026-05-29 | **Auto Chain 전체 완료 (25 PR)** — Phase 2C ⑪⑫ ✅ (10 PR) / Phase 3C ⑪ ✅ (6 PR) / Phase 4C ⑪ ✅ (8 PR) + v2.22 sync(dee2445) | CLI auto-chain 1 session 완수 / subin push 완료 / subin→dev→main 머지 수빈 수동 대기 |
 | 2026-05-29 | **Phase 2/3/4 운영 반영 완료** — subin→dev `#654` → dev→main `#655` (운영 `6f22c02`) | 25 PR 일괄 머지 / Vercel 운영 배포 / Phase 2 ⑬⑭ ✅ 종료 / Phase 3·4 동일 머지로 운영 반영 |
 | 2026-05-30 | **Phase 5 신규 + v2.23 sync ⑩ ✅** — 랭킹·커뮤니티 영역. `comm-shared` 신규 / 6 jsx / carry-over diff 0 | Auto Chain Phase 5C 6 PR 박제 시작 |
+| 2026-06-10 | **Phase 9 v2.29 sync ⑩ ✅** — 알림·메시지·검색 4 시안 / `notify-shared` 신규(148+181) / shared.jsx 9→10 / carry-over diff 0 / 회귀 17 케이스 통과 | Phase 9 박제 zip 도착 (incremental) |

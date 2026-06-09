@@ -1,0 +1,197 @@
+/* ============================================================
+   BDR v2.27 — auth-shared.css
+   Phase 7 (온보딩·회원가입·인증) 전용. AU1~AU4 · 사용자 측만.
+   AppNav 미적용 standalone (첫 진입 / conversion funnel).
+   토큰만 · 라운딩 4/8px · iOS input 16px · 버튼 44px. au-* 네임스페이스.
+   재사용: .pm-chip (profile-shared) · .gw-soon / .gw-ph (growth-shared).
+   ============================================================ */
+
+/* ---------- Page shell (centered) ---------- */
+.au-page { background: var(--bg); min-height: 640px; padding: 44px 20px 64px; display: flex; flex-direction: column; align-items: center; }
+.au-wrap { width: 100%; max-width: 460px; }
+.au-wrap--wide { max-width: 600px; }
+
+/* brand */
+.au-brand { text-align: center; margin-bottom: 24px; }
+.au-brand__logo { font-family: var(--ff-display); font-size: 34px; font-weight: 900; letter-spacing: -0.03em; color: var(--ink); }
+.au-brand__logo .dot { color: var(--accent); }
+.au-brand__slogan { font-size: 13px; color: var(--ink-mute); margin-top: 6px; }
+
+/* card */
+.au-card { background: var(--bg-elev); border: 1px solid var(--border); border-radius: var(--r-lg); box-shadow: var(--sh-sm); overflow: hidden; }
+.au-card__body { padding: 24px 24px 28px; }
+
+/* tabs (로그인 / 회원가입) */
+.au-tabs { display: flex; border-bottom: 1px solid var(--border); }
+.au-tab { flex: 1; padding: 15px 0; background: var(--bg-alt); border: 0; border-bottom: 3px solid transparent; font-size: 14px; font-weight: 600; color: var(--ink-mute); cursor: pointer; }
+.au-tab.is-on { background: var(--bg-elev); color: var(--ink); font-weight: 800; border-bottom-color: var(--cafe-blue); }
+
+/* fields */
+.au-field { margin-bottom: 14px; }
+.au-field:last-child { margin-bottom: 0; }
+.au-label { display: block; font-size: 12.5px; font-weight: 800; color: var(--ink-soft); margin-bottom: 6px; }
+.au-input, .au-select {
+  width: 100%; padding: 11px 13px; font-size: 16px; font-family: var(--ff-body);
+  background: var(--bg-alt); border: 1px solid var(--border-strong); border-radius: var(--r-sm);
+  color: var(--ink); min-height: 44px;
+}
+.au-input:focus, .au-select:focus { outline: none; border-color: var(--cafe-blue); background: var(--bg-elev); }
+.au-input::placeholder { color: var(--ink-dim); }
+.au-input-wrap { position: relative; }
+.au-input-wrap .au-eye { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: 0; cursor: pointer; color: var(--ink-dim); display: flex; padding: 4px; }
+.au-input-wrap .au-eye .ico { font-family: 'Material Symbols Outlined'; font-size: 19px; }
+.au-hint { font-size: 11px; color: var(--ink-dim); margin-top: 5px; }
+
+/* primary submit */
+.au-btn { display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; min-height: 48px; font-size: 15px; font-weight: 800; border-radius: var(--r-sm); cursor: pointer; border: 1px solid var(--cafe-blue-deep); background: var(--cafe-blue); color: #fff; text-decoration: none; }
+.au-btn:hover { background: var(--cafe-blue-deep); }
+.au-btn--accent { background: var(--accent); border-color: var(--accent-deep); }
+.au-btn--accent:hover { background: var(--accent-deep); }
+.au-btn--ghost { background: var(--bg-elev); color: var(--ink-soft); border-color: var(--border-strong); }
+.au-btn--ghost:hover { background: var(--bg-alt); }
+.au-btn:disabled { background: var(--border-strong); border-color: var(--border-strong); color: var(--bg-elev); cursor: not-allowed; }
+.au-btn .ico { font-family: 'Material Symbols Outlined'; font-size: 19px; }
+
+/* row of buttons */
+.au-btn-row { display: flex; gap: 8px; }
+.au-btn-row .au-btn { flex: 1; }
+
+/* meta row (자동 로그인 / 비번 찾기) */
+.au-meta { display: flex; justify-content: space-between; align-items: center; font-size: 12.5px; margin: 14px 0 18px; }
+.au-meta label { display: inline-flex; align-items: center; gap: 6px; color: var(--ink-soft); cursor: pointer; }
+.au-meta label input { width: 16px; height: 16px; accent-color: var(--cafe-blue); }
+.au-meta a { color: var(--cafe-blue-deep); text-decoration: none; font-weight: 600; background: none; border: 0; cursor: pointer; font-size: 12.5px; }
+.au-meta a:hover { text-decoration: underline; }
+
+/* divider */
+.au-divider { display: flex; align-items: center; gap: 10px; margin: 18px 0; color: var(--ink-dim); font-size: 12px; }
+.au-divider::before, .au-divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+/* OAuth */
+.au-oauth { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.au-oauth--row { grid-template-columns: repeat(4, 1fr); }
+.au-oa { display: flex; align-items: center; justify-content: center; gap: 7px; min-height: 46px; border-radius: var(--r-sm); border: 1px solid var(--border-strong); background: var(--bg-elev); font-size: 13.5px; font-weight: 700; color: var(--ink); cursor: pointer; text-decoration: none; }
+.au-oa__ico { width: 18px; height: 18px; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-family: var(--ff-display); font-weight: 900; font-size: 12px; flex-shrink: 0; }
+.au-oa--kakao { background: #FEE500; border-color: #FEE500; color: #191600; }
+.au-oa--naver { background: #03C75A; border-color: #03C75A; color: #fff; }
+.au-oa--google { background: var(--bg-elev); color: var(--ink); }
+.au-oa--apple { background: #111; border-color: #111; color: #fff; }
+.au-oauth--row .au-oa { flex-direction: column; gap: 5px; min-height: 64px; font-size: 11.5px; }
+
+/* terms checkbox */
+.au-terms { display: flex; align-items: flex-start; gap: 9px; font-size: 13px; color: var(--ink-soft); margin: 4px 0; cursor: pointer; }
+.au-terms input { width: 17px; height: 17px; margin-top: 1px; accent-color: var(--cafe-blue); flex-shrink: 0; }
+.au-terms a { color: var(--cafe-blue-deep); text-decoration: underline; }
+
+/* inline notice */
+.au-notice { padding: 10px 13px; border-radius: var(--r-sm); font-size: 13px; margin-bottom: 14px; }
+.au-notice--ok { background: var(--ok-soft); color: var(--ok); }
+.au-notice--err { background: var(--accent-soft); color: var(--err); }
+.au-notice--info { background: var(--cafe-blue-soft); color: var(--cafe-blue-deep); }
+
+/* foot link */
+.au-foot { text-align: center; margin-top: 18px; font-size: 13px; color: var(--ink-mute); }
+.au-foot a, .au-foot button { color: var(--cafe-blue-deep); font-weight: 700; text-decoration: none; background: none; border: 0; cursor: pointer; font-size: 13px; }
+.au-foot a:hover { text-decoration: underline; }
+.au-back { display: inline-flex; align-items: center; gap: 4px; margin-top: 14px; font-size: 12.5px; color: var(--ink-dim); background: none; border: 0; cursor: pointer; text-decoration: none; }
+
+/* ---------- Stepper (AU2 5-step / AU3 4-step) ---------- */
+.au-stepper { display: flex; margin-bottom: 24px; }
+.au-sstep { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 7px; position: relative; }
+.au-sstep::before { content: ''; position: absolute; top: 15px; left: -50%; width: 100%; height: 2px; background: var(--border); z-index: 0; }
+.au-sstep:first-child::before { display: none; }
+.au-sstep[data-s="done"]::before, .au-sstep[data-s="on"]::before { background: var(--accent); }
+.au-sstep__dot { position: relative; z-index: 1; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: var(--ff-mono); font-size: 12.5px; font-weight: 800; background: var(--bg-elev); border: 2px solid var(--border); color: var(--ink-dim); }
+.au-sstep__dot .ico { font-family: 'Material Symbols Outlined'; font-size: 17px; }
+.au-sstep[data-s="on"] .au-sstep__dot { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+.au-sstep[data-s="done"] .au-sstep__dot { border-color: var(--accent); background: var(--accent); color: #fff; }
+.au-sstep__lbl { font-size: 10.5px; font-weight: 700; color: var(--ink-mute); text-align: center; }
+.au-sstep[data-s="on"] .au-sstep__lbl, .au-sstep[data-s="done"] .au-sstep__lbl { color: var(--ink); }
+
+/* onboarding step content */
+.au-step-head { text-align: center; margin-bottom: 20px; }
+.au-step-eyebrow { font-family: var(--ff-mono); font-size: 11px; font-weight: 800; letter-spacing: 0.1em; color: var(--accent); }
+.au-step-title { font-family: var(--ff-display); font-size: 22px; font-weight: 900; letter-spacing: -0.02em; color: var(--ink); margin: 8px 0 6px; }
+.au-step-desc { font-size: 13.5px; color: var(--ink-mute); line-height: 1.6; }
+
+.au-group { margin-bottom: 18px; }
+.au-group__lbl { font-size: 12.5px; font-weight: 800; color: var(--ink-soft); margin-bottom: 9px; display: flex; align-items: center; gap: 6px; }
+.au-group__lbl .ico { font-family: 'Material Symbols Outlined'; font-size: 16px; color: var(--cafe-blue); }
+.au-chips { display: flex; gap: 7px; flex-wrap: wrap; }
+
+/* wizard nav */
+.au-wnav { display: flex; gap: 8px; margin-top: 22px; }
+.au-wnav .au-btn { flex: 1; }
+.au-wnav__skip { text-align: center; margin-top: 12px; }
+.au-wnav__skip button { background: none; border: 0; color: var(--ink-mute); font-size: 12.5px; cursor: pointer; text-decoration: underline; }
+
+/* ---------- Password strength meter (AU3 reset) ---------- */
+.au-strength { margin-top: 8px; }
+.au-strength__bars { display: flex; gap: 4px; }
+.au-strength__bar { flex: 1; height: 5px; border-radius: 2px; background: var(--bg-head); }
+.au-strength__bar.is-fill { }
+.au-strength__lbl { font-family: var(--ff-mono); font-size: 10.5px; font-weight: 800; margin-top: 5px; text-align: right; }
+.au-strength[data-s="0"] .au-strength__bar.is-fill, .au-strength[data-s="1"] .au-strength__bar.is-fill { background: var(--err); }
+.au-strength[data-s="0"] .au-strength__lbl, .au-strength[data-s="1"] .au-strength__lbl { color: var(--err); }
+.au-strength[data-s="2"] .au-strength__bar.is-fill { background: var(--warn); }
+.au-strength[data-s="2"] .au-strength__lbl { color: #8B5A0F; }
+.au-strength[data-s="3"] .au-strength__bar.is-fill, .au-strength[data-s="4"] .au-strength__bar.is-fill { background: var(--ok); }
+.au-strength[data-s="3"] .au-strength__lbl, .au-strength[data-s="4"] .au-strength__lbl { color: var(--ok); }
+.au-reqs { background: var(--bg-alt); border-radius: var(--r-sm); padding: 11px 13px; font-size: 11.5px; color: var(--ink-mute); line-height: 1.7; margin-top: 12px; }
+.au-reqs b { color: var(--ink-soft); }
+
+/* ---------- Result hero (AU1 사후 / AU3 / AU4) ---------- */
+.au-result { text-align: center; padding: 8px 4px; }
+.au-result__icon { width: 68px; height: 68px; border-radius: 50%; margin: 0 auto 16px; display: grid; place-items: center; }
+.au-result__icon .ico { font-family: 'Material Symbols Outlined'; font-size: 38px; }
+.au-result--ok .au-result__icon { background: var(--ok); color: #fff; }
+.au-result--mail .au-result__icon { background: var(--cafe-blue-soft); color: var(--cafe-blue-deep); }
+.au-result--warn .au-result__icon { background: var(--warn-soft); color: #8B5A0F; }
+.au-result__title { font-family: var(--ff-display); font-size: 21px; font-weight: 900; letter-spacing: -0.015em; color: var(--ink); margin: 0 0 8px; }
+.au-result__desc { font-size: 13.5px; color: var(--ink-mute); line-height: 1.7; margin: 0 auto 20px; max-width: 38ch; }
+
+/* verified result card (AU4) */
+.au-verified { border: 1px solid var(--ok-hair); border-radius: var(--r-md); overflow: hidden; margin-bottom: 18px; }
+.au-verified__bar { display: flex; align-items: center; gap: 8px; padding: 11px 16px; background: var(--ok-soft); border-bottom: 1px solid var(--ok-hair); }
+.au-verified__bar .ico { font-family: 'Material Symbols Outlined'; font-size: 18px; color: var(--ok); }
+.au-verified__bar-t { font-size: 13px; font-weight: 800; color: var(--ok); }
+.au-verified__rows { padding: 4px 16px; }
+.au-vrow { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+.au-vrow:last-child { border-bottom: 0; }
+.au-vrow__l { color: var(--ink-mute); }
+.au-vrow__v { color: var(--ink); font-weight: 700; }
+
+/* countdown */
+.au-countdown { display: inline-flex; align-items: center; gap: 5px; font-family: var(--ff-mono); font-size: 12.5px; font-weight: 800; color: var(--accent); }
+.au-countdown .ico { font-family: 'Material Symbols Outlined'; font-size: 15px; }
+
+/* code input */
+.au-code { letter-spacing: 0.4em; text-align: center; font-family: var(--ff-mono); font-size: 20px !important; font-weight: 800; }
+
+/* identity verify button (AU2 step3 · cross-domain PU2/GU3) */
+.au-idv { display: flex; align-items: center; gap: 12px; padding: 16px 18px; border: 1px solid var(--border); border-radius: var(--r-md); background: var(--bg-alt); }
+.au-idv__ico { width: 42px; height: 42px; border-radius: 50%; background: var(--cafe-blue-soft); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.au-idv__ico .ico { font-family: 'Material Symbols Outlined'; font-size: 22px; color: var(--cafe-blue-deep); }
+.au-idv__body { flex: 1; min-width: 0; }
+.au-idv__t { font-size: 13.5px; font-weight: 800; color: var(--ink); }
+.au-idv__d { font-size: 12px; color: var(--ink-mute); margin-top: 2px; }
+.au-idv.is-verified { border-color: var(--ok-hair); background: var(--ok-soft); }
+.au-idv.is-verified .au-idv__ico { background: var(--ok); }
+.au-idv.is-verified .au-idv__ico .ico { color: #fff; }
+
+/* summary (AU2 step5) */
+.au-summary { border: 1px solid var(--border); border-radius: var(--r-md); overflow: hidden; }
+.au-summary__row { display: flex; justify-content: space-between; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--border); font-size: 13px; }
+.au-summary__row:last-child { border-bottom: 0; }
+.au-summary__l { color: var(--ink-mute); flex-shrink: 0; }
+.au-summary__v { color: var(--ink); font-weight: 700; text-align: right; }
+
+/* demo toggle (시안 전용) */
+.au-demo { display: inline-flex; border: 1px solid var(--border); border-radius: var(--r-sm); overflow: hidden; margin: 0 auto 18px; }
+.au-demo button { padding: 7px 16px; font-size: 12.5px; font-weight: 700; background: var(--bg-elev); border: 0; cursor: pointer; color: var(--ink-mute); }
+.au-demo button.is-on { background: var(--ink); color: #fff; }
+
+@media (max-width: 720px) {
+  .au-oauth--row { grid-template-columns: 1fr 1fr; }
+}
+.vp--mobile .au-oauth--row { grid-template-columns: 1fr 1fr; }

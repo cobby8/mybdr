@@ -118,13 +118,15 @@ export function V2TournamentHero({
       className="v2-tournament-hero"
       data-has-poster={hasPoster ? "true" : "false"}
       style={{
-        background: `linear-gradient(135deg, ${accent}, ${accent}AA 50%, #0B0D10)`,
+        // 2026-06-10 td-redesign compact 톤: 그라데이션 각도 155deg(시안 td-hero__poster 일치)
+        //  + padding/marginBottom 미세 축소 (밀도 compact). primary_color 폴백·props·데이터 와이어 0 변경.
+        background: `linear-gradient(155deg, ${accent}, ${accent}AA 50%, #0B0D10)`,
         color: "#fff",
-        padding: "clamp(20px, 4vw, 28px) clamp(18px, 4vw, 28px)",
+        padding: "clamp(18px, 3.5vw, 24px) clamp(16px, 3.5vw, 26px)",
         borderRadius: "var(--radius-card, 12px)",
         position: "relative",
         overflow: "hidden",
-        marginBottom: 10,
+        marginBottom: 8,
         display: "grid",
         gridTemplateColumns: hasPoster ? "200px 1fr" : "1fr",
         gap: hasPoster ? 24 : 0,
