@@ -37,8 +37,14 @@ import { TournamentFinalStandingsCard } from "./_components/tournament-final-sta
 import { TournamentMvpBest5Card } from "./_components/tournament-mvp-best5-card";
 import { TournamentGalleryCard } from "./_components/tournament-gallery-card";
 import { TournamentStoryCard } from "./_components/tournament-story-card";
-import { TournamentNextEditionCard } from "./_components/tournament-next-edition-card";
+// 다음 회차 = B안에서 하단 전폭 네이비 배너로 전환 (TournamentNextEditionCard 카드 미사용)
 import "./_components/tournament-completed.css";
+
+// B안 (대회 종료 재구성 v2-11) — 스탯 리더 / 대회 기사 / 운영자 바 (0 스키마 / mock 0)
+import { getStatLeaders } from "@/lib/tournaments/stat-leaders";
+import { TournamentStatLeadersCard } from "./_components/tournament-stat-leaders-card";
+import { TournamentNewsCard, type NewsArticle } from "./_components/tournament-news-card";
+import { TournamentCompletedOperatorBar } from "./_components/tournament-completed-operator-bar";
 
 // 비공개 대회 가드 — 관계자(organizer/admin member/super_admin)만 접근
 import { getWebSession } from "@/lib/auth/web-session";
@@ -317,6 +323,66 @@ export default async function TournamentDetailPage({
         teamLogoUrl: t.team.logoUrl ?? null,
       }));
 
+    // ========================================
+    // B안 — 03 스탯 리더 + 04 대회 기사 (0 스키마 / 읽기 전용 신규 서버 쿼리)
+    // ========================================
+    // 03 스탯 리더 = match_player_stats 4부문 TOP3 집계 (데이터 0 → null → 카드 hide)
+    const statLeaders = await getStatLeaders(id);
+
+    // 04 대회 기사 = 본 대회 알기자 글 (category='news' + tournament_id + period_type) 최신순
+    //   mock(C_ARTICLES) 박제 ❌ — 실제 community_posts 와이어. 0건 → 카드 hide.
+    const newsRaw = await prisma.community_posts.findMany({
+      where: {
+        category: "news",
+        tournament_id: id,
+        period_type: { in: ["match", "round", "daily"] },
+        status: "published",
+      },
+      orderBy: { created_at: "desc" },
+      take: 8, // 최신 8건 (시안 목록 분량)
+      select: {
+        public_id: true,
+        title: true,
+        content: true,
+        period_type: true,
+        created_at: true,
+        tournament_match_id: true,
+      },
+    });
+
+    // period_type → 한국어 태그 라벨 매핑
+    const periodTagLabel = (pt: string | null): string => {
+      if (pt === "match") return "매치 리포트";
+      if (pt === "round") return "라운드";
+      if (pt === "daily") return "일자 종합";
+      return "기사";
+    };
+    // created_at → "2026.03.15" 표기
+    const fmtNewsDate = (d: Date): string => {
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, "0");
+      const dd = String(d.getDate()).padStart(2, "0");
+      return `${y}.${m}.${dd}`;
+    };
+    const newsArticles: NewsArticle[] = newsRaw.map((p) => ({
+      publicId: p.public_id,
+      title: p.title,
+      content: p.content,
+      tag: periodTagLabel(p.period_type),
+      dateLabel: fmtNewsDate(p.created_at),
+    }));
+
+    // 대표 기사 사진 = 최신글의 매치 news_photo(is_hero) — 없으면 placeholder
+    let heroPhotoUrl: string | null = null;
+    const featureMatchId = newsRaw[0]?.tournament_match_id ?? null;
+    if (featureMatchId !== null) {
+      const heroPhoto = await prisma.news_photo.findFirst({
+        where: { match_id: featureMatchId, is_hero: true },
+        select: { url: true },
+      });
+      heroPhotoUrl = heroPhoto?.url ?? null;
+    }
+
     // -- champion (Tournament.teams relation) 매핑 --
     //    champion_team_id null = 우승팀 미지정 → Hero fallback "종료된 대회"
     //    팀 로스터 수 = TeamMember count (대회 엔트리는 운영 미저장 → 팀 전체 멤버수로 폴백)
@@ -380,6 +446,22 @@ export default async function TournamentDetailPage({
       ? `Vol.${tournament.edition_number}`
       : null;
 
+    // -- 다음 회차 네이비 배너 (B안 §5) D-day 계산 --
+    //    nextEdition.startDate 기준. 과거/오늘이면 음수/0 → 배너에서 일반 표기.
+    //    nextEdition 없으면 배너 미렌더.
+    let nextBannerDday: number | null = null;
+    if (nextEdition?.startDate) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const start = new Date(nextEdition.startDate);
+      start.setHours(0, 0, 0, 0);
+      nextBannerDday = Math.round((start.getTime() - today.getTime()) / 86400000);
+    }
+    // 배너 날짜·장소 라벨
+    const nextBannerDateLabel = nextEdition?.startDate
+      ? `${nextEdition.startDate.getFullYear()}.${String(nextEdition.startDate.getMonth() + 1).padStart(2, "0")}.${String(nextEdition.startDate.getDate()).padStart(2, "0")} 시작`
+      : "일정 미정";
+
     // -- breadcrumb 4단 또는 2단 (기존 page.tsx L519~ 동일 로직) --
     const completedBreadcrumb: BreadcrumbItem[] = series
       ? [
@@ -398,51 +480,147 @@ export default async function TournamentDetailPage({
           { label: tournament.name },
         ];
 
+    // ========================================
+    // B안 — "대회결과" 탭 콘텐츠 조립 (챔피언 hero + 결산 5카드 + 네이비 배너)
+    //   TournamentTabs 의 completedResultContent 로 주입. 진행중 뷰는 이 분기 미진입.
+    //   .tdc-result wrapper = tc-page 다크 그라데이션 reset (탭 안 흰 배경 위 배치).
+    // ========================================
+    const completedResultContent = (
+      <div className="tdc-result">
+        <div className="tc-page">
+          <div className="tc-inner">
+            {/* Hero — champion null 시 fallback "종료된 대회" */}
+            <TournamentCompletedHero
+              tournamentName={tournament.name}
+              editionLabel={editionLabel}
+              champion={champion}
+              endedAt={tournament.endDate}
+              venueName={tournament.venue_name}
+              divisions={completedDivisions}
+            />
+
+            {/* 결산 카드 grid (6컬럼) — 데이터 없는 카드는 컴포넌트 내부 자동 hide */}
+            <div className="tc-grid">
+              <TournamentFinalStandingsCard
+                standings={standings}
+                divisionLabel={divisionLabel}
+              />
+              <TournamentMvpBest5Card mvp={mvp} />
+              {/* 03 스탯 리더 (B안) — match_player_stats 집계 / null → hide */}
+              <TournamentStatLeadersCard leaders={statLeaders} />
+              {/* 04 대회 기사 (B안) — community_posts 알기자 / 0건 → hide */}
+              <TournamentNewsCard articles={newsArticles} heroPhotoUrl={heroPhotoUrl} />
+              {/* 스토리 — 운영 description 기반 (기존 UB1 보존) */}
+              <TournamentStoryCard
+                description={tournament.description}
+                tournamentName={tournament.name}
+              />
+              {/* 갤러리 — 운영 데이터 X → 빈 배열 → 자동 미렌더 */}
+              <TournamentGalleryCard photos={[]} />
+            </div>
+
+            {/* 다음 회차 — 하단 전폭 네이비 배너 (B안 §5). nextEdition 없으면 미렌더. */}
+            {nextEdition && (
+              <div className="tdc-nextbanner">
+                <div className="tdc-nextbanner__l">
+                  <span className="tdc-nextbanner__lbl">다음 회차</span>
+                  {nextBannerDday !== null && nextBannerDday >= 0 && (
+                    <span className="tdc-nextbanner__d">D-{nextBannerDday}</span>
+                  )}
+                  <div className="tdc-nextbanner__meta">
+                    <b>{nextEdition.name}</b>
+                    <span>{nextBannerDateLabel}</span>
+                  </div>
+                </div>
+                <Link href={`/tournaments/${nextEdition.id}`} className="tdc-nextbanner__cta">
+                  <span className="ico material-symbols-outlined">arrow_forward</span>
+                  다음 대회 보기
+                </Link>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+
     return (
-      <div className="tc-page">
-        <div className="tc-inner">
-          {/* breadcrumb — tc-inner 안 다크 hero 위 배치 */}
+      // .tc-completed-root = navy 로컬 토큰 스코프 (배너/세그/승자행 inset 용)
+      <div className="tdr tc-completed-root" data-density="compact">
+        <div className="tdr__wrap">
+          {/* breadcrumb */}
           <Breadcrumb items={completedBreadcrumb} />
 
-          {/* Hero — champion null 시 fallback "종료된 대회" */}
-          <TournamentCompletedHero
+          {/* 상단 status line — 종료된 대회 배지 + 대회명 + 메타 */}
+          <div className="tdc-statusline">
+            <span className="tdc-statusline__badge">
+              <span className="ico material-symbols-outlined">flag</span>
+              종료된 대회
+            </span>
+            <span className="tdc-statusline__name">
+              {tournament.name} {editionLabel && <b>{editionLabel}</b>}
+            </span>
+            <span className="tdc-statusline__meta">
+              {tournament.endDate
+                ? `${tournament.endDate.getFullYear()}.${String(tournament.endDate.getMonth() + 1).padStart(2, "0")}.${String(tournament.endDate.getDate()).padStart(2, "0")}`
+                : ""}
+              {tournament.venue_name ? ` · ${tournament.venue_name}` : ""}
+            </span>
+          </div>
+
+          {/* 운영자 컴팩트 바 — isInsider 한정 (B안 §5) */}
+          {isInsider && <TournamentCompletedOperatorBar />}
+
+          {/* pill 탭 — 대회결과/경기일정/대진표/참가팀/규정 (진행중 td-pilltabs 재사용)
+              isCompleted=true → 첫 탭 "대회결과" + bracket 탭 종료 전용(NBA+예선) 스위치.
+              schedule/teams/rules 탭은 종료에서도 동일 public-* API·동일 UI 재사용 (status 무관). */}
+          <TournamentTabs
+            tournamentId={id}
+            isCompleted
+            completedResultContent={completedResultContent}
+            overviewContent={null}
+            rulesContent={
+              tournament.rules ? (
+                <div
+                  className="rounded-md border p-6"
+                  style={{ borderColor: "var(--color-border)", backgroundColor: "var(--color-card)" }}
+                >
+                  <h2 className="mb-4 text-lg font-bold sm:text-xl">경기 규정</h2>
+                  <div
+                    className="text-sm leading-relaxed whitespace-pre-line"
+                    style={{ color: "var(--color-text-secondary)" }}
+                  >
+                    {tournament.rules}
+                  </div>
+                </div>
+              ) : (
+                <div
+                  className="rounded-md border p-8 text-center"
+                  style={{ borderColor: "var(--color-border)", backgroundColor: "var(--color-card)" }}
+                >
+                  <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>
+                    경기 규정이 공개되지 않았습니다.
+                  </p>
+                </div>
+              )
+            }
+            initialTab="overview"
             tournamentName={tournament.name}
-            editionLabel={editionLabel}
-            champion={champion}
-            endedAt={tournament.endDate}
+            editionNumber={tournament.edition_number}
+            startDate={tournament.startDate}
+            endDate={tournament.endDate}
             venueName={tournament.venue_name}
-            divisions={completedDivisions}
+            seriesEditions={
+              series && series.tournaments.length > 0
+                ? series.tournaments
+                    .filter((t): t is typeof t & { edition_number: number } => t.edition_number !== null)
+                    .map((t) => ({
+                      id: t.id,
+                      label: `Vol.${t.edition_number} 본선`,
+                      isCurrent: t.id === tournament.id,
+                    }))
+                : []
+            }
           />
-
-          {/* 5 카드 grid — 데이터 없는 카드는 컴포넌트 내부에서 자동 hide */}
-          <div className="tc-grid">
-            <TournamentFinalStandingsCard
-              standings={standings}
-              divisionLabel={divisionLabel}
-            />
-            <TournamentMvpBest5Card mvp={mvp} />
-            {/* 갤러리 — 운영 데이터 X → photos 빈 배열 → 카드 자동 미렌더 */}
-            <TournamentGalleryCard photos={[]} />
-            <TournamentStoryCard
-              description={tournament.description}
-              tournamentName={tournament.name}
-            />
-            <TournamentNextEditionCard nextEdition={nextEdition} />
-          </div>
-
-          {/* Share bar — URL 복사 / 다른 대회 보기 (운영 라우트 매핑) */}
-          <div className="tc-share">
-            <span className="tc-share__lbl">대회 결과</span>
-            <div className="tc-share__btns">
-              {/* 공유 액션은 클라이언트 사이드 share-tournament-button 재사용 가능하나
-                 본 PR 에서는 운영 라우트로 navigate (가짜링크 ❌). 시안 카카오/인스타 버튼은
-                 향후 클라이언트 share API 연결 시 자연 흡수 — 의뢰서 §3 제약 (mock ❌) */}
-              <Link href="/tournaments" className="btn">
-                <span className="ico material-symbols-outlined">emoji_events</span>
-                다른 대회 둘러보기
-              </Link>
-            </div>
-          </div>
         </div>
       </div>
     );
