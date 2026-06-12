@@ -2,6 +2,17 @@
 <!-- 담당: 전체 에이전트 | 최대 30항목 -->
 <!-- 삽질 경험, 다음에 피해야 할 것, 효과적이었던 접근법을 기록 -->
 
+### [2026-06-12] 시안 "DB 미보유" 가정 ≠ 운영 실측 + 공유 컴포넌트 status-무관 재사용 격리 패턴 (대회종료 B안 박제)
+- **분류**: lesson (시안 박제 / 회귀 격리 방법론)
+- **발견자**: planner + developer (③ 대회종료 재구성 B안, `ecca28d`+`7d6f89c`)
+- **교훈 1 — 시안 "DB 미보유" 가정을 곧이곧대로 믿지 말 것**: 시안 HANDOFF §5가 스탯리더·대회기사를 "DB 미보유"로 적었으나, **운영 schema 실측 결과 둘 다 기존 데이터로 구현 가능**했다 (스탯=`match_player_stats` groupBy / 기사=`community_posts`+`news_photo`). 시안 작성자(Claude.ai)는 운영 DB를 못 보므로 "없다"고 가정함 → **CLI 박제 전 schema 실측 1회가 mock 박제를 막고 0스키마 실데이터 와이어를 가능케 함**. 예선 득실(pf/pa)도 "신규 컬럼 필요?" 우려했으나 `public-bracket` 응답에 이미 포함 → 폴백 불필요.
+- **교훈 2 — 종료뷰에 진행중 공유 컴포넌트 이식 시 회귀0 격리 = "마크업 동일 여부"로 전략 분기**:
+  - (가) **마크업 같으면 = 공유 컴포넌트 재사용 + optional prop만 추가**. `TournamentTabs`는 탭 콘텐츠가 전부 `useSWR('/public-*')` 클라 호출 = **status 무관**이라 종료 대회도 동일 API 정상 동작 → `isCompleted?`(default false)·`completedResultContent?` 2개 optional prop만 추가, 진행중 호출부는 한 줄도 안 건드림 = **회귀 0**. 진행중 분기는 삼항 `else` 가지에 기존 코드 그대로.
+  - (나) **마크업 다르면 = 종료 전용 신규 컴포넌트 복제**. 시안 NBA브래킷(grid row+CSS 커넥터)·예선(qual)은 운영 `BracketView`(SVG 트리)·`GroupStandings`와 마크업이 근본적으로 달라 CSS override 재현 불가 → 공유 컴포넌트 건드리면 진행중 뷰 즉시 회귀. **신규 복제(`tournament-completed-bracket.tsx`)가 회귀0이면서 restyle 분기보다 LOC도 적음**.
+  - **검증 게이트**: PM/tester가 `git diff --stat HEAD`로 공유 컴포넌트(v2-bracket-*) diff 0 + 진행중 호출부 무변경을 **실측**으로 확인(3중). LOC>2000 Stop은 사용자 결재로 면제 가능하나, **진행중 뷰 회귀0은 면제 불가 가드**.
+- **교훈 3 — NBA 승자 판정**: 점수 비교(homeScore>awayScore)는 차선책 — API slot에 `teamId`가 실재하면 `winnerTeamId === slot.teamId` 직접 비교 우선 + 점수 폴백이 정확(동점+승부결정 매치도 강조). 타입에서 필드 누락 시 "비교 불가"로 오판하기 쉬움 → 직렬화 경로(bracket-builder→route) 1회 확인.
+- **참조횟수**: 0
+
 ### [2026-05-25] 점수 정합성 영구 fix Sprint 1+2+3 종합 (4 source 시스템 / 7 PR / 5건 운영 정정)
 - **분류**: lesson (시스템 차원 fix 종합 / Sprint 방법론)
 - **발견자**: pm (사용자 결재로 5/21~5/25 진행)

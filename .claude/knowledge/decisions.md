@@ -2,6 +2,20 @@
 <!-- 담당: planner-architect | 최대 30항목 -->
 <!-- "왜 A 대신 B를 선택했는지" 기술 결정의 배경과 이유를 기록 -->
 
+### [2026-06-10] 대회종료 재구성 박제 — A안(최소침습 신규2섹션) vs B안(시안 완전재현 탭+NBA브래킷) 결정 보류
+- **분류**: decision (종료 뷰 박제 범위 — 0스키마·LOC·진행중뷰 회귀 trade-off)
+- **발견자**: planner-architect
+- **계기**: 의뢰서(tournament-completed-redesign)가 사이드바제거+스탯리더·기사 2섹션+NBA브래킷+pill탭+예선결과+operator bar까지 요구. 통독 결과 **운영 종료뷰(page.tsx L287~449)는 탭 없는 5카드 grid(UB1 2026-05-28)** ↔ 시안 v2(11)은 진행중 뷰와 동일한 **pill 탭 5개 + NBA 브래킷** 구조 = 구조 본질 차이.
+- **핵심 인식**: 종료 뷰엔 원래 탭·브래킷·경기일정·예선결과가 **부재**(5카드만). 시안의 탭·브래킷은 "진행중 뷰엔 이미 있는 것"을 종료에도 보여주자는 의도. 그러나 그러려면 진행중 뷰의 TournamentTabs(lazy/SWR)·V2BracketWrapper·v2-dual-bracket-view를 종료 뷰에서 재사용·restyle → **진행중 뷰 공유 컴포넌트 변경 = 진행중 뷰 회귀면 확대 + LOC>2000(Stop 임계)**.
+- **선택지**:
+  | 옵션 | 내용 | LOC | 회귀 | 판정 |
+  |------|------|-----|------|------|
+  | A 최소침습 | 5카드 grid 유지 + 신규 2섹션(스탯리더·기사) + 다음회차→네이비배너 | ~+500 | 낮음(종료분기 내부 add) | ★권장 1차 |
+  | B 완전재현 | 종료뷰 pill탭 재구축 + NBA브래킷·예선결과·operator bar 이식 | +1500~2000 | 높음(진행중 공유컴포넌트) | PM/사용자 결재 후 별도PR |
+- **결정**: **A안 1차 권장 + B안(특히 NBA 브래킷)은 PM/사용자 결재 후 별도 진행**. 0스키마·무변경·mock0 제약에서 핵심 가치 = 스탯리더+기사+네이비배너. NBA 브래킷은 진행중 뷰 소관이라 종료로 끌어오면 회귀 위험 → 별도 PR 분리가 안전.
+- **0스키마 데이터원 확정**: 스탯리더 = `match_player_stats` groupBy(points/total_rebounds/assists/threePointersMade) + `officialMatchNestedFilter()` (awards/page.tsx 기존 패턴) / 기사 = `community_posts`(category=news,tournament_id,period_type) + `news_photo`(is_hero). 둘 다 기존 컬럼 = **신규 테이블/컬럼 0** (시안 HANDOFF §5 "DB 미보유" 가정은 운영 실측과 불일치 — errors.md 답습).
+- **참조횟수**: 0
+
 ### [2026-06-10] 대회상세 "재구성 박제" → 전면 재구성 대신 "최소 침습 리스킨" 채택
 - **분류**: decision (박제 범위 해석 — 시안 vs 운영 우열 판단)
 - **발견자**: planner-architect
