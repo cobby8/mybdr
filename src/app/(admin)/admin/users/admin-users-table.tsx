@@ -39,6 +39,9 @@ interface SerializedUser {
   // 2026-05-05: 관리자 모달 인라인 편집 강화 — 대회 출전 자격 필드 (선출 여부)
   // 2026-05-05 PR1: default_jersey_number 제거 — team_members.jersey_number 단일 source
   is_elite: boolean | null;
+  // 2026-06-12 PR-RECORDER-AUDIT — admin_role 가시화 (recorder_admin 등 칩).
+  //   recorder_admin / association_admin / super_admin | null. 관리자 컬럼 칩 source.
+  admin_role: string | null;
 }
 
 // 2026-05-05: 관리자 유저 모달 lazy fetch 결과 — getUserDetailAction 응답 그대로
@@ -93,6 +96,15 @@ function getRoleInfo(mt: number) {
     label: MEMBERSHIP_LABELS[mt as MembershipType] ?? String(mt),
     tone: ROLE_TONE[mt] ?? "mute",
   };
+}
+
+// 2026-06-12 PR-RECORDER-AUDIT — admin_role → 한글 라벨 매핑.
+// 이유: BDR기록원관리자(recorder_admin)가 관리자 컬럼에 "-"로만 보여 권한 해제로 오인된 사고 수리.
+//   super_admin 은 isAdmin=true 의 "ON" 과 중복이므로 null 반환 (칩 미표시).
+function getAdminRoleLabel(role: string | null): string | null {
+  if (role === "recorder_admin") return "기록원관리자";
+  if (role === "association_admin") return "협회관리자";
+  return null; // super_admin (ON 중복) / null / 미정의 값 → 표시 안 함
 }
 
 // 상태 뱃지 — DataTableV2 columns 명세에서도 사용하므로 모듈 스코프로 끌어올림
@@ -185,13 +197,25 @@ const USER_COLUMNS: DataTableColumn<SerializedUser>[] = [
   {
     key: "isAdmin",
     label: "관리자",
-    width: "100px",
-    render: (u) =>
-      u.isAdmin ? (
-        <span className="text-xs font-semibold" style={{ color: "var(--color-error)" }}>ON</span>
-      ) : (
-        <span style={{ color: "var(--color-text-muted)" }}>-</span>
-      ),
+    width: "120px",
+    render: (u) => {
+      // 슈퍼관리자(isAdmin=true)는 기존 "ON" 유지 (무변경).
+      if (u.isAdmin) {
+        return <span className="text-xs font-semibold" style={{ color: "var(--color-error)" }}>ON</span>;
+      }
+      // 2026-06-12 PR-RECORDER-AUDIT — admin_role 가시화.
+      //   recorder_admin/association_admin 은 info 톤 칩으로 표시 (var(--color-*) 토큰).
+      const roleLabel = getAdminRoleLabel(u.admin_role);
+      if (roleLabel) {
+        return (
+          <span className="admin-stat-pill" data-tone="info">
+            {roleLabel}
+          </span>
+        );
+      }
+      // 일반 유저 — 기존과 동일 "-".
+      return <span style={{ color: "var(--color-text-muted)" }}>-</span>;
+    },
   },
   {
     key: "status",
