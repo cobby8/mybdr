@@ -10,6 +10,10 @@ import { apiSuccess, apiError } from "@/lib/api/response";
 //   그 외는 기존 requireTournamentAdmin fallback (회귀 0 — organizer/TAM 동작 그대로).
 import { getWebSession } from "@/lib/auth/web-session";
 import { isRecorderAdmin } from "@/lib/auth/is-recorder-admin";
+// 2026-06-12 PR-RECORDER-AUDIT — 기록원 배정/해제 감사 로그 (add-only).
+// 이유: 언제 누가 기록원을 지정/재활성화/해제했는지 영구 추적 불가 빈틈 수리.
+//   adminLog 는 admin_id 를 세션 내부에서 자동 추출 — 호출부는 action/resourceType/options 만.
+import { adminLog } from "@/lib/admin/log";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -124,6 +128,14 @@ export async function POST(req: NextRequest, { params }: Ctx) {
     where: { tournamentId: id, recorderId: targetUser.id },
   });
 
+  // 2026-06-12 PR-RECORDER-AUDIT — 감사 로그 description 에 대회명 필요 → 1회 조회.
+  // 이유: 재활성화/신규 두 분기 모두 대회명을 쓰므로 분기 전에 한 번만 조회 (DB 왕복 최소화).
+  const tournamentForLog = await prisma.tournament.findUnique({
+    where: { id },
+    select: { name: true },
+  });
+  const tournamentName = tournamentForLog?.name ?? id;
+
   if (existing) {
     // 비활성화된 기록원이면 재활성화
     if (!existing.isActive) {
@@ -131,6 +143,19 @@ export async function POST(req: NextRequest, { params }: Ctx) {
         where: { id: existing.id },
         data: { isActive: true, assignedBy: auth.userId },
       });
+
+      // 감사 로그 — 재활성화 (isActive false → true). admin_id 는 세션 내부 자동 추출.
+      // 응답 shape 불변: return 직전 await 1줄만 추가 (add-only).
+      await adminLog("recorder.assign", "TournamentRecorder", {
+        resourceId: existing.id,        // tournament_recorders row id
+        targetType: "User",
+        targetId:   targetUser.id,      // 대상 기록원 user id
+        description: `${tournamentName} ${targetUser.email} 기록원 재활성화`,
+        previousValues: { isActive: false },
+        changesMade:    { isActive: true },
+        severity: "info",
+      });
+
       return apiSuccess(updated);
     }
     return apiError("이미 기록원으로 등록된 사용자입니다.", 409);
@@ -146,6 +171,16 @@ export async function POST(req: NextRequest, { params }: Ctx) {
     include: {
       recorder: { select: { id: true, email: true, nickname: true, profile_image_url: true } },
     },
+  });
+
+  // 감사 로그 — 신규 지정. admin_id 는 세션 내부 자동 추출.
+  await adminLog("recorder.assign", "TournamentRecorder", {
+    resourceId: recorder.id,           // tournament_recorders row id
+    targetType: "User",
+    targetId:   targetUser.id,
+    description: `${tournamentName} ${targetUser.email} 기록원 지정`,
+    changesMade: { isActive: true },
+    severity: "info",
   });
 
   return apiSuccess(recorder);
@@ -176,8 +211,13 @@ export async function DELETE(req: NextRequest, { params }: Ctx) {
     return apiError("유효하지 않은 기록원 ID입니다.", 400);
   }
 
+  // 2026-06-12 PR-RECORDER-AUDIT — 감사 로그 description 용 email 확보 (recorder relation include).
+  // 이유: 기존 row 엔 email 없음. include 추가는 응답에 영향 0 (DELETE 응답은 {deleted:true} 만 반환).
   const row = await prisma.tournament_recorders.findFirst({
     where: { tournamentId: id, recorderId: recorderBigInt },
+    include: {
+      recorder: { select: { email: true } },
+    },
   });
   if (!row) {
     return apiError("기록원을 찾을 수 없습니다.", 404);
@@ -187,6 +227,22 @@ export async function DELETE(req: NextRequest, { params }: Ctx) {
   await prisma.tournament_recorders.update({
     where: { id: row.id },
     data: { isActive: false },
+  });
+
+  // 감사 로그 — 해제 (soft-delete). 해제는 권한 영향 큰 작업이므로 severity=warning.
+  // admin_id 는 세션 내부 자동 추출. 응답 shape 불변 (return 직전 await 1줄만 추가).
+  const delTournament = await prisma.tournament.findUnique({
+    where: { id },
+    select: { name: true },
+  });
+  await adminLog("recorder.remove", "TournamentRecorder", {
+    resourceId: row.id,                // tournament_recorders row id
+    targetType: "User",
+    targetId:   recorderBigInt,        // 해제 대상 기록원 user id
+    description: `${delTournament?.name ?? id} ${row.recorder?.email ?? recorderBigInt} 기록원 해제`,
+    previousValues: { isActive: true },
+    changesMade:    { isActive: false },
+    severity: "warning",
   });
 
   return apiSuccess({ deleted: true });
