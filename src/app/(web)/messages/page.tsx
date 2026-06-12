@@ -195,9 +195,70 @@ function MessagesPageInner() {
 
   return (
     <div className="page" style={{ padding: "20px 24px" }}>
-      {/* 준비 중 안내 — 사용자 지침 */}
-      <div style={{ fontSize: 12, color: "var(--ink-dim)", marginBottom: 8 }}>
-        현재 메시지 페이지는 준비 중입니다. UI 미리보기로만 동작합니다.
+      {/* 9C-3: "준비 중" warn-soft 박스 (NU2 v2.29 gw-ph 박제 — Phase 6.3 GU2 답습) */}
+      {/* 이유: 기존 ink-dim 텍스트 1줄 → 시안 gw-ph(warn-soft 박스) 톤으로 통일.
+              운영 표준 패턴(growth/weekly-report 6.3C-2 검증) = construction 아이콘 +
+              warn-soft 박스(var(--warn) color-mix 14%/32%) + schedule "준비 중" 뱃지.
+              mock 더미·3컬럼·대화·THREADS 0 변경 — 안내 박스 시각만 교체. */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "flex-start",
+          gap: 10,
+          padding: "12px 14px",
+          marginBottom: 14,
+          borderRadius: 6,
+          // warn-soft — DB 미지원 placeholder 공통 톤 (var(--warn) 토큰 기반)
+          background: "color-mix(in oklab, var(--warn) 14%, transparent)",
+          border: "1px solid color-mix(in oklab, var(--warn) 32%, transparent)",
+        }}
+      >
+        <span
+          className="material-symbols-outlined"
+          style={{ fontSize: 20, color: "var(--warn)", flexShrink: 0 }}
+          aria-hidden
+        >
+          construction
+        </span>
+        <div style={{ minWidth: 0 }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              flexWrap: "wrap",
+              fontSize: 13,
+              fontWeight: 700,
+              color: "var(--ink)",
+            }}
+          >
+            메시지는 준비 중이에요
+            {/* schedule "준비 중" 뱃지 — growth/weekly-report 동일 패턴 */}
+            <span
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 3,
+                fontSize: 10,
+                fontWeight: 800,
+                letterSpacing: ".12em",
+                color: "var(--warn)",
+                background: "color-mix(in oklab, var(--warn) 14%, transparent)",
+                border: "1px solid color-mix(in oklab, var(--warn) 32%, transparent)",
+                padding: "3px 8px",
+                borderRadius: 4,
+              }}
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: 12 }}>
+                schedule
+              </span>
+              준비 중
+            </span>
+          </div>
+          <div style={{ fontSize: 12, color: "var(--ink-dim)", marginTop: 3 }}>
+            현재 화면은 UI 미리보기로만 동작합니다. 실시간 메시지 기능이 곧 제공됩니다.
+          </div>
+        </div>
       </div>
 
       {/* 브레드크럼 — 시안 setRoute('home') → Link */}
