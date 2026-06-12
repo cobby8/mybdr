@@ -93,6 +93,9 @@ export default async function AdminUsersPage({
         // 2026-05-05: 관리자 모달 강화 — 대회 출전 자격 필드 (선출 여부)
         // 2026-05-05 PR1: default_jersey_number 제거 — team_members.jersey_number 단일 source
         is_elite: true,
+        // 2026-06-12 PR-RECORDER-AUDIT — admin_role 가시화 (recorder_admin 등 칩 표시).
+        //   loadMoreUsersAction select 와 반드시 일치 (drift 방지). string|null — 직렬화 추가 불필요.
+        admin_role: true,
       },
     }),
     prisma.user.count({ where }),

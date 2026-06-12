@@ -1,19 +1,20 @@
 # 작업 스크래치패드
 
 ## 현재 작업
-- **요청**: 사용자 큐 ①②③ — 실측 결과 ①sync·② 완료(이전 세션) / **③ 종료뷰 B안 + ①-b Phase 9C 4PR = 본 세션 완료**
-- **상태**: ✅ 전부 완료 — 미push **6건** (③ 3 + 9C 3). **push·PR 사용자 결재 대기**
+- **요청**: PR-RECORDER-AUDIT — 기록원 배정/해제 감사로그 + admin_role 가시화 (단독 PR)
+- **상태**: ✅ 완료 — feat `a897b22` + docs `c8f84ad`. **미push 3건**(직전 6은 타 세션이 push 완료). push·PR 결재 대기
 - **현재 담당**: pm
-- **미push 6**: `ecca28d`(③feat)·`7d6f89c`(③역박제)·`4dbc833`(③docs) / `cb88c7a`(9C-1)·`8aeb050`(9C-3)·`b759d2d`(9C-4)
-- **다음 후보**: ① subin push + subin→dev PR (③+9C 일괄) → dev→main / ② Phase 10 정보페이지 Claude.ai paste(STAGE B)
+- **옵션 재배정**: 스킵(사용자 결재) — record01/02 이미 `recorder_admin`(전역권한) 보유 = 기능상 불필요. 가시화로 오인 원인 해소
+- **역박제**: skip — 시안 AdminUsers는 상태뱃지 통합 구조(별도 관리자컬럼·admin_role mock 없음) → 1:1 부적합
+- **미push 3**: `a897b22`(feat) · `8083dfe`(타 세션 phase-ledger) · `c8f84ad`(docs)
 
-## 진행 현황표 (사용자 큐 ①②③)
+## 진행 현황표
 | # | 작업 | 상태 |
 |---|------|------|
-| ① sync | Phase 9 v2.29 sync | ✅ `fb81e53` (이전 세션) |
-| ①-b | Phase 9C 박제 (9C-1/3/4·9C-2 스킵) | ✅ `cb88c7a`+`8aeb050`+`b759d2d` (미push) |
-| ② | 대회상세(진행중) 박제 | ✅ `a9cb476`+`508325a`+`830e114` (이전 세션) |
+| PR-RECORDER-AUDIT | 기록원 감사로그 + admin_role 가시화 | ✅ `a897b22` (미push) |
 | ③ | 대회종료 재구성 박제 (B안) | ✅ `ecca28d`+`7d6f89c`+`4dbc833` (미push) |
+| ①-b | Phase 9C 박제 (9C-1/3/4·9C-2 스킵) | ✅ `cb88c7a`+`8aeb050`+`b759d2d` (미push) |
+| ②·① | 대회상세 박제 / Phase 9 sync | ✅ 이전 세션 (push 완료) |
 
 ## 기획설계 (planner-architect)
 (완료 — 완료 Phase로 압축)
@@ -26,6 +27,12 @@
 
 ## 리뷰 결과 (reviewer)
 (완료 — 완료 Phase로 압축)
+- 실패 격리 OK — log.ts 전체 try-catch 내부 흡수, 호출부 await throw 0 → 메인 플로우 차단 없음.
+- tsc --noEmit 통과(에러 0).
+
+🟡 권장 수정(후속·동작영향 0, 필수 수정 없음):
+- [recorders/route.ts L133] POST `tournamentForLog` 조회가 existing 분기 전 무조건 실행 — 409(이미 등록) 케이스는 adminLog 미실행이라 SELECT 1회 낭비. 드문 경로+1쿼리라 무해. 후속 미세 최적화.
+- [recorders/route.ts L234] DELETE 대회명을 update 후 별도 findUnique. POST는 분기 전 조회 — 위치 비일관(minor). 동작/안전 영향 0.
 
 ## 수정 요청
 | 요청자 | 대상 파일 | 문제 설명 | 상태 |
@@ -34,6 +41,7 @@
 | reviewer | admin/notifications/page.tsx | [minor·후속] `as FormEvent` 단언 안전하나 handleSubmit 시그니처 완화로 캐스팅 제거 가능. 동작 영향 0 | 후속 검토 |
 
 ## 완료 Phase (이력 압축)
+- ✅ **PR-RECORDER-AUDIT 기록원 감사로그+admin_role 가시화 (2026-06-12, `a897b22`)** — 계기=수빈 "권한 해제" 의혹(실측 해제0·가시성 빈틈). 파트1: recorders/route.ts adminLog 3지점 add-only(assign신규/재활성화=info·remove=warning / 대회명·email 조회 / resourceId=tr.id·target=User / 응답shape불변). 파트2: /admin/users 관리자컬럼 admin_role 칩(recorder_admin="기록원관리자"/association_admin="협회관리자"/super_admin=ON중복생략) + select 2곳(page L98↔loadMore L278) drift0 + interface+getAdminRoleLabel. `admin-stat-pill data-tone="info"`. +92/-7. tester PASS5/5·reviewer APPROVE(c0/maj0/min2후속). 옵션 재배정=스킵(record01/02 이미 recorder_admin 전역권한). 역박제=skip(시안 구조 상이). minor2=route.ts 409 SELECT낭비·DELETE 조회위치 비일관(동작영향0)
 - ✅ **①-b Phase 9C 운영 박제 (2026-06-12, `cb88c7a`+`8aeb050`+`b759d2d`)** — NU1/NU2/NA1 v2.29 박제 3PR(9C-2 search 스킵=이미 동등박제). 9C-1 nt-synced 동기화 배너(unreadCount 재사용·AppNav무변경) / 9C-3 messages "준비중" warn-soft 박스(mock·3컬럼·THREADS 0변경·DB미지원 carry) / 9C-4 admin 발송 UI(target 4chip·팀장=DB미지원 disabled 전송차단 2중가드·미리보기·확인모달·카테고리chip 생략·API/role/schema 0변경). +553/-141. tester PASS(정적·회귀10/10)·reviewer APPROVE(c0/maj0/min2). 팀장 전송차단·FormEvent 캐스팅 안전 판정. 잔여=3001 육안(미실행)
 - ✅ **③ 대회종료 재구성 박제 B안 (2026-06-10~12, `ecca28d`+`7d6f89c`)** — 시안 v2(11) pill탭 완전재현. 신규5(stat-leaders.ts·stat-leaders-card·news-card·completed-bracket·operator-bar)+수정3(tournament-tabs +60·page.tsx종료분기 +180·completed.css +200)+역박제2. **격리전략=혼합**(탭/일정/팀/규정=TournamentTabs optional prop 재사용·NBA본선+예선=종료전용 신규복제). **진행중뷰 회귀0**(공유브래킷 diff0·진행중 호출부 무변경 3중확인). 0스키마·강조 cafe-blue·승자점수 bdr-red·배너 navy·mock0. NBA승자=winnerTeamId 직접비교+점수폴백(major1 해소). tester PASS·reviewer APPROVE
 - ✅ **② 대회상세(진행중) 리스킨 (2026-06-10, `a9cb476`+`508325a`)** — pill탭·팀필터칩 cafe-blue·심판버튼제거·Hero compact. 강조색 7파일 cafe-blue 통일·승자점수 bdr-red 보존
@@ -43,6 +51,7 @@
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
 |------|------|------|
+| 2026-06-12 | **PR-RECORDER-AUDIT 감사로그+admin_role 가시화** (developer/tester/reviewer/pm) | ✅ `a897b22` recorders adminLog 3지점 add-only + admin_role 칩. tester PASS5/5·reviewer APPROVE(c0/maj0/min2). 옵션재배정 스킵(이미 recorder_admin)·역박제 skip·lessons+1. +92/-7 |
 | 2026-06-12 | **①-b Phase 9C 박제+검증+커밋** (developer/tester/reviewer/pm) | ✅ 9C-1/3/4 박제(9C-2 스킵)·tsc0·tester PASS·reviewer APPROVE·라우트별 3커밋(`cb88c7a`/`8aeb050`/`b759d2d`). 팀장 전송차단·mock유지·DB/api/role 0변경 |
 | 2026-06-12 | **③ 대회종료 B안 박제 커밋** (pm) | ✅ `ecca28d`(feat 8파일 +1239/-53)+`7d6f89c`(역박제)+`4dbc833`(회고) |
 | 2026-06-12 | **③ NBA 승자판정 견고화+재검증** (developer/tester·되돌림1회) | ✅ teamId 직접비교+점수폴백·major1 해소·진행중뷰 회귀0 |

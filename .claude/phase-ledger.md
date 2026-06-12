@@ -173,10 +173,22 @@
 | 단계 | 영역 | 상태 | 책임자 | 갱신일 | 메모 |
 |------|------|------|------|------|------|
 | ⑩ sync 실행 | 9A+9B | ✅ 완료 | CLI | 2026-06-10 | v2.29 incremental sync. `notify-shared.jsx/css` 신규(148+181). Notifications/Messages/Search/AdminNotifications 4 jsx. Phase 1~8 carry-over diff 0 / pre-snapshot `_archive/BDR-current-2026-06-10-pre-v2.29/`. messages DB 0% = 정적 더미 "준비 중" carry. 회귀 17 케이스 통과 (shared.jsx 9→10 notify 추가 / 의뢰서 §3 "11"은 v2.28 기준 착오) |
-| ⑪ 운영 박제 (9C) | 9C | ⏸ 보류 | CLI | - | PR 4 예상 (NU1 Notifications + NU2 Messages carry + NU3 Search + NA1 AdminNotifications). Cowork batch 의뢰서 후속 |
-| ⑫ 회귀 검수 | 9C | ⏸ 보류 | | | |
-| ⑬ PR 결재 | 9C | ⏸ 보류 | 수빈 | | |
-| ⑭ Phase 완료 | 9 | ⏸ 보류 | | | |
+| ⑪ 운영 박제 (9C) | 9C | ✅ 완료 (3/4·9C-2 스킵) | CLI | 2026-06-12 | 9C-1/3/4 박제. `cb88c7a`(9C-1 NU1 nt-synced 동기화배너·BN1) / `8aeb050`(9C-3 NU2 messages "준비중" warn-soft·mock유지·DB미지원 carry·BN2) / `b759d2d`(9C-4 NA1 admin 발송UI·target4chip·팀장DB미지원 disabled 전송차단·BN4). **9C-2 NU3 Search = 스킵**(이미 시안 동등 박제). DB schema·role·messages모델·/api 0변경 / 각 tsc0 |
+| ⑫ 회귀 검수 | 9C | ✅ 완료 | CLI | 2026-06-12 | tester PASS(정적·회귀 10/10) / reviewer APPROVE(critical0·major0·minor2). 팀장 전송차단 2중가드·mock유지·AppNav frozen 무변경 / stop 발동 0 |
+| ⑬ PR 결재 | 9C | ✅ 완료 | 수빈 | 2026-06-12 | subin→dev #667 → dev→main #668 머지 (운영 `4199d87`). 양 PR Vercel 빌드 pass 후 머지 |
+| ⑭ Phase 완료 | 9 | ✅ 종료 | CLI→Cowork | 2026-06-12 | 알림·메시지·검색 운영 반영 완료 (#667/#668) |
+
+---
+
+### 회귀 v2 — 대회 상세/종료 뷰 재구성 (BDR v2(9)/(11))
+
+| 단계 | 영역 | 상태 | 책임자 | 갱신일 | 메모 |
+|------|------|------|------|------|------|
+| 박제 (진행중 뷰) | 대회상세 진행중 | ✅ 완료 | CLI | 2026-06-10 | `a9cb476`(리스킨)+`508325a`(역박제). pill탭·팀필터칩 cafe-blue·심판버튼제거·Hero compact. 강조색 7파일 cafe-blue 통일·승자점수 bdr-red 보존. tester PASS·reviewer APPROVE(`830e114`) |
+| PR 결재 (진행중 뷰) | 대회상세 진행중 | ✅ 완료 | 수빈 | 2026-06-10 | subin→dev #665 → dev→main #666 운영 반영 |
+| 박제 (종료 뷰) | 대회종료 B안 | ✅ 완료 | CLI | 2026-06-12 | `ecca28d`(feat·시안 v2(11) 완전재현 B안)+`7d6f89c`(역박제). pill탭·NBA브래킷·예선조별·스탯리더·기사·operator bar·네이비배너. 신규5+수정3. **격리전략 혼합**(탭/일정/팀/규정=TournamentTabs optional prop 재사용·NBA/예선=종료전용 신규복제) / **진행중뷰 회귀0**(공유브래킷 diff0) / 0스키마·강조 cafe-blue·mock0. NBA승자=winnerTeamId 직접비교+점수폴백(reviewer major1 해소). tester PASS·reviewer APPROVE |
+| PR 결재 (종료 뷰) | 대회종료 B안 | ✅ 완료 | 수빈 | 2026-06-12 | subin→dev #667 → dev→main #668 머지 (운영 `4199d87`, Phase 9C와 일괄) |
+| Phase 완료 | 회귀 v2 | ✅ 종료 | CLI→Cowork | 2026-06-12 | 대회 진행중+종료 뷰 운영 반영 완료 (#666 / #668). 잔여 minor 2(qual정렬·FormEvent캐스팅)=동작영향0 후속 |
 
 ---
 
@@ -243,3 +255,5 @@ Phase 번호 ↑    영역 ↑
 | 2026-05-29 | **Phase 2/3/4 운영 반영 완료** — subin→dev `#654` → dev→main `#655` (운영 `6f22c02`) | 25 PR 일괄 머지 / Vercel 운영 배포 / Phase 2 ⑬⑭ ✅ 종료 / Phase 3·4 동일 머지로 운영 반영 |
 | 2026-05-30 | **Phase 5 신규 + v2.23 sync ⑩ ✅** — 랭킹·커뮤니티 영역. `comm-shared` 신규 / 6 jsx / carry-over diff 0 | Auto Chain Phase 5C 6 PR 박제 시작 |
 | 2026-06-10 | **Phase 9 v2.29 sync ⑩ ✅** — 알림·메시지·검색 4 시안 / `notify-shared` 신규(148+181) / shared.jsx 9→10 / carry-over diff 0 / 회귀 17 케이스 통과 | Phase 9 박제 zip 도착 (incremental) |
+| 2026-06-10 | **회귀 v2 대회상세 진행중 뷰 박제+머지** (`a9cb476`+`508325a` / #665·#666) — pill탭·cafe-blue 통일 | 대회상세 재구성 시안 박제 |
+| 2026-06-12 | **Phase 9C ⑪⑫⑬⑭ ✅ + 회귀 v2 종료뷰 박제** — 9C-1/3/4(9C-2 스킵) + 대회종료 B안(`ecca28d`+`7d6f89c`) → subin→dev #667 → dev→main #668 (운영 `4199d87`). Phase 9 종료 + 회귀 v2 종료. tester PASS·reviewer APPROVE | STAGE A 마무리 — 사용자 "메인 머지" 결재 |
