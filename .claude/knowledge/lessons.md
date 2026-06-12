@@ -2,6 +2,15 @@
 <!-- 담당: 전체 에이전트 | 최대 30항목 -->
 <!-- 삽질 경험, 다음에 피해야 할 것, 효과적이었던 접근법을 기록 -->
 
+### [2026-06-12] "권한 해제" 신고 = 데이터 변경 아닌 **가시성/감사 빈틈** 1순위 의심 (recorder_admin 오인 사고)
+- **분류**: lesson/diagnosis (권한 표시 누락 = 운영자 오인 / add-only 감사로그)
+- **발견자**: pm (PR-RECORDER-AUDIT `a897b22`)
+- **계기**: 수빈 "슈퍼관리자 권한 해제" 의혹 → Cowork 전수 실측 결과 **실제 해제 0건**. is_admin 8명 전원 유지 / admin_logs 해제 기록 = realtdplayer 1쌍뿐. 원인 = 구조적 빈틈 2개.
+- **함정 본질**: `record01/02`는 `admin_role='recorder_admin'`(전역 기록원 관리자 = 모든 대회 권한)인데 `is_admin=false`라, `/admin/users` 화면이 admin_role 미표시 → "일반유저 / -"로 보여 **권한 해제로 오인**. 실제 권한은 그대로 살아있었음(route.ts `requireRecordersManageAccess`가 admin_role로 통과시킴).
+- **수리 2건**: (1) **가시화** — /admin/users 관리자 컬럼에 admin_role 칩(recorder_admin→"기록원관리자"/association_admin→"협회관리자"/super_admin은 ON 중복 생략). select 2곳(page.tsx↔loadMoreUsersAction) 일치 의무. (2) **감사로그 add-only** — 기록원 배정/해제 API(recorders/route.ts)에 adminLog 0건이었음 → assign(info)/remove(warning) 3지점 박제. 응답 shape 불변(return 직전 await만). "누가 언제 지정/해제했는지" 영구 추적.
+- **재발 방지 룰**: (a) "권한 사라졌다" 신고 = 코드/데이터 변경보다 **화면 표시 컬럼 누락** 먼저 의심(jersey 단방향 함정과 동형 — 시스템엔 있는데 화면/계층에 안 보임). (b) 권한 부여 API에 **adminLog 동반 의무**(부여만 있고 해제 추적 0이면 사후 오인 사고 보장). (c) is_admin(boolean) 외 admin_role(세분 역할) 같은 별도 권한 컬럼은 운영 화면에 **반드시 가시화**.
+- **참조횟수**: 0
+
 ### [2026-06-12] 시안 "DB 미보유" 가정 ≠ 운영 실측 + 공유 컴포넌트 status-무관 재사용 격리 패턴 (대회종료 B안 박제)
 - **분류**: lesson (시안 박제 / 회귀 격리 방법론)
 - **발견자**: planner + developer (③ 대회종료 재구성 B안, `ecca28d`+`7d6f89c`)
