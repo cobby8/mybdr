@@ -435,6 +435,32 @@ export function NotificationsClient({
         </p>
       </div>
 
+      {/* ==== 9C-1: main bar 동기화 안내 배너 (NU1 v2.29 .nt-synced 박제) ==== */}
+      {/* 이유: 시안 NU1의 nt-synced 배너 = "상단 알림 아이콘의 빨간 점 카운트와
+              실시간 동기화" 안내. 운영은 이미 unreadCount 계산 + notifications:read-all
+              CustomEvent 로 헤더 벨과 동기화 중 → 그 동작을 사용자에게 명시하는 배너만
+              신규 추가. unreadCount 재사용 (state/fetch/AppNav 0 변경).
+              토큰: cafe-blue-soft 배경 / cafe-blue-hair 보더 / cafe-blue-deep 텍스트 (시안 스펙). */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          padding: "11px 14px",
+          background: "var(--cafe-blue-soft)",
+          border: "1px solid var(--cafe-blue-hair)",
+          borderRadius: 6,
+          fontSize: 12,
+          color: "var(--cafe-blue-deep)",
+          marginBottom: 14,
+        }}
+      >
+        <span className="material-symbols-outlined" style={{ fontSize: 17 }}>
+          sync
+        </span>
+        상단 알림 아이콘의 빨간 점 카운트({unreadCount})와 실시간 동기화됩니다.
+      </div>
+
       {/* ==== 푸시 알림 구독 배너 ==== */}
       <div style={{ marginBottom: 16 }}>
         <PushPermissionBanner />
