@@ -2,11 +2,11 @@
 
 ## 현재 작업
 - **요청**: PR-RECORDER-AUDIT — 기록원 배정/해제 감사로그 + admin_role 가시화 (단독 PR)
-- **상태**: ✅ 완료 — feat `a897b22` + docs `c8f84ad`. **미push 3건**(직전 6은 타 세션이 push 완료). push·PR 결재 대기
+- **상태**: ✅ 완료 + **main 머지 완료** — PR #669(subin→dev) + #670(dev→main `77d014a`). 미push 0
 - **현재 담당**: pm
 - **옵션 재배정**: 스킵(사용자 결재) — record01/02 이미 `recorder_admin`(전역권한) 보유 = 기능상 불필요. 가시화로 오인 원인 해소
 - **역박제**: skip — 시안 AdminUsers는 상태뱃지 통합 구조(별도 관리자컬럼·admin_role mock 없음) → 1:1 부적합
-- **미push 3**: `a897b22`(feat) · `8083dfe`(타 세션 phase-ledger) · `c8f84ad`(docs)
+- **머지 이력**: `a897b22`(feat) + `87a0a0e`(docs) → dev #669 → main #670 (`77d014a`)
 
 ## 진행 현황표
 | # | 작업 | 상태 |
