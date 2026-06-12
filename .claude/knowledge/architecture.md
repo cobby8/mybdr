@@ -2,6 +2,17 @@
 <!-- 담당: planner-architect, developer | 최대 30항목 -->
 <!-- 프로젝트의 폴더 구조, 파일 역할, 핵심 패턴을 기록 -->
 
+### [2026-06-10] 대회 종료 뷰 0스키마 데이터원 + 스탯리더 집계 패턴
+- **분류**: architecture (종료 뷰 데이터 매핑 + 신규 집계 헬퍼)
+- **발견자**: planner-architect (대회종료 재구성 박제 설계 중)
+- **내용**:
+  - **종료 뷰 현 구조**: page.tsx L287~449 = UB1(2026-05-28). `tc-page`/`tc-grid` **탭 없는 5카드 grid** (Hero/순위/MVP/갤러리/스토리/다음회차). 추가쿼리 = standingsRaw(final_rank 1~3 팀, L291) 1건. 진행중 뷰(L451~)와 완전 분리된 분기. **종료 뷰엔 탭·브래킷·경기일정 부재.**
+  - **스탯 리더 집계 (★신규 `lib/tournaments/stat-leaders.ts` 권장)**: `match_player_stats`(schema L786) groupBy `tournamentTeamPlayerId` → `_sum`{points/total_rebounds/assists/threePointersMade(@map three_pointers_made)} → 부문별 desc TOP3 → `tournamentTeamPlayer`(L616, player_name·tournamentTeam.team.name) 매핑. **완료매치 필터 = `lib/tournaments/official-match.ts` `officialMatchNestedFilter()`** (status in completed/live + scheduledAt 미래방어 — awards/page.tsx가 matchPlayerStat.aggregate에 이미 사용). 인덱스 존재: points(L832)/total_rebounds(L833)/assists(L830). 권장 = Prisma groupBy(raw SQL 불필요). 데이터 0 → null → 카드 hide.
+  - **대회 기사 데이터원**: `community_posts`(L1094) — 알기자 글 = `category='news'` + `tournament_id`(Uuid) + `period_type` in match/round/daily + `status='published'`, `created_at` desc. 대표사진 = 글의 `tournament_match_id` → `news_photo`(L3100) `is_hero=true`의 url. 본문 폴백 = 결승매치 `tournament_matches.summary_brief`(Json {brief}, L709). 글 0 → 카드 hide.
+  - **강조색 함정 (재확인)**: 시안 td-completed.css는 스탯리더/기사 강조에 `--accent`(=`--bdr-red` 빨강) 사용 → 박제 시 `var(--cafe-blue)` 계열(soft/hair/deep)로 치환 필수. 다음회차 배너 = `var(--bdr-navy)`. (errors.md 61 답습)
+  - **TournamentMatch tournamentId 경로**: developer가 schema L681~ 에서 직접 컬럼/relation 1회 확인 필요(없으면 tournamentTeam 경유).
+- **참조횟수**: 0
+
 ### [2026-06-10] 대회 상세 페이지 컴포넌트 맵 — 진행중 뷰 vs 종료 뷰 + 강조색 2체계
 - **분류**: architecture (tournaments/[id]/page.tsx 구조 + 토큰 체계)
 - **발견자**: planner-architect (대회상세 재구성 박제 분석 중)
