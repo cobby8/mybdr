@@ -39,6 +39,10 @@ import { TeamCardV2 } from "../../../teams/_components/team-card-v2";
 import { V2BracketWrapper } from "./v2-bracket-wrapper";
 import type { SeriesEdition } from "./v2-bracket-header";
 
+// 종료 전용 대진표 (B안 — NBA 본선 + 예선 조별). isCompleted 시에만 bracket 탭에서 스위치.
+// 진행중 뷰는 import 만 추가될 뿐 호출 0 = 회귀 0 (트리쉐이킹/lazy 무관).
+import { TournamentCompletedBracket } from "./tournament-completed-bracket";
+
 // 탭 타입 정의 (standings는 bracket에 통합 — 백엔드 페이지는 유지)
 // Phase 2 Match: "rules" 탭 추가 (DB tournaments.rules 표시용)
 export type TabKey = "overview" | "schedule" | "bracket" | "teams" | "rules";
@@ -46,6 +50,17 @@ export type TabKey = "overview" | "schedule" | "bracket" | "teams" | "rules";
 // 탭 메타 정보 — 시안 Match.jsx L117 순서: 대회소개 → 경기일정 → 대진표 → 참가팀 → 규정
 const TAB_META: { key: TabKey; label: string; icon: string }[] = [
   { key: "overview", label: "대회소개", icon: "info" },
+  { key: "schedule", label: "경기일정", icon: "calendar_month" },
+  { key: "bracket", label: "대진표", icon: "account_tree" },
+  { key: "teams", label: "참가팀", icon: "groups" },
+  { key: "rules", label: "규정", icon: "gavel" },
+];
+
+// 종료 뷰 탭 메타 (B안) — 첫 탭만 "대회소개·info" → "대회결과·emoji_events" 로 분기.
+// 나머지(경기일정/대진표/참가팀/규정)는 진행중과 동일 = 동일 API·동일 UI 재사용.
+// key 는 "overview" 그대로 유지 (콘텐츠는 completedResultContent 로 주입 / 라우팅 호환).
+const TAB_META_COMPLETED: { key: TabKey; label: string; icon: string }[] = [
+  { key: "overview", label: "대회결과", icon: "emoji_events" },
   { key: "schedule", label: "경기일정", icon: "calendar_month" },
   { key: "bracket", label: "대진표", icon: "account_tree" },
   { key: "teams", label: "참가팀", icon: "groups" },
@@ -86,6 +101,13 @@ interface TournamentTabsProps {
   // 같은 series_id 내 다른 토너먼트 (시안의 select 라우팅용)
   // 데이터 부족 시 빈 배열 → V2BracketHeader에서 select 자동 disabled
   seriesEditions?: SeriesEdition[];
+  // ── B안 (대회 종료 재구성) 전용 optional props — 진행중 호출부는 미전달 = 회귀 0 ──
+  // isCompleted=true 시: 첫 탭 라벨="대회결과", 콘텐츠=completedResultContent,
+  //   bracket 탭=종료 전용 TournamentCompletedBracket(NBA+예선) 로 스위치.
+  // default false → 진행중 뷰는 기존 동작 100% 동일 (TAB_META / overviewContent / V2BracketWrapper).
+  isCompleted?: boolean;
+  // 종료 "대회결과" 탭 콘텐츠 (챔피언 hero + 결산 5카드 + 네이비 배너) — 서버에서 조립해 주입.
+  completedResultContent?: ReactNode;
 }
 
 // -- 공통 에러 상태 --
@@ -330,9 +352,13 @@ export function TournamentTabs({
   endDate,
   venueName,
   seriesEditions = [],
+  isCompleted = false,
+  completedResultContent,
 }: TournamentTabsProps) {
   // 초기 탭: 서버에서 searchParams로 파싱한 값. 유효하지 않으면 overview로 폴백됨(상위에서 이미 검증)
   const [activeTab, setActiveTab] = useState<TabKey>(initialTab);
+  // 종료 뷰면 첫 탭 라벨/아이콘만 "대회결과" 로 분기 (key·순서·라우팅 동일 = 회귀 0)
+  const tabMeta = isCompleted ? TAB_META_COMPLETED : TAB_META;
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -360,7 +386,7 @@ export function TournamentTabs({
           스타일은 tournament-detail.css 의 .td-pilltabs/.td-pill 에 토큰화 박제됨.
           탭 로직(handleTabChange / ?tab= 라우팅 / lazy loading)은 0 변경 — className/마크업만 교체. */}
       <div className="td-pilltabs mb-3 sm:mb-4">
-        {TAB_META.map((tab) => {
+        {tabMeta.map((tab) => {
           const isActive = activeTab === tab.key;
           return (
             <button
@@ -376,18 +402,32 @@ export function TournamentTabs({
 
       {/* 탭 콘텐츠: 개요/규정은 서버 렌더링, 나머지는 lazy loading */}
       <div>
-        {activeTab === "overview" && <OverviewWithDashboard tournamentId={tournamentId} overviewContent={overviewContent} />}
-        {activeTab === "bracket" && (
-          <BracketTabContent
-            tournamentId={tournamentId}
-            tournamentName={tournamentName}
-            editionNumber={editionNumber}
-            startDate={startDate}
-            endDate={endDate}
-            venueName={venueName}
-            seriesEditions={seriesEditions}
-          />
-        )}
+        {/* 첫 탭(overview key):
+            - 종료 뷰 = "대회결과" 콘텐츠(completedResultContent / 챔피언 hero+결산+배너) 주입.
+            - 진행중 뷰 = 기존 OverviewWithDashboard (대시보드 헤더 + 개요) 그대로. */}
+        {activeTab === "overview" &&
+          (isCompleted ? (
+            <div>{completedResultContent}</div>
+          ) : (
+            <OverviewWithDashboard tournamentId={tournamentId} overviewContent={overviewContent} />
+          ))}
+        {/* 대진표 탭:
+            - 종료 뷰 = NBA 본선 + 예선 조별 (종료 전용 신규 컴포넌트 / 공유 V2BracketWrapper 무수정).
+            - 진행중 뷰 = 기존 BracketTabContent(V2BracketWrapper) 그대로 = 회귀 0. */}
+        {activeTab === "bracket" &&
+          (isCompleted ? (
+            <TournamentCompletedBracket tournamentId={tournamentId} />
+          ) : (
+            <BracketTabContent
+              tournamentId={tournamentId}
+              tournamentName={tournamentName}
+              editionNumber={editionNumber}
+              startDate={startDate}
+              endDate={endDate}
+              venueName={venueName}
+              seriesEditions={seriesEditions}
+            />
+          ))}
         {activeTab === "schedule" && <ScheduleTabContent tournamentId={tournamentId} />}
         {activeTab === "teams" && <TeamsTabContent tournamentId={tournamentId} />}
         {/* 규정 탭: 서버에서 tournament.rules로 프리렌더된 콘텐츠.
