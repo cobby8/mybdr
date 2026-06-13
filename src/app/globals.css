@@ -5793,3 +5793,97 @@ html.dark {
   .hlp-grow { grid-template-columns: 1fr; gap: 4px; }
   .glo-grid { grid-template-columns: 1fr; }
 }
+
+/* ============================================================
+   IU1 — About (/about) v2.30 박제
+   시안 Dev/design/BDR-current/info-shared.css .ab-* 규칙을 운영 토큰으로 이식.
+   변수 매핑: --r-lg → --radius-card / --r-sm → --radius-chip
+   (그 외 --bg-* / --ink-* / --cafe-blue-* / --ff-* / --border / --accent 는 운영 토큰 그대로)
+   info-hero / .eyebrow / .t-display 는 IU4 공통 + 기존 클래스 재사용.
+   ★ 운영진 섹션 = 사용자 결정 §6 보존 (실명 ❌ · 일반 팀 라벨 + 가드 배너)
+   ★ 통계 4 = mock 숫자 ❌ → "운영 시점 연동" 캡션 (ab-note) 처리
+   ============================================================ */
+.ab-wrap { max-width: 900px; margin: 0 auto; }
+
+/* 통계 4셀 — 운영 시점 연동 (cross-domain 집계 예시) */
+.ab-stats {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 0;
+  border: 1px solid var(--border); border-radius: var(--radius-card);
+  overflow: hidden; margin-bottom: 8px;
+}
+.ab-stat {
+  padding: 22px 14px; text-align: center; background: var(--bg-alt);
+  border-left: 1px solid var(--border);
+}
+.ab-stat:first-child { border-left: 0; }
+.ab-stat__v { font-family: var(--ff-display); font-size: 28px; font-weight: 900; letter-spacing: -0.02em; font-feature-settings: "tnum"; }
+.ab-stat__k { font-size: 12px; color: var(--ink-mute); font-weight: 600; margin-top: 4px; }
+.ab-stat__src { font-family: var(--ff-mono); font-size: 9.5px; color: var(--cafe-blue-deep); font-weight: 700; margin-top: 4px; letter-spacing: 0.02em; }
+.ab-note {
+  font-size: 11px; color: var(--ink-dim); text-align: center;
+  margin-bottom: 40px; font-style: italic;
+  display: flex; align-items: center; justify-content: center; gap: 4px;
+}
+.ab-note .ico { font-family: 'Material Symbols Outlined'; font-size: 13px; font-style: normal; }
+
+.ab-section { margin-bottom: 40px; }
+.ab-section__h { font-family: var(--ff-display); font-size: 22px; font-weight: 800; margin: 0 0 14px; letter-spacing: -0.015em; }
+
+/* "우리가 만드는 것" 6 */
+.ab-make { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.ab-make-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-card); padding: 20px; }
+.ab-make-card__icon { font-size: 28px; margin-bottom: 8px; }
+.ab-make-card__t { font-weight: 800; font-size: 15px; margin-bottom: 4px; }
+.ab-make-card__d { font-size: 12px; color: var(--ink-mute); line-height: 1.6; }
+
+/* 운영진 — ★ §6 실명 ❌ (일반 팀 라벨) */
+.ab-team { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; }
+.ab-team-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-card); padding: 18px 12px; text-align: center; }
+.ab-team-card__avatar {
+  width: 56px; height: 56px; margin: 0 auto 8px;
+  background: var(--ink-soft); color: var(--bg);
+  border-radius: 50%; display: grid; place-items: center;
+  font-family: var(--ff-display); font-weight: 800; font-size: 18px;
+}
+.ab-team-card__name { font-weight: 700; font-size: 13px; }
+.ab-team-card__role { font-size: 11px; color: var(--accent); font-weight: 600; margin-top: 2px; }
+.ab-team-card__since { font-size: 10px; color: var(--ink-dim); margin-top: 3px; font-family: var(--ff-mono); }
+.ab-guard {
+  margin-top: 12px; padding: 10px 14px;
+  background: var(--cafe-blue-soft); border: 1px solid var(--cafe-blue-hair);
+  border-radius: var(--radius-chip);
+  font-size: 11.5px; color: var(--cafe-blue-deep); font-weight: 600;
+  display: flex; align-items: center; gap: 8px;
+}
+.ab-guard .ico { font-family: 'Material Symbols Outlined'; font-size: 16px; flex-shrink: 0; }
+
+/* 파트너 8 */
+.ab-partners-wrap { background: var(--bg-alt); border-radius: var(--radius-card); padding: 30px 28px; margin-bottom: 40px; }
+.ab-partners { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+.ab-partner {
+  padding: 16px 12px; background: var(--bg-elev); text-align: center;
+  font-family: var(--ff-mono); font-size: 11px; font-weight: 700; color: var(--ink-soft);
+  border-radius: var(--radius-chip); border: 1px solid var(--border);
+}
+
+/* FAQ 미니 link → IU3 (/help) */
+.ab-faq {
+  background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-card);
+  padding: 22px 26px; margin-bottom: 40px;
+  display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;
+}
+.ab-faq__t { font-family: var(--ff-display); font-size: 17px; font-weight: 800; margin: 0 0 4px; }
+.ab-faq__d { font-size: 13px; color: var(--ink-mute); margin: 0; }
+
+.ab-cta { text-align: center; padding: 10px 0 30px; }
+.ab-cta__h { font-family: var(--ff-display); font-size: 22px; font-weight: 800; margin: 0 0 6px; }
+.ab-cta__d { font-size: 13px; color: var(--ink-mute); margin: 0 0 16px; }
+.ab-cta__btns { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+
+@media (max-width: 720px) {
+  .ab-stats { grid-template-columns: 1fr 1fr; }
+  .ab-stat:nth-child(3) { border-left: 0; }
+  .ab-make { grid-template-columns: 1fr; }
+  .ab-team { grid-template-columns: repeat(2, 1fr); }
+  .ab-partners { grid-template-columns: 1fr 1fr; }
+}

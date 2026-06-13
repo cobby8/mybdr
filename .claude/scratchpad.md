@@ -29,6 +29,24 @@
 ## 구현 기록 (developer)
 (완료 — 완료 Phase로 압축)
 
+### Phase 10 박제 #4 IU1 — About (2026-06-14)
+
+📝 구현: About(/about) v2.30 IU1 시안 박제. 기존 304줄(인라인 스타일) → 시안 7섹션 구조(.ab-* 클래스). source: `BDR-current/screens/About.jsx` + `info-shared.css(.ab-*)` + `info-shared.jsx(ABOUT_*)` + 미리보기 iu1-about.html. IU4/IU2/IU3 동일 박제 패턴.
+
+| 파일 | 변경 | 신규/수정 |
+|------|------|----------|
+| src/app/globals.css | IU1 블록 append(.ab-* 클래스 + 720px 반응형). 토큰 매핑 --r-lg→--radius-card, --r-sm→--radius-chip. 신규 토큰 0(기존 재사용). info-hero/.eyebrow/.t-display는 IU4 공통+기존 재사용 | 수정 |
+| src/app/(web)/about/page.tsx | 인라인 스타일 전면 → .ab-* 클래스 교체(7섹션). server 컴포넌트 유지. ★통계 캡션 "운영 시점 연동"(ab-note·mock 새숫자 0)·★운영진 §6 가드 배너(ab-guard) 신규·FAQ 미니 → /help(IU3) 신규. CTA 가입=btn--accent(시안)·/login, 경기=/games | 수정 |
+
+- **★ 통계 처리 방식**: mock 숫자 **새로 지어내지 않음**. 시안 ABOUT_STATS 예시값(20년/48,000+/320+/1,240회·src 라벨)을 시안 그대로 박제 + `ab-note` "운영 시점에 실데이터 연동" 캡션. prisma count 연동 **안 함**(박제 원칙 "데이터 패칭 변경 금지" 준수 — 서버 컴포넌트 유지하되 DB 쿼리 0). 기존 운영도 동일 예시값+캡션 운영 중이라 회귀 0.
+- **★ 운영진 실명 0**: 시안 ABOUT_TEAM = 기획팀/개발팀/운영팀/디자인팀/커뮤니티팀/사업팀 (일반 라벨만). 실명/실제 직책 박제 0. §6 가드 배너(ab-guard) 추가 — "실명 비공개·사용자 결정 §6 보존" 명시.
+- **검증**: tsc EXIT 0. 위반 0(tsx hex 0·lucide 0·pill 9999 0·핑크/코랄/살몬 0). 아바타 정사각 56x56 border-radius:50%(pill 회피). btn--accent/eyebrow/info-hero 운영 실존 확인.
+- **0스키마**: schema 0 / api v1 0 / 데이터 패칭 0(시안 상수만·prisma 0) / mock 새숫자 0. AppNav 직접조작 0(web layout 자동 active="more").
+- LOC: page.tsx 304→약 215. 과대 아님.
+
+💡 tester: /about 7섹션(Hero·통계4+캡션·가치6·운영진6+가드배너·파트너8·FAQ미니→/help·CTA). 통계 캡션 "운영 시점 연동" 노출. 운영진 실명 0(팀 라벨만)·ab-guard 배너 표시. FAQ "도움말 보기"→/help. CTA 가입→/login·경기→/games. 720px: 통계 2열/가치 1열/운영진 2열/파트너 2열.
+⚠️ reviewer: ★운영진 §6 실명 0 + 가드 배너 / ★통계 mock 새숫자 0(시안 예시값+캡션, prisma 미연동) / btn--accent 시안 충실(기존 btn--primary→시안값 복원).
+
 ### Phase 10 박제 #3 IU3 — Help + Glossary (2026-06-14)
 
 📝 구현: IU3-A Help(/help) 통합 허브 보강 + IU3-B Glossary(/help/glossary) 신규 박제. 시안 `BDR-current/screens/Help.jsx` + `info-shared.css(.hlp-*/.glo-*)` + `info-shared.jsx(HELP_FAQ 6/GLOSSARY_MINI 16/HELP_POLICY 6/GLOSSARY 18)` 박제. IU4/IU2와 동일 패턴.
@@ -100,6 +118,22 @@
 ## 테스트 결과 (tester)
 (완료 — 완료 Phase로 압축)
 
+### Phase 10 박제 #4 IU1 — About (2026-06-14, 정적 검증)
+
+| # | 검증 항목 | 결과 | 비고 |
+|---|----------|------|------|
+| 1 | tsc `--noEmit` | ✅ 통과 | EXIT 0 |
+| 2 | ★★ 운영진 실명 0 + §6 가드 배너 | ✅ 통과 | team[] = 기획/개발/운영/디자인/커뮤니티/사업팀(일반 라벨만). 실명/실직책 0. 시안 ABOUT_TEAM과 100% 일치. ab-guard 배너 존재("실명 비공개·사용자 결정 §6 보존" verified_user 아이콘) |
+| 3 | ★ 통계 mock 더미 0 + 캡션 + prisma 미연동 | ✅ 통과 | stats[] = 시안 ABOUT_STATS 그대로(20년/48,000+/320+/1,240회). 새 가짜숫자 0. ab-note 캡션 "운영 시점에 실데이터로 연동". prisma/count/findMany import 0(주석 1건만). async/await 0=동기 서버 컴포넌트 |
+| 4 | 7섹션 구조 + 링크 | ✅ 통과 | Hero(info-hero)/통계4+캡션/가치6/운영진6+가드/파트너8/FAQ미니/CTA. FAQ미니 btn--primary→/help. CTA 가입 btn--accent btn--xl→/login·경기 btn--xl→/games. /login·/games·/help 라우트 3종 실존 |
+| 5 | 0스키마 (schema/api/패칭 0) | ✅ 통과 | DB import 0·prisma 0·서버 컴포넌트 동기 유지. 데이터 전부 시안 상수(stats/values/team/partners) |
+| 6 | 회귀 (AppNav 4케이스·모바일 720 1열) | ✅ 통과 | AppNav 직접조작 0(web layout 자동 active="more"). @media 720px: 통계 2열(3번째 border-left:0)/가치 1열/운영진 2열/파트너 2열 |
+| 7 | 디자인 (hex 토큰화·핑크코랄살몬 0·lucide 0·pill 9999 0·신규토큰 0) | ✅ 통과 | ab블록 hex 0·tsx hex 0·lucide 0·9999px 0·핑크/코랄/살몬 0. 아바타 56x56 border-radius:50%(pill 회피). 사용 토큰 16종 전부 기존 정의 존재(신규 0·매핑 주석 명시). 재사용 클래스(info-hero/eyebrow/t-display/btn--accent/btn--xl) 전부 실존 |
+
+📊 종합: 7개 중 7개 통과 / 0개 실패
+
+**결론**: IU1 About 박제 정적 검증 전항목 통과. ★★운영진 실명 0(시안 ABOUT_TEAM 일반 팀 라벨 그대로 + §6 가드 배너) / ★통계 mock 새숫자 0(시안 예시값 + ab-note 캡션 + prisma 미연동·데이터 패칭 0). 신규 결함 0. 수정 요청 없음.
+
 ### Phase 10 박제 #3 IU3 — Help + Glossary (2026-06-14, 정적 검증)
 
 | # | 검증 항목 | 결과 | 비고 |
@@ -118,6 +152,27 @@
 **결론**: IU3 박제 자체 검증 통과. 박제 범위 내 신규 결함 0. #5는 시안의 운영 라우트를 그대로 박제한 결과로, 홈 quick-menu.tsx와 동일한 `?type=pickup` 컨벤션 → listGames가 영문 type을 못 받아 빈결과/오류 가능하나 **운영 전반의 기존 버그**(glossary가 새로 깨뜨린 것 아님). 후속 분리 처리 권장. (reviewer는 games type 지원으로 보고 #5를 통과 판정했으나, 정적 검증 결과 game.ts L44 parseInt가 영문 미지원 — tester가 더 보수적 판정)
 
 ## 리뷰 결과 (reviewer)
+
+### IU1 About 박제 (2026-06-14)
+
+📊 종합 판정: **APPROVE** (c0 / maj0 / min1 — 후속, 동작영향 0)
+
+✅ 잘된 점:
+- ★★ §6 운영진 실명 **0 완벽 준수** — team[] = 기획팀/개발팀/운영팀/디자인팀/커뮤니티팀/사업팀 일반 라벨만. 실명·실제 직책 박제 0. 추가로 ab-guard 가드 배너("실명 비공개·사용자 결정 §6 보존") 노출 — 회귀 방지 명문화까지 이상적. 시안 ABOUT_TEAM과 100% 일치
+- ★ 통계 mock 새 숫자 0 — stats[] 4건(20년/48,000+/320+/1,240회·src)이 시안 ABOUT_STATS와 한 글자도 안 틀리게 일치. 새 숫자 창작 0. ab-note "운영 시점에 실데이터로 연동" 캡션으로 예시값 명시. prisma count 미추가(서버 컴포넌트지만 DB 쿼리 0) — 박제 원칙 "데이터 패칭 변경 금지" 준수
+- 데이터 패칭 무변경 회귀 0 — page.tsx에 prisma/fetch/await 0. metadata(SEO) 기존 보존. import는 next/link·Metadata만. 기존 about도 동일 예시값 운영이라 회귀 0
+- 13룰 통과 — var(--*) 토큰만, 신규 토큰 0(매핑 --r-lg→--radius-card / --r-sm→--radius-chip 주석 명시·실측 13개 토큰 전부 globals.css :root 기존 정의 확인). Material Symbols만(sync/verified_user/help · lucide 0). pill 9999 0(아바타 56x56 정사각 border-radius:50%). 핑크/코랄/살몬 0. tsx hex 0(CSS hex도 0 — 전부 토큰)
+- 시안 변수 매핑 정합 — globals.css .ab-* 블록이 시안 info-shared.css .ab-* 규칙과 1:1 일치(--r-lg→--radius-card·--r-sm→--radius-chip 2곳[.ab-guard·.ab-partner] 외 전부 동일 토큰). page.tsx도 시안 About.jsx와 구조·텍스트 1:1
+- 7섹션·링크 정합 — Hero(info-hero 재사용)/통계4+ab-note/가치6/운영진6+가드/파트너8/FAQ미니→/help/CTA(가입 btn--accent→/login·경기 btn--xl→/games). 시안 href(iu3-help/au1-login-signup/p2-ua1-games) → 운영 라우트(/help·/login·/games) 정확 치환. btn--accent=var(--accent)(BDR Red)로 시안 shell.css btn--accent와 동일 의도(강조 가입버튼)
+- AppNav frozen·클래스 충돌 0 — AppNav 직접조작 0(web layout 자동 active="more"). .ab-wrap 단일 정의(중복 0)·.ab- 네임스페이스 globals.css 신규 블록 단독. info-hero/.eyebrow/.t-display/btn--accent/btn--xl/btn--primary 전부 기존 실존 재사용
+- schema/api 변경 0 — page.tsx 시안 상수 4종(stats/values/team/partners)만·prisma 0·api v1 0. tsc --noEmit EXIT 0
+
+🔴 필수 수정: 없음
+
+🟡 권장 수정(후속·동작영향 0):
+- [about/page.tsx L87·L92] inline style 2곳(`fontSize:42`·`color:var(--ink)`) — 시안 About.jsx가 동일 inline이라 박제 충실 의도는 정합. 운영 컨벤션상 .info-hero__title 오버라이드를 CSS 클래스로 빼면 더 깔끔하나 동작·디자인 영향 0(시안 1:1 우선 시 현행 유지도 OK). 후속 미세 정리
+
+---
 
 ### IU3 Help + Glossary 박제 (2026-06-14)
 
@@ -171,6 +226,9 @@
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
 |------|------|------|
+| 2026-06-14 | **Phase 10 IU1 About 코드 리뷰** (reviewer) | ✅ APPROVE(c0/maj0/min1). ★★운영진 실명0(시안 ABOUT_TEAM 팀 라벨 100%일치+ab-guard §6 가드 배너) ★통계 mock 새숫자0(시안 ABOUT_STATS 1:1·ab-note 캡션·prisma 미연동·DB쿼리0) 데이터패칭 무변경 회귀0. 13룰 통과(신규토큰0·매핑 정확·Material Symbols·아바타 50%·hex0). 시안 .ab-* 1:1·href→운영라우트 정확치환. AppNav frozen·.ab-wrap 중복0·tsc0. 필수수정 없음 |
+| 2026-06-14 | **Phase 10 IU1 About 정적 검증** (tester) | ✅ 7/7 통과. tsc0·★★운영진 실명0(시안 ABOUT_TEAM 팀 라벨+§6 가드 배너)·★통계 mock 새숫자0(시안 예시값+ab-note 캡션·prisma 미연동·async 0=동기 서버컴포넌트)·7섹션(FAQ→/help·CTA→/login·/games 실존)·schema/api/패칭0·720 1열·hex/lucide/pill/핑크코랄살몬0·신규토큰0(16종 기존 재사용)·AppNav 조작0. 수정요청 없음 |
+| 2026-06-14 | **Phase 10 IU1 About 박제** (developer) | ✅ 304줄 인라인 → v2.30 시안 7섹션(.ab-* 클래스). globals.css IU1 블록 append(토큰 매핑 --r-lg→--radius-card·신규0). ★통계 mock 새숫자0(시안 예시값+"운영 시점 연동" ab-note·prisma 미연동) ★운영진 실명0(팀 라벨+§6 가드 배너) FAQ미니→/help. CTA btn--accent/login·/games. tsc0·위반0(hex/lucide/pill/핑크코랄 0). schema/api/패칭 0 |
 | 2026-06-14 | **Phase 10 IU3 Help+Glossary 정적 검증** (tester) | ✅ 8개 중 7통과/1조건부. tsc0·redirect0(Link만)·A-Z chip(english초성·disabled·sticky·radius-chip)·검색 FAQ+용어 동시·SEO metadata server/client 분리 보존·schema/api/패칭 0·720 1열·핑크/코랄/lucide/pill/신규토큰 0. ⚠️#5: glossary `/games?type=pickup` 영문 type → game.ts L44 parseInt=NaN 빈결과 가능(홈 quick-menu 동일·IU3 회귀 아님·기존버그 carry). 수정요청 후속 1건 추가 |
 | 2026-06-14 | **KO-9 결선 미생성 자동종료 오판 가드** (developer) | ✅ auto-complete.ts PURE isKnockoutFormat(full_league_knockout/group_stage_knockout) + checkAndAutoCompleteTournament에 format select·결선0건 early return(knockout-not-generated·console.warn). countKnockoutMatches(KO-1) 재사용. 신규 vitest 10/10·KO-2 10/10·nba 22/22·tsc0. +36/-1. 결선없는 format 회귀0(count미호출 검증). schema/v1 0 |
 | 2026-06-14 | **KO Sprint1 결선중복방지 (KO-1/2/3)** (developer) | ✅ countKnockoutMatches(round_number/bracket_position/roundName OR) + assertSingleGroupForAutoKnockout(2개조 throw)/guardAutoKnockoutGroups. generator 4곳 가드·match route catch 가시화·bracket catch 가시화. 신규 vitest 10/10·nba회귀 9/9·tsc0. +128/-19 4파일+테스트. 기존실패4건=baseline무관(stash검증). schema/v1 0 |
@@ -179,5 +237,3 @@
 | 2026-06-13 | **PR-RECORDER-AUDIT 파트0 HOTFIX 기록원목록 snake_case 표시버그** (pm) | ✅ `e3d757e` tournament-admin recorders/page.tsx camelCase→snake_case 3곳(type/filter/제거). apiSuccess 변환함정 재발6회. tsc0·응답/body/route 무변경. +7/-5. errors+1 |
 | 2026-06-12 | **PR-RECORDER-AUDIT 감사로그+admin_role 가시화** (dev/tester/reviewer/pm) | ✅ `a897b22`→#669→#670 main머지. recorders adminLog 3지점 + admin_role 칩. PASS5/5·APPROVE·lessons+1. +92/-7 |
 | 2026-06-12 | **①-b Phase 9C 박제+검증+커밋** (developer/tester/reviewer/pm) | ✅ 9C-1/3/4 박제(9C-2 스킵)·tsc0·tester PASS·reviewer APPROVE·라우트별 3커밋(`cb88c7a`/`8aeb050`/`b759d2d`). 팀장 전송차단·mock유지·DB/api/role 0변경 |
-| 2026-06-12 | **③ 대회종료 B안 박제 커밋** (pm) | ✅ `ecca28d`(feat 8파일 +1239/-53)+`7d6f89c`(역박제)+`4dbc833`(회고) |
-| 2026-06-12 | **③ NBA 승자판정 견고화+재검증** (developer/tester·되돌림1회) | ✅ teamId 직접비교+점수폴백·major1 해소·진행중뷰 회귀0 |
