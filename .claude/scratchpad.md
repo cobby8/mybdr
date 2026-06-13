@@ -4,13 +4,14 @@
 - **요청**: (세션 정리) 직전 세션 작업 전부 머지 완료 → **Phase 10 정보페이지 Claude.ai 시안 의뢰 진행 중**
 - **상태**: ⏸ 대기 — Phase 10 paste 준비 완료, **수빈이 Claude.ai에 4건 drag-drop + 회신 paste → zip(BDR v2.30) 회신 대기**
 - **현재 담당**: 수빈 (Claude.ai 시안 작업) → 회신 후 CLI sync
-- **git 정합**: subin=dev(#671)=main(#672 `3db595c`) — 미push 0 / 미머지 0 (전부 운영 반영)
+- **끼어든 단독 PR**: PR-PERM-DISPLAY 권한/구독 2축 분리 ✅ `e98e611`(미push 1) — push 결재 대기
 - **Phase 10 다음 액션**: zip 도착 시 → `sync-bdr-current.ps1 -NewVersion v2.30` → Phase 10C Auto Chain 5 PR (IU1~4 + IA1)
 
 ## 진행 현황표
 | # | 작업 | 상태 |
 |---|------|------|
 | Phase 10 정보페이지 | About/News/Help/Reviews/AdminNews 5시안 | ⏸ Claude.ai paste 진행 (zip 회신 대기) |
+| PR-PERM-DISPLAY | 권한/구독 2축 분리 (역할→구독등급/관리자→운영권한) | ✅ `e98e611` (미push) |
 | PR-RECORDER-AUDIT | 기록원 감사로그 + admin_role 가시화 | ✅ #670(`77d014a`)+HOTFIX #672(`3db595c`) 운영 반영 |
 | ③ | 대회종료 재구성 박제 (B안) | ✅ #667→#668(`4199d87`) 운영 반영 |
 | ①-b | Phase 9C 박제 (9C-1/3/4·9C-2 스킵) | ✅ #667→#668 운영 반영 |
@@ -51,6 +52,7 @@
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
 |------|------|------|
+| 2026-06-13 | **PR-PERM-DISPLAY 권한/구독 2축 분리** (pm) | ✅ `e98e611` admin-users-table 칼럼 라벨 역할→구독등급·관리자→운영권한(슈퍼관리자 err칩)·page 부제 4→MAX_SUPER_ADMINS(10). 옵션B·DB0·표시로직만·+12/-6·tsc0. 역박제skip·decisions+1. §0 lock 확인(transient·해소) |
 | 2026-06-13 | **Phase 10 정보페이지 Claude.ai paste 준비 + 세션 정리** (pm) | ✅ 첨부4건 존재확인 + paste 메시지본체 추출. Claude.ai 1차 "첨부 미도착" 차단 → (A)실데이터 박제 결재 / drag-drop 4건 + 회신문구 제공. ③·9C·RECORDER 전부 머지 확인(미push0). scratchpad 정리 |
 | 2026-06-13 | **PR-RECORDER-AUDIT 파트0 HOTFIX 기록원목록 snake_case 표시버그** (pm) | ✅ `e3d757e` tournament-admin recorders/page.tsx camelCase→snake_case 3곳(type/filter/제거). apiSuccess 변환함정 재발6회. tsc0·응답/body/route 무변경. +7/-5. errors+1 |
 | 2026-06-12 | **PR-RECORDER-AUDIT 감사로그+admin_role 가시화** (dev/tester/reviewer/pm) | ✅ `a897b22`→#669→#670 main머지. recorders adminLog 3지점 + admin_role 칩. PASS5/5·APPROVE·lessons+1. +92/-7 |
@@ -59,4 +61,3 @@
 | 2026-06-12 | **③ NBA 승자판정 견고화+재검증** (developer/tester·되돌림1회) | ✅ teamId 직접비교+점수폴백·major1 해소·진행중뷰 회귀0 |
 | 2026-06-10 | **③ 대회종료 B안 박제+검증** (developer/tester/reviewer) | ✅ 신규5+수정3+역박제2·진행중뷰 회귀게이트 통과·PASS·APPROVE(major1→해소) |
 | 2026-06-10 | **③ 대회종료 B안 설계보강** (planner) | ✅ 격리전략 혼합·~+1700LOC. TournamentTabs status무관 재사용·NBA/예선 신규복제 |
-| 2026-06-10 | **③ 대회종료 기획설계 A/B안 제시** (planner) | ✅ A/B안 PM결재 요청 → 사용자 B안 결재 |
