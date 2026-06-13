@@ -16,6 +16,8 @@ import { AdminPageHeader } from "@/components/admin/admin-page-header";
 import { AdminUsersTable } from "./admin-users-table";
 // 6.1C-5(PA1) 박제: 본인 자기 정지 가드 표시용 — 현재 로그인 슈퍼관리자 식별
 import { getWebSession } from "@/lib/auth/web-session";
+// 2026-06-13 PR-PERM-DISPLAY §2-4 — 부제 슈퍼관리자 상한 하드코딩 "4" → 단일 source.
+import { MAX_SUPER_ADMINS } from "@/lib/auth/roles";
 
 export const dynamic = "force-dynamic";
 
@@ -114,8 +116,8 @@ export default async function AdminUsersPage({
 
   // 부제: 검색 시에는 검색 결과 / 평소에는 전체 + 첫 N명 표시
   const subtitle = q
-    ? `검색 결과 ${totalCount.toLocaleString()}명 · 슈퍼관리자 ${superAdminCount}/4`
-    : `전체 ${totalCount.toLocaleString()}명 · 슈퍼관리자 ${superAdminCount}/4`;
+    ? `검색 결과 ${totalCount.toLocaleString()}명 · 슈퍼관리자 ${superAdminCount}/${MAX_SUPER_ADMINS}`
+    : `전체 ${totalCount.toLocaleString()}명 · 슈퍼관리자 ${superAdminCount}/${MAX_SUPER_ADMINS}`;
 
   return (
     <div>
