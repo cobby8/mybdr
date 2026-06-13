@@ -302,6 +302,8 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
           assignTeamsToKnockout,
           generateKnockoutMatches,
           calculateLeagueRanking,
+          // [KO-1] round_number 유무에 의존하지 않는 강화 카운트 가드
+          countKnockoutMatches,
         } = await import("@/lib/tournaments/tournament-seeding");
 
         const leagueDone = await isLeagueComplete(id);
@@ -309,9 +311,8 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
           // Phase 2C: 이미 빈 뼈대가 있는지 확인
           //  - 있음 → assignTeamsToKnockout (팀 ID만 UPDATE, 빠름)
           //  - 없음 → 구버전 대회이므로 기존 generateKnockoutMatches fallback
-          const existingKnockout = await prisma.tournamentMatch.count({
-            where: { tournamentId: id, round_number: { not: null } },
-          });
+          // [KO-1] round_number 단독 카운트 → 강화 가드로 교체 (수동 INSERT 매치도 인식)
+          const existingKnockout = await countKnockoutMatches(id);
 
           if (existingKnockout > 0) {
             // 빈 뼈대가 존재 → 1라운드 빈 슬롯에 팀 할당
@@ -341,9 +342,14 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
         }
       }
     } catch (e) {
-      // 토너먼트 자동 생성 실패는 로그만 남기고 사용자 응답은 성공 유지
-      // admin이 수동 트리거 API로 재시도 가능
-      console.error("[auto-knockout-gen]", e);
+      // [KO-3] silent catch 가시화 — 메인 플로우(경기 완료)는 계속 진행하되 경고를 명시 로깅.
+      // 자동생성 실패 사유에는 [KO-2] 2개조 차단 throw가 포함될 수 있다(정상 동작).
+      // 운영자가 결선 누락/중복을 인지하고 수동 대진을 짜야 하므로 console.warn으로 노출한다.
+      const msg = e instanceof Error ? e.message : String(e);
+      console.warn(
+        `[auto-knockout-gen] 결선 자동생성 건너뜀(메인 플로우는 진행). ` +
+          `사유: ${msg} — 2개조 대회는 group-aware 크로스 대진을 수동 등록하세요. admin 수동 트리거로 재시도 가능.`,
+      );
     }
   }
 

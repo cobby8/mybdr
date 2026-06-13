@@ -200,7 +200,13 @@ export async function POST(req: NextRequest, { params }: Ctx) {
             bronzeMatch,
           );
         } catch (e) {
-          console.error("[skeleton-gen]", e);
+          // [KO-3] silent catch 가시화 — 리그 생성은 성공 유지하되 뼈대 실패를 명시 경고.
+          // [KO-2] 2개조 대회는 여기서 throw되어 skeleton 생성이 차단된다(정상). 운영자가 인지하도록 노출.
+          const msg = e instanceof Error ? e.message : String(e);
+          console.warn(
+            `[skeleton-gen] 결선 빈 뼈대 생성 건너뜀(리그 생성은 성공). ` +
+              `사유: ${msg} — 2개조 대회는 group-aware 크로스 대진을 수동 등록하세요.`,
+          );
         }
       }
 

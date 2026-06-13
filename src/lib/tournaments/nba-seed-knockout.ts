@@ -21,6 +21,8 @@ import { Prisma } from "@prisma/client";
 import { applyMatchCodeFields } from "@/lib/tournaments/match-code";
 import { buildSlotLabel } from "@/lib/tournaments/placeholder-helpers";
 import { nbaSeedPairsWithBye, isByePair, type NbaSeedPair } from "@/lib/tournaments/nba-seed-helpers";
+// [KO Sprint1] 결선 중복방지(KO-1) + 2개조 자동생성 차단(KO-2) 공통 가드
+import { countKnockoutMatches, guardAutoKnockoutGroups } from "@/lib/tournaments/tournament-seeding";
 
 // ─────────────────────────────────────────────────────────────────────────
 // 타입 정의
@@ -282,10 +284,11 @@ export async function generateNbaSeedKnockout(
   knockoutSize: number,
   bronzeMatch: boolean = false,
 ): Promise<number> {
-  // 1) 중복 생성 방지 — 기존 generateKnockoutMatches 동일 가드
-  const existing = await prisma.tournamentMatch.count({
-    where: { tournamentId, round_number: { not: null } },
-  });
+  // [KO-2] 2개조+ 자동생성 차단 — NBA 시드도 조 미반영이라 같은 조 재대결 위험
+  await guardAutoKnockoutGroups(tournamentId);
+
+  // 1) 중복 생성 방지 — [KO-1] round_number 유무에 의존하지 않는 강화 가드 사용
+  const existing = await countKnockoutMatches(tournamentId);
   if (existing > 0) {
     throw new Error(`이미 ${existing}건의 토너먼트 경기가 존재합니다.`);
   }
