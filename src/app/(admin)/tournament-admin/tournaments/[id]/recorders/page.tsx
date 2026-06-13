@@ -7,11 +7,13 @@ import Image from "next/image";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
+// 2026-06-13 HOTFIX: GET 응답은 apiSuccess→convertKeysToSnakeCase 거쳐 snake_case.
+//   camelCase(recorderId/isActive/createdAt)로 읽으면 전 행 undefined → 빈 목록 버그.
 type Recorder = {
   id: string;
-  recorderId: string;
-  isActive: boolean;
-  createdAt: string;
+  recorder_id: string;
+  is_active: boolean;
+  created_at: string;
   recorder: {
     id: string;
     nickname: string | null;
@@ -75,7 +77,7 @@ export default function TournamentRecordersPage() {
     } catch { /* ignore */ }
   };
 
-  const activeRecorders = recorders.filter((r) => r.isActive);
+  const activeRecorders = recorders.filter((r) => r.is_active);
 
   return (
     <div className="max-w-2xl mx-auto p-6 space-y-6">
@@ -159,7 +161,7 @@ export default function TournamentRecordersPage() {
                 <button
                   onClick={() =>
                     removeRecorder(
-                      r.recorderId,
+                      r.recorder_id,
                       r.recorder.nickname ?? r.recorder.email
                     )
                   }
