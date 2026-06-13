@@ -270,18 +270,73 @@ export async function DELETE(req: NextRequest, { params }: Ctx) {
       return apiError("Hard DELETE 는 super_admin 만 가능합니다.", 403);
     }
 
-    // $transaction — (1) tournament 실제 삭제 (2) series 카운터 -1.
-    // FK NoAction 이라 관련 row (매치/팀/통계) 가 있으면 외래키 위반 throw — 운영자가 사전 정리 책임.
+    // $transaction — cascade 7스텝 + series 카운터 -1.
+    // 이유(왜): tournament 자식 FK 대부분이 onDelete NoAction (Cascade 아님) 이라, tournament.delete()
+    //   단독 호출 시 외래키 위반(P2003)으로 삭제 불가. 손자→자식→tournament 역순으로 명시 deleteMany 필요.
+    //   (architecture.md "Tournament Hard 삭제 cascade 의존성 그래프" 참조)
+    //   ※ Cascade FK 자식(match_events / news_photos / site_registrations / tournament_recorders 등)은
+    //     부모 삭제 시 DB 가 자동 정리하므로 여기서 명시하지 않는다.
     try {
       await prisma.$transaction(async (tx) => {
+        // 매치 id 목록 먼저 확보 — 손자(pbp/스탯/라인업) deleteMany 의 where 조건으로 사용.
+        const matchIds = (
+          await tx.tournamentMatch.findMany({
+            where: { tournamentId: id },
+            select: { id: true },
+          })
+        ).map((m) => m.id);
+
+        // STEP1: 매치 손자 3종 정리 (play_by_plays / match_player_stats / match_lineup_confirmed)
+        //   — pbp/스탯은 ttp·team FK 도 갖지만 매치 기준 삭제로 전수 커버 (모든 row 가 이 대회 매치 소속).
+        await tx.play_by_plays.deleteMany({
+          where: { tournament_match_id: { in: matchIds } },
+        });
+        await tx.matchPlayerStat.deleteMany({
+          where: { tournamentMatchId: { in: matchIds } },
+        });
+        await tx.matchLineupConfirmed.deleteMany({
+          where: { matchId: { in: matchIds } },
+        });
+
+        // STEP2: 매치 삭제 (next_match_id 자기참조 NoAction 이지만 묶음 deleteMany 라 무해).
+        await tx.tournamentMatch.deleteMany({ where: { tournamentId: id } });
+
+        // STEP3: 팀 선수(ttp) → 팀 순으로 삭제 (ttp 가 team FK NoAction 으로 묶임).
+        await tx.tournamentTeamPlayer.deleteMany({
+          where: { tournamentTeam: { tournamentId: id } },
+        });
+        await tx.tournamentTeam.deleteMany({ where: { tournamentId: id } });
+
+        // STEP4: 사이트 섹션 → 페이지 → 사이트 순 (NoAction 체인).
+        await tx.site_sections.deleteMany({
+          where: { site_pages: { tournament_sites: { tournamentId: id } } },
+        });
+        await tx.site_pages.deleteMany({
+          where: { tournament_sites: { tournamentId: id } },
+        });
+        await tx.tournamentSite.deleteMany({ where: { tournamentId: id } });
+
+        // STEP5: tournament 직접 자식 나머지 (운영진 / 대진표 버전 / 종별 규칙).
+        await tx.tournamentAdminMember.deleteMany({ where: { tournamentId: id } });
+        await tx.tournament_bracket_versions.deleteMany({
+          where: { tournament_id: id },
+        });
+        await tx.tournamentDivisionRule.deleteMany({ where: { tournamentId: id } });
+
+        // STEP6: tournament 본체 삭제.
         await tx.tournament.delete({ where: { id } });
+
+        // STEP7: series 카운터 -1 (기존 로직 유지).
         if (currentTournament.series_id !== null) {
           await tx.tournament_series.update({
             where: { id: currentTournament.series_id },
             data: { tournaments_count: { decrement: 1 } },
           });
         }
-      });
+      // 2026-06-14 reviewer minor — cascade 7스텝 트랜잭션 타임아웃 30s 로 상향.
+      //   이유: 매치/팀/통계가 많은 대형 대회 Hard 삭제 시 다수 deleteMany 누적으로
+      //   Prisma 기본 트랜잭션 타임아웃(5s)을 초과해 P2028 롤백 가능. 여유 확보.
+      }, { timeout: 30000 });
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       // FK 위반 — Prisma P2003 등.
