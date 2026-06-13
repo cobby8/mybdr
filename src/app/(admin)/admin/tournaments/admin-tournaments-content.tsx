@@ -81,6 +81,9 @@ interface Props {
   updateStatusAction: (formData: FormData) => Promise<void>;
   toggleVisibilityAction: (formData: FormData) => Promise<void>;
   pagination: Pagination;
+  // 2026-06-14 대회 삭제 — super_admin 일 때만 "완전 삭제(복구불가)" Hard 옵션 노출.
+  //   일반 운영/관리자는 Soft(취소) 만 가능 (API 측 super_admin 가드와 동일 정책).
+  isSuperAdmin: boolean;
 }
 
 export function AdminTournamentsContent({
@@ -88,6 +91,7 @@ export function AdminTournamentsContent({
   updateStatusAction,
   toggleVisibilityAction: _toggleVisibilityAction,
   pagination,
+  isSuperAdmin,
 }: Props) {
   const router = useRouter();
   const pathname = usePathname();
@@ -95,6 +99,70 @@ export function AdminTournamentsContent({
 
   const [activeTab, setActiveTab] = useState("all");
   const [selected, setSelected] = useState<SerializedTournament | null>(null);
+
+  // 2026-06-14 대회 삭제 모달 상태.
+  //   deleteTarget: 삭제 확인 모달 대상 (null = 닫힘)
+  //   confirmName: 사용자가 입력한 대회명 (정확히 일치해야 삭제 버튼 활성)
+  //   hardMode: super_admin 이 "완전 삭제(복구불가)" 체크 시 true → ?hard=1 전송
+  //   deleting: 요청 진행 중 (중복 클릭 방지)
+  //   deleteError: 실패 메시지 표시
+  const [deleteTarget, setDeleteTarget] = useState<SerializedTournament | null>(
+    null,
+  );
+  const [confirmName, setConfirmName] = useState("");
+  const [hardMode, setHardMode] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  // 삭제 확인 모달 열기 — 입력값 초기화하며 대상 지정.
+  const openDeleteModal = (t: SerializedTournament) => {
+    setConfirmName("");
+    setHardMode(false);
+    setDeleteError(null);
+    setDeleteTarget(t);
+  };
+
+  // 삭제 확인 모달 닫기 — 진행 중이 아닐 때만.
+  const closeDeleteModal = () => {
+    if (deleting) return;
+    setDeleteTarget(null);
+  };
+
+  // 삭제 실행 — DELETE /api/web/tournaments/:id (hardMode 면 ?hard=1).
+  //   성공 시: 모달 2개(삭제 확인 + 상세) 모두 닫고 router.refresh() 로 목록 갱신.
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      const query = hardMode ? "?hard=1" : "";
+      const res = await fetch(
+        `/api/web/tournaments/${deleteTarget.id}${query}`,
+        { method: "DELETE" },
+      );
+      if (!res.ok) {
+        // API 는 apiError() 로 { error: { message } } 형태 반환 (snake_case 변환 영향 없음).
+        let message = "삭제에 실패했습니다.";
+        try {
+          const body = await res.json();
+          message = body?.error?.message ?? body?.message ?? message;
+        } catch {
+          /* JSON 파싱 실패 시 기본 메시지 */
+        }
+        setDeleteError(message);
+        setDeleting(false);
+        return;
+      }
+      // 성공 — 모달 닫고 목록 새로고침.
+      setDeleteTarget(null);
+      setSelected(null);
+      setDeleting(false);
+      router.refresh();
+    } catch {
+      setDeleteError("네트워크 오류로 삭제하지 못했습니다.");
+      setDeleting(false);
+    }
+  };
 
   const toTabKey = (status: string): string => {
     const map: Record<string, string> = {
@@ -325,19 +393,19 @@ export function AdminTournamentsContent({
                   >
                     감사 로그
                   </Link>
-                  {/* 대회 삭제 = 별 PR (cascade 정책 + 위험 가드 필요) */}
+                  {/* 2026-06-14 대회 삭제 활성화 — 클릭 시 이름 확인 모달 open. */}
                   <button
                     type="button"
-                    disabled
-                    className="btn btn--sm opacity-50 cursor-not-allowed"
-                    style={{ color: "var(--color-error)" }}
-                    title="대회 삭제는 별 PR 에서 cascade 가드 + 이름 확인 dialog 와 함께 추가 예정"
+                    onClick={() => openDeleteModal(selected)}
+                    className="btn btn--sm"
+                    style={{ color: "var(--color-error)", borderColor: "var(--color-error)" }}
                   >
                     대회 삭제
                   </button>
                 </div>
                 <p className="mt-2 text-xs" style={{ color: "var(--color-text-muted)" }}>
-                  ※ 대회 삭제는 cascade 정책 검토 후 별 PR 에서 활성화 예정.
+                  ※ 기본 삭제는 "취소" 처리(복구 가능)입니다.
+                  {isSuperAdmin ? " 완전 삭제는 복구할 수 없습니다." : ""}
                 </p>
               </div>
             </div>
@@ -362,6 +430,125 @@ export function AdminTournamentsContent({
                 ["생성일", fmtDate(selected.createdAt)],
               ]}
             />
+          </div>
+        </AdminDetailModal>
+      )}
+
+      {/* 2026-06-14 대회 삭제 확인 모달 — AdminDetailModal 재사용 (디자인 일관).
+          이름 정확 입력 시에만 삭제 버튼 활성 / 기본 Soft(취소) / super_admin 만 Hard 옵션 노출. */}
+      {deleteTarget && (
+        <AdminDetailModal
+          isOpen={!!deleteTarget}
+          onClose={closeDeleteModal}
+          title="대회 삭제"
+          actions={
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={closeDeleteModal}
+                disabled={deleting}
+                className="btn btn--sm flex-1 disabled:opacity-50"
+              >
+                취소
+              </button>
+              {/* 이름 정확 입력 시에만 활성. hardMode 면 강조(빨강) 표시. */}
+              <button
+                type="button"
+                onClick={handleDelete}
+                disabled={deleting || confirmName.trim() !== deleteTarget.name}
+                className="btn btn--sm flex-1 disabled:pointer-events-none disabled:opacity-40"
+                style={{
+                  background: "var(--color-error)",
+                  color: "#fff",
+                  borderColor: "var(--color-error)",
+                }}
+              >
+                {deleting
+                  ? "삭제 중…"
+                  : hardMode
+                    ? "완전 삭제"
+                    : "삭제(취소 처리)"}
+              </button>
+            </div>
+          }
+        >
+          <div className="space-y-4">
+            {/* 경고 안내 — Soft/Hard 분기 설명 */}
+            <div
+              className="flex items-start gap-2 rounded-md border p-3"
+              style={{
+                borderColor: "var(--color-error)",
+                background: "var(--color-elevated)",
+              }}
+            >
+              <span
+                className="material-symbols-outlined text-xl"
+                style={{ color: "var(--color-error)" }}
+              >
+                warning
+              </span>
+              <p className="text-sm" style={{ color: "var(--color-text-primary)" }}>
+                {hardMode ? (
+                  <>
+                    이 대회와 관련된 모든 데이터(경기·팀·기록·사이트)가{" "}
+                    <strong>영구 삭제</strong>되며 복구할 수 없습니다.
+                  </>
+                ) : (
+                  <>
+                    이 대회를 <strong>취소 처리</strong>합니다. (상태=취소, 추후
+                    복구 가능)
+                  </>
+                )}
+              </p>
+            </div>
+
+            {/* 이름 확인 입력 — 정확 일치해야 삭제 활성 */}
+            <div>
+              <label
+                className="mb-1.5 block text-xs"
+                style={{ color: "var(--color-text-muted)" }}
+              >
+                확인을 위해 대회명을 정확히 입력하세요:{" "}
+                <strong style={{ color: "var(--color-text-primary)" }}>
+                  {deleteTarget.name}
+                </strong>
+              </label>
+              <input
+                type="text"
+                value={confirmName}
+                onChange={(e) => setConfirmName(e.target.value)}
+                placeholder="대회명 입력"
+                autoFocus
+                className="w-full rounded-md border px-3 py-2 text-sm"
+                style={{
+                  borderColor: "var(--color-border)",
+                  background: "var(--color-card)",
+                  color: "var(--color-text-primary)",
+                }}
+              />
+            </div>
+
+            {/* super_admin 전용 — 완전 삭제(복구불가) 옵션 */}
+            {isSuperAdmin && (
+              <label
+                className="flex items-center gap-2 text-sm"
+                style={{ color: "var(--color-text-primary)" }}
+              >
+                <input
+                  type="checkbox"
+                  checked={hardMode}
+                  onChange={(e) => setHardMode(e.target.checked)}
+                />
+                완전 삭제(복구 불가) — 모든 관련 데이터 영구 제거
+              </label>
+            )}
+
+            {/* 실패 메시지 */}
+            {deleteError && (
+              <p className="text-sm" style={{ color: "var(--color-error)" }}>
+                {deleteError}
+              </p>
+            )}
           </div>
         </AdminDetailModal>
       )}
