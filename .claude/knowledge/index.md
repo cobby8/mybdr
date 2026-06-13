@@ -1,5 +1,5 @@
 # 프로젝트 지식 목차
-> 최종 갱신: 2026-06-13 (PR-PERM-DISPLAY `e98e611` — 권한/구독 2축 분리: 역할→구독등급/관리자→운영권한·슈퍼관리자 칩 / decisions +1 옵션B 채택)
+> 최종 갱신: 2026-06-14 (KO Sprint1 `a9ebaf6` — 결선 knockout 중복+예선종료 오분류 재발방지 4가드 / lessons +1 진단·정리·재발방지 종합, errors/decisions 보강)
 
 ## 파일별 요약
 | 파일 | 항목 수 | 최종 업데이트 | 설명 |
@@ -17,6 +17,7 @@
 | project-structure-audit.md | 10 | 2026-03-28 | 전체 구조 분석 |
 
 ## 최근 추가된 지식 (최근 10건)
+- [06-14] lessons+KO Sprint1: **결선 knockout 9경기 중복 + 예선종료 대회종료 오분류 — 진단·정리·재발방지 종합** (`a9ebaf6`). 제10회 YOUNGMAN GAME: ①6/9 수동 크로스 INSERT 위에 6/12 자동생성 중첩→조무시 전조합 박제 9경기 ②auto-complete가 결선 무관 `종료===전체`로 예선만 완료해도 자동종료(full_league_knockout 결선0건=예선=전체 오판). 진단=created_at 배치구분→next 연결된 정상브래킷 살리고 중복 삭제(시각 timestamp UTC저장 +9h=KST). 정리=트랜잭션 DELETE6+UPDATE3·종속기록(tournament_match_id) 0검증·classifier destructive는 구체ID 재승인. 재발방지 4가드: KO-1 결선판정 3신호OR(수동INSERT 인식)/KO-2 2개조+ 자동생성 throw차단/KO-3 silent catch 가시화/KO-9 결선format 결선0건시 자동종료차단. 룰: "예선끝났는데 종료" = 다음단계(결선) 부재 인지실패 의심 / 수동+자동 양경로면 가드가 양쪽 흔적 인식 검증 / silent catch 항상 가시화. Sprint2(group_cross 자동등록 generator) 보류.
 - [06-13] decisions: **권한/구독 2축 표현 분리 — 옵션B 채택** (PR-PERM-DISPLAY `e98e611`). 슈퍼관리자 8명이 "역할"칼럼에 구독등급(일반유저/대회관리자)으로 표시→권한·구독 혼동. 결정=admin-users-table 칼럼 라벨 "역할"→"구독 등급"(getRoleInfo 무변경)·"관리자"→"운영 권한"(is_admin→슈퍼관리자 err칩/recorder·association info칩/—). 구독 tier3 "대회관리자" 라벨 유지(칼럼 분리로 혼동 해소). page.tsx 부제 상한 4→MAX_SUPER_ADMINS(10). DB0·표시로직만·+12/-6. 역박제 skip(시안 권한=상태뱃지 통합·별도칼럼 부재). 근거=Dev/permission-representation-audit-2026-06-13.md.
 - [06-13] errors: **apiSuccess snake_case 자동변환 ↔ 프론트 camelCase 접근 함정 (★재발 6회)** (PR-RECORDER-AUDIT 파트0 HOTFIX `e3d757e`). 대회 운영자 기록원 페이지 — 추가 토스트는 뜨는데 목록 항상 "등록된 기록원 없음". 근본=`apiSuccess(data)`=convertKeysToSnakeCase 래핑없이 반환 → GET 응답 `is_active`/`recorder_id`/`created_at`(snake)인데 page.tsx가 `r.isActive`/`r.recorderId`(camel)로 읽어 전 행 undefined→filter 0→빈목록+제거깨짐. 해결=page.tsx type/filter/제거 3곳 snake 정합(응답·요청body·route 무변경 / DELETE body키 recorderId는 클라→서버라 route가 camel 기대→유지). 예방=route.ts(camel 코드)만 보고 프론트 타입 짜지 말 것·신규필드 전 curl raw 응답 확인. 서버컴포넌트 직접prisma는 camel 그대로(혼동금지).
 - [06-12] lessons: **"권한 해제" 신고 = 데이터 변경 아닌 가시성/감사 빈틈 1순위 의심** (PR-RECORDER-AUDIT `a897b22`). 수빈 "슈퍼관리자 권한 해제" 의혹 → 전수 실측 실제 해제 0건. 원인=record01/02가 `admin_role='recorder_admin'`(전역권한)인데 `is_admin=false`라 /admin/users가 admin_role 미표시→"일반유저/-"로 보여 오인(권한은 route.ts requireRecordersManageAccess가 admin_role로 통과시켜 살아있었음). 수리: (1)관리자컬럼 admin_role 칩 가시화(select 2곳 일치) (2)recorders API adminLog 0건→assign(info)/remove(warning) 3지점 add-only 박제(응답shape불변). 룰: "권한 사라졌다"=화면 표시컬럼 누락 먼저 의심(jersey 단방향 함정 동형) / 권한부여 API=adminLog 동반 의무 / is_admin 외 admin_role 세분역할은 운영화면 반드시 가시화.

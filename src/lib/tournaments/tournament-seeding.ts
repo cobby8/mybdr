@@ -10,6 +10,95 @@ type RankedTeam = {
   rank: number;
 };
 
+// ─────────────────────────────────────────────────────────────────────────
+// KO Sprint1 재발방지 (2026-06-14) — knockout 중복생성 + 조 무시 시드 차단
+// 사고: 제10회 BDR YOUNGMAN GAME 결선 9경기 중복 (errors.md [2026-06-09]/[2026-06-14])
+// ─────────────────────────────────────────────────────────────────────────
+
+/**
+ * [KO-1] 이 대회에 결선(knockout) 매치가 이미 존재하는지 카운트.
+ *
+ * 기존 가드는 `round_number IS NOT NULL` 단독 카운트였는데,
+ * 6/9 수동 INSERT 매치가 round_number를 안 박았으면 가드가 0으로 인식 → 재생성 통과 → 중복.
+ *
+ * 그래서 판정 기준을 확장한다 (OR):
+ *   1) round_number IS NOT NULL          (기존 표준 generator 산출물)
+ *   2) bracket_position IS NOT NULL       (대진 위치만 박힌 수동 매치)
+ *   3) roundName이 knockout 라운드명 포함 (결승/준결승/N강/3·4위전 — 수동 INSERT가 라운드명만 박은 경우)
+ *
+ * → 셋 중 하나라도 맞으면 "결선 매치 존재"로 간주해 중복 생성을 막는다.
+ *
+ * @returns 결선으로 판정되는 매치 수
+ */
+export async function countKnockoutMatches(tournamentId: string): Promise<number> {
+  return prisma.tournamentMatch.count({
+    where: {
+      tournamentId,
+      OR: [
+        // 1) round_number 부여된 매치 = 표준 토너먼트 경기
+        { round_number: { not: null } },
+        // 2) bracket_position 부여된 매치 = 대진 위치만 박힌 수동 매치
+        { bracket_position: { not: null } },
+        // 3) roundName이 명시적 knockout 라운드명 (결승/3·4위전 — "강" 미포함이라 별도 매칭)
+        { roundName: { in: ["결승", "3/4위전", "3·4위전"] } },
+        // 4) roundName에 "강"(8강/16강 등) 또는 "결승"(준결승/결승) 포함
+        { roundName: { contains: "강" } },
+        { roundName: { contains: "결승" } },
+      ],
+    },
+  });
+}
+
+/**
+ * [KO-2 / PURE] 2개조 이상이면 자동 knockout 생성을 차단(throw).
+ *
+ * 사유: 2개조+ 조별리그 대회에서 조(group)를 무시한 표준 시드(1위 vs N위)를
+ *       자동 생성하면 같은 조 팀이 결선에서 재대결한다 (조별리그+토너먼트 의미 붕괴).
+ *       → 자동생성을 막고, 운영자가 group-aware 크로스 대진(A1 vs B2)을 수동으로 짜야 한다.
+ *
+ * 판정: groupName을 정규화(trim, 빈값 제거)한 뒤 distinct 종류가 2 이상이면 throw.
+ *       distinct ≤ 1 (단일 조 또는 조 미지정)이면 통과 — 기존 1개조 경로 100% 보존.
+ *
+ * @param groupNames TournamentTeam.groupName 배열 (null/빈문자 포함 가능)
+ * @throws distinct 조가 2개 이상이면 Error (한국어 안내 메시지)
+ */
+export function assertSingleGroupForAutoKnockout(groupNames: (string | null | undefined)[]): void {
+  // 1) 정규화 — null/undefined/빈문자(공백만)를 제거하고 trim
+  const normalized = groupNames
+    .map((g) => (g ?? "").trim())
+    .filter((g) => g.length > 0);
+
+  // 2) distinct 조 종류 카운트
+  const distinct = new Set(normalized);
+
+  // 3) 2개조 이상이면 자동 생성 차단
+  if (distinct.size >= 2) {
+    throw new Error(
+      `2개조 이상(${distinct.size}개조: ${[...distinct].join(", ")}) 대회는 결선 자동생성을 막습니다. ` +
+        `조를 무시한 시드는 같은 조 팀이 결선에서 재대결하는 위험이 있습니다. ` +
+        `group-aware 크로스 대진(예: A조1위 vs B조2위)을 수동으로 등록하세요.`,
+    );
+  }
+  // distinct ≤ 1 → 통과 (단일 조 / 조 미지정 대회는 기존 동작 유지)
+}
+
+/**
+ * [KO-2 / DB] guardAutoKnockoutGroups — DB에서 조 목록을 조회해 PURE 가드 호출.
+ *
+ * generator 진입부에서 호출 → 2개조+면 throw로 자동 생성 자체를 차단한다.
+ *
+ * @param tournamentId 대회 ID
+ * @throws 2개조 이상이면 Error
+ */
+export async function guardAutoKnockoutGroups(tournamentId: string): Promise<void> {
+  const teams = await prisma.tournamentTeam.findMany({
+    where: { tournamentId },
+    select: { groupName: true },
+  });
+  // PURE 가드에 위임 — 테스트는 PURE 함수만 회귀 게이트로 검증
+  assertSingleGroupForAutoKnockout(teams.map((t) => t.groupName));
+}
+
 /**
  * 리그 결과로부터 팀 순위 계산
  * 정렬 우선순위: 승률 → 득실차 → 다득점
@@ -216,10 +305,11 @@ export async function generateKnockoutMatches(
   knockoutSize: number,
   bronzeMatch: boolean = false,
 ): Promise<number> {
-  // 1) 중복 생성 방지 — 이미 토너먼트 경기(round_number != null)가 있으면 중단
-  const existing = await prisma.tournamentMatch.count({
-    where: { tournamentId, round_number: { not: null } },
-  });
+  // [KO-2] 2개조+ 자동생성 차단 — 조 무시 시드로 같은 조 재대결 위험 (조별리그 의미 붕괴)
+  await guardAutoKnockoutGroups(tournamentId);
+
+  // 1) 중복 생성 방지 — [KO-1] round_number 유무에 의존하지 않는 강화 가드 사용
+  const existing = await countKnockoutMatches(tournamentId);
   if (existing > 0) {
     throw new Error(`이미 ${existing}건의 토너먼트 경기가 존재합니다.`);
   }
@@ -345,10 +435,11 @@ export async function generateEmptyKnockoutSkeleton(
   knockoutSize: number,
   bronzeMatch: boolean = false,
 ): Promise<number> {
-  // 1) 이미 토너먼트 경기가 있으면 중단 (중복 생성 방지)
-  const existing = await prisma.tournamentMatch.count({
-    where: { tournamentId, round_number: { not: null } },
-  });
+  // [KO-2] 2개조+ 자동생성 차단 — 빈 뼈대도 조 무시 시드("N위" 라벨)라 동일 위험
+  await guardAutoKnockoutGroups(tournamentId);
+
+  // 1) 이미 토너먼트 경기가 있으면 중단 — [KO-1] 강화 가드 사용
+  const existing = await countKnockoutMatches(tournamentId);
   if (existing > 0) {
     throw new Error(`이미 ${existing}건의 토너먼트 경기가 존재합니다.`);
   }
@@ -485,6 +576,9 @@ export async function generateEmptyKnockoutSkeleton(
  * @returns 팀이 할당된 경기 수
  */
 export async function assignTeamsToKnockout(tournamentId: string): Promise<number> {
+  // [KO-2] 2개조+ 자동배정 차단 — 조 무시 "N위" 슬롯 파싱은 같은 조 재대결 위험
+  await guardAutoKnockoutGroups(tournamentId);
+
   // 1) 리그 순위 계산
   const ranking = await calculateLeagueRanking(tournamentId);
   if (ranking.length < 2) {

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>BDR v2.29 · Phase 9 (알림·메시지·검색) + 전체 시안 목차</title>
+<title>BDR v2.30 · Phase 10 (정보 페이지) + 전체 시안 목차</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800;900&family=JetBrains+Mono:wght@500;700;800&family=Pretendard:wght@400;500;600;700;800;900&display=swap" />
@@ -64,21 +64,72 @@
 <body>
 <div class="index-page">
   <header class="index-hero">
-    <div class="eyebrow">BDR v2.29 · Phase 9 · 2026-06-07</div>
-    <h1>알림·메시지·검색 — 알림 카테고리 + 통합 검색 + 발송 hub</h1>
+    <div class="eyebrow">BDR v2.30 · Phase 10 · 2026-06-14</div>
+    <h1>정보 페이지 — 소개 · 뉴스 · 도움말+용어 · 리뷰 + 뉴스 발행</h1>
     <p>
-      <b>운영 코드 변경 0 — 시안 박제만. 사용자 3 + super-admin 1.</b>
-      Phase 9 = 총 <b>4 시안</b> — NU1 알림 + NU2 메시지 + NU3 검색 + NA1 관리자 발송.
-      <b>BN1~BN4 다리</b> — BN1 알림 카테고리(NotifCategory + main bar 카운트) · BN2 메시지(DB 미지원 carry) · BN3 검색(cross-domain) · BN4 발송.
-      <b>특수</b> = messages 모델 없음(DB 0%) → 정적 더미 carry + <b>"준비 중" warn-soft</b> · NU3 = Phase 1~8 전역 검색 · NA1 = Phase 4 OA1 답습. Phase 1~8 carry-over (변경 ❌).
+      <b>운영 코드 변경 0 — 시안 박제만. 사용자 4 + super-admin 1.</b>
+      Phase 10 = 총 <b>5 시안</b> — IU1 소개 + IU2 뉴스 + IU3 도움말+용어 + IU4 리뷰 + IA1 뉴스 발행.
+      <b>BI1~BI5 다리</b> — BI1 About(통계 cross-domain · ★ §6 운영진 실명 보존) · BI2 News(Phase 1/2 cross-domain + IA1 발행) · BI3 Help+Glossary(A-Z chip 신규) · BI4 Reviews(BG2 답습) · BI5 AdminNews(발행 → IU2 + NU1 동기화).
+      <b>특수</b> = IU1 운영진 실명 0 · IU3 Glossary A-Z chip + 검색 · IA1 발행 모달 알림 ✅ 기본. Phase 1~9 carry-over (변경 ❌).
     </p>
     <div class="index-summary">
-      <div class="index-stat"><div class="index-stat__v">4</div><div class="index-stat__l">Phase 9 시안 (사용자 3 + admin 1)</div></div>
-      <div class="index-stat index-stat--accent"><div class="index-stat__v">1</div><div class="index-stat__l">신규 (NA1)</div></div>
-      <div class="index-stat index-stat--ok"><div class="index-stat__v">4</div><div class="index-stat__l">갭 해소 (BN1~BN4)</div></div>
+      <div class="index-stat"><div class="index-stat__v">5</div><div class="index-stat__l">Phase 10 시안 (사용자 4 + admin 1)</div></div>
+      <div class="index-stat index-stat--accent"><div class="index-stat__v">3</div><div class="index-stat__l">신규 (IU1 / Glossary / IA1)</div></div>
+      <div class="index-stat index-stat--ok"><div class="index-stat__v">5</div><div class="index-stat__l">갭 해소 (BI1~BI5)</div></div>
       <div class="index-stat"><div class="index-stat__v">0</div><div class="index-stat__l">운영 코드 변경</div></div>
     </div>
   </header>
+
+  <!-- ============ Phase 10B — 사용자 측 (4) ============ -->
+  <section class="index-section">
+    <h2 class="index-section__h"><span class="index-section__num index-section__num--navy">10B</span> 정보 페이지 사용자 (4 시안 · A 등급)</h2>
+    <p class="index-section__sub">BI1 About 신규 + BI2 News carry + BI3 Help+Glossary(A-Z chip 신규) + BI4 Reviews 보강. ★ §6 운영진 실명 보존 / Phase 1·2 cross-domain.</p>
+    <div class="index-grid">
+      <a class="index-card" href="iu4-reviews.html">
+        <div class="index-card__top"><span class="index-card__id index-card__id--navy">IU4</span><span class="index-card__kind">사용자 · 보강 carry · A 등급</span></div>
+        <div class="index-card__title">Reviews — 코트 리뷰 + 평점 분포</div>
+        <div class="index-card__route">/reviews</div>
+        <p class="index-card__desc">v3 carry(4탭→코트 단일). 평균 평점 hero + <b>평점 분포 chart</b>(별 1~5) + 필터 chip(전체/높은순/사진/인증) + 리뷰 카드(인증·사진 badge). <b>Phase 2 BG2 답습</b> = 평균 + flag 종류만(개별 건수 ❌).</p>
+        <div class="index-card__tags"><span class="index-card__tag index-card__tag--gap-bt">BI4 ★★</span></div>
+      </a>
+      <a class="index-card" href="iu2-news.html">
+        <div class="index-card__top"><span class="index-card__id index-card__id--navy">IU2</span><span class="index-card__kind">사용자 · 보강 carry · A 등급</span></div>
+        <div class="index-card__title">News 통합 — 매거진 + 매치 단신</div>
+        <div class="index-card__route">/news + /news/match/[matchId]</div>
+        <p class="index-card__desc">E1+E2 carry. 매거진 = 카테고리 chip + 트렌딩 spotlight + 카드 grid + <b>IA1 발행 NEW badge</b>. 단신 = 알기자 byline + 스코어보드 + 본문 linkify. <b>Phase 1 대회 / Phase 2 경기 cross-domain</b> 자동 link.</p>
+        <div class="index-card__tags"><span class="index-card__tag index-card__tag--gap-bt">BI2 ★★★</span></div>
+      </a>
+      <a class="index-card" href="iu3-help.html">
+        <div class="index-card__top"><span class="index-card__id index-card__id--navy">IU3</span><span class="index-card__kind">사용자 · 보강+신규 · A 등급</span></div>
+        <div class="index-card__title">Help + Glossary — 도움말 + 용어 사전</div>
+        <div class="index-card__route">/help + /help/glossary</div>
+        <p class="index-card__desc">Phase 6 carry(FAQ·정책 탭+검색) + <b>Glossary 신규</b>(A-Z chip 인덱스 + 용어 카드 + 검색). 용어 link → 해당 Phase 진입.</p>
+        <div class="index-card__tags"><span class="index-card__tag index-card__tag--new">GLOSSARY NEW</span><span class="index-card__tag index-card__tag--gap-bt">BI3 ★★★</span></div>
+      </a>
+      <a class="index-card" href="iu1-about.html">
+        <div class="index-card__top"><span class="index-card__id index-card__id--navy">IU1</span><span class="index-card__kind">사용자 · 신규 · A 등급</span></div>
+        <div class="index-card__title">About — 소개 (통계 cross-domain)</div>
+        <div class="index-card__route">/about</div>
+        <p class="index-card__desc">Hero 슬로건 + 통계 카드(전 Phase 집계) + 가치 6 + <b>★ §6 운영진 실명 보존</b>(일반 팀 라벨) + 파트너 + FAQ link → IU3 + CTA.</p>
+        <div class="index-card__tags"><span class="index-card__tag index-card__tag--new">NEW</span><span class="index-card__tag index-card__tag--gap-bt">BI1 ★★★</span></div>
+      </a>
+    </div>
+  </section>
+
+  <!-- ============ Phase 10A — super-admin (1) ============ -->
+  <section class="index-section">
+    <h2 class="index-section__h"><span class="index-section__num">10A</span> 뉴스 관리자 (1 시안 · E 등급 · Site Operator)</h2>
+    <p class="index-section__sub">IA1 = Site Operator. Phase 4 OA1 + 6.1 PA1 + 6.2 BA1 + 8 VA1 + 9 NA1 답습. 발행 → IU2 News + NU1 알림 동기화.</p>
+    <div class="index-grid">
+      <a class="index-card" href="ia1-admin-news.html">
+        <div class="index-card__top"><span class="index-card__id">IA1</span><span class="index-card__kind">super-admin · 신규 · E 등급</span></div>
+        <div class="index-card__title">AdminNews — BDR NEWS 발행 hub</div>
+        <div class="index-card__route">/admin/news</div>
+        <p class="index-card__desc">신규. Hero stat + 발행 form(카테고리 4종/제목/본문/이미지/매치 cross-domain) + 발행 이력 + <b>발행 모달(알림 ✅ 기본 · NU1 동기화)</b>.</p>
+        <div class="index-card__tags"><span class="index-card__tag index-card__tag--new">NEW</span><span class="index-card__tag index-card__tag--gap-bt">BI5 ★★</span><span class="index-card__tag index-card__tag--op-site">Site Operator</span></div>
+      </a>
+    </div>
+  </section>
 
   <!-- ============ Phase 9B — 사용자 측 (3) ============ -->
   <section class="index-section">
