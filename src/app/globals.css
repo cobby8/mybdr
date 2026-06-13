@@ -5613,3 +5613,183 @@ html.dark {
   .nm-article__title { font-size: 22px; }
   .nm-body { font-size: 14px; }
 }
+
+/* ============================================================
+   IU3 — Help (/help Phase 6 carry 보강) + Glossary (/help/glossary 신규)
+   시안 Dev/design/BDR-current/info-shared.css .hlp-* / .glo-* 규칙을 운영 토큰으로 이식.
+   변수 매핑: --r-xs/--r-sm → --radius-chip / --r-md → --radius-card
+   (그 외 --warn-soft / --cafe-blue-* / --accent-deep / --bg-* / --ink-* /
+    --ff-* / --border / --border-strong / --sh-sm 는 운영 토큰 그대로 사용 — 이미 존재)
+   ============================================================ */
+
+/* Help 검색창 — hero 아래 중앙 */
+.hlp-search { position: relative; max-width: 520px; margin: 16px auto 0; }
+.hlp-search .ico {
+  position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
+  font-family: 'Material Symbols Outlined'; font-size: 20px; color: var(--ink-dim);
+  pointer-events: none;
+}
+.hlp-search .input { padding-left: 40px; height: 46px; }
+
+/* 탭 3종 — cafe-blue 하단 라인 (운영 carry) */
+.hlp-tabs {
+  display: flex; gap: 4px; justify-content: center;
+  border-bottom: 1px solid var(--border);
+  margin: 22px 0 20px;
+}
+.hlp-tab {
+  padding: 12px 20px;
+  background: transparent; border: 0;
+  border-bottom: 3px solid transparent;
+  color: var(--ink-mute); font-weight: 500; font-size: 14px;
+  cursor: pointer; margin-bottom: -1px;
+}
+.hlp-tab:hover { color: var(--ink); }
+.hlp-tab.is-on { border-bottom-color: var(--cafe-blue); color: var(--ink); font-weight: 700; }
+
+/* FAQ 아코디언 */
+.hlp-faq { padding: 0; overflow: hidden; }
+.hlp-faq__item { border-bottom: 1px solid var(--border); }
+.hlp-faq__item:last-child { border-bottom: 0; }
+.hlp-faq__q {
+  width: 100%; text-align: left;
+  padding: 18px 22px; cursor: pointer;
+  font-weight: 600; font-size: 15px; color: var(--ink);
+  display: flex; align-items: center; gap: 10px;
+  background: transparent; border: 0;
+}
+.hlp-faq__q:hover { background: var(--bg-alt); }
+.hlp-faq__qnum { color: var(--accent); font-family: var(--ff-mono); font-weight: 800; flex-shrink: 0; }
+.hlp-faq__qtext { flex: 1; }
+.hlp-faq__chev { font-family: 'Material Symbols Outlined'; font-size: 20px; color: var(--ink-dim); transition: transform .15s; }
+.hlp-faq__item.is-open .hlp-faq__chev { transform: rotate(180deg); }
+.hlp-faq__a {
+  padding: 0 22px 18px 48px;
+  color: var(--ink-soft); line-height: 1.7; font-size: 14px;
+}
+
+/* 용어집 mini (Help 탭 안) */
+.hlp-glist { padding: 0; overflow: hidden; }
+.hlp-grow {
+  display: grid; grid-template-columns: 180px 1fr; gap: 14px;
+  padding: 14px 20px; border-bottom: 1px solid var(--border);
+  align-items: baseline;
+}
+.hlp-grow:last-child { border-bottom: 0; }
+.hlp-grow__term { font-weight: 800; font-size: 13.5px; color: var(--ink); }
+.hlp-grow__desc { font-size: 13px; color: var(--ink-soft); line-height: 1.6; }
+.hlp-glossary-cta {
+  margin-top: 14px; padding: 16px 20px;
+  background: var(--cafe-blue-soft); border: 1px solid var(--cafe-blue-hair);
+  border-radius: var(--radius-card);
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+  text-decoration: none;
+}
+.hlp-glossary-cta__t { font-size: 13.5px; color: var(--cafe-blue-deep); font-weight: 700; }
+.hlp-glossary-cta__t small { display: block; font-weight: 500; color: var(--ink-mute); margin-top: 2px; font-size: 12px; }
+
+/* 정책 카드 grid */
+.hlp-policy { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+.hlp-pcard {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: var(--radius-card); padding: 16px 18px;
+  cursor: pointer; display: flex; flex-direction: column; gap: 6px;
+  text-decoration: none;
+}
+.hlp-pcard:hover { border-color: var(--border-strong); box-shadow: var(--sh-sm); }
+.hlp-pcard.is-soon { opacity: .6; cursor: default; }
+.hlp-pcard.is-soon:hover { border-color: var(--border); box-shadow: none; }
+.hlp-pcard__t {
+  font-family: var(--ff-display); font-size: 15px; font-weight: 800;
+  display: flex; align-items: center; gap: 8px;
+}
+.hlp-pcard__soon {
+  font-family: var(--ff-mono); font-size: 9.5px; font-weight: 800;
+  background: var(--warn-soft); color: #8B5A0F;
+  padding: 2px 6px; border-radius: var(--radius-chip); letter-spacing: 0.04em;
+}
+.hlp-pcard__d { font-size: 12.5px; color: var(--ink-mute); line-height: 1.55; }
+.hlp-pcard__arr { margin-top: auto; color: var(--cafe-blue-deep); font-family: 'Material Symbols Outlined'; font-size: 18px; align-self: flex-end; }
+
+/* 1:1 문의 박스 */
+.hlp-contact {
+  margin-top: 18px; padding: 20px 24px;
+  background: var(--bg-alt); border: 1px solid var(--border); border-radius: var(--radius-card);
+  text-align: center;
+}
+.hlp-contact__t { font-family: var(--ff-display); font-size: 16px; font-weight: 800; margin: 0 0 4px; }
+.hlp-contact__d { font-size: 13px; color: var(--ink-mute); margin: 0 0 12px; }
+
+/* 검색 결과 없음 (Help / Glossary 공용) */
+.hlp-empty { padding: 40px 0; text-align: center; color: var(--ink-mute); }
+.hlp-empty .ico { font-family: 'Material Symbols Outlined'; font-size: 40px; opacity: .5; display: block; margin-bottom: 8px; }
+
+/* ---- /help/glossary 신규 — A-Z chip 인덱스 + 카드 grid ---- */
+.glo-back {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 13px; color: var(--ink-mute); font-weight: 500;
+  text-decoration: none; cursor: pointer; margin-bottom: 14px;
+}
+.glo-back:hover { color: var(--ink); }
+.glo-back .ico { font-family: 'Material Symbols Outlined'; font-size: 16px; }
+
+/* A-Z 인덱스 chip — english 초성 / 빈 글자 disabled / sticky */
+.glo-az {
+  position: sticky; top: 0; z-index: 5;
+  background: var(--bg);
+  display: flex; flex-wrap: wrap; gap: 4px;
+  padding: 12px 0 14px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid var(--border);
+}
+.glo-az__chip {
+  width: 30px; height: 30px;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-family: var(--ff-mono); font-size: 12px; font-weight: 800;
+  background: var(--bg-elev); border: 1px solid var(--border);
+  border-radius: var(--radius-chip); color: var(--ink-soft); cursor: pointer;
+}
+.glo-az__chip:hover { background: var(--bg-alt); }
+.glo-az__chip.is-on { background: var(--accent); color: #fff; border-color: var(--accent-deep); }
+.glo-az__chip:disabled { opacity: .32; cursor: default; }
+.glo-az__chip--all { width: auto; padding: 0 12px; }
+
+/* 용어 카드 grid */
+.glo-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-top: 16px; }
+.glo-card {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: var(--radius-card); padding: 18px 20px;
+  display: flex; flex-direction: column; gap: 8px;
+}
+.glo-card__head { display: flex; align-items: center; gap: 8px; }
+.glo-card__icon { font-family: 'Material Symbols Outlined'; font-size: 20px; color: var(--accent); }
+.glo-card__term { font-family: var(--ff-display); font-size: 16px; font-weight: 800; color: var(--ink); }
+.glo-card__en {
+  font-family: var(--ff-mono); font-size: 10.5px; font-weight: 700;
+  color: var(--ink-dim); letter-spacing: 0.04em;
+  background: var(--bg-head); padding: 2px 7px; border-radius: var(--radius-chip);
+  margin-left: auto;
+}
+.glo-card__desc { font-size: 13px; color: var(--ink-soft); line-height: 1.65; }
+.glo-card__ex {
+  font-size: 12px; color: var(--ink-mute);
+  background: var(--bg-alt); border-radius: var(--radius-chip);
+  padding: 8px 12px; line-height: 1.55;
+}
+/* cross-domain link — 용어 → 해당 Phase 진입 (대회/경기/랭킹/매너) */
+.glo-card__links { display: flex; flex-wrap: wrap; gap: 6px; }
+.glo-card__link {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 12px; font-weight: 700; color: var(--cafe-blue-deep);
+  text-decoration: none; cursor: pointer;
+  background: var(--cafe-blue-soft); border: 1px solid var(--cafe-blue-hair);
+  padding: 4px 10px; border-radius: var(--radius-chip);
+}
+.glo-card__link:hover { background: var(--cafe-blue-hair); }
+.glo-card__link .ico { font-family: 'Material Symbols Outlined'; font-size: 13px; }
+
+@media (max-width: 720px) {
+  .hlp-policy { grid-template-columns: 1fr; }
+  .hlp-grow { grid-template-columns: 1fr; gap: 4px; }
+  .glo-grid { grid-template-columns: 1fr; }
+}

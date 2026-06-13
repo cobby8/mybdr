@@ -29,6 +29,25 @@
 ## 구현 기록 (developer)
 (완료 — 완료 Phase로 압축)
 
+### Phase 10 박제 #3 IU3 — Help + Glossary (2026-06-14)
+
+📝 구현: IU3-A Help(/help) 통합 허브 보강 + IU3-B Glossary(/help/glossary) 신규 박제. 시안 `BDR-current/screens/Help.jsx` + `info-shared.css(.hlp-*/.glo-*)` + `info-shared.jsx(HELP_FAQ 6/GLOSSARY_MINI 16/HELP_POLICY 6/GLOSSARY 18)` 박제. IU4/IU2와 동일 패턴.
+
+| 파일 | 변경 | 신규/수정 |
+|------|------|----------|
+| src/app/globals.css | IU3 블록 append(.hlp-* + .glo-* 클래스 + 720px). 토큰 매핑 --r-xs/--r-sm→--radius-chip, --r-md→--radius-card. 신규 토큰 0(기존 재사용) | 수정 |
+| src/app/(web)/help/page.tsx | "use client" 전면 교체(405→244). 검색=FAQ+용어 **동시 필터**(시안 신규). 탭 3종/FAQ 아코디언/용어집 mini+CTA Link/정책 6카드(terms·privacy active, 4종 준비중). 1:1 문의 mailto(UI만) | 수정 |
+| src/app/(web)/help/glossary/page.tsx | server wrapper(330→29). SEO metadata 보존 + GlossaryClient 렌더. redirect 0 | 수정 |
+| src/app/(web)/help/glossary/glossary-client.tsx | **신규** A-Z chip(english 초성·빈글자 disabled·sticky)+검색+카드 grid+cross-domain link(/tournaments·/games·/rankings·/profile). GLOSSARY 18건 | 신규 |
+
+- **검증**: tsc EXIT 0. 위반 0(lucide import 0·tsx hex 0·pill 9999 0). A-Z chip 정사각 30x30 --radius-chip. CSS hex는 #8B5A0F(IU4 .rv-flag--warn 동일)·#fff(칩 흰글씨)만=고정값.
+- **★ Stop conditions 준수**: schema 0 / api v1 0 / 데이터 패칭 0(전부 시안 상수·DB 없음) / glossary redirect 0(Link만) / mock 0. AppNav 직접조작 0(web layout 자동 active="more").
+- **cross-domain link**: 시안 GLOSSARY links[].href를 운영 실라우트 그대로(미리보기 #href 아님). 10건 link.
+- LOC: page.tsx 405→244, glossary 330→server 29 + client 294(분리). 과대 아님.
+
+💡 tester: /help(탭3·검색"픽업"→FAQ+용어 동시·정책 클릭) /help/glossary(A-Z chip·빈글자 비활성·검색·용어 link 도메인 이동). 검색0건=.hlp-empty. 1:1문의 mailto만(정상). glossary→help 무한루프 없어야.
+⚠️ reviewer: glossary server/client 분리(metadata=server 보존, 인터랙션=client). 검색 FAQ+용어 동시필터는 시안 사양(회귀 아님).
+
 ### KO Sprint1 재발방지 (2026-06-14)
 
 📝 구현: knockout 결선 9경기 중복 사고(제10회 YOUNGMAN GAME) 재발방지 3종 가드. 설계=`Dev/knockout-auto-schedule-plan-2026-06-14.md`(KO-1/2/3).
@@ -81,7 +100,48 @@
 ## 테스트 결과 (tester)
 (완료 — 완료 Phase로 압축)
 
+### Phase 10 박제 #3 IU3 — Help + Glossary (2026-06-14, 정적 검증)
+
+| # | 검증 항목 | 결과 | 비고 |
+|---|----------|------|------|
+| 1 | tsc `--noEmit` | ✅ 통과 | EXIT 0 |
+| 2 | ★ glossary redirect 0 (무한루프 방지) | ✅ 통과 | page.tsx/client redirect() 호출 0. /help↔/help/glossary 전부 next/link Link. (redirect 단어=주석 4건만) |
+| 3 | A-Z chip (english 초성·빈글자 disabled·sticky·radius-chip) | ✅ 통과 | initial()=english 첫글자 대문자. activeLetters Set로 미존재 글자 `disabled`. `.glo-az` position:sticky top:0. 칩 30x30 `--radius-chip`(pill 아님) |
+| 4 | Help 검색(FAQ+용어 동시 필터)·탭 3종 | ✅ 통과 | needle로 fFaq(q\|a)+fMini(term\|desc) 동시. 탭 FAQ 아코디언(open 1개)/용어 mini+CTA Link/정책 카드. 정책 terms·privacy active(Link), 4종 is-soon "준비 중" div |
+| 5 | cross-domain link 운영 라우트 실존 | ⚠️ 조건부 | /tournaments·/games·/rankings·/profile·/terms·/privacy 디렉터리 6종 전부 실존. **단 `/games?type=pickup\|guest\|practice` 영문 type → listGames `parseInt(type)`=NaN** (game.ts L44, DB game_type=정수 0/1/2). 빈결과/쿼리오류 가능. **단 홈 quick-menu.tsx도 동일 `?type=pickup` 패턴 → IU3 회귀 아님·기존 운영버그 carry** |
+| 6 | ★ 0스키마/데이터 무변경·SEO metadata 보존 | ✅ 통과 | FAQ/GLOSSARY/POLICY 전부 시안 상수(DB 없음). schema/api v1/패칭 0. glossary server(page.tsx) metadata 보존 + client 분리 정상 |
+| 7 | 회귀(AppNav·모바일 720 1열) | ✅ 통과 | AppNav 직접조작 0(web layout 자동). @media 720px: hlp-policy/hlp-grow/glo-grid 전부 1열 |
+| 8 | 디자인(hex 토큰화·핑크/코랄/살몬 0·lucide 0·pill 0·신규토큰 0) | ✅ 통과 | tsx hex 0. CSS hex=#8B5A0F(IU4 동일)·#fff(칩 흰글씨)만. lucide 0(주석만). 9999px/핑크/코랄/살몬 0. 토큰 전부 기존 정의 재사용(신규 0) |
+
+📊 종합: 8개 중 7개 통과 / 1개 조건부(#5 — IU3 회귀 아님·기존 운영 버그 carry)
+
+**결론**: IU3 박제 자체 검증 통과. 박제 범위 내 신규 결함 0. #5는 시안의 운영 라우트를 그대로 박제한 결과로, 홈 quick-menu.tsx와 동일한 `?type=pickup` 컨벤션 → listGames가 영문 type을 못 받아 빈결과/오류 가능하나 **운영 전반의 기존 버그**(glossary가 새로 깨뜨린 것 아님). 후속 분리 처리 권장. (reviewer는 games type 지원으로 보고 #5를 통과 판정했으나, 정적 검증 결과 game.ts L44 parseInt가 영문 미지원 — tester가 더 보수적 판정)
+
 ## 리뷰 결과 (reviewer)
+
+### IU3 Help + Glossary 박제 (2026-06-14)
+
+📊 종합 판정: **APPROVE** (c0 / maj0 / min2 — 후속, 동작영향 0)
+
+✅ 잘된 점:
+- ★ glossary redirect 금지 100% 준수 — page.tsx redirect 0 / glo-back·CTA·cross-domain 전부 `Link`. 무한루프 없음
+- server/client 분리 적절 — metadata(SEO)=server wrapper 보존, useState(A-Z·검색)=client. 이상적 패턴
+- 데이터 무변경 확정 — 4 상수(HELP_FAQ 6/GLOSSARY_MINI 16/HELP_POLICY 6/GLOSSARY 18) 전부 시안 박제. schema/api/패칭 0
+- 13룰 통과 — var(--*) 토큰만·신규 토큰 0(전부 기존 재사용·CSS 주석에 매핑 명시)·Material Symbols만(lucide 0)·pill 9999 0. tsx hex 0. CSS hex는 #fff(칩 흰글씨)·#8B5A0F(IU4 .rv-flag--warn 동일 고정값)만
+- A-Z chip 로직 정확 — english charAt(0).toUpperCase() 초성, activeLetters Set 으로 빈 글자 disabled, position:sticky top:0
+- cross-domain link 6개 라우트(/terms·/privacy·/games·/tournaments·/rankings·/profile) 전부 실존. games는 searchParams type 지원 → ?type=pickup/guest/practice 유효(깨진 링크 0)
+- AppNav frozen 준수 — 직접 조작 0(web layout active 자동). .hlp-*/.glo- 네임스페이스 충돌 0(globals.css 신규 블록 단독)
+- 접근성 — 장식 아이콘 aria-hidden, 비활성 정책카드 aria-disabled, disabled chip 네이티브 속성
+
+🔴 필수 수정: 없음
+
+🟡 권장 수정(후속·동작영향 0):
+- [glossary-client.tsx L173 initial()] english 미존재 용어는 초성 "" → activeLetters 에 빈 문자열 포함되나 az 루프(A-Z)와 매칭 안 돼 무해. 현 GLOSSARY 18건 전부 english 보유라 실발생 0. 향후 english 없는 용어 추가 시 '전체'에서만 노출(A-Z 누락) — 의도 확인 또는 fallback(한글 초성) 후속
+- [page.tsx L77 open=0] FAQ 검색 필터 후 fFaq 인덱스 i 기준 open 비교 — 필터로 목록 줄면 open 인덱스가 다른 항목 가리킬 수 있음(예: 검색 시 2번째가 열림). UX 미세, 시안 사양 범위. 검색 onChange 시 setOpen(-1) 추가하면 깔끔(후속)
+
+---
+
+### (이전) 감사로그 박제
 (완료 — 완료 Phase로 압축)
 - 실패 격리 OK — log.ts 전체 try-catch 내부 흡수, 호출부 await throw 0 → 메인 플로우 차단 없음.
 - tsc --noEmit 통과(에러 0).
@@ -90,11 +150,15 @@
 - [recorders/route.ts L133] POST `tournamentForLog` 조회가 existing 분기 전 무조건 실행 — 409(이미 등록) 케이스는 adminLog 미실행이라 SELECT 1회 낭비. 드문 경로+1쿼리라 무해. 후속 미세 최적화.
 - [recorders/route.ts L234] DELETE 대회명을 update 후 별도 findUnique. POST는 분기 전 조회 — 위치 비일관(minor). 동작/안전 영향 0.
 
+## 보류 중 (재개 대기)
+- **7f28 5차 뉴비리그 결선 정리 (2026-06-14 보류)** — 2개조 6팀 full_league_knockout. "결승" 9경기=A조3×B조3 전체교차 오생성(KO-2가 향후 차단할 패턴). 정상=각조1위 결승 1경기. **모순**: B조1위=오름 확정 / A조 예선 미완료(291·292 live, 스나이퍼 A조1위 아님·Gots 1승 선두)인데 #301(스나이퍼vs오름 40:52, 기록 mps20·pbp271) 이미 완료. 8경기(296~304 제외 #301)=기록0 삭제명확 / #301 기록보존 처리는 **사용자 운영맥락 확인 후 재개**(스나이퍼가 왜 결승 치렀는지). 정리 시 read-only 재진단부터.
+
 ## 수정 요청
 | 요청자 | 대상 파일 | 문제 설명 | 상태 |
 |--------|----------|----------|------|
 | reviewer | tournament-completed-bracket.tsx (L274 qual 정렬) | [minor·후속] 조내 정렬 승수만 — 승점룰(gnba) 대회 미세 순위차 가능. 조별 동일경기수면 무해 | 후속 검토 |
 | reviewer | admin/notifications/page.tsx | [minor·후속] `as FormEvent` 단언 안전하나 handleSubmit 시그니처 완화로 캐스팅 제거 가능. 동작 영향 0 | 후속 검토 |
+| tester | src/lib/services/game.ts (L44) | [후속·IU3 범위 밖·기존버그] `where.game_type = parseInt(type)` — 영문 type("pickup"/"guest"/"practice") → NaN. glossary 링크 `/games?type=pickup` 및 홈 quick-menu.tsx 동일 패턴이 빈결과/쿼리오류 가능. 영문↔정수 매핑(PICKUP=0/GUEST=1/PRACTICE=2) 또는 isNaN 가드 필요. **IU3 박제 회귀 아님(시안 라우트 박제)** | 후속 검토 |
 
 ## 완료 Phase (이력 압축)
 - ✅ **PR-RECORDER-AUDIT 기록원 감사로그+admin_role 가시화 (2026-06-12, `a897b22`)** — 계기=수빈 "권한 해제" 의혹(실측 해제0·가시성 빈틈). 파트1: recorders/route.ts adminLog 3지점 add-only(assign신규/재활성화=info·remove=warning / 대회명·email 조회 / resourceId=tr.id·target=User / 응답shape불변). 파트2: /admin/users 관리자컬럼 admin_role 칩(recorder_admin="기록원관리자"/association_admin="협회관리자"/super_admin=ON중복생략) + select 2곳(page L98↔loadMore L278) drift0 + interface+getAdminRoleLabel. `admin-stat-pill data-tone="info"`. +92/-7. tester PASS5/5·reviewer APPROVE(c0/maj0/min2후속). 옵션 재배정=스킵(record01/02 이미 recorder_admin 전역권한). 역박제=skip(시안 구조 상이). minor2=route.ts 409 SELECT낭비·DELETE 조회위치 비일관(동작영향0)
@@ -107,6 +171,7 @@
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
 |------|------|------|
+| 2026-06-14 | **Phase 10 IU3 Help+Glossary 정적 검증** (tester) | ✅ 8개 중 7통과/1조건부. tsc0·redirect0(Link만)·A-Z chip(english초성·disabled·sticky·radius-chip)·검색 FAQ+용어 동시·SEO metadata server/client 분리 보존·schema/api/패칭 0·720 1열·핑크/코랄/lucide/pill/신규토큰 0. ⚠️#5: glossary `/games?type=pickup` 영문 type → game.ts L44 parseInt=NaN 빈결과 가능(홈 quick-menu 동일·IU3 회귀 아님·기존버그 carry). 수정요청 후속 1건 추가 |
 | 2026-06-14 | **KO-9 결선 미생성 자동종료 오판 가드** (developer) | ✅ auto-complete.ts PURE isKnockoutFormat(full_league_knockout/group_stage_knockout) + checkAndAutoCompleteTournament에 format select·결선0건 early return(knockout-not-generated·console.warn). countKnockoutMatches(KO-1) 재사용. 신규 vitest 10/10·KO-2 10/10·nba 22/22·tsc0. +36/-1. 결선없는 format 회귀0(count미호출 검증). schema/v1 0 |
 | 2026-06-14 | **KO Sprint1 결선중복방지 (KO-1/2/3)** (developer) | ✅ countKnockoutMatches(round_number/bracket_position/roundName OR) + assertSingleGroupForAutoKnockout(2개조 throw)/guardAutoKnockoutGroups. generator 4곳 가드·match route catch 가시화·bracket catch 가시화. 신규 vitest 10/10·nba회귀 9/9·tsc0. +128/-19 4파일+테스트. 기존실패4건=baseline무관(stash검증). schema/v1 0 |
 | 2026-06-13 | **PR-PERM-DISPLAY 권한/구독 2축 분리** (pm) | ✅ `e98e611` admin-users-table 칼럼 라벨 역할→구독등급·관리자→운영권한(슈퍼관리자 err칩)·page 부제 4→MAX_SUPER_ADMINS(10). 옵션B·DB0·표시로직만·+12/-6·tsc0. 역박제skip·decisions+1. §0 lock 확인(transient·해소) |
