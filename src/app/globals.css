@@ -49,6 +49,8 @@
   /* Semantic */
   --ok: #1CA05E;
   --warn: #E8A33B;
+  /* [IU4] warn 의 soft 배경 변형 — 시안 tokens.css 값 그대로 (rv-flag--warn 등) */
+  --warn-soft: #FBEED2;
   --danger: #E24C4B;
   --info: #0079B9;
 
@@ -159,6 +161,8 @@ html {
 
   /* [v2.16] Semantic soft variants (dark) — GameCard chip 등 */
   --ok-soft: #0F2A1B;
+  /* [IU4] warn-soft — rv-flag--warn 텍스트(#8B5A0F 진갈색)가 다크에서도 읽히도록 시안과 동일한 크림 배경 유지 */
+  --warn-soft: #FBEED2;
 
   /* Hard offset shadows for the brutalist vibe */
   --sh-xs: 2px 2px 0 0 rgba(0,0,0,.6);
@@ -5162,4 +5166,196 @@ html.dark {
   .pa1-hero-stats { grid-template-columns: repeat(2, 1fr); gap: 8px; }
   .pa1-hero-stat { padding: 10px 12px; }
   .pa1-hero-stat__num { font-size: 19px; }
+}
+
+/* ============================================================
+   IU4 — Reviews (/reviews) v2.30 박제
+   시안 Dev/design/BDR-current/info-shared.css .rv-* 규칙을 운영 토큰으로 이식.
+   변수 매핑: --r-xs/--r-sm → --radius-chip / --r-md → --radius-card
+   (그 외 --warn / --ok-soft / --cafe-blue-* / --bg-* / --ink-* / --ff-* /
+    --border / --border-strong / --sh-sm 는 운영 토큰 그대로 사용)
+   ============================================================ */
+
+/* 정보 페이지 공통 — 중앙 정렬 hero + inner 래퍼 (시안 info-shared.css 답습) */
+.page__inner { margin: 0 auto; }
+.info-hero { text-align: center; padding: 8px 0 26px; }
+.info-hero .eyebrow { justify-content: center; margin-bottom: 10px; }
+.info-hero__title {
+  font-family: var(--ff-display);
+  font-size: 34px; font-weight: 900; letter-spacing: -0.025em;
+  margin: 0 0 12px;
+  color: var(--ink);
+}
+.info-hero__lead {
+  font-size: 15px; color: var(--ink-soft);
+  max-width: 540px; margin: 0 auto; line-height: 1.7;
+}
+
+/* 요약 카드 — 평균 + 분포 + BG2 flag */
+.rv-summary {
+  display: grid; grid-template-columns: 220px 1fr; gap: 0;
+  margin-bottom: 18px;
+  overflow: hidden;
+}
+.rv-summary__score {
+  padding: 26px 24px;
+  text-align: center;
+  border-right: 1px solid var(--border);
+  background: var(--bg-alt);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+}
+.rv-summary__avg {
+  font-family: var(--ff-display); font-size: 52px; font-weight: 900;
+  letter-spacing: -0.03em; line-height: 1;
+  font-feature-settings: "tnum";
+  color: var(--ink);
+}
+.rv-summary__stars { margin: 8px 0 6px; }
+.rv-summary__count {
+  font-family: var(--ff-mono); font-size: 11.5px; font-weight: 700;
+  color: var(--ink-mute); letter-spacing: 0.02em;
+}
+.rv-summary__dist {
+  padding: 22px 26px;
+  display: flex; flex-direction: column; gap: 8px;
+  justify-content: center;
+}
+.rv-dist__row {
+  display: grid; grid-template-columns: 44px 1fr 44px; gap: 12px;
+  align-items: center;
+}
+.rv-dist__lbl {
+  display: inline-flex; align-items: center; gap: 3px;
+  font-family: var(--ff-mono); font-size: 12px; font-weight: 800; color: var(--ink-soft);
+}
+.rv-dist__lbl .ico { font-family: 'Material Symbols Outlined'; font-size: 13px; color: var(--warn); }
+.rv-dist__bar { height: 10px; background: var(--bg-head); border-radius: 5px; overflow: hidden; }
+.rv-dist__fill { height: 100%; border-radius: 5px; background: var(--warn); }
+.rv-dist__pct {
+  font-family: var(--ff-mono); font-size: 11.5px; font-weight: 700;
+  color: var(--ink-mute); text-align: right;
+}
+
+/* Phase 2 BG2 답습 — 평가 항목 "종류"만 (개별 건수 ❌) */
+.rv-flags {
+  grid-column: 1 / -1;
+  border-top: 1px solid var(--border);
+  padding: 14px 26px;
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+}
+.rv-flags__lbl {
+  font-family: var(--ff-mono); font-size: 10.5px; font-weight: 800;
+  color: var(--ink-dim); letter-spacing: 0.06em; text-transform: uppercase;
+}
+.rv-flag {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 4px 10px;
+  font-size: 11.5px; font-weight: 700;
+  border-radius: var(--radius-chip);
+  letter-spacing: 0.01em;
+}
+.rv-flag .ico { font-family: 'Material Symbols Outlined'; font-size: 14px; }
+.rv-flag--ok { background: var(--ok-soft); color: var(--ok); }
+.rv-flag--warn { background: var(--warn-soft); color: #8B5A0F; }
+.rv-flags__note {
+  margin-left: auto;
+  font-family: var(--ff-mono); font-size: 10px; font-weight: 700;
+  color: var(--ink-dim); letter-spacing: 0.02em;
+  display: inline-flex; align-items: center; gap: 4px;
+}
+.rv-flags__note .ico { font-family: 'Material Symbols Outlined'; font-size: 13px; }
+
+/* 필터 chip row */
+.rv-filter {
+  display: flex; gap: 6px; flex-wrap: wrap; align-items: center;
+  margin-bottom: 14px;
+}
+.rv-chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 7px 13px;
+  font-size: 12.5px; font-weight: 600;
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-chip);
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+.rv-chip .ico { font-family: 'Material Symbols Outlined'; font-size: 15px; }
+.rv-chip:hover { background: var(--bg-alt); }
+.rv-chip.is-on { background: var(--ink); color: #fff; border-color: var(--ink); font-weight: 800; }
+
+/* 리뷰 카드 list */
+.rv-list { display: flex; flex-direction: column; gap: 12px; }
+.rv-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  padding: 16px 18px;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.rv-card:hover { border-color: var(--border-strong); box-shadow: var(--sh-sm); }
+.rv-card__top { display: flex; align-items: flex-start; gap: 12px; }
+.rv-card__court { min-width: 0; flex: 1; }
+.rv-card__court-name {
+  font-family: var(--ff-display); font-size: 15px; font-weight: 800;
+  color: var(--ink); letter-spacing: -0.005em;
+  display: inline-flex; align-items: center; gap: 6px;
+  cursor: pointer;
+}
+.rv-card__court-name:hover { color: var(--cafe-blue-deep); }
+.rv-card__court-name .ico { font-family: 'Material Symbols Outlined'; font-size: 16px; color: var(--ink-dim); }
+.rv-card__court-sub {
+  font-size: 11.5px; color: var(--ink-mute); margin-top: 2px;
+  display: inline-flex; align-items: center; gap: 4px;
+}
+.rv-card__court-sub .ico { font-family: 'Material Symbols Outlined'; font-size: 13px; }
+.rv-card__rating {
+  flex-shrink: 0; text-align: right;
+  display: flex; flex-direction: column; align-items: flex-end; gap: 3px;
+}
+.rv-card__rating-num {
+  font-family: var(--ff-display); font-size: 18px; font-weight: 900;
+  font-feature-settings: "tnum"; line-height: 1; color: var(--ink);
+}
+.rv-card__title { font-weight: 800; font-size: 14px; color: var(--ink); }
+.rv-card__body { font-size: 13px; color: var(--ink-soft); line-height: 1.6; }
+.rv-card__badges { display: flex; gap: 6px; flex-wrap: wrap; }
+.rv-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-family: var(--ff-mono); font-size: 10px; font-weight: 800;
+  padding: 2px 7px; border-radius: var(--radius-chip); letter-spacing: 0.02em;
+}
+.rv-badge .ico { font-family: 'Material Symbols Outlined'; font-size: 12px; }
+.rv-badge--verified { background: var(--ok-soft); color: var(--ok); }
+.rv-badge--photo { background: var(--cafe-blue-soft); color: var(--cafe-blue-deep); }
+.rv-card__foot {
+  display: flex; align-items: center; gap: 10px;
+  padding-top: 10px; border-top: 1px dashed var(--border);
+}
+.rv-card__author {
+  display: flex; align-items: center; gap: 8px; min-width: 0;
+}
+.rv-card__avatar {
+  width: 30px; height: 30px; border-radius: 50%;
+  background: var(--cafe-blue); color: #fff;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-family: var(--ff-display); font-weight: 800; font-size: 13px;
+  flex-shrink: 0;
+}
+.rv-card__author-name { font-size: 12.5px; font-weight: 700; color: var(--ink); }
+.rv-card__author-meta { font-family: var(--ff-mono); font-size: 10px; color: var(--ink-dim); font-weight: 700; }
+.rv-card__date {
+  margin-left: auto;
+  font-family: var(--ff-mono); font-size: 10.5px; color: var(--ink-dim); font-weight: 700;
+}
+.rv-card__helpful {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-family: var(--ff-mono); font-size: 11px; font-weight: 700; color: var(--ink-mute);
+}
+.rv-card__helpful .ico { font-family: 'Material Symbols Outlined'; font-size: 15px; }
+
+@media (max-width: 720px) {
+  .rv-summary { grid-template-columns: 1fr; }
+  .rv-summary__score { border-right: 0; border-bottom: 1px solid var(--border); }
+  .rv-flags__note { margin-left: 0; width: 100%; }
 }
