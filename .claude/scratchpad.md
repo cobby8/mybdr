@@ -4,14 +4,14 @@
 - **요청**: (세션 정리) 직전 세션 작업 전부 머지 완료 → **Phase 10 정보페이지 Claude.ai 시안 의뢰 진행 중**
 - **상태**: ⏸ 대기 — Phase 10 paste 준비 완료, **수빈이 Claude.ai에 4건 drag-drop + 회신 paste → zip(BDR v2.30) 회신 대기**
 - **현재 담당**: 수빈 (Claude.ai 시안 작업) → 회신 후 CLI sync
-- **끼어든 단독 PR**: PR-PERM-DISPLAY 권한/구독 2축 분리 ✅ `e98e611`(미push 1) — push 결재 대기
+- **끼어든 단독 PR**: PR-PERM-DISPLAY 권한/구독 2축 분리 ✅ **main 머지 완료** (#673→#674 `157116c`)
 - **Phase 10 다음 액션**: zip 도착 시 → `sync-bdr-current.ps1 -NewVersion v2.30` → Phase 10C Auto Chain 5 PR (IU1~4 + IA1)
 
 ## 진행 현황표
 | # | 작업 | 상태 |
 |---|------|------|
 | Phase 10 정보페이지 | About/News/Help/Reviews/AdminNews 5시안 | ⏸ Claude.ai paste 진행 (zip 회신 대기) |
-| PR-PERM-DISPLAY | 권한/구독 2축 분리 (역할→구독등급/관리자→운영권한) | ✅ `e98e611` (미push) |
+| PR-PERM-DISPLAY | 권한/구독 2축 분리 (역할→구독등급/관리자→운영권한) | ✅ #673→#674(`157116c`) 운영 반영 |
 | PR-RECORDER-AUDIT | 기록원 감사로그 + admin_role 가시화 | ✅ #670(`77d014a`)+HOTFIX #672(`3db595c`) 운영 반영 |
 | ③ | 대회종료 재구성 박제 (B안) | ✅ #667→#668(`4199d87`) 운영 반영 |
 | ①-b | Phase 9C 박제 (9C-1/3/4·9C-2 스킵) | ✅ #667→#668 운영 반영 |
