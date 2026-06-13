@@ -2,11 +2,11 @@
 
 ## 현재 작업
 - **요청**: PR-RECORDER-AUDIT — 기록원 배정/해제 감사로그 + admin_role 가시화 (단독 PR)
-- **상태**: ✅ 완료 — feat `a897b22` + docs `c8f84ad`. **미push 3건**(직전 6은 타 세션이 push 완료). push·PR 결재 대기
+- **상태**: 파트1·2 ✅ main 머지(`77d014a`). **파트0 HOTFIX** ✅ 박제+tsc — `e3d757e` 미push 1. push 결재 대기
 - **현재 담당**: pm
 - **옵션 재배정**: 스킵(사용자 결재) — record01/02 이미 `recorder_admin`(전역권한) 보유 = 기능상 불필요. 가시화로 오인 원인 해소
 - **역박제**: skip — 시안 AdminUsers는 상태뱃지 통합 구조(별도 관리자컬럼·admin_role mock 없음) → 1:1 부적합
-- **미push 3**: `a897b22`(feat) · `8083dfe`(타 세션 phase-ledger) · `c8f84ad`(docs)
+- **머지 이력**: `a897b22`(feat) + `87a0a0e`(docs) → dev #669 → main #670 (`77d014a`)
 
 ## 진행 현황표
 | # | 작업 | 상태 |
@@ -51,7 +51,8 @@
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
 |------|------|------|
-| 2026-06-12 | **PR-RECORDER-AUDIT 감사로그+admin_role 가시화** (developer/tester/reviewer/pm) | ✅ `a897b22` recorders adminLog 3지점 add-only + admin_role 칩. tester PASS5/5·reviewer APPROVE(c0/maj0/min2). 옵션재배정 스킵(이미 recorder_admin)·역박제 skip·lessons+1. +92/-7 |
+| 2026-06-13 | **PR-RECORDER-AUDIT 파트0 HOTFIX 기록원목록 snake_case 표시버그** (pm) | ✅ `e3d757e` tournament-admin recorders/page.tsx camelCase→snake_case 3곳(type/filter/제거). apiSuccess 변환함정 재발6회. tsc0·응답/body/route 무변경. +7/-5. errors+1 |
+| 2026-06-12 | **PR-RECORDER-AUDIT 감사로그+admin_role 가시화** (dev/tester/reviewer/pm) | ✅ `a897b22`→#669→#670 main머지. recorders adminLog 3지점 + admin_role 칩. PASS5/5·APPROVE·lessons+1. +92/-7 |
 | 2026-06-12 | **①-b Phase 9C 박제+검증+커밋** (developer/tester/reviewer/pm) | ✅ 9C-1/3/4 박제(9C-2 스킵)·tsc0·tester PASS·reviewer APPROVE·라우트별 3커밋(`cb88c7a`/`8aeb050`/`b759d2d`). 팀장 전송차단·mock유지·DB/api/role 0변경 |
 | 2026-06-12 | **③ 대회종료 B안 박제 커밋** (pm) | ✅ `ecca28d`(feat 8파일 +1239/-53)+`7d6f89c`(역박제)+`4dbc833`(회고) |
 | 2026-06-12 | **③ NBA 승자판정 견고화+재검증** (developer/tester·되돌림1회) | ✅ teamId 직접비교+점수폴백·major1 해소·진행중뷰 회귀0 |
@@ -59,4 +60,3 @@
 | 2026-06-10 | **③ 대회종료 B안 설계보강** (planner) | ✅ 격리전략 혼합·~+1700LOC. TournamentTabs status무관 재사용·NBA/예선 신규복제 |
 | 2026-06-10 | **③ 대회종료 기획설계 A/B안 제시** (planner) | ✅ A/B안 PM결재 요청 → 사용자 B안 결재 |
 | 2026-06-10 | **② 대회상세 리스킨 박제+검증** (developer/tester/reviewer) | ✅ `a9cb476`+`508325a` pill탭·cafe-blue 통일·PASS·APPROVE·`830e114` |
-| 2026-06-09 | 제10회 BDR YOUNGMAN GAME 4강·결승 일정 생성 | ✅ 크로스대진 INSERT3·결승 next_match_id 연결 |
