@@ -3,6 +3,7 @@
 //
 // 흐름: 좌 sidebar (drafts/published/rejected 탭) + 우 main (목록 + 미리보기 + 액션 4종)
 
+import Link from "next/link";
 import { prisma } from "@/lib/db/prisma";
 import { AdminPageHeader } from "@/components/admin/admin-page-header";
 import {
@@ -143,6 +144,15 @@ export default async function AdminNewsPage({
           { label: "커뮤니티" },
           { label: "BDR NEWS" },
         ]}
+        // 2026-06-14 IA1 — 작성 hub(/admin/news/compose) 진입 링크 1개 추가 (검수 기능 무수정)
+        actions={
+          <Link href="/admin/news/compose" className="btn btn--primary btn--sm shrink-0">
+            <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
+              edit_note
+            </span>
+            새 기사 작성
+          </Link>
+        }
       />
       <AdminNewsContent
         posts={serialized}
