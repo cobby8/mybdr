@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>AdminNews — /admin/news — BDR v2.30</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800;900&family=JetBrains+Mono:wght@500;700;800&family=Pretendard:wght@400;500;600;700;800;900&display=swap" />
+<link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Symbols+Outlined" />
+<link rel="stylesheet" href="tokens.css" />
+<link rel="stylesheet" href="shell.css" />
+<link rel="stylesheet" href="team-shared.css" />
+<link rel="stylesheet" href="org-shared.css" />
+<link rel="stylesheet" href="comm-shared.css" />
+<link rel="stylesheet" href="profile-shared.css" />
+<link rel="stylesheet" href="billing-shared.css" />
+<link rel="stylesheet" href="notify-shared.css" />
+<link rel="stylesheet" href="admin.css" />
+<link rel="stylesheet" href="info-shared.css" />
+</head>
+<body>
+<div class="showcase">
+  <header class="showcase-head">
+    <div class="eyebrow">BDR v2.30 · IA1 / super-admin 신규 · Phase 10A · BI5 ★★ · E 등급 · Site Operator</div>
+    <h1>AdminNews — /admin/news</h1>
+    <p><b>IA1 신규</b> (운영 163 · Phase 4 OA1 + 9 NA1 답습). <strong>Site Operator badge</strong>. Hero stat(전체/발행/임시저장/이달) + 작성 form(<strong>카테고리 4종</strong> 시각 분리 + 제목/본문 rich + 대표 이미지 + 매치 cross-domain + 발행 옵션 3) + 미리보기 + 발행 이력 + <strong>발행 모달(★ 알림 보내기 ✅ 기본 · NU1 동기화)</strong>.</p>
+    <nav class="showcase-nav" aria-label="Phase 10 시안">
+      <a href="index.html">v2.30 목차</a>
+      <a href="iu4-reviews.html">IU4 리뷰</a>
+      <a href="iu2-news.html">IU2 뉴스</a>
+      <a href="iu3-help.html">IU3 도움말</a>
+      <a href="iu1-about.html">IU1 소개</a>
+      <a class="is-cur" href="ia1-admin-news.html">IA1 뉴스 발행</a>
+    </nav>
+  </header>
+
+  <section class="variant">
+    <header class="variant__head">
+      <span class="variant__num">AdminNews / PC + MOBILE</span>
+      <h2 class="variant__title">BDR NEWS 발행 — Site Operator</h2>
+      <p class="variant__desc">데스크톱 1240 + 모바일 375. 카테고리 4종 + rich 본문 + 매치 cross-domain + 미리보기 + 발행 이력 + 발행 모달(알림 ✅).</p>
+    </header>
+    <div class="vp-strip">
+      <div class="vp vp--pc">
+        <div class="vp__chrome"><span class="vp__lights"><span></span><span></span><span></span></span><span class="vp__url">mybdr.kr/admin/news</span><span class="vp__size">PC · 1240</span></div>
+        <div class="vp__body"><div id="mount-pc"></div></div>
+      </div>
+      <div class="vp vp--mobile">
+        <div class="vp__chrome"><span class="vp__lights"><span></span><span></span><span></span></span><span class="vp__url">m · 뉴스 발행</span><span class="vp__size">375</span></div>
+        <div class="vp__body"><div id="mount-mobile"></div></div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script type="text/babel" src="shared.jsx"></script>
+<script type="text/babel" src="team-shared.jsx"></script>
+<script type="text/babel" src="info-shared.jsx"></script>
+<script type="text/babel" src="screens/AdminNews.jsx"></script>
+<script type="text/babel">
+  ReactDOM.createRoot(document.getElementById('mount-pc')).render(<window.AdminNews />);
+  ReactDOM.createRoot(document.getElementById('mount-mobile')).render(<window.AdminNews />);
+</script>
+</body>
+</html>
