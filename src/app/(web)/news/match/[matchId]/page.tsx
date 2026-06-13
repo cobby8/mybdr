@@ -129,143 +129,145 @@ export default async function NewsMatchDetailPage({
   const awayName = match?.awayTeam?.team?.name ?? "어웨이";
   const homeId = match?.homeTeam?.team?.id;
   const awayId = match?.awayTeam?.team?.id;
+  // 승리 팀 강조 (시안 nm-score__team.is-win) — 점수 동률이면 홈 기준
+  const homeWin = (match?.homeScore ?? 0) >= (match?.awayScore ?? 0);
 
   return (
-    <main className="mx-auto max-w-screen-lg px-4 py-6">
-      {/* 빵부스러기 */}
-      <nav className="mb-4 flex items-center gap-2 text-sm text-[var(--color-text-dim)]">
-        <Link href="/news" className="hover:underline">
-          BDR NEWS
-        </Link>
-        <span>›</span>
-        <span>매치 #{match?.match_number ?? matchId}</span>
-      </nav>
+    // 2026-06-14: IU2 v2.30 박제 — UI 만 .nm-* 시안 톤으로 교체.
+    //   데이터 fetch(match/linkify/photos)·view 증가·props 무변경. 마크업만 변경.
+    <div className="page">
+      <div className="nm-wrap">
+        {/* 빵부스러기 */}
+        <nav className="nm-crumb">
+          <Link href="/news">BDR NEWS</Link>
+          <span className="sep">›</span>
+          <span>매치 #{match?.match_number ?? matchId}</span>
+        </nav>
 
-      {/* 기사 본문 */}
-      <article className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] p-6 lg:p-8">
-        {/* 카테고리 */}
-        <div className="mb-3 flex items-center gap-2 text-xs">
-          <span className="rounded-full bg-[var(--color-accent)] px-2 py-0.5 text-white">
-            BDR NEWS
-          </span>
-          <span className="text-[var(--color-text-dim)]">
-            {new Date(post.created_at).toLocaleString("ko-KR", {
-              year: "numeric",
-              month: "long",
-              day: "numeric",
-              hour: "2-digit",
-              minute: "2-digit",
-            })}
-          </span>
-        </div>
-
-        {/* 제목 */}
-        <h1 className="mb-3 text-2xl lg:text-3xl font-bold tracking-tight">
-          {post.title}
-        </h1>
-
-        {/* 작성자 (알기자 뱃지) */}
-        <div className="mb-6 flex items-center gap-2 text-sm">
-          <span className="inline-flex items-center gap-1 rounded-md bg-[var(--bg-elev1)] px-2 py-1 text-[var(--color-accent)] font-medium">
-            🤖 알기자
-          </span>
-          <span className="text-[var(--color-text-dim)]">BDR NEWS AI</span>
-        </div>
-
-        {/* 매치 헤드라인 */}
-        {match && (
-          <div className="mb-6 rounded-md border border-[var(--color-border)] bg-[var(--bg-elev1)] p-4">
-            <div className="flex items-center justify-between gap-4">
-              <Link
-                href={homeId ? `/teams/${homeId}` : "#"}
-                className="flex-1 text-center"
-              >
-                <div className="text-base font-semibold hover:text-[var(--color-accent)]">
-                  {homeName}
-                </div>
-                <div className="mt-1 text-3xl font-bold tabular-nums">
-                  {match.homeScore ?? 0}
-                </div>
-              </Link>
-              <div className="text-xl text-[var(--color-text-dim)]">vs</div>
-              <Link
-                href={awayId ? `/teams/${awayId}` : "#"}
-                className="flex-1 text-center"
-              >
-                <div className="text-base font-semibold hover:text-[var(--color-accent)]">
-                  {awayName}
-                </div>
-                <div className="mt-1 text-3xl font-bold tabular-nums">
-                  {match.awayScore ?? 0}
-                </div>
-              </Link>
-            </div>
-            <div className="mt-3 flex items-center justify-center gap-2 text-xs text-[var(--color-text-dim)]">
-              {match.tournament && (
-                <Link
-                  href={`/tournaments/${match.tournament.id}`}
-                  className="hover:underline"
-                >
-                  {match.tournament.name}
-                </Link>
-              )}
-              {match.roundName && <span>· {match.roundName}</span>}
-              {match.group_name && <span>· {match.group_name}조</span>}
-            </div>
+        {/* 기사 본문 */}
+        <article className="nm-article">
+          {/* 카테고리 */}
+          <div className="nm-article__cat">
+            <span className="nw-tag nw-tag--match">매치 단신</span>
+            <span className="nw-card__date">
+              {new Date(post.created_at).toLocaleString("ko-KR", {
+                year: "numeric",
+                month: "long",
+                day: "numeric",
+                hour: "2-digit",
+                minute: "2-digit",
+              })}
+            </span>
           </div>
-        )}
 
-        {/* 2026-05-04: Hero 사진 — 본문 위 (있을 때만) */}
-        {newsPhotos.length > 0 && (
-          <div className="mb-5">
-            <NewsPhotoHero photos={newsPhotos} />
+          {/* 제목 */}
+          <h1 className="nm-article__title">{post.title}</h1>
+
+          {/* 작성자 (알기자 byline) */}
+          <div className="nm-byline">
+            <span className="nm-byline__bot">
+              <span className="ico material-symbols-outlined" style={{ fontSize: 14 }}>
+                smart_toy
+              </span>
+              알기자
+            </span>
+            <span className="nm-byline__sub">BDR NEWS AI</span>
           </div>
-        )}
 
-        {/* 본문 (linkify) */}
-        <LinkifyNewsBody
-          content={post.content ?? ""}
-          entries={linkifyEntries}
-          className="text-base leading-relaxed text-[var(--color-text)]"
-        />
-
-        {/* 2026-05-04: 갤러리 — Hero 외 사진 (본문 아래) */}
-        {newsPhotos.length > 1 && (
-          <div className="mt-5">
-            <NewsPhotoGallery photos={newsPhotos} excludeHero />
-          </div>
-        )}
-
-        {/* 메타 + 액션 */}
-        <div className="mt-6 flex items-center gap-4 border-t border-[var(--color-border)] pt-4 text-sm text-[var(--color-text-dim)]">
-          <span>👁 {(post.view_count ?? 0) + 1}</span>
-          <span>❤ {post.likes_count}</span>
-          <span>💬 {post.comments_count}</span>
+          {/* 매치 헤드라인 스코어보드 (cross-domain: 팀 → /teams) */}
           {match && (
-            <Link
-              href={`/live/${match.id}`}
-              className="ml-auto text-[var(--color-accent)] hover:underline"
-            >
-              매치 상세 →
-            </Link>
+            <div className="nm-score">
+              <div className="nm-score__row">
+                <Link
+                  href={homeId ? `/teams/${homeId}` : "#"}
+                  className={"nm-score__team" + (homeWin ? " is-win" : "")}
+                >
+                  <div className="nm-score__team-name">{homeName}</div>
+                  <div className="nm-score__team-num">{match.homeScore ?? 0}</div>
+                </Link>
+                <div className="nm-score__vs">vs</div>
+                <Link
+                  href={awayId ? `/teams/${awayId}` : "#"}
+                  className={"nm-score__team" + (!homeWin ? " is-win" : "")}
+                >
+                  <div className="nm-score__team-name">{awayName}</div>
+                  <div className="nm-score__team-num">{match.awayScore ?? 0}</div>
+                </Link>
+              </div>
+              <div className="nm-score__meta">
+                {/* cross-domain: 대회 → /tournaments */}
+                {match.tournament && (
+                  <Link href={`/tournaments/${match.tournament.id}`}>
+                    {match.tournament.name}
+                  </Link>
+                )}
+                {match.roundName && <span>· {match.roundName}</span>}
+                {match.group_name && <span>· {match.group_name}조</span>}
+              </div>
+            </div>
           )}
+
+          {/* 2026-05-04: Hero 사진 — 본문 위 (있을 때만). 없으면 placeholder */}
+          {newsPhotos.length > 0 ? (
+            <div style={{ marginBottom: 20 }}>
+              <NewsPhotoHero photos={newsPhotos} />
+            </div>
+          ) : (
+            <div className="nm-cover">
+              <span className="ico material-symbols-outlined">image</span>
+              <span>경기 사진 (알기자 갤러리)</span>
+            </div>
+          )}
+
+          {/* 본문 (linkify — 팀/선수 자동 link, .nm-body a.linkify 스타일) */}
+          <LinkifyNewsBody
+            content={post.content ?? ""}
+            entries={linkifyEntries}
+            className="nm-body"
+            linkClassName="linkify"
+          />
+
+          {/* 2026-05-04: 갤러리 — Hero 외 사진 (본문 아래) */}
+          {newsPhotos.length > 1 && (
+            <div style={{ marginTop: 20 }}>
+              <NewsPhotoGallery photos={newsPhotos} excludeHero />
+            </div>
+          )}
+
+          {/* 메타 + 매치 상세 link (cross-domain: /live) */}
+          <div className="nm-meta">
+            <span>
+              <span className="ico material-symbols-outlined">visibility</span>
+              {((post.view_count ?? 0) + 1).toLocaleString()}
+            </span>
+            <span>
+              <span className="ico material-symbols-outlined">favorite</span>
+              {post.likes_count}
+            </span>
+            <span>
+              <span className="ico material-symbols-outlined">chat_bubble</span>
+              {post.comments_count}
+            </span>
+            {match && (
+              <Link className="nm-meta__more" href={`/live/${match.id}`}>
+                매치 상세 →
+              </Link>
+            )}
+          </div>
+
+          {/* 주의 안내 */}
+          <p className="nm-note">
+            이 기사는 AI 기자 알기자가 매치 종료 후 자동으로 작성하고 운영자 검수를
+            거쳐 발행됩니다. 사실 오류 발견 시 신고해 주세요.
+          </p>
+        </article>
+
+        <div style={{ textAlign: "center", marginTop: 22 }}>
+          <Link className="btn" href="/news">
+            <span className="ico material-symbols-outlined">arrow_back</span>다른 기사 보기
+          </Link>
         </div>
-
-        {/* 주의 안내 */}
-        <p className="mt-4 text-xs text-[var(--color-text-dim)]">
-          이 기사는 AI 기자 알기자가 매치 종료 후 자동으로 작성하고 운영자 검수를
-          거쳐 발행됩니다. 사실 오류 발견 시 신고해 주세요.
-        </p>
-      </article>
-
-      <div className="mt-6 text-center">
-        <Link
-          href="/news"
-          className="inline-block rounded border border-[var(--color-border)] px-4 py-2 text-sm hover:bg-[var(--color-bg-hover)]"
-        >
-          ← 다른 기사 보기
-        </Link>
       </div>
-    </main>
+    </div>
   );
 }

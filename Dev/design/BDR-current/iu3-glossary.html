@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Glossary — /help/glossary — BDR v2.30</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800;900&family=JetBrains+Mono:wght@500;700;800&family=Pretendard:wght@400;500;600;700;800;900&display=swap" />
+<link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Symbols+Outlined" />
+<link rel="stylesheet" href="tokens.css" />
+<link rel="stylesheet" href="shell.css" />
+<link rel="stylesheet" href="info-shared.css" />
+</head>
+<body>
+<div class="showcase">
+  <header class="showcase-head">
+    <div class="eyebrow">BDR v2.30 · IU3-B / 사용자 신규 · Phase 10B · BI3 ★★★ · A 등급</div>
+    <h1>Glossary 신규 — /help/glossary</h1>
+    <p><b>IU3-B 신규</b> (운영 330 · 별도 페이지). <strong>A-Z chip 인덱스</strong>(english 초성 · 비어있는 글자 disabled) + 용어 검색 + <strong>용어 카드 grid</strong>(아이콘+한글+영문+예시) + <strong>cross-domain link</strong>(용어 → 해당 Phase 진입 · 대회/경기/랭킹/매너). "← 도움말로 돌아가기"(<a href="iu3-help.html">IU3-A</a>). AppNav active="more".</p>
+    <nav class="showcase-nav" aria-label="Phase 10 시안">
+      <a href="index.html">v2.30 목차</a>
+      <a href="iu4-reviews.html">IU4 리뷰</a>
+      <a href="iu2-news.html">IU2 뉴스</a>
+      <a href="iu3-help.html">IU3 도움말</a>
+      <a class="is-cur" href="iu3-glossary.html">IU3 용어 사전</a>
+      <a href="iu1-about.html">IU1 소개</a>
+      <a href="ia1-admin-news.html">IA1 뉴스 발행</a>
+    </nav>
+  </header>
+
+  <section class="variant">
+    <header class="variant__head">
+      <span class="variant__num">Glossary / PC + MOBILE</span>
+      <h2 class="variant__title">용어 사전 — A-Z 인덱스 + 검색 + cross-domain</h2>
+      <p class="variant__desc">데스크톱 1240 + 모바일 375. A-Z chip(sticky) · 검색 · 용어 카드 grid · 관련 페이지 link.</p>
+    </header>
+    <div class="vp-strip">
+      <div class="vp vp--pc">
+        <div class="vp__chrome"><span class="vp__lights"><span></span><span></span><span></span></span><span class="vp__url">mybdr.kr/help/glossary</span><span class="vp__size">PC · 1240</span></div>
+        <div class="vp__body"><div id="mount-pc-nav"></div><div id="mount-pc"></div></div>
+      </div>
+      <div class="vp vp--mobile">
+        <div class="vp__chrome"><span class="vp__lights"><span></span><span></span><span></span></span><span class="vp__url">m · 용어 사전</span><span class="vp__size">375</span></div>
+        <div class="vp__body"><div id="mount-mobile-nav"></div><div id="mount-mobile"></div></div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script type="text/babel" src="shared.jsx"></script>
+<script type="text/babel" src="info-shared.jsx"></script>
+<script type="text/babel" src="screens/Help.jsx"></script>
+<script type="text/babel">
+  ReactDOM.createRoot(document.getElementById('mount-pc-nav')).render(<window.AppNav active="more" />);
+  ReactDOM.createRoot(document.getElementById('mount-pc')).render(<window.Glossary />);
+  ReactDOM.createRoot(document.getElementById('mount-mobile-nav')).render(<window.AppNav active="more" />);
+  ReactDOM.createRoot(document.getElementById('mount-mobile')).render(<window.Glossary />);
+</script>
+</body>
+</html>
