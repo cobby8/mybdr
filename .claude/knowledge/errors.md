@@ -2,6 +2,14 @@
 <!-- 담당: debugger, tester | 최대 30항목 -->
 <!-- 이 프로젝트에서 반복되는 에러 패턴, 함정, 주의사항을 기록 -->
 
+### [2026-06-13] apiSuccess snake_case 자동 변환 ↔ 프론트 camelCase 접근 함정 (★재발 6회)
+- **분류**: errors (응답 키 케이스 / 사일런트 undefined)
+- **발견자**: pm (PR-RECORDER-AUDIT 파트0 HOTFIX `e3d757e`)
+- **증상**: 대회 운영자 기록원 페이지 — 추가 성공 토스트는 뜨는데 "현재 기록원" 목록이 항상 "등록된 기록원이 없습니다"(새로고침해도 동일). 제거 버튼도 동시 깨짐. (record01/02/03 DB 활성인데 목록 0)
+- **근본 원인**: `apiSuccess(data)` = `NextResponse.json(convertKeysToSnakeCase(data))` — **래핑 없이** data를 snake_case로 변환 반환. GET `/api/web/tournaments/[id]/recorders` 응답 = `is_active`/`recorder_id`/`created_at`(snake). BUT `tournament-admin/.../recorders/page.tsx`가 `r.isActive`/`r.recorderId`(camelCase)로 읽음 → 전 행 undefined → `filter(r=>r.isActive)` = 0 → 빈 목록. 제거도 `r.recorderId`=undefined.
+- **해결**: page.tsx `type Recorder` 필드 + filter + 제거 호출 3곳 snake_case 정합(`is_active`/`recorder_id`). **응답·요청 body·route 무변경**(DELETE body 키 `recorderId`는 클라→서버 요청이라 route가 camelCase 기대 → 유지). +7/-5 LOC.
+- **예방**: **route.ts(camelCase 코드)만 보고 프론트 인터페이스 짜지 말 것** — `apiSuccess` 경유 응답은 전 키 snake_case. 신규 필드 추가/프론트 타입 정의 전 **curl 1회로 raw 응답 키 확인**(CLAUDE.md §보안). 서버 컴포넌트 직접 prisma(apiSuccess 미경유)는 camelCase 그대로 — 혼동 금지. (재발: 04-17 외 누적 6회 — 응답 키 케이스는 mybdr 최빈 함정)
+
 ### [2026-06-10] 시안 박제 강조색 함정 — CSS `--cta:var(--accent)`(폴백) ≠ 런타임 inline 확정값
 - **분류**: errors (디자인 박제 / 강조색)
 - **발견자**: pm (대회상세 재구성 박제 v2(9))
