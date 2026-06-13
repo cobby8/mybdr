@@ -182,7 +182,9 @@ const USER_COLUMNS: DataTableColumn<SerializedUser>[] = [
   },
   {
     key: "role",
-    label: "역할",
+    // 2026-06-13 PR-PERM-DISPLAY — 2축 분리: 이 칼럼은 membershipType(구독 등급) 표시.
+    //   라벨만 "역할"→"구독 등급"으로 정정. render(getRoleInfo) 로직 무변경.
+    label: "구독 등급",
     width: "120px",
     render: (u) => {
       // 시안 admin-stat-pill[data-tone] 박제
@@ -196,12 +198,14 @@ const USER_COLUMNS: DataTableColumn<SerializedUser>[] = [
   },
   {
     key: "isAdmin",
-    label: "관리자",
+    // 2026-06-13 PR-PERM-DISPLAY — 2축 분리: 이 칼럼은 운영 권한(is_admin/admin_role) 표시.
+    //   라벨 "관리자"→"운영 권한". 슈퍼관리자는 "ON"→"슈퍼관리자" 칩(err 톤)으로 명시화.
+    label: "운영 권한",
     width: "120px",
     render: (u) => {
-      // 슈퍼관리자(isAdmin=true)는 기존 "ON" 유지 (무변경).
+      // 슈퍼관리자(isAdmin=true) → err 톤 칩 "슈퍼관리자" (기존 강한 빨강 신호 유지).
       if (u.isAdmin) {
-        return <span className="text-xs font-semibold" style={{ color: "var(--color-error)" }}>ON</span>;
+        return <span className="admin-stat-pill" data-tone="err">슈퍼관리자</span>;
       }
       // 2026-06-12 PR-RECORDER-AUDIT — admin_role 가시화.
       //   recorder_admin/association_admin 은 info 톤 칩으로 표시 (var(--color-*) 토큰).
