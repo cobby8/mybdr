@@ -43,6 +43,33 @@
 
 ⚠️ reviewer 참고: BG2 flags가 정적 라벨인지(개별 건수 누출 0) / --warn-soft 다크 동일값 처리 적절성
 
+### Phase 10 박제 #2 — IU2 News (v2.30) (2026-06-14)
+
+📝 구현: `/news` 매거진(E1) + `/news/match/[matchId]` 단신(E2) UI 전면 교체. IU4와 동일 패턴(서버 page.tsx 데이터 가공 → 클라 content 컴포넌트 / globals.css .nw-·.nm- 이식).
+
+| 파일 | 변경 | 신규/수정 |
+|------|------|----------|
+| src/app/(web)/news/_v2/news-content.tsx | **신규** 클라 컴포넌트. 카테고리 chip(전체/매치단신/매거진) + 트렌딩 spotlight(view 최다) + 카드 grid + NEW badge. period_type→cat 파생, 0건 chip 숨김 | 신규 |
+| src/app/(web)/news/page.tsx | 서버 컴포넌트로 축소. where/select 무변경(take 60 단일 fetch로 전환·페이지네이션 제거). period_type→cat, created_at 7일내→isNew 판정, NewsItem[] 직렬화 후 NewsContent에 전달 | 수정 |
+| src/app/(web)/news/match/[matchId]/page.tsx | UI만 .nm-* 시안 톤 교체(crumb/article/byline/스코어보드/cover/body/meta). **fetch(match·linkify·photos)·view증가·props 무변경**. 사진 0건 시 nm-cover placeholder, 있으면 기존 NewsPhotoHero/Gallery 유지 | 수정 |
+| src/lib/news/linkify-news-body.tsx | `linkClassName?` prop 추가(미지정 시 기존 Tailwind 유지). news/match만 "linkify" 전달 → .nm-body a.linkify 스타일. **타 호출처(community 등) 영향 0** | 수정 |
+| src/app/globals.css | `--accent-deep/--accent-hair/--bdr-navy` 토큰 :root+다크 추가(시안 tokens.css 값) / `.nw-*`+`.nm-*` 전체 이식(--r-xs/sm→--radius-chip, --r-md/lg→--radius-card 매핑) | 수정 |
+
+- **0 변경 확인**: schema diff 0 · api/v1 0 · 데이터 패칭(쿼리 where/select·Promise.all·buildLinkifyEntries·view increment) 무변경
+- **★ 운영 데이터 기반 카테고리(mock 금지)**: 시안 5종 chip 중 community_posts에 실존하는 종류만(전체/매치단신/매거진). period_type="match"→매치단신, round·daily→매거진. 공지/이벤트는 news 데이터 소스 없어 omit. 0건 chip 런타임 숨김(데이터 생기면 자동 노출)
+- **★ NEW badge**: created_at 7일 이내 UI 판정(신규 컬럼 X). 서버에서 isNew 계산
+- **★ cross-domain link 4종**: 팀→/teams(스코어보드), 대회→/tournaments(meta), 매치상세→/live(meta), 선수→/users(본문 linkify·buildLinkifyEntries player entry). 4종 모두 기존 헬퍼/라우트 사용
+- **추가 토큰 3종**: --accent-deep(#B3141A)/--accent-hair(#F5C6C8)/--bdr-navy(#1B3C87). 색상 고정값이라 라이트·다크 동일(IU4 --warn-soft 방식). nw-tag--match=navy, nw-card hover=accent-hair/deep
+- **tsc --noEmit**: ✅ EXIT 0
+
+💡 tester 참고:
+- 테스트 E1: `/news` 진입 → BDR NEWS 헤더 + chip(전체/매치단신/매거진, 데이터 따라 가변) + 트렌딩 spotlight(view 최다) + 카드 grid. chip 토글 시 클라 필터. 7일내 글 NEW badge
+- 테스트 E2: `/news/match/[matchId]` → 단신 상세. 알기자 byline + 스코어보드(승팀 빨강) + 본문 내 팀/선수명 자동 link(.linkify) + 매치상세 link
+- 정상: 발행 0건 시 "아직 발행된 기사가 없습니다" / chip 0건 종류 숨김 / 사진 없으면 nm-cover placeholder
+- 주의: period_type=null인 기존 news 글은 magazine으로 분류됨(round/daily fallback). matchId 없는 글은 카드 클릭 시 /news 자기참조
+
+⚠️ reviewer 참고: linkify-news-body.tsx linkClassName prop이 community 호출처에 영향 0인지(default 유지) / period_type→cat 파생이 mock 아닌 실데이터 기반인지 / 추가 토큰 3종 다크 동일값 적절성
+
 ## 테스트 결과 (tester)
 
 ### Phase 10 박제 #1 — IU4 Reviews 검증 (2026-06-14, 정적)
@@ -61,6 +88,24 @@
 📊 종합: 8개 중 8개 PASS / 0개 FAIL
 
 비고: hex #8B5A0F(rv-flag--warn 텍스트)는 warn-soft 배경 가독성용 의도적 하드코딩(scratchpad 명시). #fff는 globals.css 표준 관례. 모두 토큰화 강제 대상 아님 — 수정 요청 없음.
+
+### Phase 10 박제 #2 — IU2 News 검증 (2026-06-14, 정적)
+
+| # | 검증 항목 | 결과 | 비고 |
+|---|----------|------|------|
+| 1 | tsc --noEmit | ✅ PASS | EXIT 0, 에러 0 |
+| 2 | ★★ 데이터 패칭 무변경(정밀) | ✅ PASS | page.tsx git diff 정밀비교: **where**`{category:"news",status:"published"}`·**select**(id/title/content/created_at/view_count/likes_count/comments_count/tournament_match_id/tournament_id/period_type)·**orderBy**`{created_at:"desc"}` **3요소 완전 동일**. 변경=`Promise.all([findMany(skip/take 12),count])`→`findMany(take 60)` 단일+페이지네이션/count 제거. 결과 집합 내용·순서 동일, take↑(12→60)이라 **누락 0·중복 0**(12건 초과분 기존엔 2p 분리·이번엔 60건 한화면). 60건 초과 시만 61+ 미표시(기존도 페이지네이션 접근, 클라 chip 필터 요건상 단일fetch 합리). **데이터 의미 변질 없음** |
+| 3 | match 상세 fetch 무변경 | ✅ PASS | match/[matchId] diff에 findMany/findUnique/where/select/orderBy/increment/buildLinkifyEntries/news_photo/match_id 라인 변경 **0**(UI 마크업만 .nm-* 교체). news_photo `where{match_id}`·`orderBy[{is_hero:desc},{display_order:asc}]` 유지. view_count increment 유지 |
+| 4 | linkify linkClassName 영향 0 | ✅ PASS | optional prop, default=`text-[var(--color-accent)] hover:underline font-medium`(기존 Tailwind 동일). 호출처 3곳 중 admin-news-content·community 2곳 미전달→default 유지(영향0), news/match만 `"linkify"` 전달 |
+| 5 | cross-domain link 4종 | ✅ PASS | 팀→/teams/{id}(스코어보드), 대회→/tournaments/{id}(meta), 매치상세→/live/{id}(meta), 선수→buildLinkifyEntries player→/users(본문 linkify). 4종 모두 기존 라우트/헬퍼 |
+| 6 | NEW badge | ✅ PASS | created_at 7일내 서버 isNew 판정(신규 컬럼 X). nw-card__cover-tag UI만 |
+| 7 | E1/E2 구조 | ✅ PASS | E1: chip(전체/매치단신/매거진)+트렌딩 spotlight(view 최다 reduce)+grid. E2: byline+스코어보드(승팀 is-win)+linkify. period_type→cat 파생(match→매치단신/그외→매거진), mock 0 |
+| 8 | 회귀 AppNav + 모바일 720 + 0건 숨김 | ✅ PASS | content는 page__inner 셸만(AppNav 미포함·web 레이아웃 자동). nw-grid @media 분기. 0건 chip 숨김=`CATS.filter(c.key==="all"\|\|countByCat>0)` 동작 |
+| 9 | 디자인 위반 0 | ✅ PASS | 신규 hex=토큰 3종(--accent-deep #B3141A/--accent-hair #F5C6C8/--bdr-navy #1B3C87, :root+다크 양쪽)+#fff 4건(흰글자 관례). 핑크·코랄·살몬 0, lucide 0, pill 9999px 0. Material Symbols만 |
+
+📊 종합: 9개 중 9개 PASS / 0개 FAIL
+
+비고: ★ 핵심 요청(데이터 패칭 변경)을 git diff 정밀비교로 검증 — where/select/orderBy 3요소 무변경, take 12→60 확대는 표시 누락/중복 유발 0, news_photo match_id join·view increment 유지. **데이터 의미 변질 없음 PASS**. 추가 토큰 3종 다크 동일값은 IU4 --warn-soft 선례 답습. 수정 요청 없음.
 
 ## 리뷰 결과 (reviewer)
 
@@ -81,6 +126,25 @@
 🟡 권장 수정 (minor·후속·동작영향 0):
 - [globals.css:5285 `.rv-chip.is-on`] 하드코딩 `#fff` 잔존. tester가 #fff 60건 기존관례·선례 범위로 허용 판정 → reviewer 동의. 활성칩 배경=var(--ink)(어두움)이라 흰글자 가독성 정상. 토큰화 강제 대상 아님, 후속 검토
 
+### Phase 10 박제 #2 — IU2 News (v2.30) (2026-06-14)
+
+📊 종합 판정: ✅ **APPROVE** (critical 0 / major 0 / minor 2·후속) · 수정 요청 0
+
+✅ 잘된 점:
+- **★ 데이터 패칭 변경 정당성 확인** — git diff HEAD 정밀비교: where`{category:"news",status:"published"}`·select(동일 12컬럼)·orderBy`{created_at:"desc"}` **3요소 완전 동일**. 변경점 = ①`skip/take 12` 페이지네이션→`take 60` 단일 fetch ②`count()` 제거. 카테고리 chip이 **클라 필터**라 전체 후보를 한 번에 받아야 하는 구조적 필요(서버 페이지네이션과 양립 불가). 60건 상한 명시(시안 규모). 누락0·중복0·순서 동일 — API/route/schema 0 변경. **박제 원칙 위반 아닌 합리적 전환(major 아님)**
+- **linkify prop 하위호환 완벽** — `linkClassName?` optional, 미지정 시 `?? "text-[var(--color-accent)]…"` 기존 Tailwind 유지. 타 호출처 3곳 검증: community/[id](미전달), admin-news-content(className만), news/match(신규 "linkify"). **community/admin 영향 0**
+- **★ period_type 파생 = 실데이터(mock 0)** — schema `period_type String? //"match"|"round"|"daily"` + auto-publish-match-brief.ts L382가 `"match"` 기록 확인. 파생 `match→매치단신 / round·daily·null→매거진` 합리적, null 기존 글 magazine 안전 fallback. 공지/이벤트 omit + 0건 chip 런타임 숨김(`countByCat>0`) — mock 금지 준수
+- **★ 추가 토큰 3종 시안 정합** — `--accent-deep:#B3141A`=시안 `--bdr-red-ink:#B3141A`(시안은 별칭이나 최종값 동일), `--accent-hair:#F5C6C8`·`--bdr-navy:#1B3C87` 시안 동일. 3종 라이트·다크 동일값(색상 고정, IU4 --warn-soft 방식). :root+다크 양쪽 정의(L56-58/L172-174)
+- **13룰 통과** — pill 9999px 0(globals 9999px 3건은 전부 "금지" 주석·News 무관), lucide 0(Material Symbols만), var(--*)만, 핑크·코랄·살몬 0. 720px 분기 존재
+- **AppNav frozen** — news-content는 `.page>.page__inner` 셸만, AppNav 재구성·import 0
+- **cross-domain 4종 안전** — 팀→/teams/{id}(id 없으면 `"#"` 폴백), 대회→/tournaments/{id}(존재 시만), 매치상세→/live/{id}, 선수→linkify(buildLinkifyEntries). matchId 없는 카드 `/news` 자기참조(깨진 링크 방지). 모두 기존 라우트
+- **보안(XSS) 안전** — dangerouslySetInnerHTML 0. linkify는 content.split(regex)→React 노드(자동 escape)+escapeRegex 특수문자 안전화. HTML 직접 주입 경로 없음
+- **클래스 충돌 0** — `.nw-*`/`.nm-*` 운영 전역 유니크(globals+news 코드+시안 info-shared.css만, 타 운영 0). BigInt 직렬화 안전(.toString())
+
+🟡 권장 수정 (minor·후속·동작영향 0):
+- [news-content.tsx:82 `rest = rows.filter(n => n !== spotlight)`] 객체 참조(!==) 비교. spotlight가 reduce로 rows 내 동일 참조 반환→현재 정상. 단 `n.id !== spotlight.id`가 의도 명확·견고. 동작 영향 0
+- [globals.css:5411/5417/5454 `#fff`] nw-cat.is-on/new tag 흰색 하드코딩. IU4 동일 관례(어두운 배경 위 흰글자). tester #fff 관례 범위 → 동의. 토큰화 강제 대상 아님
+
 ## 수정 요청
 | 요청자 | 대상 파일 | 문제 설명 | 상태 |
 |--------|----------|----------|------|
@@ -98,6 +162,8 @@
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
 |------|------|------|
+| 2026-06-14 | **Phase 10 박제 #2 IU2 News 검증** (tester) | ✅ PASS 9/9. ★데이터패칭 정밀: where/select/orderBy 무변경·take 12→60(누락/중복0)·news_photo join+view increment 유지=의미변질0. linkify default 영향0·cross-domain 4종·디자인위반0·tsc0. 수정요청 없음. 미커밋 |
+| 2026-06-14 | **Phase 10 박제 #2 IU2 News** (developer) | ✅ /news+/news/match UI 교체. news-content.tsx 신규(chip/spotlight/NEW badge)+page.tsx 서버축소+match UI .nm-*+linkify linkClassName prop+globals.css .nw-/.nm-·토큰3종. schema/api/패칭 0·cross-domain 4종(teams/tournaments/live/users)·tsc0. 미커밋 |
 | 2026-06-14 | **Phase 10 박제 #1 IU4 Reviews 검증** (tester) | ✅ PASS 8/8. tsc0·BG2건수노출0(정적라벨+캡션)·필터4종정합·page.tsx diff0·AppNav/720회귀0·디자인위반0(hex 관례범위). 수정요청 없음. 미커밋 |
 | 2026-06-14 | **Phase 10 박제 #1 IU4 Reviews** (developer) | ✅ reviews-content.tsx UI 교체(필터chip4/평점분포/BG2 flag) + globals.css `--warn-soft`+`.rv-*`. Props·schema·api·패칭 0변경. BG2 건수노출0. tsc0. 미커밋 |
 | 2026-06-14 | **대회 삭제 기능** (dev/tester/reviewer/pm·되돌림1회) | ✅ `531bdef` Soft/Hard cascade 7스텝. PASS6/6·APPROVE(min2반영). schema/v1 0·tsc0. +379/-18. 미푸시1 |

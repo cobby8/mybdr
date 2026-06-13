@@ -20,9 +20,12 @@ interface Props {
   content: string;
   entries: LinkifyEntry[];
   className?: string;
+  // 2026-06-14: IU2 박제 — 링크 anchor 클래스 오버라이드(미지정 시 기존 Tailwind 유지).
+  //   news/match 상세는 "linkify"(.nm-body a.linkify 스타일) 전달. 타 호출처 영향 0.
+  linkClassName?: string;
 }
 
-export function LinkifyNewsBody({ content, entries, className }: Props) {
+export function LinkifyNewsBody({ content, entries, className, linkClassName }: Props) {
   // 이름 길이 desc 정렬 — 긴 이름이 먼저 매칭되어야 prefix 충돌 방지
   const sorted = [...entries]
     .filter((e) => e.name && e.name.trim().length >= 1)
@@ -58,7 +61,10 @@ export function LinkifyNewsBody({ content, entries, className }: Props) {
             <Link
               key={i}
               href={entry.href}
-              className="text-[var(--color-accent)] hover:underline font-medium"
+              className={
+                linkClassName ??
+                "text-[var(--color-accent)] hover:underline font-medium"
+              }
             >
               {part}
             </Link>

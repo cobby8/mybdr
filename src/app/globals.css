@@ -51,6 +51,11 @@
   --warn: #E8A33B;
   /* [IU4] warn 의 soft 배경 변형 — 시안 tokens.css 값 그대로 (rv-flag--warn 등) */
   --warn-soft: #FBEED2;
+  /* [IU2] News 박제용 — 시안 tokens.css accent/navy 파생값 (nw-tag/nw-cat/nw-card hover 등).
+     색상 고정값이라 라이트/다크 동일 (IU4 --warn-soft 와 같은 방식) */
+  --accent-deep: #B3141A;   /* bdr-red-ink — nw-card hover 제목 / nw-cat.is-on 테두리 */
+  --accent-hair: #F5C6C8;   /* 연한 accent 라인 — nw-card hover 테두리 / nw-tag--new */
+  --bdr-navy: #1B3C87;      /* BDR Navy — nw-tag--match 배경 */
   --danger: #E24C4B;
   --info: #0079B9;
 
@@ -163,6 +168,10 @@ html {
   --ok-soft: #0F2A1B;
   /* [IU4] warn-soft — rv-flag--warn 텍스트(#8B5A0F 진갈색)가 다크에서도 읽히도록 시안과 동일한 크림 배경 유지 */
   --warn-soft: #FBEED2;
+  /* [IU2] News 박제용 accent/navy 파생값 — 색상 고정값이라 다크도 동일 */
+  --accent-deep: #B3141A;
+  --accent-hair: #F5C6C8;
+  --bdr-navy: #1B3C87;
 
   /* Hard offset shadows for the brutalist vibe */
   --sh-xs: 2px 2px 0 0 rgba(0,0,0,.6);
@@ -5358,4 +5367,249 @@ html.dark {
   .rv-summary { grid-template-columns: 1fr; }
   .rv-summary__score { border-right: 0; border-bottom: 1px solid var(--border); }
   .rv-flags__note { margin-left: 0; width: 100%; }
+}
+
+/* ============================================================
+   IU2 — News (/news 매거진 + /news/match/[id] 단신) v2.30 박제
+   시안 Dev/design/BDR-current/info-shared.css .nw-* / .nm-* 규칙을 운영 토큰으로 이식.
+   변수 매핑: --r-xs/--r-sm → --radius-chip / --r-md/--r-lg → --radius-card
+   (그 외 --accent-* / --bdr-navy / --cafe-blue-* / --bg-* / --ink-* / --ff-* /
+    --border / --ok / --sh-md 는 운영 토큰 그대로 사용. 누락 3종(accent-deep/
+    accent-hair/bdr-navy)은 :root+다크에 IU2 주석으로 추가됨)
+   ============================================================ */
+
+/* ---- /news 매거진 헤더 ---- */
+.nw-head {
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 16px; margin-bottom: 18px;
+}
+.nw-head__row { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.nw-head__title {
+  font-family: var(--ff-display); font-size: 30px; font-weight: 900;
+  letter-spacing: -0.02em; margin: 0;
+}
+.nw-head__by {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-family: var(--ff-mono); font-size: 11.5px; font-weight: 700;
+  color: var(--accent);
+  background: var(--accent-soft);
+  padding: 3px 9px; border-radius: var(--radius-chip);
+}
+.nw-head__sub { margin: 10px 0 0; font-size: 13px; color: var(--ink-mute); line-height: 1.6; }
+
+/* 카테고리 chip */
+.nw-cats { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 18px; }
+.nw-cat {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 7px 13px;
+  font-size: 12.5px; font-weight: 600;
+  background: var(--bg-elev); border: 1px solid var(--border);
+  border-radius: var(--radius-chip); color: var(--ink-soft); cursor: pointer;
+}
+.nw-cat .ico { font-family: 'Material Symbols Outlined'; }
+.nw-cat:hover { background: var(--bg-alt); }
+.nw-cat.is-on { background: var(--accent); color: #fff; border-color: var(--accent-deep); font-weight: 800; }
+.nw-cat__count {
+  font-family: var(--ff-mono); font-size: 10px; font-weight: 800;
+  background: var(--bg-head); color: var(--ink-mute);
+  padding: 1px 5px; border-radius: 8px;
+}
+.nw-cat.is-on .nw-cat__count { background: rgba(255,255,255,.22); color: #fff; }
+
+/* 매거진 카드 grid */
+.nw-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.nw-card {
+  display: flex; flex-direction: column;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  overflow: hidden;
+  cursor: pointer; text-decoration: none; color: inherit;
+  transition: border-color .12s, box-shadow .12s, transform .12s;
+}
+.nw-card:hover { border-color: var(--accent-hair); box-shadow: var(--sh-md); transform: translateY(-1px); }
+.nw-card__cover {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  background:
+    repeating-linear-gradient(135deg, var(--bg-head) 0 10px, var(--bg-alt) 10px 20px);
+  display: flex; align-items: center; justify-content: center;
+}
+.nw-card__cover-icon { font-family: 'Material Symbols Outlined'; font-size: 40px; color: var(--ink-dim); opacity: .5; }
+.nw-card__cover-tag {
+  position: absolute; top: 10px; left: 10px;
+}
+.nw-card__body { padding: 14px 16px; display: flex; flex-direction: column; gap: 8px; flex: 1; }
+.nw-card__meta-top { display: flex; align-items: center; gap: 8px; }
+.nw-tag {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-family: var(--ff-mono); font-size: 9.5px; font-weight: 800;
+  padding: 2px 7px; border-radius: var(--radius-chip); letter-spacing: 0.04em;
+  color: #fff;
+}
+.nw-tag--news { background: var(--accent); }
+.nw-tag--match { background: var(--bdr-navy); }
+.nw-tag--notice { background: var(--cafe-blue); }
+.nw-tag--event { background: var(--ok); }
+.nw-tag--new { background: #fff; color: var(--accent); border: 1px solid var(--accent-hair); }
+.nw-card__date { font-family: var(--ff-mono); font-size: 10.5px; color: var(--ink-dim); font-weight: 700; }
+.nw-card__title {
+  font-family: var(--ff-display); font-size: 16px; font-weight: 800;
+  line-height: 1.35; color: var(--ink); letter-spacing: -0.005em;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.nw-card:hover .nw-card__title { color: var(--accent-deep); }
+.nw-card__preview {
+  font-size: 12.5px; color: var(--ink-mute); line-height: 1.6;
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+  flex: 1;
+}
+.nw-card__foot {
+  display: flex; align-items: center; gap: 12px;
+  padding-top: 8px; border-top: 1px dashed var(--border);
+  font-family: var(--ff-mono); font-size: 11px; color: var(--ink-mute); font-weight: 700;
+}
+.nw-card__foot span { display: inline-flex; align-items: center; gap: 3px; }
+.nw-card__foot .ico { font-family: 'Material Symbols Outlined'; }
+
+/* 트렌딩 spotlight (첫 카드 큰) */
+.nw-spotlight {
+  grid-column: 1 / -1;
+  display: grid; grid-template-columns: 1.4fr 1fr; gap: 0;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  overflow: hidden; cursor: pointer; text-decoration: none; color: inherit;
+}
+.nw-spotlight:hover { border-color: var(--accent-hair); box-shadow: var(--sh-md); }
+.nw-spotlight__cover {
+  position: relative; min-height: 240px;
+  background: repeating-linear-gradient(135deg, var(--bg-head) 0 12px, var(--bg-alt) 12px 24px);
+  display: flex; align-items: center; justify-content: center;
+}
+.nw-spotlight__cover .ico { font-family: 'Material Symbols Outlined'; font-size: 56px; color: var(--ink-dim); opacity: .5; }
+.nw-spotlight__body { padding: 26px 28px; display: flex; flex-direction: column; gap: 12px; justify-content: center; }
+.nw-spotlight__eyebrow {
+  font-family: var(--ff-mono); font-size: 10.5px; font-weight: 800;
+  color: var(--accent); letter-spacing: 0.12em; text-transform: uppercase;
+  display: inline-flex; align-items: center; gap: 8px;
+}
+.nw-spotlight__eyebrow .ico { font-family: 'Material Symbols Outlined'; }
+.nw-spotlight__title {
+  font-family: var(--ff-display); font-size: 26px; font-weight: 900;
+  letter-spacing: -0.02em; line-height: 1.25; color: var(--ink);
+}
+.nw-spotlight:hover .nw-spotlight__title { color: var(--accent-deep); }
+.nw-spotlight__preview { font-size: 13.5px; color: var(--ink-soft); line-height: 1.65; }
+.nw-spotlight__foot {
+  display: flex; align-items: center; gap: 14px;
+  font-family: var(--ff-mono); font-size: 11.5px; color: var(--ink-mute); font-weight: 700;
+}
+.nw-spotlight__foot span { display: inline-flex; align-items: center; gap: 4px; }
+.nw-spotlight__foot .ico { font-family: 'Material Symbols Outlined'; }
+
+.nw-footer {
+  margin-top: 26px; border-top: 1px solid var(--border); padding-top: 16px;
+  text-align: center; font-size: 12px; color: var(--ink-mute); line-height: 1.7;
+}
+.nw-footer a { color: var(--cafe-blue-deep); font-weight: 700; text-decoration: underline; }
+
+/* ---- /news/match/[id] 단신 상세 ---- */
+.nm-wrap { max-width: 760px; margin: 0 auto; }
+.nm-crumb {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 12.5px; color: var(--ink-mute); margin-bottom: 14px;
+}
+.nm-crumb a { color: var(--ink-mute); text-decoration: none; cursor: pointer; }
+.nm-crumb a:hover { color: var(--accent); text-decoration: underline; }
+.nm-crumb .sep { color: var(--ink-dim); }
+.nm-article {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  padding: 28px 30px;
+}
+.nm-article__cat { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+.nm-article__title {
+  font-family: var(--ff-display); font-size: 28px; font-weight: 900;
+  letter-spacing: -0.02em; line-height: 1.25; margin: 0 0 14px;
+}
+.nm-byline { display: flex; align-items: center; gap: 8px; margin-bottom: 22px; }
+.nm-byline__bot {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-family: var(--ff-mono); font-size: 12px; font-weight: 700;
+  background: var(--accent-soft); color: var(--accent);
+  padding: 4px 10px; border-radius: var(--radius-chip);
+}
+.nm-byline__bot .ico { font-family: 'Material Symbols Outlined'; }
+.nm-byline__sub { font-size: 12px; color: var(--ink-mute); }
+
+/* 매치 헤드라인 스코어보드 */
+.nm-score {
+  background: var(--bg-alt);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  padding: 18px 20px;
+  margin-bottom: 22px;
+}
+.nm-score__row { display: grid; grid-template-columns: 1fr auto 1fr; gap: 18px; align-items: center; }
+.nm-score__team { text-align: center; text-decoration: none; color: inherit; }
+.nm-score__team-name {
+  font-family: var(--ff-display); font-size: 15px; font-weight: 800; color: var(--ink);
+  cursor: pointer;
+}
+.nm-score__team:hover .nm-score__team-name { color: var(--cafe-blue-deep); text-decoration: underline; }
+.nm-score__team-num {
+  font-family: var(--ff-display); font-size: 34px; font-weight: 900;
+  font-feature-settings: "tnum"; line-height: 1; margin-top: 6px;
+}
+.nm-score__team.is-win .nm-score__team-num { color: var(--accent); }
+.nm-score__vs { font-family: var(--ff-mono); font-size: 14px; color: var(--ink-dim); font-weight: 700; }
+.nm-score__meta {
+  margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--border);
+  display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap;
+  font-size: 12px; color: var(--ink-mute);
+}
+.nm-score__meta a { color: var(--cafe-blue-deep); font-weight: 700; text-decoration: none; }
+.nm-score__meta a:hover { text-decoration: underline; }
+
+.nm-cover {
+  aspect-ratio: 16 / 9; border-radius: var(--radius-card);
+  background: repeating-linear-gradient(135deg, var(--bg-head) 0 12px, var(--bg-alt) 12px 24px);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+  margin-bottom: 20px; color: var(--ink-dim);
+}
+.nm-cover .ico { font-family: 'Material Symbols Outlined'; font-size: 44px; opacity: .6; }
+.nm-cover span { font-family: var(--ff-mono); font-size: 11px; font-weight: 700; }
+
+.nm-body { font-size: 15px; line-height: 1.85; color: var(--ink); }
+.nm-body p { margin: 0 0 16px; }
+.nm-body a.linkify {
+  color: var(--cafe-blue-deep); font-weight: 700;
+  text-decoration: none; border-bottom: 1px solid var(--cafe-blue-hair);
+  cursor: pointer;
+}
+.nm-body a.linkify:hover { background: var(--cafe-blue-soft); }
+
+.nm-meta {
+  margin-top: 22px; padding-top: 16px; border-top: 1px solid var(--border);
+  display: flex; align-items: center; gap: 16px;
+  font-family: var(--ff-mono); font-size: 12px; color: var(--ink-mute); font-weight: 700;
+}
+.nm-meta span { display: inline-flex; align-items: center; gap: 4px; }
+.nm-meta .ico { font-family: 'Material Symbols Outlined'; font-size: 16px; }
+.nm-meta__more {
+  margin-left: auto;
+  color: var(--accent) !important; text-decoration: none; cursor: pointer;
+}
+.nm-meta__more:hover { text-decoration: underline; }
+.nm-note { margin-top: 16px; font-size: 11.5px; color: var(--ink-dim); line-height: 1.6; }
+
+@media (max-width: 720px) {
+  .nw-grid { grid-template-columns: 1fr; }
+  .nw-spotlight { grid-template-columns: 1fr; }
+  .nw-spotlight__cover { min-height: 160px; }
+  .nm-article { padding: 20px 18px; }
+  .nm-article__title { font-size: 22px; }
+  .nm-body { font-size: 14px; }
 }
