@@ -2,6 +2,19 @@
 <!-- 담당: 전체 에이전트 | 최대 30항목 -->
 <!-- 삽질 경험, 다음에 피해야 할 것, 효과적이었던 접근법을 기록 -->
 
+### [2026-06-14] 결선 knockout 9경기 중복 + 예선종료 대회종료 오분류 — 진단·정리·재발방지 종합 (KO Sprint1)
+- **분류**: lesson/diagnosis (브래킷 중복 / 자동종료 오판 / 운영 데이터 정리)
+- **발견자**: pm + planner + developer (제10회 BDR YOUNGMAN GAME, `a9ebaf6`)
+- **사고 2건**:
+  1. **결선 9경기 중복** — 6/9 수동 크로스 INSERT(준결승2+결승1, next_match_id 연결됨) 위에 6/12 자동생성이 또 실행 → 조 무시하고 결승에 전조합 4개+4강2개 박제 → 누적 9경기. errors.md [2026-06-09] "2개조 knockout 자동생성=조 무시" 함정이 가드 사각으로 재발.
+  2. **예선 종료 → 대회 종료 오분류** — `auto-complete.ts checkAndAutoCompleteTournament`가 `종료매치===전체매치`로 자동 종료하는데, 전체매치를 결선 존재 무관하게 현재 DB 매치만 셈 → full_league_knockout인데 결선 0건이면 "예선=전체" 오판 → 예선 완료 시 자동 종료. (errors [2026-06-08] "cron 없음" 추정은 오기였음 — 자동 trigger 실재)
+- **진단 방법 (재사용)**: 중복 매치는 **created_at으로 배치 구분** → 어느 배치가 정상 브래킷(next_match_id/bracket_position 연결됨)인지 식별 → **연결된 배치를 살리고 중복 배치 삭제**(시간·라운드명만 정상화). 시각은 timestamp(no tz, UTC 저장) → KST는 `+ interval '9 hours'`.
+- **운영 정리 (DB 정책 준수)**: 트랜잭션 DELETE 6 + UPDATE 3. 삭제 전 종속기록(match_player_stats/play_by_plays, 컬럼=`tournament_match_id`) 0건 검증 → 있으면 자동중단. tournament_id 이중 가드. classifier가 destructive 차단 → **구체적 ID 범위 명시 후 사용자 재승인**(일반 "진행"으론 부족).
+- **재발방지 (KO Sprint1, 코드 가드 4종)**: ① KO-1 결선 존재 판정을 round_number/bracket_position/roundName 3신호 OR로 강화(수동 INSERT도 인식) ② KO-2 **2개조 이상은 knockout 자동생성 throw 차단**(조무시 시드 원천봉쇄) ③ KO-3 silent catch 가시화 ④ KO-9 **결선 format인데 결선 0건이면 자동종료 차단**(예선만으론 종료 불가).
+- **운영 절차 (KO-4)**: 결선 **수동 INSERT 시 round_number/bracket_position 부여 의무**(가드가 인식하도록) / **2개조 이상 대회는 자동생성 금지·수동 크로스 대진만**(A1vsB2/B1vsA2).
+- **재발 방지 룰**: (a) "예선 끝났는데 대회가 종료됐다" 신고 = 자동종료 trigger + **다음 단계(결선) 부재 인지실패** 의심(format이 요구하는 후속 매치가 있는지 확인). (b) 같은 정보를 만드는 경로가 둘(수동+자동)이면 idempotent 가드가 **양쪽 흔적을 모두 인식**하는지 검증(round_number 단독 카운트는 수동 INSERT 못 봄). (c) 자동 trigger의 silent catch는 사고를 숨김 → 항상 가시화.
+- **참조횟수**: 0
+
 ### [2026-06-12] "권한 해제" 신고 = 데이터 변경 아닌 **가시성/감사 빈틈** 1순위 의심 (recorder_admin 오인 사고)
 - **분류**: lesson/diagnosis (권한 표시 누락 = 운영자 오인 / add-only 감사로그)
 - **발견자**: pm (PR-RECORDER-AUDIT `a897b22`)
