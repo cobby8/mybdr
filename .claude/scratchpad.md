@@ -2,7 +2,7 @@
 
 ## 현재 작업
 - **요청**: PR-RECORDER-AUDIT — 기록원 배정/해제 감사로그 + admin_role 가시화 (단독 PR)
-- **상태**: 파트1·2 ✅ main 머지(`77d014a`). **파트0 HOTFIX** ✅ 박제+tsc — `e3d757e` 미push 1. push 결재 대기
+- **상태**: ✅ 전부 **main 머지 완료** — 파트1·2(`77d014a`) + 파트0 HOTFIX `e3d757e`(PR #671→#672 `3db595c`). 미push/미머지 0
 - **현재 담당**: pm
 - **옵션 재배정**: 스킵(사용자 결재) — record01/02 이미 `recorder_admin`(전역권한) 보유 = 기능상 불필요. 가시화로 오인 원인 해소
 - **역박제**: skip — 시안 AdminUsers는 상태뱃지 통합 구조(별도 관리자컬럼·admin_role mock 없음) → 1:1 부적합
