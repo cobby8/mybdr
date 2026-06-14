@@ -33,6 +33,7 @@ export default async function AdminCourtsPage({
     totalCount,
     pendingSuggestions,
     pendingAmbassadors,
+    pendingSubmissions, // P1-a: 코트 신규 등록 제보(pending) 큐
     // 8C-6 박제 — VA1 hero stat 용 count-only 쿼리 (검색 q 무관 = 전체 현황 지표).
     //   액션/탭/모달 미생성 — 숫자만 hero strip 에 노출 (server count 추가 허용 범위).
     activeCourtsCount, // 활성 코트 수 (status=active)
@@ -76,6 +77,15 @@ export default async function AdminCourtsPage({
         court_infos: { select: { id: true, name: true, city: true, district: true } },
       },
     }),
+    // P1-a: 코트 제보 중 대기 중인 것만 조회(최신순 50건). 제보자 닉네임 포함
+    prisma.court_submissions.findMany({
+      where: { status: "pending" },
+      orderBy: { created_at: "desc" },
+      take: 50,
+      include: {
+        submitter: { select: { nickname: true } },
+      },
+    }),
     // 8C-6 hero stat count (3) — 전체 현황 지표라 검색 where 미적용
     prisma.court_infos.count({ where: { status: "active" } }),
     prisma.court_infos.count({ where: { status: "pending" } }),
@@ -106,6 +116,23 @@ export default async function AdminCourtsPage({
     nickname: s.users?.nickname ?? "사용자",
     changes: s.changes as Record<string, { old: unknown; new: unknown }>,
     reason: s.reason,
+    status: s.status,
+    createdAt: s.created_at.toISOString(),
+  }));
+
+  // P1-a 코트 제보 직렬화 (BigInt/Date → string, camelCase 프론트 props)
+  const serializedSubmissions = pendingSubmissions.map((s) => ({
+    id: s.id.toString(),
+    userId: s.user_id.toString(),
+    nickname: s.submitter?.nickname ?? "사용자",
+    name: s.name,
+    region: s.region,
+    courtType: s.court_type,
+    address: s.address,
+    operatingHours: s.operating_hours,
+    feeText: s.fee_text,
+    amenities: Array.isArray(s.amenities) ? (s.amenities as string[]) : [],
+    description: s.description,
     status: s.status,
     createdAt: s.created_at.toISOString(),
   }));
@@ -165,6 +192,7 @@ export default async function AdminCourtsPage({
         courts={serialized}
         pendingSuggestions={serializedSuggestions}
         pendingAmbassadors={serializedAmbassadors}
+        pendingSubmissions={serializedSubmissions}
         createCourtAction={createCourtAction}
         updateCourtAction={updateCourtAction}
         deleteCourtAction={deleteCourtAction}

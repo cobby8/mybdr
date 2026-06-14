@@ -48,6 +48,23 @@ interface SerializedSuggestion {
   createdAt: string;
 }
 
+// P1-a 코트 제보 타입
+interface SerializedSubmission {
+  id: string;
+  userId: string;
+  nickname: string;
+  name: string;
+  region: string;
+  courtType: string;
+  address: string;
+  operatingHours: string | null;
+  feeText: string | null;
+  amenities: string[];
+  description: string | null;
+  status: string;
+  createdAt: string;
+}
+
 // 앰배서더 신청 타입
 interface SerializedAmbassador {
   id: string;
@@ -68,6 +85,23 @@ const COURT_TYPE_LABEL: Record<string, string> = {
   outdoor: "실외",
 };
 
+// P1-a 제보 코트 유형 라벨(폼 select 값: indoor/outdoor/3x3)
+const SUBMISSION_TYPE_LABEL: Record<string, string> = {
+  indoor: "실내 풀코트",
+  outdoor: "실외 풀코트",
+  "3x3": "하프코트 (3x3)",
+};
+
+// P1-a 편의시설 키 → 라벨 (폼 AMENITIES 박제)
+const AMENITY_LABEL: Record<string, string> = {
+  shower: "샤워실",
+  parking: "주차",
+  indoor: "실내",
+  light: "야간 조명",
+  locker: "락커",
+  rental: "용품 대여",
+};
+
 const STATUS_LABEL: Record<string, string> = {
   active: "운영중",
   inactive: "비활성",
@@ -84,6 +118,7 @@ interface Props {
   courts: SerializedCourt[];
   pendingSuggestions: SerializedSuggestion[];
   pendingAmbassadors: SerializedAmbassador[];
+  pendingSubmissions: SerializedSubmission[];
   createCourtAction: (formData: FormData) => Promise<void>;
   updateCourtAction: (formData: FormData) => Promise<void>;
   deleteCourtAction: (formData: FormData) => Promise<void>;
@@ -93,12 +128,15 @@ export function AdminCourtsContent({
   courts,
   pendingSuggestions,
   pendingAmbassadors,
+  pendingSubmissions,
   createCourtAction,
   updateCourtAction,
   deleteCourtAction,
 }: Props) {
-  // 탭 상태: "courts" | "suggestions" | "ambassadors"
-  const [activeTab, setActiveTab] = useState<"courts" | "suggestions" | "ambassadors">("courts");
+  // 탭 상태: "courts" | "submissions" | "suggestions" | "ambassadors"
+  const [activeTab, setActiveTab] = useState<
+    "courts" | "submissions" | "suggestions" | "ambassadors"
+  >("courts");
   const [selected, setSelected] = useState<SerializedCourt | null>(null);
 
   const fmtDate = (iso: string) =>
@@ -119,6 +157,27 @@ export function AdminCourtsContent({
         >
           <span className="material-symbols-outlined mr-1 align-middle text-base">sports_basketball</span>
           코트 관리
+        </button>
+        {/* P1-a 제보 검토 탭 — 수정 제안/앰배서더와 동형 */}
+        <button
+          onClick={() => setActiveTab("submissions")}
+          className="flex-1 rounded-md px-4 py-2 text-sm font-semibold transition-colors"
+          style={{
+            backgroundColor: activeTab === "submissions" ? "var(--color-card)" : "transparent",
+            color: activeTab === "submissions" ? "var(--color-text-primary)" : "var(--color-text-muted)",
+            boxShadow: activeTab === "submissions" ? "var(--shadow-card)" : "none",
+          }}
+        >
+          <span className="material-symbols-outlined mr-1 align-middle text-base">add_location_alt</span>
+          제보 검토
+          {pendingSubmissions.length > 0 && (
+            <span
+              className="ml-1 inline-flex items-center justify-center rounded-full px-1.5 text-xs font-bold text-white"
+              style={{ backgroundColor: "var(--color-primary)", minWidth: "18px", height: "18px" }}
+            >
+              {pendingSubmissions.length}
+            </span>
+          )}
         </button>
         <button
           onClick={() => setActiveTab("suggestions")}
@@ -161,6 +220,11 @@ export function AdminCourtsContent({
           )}
         </button>
       </div>
+
+      {/* ─── P1-a 제보 검토 탭 ─── */}
+      {activeTab === "submissions" && (
+        <SubmissionsReviewTab submissions={pendingSubmissions} />
+      )}
 
       {/* ─── 수정 제안 탭 ─── */}
       {activeTab === "suggestions" && (
@@ -689,6 +753,151 @@ function AmbassadorsTab({ ambassadors }: { ambassadors: SerializedAmbassador[] }
                 {processing === a.id ? "처리 중..." : "해임"}
               </button>
             )}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────
+// SubmissionsReviewTab — P1-a 코트 신규 등록 제보 승인/반려
+//   SuggestionsTab 동형(fetch PATCH + router.refresh). 승인 시 court_infos 생성됨
+// ─────────────────────────────────────────────────
+function SubmissionsReviewTab({ submissions }: { submissions: SerializedSubmission[] }) {
+  const router = useRouter();
+  const [processing, setProcessing] = useState<string | null>(null);
+  // 제보별 반려 사유 입력값
+  const [rejectNote, setRejectNote] = useState<Record<string, string>>({});
+
+  // 승인/반려 API 호출 — PATCH /api/web/admin/court-submissions/[subId]
+  const handleAction = async (sub: SerializedSubmission, action: "approve" | "reject") => {
+    setProcessing(sub.id);
+    try {
+      const res = await fetch(`/api/web/admin/court-submissions/${sub.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action,
+          review_note: action === "reject" ? rejectNote[sub.id] || undefined : undefined,
+        }),
+      });
+      if (res.ok) {
+        // 서버 데이터 반영(승인 시 court_infos 생성 → 목록/카운트 갱신)
+        router.refresh();
+      } else {
+        const err = await res.json().catch(() => null);
+        alert(err?.error || "처리에 실패했습니다");
+      }
+    } finally {
+      setProcessing(null);
+    }
+  };
+
+  if (submissions.length === 0) {
+    return (
+      <div className={`${CARD_CLASS} p-8 text-center`} style={CARD_STYLE}>
+        <span
+          className="material-symbols-outlined text-4xl mb-2"
+          style={{ color: "var(--color-text-disabled)" }}
+        >
+          check_circle
+        </span>
+        <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>
+          대기 중인 코트 제보가 없습니다
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      {submissions.map((s) => (
+        <div key={s.id} className={`${CARD_CLASS} p-4`} style={CARD_STYLE}>
+          {/* 헤더: 코트명 + 제보자/날짜 + 상태 */}
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <p className="text-sm font-bold" style={{ color: "var(--color-text-primary)" }}>
+                {s.name}
+              </p>
+              <p className="text-xs" style={{ color: "var(--color-text-muted)" }}>
+                {s.nickname} &middot; {new Date(s.createdAt).toLocaleDateString("ko-KR")}
+              </p>
+            </div>
+            <span className="admin-stat-pill" data-tone="info">대기중</span>
+          </div>
+
+          {/* 제보 상세 정보 */}
+          <div className="space-y-1 mb-3 text-xs" style={{ color: "var(--color-text-muted)" }}>
+            <div>
+              <span className="font-medium">지역:</span> {s.region}
+              {" · "}
+              <span className="font-medium">유형:</span>{" "}
+              {SUBMISSION_TYPE_LABEL[s.courtType] ?? s.courtType}
+            </div>
+            <div>
+              <span className="font-medium">주소:</span> {s.address}
+            </div>
+            {(s.operatingHours || s.feeText) && (
+              <div>
+                {s.operatingHours && (
+                  <>
+                    <span className="font-medium">운영:</span> {s.operatingHours}
+                  </>
+                )}
+                {s.operatingHours && s.feeText && " · "}
+                {s.feeText && (
+                  <>
+                    <span className="font-medium">이용료:</span> {s.feeText}
+                  </>
+                )}
+              </div>
+            )}
+            {s.amenities.length > 0 && (
+              <div>
+                <span className="font-medium">편의시설:</span>{" "}
+                {s.amenities.map((a) => AMENITY_LABEL[a] ?? a).join(", ")}
+              </div>
+            )}
+            {s.description && (
+              <div>
+                <span className="font-medium">설명:</span> {s.description}
+              </div>
+            )}
+          </div>
+
+          {/* 반려 사유 입력(선택) */}
+          <input
+            type="text"
+            placeholder="반려 사유 (선택)"
+            value={rejectNote[s.id] ?? ""}
+            onChange={(e) => setRejectNote((prev) => ({ ...prev, [s.id]: e.target.value }))}
+            className="w-full rounded-lg px-3 py-1.5 text-xs mb-2 focus:outline-none"
+            style={{
+              backgroundColor: "var(--color-surface)",
+              color: "var(--color-text-primary)",
+              border: "1px solid var(--color-border-subtle)",
+            }}
+          />
+
+          {/* 승인/반려 버튼 — (web) .btn 패턴(success/error 톤 inline) */}
+          <div className="flex gap-2">
+            <button
+              onClick={() => handleAction(s, "approve")}
+              disabled={processing === s.id}
+              className="btn btn--sm disabled:opacity-50"
+              style={{ background: "var(--color-success)", color: "#fff", borderColor: "var(--color-success)" }}
+            >
+              {processing === s.id ? "처리 중..." : "승인 (코트 등록 + 10XP)"}
+            </button>
+            <button
+              onClick={() => handleAction(s, "reject")}
+              disabled={processing === s.id}
+              className="btn btn--sm disabled:opacity-50"
+              style={{ borderColor: "var(--color-error)", color: "var(--color-error)" }}
+            >
+              반려
+            </button>
           </div>
         </div>
       ))}
