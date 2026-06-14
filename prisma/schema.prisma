@@ -3318,6 +3318,9 @@ model MatchLineupConfirmed {
   starters      BigInt[]
   // 출전 가능 후보 ttp.id[] (5명 외) — 0건도 허용. starters 와 중복 0 (API 단 검증).
   substitutes   BigInt[]
+  // ★ 2026-06-14 PR-LINEUP-V2 — 경기 단위 주장 ttp.id (nullable). starters∪substitutes 中 단일.
+  //   기존 row 는 NULL (무중단 ADD). 신규 확정 시 API 에서 필수 검증.
+  captainTtpId  BigInt?  @map("captain_ttp_id")
   // 누가 입력했는지 (팀장 user_id / 운영자 대리 = isTournamentAdmin)
   confirmedById BigInt   @map("confirmed_by_id")
   confirmedAt   DateTime @default(now()) @map("confirmed_at") @db.Timestamp(6)
