@@ -13,7 +13,7 @@ import { useState, useMemo } from "react";
 import Link from "next/link";
 import useSWR from "swr";
 import { getCalendarColor } from "@/lib/constants/calendar-colors";
-import { TOURNAMENT_STATUS_LABEL } from "@/lib/constants/tournament-status";
+import { TOURNAMENT_STATUS_LABEL, effectiveTournamentStatus } from "@/lib/constants/tournament-status";
 
 // 캘린더 API 응답 타입 (calendar-view와 동일)
 interface CalendarTournament {
@@ -276,7 +276,11 @@ export function WeekView({ categoryFilter = "all", genderFilter = "all" }: WeekV
                             {t.name}
                           </p>
                           <p className="text-[9px] sm:text-[10px] text-[var(--color-text-muted)] truncate mt-0.5">
-                            {TOURNAMENT_STATUS_LABEL[t.status ?? ""] ?? ""}
+                            {/* 종료일 경과 시 "종료"로 보정한 실효 상태 라벨 */}
+                            {(() => {
+                              const eff = effectiveTournamentStatus(t.status, t.start_date, t.end_date);
+                              return TOURNAMENT_STATUS_LABEL[eff] ?? "";
+                            })()}
                             {(t.venue_name || t.city) ? ` · ${t.venue_name ?? t.city}` : ""}
                           </p>
                         </Link>

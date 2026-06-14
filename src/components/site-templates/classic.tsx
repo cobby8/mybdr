@@ -1,7 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import type { Prisma } from "@prisma/client";
-import { TOURNAMENT_STATUS_LABEL, TOURNAMENT_FORMAT_LABEL } from "@/lib/constants/tournament-status";
+import { TOURNAMENT_STATUS_LABEL, TOURNAMENT_FORMAT_LABEL, effectiveTournamentStatus } from "@/lib/constants/tournament-status";
 
 // ─── 타입 ───────────────────────────────────────────────────────────────────
 
@@ -93,8 +93,14 @@ function fmtTime(d: Date | null | undefined): string {
 }
 
 // 대회 상태/형식 라벨 → 공통 상수에서 가져옴
-function statusLabel(s: string | null): string {
-  return TOURNAMENT_STATUS_LABEL[s ?? ""] ?? "대회";
+// start/end 전달 시 종료일 경과를 반영해 "종료"로 보정 (표시 전용, 인자 없으면 원본 라벨).
+function statusLabel(
+  s: string | null,
+  startDate?: Date | null,
+  endDate?: Date | null,
+): string {
+  const eff = effectiveTournamentStatus(s, startDate, endDate);
+  return TOURNAMENT_STATUS_LABEL[eff] ?? "대회";
 }
 
 function formatLabel(f: string | null): string {
@@ -538,7 +544,7 @@ function RegistrationPage({
         <div className="flex items-center justify-between rounded-md border border-[var(--color-border)] bg-[var(--color-card)] p-5 shadow-sm">
           <span className="text-sm font-medium text-(--color-text-muted)">신청 현황</span>
           <span className="text-sm font-bold" style={{ color: statusColor }}>
-            ● {statusLabel(tournament.status)}
+            ● {statusLabel(tournament.status, tournament.startDate, tournament.endDate)}
           </span>
         </div>
 
@@ -702,7 +708,7 @@ export function ClassicTemplate({
           className="mb-3 inline-block rounded-full px-3 py-1 text-xs font-semibold text-white"
           style={{ backgroundColor: primary }}
         >
-          {statusLabel(site.tournament.status)}
+          {statusLabel(site.tournament.status, site.tournament.startDate, site.tournament.endDate)}
         </span>
         <h1
           className="mb-3 text-3xl font-black md:text-4xl"

@@ -14,7 +14,7 @@ import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import useSWR from "swr";
 import { getCalendarColor, CALENDAR_COLOR_LEGEND } from "@/lib/constants/calendar-colors";
-import { TOURNAMENT_STATUS_LABEL } from "@/lib/constants/tournament-status";
+import { TOURNAMENT_STATUS_LABEL, effectiveTournamentStatus } from "@/lib/constants/tournament-status";
 
 // 캘린더 API 응답의 대회 타입
 interface CalendarTournament {
@@ -319,7 +319,11 @@ export function CalendarView({ categoryFilter = "all", genderFilter = "all" }: C
                     <div className="flex items-center gap-2 mt-0.5">
                       {t.status && (
                         <span className="text-xs text-[var(--color-text-muted)]">
-                          {TOURNAMENT_STATUS_LABEL[t.status] ?? t.status}
+                          {/* 종료일 경과 시 "종료"로 보정한 실효 상태 라벨 */}
+                          {(() => {
+                            const eff = effectiveTournamentStatus(t.status, t.start_date, t.end_date);
+                            return TOURNAMENT_STATUS_LABEL[eff] ?? eff;
+                          })()}
                         </span>
                       )}
                       {(t.venue_name || t.city) && (
