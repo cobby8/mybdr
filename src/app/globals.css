@@ -6107,3 +6107,272 @@ html.dark {
   .anw-hrow { grid-template-columns: 1fr auto; }
   .anw-hrow__views { grid-row: 1; }
 }
+
+/* ============================================================
+   PR-LINEUP-V2 [3] — lineup-confirm (LC1 · 기록앱 roster_confirm 정합)
+   src/app/(web)/lineup-confirm/[matchId] — 사전 라인업 확정 (팀장 모바일)
+   시안 lineup-confirm.css → 운영 토큰 이식 (하드코딩 hex 0):
+     --r-md → --radius-card, --r-sm·--r-xs → --radius-chip, --err → --color-error,
+     --err-soft → --accent-soft, --ok-hair·--warn-hair → --border,
+     hex 흰색 → --ink-on-brand, hex 갈색 → --warn, hex 녹색 → --ok
+   선발·주장 = --accent (의도된 빨강 · HANDOFF 확정), 벤치 = --ink-mute, 정보 = --cafe-blue
+   pill 9999px 금지 (아바타·jersey·cap 정사각 원형만 50%)
+   ============================================================ */
+
+/* gm-card — 시안 공용 카드 (운영 .card 대신 시안 룩 유지 · 토큰화) */
+.gm-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  padding: 16px;
+}
+[data-theme="dark"] .gm-card, html.dark .gm-card { border-width: 2px; border-color: var(--border-strong); }
+.lc-board { margin-bottom: 14px; }
+
+/* lineup-confirm 본문 ico (Material Symbols) */
+.lc-board .ico, .lc-coachbar .ico, .lc-rows .ico, .lc-msg .ico,
+.lc-state .ico, .lc-actions .ico {
+  font-family: 'Material Symbols Outlined';
+}
+
+/* Team panel header (name + N명 등록 + 확정 badge) */
+.lc-board__head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 0 0 4px; }
+.lc-board__h {
+  font-family: var(--ff-display); font-size: 16px; font-weight: 800;
+  margin: 0; display: flex; align-items: center; gap: 8px; color: var(--ink);
+}
+.lc-board__h .ico { font-size: 20px; color: var(--bdr-navy); }
+.lc-board__reg { font-size: 12px; font-weight: 700; color: var(--ink-mute); }
+.lc-board__badge {
+  margin-left: auto; display: inline-flex; align-items: center; gap: 5px;
+  padding: 4px 10px; font-size: 11.5px; font-weight: 800; border-radius: var(--radius-chip);
+}
+.lc-board__badge .ico { font-size: 15px; }
+.lc-board__badge--ready { color: var(--ok); background: var(--ok-soft); border: 1px solid var(--border); }
+.lc-board__badge--pend  { color: var(--warn); background: var(--warn-soft); border: 1px solid var(--border); }
+
+/* counter sub (선발 N/5 · 벤치 b/7 + hint / undo / clear) */
+.lc-sub {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding: 10px 0 14px; border-bottom: 1px solid var(--border); margin-bottom: 14px;
+}
+.lc-count { display: inline-flex; align-items: baseline; gap: 4px; font-weight: 800; }
+.lc-count__lbl { font-family: var(--ff-body); font-size: 12px; color: var(--ink-mute); }
+.lc-count__n {
+  font-family: var(--ff-display); font-size: 17px; font-weight: 900; line-height: 1;
+  font-feature-settings: 'tnum'; color: var(--ink);
+}
+.lc-count--starter.is-full .lc-count__n { color: var(--ok); }
+.lc-count--starter.is-under .lc-count__n { color: var(--accent); }
+.lc-count__sep { width: 1px; height: 16px; background: var(--border-strong); }
+.lc-sub__hint {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 12px; font-weight: 700; color: var(--warn);
+}
+.lc-sub__hint .ico { font-family: 'Material Symbols Outlined'; font-size: 15px; }
+.lc-sub__tools { margin-left: auto; display: inline-flex; gap: 6px; }
+.lc-tool {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 7px 11px; min-height: 36px; font-size: 12px; font-weight: 700;
+  background: var(--bg-elev); border: 1px solid var(--border-strong);
+  border-radius: var(--radius-chip); color: var(--ink-soft); cursor: pointer;
+}
+.lc-tool:hover:not(:disabled) { background: var(--bg-alt); color: var(--ink); }
+.lc-tool .ico { font-family: 'Material Symbols Outlined'; font-size: 16px; }
+.lc-tool:disabled { opacity: .42; cursor: not-allowed; }
+
+/* 코칭스태프 바 (role=coach 분리) */
+.lc-coachbar {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  background: var(--bg-alt); border: 1px solid var(--border);
+  border-radius: var(--radius-chip); padding: 9px 12px; margin: 0 0 14px;
+}
+.lc-coachbar__lbl {
+  font-family: var(--ff-display); font-size: 12px; font-weight: 800;
+  color: var(--ink-soft); letter-spacing: 0.02em;
+}
+.lc-coachchip {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 5px 10px; font-size: 12px; font-weight: 700;
+  background: var(--bg-elev); border: 1px solid var(--border);
+  border-radius: var(--radius-chip); color: var(--ink);
+}
+.lc-coachchip .ico { font-family: 'Material Symbols Outlined'; font-size: 15px; color: var(--bdr-navy); }
+.lc-coachchip__role { font-size: 10px; font-weight: 800; color: var(--ink-mute); letter-spacing: 0.04em; }
+
+/* StarterSlotBoard (5칸 — 웹 강점 유지) */
+.lc-slots { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+.lc-slot {
+  position: relative;
+  background: var(--bg-alt); border: 1px solid var(--border);
+  border-radius: var(--radius-chip); padding: 12px 8px 10px;
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  min-height: 92px; justify-content: center;
+}
+.lc-slot.is-empty { border-style: dashed; background: transparent; }
+.lc-slot__no {
+  position: absolute; top: 6px; left: 7px;
+  font-family: var(--ff-mono); font-size: 9.5px; font-weight: 800;
+  color: var(--ink-dim); letter-spacing: 0.04em;
+}
+.lc-slot__avatar {
+  width: 38px; height: 38px; border-radius: 50%;
+  background: var(--bdr-navy); color: var(--ink-on-brand);
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--ff-display); font-weight: 800; font-size: 14px;
+}
+.lc-slot__avatar-wrap { position: relative; }
+.lc-slot__jersey {
+  position: absolute; top: -3px; right: -4px;
+  min-width: 18px; height: 18px; padding: 0 3px;
+  background: var(--accent); color: var(--ink-on-brand);
+  border: 2px solid var(--bg-alt); border-radius: 50%;
+  font-family: var(--ff-mono); font-size: 10px; font-weight: 800;
+  display: flex; align-items: center; justify-content: center;
+}
+.lc-slot__cap {
+  position: absolute; bottom: -3px; left: -4px;
+  width: 16px; height: 16px; border-radius: 50%;
+  background: var(--accent); color: var(--ink-on-brand); border: 2px solid var(--bg-alt);
+  font-family: var(--ff-display); font-size: 9px; font-weight: 900;
+  display: flex; align-items: center; justify-content: center;
+}
+.lc-slot__name { font-size: 12px; font-weight: 700; color: var(--ink); text-align: center; line-height: 1.2; }
+.lc-slot.is-empty .lc-slot__avatar { background: var(--bg-head); color: var(--ink-dim); font-weight: 500; }
+.lc-slot.is-empty .lc-slot__ph { font-size: 11px; font-weight: 600; color: var(--ink-dim); }
+
+/* PlayerRow (3상태 행 순환) */
+.lc-rows { display: flex; flex-direction: column; gap: 4px; }
+.lc-row {
+  display: grid;
+  grid-template-columns: 42px 1fr auto auto;
+  align-items: center; gap: 10px;
+  min-height: 48px; padding: 0 10px 0 0;
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-left: 3px solid transparent;
+  border-radius: var(--radius-chip); cursor: pointer;
+  text-align: left; width: 100%;
+}
+.lc-row:hover { border-color: var(--border-strong); }
+.lc-row.is-starter { background: var(--accent-soft); border-color: var(--accent-hair); border-left-color: var(--accent); }
+.lc-row.is-bench { background: var(--bg-alt); border-left-color: var(--ink-dim); }
+.lc-row.is-locked, .lc-row:disabled { cursor: not-allowed; }
+.lc-row__num {
+  grid-column: 1;
+  font-family: var(--ff-display); font-weight: 900; font-size: 21px;
+  letter-spacing: 0.02em; text-align: center; color: var(--ink);
+  font-feature-settings: 'tnum';
+}
+.lc-row.is-starter .lc-row__num { color: var(--accent); }
+.lc-row.is-bench .lc-row__num { color: var(--ink-soft); }
+.lc-row__num.is-none { font-size: 11px; font-weight: 800; color: var(--ink-dim); }
+.lc-row__name {
+  grid-column: 2; min-width: 0;
+  display: flex; align-items: center; gap: 7px; flex-wrap: wrap;
+}
+.lc-row__nm { font-size: 15.5px; font-weight: 700; letter-spacing: -0.01em; color: var(--ink); }
+.lc-row__nick { font-size: 12px; font-weight: 500; color: var(--ink-mute); }
+.lc-captag {
+  display: inline-flex; align-items: center;
+  padding: 2px 5px; font-size: 9px; font-weight: 800; letter-spacing: 0.08em;
+  background: var(--accent); color: var(--ink-on-brand); border-radius: var(--radius-chip); line-height: 1;
+}
+
+/* C 버튼 (주장 단일 토글) — 30x30 시각, 44 hit on mobile */
+.lc-capbtn {
+  grid-column: 3;
+  width: 30px; height: 30px;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-family: var(--ff-display); font-weight: 900; font-size: 13px;
+  background: var(--bg-card); color: var(--ink-mute);
+  border: 1px solid var(--border); border-radius: var(--radius-chip);
+  cursor: pointer;
+}
+.lc-capbtn:hover { border-color: var(--accent-hair); color: var(--accent); }
+.lc-capbtn.is-on { background: var(--accent); color: var(--ink-on-brand); border-color: var(--accent); }
+.lc-capbtn[aria-disabled="true"] { opacity: .35; cursor: not-allowed; }
+
+/* 토글 칩 (선발/벤치/선택) — display 상태 */
+.lc-toggle {
+  grid-column: 4;
+  display: inline-flex; align-items: center; gap: 5px;
+  min-width: 64px; justify-content: center;
+  padding: 6px 10px; min-height: 30px;
+  font-size: 11.5px; font-weight: 800;
+  border: 1px solid var(--border-strong); border-radius: var(--radius-chip);
+  background: var(--bg-card); color: var(--ink-soft);
+}
+.lc-toggle .ico { font-family: 'Material Symbols Outlined'; font-size: 15px; }
+.lc-toggle--starter { background: var(--accent); color: var(--ink-on-brand); border-color: var(--accent); }
+.lc-toggle--bench { background: var(--ink-mute); color: var(--ink-on-brand); border-color: var(--ink-mute); }
+.lc-toggle--out { color: var(--ink-mute); }
+
+/* message tones */
+.lc-msg {
+  display: flex; align-items: flex-start; gap: 8px;
+  padding: 12px 14px; margin-top: 14px;
+  border-radius: var(--radius-chip); font-size: 13px; line-height: 1.5;
+}
+.lc-msg .ico { font-family: 'Material Symbols Outlined'; font-size: 19px; flex-shrink: 0; margin-top: 1px; }
+.lc-msg--info { background: var(--cafe-blue-soft); color: var(--cafe-blue-deep); border: 1px solid var(--cafe-blue-hair); }
+.lc-msg--warn { background: var(--warn-soft); color: var(--warn); border: 1px solid var(--border); }
+.lc-msg--ok { background: var(--ok-soft); color: var(--ok); border: 1px solid var(--border); }
+.lc-msg--err { background: var(--accent-soft); color: var(--color-error); border: 1px solid var(--accent-hair); }
+.lc-msg strong { font-weight: 800; }
+
+/* empty / unassigned states */
+.lc-state {
+  text-align: center; padding: 40px 24px;
+  display: flex; flex-direction: column; align-items: center; gap: 10px;
+}
+.lc-state .ico { font-family: 'Material Symbols Outlined'; font-size: 44px; color: var(--ink-dim); }
+.lc-state__t { font-family: var(--ff-display); font-size: 17px; font-weight: 800; color: var(--ink); margin: 0; }
+.lc-state__d { font-size: 13px; color: var(--ink-mute); margin: 0; max-width: 360px; line-height: 1.6; }
+
+/* desktop action bar */
+.lc-actions {
+  display: flex; gap: 10px; margin-top: 18px; padding-top: 18px;
+  border-top: 1px solid var(--border);
+}
+.lc-actions .btn { flex: 1; }
+.lc-actions__confirm { flex: 2; }
+.lc-actions .btn--xl { padding: 13px 20px; font-size: 15px; font-weight: 800; min-height: 48px; width: auto; }
+
+/* mobile sticky bar */
+.lc-sticky {
+  display: none;
+  position: sticky; bottom: 0;
+  margin: 16px -14px 0;
+  background: var(--bg-elev); border-top: 1px solid var(--border);
+  padding: 10px 14px 12px; z-index: 10;
+}
+.lc-sticky__prog {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 9px;
+  font-family: var(--ff-mono); font-size: 11.5px; font-weight: 800; color: var(--ink-soft);
+}
+.lc-sticky__bar { flex: 1; height: 6px; background: var(--bg-head); border-radius: 3px; overflow: hidden; }
+.lc-sticky__fill { height: 100%; background: var(--accent); transition: width .2s; }
+.lc-sticky__fill.is-full { background: var(--ok); }
+.lc-sticky__row { display: flex; gap: 8px; }
+.lc-sticky__row .btn { flex: 1; }
+.lc-sticky__row .lc-actions__confirm { flex: 2; }
+.btn--touch { min-height: 44px; padding: 11px 16px; font-size: 14px; font-weight: 800; width: 100%; }
+
+/* 720 분기 — 액션 → 하단 sticky / 행 터치 영역 확대 */
+@media (max-width: 720px) {
+  .lc-sticky { display: block; }
+  .lc-actions { display: none; }
+  .lc-slots { gap: 5px; }
+  .lc-slot { min-height: 82px; padding: 10px 4px 8px; }
+  .lc-slot__avatar { width: 32px; height: 32px; font-size: 12px; }
+  .lc-slot__name { font-size: 10px; }
+  .lc-row { min-height: 52px; gap: 8px; }
+  .lc-capbtn { width: 44px; height: 44px; }
+  .lc-toggle { min-height: 38px; min-width: 56px; }
+  .lc-sub__tools { margin-left: 0; width: 100%; }
+}
+/* iOS input 16px guard */
+@media (max-width: 720px) {
+  .lc-rows input, .lc-rows select, .lc-rows textarea { font-size: 16px; }
+}

@@ -160,6 +160,7 @@ export default async function LineupConfirmPage({ params }: PageProps) {
       teamSide: true,
       starters: true,
       substitutes: true,
+      captainTtpId: true, // ★PR-LINEUP-V2 [3] — 경기단위 주장(NULL=미지정)
       confirmedById: true,
       confirmedAt: true,
       updatedAt: true,
@@ -201,6 +202,12 @@ export default async function LineupConfirmPage({ params }: PageProps) {
           team_side: existingLineup.teamSide,
           starters: existingLineup.starters.map((b) => b.toString()),
           substitutes: existingLineup.substitutes.map((b) => b.toString()),
+          // ★주장 — server prisma 직접(apiSuccess 미경유)이므로 camel(captainTtpId) 읽어
+          //   prop 엔 snake(captain_ttp_id)로 직렬화 (form 타입과 일치). NULL=미지정
+          captain_ttp_id:
+            existingLineup.captainTtpId != null
+              ? existingLineup.captainTtpId.toString()
+              : null,
           confirmed_by_id: existingLineup.confirmedById.toString(),
           confirmed_at: existingLineup.confirmedAt.toISOString(),
           updated_at: existingLineup.updatedAt.toISOString(),

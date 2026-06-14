@@ -1,38 +1,45 @@
 /**
- * 2026-05-09 PR3 — 사전 라인업 입력 폼 (client component).
+ * 2026-06-14 PR-LINEUP-V2 [3] — 사전 라인업 입력 폼 (client, 전면 재작성).
  *
- * 왜 client 인가:
- *   - 출전/주전 체크 토글 = 즉각적인 UI 반응 필요 → server action 보다 client state 가 단순
- *   - POST 후 응답으로 lineup 이 갱신되어야 → 클라이언트 fetch + state 업데이트
- *   - 단일 토글 버튼 라벨이 현재 상태에 따라 자동 변경 → reactive
+ * 왜 재작성하는가 (앱 bdr_stat_v3 roster_confirm 정합):
+ *   - 기존: 2-state(activeIds + starterIds Set) + 출전/주전 2단계 토글.
+ *   - 신규: roles 맵('out'|'starter'|'bench') + captain(ttpId) + undo 스택.
+ *     행 단일 탭 순환(cycleRole) + 주장(C) 단일 토글 + 전체해제 + 실행취소.
  *
- * 주요 동작 (사용자 결정 2건 반영):
- *   1. 단일 토글 버튼 — 전원 active 면 "전체 출전 해제" / 그 외 "전체 출전 선택" (라벨 자동)
- *      해제 시 → activeTtpIds 비우기 + starters 비우기 (주전도 함께 제거)
- *      선택 시 → role=player|captain ttp 모두 active (starters 는 유지)
- *   2. 상대팀 영역 미노출 — away 데이터를 받아도 UI 표시 X
+ * 앱 정합 모델:
+ *   · 역할 3상태: out(선택) → starter(선발) → bench(벤치) → out
+ *       cycleRole: out→선발(선발<5)/벤치(선발=5) / 선발→벤치(벤치<7)/out(벤치만석) / 벤치→out
+ *       정원 12(선발5+벤치7) 초과 시 out→ 진입 차단
+ *       out 전환 시 그 선수가 주장이면 주장 자동 해제 (주장 ⊆ 출전)
+ *   · 정원: 선발 5(LC_STARTER_MAX) + 벤치 7(LC_BENCH_MAX) = 12
+ *   · 주장(C): 경기 단위 단일 토글 — 출전 선수(선발∪벤치)만 지정
+ *   · 코칭스태프 바: role==='coach' 분리(명단 제외). manager 분기 없음(실측 0건)
+ *   · 전체해제 / 실행취소(undo 스냅샷 스택)
  *
- * API 응답 키 정책 (errors.md 2026-04-17 재발 5회 회피):
- *   - apiSuccess() 자동 snake_case 변환 → 프론트도 snake_case 접근자 사용
- *   - bigint id 는 string (route.ts .toString())
- *   - 신규 필드 추가 시 curl raw 응답으로 1회 검증 권장
+ * ★주장 필수 게이트 (PM 확정):
+ *   - 선발 정확히 5 AND 주장 1명일 때만 확정 버튼 활성.
+ *   - 미지정 시 비활성 + "주장(C)을 지정해주세요" 안내.
  *
- * 디자인 룰 (CLAUDE.md 13 룰):
- *   - var(--color-*) 토큰만
- *   - Material Symbols Outlined
- *   - 720px 분기 / 44px 터치 / pill 9999px ❌
- *   - app-nav__icon-btn 패턴은 본 페이지 적용 X (AppNav 외부)
+ * API 계약 (변경 0):
+ *   - POST body: { teamSide, starters[5], substitutes[], captain }
+ *     starters = role==='starter' / substitutes = role==='bench' / out = 미포함
+ *   - 응답 키 = apiSuccess snake_case → lineup.captain_ttp_id (errors.md 재발 6회 회피)
+ *
+ * 디자인 룰: var(--*) 토큰 / Material Symbols / 720px·44px·iOS16px(.lc-* in globals.css)
+ *   - isLocked 분기 / DELETE 해제 / 상대팀 미노출 = 기존 동작 보존(Stop conditions)
  */
 
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { TtpRow, type TtpItem } from "./ttp-row";
+import { TtpRow, type TtpItem, type LcRole } from "./ttp-row";
+
+const LC_STARTER_MAX = 5; // 앱 _kStarterMax
+const LC_BENCH_MAX = 7; // 앱 _kBenchMax
 
 // ===== 타입 (page.tsx server fetch 결과를 prop 으로 받음) =====
-// route.ts 의 GET 응답 → apiSuccess() 자동 snake_case 변환 후 키 (검증 완료)
-
+// page.tsx 는 server prisma 직접 조회 → snake_case 로 직렬화하여 전달
 export type LineupTeam = {
   tournament_team_id: string;
   team_id: string;
@@ -43,7 +50,8 @@ export type LineupTeam = {
     match_id: string;
     team_side: string;
     starters: string[]; // ttpId 배열
-    substitutes: string[];
+    substitutes: string[]; // ttpId 배열 (= 벤치)
+    captain_ttp_id: string | null; // ★신규 — 경기단위 주장(NULL=미지정)
     confirmed_by_id: string;
     confirmed_at: string;
     updated_at: string;
@@ -61,11 +69,12 @@ type Props = {
   matchId: string;
   match: LineupMatchInfo;
   homeTeam: LineupTeam;
-  // 본인 팀 측 — captain/manager 권한 시 home/away 중 1개
-  // admin (양쪽 편집) 도 home 으로 통일하여 단순화 (사용자 결정: 상대팀 미노출)
-  // → admin 도 본인이 home/away 모두 가능하지만 UI 는 home 만 노출
+  // 본인 팀 측 — admin 도 home 으로 통일 (상대팀 미노출, 기존 결정 유지)
   mySide: "home" | "away";
 };
+
+// undo 스냅샷 — 변경 직전 { roles, captain } 전체 복사
+type Snapshot = { roles: Record<string, LcRole>; captain: string | null };
 
 export function LineupConfirmForm({
   tournamentId,
@@ -77,149 +86,130 @@ export function LineupConfirmForm({
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
-  // 매치 시작 후 = 입력 차단 (서버 가드와 동일 표현)
+  // 매치 시작 후 = 입력 차단 (서버 가드와 동일 표현, 기존 유지)
   const isLocked = match.status !== "scheduled" && match.status !== "ready";
 
-  // ===== 초기 state — 기존 lineup 있으면 채움, 없으면 빈 set =====
-  // 출전 = starters + substitutes 합집합
-  const [activeIds, setActiveIds] = useState<Set<string>>(() => {
-    if (homeTeam.lineup) {
-      return new Set([
-        ...homeTeam.lineup.starters,
-        ...homeTeam.lineup.substitutes,
-      ]);
-    }
-    return new Set();
-  });
-  // 주전 5명
-  const [starterIds, setStarterIds] = useState<Set<string>>(() => {
-    if (homeTeam.lineup) {
-      return new Set(homeTeam.lineup.starters);
-    }
-    return new Set();
-  });
-
-  // ===== 파생 state =====
-  const players = homeTeam.players;
-
-  // 출전 가능 후보 (role: player | captain) — 코치/매니저는 출전 X
-  // 단일 토글 버튼이 "전원 active" 판정 시 이 후보 기준으로 비교
-  const eligibleIds = useMemo(
-    () =>
-      players
-        .filter((p) => p.role === "player" || p.role === "captain")
-        .map((p) => p.id),
-    [players],
+  // 선수 풀 = coach 제외 (코칭스태프 바로 분리). manager 분기 없음(실측 0건)
+  const players = useMemo(
+    () => homeTeam.players.filter((p) => p.role !== "coach"),
+    [homeTeam.players],
+  );
+  // 코치 목록 — 코칭스태프 바 표시용 (명단에서 분리)
+  const coaches = useMemo(
+    () => homeTeam.players.filter((p) => p.role === "coach"),
+    [homeTeam.players],
   );
 
-  // "전원 active" = eligible 모두 activeIds 안에 있음 (eligible 0건이면 false)
-  const allEligibleActive = useMemo(() => {
-    if (eligibleIds.length === 0) return false;
-    return eligibleIds.every((id) => activeIds.has(id));
-  }, [eligibleIds, activeIds]);
+  // ===== 초기 state — 기존 lineup 있으면 채움 (starters→선발 / substitutes→벤치) =====
+  const [roles, setRoles] = useState<Record<string, LcRole>>(() => {
+    const m: Record<string, LcRole> = {};
+    const starterSet = new Set(homeTeam.lineup?.starters ?? []);
+    const benchSet = new Set(homeTeam.lineup?.substitutes ?? []);
+    for (const p of players) {
+      m[p.id] = starterSet.has(p.id)
+        ? "starter"
+        : benchSet.has(p.id)
+          ? "bench"
+          : "out";
+    }
+    return m;
+  });
+  // 주장 — 기존 lineup 의 captain_ttp_id (NULL=미지정)
+  const [captain, setCaptain] = useState<string | null>(
+    homeTeam.lineup?.captain_ttp_id ?? null,
+  );
+  // undo 스택 — 변경 직전 스냅샷 push → pop 재적용
+  const [history, setHistory] = useState<Snapshot[]>([]);
 
-  // 주전 5명 도달 시 추가 차단 플래그
-  const starterFull = starterIds.size >= 5;
+  // ===== 파생값 =====
+  const roleOf = (id: string): LcRole => roles[id] ?? "out";
+  const starters = useMemo(
+    () => players.filter((p) => roleOf(p.id) === "starter"),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [players, roles],
+  );
+  const benchers = useMemo(
+    () => players.filter((p) => roleOf(p.id) === "bench"),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [players, roles],
+  );
+  const starterCount = starters.length;
+  const benchCount = benchers.length;
+  const ready = starterCount === LC_STARTER_MAX;
+  const untouched = starterCount === 0 && benchCount === 0;
+  // ★주장 필수 — 선발 5 AND 주장 1명일 때만 확정 가능
+  const canConfirm = ready && captain !== null && !isLocked && !isPending;
 
-  // 출전·주전 카운트 (UI 표시)
-  const activeCount = activeIds.size;
-  const starterCount = starterIds.size;
+  // 변경 직전 스냅샷 push (rosterDraft.push)
+  function snapshot() {
+    setHistory((h) => [...h, { roles: { ...roles }, captain }]);
+  }
 
   // ===== 핸들러 =====
 
-  // 출전 토글 — 주전이면 주전도 함께 해제 (도메인 룰: 주전 ⊆ 출전)
-  function toggleActive(ttpId: string) {
-    setActiveIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(ttpId)) {
-        next.delete(ttpId);
-        // 출전 해제 시 주전도 함께 해제
-        setStarterIds((prevStar) => {
-          if (!prevStar.has(ttpId)) return prevStar;
-          const nextStar = new Set(prevStar);
-          nextStar.delete(ttpId);
-          return nextStar;
-        });
-      } else {
-        next.add(ttpId);
-      }
-      return next;
-    });
-    // 사용자 인터랙션 = 메시지 초기화
-    setErrorMsg(null);
-    setSuccessMsg(null);
-  }
-
-  // 주전 토글 — 출전 안 했으면 거부 (UI 가드 / TtpRow 에서도 disabled)
-  // 5명 도달 시 추가 차단 (단 이미 주전인 row 의 해제는 가능)
-  function toggleStarter(ttpId: string) {
-    setStarterIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(ttpId)) {
-        next.delete(ttpId);
-      } else {
-        // 출전 미체크 = 거부 (방어적 — TtpRow disabled 와 이중)
-        if (!activeIds.has(ttpId)) return prev;
-        // 5명 초과 = 거부
-        if (next.size >= 5) return prev;
-        next.add(ttpId);
-      }
-      return next;
-    });
-    setErrorMsg(null);
-    setSuccessMsg(null);
-  }
-
-  // 단일 토글 버튼 — 라벨/동작이 상태에 따라 자동 변경 (사용자 결정 1번)
-  function handleAllToggle() {
-    if (allEligibleActive) {
-      // 전원 active → 해제 (출전+주전 모두 비우기)
-      setActiveIds(new Set());
-      setStarterIds(new Set());
-    } else {
-      // 일부 또는 전원 비active → eligible 모두 active (starters 는 유지)
-      setActiveIds(new Set(eligibleIds));
-      // starters 는 유지 — 단 active 안 든 건 제거 (도메인 룰)
-      setStarterIds((prev) => {
-        const eligibleSet = new Set(eligibleIds);
-        const next = new Set<string>();
-        for (const s of prev) {
-          if (eligibleSet.has(s)) next.add(s);
-        }
-        return next;
-      });
-    }
-    setErrorMsg(null);
-    setSuccessMsg(null);
-  }
-
-  // 라인업 확정 — POST /api/web/tournaments/[id]/matches/[matchId]/lineup
-  // body: { teamSide, starters, substitutes }
-  // route.ts 가 ttp 무결성 + 5명 강제 + 중복 0 모두 검증 (UI 는 1차 가드)
-  async function handleConfirm() {
+  // 행 탭 = 역할 순환 (_cycleRole)
+  function cycleRole(p: TtpItem) {
     if (isLocked) return;
-
-    // UI 가드 — 주전 5명 미달 시 차단
-    if (starterIds.size !== 5) {
-      setErrorMsg("주전은 정확히 5명이어야 합니다.");
-      return;
+    const cur = roleOf(p.id);
+    let next: LcRole;
+    if (cur === "out") {
+      // 정원 12 초과(선발5+벤치7 만석)면 진입 차단
+      if (starterCount >= LC_STARTER_MAX && benchCount >= LC_BENCH_MAX) return;
+      // 선발 미달이면 선발 우선, 차면 벤치
+      next = starterCount < LC_STARTER_MAX ? "starter" : "bench";
+    } else if (cur === "starter") {
+      // 벤치 만석이면 바로 out
+      next = benchCount < LC_BENCH_MAX ? "bench" : "out";
+    } else {
+      // bench → out
+      next = "out";
     }
-    // 출전 안 한 ttp 가 starters 에 있는 경우 (방어 — UI 룰상 발생 X)
-    for (const s of starterIds) {
-      if (!activeIds.has(s)) {
-        setErrorMsg("주전은 출전 선수 안에서 선택해주세요.");
-        return;
-      }
-    }
+    snapshot();
+    setRoles((r) => ({ ...r, [p.id]: next }));
+    // out 전환 시 그 선수가 주장이면 주장 자동 해제 (주장 ⊆ 출전)
+    if (next === "out" && captain === p.id) setCaptain(null);
+    setErrorMsg(null);
+  }
 
-    // substitutes = active - starters (active 중 starter 가 아닌 ttp)
-    const substitutes = [...activeIds].filter((id) => !starterIds.has(id));
+  // C 버튼 = 주장 단일 토글 (setCaptain — 같은 팀 1명)
+  function toggleCaptain(p: TtpItem) {
+    if (isLocked || roleOf(p.id) === "out") return; // 주장은 출전 선수만
+    snapshot();
+    setCaptain((c) => (c === p.id ? null : p.id));
+    setErrorMsg(null);
+  }
+
+  // 전체 해제 (clearTeamEntry — 모든 역할 out + 주장 정리)
+  function clearAll() {
+    if (isLocked || untouched) return;
+    snapshot();
+    const m: Record<string, LcRole> = {};
+    for (const p of players) m[p.id] = "out";
+    setRoles(m);
+    setCaptain(null);
+    setErrorMsg(null);
+  }
+
+  // 실행취소 (rosterDraft.undo — 직전 스냅샷 pop 재적용)
+  function undo() {
+    if (!history.length || isLocked) return;
+    const prev = history[history.length - 1];
+    setHistory((h) => h.slice(0, -1));
+    setRoles(prev.roles);
+    setCaptain(prev.captain);
+    setErrorMsg(null);
+  }
+
+  // 라인업 확정 — POST { teamSide, starters[5], substitutes[], captain }
+  // route.ts 가 ttp 무결성 + 5명 강제 + 중복 0 + 벤치캡7 + 정원12 + 주장 검증 (UI 는 1차 가드)
+  function handleConfirm() {
+    if (!canConfirm) return;
+
+    const starterIds = starters.map((p) => p.id);
+    const substitutes = benchers.map((p) => p.id);
 
     setErrorMsg(null);
-    setSuccessMsg(null);
-
     startTransition(async () => {
       try {
         const res = await fetch(
@@ -229,19 +219,19 @@ export function LineupConfirmForm({
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               teamSide: mySide,
-              starters: [...starterIds],
+              starters: starterIds,
               substitutes,
+              captain, // ★주장 ttpId (필수 — canConfirm 에서 보장)
             }),
           },
         );
         const json = await res.json();
         if (!res.ok) {
-          // route.ts apiError → { error, code } 구조
           setErrorMsg(json?.error ?? "라인업 저장에 실패했습니다.");
           return;
         }
-        setSuccessMsg("라인업이 확정되었습니다.");
-        // 서버 페이지 데이터 refetch — server component lineup 갱신
+        setHistory([]); // 확정 성공 = undo 스택 비움
+        // server component lineup 갱신 (확정 배지/메시지 reactive)
         router.refresh();
       } catch (e) {
         console.error("[lineup-confirm] POST failed", e);
@@ -250,16 +240,13 @@ export function LineupConfirmForm({
     });
   }
 
-  // 라인업 해제 — DELETE
-  async function handleRelease() {
+  // 라인업 해제 — DELETE (기존 동작 보존)
+  function handleRelease() {
     if (isLocked) return;
     if (!homeTeam.lineup) return; // 해제할 게 없음
-
-    if (!confirm("라인업을 해제하시겠습니까? (자동 채움으로 복귀)")) return;
+    if (!confirm("라인업을 해제하시겠습니까?")) return;
 
     setErrorMsg(null);
-    setSuccessMsg(null);
-
     startTransition(async () => {
       try {
         const res = await fetch(
@@ -275,9 +262,12 @@ export function LineupConfirmForm({
           setErrorMsg(json?.error ?? "라인업 해제에 실패했습니다.");
           return;
         }
-        setSuccessMsg("라인업이 해제되었습니다.");
-        setActiveIds(new Set());
-        setStarterIds(new Set());
+        // 로컬 state 초기화 (전 역할 out + 주장 해제)
+        const m: Record<string, LcRole> = {};
+        for (const p of players) m[p.id] = "out";
+        setRoles(m);
+        setCaptain(null);
+        setHistory([]);
         router.refresh();
       } catch (e) {
         console.error("[lineup-confirm] DELETE failed", e);
@@ -286,205 +276,289 @@ export function LineupConfirmForm({
     });
   }
 
+  // 확정 완료 여부 — 기존 lineup 존재 = 이미 확정됨 (배지/라벨 분기)
+  const confirmed = homeTeam.lineup !== null;
+
+  // 선발 5슬롯 (선택 순서 대용 = players 순회 순서)
+  const starterSlots = Array.from(
+    { length: LC_STARTER_MAX },
+    (_, i) => starters[i] ?? null,
+  );
+
+  // 메시지 (앱 게이트 정합) — 우선순위: 잠금 > 주장미지정 > 선발미달 > 5/5
+  let msg: { tone: string; icon: string; node: React.ReactNode };
+  if (isLocked) {
+    msg = {
+      tone: "err",
+      icon: "lock",
+      node: (
+        <span>
+          <strong>이미 시작된 경기입니다.</strong> 라인업을 변경할 수 없습니다.
+        </span>
+      ),
+    };
+  } else if (!captain && starterCount > 0) {
+    msg = {
+      tone: "warn",
+      icon: "info",
+      node: <span>주장(C)을 지정해주세요.</span>,
+    };
+  } else if (starterCount < LC_STARTER_MAX) {
+    msg = {
+      tone: "warn",
+      icon: "info",
+      node: (
+        <span>
+          선발 {LC_STARTER_MAX - starterCount}명을 더 선택하세요.{" "}
+          <strong>(현재 {starterCount}/5)</strong>
+        </span>
+      ),
+    };
+  } else {
+    msg = {
+      tone: "info",
+      icon: "task_alt",
+      node: <span>선발 5명 확정 · 라인업을 확정할 수 있습니다.</span>,
+    };
+  }
+
+  const confirmLabel = isPending
+    ? "처리중…"
+    : confirmed
+      ? "라인업 재확정"
+      : "라인업 확정";
+
+  // 등록 명단 0 = 빈 명단 안내
+  if (players.length === 0 && coaches.length === 0) {
+    return (
+      <div className="gm-card">
+        <div className="lc-state">
+          <span className="ico material-symbols-outlined">group_off</span>
+          <p className="lc-state__t">등록된 선수가 없습니다.</p>
+          <p className="lc-state__d">
+            팀 관리에서 선수를 먼저 등록해야 라인업을 확정할 수 있습니다.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="flex flex-col gap-4">
-      {/* 매치 잠금 안내 — 시작 후 = 입력 불가 */}
-      {isLocked && (
-        <div
-          className="rounded-md border p-3 text-sm"
-          style={{
-            background: "var(--color-surface)",
-            borderColor: "var(--color-warning)",
-            color: "var(--color-text-primary)",
-          }}
-        >
-          이미 시작된 경기입니다. 라인업을 변경할 수 없습니다.
+    <>
+      {/* 선발 5슬롯 보드 (웹 강점 — 한눈 파악) */}
+      <div className="gm-card lc-board">
+        <div className="lc-board__head">
+          <h3 className="lc-board__h">
+            <span className="ico material-symbols-outlined">
+              sports_basketball
+            </span>
+            {homeTeam.name}
+            <span className="lc-board__reg">{players.length}명 등록</span>
+          </h3>
+          {ready && captain ? (
+            <span className="lc-board__badge lc-board__badge--ready">
+              <span className="ico material-symbols-outlined">verified</span>
+              {confirmed ? "팀장 확정" : "선발 완료"}
+            </span>
+          ) : (
+            <span className="lc-board__badge lc-board__badge--pend">
+              <span className="ico material-symbols-outlined">edit_note</span>
+              {untouched ? "선발 미지정" : "선발 진행중"}
+            </span>
+          )}
         </div>
-      )}
 
-      {/* 우리팀 카드 — 상대팀 영역은 사용자 결정으로 미노출 */}
-      <section
-        className="rounded-md border p-4"
-        style={{
-          background: "var(--color-card)",
-          borderColor: "var(--color-border)",
-        }}
-      >
-        <header className="mb-3 flex items-center justify-between">
-          <h2
-            className="text-base font-semibold"
-            style={{ color: "var(--color-text-primary)" }}
-          >
-            우리팀 — {homeTeam.name}
-          </h2>
-          {/* 출전/주전 카운트 */}
+        {/* 카운터: 선발 N/5 · 벤치 b/7 + hint / 실행취소 / 전체해제 */}
+        <div className="lc-sub">
           <span
-            className="text-xs tabular-nums"
-            style={{ color: "var(--color-text-secondary)" }}
+            className={
+              "lc-count lc-count--starter " + (ready ? "is-full" : "is-under")
+            }
           >
-            출전 {activeCount}명 · 주전 {starterCount}/5
+            <span className="lc-count__lbl">선발</span>
+            <span className="lc-count__n">{starterCount}</span>
+            <span className="lc-count__lbl">/ 5</span>
           </span>
-        </header>
-
-        {/* 단일 토글 버튼 (사용자 결정 1번) */}
-        <div className="mb-3">
-          <button
-            type="button"
-            onClick={handleAllToggle}
-            disabled={isLocked || isPending || eligibleIds.length === 0}
-            className="rounded-md border px-3 py-2 text-sm"
-            style={{
-              background: "var(--color-surface)",
-              borderColor: "var(--color-border)",
-              color: "var(--color-text-primary)",
-              cursor: isLocked ? "not-allowed" : "pointer",
-              minHeight: 44,
-            }}
-          >
-            {allEligibleActive ? "전체 출전 해제" : "전체 출전 선택"}
-          </button>
-        </div>
-
-        {/* ttp 목록 */}
-        {players.length === 0 ? (
-          <div
-            className="rounded-md border p-4 text-center text-sm"
-            style={{
-              background: "var(--color-surface)",
-              borderColor: "var(--color-border)",
-              color: "var(--color-text-muted)",
-            }}
-          >
-            등록된 선수가 없습니다.
-          </div>
-        ) : (
-          <div className="flex flex-col gap-2">
-            {/* 헤더 row — ttp-row 컬럼 너비와 정확히 매칭 (44/44/48/flex-1/64) */}
-            {/* 가벼운 텍스트 헤더 (border/bg 0). pt-2 pb-1 만 살짝 spacing */}
-            <div
-              className="flex items-center gap-3 px-3 pb-1 pt-2 text-xs"
-              style={{ color: "var(--color-text-muted)" }}
+          <span className="lc-count__sep" />
+          <span className="lc-count">
+            <span className="lc-count__lbl">벤치</span>
+            <span className="lc-count__n">{benchCount}</span>
+            <span className="lc-count__lbl">/ 7</span>
+          </span>
+          {!ready && !isLocked && (
+            <span className="lc-sub__hint">
+              <span className="ico material-symbols-outlined">error</span>
+              탭하면 선발 5명→벤치 순으로 지정
+            </span>
+          )}
+          <span className="lc-sub__tools">
+            <button
+              type="button"
+              className="lc-tool"
+              onClick={undo}
+              disabled={!history.length || isLocked || isPending}
             >
-              {/* 출전 — ttp-row label `min-w-11` (44px) 과 매칭 */}
-              <div className="flex min-w-11 items-center justify-center">출전</div>
-              {/* 주전 — ttp-row button `min-w-11` (44px) 과 매칭 */}
-              <div className="flex min-w-11 items-center justify-center">주전</div>
-              {/* 번호 — ttp-row 등번호 칩 `w-12` (48px) 과 매칭 */}
-              <div className="flex w-12 items-center justify-center">번호</div>
-              {/* 이름 — ttp-row 이름 영역 `flex-1` 과 매칭 */}
-              <div className="flex min-w-0 flex-1 items-center">이름</div>
-              {/* 포지션 — ttp-row 포지션 영역 `w-16` (64px) 과 매칭 */}
-              <div className="flex w-16 items-center justify-center">포지션</div>
+              <span className="ico material-symbols-outlined">undo</span>
+              실행취소
+            </button>
+            <button
+              type="button"
+              className="lc-tool"
+              onClick={clearAll}
+              disabled={untouched || isLocked || isPending}
+            >
+              <span className="ico material-symbols-outlined">restart_alt</span>
+              전체 해제
+            </button>
+          </span>
+        </div>
+
+        <div className="lc-slots">
+          {starterSlots.map((p, i) => (
+            <div key={i} className={"lc-slot" + (p ? "" : " is-empty")}>
+              <span className="lc-slot__no">{i + 1}</span>
+              {p ? (
+                <>
+                  <span className="lc-slot__avatar-wrap">
+                    <span className="lc-slot__avatar">
+                      {(p.user?.nickname ||
+                        p.user?.name ||
+                        p.player_name ||
+                        "?")[0]}
+                    </span>
+                    {p.jersey_number != null && (
+                      <span className="lc-slot__jersey">{p.jersey_number}</span>
+                    )}
+                    {captain === p.id && <span className="lc-slot__cap">C</span>}
+                  </span>
+                  <span className="lc-slot__name">
+                    {p.user?.nickname ||
+                      p.user?.name ||
+                      p.player_name ||
+                      "(이름 없음)"}
+                  </span>
+                </>
+              ) : (
+                <>
+                  <span className="lc-slot__avatar">+</span>
+                  <span className="lc-slot__ph">빈자리</span>
+                </>
+              )}
             </div>
-
-            {players.map((p) => {
-              const isActive = activeIds.has(p.id);
-              const isStarter = starterIds.has(p.id);
-              // 주전 5명 도달 + 본인 미주전 = 주전 추가 불가
-              const starterDisabled = starterFull && !isStarter;
-              return (
-                <TtpRow
-                  key={p.id}
-                  ttp={p}
-                  isActive={isActive}
-                  isStarter={isStarter}
-                  starterDisabled={starterDisabled}
-                  onToggleActive={() => toggleActive(p.id)}
-                  onToggleStarter={() => toggleStarter(p.id)}
-                  disabled={isLocked || isPending}
-                />
-              );
-            })}
-          </div>
-        )}
-      </section>
-
-      {/* 메시지 영역 — 에러/성공 */}
-      {errorMsg && (
-        <div
-          className="rounded-md border p-3 text-sm"
-          style={{
-            background: "var(--color-surface)",
-            borderColor: "var(--color-error)",
-            color: "var(--color-error)",
-          }}
-        >
-          {errorMsg}
+          ))}
         </div>
-      )}
-      {successMsg && (
-        <div
-          className="rounded-md border p-3 text-sm"
-          style={{
-            background: "var(--color-surface)",
-            borderColor: "var(--color-success)",
-            color: "var(--color-success)",
-          }}
-        >
-          {successMsg}
-        </div>
-      )}
-
-      {/* 액션 버튼 — 확정 + 해제 (해제는 기존 lineup 있을 때만) */}
-      <div className="flex flex-col gap-2 sm:flex-row sm:gap-3">
-        <button
-          type="button"
-          onClick={handleConfirm}
-          disabled={isLocked || isPending || starterCount !== 5}
-          className="rounded-md px-4 py-3 text-sm font-semibold"
-          style={{
-            background:
-              starterCount === 5 && !isLocked
-                ? "var(--color-accent)"
-                : "var(--color-surface)",
-            color:
-              starterCount === 5 && !isLocked
-                ? "var(--color-on-accent)"
-                : "var(--color-text-muted)",
-            border: "1px solid var(--color-border)",
-            cursor:
-              starterCount === 5 && !isLocked && !isPending
-                ? "pointer"
-                : "not-allowed",
-            minHeight: 44,
-          }}
-        >
-          {isPending
-            ? "처리중..."
-            : homeTeam.lineup
-              ? "라인업 재확정"
-              : "라인업 확정"}
-        </button>
-
-        {/* 해제 버튼 — 기존 lineup 있을 때만 노출 */}
-        {homeTeam.lineup && !isLocked && (
-          <button
-            type="button"
-            onClick={handleRelease}
-            disabled={isPending}
-            className="rounded-md px-4 py-3 text-sm font-semibold"
-            style={{
-              background: "var(--color-surface)",
-              color: "var(--color-text-secondary)",
-              border: "1px solid var(--color-border)",
-              cursor: isPending ? "not-allowed" : "pointer",
-              minHeight: 44,
-            }}
-          >
-            라인업 해제
-          </button>
-        )}
       </div>
 
-      {/* 가이드 — 주전 5명 미달 시 안내 */}
-      {!isLocked && starterCount !== 5 && (
-        <p
-          className="text-xs"
-          style={{ color: "var(--color-text-muted)" }}
-        >
-          주전 5명을 선택해야 라인업을 확정할 수 있습니다. (현재 {starterCount}/5)
-        </p>
+      {/* 코칭스태프 바 (role==='coach' 분리). 코치 0건이면 미표시 */}
+      {coaches.length > 0 && (
+        <div className="lc-coachbar">
+          <span className="lc-coachbar__lbl">코칭스태프</span>
+          {coaches.map((c) => (
+            <span key={c.id} className="lc-coachchip">
+              <span className="ico material-symbols-outlined">badge</span>
+              <span className="lc-coachchip__role">코치</span>
+              {c.user?.nickname || c.user?.name || c.player_name || "(이름 없음)"}
+            </span>
+          ))}
+        </div>
       )}
-    </div>
+
+      {/* 선수 명단 — 3상태 행 순환 */}
+      <div className="gm-card">
+        {players.length === 0 ? (
+          <div className="lc-state">
+            <span className="ico material-symbols-outlined">group_off</span>
+            <p className="lc-state__t">출전 가능한 선수가 없습니다.</p>
+          </div>
+        ) : (
+          <div className="lc-rows">
+            {players.map((p) => (
+              <TtpRow
+                key={p.id}
+                ttp={p}
+                role={roleOf(p.id)}
+                isCaptain={captain === p.id}
+                onCycle={() => cycleRole(p)}
+                onToggleCaptain={() => toggleCaptain(p)}
+                locked={isLocked || isPending}
+              />
+            ))}
+          </div>
+        )}
+
+        {/* 메시지 */}
+        <div className={"lc-msg lc-msg--" + msg.tone}>
+          <span className="ico material-symbols-outlined">{msg.icon}</span>
+          {msg.node}
+        </div>
+
+        {/* 에러 (네트워크/서버 422 등) — 메시지와 별도 */}
+        {errorMsg && (
+          <div className="lc-msg lc-msg--err" style={{ marginTop: 8 }}>
+            <span className="ico material-symbols-outlined">error</span>
+            <span>{errorMsg}</span>
+          </div>
+        )}
+
+        {/* 데스크톱 액션 바 */}
+        <div className="lc-actions">
+          <button
+            type="button"
+            className="btn btn--accent btn--xl lc-actions__confirm"
+            onClick={handleConfirm}
+            disabled={!canConfirm}
+          >
+            <span className="ico material-symbols-outlined">
+              {isPending ? "hourglass_top" : "how_to_reg"}
+            </span>
+            {confirmLabel}
+          </button>
+          {confirmed && !isLocked && (
+            <button
+              type="button"
+              className="btn btn--ghost btn--xl"
+              onClick={handleRelease}
+              disabled={isPending}
+            >
+              라인업 해제
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* 모바일 하단 sticky 바 */}
+      <div className="lc-sticky">
+        <div className="lc-sticky__prog">
+          <span>선발 {starterCount}/5</span>
+          <span className="lc-sticky__bar">
+            <span
+              className={"lc-sticky__fill" + (ready ? " is-full" : "")}
+              style={{ width: (starterCount / 5) * 100 + "%" }}
+            />
+          </span>
+          <span>벤치 {benchCount}/7</span>
+        </div>
+        <div className="lc-sticky__row">
+          <button
+            type="button"
+            className="btn btn--accent btn--touch lc-actions__confirm"
+            onClick={handleConfirm}
+            disabled={!canConfirm}
+          >
+            {confirmLabel}
+          </button>
+          {confirmed && !isLocked && (
+            <button
+              type="button"
+              className="btn btn--ghost btn--touch"
+              onClick={handleRelease}
+              disabled={isPending}
+            >
+              해제
+            </button>
+          )}
+        </div>
+      </div>
+    </>
   );
 }
