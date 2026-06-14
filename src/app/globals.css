@@ -6864,3 +6864,130 @@ html.dark {
   .sv-grid-2, .sv-grid-3, .sv-grid-4 { grid-template-columns: 1fr; }
   .fm-row { grid-template-columns: 1fr; }
 }
+
+/* ============================================================
+   ST1 · Stats  (/stats)  — 시즌 스탯 대시보드 (PR-MOCK-TO-REAL 1)
+   시안 Stats.jsx 의 .st-* 토큰 이식. 강조색은 시안 --accent(빨강)이
+   errors 2026-06-10 폴백 함정에 해당하므로 --cafe-blue 로 치환(결재).
+   승,패 badge 만 의미색(ex-badge--ok, --red 기존 토큰 재사용).
+   주석 토큰 구분자는 쉼표만 사용(슬래시 금지 = 조기종료 방지, errors 2026-06-14).
+   ============================================================ */
+
+/* ---- KPI 8칸 그리드 ---- */
+.st-kpi {
+  display: grid; grid-template-columns: repeat(8, 1fr); gap: 10px; margin-bottom: 20px;
+}
+.st-kpi__cell {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: var(--radius-card); padding: 14px 12px; text-align: center;
+}
+.st-kpi__l {
+  font-size: 10px; font-weight: 800; letter-spacing: 0.05em;
+  color: var(--ink-mute); margin-bottom: 6px;
+}
+.st-kpi__v {
+  font-family: var(--ff-display); font-size: 23px; font-weight: 900;
+  line-height: 1; color: var(--cafe-blue);
+}
+.st-kpi__v--dim { color: var(--ink-dim); }
+.st-kpi__s { font-size: 10px; color: var(--ink-dim); margin-top: 6px; }
+
+/* ---- 2열 패널(요약 = 추이 + 순위) ---- */
+.st-2col { display: grid; grid-template-columns: 1.4fr 1fr; gap: 16px; }
+.st-panel { padding: 20px 22px; }
+.st-panel__h {
+  font-family: var(--ff-display); font-size: 15px; font-weight: 800;
+  margin: 0 0 14px; display: flex; align-items: center;
+}
+.st-panel__h-note {
+  color: var(--ink-mute); font-weight: 400; margin-left: 6px;
+  font-size: 12px; font-family: var(--ff-mono);
+}
+.st-trend__axis {
+  display: flex; justify-content: space-between; margin-top: 4px;
+  font-family: var(--ff-mono); font-size: 10px; color: var(--ink-dim);
+}
+.st-mini-empty {
+  padding: 36px 0; text-align: center; color: var(--ink-mute); font-size: 13px;
+}
+
+/* ---- 클럽 내 순위 ---- */
+.st-rank {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 13.5px;
+}
+.st-rank:last-child { border-bottom: 0; }
+.st-rank__v {
+  font-family: var(--ff-mono); font-weight: 800; font-size: 15px; color: var(--ink);
+}
+.st-rank__v--hl { color: var(--cafe-blue); }
+.st-rank__v small { color: var(--ink-dim); font-weight: 500; font-size: 11px; }
+
+/* ---- 경기 로그 테이블 ---- */
+.st-log-card { overflow: hidden; }
+.st-log {
+  width: 100%; border-collapse: collapse;
+  font-family: var(--ff-mono); font-size: 12.5px;
+}
+.st-log thead tr { background: var(--bg-alt); }
+.st-log th {
+  padding: 11px 14px; font-size: 10px; font-weight: 800; color: var(--ink-mute);
+  letter-spacing: 0.04em; border-bottom: 1px solid var(--border);
+}
+.st-log th.is-left, .st-log td.st-log__opp { text-align: left; }
+.st-log th.is-right, .st-log td.is-right { text-align: right; }
+.st-log tbody tr { border-bottom: 1px solid var(--border); }
+.st-log td { padding: 11px 14px; }
+.st-log__date { color: var(--ink-dim); }
+.st-log__opp { font-family: var(--ff-display); font-weight: 700; }
+.st-log__soft { color: var(--ink-soft); }
+.st-log__hl { font-weight: 800; color: var(--cafe-blue); }
+
+/* ---- ST1 720px 분기 ---- */
+@media (max-width: 720px) {
+  .st-kpi { grid-template-columns: repeat(4, 1fr); }
+  .st-2col { grid-template-columns: 1fr; }
+}
+
+/* ============================================================
+ * PR-MOCK-TO-REAL Batch2 ② — /calendar (.cal-*)
+ *  시안 source: BDR-current/screens/extras-pages.css(.cal-* L215~245)
+ *  토큰 치환: --r-sm/--r-xs → --radius-chip
+ *  ★ 이벤트 종류색 3종(.cal-ev--game/tn/court)은 시안 의미색 유지(경기=blue/대회=red/코트=ok)
+ *  ★ is-today 강조 테두리만 --accent → --cafe-blue 치환(errors 06-10 빨강 폴백 함정 회피)
+ * ============================================================ */
+.cal-layout { display: grid; grid-template-columns: minmax(0,1fr) 320px; gap: 16px; align-items: flex-start; }
+.cal-card { padding: 20px 22px; }
+.cal-bar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+.cal-bar__month { font-family: var(--ff-display); font-size: 20px; font-weight: 900; letter-spacing: -0.01em; }
+.cal-bar__nav { display: flex; gap: 4px; }
+.cal-nav-btn { width: 32px; height: 32px; border-radius: var(--radius-chip); border: 1px solid var(--border); background: var(--bg-elev); cursor: pointer; display: grid; place-items: center; color: var(--ink-soft); }
+.cal-nav-btn:hover { background: var(--bg-alt); }
+.cal-nav-btn .ico { font-family: 'Material Symbols Outlined'; font-size: 18px; }
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+.cal-dow { text-align: center; font-family: var(--ff-mono); font-size: 10.5px; font-weight: 800; color: var(--ink-dim); padding: 4px 0; letter-spacing: 0.04em; }
+.cal-dow--sun { color: var(--accent); }
+.cal-cell { min-height: 78px; border: 1px solid var(--border); border-radius: var(--radius-chip); padding: 6px; background: var(--bg-elev); display: flex; flex-direction: column; gap: 3px; }
+.cal-cell.is-out { background: var(--bg-alt); opacity: .5; }
+.cal-cell.is-today { border-color: var(--cafe-blue); box-shadow: 0 0 0 1px var(--cafe-blue); }
+.cal-cell__n { font-family: var(--ff-mono); font-size: 11px; font-weight: 700; color: var(--ink-soft); }
+.cal-cell.is-today .cal-cell__n { color: var(--cafe-blue); }
+.cal-ev { font-size: 10px; font-weight: 700; padding: 2px 5px; border-radius: var(--radius-chip); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
+.cal-ev--game { background: var(--cafe-blue-soft); color: var(--cafe-blue-deep); }
+.cal-ev--tn { background: var(--accent-soft); color: var(--accent); }
+.cal-ev--court { background: var(--ok-soft); color: var(--ok); }
+.cal-side__h { font-family: var(--ff-display); font-size: 15px; font-weight: 800; margin: 0 0 12px; }
+.cal-up { display: flex; flex-direction: column; gap: 8px; }
+.cal-up__row { display: grid; grid-template-columns: auto 1fr; gap: 12px; padding: 12px 14px; background: var(--bg-alt); border: 1px solid var(--border); border-radius: var(--radius-chip); }
+.cal-up__date { text-align: center; }
+.cal-up__date .d { font-family: var(--ff-display); font-size: 20px; font-weight: 900; line-height: 1; }
+.cal-up__date .m { font-family: var(--ff-mono); font-size: 9.5px; color: var(--ink-dim); font-weight: 700; }
+.cal-up__t { font-weight: 700; font-size: 13px; }
+.cal-up__meta { font-size: 11.5px; color: var(--ink-mute); margin-top: 3px; display: flex; align-items: center; gap: 5px; }
+.cal-up__meta .ico { font-family: 'Material Symbols Outlined'; font-size: 13px; }
+.cal-legend { display: flex; gap: 14px; margin-top: 14px; flex-wrap: wrap; }
+.cal-legend span { display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; color: var(--ink-mute); }
+.cal-legend i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+@media (max-width: 720px) {
+  .cal-layout { grid-template-columns: 1fr; }
+}

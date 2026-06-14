@@ -8,6 +8,7 @@
 ## 진행 현황표
 | # | 작업 | 상태 |
 |---|------|------|
+| PR-MOCK-TO-REAL ②③ | calendar 실연결(tournament일정·court_events0행) + about 통계4 실값 | 🟡 구현완료·tester대기(미커밋) |
 | Phase 10 정보페이지 | Reviews/News/Help+Glossary/About/AdminNews 5시안 | ✅ main 반영(#679→#680 + 선반영) |
 | 대회 삭제 기능 | Soft/Hard + cascade 7스텝 | ✅ main(#675→#676 `f2fecc7`) |
 | KO Sprint1 | 결선중복방지 KO-1/2/3/9 | ✅ main(`a9ebaf6`+`bf8978e`) |
@@ -15,6 +16,32 @@
 
 ## 기획설계 (planner-architect)
 (완료 — 완료 Phase 압축)
+
+### PR-MOCK-TO-REAL ① /stats 실데이터 연결 설계 (2026-06-14, read-only · 코드·DB 변경 0)
+- **목표**: /stats 준비중 빈상태 → 시안 Stats.jsx 대시보드 실데이터 복원. 설계서 `Dev/stats-realdata-bake-plan-2026-06-14.md`
+- **★★populated 실측 반전(운영 SELECT 영향0·임시스크립트 정리완료)**: census "3테이블 존재" 맞으나 **UserSeasonStat=0행 / ShotZoneStat=0행 / MatchPlayerStat=2375행**. UserSeasonStat·ShotZoneStat은 cron/배치 미동작(schema 주석 "Phase 13+ 예정")=빈껍데기 → **직접 SELECT 시 영구 빈화면**(mock보다 나쁨). 의뢰 명세 "TOTALS=UserSeasonStat 직접매핑"은 함정.
+- **★채택 전략**: **MatchPlayerStat 단일source + JS 시즌가공**(decisions[05-09] Q7=A 채택/Q7=D UserSeasonStat 거부 "cron미동작" 답습 = 공개프로필 동일선례). 본인경로 User.id→ttp.userId→MatchPlayerStat. 시즌경계=매치 scheduledAt 연도(실측 NULL 0/7).
+- **★재사용자산**: `getPlayerStats(userId)`(user.ts L252)가 70%커버(aggregate _avg+winRate $queryRaw+officialMatchNestedFilter). 보강필요=시즌필터+FG/3P/FT%(합산made/att)+게임로그+클럽순위. **공유함수라 미변경→신규헬퍼 `my-season-stats.ts` 분리=회귀격리**. `stat-leaders.ts`(0스키마 groupBy) 동형.
+- **섹션매핑(연결/hide)**: KPI8칸=✅연결(레이팅만 hide/대체) / TREND=✅(게임로그 득점시계열) / GAME_LOG=✅(매치당1행) / 클럽순위RANKINGS=🟡부분(팀동료대비 득점/어시/리바/3점/자유투만·부족시 row생략) / **ZONES=❌hide**(ShotZoneStat0행+MPS존정보무·억지매핑금지) / **포지션·레벨·구장·시간대SPLIT=❌hide**
+- **빈상태(mock❌)**: 비로그인→/login카드 / ttp0→출전이력없음 / 선택시즌0건→"이번 시즌 기록 없음" / ZONES항상 준비중배지. 시안 mock(14.2/장충픽업/trend[]) 전량삭제
+- **server/client**: page.tsx[server] getWebSession+getMySeasonStats+빈상태분기 → `_v2/stats-client.tsx`[client] 시즌셀렉터·3탭·SVG. **시즌전환=옵션A 클라필터(page가 전시즌 선계산 prop·신규api라우트0=Stop준수)**. camelCase 일관(apiSuccess미경유→snake혼동 해당없음)
+- **실행7단계**: ①헬퍼 ②page.tsx ③client ④CSS(.st-* postcss검증) ⑤tester+reviewer병렬 ⑥커밋. 1~4순차·5병렬·**DB UPDATE/스키마 0**(전부 read-only)
+- **규모/위험**: 헬퍼+180~240 / page+60-50 / client+260~340 / css+90~130. 위험=헬퍼·page·css 낮음·client 중. getPlayerStats diff0(회귀격리)·schema0·라우트0
+- **PM 확인 3건**: ①강조색 시안 --accent(빨강) 그대로 vs --cafe-blue치환(권장·06-10함정·룰일관) ②KPI 레이팅칸=avg_rating(0행)/PER(억지) 불가→"—"표기 or 7칸 or evaluation_rating대체 ③시즌전환 옵션A(권장·라우트0) 확정
+
+### 순위표 집계 근본 수정 설계 (2026-06-14, read-only · 코드·DB 변경 0)
+- **설계서**: `Dev/standings-aggregation-root-fix-plan-2026-06-14.md`
+- **목표**: update-standings.ts B안(결승/KO 제외 + 조별격리) — full_league_knockout 결승 혼입 + stale 근본차단
+- **★진단 확정(운영 SELECT 실측·영향0·스크립트정리완료)**: 5차뉴비리그(7f287820) format=full_league_knockout·division_rule=0·settings={}. 결승 #301(rn="결승"·좌표NULL·g=NULL)이 오름 예선에 혼입→오름 **W3(실제W2)** + #291(하늘공작단승) stale→하늘 **W0(실제W1)**. 시뮬레이션 정확값 확인
+- **★★회귀분석(format별 실측)**: 결승제외 영향=**6대회 전부 full_league_knockout**(모두 현재 결승/4강이 예선혼입 버그상태→수정=개선): 6차스타터스#274/2회W대학#260/10회YOUNGMAN#281+282+283/5차뉴비#301/4차뉴비(결승미완=영향0). 조별격리 영향=**0대회**(조간예선매치 전무→안전망역할). round_robin28/league4/single12=영향0
+- **★dual회귀0(몰텐배 실측)**: 팀standings 전부 W0L0PF0PA0=dual은 standings 미사용(progressDualMatch+매치group_name으로 진행). 팀groupName=NULL. completed27건 전부 bracket좌표→좌표제외돼도 무해. **회귀0**
+- **★강남구회귀0**: division_code 격리 이미작동·수정은 그 분기 안쪽에 격리/결승제외만 추가
+- **수정안(update-standings.ts 1파일·+20~30LOC)**: ①결승제외 강화=isPrelimMatch 헬퍼(순위regex OR KNOCKOUT regex OR round_number+bracket_position 좌표) — completedMatches/drawMatches 양쪽 적용·**SELECT에 round_number/bracket_position 추가필요** ②조별격리=합산loop서 매치 양팀 groupName 둘다NOT NULL이고 다르면 skip·**SELECT에 homeTeam/awayTeam.groupName 추가필요**. 폴백=groupName NULL이면 격리안함(전체1조=기존동작·회귀0)
+- **재박제(B권장)**: 전용스크립트 scripts/_temp/recalc-newbie5.ts — tournamentId한정·6팀 SET UPDATE·사전/사후 SELECT검증. **DB UPDATE는 PM승인후**. 예상=A조 스나이퍼1-1/하늘1-1/Gots1-1·B조 오름2-0/스위치1-1/그로우업0-2
+- **#301 좌표부여**: round_number=**1**·bracket_position=**0**·bracket_level=0 → buildRoundGroups 1라운드1매치 단일트리 표시. **반드시 수정①머지+재박제 후 실행**(좌표제외 가드가 standings 재혼입 차단·이중안전). 매치1행 UPDATE·PM승인후
+- **실행계획7단계**: ①update-standings수정(dev) ②vitest(tester) ③재박제스크립트작성(dev) ④[PM승인]재박제실행 ⑤#301좌표부여[PM승인] ⑥공개탭육안 ⑦정리+decisions. 1~2코드(안전)/3~5 DB(승인게이트2곳). ②③병렬가능
+- **위험/규모**: 코드=낮음(폴백견고·영향6대회 모두버그상태) / DB재박제=중(6행·tournamentId한정·승인게이트) / dual·강남구=0
+- **PM확인3건**: ①결승제외 3중OR 채택 ②조별격리 채택(단독영향0·안전망) ③재박제 5차만 vs 6대회일괄
 
 ### Phase 12 Batch B 박제 설계 (2026-06-14, read-only · 코드·DB 변경 0)
 - **목표**: v2.31 Phase 12 Batch B(DB연결 7화면 ST1/CA1/SV1/SE1/TV1/CV1/SC1) 데이터 실측+박제 설계
@@ -52,6 +79,86 @@
 
 ## 구현 기록 (developer)
 (완료 — 완료 Phase 압축)
+
+### PR-MOCK-TO-REAL ②③ calendar+about (2026-06-14)
+📝 구현: ②/calendar 준비중 빈상태 → 시안 .cal-* 달력 복원 + 실데이터 연결 / ③/about 통계4 mock → prisma.count() 실값. **count 실측 선행**(운영 read-only 임시스크립트 → 즉시 삭제): court_events=**0행**·court_event_players=0 / ttp.userId NOT NULL=357(344유저) / tournament startDate NOT NULL=60 / users **660**·teams **105**·tournaments **61**·court_infos **672**·courts **0**.
+
+| 파일 | 변경 | LOC | 실연결 소스 | 신규/수정 |
+|------|------|-----|-----------|----------|
+| `src/app/(web)/about/page.tsx` | server 전환(async). 통계4 mock(48,000+/320+/1,240) → getAboutStats() = user/team/tournament count 실값(병렬). "20년"=정적유지. 캡션 "운영시점연동"→"실시간 집계". **운영진/가치/파트너/Hero/CTA/FAQ diff 0**(통계 영역만 격리) | +41/-35 | user.count/team.count/tournament.count | 수정 |
+| `src/app/(web)/calendar/page.tsx` | server component. getWebSession 본인식별. 비로그인→로그인카드 / tournament일정(ttp.userId=나→tournamentTeam→Tournament name·startDate) 실연결 + court_events(organizer OR 참여, 현재0행=빈배열·가드만유지). TODAY=new Date()·표시월=현재월. 월그리드+다가오는일정. 일정0건→"예정된 일정이 없습니다"(더미❌) | +271/-? | tournamentTeamPlayer→Tournament / court_events(0행) | 수정 |
+| `src/app/globals.css` | `.cal-*` 22셀렉터 이식(파일끝 append). 토큰치환 --r-sm/--r-xs→--radius-chip. **이벤트 의미색 3종(game=blue/tn=red/court=ok) 시안유지** / **is-today 강조테두리만 --accent→--cafe-blue** 치환. 720분기 1열 | +43 | — | 수정 |
+
+핵심:
+- **court_events 0행 분기**: 실측으로 빈껍데기 확인 → 코드 가드(organizer OR court_event_players 참여)는 유지하되 현재 표시는 tournament 일정 위주. mock 복원 0.
+- **about 통계 격리**: git diff 운영진(기획팀~사업팀)/ab-team/ab-guard/ab-make/파트너(NIKE 등)/info-hero/ab-cta 변경 라인 0 실측. "20년 역사"·"since 2006" 정적 카피 유지(사용자 결정 §6).
+- **강조색**: calendar is-today = cafe-blue(errors 06-10 빨강 폴백 함정 회피). 이벤트 종류색·일요일 dow(--accent)는 시안 의미색.
+
+💡 tester 참고:
+- /calendar: 로그인 + 본인이 선수로 등록된 대회(startDate가 이번 달)가 있으면 달력 셀+사이드바에 'tn'(빨강) 표시. court_events 0행이라 'game'/'court'는 안 나옴(정상). 비로그인→로그인 카드. 대회 없는 유저→"예정된 일정이 없습니다". TODAY 셀 = cafe-blue 테두리.
+- /about: 통계4 = 20년/멤버 660/팀 105/대회 61(실값·콤마). 운영진 6팀 라벨·실명 0·파트너 8·Hero·CTA·FAQ 시안 그대로.
+- 주의입력: 같은 대회 ttp 다중 = tournamentId dedupe(1건). startDate가 다른 월이면 미표시. 표시월 외 일정은 사이드바(다가오는)에도 미포함(현재 월 한정).
+
+⚠️ reviewer 참고:
+- court_events 관계 경로 `teams.players.user_id`(court_event_teams→court_event_players) — 0행이라 실행 안 되나 schema 정합 확인 요망.
+- about page.tsx: 통계 영역 외 diff 0(운영진 §6 보존). prisma camelCase 직접(apiSuccess 미경유 = snake 무관).
+- CSS postcss walkRules .cal-* 33룰 인식(`*/` 조기종료 0). is-today=cafe-blue / 이벤트 의미색 3종 시안유지. 폐기토큰(--r-sm/--r-xs/--err)/9999/lucide/하드코딩hex 0(매칭은 주석텍스트만).
+- 신규 스키마/컬럼 0 / mock 복원 0 / api·v1·신규라우트 0 / 임시 count 스크립트 삭제 완료. tsc --noEmit EXIT=0.
+
+### PR-MOCK-TO-REAL ① stats (2026-06-14)
+📝 구현: /stats 준비중 빈상태 → 시안 대시보드 복원 + 실데이터 연결. MatchPlayerStat(2375행) 단일 source + JS 시즌 가공(UserSeasonStat·ShotZoneStat 0행 우회). getPlayerStats 미변경(신규 헬퍼 분리 = 회귀 격리).
+
+| 파일 | 변경 내용 | 신규/수정 |
+|------|----------|----------|
+| `src/lib/stats/my-season-stats.ts` | 본인 시즌 집계 헬퍼(TOTALS·승패·GAME_LOG·TREND·클럽순위, read-only) | 신규 (+419 LOC) |
+| `src/app/(web)/stats/page.tsx` | server 재작성(session→헬퍼→빈상태 4분기→옵션A 시즌 선계산 prop) | 수정 (+166/-29) |
+| `src/app/(web)/stats/_v2/stats-client.tsx` | client 뷰(시즌셀렉터·3탭·KPI·TREND SVG·클럽순위·GAME_LOG·ZONES준비중) | 신규 (+357 LOC) |
+| `src/app/globals.css` | `.st-*` 이식(토큰치환·강조 cafe-blue·파일 끝 append) | 수정 (+84) |
+
+**연결 섹션**: KPI 7칸(PPG/APG/RPG/SPG/FG%/3P%/FT%) + TREND(경기별 득점) + GAME_LOG(최근 12) + 클럽순위(팀동료 대비 득점/어시/리바/3점/자유투, rows0→카드 hide).
+**hide 섹션**: ZONES(슈팅존 항상 준비중) + 포지션/구장/시간대 SPLIT(미구현).
+**빈상태 4종**: 비로그인(lock+/login) / ttp0(sports_basketball+/tournaments) / 시즌0건("이번 시즌 기록이 아직 없습니다") / ZONES(준비중).
+**강조색**: `var(--cafe-blue)`(KPI값·TREND선/면적/포인트·클럽순위 상위3·로그 20+득점). 승/패 badge만 의미색(ex-badge--ok/--red 기존). 레이팅 칸="—"(--dim, avg_rating 0행 대체 안 함).
+**시즌전환**: 옵션A(page 전 시즌 선계산 + 클라 useState 필터, 라우트/API 0).
+
+💡 tester 참고:
+- 테스트: userId=2837 계정 = 2026 시즌 7경기 PPG 3.1(실측). 시즌 칩 "2026"+"커리어" 노출, 탭 3개 전환, ZONES 준비중 빈상태.
+- 비로그인 = 로그인 카드 / ttp0 user = 출전기록 카드 / FT% 등 att0 = "-"(0% 아님).
+- 정상: KPI 8칸(7실값+레이팅 "—"), 득점추이 SVG cafe-blue, 경기로그 W/L badge.
+- 주의: winner_team_id NULL 매치 = 결과 "-" / 클럽 동료<2명 = 클럽순위 카드 hide.
+
+⚠️ reviewer 참고:
+- getPlayerStats(user.ts) git diff 0 실측 완료(회귀 격리).
+- 0스키마/라우트0/api0 — 전부 read-only prisma 직접(camelCase, apiSuccess 미경유 = snake 혼동 무관).
+- 강조색 cafe-blue(errors 06-10 폴백함정 회피, 시안 --accent 빨강 미사용). 기존 .ex-tab.is-on(--accent)은 Batch B 동작중 코드라 미변경.
+- CSS `.st-*` postcss walkRules 14셀렉터 OK(errors 06-14 `*/` 조기종료 0, 주석 구분자 쉼표).
+- tsc --noEmit 통과 / 하드코딩hex·lucide·9999 0.
+
+### 순위표 집계 근본 수정 (2026-06-14) — PR-STANDINGS-ROOT-FIX
+📝 구현: full_league_knockout 결승/KO 매치가 예선 standings 에 혼입되는 근본 차단 + 조별 격리. update-standings.ts **1파일만** 수정(멀티세션·다른 파일 미접촉). 재박제/좌표 스크립트는 미접촉(PM 다음 단계).
+
+| 파일 | 변경 | 신규/수정 |
+|------|------|----------|
+| `src/lib/tournaments/update-standings.ts` | ①`KNOCKOUT_ROUND_REGEX`+`RANKING_ROUND_REGEX` 상수 추가 ②`isPrelimMatch()` 헬퍼 신규(3중 OR 가드) ③completed/draw SELECT 확장(round_number/bracket_position/homeTeam.groupName/awayTeam.groupName) ④`/순위/` 단일필터→`isPrelimMatch` 흡수(2곳) ⑤합산 loop 양쪽(completed/draw)에 조별 격리 가드 삽입 | 수정 |
+
+핵심 변경:
+- **isPrelimMatch 3중 OR**(하나라도 참=예선아님=제외): ①roundName "순위" 포함(기존) ②roundName KO 라운드(결승/준결승/n강/n위전/n·m위) ③`round_number != null && bracket_position != null`(브래킷 좌표=KO 트리). ★느슨한 비교(`!= null`)로 undefined+null 둘 다 "좌표없음" 폴백.
+- **조별 격리**: 합산 loop서 `hg=homeTeam.groupName`·`ag=awayTeam.groupName` 둘 다 NOT NULL이고 hg!==ag면 `continue`(skip). ★한쪽이라도 NULL이면 격리 안 함(`?? null` 폴백 → 전체 1조 = 기존 동작 = 회귀 0).
+
+회귀 0 보장:
+- groupName NULL 폴백 / divisionCode 분기(matchesWhere) 미접촉 / 시그니처·호출부 변경 0 / schema 0 / api/v1 0.
+- 기존 `/순위/` 필터 동작은 isPrelimMatch ①로 그대로 흡수(동작 동일).
+
+💡 tester 참고:
+- tsc --noEmit EXIT=0. vitest update-standings 5/5 + standings-points 25/25 통과. tournaments 전체+match-sync 18파일/332테스트 회귀 0.
+- 정상: full_league_knockout 대회 → 결승/n강 매치가 예선 순위에서 제외됨. 조별 대회 → 조간 매치 합산 제외. 전체 1조(groupName 전부 NULL) 대회 → 기존과 100% 동일.
+- 주의입력: roundName=NULL이고 좌표(round_number+bracket_position) 보유 매치 = KO로 판정(제외). groupName 한쪽만 NULL = 격리 안 함(폴백). KNOCKOUT_ROUND_REGEX 패턴은 "결승"/"준결승"/"준준결승"/"4강"/"8강"/"3·4위전"/"3위전" 등.
+
+⚠️ reviewer 참고:
+- KNOCKOUT_ROUND_REGEX 정규식 false positive 여부 봐줄 것(예선 라운드명에 "강"/"위전" 우연 포함 케이스 — 현 운영 roundName 패턴상 위험 낮음).
+- isPrelimMatch ③ `!= null`(느슨) 채택 사유: mock/실DB 모두 undefined+null 안전 폴백. 명세(round_number != null && bracket_position != null) 정합.
+- 조별 격리 NULL 폴백이 회귀 0의 핵심(현 진단상 조간 예선매치 0대회 = 안전망 역할).
+- DB 재박제(5차 뉴비리그 #301)·#301 좌표부여는 본 작업 범위 외(PM 승인 게이트 후속).
 
 ### sync completed 역전 차단 가드 (2026-06-14)
 📝 구현: Flutter sync 가 이미 completed 박제된 매치를 scheduled/live/in_progress 로 되돌리는 사고 차단. 공통 가드(effectiveStatus)를 2개 sync 경로에 삽입.
@@ -185,6 +292,58 @@
 
 ## 테스트 결과 (tester)
 
+### PR-MOCK-TO-REAL Batch2 ②/calendar + ③/about 실연결 검증 (2026-06-14) — ✅ PASS (미커밋)
+대상: calendar/page.tsx(tournament 일정 실쿼리+court_events 0행 빈배열)·about/page.tsx(통계4 count 실값)·globals.css(.cal-* append +43). 실측 count·mock 0·빈상태·§6 보존·postcss 실파서.
+
+| # | 항목 | 결과 | 비고 |
+|---|------|------|------|
+| 1 | diff --stat HEAD 실변경 | ✅ 통과 | calendar +271(±)·about +41·globals +43(append-only, 0del). 요청 3소스 정확 일치(+문서 lessons/scratchpad) |
+| 2 | tsc --noEmit | ✅ 통과 | EXIT=0, 에러 0 (taskkill 미사용) |
+| 3 | calendar 실연결·mock 0 | ✅ 통과 | (A) tournamentTeamPlayer.findMany{userId→tournamentTeam.tournament(name/startDate)} 실쿼리·tournamentId dedupe. (B) court_events.findMany(organizer/참여 OR) **실측 0행→빈배열**(가드만 유지). 더미상수(EVENTS/TODAY 하드코딩) grep **0**(매치 2건 모두 주석 설명). TODAY=`new Date()` 실제 현재일·표시월=현재월 |
+| 4 | calendar 빈상태 | ✅ 통과 | ①비로그인→lock "로그인이 필요합니다" 카드+/login(더미❌) ②upcoming 0건→event_busy "예정된 일정이 없습니다"(더미❌). 달력 셀 eventsByDay 실데이터 매핑·is-today=todayDate |
+| 5 | about 통계 실값 | ✅ 통과 | getAboutStats() = `Promise.all([user.count(),team.count(),tournament.count()])` 실값. **실측 users=660/teams=105/tournaments=61**(코드 count 일치). "20년"=정적카피 §6 보존. ab-note 캡션 "운영 시점 연동"→"운영 데이터 기준 실시간 집계"(연동 캡션 제거) |
+| 5★ | §6 보존 git diff 0 | ✅ 통과 | **운영진(team 6)·가치(values 6)·파트너(partners 8)·Hero·CTA·FAQ git diff 0**(실명0·일반팀라벨·ab-guard 배너 보존). 변경=통계4 영역(stats상수→async count)+ab-note 캡션·import prisma·default async뿐 |
+| 6 | 강조색·토큰 | ✅ 통과 | calendar is-today=`var(--cafe-blue)`(border+box-shadow+__n색). 이벤트 의미색 3종 유지(game=cafe-blue-soft/tn=accent-soft/court=ok-soft). 하드코딩hex/lucide/9999/`--r-sm`/`--r-xs`/폐기--color-* **0**(append 블록). 참조 토큰(cafe-blue/-soft/-deep/accent-soft/ok-soft/radius-chip) 전부 :root+다크 실재 |
+| 7 | ★postcss 실파서 | ✅ 통과 | postcss.parse(globals.css) **PARSE_OK·.cal-* 33규칙** 정상파싱. 주석 `*/` 조기종료 **0**(`--r-sm/--r-xs → --radius-chip` 표기의 `/`는 닫는주석 아님·errors[06-14] 재발0) |
+| 8 | 회귀 | ✅ 통과 | 변경=calendar/about/globals.css+문서뿐. **라우트 추가 0·api 변경 0·다른 페이지 무영향**. globals append-only(43add/0del)→기존 .st-*/.ex-* 무충돌. staged 0(미커밋) |
+
+📊 종합: 8개 항목 전부 통과 / 실패 0. tsc EXIT0. calendar=ttp.userId→Tournament 실쿼리(실측 357행 소스)·court_events 실측 0행→빈배열(가드 유지·가짜 0)·TODAY=new Date()·빈상태 2종(비로그인/0건 더미❌). about=count 실값(660/105/61 정확일치)·"운영시점 연동" 캡션 제거·§6 운영진/가치/파트너/Hero/CTA git diff 0 보존. 강조색 cafe-blue·의미색 3종 유지·하드코딩/lucide/9999/폐기토큰 0. postcss 실파서 .cal-* 33규칙·조기종료 0. append-only 회귀 0. 미커밋.
+
+### PR-MOCK-TO-REAL ① /stats 실데이터 연결 검증 (2026-06-14) — ✅ PASS (미커밋)
+대상: my-season-stats.ts(신규)·stats-client.tsx(신규)·stats/page.tsx·globals.css(.st-* append). 실쿼리(MatchPlayerStat 2375행)·mock 0·빈상태 4종·postcss 실파서.
+
+| # | 항목 | 결과 | 비고 |
+|---|------|------|------|
+| 1 | diff·getPlayerStats 회귀격리 | ✅ 통과 | page.tsx +166/globals.css +84(0del)/신규2(untracked). **getPlayerStats(services/user.ts) diff 0**(신규 헬퍼 분리로 격리) |
+| 2 | tsc --noEmit | ✅ 통과 | EXIT=0, 에러 0 |
+| 3 | 실쿼리·mock 0 | ✅ 통과 | matchPlayerStat/tournamentTeamPlayer findMany 실집계(KPI/TREND/GAME_LOG/clubRanks). 더미상수(TOTALS/ZONES/SPLITS/GAME_LOG/TREND/RANKINGS) grep **0**. UserSeasonStat/ShotZoneStat 직접SELECT **0**(주석만, 실측 0행 우회) |
+| 4 | 빈상태 4종 | ✅ 통과 | ①비로그인→lock 카드(server) ②ttp0→sports_basketball 카드(**실측 hasNoTtp=true·totals=null**) ③시즌0건→"이번 시즌 기록이 아직 없습니다"(seasonEmpty) ④ZONES→"슈팅 존 집계 준비 중". 가짜데이터 0 |
+| 5 | att0·winner NULL 처리 | ✅ 통과 | att0→pct() null→client fmt() "-"(**실측 user2880 fgPct=null**). winner NULL→result "-"·winRate null(decided>0 가드/`!=null`). 0% 왜곡 0 |
+| 6 | 강조색 var(--cafe-blue) | ✅ 통과 | KPI/TREND/순위/log .st-*--hl 전부 cafe-blue. var(--accent) **실사용 0**(주석1건만). 하드코딩hex/lucide/9999/폐기--color-* **0**. btn--accent=기존 CTA 운영토큰(별개) |
+| 7 | ★postcss 실파서 | ✅ 통과 | postcss.parse() → .st-* **31규칙** 정상파싱·핵심셀렉터6 전부존재·빈규칙(decl0) **0**. 주석 `*/` 조기종료 0(errors[06-14] 재발방지·구분자 쉼표만) |
+| 8 | count 실측 | ✅ 통과 | **MatchPlayerStat=2375**(정확일치)·UserSeasonStat=0·ShotZoneStat=0. 샘플 user2904 **6경기/PPG 4.7**(수동산출=헬퍼출력 일치)·2승4패 승률33.3%·clubRanks 5·trend 6 |
+| 9 | 회귀 | ✅ 통과 | globals.css append-only(84add/0del)→기존 .ex-tab/.ex-chip/.ex-badge 무영향. 시즌전환=클라 useState 필터(라우트0·옵션A perSeason 선계산). src/ 타 파일 변경 0 |
+
+📊 종합: 9개 항목 전부 통과 / 실패 0. tsc EXIT0. 실쿼리 MatchPlayerStat 2375행 집계(헬퍼 실호출 PPG 4.7 검증)·더미상수 grep0·직접SELECT0. 빈상태 4종 분기(실측 ttp0→hasNoTtp). att0→"-"(실측 user2880). postcss 실파서 31규칙·조기종료0. 강조색 cafe-blue·accent 실사용0. append-only 회귀0. 임시검증 스크립트(scripts/_temp) 정리완료. 미커밋.
+
+### 순위표 집계 근본 수정 검증 (2026-06-14) — ✅ PASS (미커밋)
+대상: update-standings.ts 1파일(isPrelimMatch 3중OR 결승제외 + 조별격리). 정적검증+tsc+vitest회귀+regex동작실증+diff0.
+
+| # | 항목 | 결과 | 비고 |
+|---|------|------|------|
+| 1 | tsc --noEmit | ✅ 통과 | EXIT=0, 에러 0 |
+| 2 | ★★vitest 회귀 | ✅ 통과 | tournaments 17파일 **301/301**(update-standings 5/5·standings-points 25/25·placeholder 26·advancement 9·dual 8·auto-complete/auto-knockout/swiss/nba-seed/setup-status 등). round_robin/league/division/dual 로직 무영향 |
+| 3 | isPrelimMatch 3중OR 정합 | ✅ 통과 | ①RANK `/순위/` ②KO `결승\|준결승\|준준결승\|n강\|n위전\|n·m위` ③`round_number!=null && bracket_position!=null`. 하나라도 참=return false(예선아님=제외). 12개 KO명(결승/준결승/4강~32강/3·4위전/3위전/5·6위) 전부 제외 실증 |
+| 4 | ★조별격리 폴백 | ✅ 통과 | `hg=homeTeam?.groupName??null`/`ag=...??null`/`if(hg!==null&&ag!==null&&hg!==ag)continue`. 둘다NULL·한쪽NULL·한쪽undefined→격리안함(기존동작) / 둘다NOTNULL다름→skip / 같음→합산. completed+draw 양 loop 동일 |
+| 5 | ★undefined 안전(`!= null`) | ✅ 통과 | 느슨한비교로 null+undefined 둘다 폴백. mock 필드누락(`{roundName:null}`)→prelim=true. **★bracket_position=0 falsy함정**: `!=null`이라 0도 좌표로 인식(#301 rn=1/bp=0 → 제외 OK). truthy비교였으면 0 오판할 뻔 |
+| 6 | 기존 `/순위/` 동일흡수 | ✅ 통과 | 순위결정전/순위전/동순위전/최종순위 전부 제외(isPrelimMatch ①). 동작 동일 |
+| 7 | divisionCode·시그니처·호출부·schema·api 변경 0 | ✅ 통과 | git diff: export 시그니처 0줄변경/divisionCode·points_rule·calculateMatchPoints 분기 0줄변경(SELECT필드추가+격리가드만 신규)/schema.prisma·api 파일 0/다른.ts 0(update-standings.ts 1파일+scratchpad만) |
+
+📊 종합: 7개 항목 전부 통과 / 실패 0. tsc EXIT0. tournaments 301/301 회귀0. regex 12 KO명 제외+예선명(예선/조별리그/1라운드/리그전/풀리그/A조/라운드로빈) false positive 0 실증. bracket_position=0 falsy함정 회피(`!=null`). 격리 NULL/undefined 폴백 5케이스 정확. divisionCode분기·시그니처·schema·api·호출부 diff0. 미커밋.
+
+🟡 참고(이번 변경과 무관·기존 실패):
+- 전체 vitest(1113) 중 **4건 실패**(tournament-delete.test 2 + running-score-helpers.test 2). **★stash 검증**: update-standings.ts 변경 stash 후 변경 전 상태에서도 동일 4건 실패 재현 = **pre-existing 실패(이번 회귀 아님)**. 두 실패 테스트·대상소스 모두 update-standings import 0(의존성 무관). tournament-delete=`tx.tournamentMatch.findMany undefined`(mock 누락) / running-score-helpers=`team_side home/away` 누적 정합. 별도 작업 영역(본 PR 범위 외).
+
 ### Phase 12 Batch B 박제 검증 (2026-06-14) — ✅ PASS (미커밋)
 대상: globals.css(+97 Batch B 블록)/stats·calendar·scrim(server화 준비중)/team-invite-client(준비중)/court-submit-form(정적폼)/saved-content(시각만). 정적검증+tsc+self-grep+diff0 회귀실측.
 
@@ -295,6 +454,42 @@
 
 ## 리뷰 결과 (reviewer)
 
+### PR-MOCK-TO-REAL ① /stats 실데이터 연결 리뷰 (2026-06-14) — ✅ APPROVE (미커밋)
+대상: `my-season-stats.ts`(신규+419) / `stats/page.tsx`(server 재작성) / `_v2/stats-client.tsx`(신규) / `globals.css` `.st-*`(+84). tsc EXIT=0(stats 에러 0·전체 0). 변경 4파일·stats 디렉토리 mock 잔존 0 실측.
+
+📊 종합 판정: **APPROVE** (critical 0 / major 0 / minor 1)
+
+✅ 잘된 점 (리뷰 포커스 1~6 전부 통과):
+- **① 0행 테이블 직접매핑 회피**: UserSeasonStat/ShotZoneStat 직접 SELECT 0건(grep 확인). MatchPlayerStat(officialMatchNestedFilter 가드) 단일 source findMany 1건 + JS 시즌가공. 영구 빈화면 함정 정확히 우회. ZONES=항상 준비중 빈상태(억지 매핑 0).
+- **② getPlayerStats 회귀 격리 완벽**: `src/lib/services/user.ts:252` getPlayerStats **git diff 0줄** 실측. 신규 `my-season-stats.ts` 분리로 공유함수 미접촉. officialMatchNestedFilter(공식기록 가드) 재사용·재정의 0.
+- **③ mock 0 / 빈상태 4종**: 시안 더미상수(14.2/장충픽업/trend[]/RANKINGS) 전량삭제. 비로그인(lock+/login)·ttp0(sports_basketball+/tournaments)·시즌0건(query_stats)·ZONES(준비중) 4분기 전부 실빈상태. 클럽순위 rows0→카드 hide(억지 SPLIT 0). 가짜데이터 잔존 0.
+- **④ 집계 정확성 견고**: 시즌경계=scheduledAt.getFullYear()(NULL 방어 `if(at)`). 본인 ttp 조인(userId→ttp.id→MatchPlayerStat.tournamentTeamPlayerId). **att0 분모가드** `pct()`=att≤0→null("-" 표기, 0% 왜곡 금지) 정확. winner_team_id NULL=`winnerId!=null && myTeamId!=null` 가드로 decided 미집계(result="-"). 슈팅%=시즌합 made/att(평균의평균 아님 = 정확). 승률=wins/decided(미정경기 분모 제외). schema 필드명 정합(total_rebounds/winner_team_id=raw / minutesPlayed/fieldGoalsMade=camel @map) — tsc 통과로 관계경로(homeTeam.team.name) 입증.
+- **⑤ 강조색·토큰·postcss**: `.st-*` 14셀렉터 전부 `var(--cafe-blue)`(:root #0F5FCC/#3B82F6 실재)·`var(--ink-*)`·`var(--border)`·`var(--radius-card)`. 하드코딩 hex/lucide/9999/폐기--color-* 0. **★주석 구분자 쉼표 사용**(L6873 "슬래시 금지" 명시) → `*/` 조기종료 0 (errors[06-14] 재발 차단 입증 — Batch B L6779/L6388 동일버그를 본 PR은 회피). CSS `--accent`(빨강) 미사용·시안 빨강→cafe-blue 치환 결재 준수.
+- **⑥ server/client 분리·타입안전·0스키마**: page=server(getWebSession→getMySeasonStats→빈상태 직접렌더→데이터 시 StatsClient prop). 시즌전환=옵션A(page 전시즌 perSeason 선계산→클라 useState 필터, **신규 라우트/API 0**·Stop 준수). prisma 직접(apiSuccess 미경유)이라 camelCase 일관·snake 혼동 무관. BigInt 없음(전부 number/string)→JSON 직렬화 안전. 인터페이스(MySeasonStatsResult) page↔client 1:1.
+
+🟡 권장 수정 (minor — 동작영향 0·후속·본 PR 범위 밖):
+- [브레드크럼/빈상태 중복] page.tsx의 `StatsShell`/`EmptyCard`(server 빈상태)와 stats-client.tsx의 브레드크럼·시즌내 빈상태가 각각 재구현(코드 중복 소량). server/client 경계상 prop 직렬화 불가한 JSX라 불가피·동작영향 0. 향후 공통 마크업 헬퍼 분리 검토 가능하나 본 PR 보류 권장.
+
+발견: 0행 테이블 우회·getPlayerStats diff0 회귀격리·mock0·att0 분모가드·winner NULL 가드·공식기록 가드·cafe-blue 토큰·postcss 조기종료 회피·라우트0·타입안전 전부 통과. 집계 로직(슈팅% 시즌합·승률 decided분모·시즌경계 연도) 정확. 코드 리뷰 관점 커밋 가능. DB 변경 0(전부 read-only).
+
+### 순위표 집계 근본 수정 리뷰 (2026-06-14) — ✅ APPROVE (미커밋) — PR-STANDINGS-ROOT-FIX
+대상: `src/lib/tournaments/update-standings.ts` 1파일. isPrelimMatch 3중 OR + 조별 격리 + SELECT 4필드 확장. 설계서 standings-aggregation-root-fix-plan-2026-06-14.md 대조. tsc EXIT=0 / vitest 332 통과(dev 보고).
+
+📊 종합 판정: **APPROVE** (critical 0 / major 0 / minor 1)
+
+✅ 잘된 점 (리뷰 포인트 1~6 전부 통과):
+- **③ undefined/null 안전 — 느슨 비교 채택이 옳음(★검증 입증)**: `m.round_number != null && m.bracket_position != null` → null+undefined 둘 다 폴백. schema 실측 `round_number Int?`/`bracket_position Int?` 둘 다 nullable·SELECT 추가됨(항상 채워짐, 없으면 null). ★결정적 증거: 기존 test의 MockMatch 타입에 신규 필드가 **없는데도** 332테스트 통과 — mock이 undefined 반환 시 `!= null`이 정확히 예선 폴백. 엄격 비교였다면 깨졌을 케이스를 느슨 비교가 흡수.
+- **조별 격리 정확**: `hg !== null && ag !== null && hg !== ag` → 양쪽 NOT NULL+다름만 skip. 한쪽 NULL=격리 안 함(전체1조=기존동작). self·동일조 정상 합산. groupName `String?`(nullable)·homeTeam/awayTeam relation 정상. completed/draw 양쪽 loop 동일 적용.
+- **회귀 안전**: divisionCode 분기(matchesWhere) 미접촉, 그 안쪽에 필터/격리만 추가. round_robin/league/single=결승·조간매치 부재→영향0. full_league_knockout 6대회=버그상태→개선. dual=standings 미사용·팀 groupName NULL→무해.
+- **`/순위/` 흡수 동일성**: RANKING_ROUND_REGEX(`/순위/`)가 isPrelimMatch ①에 그대로. 기존과 동작 동일. ①에 `m.roundName &&` 가드 추가돼 roundName=null 시 정상 통과(더 안전).
+- **시그니처/호출부 호환**: `updateTeamStandings(matchId)` 불변. 호출부 5종(finalize/match-sync/batch-sync/web route/match.ts) 무영향. schema/api 변경0. SELECT 4필드 추가는 동일 findMany 컬럼/relation 추가뿐→쿼리수 증가0·성능 무시·무한루프 없음.
+- **KNOCKOUT_ROUND_REGEX false positive 위험 낮음**: `[0-9]+\s*강`="n강"만·`[0-9]+\s*위\s*전`="n위전"만 매칭. "예선"/"1라운드"/조명(A/B조) 오제외 0. generator의 예선 roundName은 group_name 기반이라 숫자+강 조합이 예선에 나올 구조 아님(placeholder-helpers buildSlotLabel 확인). #301 같은 좌표NULL 결승은 ② KO 키워드로, 좌표부여 후엔 ③으로도 잡힘(이중).
+
+🟡 권장 수정 (minor — 동작영향 0·후속·본 PR 범위 밖):
+- [정규식 중복 정의] RANKING_ROUND_REGEX(`/순위/`)가 update-standings.ts·placeholder-helpers.ts:266·playoffs-client.tsx:88·divisions-view.tsx:87 **4곳 중복**(주석으로 "동일" 명시). KNOCKOUT_ROUND_REGEX도 단독 정의. 현재 동작 무결하나 향후 패턴 변경 시 누락 위험 — 공통 export 통합 검토 가능. **동작하는 코드 리팩토링이라 본 PR선 보류 권장**.
+
+발견: 핵심 로직(3중OR 결승제외·조별격리·NULL폴백) 설계서 정합·null-safe·회귀0. 느슨비교 채택이 기존 test 무수정 통과로 입증됨. DB 재박제(#301)·좌표부여는 본 작업 범위 외(PM 승인 게이트 후속). 코드 리뷰 관점 커밋 가능.
+
 ### Phase 12 Batch B 박제 리뷰 (2026-06-14) — 🔴 CHANGES 요청 (미커밋)
 대상: globals.css(+97) / stats·calendar·scrim page.tsx / team-invite-client.tsx / court-submit-form.tsx / saved-content.tsx. SV1 page.tsx·SE1 diff 0 실측. tsc EXIT=0.
 
@@ -401,6 +596,8 @@
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
 |------|------|------|
+| 2026-06-14 | **PR-MOCK-TO-REAL ① stats 실데이터 연결** (developer) | ✅ /stats 준비중→시안 대시보드+실데이터. MatchPlayerStat(2375행) 단일source+JS시즌가공(UserSeasonStat·ShotZoneStat 0행 우회). 신규 my-season-stats.ts(헬퍼·회귀격리)+stats-client.tsx(시즌셀렉터·3탭·KPI·TREND·클럽순위·로그)+page.tsx server재작성+globals.css `.st-*`(+84). **getPlayerStats diff0**(미변경)·강조색cafe-blue(06-10폴백함정회피)·레이팅"—"·ZONES/SPLIT hide·빈상태4종·옵션A(라우트/api0). 실측 userId=2837=2026 7경기 PPG3.1. postcss 14셀렉터OK(06-14 `*/`0)·tsc EXIT0·하드코딩hex/lucide/9999 0. 4파일(신규2+수정2). 미커밋 |
+| 2026-06-14 | **순위표 집계 근본 수정 리뷰** (reviewer) | ✅ APPROVE(c0/maj0/min1). PR-STANDINGS-ROOT-FIX update-standings.ts. ③ `!= null` 느슨비교 안전(schema round_number/bracket_position 둘다 Int?·기존test MockMatch 신규필드 없이 332통과=폴백 입증)·조별격리 NULL폴백 정확·divisionCode분기 미접촉·`/순위/` 흡수동일·시그니처/호출부5종 호환·schema/api0·KNOCKOUT regex false positive 위험낮음(n강/n위전만·예선 group_name기반). minor: RANKING/KNOCKOUT regex 4곳 중복(공통export 후속·동작하는코드 보류). DB재박제(#301)는 범위밖. 미커밋 |
 | 2026-06-14 | **Phase 12 Batch B 박제 리뷰** (reviewer) | 🔴 CHANGES(c0/maj1/min1). SV1 데이터보존(page.tsx diff0·인증/IDOR/직렬화·props만·시안더미0)·SE1 diff0·mock0(ST1/CA1/SC1/TV1 server화·.ex-empty)·CV1 정적폼 noop 적정·StepWizard 미고아·tsc0 전부 통과. **★major: globals.css L6779 주석 `--accent*/`의 `*/` 조기종료→`.ex-tabs{display:flex}` 셀렉터 오염·규칙 소실(postcss 실파서 입증)→SV1 탭 깨짐. 연쇄로 L6388(Batch A) 동일 버그→`.ex-page-w{max-width}` 소실(전7화면 본문폭). grep 오판분 실파서로 검출.** L6779·L6388 수정 후 재검 요망. 미커밋 |
 | 2026-06-14 | **Phase 12 Batch B 박제 검증** (tester) | ✅ PASS 8/8. mock0(ST1/CA1/SC1/TV1 더미 13종 grep0→.ex-empty·server화 / CV1 제출=alert noop·INSERT0 / SV1 props실데이터·시안더미 박제0·미지원4탭 빈상태)·**diff0 회귀**(saved/page.tsx+series/[slug]/page.tsx+series-detail-tabs.tsx 전부0·데이터패칭/인증/IDOR보존)·토큰위반0(폐기토큰/9999/lucide/hex 0·#fff만 의도색·참조토큰28종 :root실재·`*/`조기종료0·클래스중복정의0)·active prop조작0·720 1열/iOS16px. tsc EXIT0. 미커밋 |
 | 2026-06-14 | **Phase 12 Batch B 박제** (developer) | ✅ 7화면. globals.css Batch B 블록 +97(`.ex-tabs`/`.ex-mono*`/`.sv-*`/`.fm-*`+720). ST1/CA1/SC1/TV1=server화·더미전량삭제→`.ex-empty` 준비중 / CV1=`.fm-*` 정적폼(제출 noop alert·INSERT0) / SV1=`.sv-*`/`.ex-tabs` 시각교체(props·필터로직 무변경). **SV1 saved/page.tsx diff0·SE1 page.tsx+series-detail-tabs.tsx diff0 실측**. 7파일 +568/-3608. mock0·하드코딩hex0·폐기토큰0·렌더이모지0·9999·0·lucide0·신규DB/라우트/api/v1 0·active prop조작0. tsc EXIT0. 미커밋 |
