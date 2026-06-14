@@ -487,12 +487,27 @@ export async function syncSingleMatch(
   //   룰: Flutter app 의 QS=0/0 박제는 PBP 합으로 덮어쓰기 / paper 매치는 위에서 skip 되었으므로
   //        score-sheet BFF 박제 QS 그대로 보존 (autoQuarterScores=undefined).
   const effectiveQuarterScores = autoQuarterScores ?? match.quarter_scores;
+
+  // 2026-06-14 completed 역전 차단 가드:
+  //   이미 completed 박제된 매치를 Flutter sync 가 scheduled/live/in_progress 로 되돌리는 사고 방지.
+  //   룰: existing 이 completed 인데 들어온 match.status 가 completed 아니면 → completed 유지(역전 무시).
+  //   정방향(scheduled→...→completed) · completed→completed 재sync 는 그대로 허용(회귀 0).
+  //   존스(L528) 알기자 trigger 는 match.status === "completed" 조건이라 역전 차단 시 발동 안 함(정상).
+  const effectiveStatus =
+    existing.status === "completed" && match.status !== "completed"
+      ? "completed"
+      : match.status;
+  if (effectiveStatus !== match.status) {
+    console.warn(
+      `[sync-guard] match ${matchId} completed 역전 차단: ${existing.status}→${match.status} 무시, completed 유지`
+    );
+  }
   await prisma.tournamentMatch.update({
     where: { id: matchId },
     data: {
       homeScore: correctedHomeScore,
       awayScore: correctedAwayScore,
-      status: match.status,
+      status: effectiveStatus,
       ...(winnerTeamId && winnerTeamId !== existing.winner_team_id
         ? { winner_team_id: winnerTeamId }
         : {}),

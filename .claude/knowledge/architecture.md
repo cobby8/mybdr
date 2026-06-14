@@ -13,6 +13,29 @@
   - **TTP.role 실측(2026-06-14)**: player 1017 / coach 4 / **manager 0건**(is_active 동일). manager 분기 코드 불필요. coach만 명단 분리.
 - **참조횟수**: 0
 
+### [2026-06-14] Phase 12 Batch B 7화면(DB연결군) 데이터 출처 실측 맵 + SE1 라우트 확정
+- **분류**: architecture (extras 7화면 데이터원 + 박제 전략 + 동적 라우트 확정)
+- **발견자**: planner-architect (Phase 12 Batch B 박제 설계 / 운영 SELECT 0·schema grep+page.tsx 정독)
+- **내용**:
+  - **★SE1 동적 라우트 = `[slug]` 확정**(`[id]` 아님): `(web)/series/[slug]/page.tsx`(server·unstable_cache 30s ISR) + `series-detail-tabs.tsx`(client 4탭 회차계보/명예의전당/통계/소개). **이미 완전 박제**: `tournament_series.findUnique({where:{slug},include:{organization,tournaments}})` → 회차(edition_number desc·is_public 가드) 실데이터 와이어 / 회차행→`/tournaments/[id]` cross-domain / hero(설립=created_at·tournaments_count) / stats(누적회차·누적참가팀·진행중 실집계+평균득점 폴백) / **honors=winner/MVP 컬럼 부재→"추후제공" 폴백** / aside latestActive(registration_open/ongoing/published)→참가신청CTA·알림 disabled. 신규신설0.
+  - **★schema grep 실측(운영 SELECT 0)**: `scrim_*`·`court_submission*`·`team_invit*` **부재(grep 0)** / `board_favorites`(L1015)·`user_favorite_courts`(L2097)·`match_player_stats`(L786, idx points/assists/total_rebounds) **실재**.
+  - **★SV1(/saved) = 이미 DB 연결(의뢰 가정과 다름)**: page.tsx(server)가 `board_favorites`(즐겨찾는 게시판·position asc) + `user_favorite_courts`(즐겨찾는 코트·courts join·last_used_at desc) **본인 실조회** + getWebSession 인증 + BigInt→string·Date→ISO 직렬화 + IDOR 가드 + 비로그인 인라인 로그인카드 + 미지원5탭(게시글/경기/대회/팀=북마크 테이블 부재→빈배열 "준비중"). DTO=SavedBoard/SavedCourt. 박제전략=**page.tsx 데이터패칭 보존·`_v2/saved-content.tsx` 시각만 v2.31·시안더미(MONKEYZ 등) 박제❌**.
+  - **박제 전략 분기**: ST1(match_player_stats 실재나 본인시즌집계 경로 미구현·100%더미)·CA1(통합일정 API 부재·100%더미)·TV1(TeamInvitation 부재)·SC1(scrim_* 부재)=**준비중 빈상태**(.ex-empty·더미 전량삭제 mock❌) / **SV1=실데이터 보존+시각** / CV1(court_submissions 부재)=**정적 폼 박제**(`.fm-*`·제출 noop·SF1/RI1 정적 동형) / SE1=시각정합 or SKIP.
+  - **CSS 이식**: `.ex-*` 셸 Batch A 완료(globals L6394~). B 추가 필수=**`.sv-*`(SV1)+`.fm-*`(CV1)**(+옵션A시 `.se-*`). 빈상태4화면=.ex-empty만→화면별 토큰(.st-/.cal-/.sc-/.ti-) 이식 보류 가능. extras-pages.css(427L)에 .st-/.cal-/.sv-/.se-/.sc-/.ti-/.fm- 전부 정의됨.
+  - **AppNav active**(pathname 자동·prop조작0): ST1=rank/CA1=more/SV1=more/SE1=tn/TV1=team/CV1=court/SC1=games.
+- **참조횟수**: 0
+
+### [2026-06-14] Phase 12 Batch A 6화면(정적/저위험) 데이터 출처 실측 맵
+- **분류**: architecture (extras 페이지 데이터원 + 박제 전략)
+- **발견자**: planner-architect (Phase 12 Batch A 박제 설계 / 운영 SELECT 1회)
+- **내용**:
+  - **6화면 라우트 전부 기존재** (신규 라우트 0): `/referee-info`(server·metadata SEO) / `/safety`(client 4탭더미) / `/coaches`(client 더미6) / `/gallery`(client 더미12+lightbox) / `/shop`(client 더미12) / `/awards`(server prisma직결+`_v2/awards-content.tsx` client).
+  - **★운영 실측(SELECT only·영향0)**: news_photo **1건**(is_hero 0)·앨범테이블 0 → GL1 준비중 / TTP.role **coach 4·player 1018**(coach=대회 출전 코칭스태프 ≠ 레슨코치 도메인·시급/평점/예약 테이블 0) → CC1 준비중 / tournament mvp_player_id(public) **0**·champion_team_id(public) **0**·active series 3·mps **2375** → AW1 MVP·우승팀 현재 빈상태(page.tsx 폴백)·시즌리더(득점/어시/리바 raw SQL)는 산출가능.
+  - **박제 전략 분기**: RI1·SF1=정적 시안 박제(0스키마·mock아님) / CC1·GL1·SH1=**준비중 빈상태(ex-empty)**·기존 더미 전량삭제(mock❌) / AW1=**기존 실데이터 서버쿼리 100%보존**(page.tsx 585줄 5블록·officialMatchWhere 가드 / awards-content.tsx 시각만 v2.31 교체·best5/스틸왕/매너상 DTO없으면 준비중).
+  - **AW1 awards 서버쿼리 구조**: page.tsx = `?series=<slug>` 시즌선택 → tournament_series(is_public·active) / mvp=tournament.mvp_player_id 최신종료 / leaders=match_player_stats raw SQL GROUP BY user(AVG points/assists/total_rebounds·`OFFICIAL_MATCH_SQL_CONDITION`) / finalsMvp=roundName LIKE 결승|final / champions=champion_team_id NOT NULL 10건. DTO BigInt→string·Decimal→number. awards-content(client)=시즌셀렉터 router.push + `pickHonorPlayer` default null=준비중.
+  - **AppNav active**: 5화면 더보기 / awards=rankings. `app-nav.tsx` L196 `isActive(t.href)` pathname 자동판정(page active prop 없음).
+- **참조횟수**: 0
+
 ### [2026-06-10] 대회 종료 뷰 0스키마 데이터원 + 스탯리더 집계 패턴
 - **분류**: architecture (종료 뷰 데이터 매핑 + 신규 집계 헬퍼)
 - **발견자**: planner-architect (대회종료 재구성 박제 설계 중)

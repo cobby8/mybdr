@@ -16,6 +16,29 @@
 ## 기획설계 (planner-architect)
 (완료 — 완료 Phase 압축)
 
+### Phase 12 Batch B 박제 설계 (2026-06-14, read-only · 코드·DB 변경 0)
+- **목표**: v2.31 Phase 12 Batch B(DB연결 7화면 ST1/CA1/SV1/SE1/TV1/CV1/SC1) 데이터 실측+박제 설계
+- **설계서**: `Dev/phase12-batchB-bake-plan-2026-06-14.md`
+- **★SE1 라우트 결론**: `[slug]` 존재(`[id]`아님)·**이미 완전 박제됨**(tournament_series+tournaments 회차 실데이터 와이어/4탭/누적순위=DB미지원 폴백). 신규신설0·신규박제도 사실상 불필요 → **옵션A(시각 미세정합·데이터 diff0) or SKIP** PM결정
+- **★데이터출처 실측(운영 SELECT 0·schema grep+page.tsx 정독)**: scrim_*/court_submission*/team_invit* **부재**(grep0) / board_favorites L1015·user_favorite_courts L2097·match_player_stats L786 **실재**
+- **전략 분기**: ST1/CA1/TV1/SC1=**준비중 빈상태**(더미 전량삭제·mock❌) / **SV1=★이미 DB연결**(board_favorites+user_favorite_courts 실조회·인증·IDOR 완비 → page.tsx 데이터패칭 100%보존·saved-content.tsx 시각만 v2.31·미지원탭 빈상태) / CV1=**정적 폼 박제**(court_submissions 부재→제출 noop·SF1/RI1 동형) / SE1=시각정합 or SKIP
+- **AppNav active**(§1·pathname 자동·prop조작0): ST1=rank/CA1=more/SV1=more/SE1=tn/TV1=team/CV1=court/SC1=games
+- **CSS 이식**: .ex-* 셸은 Batch A 완료(globals L6394~). B 추가이식 **필수 = .sv-*(SV1)+.fm-*(CV1)**(+옵션A시 .se-*) / 빈상태4화면=.ex-empty만 → 화면별토큰 보류가능. 치환표준 Batch A 답습(--r-*→--radius-*/#8B5A0F→--warn/hero hex→--bdr-navy/#fff→--ink-on-brand/9999→50%)
+- **순서**: ①CSS이식 ②빈상태4(병렬) ③CV1폼 ④SV1(데이터보존) ⑤SE1(옵션A) → ⑥tester+reviewer. 빈상태4=옵션B(tester만) / SV1·CV1·SE1=reviewer병렬
+- **규모/위험**: 빈상태4=낮음(-450~750LOC) / **SV1=중**(인증·IDOR·데이터패칭 회귀금지) / CV1·SE1=낮음
+- **PM 확인 2건**: ①SE1 옵션A vs SKIP(권장 SKIP/A) ②TV1 빈상태 vs CV1 정적폼 비대칭 처리 승인(TV1=가짜초대 mock위험→빈상태 / CV1=폼입력 noop=SF1동형→폼박제)
+
+### Phase 12 Batch A 박제 설계 (2026-06-14, read-only · 코드·DB 변경 0)
+- **목표**: v2.31 Phase 11/12 Batch A 정적/저위험 6화면(RI1/SF1/CC1/GL1/SH1/AW1) 박제 설계
+- **설계서**: `Dev/phase12-batchA-bake-plan-2026-06-14.md` (화면별 데이터출처·변경명세·토큰매핑·회귀·규모/위험 + AppNav active + Stop conditions 8)
+- **★운영 SELECT 1회 실측(영향 0)**: GL1 news_photo 1건(is_hero 0)·앨범0 / CC1 TTP.role coach 4(=대회 코칭스태프≠레슨코치)·player 1018 / AW1 mvp public 0·champion public 0·active series 3·mps 2375
+- **데이터출처 확정**: RI1 정적(0스키마) / SF1 정적안전가이드(현 4탭더미→시안 6카드 교체) / CC1·GL1·SH1 **준비중 빈상태(ex-empty·mock❌)** / AW1 **기존 실데이터 서버쿼리 100%보존**(awards-content.tsx만 v2.31 시각교체·page.tsx diff 0 의무)
+- **AppNav active**: RI1/SF1/CC1/GL1/SH1=more / AW1=rankings (pathname 자동판정·page active prop 조작금지)
+- **토큰매핑**: 시안 --r-lg/md/sm/xs→--radius-card/chip / 하드코딩 #8B5A0F·#F4C76C·#1A1E27→--warn·--bdr-navy / 이모지(🛒♡★▶📷등)→Material Symbols / pill99→--radius-chip. 강조=--cafe-blue(빨강은 CTA·MVP face 의도색만, errors.md61)
+- **순서**: ①RI1+SF1 ②CC1+GL1+SH1 ③AW1(page.tsx보존) 전부 병렬가능 → ④tester+reviewer. 준비중5화면=옵션B(tester만) 가능 / AW1만 reviewer 병렬
+- **규모/위험**: 5화면 낮음(더미 대량삭제 -300~560 LOC) / AW1 中(실데이터 와이어·best5/스틸왕/매너상 DTO없으면 준비중·mock금지)
+- **PM 확인**: SF1 — 현 차단/신고 4탭(전부 더미)을 시안 정적 안전가이드로 교체 = 기능손실 0(더미였음) 진행 여부
+
 ### PR-LINEUP-V2 사전 라인업 앱정합 박제 설계 (2026-06-14, read-only)
 - **목표**: 웹 2-state(출전+주전)→앱 bdr_stat_v3 roster_confirm 3-state(선발/벤치/제외)+주장(C)+벤치캡7+정원12+포지션제거
 - **설계서**: `Dev/lineup-v2-bake-plan-2026-06-14.md` (시안6상태·단계명세·회귀가드R1~R11·schema diff·role결정)
@@ -29,6 +52,56 @@
 
 ## 구현 기록 (developer)
 (완료 — 완료 Phase 압축)
+
+### sync completed 역전 차단 가드 (2026-06-14)
+📝 구현: Flutter sync 가 이미 completed 박제된 매치를 scheduled/live/in_progress 로 되돌리는 사고 차단. 공통 가드(effectiveStatus)를 2개 sync 경로에 삽입.
+
+| 파일 | 변경 | 신규/수정 |
+|------|------|----------|
+| `src/lib/services/match-sync.ts` | update data 직전 effectiveStatus 계산(L489 부근). `status: match.status`→`status: effectiveStatus`. 역전 시 console.warn. **existing 재사용(추가 DB조회 0)**. L528 알기자 trigger 는 `match.status==="completed"` 조건이라 역전 차단 시 미발동(정상) | 수정 |
+| `src/app/api/v1/tournaments/[id]/matches/batch-sync/route.ts` | tx.update 직전 effectiveStatus 계산(L88 부근). `status: match.status`→`status: effectiveStatus`. ★throw 금지 — 조용히 status 만 고정 후 점수/QS 박제 → synced++ 정상. existing(L47) 재사용 | 수정 |
+
+가드 룰: `existing.status === "completed" && match.status !== "completed"` → "completed" 유지, 아니면 match.status 그대로. 정방향·completed→completed 재sync 허용(회귀 0). 응답 shape·schema 불변. 점수/기록 sync 그대로(status 역전만 차단).
+
+💡 tester 참고:
+- 테스트: completed 매치에 status="in_progress"(또는 scheduled/live) sync → DB status 는 completed 유지·점수/QS 는 박제됨 확인. 서버 로그 `[sync-guard] match ... 역전 차단` 출력.
+- 정상: 정방향(scheduled→live→completed)·completed→completed 재sync 는 그대로 통과(차단 0). batch-sync 는 역전이어도 synced++(failed 아님).
+- 주의입력: completed→completed(동일) 은 차단 대상 아님(effectiveStatus===match.status). batch 에서 역전 매치 섞여도 다른 매치 정상 처리.
+
+⚠️ reviewer 참고:
+- match-sync.ts: 알기자 trigger(L528)가 차단 시 발동 안 하는 것이 의도된 정상(역전이면 completed 신규 전환 아님). isReset(L534)는 match.status 기반 — 역전 차단과 독립.
+- batch-sync: throw 금지 의무 준수(synced 카운트 보존). FIBA 가드(L76 throw)는 match.status==="completed" 경로라 역전 차단과 무관.
+- tsc --noEmit EXIT=0.
+
+### Phase12 Batch A (2026-06-14)
+📝 구현: v2.31 Phase 12 Batch A 정적/저위험 6화면(RI1/SF1/CC1/GL1/SH1/AW1) 박제. globals.css 끝 `.ex-*`/`.ri-*`/`.sf-*`/`.co-*`/`.gl-*`/`.sh-*`/`.aw-*` 토큰치환 이식 + 화면별 page.tsx 재작성.
+
+| 파일 | 변경 | LOC | 데이터출처 | 신규/수정 |
+|------|------|-----|-----------|----------|
+| `globals.css` | Phase12 Batch A CSS 블록 append(+391). 토큰치환: --r-lg/md→--radius-card·--r-sm/xs→--radius-chip·--err→--color-error·#8B5A0F/#F4C76C→--warn·#1A1E27/#2B3242→--bdr-navy 그라디언트. `.page__inner` 기존(L5189) 충돌 회피 위해 base max-width를 `.ex-page-w`로 분리 | +391 | — | 수정 |
+| RI1 `referee-info/page.tsx` | server(metadata SEO 보존)→본문 client 위임. v2.4 카드3종→시안 8섹션 복원 | -171/+? | 정적(0DB) | 수정 |
+| RI1 `referee-info/_components/referee-info-content.tsx` | client·FAQ accordion. 시안 정적 8섹션(Hero/통계4/하는일4/등급3/절차4/정산표/FAQ5/CTA). CTA href #→/referee·/help 실라우트 | +238 | 정적 | **신규** |
+| SF1 `safety/page.tsx` | client→server 단순화. 차단/신고 4탭 더미 전량 삭제→시안 안전가이드 6카드+신고/긴급 2카드(도움말 링크 유지) | +120/-330 | 정적 | 수정 |
+| CC1 `coaches/page.tsx` | 더미(COACHES6/BOOKED2) 전량 삭제→시안 셸(ex-head+chip client)+`ex-empty`"코치 매칭 준비 중" | +90/-380 | 준비중(mock0) | 수정 |
+| GL1 `gallery/page.tsx` | 더미(ITEMS12+lightbox+SVG+이모지) 전량 삭제→client→server. 시안 셸+`ex-empty`"갤러리 준비 중" | +60/-560 | 준비중 | 수정 |
+| SH1 `shop/page.tsx` | 더미(PRODUCTS12+cart+이모지) 전량 삭제→client→server. 시안 Hero(토큰화)+`ex-empty`"샵 오픈 준비 중" | +70/-410 | 준비중 | 수정 |
+| AW1 `awards/page.tsx` | **미변경(diff 0 실측)** — 서버 prisma 데이터패칭/raw SQL/DTO/officialMatchWhere 가드 전부 보존 | 0 | 실데이터 보존 | 미변경 |
+| AW1 `awards/_v2/awards-content.tsx` | v2.31 시각 재작성. hero(bdr-navy 그라디언트+시즌셀렉터 ?series= 흐름 보존)/MVP(seasonMvp DTO·0건 빈상태)/베스트5(leaders 3명 실데이터·나머지2슬롯 준비중)/부문별(scoring/assists/rebounds 실데이터·스틸/레이팅/매너 준비중). best5 mock0 | +? | 실데이터 와이어 | 수정 |
+
+변경량: 7파일 수정(+780/-2627) + 1파일 신규(+238). awards-catalog.ts는 orphan(미import)되나 미삭제(page.tsx 영향0).
+
+💡 tester 참고:
+- 테스트: 6라우트 직접 진입(/referee-info·/safety·/coaches·/gallery·/shop·/awards). 비로그인 열람 가능(RI1 SEO).
+- 정상: RI1 FAQ 아코디언 토글·CTA /referee·/help 이동 / SF1 6카드+신고2카드 정적·신고카드→/help / CC1 chip 토글되나 결과는 빈상태 "코치 매칭 준비 중" / GL1·SH1 빈상태(SH1은 Hero 정적 노출) / AW1 시즌셀렉터 ?series= 클릭→재페치, MVP 0건이면 "선정된 MVP 없음" 빈상태, best5 leaders 있으면 카드·없으면 "준비 중" 슬롯, 부문별 득점/어시/리바 실데이터.
+- AW1 핵심: page.tsx **diff 0**(git diff 실측 통과). 실데이터 와이어(현재 운영 mvp 0건→빈상태 폴백 정상).
+- 주의입력: AW1 ?series=<없는slug> → page.tsx가 seasons[0](전체) 폴백 / leaders 0건 시 best5 전부 준비중 / MVP teamName null → "—".
+
+⚠️ reviewer 참고:
+- AW1 page.tsx 절대 미변경 — `git diff src/app/(web)/awards/page.tsx`=0 실측 완료. awards-content.tsx만 시각 교체. DTO 타입(AwardsDataDTO/PlayerRefDTO/SeasonMvpDTO) page.tsx export 그대로 import.
+- best5 mock 함정: 시안 더미("김지훈" 등) 박제 안 함. DTO leaders 3명만 실데이터·나머지 2슬롯 준비중. 포지션별 best5 데이터 DTO 없어서 슬롯 라벨=부문명(득점/어시/리바/수비/신인)으로 정직 표기.
+- 토큰: globals 신규블록 하드코딩색 0(`#fff`=브랜드배경 흰글자 의도색·`rgba(0,0,0/.7)`=오버레이 표준만). 폐기토큰(--r-*/--err) 치환 누락 0. 9999px 0. `*/` 조기종료 0. JSX 이모지/lucide 0.
+- `.page__inner` 충돌 회피: 기존 L5189(margin만)는 정보페이지 공유 → base max-width를 `.ex-page-w`로 분리(기존 미변경·회귀0). 시안 화면은 `page__inner ex-page-w` 또는 `page__inner page__inner--wide ex-page-w` 조합.
+- tsc --noEmit EXIT=0 / next lint 6파일 이슈0.
 
 ### PR-LINEUP-V2 [3] UI (2026-06-14)
 📝 구현: 사전 라인업 확정 UI를 앱 bdr_stat_v3 roster_confirm 정합으로 전면 재작성 (2-state→3상태 roles맵+주장(C)+undo+포지션제거). [1]스키마·[2]API 선행 완료.
@@ -88,6 +161,51 @@
 
 ## 테스트 결과 (tester)
 
+### sync completed 역전 차단 가드 검증 (2026-06-14) — ✅ PASS (미커밋)
+대상: match-sync.ts(L491~510) + batch-sync route.ts(L88~108). 정적검증 위주(/api/v1 실호출은 운영이라 금지) + tsc + vitest.
+
+| # | 항목 | 결과 | 비고 |
+|---|------|------|------|
+| 1 | tsc --noEmit | ✅ 통과 | EXIT=0, 에러 0 |
+| 2 | ★★가드 로직 정합(두 파일 동일) | ✅ 통과 | `existing.status==="completed" && match.status!=="completed" ? "completed" : match.status` 문자 그대로 동일. match-sync L496~499 / batch-sync L93~96 |
+| 3-1 | 정방향 회귀 0 (scheduled→live 등) | ✅ 통과 | 첫 항 `existing.status==="completed"` false → effectiveStatus=match.status. scheduled→live/live→in_progress/in_progress→completed/scheduled→completed 전부 그대로 통과 |
+| 3-2 | completed→completed 재sync 통과 | ✅ 통과 | existing=completed지만 둘째 항 `match.status!=="completed"` false → 조건 false → match.status(completed) 유지. 차단 안 됨 |
+| 4 | ★역전 차단(completed→live/in_progress/scheduled) | ✅ 통과 | 두 항 모두 true → effectiveStatus="completed" 고정. update data.status=effectiveStatus(match-sync L510/batch L108). console.warn `[sync-guard]` 출력 |
+| 5 | ★batch-sync throw 없음(synced++ 보존) | ✅ 통과 | 가드 블록(L93~101) console.warn만·throw 0. effectiveStatus 후 tx.update 정상완료→synced++(L146). for 루프 독립이라 한 경기 가드가 batch 전체 미실패 |
+| 6 | 점수/기록 sync 무영향(status만 차단) | ✅ 통과 | update data에서 status만 effectiveStatus. homeScore/awayScore·quarterScores·player_stats upsert·play_by_plays upsert 전부 가드와 무관하게 그대로 박제(match-sync L508~539·566~702 / batch L106~110) |
+| 7 | 응답 shape 불변·추가 DB조회 0 | ✅ 통과 | match-sync data 객체(L747~757)·batch apiSuccess({synced,failed,errors})(L173) 불변. existing 재사용(match-sync L399~415·batch L47)으로 effectiveStatus 계산 추가 쿼리 0 |
+| 8 | 알기자 trigger 역전 시 미발동(의도) | ✅ 통과 | match-sync L543 `existing.status!=="completed" && match.status==="completed"` 역전(existing=completed) 첫 항 false→미발동. batch L128 `match.status==="completed"` 역전(비completed) 미발동. 의도된 정상 |
+| 9 | vitest match-sync 회귀 | ✅ 통과 | match-sync.test 31 + quarter-scores-sync 10 = 41/41 통과. 역전 가드 전용 케이스는 없으나 기존 sync 로직(existingMatch 분기·BUG-04·QS자동갱신·reset) 회귀 0 |
+
+📊 종합: 9개 항목 전부 통과 / 실패 0. 가드 두 파일 문자 동일·정방향/재sync 회귀0·역전 시 completed 고정·batch throw0(synced++)·점수/기록 무영향·응답shape불변·추가쿼리0·알기자 의도된 미발동. tsc EXIT0·vitest 41/41. 미커밋.
+
+🟡 참고(동작영향 사실상 0·후속 불요):
+- batch-sync post-process 분기는 `match.status` 기준(effectiveStatus 아님): completed→in_progress 역전 시 L115 `match.status==="in_progress"` 분기 진입 가능 → 대회 status 자동전환 시도. **단 where 가드(`status in [draft,registration_open,registration_closed]`)로 이미 진행/종료 대회는 영향 0**. completed였던 매치가 속한 대회는 이미 진행단계라 실질 무해. finalize/알기자(L128 `match.status==="completed"`)는 역전(비completed)이라 미발동 — 의도대로 정상.
+- 역전 가드 전용 자동 테스트는 부재(effectiveStatus는 인라인 삼항이라 export 헬퍼와 달리 단위테스트 대상 아님). 정적 검증으로 충분 판정.
+
+### Phase 12 Batch A 박제 검증 (2026-06-14) — ✅ PASS (미커밋)
+대상: globals.css(+391·L6381~6769)/referee-info(page+content신규)/safety/coaches/gallery/shop/awards-content (8파일 +834/-2627). 정적검증+tsc+self-grep+CSS실측.
+
+| # | 항목 | 결과 | 비고 |
+|---|------|------|------|
+| 1 | git diff --stat HEAD 실변경 | ✅ 통과 | 8소스+knowledge2. referee-info-content.tsx=untracked 신규(diff 미표시·정상). AW1 page.tsx diff 0 |
+| 2 | tsc --noEmit | ✅ 통과 | EXIT=0. **lint: Next16 eslint.config 부재로 실행불가→tsc로 대체**(env 제약·코드결함 아님) |
+| 3-1 | RI1/SF1 정적 박제(mock 아님) | ✅ 통과 | RI1=제도안내 상수(DB무관·CTA href 실라우트 /referee·/help). SF1=안전가이드 6+신고2카드(→/help). 더미4탭 삭제 |
+| 3-2 | CC1/GL1/SH1 mock 0(더미배열 삭제) | ✅ 통과 | grep: COACHES/BOOKED/ITEMS/PRODUCTS/cart/lightbox 실코드 0(매칭=주석만). 전부 ex-empty 빈상태. SH1만 Hero정적 노출 |
+| 3-3 | AW1 실데이터 와이어(mock 0) | ✅ 통과 | seasonMvp/scoring·assists·reboundsLeader DTO 실데이터. best5 leaders3+빈슬롯"준비중"(수비/신인). MVP 0건→빈상태폴백. 시안더미("김지훈")박제 0 |
+| 4 | **AW1 page.tsx diff 0줄** | ✅ 통과 | git diff = 빈출력. DTO필드(scoring/assists/reboundsLeader/seasonMvp/seasons) page.tsx export 실재·import 정합. 데이터패칭/raw SQL/officialMatchWhere 보존 |
+| 5 | v2토큰 전면(폐기토큰/hex/9999/lucide/emoji 0) | ✅ 통과 | 신규CSS블록(6381~6769): 폐기 --r-*/--err 0·9999px 0(원형=50%)·하드코딩컬러(#8B5A0F등)0. TSX: lucide 0·hex 실코드 0(주석만)·emoji JSX/CSS content 0(매칭=삭제이모지 설명주석·★❌마커 주석만) |
+| 6 | AppNav active(pathname 자동·prop조작0) | ✅ 통과 | 6화면 active prop 조작 0. referee-info/safety/coaches/gallery/shop→more, awards→rank 자동판정 |
+| 7 | 모바일 720 1열·44px·iOS16px | ✅ 통과 | 720분기 2곳: ri-tiers/sf-grid/co-grid/aw-cats/aw-mvp/sf-report 1열·ri-stats등 2열. ex-empty__t 16px·ri-tier__req .ico 16px·ex-empty .ico 44px |
+| 8 | 회귀(②③ 무변경·CSS충돌0·기존무영향) | ✅ 통과 | tournament/completed diff 0건. .page__inner(L5189) 미변경(주석만 매칭). .ex-page-w/--wide/--narrow 신규 중복정의 0. 사용클래스 18종 전부 CSS 정의됨 |
+
+📊 종합: 8개 항목 전부 통과 / 실패 0. mock 0(CC1/GL1/SH1 더미 완전삭제·AW1 실데이터·시안더미 박제0)·AW1 page.tsx diff0(데이터패칭보존)·토큰위반0·회귀0. tsc EXIT0. 미커밋.
+
+🟡 참고(동작영향 0·후속 불요):
+- lint: Next16에서 `next lint` deprecated + 프로젝트에 eslint.config 부재 → lint 실행 불가. tsc 0로 품질 대체 판정(코드결함 아닌 환경 제약).
+- `#fff`/`rgba(0,0,0,.7)`/`rgba(255,255,255,.x)`: 브랜드 그라디언트 위 흰글자·오버레이 의도색만 잔존(룰 허용 범위·금지색 살몬/코랄 0).
+- GL1/SH1 `page__inner page__inner--wide ex-page-w` 동시지정 시 --wide(1180·6396)가 ex-page-w(1080·6395)보다 소스 후행→1180 적용. 레이아웃 깨짐 아님(둘다 max-width 상한·미세 우선순위만).
+
 ### PR-LINEUP-V2 [2] API 검증 (2026-06-14) — ✅ PASS (미커밋)
 대상: `lineup/route.ts` (+64/-1). 정적 검증 + tsc + vitest.
 
@@ -130,6 +248,46 @@
 📊 종합: 11개 항목 전부 통과 / 실패 0. cycleRole 경계(정원12 차단·out시 주장해제) 정합. 주장 필수 게이트 UI 1차+API 2차 이중가드. snake 3계층(page camel→prop snake→form snake / POST camel) 함정 회피. 포지션 제거·코칭스태프 분리·회귀6종·토큰·모바일 전부 정상. tsc 0. 미커밋.
 
 ## 리뷰 결과 (reviewer)
+
+### sync completed 역전 차단 가드 리뷰 (2026-06-14) — ✅ APPROVE (미커밋)
+대상: match-sync.ts(L491~504 가드+L505 update) / batch-sync route.ts(L88~101 가드+L103 update). 가드 표현식 두 파일 완전 동일. tsc EXIT=0.
+
+📊 종합 판정: **APPROVE** (critical 0 / major 0 / minor 1)
+
+가드 룰: `existing.status === "completed" && match.status !== "completed" ? "completed" : match.status` → update data.status 에 effectiveStatus 적용.
+
+✅ 잘된 점:
+- **★★ /api/v1 회귀 안전 완벽**: 명시적 `=== "completed"` 비교라 `existing.status`가 null/undefined/"live"/"in_progress"/"scheduled" 일 때 첫 조건 false → effectiveStatus=match.status(들어온 값 그대로). 정상 sync 차단 0. 정방향(scheduled→live→completed)·completed→completed 재sync(둘째 조건 false) 전부 통과. **completed→비completed 역전만** 차단. `??` falsy 함정 없음(null-safe).
+- **winner_team_id 독립**: effectiveStatus는 update data.status에만 적용. winnerTeamId는 별도 decideWinnerTeamId(match.status 입력) + update 조건 `winnerTeamId && !== existing`(L511)으로 기존 winner 보존(idempotent). 역전 시 winner 변경 0. 점수/QS 박제와도 독립(status만 고정).
+- **알기자 trigger·post-process 영향 0**: L543 trigger·L719 post-process 모두 `match.status === "completed"` 조건 — effectiveStatus 미사용. 역전(completed→in_progress)에선 match.status≠completed라 미발동(정상 — 신규 전환 아님, 이미 completed 시점 처리 완료). dev 노트의 "L528 trigger 미발동=의도" 정확.
+- **batch-sync throw 0 정합**: 가드는 effectiveStatus 계산+warn만, throw 없음 → tx.update 정상 커밋 → synced++(L146). FIBA 가드(L76 throw)는 match.status 기반이라 역전 케이스(status≠completed)는 FIBA ok 통과, 충돌 0. 역전 매치 섞여도 다른 매치 정상 처리.
+- **로깅 적절**: console.warn은 역전 발생(드문 사고)에만 출력. 정방향/재sync 미출력 → 스팸 아님. 메시지에 matchId·전이방향 포함(운영 추적 가능).
+- **응답 shape·schema 불변 / 멱등**: 두 파일 응답 구조 불변. completed→completed 반복 sync 안정(effectiveStatus 항상 completed·winner 보존). 두 파일 가드 표현식 동일·위치 적절(match-sync=update 직전 / batch=tx 내부 update 직전).
+
+🟡 권장 수정 (minor — 가드 범위 밖·후속·동작영향 현행 유지):
+- [match-sync.ts L549~562 isReset] **status는 보호되나 reset 경로 PBP/stats 삭제는 미차단**: completed 매치에 `status=scheduled + stats0 + pbp0` sync 시 effectiveStatus=completed로 DB status는 보호되지만, isReset(match.status 기반)=true → PBP/MPS deleteMany 실행됨(L554~558). 단 이는 **가드 도입 전부터 있던 기존 동작**이며 본 가드의 명시 범위(status 역전만)와 분리됨. 실사용상 completed 매치를 scheduled+빈기록으로 sync하는 경로는 비정상 입력이라 빈도 낮음. 완전 방어가 필요하면 isReset 조건에 `existing.status !== "completed"` 추가 검토. 본 PR 범위 밖·후속 판단.
+
+발견: status 역전 차단 핵심 로직 정확·null-safe·회귀 0·winner/trigger/post-process 독립·batch synced 정합. minor 1건은 가드 범위 밖 기존 동작 관찰점. tsc EXIT=0.
+
+### Phase 12 Batch A 박제 리뷰 (2026-06-14) — ✅ APPROVE (미커밋)
+대상: globals.css(+391) / RI1(page+content신규) / SF1·CC1·GL1·SH1 page.tsx / AW1 awards-content.tsx. AW1 page.tsx **diff 0 실측 통과**. tsc EXIT=0.
+
+📊 종합 판정: **APPROVE** (critical 0 / major 0 / minor 2)
+
+✅ 잘된 점:
+- **AW1 page.tsx diff 0 의무 통과**: `git diff --stat HEAD -- awards/page.tsx`=공백(변경0). 서버 prisma 쿼리/raw SQL 3종/officialMatchWhere 가드/DTO export 전부 보존. awards-content.tsx만 시각 교체. DTO 계약 무결 — content가 import하는 타입(AwardsDataDTO/PlayerRefDTO)·사용 필드(seasonMvp/scoringLeader/assistsLeader/reboundsLeader/seasons/currentSeasonSlug)가 page.tsx export와 1:1 일치.
+- **best5 mock 함정 회피(핵심) 정직**: best5Slots 득점/어시/리바=실데이터(data.*Leader), 수비/신인=player:null→"준비 중" 빈슬롯. catSlots 득점왕/어시왕/리바왕=실데이터, 스틸왕/레이팅/매너상=null→"준비 중". 시안 더미("김지훈" 등) 박제 0. 슬롯 라벨=부문명 정직 표기. MVP 0건→ex-empty 폴백. 모든 metric null-safe(fmtMetric·mvp?.ppg !== null).
+- **준비중 3화면 mock 0**: CC1 코치그리드 삭제→ex-empty "코치 매칭 준비 중"(CATS chip은 카테고리 라벨·데이터 아님). GL1 앨범/그리드/lightbox/SVG/이모지 전량삭제→ex-empty "갤러리 준비 중"(server화). SH1 상품/cart/이모지 삭제→Hero 정적(토큰화)+ex-empty "샵 오픈 준비 중". 가짜 데이터 잔존 0.
+- **토큰 매핑 정확·실재**: 폐기토큰(--r-*/--err/--err-soft/--ok-hair/--warn-hair) 잔존 0(git diff +라인 grep). 매핑타깃 --warn/--bdr-navy/--accent-deep/--cafe-blue-deep 전부 :root 실재. 9999px/pill 0. CSS `*/` 조기종료 0(검출=정상 주석종료만). 렌더 이모지 0(검출된 이모지는 전부 page.tsx L5 주석의 "삭제한 이모지 목록" — JSX 본문 0). lucide 0.
+- **AppNav/라우트 안전**: active prop 조작 0(pathname 자동). 신규 라우트 0. api/v1 0. RI1 CTA href=/referee·/help 실라우트 매핑(시안 #·iu3-help.html 치환), 둘 다 실재 확인.
+- **server/client 분리 적절**: RI1 page.tsx(server)=metadata SEO export 보존, 본문 client 위임(FAQ useState). SF1/GL1/SH1 인터랙션0→server 단순화("use client" 제거). CC1 chip useState→client 유지. AW1 content=시즌셀렉터 router.push→client.
+- **.page__inner 충돌 회피**: 기존 L5189(margin만) 미변경, base max-width를 .ex-page-w(L6395)로 분리. 정보페이지 공유 회귀 0. 사용 클래스(ri-/sf-/aw-/ex-/co-*) globals 전부 실재.
+
+🟡 권장 수정 (minor — 동작 영향 0, 후속 가능):
+- [globals.css 신규블록 .ex-badge--new/.co-card__av/.sf-hero/.aw-hero 등] **`color: #fff` 직접 사용**: --ink-on-brand 토큰이 :root 실재(#FFFFFF)하고 다른 세션(.lc-*)은 이를 사용 중. 신규 블록은 `color: #fff` 직접. 의도색(브랜드 배경 위 흰 글자)이라 동작·시각 영향 0이나, 토큰 일관성 권장은 --ink-on-brand. 후속 일괄 치환 가능.
+- [coaches/page.tsx + globals .co-* 14클래스] **CC1 orphan CSS**: CC1이 빈상태(ex-empty)로 가며 .co-card/.co-card__av 등 코치카드 클래스를 page.tsx에서 직접 쓰지 않음. globals에 .co-* 14건 추가됨(향후 실데이터 연결 대비 선이식). 동작 무해·충돌 0이나 현재 미사용 CSS. 후속.
+
+발견: 위 2건 모두 minor·후속·동작영향0. AW1 DTO 계약 무결, best5/준비중 mock 0, 토큰위반 0, server/client 분리 적절, 타입 안전(tsc 0). 다른 세션(.lc-* PR-LINEUP-V2) 항목 미접촉.
 
 ### PR-LINEUP-V2 [3] UI 리뷰 (2026-06-14) — ✅ APPROVE (미커밋)
 대상: ttp-row.tsx / lineup-confirm-form.tsx / page.tsx / globals.css(.lc-* +). tsc EXIT=0.
@@ -174,6 +332,13 @@
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
 |------|------|------|
+| 2026-06-14 | **sync completed 역전 차단 가드 리뷰** (reviewer) | ✅ APPROVE(c0/maj0/min1). /api/v1 회귀안전 완벽(=== "completed" null-safe·정방향/재sync 통과·역전만 차단)·winner/trigger/post-process 독립(effectiveStatus는 data.status에만)·batch throw0→synced++정합·warn 비스팸·두파일 표현식 동일·tsc0. minor: isReset(status=scheduled+빈기록) 경로 PBP/stats 삭제는 가드범위밖 기존동작(후속). 미커밋 |
+| 2026-06-14 | **sync completed 역전 차단 가드** (developer) | ✅ match-sync.ts + batch-sync route 2경로에 effectiveStatus 가드. completed→비completed 역전 무시(completed 유지)·console.warn. existing 재사용(DB조회0)·정방향/재sync 회귀0·throw0(synced++보존)·schema/응답shape 불변. tsc EXIT0. 디자인박제 파일 미접촉. 미커밋 |
+| 2026-06-14 | **Phase 12 Batch A 박제 검증** (tester) | ✅ PASS 8/8. mock0(CC1/GL1/SH1 더미완전삭제·AW1 실데이터·시안더미박제0)·AW1 page.tsx **diff0**(데이터패칭보존·DTO정합)·토큰위반0(폐기토큰/9999/lucide/렌더이모지 0)·active prop조작0·720 1열/44px/16px·회귀0(②③무변경·.page__inner미변경·클래스18종 CSS정의). tsc EXIT0. lint=Next16 eslint config부재로 실행불가→tsc대체. 미커밋 |
+| 2026-06-14 | **Phase 12 Batch B 박제 설계** (planner·read-only) | ✅ 7화면(ST1/CA1/SV1/SE1/TV1/CV1/SC1) 데이터출처 실측+설계서. ★SE1 `[slug]` 존재·이미 박제됨(옵션A/SKIP). schema grep(SELECT0): scrim/court_submission/team_invit 부재 / **SV1=이미 DB연결**(board_favorites+user_favorite_courts→데이터패칭보존) / ST1·CA1·TV1·SC1=준비중 / CV1=정적폼. `Dev/phase12-batchB-bake-plan-2026-06-14.md`. 코드·DB변경0 |
+| 2026-06-14 | **Phase 12 Batch A 박제 리뷰** (reviewer) | ✅ APPROVE(critical0/major0/minor2). AW1 page.tsx diff0 통과·DTO계약무결·best5 mock0(수비/신인=준비중)·준비중3화면 mock0·토큰위반0(폐기토큰/9999/조기종료/렌더이모지 0)·active prop조작0·신규라우트0·server/client분리적절·tsc0. minor: ①globals #fff직접(→--ink-on-brand 권장) ②CC1 .co-* orphan CSS. 둘다후속. 미커밋 |
+| 2026-06-14 | **Phase 12 Batch A 박제** (developer) | ✅ 6화면(RI1/SF1/CC1/GL1/SH1/AW1) 박제. globals.css +391(토큰치환 .ex/ri/sf/co/gl/sh/aw-*)·RI1 server+client분리(신규 +238)·SF1/GL1/SH1 client→server 더미삭제·CC1 빈상태·AW1 page.tsx **diff0**+content만 v2.31. mock0·이모지0·하드코딩hex0·폐기토큰0·*/조기종료0·tsc EXIT0·lint0. 7수정(+780/-2627)+1신규 |
+| 2026-06-14 | **Phase 12 Batch A 박제 설계** (planner·read-only) | ✅ 6화면(RI1/SF1/CC1/GL1/SH1/AW1) 데이터출처 실측확정+설계서. SELECT1회(영향0): GL1·CC1·SH1=준비중 / AW1=실데이터보존(page.tsx diff0). `Dev/phase12-batchA-bake-plan-2026-06-14.md`. 코드·DB변경0 |
 | 2026-06-14 | **PR-LINEUP-V2 [3] UI 검증** (tester) | ✅ PASS 11/11. cycleRole 3상태순환·정원12차단·주장필수게이트·undo/전체해제·포지션제거·코칭스태프분리·snake 3계층·회귀6종·토큰0위반·모바일(sticky/720/44/16) 전부 정상. tsc 0. 미커밋 |
 | 2026-06-14 | **PR-LINEUP-V2 [3] UI 리뷰** (reviewer) | ✅ APPROVE(critical0/major0/minor2). snake 3계층 정합·canConfirm↔API422 이중가드·cycleRole 경계(정원12·out시 주장해제)·undo {roles,captain} 동시복원·--color-error 실재(=danger)·토큰위반0·회귀보존 확인. minor: ①C버튼 button-in-button a11y ②기존 captain=null lineup 재확정 badge라벨. 둘다 후속·동작영향0. 미커밋 |
 | 2026-06-14 | **PR-LINEUP-V2 [3] UI 박제** (dev) | ✅ ttp-row(행순환+C+포지션제거)·form(roles맵+주장필수+undo+코칭스태프바+5슬롯)·page(select+prop)·globals.css(.lc-* +269). 4파일 +869/-462. 토큰위반0·tsc 0·/api/v1·데이터패칭0. 미커밋 |
