@@ -6864,3 +6864,87 @@ html.dark {
   .sv-grid-2, .sv-grid-3, .sv-grid-4 { grid-template-columns: 1fr; }
   .fm-row { grid-template-columns: 1fr; }
 }
+
+/* ============================================================
+   ST1 · Stats  (/stats)  — 시즌 스탯 대시보드 (PR-MOCK-TO-REAL 1)
+   시안 Stats.jsx 의 .st-* 토큰 이식. 강조색은 시안 --accent(빨강)이
+   errors 2026-06-10 폴백 함정에 해당하므로 --cafe-blue 로 치환(결재).
+   승,패 badge 만 의미색(ex-badge--ok, --red 기존 토큰 재사용).
+   주석 토큰 구분자는 쉼표만 사용(슬래시 금지 = 조기종료 방지, errors 2026-06-14).
+   ============================================================ */
+
+/* ---- KPI 8칸 그리드 ---- */
+.st-kpi {
+  display: grid; grid-template-columns: repeat(8, 1fr); gap: 10px; margin-bottom: 20px;
+}
+.st-kpi__cell {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: var(--radius-card); padding: 14px 12px; text-align: center;
+}
+.st-kpi__l {
+  font-size: 10px; font-weight: 800; letter-spacing: 0.05em;
+  color: var(--ink-mute); margin-bottom: 6px;
+}
+.st-kpi__v {
+  font-family: var(--ff-display); font-size: 23px; font-weight: 900;
+  line-height: 1; color: var(--cafe-blue);
+}
+.st-kpi__v--dim { color: var(--ink-dim); }
+.st-kpi__s { font-size: 10px; color: var(--ink-dim); margin-top: 6px; }
+
+/* ---- 2열 패널(요약 = 추이 + 순위) ---- */
+.st-2col { display: grid; grid-template-columns: 1.4fr 1fr; gap: 16px; }
+.st-panel { padding: 20px 22px; }
+.st-panel__h {
+  font-family: var(--ff-display); font-size: 15px; font-weight: 800;
+  margin: 0 0 14px; display: flex; align-items: center;
+}
+.st-panel__h-note {
+  color: var(--ink-mute); font-weight: 400; margin-left: 6px;
+  font-size: 12px; font-family: var(--ff-mono);
+}
+.st-trend__axis {
+  display: flex; justify-content: space-between; margin-top: 4px;
+  font-family: var(--ff-mono); font-size: 10px; color: var(--ink-dim);
+}
+.st-mini-empty {
+  padding: 36px 0; text-align: center; color: var(--ink-mute); font-size: 13px;
+}
+
+/* ---- 클럽 내 순위 ---- */
+.st-rank {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 13.5px;
+}
+.st-rank:last-child { border-bottom: 0; }
+.st-rank__v {
+  font-family: var(--ff-mono); font-weight: 800; font-size: 15px; color: var(--ink);
+}
+.st-rank__v--hl { color: var(--cafe-blue); }
+.st-rank__v small { color: var(--ink-dim); font-weight: 500; font-size: 11px; }
+
+/* ---- 경기 로그 테이블 ---- */
+.st-log-card { overflow: hidden; }
+.st-log {
+  width: 100%; border-collapse: collapse;
+  font-family: var(--ff-mono); font-size: 12.5px;
+}
+.st-log thead tr { background: var(--bg-alt); }
+.st-log th {
+  padding: 11px 14px; font-size: 10px; font-weight: 800; color: var(--ink-mute);
+  letter-spacing: 0.04em; border-bottom: 1px solid var(--border);
+}
+.st-log th.is-left, .st-log td.st-log__opp { text-align: left; }
+.st-log th.is-right, .st-log td.is-right { text-align: right; }
+.st-log tbody tr { border-bottom: 1px solid var(--border); }
+.st-log td { padding: 11px 14px; }
+.st-log__date { color: var(--ink-dim); }
+.st-log__opp { font-family: var(--ff-display); font-weight: 700; }
+.st-log__soft { color: var(--ink-soft); }
+.st-log__hl { font-weight: 800; color: var(--cafe-blue); }
+
+/* ---- ST1 720px 분기 ---- */
+@media (max-width: 720px) {
+  .st-kpi { grid-template-columns: repeat(4, 1fr); }
+  .st-2col { grid-template-columns: 1fr; }
+}
