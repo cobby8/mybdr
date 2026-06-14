@@ -11,51 +11,39 @@ export const metadata: Metadata = {
 };
 
 /* ============================================================
- * About — BDR v2 More.jsx L22-115 시안 전체 적용 (Phase 5)
+ * About — BDR v2.30 IU1 시안 박제 (Phase 10B · BI1)
  *
  * 이유(왜):
- *   기존 AppNav "소개" 링크는 `/about` 라우트가 없어 `/`(홈)로 폴백.
- *   v2 시안 About 섹션을 정적 서버 컴포넌트로 신설.
- *   API/Prisma/서비스 0 변경 — 시안 가데이터를 그대로 노출하되,
- *   사용자 원칙(2026-04-25 추가)에 따라 가데이터는 "예시" 라벨/캡션
- *   으로 명시.
+ *   기존 About(304줄, 인라인 스타일)을 v2.30 IU1 시안 구조로 교체.
+ *   시안 source: Dev/design/BDR-current/screens/About.jsx + info-shared.css(.ab-*)
+ *   + info-shared.jsx(ABOUT_*) + 미리보기 iu1-about.html
+ *   API/Prisma/서비스 0 변경 — UI(클래스)만 교체. 데이터는 시안 상수 그대로.
  *
- * 구조 (시안 6 섹션):
- *   1. Hero — eyebrow + 타이틀 + 리드 카피
- *   2. 통계 4셀 — 4년/멤버수/팀수/대회수 (예시)
- *   3. "우리가 만드는 것" 6 카드
- *   4. 운영진 6 — 이니셜 아바타 (예시)
- *   5. 파트너 로고 8 (예시)
- *   6. CTA — 가입/로그인 모두 /login (현재 /signup 별도 시안 있어
- *      Phase 6 회원가입 신설 시 분리 예정)
+ * 구조 (시안 7 섹션):
+ *   1. Hero — eyebrow + 타이틀 + 리드 카피 (info-hero 공통 클래스 재사용)
+ *   2. 통계 4셀 — cross-domain 집계(전 Phase users/teams/tournaments/courts)
+ *      ★ mock 숫자 새로 지어내기 ❌. 시안 예시값 + "운영 시점 연동" 캡션(ab-note).
+ *   3. "우리가 만드는 것" 가치 6 카드
+ *   4. ★ 운영진 — 사용자 결정 §6 보존: 실명 ❌ → 일반 팀 라벨 + 가드 배너(ab-guard)
+ *   5. 파트너 8 (예시)
+ *   6. FAQ 미니 → /help (IU3) 링크
+ *   7. CTA — 가입(/login) + 경기 둘러보기(/games)
  *
- * 추후 구현 (scratchpad "🚧 Phase 5 More"):
- *   - 통계 4건 실수치 동적 카운트 (registry 쿼리 또는 정적 갱신)
- *   - 운영진 명단 실제 정보 입력
- *   - 파트너 로고 실제 자산
+ * 스타일:
+ *   .ab-* 클래스는 globals.css 에 시안 info-shared.css 를 운영 토큰으로 이식.
+ *   하드코딩 hex 0 / Material Symbols Outlined / pill 9999px 없음(정사각 원형 50%만).
  * ============================================================ */
 
-// 운영진 가데이터 — 일반 팀 라벨로 교체 (실명 노출 위험 차단, 2026-04-29)
-//  이유: 시안 박제 시 임의 실명 6건이 그대로 운영 노출 → 개인정보/명예 위험.
-//  실명 명단은 운영팀 확정 + 동의 절차 후 정식 교체.
-const team: { name: string; role: string; since: string }[] = [
-  { name: "기획팀", role: "전략 · 기획", since: "2022" },
-  { name: "개발팀", role: "프론트엔드 · 백엔드", since: "2022" },
-  { name: "운영팀", role: "콘텐츠 · 운영", since: "2023" },
-  { name: "디자인팀", role: "UX · UI", since: "2023" },
-  { name: "커뮤니티팀", role: "파트너십 · 소통", since: "2024" },
-  { name: "사업팀", role: "비즈니스 개발", since: "2024" },
+// ── 통계 4 — 시안 ABOUT_STATS 그대로 (cross-domain 집계 · 운영 시점 연동 예시) ──
+//  v = 표시값(예시) / k = 라벨 / src = 출처 도메인(전 Phase 집계 키)
+const stats: { v: string; k: string; src: string }[] = [
+  { v: "20년", k: "커뮤니티 역사", src: "since 2006" },
+  { v: "48,000+", k: "가입 멤버", src: "users" },
+  { v: "320+", k: "등록 팀", src: "teams" },
+  { v: "1,240회", k: "개최 대회", src: "tournaments" },
 ];
 
-// 통계 4건 — 시안 가데이터 (정확한 수치는 운영팀 확정 후 동적 카운트로 교체)
-const stats: { v: string; k: string }[] = [
-  { v: "20년", k: "커뮤니티 역사" },
-  { v: "48,000+", k: "가입 멤버" },
-  { v: "320+", k: "등록 팀" },
-  { v: "1,240회", k: "개최 대회" },
-];
-
-// 가치 6 — 시안 그대로
+// ── 가치 6 — 시안 ABOUT_VALUES 그대로 ──
 const values: { icon: string; t: string; d: string }[] = [
   { icon: "🏀", t: "공정한 매치", d: "레이팅 기반 팀 매칭으로 실력에 맞는 경기를 제공합니다" },
   { icon: "📊", t: "투명한 기록", d: "모든 경기 결과와 개인 스탯이 영구적으로 기록·공개됩니다" },
@@ -65,7 +53,18 @@ const values: { icon: string; t: string; d: string }[] = [
   { icon: "💡", t: "지속가능성", d: "광고 없는 커뮤니티. 운영은 멤버십과 파트너십으로 충당합니다" },
 ];
 
-// 파트너 8 — 시안 가데이터 (실제 협력사 자산 확정 후 로고 SVG로 교체)
+// ── 운영진 — ★ 사용자 결정 §6 보존: 실명 노출 절대 금지 → 일반 팀 라벨만 ──
+//  시안 ABOUT_TEAM 그대로. 실명/실제 직책 박제 ❌ (개인정보 보호 가드 배너 동반).
+const team: { name: string; role: string; since: string }[] = [
+  { name: "기획팀", role: "전략 · 기획", since: "2022" },
+  { name: "개발팀", role: "프론트엔드 · 백엔드", since: "2022" },
+  { name: "운영팀", role: "콘텐츠 · 운영", since: "2023" },
+  { name: "디자인팀", role: "UX · UI", since: "2023" },
+  { name: "커뮤니티팀", role: "파트너십 · 소통", since: "2024" },
+  { name: "사업팀", role: "비즈니스 개발", since: "2024" },
+];
+
+// ── 파트너 8 — 시안 ABOUT_PARTNERS 그대로 (예시) ──
 const partners: string[] = [
   "NIKE",
   "ADIDAS",
@@ -80,217 +79,112 @@ const partners: string[] = [
 export default function AboutPage() {
   return (
     <div className="page">
-      <div style={{ maxWidth: 900, margin: "0 auto" }}>
-        {/* ===== 1. Hero ===== */}
-        <div style={{ textAlign: "center", padding: "40px 0 32px" }}>
-          {/* eyebrow — v2 공통 .eyebrow 클래스 사용 */}
-          <div className="eyebrow" style={{ justifyContent: "center" }}>
-            소개 · ABOUT
-          </div>
-          <h1
-            style={{
-              margin: "10px 0 14px",
-              fontSize: 42,
-              fontWeight: 900,
-              letterSpacing: "-0.025em",
-            }}
-          >
+      <div className="ab-wrap">
+        {/* ===== 1. Hero (info-hero 공통 클래스 재사용) ===== */}
+        <header className="info-hero">
+          <div className="eyebrow">소개 · ABOUT</div>
+          {/* 시안 타이틀 42px — info-hero__title(34px) 위에 inline 오버라이드 */}
+          <h1 className="info-hero__title" style={{ fontSize: 42 }}>
             농구를 더 가깝게
           </h1>
-          <p
-            style={{
-              fontSize: 16,
-              color: "var(--ink-soft)",
-              maxWidth: 540,
-              margin: "0 auto",
-              lineHeight: 1.7,
-            }}
-          >
-            MyBDR은 다음카페 시절부터 20년을 이어온 전국 농구 매칭 플랫폼입니다.
-            흩어져 있던 픽업, 대회, 팀, 코트 정보를 한 곳에 모아{" "}
-            <strong style={{ color: "var(--ink)" }}>누구나 쉽게 뛸 수 있는 환경</strong>을
+          <p className="info-hero__lead">
+            MyBDR은 다음카페 시절부터 20년을 이어온{" "}
+            <strong style={{ color: "var(--ink)" }}>전국 농구 매칭 플랫폼</strong>입니다.
+            흩어져 있던 픽업, 대회, 팀, 코트 정보를 한 곳에 모아 누구나 쉽게 뛸 수 있는 환경을
             만듭니다.
           </p>
-        </div>
+        </header>
 
-        {/* ===== 2. 통계 4셀 — 가데이터(예시) ===== */}
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(4, 1fr)",
-            gap: 0,
-            border: "1px solid var(--border)",
-            borderRadius: 8,
-            overflow: "hidden",
-            marginBottom: 8,
-          }}
-        >
-          {stats.map((s, i) => (
-            <div
-              key={s.k}
-              style={{
-                padding: "22px 14px",
-                textAlign: "center",
-                // 첫 칸 제외 좌측 보더로 4분할 구분
-                borderLeft: i > 0 ? "1px solid var(--border)" : 0,
-                background: "var(--bg-alt)",
-              }}
-            >
-              <div
-                className="t-display"
-                style={{ fontSize: 28, fontWeight: 900, letterSpacing: "-0.02em" }}
-              >
-                {s.v}
-              </div>
-              <div
-                style={{ fontSize: 12, color: "var(--ink-mute)", fontWeight: 600, marginTop: 4 }}
-              >
-                {s.k}
-              </div>
+        {/* ===== 2. 통계 4셀 — cross-domain 집계 (운영 시점 연동 예시) ===== */}
+        <div className="ab-stats">
+          {stats.map((s) => (
+            <div key={s.k} className="ab-stat">
+              <div className="ab-stat__v t-display">{s.v}</div>
+              <div className="ab-stat__k">{s.k}</div>
+              <div className="ab-stat__src">{s.src}</div>
             </div>
           ))}
         </div>
-        {/* 가데이터 안내 캡션 — 사용자 원칙: "예시" 라벨 명시 */}
-        <div
-          style={{
-            fontSize: 11,
-            color: "var(--ink-dim)",
-            textAlign: "center",
-            marginBottom: 40,
-            fontStyle: "italic",
-          }}
-        >
-          ※ 위 수치는 예시이며, 정식 집계 후 실제 데이터로 교체될 예정입니다.
+        {/* ★ mock 더미 0 — 실데이터는 운영 시점에 전 Phase 집계로 연동 */}
+        <div className="ab-note">
+          <span className="ico material-symbols-outlined">sync</span>
+          전 Phase(사용자·팀·대회·코트) 집계 — 운영 시점에 실데이터로 연동됩니다.
         </div>
 
         {/* ===== 3. 우리가 만드는 것 (가치 6) ===== */}
-        <div style={{ marginBottom: 40 }}>
-          <h2 style={{ fontSize: 22, fontWeight: 800, marginBottom: 14 }}>우리가 만드는 것</h2>
-          {/* 2026-04-29: 모바일 1열 / md 이상 3열 */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-[14px]">
-            {values.map((b) => (
-              <div key={b.t} className="card" style={{ padding: "20px 20px" }}>
-                <div style={{ fontSize: 28, marginBottom: 8 }}>{b.icon}</div>
-                <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 4 }}>{b.t}</div>
-                <div style={{ fontSize: 12, color: "var(--ink-mute)", lineHeight: 1.6 }}>
-                  {b.d}
-                </div>
+        <section className="ab-section">
+          <h2 className="ab-section__h">우리가 만드는 것</h2>
+          <div className="ab-make">
+            {values.map((v) => (
+              <div key={v.t} className="ab-make-card">
+                <div className="ab-make-card__icon">{v.icon}</div>
+                <div className="ab-make-card__t">{v.t}</div>
+                <div className="ab-make-card__d">{v.d}</div>
               </div>
             ))}
           </div>
-        </div>
+        </section>
 
-        {/* ===== 4. 운영진 6 — 가데이터(예시) ===== */}
-        <div style={{ marginBottom: 8 }}>
-          <h2 style={{ fontSize: 22, fontWeight: 800, marginBottom: 14 }}>운영진</h2>
-          {/* 2026-04-29: 모바일 2열 / sm 3열 / md 이상 6열 (이름+아바타 카드라 1열은 너무 빈약) */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-[10px]">
+        {/* ===== 4. 운영진 — ★ §6 실명 ❌ (일반 팀 라벨 + 가드 배너) ===== */}
+        <section className="ab-section">
+          <h2 className="ab-section__h">운영진</h2>
+          <div className="ab-team">
             {team.map((m) => (
-              <div
-                key={m.name}
-                className="card"
-                style={{ padding: "18px 12px", textAlign: "center" }}
-              >
-                {/* 이니셜 아바타 — 실제 사진 미준비, 이름 첫 글자 */}
-                <div
-                  style={{
-                    width: 56,
-                    height: 56,
-                    margin: "0 auto 8px",
-                    background: "var(--ink-soft)",
-                    color: "var(--bg)",
-                    borderRadius: "50%",
-                    display: "grid",
-                    placeItems: "center",
-                    fontWeight: 700,
-                    fontSize: 16,
-                  }}
-                >
-                  {m.name[0]}
-                </div>
-                <div style={{ fontWeight: 700, fontSize: 13 }}>{m.name}</div>
-                <div
-                  style={{ fontSize: 11, color: "var(--accent)", fontWeight: 600, marginTop: 2 }}
-                >
-                  {m.role}
-                </div>
-                <div
-                  style={{
-                    fontSize: 10,
-                    color: "var(--ink-dim)",
-                    marginTop: 3,
-                    fontFamily: "var(--ff-mono)",
-                  }}
-                >
-                  since {m.since}
-                </div>
+              <div key={m.name} className="ab-team-card">
+                {/* 이니셜 아바타 — 사진 미준비, 팀 라벨 첫 글자 (실명 0) */}
+                <div className="ab-team-card__avatar">{m.name[0]}</div>
+                <div className="ab-team-card__name">{m.name}</div>
+                <div className="ab-team-card__role">{m.role}</div>
+                <div className="ab-team-card__since">since {m.since}</div>
               </div>
             ))}
           </div>
-        </div>
-        <div
-          style={{
-            fontSize: 11,
-            color: "var(--ink-dim)",
-            textAlign: "center",
-            marginBottom: 40,
-            fontStyle: "italic",
-          }}
-        >
-          ※ 운영진 명단은 예시이며, 실제 멤버 정보로 교체될 예정입니다.
-        </div>
+          {/* ★ §6 가드 배너 — 실명 비공개 정책 명시 */}
+          <div className="ab-guard">
+            <span className="ico material-symbols-outlined">verified_user</span>
+            운영진은 개인정보 보호를 위해 일반 팀 라벨로 표기합니다 (실명 비공개 · 사용자
+            결정 §6 보존).
+          </div>
+        </section>
 
-        {/* ===== 5. 파트너 8 — 가데이터(예시) ===== */}
-        <div
-          style={{
-            background: "var(--bg-alt)",
-            borderRadius: 8,
-            padding: "30px 28px",
-            marginBottom: 40,
-          }}
-        >
-          <h2 style={{ margin: "0 0 8px", fontSize: 20, fontWeight: 800 }}>함께하는 파트너</h2>
+        {/* ===== 5. 파트너 8 (예시) ===== */}
+        <div className="ab-partners-wrap">
+          <h2 className="ab-section__h" style={{ marginBottom: 4 }}>
+            함께하는 파트너
+          </h2>
           <div style={{ fontSize: 13, color: "var(--ink-mute)", marginBottom: 16 }}>
             MyBDR의 대회·활동을 지원하는 브랜드들 (예시)
           </div>
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(4, 1fr)",
-              gap: 10,
-            }}
-          >
+          <div className="ab-partners">
             {partners.map((p) => (
-              <div
-                key={p}
-                style={{
-                  padding: "16px 12px",
-                  background: "var(--bg)",
-                  textAlign: "center",
-                  fontFamily: "var(--ff-mono)",
-                  fontSize: 11,
-                  fontWeight: 700,
-                  color: "var(--ink-soft)",
-                  borderRadius: 4,
-                }}
-              >
+              <div key={p} className="ab-partner">
                 {p}
               </div>
             ))}
           </div>
         </div>
 
-        {/* ===== 6. CTA — 가입/로그인 모두 /login (회원가입 신설 전까지) ===== */}
-        <div style={{ textAlign: "center", padding: "20px 0 40px" }}>
-          <h2 style={{ fontSize: 22, fontWeight: 800, marginBottom: 6 }}>
-            오늘, 농구할 수 있어요
-          </h2>
-          <div style={{ fontSize: 13, color: "var(--ink-mute)", marginBottom: 16 }}>
-            가까운 코트에서 당신을 기다리는 사람들이 있습니다
+        {/* ===== 6. FAQ 미니 → /help (IU3) ===== */}
+        <div className="ab-faq">
+          <div>
+            <h3 className="ab-faq__t">궁금한 점이 있으신가요?</h3>
+            <p className="ab-faq__d">
+              자주 묻는 질문·용어 사전·정책을 도움말에서 한 번에 확인하세요.
+            </p>
           </div>
-          <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
-            {/* PM 지시: 가입/로그인 모두 /login (회원가입 페이지 별도 시안 추후 작업) */}
-            <Link href="/login" className="btn btn--primary btn--xl">
+          {/* 시안 iu3-help.html → 운영 라우트 /help */}
+          <Link className="btn btn--primary" href="/help">
+            <span className="ico material-symbols-outlined">help</span>도움말 보기
+          </Link>
+        </div>
+
+        {/* ===== 7. CTA — 가입/로그인 모두 /login, 경기 둘러보기 /games ===== */}
+        <div className="ab-cta">
+          <h2 className="ab-cta__h">오늘, 농구할 수 있어요</h2>
+          <div className="ab-cta__d">가까운 코트에서 당신을 기다리는 사람들이 있습니다</div>
+          <div className="ab-cta__btns">
+            {/* 시안 au1-login-signup.html → 운영 /login (시안 btn--accent) */}
+            <Link href="/login" className="btn btn--accent btn--xl">
               지금 가입하기
             </Link>
             <Link href="/games" className="btn btn--xl">
