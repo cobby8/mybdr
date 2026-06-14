@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { Metadata } from "next";
+import { prisma } from "@/lib/db/prisma";
 
 // SEO: About(소개) 페이지 메타데이터
 // 2026-04-29 카피 통일: "서울 3x3 농구 커뮤니티" → "전국 농구 매칭 플랫폼"
@@ -34,14 +35,28 @@ export const metadata: Metadata = {
  *   하드코딩 hex 0 / Material Symbols Outlined / pill 9999px 없음(정사각 원형 50%만).
  * ============================================================ */
 
-// ── 통계 4 — 시안 ABOUT_STATS 그대로 (cross-domain 집계 · 운영 시점 연동 예시) ──
-//  v = 표시값(예시) / k = 라벨 / src = 출처 도메인(전 Phase 집계 키)
-const stats: { v: string; k: string; src: string }[] = [
-  { v: "20년", k: "커뮤니티 역사", src: "since 2006" },
-  { v: "48,000+", k: "가입 멤버", src: "users" },
-  { v: "320+", k: "등록 팀", src: "teams" },
-  { v: "1,240회", k: "개최 대회", src: "tournaments" },
-];
+// ── 통계 4 — cross-domain 실데이터 집계 (PR-MOCK-TO-REAL Batch2 ③) ──
+//  왜: 기존 시안 예시값(48,000+ 등 mock) → prisma.count() 실값으로 연결.
+//  "20년 역사"는 DB로 셀 수 없는 정적 카피이므로 유지(사용자 결정 §6 정적 카피 보존).
+//  나머지 3셀(가입 멤버/등록 팀/개최 대회)은 운영 DB count 실값.
+//  court_infos(672) vs courts(0) 실측 → court_infos 사용 확정(courts 빈테이블). 단 통계4는
+//  users/teams/tournaments 3셀 + 정적 역사 1셀 구성이라 코트 셀은 없음.
+async function getAboutStats(): Promise<{ v: string; k: string; src: string }[]> {
+  // 3개 count 병렬 조회 (read-only · 운영 영향 0)
+  const [userCount, teamCount, tournamentCount] = await Promise.all([
+    prisma.user.count(),
+    prisma.team.count(),
+    prisma.tournament.count(),
+  ]);
+  return [
+    // "20년" = 정적 카피 (DB 미산출 · 사용자 결정 §6 보존)
+    { v: "20년", k: "커뮤니티 역사", src: "since 2006" },
+    // 실값 — 천단위 콤마 포맷
+    { v: userCount.toLocaleString("ko-KR"), k: "가입 멤버", src: "users" },
+    { v: teamCount.toLocaleString("ko-KR"), k: "등록 팀", src: "teams" },
+    { v: tournamentCount.toLocaleString("ko-KR"), k: "개최 대회", src: "tournaments" },
+  ];
+}
 
 // ── 가치 6 — 시안 ABOUT_VALUES 그대로 ──
 const values: { icon: string; t: string; d: string }[] = [
@@ -76,7 +91,9 @@ const partners: string[] = [
   "BDR STUDIO",
 ];
 
-export default function AboutPage() {
+export default async function AboutPage() {
+  // 통계4 실데이터 — server에서 prisma.count() 직접 조회 (read-only)
+  const stats = await getAboutStats();
   return (
     <div className="page">
       <div className="ab-wrap">
@@ -105,10 +122,10 @@ export default function AboutPage() {
             </div>
           ))}
         </div>
-        {/* ★ mock 더미 0 — 실데이터는 운영 시점에 전 Phase 집계로 연동 */}
+        {/* ★ 실값 반영 — users/teams/tournaments 는 운영 DB count 실데이터 */}
         <div className="ab-note">
-          <span className="ico material-symbols-outlined">sync</span>
-          전 Phase(사용자·팀·대회·코트) 집계 — 운영 시점에 실데이터로 연동됩니다.
+          <span className="ico material-symbols-outlined">database</span>
+          가입 멤버·등록 팀·개최 대회는 운영 데이터 기준 실시간 집계입니다.
         </div>
 
         {/* ===== 3. 우리가 만드는 것 (가치 6) ===== */}
