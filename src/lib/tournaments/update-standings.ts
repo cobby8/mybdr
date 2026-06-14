@@ -4,6 +4,50 @@ import {
   type PointsRuleScheme,
 } from "@/lib/tournaments/standings-points";
 
+// ─────────────────────────────────────────────────────────────────────────
+// 2026-06-14 순위표 집계 근본 수정 (PR-STANDINGS-ROOT-FIX)
+//
+// 배경: full_league_knockout 포맷 대회에서 결승/4강(KO) 매치가 예선 standings 에
+//   혼입되는 사고 (5차 뉴비리그 #301 결승이 오름 예선에 합산 → W3 오집계).
+//   기존 가드는 roundName "순위" 만 제외 → "결승"/"4강" 등 KO 라운드는 통과돼 버그.
+//
+// 룰: 토너먼트(KO) 라운드명은 예선이 아니므로 standings 합산에서 제외한다.
+//   결승 / 준결승 / 4강·8강·16강·32강 (n강) / 3·4위전 / 3위전 / 결승전 등.
+// ─────────────────────────────────────────────────────────────────────────
+const KNOCKOUT_ROUND_REGEX =
+  /(결승|준결승|준준결승|[0-9]+\s*강|[0-9]+\s*위\s*전|[0-9]+\s*[·∙ㆍ]\s*[0-9]+\s*위)/;
+
+// 기존 순위전 정규식 (placeholder-helpers 의 RANKING_ROUND_REGEX 와 동일).
+//   "순위" 포함 = 순위결정전 / 순위전 / 동순위전 등 = 예선 아님 (제외).
+const RANKING_ROUND_REGEX = /순위/;
+
+/**
+ * "예선 매치인지" 판정 — false 면 standings 합산에서 제외 (= 예선 아님).
+ *
+ * 3중 OR 가드 (하나라도 참이면 예선 아님 → 제외):
+ *   ① roundName 이 "순위" 포함 (기존 룰 보존)
+ *   ② roundName 이 KO 라운드 (결승/n강/n위전 등) — 2026-06-14 신규
+ *   ③ round_number 와 bracket_position 이 둘 다 NOT NULL (= 브래킷 좌표 보유 = KO 트리 매치)
+ *      — roundName 이 비어있어도 좌표만으로 KO 판정 (#301 같은 좌표부여 매치 대비)
+ *
+ * 폴백: 셋 다 거짓이면 예선으로 간주 (= 기존 동작 — 회귀 0).
+ */
+function isPrelimMatch(m: {
+  roundName: string | null;
+  round_number: number | null;
+  bracket_position: number | null;
+}): boolean {
+  // ① 순위전
+  if (m.roundName && RANKING_ROUND_REGEX.test(m.roundName)) return false;
+  // ② KO 라운드명
+  if (m.roundName && KNOCKOUT_ROUND_REGEX.test(m.roundName)) return false;
+  // ③ 브래킷 좌표 (round_number + bracket_position 동시 보유 = KO 트리)
+  //   느슨한 비교(`!= null`) — null + undefined 둘 다 "좌표 없음"으로 취급.
+  //   (Prisma 는 SELECT 필드를 null 로 반환하나, 좌표 미지정 매치 = 예선 폴백 안전)
+  if (m.round_number != null && m.bracket_position != null) return false;
+  return true;
+}
+
 /**
  * 경기 결과 기록 후 승자 진출 처리
  * TournamentMatch.winner_team_id → next_match_id의 빈 슬롯에 배치
@@ -135,15 +179,18 @@ export async function updateTeamStandings(
       awayScore: true,
       winner_team_id: true,
       roundName: true,
+      // 2026-06-14 근본 수정 — KO 좌표 판정 (isPrelimMatch ③) 위해 SELECT 추가
+      round_number: true,
+      bracket_position: true,
+      // 2026-06-14 근본 수정 — 조별 격리 (조간 매치 skip) 위해 양 팀 groupName SELECT 추가
+      homeTeam: { select: { groupName: true } },
+      awayTeam: { select: { groupName: true } },
     },
   });
-  // 2026-05-16 사고 fix — 순위전 매치는 standings 에서 제외 (예선 결과만 standings 반영).
-  //   사용자 보고: i3-U11 순위전 결과가 standings (예선 결과 표시) 에 합산되어 잘못된 순위 표시.
-  //   룰: roundName 가 "순위" 포함 (순위결정전 / 순위전 / 동순위전 등) = 순위전 = 제외.
-  //   placeholder-helpers 의 RANKING_ROUND_REGEX 와 동일 정규식.
-  const completedMatches = rawCompletedMatches.filter(
-    (m) => !m.roundName || !/순위/.test(m.roundName),
-  );
+  // 2026-05-16 사고 fix + 2026-06-14 근본 수정 — 예선 매치만 standings 에 반영.
+  //   isPrelimMatch: 순위전(기존) / KO 라운드명 / 브래킷 좌표 매치를 모두 제외.
+  //   (기존 /순위/ 단일 필터 → 결승·n강 등 KO 라운드 통과 버그를 isPrelimMatch 가 흡수)
+  const completedMatches = rawCompletedMatches.filter(isPrelimMatch);
 
   // 무승부 매치도 standings 에 포함 — winner_team_id NOT NULL 필터 후 별도 SELECT 1건
   // 사유: 현 비즈니스 룰상 무승부 매치도 PF/PA + draws 박제 의무.
@@ -171,12 +218,15 @@ export async function updateTeamStandings(
       homeScore: true,
       awayScore: true,
       roundName: true,
+      // 2026-06-14 근본 수정 — completed 매치와 동일하게 KO 좌표·조별 격리 판정 필드 추가
+      round_number: true,
+      bracket_position: true,
+      homeTeam: { select: { groupName: true } },
+      awayTeam: { select: { groupName: true } },
     },
   });
-  // 동일 룰 — 순위전 무승부 매치도 예선 standings 에서 제외
-  const drawMatches = rawDrawMatches.filter(
-    (m) => !m.roundName || !/순위/.test(m.roundName),
-  );
+  // 동일 룰 — 순위전·KO·좌표 무승부 매치도 예선 standings 에서 제외 (isPrelimMatch)
+  const drawMatches = rawDrawMatches.filter(isPrelimMatch);
 
   // ─────────────────────────────────────────────────────────────────────
   // 3. in-memory 합산 (영향 받는 2 팀: home + away 만 계산)
@@ -205,6 +255,11 @@ export async function updateTeamStandings(
   for (const m of completedMatches) {
     if (m.homeTeamId === null || m.awayTeamId === null) continue;
     if (m.homeScore === null || m.awayScore === null) continue;
+    // 2026-06-14 조별 격리 — 양 팀이 서로 다른 조면 조간(cross-group) 매치 → 조별 standings 오염 차단.
+    //   ★폴백: 한쪽이라도 groupName NULL 이면 격리 안 함 (전체 1조 = 기존 동작 = 회귀 0).
+    const hg = m.homeTeam?.groupName ?? null;
+    const ag = m.awayTeam?.groupName ?? null;
+    if (hg !== null && ag !== null && hg !== ag) continue;
     const hs = m.homeScore;
     const as = m.awayScore;
     const winnerId = m.winner_team_id;
@@ -255,6 +310,10 @@ export async function updateTeamStandings(
   for (const m of drawMatches) {
     if (m.homeTeamId === null || m.awayTeamId === null) continue;
     if (m.homeScore === null || m.awayScore === null) continue;
+    // 2026-06-14 조별 격리 — completed loop 와 동일 (조간 무승부 매치 skip · NULL 폴백)
+    const hg = m.homeTeam?.groupName ?? null;
+    const ag = m.awayTeam?.groupName ?? null;
+    if (hg !== null && ag !== null && hg !== ag) continue;
     const hs = m.homeScore;
     const as = m.awayScore;
     if (m.homeTeamId === homeId) {
