@@ -67,6 +67,8 @@ export const navStructure: AdminNavEntry[] = [
       { type: "item", href: "/admin/games", label: "경기 관리", icon: "sports_basketball", roles: ["super_admin", "site_admin"] },
       { type: "item", href: "/admin/teams", label: "팀 관리", icon: "groups", roles: ["super_admin", "site_admin"] },
       { type: "item", href: "/admin/courts", label: "코트 관리", icon: "location_on", roles: ["super_admin", "site_admin"] },
+      // 시즌 시상(P1-b) — super_admin 직접 입력(올스타/감독/MVP코멘트/수비/매너 등)
+      { type: "item", href: "/admin/season-awards", label: "시즌 시상", icon: "emoji_events", roles: ["super_admin"] },
       {
         type: "item",
         href: "/admin/community",
