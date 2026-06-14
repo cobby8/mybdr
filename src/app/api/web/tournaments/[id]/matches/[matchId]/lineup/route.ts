@@ -62,6 +62,23 @@ const PostBodySchema = z.object({
   }),
   // 후보 substitutes 는 0건도 허용 (가변)
   substitutes: TtpIdArray,
+  // ★ 2026-06-14 PR-LINEUP-V2 — 경기 단위 주장 ttp.id (단일).
+  //   zod 상으론 optional/nullable 로 받고(기존 호출·하위호환 보존),
+  //   "주장 필수" 정책은 POST 핸들러에서 명시 검증(메시지 친화적).
+  //   string/number 혼용 → bigint 변환. 빈값(null/undefined)은 null 로 통일.
+  captain: z
+    .union([z.string(), z.number()])
+    .optional()
+    .nullable()
+    .transform((v) => {
+      if (v == null) return null;
+      const big = parseBigIntParam(String(v));
+      if (big === null) {
+        // 잘못된 형식의 captain id → throw (핸들러 try/catch 가 422 처리)
+        throw new Error("INVALID_CAPTAIN_ID");
+      }
+      return big;
+    }),
 });
 
 const DeleteBodySchema = z.object({
@@ -78,6 +95,8 @@ function serializeLineup(row: {
   teamSide: string;
   starters: bigint[];
   substitutes: bigint[];
+  // ★ 신규 — 주장 ttp.id (nullable). 기존 row 는 null 로 안전 직렬화(R6).
+  captainTtpId: bigint | null;
   confirmedById: bigint;
   confirmedAt: Date;
   updatedAt: Date;
@@ -89,6 +108,10 @@ function serializeLineup(row: {
     // ttp.id 들도 string 으로 — 프론트 number safe 보장
     starters: row.starters.map((b) => b.toString()),
     substitutes: row.substitutes.map((b) => b.toString()),
+    // ★ 신규 — captainTtpId. apiSuccess 가 응답 키를 snake_case 변환 →
+    //   프론트 접근자는 `captain_ttp_id` (camel 아님, errors.md 함정).
+    //   null 이면 그대로 null (기존 라인업 정상 조회 — 회귀 R6).
+    captainTtpId: row.captainTtpId == null ? null : row.captainTtpId.toString(),
     confirmedById: row.confirmedById.toString(),
     confirmedAt: row.confirmedAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
@@ -177,6 +200,8 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
       teamSide: true,
       starters: true,
       substitutes: true,
+      // ★ 신규 — 주장 직렬화용. 기존 row 는 null (회귀 R6).
+      captainTtpId: true,
       confirmedById: true,
       confirmedAt: true,
       updatedAt: true,
@@ -295,7 +320,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
     return apiError(parsed.message, 422, "VALIDATION_ERROR");
   }
 
-  const { teamSide, starters, substitutes } = parsed.data;
+  const { teamSide, starters, substitutes, captain } = parsed.data;
   const teamSideTyped = teamSide as TeamSide;
 
   // 5) 권한 검증 — admin 양쪽 / 팀장 본인 측만
@@ -336,6 +361,40 @@ export async function POST(req: NextRequest, { params }: Ctx) {
     return apiError("후보에 중복된 선수가 있습니다.", 422, "VALIDATION_ERROR");
   }
 
+  // ====================================================================
+  // ★ PR-LINEUP-V2 신규 검증 (append) — 기존 검증 전부 통과 후 실행.
+  //   벤치캡 / 정원 / 주장 필수·멤버십. 무결성(소속·is_active)은 8)에서 captain 포함해 자동 검증.
+  // ====================================================================
+
+  // 7-1) 벤치캡 — substitutes(벤치)는 최대 7명 (앱 _kBenchMax 정합)
+  if (substitutes.length > 7) {
+    return apiError("벤치는 최대 7명까지 가능합니다.", 422, "VALIDATION_ERROR");
+  }
+
+  // 7-2) 정원 — 출전 명단(선발 + 벤치)은 최대 12명
+  if (starters.length + substitutes.length > 12) {
+    return apiError(
+      "출전 명단은 최대 12명까지 가능합니다.",
+      422,
+      "VALIDATION_ERROR",
+    );
+  }
+
+  // 7-3) 주장 필수 (사용자 결재) — captain 미지정 시 422
+  if (captain == null) {
+    return apiError("주장을 지정해주세요.", 422, "VALIDATION_ERROR");
+  }
+
+  // 7-4) 주장 멤버십 — captain 은 출전 선수(starters ∪ substitutes) 안에 있어야 함
+  const captainStr = captain.toString();
+  if (!startersSet.has(captainStr) && !substitutesSet.has(captainStr)) {
+    return apiError(
+      "주장은 출전 선수 중에서 지정해야 합니다.",
+      422,
+      "VALIDATION_ERROR",
+    );
+  }
+
   // 8) ttp 무결성 검증 — 모든 id 가 해당 teamSide tournamentTeam 소속 + is_active=true
   const targetSideObj =
     teamSideTyped === "home" ? match.homeTeam : match.awayTeam;
@@ -374,11 +433,15 @@ export async function POST(req: NextRequest, { params }: Ctx) {
       teamSide: teamSideTyped,
       starters,
       substitutes,
+      // ★ 신규 — 주장 ttp.id. 7-3 에서 null 차단했으므로 항상 값 존재.
+      captainTtpId: captain,
       confirmedById: userId,
     },
     update: {
       starters,
       substitutes,
+      // ★ 신규 — 재입력 시 주장도 갱신
+      captainTtpId: captain,
       // 재입력 시 confirmedById 갱신 — 누가 마지막에 변경했는지 추적
       confirmedById: userId,
     },

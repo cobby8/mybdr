@@ -1,32 +1,34 @@
 /**
- * 2026-05-09 PR3 — 사전 라인업 ttp 1건 카드 (presentational).
+ * 2026-06-14 PR-LINEUP-V2 [3] — 사전 라인업 ttp 1건 행 (presentational, 전면 재작성).
  *
- * 왜 분리하는가:
- *   lineup-confirm-form.tsx 는 state/POST 로직이 무거워서 row 별 표시 책임을 분리.
- *   row 1건 = (출전 ☑ 체크박스 + 주전 ☆ 체크박스 + #번호 + 이름).
- *   상태 토글은 부모 (form) 에서 주입한 콜백 호출만 담당.
+ * 왜 재작성하는가 (앱 bdr_stat_v3 roster_confirm 정합):
+ *   - 기존: 출전 ☑ 체크박스 + 주전 ☆ 별 + 포지션 컬럼 (2단계 입력).
+ *   - 신규: 행 전체가 단일 탭 순환 버튼 (선택→선발→벤치→선택). C 버튼은 주장 단일 토글.
+ *   - 앱 roster_confirm 행에는 포지션(PG/SG)이 없음 → 포지션 컬럼 완전 제거.
+ *
+ * 행 구성: [번호] [이름 + 닉네임 + 주장태그] [C 버튼] [상태칩(선발/벤치/선택)]
+ *   - 행 클릭 = cycleRole (부모 콜백) → 역할 순환.
+ *   - C 버튼 = toggleCaptain (e.stopPropagation 으로 행 순환과 분리).
  *
  * 디자인 룰 (CLAUDE.md 13 룰):
- *   - var(--color-*) 토큰만 (하드코딩 색상 ❌)
+ *   - var(--*) 토큰만 (하드코딩 색상 ❌)
  *   - Material Symbols Outlined (lucide-react ❌)
- *   - 44px 터치 영역 (체크박스 라벨 단위)
- *   - pill 9999px ❌ — 사각 칩 사용
+ *   - pill 9999px ❌ — 사각 칩 사용. 정사각 원형만 50% 허용(여기선 미사용)
+ *   - 720px 분기 / 44px 터치는 globals.css .lc-* 에서 처리
  *
  * 주의:
- *   - 부모(form) 가 Set<string> 으로 활성/주전 추적 → ttp.id (string) 를 키로 검사
- *   - 출전 미체크 row 는 주전 ☆ 비활성화 (회색 처리)
- *   - 주전 5명 도달 + 본인 미주전 인 경우 = 주전 ☆ 비활성 (UI 가드 — POST 에도 5명 강제)
+ *   - 부모(form)가 roles 맵으로 역할 추적 → role prop ('out'|'starter'|'bench') 으로 표시 분기.
+ *   - 출전(선발∪벤치)이 아닌 선수는 C 버튼 비활성 (주장 ⊆ 출전).
  */
 
 "use client";
 
-// ttp 1건 — page.tsx 에서 GET API 응답 직렬화 후 prop 으로 전달
-// snake_case 응답 키 그대로 사용 (apiSuccess 자동 변환 룰 준수)
+// ttp 1건 — page.tsx 에서 server prisma 직렬화 후 prop 으로 전달 (snake_case 키)
 export type TtpItem = {
-  id: string; // bigint → string (route.ts serialize)
+  id: string; // bigint → string
   jersey_number: number | null;
-  role: string | null; // "player" | "captain" | "coach" | "manager"
-  position: string | null;
+  role: string | null; // "player" | "captain" | "coach"
+  position: string | null; // ★UI 미사용(앱 정합 포지션 제거) — 타입은 page 직렬화 호환 위해 유지
   player_name: string | null;
   user: {
     id: string;
@@ -35,128 +37,96 @@ export type TtpItem = {
   } | null;
 };
 
+// 역할 3상태 — 앱 roster_confirm _Role 과 정합
+export type LcRole = "out" | "starter" | "bench";
+
 type Props = {
   ttp: TtpItem;
-  isActive: boolean; // 출전 체크 여부
-  isStarter: boolean; // 주전 체크 여부
-  starterDisabled: boolean; // 주전 5명 도달 + 본인 미주전 시 true (추가 차단)
-  onToggleActive: () => void;
-  onToggleStarter: () => void;
-  disabled?: boolean; // 매치 시작됨 등 폼 전체 disabled
+  role: LcRole; // 현재 역할 (out/starter/bench)
+  isCaptain: boolean; // 주장 여부 (행 1건)
+  onCycle: () => void; // 행 탭 = 역할 순환
+  onToggleCaptain: () => void; // C 버튼 = 주장 단일 토글
+  locked?: boolean; // 매치 잠금(시작 후) — 전 입력 비활성
 };
 
 export function TtpRow({
   ttp,
-  isActive,
-  isStarter,
-  starterDisabled,
-  onToggleActive,
-  onToggleStarter,
-  disabled = false,
+  role,
+  isCaptain,
+  onCycle,
+  onToggleCaptain,
+  locked = false,
 }: Props) {
-  // 표시명 — nickname > user.name > player_name 우선순위 (P0 헬퍼와 동일 정책)
+  // 표시명 — nickname > user.name > player_name 우선순위 (기존 정책 유지)
   const displayName =
     ttp.user?.nickname || ttp.user?.name || ttp.player_name || "(이름 없음)";
+  // 닉네임은 본명과 다를 때만 별도 표기 (시안 nick 라인)
+  const nick =
+    ttp.user?.nickname && ttp.user?.nickname !== displayName
+      ? ttp.user.nickname
+      : null;
 
-  // 주전 토글 가능 = 출전 체크된 상태 + (이미 주전이거나 5명 미달)
-  const canToggleStarter = !disabled && isActive && !starterDisabled;
+  // 상태칩 — 역할별 라벨/아이콘/모디파이어 (시안 toggle 칩 정합)
+  const toggle =
+    role === "starter"
+      ? { mod: "starter", ico: "check", lbl: "선발" }
+      : role === "bench"
+        ? { mod: "bench", ico: "check", lbl: "벤치" }
+        : { mod: "out", ico: "add", lbl: "선택" };
+
+  // 행 클래스 — 역할/잠금에 따라 강조 (CSS .lc-row.is-starter/.is-bench/.is-locked)
+  const rowCls =
+    "lc-row" +
+    (role === "starter"
+      ? " is-starter"
+      : role === "bench"
+        ? " is-bench"
+        : "") +
+    (locked ? " is-locked" : "");
+
+  // 주장은 출전 선수(선발∪벤치)만 — out 상태면 C 비활성
+  const capDisabled = locked || role === "out";
 
   return (
-    <div
-      // 카드 — 출전 활성 시 강조 (BDR Red 토큰 사용)
-      className="flex items-center gap-3 rounded-md border px-3 py-2.5"
-      style={{
-        // 출전 시 BDR Red 살짝 / 미출전 = 기본 카드
-        background: isActive
-          ? "var(--color-accent-light)"
-          : "var(--color-card)",
-        borderColor: isActive ? "var(--color-accent)" : "var(--color-border)",
-        opacity: disabled ? 0.6 : 1,
-      }}
+    <button
+      type="button"
+      className={rowCls}
+      onClick={onCycle}
+      disabled={locked}
     >
-      {/* 출전 체크박스 — 44px 터치 영역 보장 (label 전체 클릭) */}
-      <label
-        className="flex min-h-11 min-w-11 cursor-pointer items-center justify-center"
-        style={{ cursor: disabled ? "not-allowed" : "pointer" }}
-      >
-        <input
-          type="checkbox"
-          checked={isActive}
-          onChange={onToggleActive}
-          disabled={disabled}
-          // 기본 브라우저 체크박스 — 토큰 색은 accent-color 로 통일
-          style={{ accentColor: "var(--color-accent)", width: 20, height: 20 }}
-          aria-label={`${displayName} 출전`}
-        />
-      </label>
+      {/* 등번호 — null 시 "미정" (작은 글씨). 포지션 컬럼은 제거됨 */}
+      <span className={"lc-row__num" + (ttp.jersey_number == null ? " is-none" : "")}>
+        {ttp.jersey_number != null ? ttp.jersey_number : "미정"}
+      </span>
 
-      {/* 주전 토글 — Material Symbols star (출전 안 했으면 회색 비활성) */}
-      <button
-        type="button"
-        onClick={onToggleStarter}
-        disabled={!canToggleStarter}
-        className="flex min-h-11 min-w-11 items-center justify-center rounded-md"
-        style={{
-          // 주전: 채워진 별 / 미주전: 빈 별 / 비활성: 회색
-          color: isStarter
-            ? "var(--color-accent)"
-            : canToggleStarter
-              ? "var(--color-text-secondary)"
-              : "var(--color-text-muted)",
-          cursor: canToggleStarter ? "pointer" : "not-allowed",
+      {/* 이름 + 닉네임 + 주장태그 */}
+      <span className="lc-row__name">
+        <span className="lc-row__nm">{displayName}</span>
+        {nick && <span className="lc-row__nick">{nick}</span>}
+        {isCaptain && <span className="lc-captag">주장</span>}
+      </span>
+
+      {/* C 버튼 — 주장 단일 토글. e.stopPropagation 으로 행 순환과 분리 */}
+      <span
+        className={"lc-capbtn" + (isCaptain ? " is-on" : "")}
+        onClick={(e) => {
+          e.stopPropagation(); // 행 클릭(cycleRole) 막고 주장만 토글
+          if (capDisabled) return;
+          onToggleCaptain();
         }}
-        aria-label={`${displayName} 주전 토글`}
-        aria-pressed={isStarter}
+        role="button"
+        aria-label={`${displayName} 주장 지정`}
+        aria-pressed={isCaptain}
+        aria-disabled={capDisabled}
       >
-        <span
-          className="material-symbols-outlined"
-          style={{
-            // 주전이면 fill, 아니면 outline
-            fontVariationSettings: isStarter
-              ? "'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24"
-              : "'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24",
-            fontSize: 22,
-          }}
-        >
-          star
-        </span>
-      </button>
+        C
+      </span>
 
-      {/* 등번호 — # 표기 / 숫자 가운데 정렬 */}
-      <div
-        className="flex h-9 w-12 items-center justify-center rounded-md text-sm font-semibold tabular-nums"
-        style={{
-          background: "var(--color-surface)",
-          color: "var(--color-text-primary)",
-          border: "1px solid var(--color-border)",
-        }}
-      >
-        {ttp.jersey_number !== null ? `#${ttp.jersey_number}` : "—"}
-      </div>
-
-      {/* 이름 + role 메타 (position 은 별도 컬럼으로 분리) */}
-      <div className="flex min-w-0 flex-1 flex-col">
-        <span
-          className="truncate text-sm font-medium"
-          style={{ color: "var(--color-text-primary)" }}
-        >
-          {displayName}
-        </span>
-        <span
-          className="truncate text-xs"
-          style={{ color: "var(--color-text-muted)" }}
-        >
-          {ttp.role || "선수"}
-        </span>
-      </div>
-
-      {/* 포지션 컬럼 — 별도 분리 (헤더 "포지션" 과 정렬 매칭, w-16 center). null 시 — */}
-      <div
-        className="flex h-9 w-16 items-center justify-center text-sm tabular-nums"
-        style={{ color: "var(--color-text-secondary)" }}
-      >
-        {ttp.position || "—"}
-      </div>
-    </div>
+      {/* 상태칩 — 선발/벤치/선택 (display 전용, 클릭은 행 전체가 받음) */}
+      <span className={"lc-toggle lc-toggle--" + toggle.mod}>
+        <span className="ico material-symbols-outlined">{toggle.ico}</span>
+        {toggle.lbl}
+      </span>
+    </button>
   );
 }
