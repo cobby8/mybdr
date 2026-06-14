@@ -6991,3 +6991,36 @@ html.dark {
 @media (max-width: 720px) {
   .cal-layout { grid-template-columns: 1fr; }
 }
+
+/* ============================================================
+ * /scrim — 스크림 매칭 (PR-MOCK-TO-REAL ④)
+ * 시안 BDR-current/screens/extras-pages.css .sc-* 역박제.
+ * 토큰은 전부 var(--*) — 하드코딩 hex 0. 구분자는 쉼표(슬래시 사용 안 함 → 조기종료 0).
+ * ============================================================ */
+.sc-me { display: grid; grid-template-columns: auto 1fr auto; gap: 16px; align-items: center; padding: 16px 20px; margin-bottom: 16px; }
+.sc-me__av { width: 44px; height: 44px; font-size: 13px; font-family: var(--ff-mono); }
+.sc-me__name { font-weight: 800; font-size: 15px; }
+.sc-me__meta { font-size: 12px; color: var(--ink-mute); margin-top: 2px; }
+.sc-me__meta b { color: var(--ink-soft); }
+.sc-list { display: flex; flex-direction: column; gap: 10px; }
+.sc-row { display: grid; grid-template-columns: auto 1fr auto; gap: 18px; align-items: center; padding: 18px 22px; }
+.sc-row__team { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.sc-row__av { width: 50px; height: 50px; font-size: 14px; font-family: var(--ff-mono); border-radius: var(--r-md); }
+.sc-row__name { font-family: var(--ff-display); font-weight: 800; font-size: 16px; letter-spacing: -0.01em; }
+.sc-row__sub { font-family: var(--ff-mono); font-size: 11px; color: var(--ink-dim); margin-top: 2px; }
+.sc-row__mid { min-width: 0; }
+.sc-row__tags { display: flex; gap: 5px; margin-bottom: 6px; flex-wrap: wrap; }
+.sc-row__when { font-size: 13px; font-weight: 700; margin-bottom: 3px; display: flex; align-items: center; gap: 6px; }
+.sc-row__when .ico { font-family: 'Material Symbols Outlined'; font-size: 15px; color: var(--ink-dim); }
+.sc-row__note { font-size: 12.5px; color: var(--ink-mute); line-height: 1.5; }
+.sc-row__act { display: flex; flex-direction: column; gap: 6px; min-width: 116px; }
+.sc-prop { display: grid; grid-template-columns: auto 1fr auto; gap: 14px; align-items: center; padding: 16px 20px; }
+.sc-prop__av { width: 42px; height: 42px; font-size: 12px; font-family: var(--ff-mono); }
+.sc-prop__act { display: flex; gap: 5px; }
+.sc-prop__msg { font-size: 13px; color: var(--ink-soft); }
+.sc-prop__head { display: flex; gap: 6px; align-items: center; margin-bottom: 3px; }
+.sc-prop__when { margin-left: auto; font-family: var(--ff-mono); font-size: 11px; color: var(--ink-dim); }
+@media (max-width: 720px) {
+  .sc-row, .sc-prop { grid-template-columns: 1fr; }
+  .sc-row__act { flex-direction: row; min-width: 0; }
+}

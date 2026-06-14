@@ -15,6 +15,7 @@ import {
   TOURNAMENT_FORMAT_LABEL,
   TOURNAMENT_STATUS_LABEL,
   TOURNAMENT_STATUS_BADGE,
+  effectiveTournamentStatus,
 } from "@/lib/constants/tournament-status";
 
 interface TournamentHeroProps {
@@ -65,9 +66,11 @@ export function TournamentHero({
   contactPhone,
   myApplicationsCount = 0,
 }: TournamentHeroProps) {
-  // 공통 상수에서 상태 라벨과 뱃지 variant를 가져옴
-  const statusLabel = TOURNAMENT_STATUS_LABEL[status ?? "draft"] ?? (status ?? "draft");
-  const statusVariant = TOURNAMENT_STATUS_BADGE[status ?? "draft"] ?? ("default" as const);
+  // 종료일 경과 시 "completed"로 보정한 실효 상태 (DB status 박제 보정 — 표시 전용)
+  const effStatus = effectiveTournamentStatus(status, startDate, endDate);
+  // 공통 상수에서 상태 라벨과 뱃지 variant를 가져옴 (보정된 상태 기준)
+  const statusLabel = TOURNAMENT_STATUS_LABEL[effStatus || "draft"] ?? (effStatus || "draft");
+  const statusVariant = TOURNAMENT_STATUS_BADGE[effStatus || "draft"] ?? ("default" as const);
   // 포맷 한글 변환
   const formatLabel = TOURNAMENT_FORMAT_LABEL[format ?? ""] ?? TOURNAMENT_FORMAT_LABEL[(format ?? "").toLowerCase()] ?? format ?? "";
 

@@ -25,6 +25,7 @@ import { formatDateRange } from "@/lib/utils/format-date";
 import {
   TOURNAMENT_FORMAT_LABEL,
   TOURNAMENT_STATUS_LABEL,
+  effectiveTournamentStatus,
 } from "@/lib/constants/tournament-status";
 
 interface V2TournamentHeroProps {
@@ -74,8 +75,9 @@ export function V2TournamentHero({
   const accent = primaryColor || "#E31B23";
   const accent2 = secondaryColor || "#E76F51";
 
-  // 상태/포맷 라벨
-  const statusLabel = TOURNAMENT_STATUS_LABEL[status ?? "draft"] ?? (status ?? "");
+  // 상태/포맷 라벨 — 종료일 경과 시 "종료"로 보정한 실효 상태 기준 (표시 전용)
+  const effStatus = effectiveTournamentStatus(status, startDate, endDate);
+  const statusLabel = TOURNAMENT_STATUS_LABEL[effStatus || "draft"] ?? (effStatus || "");
   const formatLabel =
     TOURNAMENT_FORMAT_LABEL[format ?? ""] ??
     TOURNAMENT_FORMAT_LABEL[(format ?? "").toLowerCase()] ??

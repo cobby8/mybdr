@@ -9,7 +9,7 @@
 // 레이아웃은 부모가 지정한다 (sticky/top-20 등) — 이 파일은 카드 내부만 책임진다.
 
 import Link from "next/link";
-import { TOURNAMENT_STATUS_LABEL } from "@/lib/constants/tournament-status";
+import { TOURNAMENT_STATUS_LABEL, effectiveTournamentStatus } from "@/lib/constants/tournament-status";
 
 interface Props {
   tournamentId: string;
@@ -23,6 +23,10 @@ interface Props {
   isRegistrationOpen: boolean;
   myApplicationsCount: number;
   isLoggedIn: boolean;
+  // 대회 시작/종료일 — status 라벨 표시 보정용(종료일 경과 시 "종료").
+  // optional: 미전달 시 raw status 라벨로 폴백. ★ CTA 로직 미사용, 표시 전용.
+  startDate?: Date | null;
+  endDate?: Date | null;
 }
 
 // ----- 유틸: D-day 계산 -----
@@ -70,6 +74,8 @@ export function RegistrationStickyCard({
   isRegistrationOpen,
   myApplicationsCount,
   isLoggedIn,
+  startDate,
+  endDate,
 }: Props) {
   // ----- D-day 계산 -----
   // registrationEndAt이 null이면 D-day 표기를 생략한다.
@@ -102,7 +108,9 @@ export function RegistrationStickyCard({
   // 1) 비로그인 → /login?next=.../join
   // 2) 로그인 + 접수중 → /tournaments/[id]/join
   // 3) 로그인 + 접수중 아님 → disabled 버튼 + 상태 라벨
-  const statusLabel = TOURNAMENT_STATUS_LABEL[status] ?? status;
+  // start/end 전달 시 종료일 경과를 반영해 "종료"로 보정 (표시 전용, 미전달 시 raw 폴백).
+  const effStatus = effectiveTournamentStatus(status, startDate, endDate);
+  const statusLabel = TOURNAMENT_STATUS_LABEL[effStatus] ?? effStatus;
 
   return (
     <div
