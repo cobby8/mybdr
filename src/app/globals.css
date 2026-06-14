@@ -6385,8 +6385,8 @@ html.dark {
    토큰 매핑: --r-lg/--r-md→--radius-card / --r-sm/--r-xs→--radius-chip /
              --err→--color-error / 하드코딩 #8B5A0F·#F4C76C→--warn /
              #1A1E27·#2B3242→--bdr-navy 그라디언트.
-   나머지(--ok/--warn/--accent*/--cafe-blue*/--bdr-navy/--ink*/--bg*/
-          --border*/--sh-sm/md/--ff-*)는 운영 실재 토큰 그대로.
+   나머지(--ok, --warn, --accent, --cafe-blue, --bdr-navy, --ink, --bg,
+          --border, --sh-sm, --sh-md, --ff-)는 운영 실재 토큰 그대로.
    ============================================================ */
 
 /* ---- 공용 extras: page__inner 변형 ----
@@ -6766,4 +6766,101 @@ html.dark {
   .aw-mvp, .sf-report { grid-template-columns: 1fr; }
   .aw-mvp__face { padding: 22px; }
   .gl-item.wide, .gl-item.tall { grid-column: auto; grid-row: auto; }
+}
+
+/* ============================================================
+   Phase 12 Batch B (v2.31) — DB 연결 7화면 박제
+   SV1 Saved (실데이터 타일) / CV1 CourtAdd (정적 폼).
+   ST1/CA1/SC1/TV1 = .ex-empty 빈상태(전용 토큰 미사용 → 이식 0).
+   SE1 = 변경 0(점검만).
+   시안 extras-pages.css 토큰 치환 이식:
+     --r-md → --radius-card / --r-sm·--r-xs → --radius-chip /
+     --err → --color-error / pill 9999 → 50%.
+   나머지(--ink, --bg, --border, --cafe-blue, --bdr-navy, --accent,
+          --ok, --warn, --sh-sm, --ff-)는 운영 실재 토큰 그대로.
+   (.ex-tabs/.ex-mono 는 Batch A 미이식 — SV1 셸이 사용하므로 본 블록에 정의)
+   ============================================================ */
+
+/* ---- underline tabs (SV1 등) — Batch A 미이식분 ---- */
+.ex-tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--border); margin-bottom: 20px; overflow-x: auto; }
+.ex-tab {
+  padding: 11px 17px; background: transparent; border: 0; cursor: pointer; white-space: nowrap;
+  font-size: 13.5px; font-weight: 500; color: var(--ink-mute);
+  border-bottom: 2px solid transparent; margin-bottom: -1px;
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.ex-tab:hover { color: var(--ink); }
+.ex-tab.is-on { border-bottom-color: var(--accent); color: var(--ink); font-weight: 700; }
+.ex-tab__n { font-family: var(--ff-mono); font-size: 11px; color: var(--ink-dim); font-weight: 700; }
+.ex-tab.is-on .ex-tab__n { color: var(--accent); }
+
+/* ---- avatar / tile mono badge (SV1 팀 타일) — Batch A 미이식분 ---- */
+.ex-mono {
+  display: inline-grid; place-items: center; flex-shrink: 0;
+  font-family: var(--ff-display); font-weight: 800; color: #fff;
+  background: var(--bdr-navy); border-radius: var(--radius-chip);
+}
+.ex-mono--accent { background: var(--accent); }
+.ex-mono--navy { background: var(--bdr-navy); }
+.ex-mono--blue { background: var(--cafe-blue); }
+.ex-mono--ink { background: var(--ink-soft); }
+
+/* ============================================================
+   SV1 · Saved  (/saved)  — 실데이터 타일·그리드
+   ============================================================ */
+.sv-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+.sv-grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.sv-grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+.sv-tile { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-card); padding: 16px 18px; cursor: pointer; position: relative; text-decoration: none; color: inherit; display: block; }
+.sv-tile:hover { border-color: var(--border-strong); box-shadow: var(--sh-sm); }
+.sv-tile__top { display: flex; gap: 6px; margin-bottom: 8px; align-items: center; }
+.sv-tile__bm { margin-left: auto; color: var(--accent); font-family: 'Material Symbols Outlined'; font-size: 17px; cursor: pointer; }
+.sv-tile__title { font-weight: 700; font-size: 14px; line-height: 1.4; margin-bottom: 6px; }
+.sv-tile__meta { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; font-size: 12px; color: var(--ink-soft); }
+.sv-tile__meta .k { color: var(--ink-dim); }
+.sv-tile__date { font-family: var(--ff-mono); font-size: 10px; color: var(--ink-dim); margin-top: 8px; display: flex; align-items: center; gap: 3px; }
+.sv-tile__date .ico { font-family: 'Material Symbols Outlined'; font-size: 12px; color: var(--accent); }
+.sv-team { text-align: center; }
+.sv-team__av { width: 54px; height: 54px; margin: 0 auto 10px; font-size: 15px; font-family: var(--ff-mono); border-radius: var(--radius-card); }
+.sv-court__rating { font-family: var(--ff-mono); font-size: 11px; color: var(--ink-mute); display: inline-flex; align-items: center; gap: 2px; }
+.sv-court__rating .ico { font-family: 'Material Symbols Outlined'; font-size: 13px; color: var(--warn); }
+
+/* ============================================================
+   CV1 · CourtAdd  (/courts/submit)  &  shared form
+   ============================================================ */
+.fm-card { padding: 26px 30px; max-width: 720px; margin: 0 auto; }
+.fm-step { display: flex; gap: 8px; margin-bottom: 24px; }
+.fm-step__dot { flex: 1; height: 4px; border-radius: 2px; background: var(--border); }
+.fm-step__dot.is-on { background: var(--accent); }
+.fm-field { margin-bottom: 18px; }
+.fm-label { display: block; font-size: 13px; font-weight: 700; color: var(--ink); margin-bottom: 7px; }
+.fm-label .req { color: var(--accent); margin-left: 3px; }
+.fm-hint { font-size: 11.5px; color: var(--ink-mute); margin-top: 5px; line-height: 1.5; }
+.fm-input, .fm-textarea, .fm-select {
+  width: 100%; padding: 11px 13px; font-size: 16px; font-family: inherit;
+  background: var(--bg-elev); border: 1px solid var(--border-strong); border-radius: var(--radius-chip);
+  color: var(--ink); outline: 0;
+}
+.fm-textarea { resize: vertical; min-height: 96px; }
+.fm-input:focus, .fm-textarea:focus, .fm-select:focus { border-color: var(--cafe-blue); box-shadow: 0 0 0 3px var(--cafe-blue-soft); }
+.fm-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.fm-checks { display: flex; gap: 8px; flex-wrap: wrap; }
+.fm-check {
+  display: inline-flex; align-items: center; gap: 7px; padding: 9px 13px; cursor: pointer;
+  background: var(--bg-alt); border: 1px solid var(--border); border-radius: var(--radius-chip);
+  font-size: 12.5px; font-weight: 600; color: var(--ink-soft);
+}
+.fm-check.is-on { background: var(--cafe-blue-soft); border-color: var(--cafe-blue-hair); color: var(--cafe-blue-deep); font-weight: 700; }
+.fm-check .ico { font-family: 'Material Symbols Outlined'; font-size: 16px; }
+.fm-upload { border: 2px dashed var(--border-strong); border-radius: var(--radius-chip); padding: 26px; text-align: center; color: var(--ink-mute); cursor: pointer; background: var(--bg-alt); }
+.fm-upload:hover { border-color: var(--cafe-blue); color: var(--cafe-blue-deep); }
+.fm-upload .ico { font-family: 'Material Symbols Outlined'; font-size: 30px; display: block; margin: 0 auto 6px; }
+.fm-actions { display: flex; justify-content: space-between; gap: 10px; margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--border); }
+.fm-note { display: flex; gap: 8px; padding: 12px 14px; background: var(--cafe-blue-soft); border: 1px solid var(--cafe-blue-hair); border-radius: var(--radius-chip); font-size: 12px; color: var(--cafe-blue-deep); line-height: 1.55; margin-top: 8px; }
+.fm-note .ico { font-family: 'Material Symbols Outlined'; font-size: 16px; flex-shrink: 0; }
+
+/* ---- Phase 12 Batch B 720px 분기 ---- */
+@media (max-width: 720px) {
+  .sv-grid-2, .sv-grid-3, .sv-grid-4 { grid-template-columns: 1fr; }
+  .fm-row { grid-template-columns: 1fr; }
 }
