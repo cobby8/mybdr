@@ -2,6 +2,34 @@
 <!-- 담당: planner-architect | 최대 30항목 -->
 <!-- "왜 A 대신 B를 선택했는지" 기술 결정의 배경과 이유를 기록 -->
 
+### [2026-06-15] 버킷B P1-a 코트 제보 — 신규 court_submissions 테이블 채택 (기존 재사용 불가)
+- **분류**: decision (데이터부재 페이지 / 신규 테이블 vs 재사용)
+- **발견자**: planner + pm (`d86bbc5`+`a20cdd0`+`abef30c`)
+- **계기**: census 버킷B "데이터 부재" 페이지(/courts/submit) 실연결. prefix-grep 함정 회피 위해 코트 테이블 13개 전수 실측.
+- **결정**: **신규 `court_submissions` ADD(무중단)**. 기존 `court_edit_suggestions`(L1388)·`court_reports`(L1367)는 **`court_info_id` NOT NULL FK** → "아직 없는 코트" 제보 못 가리킴(수정제안/신고=기존코트 보정 ≠ 제보=신규생성, 방향 반대·FK 위반). scrim(team_match_requests 재사용)과 대조 — 테이블 있어도 **FK 방향 다르면 재사용 불가**.
+- **재사용한 것 = 코드/흐름**: court_edit_suggestions 승인 API(pending→court_infos 트랜잭션 반영+XP) 템플릿 + /admin/courts 탭 패턴(신규 화면 0).
+- **구현**: schema(CREATE1+INDEX2+FK2·ALTER/DROP0·data-loss0) + 제출 API/폼 실연결 + admin 승인큐(승인=$transaction court_infos.create+approved+XP10 / 반려=rejected+note). tester PASS18·reviewer APPROVE(min3후속). 승인 시 region→city/3x3→outdoor 매핑.
+- **참조횟수**: 0
+
+### [2026-06-15] 대회 종료 후속 3종 설계 — ① 우승팀 자동set 옵션B(신규유틸+finalize통합) + ② cron 매치0한정 + ③ 운영절차
+- **분류**: decision (대회 종료 자동화 3종 — 우승팀/cron/결선흐름)
+- **발견자**: planner-architect (read-only 설계 / 설계서 `Dev/tournament-completion-followup-plan-2026-06-15.md`)
+- **계기**: 종료 판정 이원화 완료 후 미해결 3건 — champion 수동 / Phase3 cron 미구현 / 4차·열혈 결선 대기.
+- **우선순위·의존**: ①(中)이 ③의 전제(결선 진행 시 우승 자동). ②(小)는 완전 독립(매치0=우승 없음·①과 교차0). 권장 = ①먼저 + ②병렬 → ③①머지후 운영.
+- **① champion 자동 set — 옵션 비교**:
+  | 옵션 | 내용 | 판정 |
+  |------|------|------|
+  | A auto-complete.ts 내부 | checkAndAutoComplete가 status update 직후 champion도 | ❌ 단일책임위반·멱등/테스트결합 |
+  | **B 신규 set-champion.ts + finalize통합** | autoComplete `updated:true`일때만 finalize서 setTournamentChampion 호출 | ✅ **채택** |
+  | C 별도 cron 백필 | completed+champion null 일괄 | ❌ 실시간성0·②와 책임혼동 |
+  - **B 채택 사유**: `finalizeMatchCompletion`(L180)이 이미 종료 5path 단일진입점 → 추가만으로 전path 자동적용 / 판정부 PURE 분리 vitest 검증 / champion SET 코드 0건이라 add-only 회귀0.
+  - **포맷별 판정**: knockout계열(single_elim/full_league_knockout/group_stage_knockout/dual)=결승(roundName LIKE + next_match_id null폴백)`winner_team_id`→**tt.teamId 변환**(champion=Team.id·winner=TT.id) / round_robin·league=calculateLeagueRanking 1위 / group_stage다조=보류null(우승 모호·PM확인).
+  - **멱등 = 이미 champion 있으면 skip**(overwrite ❌·수동박제 보호). champion 박제 실패 = silent(autoComplete 실패 패턴 답습·종료 차단0).
+- **② Phase3 cron** = `api/cron/auto-complete-tournaments` 신규. WHERE = status NOT IN(TERMINAL+NO_TIME_OVERRIDE) + 날짜경과(KST고정) + **매치0건(`matches:{none:{}}`)** ★진짜대회 강제종료 금지=생명선. 매치有 대회는 finalize/① 소관(분리). vercel.json `0 18 * * *`(KST 03:00). cron 표준(Bearer/updateMany/admin_logs/resolveSystemAdminId) 답습.
+- **③ 결선 흐름** = 코드 0~소. ①머지후 4차결승#232/열혈결선 실경기를 정규경로(score-sheet/Flutter sync)로 박제→finalize 자동→종료+champion 자동. **직접 DB UPDATE 금지**(헬퍼우회=champion/standings/advance 누락).
+- **DB schema 변경 0** (champion_team_id 기존재) / 본 항목 = 설계만(코드·DB 미변경) → 박제는 PM 결재 7건 후 별도 진입.
+- **참조횟수**: 0
+
 ### [2026-06-14] ★ 팀 변경 — 원영 프로젝트 이탈 (머지권한·Flutter 담당 갱신)
 - **분류**: decision (팀/협업 정책 변경)
 - **발견자**: pm (수빈 지시)

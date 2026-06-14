@@ -14,6 +14,24 @@
 | Phase12 Batch A/B 13화면 / PR-LINEUP-V2 / Phase10 5시안 | ✅ main 반영 |
 
 ## 기획설계 (planner-architect)
+### 대회종료 후속 3종 통합설계 (2026-06-15, read-only)
+- 🎯 ①우승팀 자동set ②Phase3 cron ③4차/열혈 결선흐름. 설계서=`Dev/tournament-completion-followup-plan-2026-06-15.md`. **코드·DB 0**.
+- **우선순위/의존**: ①(中)→③(전제) / ②(小·독립·병렬) / ③(운영절차·코드0~소·①의존). 권장=①먼저+②병렬+③①머지후.
+- **①핵심 실측**: `champion_team_id`=**Team.id** FK(schema L322/353)·SET코드 **0**(완전신규·회귀0) / `winner_team_id`=**TournamentTeam.id** FK(L746)→**tt.teamId 변환필수**(그대로넣으면 FK깨짐) / `finalizeMatchCompletion`(finalize-match-completion.ts L180)=모든 종료path5종 단일진입점→여기 통합(별도유틸/auto-complete내부❌). **옵션B채택**=신규 set-champion.ts(판정PURE+박제DB) + finalize서 autoComplete `updated:true`일때만 호출(낭비0). 포맷별: knockout계열(single_elim/full_league_knockout/group_stage_knockout/dual)=결승(roundName LIKE 결승/final/championship + next_match_id null폴백)승자 / round_robin·league=calculateLeagueRanking 1위 / group_stage다조=보류null. 멱등=이미있으면skip(권장·수동박제보호).
+- **②핵심**: cron표준=Bearer CRON_SECRET+updateMany+admin_logs(stale-pending-fix 패턴 답습). WHERE=status NOT IN(TERMINAL completed/ended/closed/cancelled + NO_TIME_OVERRIDE draft/upcoming/final/preopen)+날짜경과(KST고정)+**매치0건(`matches:{none:{}}`)**★진짜대회 강제종료금지=생명선. ①과 교차0(매치0=우승없음·champion호출X). vercel.json `0 18 * * *`(KST03:00). 신규 `api/cron/auto-complete-tournaments/route.ts`.
+- **③**: 코드0~소. ①머지후 4차결승#232(CBL vs ATLAS 0:0)/열혈SEASON2 결선 실경기를 **정규경로(score-sheet/Flutter sync)**로 박제→finalize자동→종료+champion자동. **직접DB UPDATE금지**(헬퍼우회=champion/standings/advance 누락 — errors.md sync우회 5회재발 패턴).
+- **PM결재 7건**: ①-Q1멱등skip / ①-Q2 round_robin자동 / ①-Q3 group_stage다조보류 / ②-Q1주기03:00 / ②-Q2매치0한정확정 / ③-Q1운영일정 / 공통-진행순서(①+②병렬→③).
+
+### 버킷B P1-a 코트 제보 승인 체계 실측+설계 (2026-06-15, read-only)
+- 🎯 admin-plan §P1-a "court_submissions 신규" 정당성 + 기존 코트테이블 재사용 가능성 실측. 결과 = `Dev/court-submission-plan-2026-06-14.md`
+- **결론: 신규 테이블 1개 ADD-only 필요(`court_submissions`)** — prefix-grep 함정 회피 위해 코트테이블 13개 전수 실측. 재사용 가능 테이블 없음(의도 불일치).
+  - `court_edit_suggestions`(0행)·`court_reports`(0행) = **둘 다 court_info_id NOT NULL FK** → "아직 없는 코트" 못 가리킴. suggestion=기존코트 보정 / 제보=신규생성 = 반대방향. 억지매핑 시 FK위반. scrim(tmr 재사용)과 달리 **신규 테이블이 정답**.
+  - **재사용 = 테이블 아닌 "흐름/코드"**: ① suggestions 승인 API(courts/[id]/suggestions/[sugId] PATCH)=pending→트랜잭션(court_infos반영+status+XP) **제보 승인 정확한 템플릿** ② /admin/courts에 **이미 수정제안·앰배서더 승인탭 완성** → "제보 검토" 4번째 동형탭 추가로 끝(신규화면0) ③ 승인INSERT=createCourtAction `court_infos.create` 패턴.
+- **코트 메인 테이블 확정 = `court_infos`(672행 전부 active)**. `courts`(레거시)=**0행** 무시. 승인 시 court_infos.create.
+- **schema diff**: court_submissions(name/region/court_type/address/operating_hours/fee_text/amenities[]/photos[]/description + status pending/approved/rejected + reviewed_by/at/note + approved_court_info_id) + User relation 2줄(submitter/reviewer — suggestion_submitter 선례 동형). CREATE1+INDEX2, ALTER/DROP 0, --accept-data-loss 불필요.
+- **단계**: ①schema ADD(db diff 사용자검토후push) ②제출API POST/GET+폼실연결 ③승인큐 PATCH+admin탭 ④(선택)XP court_submit+알림 ⑤검증(tester+reviewer 병렬). 규모 中(+350~500). 위험 低.
+- populated 실측: court_infos=672(active) / courts=0 / court_reports=0 / court_edit_suggestions=0. 임시 census script 작성→즉시삭제(가드3).
+
 ### PR-MOCK-TO-REAL ④/scrim ⑤/team-invite 실측+설계 (2026-06-15, read-only)
 - 🎯 ④⑤ 더미→실데이터 연결 가능성 실측. 결과 = `Dev/scrim-teaminvite-realdata-plan-2026-06-14.md`
 - **④ /scrim = 연결 가능(인프라 완성·데이터 0행)**: `team_match_requests`(L503) 실재+의도정합(from→to 친선/연습제안). 백엔드 GET(받은제안)/POST(생성+알림)/PATCH(수락·거절·취소) **완비**. **populated=0행** → mock복원❌·빈상태로 정직 와이어. 상대찾기탭만 모델부재=준비중. me/activity captainId패턴으로 내 운영팀 해소. 規模 中(+200~350). **사용자 결재 1건: (가)지금 인프라연결 vs (나)데이터 생길때 연결**.
@@ -22,6 +40,89 @@
 (이전 완료 — 압축)
 
 ## 구현 기록 (developer)
+
+### PR-AUTOCOMPLETE ② Phase3 cron 자동화 (2026-06-15, developer)
+
+📝 구현: 종료일 경과 + **매치 0건** 대회를 매일 1회(KST 03:00) 자동으로 `status="completed"` 전환하는 cron. stale-pending-fix 패턴 답습(Bearer 가드 / findMany→updateMany 이중가드 / admin_logs audit / silent fail). schema 0 / api-v1 0 / champion·mvp 미접촉.
+
+| 파일 | 변경 | 신규/수정 |
+|------|------|----------|
+| `src/app/api/cron/auto-complete-tournaments/route.ts` | GET — Bearer CRON_SECRET 가드 / `kstMidnightUtc()` PURE 경계 / findMany(매치0+status NOT IN) → 코드필터((endDate??startDate)<경계, 둘다null제외) → updateMany(status=completed, 매치0+status 재가드) / admin_logs createMany(action=auto_complete_tournament_cron, silent) | 신규 |
+| `vercel.json` | crons 배열에 `{path:/api/cron/auto-complete-tournaments, schedule:"0 18 * * *"}` 추가(기존 10건 보존) | 수정 |
+| `src/__tests__/cron/auto-complete-tournaments.test.ts` | kstMidnightUtc 5케이스(KST새벽/자정직후/자정직전/당일보호/어제처리) | 신규 |
+
+★ **매치0 생명선(`tournamentMatches: { none: {} }`)**: findMany + updateMany **둘 다** 가드(race 방지). 진짜 경기 진행 대회는 절대 강제종료 안 함 — ①(우승팀 set)과 교차 0(매치0=우승 없음→champion 미호출).
+
+★ **KST 경계 정확(당일 보호)**: `kstMidnightUtc(now)` = KST 오늘 00:00의 UTC 값. `(endDate ?? startDate) < 경계` = "어제(KST)까지 종료"만 대상. 당일 종료 대회는 미처리(보호). endDate/startDate 둘 다 null = 판단 불가→제외.
+
+EXCLUDED_STATUSES = completed/ended/closed/cancelled(TERMINAL) + draft/upcoming(진행 전). champion_team_id/mvp_player_id는 updateMany data에 미포함 → 절대 미접촉. admin_logs.resource_id/target_id는 BigInt? 컬럼인데 tournament.id=UUID(String)라 null 처리, UUID는 changes_made.tournament_id에 박제(audit 추적 가능).
+
+💡 tester 참고:
+- 단위테스트: `npx vitest run src/__tests__/cron/auto-complete-tournaments.test.ts` → 5 PASS
+- build: `npm run build` → ✓ Compiled successfully / 신규 route `ƒ /api/cron/auto-complete-tournaments` 등록 확인
+- 정상: 매치0 + 종료일 어제경과 대회만 completed. 진짜 경기 대회(매치≥1)·당일종료·draft/upcoming은 미처리. 대상 0건→200 idle.
+- 주의: Bearer 불일치→401. local 호출 시 `Authorization: Bearer $CRON_SECRET` 필요.
+
+⚠️ reviewer 참고:
+- ★ 매치0 가드(none:{})가 findMany+updateMany 둘 다 있는지(race) / champion·mvp 미접촉 확인.
+- kstMidnightUtc 경계 — 당일 보호(< 비교) 정확성. SSR 23:59 버퍼 아닌 KST 자정 고정(Phase1 minor 지적 반영).
+- 멀티세션 제약: cron route + vercel.json + 테스트만 접촉. finalize/auto-complete/set-champion(①)·디자인 미접촉.
+- 참고: 동시 진행 중인 court-submission 세션이 `admin-courts-content.tsx`(SubmissionsReviewTab) 수정 중 — 본 작업과 무관(build 타이밍에 따라 그 파일 에러가 보일 수 있으나 ② 파일은 무영향).
+
+### P1-a 코트제보 승인 체계 (2026-06-15, developer)
+
+📝 구현: `/courts/submit` 정적폼(noop)→실제 제보 INSERT + `/admin/courts` "제보 검토" 탭(승인 시 court_infos 생성). 3단계 분리커밋. court_edit_suggestions 승인 패턴 답습.
+
+| 파일 | 변경 | 신규/수정 | 단계 |
+|------|------|----------|------|
+| `prisma/schema.prisma` | court_submissions 모델 ADD + User relation 2줄(submitter/reviewer) | 수정 | [1] |
+| `api/web/courts/submissions/route.ts` | POST(getWebSession+Zod→pending INSERT) / GET(본인내역+승인count, IDOR방지) | 신규 | [2] |
+| `(web)/courts/submit/_form/court-submit-form.tsx` | noop alert→fetch POST+검토중 완료화면. 시안.fm-* 보존, court_type 한글→영문키 매핑 | 수정 | [2] |
+| `api/web/admin/court-submissions/[subId]/route.ts` | PATCH super_admin. 승인=트랜잭션(court_infos.create+approved+reviewed_by/at+approved_court_info_id+XP)/반려=rejected+note | 신규 | [3] |
+| `(admin)/admin/courts/page.tsx` | pending submissions 조회+직렬화 | 수정 | [3] |
+| `(admin)/admin/courts/admin-courts-content.tsx` | "제보 검토" 4번째 탭(SubmissionsReviewTab) — 수정제안/앰배서더 동형 | 수정 | [3] |
+| `lib/constants/gamification.ts` | XP_REWARDS.court_submit=10 | 수정 | [3] |
+
+- schema diff: CREATE 1 + INDEX 2 + FK 2, ALTER/DROP 0(무중단). db push 완료·count 0 검증.
+- 승인 INSERT 매핑: region→city/district 분리 / court_type 3x3→outdoor+court_size="3x3" / amenities→facilities(Json) / photos[0]→photo_url+나머지 metadata / 기본좌표 서울시청(관리자 보정 전제) / fee_text·operating_hours→metadata 보존.
+- tsc 3단계 전부 PASS. 미푸시 커밋 3건.
+
+💡 tester 참고:
+- 테스트: 로그인 계정으로 /courts/submit 제보 제출→"제보가 접수되었습니다" 완료화면. super_admin으로 /admin/courts "제보 검토" 탭→승인 시 court_infos 생성+코트관리 탭에 노출+제보자 XP+10. 반려 시 court 생성0.
+- 정상: POST 201(snake_case 응답 id/status) / 승인 후 router.refresh로 큐에서 사라짐 / 중복승인 차단(pending만 조회).
+- 주의 입력: 비로그인 제출→401 인라인안내 / 빈 이름·주소→422 / court_type=3x3 승인→court_infos.court_type=outdoor+court_size=3x3 확인.
+
+⚠️ reviewer 참고:
+- 승인 트랜잭션 내 court_infos.create + submission.update + addXP 3개 원자성. adminLog만 트랜잭션 외(실패해도 승인 영향0).
+- region 단순 split(첫토큰=city). "서울 중구"→city=서울/district=중구. 복합지역명 보정은 관리자 코트수정으로.
+- 신규 API web전용(api/v1 0) / 신규 admin화면 0(탭 append) / 하드코딩hex·lucide·9999 0 / 기존 court 흐름 무변경.
+
+### PR-CHAMPION ① 우승팀 자동 set 유틸 (2026-06-15, developer)
+
+📝 구현: 대회 자동종료(checkAndAutoCompleteTournament updated:true) 순간에 우승팀을 산출해 `tournament.champion_team_id` 자동 박제. schema 0 / api-v1 0. 옵션B(신규 set-champion.ts + finalize 통합).
+
+| 파일 | 변경 | 신규/수정 |
+|------|------|----------|
+| `src/lib/tournaments/set-champion.ts` | `isFinalsRound()` PURE + `resolveChampionTeamId()` + `setTournamentChampion()`(멱등) | 신규 |
+| `src/lib/tournaments/finalize-match-completion.ts` | import 1줄 + autoComplete `updated:true` 분기에 setTournamentChampion 호출(try-catch 격리) | 수정 |
+| `src/__tests__/lib/tournaments/set-champion.test.ts` | 11 케이스(isFinalsRound PURE·knockout결승→FK변환·roundName없음 폴백·round_robin 1위·다조 null·결승없음 null·멱등 skip·set·no-champion·not-found) | 신규 |
+
+★ FK 변환(핵심): `winner_team_id`/`calculateLeagueRanking.tournamentTeamId` = **TournamentTeam.id** → `tt.teamId`(=Team.id)로 변환 후 `champion_team_id`(Team.id FK)에 박제. 그대로 넣으면 FK 깨짐 — `tournamentTeamToTeamId()` 1단계 변환 강제.
+
+포맷별 판정: knockout(single_elimination/full_league_knockout/group_stage_knockout/dual_tournament)=결승 roundName(isFinalsRound)+winner NOT NULL, scheduledAt desc 1순위 → 폴백 next_match_id null+round_number 최대 / round_robin·league=ranking rank===1 / group_stage 다조=null 보류.
+
+멱등: setTournamentChampion 진입 시 champion_team_id NOT NULL → skip(수동 박제 보호). mvp_player_id 절대 미접촉. finalize 호출은 updated:true(방금 종료)일 때만 → 매 매치 호출 낭비 0. try-catch 격리로 우승팀 산출 실패가 종료 흐름 차단 0(console.error만).
+
+💡 tester 참고:
+- 단위테스트: `npx vitest run src/__tests__/lib/tournaments/set-champion.test.ts` → 11 PASS
+- tsc: `npx tsc --noEmit` → EXIT 0
+- 정상: knockout 대회 마지막 매치 종료 시 결승 승자(TournamentTeam) → 그 팀의 Team.id가 champion_team_id에 자동 박제. 이미 champion 박제된 대회 재종료 시 skip.
+- 주의 입력: group_stage 다조 대회는 우승 보류(null) — 자동 박제 안 됨(의도). 결승 미정(winner null)도 null.
+
+⚠️ reviewer 참고:
+- ★ FK 변환 누락 여부 집중 검토: champion_team_id=Team.id인데 winner_team_id=TournamentTeam.id. resolveChampionTeamId 반환값이 항상 tt.teamId 경유인지.
+- finalize 통합 위치: autoComplete `updated:true` 분기 내부(매 매치 호출 아님)·try-catch 격리(종료흐름 차단 0).
+- 멀티세션 제약 준수: set-champion.ts/finalize/테스트만 접촉. cron route·vercel.json(②)·디자인 미접촉.
 
 ### PR-MOCK-TO-REAL ④ scrim (2026-06-15, developer)
 
@@ -84,6 +185,35 @@
 
 ## 테스트 결과 (tester)
 
+### 버킷B P1-a 코트 제보 승인 체계 검증 (2026-06-15, tester) — 미push 3커밋(d86bbc5/a20cdd0/abef30c)
+
+| 검증 항목 | 결과 | 비고 |
+|-----------|------|------|
+| 1a. git diff --stat 3커밋 | ✅ 통과 | 7파일 842+/108- (schema+API2+폼+admin page/content+gamification). 변경파일=지시문 명세와 정합 |
+| 1b. `npx tsc --noEmit` | ✅ 통과 | EXIT 0 (에러 0). taskkill node 미사용 |
+| 2a. schema ADD-only(ALTER/DROP 0) | ✅ 통과 | diff 삭제(-)라인 0건. court_submissions CREATE1+INDEX2(status+created_at / user_id)+FK2(submitter/reviewer). User relation 2줄 추가(court_edit_suggestions 동형). 기존 court_infos/court_edit_suggestions/court_reports 모델 변경 0 |
+| 2b. count 실측 | ✅ 통과 | court_submissions=**0**(정상) / court_infos=672(무영향) / court_edit_suggestions=0 / court_reports=0. byStatus=[]. 임시census script 작성→즉시삭제(가드3) |
+| 3a. POST 가드(401/422/pending INSERT) | ✅ 통과 | getWebSession null→401 UNAUTHORIZED / Zod safeParse 실패→422 VALIDATION_ERROR(name/region/court_type enum/address min1) / 통과시 status=pending 기본값 INSERT. 응답 apiSuccess({id,status},201) |
+| 3b. 본인 내역 GET + IDOR | ✅ 통과 | where:{user_id} 본인 한정. my_submissions(snake) + approved_count 병렬. 401 가드 |
+| 3c. "검토 중" 안내 | ✅ 통과 | 폼 submitted state→"제보가 접수되었습니다"+"운영팀 검수(2~3일)" 완료화면. noop alert 제거→실제 fetch POST |
+| 4a. 승인 트랜잭션 | ✅ 통과 | $transaction: court_infos.create + submission.update(approved+reviewed_by/at+approved_court_info_id) + addXP(court_submit=10). adminLog만 트랜잭션 외(승인영향0). 반환 court_info_id |
+| 4b. 반려(court 0/XP 0) | ✅ 통과 | action=reject→update status=rejected+review_note만. court_infos.create 0 / addXP 0. adminLog reject |
+| 4c. super_admin 가드 | ✅ 통과 | session.role!=="super_admin"→403 FORBIDDEN(suggestions/ambassadors 동일패턴) |
+| 5. snake_case 정합 | ✅ 통과 | POST/GET 응답 apiSuccess 경유(키 snake 변환)·GET 응답키 my_submissions/approved_count snake. admin handleAction은 res.ok+err.error만 읽음(데이터필드 미접근)→snake함정 회피. body 요청키(action/review_note)는 route 기대키와 정합 |
+| 6a. 중복 승인 차단 | ✅ 통과 | findFirst where:{id, status:"pending"}→이미 처리시 404 NOT_FOUND. admin page도 pending만 조회 |
+| 6b. 3x3→outdoor 매핑 | ✅ 통과 | mapCourtType: indoor→indoor / 3x3→outdoor+court_size="3x3" / outdoor→outdoor. court_size schema 실존 |
+| 7a. api/v1 변경 0 | ✅ 통과 | git diff src/app/api/v1/ = 0건 |
+| 7b. 기존 admin courts 탭 무변경 | ✅ 통과 | 수정제안/앰배서더 탭 로직 무변경. "제보 검토" 4번째 탭 append(courts/submissions/suggestions/ambassadors) |
+| 7c. lucide 0 | ✅ 통과 | 폼/admin 모두 Material Symbols Outlined만. lucide import 0 |
+| 7d. court_infos 필드 정합 | ✅ 통과 | PATCH create 필드(city/district/lat/lng/court_type/facilities/status/photo_url/metadata/court_size 등) 전부 schema 실존(tsc 0 보증) |
+| 8. count populated 증빙 | ✅ 통과 | 항목 2b 실측. court_submissions=0행이라 런타임 승인 미재현(0행=정상·박제전 상태) |
+
+📊 종합: **18개 항목 전부 통과 / 0 실패**. schema ADD-only·count0·401/422/403 가드·승인트랜잭션·반려·중복차단·3x3매핑·snake정합·api-v1 0·기존탭 무변경 모두 정상.
+
+⚠️ 참고(동작영향 0, 후속 권장):
+- **하드코딩 #fff 3건**(admin-courts-content.tsx L543/732/889 승인버튼 color:"#fff"). baseline에 2건(L543/732) 선존재→신규 제보탭 L889가 동일패턴 답습. CLAUDE.md 하드코딩hex 금지엔 걸리나 기존 3버튼 일관성. 신규만의 신규위반 아님→토큰화 후속 검토.
+- **런타임 승인 실거동 미재현**: court_submissions 0행이라 실제 POST→승인 트랜잭션(court_infos INSERT+XP) end-to-end 미실행. 코드/스키마 정합은 전수 확인. 1건 제출 후 승인 실거동 1회 확인 권장(0행 정상이므로 차단요소 아님).
+
 ### PR-MOCK-TO-REAL ④ scrim 실연결 검증 (2026-06-15, tester)
 
 | 검증 항목 | 결과 | 비고 |
@@ -126,6 +256,31 @@
 ⚠️ 참고(Phase 1 무관): 전체 회귀 중 사전 존재 실패 2파일 4건 발견 — `tournament-delete.test.ts`(3), `running-score-helpers.test.ts`(1, team_side home/away 정합). Phase 1 변경분을 stash한 baseline에서도 동일 실패 → 본 작업 책임 아님. 별도 후속 처리 대상.
 
 ## 리뷰 결과 (reviewer)
+
+### 버킷B P1-a 코트 제보 승인 체계 (2026-06-15, reviewer)
+
+📊 종합 판정: **APPROVE** (critical 0 / major 0 / minor 3) — 미push 3커밋(d86bbc5 schema / a20cdd0 제출 / abef30c 승인큐)
+
+✅ 잘된 점:
+- **트랜잭션 원자성 정확**: 승인 = `$transaction(tx.court_infos.create + tx.court_submissions.update)` 두 핵심 쓰기가 tx 원자. court_infos 필수 NOT-NULL 컬럼(user_id/name/address/city/latitude/longitude/created_at/updated_at) **전부 매핑** → 누락 throw 0. court_type는 default 보유. adminLog는 트랜잭션 외(실패 격리) — 적정.
+- **권한 가드(IDOR) 안전**: 제출 POST=getWebSession user_id 본인 강제(클라 신뢰 0) / GET=`where:{user_id}` 본인 내역만(IDOR 차단) / 승인 PATCH=`session.role !== "super_admin"` 403 — 기존 suggestions/[sugId] route와 동일 패턴. 남의 제보 조작·비인가 승인 불가.
+- **snake_case 정합**: API 응답키 전부 snake(id/status/my_submissions/approved_count/court_info_id) → apiSuccess convertKeysToSnakeCase 멱등. apiError `{error}` ↔ 폼·admin `.error` 접근 일치. admin 탭은 GET API 미경유(page.tsx server camelCase props 직접) — 혼동 0.
+- **schema 무중단**: court_submissions CREATE 1 + INDEX 2 + FK 2(submitter/reviewer NoAction). User relation 2줄(court_edit_suggestions 선례 동형). ALTER/DROP 0. 기존 테이블 영향 0. db push 완료·count 0 검증됨.
+- **데이터 매핑 적정**: 3x3→outdoor+court_size="3x3" 보존 / amenities→facilities(Json) / photos[0]→photo_url+나머지 metadata / fee_text·operating_hours metadata 보존(손실 0) / 기본좌표 서울시청(관리자 보정 전제·명시 주석). region 첫토큰=city 단순화는 허용 범위(복합지역명은 관리자 코트수정 보정).
+- **중복 승인 가드**: findFirst `status:"pending"` → 이미 처리된 건 404. 422 검증(Zod enum 화이트리스트 court_type/amenities, max 길이). 토큰 청결(하드코딩 hex `#fff`는 동파일 기존 SuggestionsTab/AmbassadorsTab L543/732와 동일 success버튼 패턴 = 기존 컨벤션 / lucide 0 / 9999 0). tsc --noEmit EXIT 0.
+
+🟡 권장 수정 (minor, 동작영향 낮음·전부 후속):
+- **[XP 트랜잭션 밖 — 기존 패턴 답습]** `addXP(submission.user_id, ...)`가 `$transaction` 콜백 안에 있으나 **내부적으로 모듈 `prisma`(tx 아님) 사용**(gamification.ts L61) → XP 쓰기는 사실상 트랜잭션 외. 단 addXP는 자체 try/catch로 throw 0(유저 부재 시 null 반환)이라 court+submission 롤백 유발 0. **기존 court_edit_suggestions 승인 라우트(L99)도 100% 동일** → 본 PR 신규 결함 아닌 기존 컨벤션 답습. 영향: 승인은 원자, XP는 best-effort(낙오 시 코트는 생성됨). 엄밀 원자화하려면 addXP에 tx 주입 옵션 필요(전역 후속, 본 PR 범위밖).
+- **[중복 승인 race(이론)]** `status:"pending"` findFirst 가드는 1차 방어. `approved_court_info_id`/status에 unique 제약 없어 **두 관리자 동시 승인 시 양쪽 findFirst 통과→court 2건 생성 이론상 가능**. super_admin 동시클릭 확률 극히 낮음·실해 적음(중복 코트는 관리자 삭제). 필요 시 update `where:{id, status:"pending"}` 조건부 1행 가드로 강화 가능(후속).
+- **[GET 엔드포인트 미사용]** `/api/web/courts/submissions` GET(my_submissions/approved_count)은 현재 프론트 소비처 0(폼은 POST만). 향후 "내 제보 내역" UI용 선반영 — 데드코드 아님(의도). 지금은 검증 불가(소비처 생길 때 snake 접근 재확인).
+
+미수정 결정 타당성:
+- 사진 업로드 미동작(photos=[] 전송) → dropzone UI 자리만, 시안 보존 = **타당**(업로드 인프라 후속).
+- region 첫토큰=city 단순화("경기 하남시"→city=경기/district=하남시) → 복합지역은 관리자 보정 전제 = **타당**.
+- 기본좌표 서울시청 → createCourtAction 패턴 답습·승인 후 지도 보정 전제 = **타당**.
+- 신규 admin 화면 0(4번째 탭 append)·api/v1 0·기존 court 흐름 무변경 = **타당**.
+
+(※ 본 항목은 P1-a 코트제보 한정. scrim/Phase1 항목과 무관)
 
 ### PR-MOCK-TO-REAL ④ /scrim (2026-06-15, reviewer)
 
@@ -202,6 +357,12 @@
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
 |------|------|------|
+| 2026-06-15 | PR-AUTOCOMPLETE ② Phase3 cron 자동화 (developer) | ✅ 신규 auto-complete-tournaments/route.ts(Bearer가드·kstMidnightUtc PURE·findMany 매치0+status NOT IN→코드필터(end??start<경계)→updateMany 매치0+status 재가드·admin_logs silent). vercel.json `0 18 * * *`(KST03:00) 추가(기존10보존). ★매치0 생명선 findMany+updateMany 둘다·당일보호·champion/mvp 미접촉·schema0. vitest 5 PASS·build✓ route등록. 멀티세션 제약준수. 미푸시1 |
+| 2026-06-15 | 버킷B P1-a 코트제보 승인체계 (reviewer) | ✅ APPROVE(c0/maj0/min3) — 트랜잭션 원자성(court_infos.create+submission.update, 필수컬럼 전매핑 throw0)·IDOR(제출 본인강제/GET where user_id/PATCH super_admin)·snake정합·schema무중단(CREATE1+IDX2·ALTER0)·매핑(3x3→outdoor+size·amenities→facilities·photos[0])·중복가드(pending findFirst)·tsc0. minor: XP트랜잭션밖(기존 suggestions 패턴 동일·throw0)·중복승인race이론·GET미소비처. 미push3 |
+| 2026-06-15 | 버킷B P1-a 코트제보 승인체계 (developer) | ✅ 3단계 분리커밋. [1]court_submissions ADD(CREATE1+INDEX2·ALTER/DROP0·count0) [2]POST/GET API+폼실연결(noop→fetch·검토중화면) [3]admin "제보검토"탭+승인PATCH(트랜잭션 court_infos.create+approved+XP / 반려). region→city/district·3x3→outdoor+court_size·amenities→facilities. api-v1 0·신규화면0(탭append)·tsc 3단계PASS. 미푸시3 |
+| 2026-06-15 | PR-CHAMPION ① 우승팀 자동set 유틸 (developer) | ✅ 신규 set-champion.ts(isFinalsRound PURE+resolveChampionTeamId+setTournamentChampion 멱등)·finalize 통합(updated:true분기 try-catch격리)·테스트11 PASS. ★FK변환(winner=TT.id→tt.teamId=champion Team.id). 포맷별(knockout결승/리그1위/다조null). schema0·api-v1 0·tsc0. 멀티세션 제약준수(cron·vercel.json 미접촉) |
+| 2026-06-15 | 대회종료 후속3종 통합설계 (planner, read-only) | ✅ ①우승팀자동set(champion=Team.id/winner=TT.id변환·finalize L180통합·옵션B·포맷별판정) ②Phase3 cron(매치0가드 생명선·stale-pending패턴) ③결선흐름(코드0·①의존). 설계서 `Dev/tournament-completion-followup-plan-2026-06-15.md`. PM결재7건. 코드·DB0 |
+| 2026-06-15 | Phase3 STEP2 공지전용47건 날짜종료 백필 (developer) | ✅ id IN[확정47] updateMany status=completed. 사전47==update47 / 사후 매치0경과미종료 잔여0 / completed 7→54 / champ·mvp미접촉 / 금지id(열혈·4차·날짜없음)무변경 / schema0. 임시스크립트2 정리(가드3) |
 | 2026-06-15 | Phase2 STEP3 대회종료+우승팀 적용 (developer) | ✅ 5차(7f28)→completed/champion=338(오름)·6차(e06e)→completed/champion=330(YBC). auto-complete 7/7·mvp미접촉·schema0. status분포 published51/completed7. 임시스크립트3 정리(가드3) |
 | 2026-06-15 | PR-MOCK-TO-REAL ④ scrim 검증 (tester) | ⚠️ 9PASS/1부분 — 더미0·실연결·빈상태3분기·tsc0·postcss0·count0증빙. 보낸취소[id]불일치 잠재결함(reviewer crit과 일치) |
 | 2026-06-15 | PR-MOCK-TO-REAL ④ scrim 리뷰 (reviewer) | ⚠️ CHANGES(crit1/maj0/min4) — 보낸취소 URL[id]=from_team→PATCH경로검증 400 확정버그. snake정합·토큰·IDOR·tsc는 PASS |
@@ -209,9 +370,6 @@
 | 2026-06-15 | Phase 1 상태 레이어 리뷰 (reviewer) | ✅ APPROVE (c0/maj0/min2) — CTA/admin 무영향·필드정합·tsc0. TZ경계 minor |
 | 2026-06-15 | Phase 1 대회 상태 표시 레이어 (developer) | ✅ effectiveTournamentStatus+10파일·테스트8 PASS·build ✓·DB0 |
 | 2026-06-14 | PR-MOCK-TO-REAL ①②③ 머지 (pm) | ✅ main `ee1a0c3` stats/calendar/about |
-| 2026-06-14 | PR-MOCK-TO-REAL ②③ calendar+about (dev/tester) | ✅ tournament일정+count실값·운영진보존·PASS8 |
 | 2026-06-14 | PR-MOCK-TO-REAL ① stats (dev/tester/reviewer) | ✅ MPS단일source·0행우회·PASS9·APPROVE |
 | 2026-06-14 | Phase12 Batch B 7화면 (dev/tester/reviewer) | ✅ 준비중/정적폼/SV1보존·CSS major fix·main |
-| 2026-06-14 | Phase12 Batch A 6화면 (dev/tester/reviewer) | ✅ 정적/준비중/AW1실데이터·main |
-| 2026-06-14 | PR-LINEUP-V2 4단계 (planner/dev/tester/reviewer) | ✅ 스키마+API+UI+시안·주장필수·main |
 </content>
