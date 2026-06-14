@@ -2,6 +2,32 @@
 <!-- 담당: planner-architect | 최대 30항목 -->
 <!-- "왜 A 대신 B를 선택했는지" 기술 결정의 배경과 이유를 기록 -->
 
+### [2026-06-14] ★ 팀 변경 — 원영 프로젝트 이탈 (머지권한·Flutter 담당 갱신)
+- **분류**: decision (팀/협업 정책 변경)
+- **발견자**: pm (수빈 지시)
+- **변경**: **원영이 mybdr 프로젝트에서 이탈**. 다음 정책 갱신(CLAUDE.md + WORKFLOW.md 반영):
+  1. **`dev → main` 머지 권한 = 수빈 단독** (이전: 원영 + 수빈, 2026-05-01 룰 무효)
+  2. **`wonyoung` 브랜치 비활성**
+  3. **Flutter 앱(bdr_stat)/`/api/v1` 담당 공백** — 원영이 Flutter 기록앱 전담이었음. 후임 미정.
+  4. **"`/api/v1` 변경 시 공지 대상 = 원영" 룰 무효** → 현재 공지 대상 없음. `/api/v1` 변경은 **사용자(수빈) 결정 필요**.
+- **영향/주의**: Flutter 기록앱 + `/api/v1` 도메인은 현재 무주공산. 해당 영역 변경 작업 시 담당 부재 인지 + 사용자 확인 필수. 신규 담당 배정 시 CLAUDE.md §팀 구성 + 본 항목 갱신.
+- **기록 위치**: CLAUDE.md §브랜치/팀 구성 / WORKFLOW.md 머지권한 체크리스트 / 본 decisions. (과거 이력 문서 60+는 보존 — 당시 기록)
+- **참조횟수**: 0
+
+### [2026-06-14] PR-LINEUP-V2 사전 라인업 앱정합 — 기존 컬럼 재해석 + add-only 확장 채택 (설계)
+- **분류**: decision (라인업 3-state 박제 / DB·API 회귀0 전략)
+- **발견자**: planner-architect (Cowork 의뢰·수빈 결재)
+- **계기**: 웹 2-state(출전+주전) ≠ 기록앱 bdr_stat_v3 roster_confirm 3-state(선발/벤치/제외)+주장. 정합 필요(앱 어휘·모델·시각 흡수).
+- **결정 4건**:
+  1. **DB = `substitutes` 컬럼 재해석(벤치) + `captainTtpId` nullable ADD-only** — 기존 starters(선발)/substitutes를 "벤치"로 의미만 재매핑(컬럼·타입·이름 불변=회귀0). 주장만 신규 컬럼. diff 실측=`ALTER TABLE match_lineup_confirmed ADD COLUMN captain_ttp_id BIGINT;`(무중단). 대안 = 신규 lineup_role 테이블 ❌(과설계·기존 데이터 마이그 필요).
+  2. **API = add-only 확장** — 기존 검증(starters5/중복0/ttp무결성/status가드) 줄 **삭제·수정 0**, 신규(벤치캡7·정원12·주장멤버십) append만. captain optional → **하위호환100%**(기존 captain 미전송 호출도 200). 대안 = body 스키마 breaking 변경 ❌.
+  3. **role=manager 분기 미구현** — 운영 실측 manager **0건**(player 1017/coach 4). 시안 HANDOFF도 "매니저 role 없음". coach만 코칭스태프 바 분리. head/asst 세분은 DB 부재 → coach칩 나열(시안 2칩 하드구분 제거). 신규 manager 진입 시 `role!=='coach'`로 선수 취급(보수적 방어).
+  4. **포지션 제거 확정** — 앱 roster_confirm 행에 PG/SG 없음. UI만 제거(DB position 컬럼 보존).
+- **단계 분리**: [1]스키마(사용자 diff승인후 push)→[2]API(vitest 회귀)→[3]UI 재작성→[4]시안 sync. 회귀가드 R1~R11(설계서).
+- **함정 주의**: apiSuccess snake_case → GET 프론트 `captain_ttp_id` / page server prisma `captainTtpId`(camel). errors.md 재발6회.
+- **설계서**: `Dev/lineup-v2-bake-plan-2026-06-14.md`
+- **참조횟수**: 0
+
 ### [2026-06-13] 권한/구독 2축 표현 분리 — 옵션 B(칼럼 2축 분리) 채택 (PR-PERM-DISPLAY `e98e611`)
 - **분류**: decision (admin UX — 권한 vs 구독 혼동 해소)
 - **발견자**: pm (수빈 결재)

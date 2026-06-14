@@ -2,6 +2,17 @@
 <!-- 담당: planner-architect, developer | 최대 30항목 -->
 <!-- 프로젝트의 폴더 구조, 파일 역할, 핵심 패턴을 기록 -->
 
+### [2026-06-14] 사전 라인업 확정 (/lineup-confirm) 구조 + 앱정합 3-state 매핑
+- **분류**: architecture (라인업 페이지 컴포넌트 맵 + DB 매핑)
+- **발견자**: planner-architect (PR-LINEUP-V2 설계)
+- **내용**:
+  - **페이지 3파일**: `(web)/lineup-confirm/[matchId]/page.tsx`(server — 세션·권한·매치·ttp·기존lineup prefetch→prop직렬화) + `_components/lineup-confirm-form.tsx`(client — state+POST/DELETE) + `_components/ttp-row.tsx`(presentational 행). API = `api/web/tournaments/[id]/matches/[matchId]/lineup/route.ts`(GET/POST/DELETE). 권한헬퍼 `lib/auth/match-lineup.ts`(resolveLineupAuth/getLineupCanEdit/getMatchWithTeams). **신규 라우트 0 — matchId 단일 파라미터, tournamentId는 DB 1회 조회로 획득.**
+  - **DB `MatchLineupConfirmed`(schema L3312)**: `starters BigInt[]`(=선발 5강제) + `substitutes BigInt[]`(=가변 후보) + `confirmedById` + `@@unique([matchId, teamSide])`(upsert 분기점·home/away 각1건). **앱정합 매핑**: starters=선발 / substitutes=**벤치** 재해석 / "제외(out)"=양쪽 미포함(미저장). captainTtpId(PR-LINEUP-V2 신규 nullable)=경기단위 주장.
+  - **API 검증 체인(POST)**: starters 정확히5(zod refine) → starters∩subs=∅ → 자체중복0 → ttp무결성(소속+is_active) → status 가드(scheduled/ready만, else 409) → upsert. apiSuccess **snake_case 자동변환**(serializeLineup) → GET 프론트 접근자 snake. **단 page.tsx는 server prisma 직접=camelCase**(혼동주의).
+  - **권한 흐름**: admin 3종(super/organizer/admin member)→양쪽 / team.captain·manager→해당측만 / 그외 403. mySide = admin은 home 통일, 상대팀 미노출(frozen).
+  - **TTP.role 실측(2026-06-14)**: player 1017 / coach 4 / **manager 0건**(is_active 동일). manager 분기 코드 불필요. coach만 명단 분리.
+- **참조횟수**: 0
+
 ### [2026-06-10] 대회 종료 뷰 0스키마 데이터원 + 스탯리더 집계 패턴
 - **분류**: architecture (종료 뷰 데이터 매핑 + 신규 집계 헬퍼)
 - **발견자**: planner-architect (대회종료 재구성 박제 설계 중)

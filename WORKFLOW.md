@@ -120,7 +120,7 @@ PR-[Phase]-[순번]   — 예: PR-1C-1 (Phase 1C 첫 PR — 사용자 측 목록
 ☐ [⑥ 후] Cowork 가 작성한 의뢰 문서를 Claude.ai BDR 디자인 시스템 관리 Project 에 붙여 넣기
 ☐ [⑨ 후] zip 다운로드 후 임시 폴더에 풀이 → scripts/sync-bdr-current.ps1 실행
 ☐ [⑫ 후] subin → dev PR 머지 (GitHub)
-☐ [⑫ 후] dev → main PR 머지 (배포 / 원영 + 수빈 권한)
+☐ [⑫ 후] dev → main PR 머지 (배포 / 수빈 단독 권한 — 2026-06-14 원영 이탈)
 ☐ [전 단계] phase-ledger 상태 변경 시 Cowork 또는 CLI 에 알려 자동 갱신 트리거 (또는 본인이 직접 갱신)
 ```
 
