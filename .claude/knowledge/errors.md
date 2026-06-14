@@ -2,6 +2,14 @@
 <!-- 담당: debugger, tester | 최대 30항목 -->
 <!-- 이 프로젝트에서 반복되는 에러 패턴, 함정, 주의사항을 기록 -->
 
+### [2026-06-14] CSS 주석 `*/` 조기종료 — grep 미탐지, postcss 실파서 검증 필수 (★[2026-06-10] 재발)
+- **분류**: errors (CSS 주석 / 규칙 소실 / 검증 방법론)
+- **발견자**: reviewer (Phase 12 Batch A/B 박제 `d63e93f`)
+- **증상**: globals.css 주석의 토큰 나열 `…--accent*/--cafe-blue*…`·`--ink*/--bg*…`에서 **`*` 와 `/` 인접 = `*/`가 주석을 조기 종료** → 직후 규칙(`.ex-tabs`/`.ex-page-w`)이 깨진 주석 잔여물로 셀렉터 오염 → **규칙 완전 소실**(SV1 탭 세로 깨짐 + 7화면 본문 폭 컨테이너 무효). errors [2026-06-10] 함정과 동일.
+- **★ 새 교훈 — grep으로 못 잡는다**: developer·tester가 `grep '*/'`로 "조기종료 0" 판정했으나 **실제 버그 존재**. 주석 안 `--accent*/`는 패턴이 토큰명과 붙어 grep 회피. reviewer가 **postcss 실파서**(`postcss.parse` + `walkRules`로 `.ex-tabs`/`.ex-page-w` 규칙 카운트=0 발견)로 잡음.
+- **해결**: 주석 토큰 구분자 `/` → `,`(또는 `*` 제거)로 `*/` 패턴 소멸. 수정 후 postcss 재검증 = 규칙 1건씩 정상 파싱 복구.
+- **예방**: (a) CSS 신규/수정 블록 검증은 grep 아닌 **postcss 실파서로 핵심 셀렉터 규칙 카운트**(grep `*/`는 거짓음성). (b) 주석에 CSS 토큰/glob(`--x*`) 나열 시 구분자로 `/` 금지(`,` 사용) — `*/` 조기종료 방지. (c) tester 체크리스트에 "postcss walkRules 핵심 셀렉터 존재" 추가.
+
 ### [2026-06-13] apiSuccess snake_case 자동 변환 ↔ 프론트 camelCase 접근 함정 (★재발 6회)
 - **분류**: errors (응답 키 케이스 / 사일런트 undefined)
 - **발견자**: pm (PR-RECORDER-AUDIT 파트0 HOTFIX `e3d757e`)
