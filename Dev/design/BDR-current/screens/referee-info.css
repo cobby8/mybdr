@@ -1,0 +1,191 @@
+/* ============================================================
+   BDR v2.31 — referee-info.css  (RI1 · /referee-info · 신규 A 등급)
+   심판 안내 (공개 정보 페이지). 룰 8 허용 신규 라우트 refereeInfo.
+   info-shared.css (.info-hero / .ab-stats / .hlp-faq) 어휘 재사용 +
+   전용 ri-* 클래스. 토큰만. Material Symbols. 720px 분기.
+   ============================================================ */
+
+.ri-wrap { max-width: 940px; margin: 0 auto; }
+
+/* ---- Hero ---- */
+.ri-hero { text-align: center; padding: 10px 0 30px; }
+.ri-hero .eyebrow { justify-content: center; margin-bottom: 12px; }
+.ri-hero__title {
+  font-family: var(--ff-display); font-size: 36px; font-weight: 900;
+  letter-spacing: -0.028em; line-height: 1.1; margin: 0 0 14px;
+}
+.ri-hero__title .accent { color: var(--accent); }
+.ri-hero__lead {
+  font-size: 15.5px; color: var(--ink-soft); line-height: 1.75;
+  max-width: 580px; margin: 0 auto 22px;
+}
+.ri-hero__cta { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+
+/* ---- 통계 4셀 (ab-stats 답습) ---- */
+.ri-stats {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 0;
+  border: 1px solid var(--border); border-radius: var(--r-lg);
+  overflow: hidden; margin-bottom: 44px;
+}
+.ri-stat {
+  padding: 22px 14px; text-align: center; background: var(--bg-alt);
+  border-left: 1px solid var(--border);
+}
+.ri-stat:first-child { border-left: 0; }
+.ri-stat__v {
+  font-family: var(--ff-display); font-size: 28px; font-weight: 900;
+  letter-spacing: -0.02em; font-feature-settings: "tnum"; line-height: 1;
+}
+.ri-stat__k { font-size: 12px; color: var(--ink-mute); font-weight: 600; margin-top: 6px; }
+
+/* ---- 섹션 공통 ---- */
+.ri-section { margin-bottom: 44px; }
+.ri-section__h {
+  font-family: var(--ff-display); font-size: 23px; font-weight: 800;
+  letter-spacing: -0.015em; margin: 0 0 4px;
+}
+.ri-section__sub { font-size: 13.5px; color: var(--ink-mute); margin: 0 0 18px; line-height: 1.6; }
+
+/* ---- 하는 일 4 카드 ---- */
+.ri-roles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+.ri-role {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: var(--r-lg); padding: 20px 18px;
+  display: flex; flex-direction: column; gap: 8px;
+}
+.ri-role__ico {
+  width: 42px; height: 42px; border-radius: var(--r-sm);
+  background: var(--accent-soft); color: var(--accent);
+  display: grid; place-items: center; margin-bottom: 4px;
+}
+.ri-role__ico .ico { font-family: 'Material Symbols Outlined'; font-size: 24px; }
+.ri-role__t { font-family: var(--ff-display); font-size: 15px; font-weight: 800; }
+.ri-role__d { font-size: 12.5px; color: var(--ink-mute); line-height: 1.6; }
+
+/* ---- 자격 등급 3 카드 ---- */
+.ri-tiers { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.ri-tier {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: var(--r-lg); padding: 22px 22px 20px;
+  display: flex; flex-direction: column;
+  position: relative; overflow: hidden;
+}
+.ri-tier--feat { border-color: var(--accent-hair); box-shadow: var(--sh-sm); }
+.ri-tier__rail { position: absolute; top: 0; left: 0; right: 0; height: 4px; background: var(--border-strong); }
+.ri-tier--3 .ri-tier__rail { background: var(--cafe-blue); }
+.ri-tier--2 .ri-tier__rail { background: var(--bdr-navy); }
+.ri-tier--1 .ri-tier__rail { background: var(--accent); }
+.ri-tier__top { display: flex; align-items: baseline; gap: 8px; margin-bottom: 4px; }
+.ri-tier__grade {
+  font-family: var(--ff-display); font-size: 22px; font-weight: 900; letter-spacing: -0.02em;
+}
+.ri-tier__feat-badge {
+  margin-left: auto;
+  font-family: var(--ff-mono); font-size: 9.5px; font-weight: 800;
+  background: var(--accent); color: #fff; padding: 3px 8px;
+  border-radius: var(--r-xs); letter-spacing: 0.04em;
+}
+.ri-tier__name { font-size: 13px; color: var(--ink-soft); font-weight: 600; }
+.ri-tier__pay {
+  margin: 16px 0 14px; padding: 12px 0; border-top: 1px dashed var(--border); border-bottom: 1px dashed var(--border);
+}
+.ri-tier__pay-v {
+  font-family: var(--ff-display); font-size: 26px; font-weight: 900;
+  font-feature-settings: "tnum"; letter-spacing: -0.02em;
+}
+.ri-tier__pay-v small { font-size: 13px; font-weight: 700; color: var(--ink-mute); margin-left: 2px; }
+.ri-tier__pay-k { font-family: var(--ff-mono); font-size: 10.5px; color: var(--ink-mute); font-weight: 700; margin-top: 2px; letter-spacing: 0.02em; }
+.ri-tier__req { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.ri-tier__req li {
+  display: flex; align-items: flex-start; gap: 8px;
+  font-size: 12.5px; color: var(--ink-soft); line-height: 1.5;
+}
+.ri-tier__req .ico { font-family: 'Material Symbols Outlined'; font-size: 16px; color: var(--ok); flex-shrink: 0; margin-top: 1px; }
+
+/* ---- 지원 절차 4 step ---- */
+.ri-steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; }
+.ri-step { position: relative; padding: 0 18px 0 0; }
+.ri-step:not(:last-child)::after {
+  content: ''; position: absolute; top: 20px; right: 9px; width: calc(100% - 58px); height: 2px;
+  background: var(--border); 
+}
+.ri-step__num {
+  width: 40px; height: 40px; border-radius: 50%;
+  background: var(--bdr-navy); color: #fff;
+  display: grid; place-items: center; margin-bottom: 12px;
+  font-family: var(--ff-display); font-weight: 900; font-size: 16px;
+  position: relative; z-index: 1;
+}
+.ri-step__t { font-family: var(--ff-display); font-size: 14.5px; font-weight: 800; margin-bottom: 4px; }
+.ri-step__d { font-size: 12px; color: var(--ink-mute); line-height: 1.55; }
+
+/* ---- 정산 안내 표 ---- */
+.ri-pay-card {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: var(--r-lg); overflow: hidden;
+}
+.ri-pay-row {
+  display: grid; grid-template-columns: 1.4fr 1fr 1.2fr; gap: 12px; align-items: center;
+  padding: 15px 22px; border-bottom: 1px solid var(--border);
+}
+.ri-pay-row:last-child { border-bottom: 0; }
+.ri-pay-row--head {
+  background: var(--bg-alt);
+  font-family: var(--ff-mono); font-size: 10.5px; font-weight: 800;
+  color: var(--ink-mute); letter-spacing: 0.06em; text-transform: uppercase;
+}
+.ri-pay-row__name { font-weight: 700; font-size: 14px; color: var(--ink); }
+.ri-pay-row__name small { display: block; font-weight: 500; font-size: 11.5px; color: var(--ink-mute); margin-top: 2px; }
+.ri-pay-row__dur { font-family: var(--ff-mono); font-size: 12.5px; font-weight: 700; color: var(--ink-soft); }
+.ri-pay-row__amt {
+  font-family: var(--ff-display); font-size: 17px; font-weight: 900;
+  font-feature-settings: "tnum"; letter-spacing: -0.01em; text-align: right;
+}
+.ri-pay-note {
+  display: flex; align-items: flex-start; gap: 8px;
+  margin-top: 12px; padding: 12px 16px;
+  background: var(--cafe-blue-soft); border: 1px solid var(--cafe-blue-hair); border-radius: var(--r-sm);
+  font-size: 12px; color: var(--cafe-blue-deep); font-weight: 600; line-height: 1.55;
+}
+.ri-pay-note .ico { font-family: 'Material Symbols Outlined'; font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+
+/* ---- FAQ (hlp-faq 답습) ---- */
+.ri-faq { padding: 0; overflow: hidden; }
+.ri-faq__item { border-bottom: 1px solid var(--border); }
+.ri-faq__item:last-child { border-bottom: 0; }
+.ri-faq__q {
+  width: 100%; text-align: left; padding: 17px 22px; cursor: pointer;
+  font-weight: 600; font-size: 14.5px; color: var(--ink);
+  display: flex; align-items: center; gap: 10px;
+  background: transparent; border: 0;
+}
+.ri-faq__q:hover { background: var(--bg-alt); }
+.ri-faq__qnum { color: var(--accent); font-family: var(--ff-mono); font-weight: 800; flex-shrink: 0; }
+.ri-faq__qtext { flex: 1; }
+.ri-faq__chev { font-family: 'Material Symbols Outlined'; font-size: 20px; color: var(--ink-dim); transition: transform .15s; }
+.ri-faq__item.is-open .ri-faq__chev { transform: rotate(180deg); }
+.ri-faq__a { padding: 0 22px 17px 46px; color: var(--ink-soft); line-height: 1.7; font-size: 13.5px; }
+
+/* ---- CTA 푸터 ---- */
+.ri-cta {
+  background: var(--bg-alt); border: 1px solid var(--border); border-radius: var(--r-lg);
+  padding: 30px 28px; text-align: center;
+}
+.ri-cta__h { font-family: var(--ff-display); font-size: 22px; font-weight: 800; margin: 0 0 6px; letter-spacing: -0.015em; }
+.ri-cta__d { font-size: 13.5px; color: var(--ink-mute); margin: 0 0 18px; line-height: 1.6; }
+.ri-cta__btns { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+
+@media (max-width: 720px) {
+  .ri-hero__title { font-size: 27px; }
+  .ri-stats { grid-template-columns: 1fr 1fr; }
+  .ri-stat:nth-child(3) { border-left: 0; }
+  .ri-stat:nth-child(3), .ri-stat:nth-child(4) { border-top: 1px solid var(--border); }
+  .ri-roles { grid-template-columns: 1fr 1fr; }
+  .ri-tiers { grid-template-columns: 1fr; }
+  .ri-steps { grid-template-columns: 1fr 1fr; gap: 20px 0; }
+  .ri-step:not(:last-child)::after { display: none; }
+  .ri-pay-row { grid-template-columns: 1fr auto; gap: 4px 12px; }
+  .ri-pay-row__dur { grid-column: 1; font-size: 11.5px; }
+  .ri-pay-row__amt { grid-column: 2; grid-row: 1 / span 2; }
+  .ri-pay-row--head { display: none; }
+}

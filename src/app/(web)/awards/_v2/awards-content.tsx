@@ -1,72 +1,52 @@
 "use client";
 
 /* ============================================================
- * AwardsContent — /awards 클라이언트 본체
+ * AwardsContent — /awards 클라이언트 본체 (AW1 · v2.31 시안 박제)
  *
  * 왜 클라이언트인가:
- * - 시안 (Awards.jsx) L4 React.useState('2026 Spring') — 시즌 셀렉터가 클라 인터랙션.
- * - 셀렉터 클릭 시 ?series=<slug> 로 router.push → 서버에서 재페치.
+ *   시안 시즌 셀렉터가 클릭 인터랙션 → ?series=<slug> 로 router.push 후
+ *   서버(page.tsx)가 재페치. (page.tsx 는 절대 미변경 — 데이터 패칭 보존)
  *
- * 어떻게:
- * - props.data 로 page.tsx 에서 사전 페칭한 5블록(seasons/seasonMvp/finalsMvp/leaders/champions) 수신.
- * - 셀렉터는 useRouter / useSearchParams 로 URL 파라미터 동기화.
- * - DB 미지원 블록은 "준비 중" 빈 상태 카드로 렌더 (절대 숨기지 않음 — 사용자 원칙).
+ * v2.31 변경 (vs 이전 awards-content):
+ *   - UI 셸만 v2.31 시안(aw-hero / aw-mvp / aw-best5 / aw-cats) 으로 재작성.
+ *   - 데이터 출처는 page.tsx 의 기존 DTO(seasonMvp/leaders/champions) 그대로.
+ *   - best5: 시안은 PG~C 5명이나 DTO 에 포지션별 best5 없음 →
+ *     가용한 leaders(득점/어시/리바 3명) 실데이터로 채우고 나머지 슬롯은
+ *     "준비 중" 빈 슬롯. mock 금지(시안 더미 "김지훈" 등 박제 안 함).
+ *   - cats: scoring/assists/rebounds 실데이터, 스틸왕/레이팅/매너상은
+ *     DTO 미지원 → "준비 중".
+ *
+ * 시안 출처: Dev/design/BDR-current/screens/Awards.jsx (+ extras-pages.css .aw-*)
+ * AppNav active: pathname 자동 판정(/awards → rankings)
  * ============================================================ */
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import type { AwardsDataDTO, PlayerRefDTO } from "../page";
-import {
-  HONOR_CATALOG,
-  ALL_STAR_POSITIONS,
-  ALL_STAR_GROUPS,
-} from "./awards-catalog";
 
 interface Props {
   data: AwardsDataDTO;
 }
 
-/** 팀 태그 자동 생성 — DB Team.tag 컬럼 미존재 폴백 (이름 첫 3글자 대문자) */
-function teamTag(name: string | null | undefined): string {
-  if (!name) return "—";
-  const trimmed = name.trim();
-  if (!trimmed) return "—";
-  // 영문은 앞 3자, 한글은 앞 2자만 (시안 폴백 패턴과 동일)
-  if (/^[a-zA-Z]/.test(trimmed)) {
-    return trimmed.replace(/[^a-zA-Z]/g, "").slice(0, 3).toUpperCase();
-  }
-  return trimmed.slice(0, 2);
+/** 아바타 이니셜 — 이름 첫 글자(이미지 미사용 폴백) */
+function initial(name: string | null | undefined): string {
+  if (!name) return "-";
+  const t = name.trim();
+  return t ? t[0] : "-";
 }
 
-/** 메트릭 표시용 포맷 — null 이면 "—" */
-function fmtMetric(v: number | null, suffix: string): string {
+/** 메트릭 표시 — null 이면 "—" */
+function fmtMetric(v: number | null | undefined, suffix: string): string {
   if (v === null || v === undefined || isNaN(v)) return "—";
   return `${v.toFixed(1)} ${suffix}`;
-}
-
-/** Honor 카드 데이터 매핑: kind → leader DTO */
-function pickHonorPlayer(kind: string, data: AwardsDataDTO): PlayerRefDTO | null {
-  switch (kind) {
-    case "finals_mvp":
-      return data.finalsMvp;
-    case "scoring_leader":
-      return data.scoringLeader;
-    case "assists_leader":
-      return data.assistsLeader;
-    case "rebounds_leader":
-      return data.reboundsLeader;
-    default:
-      return null; // coach_of_year / new_face → DB 미지원
-  }
 }
 
 export function AwardsContent({ data }: Props) {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  // 시즌 셀렉터 onClick 핸들러 — ?series=<slug> 로 URL 동기화
-  // 왜 router.push 인가: 서버 컴포넌트가 다시 페치되도록 하기 위해.
+  // 시즌 셀렉터 — ?series=<slug> 로 URL 동기화(서버 재페치 트리거). page.tsx 보존.
   const handleSeasonChange = (slug: string) => {
     const params = new URLSearchParams(searchParams.toString());
     if (slug === "all") {
@@ -81,667 +61,171 @@ export function AwardsContent({ data }: Props) {
   const mvp = data.seasonMvp;
   const mvpPlayer = mvp?.player ?? null;
 
+  // 베스트5 슬롯 — DTO leaders 3명 실데이터 매핑. 포지션별 best5 데이터 없음 →
+  // 부문 라벨(득점/어시/리바)로 채우고 나머지 2슬롯은 준비 중(mock 금지).
+  const best5Slots: { label: string; player: PlayerRefDTO | null }[] = [
+    { label: "득점", player: data.scoringLeader },
+    { label: "어시", player: data.assistsLeader },
+    { label: "리바", player: data.reboundsLeader },
+    { label: "수비", player: null },
+    { label: "신인", player: null },
+  ];
+
+  // 부문별 수상 — scoring/assists/rebounds 실데이터, 나머지는 DTO 미지원(준비 중).
+  const catSlots: {
+    ico: string;
+    label: string;
+    player: PlayerRefDTO | null;
+    suffix: string;
+  }[] = [
+    { ico: "sports_score", label: "득점왕", player: data.scoringLeader, suffix: "PPG" },
+    { ico: "volunteer_activism", label: "어시스트왕", player: data.assistsLeader, suffix: "APG" },
+    { ico: "open_with", label: "리바운드왕", player: data.reboundsLeader, suffix: "RPG" },
+    { ico: "bolt", label: "스틸왕", player: null, suffix: "SPG" },
+    { ico: "trending_up", label: "레이팅 상승", player: null, suffix: "" },
+    { ico: "handshake", label: "매너상", player: null, suffix: "" },
+  ];
+
   return (
     <div className="page">
-      {/* Breadcrumb — 시안 L52-55 */}
-      <div
-        style={{
-          display: "flex",
-          gap: 6,
-          fontSize: 12,
-          color: "var(--ink-mute)",
-          marginBottom: 12,
-        }}
-      >
-        <Link href="/" style={{ cursor: "pointer" }}>
-          홈
-        </Link>
-        <span>›</span>
-        <span style={{ color: "var(--ink)" }}>수상·아카이브</span>
-      </div>
-
-      {/* Season picker — 시안 L57-71 */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          marginBottom: 20,
-          flexWrap: "wrap",
-          gap: 10,
-        }}
-      >
-        <div>
-          <div className="eyebrow">AWARDS · 수상 아카이브</div>
-          <h1
-            style={{
-              margin: "4px 0 0",
-              fontSize: 34,
-              fontWeight: 900,
-              letterSpacing: "-0.025em",
-              fontFamily: "var(--ff-display)",
-            }}
-          >
-            {data.currentSeasonLabel}
-          </h1>
-        </div>
-        <div
-          style={{
-            display: "flex",
-            gap: 4,
-            padding: 4,
-            background: "var(--bg-alt)",
-            borderRadius: 6,
-            flexWrap: "wrap",
-          }}
-        >
-          {data.seasons.map((s) => {
-            const active = s.slug === data.currentSeasonSlug;
-            return (
-              <button
-                key={s.slug}
-                type="button"
-                onClick={() => handleSeasonChange(s.slug)}
-                style={{
-                  padding: "6px 12px",
-                  background: active ? "var(--ink)" : "transparent",
-                  color: active ? "var(--bg)" : "var(--ink-mute)",
-                  border: 0,
-                  cursor: "pointer",
-                  fontSize: 12,
-                  fontWeight: 700,
-                  borderRadius: 4,
-                }}
-              >
-                {s.name}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* MVP hero + 팀 레이팅 — 시안 L73-117 */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "minmax(0,1fr) 340px",
-          gap: 16,
-          marginBottom: 20,
-        }}
-      >
-        {/* 시즌 MVP Hero — 데이터 있으면 그라디언트, 없으면 빈 카드 */}
-        <div
-          className="card"
-          style={{
-            padding: 0,
-            overflow: "hidden",
-            // 우승팀 컬러 그라디언트. 미지원이면 BDR 디폴트.
-            background: mvpPlayer
-              ? `linear-gradient(135deg, ${mvpPlayer.teamColor || "#0F5FCC"} 0%, #000 110%)`
-              : "var(--bg-alt)",
-            color: mvpPlayer ? "#fff" : "var(--ink)",
-            minHeight: 240,
-          }}
-        >
-          {mvpPlayer ? (
-            <div
-              style={{
-                padding: "36px 40px",
-                display: "grid",
-                gridTemplateColumns: "auto 1fr",
-                gap: 24,
-                alignItems: "center",
-              }}
-            >
-              {/* MVP 이니셜/트로피 자리 — DB 이미지 미사용, 트로피 이모지 fallback */}
-              <div
-                style={{
-                  width: 140,
-                  height: 140,
-                  background: "rgba(255,255,255,.08)",
-                  border: "2px solid rgba(255,255,255,.25)",
-                  display: "grid",
-                  placeItems: "center",
-                  borderRadius: "50%",
-                }}
-              >
-                <div
-                  style={{
-                    fontFamily: "var(--ff-display)",
-                    fontSize: 48,
-                    fontWeight: 900,
-                    letterSpacing: "-0.02em",
-                  }}
-                >
-                  🏆
-                </div>
-              </div>
-              <div>
-                <div
-                  style={{
-                    fontSize: 12,
-                    letterSpacing: ".2em",
-                    opacity: 0.75,
-                    fontWeight: 800,
-                    textTransform: "uppercase",
-                  }}
-                >
-                  시즌 MVP
-                </div>
-                <div
-                  style={{
-                    fontFamily: "var(--ff-display)",
-                    fontSize: 56,
-                    fontWeight: 900,
-                    letterSpacing: "-0.03em",
-                    lineHeight: 1,
-                    margin: "8px 0 6px",
-                  }}
-                >
-                  {mvpPlayer.name}
-                </div>
-                <div style={{ fontSize: 14, opacity: 0.9 }}>
-                  <span
-                    style={{
-                      background: "rgba(255,255,255,.15)",
-                      padding: "2px 8px",
-                      borderRadius: 3,
-                      fontFamily: "var(--ff-mono)",
-                      fontSize: 11,
-                      fontWeight: 700,
-                      letterSpacing: ".06em",
-                      marginRight: 8,
-                    }}
-                  >
-                    {teamTag(mvpPlayer.teamName)}
-                  </span>
-                  {mvpPlayer.teamName ?? "—"}
-                  {mvpPlayer.position ? ` · ${mvpPlayer.position}` : ""}
-                </div>
-                {/* 4개 스탯 셀 (PPG/APG/RPG/WIN%) — null 이면 "—" */}
-                <div style={{ display: "flex", gap: 20, marginTop: 14 }}>
-                  {[
-                    ["PPG", mvp?.ppg],
-                    ["APG", mvp?.apg],
-                    ["RPG", mvp?.rpg],
-                    ["WIN%", mvp?.winPct],
-                  ].map(([label, val]) => (
-                    <div key={label as string}>
-                      <div
-                        style={{
-                          fontFamily: "var(--ff-display)",
-                          fontSize: 26,
-                          fontWeight: 900,
-                        }}
-                      >
-                        {val === null || val === undefined || isNaN(Number(val))
-                          ? "—"
-                          : Number(val).toFixed(1)}
-                      </div>
-                      <div
-                        style={{
-                          fontSize: 10,
-                          opacity: 0.65,
-                          letterSpacing: ".08em",
-                          fontWeight: 700,
-                        }}
-                      >
-                        {label as string}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                {/* MVP 코멘트 — DB 미지원 폴백 */}
-                <p
-                  style={{
-                    margin: "16px 0 0",
-                    fontSize: 13,
-                    opacity: 0.85,
-                    fontStyle: "italic",
-                    borderLeft: "2px solid rgba(255,255,255,.4)",
-                    paddingLeft: 10,
-                  }}
-                  title="MVP 코멘트 수집 준비 중"
-                >
-                  &ldquo;수상 코멘트는 준비 중입니다.&rdquo;
-                </p>
-              </div>
-            </div>
-          ) : (
-            // MVP 데이터 없음 — 빈 상태
-            <div
-              style={{
-                padding: "60px 40px",
-                textAlign: "center",
-                color: "var(--ink-mute)",
-              }}
-            >
-              <div className="eyebrow" style={{ marginBottom: 6 }}>
-                시즌 MVP
-              </div>
-              <div style={{ fontSize: 18, fontWeight: 800, color: "var(--ink)" }}>
-                선정된 MVP가 없습니다
-              </div>
-              <p style={{ fontSize: 13, marginTop: 6 }}>
-                해당 시즌 종료 대회에 MVP가 등록되면 자동으로 표시됩니다.
-              </p>
-            </div>
-          )}
+      <div className="page__inner ex-page-w">
+        {/* 브레드크럼 */}
+        <div className="ex-crumb">
+          <Link href="/">홈</Link>
+          <span className="sep">›</span>
+          <span className="cur">시즌 시상</span>
         </div>
 
-        {/* 올-시즌 팀 레이팅 — DB 미지원 → 빈 5행 placeholder */}
-        <div className="card" style={{ padding: "22px 24px" }}>
-          <h3
-            style={{
-              margin: "0 0 12px",
-              fontSize: 14,
-              fontWeight: 700,
-              letterSpacing: ".04em",
-              textTransform: "uppercase",
-              color: "var(--ink-dim)",
-            }}
-          >
-            올-시즌 팀 레이팅
-          </h3>
-          {/* DB Team.rating 컬럼 미존재 — 5행 placeholder 카드 */}
-          <div
-            style={{
-              padding: "20px 0",
-              textAlign: "center",
-              color: "var(--ink-mute)",
-              fontSize: 12,
-            }}
-            title="ELO 레이팅 시스템 도입 준비 중"
-          >
-            <span
-              className="material-symbols-outlined"
-              style={{
-                fontSize: 28,
-                color: "var(--ink-dim)",
-                display: "block",
-                marginBottom: 8,
-              }}
-            >
-              query_stats
-            </span>
-            <div style={{ fontWeight: 700, color: "var(--ink)", marginBottom: 4 }}>
-              집계 준비 중
+        {/* Hero — bdr-navy 그라디언트 + 시즌 칩 + 시즌 셀렉터(기존 흐름 보존) */}
+        <div className="aw-hero">
+          <div>
+            <div className="aw-hero__eyebrow">AWARDS · 시즌 시상</div>
+            <h1 className="aw-hero__t">{data.currentSeasonLabel}</h1>
+            <p className="aw-hero__d">전국 코트에서 펼쳐진 한 시즌, 가장 빛난 선수와 팀을 기록합니다.</p>
+          </div>
+          {/* 시즌 셀렉터 — ?series= router.push (page.tsx 재페치). 단일 시즌이면 칩 표시만 */}
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
+            {data.seasons.map((s) => {
+              const active = s.slug === data.currentSeasonSlug;
+              return (
+                <button
+                  key={s.slug}
+                  type="button"
+                  className="aw-hero__season"
+                  onClick={() => handleSeasonChange(s.slug)}
+                  style={{
+                    cursor: "pointer",
+                    border: active ? "1px solid rgba(255,255,255,.5)" : undefined,
+                    opacity: active ? 1 : 0.7,
+                  }}
+                >
+                  {s.name}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* 시즌 MVP — seasonMvp DTO. 0건이면 빈상태 폴백 */}
+        <h2 className="ex-sec__h">시즌 MVP</h2>
+        {mvpPlayer ? (
+          <div className="card aw-mvp">
+            <div className="aw-mvp__face">
+              <div className="aw-mvp__av">{initial(mvpPlayer.name)}</div>
+              <div className="aw-mvp__tag">MOST VALUABLE PLAYER</div>
             </div>
-            <div style={{ fontSize: 11 }}>
-              팀 ELO 레이팅 시스템 도입 후 표시됩니다.
+            <div className="aw-mvp__body">
+              <div className="aw-mvp__name">{mvpPlayer.name}</div>
+              <div className="aw-mvp__team">
+                {mvpPlayer.teamName ?? "—"}
+                {mvpPlayer.position ? ` · ${mvpPlayer.position}` : ""}
+              </div>
+              <div className="aw-mvp__stats">
+                <div className="aw-mvp__stat">
+                  <div className="v">{mvp?.ppg !== null && mvp?.ppg !== undefined ? mvp.ppg.toFixed(1) : "—"}</div>
+                  <div className="k">PPG</div>
+                </div>
+                <div className="aw-mvp__stat">
+                  <div className="v">{mvp?.apg !== null && mvp?.apg !== undefined ? mvp.apg.toFixed(1) : "—"}</div>
+                  <div className="k">APG</div>
+                </div>
+                <div className="aw-mvp__stat">
+                  <div className="v">{mvp?.rpg !== null && mvp?.rpg !== undefined ? mvp.rpg.toFixed(1) : "—"}</div>
+                  <div className="k">RPG</div>
+                </div>
+                <div className="aw-mvp__stat">
+                  <div className="v">{mvp?.winPct !== null && mvp?.winPct !== undefined ? `${mvp.winPct.toFixed(0)}%` : "—"}</div>
+                  <div className="k">승률</div>
+                </div>
+              </div>
             </div>
           </div>
-          {/* 빈 5행 dashed border placeholder — 시안 5행 형태 유지 */}
-          {[1, 2, 3, 4, 5].map((rank, i) => (
-            <div
-              key={rank}
-              style={{
-                display: "grid",
-                gridTemplateColumns: "20px 40px 1fr auto auto",
-                gap: 10,
-                alignItems: "center",
-                padding: "8px 0",
-                borderBottom: i < 4 ? "1px dashed var(--border)" : 0,
-                opacity: 0.4,
-              }}
-            >
-              <span
-                style={{
-                  fontFamily: "var(--ff-display)",
-                  fontWeight: 900,
-                  color: "var(--ink-dim)",
-                }}
-              >
-                {rank}
-              </span>
-              <span
-                style={{
-                  fontFamily: "var(--ff-mono)",
-                  fontSize: 11,
-                  fontWeight: 700,
-                  color: "var(--ink-dim)",
-                }}
-              >
-                —
-              </span>
-              <span style={{ fontWeight: 700, fontSize: 13, color: "var(--ink-mute)" }}>
-                —
-              </span>
-              <span style={{ fontFamily: "var(--ff-mono)", fontWeight: 700 }}>—</span>
-              <span
-                style={{
-                  fontSize: 11,
-                  fontFamily: "var(--ff-mono)",
-                  color: "var(--ink-dim)",
-                  fontWeight: 700,
-                  minWidth: 36,
-                  textAlign: "right",
-                }}
-              >
-                —
-              </span>
+        ) : (
+          // MVP 0건 — 빈상태(page.tsx 가 mvp_player_id 없으면 null 반환)
+          <div className="card aw-mvp aw-mvp--empty">
+            <div className="ex-empty">
+              <span className="ico material-symbols-outlined">emoji_events</span>
+              <div className="ex-empty__t">선정된 MVP가 없습니다</div>
+              <div className="ex-empty__d">해당 시즌 종료 대회에 MVP가 등록되면 자동으로 표시됩니다.</div>
             </div>
-          ))}
-        </div>
-      </div>
+          </div>
+        )}
 
-      {/* Honor cards — 시안 L119-135 (3열 6카드) */}
-      <h2
-        style={{
-          fontSize: 20,
-          fontWeight: 800,
-          letterSpacing: "-0.01em",
-          margin: "0 0 12px",
-        }}
-      >
-        주요 수상
-      </h2>
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(3, 1fr)",
-          gap: 12,
-          marginBottom: 28,
-        }}
-      >
-        {HONOR_CATALOG.map((h) => {
-          const player = pickHonorPlayer(h.kind, data);
-          const isReady = !h.notReady; // notReady 표시되면 DB 미지원
-          const tag = teamTag(player?.teamName);
-
-          return (
-            <div
-              key={h.kind}
-              className="card"
-              style={{
-                padding: "20px 22px",
-                borderTop: `3px solid ${h.color}`,
-              }}
-            >
-              <div
-                style={{
-                  fontSize: 10,
-                  fontWeight: 900,
-                  letterSpacing: ".12em",
-                  color: h.color,
-                  textTransform: "uppercase",
-                }}
-              >
-                {h.label}
-              </div>
-
-              {/* 데이터 있으면 선수 카드, 없으면 "준비 중" 빈 상태 */}
-              {player && isReady ? (
+        {/* 베스트 5 — leaders 3명 실데이터, 나머지 슬롯 준비 중(mock 금지) */}
+        <h2 className="ex-sec__h" style={{ marginTop: 30 }}>베스트 5</h2>
+        <div className="aw-best5" style={{ marginBottom: 30 }}>
+          {best5Slots.map((slot, i) => (
+            <div key={i} className="aw-p">
+              <div className="aw-p__pos">{slot.label}</div>
+              {slot.player ? (
                 <>
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 10,
-                      marginTop: 10,
-                    }}
-                  >
-                    <span
-                      style={{
-                        width: 36,
-                        height: 36,
-                        background: h.color,
-                        color: "#fff",
-                        display: "grid",
-                        placeItems: "center",
-                        fontFamily: "var(--ff-mono)",
-                        fontSize: 11,
-                        fontWeight: 800,
-                        borderRadius: 4,
-                      }}
-                    >
-                      {tag}
-                    </span>
-                    <div style={{ minWidth: 0, flex: 1 }}>
-                      <div
-                        style={{
-                          fontWeight: 800,
-                          fontSize: 16,
-                          letterSpacing: "-0.01em",
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                          whiteSpace: "nowrap",
-                        }}
-                      >
-                        {player.name}
-                      </div>
-                      <div style={{ fontSize: 11, color: "var(--ink-mute)" }}>
-                        {player.teamName ?? "—"}
-                      </div>
-                    </div>
-                  </div>
-                  <div
-                    style={{
-                      marginTop: 10,
-                      padding: "8px 10px",
-                      background: "var(--bg-alt)",
-                      borderRadius: 4,
-                      fontFamily: "var(--ff-mono)",
-                      fontSize: 12,
-                      fontWeight: 700,
-                    }}
-                  >
-                    {/* finals_mvp 는 metricLabel 자체가 "31.0 PPG · 9.0 APG" 처럼 완성형 */}
-                    {h.kind === "finals_mvp"
-                      ? player.metricLabel
-                      : fmtMetric(player.metricValue, player.metricLabel)}
+                  <div className="aw-p__av">{initial(slot.player.name)}</div>
+                  <div className="aw-p__name">{slot.player.name}</div>
+                  <div className="aw-p__team">{slot.player.teamName ?? "—"}</div>
+                  <div className="aw-p__stat">
+                    {fmtMetric(slot.player.metricValue, slot.player.metricLabel)}
                   </div>
                 </>
               ) : (
-                // 빈 상태 — 시안 카드 높이 유지
-                <div
-                  style={{
-                    marginTop: 10,
-                    padding: "20px 0",
-                    textAlign: "center",
-                    color: "var(--ink-mute)",
-                    fontSize: 12,
-                  }}
-                  title={h.notReady ?? "데이터 없음"}
-                >
-                  <div style={{ fontWeight: 700, color: "var(--ink)" }}>
-                    {h.notReady ?? "수상자가 없습니다"}
+                <>
+                  <div className="aw-p__av aw-p__av--empty">
+                    <span className="ico material-symbols-outlined" style={{ fontSize: 22 }}>schedule</span>
                   </div>
-                  <div style={{ fontSize: 11, marginTop: 4 }}>
-                    {h.notReady
-                      ? "추후 시스템 도입 후 표시됩니다."
-                      : "해당 시즌 데이터 없음"}
-                  </div>
-                </div>
+                  <div className="aw-p__name" style={{ color: "var(--ink-mute)" }}>준비 중</div>
+                  <div className="aw-p__team">집계 예정</div>
+                  <div className="aw-p__stat">—</div>
+                </>
               )}
             </div>
-          );
-        })}
-      </div>
-
-      {/* All-star teams — 시안 L137-157 (1st/2nd 그룹 × 5포지션) */}
-      <h2
-        style={{
-          fontSize: 20,
-          fontWeight: 800,
-          letterSpacing: "-0.01em",
-          margin: "0 0 12px",
-        }}
-      >
-        올-스타 팀
-      </h2>
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr",
-          gap: 12,
-          marginBottom: 28,
-        }}
-      >
-        {ALL_STAR_GROUPS.map((group) => (
-          <div key={group.id} className="card" style={{ padding: "20px 22px" }}>
-            <div
-              style={{
-                fontSize: 11,
-                letterSpacing: ".12em",
-                fontWeight: 800,
-                color: group.color,
-                marginBottom: 14,
-                textTransform: "uppercase",
-              }}
-            >
-              {group.label}
-            </div>
-            {/* DB 미지원 → 5포지션 모두 "준비 중" 슬롯 */}
-            {/* 2026-04-29: 모바일에서 5열 슬롯이 찌부 → 모바일 2열 / md 이상 5열 */}
-            <div
-              className="grid grid-cols-2 md:grid-cols-5 gap-2"
-            >
-              {ALL_STAR_POSITIONS.map((pos) => (
-                <div
-                  key={pos}
-                  style={{
-                    textAlign: "center",
-                    padding: "12px 6px",
-                    background: "var(--bg-alt)",
-                    borderRadius: 6,
-                    opacity: 0.5,
-                  }}
-                  title="올-스타 선정 시스템 준비 중"
-                >
-                  <div
-                    style={{
-                      fontSize: 10,
-                      fontFamily: "var(--ff-mono)",
-                      color: group.color,
-                      fontWeight: 800,
-                      letterSpacing: ".06em",
-                    }}
-                  >
-                    {pos}
-                  </div>
-                  <div
-                    style={{
-                      fontWeight: 700,
-                      fontSize: 12,
-                      marginTop: 3,
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
-                      color: "var(--ink-mute)",
-                    }}
-                  >
-                    —
-                  </div>
-                  <div
-                    style={{
-                      fontSize: 10,
-                      color: "var(--ink-dim)",
-                      fontFamily: "var(--ff-mono)",
-                    }}
-                  >
-                    준비 중
-                  </div>
-                </div>
-              ))}
-            </div>
-            <div
-              style={{
-                marginTop: 12,
-                padding: "10px 12px",
-                background: "var(--bg)",
-                borderRadius: 4,
-                fontSize: 11,
-                color: "var(--ink-mute)",
-                textAlign: "center",
-              }}
-            >
-              <span
-                className="material-symbols-outlined"
-                style={{
-                  fontSize: 14,
-                  verticalAlign: "middle",
-                  marginRight: 4,
-                }}
-              >
-                schedule
-              </span>
-              올-스타 선정 시스템 준비 중
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Champions list — 시안 L159-175 */}
-      <h2
-        style={{
-          fontSize: 20,
-          fontWeight: 800,
-          letterSpacing: "-0.01em",
-          margin: "0 0 12px",
-        }}
-      >
-        역대 우승팀
-      </h2>
-      <div className="card" style={{ padding: 0, overflow: "hidden" }}>
-        <div
-          className="board__head"
-          style={{ gridTemplateColumns: "110px 1fr 1.2fr 1.2fr 80px 1fr" }}
-        >
-          <div>시즌</div>
-          <div style={{ textAlign: "left" }}>대회</div>
-          <div style={{ textAlign: "left" }}>우승</div>
-          <div style={{ textAlign: "left" }}>준우승</div>
-          <div>스코어</div>
-          <div style={{ textAlign: "left" }}>MVP</div>
+          ))}
         </div>
-        {data.champions.length === 0 ? (
-          <div
-            style={{
-              padding: "48px 20px",
-              textAlign: "center",
-              color: "var(--ink-mute)",
-              fontSize: 14,
-            }}
-          >
-            우승팀 기록이 아직 없습니다.
-          </div>
-        ) : (
-          data.champions.map((c, i) => (
-            <div
-              key={i}
-              className="board__row"
-              style={{ gridTemplateColumns: "110px 1fr 1.2fr 1.2fr 80px 1fr" }}
-            >
-              <div
-                style={{
-                  fontFamily: "var(--ff-mono)",
-                  color: "var(--ink-dim)",
-                  fontSize: 12,
-                }}
-              >
-                {c.seasonLabel}
+
+        {/* 부문별 수상 — leaders 실데이터, 미지원 부문은 준비 중 */}
+        <h2 className="ex-sec__h">부문별 수상</h2>
+        <div className="aw-cats">
+          {catSlots.map((c, i) => (
+            <div key={i} className="aw-cat">
+              <div className="aw-cat__ico"><span className="ico material-symbols-outlined">{c.ico}</span></div>
+              <div>
+                <div className="aw-cat__label">{c.label}</div>
+                {c.player ? (
+                  <>
+                    <div className="aw-cat__name">{c.player.name}</div>
+                    <div className="aw-cat__sub">{c.player.teamName ?? "—"}</div>
+                  </>
+                ) : (
+                  <>
+                    <div className="aw-cat__name" style={{ color: "var(--ink-mute)" }}>준비 중</div>
+                    <div className="aw-cat__sub">집계 예정</div>
+                  </>
+                )}
               </div>
-              <div className="title">{c.tournamentName}</div>
-              <div className="title">
-                <span style={{ color: "var(--accent)", marginRight: 4 }}>🏆</span>
-                <b>{c.championName ?? "—"}</b>
-              </div>
-              <div className="title" style={{ color: "var(--ink-mute)" }}>
-                {c.runnerUpName ?? "—"}
-              </div>
-              <div style={{ fontFamily: "var(--ff-mono)", fontWeight: 700 }}>
-                {c.finalScore ?? "—"}
-              </div>
-              <div
-                className="title"
-                style={{ fontFamily: "var(--ff-mono)", fontSize: 12 }}
-              >
-                {c.finalsMvpName ?? "—"}
+              <div className="aw-cat__v">
+                {c.player ? fmtMetric(c.player.metricValue, "").trim() || "—" : "—"}
               </div>
             </div>
-          ))
-        )}
+          ))}
+        </div>
       </div>
     </div>
   );
