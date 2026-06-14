@@ -8,12 +8,24 @@
 ## 진행 현황표
 | 작업 | 상태 |
 |------|------|
+| 버킷B P1-b 시즌시상 설계 | ✅ read-only 설계 완료(`Dev/season-awards-plan-2026-06-15.md` / schema diff 무중단 / PM결재 4건) |
+| 버킷B P1-b 시즌시상 구현 | ✅ 3단계 박제(schema ADD+admin입력+/awards연결) 미push 3커밋. AW1 기본부 diff 0 실측·tsc·build PASS. tester/reviewer 대기 |
 | PR-MOCK-TO-REAL ④⑤ scrim/team-invite | ⏳ 진행 중(STOP가드: team_match_requests/team_join 의도 확인) |
 | PR-MOCK-TO-REAL ⑥⑦ saved/awards | ⏳ 준비중 경계 정리(잔여) |
 | PR-MOCK-TO-REAL ①②③ stats/calendar/about | ✅ main(`ee1a0c3`) |
 | Phase12 Batch A/B 13화면 / PR-LINEUP-V2 / Phase10 5시안 | ✅ main 반영 |
 
 ## 기획설계 (planner-architect)
+### 버킷B P1-b 시즌 시상 고급필드 실측+설계 (2026-06-15, read-only)
+- 🎯 admin-plan §P1-b "season_awards 신규". 설계서=`Dev/season-awards-plan-2026-06-15.md`. **코드·DB·push 0**(diff는 임시schema↔schema 미리보기·임시파일 즉시삭제 가드3).
+- **(a)재사용 점검**: `*award*`/`*season*` grep → 명명 테이블 **부재**(UserSeasonStat=개인 누적통계만·시상 카테고리 없음). **community_posts(category=award) 재사용=기각**(user_id=작성자≠수상자·category 'news'전용 충돌·season_year 파싱취약 → 억지매핑). **신규 season_awards 정당**(P1-a court_edit_suggestions 못쓴 것과 동형 방향불일치).
+- **(b)schema diff 실측**: CREATE TABLE 1+INDEX 3+FK 3 / **ALTER·DROP·DELETE 0 = 완전 무중단** / `--accept-data-loss 불필요`. court_submissions 패턴 동형. FK: user_id/team_id=SET NULL(수상자삭제시 행보존)·created_by=NO ACTION. User relation 2(recipient/creator)+Team relation 1(team) ADD.
+- **(c)category enum**: 8종 `all_star_1st/all_star_2nd/coach_of_year/new_face/mvp_quote/best_defense/manner/rating_up`. **DB는 VarChar+코드 Zod 화이트리스트**(ALTER회피 컨벤션). user_id/team_id 둘다 nullable(현 8종 선수상·팀상 확장여지).
+- **(d)단계**: [1]schema ADD(db diff 사용자검토후push·count0검증) [2]**관리자 직접 입력**(코트제보와 차이=승인큐❌·source가 관리자)=`/admin/season-awards` 폼+upsert/delete action+선수검색 autocomplete·super_admin가드 [3]/awards page.tsx **블록6 ADD**(기존5블록 보존)+DTO확장+awards-content 빈슬롯 채움 [4]tester+reviewer 병렬.
+- **(e)★AW1 기본부 보존가드**: MVP/베스트5 득점·어시·리바/부문 득점·어시·리바왕/FinalsMVP/역대우승 = 이미 MatchPlayerStat·mvp_player_id 실연결 → **page.tsx L186~569 쿼리 1글자도 미수정**. 고급부는 **블록 ADD만**. awards-content는 **현 player:null 빈슬롯(best5 수비/신인 L70-71·cats 스틸/레이팅/매너 L84-86)만 교체**·실슬롯 미접촉. tester=`git diff awards/page.tsx` 기존블록 변경0 실측.
+- **(f)규모 中(+450~650)·위험 低**. 함정: snake_case(apiSuccess응답/server prisma camel)·season_year↔series 매핑·빈슬롯만 교체·강조색 `var(--cafe-blue)`(빨강폴백 함정 errors06-10).
+- **PM결재 4건**: ①season_year↔series 매핑(권장 (나)season_awards에 series_id? 추가) ②admin위치(권장 독립페이지) ③선수지정UI(권장 검색autocomplete) ④올스타/감독/코멘트 표시위치([3]시 Awards.jsx 확인후).
+
 ### 대회종료 후속 3종 통합설계 (2026-06-15, read-only)
 - 🎯 ①우승팀 자동set ②Phase3 cron ③4차/열혈 결선흐름. 설계서=`Dev/tournament-completion-followup-plan-2026-06-15.md`. **코드·DB 0**.
 - **우선순위/의존**: ①(中)→③(전제) / ②(小·독립·병렬) / ③(운영절차·코드0~소·①의존). 권장=①먼저+②병렬+③①머지후.
@@ -40,6 +52,67 @@
 (이전 완료 — 압축)
 
 ## 구현 기록 (developer)
+
+### P1-b 시즌 시상 고급필드 (2026-06-15, developer) — 미push 3커밋
+
+📝 구현: season_awards 신규 테이블 + admin 입력폼 + /awards 고급부 연결. 단계별 분리 커밋. P1-a 코트제보 동형 패턴.
+
+| 단계 | 파일 | 변경 | 신규/수정 |
+|------|------|------|----------|
+| [1] | `prisma/schema.prisma` | season_awards 모델 ADD + User relation 2(recipient/creator) + Team 1(team) + tournament_series 1(series) | 수정 |
+| [2] | `src/lib/awards/season-award-categories.ts` | 8종 카테고리 상수 + Zod 화이트리스트 + 라벨 + multi-slot | 신규 |
+| [2] | `src/app/actions/admin-season-awards.ts` | upsert/delete server action(super_admin·adminLog·payload Json) | 신규 |
+| [2] | `src/app/(admin)/admin/season-awards/page.tsx` | super_admin 가드 + series/시상 조회·직렬화 | 신규 |
+| [2] | `.../admin-season-awards-content.tsx` | 시리즈 select+카테고리+선수검색 autocomplete+코멘트+목록/삭제 | 신규 |
+| [2] | `src/components/admin/sidebar.tsx` | 콘텐츠 그룹 "시즌 시상" 메뉴(super_admin) | 수정 |
+| [3] | `src/app/(web)/awards/page.tsx` | 블록7 season_awards 조회 ADD(기존 5블록 미수정) + DTO 8필드 확장 | 수정 |
+| [3] | `.../awards-content.tsx` | best5 수비/신인·cats 스틸/레이팅/매너 빈슬롯 채움 + 올스타/감독/NEWFACE/MVP코멘트 신규섹션 | 수정 |
+
+- **[1] schema diff 무중단**: CREATE TABLE 1 + INDEX 3((series_id,category)/(season_year)/(user_id)) + FK 4(user/team/series=SET NULL·created_by=NoAction). ALTER/DROP/DELETE 0. `--accept-data-loss` 불필요. db push 완료(--skip-generate→generate). count **0** 검증(임시스크립트→즉시삭제 가드3).
+- **series_id**: PM 결재대로 BigInt? 추가(season_year Int?와 병행). /awards currentSeriesId(기존 L173 변수) 재사용.
+- **★AW1 기본부 보존 실측**: `git diff page.tsx` = **120 insertions(+) / 0 deletions(-)**. 기존 5블록 쿼리 1글자도 미수정. 블록7은 champions try-catch 끝 다음 ADD만.
+- **선수검색**: 신규 GET 불필요 — 기존 `/api/web/admin/users/search` 재사용(설계서 "신규 GET 1개"보다 절약).
+- **빈슬롯만 교체**: leaders(scoring/assists/rebounds) 실슬롯 미접촉. Slot 정규화 타입으로 PlayerRefDTO/SeasonAwardPlayerDTO 둘 다 같은 셀 렌더.
+- tsc 3단계 전부 EXIT 0. build ✓ 21.7s + 신규 `ƒ /admin/season-awards` 등록. 하드코딩hex 0(var(--color-error)/var(--cafe-blue)) / lucide 0.
+
+💡 tester 참고:
+- **★검증 1**: `git diff <step2커밋>..HEAD -- "src/app/(web)/awards/page.tsx"` 또는 step3 커밋 diff → 삭제(-) 라인 0 실측(AW1 기본부 회귀 0).
+- DB: season_awards count=0(박제 전 정상). 빈 상태로 /awards 접속 시 best5 수비/신인·cats 스틸/레이팅/매너·올스타·감독·NEWFACE·MVP코멘트 전부 "준비 중/집계 중" 빈상태(mock 없음).
+- admin: super_admin으로 /admin/season-awards 접속→시리즈 선택+카테고리+선수검색(닉네임 입력→드롭다운)→추가→목록 표시→삭제. super_admin 아니면 /admin?error=no_permission redirect.
+- 실거동: season_awards 1행 입력 후 /awards에서 해당 카테고리 슬롯이 빈상태→실데이터로 채워지는지 1회 확인 권장(0행이라 런타임 미재현).
+- 주의: category 8종 외 값→upsert 조용히 거부 / user·team·comment 전부 비면 거부.
+
+⚠️ reviewer 참고:
+- ★ page.tsx 블록7이 기존 5블록 쿼리/officialMatchWhere/DTO 필드 미접촉 — ADD-only(diff 0 delete) 확인.
+- ★ FK SET NULL(user/team/series)·NoAction(created_by) 정합 / category VarChar+코드 화이트리스트(ALTER 회피).
+- snake_case: season_awards.payload는 Json(comment/quote) — page.tsx server prisma는 camel 접근, admin user search 응답은 apiSuccess snake 변환(data.users).
+- 강조색 var(--cafe-blue)(errors 06-10 빨강 폴백 함정 회피). 삭제버튼 var(--color-error).
+- 멀티세션: awards 2파일 + admin season-awards 4파일 + schema + sidebar만 접촉. 다른 세션(Admin Console S2 등) 미접촉.
+
+### Admin Console S2 — overview/inbox 2 API (2026-06-15, developer)
+
+📝 구현: admin 콘솔 메인 집계 2 엔드포인트. 둘 다 getWebSession+isSuperAdmin 403가드·apiSuccess(snake자동)·읽기전용·schema 0·api/v1 미접촉.
+
+| 파일 | 변경 | 신규/수정 |
+|------|------|----------|
+| `src/app/api/web/admin/overview/route.ts` | GET → `{kpis,queue}`. KPI 4(new_users·active_games·month_revenue·recruiting_tournaments) Promise.all 병렬 + 큐 6 count. KST 자정/월초 PURE 유틸 내장 | 신규 |
+| `src/app/api/web/admin/inbox/route.ts` | GET → `{items,next_cursor}`. 6소스 union→정규화→정렬(priority/age)→slice 50. domain/severity 필터·인덱스 커서 | 신규 |
+
+★ KPI 매핑(확정대로): new_users=User.createdAt≥KST오늘0시(delta 어제대비·trend 7일 day-bucket) / active_games=games.status in[1,2](delta null) / month_revenue=payments paid+paid_at≥KST이번달1일 _sum.final_amount(**Decimal→Number**·delta null) / recruiting=Tournament.status in[6종 화이트리스트](delta null).
+★ 큐 6: game_reports(submitted)/community_posts(draft)/teams=**0 DB미지원**/payments(refund_status=requested)/court_submissions(pending)/organizations(pending).
+★ inbox severity: reports·payments=err / community=warn / courts·orgs=blue. priority err0<warn1<blue2. title: reports="경기 평가 #id"/community=title/courts·orgs=name. cursor=정렬후 인덱스(union이라 단일 BigInt키 부재).
+★ 함정: final_amount Decimal→Number / id BigInt→toString / name·title null폴백 / 7일trend DB date캐스팅 회피=코드 day-bucket(KST키).
+
+💡 tester 참고:
+- 정적검증: `npx tsc --noEmit` EXIT 0 / `npm run build` ✓ Compiled 25.1s + 신규 `ƒ /api/web/admin/overview`·`ƒ /api/web/admin/inbox` 등록.
+- super_admin 세션 curl 어려워 **build+정적검증 대체**(지시문 허용). 런타임 실호출은 super_admin 로그인 후 GET 1회 권장.
+- 정상: 비super_admin/비로그인→403 FORBIDDEN. overview 응답 kpis/queue snake. inbox items[].id="<domain>:<refId>"·next_cursor(정렬후 인덱스 or null).
+- 주의: month_revenue paid 0건이면 0. 큐 각 소스 0건이면 inbox items=[]. domain=court_submissions 필터 시 그 소스만 조회.
+
+⚠️ reviewer 참고:
+- KST 경계 유틸(kstMidnightUtc/kstMonthStartUtc) UTC+9 보정 정확성. payments Decimal→Number 변환 누락 여부.
+- inbox 6소스 union 정렬·인덱스 커서 경계(start>0·next_cursor null 조건). teams=0 고정(주석).
+- 멀티세션 제약: 신규 2라우트 + architecture.md만 접촉. 다른 파일 미접촉.
 
 ### PR-AUTOCOMPLETE ② Phase3 cron 자동화 (2026-06-15, developer)
 
@@ -185,6 +258,76 @@ EXCLUDED_STATUSES = completed/ended/closed/cancelled(TERMINAL) + draft/upcoming(
 
 ## 테스트 결과 (tester)
 
+### 버킷B P1-b 시즌 시상 고급필드 검증 (2026-06-15, tester) — 미push 3커밋(78f087c/544a1ba/da281aa)
+
+| 검증 항목 | 결과 | 비고 |
+|-----------|------|------|
+| 1a. git diff --stat 3커밋 | ✅ 통과 | 8파일 986+/35-. schema+admin(page/content/action/상수/sidebar)+awards(page/content). 명세 정합 |
+| 1b. `npx tsc --noEmit` | ✅ 통과 | EXIT 0. taskkill node 미사용 |
+| 2. schema ADD-only | ✅ 통과 | season_awards CREATE1+INDEX3((series_id,category)/(season_year)/(user_id))+FK4(user/team/series=SetNull·created_by=NoAction). 기존모델 ALTER/DROP 0(User/Team/tournament_series는 relation줄 ADD만). series_id **BigInt?** 포함. category **VarChar**+Zod 8종 화이트리스트(season-award-categories.ts) |
+| 3. ★AW1 기본부 회귀(핵심) | ✅ 통과 | `git diff` page.tsx 3커밋 전체 **삭제(-)라인 0** 실측. hunk 헤더=DTO확장(L93/L105)+블록7 ADD(L568 **다음**)+반환객체확장(L579). 기존블록 L186~569 영역 hunk 미진입=1글자도 미접촉. officialMatchWhere grep 매치0(미접촉) |
+| 4a. admin super_admin 가드 | ✅ 통과 | page.tsx `isSuperAdmin(session)` false→`/admin?error=no_permission` redirect. action requireSuperAdmin(role!=="super_admin"→throw). sidebar 메뉴 roles=["super_admin"] |
+| 4b. INSERT/수정·선수검색 재사용·신규라우트0 | ✅ 통과 | upsert=id有 update/id無 create(payload comment·quote 조립). 선수검색=기존 `/api/web/admin/users/search` fetch(L104) 재사용. **신규 route.ts 0건** 실측 |
+| 4c. 카테고리 8종 화이트리스트 | ✅ 통과 | isSeasonAwardCategory 8종(all_star_1st/2nd·coach_of_year·new_face·mvp_quote·best_defense·manner·rating_up). 8종 외→조용히 return. user·team·payload 전부 비면→거부 |
+| 5. /awards 고급부 빈슬롯·"집계 중" | ✅ 통과 | 블록7 try-catch 격리, currentSeriesId 기준 findMany→카테고리별 분류(8종 DTO). best5 수비/신인·cats 스틸·올스타/감독/MVP코멘트/매너/레이팅 빈슬롯. 미입력→null/빈배열→"집계 중"/"준비 중"/빈상태. **mock 금지 주석 다수**(더미 0) |
+| 6. snake_case 정합 | ✅ 통과 | content 선수검색 `json.data.users`(apiSuccess snake 변환 인지). page.tsx server prisma는 camel 접근. payload Json comment/quote 안전추출 |
+| 7. 강조색·하드코딩hex·lucide·9999·api/v1 | ✅ 통과 | 강조색 `var(--cafe-blue)`(빨강폴백 함정 회피 주석). 하드코딩hex **0**·lucide **0**·9999 **0**·api/v1 변경 **0** 실측 |
+| 8. count 실측(season_awards 0행) | ✅ 통과 | `prisma.season_awards.count()`=**0**(박제 전 정상). 임시스크립트→즉시삭제(가드3) |
+
+📊 종합: **11개 항목 전부 통과 / 0 실패**. schema ADD-only(series_id BigInt?·category VarChar 8종)·★AW1 기본부 삭제라인0·super_admin 가드·신규라우트0(선수검색 재사용)·8종 화이트리스트·빈슬롯 "집계 중"(mock 0)·snake정합·cafe-blue·하드코딩0·count0 모두 정상.
+
+⚠️ 참고(동작영향 0): season_awards 0행이라 admin 입력→/awards 채움 end-to-end 런타임 미재현(코드/스키마 정합 전수 확인). 1행 입력 후 빈슬롯→실데이터 1회 확인 권장(0행=정상·차단요소 아님).
+
+### Admin Console S2 — overview/inbox 2 API 검증 (2026-06-15, tester)
+
+정적+build+운영DB 실측 전부 통과. 읽기전용·schema0·snake·KST경계·403가드 모두 정상.
+
+| 검증 항목 | 결과 | 비고 |
+|-----------|------|------|
+| 1a. `npx tsc --noEmit` | ✅ 통과 | EXIT 0 (에러 0) |
+| 1b. `npm run build` + 라우트 등록 | ✅ 통과 | `✓ Compiled successfully in 22.5s` / 신규 `ƒ /api/web/admin/overview`·`ƒ /api/web/admin/inbox` 둘 다 등록. ads/heatmap dynamic-server 로그는 기존 무관 |
+| 2. ★403 가드(getWebSession+isSuperAdmin) | ✅ 통과 | 두 라우트 모두 진입부 `if(!isSuperAdmin(session)) return apiError(...,403,"FORBIDDEN")`. is-super-admin.ts L49=`role==="super_admin"||admin_role==="super_admin"`. 비로그인(session null)→isSuperAdmin false→403. super_admin만 통과 |
+| 3. ★snake_case(apiSuccess 자동변환) | ✅ 통과 | response.ts L6 `apiSuccess=convertKeysToSnakeCase`. 응답키 kpis/queue/new_users/month_revenue·items/next_cursor 전부 snake. id BigInt→`.toString()`(4모델 id 전부 BigInt 확인) / final_amount Decimal→`Number(..??0)` / title·name `|| 폴백` |
+| 4a. overview KPI 매핑 | ✅ 통과 | new_users=User.createdAt≥KST오늘0시(+어제대비 delta+7일 day-bucket trend) / active_games=games.status in[1,2](games.status=Int 정합) / month_revenue=payments status=paid+paid_at≥KST월초 _sum.final_amount→Number / recruiting=tournament.status in[6종 화이트리스트] |
+| 4b. overview queue 6종 | ✅ 통과 | game_reports(submitted)/community_posts(draft)/teams=**0 고정(DB미지원 주석)**/payments(refund_status=requested)/court_submissions(pending)/organizations(pending). 5종 실count+teams 0 |
+| 4c. ★KST 경계 실측(UTC+9) | ✅ 통과 | 운영DB 실행: todayStart=`2026-06-14T15:00Z`=KST 6/15 00:00 ✓ / monthStart=`2026-05-31T15:00Z`=KST 6/1 00:00 ✓. kstMidnightUtc/kstMonthStartUtc 9h 보정 정확 |
+| 4d. overview 실데이터 동작 | ✅ 통과 | 운영DB 실측: new_users=0·active_games=158·month_revenue=0·recruiting=4 / queue game_reports=0·community(draft)=88·payments=0·court_submissions=0·organizations=0. month_revenue paid 0건→0 폴백 정상 |
+| 5a. inbox 6소스 union·item 구조 | ✅ 통과 | reports/posts/courts/orgs/refunds 5소스 findMany(소스별 take 200)+teams 0. item={id:`<domain>:<refId>`,domain,route,severity,priority,title,sub,created_at,snoozed_until:null} |
+| 5b. inbox severity(err/warn/blue) | ✅ 통과 | game_reports·payments=err(0) / community_posts=warn(1) / court_submissions·organizations=blue(2). SEVERITY_PRIORITY 가중치 정합 |
+| 5c. inbox 정렬·take50·next_cursor | ✅ 통과 | priority: severity 가중치 asc→동일시 created_at asc / age: created_at asc. slice(start,start+50). next_cursor=start+50<len?start+50:null. **community draft 88건>50→items 채워지고 next_cursor 발생 경로 실데이터로 활성** |
+| 5d. inbox domain/severity 필터 | ✅ 통과 | `want(d)=!domainFilter||domainFilter===d`로 소스별 조회 절감. severityFilter는 정규화 후 filter |
+| 6. ★읽기전용·schema0 | ✅ 통과 | grep: update/updateMany/delete/deleteMany/create/createMany/upsert/$executeRaw/$queryRaw **0건**(count/aggregate/findMany만). `git status prisma/`=변경0(신규 모델 0) |
+| 7. api/v1 미접촉·기존 보존 | ✅ 통과 | 변경=신규 2파일뿐. 기존 모델 무변경. apiError 시그니처 정합(overview L180 code 생략=정상) |
+
+📊 종합: **15개 항목 전부 통과 / 0 실패**. 403가드·snake·KPI4/queue6 매핑·KST경계(UTC+9 실측)·inbox union/severity/정렬/페이지네이션·읽기전용(쓰기0)·schema0 모두 의도대로 동작. 운영DB 실측으로 KPI/queue/inbox(draft88건) 실데이터 경로까지 확인.
+
+검증 명령: `tsc --noEmit`→EXIT 0 / `build`→✓ 22.5s + 신규 2라우트 등록 / 쓰기작업 grep→0건 / 운영DB count 실측(임시스크립트 작성→즉시삭제 가드3). 수정 요청 없음.
+
+⚠️ 참고(동작영향 0):
+- **런타임 super_admin curl 미재현**: super_admin 세션 쿠키 확보 제약으로 HTTP 실호출 대신 build+정적+운영DB count로 대체(지시문 허용). 403 가드는 코드 경로 전수 확인. super_admin 로그인 후 GET 1회 실확인 권장(차단요소 아님).
+- inbox 소스별 `take:200` 상한 — union 후 정렬/페이지네이션 대상. 단일 소스가 200건 초과 시 최신순 누락 가능하나 현 운영 규모(최대 draft 88)에선 무영향. 대량 누적 시 cursor 전략 재검토 후속.
+
+### PR-AUTOCOMPLETE ②cron + PR-CHAMPION ①우승팀유틸 검증 (2026-06-15, tester)
+
+정적+vitest+build 전부 통과. 멀티세션(court) 무관 에러 0.
+
+| 검증 항목 | 결과 | 비고 |
+|-----------|------|------|
+| 1. tsc + set-champion 11 PASS | ✅ 통과 | `tsc --noEmit` EXIT 0 / vitest set-champion **11 PASS** |
+| 2. ★FK 변환 강제 (tt.id 직접 set 없음) | ✅ 통과 | knockout결승(L118)·폴백(L131)·리그1위(L145) 전 경로가 `tournamentTeamToTeamId()` 경유→tt.teamId 반환. champion_team_id에 winner_team_id/tt.id 직접 박제 0. 테스트가 winner=999→teamId=42 단언 |
+| 3. 포맷판정 (knockout결승/리그1위/다조null) | ✅ 통과 | KNOCKOUT 4종=isFinalsRound(결승/final/finals/championship)+next_match_id null 폴백(round_number 최대) / LEAGUE 2종=rank===1 / group_stage 다조=즉시 null(매치조회조차 안 함) |
+| 4. 멱등 (champion 있으면 skip·mvp 미접촉) | ✅ 통과 | L184 champion_team_id!==null→skip. update data={champion_team_id}만(mvp 미포함). 테스트 "이미 champion→update 미호출" 단언 |
+| 5. ★finalize 통합 (updated:true 분기·try-catch 격리) | ✅ 통과 | L238 `updated===true` 분기 **내부**에서만 setTournamentChampion 호출(매 매치 아님). L252~265 try-catch 격리→catch는 console.error만(종료흐름 차단 0, warnings 미추가) |
+| 6. 회귀 (결승없는 포맷 안전·종료흐름 영향0) | ✅ 통과 | 결승미정/다조=null→no-op(update 미호출). 산출/박제 실패가 finalize return 차단 0 |
+| 7. build + cron 5 PASS | ✅ 통과 | `npm run build` ✓ Compiled successfully 25.1s / vitest cron **5 PASS**(KST 새벽·자정직후·자정직전·당일보호·어제처리) |
+| 8. ★★매치0 가드 (findMany+updateMany 둘다 none:{}) | ✅ 통과 | findMany(L126) + updateMany(L163) **둘 다** `tournamentMatches:{none:{}}`(race 재가드). 진짜 경기 대회(매치≥1) 강제종료 불가=생명선 |
+| 9. Bearer 401 / champion·mvp 미접촉 / KST 당일보호 | ✅ 통과 | L111 `Bearer ${CRON_SECRET}` 불일치→401. updateMany data=status만(champion/mvp 0). `effectiveDate < boundary`(L142)=어제까지만, 당일 보호 |
+| 10. vercel.json 기존 보존 + 신규1 | ✅ 통과 | 기존 cron 10건 그대로 + `auto-complete-tournaments` `"0 18 * * *"`(KST03:00) 1건 추가(L47~50). 총 11건 |
+
+📊 종합: **10개 항목 전부 통과 / 0 실패**. ①우승팀 유틸(FK 변환 강제·포맷별 판정·멱등·finalize 격리통합) + ②cron(매치0 이중가드·Bearer·KST 당일보호·vercel.json 보존) 모두 의도대로 동작.
+
+검증 명령: `tsc --noEmit`→EXIT 0 / `vitest set-champion+auto-complete`→**16 PASS**(11+5) / `build`→✓ 25.1s + 신규 `ƒ /api/cron/auto-complete-tournaments` 등록. 멀티세션 court-submission(admin-courts-content.tsx)發 에러 0. ads/heatmap dynamic-server 로그는 기존 무관. 수정 요청 없음.
+
 ### 버킷B P1-a 코트 제보 승인 체계 검증 (2026-06-15, tester) — 미push 3커밋(d86bbc5/a20cdd0/abef30c)
 
 | 검증 항목 | 결과 | 비고 |
@@ -256,6 +399,85 @@ EXCLUDED_STATUSES = completed/ended/closed/cancelled(TERMINAL) + draft/upcoming(
 ⚠️ 참고(Phase 1 무관): 전체 회귀 중 사전 존재 실패 2파일 4건 발견 — `tournament-delete.test.ts`(3), `running-score-helpers.test.ts`(1, team_side home/away 정합). Phase 1 변경분을 stash한 baseline에서도 동일 실패 → 본 작업 책임 아님. 별도 후속 처리 대상.
 
 ## 리뷰 결과 (reviewer)
+
+### 버킷B P1-b 시즌 시상 고급필드 (2026-06-15, reviewer) — 미push 3커밋(78f087c/544a1ba/da281aa)
+
+📊 종합 판정: **APPROVE** (critical 0 / major 0 / minor 2)
+
+실측 근거: 3커밋 diff 전수 정독(986+/35-) · `git diff origin/subin..HEAD -- awards/page.tsx` 삭제라인 **0** 실측 · schema diff(ALTER/DROP 0) · `--cafe-blue`/`--ink-mute` globals.css 라이트/다크 양쪽 정의 grep · `npx tsc --noEmit` **EXIT 0**.
+
+✅ 잘된 점:
+- **★AW1 기본부 보존 완벽**: awards/page.tsx = **120 insertions / 0 deletions** 실측. 기존 5블록(MVP·득점/어시/리바 leaders·우승팀) 쿼리·officialMatchWhere·DTO 필드 1글자도 미접촉. 블록7(season_awards)은 champions try-catch 다음 순수 ADD. DTO 8필드 확장도 기존 필드 위에 append만.
+- **빈슬롯 교체 안전(핵심)**: leaders 실슬롯(득점/어시/리바)=`fromLeader`로 기존 데이터 그대로 / 빈슬롯(수비·신인·스틸→레이팅·매너)만 `fromAward`로 season_awards 채움. `Slot` 정규화 타입으로 PlayerRefDTO·SeasonAwardPlayerDTO 둘 다 같은 셀 렌더 — 타입 정합(tsc 0). 미입력 시 전부 null→"집계 중" 빈상태(mock 0).
+- **schema ADD-only 무중단**: CREATE TABLE 1 + relation 4(User 2·Team 1·tournament_series 1 양방향) + INDEX 3. ALTER/DROP/DELETE 0. FK = user/team/series SET NULL(수상자·팀·시즌 삭제돼도 행 보존), created_by NoAction(관리자 기록 보존) — 정합. category=VarChar+코드 Zod 화이트리스트(enum ALTER 회피 컨벤션).
+- **권한 가드 견고**: admin action upsert/delete 둘 다 첫 줄 `requireSuperAdmin()`(role!=="super_admin"→throw). page.tsx `isSuperAdmin` 가드+redirect. sidebar 메뉴 roles:["super_admin"] 한정. created_by=session.sub 박제. super_admin 전역관리 권한이라 타인 시상 수정/삭제는 IDOR 아님(의도).
+- **선수검색 신규 라우트 0**: 기존 `/api/web/admin/users/search` 재사용. 응답 `json?.data?.users`(apiSuccess snake 변환) + `json?.users` 폴백 — snake_case 함정 회피.
+- **null 가드 정합**: user_id/team_id 둘 다 null이고 payload(comment/quote)도 비면 upsert 조용히 거부(L80). page.tsx toDTO에서 recipient/team null 안전 폴백. 강조색 var(--cafe-blue)(빨강 폴백 함정 회피)·삭제 var(--color-error)·하드코딩hex 0·lucide 0.
+
+🟡 권장 수정 (minor, 동작 차단 0):
+- [awards-content.tsx best5 "수비" + catSlots "스틸왕"] **bestDefense 중복 매핑** — `data.bestDefense`가 베스트5 "수비" 슬롯과 부문별 "스틸왕" 슬롯 **양쪽에 동시 렌더**. season_awards에 best_defense 1행 입력 시 같은 수상자가 2곳 표시. 의도(수비=스틸 동일 카테고리 공유)면 OK, 아니면 스틸왕용 별도 카테고리 필요. 0행이라 런타임 미재현·동작 차단 0. → 표시 의도 1회 확인 권장.
+- [page.tsx 블록7 where] **series 미지정(전체) 시 series_id 무관 전체 조회** — `currentSeriesId ? {series_id} : {}`. "전체 시즌" 보기에서 모든 시즌 시상이 카테고리별로 섞여 첫 행만 노출(coachOfYear 등 단일 카테고리는 `?? dto`로 첫 행 고정). 여러 시즌 누적 후 "전체"에서 어느 시즌 감독이 뜰지 불확정. 현재 0행·단일시즌이라 무해. → season_year/series 필터 우선순위 후속 정리 여지(설계 결재대로 series 1순위라 의도 범위).
+
+ℹ️ 참고(수정 불요):
+- page.tsx 블록7 try-catch가 빈 catch(에러 미로깅)→전부 빈상태 폴백. 기본부 영향 0 관점 안전(S2 라우트 컨벤션 동일).
+- admin update가 `where:{id}`만(소유 검증 없음) — super_admin 전역관리 의도라 IDOR 아님. created_by는 create 시에만 박제(update 시 미변경=원입력자 보존, 정합).
+
+→ **수정 요청 테이블 등록 안 함**(전부 권장/후속, 필수 0). APPROVE 그대로 머지 가능. minor 2건은 0행·단일시즌 환경에선 미재현.
+
+### Admin Console S2 — overview/inbox 2 API (2026-06-15, reviewer)
+
+📊 종합 판정: **APPROVE** (critical 0 / major 0 / minor 3)
+
+실측 근거: schema 8모델 status/필드 타입 직접 grep / is-super-admin.ts·response.ts·case.ts 정독 / 인덱스 보유 실측. (런타임 curl은 super_admin 세션 제약으로 build+정적검증 대체 — developer/tester 증빙 채택)
+
+✅ 잘된 점:
+- **보안 가드 견고**: `isSuperAdmin(session)` = role OR admin_role "super_admin" + null/undefined 방어(미로그인 false). 비-super(association_admin 등) 전부 403 FORBIDDEN. 두 라우트 모두 본문 진입 전 가드. 전역 집계라 IDOR 무관(특정 유저 리소스 접근 0).
+- **직렬화 안전(핵심)**: inbox 모든 id(game_reports/community_posts/court_submissions/organizations/payments = 전부 **BigInt**) `.toString()` 처리. overview month_revenue = `Number(Decimal ?? 0)` 변환(Decimal 객체 그대로 넘기면 convertKeysToSnakeCase가 key 순회하다 깨지는데 회피). apiSuccess→convertKeysToSnakeCase가 Date→ISO/BigInt→toString 재귀 폴백까지 이중 안전. JSON 직렬화 에러 0.
+- **매핑 정확(실측 일치)**: games.status=Int → `[1,2]` Int 비교 정합 / payments.status="paid"+paid_at·final_amount Decimal / refund_status="requested" / organizations.status pending(주석 워크플로 일치) / game_reports "submitted"(@@index) / community_posts "draft"(status nullable·기본 published인데 where:"draft"가 null 제외 정확) / court_submissions "pending". Tournament.status 화이트리스트 6종 String?(@@index 보유).
+- **KST 경계 정확**: kstMidnightUtc/kstMonthStartUtc PURE(UTC+9h→Date.UTC→-9h). 7일 trend = 코드 day-bucket(KST 키 `Y-M-D`), DB date 캐스팅 회피 — 0포함 7칸 보장. todayStart/yesterdayStart/monthStart 경계 정합.
+- **읽기전용·schema 0**: count/aggregate/findMany만. 모델 변경 0. api/v1 미접촉.
+- **inbox union 정합**: 5소스(+teams 0 주석) Promise.all 병렬 → 정규화 push → severity 필터 → 정렬(priority err0<warn1<blue2, 동순위 created_at asc / age는 created_at 단일) → slice(start, start+50). next_cursor = `start+50 < length ? start+50 : null` 경계 정확. domain 필터 시 `want()`로 불필요 소스 쿼리 스킵(절감). 소스별 take:200 상한으로 폭주 방지.
+
+🟡 권장 수정 (minor, 동작 차단 0):
+- [inbox/route.ts:118-124] **payments.refund_status 인덱스 부재** — payments는 status/paid_at/created_at 등 인덱스 다수지만 `refund_status` 단독 인덱스 없음(schema L1906~1914 실측). overview L125 count + inbox findMany 둘 다 refund_status="requested" where → 환불요청 조회가 풀스캔. 현재 payments 행수에선 무해하나, 증가 시 가장 먼저 느려질 지점. → 후속: `@@index([refund_status])` 또는 `@@index([refund_status, created_at])` ADD(무중단). 본 PR 범위(schema 0) 밖이므로 별도 처리 권장.
+- [inbox/route.ts:82] **소스별 take:200 silent 상한** — pending/submitted/draft가 한 소스에서 200 초과 시 오래된 201번째부터 union/페이지네이션에서 누락(정렬은 created_at asc라 최신이 잘림). 운영 큐 특성상 pending이 200 넘는 일은 드물지만, 넘으면 next_cursor로도 도달 불가. 현재 안전하나 인지 필요(주석에 "소스별 상한" 명시는 되어 있음).
+- [overview/route.ts:159-167] **delta: null 3종** — active_games/month_revenue/recruiting_tournaments는 비교 기준 부재로 null(의도, 주석 명시). new_users만 어제 대비 delta 산출. 디자인 스펙이 이 3종 delta를 요구하지 않으면 그대로 OK. 추후 월초 대비 등 기준 생기면 확장 여지(현 상태 문제 아님).
+
+ℹ️ 참고(수정 불요):
+- catch 블록이 빈 catch(에러 객체 미로깅) — apiError 500만 반환. 디버깅 시 원인 추적 어려울 수 있으나, 민감정보 노출 0 관점에선 안전. 기존 라우트 컨벤션과 동일하면 유지.
+- inbox cursor = "정렬 후 인덱스" 방식 — union이라 단일 BigInt 키 부재로 불가피한 선택. 폴링 사이 데이터 변동 시 페이지 경계가 흔들릴 수 있으나(인덱스 기반 공통 한계), 운영 큐 용도엔 충분.
+
+→ **수정 요청 테이블 등록 안 함**(전부 권장/후속, 필수 0). APPROVE 그대로 머지 가능.
+
+### PR-CHAMPION ① 우승팀 자동set + PR-AUTOCOMPLETE ② cron (2026-06-15, reviewer)
+
+📊 종합 판정: **APPROVE** (critical 0 / major 0 / minor 3)
+
+검증 실측 근거: schema FK 4개 직접 grep / 운영 DB status 분포 실측(임시스크립트→즉시삭제 가드3) / vitest 16 PASS(set-champion 11 + cron 5) / tsc 변경3파일 에러0.
+
+✅ 잘된 점:
+**① set-champion.ts**
+- ★ FK 변환 정확(핵심 무결): champion_team_id=Team.id(schema L356) ← winner_team_id=TournamentTeam.id(L749) / calculateLeagueRanking.tournamentTeamId=TournamentTeam.id(L9·177). 모든 반환 경로(knockout 1차/2차폴백·리그)가 `tournamentTeamToTeamId()` 1단계 변환 경유 → tt.teamId(=Team.id L603) 박제. 변환 누락 경로 0. 테스트가 winner(999)≠teamId(42) 단언으로 회귀가드.
+- 포맷 판정 정합: isFinalsRound PURE(결승/final/finals/championship 소문자 포함) + winner NOT NULL + scheduledAt desc 1순위 → next_match_id null+round_number 최대 폴백 2차. round_robin/league=rank===1. group_stage 다조=즉시 null(매치조회 안 함). 필드명 전부 schema 일치(roundName@round_name·round_number·next_match_id·winner_team_id·scheduledAt).
+- 멱등 견고: champion_team_id NOT NULL → skip(수동 박제 보호)·update 미호출·매치조회도 안 함. mvp_player_id는 select·data 어디에도 미등장 = 절대 미접촉. not-found까지 4상태 구분.
+- finalize 통합 위치 정확: autoComplete `updated:true` 분기 내부에서만 호출(L248~265) → 매 매치 호출 낭비 0. **try-catch 격리**(L252~265)로 산출/박제 실패가 종료 흐름 차단 0(console.error만·warnings 미추가). add-only(기존 5종료path 본문 무변경) → 회귀 0.
+
+**② auto-complete-tournaments cron**
+- ★★ 매치0 생명선 견고: `tournamentMatches:{none:{}}`가 findMany(L126) + updateMany(L163) **둘 다** 존재 → race 방지. relation명 정합(Tournament.tournamentMatches L348). 진짜 대회 강제종료 위험 0. ①과 교차0(매치0=결승없음=champion 미호출).
+- CRON_SECRET Bearer 가드 견고(L110~113, 불일치→401). stale-pending-fix 패턴 정확 답습(findMany→코드필터→updateMany 재가드→admin_logs silent→200 idle).
+- KST 경계 정확(당일보호): kstMidnightUtc PURE(Date.UTC·로컬TZ영향0). `(endDate??startDate)<boundary`=어제까지만·당일 보호·둘다 null 제외. 테스트 5케이스(당일제외·어제포함) PASS.
+- champion/mvp 미접촉(updateMany data=status만). admin_logs resource_id/target_id=null(UUID는 changes_made.tournament_id 박제). vercel.json 기존 10건 보존+1줄 append(`0 18 * * *`=KST03:00).
+- 보안: cron 외부호출 Bearer 차단. 응답 민감정보 없음(id/name/count만).
+
+🟡 권장 수정 (minor — 동작영향 현재 0, 방어적 정합):
+- **[route.ts L41~48 EXCLUDED_STATUSES — 설계 가드와 불일치]** 설계서 §②(L120·132)와 표시레이어 `NO_TIME_OVERRIDE`(tournament-status.ts L75~80)는 `final`/`preopen`도 자동종료 제외로 규정하나, cron EXCLUDED는 6개만(completed/ended/closed/cancelled/draft/upcoming) — `final`/`preopen` 누락. **실측 영향 0**(운영 status=draft/completed/in_progress/cancelled/published 5종뿐, final/preopen 0건·매치0+final/preopen 갭 0건). 향후 final/preopen 도입 시 매치0 대회 의도외 강제 completed 소지 → EXCLUDED에 2개 추가 권장(NO_TIME_OVERRIDE 가드 통일).
+- [finalize L253 await] setTournamentChampion `await`라 종료응답 직전 1~2쿼리 동기 대기. 격리 try-catch 완료·실패 차단0이나 응답 지연 minor(updated:true 1회뿐→무시 가능). 현행 안전.
+- [route.ts L139~143 코드필터] (endDate??startDate)<boundary를 DB where 아닌 JS 필터로(prisma ?? 표현 한계). 매치0 후보만이라 N 소량(실측 3건)→성능 영향 0. 타당.
+
+미수정 결정 타당성:
+- ① group_stage 다조 null(조 우승 다수 모호)=①-Q3(가) 정합·② 매치0 한정=②-Q2 정합(두 종료경로 분리)·① 멱등 skip=①-Q1(가) 정합. 전부 **타당**.
+
+(※ 본 항목 ①② 한정. 기존 ④/scrim·Phase1·P1-a 항목과 무관)
 
 ### 버킷B P1-a 코트 제보 승인 체계 (2026-06-15, reviewer)
 
@@ -357,6 +579,9 @@ EXCLUDED_STATUSES = completed/ended/closed/cancelled(TERMINAL) + draft/upcoming(
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
 |------|------|------|
+| 2026-06-15 | 버킷B P1-b 시즌시상 고급필드 리뷰 (reviewer) | ✅ **APPROVE**(c0/maj0/min2). ★AW1 기본부 보존 완벽(page.tsx 120+/0-·기존5블록·officialMatchWhere·DTO 미접촉·블록7 순수ADD)·빈슬롯만 season_awards 교체(Slot 정규화 타입정합)·schema ADD-only(CREATE1+rel4+IDX3·ALTER/DROP0·FK SET NULL/NoAction)·권한가드(upsert/delete requireSuperAdmin·page isSuperAdmin·sidebar super한정)·선수검색 기존API재사용(snake정합)·null가드(user/team/payload 다비면거부)·cafe-blue/색토큰0. tsc EXIT0. minor: bestDefense 베스트5수비+스틸왕 중복매핑(0행미재현)·전체시즌 series무관 누적혼재(단일시즌 무해). 수정요청 0 |
+| 2026-06-15 | Admin Console S2 overview/inbox 리뷰 (reviewer) | ✅ **APPROVE**(c0/maj0/min3). 보안가드(role/admin_role+null방어·비super403·IDOR무관)·직렬화안전(inbox id BigInt→toString 전부·month_revenue Decimal→Number)·매핑실측일치(games Int[1,2]/payments paid·refund requested/orgs·courts pending/reports submitted/community draft nullable안전/Tournament status화이트6종@@index)·KST경계·7일trend day-bucket·schema0·union정렬/cursor경계 전부 PASS. minor: payments.refund_status 인덱스부재(풀스캔·후속ADD권장)·소스별take200 silent상한·delta null 3종(의도). 수정요청 0 |
+| 2026-06-15 | PR-CHAMPION ① + PR-AUTOCOMPLETE ② 리뷰 (reviewer) | ✅ **APPROVE**(c0/maj0/min3). ★FK변환 무결(winner=TT.id→tt.teamId=champion Team.id 전경로)·멱등·mvp미접촉·try-catch격리·★★매치0 생명선 findMany+updateMany 둘다·Bearer·KST당일보호 전부 PASS. schema FK 4개 grep+운영status 실측(final/preopen 0건→갭영향0)+vitest16 PASS+tsc0. minor: EXCLUDED에 final/preopen 누락(영향0·방어권장)·await지연·JS필터 |
 | 2026-06-15 | PR-AUTOCOMPLETE ② Phase3 cron 자동화 (developer) | ✅ 신규 auto-complete-tournaments/route.ts(Bearer가드·kstMidnightUtc PURE·findMany 매치0+status NOT IN→코드필터(end??start<경계)→updateMany 매치0+status 재가드·admin_logs silent). vercel.json `0 18 * * *`(KST03:00) 추가(기존10보존). ★매치0 생명선 findMany+updateMany 둘다·당일보호·champion/mvp 미접촉·schema0. vitest 5 PASS·build✓ route등록. 멀티세션 제약준수. 미푸시1 |
 | 2026-06-15 | 버킷B P1-a 코트제보 승인체계 (reviewer) | ✅ APPROVE(c0/maj0/min3) — 트랜잭션 원자성(court_infos.create+submission.update, 필수컬럼 전매핑 throw0)·IDOR(제출 본인강제/GET where user_id/PATCH super_admin)·snake정합·schema무중단(CREATE1+IDX2·ALTER0)·매핑(3x3→outdoor+size·amenities→facilities·photos[0])·중복가드(pending findFirst)·tsc0. minor: XP트랜잭션밖(기존 suggestions 패턴 동일·throw0)·중복승인race이론·GET미소비처. 미push3 |
 | 2026-06-15 | 버킷B P1-a 코트제보 승인체계 (developer) | ✅ 3단계 분리커밋. [1]court_submissions ADD(CREATE1+INDEX2·ALTER/DROP0·count0) [2]POST/GET API+폼실연결(noop→fetch·검토중화면) [3]admin "제보검토"탭+승인PATCH(트랜잭션 court_infos.create+approved+XP / 반려). region→city/district·3x3→outdoor+court_size·amenities→facilities. api-v1 0·신규화면0(탭append)·tsc 3단계PASS. 미푸시3 |
