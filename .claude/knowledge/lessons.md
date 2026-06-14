@@ -2,6 +2,15 @@
 <!-- 담당: 전체 에이전트 | 최대 30항목 -->
 <!-- 삽질 경험, 다음에 피해야 할 것, 효과적이었던 접근법을 기록 -->
 
+### [2026-06-14] 테이블 존재 ≠ populated — "DB 0% 오판" 교정 시 행 수까지 실측 (lesson-sian-db-assumption 양방향)
+- **분류**: lesson/diagnosis (실데이터 연결 / populated 실측)
+- **발견자**: planner + pm (PR-MOCK-TO-REAL ① /stats `6c6ed79`)
+- **계기**: census가 "/stats는 UserSeasonStat/ShotZoneStat 연결 가능(DB 0% 오판)"이라 했고 schema에 실재했으나, **운영 count 실측 결과 UserSeasonStat·ShotZoneStat = 0행**(cron/배치 미동작). 명세대로 직접 매핑했으면 **영구 빈화면**(mock보다 나쁨).
+- **함정 양방향**: (정방향) 시안 "DB 미보유" 가정 ≠ 실측(테이블 있는데 없다고 봄 — 기존 lesson). (★역방향) census/실측이 "테이블 존재 → 연결 가능"이라 해도 **행 0이면 직접 매핑 불가**. **테이블 존재(schema) ≠ 데이터 존재(populated)**.
+- **해결**: 0행 테이블 버리고 **실데이터 있는 단일 source(MatchPlayerStat 2375행) + JS 가공**(decisions[05-09] 공개프로필 Q7=A 선례 답습). getPlayerStats 미변경(회귀 격리), 신규 my-season-stats.ts 분리.
+- **재발 방지 룰**: (a) 더미→실데이터 연결 박제 전 **반드시 `count` 실측**(schema 존재만으론 부족). 0행이면 빈상태(더미 복원❌). (b) UserSeasonStat/ShotZoneStat 같은 **집계/cron 의존 테이블은 "비어있을 수 있음" 1순위 의심** → 원천 테이블(MatchPlayerStat) 직접 집계가 안전. (c) census/설계 문서의 "연결 가능"도 populated 미검증이면 신뢰 보류.
+- **참조횟수**: 0
+
 ### [2026-06-14] 결선 knockout 9경기 중복 + 예선종료 대회종료 오분류 — 진단·정리·재발방지 종합 (KO Sprint1)
 - **분류**: lesson/diagnosis (브래킷 중복 / 자동종료 오판 / 운영 데이터 정리)
 - **발견자**: pm + planner + developer (제10회 BDR YOUNGMAN GAME, `a9ebaf6`)
