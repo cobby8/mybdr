@@ -9,6 +9,7 @@
 - **함정 양방향**: (정방향) 시안 "DB 미보유" 가정 ≠ 실측(테이블 있는데 없다고 봄 — 기존 lesson). (★역방향) census/실측이 "테이블 존재 → 연결 가능"이라 해도 **행 0이면 직접 매핑 불가**. **테이블 존재(schema) ≠ 데이터 존재(populated)**.
 - **해결**: 0행 테이블 버리고 **실데이터 있는 단일 source(MatchPlayerStat 2375행) + JS 가공**(decisions[05-09] 공개프로필 Q7=A 선례 답습). getPlayerStats 미변경(회귀 격리), 신규 my-season-stats.ts 분리.
 - **재발 방지 룰**: (a) 더미→실데이터 연결 박제 전 **반드시 `count` 실측**(schema 존재만으론 부족). 0행이면 빈상태(더미 복원❌). (b) UserSeasonStat/ShotZoneStat 같은 **집계/cron 의존 테이블은 "비어있을 수 있음" 1순위 의심** → 원천 테이블(MatchPlayerStat) 직접 집계가 안전. (c) census/설계 문서의 "연결 가능"도 populated 미검증이면 신뢰 보류.
+- **★ 추가 함정 (2026-06-15 ④scrim) — 테이블 prefix 가정 grep 금지**: Phase12 Batch B planner가 `scrim_*`/`TeamInvitation` **prefix만 grep**해서 "부재→준비중"으로 오판. 실제는 `team_match_requests`(스크림)·`team_join_requests`(가입)가 **다른 명명**으로 실재. → 테이블 검색 시 **도메인 동의어/실제 명명 규칙**(team_match/match_request/join_request 등) 폭넓게 grep. 1회 prefix 실패로 "부재" 단정 금지. (단 team_join_requests는 방향이 초대와 반대라 ⑤team-invite는 정당하게 STOP — populated여도 의도 불일치면 연결❌)
 - **참조횟수**: 0
 
 ### [2026-06-14] 결선 knockout 9경기 중복 + 예선종료 대회종료 오분류 — 진단·정리·재발방지 종합 (KO Sprint1)

@@ -1,9 +1,9 @@
 # 작업 스크래치패드
 
 ## 현재 작업
-- **요청**: PR-MOCK-TO-REAL 버킷A 더미→실데이터 연결 (잔여 ④⑤⑥⑦)
-- **상태**: ①②③(stats/calendar/about) ✅ main 반영(`ee1a0c3`) → **④/scrim ⑤/team-invite 진행 중**(STOP 가드)
-- **현재 담당**: pm → planner/developer 위임
+- **요청**: PR-MOCK-TO-REAL 버킷A 더미→실데이터 — **완료**
+- **상태**: ①②③ main · **④ scrim `068341b`(머지 진행)** · ⑤ STOP(준비중 유지) · ⑥⑦ 이미 SV1/AW1서 처리. **PR-MOCK-TO-REAL 종료**
+- **현재 담당**: pm
 
 ## 진행 현황표
 | 작업 | 상태 |
@@ -84,6 +84,29 @@
 
 ## 테스트 결과 (tester)
 
+### PR-MOCK-TO-REAL ④ scrim 실연결 검증 (2026-06-15, tester)
+
+| 검증 항목 | 결과 | 비고 |
+|-----------|------|------|
+| 1. git diff 실변경 + 신규 라우트 0 | ✅ 통과 | src 변경 = scrim/page.tsx(수정) + scrim-tabs.tsx(신규) + globals.css(+33). scrim 하위 route.ts 0건(Glob) |
+| 2. `npx tsc --noEmit` | ✅ 통과 | EXIT 0 (에러 0) |
+| 3. mock 0 (더미상수 grep) | ✅ 통과 | OPEN_REQS/INCOMING/OUTGOING/MONKEYZ = **주석 내 제거설명만**. HISTORY_STATUSES는 status분류 상수(더미❌). 더미데이터 상수 0 |
+| 3b. team_match_requests 0행→가짜0 아님 | ✅ 통과 | count **0** 실측. 0행이면 4탭 전부 빈상태로 정직 와이어(mock 복원❌) |
+| 4. 빈상태 3분기 | ✅ 통과 | 비로그인→lock "로그인 필요"(L57) / 운영팀없음→groups "팀 운영자만"(L117) / 0건→탭별 EmptyState(받은inbox·보낸send·지난history·찾기handshake준비중) |
+| 5. 인터랙션 API 재사용·신규라우트0 | ⚠️ 부분 | 수락/거절/취소=기존 PATCH match-request/[reqId] 재사용·router.refresh 갱신 ✅. 단 **보낸취소 [id] 불일치 잠재결함** (아래 수정요청) |
+| 6. snake_case 정합 | ✅ 통과 | from_team/to_team/preferred_date/counterpart 정합. primaryColor=Prisma camel(@map primary_color)→응답 primary_color 정규화 정합 |
+| 7. 강조색 cafe-blue·하드코딩0 | ✅ 통과 | ex-mono--blue=var(--cafe-blue). scrim/globals.css .sc블록 hex·lucide·9999·폐기--color 0 |
+| 8. postcss 실파서 | ✅ 통과 | postcss.parse OK 1757규칙·.sc-* 25규칙 인식. `*/`조기종료0(errors06-14 재발0) |
+| 9. count 실측 증빙 | ✅ 통과 | team_match_requests total **0** / by status []. 임시스크립트 작성→즉시삭제(가드3) |
+| 10. 회귀(team-invite/api-v1/타페이지) | ✅ 통과 | src 변경 2파일뿐. team-invite·api/v1 diff 0. globals.css는 append만(.sc-* 신규클래스) |
+
+📊 종합: **9 PASS / 1 부분(⚠️)** — 더미 전량 제거·실데이터 와이어·빈상태 3분기·0스키마·0신규라우트·tsc0·postcss0 모두 정상. 단 보낸제안 취소 경로 [id] 불일치 잠재결함 1건(0행이라 런타임 미재현·후속 확인 권장).
+
+⚠️ 발견(검증항목 5) — **보낸 제안 취소 시 PATCH [id] 불일치 가능성**:
+- scrim-tabs L295 `patchStatus(myTeamId, ...)` → 취소도 url `[id]=myTeamId(보낸팀=from_team)` 전달.
+- 그러나 PATCH 라우트 [reqId]/route.ts **L85** `if (matchRequest.to_team_id !== toTeamIdFromUrl) return 400`. 보낸 제안은 to_team=상대팀이라 myTeamId(from_team)와 불일치 → **400 "경로가 올바르지 않습니다" 반환** 가능.
+- 받은 제안(수락/거절)은 to_team=myTeam이라 정합 ✅. **취소 경로만** url에 to_team_id(상대팀)를 넣어야 L85 통과. team_match_requests 0행이라 런타임 재현 불가 → 행 생성 후 보낸제안 취소 실거동 확인 또는 라우트 L85 취소분기 예외처리 필요.
+
 ### Phase 1 대회 상태 표시 레이어 검증 (2026-06-15, tester)
 
 | 테스트 항목 | 결과 | 비고 |
@@ -103,6 +126,34 @@
 ⚠️ 참고(Phase 1 무관): 전체 회귀 중 사전 존재 실패 2파일 4건 발견 — `tournament-delete.test.ts`(3), `running-score-helpers.test.ts`(1, team_side home/away 정합). Phase 1 변경분을 stash한 baseline에서도 동일 실패 → 본 작업 책임 아님. 별도 후속 처리 대상.
 
 ## 리뷰 결과 (reviewer)
+
+### PR-MOCK-TO-REAL ④ /scrim (2026-06-15, reviewer)
+
+📊 종합 판정: **CHANGES** (critical 1 / major 0 / minor 4)
+
+✅ 잘된 점:
+- 더미 전량 제거·실데이터 와이어 정직: OPEN_REQS/INCOMING/OUTGOING/HISTORY 복원 0. tmr 0행=4탭 전부 빈상태. MONKEYZ 등 가짜 복원 0. 상대찾기=레이팅모델 부재→준비중+/teams(억지매핑 0).
+- snake_case 정합 정확: server prisma(camel: primaryColor/from_team)를 page.tsx 매핑부에서 명시적 snake(primary_color/counterpart)로 직렬화 → client 접근자 일치. 혼동 0. proposer relation(team_match_requests_proposer) schema L516 정합.
+- IDOR 안전: 액션은 client 권한 신뢰 0 — 서버 PATCH가 captain/proposer 재검증. 빈상태 3분기(비로그인/운영팀없음/0건) + ScrimShell 공용 셸.
+- 토큰/postcss 청결: .sc-* 전부 var(--*)·쉼표구분·조기종료 0. var(--danger)(L59)/--ink-dim/--ff-mono/--r-md/cafe-blue/ex-badge--*/ex-mono--* 전부 globals.css 실존. lucide/9999/하드코딩hex 0. tsc --noEmit PASS.
+- 에러 핸들링: fetch try/catch + json parse catch + busyId finally 리셋. 중복클릭 busyId 가드.
+
+🔴 필수 수정 (critical — 행 생기면 100% 실패):
+- **[scrim-tabs.tsx L295 보낸 제안 "취소" 버튼]** `patchStatus(myTeamId, r.id, "cancelled")` 호출이 URL `[id]=myTeamId(=from_team)`을 보냄. 그러나 PATCH route.ts **L85 경로검증은 status 무관하게 `URL[id] === to_team_id` 를 강제** → 보낸제안은 to_team=상대팀이므로 `to_team_id(상대) !== myTeamId(내팀)` → **400 "매치 신청 경로가 올바르지 않습니다."로 항상 실패**. (권한가드 L113~136은 from_team 기준이 맞으나 그 앞단 경로검증을 통과 못 함 — developer가 경로검증 단계를 놓침). **수정**: 취소 호출 [id]를 to_team(상대팀) id로 = `patchStatus(r.counterpart.id, r.id, "cancelled")`. outgoing.counterpart=to_team(page.tsx L220) 이므로 counterpart.id가 정답. (counterpart null 가드 추가 권장). ※ tmr 0행이라 런타임 미검출됐을 뿐, 행 생성 시 확정 재현.
+
+🟡 권장 수정 (minor):
+- [page.tsx L86~114 운영팀 식별 vs PATCH 가드] 받은제안 수락/거절 API 가드(L97~112)는 **team_members role="captain" active 만** 인정(captainId fallback 없음). page.tsx는 captainId 1순위로 운영팀 선택. 정상 팀생성은 트랜잭션으로 captainId+team_members captain 동시생성(actions/teams.ts L81/91)이라 일치하나, **팀장 위임(transfer/양도)으로 captainId만 갱신되고 team_members role 미동기 케이스 시** page는 운영팀으로 보이나 수락/거절이 403. vice/manager는 받은제안 수락/거절 자체 불가(API가 captain only) — page에선 버튼 노출되나 403. 후속: API 가드를 isCaptain 헬퍼(teams/[id]/route.ts L30, captainId OR role) 패턴으로 통일 검토.
+- [scrim-tabs.tsx L184~188 errMsg] 탭 전환 시 errMsg 미클리어 → 한 탭 에러 후 다른 탭에 잔류. setTab에서 setErrMsg(null) 권장.
+- [scrim-tabs.tsx L228~243 받은제안 거절 버튼] 로딩 텍스트 미표기(수락만 "처리 중"). 거절도 busyId일 때 표기 일관성(선택).
+- [scrim-tabs.tsx L102~105] useState 초기값 주석("받은 제안 있으면 첫 탭")과 실제(항상 incoming 고정) 불일치 — 주석 정리(동작은 정상).
+
+미수정 결정 타당성:
+- 다팀 운영자 첫 팀만 노출(captainTeam findFirst orderBy id asc) → 스크림=팀단위, 팀선택 UI 범위밖 = **타당**.
+- take:50 한도 → 지난기록 과다누적 방지, updated_at desc 최신순 = **타당**.
+- 상대찾기 준비중 → 레이팅 추천모델 DB 부재, 제안은 팀상세 모달 경로 유지 = **타당**.
+- 0신규라우트/0스키마 — 기존 PATCH/POST 재사용 확인 = **타당**.
+
+(※ critical 1건은 ④ /scrim 항목 한정. Phase 1 항목과 무관)
 
 ### Phase 1 대회 상태 표시 레이어 (2026-06-15, reviewer)
 
@@ -134,6 +185,8 @@
 ## 수정 요청 (후속·동작영향0)
 | 대상 | 문제 | 상태 |
 |------|------|------|
+| **scrim-tabs.tsx L295 (critical)** | 보낸제안 취소가 URL[id]=from_team 전송→PATCH 경로검증(to_team 강제)에서 항상 400. `patchStatus(r.counterpart.id, ...)`로 to_team id 전달 필요(counterpart null 가드 동반) | **developer 재작업** |
+| scrim PATCH 가드(minor) | 받은제안 수락/거절 API가 team_members captain only(captainId fallback·vice/manager 없음)→isCaptain 헬퍼 패턴 통일 검토 | 후속 |
 | game.ts L44 | game_type=parseInt(영문type)→NaN. 영문↔정수 매핑 필요(기존버그) | 후속 |
 | tournament-completed-bracket.tsx L274 | 조내 정렬 승수만(gnba 미세순위차) | 후속 |
 | stats / lineup minor | server/client 마크업 중복·C버튼 a11y·badge라벨 | 후속 |
@@ -149,6 +202,10 @@
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
 |------|------|------|
+| 2026-06-15 | Phase2 STEP3 대회종료+우승팀 적용 (developer) | ✅ 5차(7f28)→completed/champion=338(오름)·6차(e06e)→completed/champion=330(YBC). auto-complete 7/7·mvp미접촉·schema0. status분포 published51/completed7. 임시스크립트3 정리(가드3) |
+| 2026-06-15 | PR-MOCK-TO-REAL ④ scrim 검증 (tester) | ⚠️ 9PASS/1부분 — 더미0·실연결·빈상태3분기·tsc0·postcss0·count0증빙. 보낸취소[id]불일치 잠재결함(reviewer crit과 일치) |
+| 2026-06-15 | PR-MOCK-TO-REAL ④ scrim 리뷰 (reviewer) | ⚠️ CHANGES(crit1/maj0/min4) — 보낸취소 URL[id]=from_team→PATCH경로검증 400 확정버그. snake정합·토큰·IDOR·tsc는 PASS |
+| 2026-06-15 | PR-MOCK-TO-REAL ④ scrim (developer) | ✅ 더미제거→team_match_requests 실연결·4탭·빈상태3분기·0스키마/0신규라우트·tsc0·postcss0 |
 | 2026-06-15 | Phase 1 상태 레이어 리뷰 (reviewer) | ✅ APPROVE (c0/maj0/min2) — CTA/admin 무영향·필드정합·tsc0. TZ경계 minor |
 | 2026-06-15 | Phase 1 대회 상태 표시 레이어 (developer) | ✅ effectiveTournamentStatus+10파일·테스트8 PASS·build ✓·DB0 |
 | 2026-06-14 | PR-MOCK-TO-REAL ①②③ 머지 (pm) | ✅ main `ee1a0c3` stats/calendar/about |
@@ -157,7 +214,4 @@
 | 2026-06-14 | Phase12 Batch B 7화면 (dev/tester/reviewer) | ✅ 준비중/정적폼/SV1보존·CSS major fix·main |
 | 2026-06-14 | Phase12 Batch A 6화면 (dev/tester/reviewer) | ✅ 정적/준비중/AW1실데이터·main |
 | 2026-06-14 | PR-LINEUP-V2 4단계 (planner/dev/tester/reviewer) | ✅ 스키마+API+UI+시안·주장필수·main |
-| 2026-06-14 | 원영 이탈 반영 + 라인업 머지 (pm) | ✅ CLAUDE/WORKFLOW/decisions·main |
-| 2026-06-14 | Phase 10 정보페이지 5시안 (multi) | ✅ `1d9f125` 머지 |
-| 2026-06-14 | 대회삭제 / KO Sprint1 (multi) | ✅ `f2fecc7`/`a9ebaf6` |
 </content>
