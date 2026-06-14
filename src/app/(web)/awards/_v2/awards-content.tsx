@@ -23,7 +23,7 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 
-import type { AwardsDataDTO, PlayerRefDTO } from "../page";
+import type { AwardsDataDTO, PlayerRefDTO, SeasonAwardPlayerDTO } from "../page";
 
 interface Props {
   data: AwardsDataDTO;
@@ -61,30 +61,51 @@ export function AwardsContent({ data }: Props) {
   const mvp = data.seasonMvp;
   const mvpPlayer = mvp?.player ?? null;
 
-  // 베스트5 슬롯 — DTO leaders 3명 실데이터 매핑. 포지션별 best5 데이터 없음 →
-  // 부문 라벨(득점/어시/리바)로 채우고 나머지 2슬롯은 준비 중(mock 금지).
-  const best5Slots: { label: string; player: PlayerRefDTO | null }[] = [
-    { label: "득점", player: data.scoringLeader },
-    { label: "어시", player: data.assistsLeader },
-    { label: "리바", player: data.reboundsLeader },
-    { label: "수비", player: null },
-    { label: "신인", player: null },
+  // 슬롯 정규화 타입 — leaders(PlayerRefDTO·메트릭 보유) 와 season_awards(SeasonAwardPlayerDTO·메트릭 없음)
+  // 둘 다 같은 셀로 렌더하기 위한 공통 형태.
+  type Slot = {
+    name: string | null;
+    teamName: string | null;
+    /** 표시 메트릭 텍스트 (예: "22.4 PPG") — season_awards 슬롯은 코멘트 또는 "—" */
+    metricText: string;
+  } | null;
+
+  // PlayerRefDTO → 슬롯 (메트릭 텍스트 = value + label)
+  const fromLeader = (p: PlayerRefDTO | null): Slot =>
+    p ? { name: p.name, teamName: p.teamName, metricText: fmtMetric(p.metricValue, p.metricLabel) } : null;
+
+  // SeasonAwardPlayerDTO → 슬롯 (메트릭 자리에 코멘트 또는 "—")
+  const fromAward = (a: SeasonAwardPlayerDTO | null): Slot =>
+    a && (a.name || a.comment)
+      ? { name: a.name ?? "수상", teamName: a.teamName, metricText: a.comment ?? "—" }
+      : null;
+
+  // 베스트5 슬롯 — 득점/어시/리바 = leaders 실데이터, 수비/신인 = season_awards(P1-b).
+  // 미입력이면 null → "집계 중" 빈상태(mock 금지).
+  const best5Slots: { label: string; slot: Slot }[] = [
+    { label: "득점", slot: fromLeader(data.scoringLeader) },
+    { label: "어시", slot: fromLeader(data.assistsLeader) },
+    { label: "리바", slot: fromLeader(data.reboundsLeader) },
+    { label: "수비", slot: fromAward(data.bestDefense) },
+    { label: "신인", slot: fromAward(data.newFace) },
   ];
 
-  // 부문별 수상 — scoring/assists/rebounds 실데이터, 나머지는 DTO 미지원(준비 중).
-  const catSlots: {
-    ico: string;
-    label: string;
-    player: PlayerRefDTO | null;
-    suffix: string;
-  }[] = [
-    { ico: "sports_score", label: "득점왕", player: data.scoringLeader, suffix: "PPG" },
-    { ico: "volunteer_activism", label: "어시스트왕", player: data.assistsLeader, suffix: "APG" },
-    { ico: "open_with", label: "리바운드왕", player: data.reboundsLeader, suffix: "RPG" },
-    { ico: "bolt", label: "스틸왕", player: null, suffix: "SPG" },
-    { ico: "trending_up", label: "레이팅 상승", player: null, suffix: "" },
-    { ico: "handshake", label: "매너상", player: null, suffix: "" },
+  // 부문별 수상 — 득점/어시/리바왕 = leaders, 스틸(수비)왕/레이팅/매너 = season_awards(P1-b).
+  const catSlots: { ico: string; label: string; slot: Slot }[] = [
+    { ico: "sports_score", label: "득점왕", slot: fromLeader(data.scoringLeader) },
+    { ico: "volunteer_activism", label: "어시스트왕", slot: fromLeader(data.assistsLeader) },
+    { ico: "open_with", label: "리바운드왕", slot: fromLeader(data.reboundsLeader) },
+    { ico: "bolt", label: "스틸왕", slot: fromAward(data.bestDefense) },
+    { ico: "trending_up", label: "레이팅 상승", slot: fromAward(data.ratingUp) },
+    { ico: "handshake", label: "매너상", slot: fromAward(data.mannerAward) },
   ];
+
+  // 올스타팀 — display_order 순 배열. 미입력이면 빈배열 → 섹션 빈상태.
+  const allStarTeams: { label: string; players: SeasonAwardPlayerDTO[] }[] = [
+    { label: "1ST TEAM", players: data.allStar1st },
+    { label: "2ND TEAM", players: data.allStar2nd },
+  ];
+  const hasAllStar = data.allStar1st.length > 0 || data.allStar2nd.length > 0;
 
   return (
     <div className="page">
@@ -174,17 +195,15 @@ export function AwardsContent({ data }: Props) {
         {/* 베스트 5 — leaders 3명 실데이터, 나머지 슬롯 준비 중(mock 금지) */}
         <h2 className="ex-sec__h" style={{ marginTop: 30 }}>베스트 5</h2>
         <div className="aw-best5" style={{ marginBottom: 30 }}>
-          {best5Slots.map((slot, i) => (
+          {best5Slots.map((s, i) => (
             <div key={i} className="aw-p">
-              <div className="aw-p__pos">{slot.label}</div>
-              {slot.player ? (
+              <div className="aw-p__pos">{s.label}</div>
+              {s.slot ? (
                 <>
-                  <div className="aw-p__av">{initial(slot.player.name)}</div>
-                  <div className="aw-p__name">{slot.player.name}</div>
-                  <div className="aw-p__team">{slot.player.teamName ?? "—"}</div>
-                  <div className="aw-p__stat">
-                    {fmtMetric(slot.player.metricValue, slot.player.metricLabel)}
-                  </div>
+                  <div className="aw-p__av">{initial(s.slot.name)}</div>
+                  <div className="aw-p__name">{s.slot.name}</div>
+                  <div className="aw-p__team">{s.slot.teamName ?? "—"}</div>
+                  <div className="aw-p__stat">{s.slot.metricText}</div>
                 </>
               ) : (
                 <>
@@ -208,10 +227,10 @@ export function AwardsContent({ data }: Props) {
               <div className="aw-cat__ico"><span className="ico material-symbols-outlined">{c.ico}</span></div>
               <div>
                 <div className="aw-cat__label">{c.label}</div>
-                {c.player ? (
+                {c.slot ? (
                   <>
-                    <div className="aw-cat__name">{c.player.name}</div>
-                    <div className="aw-cat__sub">{c.player.teamName ?? "—"}</div>
+                    <div className="aw-cat__name">{c.slot.name}</div>
+                    <div className="aw-cat__sub">{c.slot.teamName ?? "—"}</div>
                   </>
                 ) : (
                   <>
@@ -221,11 +240,113 @@ export function AwardsContent({ data }: Props) {
                 )}
               </div>
               <div className="aw-cat__v">
-                {c.player ? fmtMetric(c.player.metricValue, "").trim() || "—" : "—"}
+                {c.slot ? c.slot.metricText || "—" : "—"}
               </div>
             </div>
           ))}
         </div>
+
+        {/* ── 올스타 팀 (P1-b season_awards) — 미입력 시 빈상태 ── */}
+        <h2 className="ex-sec__h" style={{ marginTop: 30 }}>올스타 팀</h2>
+        {hasAllStar ? (
+          allStarTeams.map((team) =>
+            team.players.length > 0 ? (
+              <div key={team.label} style={{ marginBottom: 20 }}>
+                {/* 강조색 = var(--cafe-blue) (errors 06-10 빨강 폴백 함정 회피) */}
+                <div
+                  className="aw-hero__eyebrow"
+                  style={{ color: "var(--cafe-blue)", marginBottom: 10 }}
+                >
+                  {team.label}
+                </div>
+                <div className="aw-best5">
+                  {team.players.map((p, i) => (
+                    <div key={i} className="aw-p">
+                      <div className="aw-p__pos">{i + 1}</div>
+                      <div className="aw-p__av">{initial(p.name)}</div>
+                      <div className="aw-p__name">{p.name ?? "수상"}</div>
+                      <div className="aw-p__team">{p.teamName ?? "—"}</div>
+                      <div className="aw-p__stat">{p.comment ?? "—"}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null,
+          )
+        ) : (
+          <div className="card aw-mvp aw-mvp--empty">
+            <div className="ex-empty">
+              <span className="ico material-symbols-outlined">groups</span>
+              <div className="ex-empty__t">올스타 팀이 아직 선정되지 않았습니다</div>
+              <div className="ex-empty__d">시즌 결산 시 운영팀이 올스타 1st/2nd 팀을 등록합니다.</div>
+            </div>
+          </div>
+        )}
+
+        {/* ── 올해의 감독 · NEW FACE · MVP 코멘트 (P1-b) ── */}
+        <h2 className="ex-sec__h" style={{ marginTop: 30 }}>특별 시상</h2>
+        <div className="aw-cats">
+          {/* 올해의 감독 */}
+          <div className="aw-cat">
+            <div className="aw-cat__ico"><span className="ico material-symbols-outlined">sports</span></div>
+            <div>
+              <div className="aw-cat__label">올해의 감독</div>
+              {data.coachOfYear?.name ? (
+                <>
+                  <div className="aw-cat__name">{data.coachOfYear.name}</div>
+                  <div className="aw-cat__sub">{data.coachOfYear.teamName ?? "—"}</div>
+                </>
+              ) : (
+                <>
+                  <div className="aw-cat__name" style={{ color: "var(--ink-mute)" }}>준비 중</div>
+                  <div className="aw-cat__sub">집계 예정</div>
+                </>
+              )}
+            </div>
+            <div className="aw-cat__v">—</div>
+          </div>
+
+          {/* NEW FACE */}
+          <div className="aw-cat">
+            <div className="aw-cat__ico"><span className="ico material-symbols-outlined">star</span></div>
+            <div>
+              <div className="aw-cat__label">NEW FACE</div>
+              {data.newFace?.name ? (
+                <>
+                  <div className="aw-cat__name">{data.newFace.name}</div>
+                  <div className="aw-cat__sub">{data.newFace.teamName ?? "—"}</div>
+                </>
+              ) : (
+                <>
+                  <div className="aw-cat__name" style={{ color: "var(--ink-mute)" }}>준비 중</div>
+                  <div className="aw-cat__sub">집계 예정</div>
+                </>
+              )}
+            </div>
+            <div className="aw-cat__v">—</div>
+          </div>
+        </div>
+
+        {/* MVP 코멘트 — 인용 강조(cafe-blue) */}
+        {data.mvpQuote && (data.mvpQuote.name || data.mvpQuote.comment) ? (
+          <div className="card aw-mvp" style={{ marginTop: 14 }}>
+            <div className="aw-mvp__body">
+              <div
+                className="aw-hero__eyebrow"
+                style={{ color: "var(--cafe-blue)", marginBottom: 8 }}
+              >
+                MVP 코멘트
+              </div>
+              {data.mvpQuote.comment ? (
+                <p style={{ fontSize: 16, lineHeight: 1.6 }}>“{data.mvpQuote.comment}”</p>
+              ) : null}
+              <div className="aw-mvp__team" style={{ marginTop: 8 }}>
+                {data.mvpQuote.name ?? "—"}
+                {data.mvpQuote.teamName ? ` · ${data.mvpQuote.teamName}` : ""}
+              </div>
+            </div>
+          </div>
+        ) : null}
       </div>
     </div>
   );
