@@ -37,6 +37,8 @@ import {
   advanceTournamentPlaceholders,
 } from "@/lib/tournaments/division-advancement";
 import { checkAndAutoCompleteTournament } from "@/lib/tournaments/auto-complete";
+// PR-CHAMPION ① — 대회 자동 종료 시점에 우승팀 자동 박제 (멱등 · try-catch 격리)
+import { setTournamentChampion } from "@/lib/tournaments/set-champion";
 
 /**
  * 매치 종료 path 식별자 — 사고 추적성 (audit log / warning context).
@@ -242,6 +244,25 @@ export async function finalizeMatchCompletion(
         }`,
       );
       steps.autoComplete = "ok";
+
+      // ── PR-CHAMPION ① 우승팀 자동 박제 ───────────────────────────────
+      //   대회가 "방금" 종료(updated:true)된 순간에만 호출 → 매 매치마다 호출 낭비 0.
+      //   멱등(set-champion 내부 champion NOT NULL skip) + try-catch 격리:
+      //   우승팀 산출/박제 실패가 매치 종료 흐름을 절대 차단하지 않는다(console.error 만).
+      try {
+        const championResult = await setTournamentChampion(prisma, tournamentId);
+        if (championResult.status === "set") {
+          console.log(
+            `${logPrefix} champion set tournamentId=${tournamentId} championTeamId=${championResult.championTeamId}`,
+          );
+        }
+      } catch (err) {
+        // 격리 — 종료 흐름 차단 0. warnings 미추가(운영자 노이즈 방지, 수동 박제 가능).
+        console.error(
+          `${logPrefix} setTournamentChampion failed tournamentId=${tournamentId}:`,
+          err,
+        );
+      }
     }
   }
 
