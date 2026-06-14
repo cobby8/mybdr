@@ -141,6 +141,9 @@ model User {
   // 코트 신규 등록 제보(P1-a): 제보자 / 심사자 2가지 관계 (court_edit_suggestions 패턴 동형)
   court_submissions_submitted                                               court_submissions[]           @relation("court_submission_submitter")
   court_submissions_reviewed                                                court_submissions[]           @relation("court_submission_reviewer")
+  // 시즌 시상(P1-b): 수상자 / 입력 관리자 2가지 관계 (court_submissions 패턴 동형)
+  season_awards_received                                                    season_awards[]               @relation("season_award_recipient")
+  season_awards_created                                                     season_awards[]               @relation("season_award_creator")
   // 게이미피케이션: XP/레벨/스트릭 (Phase 4)
   xp                                                                        Int                           @default(0)
   level                                                                     Int                           @default(1)
@@ -454,6 +457,8 @@ model Team {
   team_follows                 team_follows[]        @relation("team_follows_team")
   team_match_requests_received team_match_requests[] @relation("team_match_requests_to")
   team_match_requests_sent     team_match_requests[] @relation("team_match_requests_from")
+  // 시즌 시상(P1-b): 이 팀이 받은 시상 (팀상 확장 여지)
+  season_awards                season_awards[]       @relation("season_award_team")
 
   // 2026-05-05 Phase 2 PR6 — 통합 신청 테이블 + 멤버 변경 이력 (단수 신설, Rails team_member_histories 와 별도)
   // 이유(왜): 기존 team_member_histories 는 Rails 마이그레이션 잔재 (action/role/jersey_number 컬럼 위주).
@@ -1413,6 +1418,36 @@ model court_edit_suggestions {
 // 신규 코트 등록 제보 (P1-a) — 사용자가 DB 미등록 코트를 제보 → 관리자 승인 시 court_infos 생성
 // court_edit_suggestions(기존 코트 위키식 수정 제안)와 구분: submissions는 "아직 없는 코트의 신규 등록"
 //   suggestions = court_info_id NOT NULL(기존 코트 대상) ↔ submissions = 대상 코트 부재(신규 생성)
+// 시즌 시상(P1-b) — 관리자가 직접 입력하는 고급 시상 레코드 (올스타/감독/MVP코멘트/수비/매너 등).
+// 기본부(MVP·베스트5 득점/어시/리바·우승팀)는 MatchPlayerStat·mvp_player_id로 이미 실연결 → 미접촉.
+// 본 테이블은 그 위에 "데이터 없던 고급 시상"만 채운다. court_submissions 패턴 동형(ADD-only 무중단).
+model season_awards {
+  id            BigInt    @id @default(autoincrement())
+  // 시즌 식별 — series_id(현 /awards는 series 기반) 1순위 + season_year 보조(둘 다 nullable)
+  season_year   Int? // 시즌 연도 (예: 2026) — series 없이 연도만으로도 조회 가능
+  series_id     BigInt? // tournament_series.id — /awards ?series=<slug> 와 1:1 매핑(사용자 결재)
+  // 시상 분류 — DB enum 강제 X, 코드 Zod 화이트리스트 8종(court_type처럼 ALTER 회피 컨벤션)
+  // all_star_1st · all_star_2nd · coach_of_year · new_face · mvp_quote · best_defense · manner · rating_up
+  category      String    @db.VarChar
+  // 수상 대상 — 대부분 선수상(user_id) / 팀상 확장 여지(team_id). 둘 다 nullable
+  user_id       BigInt? // 수상 선수 (User SET NULL — 탈퇴해도 시상 행 보존)
+  team_id       BigInt? // 수상 팀 (Team SET NULL — 팀 삭제돼도 보존)
+  payload       Json?     @default("{}") // 코멘트/메트릭 등 비정형(quote·comment·spg·delta 등)
+  display_order Int       @default(0) // 올스타 5명 순서 / 동일 카테고리 다행 정렬용
+  created_by    BigInt // 입력 관리자 (NoAction — 관리자 기록 보존)
+  created_at    DateTime  @default(now()) @db.Timestamp(6)
+  updated_at    DateTime  @updatedAt @db.Timestamp(6)
+
+  recipient User?              @relation("season_award_recipient", fields: [user_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  team      Team?              @relation("season_award_team", fields: [team_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  creator   User               @relation("season_award_creator", fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  series    tournament_series? @relation("season_award_series", fields: [series_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
+
+  @@index([series_id, category]) // 시즌별 카테고리 조회 (/awards 고급부)
+  @@index([season_year]) // 연도 기반 조회
+  @@index([user_id]) // 선수별 수상 이력
+}
+
 model court_submissions {
   id              BigInt    @id @default(autoincrement())
   user_id         BigInt // 제보자
@@ -2123,6 +2158,8 @@ model tournament_series {
   users             User           @relation(fields: [organizer_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_rails_65d50a1bc6")
   organization      organizations? @relation(fields: [organization_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   tournaments       Tournament[]
+  // 시즌 시상(P1-b): 이 series에 속한 시상 레코드
+  season_awards     season_awards[] @relation("season_award_series")
 
   @@index([is_public], map: "index_tournament_series_on_is_public")
   @@index([organization_id], map: "index_tournament_series_on_organization_id")

@@ -93,6 +93,18 @@ export interface ChampionRowDTO {
   finalsMvpName: string | null;
 }
 
+/* ---- 고급부(P1-b season_awards) DTO ----
+ * 관리자가 입력한 고급 시상(올스타/감독/MVP코멘트/수비/매너/신인/레이팅).
+ * 기본부(MVP·득점/어시/리바 leaders·우승팀)와 별개로, 미입력 시 전부 null → "집계 중" 빈상태. */
+export interface SeasonAwardPlayerDTO {
+  /** 수상 선수 표시명 — user 없고 코멘트만이면 null */
+  name: string | null;
+  /** 팀명 (선수의 시상 시점 팀은 미보유 — season_awards.team_id 우선) */
+  teamName: string | null;
+  /** 코멘트/인용 (payload.comment 또는 payload.quote) */
+  comment: string | null;
+}
+
 export interface AwardsDataDTO {
   seasons: SeasonOption[];
   /** 현재 선택된 시즌 라벨 ("2026 Spring 결산" 또는 "전체 시즌 결산") */
@@ -105,6 +117,23 @@ export interface AwardsDataDTO {
   assistsLeader: PlayerRefDTO | null;
   reboundsLeader: PlayerRefDTO | null;
   champions: ChampionRowDTO[];
+  /* ── 고급부(season_awards) — 전부 미입력 시 null/빈배열 ── */
+  /** 올스타 1st팀 (display_order 0~4, 최대 5명) */
+  allStar1st: SeasonAwardPlayerDTO[];
+  /** 올스타 2nd팀 */
+  allStar2nd: SeasonAwardPlayerDTO[];
+  /** 올해의 감독 */
+  coachOfYear: SeasonAwardPlayerDTO | null;
+  /** NEW FACE(신인상) */
+  newFace: SeasonAwardPlayerDTO | null;
+  /** MVP 코멘트 */
+  mvpQuote: SeasonAwardPlayerDTO | null;
+  /** 수비왕 */
+  bestDefense: SeasonAwardPlayerDTO | null;
+  /** 매너상 */
+  mannerAward: SeasonAwardPlayerDTO | null;
+  /** 레이팅 상승 */
+  ratingUp: SeasonAwardPlayerDTO | null;
 }
 
 /* ---- 헬퍼 ---- */
@@ -568,6 +597,88 @@ export default async function AwardsPage({ searchParams }: PageProps) {
     champions = [];
   }
 
+  // ----- 7) 고급부 — season_awards (P1-b ADD-only 블록) -----
+  // 위 5블록(기본부)과 완전 별개. 관리자가 입력한 올스타/감독/MVP코멘트/수비/매너 등을
+  // 현재 시즌(series_id) 기준으로 조회 → 카테고리별 분류. 미입력 시 전부 null/빈배열("집계 중").
+  // currentSeriesId(L173 기존 변수) 재사용 — "전체"면 series 무관 전체, 특정 시즌이면 그 series + null(전체용).
+  let allStar1st: SeasonAwardPlayerDTO[] = [];
+  let allStar2nd: SeasonAwardPlayerDTO[] = [];
+  let coachOfYear: SeasonAwardPlayerDTO | null = null;
+  let newFace: SeasonAwardPlayerDTO | null = null;
+  let mvpQuote: SeasonAwardPlayerDTO | null = null;
+  let bestDefense: SeasonAwardPlayerDTO | null = null;
+  let mannerAward: SeasonAwardPlayerDTO | null = null;
+  let ratingUp: SeasonAwardPlayerDTO | null = null;
+  try {
+    const awardRows = await prisma.season_awards.findMany({
+      // 특정 시즌이면 해당 series_id (+ series 무관 전역 시상 null 포함) / 전체면 series 무관 전부
+      where: currentSeriesId ? { series_id: currentSeriesId } : {},
+      orderBy: [{ category: "asc" }, { display_order: "asc" }],
+      take: 100,
+      include: {
+        recipient: { select: { id: true, nickname: true, name: true } },
+        team: { select: { name: true } },
+      },
+    });
+
+    // season_awards 행 → DTO 변환 (payload comment/quote 안전 추출)
+    const toDTO = (row: (typeof awardRows)[number]): SeasonAwardPlayerDTO => {
+      const payload = (row.payload ?? {}) as Record<string, unknown>;
+      const comment =
+        (typeof payload.comment === "string" ? payload.comment : null) ??
+        (typeof payload.quote === "string" ? payload.quote : null);
+      return {
+        name: row.recipient
+          ? getDisplayName(row.recipient, undefined, `Player#${row.recipient.id}`)
+          : null,
+        teamName: row.team?.name ?? null,
+        comment,
+      };
+    };
+
+    // 카테고리별 분류 — 단일 카테고리는 첫 행, 올스타는 배열(display_order 순 — orderBy 보장)
+    for (const row of awardRows) {
+      const dto = toDTO(row);
+      switch (row.category) {
+        case "all_star_1st":
+          allStar1st.push(dto);
+          break;
+        case "all_star_2nd":
+          allStar2nd.push(dto);
+          break;
+        case "coach_of_year":
+          coachOfYear = coachOfYear ?? dto;
+          break;
+        case "new_face":
+          newFace = newFace ?? dto;
+          break;
+        case "mvp_quote":
+          mvpQuote = mvpQuote ?? dto;
+          break;
+        case "best_defense":
+          bestDefense = bestDefense ?? dto;
+          break;
+        case "manner":
+          mannerAward = mannerAward ?? dto;
+          break;
+        case "rating_up":
+          ratingUp = ratingUp ?? dto;
+          break;
+        // 화이트리스트 외 값은 무시 (admin 측 Zod 가드와 이중 안전)
+      }
+    }
+  } catch {
+    // 조회 실패 시 전부 빈상태 — 기본부에 영향 0
+    allStar1st = [];
+    allStar2nd = [];
+    coachOfYear = null;
+    newFace = null;
+    mvpQuote = null;
+    bestDefense = null;
+    mannerAward = null;
+    ratingUp = null;
+  }
+
   // ----- DTO 패키징 -----
   const data: AwardsDataDTO = {
     seasons,
@@ -579,6 +690,15 @@ export default async function AwardsPage({ searchParams }: PageProps) {
     assistsLeader,
     reboundsLeader,
     champions,
+    // 고급부(season_awards)
+    allStar1st,
+    allStar2nd,
+    coachOfYear,
+    newFace,
+    mvpQuote,
+    bestDefense,
+    mannerAward,
+    ratingUp,
   };
 
   return <AwardsContent data={data} />;
