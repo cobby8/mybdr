@@ -85,12 +85,27 @@ async function handler(req: NextRequest, ctx: AuthContext, tournamentId: string)
           throw new Error(fibaCheck.code);
         }
 
+        // 2026-06-14 completed 역전 차단 가드:
+        //   이미 completed 박제된 매치를 batch-sync 가 scheduled/live/in_progress 로 되돌리는 사고 방지.
+        //   룰: existing 이 completed 인데 들어온 match.status 가 completed 아니면 → completed 유지(역전 무시).
+        //   ★ throw 금지 — 조용히 status 만 고정 후 점수/QS 는 그대로 박제 → synced++ 정상 카운트.
+        //   정방향 · completed→completed 재sync 는 그대로 허용(회귀 0).
+        const effectiveStatus =
+          existing.status === "completed" && match.status !== "completed"
+            ? "completed"
+            : match.status;
+        if (effectiveStatus !== match.status) {
+          console.warn(
+            `[sync-guard] match ${match.matchId} completed 역전 차단: ${existing.status}→${match.status} 무시, completed 유지`
+          );
+        }
+
         await tx.tournamentMatch.update({
           where: { id: BigInt(match.matchId) },
           data: {
             homeScore: match.homeScore,
             awayScore: match.awayScore,
-            status: match.status,
+            status: effectiveStatus,
             quarterScores: match.quarterScores ?? undefined,
           },
         });
