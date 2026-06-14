@@ -2009,3 +2009,16 @@
 - **재확인 [2026-05-29]**: planner DB 실측 재확인 — `TournamentDivisionRule` 운영자(userId) 필드 0 + `TournamentAdminMember` division/category 컬럼 0 → 종별별 운영자 배정 데이터 출처 부재 확정. 사용자 결재 = Phase 1C 를 **15/16 으로 종료** (PA3 보류 / 의도 = 신규기능 vs 협회생성 리디자인 후결정) + Phase 2C 우선 진행.
 - **참조**: lessons.md "[2026-05-28] 디자인 박제 4대 교훈" / phase-ledger Phase 1 ⑪⑭
 - **참조횟수**: 1
+
+### [2026-06-15] 대회 종료 판정 = 매치 유무로 이원화 (표시는 날짜 보정)
+- **분류**: decision
+- **발견자**: pm + 사용자 (대회 상태 오표시 전수조사 3-Phase)
+- **계기**: 종료일 한참 지난 대회 50건이 "모집 중"으로 노출. 원인=표시 레이어가 DB status만 보고 날짜 무시 + 자동종료(checkAndAutoCompleteTournament)는 "전 매치 완료"일 때만 작동 → 매치 안 쓰는 공지전용 대회는 영영 자동종료 안 됨.
+- **결정 (이원화 룰)**:
+  - **매치 > 0 (진짜 대회)** = 경기 기반 종료. `checkAndAutoCompleteTournament`(전 매치 완료 검증). end_date 틀려도 경기 안 끝나면 종료 ❌.
+  - **매치 = 0 (공지전용 껍데기)** = 날짜 기반 종료. 종료일 경과 시 status='completed' 백필 + (후속)cron. 경기 없으니 날짜 외 판정 근거 없음.
+  - **표시 레이어** = `effectiveTournamentStatus(status, start, end)` — 공개화면 한정, 종료일 경과 시 "종료" 표시(admin은 raw 유지·CTA 미접촉). DB와 무관하게 화면 즉시 정상화 + 재발 영구 방지.
+- **실행**: Phase1(표시 코드·main `c7aaa57`) / Phase2(진짜 5·6차 completed+champion 오름338·YBC330, 4차·열혈 보류) / Phase3(공지전용 47건 날짜 백필·completed 7→54).
+- **이유**: 공지전용(매치0)은 앞으로도 계속 생기는 정상 패턴 → 매치0 한정 날짜종료로 진짜 대회 자동 제외 = 오작동 0.
+- **후속**: 우승팀 자동 set 유틸(종료 시 결승 승자→champion_team_id) / Phase3 cron 자동화 / 4차 결승 진행 후 종료 / 열혈 결선 종료 후.
+- **참조횟수**: 0
