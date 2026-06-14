@@ -1059,6 +1059,9 @@ export default async function TournamentDetailPage({
               isRegistrationOpen={isRegistrationOpen}
               myApplicationsCount={myApplicationsCount}
               isLoggedIn={!!session}
+              // 대회 시작/종료일 — 상태 라벨 표시 보정용 (CTA 로직 미사용)
+              startDate={tournament.startDate}
+              endDate={tournament.endDate}
               // 접수 기간 문자열: 시작~종료 조합 (둘 다 있을 때만)
               periodText={
                 tournament.registration_start_at && tournament.registration_end_at

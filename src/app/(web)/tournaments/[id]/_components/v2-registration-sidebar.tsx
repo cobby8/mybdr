@@ -19,7 +19,7 @@
  */
 
 import Link from "next/link";
-import { TOURNAMENT_STATUS_LABEL } from "@/lib/constants/tournament-status";
+import { TOURNAMENT_STATUS_LABEL, effectiveTournamentStatus } from "@/lib/constants/tournament-status";
 
 interface Props {
   tournamentId: string;
@@ -35,6 +35,10 @@ interface Props {
   isLoggedIn: boolean;
   // 접수 기간 문자열 (시안 L250) — page.tsx에서 start/end 조합해서 전달
   periodText?: string | null;
+  // 대회 시작/종료일 — status 라벨 표시 보정용(종료일 경과 시 "종료").
+  // ★ CTA(isRegistrationOpen) 로직에는 일절 사용하지 않음. 라벨 표시 전용.
+  startDate?: Date | null;
+  endDate?: Date | null;
 }
 
 // ---- 유틸: D-day 계산 (기존과 동일) ----
@@ -73,6 +77,8 @@ export function V2RegistrationSidebar({
   myApplicationsCount,
   isLoggedIn,
   periodText,
+  startDate,
+  endDate,
 }: Props) {
   // ---- D-day 계산 ----
   const daysLeft = registrationEndAt ? computeDaysLeft(registrationEndAt) : null;
@@ -95,8 +101,11 @@ export function V2RegistrationSidebar({
   // ---- 참가비 ----
   const feeText = formatFee(entryFee, divFees);
 
-  // ---- CTA 분기 (6상태) ----
-  const statusLabel = TOURNAMENT_STATUS_LABEL[status] ?? status;
+  // ---- 상태 라벨 (표시 전용) ----
+  // 종료일 경과 시 "종료"로 보정한 실효 상태 기준 라벨.
+  // ★ isRegistrationOpen(CTA 분기)은 page.tsx에서 별도 계산된 값 그대로 사용 — 미접촉.
+  const effStatus = effectiveTournamentStatus(status, startDate, endDate);
+  const statusLabel = TOURNAMENT_STATUS_LABEL[effStatus] ?? effStatus;
 
   // 현재 상태 배너 색상 — 접수중이면 accent, 아니면 ink-dim
   const topLabelColor = isRegistrationOpen ? "var(--accent, #E31B23)" : "var(--ink-dim)";

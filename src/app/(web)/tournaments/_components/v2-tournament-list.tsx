@@ -23,6 +23,7 @@
 
 import Link from "next/link";
 import { CATEGORIES } from "@/lib/constants/divisions";
+import { effectiveTournamentStatus } from "@/lib/constants/tournament-status";
 import { formatShortDate } from "@/lib/utils/format-date";
 import "./tournaments.css"; // tnl-* 클래스 — 시안 박제 CSS
 
@@ -81,7 +82,9 @@ const STATUS_META: Record<
  *  - 마감임박은 DB status 하나로 결정 안 됨 → registration_end_at 기준 동적 계산.
  */
 export function deriveV2Status(t: TournamentFromApi): CardStatus {
-  const st = (t.status ?? "").toLowerCase();
+  // 종료일(end_date, 없으면 start_date)이 지난 in_progress/published 등은
+  // 실효 상태로 "completed" 보정 후 분기 (끝난 대회가 진행중/접수중으로 안 보이게).
+  const st = effectiveTournamentStatus(t.status, t.start_date, t.end_date).toLowerCase();
 
   // 종료
   if (["completed", "ended", "closed", "cancelled"].includes(st)) return "종료";
