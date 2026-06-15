@@ -31,16 +31,19 @@ import { apiSuccess, apiError } from "@/lib/api/response";
 import { adminLog } from "@/lib/admin/log";
 import { addXP } from "@/lib/services/gamification";
 import { XP_REWARDS } from "@/lib/constants/gamification";
+import { TEAM_STATUS } from "@/lib/constants/team-status";
 
 type RouteCtx = { params: Promise<{ id: string }> };
 
-// 처리 가능한 도메인(teams 제외 — DB 미지원).
+// 처리 가능한 도메인.
+// Admin Console S1-4: teams 추가(검수 대기 팀 approve/reject — review 로직 인라인 복제).
 const SUPPORTED_DOMAINS = [
   "game_reports",
   "community_posts",
   "organizations",
   "court_submissions",
   "payments",
+  "teams",
 ] as const;
 
 // ── 도메인별 body 스키마(action 화이트리스트) ──────────────────────
@@ -62,6 +65,11 @@ const courtBody = z.object({
   review_note: z.string().trim().max(2000).optional(),
 });
 const paymentsBody = z.object({
+  action: z.enum(["approve", "reject"]),
+  reason: z.string().trim().max(2000).optional(),
+});
+// Admin Console S1-4: 팀 검수 — review 라우트와 동일 화이트리스트.
+const teamsBody = z.object({
   action: z.enum(["approve", "reject"]),
   reason: z.string().trim().max(2000).optional(),
 });
@@ -98,10 +106,7 @@ export async function POST(req: NextRequest, { params }: RouteCtx) {
     return apiError("잘못된 항목 식별자입니다", 400, "BAD_ITEM_ID");
   }
 
-  // teams: DB 미지원(팀 승인 큐 모델 부재) → 명시적 미지원 응답.
-  if (domain === "teams") {
-    return apiError("아직 지원하지 않는 도메인입니다", 400, "UNSUPPORTED_DOMAIN");
-  }
+  // Admin Console S1-4: teams 는 이제 지원 도메인(아래 switch 에서 처리).
   if (!SUPPORTED_DOMAINS.includes(domain as (typeof SUPPORTED_DOMAINS)[number])) {
     return apiError("알 수 없는 도메인입니다", 400, "UNKNOWN_DOMAIN");
   }
@@ -421,6 +426,50 @@ export async function POST(req: NextRequest, { params }: RouteCtx) {
       });
 
       return apiSuccess({ id: payment.id.toString(), refund_status: nextStatus });
+    }
+
+    // ⑥ teams — 팀 검수 approve/reject (★ review 라우트 로직 1:1 인라인 복제)
+    //    pending_review 상태인 팀만 처리 → approve=active / reject=rejected.
+    //    reason 은 teams 전용 컬럼 부재 → adminLog.changesMade 에만 박제.
+    case "teams": {
+      const parsed = teamsBody.safeParse(raw);
+      if (!parsed.success) {
+        return apiError("요청 값이 올바르지 않습니다", 400, "VALIDATION_ERROR");
+      }
+      const { action, reason } = parsed.data;
+      const trimmedReason = reason?.trim() || null;
+
+      // pending_review 상태인 팀만(중복/오처리 방어).
+      const team = await prisma.team.findUnique({
+        where: { id: pk },
+        select: { id: true, status: true, name: true },
+      });
+      if (!team) {
+        return apiError("존재하지 않는 팀입니다", 404, "NOT_FOUND");
+      }
+      if (team.status !== TEAM_STATUS.PENDING_REVIEW) {
+        return apiError(
+          `이미 ${team.status ?? "none"} 상태인 팀입니다`,
+          400,
+          "INVALID_STATE",
+        );
+      }
+
+      const nextStatus =
+        action === "approve" ? TEAM_STATUS.ACTIVE : TEAM_STATUS.REJECTED;
+
+      await prisma.team.update({
+        where: { id: pk },
+        data: { status: nextStatus },
+      });
+
+      await adminLog(`team.${action}`, "Team", {
+        resourceId: team.id.toString(),
+        description: `팀 ${action === "approve" ? "승인" : "반려"}: ${team.name}`,
+        changesMade: { status: nextStatus, reason: trimmedReason },
+      });
+
+      return apiSuccess({ id: team.id.toString(), status: nextStatus });
     }
 
     default:

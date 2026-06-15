@@ -7,6 +7,8 @@ import { getWebSession } from "@/lib/auth/web-session";
 import { canCreateTeam } from "@/lib/auth/roles";
 // Phase 2A-2: Zod로 영문명/대표 언어까지 한번에 검증
 import { createTeamSchema } from "@/lib/validation/team";
+// Admin Console S1-4: 팀 검수 상태 상수 (신규 팀 = pending_review)
+import { TEAM_STATUS } from "@/lib/constants/team-status";
 
 export async function createTeamAction(_prevState: { error: string } | null, formData: FormData) {
   const session = await getWebSession();
@@ -79,7 +81,9 @@ export async function createTeamAction(_prevState: { error: string } | null, for
           // 2026-04-29: 팀 로고 Supabase Storage URL. 미업로드 시 null.
           logoUrl: logo_url ?? null,
           captainId: userId,
-          status: "active",
+          // Admin Console S1-4: 신규 팀은 운영자 검수 대기 상태로 생성.
+          // 검수 통과 전에는 공개 목록에서 본인(주장/멤버)에게만 보인다.
+          status: TEAM_STATUS.PENDING_REVIEW,
           members_count: 1,
         },
       });

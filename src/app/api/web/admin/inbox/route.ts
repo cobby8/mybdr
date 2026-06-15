@@ -28,6 +28,8 @@ import { prisma } from "@/lib/db/prisma";
 import { getWebSession } from "@/lib/auth/web-session";
 import { isSuperAdmin } from "@/lib/auth/is-super-admin";
 import { apiSuccess, apiError } from "@/lib/api/response";
+// Admin Console S1-4: 검수 대기 팀 큐 조건(overview 카운트와 동일 기준)
+import { teamReviewQueueWhere } from "@/lib/constants/team-status";
 
 export const dynamic = "force-dynamic";
 
@@ -72,7 +74,7 @@ export async function GET(req: NextRequest) {
     const want = (d: string) => !domainFilter || domainFilter === d;
 
     // ── 6개 소스 병렬 조회 ─────────────────────────────────────
-    const [reports, posts, courts, orgs, refunds] = await Promise.all([
+    const [reports, posts, courts, orgs, refunds, teamsReview] = await Promise.all([
       // game_reports: 제출된 신고 → severity err
       want("game_reports")
         ? prisma.game_reports.findMany({
@@ -119,6 +121,17 @@ export async function GET(req: NextRequest) {
             where: { refund_status: "requested" },
             select: { id: true, created_at: true },
             orderBy: { created_at: "asc" },
+            take: 200,
+          })
+        : Promise.resolve([]),
+
+      // teams: 검수 대기 팀 → severity blue (승인성 작업, court/org 와 동형).
+      // Admin Console S1-4. Team.createdAt(@map created_at) 으로 정렬.
+      want("teams")
+        ? prisma.team.findMany({
+            where: teamReviewQueueWhere,
+            select: { id: true, name: true, createdAt: true },
+            orderBy: { createdAt: "asc" },
             take: 200,
           })
         : Promise.resolve([]),
@@ -204,7 +217,18 @@ export async function GET(req: NextRequest) {
         pay.created_at,
       );
     }
-    // teams: DB 미지원 (팀 승인 큐 모델 부재) → 항목 0건.
+    // teams: 검수 대기 팀 (Admin Console S1-4) → severity blue.
+    for (const t of teamsReview) {
+      push(
+        "teams",
+        t.id.toString(),
+        "blue",
+        "/admin/teams",
+        t.name || `팀 #${t.id.toString()}`,
+        "팀 검수 대기",
+        t.createdAt,
+      );
+    }
 
     // ── severity 필터 ─────────────────────────────────────────
     let filtered = severityFilter
