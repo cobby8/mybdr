@@ -21,6 +21,8 @@ import { prisma } from "@/lib/db/prisma";
 import { getWebSession } from "@/lib/auth/web-session";
 import { isSuperAdmin } from "@/lib/auth/is-super-admin";
 import { apiSuccess, apiError } from "@/lib/api/response";
+// Admin Console S1-4: 검수 대기 팀 큐 조건(인박스와 동일 기준)
+import { teamReviewQueueWhere } from "@/lib/constants/team-status";
 
 export const dynamic = "force-dynamic";
 
@@ -90,6 +92,7 @@ export async function GET() {
       qPaymentsRefund,
       qCourtSubmissions,
       qOrganizations,
+      qTeamsReview,
     ] = await Promise.all([
       // new_users: KST 오늘 0시 이후 가입
       prisma.user.count({ where: { createdAt: { gte: todayStart } } }),
@@ -127,6 +130,8 @@ export async function GET() {
       prisma.court_submissions.count({ where: { status: "pending" } }),
       // 큐: 승인 대기 단체
       prisma.organizations.count({ where: { status: "pending" } }),
+      // 큐: 검수 대기 팀 (Admin Console S1-4)
+      prisma.team.count({ where: teamReviewQueueWhere }),
     ]);
 
     // 7일 트렌드 day-bucket — KST 날짜(YYYY-MM-DD) 키로 묶어 0포함 7칸 배열 생성.
@@ -170,7 +175,7 @@ export async function GET() {
       queue: {
         game_reports: qGameReports,
         community_posts: qCommunityPosts,
-        teams: 0, // DB 미지원 (팀 승인 큐 모델 부재) — 0 고정
+        teams: qTeamsReview, // Admin Console S1-4: 검수 대기 팀(pending_review) 건수
         payments: qPaymentsRefund, // 환불 요청 건수
         court_submissions: qCourtSubmissions,
         organizations: qOrganizations,

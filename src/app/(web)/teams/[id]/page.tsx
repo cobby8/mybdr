@@ -96,6 +96,23 @@ export default async function TeamDetailPage({
   }).catch(() => null);
   if (!team) return notFound();
 
+  // Admin Console S1-4: 검수 상태 가시성 가드.
+  // 왜: 신규 팀은 pending_review 로 생성되고 반려 팀은 rejected 이다. 이 둘은 공개 목록에서
+  //   숨겨지므로, 상세 URL 을 타인이 직접 찔러도 보이면 안 된다. active 팀은 현행 그대로 전원 공개.
+  // 어떻게: active 가 아니면 본인(주장 or active 멤버)만 허용, 그 외/비로그인은 notFound(숨김).
+  if (team.status !== "active") {
+    const guardSession = await getWebSession();
+    let canViewPrivate = false;
+    if (guardSession?.sub) {
+      const viewerId = BigInt(guardSession.sub);
+      const isCaptainViewer = team.captainId === viewerId;
+      // teamMembers 는 본조회에서 status:"active" 로 이미 include 됨 → 멤버 여부 재사용.
+      const isMemberViewer = team.teamMembers.some((m) => m.userId === viewerId);
+      canViewPrivate = isCaptainViewer || isMemberViewer;
+    }
+    if (!canViewPrivate) return notFound();
+  }
+
   // 기본 표시 데이터 준비
   const accent = resolveAccent(team.primaryColor, team.secondaryColor);
   const tag = resolveTag(team.name, team.name_en);
