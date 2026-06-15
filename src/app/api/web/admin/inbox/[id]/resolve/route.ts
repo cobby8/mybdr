@@ -74,6 +74,30 @@ const teamsBody = z.object({
   reason: z.string().trim().max(2000).optional(),
 });
 
+// ── S3: 처리 성공 후 admin_inbox_state 에 처리 흔적 upsert ──────────
+// 왜: 원본 도메인 테이블은 각자 status 로 처리되지만, 통합 인박스 GET 목록은
+//     admin_inbox_state.resolved_at 으로 "처리완료"를 판정해 기본 제외한다.
+//     따라서 처리 성공 시 여기에 resolved_at/resolved_by/memo 를 박제해야 목록에서 사라진다.
+// 어떻게: (refType, refId) 복합 unique 키로 upsert. 실패해도 원본 처리 자체는 이미 끝났으므로
+//        try/catch 로 삼켜 응답에 영향 주지 않음(best-effort 감사 기록).
+async function markResolved(
+  refType: string,
+  refId: string,
+  resolvedBy: string,
+  memo: string | null,
+  resolvedAt: Date,
+): Promise<void> {
+  try {
+    await prisma.adminInboxState.upsert({
+      where: { refType_refId: { refType, refId } },
+      update: { resolvedAt, resolvedBy, memo },
+      create: { refType, refId, resolvedAt, resolvedBy, memo },
+    });
+  } catch {
+    // 감사 메타 기록 실패는 원본 처리 결과에 영향 없음 — 무시.
+  }
+}
+
 // ── court 제보 court_type 매핑(기존 court-submissions PATCH 라우트와 동일 복제) ──
 // court_infos.court_type 은 indoor/outdoor 체계 → 3x3 은 outdoor + court_size="3x3" 보존.
 function mapCourtType(submissionType: string): {
@@ -168,6 +192,9 @@ export async function POST(req: NextRequest, { params }: RouteCtx) {
         changesMade: { status: nextStatus, memo: memo ?? null },
       });
 
+      // S3: 인박스 메타에 처리 흔적 기록 → GET 목록 기본 제외.
+      await markResolved(domain, refId, session!.sub, memo ?? null, now);
+
       return apiSuccess({ id: report.id.toString(), status: nextStatus });
     }
 
@@ -199,6 +226,9 @@ export async function POST(req: NextRequest, { params }: RouteCtx) {
         description: `커뮤니티 글 ${action === "hide" ? "숨김" : "복원"}: ${post.title ?? `#${post.id}`}`,
         changesMade: { status: nextStatus, reason: reason ?? null },
       });
+
+      // S3: 인박스 메타에 처리 흔적 기록(reason → memo).
+      await markResolved(domain, refId, session!.sub, reason ?? null, now);
 
       return apiSuccess({ id: post.id.toString(), status: nextStatus });
     }
@@ -238,6 +268,8 @@ export async function POST(req: NextRequest, { params }: RouteCtx) {
           description: `단체 승인: ${org.name}`,
           changesMade: { status: "approved" },
         });
+        // S3: 인박스 메타에 처리 흔적 기록(승인엔 memo 없음 → null).
+        await markResolved(domain, refId, session!.sub, null, now);
         return apiSuccess({ id: org.id.toString(), status: "approved" });
       }
 
@@ -259,6 +291,8 @@ export async function POST(req: NextRequest, { params }: RouteCtx) {
         description: `단체 거절: ${org.name}`,
         changesMade: { status: "rejected", rejection_reason: trimmed },
       });
+      // S3: 인박스 메타에 처리 흔적 기록(거절 사유 → memo).
+      await markResolved(domain, refId, session!.sub, trimmed, now);
       return apiSuccess({ id: org.id.toString(), status: "rejected" });
     }
 
@@ -354,6 +388,9 @@ export async function POST(req: NextRequest, { params }: RouteCtx) {
           },
         });
 
+        // S3: 인박스 메타에 처리 흔적 기록(심사 메모 → memo).
+        await markResolved(domain, refId, session!.sub, reviewNote, now);
+
         return apiSuccess({
           id: submission.id.toString(),
           status: "approved",
@@ -376,6 +413,8 @@ export async function POST(req: NextRequest, { params }: RouteCtx) {
         description: `코트 제보 반려: ${submission.name}`,
         changesMade: { review_note: reviewNote },
       });
+      // S3: 인박스 메타에 처리 흔적 기록(심사 메모 → memo).
+      await markResolved(domain, refId, session!.sub, reviewNote, now);
       return apiSuccess({ id: submission.id.toString(), status: "rejected" });
     }
 
@@ -425,6 +464,9 @@ export async function POST(req: NextRequest, { params }: RouteCtx) {
         severity: "warning",
       });
 
+      // S3: 인박스 메타에 처리 흔적 기록(환불 사유 → memo).
+      await markResolved(domain, refId, session!.sub, trimmedReason, now);
+
       return apiSuccess({ id: payment.id.toString(), refund_status: nextStatus });
     }
 
@@ -468,6 +510,9 @@ export async function POST(req: NextRequest, { params }: RouteCtx) {
         description: `팀 ${action === "approve" ? "승인" : "반려"}: ${team.name}`,
         changesMade: { status: nextStatus, reason: trimmedReason },
       });
+
+      // S3: 인박스 메타에 처리 흔적 기록(반려 사유 → memo).
+      await markResolved(domain, refId, session!.sub, trimmedReason, now);
 
       return apiSuccess({ id: team.id.toString(), status: nextStatus });
     }

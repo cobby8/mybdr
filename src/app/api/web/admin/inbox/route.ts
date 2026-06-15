@@ -12,14 +12,20 @@
  * - schema 변경 0, 읽기 전용. teams 는 DB 미지원 → 항상 0건.
  *
  * 쿼리 파라미터:
- *   domain   특정 도메인만 필터 (game_reports|community_posts|court_submissions|organizations|payments)
- *   severity 특정 심각도만 필터 (err|warn|blue)
- *   sort     "priority"(기본, err>warn>blue → created_at asc) | "age"(오래된 순)
- *   cursor   직전 응답 next_cursor (정렬 후 인덱스 기반)
+ *   domain          특정 도메인만 필터 (game_reports|community_posts|court_submissions|organizations|payments)
+ *   severity        특정 심각도만 필터 (err|warn|blue)
+ *   sort            "priority"(기본, err>warn>blue → created_at asc) | "age"(오래된 순)
+ *   cursor          직전 응답 next_cursor (정렬 후 인덱스 기반)
+ *   include_snoozed "1" 이면 스누즈/처리완료 항목도 포함 (기본은 제외)
+ *
+ * S3 (admin_inbox_state 연동):
+ *   - union 후 AdminInboxState 를 (refType, refId) batch 조회해 각 item 에 실제 snoozed_until 주입.
+ *   - 기본 목록에서는 "스누즈 미만료(snoozed_until > now)" 또는 "처리완료(resolved_at != null)" 항목을 제외.
+ *   - ?include_snoozed=1 이면 위 제외를 끄고 전부 노출(스누즈/처리완료 재확인용).
  *
  * item:
  *   { id: "<domain>:<refId>", domain, route, severity, priority, title, sub,
- *     created_at, snoozed_until: null }
+ *     created_at, snoozed_until: string|null }
  *
  * NOTE: 응답은 apiSuccess() 경유 → 키 자동 snake_case 변환 (errors.md 2026-04-17).
  */
@@ -53,7 +59,8 @@ interface InboxItem {
   title: string;
   sub: string;
   created_at: string;
-  snoozed_until: null;
+  // S3: AdminInboxState 의 snoozed_until 주입(없으면 null).
+  snoozed_until: string | null;
 }
 
 export async function GET(req: NextRequest) {
@@ -68,6 +75,8 @@ export async function GET(req: NextRequest) {
   const severityFilter = searchParams.get("severity"); // null 이면 전체
   const sort = searchParams.get("sort") === "age" ? "age" : "priority";
   const cursor = Number(searchParams.get("cursor") ?? 0); // 정렬 후 시작 인덱스
+  // S3: 스누즈/처리완료 항목까지 포함할지 여부(기본은 제외).
+  const includeSnoozed = searchParams.get("include_snoozed") === "1";
 
   try {
     // 도메인 필터가 있으면 해당 소스만 조회 (불필요 쿼리 절감).
@@ -228,6 +237,59 @@ export async function GET(req: NextRequest) {
         "팀 검수 대기",
         t.createdAt,
       );
+    }
+
+    // ── S3: AdminInboxState batch 조회 → snoozed_until 주입 + 기본 제외 ──
+    // 왜: 원본 테이블에 상태 컬럼을 안 넣고 admin_inbox_state 별도 보관 → 여기서 합류.
+    // 어떻게: 화면에 올라온 item 들의 (refType, refId) 쌍만 IN 조회(최대 union 상한 → 소량).
+    const now = new Date();
+    if (items.length > 0) {
+      // item.id = "<domain>:<refId>" → refType=domain, refId 그대로.
+      const refTypes = items.map((it) => it.domain);
+      const refIds = items.map((it) => it.id.slice(it.id.indexOf(":") + 1));
+      // (refType, refId) 조합 조회 — refType IN & refId IN 으로 후보를 좁힌 뒤 Map 으로 정확 매칭.
+      const states = await prisma.adminInboxState.findMany({
+        where: {
+          refType: { in: Array.from(new Set(refTypes)) },
+          refId: { in: Array.from(new Set(refIds)) },
+        },
+        select: {
+          refType: true,
+          refId: true,
+          snoozedUntil: true,
+          resolvedAt: true,
+        },
+      });
+      // "<refType>:<refId>" → state 매핑(item.id 와 동일 키 형식).
+      const stateMap = new Map(
+        states.map((s) => [`${s.refType}:${s.refId}`, s]),
+      );
+
+      for (const it of items) {
+        const st = stateMap.get(it.id);
+        if (st?.snoozedUntil) {
+          it.snoozed_until = st.snoozedUntil.toISOString();
+        }
+      }
+
+      // 기본 모드: 스누즈 미만료(snoozed_until > now) 또는 처리완료(resolved_at != null) 제외.
+      if (!includeSnoozed) {
+        // O(1) 룩업 위해 제외 대상 item.id Set 구성.
+        const excluded = new Set<string>();
+        for (const s of states) {
+          const snoozedActive = s.snoozedUntil && s.snoozedUntil > now;
+          const resolved = s.resolvedAt != null;
+          if (snoozedActive || resolved) {
+            excluded.add(`${s.refType}:${s.refId}`);
+          }
+        }
+        if (excluded.size > 0) {
+          // items 를 in-place 필터(이후 로직은 items 기반).
+          for (let i = items.length - 1; i >= 0; i--) {
+            if (excluded.has(items[i].id)) items.splice(i, 1);
+          }
+        }
+      }
     }
 
     // ── severity 필터 ─────────────────────────────────────────
