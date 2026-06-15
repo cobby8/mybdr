@@ -3536,3 +3536,21 @@ model ProspectusAiAnalysis {
   @@index([createdAt])
   @@map("prospectus_ai_analysis")
 }
+
+/// 관리자 인박스(통합 큐) 항목별 처리 상태를 저장하는 메타 테이블 (S3)
+/// - 각 큐 항목은 refType(도메인) + refId(원본 PK)로 식별 — 원본 테이블에 상태 컬럼을 추가하지 않고 별도 보관
+/// - snoozedUntil = 스누즈(나중에 다시 보기) 만료 시각 / resolvedAt+resolvedBy = 처리 완료 감사 추적 / memo = 관리자 메모
+model AdminInboxState {
+  id           String    @id @default(cuid())
+  refType      String    @map("ref_type") // 도메인 종류 (game_reports / community_posts / payments 등)
+  refId        String    @map("ref_id") // 원본 레코드 PK (BigInt PK 도 문자열로 보관 — 도메인 무관 통합)
+  snoozedUntil DateTime? @map("snoozed_until") // 스누즈 만료 시각 (null = 스누즈 안 함)
+  resolvedAt   DateTime? @map("resolved_at") // 처리 완료 시각 (null = 미처리)
+  resolvedBy   String?   @map("resolved_by") // 처리한 관리자 식별자
+  memo         String? // 관리자 메모 (선택)
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  @@unique([refType, refId]) // 도메인 + 원본 PK 조합당 상태 1개 (upsert 키)
+  @@map("admin_inbox_state")
+}
