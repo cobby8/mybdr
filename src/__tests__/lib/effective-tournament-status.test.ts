@@ -44,10 +44,17 @@ describe("effectiveTournamentStatus", () => {
     ).toBe("published");
   });
 
-  // 4) in_progress + 종료일 2년 전 → completed 보정
-  it("in_progress 이고 종료일이 2년 전이면 completed 로 보정한다", () => {
+  // 4) in_progress + 종료일 2년 전 → in_progress 유지 (운영자 명시 진행 = 보정 제외, 2026-06-16)
+  it("in_progress 이고 종료일이 2년 전이어도 원본(in_progress)을 유지한다", () => {
     expect(
       effectiveTournamentStatus("in_progress", daysFromNow(-731), daysFromNow(-730)),
+    ).toBe("in_progress");
+  });
+
+  // 4b) published + 종료일 2년 전 → completed (기본/접수 상태는 날짜 경과 보정 유지)
+  it("published 이고 종료일이 2년 전이면 completed 로 보정한다", () => {
+    expect(
+      effectiveTournamentStatus("published", daysFromNow(-731), daysFromNow(-730)),
     ).toBe("completed");
   });
 
@@ -65,10 +72,10 @@ describe("effectiveTournamentStatus", () => {
     ).toBe("draft");
   });
 
-  // 7) end_date null + start_date 과거 → start_date 폴백으로 completed 보정
+  // 7) end_date null + start_date 과거 → start_date 폴백으로 completed 보정 (published 기준)
   it("end_date 가 null 이고 start_date 가 과거면 start_date 폴백으로 completed 보정한다", () => {
     expect(
-      effectiveTournamentStatus("in_progress", daysFromNow(-5), null),
+      effectiveTournamentStatus("published", daysFromNow(-5), null),
     ).toBe("completed");
   });
 
