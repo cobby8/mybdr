@@ -70,8 +70,15 @@ const PUBLIC_API_ROUTES = [
   "/api/v1/tournaments/connect", // 대회 API 토큰 연결 (JWT 불필요, 토큰 자체가 인증)
 ];
 
+// OBS 오버레이 읽기 전용 라우트(헤더 인증 불가 → ?key= HMAC 보호).
+// ★정밀 매칭: /api/v1/live/courts/<courtKey>/scoreboard 만 공개.
+//   같은 폴더의 .../key (key 발급)는 JWT 비공개여야 하므로 prefix 매칭 금지 → 정규식으로 분리.
+const PUBLIC_SCOREBOARD_RE = /^\/api\/v1\/live\/courts\/[^/]+\/scoreboard\/?$/;
+
 function isPublicApiRoute(pathname: string): boolean {
-  return PUBLIC_API_ROUTES.some((route) => pathname.startsWith(route));
+  if (PUBLIC_API_ROUTES.some((route) => pathname.startsWith(route))) return true;
+  if (PUBLIC_SCOREBOARD_RE.test(pathname)) return true; // 읽기 scoreboard GET만
+  return false;
 }
 
 function getRateLimitConfig(pathname: string) {

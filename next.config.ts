@@ -167,6 +167,20 @@ const nextConfig: NextConfig = {
           { key: "Access-Control-Max-Age", value: "3600" },
         ],
       },
+      // ★OBS 오버레이 읽기 전용 라우트만 CORS 와일드카드(*)로 오버라이드.
+      //   OBS 브라우저소스는 임의 출처에서 fetch 하므로 단일 origin 으로는 막힌다.
+      //   읽기 전용 + ?key= HMAC 보호라 저위험. 이 항목이 위의 전역 항목보다 뒤(더 구체적
+      //   source)라 동일 키(Access-Control-Allow-Origin)를 이 경로에서만 * 로 덮는다.
+      //   (POST·key 발급 등 나머지 /api/v1 은 위 전역 단일 origin 유지)
+      {
+        source: "/api/v1/live/courts/:courtKey/scoreboard",
+        headers: [
+          { key: "Access-Control-Allow-Origin", value: "*" },
+          { key: "Access-Control-Allow-Methods", value: "GET, OPTIONS" },
+          { key: "Access-Control-Allow-Headers", value: "Content-Type" },
+          { key: "Cache-Control", value: "no-store, no-cache, must-revalidate" },
+        ],
+      },
     ];
   },
 };
