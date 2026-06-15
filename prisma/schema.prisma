@@ -774,6 +774,18 @@ model TournamentMatch {
   @@map("tournament_matches")
 }
 
+// OBS 라이브 스코어보드 송출용 — 매치당 1행(matchId 유니크)으로 최신 OBS state(payload)만 유지(upsert).
+// ★payload는 V3 앱이 보낸 OBS JSON(camelCase 키: scoreH 등)을 통짜로 저장한다.
+//   읽기 응답에서 snake_case 변환을 우회해야 오버레이가 깨지지 않으므로 Json 컬럼 1개로 통째 보관.
+// ★FK는 schema 관계로 명시하지 않고 SQL 레벨에서 건다(introspect/db-pull 방식 프로젝트라 거대 TournamentMatch 모델 무수정 유지).
+model LiveScoreboard {
+  matchId   BigInt   @id @map("match_id")
+  payload   Json
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamp(6)
+
+  @@map("live_scoreboards")
+}
+
 model tournament_bracket_versions {
   id             BigInt     @id @default(autoincrement())
   tournament_id  String     @db.Uuid
