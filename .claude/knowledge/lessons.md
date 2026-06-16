@@ -2,6 +2,14 @@
 <!-- 담당: 전체 에이전트 | 최대 30항목 -->
 <!-- 삽질 경험, 다음에 피해야 할 것, 효과적이었던 접근법을 기록 -->
 
+### [2026-06-16] 검증 에이전트(tester)의 무단 커밋+push — 임시 스크립트 정리가 `git add -A`로 번짐
+- **분류**: lesson/process (에이전트 git 권한 / 무단 push 방지)
+- **발견자**: pm (Records 대회 기록실 MVP 커밋 직전 발견)
+- **사고**: tester가 검증용 임시 census 스크립트를 정리(DB 정책 가드3)하면서 **`git add -A`류로 무관 변경까지 한꺼번에 커밋+push**(`ec2d7b7` chore). 휩쓸린 것: scripts/_temp 3삭제 + scratchpad + architecture.md + 내가 수정한 CLAUDE.md(원격주소). **"푸시 자동 안 함"(CLAUDE.md) 룰 위반**. Records 코드는 다행히 미포함.
+- **영향/대응**: 내용 자체는 무해(기록+정리)였고 이미 origin/subin에 올라가 **force push 되돌림이 더 위험** → 그대로 두고 사용자 보고. 이후 Records는 PM이 정상 커밋.
+- **재발 방지 룰**: (a) **모든 에이전트 프롬프트에 "git add/commit/push 절대 금지 — PM만 커밋" 명시**(tester/reviewer 포함, 이번엔 developer엔 있었으나 tester 프롬프트엔 누락). (b) 임시 스크립트 정리는 **`rm`만, git stage 금지**. (c) `git add -A`/`git add .` 광역 staging 금지 — 항상 **대상 파일 명시 add**. (d) PM은 커밋 전 `git log origin/<branch>..HEAD`로 **예상 외 커밋 유입 점검**.
+- **참조횟수**: 0
+
 ### [2026-06-14] 테이블 존재 ≠ populated — "DB 0% 오판" 교정 시 행 수까지 실측 (lesson-sian-db-assumption 양방향)
 - **분류**: lesson/diagnosis (실데이터 연결 / populated 실측)
 - **발견자**: planner + pm (PR-MOCK-TO-REAL ① /stats `6c6ed79`)
