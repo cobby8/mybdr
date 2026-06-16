@@ -18,6 +18,7 @@ import { useRouter } from "next/navigation";
 
 import {
   RecSeg,
+  RecAggToggle,
   RecTable,
   ResultBadge,
   RecEmpty,
@@ -41,8 +42,8 @@ const SEG_OPTIONS = [
 
 // 평균/누적 토글 — 집계 뷰(대회별·시즌별) 전용. 경기별은 단일 경기 raw 라 N/A.
 const AGG_OPTIONS = [
-  { v: "avg", l: "경기당", ico: "trending_up" },
-  { v: "sum", l: "합계", ico: "functions" },
+  { v: "avg", l: "평균" },
+  { v: "sum", l: "누적" },
 ];
 
 // 날짜 ISO → "MM.DD"
@@ -209,19 +210,21 @@ export function PlayerRecordsTab({
       </p>
       <div className="rec-toolbar">
         <RecSeg value={unit} onChange={(v) => setUnit(v as Unit)} options={SEG_OPTIONS} />
-        {/* 평균/누적 토글 — 집계 뷰(대회별·시즌별)에만. 경기별은 단일 경기라 N/A */}
-        {showHint && unit !== "game" && (
-          <RecSeg
-            value={aggMode}
-            onChange={(v) => setAggMode(v as StatMode)}
-            options={AGG_OPTIONS}
-          />
-        )}
         {showHint && unit === "tournament" && (
           <span className="rec-toolbar__note">
             <span className="ico material-symbols-outlined">touch_app</span>행을 누르면
             대회 기록실로
           </span>
+        )}
+        {/* 평균/누적 토글 — 우측 정렬(margin-left:auto). 집계 뷰(대회별·시즌별)에만. 경기별 N/A */}
+        {showHint && unit !== "game" && (
+          <div style={{ marginLeft: "auto" }}>
+            <RecAggToggle
+              value={aggMode}
+              onChange={(v) => setAggMode(v as StatMode)}
+              options={AGG_OPTIONS}
+            />
+          </div>
         )}
       </div>
       <Body />

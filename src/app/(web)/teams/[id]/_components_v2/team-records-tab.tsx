@@ -18,6 +18,7 @@ import { useState } from "react";
 import useSWR from "swr";
 import {
   RecSeg,
+  RecAggToggle,
   RecTable,
   RecEmpty,
   RecLoading,
@@ -64,8 +65,8 @@ const SEG_OPTIONS = [
 
 // 평균/누적 토글 — 대회별·시즌별 로스터 집계 전용. 경기별 박스(raw)는 N/A.
 const AGG_OPTIONS = [
-  { v: "avg", l: "경기당", ico: "trending_up" },
-  { v: "sum", l: "합계", ico: "functions" },
+  { v: "avg", l: "평균" },
+  { v: "sum", l: "누적" },
 ];
 
 const r1 = (n: number): number => Math.round(n * 10) / 10;
@@ -415,13 +416,15 @@ export function TeamRecordsTab({ teamId }: { teamId: string }) {
 
       <div className="rec-toolbar">
         <RecSeg value={unit} onChange={switchUnit} options={SEG_OPTIONS} />
-        {/* 평균/누적 토글 — 로스터 집계 뷰(시즌별·대회 드릴다운)에만 */}
+        {/* 평균/누적 토글 — 우측 정렬(margin-left:auto). 로스터 집계 뷰(시즌별·대회 드릴다운)에만 */}
         {showAggToggle && (
-          <RecSeg
-            value={aggMode}
-            onChange={(v) => setAggMode(v as StatMode)}
-            options={AGG_OPTIONS}
-          />
+          <div style={{ marginLeft: "auto" }}>
+            <RecAggToggle
+              value={aggMode}
+              onChange={(v) => setAggMode(v as StatMode)}
+              options={AGG_OPTIONS}
+            />
+          </div>
         )}
       </div>
 
