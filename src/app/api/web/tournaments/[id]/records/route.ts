@@ -14,6 +14,8 @@ import {
   getMatchMinutesBySec,
   buildMatchMinutesMeta,
 } from "@/lib/records/match-minutes";
+// 비공개 대회 노출 차단 가드 (SSR page.tsx와 동일 정책 — insider 외 404).
+import { blockIfPrivateTournament } from "@/lib/auth/private-tournament-guard";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -39,9 +41,14 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
   // 1) 대회 메타
   const tournament = await prisma.tournament.findUnique({
     where: { id },
-    select: { status: true, gender: true, divisions: true },
+    select: { status: true, gender: true, divisions: true, is_public: true },
   });
   if (!tournament) return apiError("Tournament not found", 404);
+
+  // 비공개 대회: 관계자(insider) 외 존재 숨김(404). 공개 대회는 통과.
+  if (await blockIfPrivateTournament(id, tournament.is_public)) {
+    return apiError("Tournament not found", 404);
+  }
 
   // 2) 공식 매치 (공식가드 필수)
   const matches = await prisma.tournamentMatch.findMany({

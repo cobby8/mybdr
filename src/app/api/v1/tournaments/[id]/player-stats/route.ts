@@ -1,14 +1,32 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { withAuth, withErrorHandler, type AuthContext } from "@/lib/api/middleware";
-import { apiSuccess } from "@/lib/api/response";
+import { apiSuccess, apiError } from "@/lib/api/response";
 import { getDisplayName } from "@/lib/utils/player-display-name";
 import { USER_DISPLAY_SELECT } from "@/lib/db/select-presets";
 // PR5: 매치 시점 jersey 우선순위 적용 (다중 매치 + 다중 ttp 일괄)
 import { resolveMatchJerseysMulti } from "@/lib/jersey/resolve";
+// 비공개 대회 노출 차단: is_public=false면 관계자(insider) 외 차단 (웹 SSR과 동일 정책).
+import { isTournamentInsider } from "@/lib/auth/tournament-auth";
 
 // FR-027: 토너먼트 전체 선수 스탯
-async function handler(_req: NextRequest, _ctx: AuthContext, tournamentId: string) {
+async function handler(_req: NextRequest, ctx: AuthContext, tournamentId: string) {
+  // 비공개 대회 가드 — JWT는 통과(withAuth)했으나, 비공개 대회는 관계자만 열람.
+  // 일반 로그인 선수가 비공개 대회 stat을 조회하는 IDOR 차단. 기록원/관리자(insider)는 통과.
+  const t = await prisma.tournament.findUnique({
+    where: { id: tournamentId },
+    select: { is_public: true },
+  });
+  if (!t) return apiError("Tournament not found", 404);
+  if (t.is_public === false) {
+    const insider = await isTournamentInsider(
+      BigInt(ctx.userId),
+      tournamentId,
+      ctx.payload,
+    );
+    if (!insider) return apiError("권한이 없습니다.", 403);
+  }
+
   const statsRaw = await prisma.matchPlayerStat.findMany({
     where: { tournamentMatch: { tournamentId } },
     include: {
