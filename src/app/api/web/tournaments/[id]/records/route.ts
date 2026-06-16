@@ -259,6 +259,23 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
         tov: box.tov,
         pf: box.pf,
         rating: null,
+        // ── 누적(합계) — sum 토글이 읽는 정수 누적값(aggregateTeamBox 가 sum_* 제공) ──
+        //   팀 누적 = 전 경기 합계. min/pm 은 팀 합산 의미 약해 미노출(기존 정책 유지).
+        sum_pts: box.sum_pts,
+        sum_fgm: box.sum_fgm,
+        sum_fga: box.sum_fga,
+        sum_tpm: box.sum_tpm,
+        sum_tpa: box.sum_tpa,
+        sum_ftm: box.sum_ftm,
+        sum_fta: box.sum_fta,
+        sum_oreb: box.sum_oreb,
+        sum_dreb: box.sum_dreb,
+        sum_reb: box.sum_reb,
+        sum_ast: box.sum_ast,
+        sum_stl: box.sum_stl,
+        sum_blk: box.sum_blk,
+        sum_to: box.sum_to,
+        sum_pf: box.sum_pf,
       };
     })
     .filter((t) => t.g > 0);

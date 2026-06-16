@@ -27,6 +27,7 @@ import {
   teamHref,
   type RecColumn,
   type RecRow,
+  type StatMode,
 } from "@/app/(web)/_components/records/records-shared";
 import type { PlayerRecordsResult } from "@/lib/records/player-records";
 
@@ -36,6 +37,12 @@ const SEG_OPTIONS = [
   { v: "game", l: "경기별", ico: "list_alt" },
   { v: "tournament", l: "대회별", ico: "emoji_events" },
   { v: "season", l: "시즌별", ico: "calendar_month" },
+];
+
+// 평균/누적 토글 — 집계 뷰(대회별·시즌별) 전용. 경기별은 단일 경기 raw 라 N/A.
+const AGG_OPTIONS = [
+  { v: "avg", l: "경기당", ico: "trending_up" },
+  { v: "sum", l: "합계", ico: "functions" },
 ];
 
 // 날짜 ISO → "MM.DD"
@@ -51,6 +58,8 @@ export function PlayerRecordsTab({
 }) {
   const router = useRouter();
   const [unit, setUnit] = useState<Unit>("game");
+  // 집계 단위(평균/누적) — 대회별·시즌별에만 적용. 기본 평균(기존 동작 보존).
+  const [aggMode, setAggMode] = useState<StatMode>("avg");
 
   // ── 컬럼 정의 (시안 gameCols/tnCols/seasonCols) ──
   const gameCols: RecColumn<RecRow>[] = [
@@ -111,7 +120,7 @@ export function PlayerRecordsTab({
       render: (r) => <span className="rec-dim">{r.period as string}</span>,
     },
     { key: "g", label: "G", align: "right" },
-    ...statCols({ avg: true }),
+    ...statCols({ mode: aggMode }),
     {
       key: "wl",
       label: "승–패",
@@ -135,7 +144,7 @@ export function PlayerRecordsTab({
       render: (r) => (r.season_year as number) + " 시즌",
     },
     { key: "g", label: "G", align: "right" },
-    ...statCols({ avg: true }),
+    ...statCols({ mode: aggMode }),
   ];
 
   function Body() {
@@ -171,7 +180,7 @@ export function PlayerRecordsTab({
             r.tournament_id &&
             router.push(`/tournaments/${r.tournament_id}?tab=records`)
           }
-          initialSort={{ key: "ppg", dir: "desc" }}
+          initialSort={{ key: "pts", dir: "desc" }}
         />
       );
     }
@@ -200,6 +209,14 @@ export function PlayerRecordsTab({
       </p>
       <div className="rec-toolbar">
         <RecSeg value={unit} onChange={(v) => setUnit(v as Unit)} options={SEG_OPTIONS} />
+        {/* 평균/누적 토글 — 집계 뷰(대회별·시즌별)에만. 경기별은 단일 경기라 N/A */}
+        {showHint && unit !== "game" && (
+          <RecSeg
+            value={aggMode}
+            onChange={(v) => setAggMode(v as StatMode)}
+            options={AGG_OPTIONS}
+          />
+        )}
         {showHint && unit === "tournament" && (
           <span className="rec-toolbar__note">
             <span className="ico material-symbols-outlined">touch_app</span>행을 누르면

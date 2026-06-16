@@ -9,6 +9,11 @@ import { getProfileLevelInfo } from "@/lib/profile/gamification";
 // 5/9 재구성: server component 전환 — 공개 프로필 패턴 카피 (page.tsx /users/[id])
 //   사용자 결정 Q1=K-1 (server component 전환 / SWR client → server)
 import { officialMatchNestedFilter } from "@/lib/tournaments/official-match";
+// 대회 상태 종료일 보정 — 종료일 지난 대회를 "종료"로 표시 (다른 공개화면 컨벤션 동일)
+import {
+  effectiveTournamentStatus,
+  TOURNAMENT_STATUS_LABEL,
+} from "@/lib/constants/tournament-status";
 
 // PlayerMatchCard props 타입 (변환 로직)
 import type { PlayerMatchCardProps } from "@/components/match/PlayerMatchCard";
@@ -389,6 +394,9 @@ export default async function BasketballPage() {
                   name: true,
                   status: true,
                   short_code: true,
+                  // 상태 종료일 보정용 (읽기 필드 추가 — Prisma camelCase 필드명)
+                  startDate: true,
+                  endDate: true,
                 },
               },
             },
@@ -987,7 +995,17 @@ export default async function BasketballPage() {
 
   // ---- 참가 대회 변환 (운영 영역 ⑦) ----
   // 중복 제거 (한 대회에 여러 ttp 가능 — tournament.id 기준 dedup)
-  const tournamentMap = new Map<string, { id: string; name: string; status: string | null }>();
+  const tournamentMap = new Map<
+    string,
+    {
+      id: string;
+      name: string;
+      status: string | null;
+      // 상태 종료일 보정용 — 표시 시 effectiveTournamentStatus 에 전달
+      startDate: Date | null;
+      endDate: Date | null;
+    }
+  >();
   for (const ttp of tournamentTeamPlayers) {
     const t = ttp.tournamentTeam?.tournament;
     if (!t) continue;
@@ -996,6 +1014,8 @@ export default async function BasketballPage() {
         id: t.id,
         name: t.name,
         status: t.status,
+        startDate: t.startDate,
+        endDate: t.endDate,
       });
     }
   }
@@ -1289,7 +1309,14 @@ export default async function BasketballPage() {
                 icon="emoji_events"
                 iconBg="var(--color-tier-gold)"
                 title={t.name}
-                subtitle={t.status ?? ""}
+                // 종료일 경과 시 effectiveTournamentStatus 가 'completed' 반환 → 라벨 "종료" 표시
+                subtitle={
+                  TOURNAMENT_STATUS_LABEL[
+                    effectiveTournamentStatus(t.status, t.startDate, t.endDate)
+                  ] ??
+                  t.status ??
+                  "-"
+                }
                 href={`/tournaments/${t.id}`}
               />
             ))

@@ -8,6 +8,8 @@ import { withWebAuth, type WebAuthContext } from "@/lib/auth/web-session";
 import { apiSuccess, apiError } from "@/lib/api/response";
 // Phase 2A-2: 팀 수정 입력값 검증 (영문명 엄격 규칙 포함)
 import { updateTeamSchema } from "@/lib/validation/team";
+// 팀 검수 상태 상수 — 핵심 식별정보 변경 시 재검수(pending_review) 재세팅에 사용.
+import { TEAM_STATUS } from "@/lib/constants/team-status";
 
 type RouteCtx = { params: Promise<{ id: string }> };
 
@@ -149,9 +151,11 @@ export const PATCH = withWebAuth(async (req: Request, routeCtx: RouteCtx, ctx: W
   const teamId = BigInt(id);
 
   // 팀 존재 + 상태 확인
+  // 재검수 트리거 판정을 위해 핵심 식별정보(name/name_en/logoUrl)도 함께 조회한다.
+  // 이유(왜): "실제로 값이 바뀐 경우에만" pending_review 로 되돌리려면 기존 값과 비교가 필요하다.
   const team = await prisma.team.findUnique({
     where: { id: teamId },
-    select: { id: true, status: true },
+    select: { id: true, status: true, name: true, name_en: true, logoUrl: true },
   });
   if (!team) {
     return apiError("존재하지 않는 팀입니다.", 404, "NOT_FOUND");
@@ -270,6 +274,32 @@ export const PATCH = withWebAuth(async (req: Request, routeCtx: RouteCtx, ctx: W
 
   if (Object.keys(updateData).length === 0) {
     return apiError("수정할 항목이 없습니다.", 400, "NO_CHANGES");
+  }
+
+  // ─────────────────────────────────────────────────
+  // 핵심 식별정보 변경 시 재검수(pending_review) 재세팅
+  //
+  // 정책(사용자 확정):
+  //  - 팀명(name) / 영문명(name_en) / 로고(logo_url→logoUrl) 중 하나라도
+  //    "실제로 값이 변경"되면 Team.status 를 pending_review 로 되돌린다.
+  //  - 트리거 제외: 색상/설명/위치/홈코트/공개여부 등 → status 미접촉.
+  //  - 단, 현재 status 가 active 인 팀만 되돌린다.
+  //    이미 pending_review(검수 대기) 거나 rejected(반려) 면 status 를 건드리지 않는다.
+  //    (사용자 액션이라 adminLog 불필요)
+  //
+  // "실제 변경" 판정:
+  //  - updateData 에 해당 필드가 포함됐고(= 요청 body 에 들어옴),
+  //    기존 team 값과 다를 때만 true. 같은 값 PATCH 는 재검수 안 함.
+  //  - updateData 값은 이미 Zod/trim 정규화를 거친 값이라 기존 DB 값과 직접 비교한다.
+  //    (name_en/logoUrl 은 빈문자열이 null 로 치환됨 → null === null 이면 동일 처리)
+  const identityChanged =
+    (updateData.name !== undefined && updateData.name !== team.name) ||
+    (updateData.name_en !== undefined && updateData.name_en !== team.name_en) ||
+    (updateData.logoUrl !== undefined && updateData.logoUrl !== team.logoUrl);
+
+  if (identityChanged && team.status === TEAM_STATUS.ACTIVE) {
+    // active 팀의 식별정보가 실제로 바뀌었을 때만 검수 대기로 되돌린다.
+    updateData.status = TEAM_STATUS.PENDING_REVIEW;
   }
 
   const updated = await prisma.team.update({

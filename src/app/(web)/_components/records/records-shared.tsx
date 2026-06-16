@@ -299,21 +299,70 @@ export function RecUnclaimed({ name }: { name?: string }) {
 
 // ── 표준 박스스코어 컬럼 팩토리 ──
 // MIN · PTS · FGM · FGA · FG% · 3PM · 3PA · 3P% · FTM · FTA · FT% · OR · DR · REB · AST · STL · BLK · TO · PF · +/- · 평점
-//   avg=false → 경기별(raw 정수) · avg=true → 집계(평균, 소수 1자리)
+//   mode='raw' → 경기별(정수 원본) · mode='avg' → 집계 평균(소수 1자리) · mode='sum' → 집계 누적(sum_* 정수)
+//   하위호환: 기존 호출(avg:boolean)도 그대로 받음 — avg:true→'avg', avg:false→'raw'. mode 지정 시 mode 우선.
 //   미연동/무기록 값은 null → '–' 렌더 + 정렬 시 최하위.
 //   평점(rating)은 매치 단위 데이터 부재 → 전부 null → '–' (PM 결재 Q1).
-export function statCols<T extends RecRow>({ avg = false }: { avg?: boolean } = {}): RecColumn<T>[] {
+//   sum 모드: 일반 스탯은 sum_<별칭> 키(예: tov→sum_to)를 정수로 읽음. %·평점은 모드 무관 동일.
+export type StatMode = "raw" | "avg" | "sum";
+
+// 평균키 → 누적키 매핑 (BoxAvg.sum_* 와 1:1). tov 만 별칭(to) 주의.
+const SUM_KEY: Record<string, string> = {
+  min: "sum_min",
+  pts: "sum_pts",
+  fgm: "sum_fgm",
+  fga: "sum_fga",
+  tpm: "sum_tpm",
+  tpa: "sum_tpa",
+  ftm: "sum_ftm",
+  fta: "sum_fta",
+  oreb: "sum_oreb",
+  dreb: "sum_dreb",
+  reb: "sum_reb",
+  ast: "sum_ast",
+  stl: "sum_stl",
+  blk: "sum_blk",
+  tov: "sum_to",
+  pf: "sum_pf",
+  pm: "sum_pm",
+};
+
+export function statCols<T extends RecRow>(
+  opts: { avg?: boolean; mode?: StatMode } = {},
+): RecColumn<T>[] {
+  // mode 명시 시 우선, 아니면 avg:boolean 으로 추론(하위호환).
+  const mode: StatMode = opts.mode ?? (opts.avg ? "avg" : "raw");
+  const isSum = mode === "sum";
+  const isAvg = mode === "avg";
   const has = (v: unknown): v is number =>
     v != null && !(typeof v === "number" && isNaN(v));
+  // sum 모드는 행에서 sum_<key> 우선, 없으면 평균키 폴백(방어). 그 외 모드는 평균/raw 키.
+  const pick = (r: T, k: string): unknown => {
+    if (isSum) {
+      const sk = SUM_KEY[k];
+      if (sk && has(r[sk])) return r[sk];
+    }
+    return r[k];
+  };
   const f = (v: unknown): ReactNode =>
-    !has(v) ? <span className="rec-na">–</span> : avg ? Number(v).toFixed(1) : v;
-  const sv = (k: string) => (r: T) => (has(r[k]) ? (r[k] as number) : -1);
+    !has(v) ? (
+      <span className="rec-na">–</span>
+    ) : isAvg ? (
+      Number(v).toFixed(1)
+    ) : (
+      // raw·sum 은 정수 그대로(누적도 정수). 소수 들어오면 반올림 표기.
+      Math.round(Number(v))
+    );
+  const sv = (k: string) => (r: T) => {
+    const v = pick(r, k);
+    return has(v) ? (v as number) : -1;
+  };
   const n = (k: string, label: string): RecColumn<T> => ({
     key: k,
     label,
     align: "right",
     sortVal: sv(k),
-    render: (r) => f(r[k]),
+    render: (r) => f(pick(r, k)),
   });
   // % 컬럼: 저장값(k) 없으면 makes(mk)/attempts(ak)로 산출
   const p = (k: string, label: string, mk: string, ak: string): RecColumn<T> => {
@@ -345,12 +394,16 @@ export function statCols<T extends RecRow>({ avg = false }: { avg?: boolean } = 
       },
     };
   };
-  const rebVal = (r: T): number | null =>
-    has(r.reb)
-      ? (r.reb as number)
-      : has(r.oreb) && has(r.dreb)
-        ? Math.round(((r.oreb as number) + (r.dreb as number)) * 10) / 10
-        : null;
+  // REB: sum 모드면 sum_reb / sum_oreb+sum_dreb, 아니면 reb / oreb+dreb.
+  const rebVal = (r: T): number | null => {
+    const reb = pick(r, "reb");
+    if (has(reb)) return reb as number;
+    const or = pick(r, "oreb");
+    const dr = pick(r, "dreb");
+    return has(or) && has(dr)
+      ? Math.round(((or as number) + (dr as number)) * 10) / 10
+      : null;
+  };
   return [
     n("min", "MIN"),
     {
@@ -359,9 +412,11 @@ export function statCols<T extends RecRow>({ avg = false }: { avg?: boolean } = 
       align: "right",
       sortVal: sv("pts"),
       render: (r) => {
-        if (!has(r.pts)) return <span className="rec-na">–</span>;
-        const pts = r.pts as number;
-        const hi = avg ? pts >= 15 : pts >= 20;
+        const ptsV = pick(r, "pts");
+        if (!has(ptsV)) return <span className="rec-na">–</span>;
+        const pts = ptsV as number;
+        // 하이라이트 임계값: 평균은 15, 정수(raw/sum 누적)는 20.
+        const hi = isAvg ? pts >= 15 : pts >= 20;
         return <b className={hi ? "rec-hi" : ""}>{f(pts)}</b>;
       },
     },
@@ -400,9 +455,11 @@ export function statCols<T extends RecRow>({ avg = false }: { avg?: boolean } = 
       align: "right",
       sortVal: sv("pm"),
       render: (r) => {
-        if (!has(r.pm)) return <span className="rec-na">–</span>;
-        const pm = r.pm as number;
-        const v = avg ? Number(pm).toFixed(1) : pm;
+        const pmV = pick(r, "pm");
+        if (!has(pmV)) return <span className="rec-na">–</span>;
+        const pm = pmV as number;
+        // 평균은 소수 1자리, raw/sum 누적은 정수 표기.
+        const v = isAvg ? Number(pm).toFixed(1) : Math.round(pm);
         const sign = pm > 0 ? "+" : "";
         const cls =
           pm > 0 ? "rec-pm rec-pm--pos" : pm < 0 ? "rec-pm rec-pm--neg" : "rec-pm";
