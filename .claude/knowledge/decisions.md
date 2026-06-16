@@ -2,6 +2,16 @@
 <!-- 담당: planner-architect | 최대 30항목 -->
 <!-- "왜 A 대신 B를 선택했는지" 기술 결정의 배경과 이유를 기록 -->
 
+### [2026-06-16] records 출전시간(MIN) = minutes-engine(PBP 재계산) 공용 함수 추출·재사용
+- **분류**: decision (출전시간 source 통일 / 기존 엔진 재사용 / 라이브 전처리 추출)
+- **발견자**: pm + live-expert (기록 Records 출전시간 이슈 / `90d67e7`)
+- **계기**: 기록실 MIN이 999.0/1056.4 등 비현실. 원인 = records가 `MatchPlayerStat.minutesPlayed`를 **분으로 착각해 직접 read**. 실제 그 컬럼은 **초 단위 + Flutter 999 truncate 버그**(16:39 초과를 999로 잘라 저장, 양수 데이터의 54%=813행 손상 / 기존 "999 cap fix 미해결 항목"). 종이(score-sheet)모드 대회는 minutesPlayed=0 하드코딩.
+- **핵심 결정(사용자)**: ÷60 단순변환/숨김 대신 **PBP 재계산(minutes-engine) 채택**. 사용자 지적 "출전시간 계산을 명확히 한 기존 작업이 있다" → 조사 결과 **minutes-engine v3(`calculateMinutes`/`applyCompletedCap`, test 21/21)가 정본**인데 라이브 화면만 쓰고 records/stats/v1은 raw 컬럼 직접 read(이원화)였음.
+- **구현 방식**: 라이브 route(`api/live/[id]`)에 인라인됐던 전처리(PBP 로드→qLen/numQuarters 추정→MinutesPbp 매핑→dbStartersByTeam→calculateMinutes→종료매치 home/away applyCompletedCap)를 **공용 함수 `getMatchMinutesBySec`(`src/lib/records/match-minutes.ts`)로 추출**. 엔진은 import 재사용(중복0, 무변경). 라이브는 공용함수 호출로 교체(`excludePaper:false`, **회귀 비트단위 동일 maxDiff=0**). records 3 route는 `excludePaper:true`로 종이매치 제외→'–'. `toRawBox(s,{minOverrideSec})` → `Math.round(초/60)` 분 변환.
+- **효과**: records MIN 현실값화 + 999 버그 자동 회피(minutesPlayed 미사용) + 라이브와 출전시간 일관성 자동 확보. N+1 0(PBP/stat/ttp IN 1회씩). DB 영구 컬럼 박제 안 함(온디맨드, STL 원칙). 잔여(stats/v1은 여전히 raw read — 후속 가능).
+- **대안 기각**: ÷60만(999도 16.6분 가짜 표시) / DB 캐시 컬럼(엔진 진화 시 stale) / 알고리즘 재구현(중복).
+- **참조횟수**: 0
+
 ### [2026-06-16] 팀 핵심 식별정보(로고/팀명) 변경 시 재검수(pending_review) 재세팅
 - **분류**: decision (Admin Console 팀 검수 워크플로 — 변경 시 재검수 정책)
 - **발견자**: pm + developer (의뢰서 갭 검증 후속 / `1bf805f`)
