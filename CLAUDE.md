@@ -62,7 +62,7 @@ git push origin subin
 
 ### "오늘 작업 시작하자" 체크리스트
 사용자가 **"오늘 작업 시작하자"** 류 말을 하면 본 작업 전 점검 + 승인 받기:
-1. `git remote -v` (github.com/bdr-tech/mybdr)
+1. `git remote -v` (github.com/cobby8/mybdr)
 2. `git fetch origin --prune` + main/dev/subin 차이
 3. 현재 브랜치가 subin인지
 4. `.env` 존재 + DATABASE_URL 키만 확인 (값 노출 금지) — 운영 DB 정상
