@@ -63,6 +63,26 @@ export interface BoxAvg {
   apg: number;
   spg: number;
   bpg: number;
+  // ── 누적(합계) 필드 ── STAGE B 갭 보완: sum 모드 토글이 읽는 정수 누적값.
+  //   aggregateBox 내부에서 이미 sum(k) 로 계산 중 → 출력에 함께 담기만(평균×G 역산 금지).
+  //   %·평점은 누적/평균 동일값이라 sum_ 별도 필드 없음(fg_pct 등 공용).
+  sum_min: number;
+  sum_pts: number;
+  sum_fgm: number;
+  sum_fga: number;
+  sum_tpm: number;
+  sum_tpa: number;
+  sum_ftm: number;
+  sum_fta: number;
+  sum_oreb: number;
+  sum_dreb: number;
+  sum_reb: number;
+  sum_ast: number;
+  sum_stl: number;
+  sum_blk: number;
+  sum_to: number;
+  sum_pf: number;
+  sum_pm: number;
 }
 
 const r1 = (n: number): number => Math.round(n * 10) / 10;
@@ -167,6 +187,24 @@ export function aggregateBox(rows: RawBox[]): BoxAvg {
     apg: ast,
     spg: stl,
     bpg: blk,
+    // 누적(합계) — sum(k) 원본 그대로(평균×G 역산 ❌). reb 는 oreb+dreb 합산 규칙 동일.
+    sum_min: sum("min"),
+    sum_pts: sum("pts"),
+    sum_fgm: sum("fgm"),
+    sum_fga: sum("fga"),
+    sum_tpm: sum("tpm"),
+    sum_tpa: sum("tpa"),
+    sum_ftm: sum("ftm"),
+    sum_fta: sum("fta"),
+    sum_oreb: sum("oreb"),
+    sum_dreb: sum("dreb"),
+    sum_reb: sum("oreb") + sum("dreb"),
+    sum_ast: sum("ast"),
+    sum_stl: sum("stl"),
+    sum_blk: sum("blk"),
+    sum_to: sum("tov"),
+    sum_pf: sum("pf"),
+    sum_pm: sum("pm"),
   };
 }
 

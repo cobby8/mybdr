@@ -25,6 +25,7 @@ import {
   statCols,
   type RecRow,
   type RecColumn,
+  type StatMode,
 } from "../../../_components/records/records-shared";
 
 // raw fetcher — snake_case 응답 그대로(camelCase 변환 안 함).
@@ -54,6 +55,12 @@ const SEG_OPTIONS = [
   { v: "game", l: "경기", ico: "sports_basketball" },
 ];
 
+// 평균/누적 토글 — 선수·팀 집계표 전용(경기 로그는 N/A).
+const AGG_OPTIONS = [
+  { v: "avg", l: "경기당", ico: "trending_up" },
+  { v: "sum", l: "합계", ico: "functions" },
+];
+
 const LEAD_CATS: {
   key: string;
   label: string;
@@ -77,6 +84,8 @@ export function TournamentRecordsTab({ tournamentId }: { tournamentId: string })
   );
   const [unit, setUnit] = useState<string>("player");
   const [leadCat, setLeadCat] = useState<string | null>(null);
+  // 집계 단위(평균/누적) — 선수·팀 표에 적용. 리더보드/경기 로그는 무관(평균 기준 유지).
+  const [aggMode, setAggMode] = useState<StatMode>("avg");
 
   // ESC 로 더보기 모달 닫기
   useEffect(() => {
@@ -161,11 +170,11 @@ export function TournamentRecordsTab({ tournamentId }: { tournamentId: string })
       ),
     },
     { key: "g", label: "G", align: "right" },
-    ...statCols<RecRow>({ avg: true }),
+    ...statCols<RecRow>({ mode: aggMode }),
   ];
 
   // 팀 집계 컬럼 — 표준 박스(MIN 제외) + 순위(승–패·실점·득실)
-  const teamSc = statCols<RecRow>({ avg: true }).filter((c) => c.key !== "min");
+  const teamSc = statCols<RecRow>({ mode: aggMode }).filter((c) => c.key !== "min");
   const teamCols: RecColumn<RecRow>[] = [
     {
       key: "name",
@@ -489,6 +498,14 @@ export function TournamentRecordsTab({ tournamentId }: { tournamentId: string })
 
       <div className="rec-toolbar">
         <RecSeg value={unit} onChange={setUnit} options={SEG_OPTIONS} />
+        {/* 평균/누적 토글 — 선수·팀 집계표에만. 경기 로그는 단일 경기라 N/A */}
+        {(unit === "player" || unit === "team") && (
+          <RecSeg
+            value={aggMode}
+            onChange={(v) => setAggMode(v as StatMode)}
+            options={AGG_OPTIONS}
+          />
+        )}
         {unit === "player" && (
           <span className="rec-toolbar__note">
             <span className="ico material-symbols-outlined">touch_app</span>
