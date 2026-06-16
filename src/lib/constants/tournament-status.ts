@@ -77,6 +77,11 @@ const NO_TIME_OVERRIDE = new Set([
   "upcoming",
   "final", // FINAL (소문자 비교)
   "preopen", // PREOPEN (소문자 비교)
+  // 2026-06-16: in_progress = 운영자가 명시적으로 "진행 중"으로 둔 강한 신호.
+  //   종료일(end_date)이 부정확/옛 값이어도(예: 열혈농구단 end=2024-06-27, 실제 진행 중)
+  //   날짜 경과로 "종료" 덮어쓰면 오표시 → 보정 제외. published 등 기본/접수 상태만 보정.
+  "in_progress",
+  "진행중",
 ]);
 
 /**

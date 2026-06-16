@@ -2,6 +2,76 @@
 <!-- 담당: planner-architect, developer | 최대 30항목 -->
 <!-- 프로젝트의 폴더 구조, 파일 역할, 핵심 패턴을 기록 -->
 
+### [2026-06-16] 기록(Records) 기능 데이터원 맵 + statCols 21컬럼 매핑 + 집계 재사용 자산
+- **분류**: architecture (선수/팀/대회 기록 탭 3화면 데이터 매핑 + 집계 엔진 재사용 + 신규 라우트)
+- **발견자**: planner-architect (기록 기능 박제 설계 / 운영 read-only · schema+코드 실측)
+- **내용**:
+  - **★statCols 21컬럼 = MatchPlayerStat(schema L794~845) 매핑**: 20/21 실재. minutesPlayed/points/fieldGoals*/field_goal_percentage/threePointers*/three_point_percentage/freeThrows*/free_throw_percentage/offensive_rebounds/defensive_rebounds/total_rebounds/assists/steals/blocks/turnovers/personal_fouls/plusMinus 전부 컬럼 존재(%컬럼 3종 포함). **평점(rating) 1개만 부재** → game_player_ratings(L1706·rating 1~5 매너평가·game_report 기반·매치 직접조인 어려움·척도 다름) / UserSeasonStat.avg_rating(L3095·Decimal 1~5·**0행** cron 미동작) 둘 다 부적합 → **null '–' 정직표기**(억지매핑 금지). **season_year 컬럼 없음** → scheduledAt.getFullYear() 파생(표준 패턴).
+  - **★집계 재사용 자산**: ① `stat-leaders.ts` `getStatLeaders(tournamentId)` = groupBy(tournamentTeamPlayerId) `_sum`{points/total_rebounds/assists/threePointersMade} 4부문 **누적 합 TOP3**. 시안은 6카테고리(+스틸/블록/3P%) **평균(PPG)** 요구 → 확장 필요. ② `my-season-stats.ts` `getMySeasonStats(userId, season)` = **MatchPlayerStat findMany 1건 + JS 가공** 패턴 완비(KPI 8칸·게임로그·승패판정 winner_team_id vs ttp.tournamentTeamId·상대팀명·클럽순위·시즌목록). 단 "본인 세션" 한정·KPI만 → 공개 프로필·21컬럼 박스는 로직 추출 재사용. ③ `official-match.ts` `officialMatchNestedFilter()`(MPS nested) / `officialMatchWhere()`(TournamentMatch findMany) — **매 집계 필수**. 기존 종료뷰 `tournament-stat-leaders-card.tsx`(4종 누적) 보존.
+  - **★탭 구조 실측**: 대회 `tournaments/[id]/_components/tournament-tabs.tsx` = **?tab= 지원**(L366~380·page.tsx ALLOWED_TABS L117)·lazy SWR(records 탭 추가 시 TabKey union/TAB_META/조건부렌더/ALLOWED_TABS 4곳). 팀 `teams/[id]/_components_v2/team-tabs-v2.tsx` + page.tsx(L70~84) = **?tab= 지원**(Link href)·서버조회·**이미 "기록"라벨 stats탭(StatsTabV2) 존재**(중복 주의). 선수 `users/[id]/_v2/profile-tabs.tsx` = **?tab= 미지원**(local state 2탭 overview/games·주석 "2개뿐이라 단순화")·SSR prefetch(page.tsx L99~116 Promise.all 12종). `/api/v1/tournaments/[id]/player-stats` = **withAuth JWT 가드(공개 아님)** → 공개 기록실 재사용 불가.
+  - **신규 라우트(설계)**: `GET /api/web/tournaments/[id]/records`(공개·공식가드·선수/팀/경기 집계) / `GET /api/web/users/[id]/records?scope=games|tournaments|seasons`(또는 서버헬퍼 직주입) / `GET /api/web/teams/[id]/records?scope=...`(Team.id→TournamentTeam→TournamentMatch→MPS·**대회 경기 한정**·친선/픽업 박스 없음). 신규 lib `src/lib/records/match-stat-aggregate.ts`(21컬럼 box 집계 PURE). 공통 컴포넌트 `records-shared.tsx`(statCols·RecTable·Lnk·.rec- prefix 격리·충돌0). 설계서=`Dev/records-feature-plan-2026-06-16.md`.
+- **참조횟수**: 0
+
+### [2026-06-15] Admin Console S1-5 — 통합 인박스 디스패처 1 API (inbox/[id]/resolve)
+- **분류**: architecture (S2 union 인박스 항목을 도메인 무관 단일 엔드포인트로 처리하는 디스패처 패턴)
+- **발견자**: developer (Admin Console S1-5 구현)
+- **내용**:
+  - **신규 1 POST 라우트** `api/web/admin/inbox/[id]/resolve` — `getWebSession()` + `isSuperAdmin` 통합가드 403, schema 0·api/v1 0. **기존 6도메인 처리 라우트·inbox(목록) 전부 미수정**(신규 1파일만 — 멀티세션 안전).
+  - **id 디스패치 규약**: 요청 path id = S2 인박스 item.id 와 동일한 `"<domain>:<refId>"` 형식. `indexOf(":")` 로 첫 콜론 분해(refId 콜론 포함 대비). refId 는 지원 5도메인 전부 BigInt PK → 공통 `BigInt()` 변환(인박스 union 시 `.toString()` 박제와 정합).
+  - **6도메인 switch(검증 1:1 복제)**: game_reports(resolve/dismiss·submitted만)·community_posts(hide/restore)·organizations(approve/reject·pending만·★reject reason 필수)·court_submissions(approve/reject·pending만)·payments(approve/reject·refund_status=requested만)·teams(400 UNSUPPORTED_DOMAIN). 각 도메인 body Zod 화이트리스트로 분기 검증.
+  - **★court (A) 내부 복제 채택**: 기존 court-submissions PATCH 라우트를 import 하지 않고 승인 트랜잭션(court_infos.create + court_submit XP + approved_court_info_id 역참조)을 디스패처 내부에 복제. 결합도/회귀 위험 0 — 기존 PATCH 무수정. mapCourtType/region split 동일 복제.
+  - **★payments status-only**: 환불 요청 승인/반려 = `refund_status` 컬럼만 requested→approved|rejected 전환. 실제 PG(토스) 환불 fetch 0 / `refund_amount`·`refunded_at`·`status` 미접촉. 사용자용 `payments/[id]/refund`(실제 환불·status=refunded)와 **완전 별개 의도**. adminLog severity:warning(금전 강조). 멱등 = requested 건만 처리.
+  - **에러코드 체계**: BAD_ITEM_ID(id 형식)·UNSUPPORTED_DOMAIN(teams)·UNKNOWN_DOMAIN·VALIDATION_ERROR·NOT_FOUND·INVALID_STATE·REASON_REQUIRED(organizations reject). 가드는 isSuperAdmin 통일(organizations 기존 라우트의 canManageOrganizations 대신 디스패처 표준).
+- **참조횟수**: 0
+
+### [2026-06-15] Admin Console S1 — 큐 처리 뮤테이션 3 API (resolve/respond/moderate)
+- **분류**: architecture (admin 콘솔 큐 항목 처리 액션 엔드포인트 + adminLog-only 메모 패턴)
+- **발견자**: developer (Admin Console S1 구현)
+- **내용**:
+  - **신규 3 POST 라우트** (셋 다 `getWebSession()` + `isSuperAdmin` 가드→비통과 403, Zod 검증, `adminLog`, `apiSuccess` snake 자동변환, schema 0·api/v1 미접촉):
+    - `api/web/admin/game-reports/[id]/resolve` — Zod{action:resolve|dismiss, memo?, notify?}. game_reports `submitted`만 처리(중복방어 INVALID_STATE)→status resolved|dismissed.
+    - `api/web/admin/suggestions/[id]/respond` — Zod{status:in_progress|resolved|dismissed, admin_response?, notify?}. status+admin_response+responded_by_id(=session.sub)+responded_at(now) 갱신.
+    - `api/web/admin/community/[id]/moderate` — Zod{action:hide|restore, reason?}. community_posts status hidden|published(default published). 기존 community admin status변경 미지원 실측→신규.
+  - **adminLog-only 메모 패턴**: game_reports에 memo 컬럼 부재 / community moderation reason 컬럼 부재 → 둘 다 DB는 status만 update, memo/reason은 `adminLog.changesMade`에만 박제(감사 추적). DB 스키마 ADD 회피.
+  - **notify (A)보류 규약**: notify 파라미터는 Zod로 수신하되 `createNotification` 호출 0. "후속 NotificationType 정비 시 발송" 주석 위치만 박제 — 알림 정비 전 표준 처리.
+  - **session narrowing**: isSuperAdmin(session) 가드는 TS에서 session 타입을 좁히지 못함 → `session!.sub`(non-null assertion) 필요(BigInt(session.sub) 사용처). court-submissions는 `session.role` 직접 체크라 narrowing 됨(차이).
+- **참조횟수**: 0
+
+### [2026-06-15] Admin Console S2 — overview/inbox 2 집계 API (KPI + 통합 인박스)
+- **분류**: architecture (admin 콘솔 메인 집계 엔드포인트 + 6소스 union 패턴)
+- **발견자**: developer (Admin Console S2 구현)
+- **내용**:
+  - **신규 2라우트** (둘 다 `getWebSession()` + `isSuperAdmin(@/lib/auth/is-super-admin)` 가드 → 비통과 403, `apiSuccess` snake 자동변환, 읽기 전용·schema 0·api/v1 미접촉):
+    - `GET /api/web/admin/overview` → `{ kpis, queue }`. KPI 4종 = **new_users**(User.createdAt≥KST오늘0시·trend 7일 day-bucket·delta=오늘-어제) / **active_games**(games.status `in [1,2]`·delta null) / **month_revenue**(payments status="paid"+paid_at≥KST이번달1일 `_sum.final_amount`·**Decimal→Number 변환**·delta null) / **recruiting_tournaments**(Tournament.status `in` 화이트리스트 6종 registration·registration_open·published·open·active·opening_soon·delta null). queue 6종 count = game_reports(submitted) / community_posts(**draft**=검수대기) / **teams=0**(DB 미지원·팀승인큐 모델 부재) / payments(refund_status="requested") / court_submissions(pending) / organizations(pending).
+    - `GET /api/web/admin/inbox` → `{ items, next_cursor }`. **6소스 메모리 union** 패턴(각 소스 take 200 후 정규화→정렬→slice). item = `{ id:"<domain>:<refId>", domain, route, severity, priority, title, sub, created_at, snoozed_until:null }`. severity 매핑: game_reports/payments=**err** / community_posts=**warn** / court_submissions/organizations=**blue**. priority 가중치 err0<warn1<blue2. 정렬 `sort=priority`(가중치 asc→created_at asc) / `sort=age`(created_at asc). 필터 `domain`/`severity`. **cursor=정렬 후 인덱스**(BigInt 커서 아님·union이라 단일 정렬키 부재)·PAGE_SIZE 50. title: game_reports="경기 평가 #id" / community_posts=title / court_submissions·organizations=name.
+  - **KST 경계 PURE 유틸**(overview 내부): `kstMidnightUtc(base)`·`kstMonthStartUtc(base)` = UTC+9 환산 후 Date.UTC로 KST 자정/월초 구성→-9h 재환산. cron의 kstMidnightUtc와 동형 원리.
+  - **함정 회피**: payments.final_amount=Decimal(Prisma)→`Number()` 직렬화. 모든 id BigInt→`toString()`. organizations.name/community_posts.title null폴백("#id"). 7일 trend는 DB date 캐스팅 회피 위해 findMany→코드 day-bucket(KST키).
+- **참조횟수**: 0
+
+### [2026-06-15] 대회 종료 통합 흐름 + champion_team_id/winner_team_id FK 체계 + cron 표준 패턴
+- **분류**: architecture (매치 종료 단일 진입점 + 우승팀 박제 + cron 인프라)
+- **발견자**: planner-architect (대회종료 후속3종 설계 / 운영 read-only)
+- **내용**:
+  - **★매치 종료 단일 진입점 = `finalizeMatchCompletion`** (`src/lib/tournaments/finalize-match-completion.ts`). 종료 path **5종**(admin PATCH / Flutter sync 단건 / batch-sync / score-sheet BFF / Flutter status PATCH)이 전부 이 헬퍼 1회 호출(2026-05-16 PR-G5.5-followup-B 통합·errors "sync path 우회 5회재발" 차단). 내부 4단계: ①updateTeamStandings(sequential) ②advanceWinner/progressDualMatch ③advanceDivisionPlaceholders/advanceTournamentPlaceholders ④`checkAndAutoCompleteTournament`(L180). 2~4 = Promise.allSettled 병렬. **신규 종료 후처리(우승팀 등)는 여기 통합**(개별 path 박제❌).
+  - **★champion_team_id = Team.id FK ≠ winner_team_id = TournamentTeam.id FK (변환 함정)**: `Tournament.champion_team_id`(schema L322·BigInt?·NULL·@relation Team L353) = **Team.id** 참조. `TournamentMatch.winner_team_id`(schema L746·@relation TournamentTeam) = **TournamentTeam.id** 참조. 결승 승자(winner_team_id)를 champion에 넣으려면 **`tt.teamId` 변환 필수**(그대로 넣으면 FK 깨짐). `mvp_player_id`(L357)=User FK. **champion_team_id SET 코드 = 운영 0건**(읽기만 9파일: tournaments/[id]·awards·completed·profile/basketball 등). 수동 박제 or 신규 유틸 대상.
+  - **★결승 매치 식별 표준 = awards/page.tsx L131-138 패턴**: `FINAL_ROUND_KEYWORDS=["결승","final","finals","championship"]` roundName LIKE(insensitive) + winner_team_id NOT NULL → scheduledAt desc take1. 폴백=`next_match_id IS NULL`(단 예선도 null 가능→roundName 1순위·next_match_id 보조).
+  - **포맷별 순위 헬퍼**: `getDivisionStandings`(division-advancement.ts L70·종별 groupRank·gnba/default 분기) / `calculateLeagueRanking`(tournament-seeding.ts L108·round_number=null 리그만·RankedTeam[] rank 1부터) / `updateTeamStandings`(update-standings.ts·SET idempotent). format 값(schema L288 default single_elimination): single_elimination/full_league_knockout/group_stage_knockout/dual_tournament/round_robin/group_stage/swiss/double_elimination. KNOCKOUT_FORMATS=[full_league_knockout, group_stage_knockout](auto-complete.ts L33·결선 별도생성=종료가드 대상).
+  - **★cron 표준 패턴**(`src/app/api/cron/*` 11개·vercel.json crons 배열): ①Bearer `CRON_SECRET` 가드(`authHeader !== Bearer ${CRON_SECRET}` → 401) ②updateMany 일괄(WHERE status 재확인=race방지) ③admin_logs.createMany audit(action/severity/changes_made) ④`resolveSystemAdminId`(super_admin 첫번째·admin_id NOT NULL FK·모듈캐시) ⑤0건 → 200 idle. 대표=stale-pending-fix/route.ts. vercel.json schedule UTC(KST-9h).
+  - `checkAndAutoCompleteTournament`(auto-complete.ts L62) 반환 `{updated, reason, finished, total}` — updated:true = 이번 호출에 종료 trigger 발생(후처리 분기 신호).
+- **참조횟수**: 0
+
+### [2026-06-15] 팀 매치제안(scrim) / 가입신청(team-invite) 모델·API 맵 + populated 실측
+- **분류**: architecture (team_match_requests / team_join_requests / TeamMemberRequest 3모델 + 박제전략)
+- **발견자**: planner-architect (PR-MOCK-TO-REAL ④⑤ 실측 / 운영 read-only)
+- **내용**:
+  - **★`team_match_requests`(schema L503) = scrim 정합 + 백엔드 완비 + populated 0행**: from_team→to_team **친선/연습경기 제안**(주석 명시). 필드 from_team_id/to_team_id/proposer_id/message/preferred_date/status(pending·accepted·rejected·cancelled). 인덱스 `[to_team_id,status]`(인박스)·`[from_team_id]`(보낸함). **API 3종 완비**: `teams/[id]/match-requests`GET(받은제안·[id]=to_team)·`teams/[id]/match-request`POST(생성+to captain 알림+pending중복차단·IDOR from운영진검증)·`teams/[id]/match-request/[reqId]`PATCH(accept·reject=to captain / cancel=from). **단 GET은 to_team 기준만 → 보낸함은 from_team_id 필터 GET 확장 필요**. **운영 count=0행**(인프라완성·데이터0=빈상태 / lessons[06-14] 테이블존재≠populated 직접케이스). 시안 "상대찾기"(공개모집) 탭은 모델대응 없음(1:1 제안만)=부분.
+  - **★`team_join_requests`(schema L2019) = 유저→팀 가입신청(초대 아님)**: team_id/user_id/status(pending·approved·rejected)/message/preferred_position/preferred_jersey_number/processed_by_id. **토큰·만료·inviter·invited_user 필드 전무**. 시스템 전반(my-application·me/activity·my-pending-requests-card)이 "가입신청"으로만 사용. **운영 238행**(approved215/rej18/pend5). 시안 team-invite(팀→유저 초대 수락)와 **방향 반대 = 억지매핑 STOP**.
+  - **`TeamMemberRequest`(schema L3165) = jersey_change/dormant/withdraw**(등번호·휴면·탈퇴 신청). 초대·가입 무관. 운영 6행.
+  - **현 박제 상태**: `/scrim`(page.tsx)·`/team-invite`(page.tsx+_v2/team-invite-client.tsx) 둘 다 Phase12 B에서 "준비중 .ex-empty" 박제. /scrim 주석 "scrim_* 부재"는 **prefix오판**(team_match_requests 실재). team-invite "TeamInvitation 미존재"는 결론적 정확(초대모델 부재).
+  - **내 운영팀 해소 패턴(재사용)**: `me/activity/route.ts` — `captainId===me` 1순위 + team_members.role∈{captain,vice,manager} fallback(role 비표준값 섞임).
+  - 설계 산출물 = `Dev/scrim-teaminvite-realdata-plan-2026-06-14.md`.
+- **참조횟수**: 0
+
 ### [2026-06-14] 사전 라인업 확정 (/lineup-confirm) 구조 + 앱정합 3-state 매핑
 - **분류**: architecture (라인업 페이지 컴포넌트 맵 + DB 매핑)
 - **발견자**: planner-architect (PR-LINEUP-V2 설계)
@@ -638,4 +708,10 @@
 - **분류**: architecture
 - **발견자**: planner-architect
 - **내용**: Tournament(tournaments, id=uuid) Hard 삭제 시 FK 정리 의존성. Tournament 직접 자식 8종: tournament_admin_members(NoAction), tournament_teams(NoAction), tournament_matches(NoAction), tournament_bracket_versions(NoAction), tournament_sites(NoAction), tournament_division_rules(NoAction/onDelete미지정), site_registrations(**Cascade**), tournament_recorders(**Cascade**). 손자: tournament_matches→ {play_by_plays(NoAction), match_player_stats(NoAction), match_lineup_confirmed(NoAction), match_events(Cascade), match_player_jersey(Cascade), news_photos(Cascade), news_publish_attempts(Cascade), tournament_match_audits(Cascade)}. tournament_teams→ {tournament_team_players(NoAction), play_by_plays(NoAction), match_player_jersey via ttp}. tournament_team_players→ {match_player_stats(NoAction), play_by_plays(NoAction), match_player_jersey(Cascade)}. tournament_sites→ site_pages(NoAction)→ site_sections(NoAction). 핵심: NoAction 체인을 손자→자식→Tournament 역순으로 명시 delete 필요. Cascade는 부모 삭제 시 자동(명시 불필요). 순환참조: tournament_matches.next_match_id 자기참조(NoAction) — deleteMany 전체 묶음 삭제이므로 무해. SetNull: tournament_team_players.claimed_user_id/child_profile_id(User/ChildProfile 측 삭제 시만 발동, Tournament 삭제와 무관). series_id≠null이면 tournament_series.tournaments_count -1 유지. 삭제순서 의사코드는 src/app/api/web/tournaments/[id]/route.ts 233-341줄 DELETE 핸들러 Hard 분기에 적용 예정.
+- **참조횟수**: 0
+
+### [2026-06-15] 팀 검수(team review) 흐름 — Admin Console S1-4
+- **분류**: architecture
+- **발견자**: developer
+- **내용**: 신규 팀 생성 시 Team.status="pending_review"(actions/teams.ts). 검수 상태 3종 단일 source = `src/lib/constants/team-status.ts`(TEAM_STATUS active/pending_review/rejected + teamReviewQueueWhere). 가시성(옵션2): 공개목록 GET /api/web/teams = 비로그인/타인 `{status:active,is_public:true}`(현행 회귀0) / 로그인 OR[active+public, pending+captainId=나, pending+teamMembers.some.userId=나]. where는 AND배열로 가시성+q+city 결합(OR 충돌 방지). groupBy 도시목록은 active만 유지. 상세 page.tsx 본조회 직후 가드: status!=="active"면 본인(captainId or active멤버)만, 그외 notFound. 검수 처리 API = POST /api/web/admin/teams/[id]/review {action:approve|reject,reason?} super_admin·pending_review만→active|rejected. S2 콘솔 연동 3파일: overview queue.teams=team.count(teamReviewQueueWhere) / inbox teams 소스(severity blue·/admin/teams) / inbox/[id]/resolve 디스패처 teams case(review 로직 인라인 복제·라우트 import 0, court 동형). reason은 teams 전용컬럼 부재→adminLog.changesMade. schema 0(status VarChar 그대로)·active 소급 0. 실측 필드: Team.captainId(BigInt @map captain_id) / Team.teamMembers(TeamMember[], userId @map user_id) / Team.createdAt(@map created_at).
 - **참조횟수**: 0
