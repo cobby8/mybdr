@@ -19,6 +19,11 @@
 import { prisma } from "@/lib/db/prisma";
 import { officialMatchNestedFilter } from "@/lib/tournaments/official-match";
 import { toRawBox, aggregateBox, type BoxAvg } from "@/lib/records/match-stat-aggregate";
+// 2026-06-16: PBP 기반 출전시간 (라이브와 단일 source). minutesPlayed(999 버그/종이 0) 미사용.
+import {
+  getMatchMinutesBySec,
+  buildMatchMinutesMeta,
+} from "@/lib/records/match-minutes";
 
 // ── 경기별 행(raw 정수 박스 + 메타) ──
 export interface PlayerGameRow {
@@ -90,13 +95,15 @@ interface StatRow {
   turnovers: number | null;
   personal_fouls: number | null;
   plusMinus: number | null;
-  tournamentTeamPlayer: { tournamentTeamId: bigint | null } | null;
+  tournamentTeamPlayer: { id: bigint; tournamentTeamId: bigint | null } | null;
   tournamentMatch: {
     id: bigint;
     scheduledAt: Date | null;
     homeTeamId: bigint | null;
     awayTeamId: bigint | null;
     winner_team_id: bigint | null;
+    status: string | null;
+    settings: import("@prisma/client").Prisma.JsonValue | null;
     homeTeam: { team: { id: bigint; name: string } | null } | null;
     awayTeam: { team: { id: bigint; name: string } | null } | null;
     tournament: { id: string; name: string } | null;
@@ -145,7 +152,7 @@ export async function getPlayerRecords(userId: bigint): Promise<PlayerRecordsRes
         turnovers: true,
         personal_fouls: true,
         plusMinus: true,
-        tournamentTeamPlayer: { select: { tournamentTeamId: true } },
+        tournamentTeamPlayer: { select: { id: true, tournamentTeamId: true } },
         tournamentMatch: {
           select: {
             id: true,
@@ -153,6 +160,9 @@ export async function getPlayerRecords(userId: bigint): Promise<PlayerRecordsRes
             homeTeamId: true,
             awayTeamId: true,
             winner_team_id: true,
+            // 2026-06-16: PBP 출전시간 공용 함수용 — status(cap 분기) / settings(paper 판별)
+            status: true,
+            settings: true,
             homeTeam: { select: { team: { select: { id: true, name: true } } } },
             awayTeam: { select: { team: { select: { id: true, name: true } } } },
             tournament: { select: { id: true, name: true } },
@@ -165,6 +175,38 @@ export async function getPlayerRecords(userId: bigint): Promise<PlayerRecordsRes
 
   // tournamentMatch 가 NULL 이면 제외 (안전)
   const valid = rows.filter((r) => r.tournamentMatch != null);
+
+  // 2026-06-16: PBP 기반 출전초 일괄 산출 (라이브와 단일 source). 종이/PBP없음 매치는 결과 제외 → min '–'.
+  //   매치 중복 제거(선수 1행/매치) → buildMatchMinutesMeta 가 매치별 home/away 로스터 cap 처리.
+  const matchMetaInput = Array.from(
+    new Map(
+      valid.map((r) => {
+        const m = r.tournamentMatch!;
+        return [
+          m.id.toString(),
+          {
+            id: m.id,
+            homeTeamId: m.homeTeamId,
+            awayTeamId: m.awayTeamId,
+            status: m.status,
+            settings: m.settings,
+          },
+        ];
+      }),
+    ).values(),
+  );
+  const minutesMeta = await buildMatchMinutesMeta(matchMetaInput);
+  const minutesBySec = await getMatchMinutesBySec(
+    matchMetaInput.map((m) => m.id),
+    minutesMeta,
+  );
+  // (StatRow) → 출전초. ttp.id + matchId 로 조회. 부재 시 null → toRawBox min=0.
+  const minSecOf = (r: StatRow): number | null => {
+    const m = r.tournamentMatch;
+    const ttpId = r.tournamentTeamPlayer?.id;
+    if (!m || ttpId == null) return null;
+    return minutesBySec.get(Number(m.id))?.get(ttpId) ?? null;
+  };
 
   // 3) games — 매치별 raw 행
   const games: PlayerGameRow[] = valid.map((r) => {
@@ -187,7 +229,7 @@ export async function getPlayerRecords(userId: bigint): Promise<PlayerRecordsRes
     // 상대팀(반대 side)
     const oppTeam =
       side === "home" ? m.awayTeam?.team : side === "away" ? m.homeTeam?.team : null;
-    const box = toRawBox(r);
+    const box = toRawBox(r, { minOverrideSec: minSecOf(r) });
     return {
       match_id: m.id.toString(),
       date: m.scheduledAt ? m.scheduledAt.toISOString() : "",
@@ -216,7 +258,7 @@ export async function getPlayerRecords(userId: bigint): Promise<PlayerRecordsRes
       e = { name: m.tournament?.name ?? "-", boxes: [], dates: [], w: 0, l: 0 };
       byTn.set(tid, e);
     }
-    e.boxes.push(toRawBox(r));
+    e.boxes.push(toRawBox(r, { minOverrideSec: minSecOf(r) }));
     if (m.scheduledAt) e.dates.push(m.scheduledAt);
     const g = games[i];
     if (g.result === "W") e.w++;
@@ -247,7 +289,7 @@ export async function getPlayerRecords(userId: bigint): Promise<PlayerRecordsRes
     if (!m.scheduledAt) continue;
     const y = m.scheduledAt.getFullYear();
     const arr = bySeason.get(y) ?? [];
-    arr.push(toRawBox(r));
+    arr.push(toRawBox(r, { minOverrideSec: minSecOf(r) }));
     bySeason.set(y, arr);
   }
   const seasons: PlayerSeasonRow[] = [...bySeason.entries()]

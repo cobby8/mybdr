@@ -2,6 +2,15 @@
 <!-- 담당: planner-architect | 최대 30항목 -->
 <!-- "왜 A 대신 B를 선택했는지" 기술 결정의 배경과 이유를 기록 -->
 
+### [2026-06-16] 팀 핵심 식별정보(로고/팀명) 변경 시 재검수(pending_review) 재세팅
+- **분류**: decision (Admin Console 팀 검수 워크플로 — 변경 시 재검수 정책)
+- **발견자**: pm + developer (의뢰서 갭 검증 후속 / `1bf805f`)
+- **계기**: Admin Console S1-4 팀 검수(`46c1cf9`)가 "팀 **생성** 시 pending_review"만 세팅 → 한 번 승인(active)된 팀이 로고/팀명을 바꿔도 재검수 큐에 안 올라오는 갭 발견(의뢰서 2-4-2 "생성 + 로고/대표정보 변경 흐름" 요구).
+- **결정**: 팀 PATCH(`api/web/teams/[id]/route.ts`)에서 **핵심 식별정보(name/name_en/logoUrl)가 실제로 값 변경** AND **현재 status=active**일 때만 `pending_review`로 되돌림.
+- **대안 비교**: (a 전부 재검수)=로고만 바꿔도 목록에서 숨겨지는 UX 부작용 / (c 현행 유지)=오남용 정보가 재검수 회피 → **(b) 핵심 식별정보 한정** 채택(균형). 색상·설명·위치 등 경미 변경 및 동일값 PATCH는 미접촉, 이미 pending_review/rejected는 보호.
+- **구현**: findUnique select에 비교용 name/name_en/logoUrl 추가 + `identityChanged && status===ACTIVE` 분기 1줄 ADD. 빈문자열→null Zod 정합. adminLog 불필요(사용자 액션). 스키마 0. tester 6/6·reviewer 통과. main 반영(PR#711/#712). 동반 갭②=프로필 대회목록 종료일 `effectiveTournamentStatus` 보정(`7cfe0a8` — 지정 `tournaments-section.tsx`는 dead code였고 실파일은 `profile/basketball/page.tsx`).
+- **참조횟수**: 0
+
 ### [2026-06-15] 버킷B P1-a 코트 제보 — 신규 court_submissions 테이블 채택 (기존 재사용 불가)
 - **분류**: decision (데이터부재 페이지 / 신규 테이블 vs 재사용)
 - **발견자**: planner + pm (`d86bbc5`+`a20cdd0`+`abef30c`)

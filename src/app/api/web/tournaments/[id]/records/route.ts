@@ -9,6 +9,11 @@ import {
   aggregateTeamBox,
   type RawBox,
 } from "@/lib/records/match-stat-aggregate";
+// 2026-06-16: PBP 기반 출전시간 (라이브와 단일 source). minutesPlayed(999 버그/종이 0) 미사용.
+import {
+  getMatchMinutesBySec,
+  buildMatchMinutesMeta,
+} from "@/lib/records/match-minutes";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -50,6 +55,9 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
       winner_team_id: true,
       roundName: true,
       scheduledAt: true,
+      // 2026-06-16: PBP 출전시간 공용 함수용 — status(cap 분기) / settings(paper 판별)
+      status: true,
+      settings: true,
     },
     orderBy: { scheduledAt: "asc" },
   });
@@ -83,6 +91,13 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
   }
 
   const matchIds = matches.map((m) => m.id);
+
+  // 2026-06-16: PBP 기반 출전초 일괄 산출 (라이브와 단일 source). 종이/PBP없음 매치는 결과 제외 → min '–'.
+  const minutesMeta = await buildMatchMinutesMeta(matches);
+  const minutesBySec = await getMatchMinutesBySec(matchIds, minutesMeta);
+  // (matchId, ttpId) → 출전초 헬퍼. 부재 시 null → toRawBox 가 min=0 처리.
+  const getMinSec = (matchId: bigint, ttpId: bigint): number | null =>
+    minutesBySec.get(Number(matchId))?.get(ttpId) ?? null;
 
   // 4) 매치 선수 stat (공식 매치 한정) + ttp 메타
   const stats = await prisma.matchPlayerStat.findMany({
@@ -138,7 +153,8 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
     if (!ttp) continue;
     const ttpId = ttp.id.toString();
     const ttId = ttp.tournamentTeam?.id?.toString() ?? null;
-    const box = toRawBox(s);
+    // PBP 출전초 주입 (라이브와 동일 변환 min=Math.round(sec/60)). 종이/PBP없음 = null → min '–'.
+    const box = toRawBox(s, { minOverrideSec: getMinSec(s.tournamentMatchId, ttp.id) });
 
     // 선수
     let pa = playerAcc.get(ttpId);
