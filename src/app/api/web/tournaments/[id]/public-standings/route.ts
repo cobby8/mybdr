@@ -3,6 +3,8 @@ import { prisma } from "@/lib/db/prisma";
 import { apiSuccess, apiError } from "@/lib/api/response";
 // Phase 3: scheduledAt 가드만 사용 (status는 [completed, in_progress, live] 유지해야 함)
 import { pastOrOngoingSchedule } from "@/lib/tournaments/official-match";
+// 비공개 대회 노출 차단 가드 (SSR page.tsx와 동일 정책 — insider 외 404).
+import { blockIfPrivateTournament } from "@/lib/auth/private-tournament-guard";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -17,6 +19,11 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
 
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
     return apiError("Invalid tournament ID", 400);
+  }
+
+  // 비공개 대회: 관계자(insider) 외 존재 숨김(404). 공개 대회는 통과.
+  if (await blockIfPrivateTournament(id)) {
+    return apiError("Tournament not found", 404);
   }
 
   // 1) 대회 상태 + 참가팀 + 완료/진행중 경기를 병렬로 조회 (DB 왕복 1회로 최적화)

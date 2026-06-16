@@ -132,7 +132,12 @@ export async function getPlayerRecords(userId: bigint): Promise<PlayerRecordsRes
     .findMany({
       where: {
         tournamentTeamPlayer: { userId },
-        tournamentMatch: officialMatchNestedFilter(),
+        // 공식가드 + 비공개 대회(is_public=false) 매치 제외.
+        // { not: false }: 공개(true)·미설정(null) 통과, 비공개(false)만 제외(회귀 0).
+        tournamentMatch: {
+          ...officialMatchNestedFilter(),
+          tournament: { is_public: { not: false } },
+        },
       },
       select: {
         minutesPlayed: true,

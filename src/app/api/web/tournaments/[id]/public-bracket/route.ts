@@ -8,6 +8,8 @@ import { getDisplayName } from "@/lib/utils/player-display-name";
 //   강남구협회장배 같은 다종별 대회에서 공개 bracket 탭에 종별 view 노출용.
 //   getDivisionStandings 는 Promise.all 안에서 종별별 1쿼리 (admin 동등 부담).
 import { getDivisionStandings, type DivisionStanding } from "@/lib/tournaments/division-advancement";
+// 비공개 대회 노출 차단 가드 (SSR page.tsx와 동일 정책 — insider 외 404).
+import { blockIfPrivateTournament } from "@/lib/auth/private-tournament-guard";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -29,10 +31,15 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
   const tournament = await prisma.tournament.findUnique({
     where: { id },
     // 2026-05-17 — settings 추가 SELECT (points_rule 분기 — 강남구 P 컬럼 노출 결정).
-    select: { name: true, venue_name: true, city: true, entry_fee: true, format: true, status: true, settings: true },
+    select: { name: true, venue_name: true, city: true, entry_fee: true, format: true, status: true, settings: true, is_public: true },
   });
 
   if (!tournament) {
+    return apiError("Tournament not found", 404);
+  }
+
+  // 비공개 대회: 관계자(insider) 외 존재 숨김(404). 공개 대회는 통과.
+  if (await blockIfPrivateTournament(id, tournament.is_public)) {
     return apiError("Tournament not found", 404);
   }
 

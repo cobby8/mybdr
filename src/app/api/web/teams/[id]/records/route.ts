@@ -60,6 +60,9 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
       OR: [{ homeTeamId: { in: ttIds } }, { awayTeamId: { in: ttIds } }],
       homeTeamId: { not: null },
       awayTeamId: { not: null },
+      // 비공개 대회(is_public=false) 매치 제외 — 팀 기록에 비공개 대회 노출 금지.
+      // { not: false }: 공개(true)·미설정(null) 통과, 비공개(false)만 제외(회귀 0).
+      tournament: { is_public: { not: false } },
     }),
     select: {
       id: true,
