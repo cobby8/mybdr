@@ -15,6 +15,7 @@ import { useState, useEffect } from "react";
 import useSWR from "swr";
 import {
   RecSeg,
+  RecAggToggle,
   RecTable,
   RecEmpty,
   RecLoading,
@@ -57,8 +58,8 @@ const SEG_OPTIONS = [
 
 // 평균/누적 토글 — 선수·팀 집계표 전용(경기 로그는 N/A).
 const AGG_OPTIONS = [
-  { v: "avg", l: "경기당", ico: "trending_up" },
-  { v: "sum", l: "합계", ico: "functions" },
+  { v: "avg", l: "평균" },
+  { v: "sum", l: "누적" },
 ];
 
 const LEAD_CATS: {
@@ -498,14 +499,6 @@ export function TournamentRecordsTab({ tournamentId }: { tournamentId: string })
 
       <div className="rec-toolbar">
         <RecSeg value={unit} onChange={setUnit} options={SEG_OPTIONS} />
-        {/* 평균/누적 토글 — 선수·팀 집계표에만. 경기 로그는 단일 경기라 N/A */}
-        {(unit === "player" || unit === "team") && (
-          <RecSeg
-            value={aggMode}
-            onChange={(v) => setAggMode(v as StatMode)}
-            options={AGG_OPTIONS}
-          />
-        )}
         {unit === "player" && (
           <span className="rec-toolbar__note">
             <span className="ico material-symbols-outlined">touch_app</span>
@@ -521,6 +514,16 @@ export function TournamentRecordsTab({ tournamentId }: { tournamentId: string })
           <span className="rec-toolbar__note">
             <span className="ico material-symbols-outlined">touch_app</span>경기 → 박스스코어
           </span>
+        )}
+        {/* 평균/누적 토글 — 우측 정렬(margin-left:auto). 선수·팀 집계표에만(경기 로그 N/A) */}
+        {(unit === "player" || unit === "team") && (
+          <div style={{ marginLeft: "auto" }}>
+            <RecAggToggle
+              value={aggMode}
+              onChange={(v) => setAggMode(v as StatMode)}
+              options={AGG_OPTIONS}
+            />
+          </div>
         )}
       </div>
 

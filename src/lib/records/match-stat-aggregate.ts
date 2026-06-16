@@ -36,7 +36,9 @@ export interface RawBox {
 /** 표준 박스 평균 DTO (snake_case = 시안 statCols 키) */
 export interface BoxAvg {
   g: number;
-  min: number;
+  // min: 출전시간. 종이(score-sheet) 모드 대회는 minutesPlayed=0 하드코딩이라
+  //   집계 단위 전체가 0이면 데이터 부재 → null('–' 표기, 평점 정책과 동일).
+  min: number | null;
   pts: number;
   fgm: number;
   fga: number;
@@ -66,7 +68,7 @@ export interface BoxAvg {
   // ── 누적(합계) 필드 ── STAGE B 갭 보완: sum 모드 토글이 읽는 정수 누적값.
   //   aggregateBox 내부에서 이미 sum(k) 로 계산 중 → 출력에 함께 담기만(평균×G 역산 금지).
   //   %·평점은 누적/평균 동일값이라 sum_ 별도 필드 없음(fg_pct 등 공용).
-  sum_min: number;
+  sum_min: number | null;
   sum_pts: number;
   sum_fgm: number;
   sum_fga: number;
@@ -96,31 +98,44 @@ const num = (v: number | null | undefined): number => v ?? 0;
  * Prisma MatchPlayerStat select 결과(정수 박스 필드)를 RawBox 로 정규화.
  * 호출자가 select 한 필드명(Prisma camelCase/snake 혼용)을 그대로 받는다.
  */
-export function toRawBox(s: {
-  minutesPlayed?: number | null;
-  points?: number | null;
-  fieldGoalsMade?: number | null;
-  fieldGoalsAttempted?: number | null;
-  threePointersMade?: number | null;
-  threePointersAttempted?: number | null;
-  freeThrowsMade?: number | null;
-  freeThrowsAttempted?: number | null;
-  offensive_rebounds?: number | null;
-  defensive_rebounds?: number | null;
-  total_rebounds?: number | null;
-  assists?: number | null;
-  steals?: number | null;
-  blocks?: number | null;
-  turnovers?: number | null;
-  personal_fouls?: number | null;
-  plusMinus?: number | null;
-}): RawBox {
+export function toRawBox(
+  s: {
+    minutesPlayed?: number | null;
+    points?: number | null;
+    fieldGoalsMade?: number | null;
+    fieldGoalsAttempted?: number | null;
+    threePointersMade?: number | null;
+    threePointersAttempted?: number | null;
+    freeThrowsMade?: number | null;
+    freeThrowsAttempted?: number | null;
+    offensive_rebounds?: number | null;
+    defensive_rebounds?: number | null;
+    total_rebounds?: number | null;
+    assists?: number | null;
+    steals?: number | null;
+    blocks?: number | null;
+    turnovers?: number | null;
+    personal_fouls?: number | null;
+    plusMinus?: number | null;
+  },
+  opts?: {
+    // 2026-06-16: PBP 기반 출전초(라이브와 단일 source) 주입.
+    //   - number(초): min = Math.round(sec/60) (라이브 변환과 동일). 0초도 그대로 0분.
+    //   - null/undefined: minutesPlayed 컬럼 사용 안 함 → min=0 (종이/PBP없음 매치).
+    //     집계(aggregateBox)에서 scope 전체 합=0 이면 null('–') 표기. minutesPlayed 의
+    //     999 truncate 버그를 PBP 기반 주입으로 자동 회피.
+    minOverrideSec?: number | null;
+  },
+): RawBox {
   const oreb = num(s.offensive_rebounds);
   const dreb = num(s.defensive_rebounds);
   // total_rebounds 있으면 사용, 없으면 OR+DR
   const reb = s.total_rebounds != null ? num(s.total_rebounds) : oreb + dreb;
+  // min: PBP override 우선(라이브 단일 source). override 부재 시 0 (minutesPlayed 미신뢰 — 999 버그/종이 0).
+  const min =
+    opts?.minOverrideSec != null ? Math.round(opts.minOverrideSec / 60) : 0;
   return {
-    min: num(s.minutesPlayed),
+    min,
     pts: num(s.points),
     fgm: num(s.fieldGoalsMade),
     fga: num(s.fieldGoalsAttempted),
@@ -158,9 +173,14 @@ export function aggregateBox(rows: RawBox[]): BoxAvg {
   const stl = avg("stl");
   const blk = avg("blk");
 
+  // 출전시간 데이터 존재 여부: 집계 단위 전체 합이 0이면 부재(종이모드) → null('–').
+  //   하나라도 >0이면(라이브 sync 대회) 평균/합계 그대로 표기.
+  const sumMin = sum("min");
+  const hasMin = sumMin > 0;
+
   return {
     g,
-    min: avg("min"),
+    min: hasMin ? avg("min") : null,
     pts: avg("pts"),
     fgm: avg("fgm"),
     fga: avg("fga"),
@@ -188,7 +208,7 @@ export function aggregateBox(rows: RawBox[]): BoxAvg {
     spg: stl,
     bpg: blk,
     // 누적(합계) — sum(k) 원본 그대로(평균×G 역산 ❌). reb 는 oreb+dreb 합산 규칙 동일.
-    sum_min: sum("min"),
+    sum_min: hasMin ? sumMin : null,
     sum_pts: sum("pts"),
     sum_fgm: sum("fgm"),
     sum_fga: sum("fga"),

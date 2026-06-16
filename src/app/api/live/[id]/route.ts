@@ -5,7 +5,9 @@ import { checkRateLimit, RATE_LIMITS } from "@/lib/security/rate-limit";
 import { getClientIp } from "@/lib/security/get-client-ip";
 import { getDisplayName } from "@/lib/utils/player-display-name";
 // 2026-05-03: PBP-only 출전시간 산출 엔진 (단일 source) — quarterStatsJson/minutesPlayed/MAX 전략 폐기
-import { calculateMinutes, applyCompletedCap, type MinutesPbp } from "@/lib/live/minutes-engine";
+import { calculateMinutes, type MinutesPbp } from "@/lib/live/minutes-engine";
+// 2026-06-16: PBP 출전시간 전처리 공용 함수 — 라이브/기록실 단일 source (cap 포함 total 산출).
+import { getMatchMinutesBySec } from "@/lib/records/match-minutes";
 // 2026-05-09: 라이브 명단 영역 임시 jersey 우선 적용 (W1 모달 등록 #) — 기존 후처리(line 647~) 통합 + 모든 사용처 일관.
 //   우선순위: match_player_jersey (이 매치 임시 #) → ttp.jerseyNumber (대회 등록 #) → null
 //   사용 이유: line 291/299/311/538 직접 ttp.jerseyNumber 매핑 시점에는 임시 # 미반영 → 정영민 #9 누락 사례.
@@ -313,8 +315,11 @@ export async function GET(
       : null;
 
     // 2026-05-03: PBP-only 출전시간 산출 — quarterStatsJson / minutesPlayed / MAX 전략 폐기.
-    // qLen 추정: PBP 의 max game_clock_seconds = 쿼터 시작 시점 (보통 420/480/600/720).
-    // 일반 농구 룰 후보 중 가장 가까운 값 채택, 비정상값(<300/>1200) 시 600 default.
+    // 2026-06-16: 전처리(qLen/numQuarters 추정 → MinutesPbp 매핑 → dbStartersByTeam →
+    //   calculateMinutes → 종료매치 home/away applyCompletedCap)를 공용 함수로 추출.
+    //   라이브와 기록실(records)이 동일 알고리즘을 쓰도록 단일 source 화 (중복 0).
+    //   ★동작 보존: 추출 전 인라인 로직과 100% 동일 — qLen 추정/입력 매핑/cap 룰 그대로.
+    //   total(bySec)만 공용 함수가 산출. byQuarterSec(쿼터별)은 라이브 전용이라 본 라우트가 별도 계산.
     const minutesQL = (() => {
       if (allPbps.length === 0) return 600;
       const maxClock = Math.max(...allPbps.map((p) => p.game_clock_seconds ?? 0));
@@ -355,7 +360,9 @@ export async function GET(
       }
       set.add(s.tournamentTeamPlayerId);
     }
-    const { bySec: pbpMinutesBySec, byQuarterSec: pbpMinutesByQ } = calculateMinutes({
+    // byQuarterSec(쿼터별)은 라이브 시각화 전용 — 공용 함수는 total(bySec)만 산출하므로 여기서 계산.
+    //   total(bySec)은 공용 함수 getMatchMinutesBySec 결과로 덮어쓴다(cap 포함 단일 source).
+    const { byQuarterSec: pbpMinutesByQ } = calculateMinutes({
       pbps: minutesEngineInput,
       qLen: minutesQL,
       numQuarters: minutesQs,
@@ -363,28 +370,27 @@ export async function GET(
       dbStartersByTeam: dbStartersByTeam.size > 0 ? dbStartersByTeam : undefined,
     });
 
-    // 2026-05-03 옵션 C: 종료 매치만 풀타임 보호 cap 적용.
-    //   - sub 누락/지연으로 한 팀 합이 만점(qLen×numQ×5) 미달 케이스 정확화 (#132 home 137:40 → 140:00 등)
-    //   - 라이브 매치 cap X (진행 중 출전시간은 PBP 그대로)
-    //   - 풀타임 선수 sec 절대 변경 X. 풀타임 외 선수만 비례 분배
-    //   - byQuarterSec(쿼터별)은 cap 미적용 — 시각화/디버깅용 PBP 원본 유지
-    if (match.status === "completed") {
-      const expectedTeamSec = minutesQL * minutesQs * 5; // 한 팀 코트시간 합
-      // home/away 별 sec map 분리 (cap 은 팀 단위로 적용해야 정확)
-      const homeMap = new Map<bigint, number>();
-      const awayMap = new Map<bigint, number>();
-      for (const ttp of match.homeTeam?.players ?? []) {
-        if (pbpMinutesBySec.has(ttp.id)) homeMap.set(ttp.id, pbpMinutesBySec.get(ttp.id)!);
-      }
-      for (const ttp of match.awayTeam?.players ?? []) {
-        if (pbpMinutesBySec.has(ttp.id)) awayMap.set(ttp.id, pbpMinutesBySec.get(ttp.id)!);
-      }
-      applyCompletedCap(homeMap, expectedTeamSec, minutesQL, minutesQs);
-      applyCompletedCap(awayMap, expectedTeamSec, minutesQL, minutesQs);
-      // cap 결과를 pbpMinutesBySec 에 반영 (헬퍼 getPbpSec 가 이 Map 을 참조)
-      for (const [id, sec] of homeMap) pbpMinutesBySec.set(id, sec);
-      for (const [id, sec] of awayMap) pbpMinutesBySec.set(id, sec);
-    }
+    // 2026-06-16: total 출전초 = 공용 함수 (라이브/기록실 단일 source). 단일 매치도 IN 배열로 호출.
+    //   ★종료 매치 LRM cap 은 공용 함수 내부에서 home/away ttp 단위 적용 (라이브와 동일 룰).
+    //   ★라이브(in_progress) 는 cap 미적용 — 진행도 그대로 (공용 함수가 status="completed" 만 cap).
+    const minutesMap = await getMatchMinutesBySec(
+      [BigInt(matchId)],
+      new Map([
+        [
+          String(matchId),
+          {
+            status: match.status ?? null,
+            settings: match.settings ?? null,
+            homeTtpIds: (match.homeTeam?.players ?? []).map((p) => p.id),
+            awayTtpIds: (match.awayTeam?.players ?? []).map((p) => p.id),
+          },
+        ],
+      ]),
+      // ★라이브 동작 100% 보존 — 종이 매치도 PBP 추정 min 산출 (추출 전 인라인 로직과 동일).
+      { excludePaper: false },
+    );
+    // PBP 0건 매치만 결과 제외 → 빈 Map fallback (이 경우 getPbpSec=0, 추출 전과 동일).
+    const pbpMinutesBySec = minutesMap.get(matchId) ?? new Map<bigint, number>();
 
     // 헬퍼: ttp.id (number 또는 bigint) → PBP-only 출전시간 (sec). 미등장(DNP) 시 0.
     const getPbpSec = (ttpId: number | bigint | null | undefined): number => {

@@ -43,6 +43,16 @@
 .rec-seg__btn:hover { color: var(--ink); }
 .rec-seg__btn.is-on { background: var(--accent); color: #fff; box-shadow: var(--sh-xs); }
 
+/* 평균/누적 보조 토글 — 파랑(cafe-blue) 활성. unit 세그먼트(빨강 rec-seg)와 위계 구분. 아이콘 없음·우측 정렬용. */
+.rec-aggtoggle { display: inline-flex; gap: 2px; padding: 3px; background: var(--bg-alt); border: 1px solid var(--border); border-radius: var(--r-3); }
+.rec-aggtoggle__btn {
+  border: 0; background: transparent; cursor: pointer;
+  font-family: var(--ff-body); font-size: 12.5px; font-weight: 700; color: var(--ink-mute);
+  padding: 6px 14px; border-radius: var(--r-2); transition: background .12s, color .12s; white-space: nowrap;
+}
+.rec-aggtoggle__btn:hover { color: var(--ink); }
+.rec-aggtoggle__btn.is-on { background: var(--cafe-blue); color: #fff; box-shadow: var(--sh-xs); }
+
 .rec-scope { display: flex; gap: 6px; flex-wrap: wrap; }
 .rec-chip {
   font-family: var(--ff-mono); font-size: 11.5px; font-weight: 700;

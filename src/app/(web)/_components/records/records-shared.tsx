@@ -106,6 +106,38 @@ export function RecSeg({
   );
 }
 
+// ── 평균/누적 토글 (보조) — 파랑(cafe-blue) 활성·아이콘 없음·우측 정렬용 ──
+//   unit 세그먼트(RecSeg, 빨강 메인)와 위계 구분. radius 4px(pill 금지).
+export interface RecAggOption {
+  v: string;
+  l: string;
+}
+export function RecAggToggle({
+  value,
+  onChange,
+  options,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  options: RecAggOption[];
+}) {
+  return (
+    <div className="rec-aggtoggle" role="tablist" aria-label="집계 방식">
+      {options.map((o) => (
+        <button
+          key={o.v}
+          role="tab"
+          aria-selected={value === o.v}
+          className={"rec-aggtoggle__btn" + (value === o.v ? " is-on" : "")}
+          onClick={() => onChange(o.v)}
+        >
+          {o.l}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 // ── 공통 sortable 테이블 ──
 export function RecTable<T extends RecRow>({
   columns,
