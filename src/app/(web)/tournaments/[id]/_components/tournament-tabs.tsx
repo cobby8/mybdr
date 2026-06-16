@@ -43,9 +43,13 @@ import type { SeriesEdition } from "./v2-bracket-header";
 // 진행중 뷰는 import 만 추가될 뿐 호출 0 = 회귀 0 (트리쉐이킹/lazy 무관).
 import { TournamentCompletedBracket } from "./tournament-completed-bracket";
 
+// 기록실 탭 (Records MVP, 2026-06-16) — client fetch + 공식가드 집계. lazy.
+import { TournamentRecordsTab } from "./tournament-records-tab";
+
 // 탭 타입 정의 (standings는 bracket에 통합 — 백엔드 페이지는 유지)
 // Phase 2 Match: "rules" 탭 추가 (DB tournaments.rules 표시용)
-export type TabKey = "overview" | "schedule" | "bracket" | "teams" | "rules";
+// 2026-06-16: "records" 탭 추가 (대회 기록실 — 선수/팀/경기 집계)
+export type TabKey = "overview" | "schedule" | "bracket" | "teams" | "rules" | "records";
 
 // 탭 메타 정보 — 시안 Match.jsx L117 순서: 대회소개 → 경기일정 → 대진표 → 참가팀 → 규정
 const TAB_META: { key: TabKey; label: string; icon: string }[] = [
@@ -53,6 +57,7 @@ const TAB_META: { key: TabKey; label: string; icon: string }[] = [
   { key: "schedule", label: "경기일정", icon: "calendar_month" },
   { key: "bracket", label: "대진표", icon: "account_tree" },
   { key: "teams", label: "참가팀", icon: "groups" },
+  { key: "records", label: "기록실", icon: "leaderboard" },
   { key: "rules", label: "규정", icon: "gavel" },
 ];
 
@@ -64,6 +69,7 @@ const TAB_META_COMPLETED: { key: TabKey; label: string; icon: string }[] = [
   { key: "schedule", label: "경기일정", icon: "calendar_month" },
   { key: "bracket", label: "대진표", icon: "account_tree" },
   { key: "teams", label: "참가팀", icon: "groups" },
+  { key: "records", label: "기록실", icon: "leaderboard" },
   { key: "rules", label: "규정", icon: "gavel" },
 ];
 
@@ -430,6 +436,8 @@ export function TournamentTabs({
           ))}
         {activeTab === "schedule" && <ScheduleTabContent tournamentId={tournamentId} />}
         {activeTab === "teams" && <TeamsTabContent tournamentId={tournamentId} />}
+        {/* 기록실 탭: client fetch(/records, 공식가드 집계). 진행중/종료 공통 = 동일 컴포넌트. */}
+        {activeTab === "records" && <TournamentRecordsTab tournamentId={tournamentId} />}
         {/* 규정 탭: 서버에서 tournament.rules로 프리렌더된 콘텐츠.
             데이터 없으면 빈 상태 카드(page.tsx에서 폴백 렌더). 탭 자체는 항상 렌더. */}
         {activeTab === "rules" && <div>{rulesContent}</div>}

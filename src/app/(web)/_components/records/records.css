@@ -1,0 +1,228 @@
+/* ============================================================
+   records.css — 기록(Records) 공통 컴포넌트 스타일
+   시안: Dev/design/BDR v2.33/_delivery-records-2026-06-16/records.css 박제
+   토큰 치환(운영 globals.css 기준):
+     --r-lg→--radius-card / --r-md→--r-4 / --r-sm→--r-3 / --r-xs→--r-2
+     --err→--color-error / --err-soft→--accent-soft
+   --accent 는 운영 정의 토큰(=브랜드 레드)이라 그대로 유지(미정의 폴백 아님 · 디자인 1위 강조 의도 보존).
+   ShotChart/SeasonSummary 관련 CSS는 이번 박제 보류 → 미반입.
+   .rec- prefix 격리 (globals 충돌 0). 720px 분기.
+   ============================================================ */
+
+/* ---------- Card shell ---------- */
+.rec-card {
+  background: var(--bg-elev); border: 1px solid var(--border);
+  border-radius: var(--radius-card); padding: 20px 22px; box-shadow: var(--sh-xs);
+}
+.rec-card + .rec-card { margin-top: 16px; }
+.rec-card__head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.rec-card__h {
+  font-family: var(--ff-display); font-size: 17px; font-weight: 800; color: var(--ink);
+  margin: 0; display: flex; align-items: center; gap: 8px;
+}
+.rec-card__h .ico { color: var(--accent); font-size: 20px; }
+.rec-card__src { font-family: var(--ff-mono); font-size: 10px; font-weight: 700; color: var(--ink-dim); letter-spacing: 0.02em; }
+.rec-card__lede { font-size: 12.5px; color: var(--ink-mute); margin: 6px 0 0; line-height: 1.5; }
+
+/* ---------- Toolbar + segmented toggle ---------- */
+.rec-toolbar { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin: 16px 0; }
+.rec-toolbar__note { font-size: 11.5px; color: var(--ink-dim); display: inline-flex; align-items: center; gap: 4px; }
+.rec-toolbar__note .ico { font-size: 15px; }
+
+.rec-seg {
+  display: inline-flex; gap: 3px; padding: 3px;
+  background: var(--bg-alt); border: 1px solid var(--border); border-radius: var(--r-3);
+}
+.rec-seg__btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 7px 14px; border: 0; background: transparent; cursor: pointer;
+  font-family: var(--ff-body); font-size: 13px; font-weight: 700; color: var(--ink-mute);
+  border-radius: var(--r-2); transition: background .12s, color .12s;
+}
+.rec-seg__btn .ico { font-size: 17px; }
+.rec-seg__btn:hover { color: var(--ink); }
+.rec-seg__btn.is-on { background: var(--accent); color: #fff; box-shadow: var(--sh-xs); }
+
+.rec-scope { display: flex; gap: 6px; flex-wrap: wrap; }
+.rec-chip {
+  font-family: var(--ff-mono); font-size: 11.5px; font-weight: 700;
+  padding: 6px 12px; border: 1px solid var(--border); border-radius: var(--r-3);
+  background: var(--bg-elev); color: var(--ink-mute); cursor: pointer; transition: .12s;
+}
+.rec-chip:hover { border-color: var(--border-strong); color: var(--ink); }
+.rec-chip.is-on { background: var(--accent); border-color: var(--accent-deep); color: #fff; }
+
+/* ---------- Sortable table ---------- */
+.rec-tablewrap {
+  display: block; width: 100%;
+  overflow-x: auto; overflow-y: hidden; border: 1px solid var(--border); border-radius: var(--radius-card);
+  background: var(--bg-elev); -webkit-overflow-scrolling: touch;
+}
+.rec-table { width: 100%; border-collapse: collapse; font-family: var(--ff-mono); font-size: 12px; }
+.rec-th {
+  position: sticky; top: 0; z-index: 2;
+  padding: 8px 9px; text-align: right; white-space: nowrap;
+  font-size: 10px; font-weight: 800; letter-spacing: 0.03em; color: var(--ink-mute);
+  background: var(--bg-alt); border-bottom: 1px solid var(--border); user-select: none;
+}
+.rec-th--l { text-align: left; }
+.rec-th--sort { cursor: pointer; }
+.rec-th--sort:hover { color: var(--ink); }
+.rec-th.is-active { color: var(--accent); }
+.rec-th__lbl { vertical-align: middle; }
+.rec-th__arrow { font-size: 15px; vertical-align: -3px; opacity: .3; margin-left: 1px; }
+.rec-th__arrow.is-on { opacity: 1; color: var(--accent); }
+.rec-th--l .rec-th__arrow { margin-left: 2px; }
+
+.rec-td {
+  padding: 8px 9px; text-align: right; white-space: nowrap;
+  border-bottom: 1px solid var(--border); color: var(--ink-soft);
+}
+.rec-table tbody tr:last-child .rec-td { border-bottom: 0; }
+/* 트레일링 스페이서 — 잔여 폭을 흡수해 표가 카드 폭을 채움(우측 여백 = 좌측) · 컬럼은 content-width 유지 */
+.rec-th--spacer, .rec-td--spacer { width: 100%; min-width: 0; padding: 0; }
+.rec-td--l { text-align: left; color: var(--ink); }
+.rec-td--strong { font-family: var(--ff-display); font-weight: 700; color: var(--ink); }
+.rec-table tbody tr.is-clickable { cursor: pointer; }
+.rec-table tbody tr.is-clickable:hover { background: var(--bg-alt); }
+
+/* sticky 첫 열 */
+.rec-th--sticky { left: 0; z-index: 3; box-shadow: 1px 0 0 var(--border); }
+.rec-td--sticky { position: sticky; left: 0; z-index: 1; background: var(--bg-elev); box-shadow: 1px 0 0 var(--border); }
+.rec-table tbody tr.is-clickable:hover .rec-td--sticky { background: var(--bg-alt); }
+
+/* value accents */
+.rec-hi { color: var(--accent); font-weight: 800; }
+.rec-rating { font-weight: 800; color: var(--ink); }
+.rec-dim { color: var(--ink-dim); font-family: var(--ff-body); font-size: 11.5px; }
+.rec-na { color: var(--border-strong); }
+.rec-wl { display: inline-flex; padding: 2px 8px; border-radius: var(--r-2); font-size: 10px; font-weight: 800; letter-spacing: 0.04em; }
+.rec-wl--w { color: var(--ok); background: var(--ok-soft); }
+.rec-wl--l { color: var(--color-error); background: var(--accent-soft); }
+.rec-wlrec { font-weight: 700; color: var(--ink-soft); }
+.rec-link { color: inherit; text-decoration: none; cursor: pointer; }
+.rec-link:hover { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
+
+/* 팀 페이지 — 경기/대회 목록 (드릴다운 진입) */
+.rec-list { display: flex; flex-direction: column; border: 1px solid var(--border); border-radius: var(--radius-card); overflow: hidden; background: var(--bg-elev); }
+.rec-listrow { display: flex; align-items: center; gap: 14px; padding: 13px 16px; border: 0; border-bottom: 1px solid var(--border); background: transparent; cursor: pointer; text-align: left; width: 100%; font-family: var(--ff-body); }
+.rec-listrow:last-child { border-bottom: 0; }
+.rec-listrow:hover { background: var(--bg-alt); }
+.rec-listrow__date { font-family: var(--ff-mono); font-size: 12px; font-weight: 700; color: var(--ink-mute); min-width: 52px; }
+.rec-listrow__main { flex: 1; min-width: 0; }
+.rec-listrow__title { font-family: var(--ff-display); font-weight: 700; font-size: 14px; color: var(--ink); }
+.rec-listrow__sub { font-size: 11.5px; color: var(--ink-dim); margin-top: 2px; }
+.rec-listrow__score { font-family: var(--ff-mono); font-weight: 800; font-size: 14px; color: var(--ink); white-space: nowrap; }
+.rec-listrow__go { color: var(--ink-dim); font-size: 20px; }
+.rec-listrow:hover .rec-listrow__go { color: var(--accent); }
+.rec-back { display: inline-flex; align-items: center; gap: 5px; margin-bottom: 12px; padding: 6px 12px 6px 8px; border: 1px solid var(--border); border-radius: var(--r-3); background: var(--bg-elev); cursor: pointer; font-family: var(--ff-body); font-size: 12.5px; font-weight: 700; color: var(--ink-soft); }
+.rec-back:hover { border-color: var(--border-strong); color: var(--ink); }
+.rec-drillhead { font-family: var(--ff-display); font-weight: 800; font-size: 15px; color: var(--ink); margin: 0 0 12px; display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
+.rec-drillhead .rec-wl { font-size: 11px; }
+.rec-drillhead__score { font-family: var(--ff-mono); color: var(--ink-mute); font-weight: 700; }
+.rec-pm { font-weight: 700; color: var(--ink-mute); }
+.rec-pm--pos { color: var(--ok); }
+.rec-pm--neg { color: var(--color-error); }
+
+/* 팀 전체 평균 고정 행 (pinnedRows) */
+.rec-table tbody tr.rec-tr--pinned { background: var(--cafe-blue-soft); }
+.rec-table tbody tr.rec-tr--pinned .rec-td { border-bottom: 2px solid var(--border-strong); color: var(--ink); font-weight: 700; }
+.rec-table tbody tr.rec-tr--pinned .rec-td--sticky { background: var(--cafe-blue-soft); }
+.rec-player--team { gap: 7px; }
+.rec-player__teamico { font-size: 18px; color: var(--cafe-blue); }
+.rec-player__teamtag { font-family: var(--ff-body); font-size: 9.5px; font-weight: 800; color: var(--cafe-blue-deep); background: var(--cafe-blue-hair); border-radius: var(--r-2); padding: 1px 6px; }
+
+/* player cell (team roster) */
+.rec-player { display: inline-flex; align-items: center; gap: 9px; }
+.rec-player__jersey {
+  font-family: var(--ff-mono); font-size: 10px; font-weight: 800; color: var(--ink-mute);
+  background: var(--bg-alt); border: 1px solid var(--border); border-radius: var(--r-2);
+  min-width: 24px; height: 21px; display: inline-flex; align-items: center; justify-content: center;
+}
+.rec-player__name { font-family: var(--ff-display); font-weight: 700; color: var(--ink); }
+.rec-player__unlinked {
+  font-family: var(--ff-body); font-size: 9.5px; font-weight: 700; color: var(--ink-dim);
+  border: 1px solid var(--border); border-radius: var(--r-2); padding: 1px 5px;
+}
+.rec-player__go { font-size: 17px; color: var(--ink-dim); margin-left: 2px; }
+.rec-table tbody tr.is-clickable:hover .rec-player__go { color: var(--accent); }
+
+/* ---------- subheads ---------- */
+.rec-subh { font-family: var(--ff-display); font-size: 14px; font-weight: 800; color: var(--ink); margin: 0 0 11px; display: flex; align-items: center; gap: 6px; }
+.rec-subh .ico { color: var(--ink-mute); font-size: 18px; }
+.rec-subh .rec-dim { margin-left: 2px; }
+
+/* ---------- States ---------- */
+.rec-state { text-align: center; padding: 52px 20px; }
+.rec-state .ico { font-size: 42px; color: var(--ink-dim); }
+.rec-state h4 { font-family: var(--ff-display); font-size: 15.5px; font-weight: 800; color: var(--ink-soft); margin: 12px 0 4px; }
+.rec-state p { font-size: 12.5px; color: var(--ink-mute); margin: 0; }
+
+.rec-skel { padding: 2px; }
+.rec-skel__head { height: 36px; border-radius: var(--r-3); background: var(--bg-alt); margin-bottom: 8px; }
+.rec-skel__row { display: flex; gap: 8px; margin-bottom: 8px; }
+.rec-skel__cell { flex: 1; height: 28px; border-radius: var(--r-2); background: linear-gradient(90deg, var(--bg-alt) 25%, var(--bg-head) 37%, var(--bg-alt) 63%); background-size: 400% 100%; animation: recShimmer 1.3s ease-in-out infinite; }
+.rec-skel__cell:first-child { flex: 1.8; }
+@keyframes recShimmer { 0% { background-position: 100% 0; } 100% { background-position: -100% 0; } }
+
+.rec-unclaimed { display: flex; gap: 12px; align-items: flex-start; padding: 16px 18px; background: var(--bg-alt); border: 1px dashed var(--border-strong); border-radius: var(--radius-card); }
+.rec-unclaimed .ico { color: var(--ink-dim); font-size: 22px; flex-shrink: 0; }
+.rec-unclaimed__t { font-weight: 800; color: var(--ink-soft); font-size: 13px; }
+.rec-unclaimed__s { font-size: 12px; color: var(--ink-mute); margin-top: 3px; line-height: 1.5; }
+
+.rec-foot { display: flex; gap: 7px; align-items: flex-start; margin-top: 12px; font-size: 11.5px; color: var(--ink-mute); line-height: 1.5; }
+.rec-foot .ico { font-size: 15px; color: var(--ink-dim); flex-shrink: 0; vertical-align: -2px; }
+
+/* ---------- Tournament 기록실 ---------- */
+.rec-tn-team { font-family: var(--ff-body); font-size: 11px; font-weight: 600; color: var(--ink-dim); margin-left: 7px; }
+.rec-tn-score { font-family: var(--ff-mono); font-weight: 800; color: var(--ink); white-space: nowrap; }
+.rec-tnmeta { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin: 10px 0 2px; font-size: 12px; color: var(--ink-mute); }
+.rec-tnmeta span { display: inline-flex; align-items: center; }
+.rec-tnmeta .ico { font-size: 15px; vertical-align: -3px; margin-right: 3px; color: var(--ink-dim); }
+.rec-tnmeta__pill { font-family: var(--ff-mono); font-size: 10px; font-weight: 800; color: var(--ink-mute); background: var(--bg-alt); border: 1px solid var(--border); padding: 2px 8px; border-radius: var(--r-2); letter-spacing: 0.04em; }
+
+/* 스탯 리더 카드 */
+.rec-leaders { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 4px; }
+.rec-lead { background: var(--bg-alt); border: 1px solid var(--border); border-radius: var(--r-4); padding: 12px 14px; }
+.rec-lead__h { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 9px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+.rec-lead__h span:first-child { font-family: var(--ff-display); font-weight: 800; font-size: 13.5px; color: var(--ink); }
+.rec-lead__unit { font-family: var(--ff-mono); font-size: 10px; font-weight: 700; color: var(--ink-dim); letter-spacing: 0.04em; }
+.rec-lead__row { display: grid; grid-template-columns: 15px minmax(0, 1fr) 46px 44px; align-items: center; gap: 8px; padding: 4px 0; }
+.rec-lead__rank { font-family: var(--ff-mono); font-size: 11px; font-weight: 800; color: var(--ink-dim); text-align: center; }
+.rec-lead__rank.is-top { color: var(--accent); }
+.rec-lead__name { font-size: 12px; font-weight: 700; color: var(--ink-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rec-lead__name i { font-style: normal; font-family: var(--ff-mono); font-size: 9.5px; font-weight: 600; color: var(--ink-dim); margin-left: 6px; }
+.rec-lead__bar { height: 5px; background: var(--bg-head); border-radius: 3px; overflow: hidden; }
+.rec-lead__bar b { display: block; height: 100%; border-radius: 3px; }
+.rec-lead__val { font-family: var(--ff-mono); font-size: 12px; font-weight: 800; color: var(--ink); text-align: right; }
+.rec-lead__more {
+  display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%;
+  margin-top: 9px; padding: 6px 0; border: 0; border-top: 1px solid var(--border);
+  background: transparent; cursor: pointer; font-family: var(--ff-body); font-size: 11.5px; font-weight: 700; color: var(--cafe-blue-deep);
+}
+.rec-lead__more:hover { color: var(--accent); }
+.rec-lead__more-n { font-family: var(--ff-mono); font-size: 10px; font-weight: 700; color: var(--ink-dim); }
+
+/* 더보기 모달 — 스탯 전체 순위 */
+.rec-modal { position: fixed; inset: 0; z-index: 60; display: flex; align-items: center; justify-content: center; padding: 24px; background: rgba(0,0,0,0.55); }
+.rec-modal__panel { width: min(520px, 100%); max-height: 80vh; display: flex; flex-direction: column; background: var(--bg-elev); border: 1px solid var(--border); border-radius: var(--radius-card); box-shadow: var(--sh-lg); overflow: hidden; }
+.rec-modal__head { display: flex; align-items: center; justify-content: space-between; padding: 16px 18px; border-bottom: 1px solid var(--border); }
+.rec-modal__head h4 { margin: 0; font-family: var(--ff-display); font-size: 15px; font-weight: 800; color: var(--ink); display: flex; align-items: center; gap: 7px; }
+.rec-modal__head .ico { color: var(--accent); font-size: 19px; }
+.rec-modal__x { border: 0; background: transparent; cursor: pointer; color: var(--ink-mute); display: flex; padding: 4px; border-radius: var(--r-2); }
+.rec-modal__x:hover { background: var(--bg-alt); color: var(--ink); }
+.rec-modal__body { overflow-y: auto; padding: 8px 18px 16px; }
+.rec-modal__row { padding: 7px 0; border-bottom: 1px solid var(--border); }
+.rec-modal__row:last-child { border-bottom: 0; }
+
+/* ============================================================
+   모바일 — ≤720px : 첫 열 sticky + 가로 스크롤 · 44px 터치
+   ============================================================ */
+@media (max-width: 720px) {
+  .rec-card { padding: 16px 14px; }
+  .rec-td, .rec-th { padding: 12px 12px; }
+  .rec-seg { width: 100%; }
+  .rec-seg__btn { flex: 1; justify-content: center; padding: 10px 8px; }
+  .rec-toolbar__note { display: none; }
+  .rec-leaders { grid-template-columns: 1fr; }
+}

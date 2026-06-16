@@ -2,8 +2,8 @@
 
 ## 현재 작업
 - **요청**: 기록(Records) 기능 CLI 박제 — 선수·팀·대회 3화면 + API 3종 + 공통컴포넌트. 시안=`Dev/design/BDR v2.33/_delivery-records-2026-06-16/`. 신규 DB 0(매치집계만)·공식가드 필수·API/데이터 유지+UI 추가.
-- **상태**: planner-architect 실측+설계 **완료**(`Dev/records-feature-plan-2026-06-16.md`) → **PM 결재 7건(Q1~Q7) 대기** 후 developer 박제
-- **현재 담당**: PM(결재 받기)
+- **상태**: 설계 완료(`Dev/records-feature-plan-2026-06-16.md`)·결재 7건 확정 → **developer 대회 기록실 MVP 박제 중**([1]공통+[2]집계+[3]대회 기록실). 결재: Q7 대회MVP먼저 / Q2 팀탭교체(후속) / Q3 선수?tab=(후속) / Q1 평점'–' / Q4 화면별혼합 / Q5 6종확장 / Q6 ttp경유
+- **현재 담당**: developer
 
 ## 진행 현황표
 | 작업 | 상태 |
@@ -64,6 +64,20 @@
 (이전 완료 — 압축)
 
 ## 구현 기록 (developer)
+
+### 기록(Records) 대회 기록실 MVP 박제 (2026-06-16, developer) — 미커밋
+📝 [1]공통컴포넌트+CSS [2]집계헬퍼 [3]대회기록실 API+탭. **tsc PASS · build ✓ Compiled successfully(16.6s)**. tester/reviewer 대기.
+- **신규 파일(4)**:
+  - `src/app/(web)/_components/records/records.css` — 시안 records.css 박제. 토큰치환(--r-lg→--radius-card·--r-md→--r-4·--r-sm→--r-3·--r-xs→--r-2·--err→--color-error·--err-soft→--accent-soft). **--accent는 운영 정의 토큰(=브랜드레드)이라 유지**(미정의 폴백 아님·디자인 1위강조 의도). ShotChart/Season CSS 미반입.
+  - `src/app/(web)/_components/records/records-shared.tsx` — RecSeg/RecTable/ResultBadge/RecEmpty/RecLoading/RecUnclaimed/statCols/Lnk/userHref/teamHref/fmt1/fmtPct 타입화. window전역제거·named export. Lnk=Next Link. ShotChart/SeasonSummary 제외.
+  - `src/lib/records/match-stat-aggregate.ts` — toRawBox/aggregateBox/aggregateTeamBox PURE. snake키 box평균+리더별칭(ppg등). rating=null 고정.
+  - `src/app/api/web/tournaments/[id]/records/route.ts` — 공개 GET. **officialMatchWhere 공식가드 적용**. 선수(ttp그룹)/팀(TournamentTeam.id그룹·승패득실 match스코어+box평균)/경기(로그) 일괄 반환. apiSuccess(snake자동). 매치0→빈집계.
+  - `src/app/(web)/tournaments/[id]/_components/tournament-records-tab.tsx` — 시안 TournamentRecords 박제. client fetch(**raw snake, camel변환안함**)+[선수][팀][경기]토글+스탯리더6종TOP3+더보기모달.
+- **수정 파일(2)**: `tournament-tabs.tsx`(TabKey+"records"·TAB_META/COMPLETED 2곳·import·렌더분기) / `page.tsx`(ALLOWED_TABS+"records").
+- **결재 반영**: Q1 평점'–'(rating=null) / Q4 대회=client API / Q5 리더6종(ppg/rpg/apg/spg/bpg/tp_pct) / Q6 ttp(TournamentTeam)경유.
+- **MVP 링크 결정**: userHref=`/users/[id]`·teamHref=`/teams/[id]`(plain). 시안 `?tab=records`는 선수/팀 기록탭이 후속단계([4][5])라 미적용 — 그 탭 활성화 시 `?tab=records` 추가 예정.
+- **MVP 미결**: mvp_name=null('–' 숨김) — mvp_player_id 타깃(user/ttp) 불명·억지매핑 회피. division=gender+divisions 파생(없으면 hide). 후속 확정 필요.
+- ⚠️ tester 확인 요청: 실제 종료 대회 1건 curl raw(snake 키 fg_pct/user_id/team_id 확인) + 기록실 탭 [선수/팀/경기] 렌더 + 기존 5탭 회귀0 + 720px.
 
 ### Admin Console S3 — AdminInboxState 스누즈/처리상태 (2026-06-15, developer) — 미커밋
 
@@ -415,6 +429,31 @@ EXCLUDED_STATUSES = completed/ended/closed/cancelled(TERMINAL) + draft/upcoming(
 
 ## 테스트 결과 (tester)
 
+### 기록(Records) 대회 기록실 MVP 검증 (2026-06-16, tester) — 미커밋
+
+정적(tsc/build) + 런타임 curl(실 종료대회 2건) + 공식가드 DB 실측 전부 통과. 5개 검증항목 0실패.
+
+| 검증 항목 | 결과 | 비고 |
+|-----------|------|------|
+| 1. tsc + build | ✅ 통과 | `npx tsc --noEmit` EXIT 0 / `npm run build` EXIT 0(정상 종료·라우트 트리 출력 완료). 신규 4파일+수정 2파일 컴파일 에러 0 |
+| 2. ★API raw snake_case(재발6회 함정) | ✅ 통과 | dev 3001 실기동 후 종료대회 2건 curl. 응답키 **전부 snake_case** 실측: player=`user_id`/`player_name`/`team_id`/`fg_pct`/`tp_pct`/`ft_pct`/`pts`/`ppg`…, team=`team_id`/`fg_pct`/`oppg`/`diff`, game=`match_id`/`home_id`/`away_id`/`hs`/`as`. **camelCase 키 0건**(grep `/[A-Z]/` 빈배열). 프론트 tournament-records-tab fetcher는 camel변환 안 함(raw 사용)·statCols 접근자도 동일 snake 키 → **교차 일치 확인**. 강남구(bd527531): players239/teams36/games59 정상 |
+| 3. ★공식가드(미래/비공식 차단) | ✅ 통과 | route.ts L42-43 `officialMatchWhere` 사용 확인. 가드=`status IN(completed,live)` + `scheduledAt<=NOW() not null`. DB 실측: 검증 대회 4건 all=official(제외0·전부 completed) / 전역 `scheduled` 3건은 status조건서 제외 / 미래일자 completed·live 매치 현재 운영DB 0건. 코드상 미래/예정/null-date 매치 집계 포함 여지 0 |
+| 4. 회귀 0 (기존 5탭) | ✅ 통과 | tournament-tabs.tsx=TabKey+"records"·TAB_META/TAB_META_COMPLETED 동일항목 ADD·import·렌더분기 1줄(`activeTab==="records"`)만. 기존 overview/schedule/bracket/teams/rules 로직·fetcher·handleTabChange 무변경. page.tsx=ALLOWED_TABS에 "records" 추가만. isCompleted 분기 영향 0 |
+| 5. 평점 null→'–'(억지매핑 0) | ✅ 통과 | route.ts·aggregate 모두 rating=null 고정. statCols rating 컬럼 `!has(r.rating)`→`<span class="rec-na">–</span>`. curl 실측 player/team `rating:null` 확인. mvp_name도 null→메타칩 숨김(억지매핑 회피). 평점 소스 부재를 정직하게 '–' 표기 |
+
+추가 케이스(전부 통과):
+- 잘못된 id(`not-a-uuid`) → **400** `{"error":"Invalid tournament ID"}` / 존재하지 않는 uuid → **404** `{"error":"Tournament not found"}`
+- CSS `*/` 조기종료 함정([06-10]/[06-14] errors): records.css grep `\*/[^ \t]` **0건**(빌드 성공으로도 재확인)
+- 강조색: rec-lead 1위 bar=`var(--accent)`(developer 명시: 운영 정의 토큰=의도된 브랜드강조·미정의 폴백 아님), 그 외=`var(--cafe-blue)`. 빨강 폴백 함정 해당 없음
+- 빈 케이스: route.ts 매치0→빈집계 반환·탭은 RecEmpty 빈상태(코드 확인). DB상 모든 검증대회는 매치 보유라 런타임 빈상태는 미재현
+
+📊 종합: 5개 중 5개 통과 / 0개 실패 → **커밋 게이트 통과**
+
+특이사항(수정요청 아님·참고):
+- **런타임 curl은 GET(읽기)만 수행** — records API는 공개 GET이라 super_admin 불요. 운영 DB 쓰기 0(SELECT/임시 census 스크립트는 즉시 삭제·가드3 / 포트3001 프로세스만 종료·`taskkill //f //im node.exe` 미사용).
+- **build 로그 일부 truncate**: `Select-Object -Last 25`로 마지막 25줄만 캡처돼 신규 `/api/web/tournaments/[id]/records` 라우트 등록 라인은 로그에서 직접 미확인. 단 exit 0 + 라우트 트리 범례 출력 + tsc 0 + 런타임 200/400/404 실응답으로 라우트 실동작 입증됨(라우트 등록 정상).
+- **MVP 후속 미결(developer 기록 그대로)**: mvp_name=null(타깃 불명·억지매핑 회피)·선수/팀 기록탭 `?tab=records`는 단계[4][5]에서 활성화. 동작 영향 0.
+
 ### Admin Console S3 — AdminInboxState 스누즈/처리상태 검증 (2026-06-15, tester) — 미커밋
 
 정적+build+DB(읽기전용) 실측 전부 통과. 6개 검증항목 0실패.
@@ -643,6 +682,32 @@ EXCLUDED_STATUSES = completed/ended/closed/cancelled(TERMINAL) + draft/upcoming(
 ⚠️ 참고(Phase 1 무관): 전체 회귀 중 사전 존재 실패 2파일 4건 발견 — `tournament-delete.test.ts`(3), `running-score-helpers.test.ts`(1, team_side home/away 정합). Phase 1 변경분을 stash한 baseline에서도 동일 실패 → 본 작업 책임 아님. 별도 후속 처리 대상.
 
 ## 리뷰 결과 (reviewer)
+
+### 기록(Records) 대회 기록실 MVP 박제 (2026-06-16, reviewer) — 미커밋
+
+📊 종합 판정: **통과 (커밋 가능)** — 치명 0 / 권장 1 / 사소 3
+
+실측 근거(7파일 전문 정독): route.ts·match-stat-aggregate.ts·records-shared.tsx·tournament-records-tab.tsx·records.css·tournament-tabs.tsx·page.tsx + `official-match.ts` + `response.ts`/`case.ts`(snake변환) + globals.css 토큰 정의 grep + schema.prisma 필드(MatchPlayerStat·TournamentMatch FK) 실측.
+
+✅ 잘된 점:
+- **★공식가드 정확**: route L43 `officialMatchWhere({ tournamentId: id })` 로 매치를 먼저 거른 뒤, L88 stat 조회는 그 matchIds(`in`)로만 한정 → 미래/비공식 매치 우회 0. stat-leaders.ts 패턴과 일관(매치 선거름 → stat 후집계). 누락·우회 경로 없음.
+- **★FK 정합 완벽**: homeTeamId/awayTeamId/winner_team_id 전부 **TournamentTeam.id** 참조(schema L692/693/709 실측). route는 ttMap 키=TournamentTeam.id 로 승패/득실 판정 + 표시용 team_id 는 meta.teamId(Team.id) 로 분리 출력 → 링크는 /teams/[Team.id] 정합. 설계 함정(winner=tt.id, champion=Team.id) 정확 회피.
+- **★snake_case 정합(★재발6회 함정 회피)**: route 응답을 처음부터 snake로 작성(fg_pct·tp_pct·team_id·mvp_name 등). `convertKeysToSnakeCase`(case.ts)는 대문자만 변환 → 이미-snake 키 무손상. 프론트(tournament-records-tab)는 camel변환 안 하고 raw snake 그대로 접근 → 1:1 일치. camelCase 잔존 키 0 확인.
+- **★디자인 토큰 만점**: records.css 전 토큰(--accent/--ok/--cafe-blue*/--ink*/--bg-*/--r-2~4/--radius-card/--sh-*/--ff-*/--color-error/--accent-soft/--accent-deep) globals.css 정의 실측 완료 — **빨강 폴백 함정 0**(--accent=var(--bdr-red) 운영 정의 토큰·미정의 폴백 아님). 하드코딩색=`#fff`(흰 텍스트) 2건뿐(시안 표준·위반 아님). lucide 0·9999px pill 0(seg=--r-2/3). Material Symbols만.
+- **★집계 정확**: %는 합산 makes/attempts 기준(가중·정확, aggregateBox pct(sum,sum)) / REB=total_rebounds 우선·없으면 OR+DR(toRawBox L101·statCols rebVal) / Per-Game=sum/g(0분모 `n=g||1` 가드) / pct 0division `att?` 가드. statCols의 %컬럼은 저장값(k) 없으면 mk/ak로 산출(이중 안전). 평점=null 일관('–').
+- **회귀 0**: tournament-tabs는 TAB_META 2곳에 records 추가 + 렌더분기 1줄 + import만 — 기존 5탭 handleTabChange/lazy/?tab= 로직 0 변경. records 탭은 자체 client fetch(raw snake)라 공용 fetcher(camel변환) 비경유 = 다른 탭 영향 0. page.tsx ALLOWED_TABS에 "records" 추가(화이트리스트 폴백 유지). lazy 패턴 일관(activeTab===key 조건부 마운트).
+- **빈/에러 상태 처리**: 매치0→route 빈집계 반환 / 프론트 isLoading=RecLoading·error=RecEmpty·games+players 0=빈상태 카드. UUID 형식 검증(400)·tournament 404 가드.
+
+🟡 권장 수정 (1건 · 동작 차단 0):
+- [route.ts L73·286 buildDivision 호출] `TOURNAMENT_STATUS_LABEL[tournament.status ?? ""]` — status 가 라벨맵에 없으면 raw status(영문 enum) 그대로 노출. 대부분 매핑되나 신규 status 값 시 영문 노출 가능. 사소하나 빈 매치 분기(L73)와 본 분기(L286) **2곳 중복** → 헬퍼 추출 권장(동작 동일). 후속.
+
+🟢 사소 (참고·수정 불요):
+- [tournament-records-tab L101] `(data?.data ?? data ?? {})` — apiSuccess는 .data 래핑 없이 직접 반환(response.ts 실측)이라 항상 `data` 폴백 경로 사용. .data 분기는 죽은 경로지만 방어적·무해.
+- [aggregateTeamBox L195] 팀 박스에서 min/pm 의도적 0(주석 명시) — 팀 컬럼에서 min 제외(teamSc filter)·pm은 득실(diff)로 대체하므로 표시 영향 0. 의도 정합.
+- [records-shared L210] `r._noClick` 참조(RecRow에 미정의 느슨한 키) — 현 사용처(records-tab) onRowClick 미사용이라 무영향. 향후 드릴다운 도입 시 타입 보강 여지.
+- mvp_name=null 고정(meta) — mvp_player_id 타깃(user/ttp) 불명으로 억지매핑 회피(정직). 후속 결정 대기 — 정당.
+
+→ **수정 요청 테이블 등록 안 함**(필수 0). 통과 — 커밋 가능. 권장 1건은 후속 정리 큐.
 
 ### Admin Console S3 — AdminInboxState snooze/resolve (2026-06-15, reviewer) — 미커밋
 
@@ -924,6 +989,7 @@ EXCLUDED_STATUSES = completed/ended/closed/cancelled(TERMINAL) + draft/upcoming(
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
 |------|------|------|
+| 2026-06-16 | 기록(Records) 대회 기록실 MVP 리뷰 (reviewer) | ✅ **통과**(치명0/권장1/사소3) — ★공식가드 정확(officialMatchWhere 선거름→matchIds 한정)·★FK정합(home/away/winner=TT.id, 표시=Team.id 분리)·★snake정합(toSnakeCase 대문자만→이미-snake 무손상·프론트 raw접근)·★토큰 빨강폴백0(전토큰 globals 실측·#fff 2건만)·★집계정확(%가중·REB폴백·0분모가드)·회귀0(5탭 미접촉·records 자체 fetch). 권장: status라벨 폴백+2곳중복 헬퍼화. 커밋가능 |
 | 2026-06-15 | Admin Console S1-5 통합 디스패처 리뷰 (reviewer) | ✅ **APPROVE**(c0/maj0/min3). ★id파싱견고(indexOf콜론+BigInt try-catch로 악의 refId 400방어=S1대비 개선·sep<0/빈refId 400·domain 2중화이트리스트)·★★payments 금전안전(update=refund_status+updated_at만·refund_amount/refunded_at/status·PG호출 0·requested 멱등·severity warning)·★court(A)복제 기존PATCH와 1:1실측동일(mapCourtType/region split/트랜잭션3단/좌표/metadata/adminLog/반환 전부일치·import0회귀0)·org reject reason필수·pending가드·컬럼실측정합·inbox큐조건↔처리조건 정합·schema0/api-v1 0/기존6route+inbox 미수정. minor: switch update try-catch부재(inbox목록은 있음·일관성)·org가드 canManage→isSuperAdmin로 좁힘(inbox도 super가드라 일관·더엄격)·community draft큐↔hide/restore 의미어긋남(동작안전). court수동복제 drift위험=참고(A 트레이드오프). 수정요청 0 |
 | 2026-06-15 | 버킷B P1-b 시즌시상 고급필드 리뷰 (reviewer) | ✅ **APPROVE**(c0/maj0/min2). ★AW1 기본부 보존 완벽(page.tsx 120+/0-·기존5블록·officialMatchWhere·DTO 미접촉·블록7 순수ADD)·빈슬롯만 season_awards 교체(Slot 정규화 타입정합)·schema ADD-only(CREATE1+rel4+IDX3·ALTER/DROP0·FK SET NULL/NoAction)·권한가드(upsert/delete requireSuperAdmin·page isSuperAdmin·sidebar super한정)·선수검색 기존API재사용(snake정합)·null가드(user/team/payload 다비면거부)·cafe-blue/색토큰0. tsc EXIT0. minor: bestDefense 베스트5수비+스틸왕 중복매핑(0행미재현)·전체시즌 series무관 누적혼재(단일시즌 무해). 수정요청 0 |
 | 2026-06-15 | Admin Console S2 overview/inbox 리뷰 (reviewer) | ✅ **APPROVE**(c0/maj0/min3). 보안가드(role/admin_role+null방어·비super403·IDOR무관)·직렬화안전(inbox id BigInt→toString 전부·month_revenue Decimal→Number)·매핑실측일치(games Int[1,2]/payments paid·refund requested/orgs·courts pending/reports submitted/community draft nullable안전/Tournament status화이트6종@@index)·KST경계·7일trend day-bucket·schema0·union정렬/cursor경계 전부 PASS. minor: payments.refund_status 인덱스부재(풀스캔·후속ADD권장)·소스별take200 silent상한·delta null 3종(의도). 수정요청 0 |
@@ -943,4 +1009,5 @@ EXCLUDED_STATUSES = completed/ended/closed/cancelled(TERMINAL) + draft/upcoming(
 | 2026-06-15 | PR-MOCK-TO-REAL ④ scrim (developer) | ✅ 더미제거→team_match_requests 실연결·4탭·빈상태3분기·0스키마/0신규라우트·tsc0·postcss0 |
 | 2026-06-15 | Phase 1 상태 레이어 리뷰 (reviewer) | ✅ APPROVE (c0/maj0/min2) — CTA/admin 무영향·필드정합·tsc0. TZ경계 minor |
 | 2026-06-15 | Phase 1 대회 상태 표시 레이어 (developer) | ✅ effectiveTournamentStatus+10파일·테스트8 PASS·build ✓·DB0 |
+| 2026-06-16 | 기록 대회 기록실 MVP 검증 (tester) | ✅ 5/5 통과 — tsc0·build0·raw snake정합(camel0)·공식가드 DB실측·회귀0·평점null'–'. 400/404 정상. 커밋게이트 통과 |
 </content>

@@ -113,8 +113,8 @@ export default async function TournamentDetailPage({
 
   // ?tab= 쿼리 검증: 허용된 탭 키만 통과, 그 외(없음/오타/임의값)는 overview로 폴백
   // 이렇게 서버에서 화이트리스트로 거르면 TournamentTabs가 안전하게 initialTab 사용 가능
-  // Phase 2 Match: "rules" 추가
-  const ALLOWED_TABS = ["overview", "bracket", "schedule", "teams", "rules"] as const;
+  // Phase 2 Match: "rules" 추가 / 2026-06-16: "records" 추가 (대회 기록실)
+  const ALLOWED_TABS = ["overview", "bracket", "schedule", "teams", "rules", "records"] as const;
   type AllowedTab = (typeof ALLOWED_TABS)[number];
   const initialTab: AllowedTab = (ALLOWED_TABS as readonly string[]).includes(tab ?? "")
     ? (tab as AllowedTab)
