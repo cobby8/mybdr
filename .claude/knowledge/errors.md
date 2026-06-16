@@ -2,6 +2,15 @@
 <!-- 담당: debugger, tester | 최대 30항목 -->
 <!-- 이 프로젝트에서 반복되는 에러 패턴, 함정, 주의사항을 기록 -->
 
+### [2026-06-16] `MatchPlayerStat.minutesPlayed` = 초 단위 + 999 truncate 버그 — 분으로 직접 read 금지
+- **분류**: errors (출전시간 데이터 함정 / source 이원화)
+- **발견자**: live-expert + pm (기록 Records MIN 이슈)
+- **증상**: 기록실 MIN이 999.0 / 1056.4 / 1442.1 등 비현실(7경기 선수가 1000+분).
+- **원인 2겹**: (1) `minutesPlayed`는 **초 단위**(2400=40분, 2700=45분 풀타임). records가 분으로 착각해 그대로 표시. (2) Flutter 앱이 16:39(999초) 초과 출전을 **999로 truncate** 저장 → 양수 813행(54%)이 999 손상값. 종이(score-sheet)모드는 0 하드코딩.
+- **핵심**: 출전시간 정확값은 **`MatchPlayerStat.minutesPlayed`가 아니라 `minutes-engine`(PBP 재계산)**에 있음. 라이브 화면은 minutesPlayed 폐기하고 PBP 재계산 사용. **minutesPlayed를 신뢰해 분으로 쓰면 안 됨**(초 단위 + 999 손상). 신규 출전시간 표시는 `getMatchMinutesBySec`(공용 함수, `match-minutes.ts`) 경유.
+- **예방**: 출전시간 필요 시 (a) minutesPlayed 직접 read 금지 (b) `getMatchMinutesBySec`로 PBP 재계산 (c) 종이/clock=0 매치는 산출 불가→'–' (d) 999는 손상값. 잔여 raw read 경로: `my-season-stats.ts`, `api/v1/players/[id]/stats` (후속 정리 대상).
+- **참조횟수**: 0
+
 ### [2026-06-14] CSS 주석 `*/` 조기종료 — grep 미탐지, postcss 실파서 검증 필수 (★[2026-06-10] 재발)
 - **분류**: errors (CSS 주석 / 규칙 소실 / 검증 방법론)
 - **발견자**: reviewer (Phase 12 Batch A/B 박제 `d63e93f`)

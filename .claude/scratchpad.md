@@ -4,7 +4,7 @@
 - **요청**: (없음 — 직전 작업 완료)
 - **상태**: ✅ 대기 (다음 작업 준비)
 - **현재 담당**: pm
-- **직전 완료(2026-06-16)**: 의뢰서 STAGE1/2 갭①②(팀 재검수·프로필 대회상태 보정) → main 반영(PR#711/#712). 기록(Records) 3화면은 타 세션 main 반영.
+- **직전 완료(2026-06-16)**: 기록(Records) 출전시간 PBP 재계산(minutes-engine 공용 추출·999버그 회피·종이'–')+평균/누적 파란 토글 → main(PR#713/#714). 갭①②(팀 재검수·프로필 대회상태)→main(PR#711/#712). 후속 권장(라이브 byQuarterSec cap)=검토 후 현행유지(수정불필요).
 
 ## 진행 현황표 (대기/후속만)
 | 작업 | 상태 |
@@ -44,7 +44,7 @@
 
 ## 완료 Phase (이력 압축)
 - ✅ **의뢰서 STAGE1/2 + 갭①② (2026-06-16)** — effectiveTournamentStatus(공개화면)·Admin S1~S3·팀검수·통합디스패처 + 갭①(팀 핵심정보 변경 재검수)·갭②(프로필 대회 종료 표시). 전부 main
-- ✅ **기록(Records) 3화면 (2026-06-16, PR#707~712)** — 대회/선수/팀 기록 탭. 공식가드 집계·평점null'–'·21컬럼 box
+- ✅ **기록(Records) 3화면 + 출전시간 PBP 재계산 (2026-06-16, PR#707~714)** — 대회/선수/팀 기록 탭. 공식가드 집계·평점null'–'·21컬럼 box. 출전시간=minutes-engine 공용추출(`match-minutes.ts`)·999truncate회피·종이'–'·평균/누적 파란토글. 라이브 회귀 maxDiff=0
 - ✅ **대회종료 후속 (2026-06-15)** — ①우승팀 set-champion ②auto-complete cron ③Phase2/3 백필. champion=Team.id/winner=TT.id 변환
 - ✅ **PR-MOCK-TO-REAL ①②③ (`ee1a0c3`) / Phase12 13화면 / LINEUP-V2 / Phase10 5시안 (2026-06-14)**
 - ✅ **PR-RECORDER-AUDIT / 대회종료B안 / 9C / Phase1~9 / PR-PERM-DISPLAY** (이전)
@@ -52,6 +52,7 @@
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
 |------|------|------|
+| 2026-06-16 | 기록 출전시간 PBP재계산+토글 main (pm+live-expert) | ✅ 90d67e7→PR#713/#714. minutes-engine 공용추출·999회피·종이'–'·파란토글. 라이브 회귀 maxDiff=0·vitest21/21. knowledge 3파일 기록 |
 | 2026-06-16 | 갭①② main 머지 (pm) | ✅ 1bf805f/7cfe0a8 → PR#711/#712 main. 선별커밋으로 멀티세션 충돌0·미푸시0 |
 | 2026-06-16 | 갭①② 검증 (tester/reviewer) | ✅ tester 10/10·reviewer 통과(차단0). 변경 2파일 tsc0 |
 | 2026-06-16 | 갭① 팀PATCH 재검수 + 갭② 프로필 보정 (developer) | ✅ active+식별정보 실변경만 pending_review / basketball effectiveTournamentStatus(camel 정정) |
@@ -61,4 +62,3 @@
 | 2026-06-15 | Admin S1~S3 + 팀검수 + 시즌시상 + 코트제보 (다수) | ✅ main. reviewer 전건 APPROVE |
 | 2026-06-15 | 대회종료 후속 ①②③ (planner+dev) | ✅ set-champion/auto-complete cron·Phase2/3 백필 |
 | 2026-06-15 | Phase1 대회상태 표시레이어 (dev) | ✅ effectiveTournamentStatus+10파일·테스트8 |
-| 2026-06-14 | MOCK-TO-REAL①②③ / Phase12 13화면 / LINEUP-V2 (다수) | ✅ main(ee1a0c3 등) |
