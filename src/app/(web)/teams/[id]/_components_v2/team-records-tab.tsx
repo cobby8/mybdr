@@ -26,6 +26,7 @@ import {
   statCols,
   type RecRow,
   type RecColumn,
+  type StatMode,
 } from "../../../_components/records/records-shared";
 
 // raw fetcher — snake_case 응답 그대로(camelCase 변환 안 함).
@@ -61,6 +62,12 @@ const SEG_OPTIONS = [
   { v: "season", l: "시즌별", ico: "calendar_month" },
 ];
 
+// 평균/누적 토글 — 대회별·시즌별 로스터 집계 전용. 경기별 박스(raw)는 N/A.
+const AGG_OPTIONS = [
+  { v: "avg", l: "경기당", ico: "trending_up" },
+  { v: "sum", l: "합계", ico: "functions" },
+];
+
 const r1 = (n: number): number => Math.round(n * 10) / 10;
 const pctOf = (made: number, att: number): number =>
   att ? Math.round((made / att) * 1000) / 10 : 0;
@@ -75,6 +82,8 @@ export function TeamRecordsTab({ teamId }: { teamId: string }) {
   const [season, setSeason] = useState<number | null>(null);
   const [selGame, setSelGame] = useState<string | null>(null);
   const [selTn, setSelTn] = useState<string | null>(null);
+  // 집계 단위(평균/누적) — 대회별·시즌별 로스터 표에만. 경기별 박스는 N/A.
+  const [aggMode, setAggMode] = useState<StatMode>("avg");
 
   if (isLoading) return <RecLoading />;
   if (error)
@@ -121,6 +130,8 @@ export function TeamRecordsTab({ teamId }: { teamId: string }) {
   };
 
   // 팀 합계/평균 행 (클레임 선수 합산) — 시안 teamLine 박제
+  // avg=true → 평균 박스 행 / avg=false → 경기별(raw) 박스 합 행.
+  // 추가로 sum_* 누적 필드도 함께 채워 sum 토글 시 정수 누적 표시(선수 sum_* 합).
   const teamLine = (rows: RecRow[], avg: boolean): RecRow | null => {
     const cs = rows.filter(
       (r) => r.claimed && (avg ? r.g != null : true),
@@ -143,6 +154,16 @@ export function TeamRecordsTab({ teamId }: { teamId: string }) {
     t.rating = null; // 평점 데이터 부재 (Q1)
     t.min = null; // 팀 합계에서 MIN 은 의미 약함
     if (avg) t.g = Math.max(...cs.map((r) => Number(r.g)));
+    // ── 누적(합계) — 선수별 sum_* 합산. sum 토글 시 statCols 가 이 키들을 읽음 ──
+    //   집계 행(avg=true)일 때만 의미(선수 행이 sum_* 보유). 경기별(raw) 행은 sum_* 미존재 → 평균키 폴백.
+    const sumK = (sk: string) =>
+      cs.reduce((a, r) => a + (Number(r[sk]) || 0), 0);
+    (["sum_pts", "sum_fgm", "sum_fga", "sum_tpm", "sum_tpa", "sum_ftm", "sum_fta", "sum_oreb", "sum_dreb", "sum_reb", "sum_ast", "sum_stl", "sum_blk", "sum_to", "sum_pf", "sum_pm"] as const).forEach(
+      (sk) => {
+        t[sk] = sumK(sk);
+      },
+    );
+    t.sum_min = null; // 팀 합계 MIN 의미 약함
     return t;
   };
 
@@ -200,7 +221,7 @@ export function TeamRecordsTab({ teamId }: { teamId: string }) {
   const aggCols: RecColumn<RecRow>[] = [
     nameCol,
     gCol,
-    ...statCols<RecRow>({ avg: true }),
+    ...statCols<RecRow>({ mode: aggMode }),
   ];
   const boxCols: RecColumn<RecRow>[] = [
     nameCol,
@@ -368,6 +389,9 @@ export function TeamRecordsTab({ teamId }: { teamId: string }) {
 
   const listMode =
     (unit === "game" && !selGame) || (unit === "tournament" && !selTn);
+  // 평균/누적 토글 노출 — 로스터 집계 뷰만(시즌별 / 대회 드릴다운). 경기별(raw)·목록은 N/A.
+  const showAggToggle =
+    unit === "season" || (unit === "tournament" && !!selTn);
 
   return (
     <section className="rec-card">
@@ -391,6 +415,14 @@ export function TeamRecordsTab({ teamId }: { teamId: string }) {
 
       <div className="rec-toolbar">
         <RecSeg value={unit} onChange={switchUnit} options={SEG_OPTIONS} />
+        {/* 평균/누적 토글 — 로스터 집계 뷰(시즌별·대회 드릴다운)에만 */}
+        {showAggToggle && (
+          <RecSeg
+            value={aggMode}
+            onChange={(v) => setAggMode(v as StatMode)}
+            options={AGG_OPTIONS}
+          />
+        )}
       </div>
 
       {body}
