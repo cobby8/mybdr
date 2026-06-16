@@ -24,7 +24,8 @@ import { TeamTabsV2, type TeamTabKey, TEAM_TAB_KEYS } from "./_components_v2/tea
 import { OverviewTabV2 } from "./_components_v2/overview-tab-v2";
 import { RosterTabV2 } from "./_components_v2/roster-tab-v2";
 import { RecentTabV2, computeRecentForm } from "./_components_v2/recent-tab-v2";
-import { StatsTabV2 } from "./_components_v2/stats-tab-v2";
+// 2026-06-16 Records: 기존 StatsTabV2("준비 중" placeholder)를 TeamRecordsTab(실데이터)로 교체 (PM 결재 Q2)
+import { TeamRecordsTab } from "./_components_v2/team-records-tab";
 import { TeamSideCardV2 } from "./_components_v2/team-side-card-v2";
 
 export const revalidate = 60;
@@ -373,7 +374,7 @@ export default async function TeamDetailPage({
               {currentTab === "recent" && (
                 <RecentTabV2 teamId={team.id} />
               )}
-              {currentTab === "stats" && <StatsTabV2 />}
+              {currentTab === "stats" && <TeamRecordsTab teamId={id} />}
             </Suspense>
           </div>
 
