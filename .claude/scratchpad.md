@@ -1,13 +1,15 @@
 # 작업 스크래치패드
 
 ## 현재 작업
-- **요청**: PR-MOCK-TO-REAL 버킷A 더미→실데이터 — **완료**
-- **상태**: ①②③ main · **④ scrim `068341b`(머지 진행)** · ⑤ STOP(준비중 유지) · ⑥⑦ 이미 SV1/AW1서 처리. **PR-MOCK-TO-REAL 종료**
-- **현재 담당**: pm
+- **요청**: 기록(Records) 기능 CLI 박제 — 선수·팀·대회 3화면 + API 3종 + 공통컴포넌트. 시안=`Dev/design/BDR v2.33/_delivery-records-2026-06-16/`. 신규 DB 0(매치집계만)·공식가드 필수·API/데이터 유지+UI 추가.
+- **상태**: planner-architect 실측+설계 **완료**(`Dev/records-feature-plan-2026-06-16.md`) → **PM 결재 7건(Q1~Q7) 대기** 후 developer 박제
+- **현재 담당**: PM(결재 받기)
 
 ## 진행 현황표
 | 작업 | 상태 |
 |------|------|
+| S3 AdminInboxState 구현 | ✅ raw DDL로 admin_inbox_state 테이블+unique idx 생성(db push/migrate 0 → DROP live_scoreboards 위험 회피). generate 완료. snooze API 신규 / inbox 목록 snoozed_until 주입+기본제외(include_snoozed=1 포함) / resolve markResolved upsert 6도메인. 사후검증 무영향0·tsc·build PASS. tester/reviewer 대기. 미커밋 |
+| Admin Console S1-4 팀 검수 구현 | ✅ 8파일(team-status상수·생성pending_review·옵션2목록·상세가드·review API·overview/inbox/resolve teams연동). schema0·active소급0·tsc/build PASS. **tester 검증 7/7 통과(옵션2 회귀0 확정·DB실측 active93 소급0)**. reviewer 대기 |
 | 버킷B P1-b 시즌시상 설계 | ✅ read-only 설계 완료(`Dev/season-awards-plan-2026-06-15.md` / schema diff 무중단 / PM결재 4건) |
 | 버킷B P1-b 시즌시상 구현 | ✅ 3단계 박제(schema ADD+admin입력+/awards연결) 미push 3커밋. AW1 기본부 diff 0 실측·tsc·build PASS. tester/reviewer 대기 |
 | PR-MOCK-TO-REAL ④⑤ scrim/team-invite | ⏳ 진행 중(STOP가드: team_match_requests/team_join 의도 확인) |
@@ -16,6 +18,16 @@
 | Phase12 Batch A/B 13화면 / PR-LINEUP-V2 / Phase10 5시안 | ✅ main 반영 |
 
 ## 기획설계 (planner-architect)
+### 기록(Records) 기능 CLI 박제 실측+설계 (2026-06-16, read-only)
+- 🎯 선수·팀·대회 3화면 "기록" 탭 신설. 설계서=`Dev/records-feature-plan-2026-06-16.md`. **코드·DB·push 0**(임시스크립트 0·SELECT조차 안함·schema/시안 Read+Grep만).
+- **★21컬럼 매핑 결과**: statCols 21개 중 **20개 MatchPlayerStat 실재(L794~845 전수확인)**·평점(rating) 1개만 **부재→null '–' 정직표기**(game_player_ratings=1~5 매너평가·매치연결끊김·척도다름 / UserSeasonStat.avg_rating=0행 cron미동작 / 둘 다 부적합·억지매핑 금지). season_year 컬럼 없음→scheduledAt.getFullYear() 파생(my-season-stats.ts 표준패턴).
+- **★재사용 자산**: `stat-leaders.ts`(getStatLeaders=4부문 누적TOP3·확장필요 시안6종평균) / `my-season-stats.ts`(MatchPlayerStat findMany+JS가공·승패판정·상대팀명 로직 완비=헬퍼추출 재사용) / `official-match.ts`(officialMatchNestedFilter 매 집계 필수). 기존 종료뷰 `tournament-stat-leaders-card.tsx`(4종 누적) 보존.
+- **★탭 실측**: 대회 tournament-tabs=?tab=지원·lazy SWR(records 4곳 추가) / 팀 team-tabs-v2=?tab=지원·**이미 "기록"라벨 stats탭 존재**(중복 결재Q2) / 선수 profile-tabs=**?tab=미지원 local state 2탭**(URL전환 결재Q3). `/api/v1/.../player-stats`=**JWT가드 공개아님**→대회기록실 재사용불가·웹신설.
+- **API 결정**: 화면별 신설 `/api/web/{tournaments|users|teams}/[id]/records`(공개·공식가드·apiSuccess snake). 선수=서버직주입 대안(profile-tabs SSR prefetch). 팀=대회경기한정(친선/픽업 박스없음·TournamentTeam→ttp 경유).
+- **단계**: [1]공통컴포넌트tsx+css반입 [2]집계헬퍼lib(21컬럼box PURE) [3]대회기록실API+탭(MVP·신규가치최대) [4]선수기록 [5]팀기록 [6]tester+reviewer병렬+역박제. [3][4][5]는[1][2]후 병렬가능. 규모 大(+1800~2300).
+- **함정**: 공식가드누락(미래매치오집계) / snake_case(apiSuccess자동·★재발6회·서버컴포넌트는camel) / 평점억지매핑 / 강조색 var(--accent)빨강폴백→var(--cafe-blue)치환 / 시안목업박제금지(실API와이어) / jsx→tsx(window전역제거) / teamHref(name)→Team.id.
+- **PM결재 7건(Q1~Q7)**: ①평점소스(권장 null표기) ②팀stats탭중복(권장 교체or통합) ③선수?tab=전환(권장 URL param) ④API vs 서버직주입(화면별혼합) ⑤리더보드6종확장(권장 확장) ⑥팀로스터기준(권장 TournamentTeam경유) ⑦박제순서(권장 대회MVP먼저).
+
 ### 버킷B P1-b 시즌 시상 고급필드 실측+설계 (2026-06-15, read-only)
 - 🎯 admin-plan §P1-b "season_awards 신규". 설계서=`Dev/season-awards-plan-2026-06-15.md`. **코드·DB·push 0**(diff는 임시schema↔schema 미리보기·임시파일 즉시삭제 가드3).
 - **(a)재사용 점검**: `*award*`/`*season*` grep → 명명 테이블 **부재**(UserSeasonStat=개인 누적통계만·시상 카테고리 없음). **community_posts(category=award) 재사용=기각**(user_id=작성자≠수상자·category 'news'전용 충돌·season_year 파싱취약 → 억지매핑). **신규 season_awards 정당**(P1-a court_edit_suggestions 못쓴 것과 동형 방향불일치).
@@ -53,6 +65,91 @@
 
 ## 구현 기록 (developer)
 
+### Admin Console S3 — AdminInboxState 스누즈/처리상태 (2026-06-15, developer) — 미커밋
+
+📝 구현: 통합 인박스에 항목별 메타 테이블 `admin_inbox_state` 연동. 스누즈(나중에 다시 보기) + 처리완료 흔적을 원본 테이블 미접촉으로 별도 보관. GET 목록은 기본적으로 스누즈 미만료·처리완료 항목 제외.
+
+| 파일 | 변경 | 신규/수정 |
+|------|------|----------|
+| (DB) admin_inbox_state | raw DDL CREATE TABLE + unique idx(ref_type,ref_id). db push/migrate 미사용 | 신규 |
+| prisma/schema.prisma | AdminInboxState 모델 (이미 추가돼 있던 상태 — generate만 수행) | 기존 |
+| inbox/route.ts | union 후 adminInboxState batch 조회 → snoozed_until 주입 / 기본 제외(snoozed_until>now OR resolved_at!=null) / `?include_snoozed=1` 시 포함 | 수정 |
+| inbox/[id]/snooze/route.ts | POST {until:ISO8601} super_admin·Zod·upsert(refType_refId) → snoozedUntil | 신규 |
+| inbox/[id]/resolve/route.ts | 6개 도메인 처리 성공 직후 markResolved() upsert(resolved_at/resolved_by/memo) best-effort | 수정 |
+
+🔎 1단계 DB 사후검증: 테이블 생성O / 컬럼 9 / 인덱스 2(pkey+unique) / live_scoreboards count=0 무영향 / admin_inbox_state count=0 초기. 임시 스크립트 정리 완료.
+
+💡 tester 참고:
+- 테스트: super_admin 세션으로 (1) POST inbox/[id]/snooze {until: 미래ISO} → 200 + snoozed_until 반환 → GET inbox 기본목록에서 해당 항목 사라짐 → `?include_snoozed=1` 시 다시 보임 (2) POST inbox/[id]/resolve 정상 처리 → GET 기본목록에서 사라짐
+- id 형식 = "<domain>:<refId>" (예: "court_submissions:12")
+- 주의입력: until 비ISO8601 → 400 VALIDATION_ERROR / id에 ":" 없음 → 400 BAD_ITEM_ID / 비super_admin → 403
+- resolve의 markResolved는 best-effort(try/catch) — 메타 upsert 실패해도 원본 처리는 성공 응답
+
+⚠️ reviewer 참고:
+- inbox/route.ts 제외 필터 in-place splice 역순 순회 (인덱스 안전)
+- snooze는 resolved_by 미기록(스누즈≠처리) — 향후 감사 필요 시 별도 컬럼 분리 주석 남김
+- resolved_by = session.sub(string). resolve는 BigInt(session.sub)를 원본 처리에 별도 사용
+
+### Admin Console S1-4 팀 검수 (2026-06-15, developer) — 미커밋
+
+📝 구현: 신규 팀 생성→`pending_review`(검수대기). 공개목록/상세는 옵션2(비로그인·타인=현행 active+public 회귀0 / 본인=내 검수대기 팀 OR 추가). super_admin review API(approve→active / reject→rejected). S2 인박스 union·overview count·resolve 디스패처에 teams 도메인 연동. **schema 0 / api-v1 0 / 디자인 0 / active 93건 소급 0**.
+
+| 파일 | 변경 | 신규/수정 |
+|------|------|----------|
+| `src/lib/constants/team-status.ts` | TEAM_STATUS(active/pending_review/rejected) + teamReviewQueueWhere 헬퍼 | 신규 |
+| `src/app/actions/teams.ts` | 팀 생성 status `"active"→TEAM_STATUS.PENDING_REVIEW`(L82) | 수정 |
+| `src/app/api/web/teams/route.ts` | 공개목록 GET 옵션2 가시성 분기(getWebSession try-폴백 / 로그인=OR[active+public, pending+captainId나, pending+teamMembers.some.userId나]). where=AND배열(가시성+q+city 충돌방지). groupBy 도시목록은 active만 현행 유지 | 수정 |
+| `src/app/(web)/teams/[id]/page.tsx` | 본조회 직후 가시성 가드(status!=="active" → 본인[captainId or active멤버]만, 그외 notFound) | 수정 |
+| `src/app/api/web/admin/teams/[id]/review/route.ts` | POST {approve\|reject, reason?} super_admin·Zod. pending_review만→active\|rejected(INVALID_STATE 방어). reason→adminLog | 신규 |
+| `src/app/api/web/admin/overview/route.ts` | queue.teams `0→prisma.team.count(teamReviewQueueWhere)` (Promise.all 추가) | 수정 |
+| `src/app/api/web/admin/inbox/route.ts` | teams 소스 추가(severity blue·route /admin/teams·Team.createdAt 정렬·union 정규화) | 수정 |
+| `src/app/api/web/admin/inbox/[id]/resolve/route.ts` | SUPPORTED_DOMAINS에 teams 추가 + 차단분기 제거 + switch teams case(review 로직 1:1 인라인 복제·라우트 import 0) | 수정 |
+
+- **옵션2 회귀 0**: 비로그인/타인 where = `{status:active, is_public:true}` (현행 동일). 로그인만 OR 추가. teamMembers relation 필드명 `userId`(@map user_id)·captainId(BigInt @map captain_id) 스키마 실측 확인.
+- **상세 가드**: teamMembers는 본조회에서 status:"active" include됨 → 멤버 판정 재사용(추가 쿼리 0). notFound는 무거운 집계 쿼리 전에 실행(낭비 차단).
+- **resolve teams**: refId=Team.id.toString()(union 박제)→BigInt(refId)=pk 정합. court 동형으로 review 라우트 import 0(결합 0).
+- tsc --noEmit EXIT 0 / `npm run build` ✓ EXIT 0 + 신규 `ƒ /api/web/admin/teams/[id]/review` 등록 확인.
+
+💡 tester 참고:
+- 정적: tsc EXIT 0 / build EXIT 0. super_admin curl 어려워 정적+build 대체.
+- **회귀 검증(★)**: 비로그인으로 GET /api/web/teams → 기존과 동일 active+public 목록만(검수대기 팀 0 노출). 로그인 사용자는 본인 검수대기 팀이 추가로 보임.
+- 팀 생성: 로그인→팀 생성→생성자 본인은 목록/상세에서 보임(pending_review). **타인/비로그인은 그 팀 목록·상세(URL직접) 모두 notFound/숨김**.
+- review: super_admin으로 POST /api/web/admin/teams/[id]/review {action:approve}→active(공개 노출). reject→rejected(숨김 유지). pending_review 아니면 400 INVALID_STATE. 비super_admin→403.
+- inbox/overview: super_admin GET overview queue.teams=검수대기 count / inbox items에 teams 항목(blue) 노출. resolve POST teams:refId {approve}→active.
+- 주의: 기존 active 팀 93건은 pending_review 아니라 review API에서 INVALID_STATE(정상 — 소급 0).
+
+⚠️ reviewer 참고:
+- ★ 옵션2 회귀 0: 비로그인 visibilityWhere가 정확히 기존 `{status:active, is_public:true}`인지. where AND 배열이 q의 OR과 충돌 없는지.
+- ★ 상세 가드: active 팀은 가드 통과(전원 공개)·검수대기/반려는 본인만. teamMembers include 재사용(userId === viewerId).
+- ★ resolve teams case가 review 라우트와 동일 로직(pending_review만)·라우트 import 0(court 동형).
+- snake_case: apiSuccess 자동변환. id BigInt→toString. teamReviewQueueWhere 단일 source(inbox/overview 동일 기준).
+- 멀티세션: 명시 8파일만 접촉. schema/api-v1/디자인 0.
+
+### P2 갤러리 (2026-06-15, developer) — 미push
+
+📝 구현: 버킷B P2 — `/gallery` 더미(ITEMS/lightbox/SVG/이모지) 제거 상태에서 **news_photo(0스키마) 실연결**. server component 전환. 파일 1개. CSS 추가 0.
+
+| 파일 | 변경 | 신규/수정 |
+|------|------|----------|
+| `src/app/(web)/gallery/page.tsx` | async server component 전환 + `prisma.news_photo.findMany`(url/caption/match.tournament) + 2건 이상 `.gl-grid` 실데이터 그리드 / 1건 이하 `.ex-empty` 빈상태 분기 | 수정 |
+
+- **실측 news_photo count = 1**(소수) → 확정룰 "1건이면 빈상태가 정상, 가짜채움 금지" 준수. 현재 화면=빈상태 유지. **2건 이상부터 자동 그리드 노출**(`hasGrid = photos.length >= 2`).
+- **클릭 링크**: match→tournament 있으면 `/tournaments/${tournament.id}`(실재 라우트, uuid param). 매치 단독 라우트 부재라 대회 상세로 위임. tournament 없으면 억지 링크 금지→`<div>`로 img만.
+- **캡션 fallback**: caption→roundName→대회명→"경기 사진". 실 `<img src={url}>` + objectFit cover(inline, CSS 추가 0). 더미 SVG·lightbox·이모지 0.
+- **CSS 추가 0**: 기존 `.gl-grid`/`.gl-item`/`.gl-item__cap`/`.ex-*` 재사용(globals.css 실재 확인). 토큰화 클래스만(하드코딩hex 0).
+- 공개 정책 유지(세션 가드 0). `revalidate=30`. tsc --noEmit EXIT 0. 임시 census 스크립트 작성→삭제(가드3).
+
+💡 tester 참고:
+- 정적: `npx tsc --noEmit` EXIT 0(통과).
+- DB: news_photo count=1 → /gallery 접속 시 **"갤러리 준비 중" 빈상태가 정상**(mock 0). 가짜 사진 노출되면 오류.
+- 그리드 경로: news_photo 2건 이상 환경에서만 `.gl-grid` 노출. 각 타일 클릭→해당 대회 `/tournaments/[uuid]` 이동(실재 라우트). 현재 1행이라 런타임 그리드 미재현(1행도 빈상태 의도).
+- 주의 입력: caption=null 사진(현 1건)은 roundName/대회명으로 캡션 표시. tournament 없는 고아 사진은 링크 없이 img만.
+
+⚠️ reviewer 참고:
+- 관계 경로 news_photo.match.tournament(tournamentId uuid)→/tournaments/[id] 실재 라우트 확인(매치 단독 라우트 없음→대회 상세 위임, 억지 링크 0).
+- 임계값 `>= 2`(소수=1건 빈상태) — 확정 지시 "1건이면 빈상태가 정상" 반영.
+- 멀티세션 제약: `src/app/(web)/gallery/page.tsx` 1파일만 접촉. schema/api/v1/CSS/다른 화면 미접촉.
+
 ### P1-b 시즌 시상 고급필드 (2026-06-15, developer) — 미push 3커밋
 
 📝 구현: season_awards 신규 테이블 + admin 입력폼 + /awards 고급부 연결. 단계별 분리 커밋. P1-a 코트제보 동형 패턴.
@@ -88,6 +185,66 @@
 - snake_case: season_awards.payload는 Json(comment/quote) — page.tsx server prisma는 camel 접근, admin user search 응답은 apiSuccess snake 변환(data.users).
 - 강조색 var(--cafe-blue)(errors 06-10 빨강 폴백 함정 회피). 삭제버튼 var(--color-error).
 - 멀티세션: awards 2파일 + admin season-awards 4파일 + schema + sidebar만 접촉. 다른 세션(Admin Console S2 등) 미접촉.
+
+### Admin Console S1-5 — 통합 디스패처 (2026-06-15, developer) — 신규 1파일 미커밋
+
+📝 구현: S2 인박스(union 목록) 항목을 도메인 가리지 않고 처리하는 단일 POST 엔드포인트. id="<domain>:<refId>" split→switch(domain) 직접 prisma+adminLog. isSuperAdmin 통합가드 403. schema 0 / api/v1 0 / 기존 6도메인 라우트·inbox(목록) 전부 미수정(신규 1파일만).
+
+| 파일 | 변경 | 신규/수정 |
+|------|------|----------|
+| `api/web/admin/inbox/[id]/resolve/route.ts` | POST. isSuperAdmin가드→id split(":")→domain별 Zod 화이트리스트→switch 6분기 처리+adminLog. teams=400 UNSUPPORTED_DOMAIN | 신규 |
+
+★ **6도메인 위임(검증 1:1 복제)**:
+- game_reports {resolve\|dismiss, memo?}: submitted만→resolved\|dismissed(아니면 INVALID_STATE). memo→adminLog(컬럼부재).
+- community_posts {hide\|restore, reason?}: status→hidden\|published. reason→adminLog.
+- organizations {approve\|reject, reason?}: pending만→approved(approved_at/by)\|rejected. ★reject reason 필수(REASON_REQUIRED)+rejection_reason/at.
+- court_submissions {approve\|reject, review_note?}: pending만 findFirst. ★(A) 디스패처 내부 트랜잭션 복제(court_infos.create+XP court_submit+approved_court_info_id). 기존 PATCH 라우트 import 0·무수정.
+- payments {approve\|reject, reason?}: ★status-only. refund_status="requested"만→approved\|rejected(멱등·PG호출0·refund_amount/refunded_at/status 미접촉). adminLog severity:warning.
+- teams: 400 UNSUPPORTED_DOMAIN(DB미지원 보류).
+
+★ **공통**: refId 전 도메인 BigInt PK → 공통 BigInt 변환(인박스 union .toString() 박제와 정합). adminId=session!.sub(isSuperAdmin narrowing 안 함→non-null assertion·tsc 0). id 분해는 indexOf(":")(첫 콜론 기준·refId 콜론 포함 대비).
+
+💡 tester 참고:
+- 정적: `npx tsc --noEmit` EXIT 0 / `npm run build` ✓ 21.7s + 신규 `ƒ /api/web/admin/inbox/[id]/resolve` 등록.
+- super_admin curl 어려워 **build+정적 대체**(지시문 허용). 런타임은 super_admin 로그인 후 POST 1회 권장.
+- 정상: 비super_admin/비로그인→403 FORBIDDEN. id "domain:refId" 아니면→400 BAD_ITEM_ID. teams→400 UNSUPPORTED_DOMAIN. 미지원 domain→400 UNKNOWN_DOMAIN. body 화이트리스트 외→400 VALIDATION_ERROR. 없는 id→404. game_reports submitted/organizations pending/court pending/payments refund_status=requested 아니면→400 INVALID_STATE(organizations reject reason 누락→400 REASON_REQUIRED).
+- 주의: payments는 refund_status만 전환(실제 환불 0). court approve는 court_infos 1건 생성+XP+10(트랜잭션·기존 PATCH와 동일 결과).
+
+⚠️ reviewer 참고:
+- ★ payments status-only — payments.update data에 refund_status/updated_at만(refund_amount·refunded_at·status 미포함) 확인. PG fetch 0.
+- ★ court (A)복제 — 기존 court-submissions PATCH 라우트 import 0(결합 0)·트랜잭션 court_infos.create+update+addXP 원자성·adminLog 트랜잭션 외 동일.
+- ★ organizations reject reason 필수(기존 reject 라우트 동일). approve는 canManageOrganizations 아닌 디스패처 표준 isSuperAdmin 가드(설계대로 통일).
+- snake_case: apiSuccess 자동변환. id BigInt→toString. payments 응답키 refund_status.
+- 멀티세션: 신규 1파일만 접촉. 기존 6도메인 라우트·inbox 목록·schema·api/v1 0.
+
+### Admin Console S1 — 처리 뮤테이션 1~3 (2026-06-15, developer)
+
+📝 구현: admin 콘솔 큐 항목 처리(action) 3 엔드포인트(POST). 셋 다 getWebSession+isSuperAdmin 403가드·Zod·adminLog·apiSuccess(snake자동)·schema 0·api/v1 미접촉. court-submissions/organizations approve 동형 패턴. notify=(A)보류(수신만·발송0).
+
+| 파일 | 변경 | 신규/수정 |
+|------|------|----------|
+| `api/web/admin/game-reports/[id]/resolve/route.ts` | POST Zod{action:resolve\|dismiss,memo?,notify?}. game_reports submitted만→resolved\|dismissed. **memo=컬럼부재(실측)→adminLog changesMade에만 박제**. adminLog(game_report.resolve\|dismiss) | 신규 |
+| `api/web/admin/suggestions/[id]/respond/route.ts` | POST Zod{status:in_progress\|resolved\|dismissed,admin_response?,notify?}. status+admin_response+responded_by_id=session.sub+responded_at=now. adminLog(suggestion.respond) | 신규 |
+| `api/web/admin/community/[id]/moderate/route.ts` | POST Zod{action:hide\|restore,reason?}. community_posts status→hidden\|published(default published). reason→adminLog. **기존 community admin status변경 미지원 실측→신규** | 신규 |
+
+★ **notify (A)보류**: Zod로 파라미터는 받되 createNotification 호출 **0**. "후속 NotificationType 정비 시 발송" 주석 위치 박제. 승인된 방향.
+★ **memo/reason DB 저장 안 함**: game_reports에 memo 컬럼 부재(실측 schema L1680~1700) / community_posts moderation reason 컬럼 부재 → 둘 다 adminLog.changesMade에만 박제(감사 추적). status 컬럼만 update.
+★ **suggestions**: status/admin_response/responded_by_id(BigInt?)/responded_at(DateTime?) 전부 실재 컬럼(L2042~2058) → DB 직접 갱신.
+★ 상태 가드: game_reports=submitted만 처리(중복방어 INVALID_STATE). suggestions/community=존재만 확인(상태 무관 전환 허용).
+★ session narrowing: isSuperAdmin(session) 통과 후 session!.sub(non-null assertion) — 헬퍼가 TS narrowing 안 해서 명시. tsc EXIT 0 확인.
+
+💡 tester 참고:
+- 정적: `npx tsc --noEmit` EXIT 0 / `npm run build` ✓ Compiled 22.1s + 신규 3라우트 등록(`ƒ /api/web/admin/game-reports/[id]/resolve`·`suggestions/[id]/respond`·`community/[id]/moderate`).
+- super_admin 세션 curl 어려워 **build+정적검증 대체**(지시문 허용). 런타임 실호출은 super_admin 로그인 후 POST 1회 권장.
+- 정상: 비super_admin/비로그인→403 FORBIDDEN. body 화이트리스트 외 값→400 VALIDATION_ERROR. 없는 id→404. game_reports submitted 아니면→400 INVALID_STATE.
+- 주의: memo/reason은 DB 미저장(adminLog만) — game_reports/community 응답엔 id+status만. notify=true 줘도 알림 발송 0(의도).
+- DB 안전: status update 1건씩만(트랜잭션 불요). destructive 0.
+
+⚠️ reviewer 참고:
+- ★ notify (A)보류 — createNotification import·호출 0인지(주석만) 확인. memo/reason adminLog 외 누수 0.
+- ★ game_reports submitted 가드(중복처리 방어) / suggestions responded_by_id=BigInt(session.sub) 정합.
+- snake_case: apiSuccess 자동변환(id/status). 응답 id=BigInt→toString.
+- 멀티세션 제약: 신규 3라우트 + architecture.md만 접촉. 다른 파일(S2·season-awards 등) 미접촉. schema/api-v1 0.
 
 ### Admin Console S2 — overview/inbox 2 API (2026-06-15, developer)
 
@@ -258,6 +415,93 @@ EXCLUDED_STATUSES = completed/ended/closed/cancelled(TERMINAL) + draft/upcoming(
 
 ## 테스트 결과 (tester)
 
+### Admin Console S3 — AdminInboxState 스누즈/처리상태 검증 (2026-06-15, tester) — 미커밋
+
+정적+build+DB(읽기전용) 실측 전부 통과. 6개 검증항목 0실패.
+
+| 검증 항목 | 결과 | 비고 |
+|-----------|------|------|
+| 1. build·tsc0·라우트등록·generate | ✅ 통과 | `tsc --noEmit` EXIT 0 / `npm run build` EXIT 0 / 신규 `ƒ /api/web/admin/inbox/[id]/snooze` 등록(+`/inbox`·`/inbox/[id]/resolve` 동시 등록). `prisma generate` ✓ v6.19.2 — `adminInboxState` 모델 client 노출 확인(DB count 호출 성공) |
+| 2. ★snooze 제외 로직 | ✅ 통과 | inbox/route.ts: union 후 `adminInboxState.findMany`(refType IN & refId IN batch)→Map 매칭으로 각 item `snoozed_until` 주입. 기본 모드(`!includeSnoozed`): `snoozedUntil>now`(미만료 스누즈) OR `resolvedAt!=null`(처리완료) item을 excluded Set 구성 후 **역순 splice**(인덱스 안전)로 제거. `?include_snoozed=1`→제외 끔(전부 노출). batch 조회는 화면 union 상한 내 소량(refType/refId 각 distinct IN) |
+| 3. snooze API 가드·Zod·upsert | ✅ 통과 | `isSuperAdmin(session)` 비통과→403 FORBIDDEN. body `{until: z.string().datetime()}`(ISO8601)·위반→400 VALIDATION_ERROR. id `indexOf(":")` 분해·":"없음/빈refType·refId→400 BAD_ITEM_ID. body JSON 파싱 실패→400 BAD_REQUEST. `adminInboxState.upsert({where:{refType_refId:{refType,refId}}, update:{snoozedUntil}, create:{...}})` 복합 unique 키. resolved_by 미기록(스누즈≠처리·주석 명시). 응답 snake `{id, snoozed_until}` |
+| 4. resolve markResolved best-effort | ✅ 통과 | resolve/route.ts 6도메인(game_reports/community_posts/organizations/court_submissions/payments/teams) 처리 성공 직후 각 case에서 `markResolved(domain, refId, session!.sub, memo, now)` 호출. markResolved=`adminInboxState.upsert`(update resolvedAt/resolvedBy/memo · create 동일)를 **try/catch로 감싸** 실패해도 원본 처리 응답 미차단(best-effort 감사). 각 도메인 memo 매핑: report=memo / community·org·payment=reason / court=review_note / team=reason |
+| 5. ★DB 안전(CREATE만·무영향) | ✅ 통과 | **읽기전용 census**(_temp 스크립트→즉시삭제 가드3): admin_inbox_state count=**0**(초기) / 컬럼 9(id,ref_type,ref_id,snoozed_until,resolved_at,resolved_by,memo,created_at,updated_at — 스키마 정합) / 인덱스 2(`_pkey`+`_ref_type_ref_id_key` unique). **live_scoreboards count=0 무영향**. db push/migrate 미사용(raw DDL)→다른 테이블 DROP/ALTER 0. ⚠️참고: `@@unique`는 unique **index**로 잡힘(pg_constraint의 unique constraint 0건). prisma upsert는 unique index만으로 동작 정상 |
+| 6. 기존 inbox 회귀 0·snake/직렬화 | ✅ 통과 | snooze 없는 item: stateMap 미매칭→`snoozed_until:null` 유지·excluded 미포함→정상 노출. S2 union/정렬(priority err0<warn1<blue2)/severity·domain 필터/cursor 페이지네이션 로직 무변경(S3는 union 후 주입+제외만 ADD). apiSuccess 자동 snake 변환. id BigInt→`.toString()`·refId `slice(indexOf(":")+1)`로 item.id와 동일 키 형식 매칭 |
+
+📊 종합: 6개 중 6개 통과 / 0개 실패
+
+특이사항(수정요청 아님·참고):
+- **런타임 super_admin POST 미수행**: super_admin 세션 curl 어려움 + **운영 DB 쓰기(upsert/delete) 샌드박스 차단**(정당 — 운영 DB 테스트 행 INSERT 위험)으로 snooze/resolve 실호출 미검증. 정적+build+DB 읽기실측 대체(지시문 허용). upsert 동작은 스키마 복합 unique 키 정의+tsc 통과로 정적 검증. **super_admin 로그인 후 1회 스모크 권장**: ①POST snooze {until:미래ISO}→GET 기본목록서 해당 item 사라짐→`?include_snoozed=1`서 재노출 ②POST resolve→기본목록서 사라짐.
+- unique constraint vs unique index: raw DDL이 `CREATE UNIQUE INDEX`로 만들어 pg_constraint엔 unique constraint 미등록(index만 존재). prisma `@@unique` upsert는 index 기반이라 정상 동작 — **수정 불요**(참고용).
+- `scripts/_temp/`에 다른 세션 산물 `count-news-photo.mjs` 잔존(S3 무관·미접촉).
+
+### Admin Console S1-4 — 팀 검수(옵션2) 검증 (2026-06-15, tester) — 8파일 미커밋(team-status.ts·review/route.ts untracked)
+
+정적+build+스키마/DB 실측 전부 통과. 7개 검증항목 0실패. ★옵션2 회귀 0 확정.
+
+| 검증 항목 | 결과 | 비고 |
+|-----------|------|------|
+| 1. build·tsc0·review 라우트 등록 | ✅ 통과 | `tsc --noEmit` EXIT 0 / `npm run build` EXIT 0 / 신규 `ƒ /api/web/admin/teams/[id]/review` 등록 확인(+`/api/web/admin/inbox`·`/inbox/[id]/resolve`·`/api/web/admin/overview`·`/admin/teams` 동시 등록). 신규 디렉토리 `admin/teams/`는 git untracked(route.ts 3820B 디스크 존재·build 등록=정상) |
+| 2. ★★옵션2 회귀 0 | ✅ 통과 | **비로그인/타인** visibilityWhere=`{status:"active", is_public:true}` — HEAD(변경전 `5391b79`) `where={status:"active",is_public:true}`와 **100% 동일**. 검수대기 팀 0 노출. **로그인** 시 OR[active+public, pending_review+captainId나, pending_review+teamMembers.some.userId나] 추가만. 구조 변경(플랫→`{AND:[visibilityWhere,{OR:q},{city}]}`)은 q OR과 visibility OR 충돌 방지=**개선**(결과집합 동일). groupBy 도시목록 active만 현행 유지. 상세 page.tsx: `team.status!=="active"`→본인(captainId or active멤버)만, 그외/비로그인 notFound. notFound가 무거운 집계 쿼리 전 실행 |
+| 3. 팀 생성 status→pending_review | ✅ 통과 | actions/teams.ts L86 `status: TEAM_STATUS.PENDING_REVIEW`(="pending_review") create data. team-applications/team_join 등 타 흐름 미접촉(active 유지) |
+| 4. review API 가드·Zod·전이·adminLog | ✅ 통과 | `isSuperAdmin(session)` 비통과→403 FORBIDDEN. Zod `{action:approve\|reject, reason?(max2000)}`·위반→400 VALIDATION_ERROR. `status!=="pending_review"`→400 INVALID_STATE(active 93건 방어). approve→active/reject→rejected. id BigInt 변환 실패→400 BAD_ITEM_ID·없는 id→404. reason→adminLog.changesMade(teams 전용컬럼 부재). 본문 잘못→400 BAD_REQUEST |
+| 5. teams 큐 활성(overview·inbox·resolve) | ✅ 통과 | overview queue.teams=`prisma.team.count({where:teamReviewQueueWhere})`(0고정→실측 Promise.all 추가). inbox teams 소스=teamReviewQueueWhere·severity **blue**·route `/admin/teams`·Team.createdAt asc 정렬·union 정규화(`teams:<id>`). resolve switch teams case=review 라우트 **1:1 인라인**(pending_review만→active\|rejected·INVALID_STATE 방어·adminLog·라우트 import 0). overview/inbox 모두 `teamReviewQueueWhere` **단일 source**(큐 숫자↔목록 일치 보장) |
+| 6. ★S2 3파일 타 도메인 회귀 0 | ✅ 통과 | overview: 기존 KPI4(new_users/active_games/month_revenue/recruiting)·큐5(game_reports/community/payments/court/orgs) 로직 무변경, teams count만 Promise.all에 ADD. inbox: 기존 5소스(reports/posts/courts/orgs/refunds) 무변경, teams 6번째 소스 ADD(severity priority err0<warn1<blue2 정렬 유지). resolve: 기존 6분기(game_reports/community/orgs/court/payments + UNSUPPORTED였던 teams) 무변경, teams는 400 UNSUPPORTED→정상 처리로 전환만 |
+| 7. 스키마0·api/v1 0·active 소급0·실측필드 | ✅ 통과 | `git diff prisma/schema.prisma`=**빈값**(schema 0). api/v1 내 TEAM_STATUS/team-status/teamReviewQueueWhere grep=0. **DB 실측**(읽기전용 census→즉시삭제 가드3): status 분포=active 93·inactive 8·merged 2·dissolved 2·**pending_review/rejected 0**→active 93건 review/resolve에서 INVALID_STATE(소급 0 확정). 스키마 실측: `Team.captainId` BigInt non-null(@map captain_id)·`Team.status` String? default "active"·`Team.is_public` Boolean? default true·`Team.createdAt`(@map created_at)·`TeamMember.userId` BigInt(@map user_id) — page.tsx `captainId===viewerId`/`m.userId===viewerId` BigInt 비교 정합 |
+
+📊 종합: 7개 중 7개 통과 / 0개 실패
+
+특이사항(수정요청 아님·참고):
+- S1-4 8파일 외 `gallery/page.tsx`·`architecture.md`는 다른 세션(P2 갤러리/문서) 산물 — S1-4 무관.
+- 런타임 super_admin 세션 curl 어려워 review/resolve POST·overview/inbox GET 실호출은 미수행(정적+build+DB실측 대체·지시문 허용). super_admin 로그인 후 1회 스모크 권장(특히 옵션2 로그인 사용자 본인 pending_review 팀 노출).
+- inbox/overview teams 큐가 동일 `teamReviewQueueWhere` 사용 → 숫자/목록 불일치 위험 0(단일 source 설계 양호).
+
+### Admin Console S1-5 — 통합 디스패처 검증 (2026-06-15, tester) — 신규 1파일 미커밋(untracked)
+
+정적+build+스키마/기존라우트 실측 전부 통과. 7개 검증항목 0실패.
+
+| 검증 항목 | 결과 | 비고 |
+|-----------|------|------|
+| 1. build·tsc0·라우트 등록 | ✅ 통과 | `tsc --noEmit` EXIT 0 / `npm run build` EXIT 0 / 매니페스트 등록 확인(`.next/server/app/api/web/admin/inbox/[id]/resolve/route.js` 생성 + app-paths-manifest `/api/web/admin/inbox/[id]/resolve/route`) |
+| 2. ★가드 isSuperAdmin 403·id 첫콜론 split | ✅ 통과 | 진입부 `if(!isSuperAdmin(session)) return apiError(...,403,"FORBIDDEN")`(role OR admin_role·session null→403). id 분해=`indexOf(":")`(첫 콜론 기준·refId 콜론 포함 대비)→`slice(0,sep)`/`slice(sep+1)`. sep<0 또는 refId 빈값→400 BAD_ITEM_ID |
+| 3. 6도메인 Zod 화이트리스트+상태가드 | ✅ 통과 | game_reports `status!=="submitted"`→400 INVALID_STATE / community findUnique 존재만 / organizations `status!=="pending"`→INVALID_STATE·reject reason 누락→400 REASON_REQUIRED / court findFirst(status:pending)·아니면 404 / payments `refund_status!=="requested"`→INVALID_STATE / teams→400 UNSUPPORTED_DOMAIN. 각 도메인 Zod enum 위반→400 VALIDATION_ERROR |
+| 4. ★★payments status-only·멱등·PG 0 | ✅ 통과 | update data=`{refund_status, updated_at}` **단 2필드** — refund_amount/refunded_at/status **미포함**(스키마 L1896~1898 컬럼 실재하나 미접촉). PG fetch grep=0. 멱등=`refund_status==="requested"`만 처리. adminLog `severity:"warning"`(log.ts L15 타입 정합) |
+| 5. ★court (A)내부복제=기존PATCH 동일·import0 | ✅ 통과 | 기존 PATCH(`court-submissions/[subId]/route.ts`)와 1:1 대조: mapCourtType(indoor/3x3/outdoor)·region split·court_infos.create 전필드(좌표 37.5665/126.978)·submission.update(approved_court_info_id)·addXP(court_submit=10)·adminLog 전부 동일. resolve는 자체 mapCourtType 보유→기존 라우트 import/수정 0 |
+| 6. 기존 라우트·schema·api/v1 미수정 | ✅ 통과 | `git status --porcelain`=오직 `?? inbox/[id]/`(신규 resolve 1건). 기존 game-reports/community/organizations/court-submissions PATCH·inbox 목록(route.ts)·prisma/schema.prisma·api/v1 전부 무변경. inbox 목록과 id 형식 정합(`<domain>:<refId>`·refId=BigInt.toString()↔BigInt(refId) 역변환) |
+| 7. adminLog 각 도메인·snake/BigInt | ✅ 통과 | 6분기 각 adminLog(game_report.{action}·community.{action}·organization.{approve\|reject}·court.submission.{approve\|reject}·payment.refund.{action}). memo/reason 컬럼부재→changesMade에만 박제(game_reports/community 정합). apiSuccess 자동 snake 변환·응답 id=`.toString()`. adminId=`BigInt(session!.sub)`·addXP/apiError/apiSuccess 시그니처 전부 실측 정합 |
+
+📊 종합: **7개 항목 전부 통과 / 0 실패**. isSuperAdmin 403(첫콜론 split)·6도메인 Zod+상태가드·payments status-only(refund_amount/refunded_at/status 미접촉·PG 0·멱등)·court 내부복제(기존 PATCH 1:1 동일·import 0)·기존 라우트/schema/api-v1 무수정·adminLog 각 도메인 모두 의도대로.
+
+검증 명령: `tsc --noEmit`→EXIT 0 / `npm run build`→EXIT 0 + 매니페스트 라우트 등록 / `git status`→신규 1파일만 / 스키마 5모델 컬럼 실측(game_reports·community_posts·organizations·court_submissions·payments) / 기존 court PATCH 1:1 대조 / inbox 목록 id형식 정합. 수정 요청 없음.
+
+⚠️ 참고(동작영향 0):
+- **런타임 super_admin curl 미재현**: super_admin 세션 쿠키 확보 제약으로 HTTP 실호출 대신 build+정적+스키마/기존라우트 실측으로 대체(지시문 허용·S1~S2와 동일 방침). 403/Zod/상태가드/payments status-only는 코드 경로 전수 확인. super_admin 로그인 후 POST 1회 실확인 권장(차단요소 아님·런타임 미재현 = 0행/단일세션 한계).
+- court 가드 미세차이(동작영향 0): 기존 PATCH=`session.role!=="super_admin"` / resolve=`isSuperAdmin()`(role OR admin_role). resolve가 admin_role도 인정하나 설계서 "콘솔 표준 isSuperAdmin 통일" 의도 반영·더 넓게 허용일 뿐 권한 약화 아님.
+- payments는 status 컬럼(payments.status='paid' 등)과 무관하게 refund_status만 전환 — 실제 환불은 후속 PG 연동 시. 현재 메타 전환만(설계 (A) status-only 정합).
+
+### Admin Console S1 — 처리 뮤테이션 1~3 검증 (2026-06-15, tester) — 신규 3파일 미커밋(untracked)
+
+정적+build+스키마 실측 전부 통과. 8개 검증항목 0실패.
+
+| 검증 항목 | 결과 | 비고 |
+|-----------|------|------|
+| 1. tsc0·build·3라우트 등록 | ✅ 통과 | `tsc --noEmit` EXIT 0 / `build` ✓ Compiled 18.8s / 신규 `ƒ` 3개 등록(`game-reports/[id]/resolve`·`suggestions/[id]/respond`·`community/[id]/moderate`). ads/heatmap dynamic-server 로그는 기존 무관 |
+| 2. ★403 가드(getWebSession+isSuperAdmin) | ✅ 통과 | **셋 다** 진입부 `if(!isSuperAdmin(session)) return apiError(...,403,"FORBIDDEN")`. is-super-admin.ts L48 session null→false→403(비로그인). super_admin만 통과 |
+| 3. ★Zod 화이트리스트·옵션필드 | ✅ 통과 | resolve `action:enum[resolve,dismiss]`+memo?(max2000)+notify?(bool) / respond `status:enum[in_progress,resolved,dismissed]`+admin_response?(max5000)+notify? / moderate `action:enum[hide,restore]`+reason?(max2000). enum 위반→safeParse 실패→400 VALIDATION_ERROR. body 파싱실패→400 BAD_REQUEST |
+| 4. status 전이 안전 | ✅ 통과 | game_reports=`status!=="submitted"`→400 INVALID_STATE(중복처리 방어) / suggestions=존재만 확인 후 status+admin_response+responded_by_id(session.sub)+responded_at(now) 갱신 / community=hide→hidden·restore→published(STATUS_BY_ACTION). 없는 id→404 NOT_FOUND(3종 공통) |
+| 5. adminLog 3종·memo/reason은 로그만 | ✅ 통과 | `game_report.{action}`·`suggestion.respond`·`community.{action}` 각 기록. memo/reason→changesMade에만 박제. **스키마 실측**: game_reports(L1680~1700)에 memo 컬럼 부재·community_posts(L1102~)에 reason 컬럼 부재 → DB update는 status만(정합). suggestions admin_response/responded_by_id(BigInt?)/responded_at(DateTime?)는 실재 컬럼(L2051~2053)→DB 직접 갱신 |
+| 6. ★notify (A)보류·createNotification 0 | ✅ 통과 | grep `createNotification`=**주석 2건만**(resolve/respond), import·호출 **0**. notify 파라미터는 Zod로 수신만, 발송 경로 부재 |
+| 7. snake_case·BigInt·schema0·api/v1 0·단건update | ✅ 통과 | apiSuccess 자동 snake 변환 / 응답 id=`report.id.toString()` 등 BigInt→string. adminLog resourceId도 id.toString(). `git status prisma/`=schema 변경 0. api/v1 grep=0(미접촉). 전부 update 1건(트랜잭션·대량 0) |
+| 8. 회귀(신규만·기존 영향0) | ✅ 통과 | `git status` 3파일 전부 `??`(untracked 신규). 기존 game-reports/route.ts·stats 무변경(추적 파일). src/ 내 다른 변경은 gallery/page.tsx(별도 P2 세션, S1 무관) |
+
+📊 종합: **8개 항목 전부 통과 / 0 실패**. 403가드(셋 다)·Zod 화이트리스트(enum 위반 400)·status 전이 안전(game_reports submitted 가드/suggestions DB갱신/community hidden·published)·adminLog 3종(memo·reason 컬럼부재→로그만 정합)·notify (A)보류(createNotification 호출0)·snake/BigInt/schema0/api-v1 0/단건update·회귀0 모두 의도대로.
+
+검증 명령: `tsc --noEmit`→EXIT 0 / `build`→✓ 18.8s + 신규 3라우트 등록 / createNotification grep→주석만 / api/v1 grep→0 / schema git status→변경0 / 스키마 컬럼 실측(game_reports·community_posts·suggestions). 수정 요청 없음.
+
+⚠️ 참고(동작영향 0):
+- **런타임 super_admin curl 미재현**: super_admin 세션 쿠키 확보 제약으로 HTTP 실호출 대신 build+정적+스키마 실측으로 대체(지시문 허용·S2와 동일 방침). 403/Zod/status 전이 가드는 코드 경로 전수 확인. super_admin 로그인 후 POST 1회 실확인 권장(차단요소 아님).
+- community_posts.status는 String?(nullable)이나 STATUS_BY_ACTION이 항상 non-null(hidden/published) set → null 잔존 위험 0.
+
 ### 버킷B P1-b 시즌 시상 고급필드 검증 (2026-06-15, tester) — 미push 3커밋(78f087c/544a1ba/da281aa)
 
 | 검증 항목 | 결과 | 비고 |
@@ -399,6 +643,107 @@ EXCLUDED_STATUSES = completed/ended/closed/cancelled(TERMINAL) + draft/upcoming(
 ⚠️ 참고(Phase 1 무관): 전체 회귀 중 사전 존재 실패 2파일 4건 발견 — `tournament-delete.test.ts`(3), `running-score-helpers.test.ts`(1, team_side home/away 정합). Phase 1 변경분을 stash한 baseline에서도 동일 실패 → 본 작업 책임 아님. 별도 후속 처리 대상.
 
 ## 리뷰 결과 (reviewer)
+
+### Admin Console S3 — AdminInboxState snooze/resolve (2026-06-15, reviewer) — 미커밋
+
+📊 종합 판정: **APPROVE** (critical 0 / major 0 / minor 2)
+
+실측 근거: snooze/route.ts·inbox/route.ts·resolve/route.ts 전문 정독 · schema.prisma AdminInboxState L3531~3544 실측(9컬럼·snake @map·@@unique([refType,refId])) · **DB 실측**(information_schema: 컬럼 9개·data_type·nullable 모델과 일치 / 인덱스 2=pkey+ref_type_ref_id_key / live_scoreboards count=0 무영향 / admin_inbox_state count=0) · isSuperAdmin 헬퍼(narrowing 안 함→non-null 단언 정당) · apiSuccess/apiError 시그니처 정합.
+
+✅ 잘된 점:
+- **★DB 안전 만점**: raw DDL CREATE만(db push 미사용)→live_scoreboards DROP 위험 회피 성공(count=0 실측). 테이블 구조가 schema 모델과 100% 일치(9컬럼·snake_case @map·복합 unique idx). 단일 DB 정책 가드 준수.
+- **★snooze 제외 로직 정확**: `snoozedActive(snoozed_until>now) || resolved(resolved_at!=null)` 제외 — 만료된 스누즈는 자동 복귀(>now 비교). include_snoozed=1 분기로 재확인 경로 보장. batch 조회(refType IN ∪ refId IN → Map 정확매칭)로 **N+1 없음**. 교차곱 IN 후보를 stateMap.get(it.id) 정확 키로 좁혀 위양성 0.
+- **★snooze API 견고**: isSuperAdmin 403 가드·Zod datetime(ISO8601)·upsert 복합키(refType_refId)로 리소스당 상태 1건 보장(중복 snooze 불가). id 위변조=세션 기반, refId는 단순 보관(권한 우회 경로 없음).
+- **★markResolved best-effort**: try/catch로 메타 upsert 실패해도 원본 처리 차단 0(응답 정상). resolved_by=session.sub 일관. 6도메인(game_reports/community/orgs/court/payments/teams) 전부 처리 성공 직후 markResolved 호출(누락 0).
+- **★id 파싱 일관**: snooze=indexOf(":") slice / resolve=indexOf(":") slice / 목록=indexOf(":")+1 slice — 첫 콜론 기준 3곳 동일 규칙(refId 콜론 포함 대비). union 박제 키와 정합.
+- **회귀 0**: snooze/resolve 메타 없으면 stateMap.get=undefined→기존 동작 그대로(snoozed_until=null·제외 0). in-place splice는 역순 순회(인덱스 안전). snake(apiSuccess 자동변환)·BigInt→toString 정합.
+
+🟡 권장 수정 (minor, 동작 차단 0):
+- [snooze/route.ts L42·L85] `adminId = session!.sub` 추출 후 `void adminId`로 미사용 처리 — 스누즈 행위자 미기록(주석에 "감사 필요 시 별도 컬럼" 명시). 의도된 보류·동작 무관. 향후 snoozed_by 컬럼 추가 시 활용 여지.
+- [resolve/markResolved] community_posts resolve는 **상태 무관 처리**(findUnique만, status 가드 없음) — 기존 S1-5 설계 답습(community는 hide/restore 양방향이라 정상). 본 S3 변경(markResolved 호출 추가)은 거기에 영향 0. 기록만.
+
+ℹ️ 참고(수정 불요):
+- raw DDL이라 DB 레벨 `id`/`updated_at` default 부재 실측 — 단 `@default(cuid())`/`@updatedAt`은 **Prisma 앱 레이어** 처리라 prisma.adminInboxState 경유 시 정상 채워짐(코드 전부 Prisma 경유=안전). 향후 raw SQL INSERT 직접 시에만 주의(현재 경로 없음).
+- snooze는 미래/과거 시각 모두 허용(과거=즉시 만료=노출 유지). 의도된 유연성.
+
+→ **수정 요청 테이블 등록 안 함**(필수 0). APPROVE 그대로 머지 가능.
+
+### Admin Console S1-4 팀 검수 (옵션2) (2026-06-15, reviewer) — 8파일 미커밋
+
+📊 종합 판정: **APPROVE** (critical 0 / major 0 / minor 3)
+
+실측 근거: 변경 8파일 전문 정독 · schema.prisma 실측(Team L402~483 / TeamMember L532~546) · Team.captainId BigInt @map captain_id L418 · is_public Boolean? L421 · TeamMember.userId @map user_id L535 · status 인덱스 L480 + (status,city) 복합 L481 실재 · 옵션2 OR 분기 ↔ groupBy active-only 대조 · review 라우트 ↔ resolve teams case 1:1 대조 · teamReviewQueueWhere 단일 source 3파일(overview/inbox/team-status) 정합.
+
+✅ 잘된 점:
+- **★★옵션2 가시성 보안 정확(회귀 0)**: 비로그인/타인 visibilityWhere = `{status:active, is_public:true}` — 기존과 100% 동일. 로그인 시에만 OR 3분기 추가(active+public / pending+captainId나 / pending+teamMembers.some.userId나). **OR 첫 항목이 비로그인 조건과 동일** → 비공개 active 팀은 로그인 전후 모두 동일 노출(회귀 0). 타인 pending은 어느 분기에도 안 걸림(절대 숨김).
+- **★본인 식별 위변조 불가**: myId=`BigInt(session.sub)`(세션 기반·클라 입력 0). captainId/teamMembers.userId 둘 다 세션 sub와 비교 → 위조 경로 없음. getWebSession try-catch 폴백으로 세션 실패 시 비로그인 취급(공개 API 보장·열림 0).
+- **★상세 가드 정확**: 본조회 직후 `status!=="active"`면 본인(captainId===viewerId OR active멤버)만 통과·그외 notFound. teamMembers는 본조회 `status:"active"` include 재사용(추가 쿼리 0). **notFound가 무거운 집계(tournamentTeam 등 L126~) 전에 실행**(낭비 차단). active 팀은 가드 무통과=전원 공개(현행 유지).
+- **★where AND 배열 충돌 방지**: 가시성 OR + q OR + city를 최상위 `AND:[...]` 로 묶음 → 같은 OR 키 덮어쓰기 버그 회피. 정렬 화이트리스트(wins/newest/members) 유지.
+- **팀 생성 pending_review 전환 안전**: actions/teams L86 status만 PENDING_REVIEW로 교체·나머지 흐름(트랜잭션 team.create+teamMember.create captain) 무변경. 생성 직후 본인은 captainId 분기로 목록·상세 모두 노출(끊김 0). team-applications 흐름 미접촉.
+- **review API 견고**: getWebSession+isSuperAdmin→403. Zod{action,reason?}. BigInt(id) try-catch→400. **pending_review만 처리**(active 93건 소급→INVALID_STATE 정상). reason→adminLog(컬럼 부재). resolve teams case와 로직 1:1 동일(라우트 import 0=결합 0).
+- **S2 3파일 회귀 0**: overview는 qTeamsReview만 Promise.all에 추가(kpi/타 큐 무영향)·inbox는 teams 소스 push만 추가(타 5소스 무변경)·resolve는 teams case 추가+기존 UNSUPPORTED 분기 제거. **teamReviewQueueWhere 단일 source**로 overview count ↔ inbox 목록 기준 일관. groupBy 도시목록은 active-only 유지(검수대기 팀이 도시 필터 오염 안 함).
+- **스키마/성능 정합**: schema 0·api/v1 0·디자인 0. id BigInt→toString. snake(apiSuccess 자동변환). 목록 OR 쿼리는 status 인덱스 L480 활용 가능.
+
+🟡 권장 수정 (minor, 동작 차단 0):
+- [teams/route.ts] **OR 분기 미들 항목 `is_public` 미지정** — pending+captainId / pending+teamMembers 분기에 is_public 조건 없음(의도적·본인은 비공개라도 자기 검수대기 팀 봐야 함=정상). 다만 본인의 active **비공개** 팀은 OR 첫 항목(active+public)에서 제외돼 목록에 안 나옴 — **이건 기존 동작이고 본 변경 범위 밖**(회귀 0). 기록만.
+- [중복 로직] review 라우트 ↔ resolve teams case가 **수동 1:1 복제**(S1-5 court와 동형 트레이드오프). 향후 팀 검수 로직 변경 시 양쪽 동시 수정 필요(drift 위험). 공통 유틸 추출은 범위밖 후속.
+- [teams/route.ts] **switch/update 류 아닌 findMany는 .catch(()=>[]) 폴백** 있으나 session OR 분기에서 teamMembers.some 중첩 쿼리 비용 — pending_review 건수가 적어(큐 대상) 실무 영향 0. 인덱스로 충분.
+
+ℹ️ 참고(수정 불요):
+- 상세 가드의 본인 멤버 판정은 `status:"active"` 멤버만(휴면/탈퇴 멤버는 본인이어도 상세 못 봄) — 검수대기 팀은 보통 생성 직후라 captain만 존재·실무 무해. 의도된 보수적 가드.
+- 팀 생성 직후 pending_review 동안 타 기능(팀 상세 탭/대회 신청 등)에서 노출 경로가 있는지는 본 8파일 범위 밖(목록·상세·검수만 검증). 별도 도메인 노출은 후속 census 여지.
+
+→ **수정 요청 테이블 등록 안 함**(전부 권장/후속, 필수 0). APPROVE 그대로 머지 가능.
+
+### Admin Console S1-5 — 통합 디스패처 (2026-06-15, reviewer) — 신규 1파일 미커밋
+
+📊 종합 판정: **APPROVE** (critical 0 / major 0 / minor 3)
+
+실측 근거: `inbox/[id]/resolve/route.ts` 전문 정독 · 기존 court-submissions PATCH(`[subId]/route.ts`)·organizations approve/reject route 와 1:1 대조 · schema.prisma 6모델 컬럼 실측(court_submissions L1451·organizations L2519·payments L1868·game_reports L1680·community_posts L1102) · `is-super-admin.ts`/`admin/log.ts`/`org-permission.ts` 의존성 시그니처 확인 · inbox(목록) 큐 조건과 디스패처 처리 조건 정합 대조.
+
+✅ 잘된 점:
+- **★보안 가드·id 파싱 견고**: 첫 줄 `getWebSession()`+`isSuperAdmin(session)`→비통과 403. id 분해는 `indexOf(":")`(첫 콜론 기준→refId에 콜남아도 안전)+`sep<0`/빈 refId 둘 다 400 BAD_ITEM_ID. domain 화이트리스트 2중(teams 명시 400 UNSUPPORTED_DOMAIN + SUPPORTED_DOMAINS includes 검증→UNKNOWN_DOMAIN). **BigInt(refId) try-catch로 감싸 악의적 비숫자 refId→400 BAD_ITEM_ID**(S1 minor였던 BigInt unhandled 500을 여기선 방어함=개선). req.json() 파싱 실패도 try-catch 400.
+- **★★payments 금전 안전 완벽**: update data=`refund_status`+`updated_at`만(refund_amount/refunded_at/payments.status **미포함** 실측). PG fetch 0. `refund_status==="requested"` 인 건만 처리→재처리 시 INVALID_STATE 차단(멱등). adminLog severity:"warning"(금전 강조). inbox 큐 조건(refund_status=requested)과 정확히 정합.
+- **★court (A)내부복제 정확(1:1 실측)**: 기존 PATCH route 와 mapCourtType·region split(첫토큰 city)·photos 폴백·트랜잭션 3단(court_infos.create+submission.update+addXP)·기본좌표(37.5665/126.978)·metadata(source/submission_id/fee_text/operating_hours_text/photos)·adminLog(트랜잭션 외)·반환객체(court_info_id) **전부 동일**. import 0(결합 0·회귀 0). pending findFirst 멱등.
+- **organizations 정합**: reject `reason?.trim()` 비면 REASON_REQUIRED 400(기존 reject route 동일). approve/reject 둘 다 pending 가드(INVALID_STATE). 컬럼 approved_at/approved_by·rejection_reason/rejection_at 실측 정합.
+- **game_reports**: submitted만 처리(중복 INVALID_STATE). memo→adminLog(컬럼 부재 실측 정합). community: hide→hidden/restore→published.
+- **공통 직렬화·adminLog 정합**: 응답 id 전부 `.toString()`(apiSuccess 자동 snake). adminLog resourceId=숫자형 toString→내부 BigInt() 재변환 안전. `session!.sub`은 isSuperAdmin 통과 후라 안전. schema 0/api/v1 0/기존 6도메인 route·inbox 목록 미수정(신규 1파일만·회귀 0).
+
+🟡 권장 수정 (minor, 동작 차단 0):
+- [resolve route] **switch 본문 update에 try-catch 부재** — id 파싱/json은 try-catch 있으나 prisma update·$transaction·addXP DB 장애 시 unhandled→Next 기본 500. 동작 무해(클라 500)하나 inbox(목록 route)는 try-catch로 500 apiError 래핑함 → 일관성 위해 switch 전체 try-catch+apiError("...",500) 여지. court approve의 addXP 실패는 트랜잭션 내라 롤백되나 클라엔 500 노출. 정상 입력 환경 미재현.
+- [organizations] **가드가 기존 route 보다 좁음(canManageOrganizations→isSuperAdmin)** — 기존 approve/reject route 는 `canManageOrganizations`(super_admin OR org_admin) 허용. 디스패처는 super_admin만. org_admin 은 디스패처로 단체 처리 불가. **단 inbox 목록 자체가 isSuperAdmin 가드라 org_admin은 인박스 진입 불가→일관**(권한 축소=더 엄격·보안 위험 0). developer 노트의 "디스패처 표준 isSuperAdmin 통일" 의도와 일치. 향후 org_admin 운영 도입 시 재검토.
+- [community_posts] **큐 의미(draft)↔액션 의미(hide/restore) 어긋남** — inbox 큐는 `status:"draft"`("검수 대기")인데 디스패처는 hide→hidden/restore→published만. draft 항목에 restore=발행 승인, hide=숨김으로 동작은 안전(상태 전환만)하나 의미가 직관과 다름. 상태 가드 없음(draft 외 상태도 전환 가능)=의도 범위. 라벨/액션명 정합은 후속 UI 단계 정리 여지.
+
+ℹ️ 참고(수정 불요):
+- court 트랜잭션이 기존 PATCH 와 **수동 복제**라 향후 PATCH 변경 시 동기화 누락(drift) 위험 존재 — (A)채택의 알려진 트레이드오프(결합 0 대가). court 승인 로직 변경 시 양쪽(디스패처+PATCH) 동시 수정 필요. 공통 유틸 추출은 범위밖 후속.
+- court approve 가드는 기존 PATCH(`session.role!=="super_admin"`, admin_role 미고려)보다 디스패처가 살짝 넓음(isSuperAdmin=role OR admin_role). 실사용 admin_role=super_admin 케이스 한정이라 무해.
+
+→ **수정 요청 테이블 등록 안 함**(전부 권장/후속, 필수 0). APPROVE 그대로 머지 가능.
+
+### Admin Console S1 — 처리 뮤테이션 1~3 (2026-06-15, reviewer)
+
+📊 종합 판정: **APPROVE** (critical 0 / major 0 / minor 2)
+
+실측 근거: 신규 3 route.ts 전문 정독 · `is-super-admin.ts`/`admin/log.ts`/`api/response.ts` 의존성 시그니처 확인 · schema.prisma game_reports(L1680)/suggestions(L2042)/community_posts(L1102) 컬럼 실측.
+
+✅ 잘된 점:
+- **보안 가드 견고(★)**: 셋 다 첫 줄 `getWebSession()`+`isSuperAdmin(session)` → 비통과 403 FORBIDDEN. isSuperAdmin은 null/undefined 안전(미로그인 false) + role/admin_role 둘 다 평가. 비super_admin·비로그인 모두 차단. admin 전역 처리라 IDOR 무관(대상은 findUnique 존재검증 후 처리).
+- **입력 Zod 화이트리스트 견고**: action/status 전부 `z.enum`(resolve|dismiss / in_progress|resolved|dismissed / hide|restore) — 화이트리스트 외 값 400 VALIDATION_ERROR. memo/admin_response/reason은 `.trim().max()` 제한. req.json() 파싱 실패도 try-catch로 400 BAD_REQUEST 분리. BigInt(id) 변환은 잘못된 id 시 throw→500이나 동작상 무해(아래 minor).
+- **status 전이 멱등/가드 정합**: game_reports=`submitted`만 처리(이미 처리된 건 INVALID_STATE 400 재처리 차단)★. suggestions/community는 존재만 확인 후 전환(상태 무관 전환 허용=의도). community default published 정합(restore→published).
+- **위변조 불가**: suggestions `responded_by_id=BigInt(session!.sub)` — 클라 입력 아닌 세션에서 박제. `session!` non-null은 isSuperAdmin 통과 후라 안전(narrowing 헬퍼 미지원분 명시적 보강).
+- **스키마 실측 정합(★)**: game_reports에 `memo` 컬럼 **부재** 확인(comment만 존재) → adminLog.changesMade 박제 타당. suggestions status/admin_response/responded_by_id(BigInt?)/responded_at(DateTime?) **4컬럼 전부 실재** → DB 직접 갱신 정합. community_posts status(default published) 실재. community reason 컬럼 부재 → adminLog 박제 타당.
+- **adminLog 적절**: action명(`game_report.resolve`/`suggestion.respond`/`community.hide` 등 도메인.동작)·resourceType(GameReport/Suggestion/CommunityPost)·resourceId(id.toString()→adminLog 내부 BigInt() 재변환 정합)·changesMade(status+memo/reason/admin_response). adminLog 내부 try-catch로 로깅 실패가 메인 플로우 차단 0.
+- **notify (A)보류 정합**: Zod로 notify 파라미터 수신만, createNotification import·호출 **0**(주석으로 후속 위치만 박제). snake/BigInt 직렬화 정합(apiSuccess 자동 snake + id.toString()). schema 0 / api/v1 0 / 신규 라우트만(회귀 0). apiSuccess/apiError 시그니처 일관(message,status,code).
+
+🟡 권장 수정 (minor, 동작 차단 0):
+- [3개 route 공통] **메인 update에 try-catch 부재** — `req.json()` 파싱은 try-catch 있으나, `BigInt(id)`(잘못된 id 문자열) 및 `prisma.update`(DB 장애) 실패 시 unhandled→Next.js 기본 500. 동작상 무해(클라엔 500 반환)하나, 다른 라우트와 일관성 위해 500 catch + apiError("...",500,"INTERNAL_ERROR") 래핑 여지. 0행/정상 입력 환경에선 미재현.
+- [game-reports/suggestions] **resourceType 표기 vs S2 컨벤션** — resourceType="GameReport"/"Suggestion"(PascalCase). adminLog 다른 호출부와 표기 통일됐는지 1회 확인 권장(기능 영향 0, 감사 필터 일관성용).
+
+ℹ️ 참고(수정 불요):
+- community moderate는 상태 무관 전환(hide된 글 재hide 가능) — 멱등 아니나 결과 동일(idempotent in effect)·감사 로그만 중복. 의도 범위.
+- BigInt(id) 변환 실패(비숫자 id)는 라우트 매칭상 거의 없음([id] 세그먼트). 위 minor 1에 포함.
+
+→ **수정 요청 테이블 등록 안 함**(전부 권장/후속, 필수 0). APPROVE 그대로 머지 가능.
 
 ### 버킷B P1-b 시즌 시상 고급필드 (2026-06-15, reviewer) — 미push 3커밋(78f087c/544a1ba/da281aa)
 
@@ -579,10 +924,13 @@ EXCLUDED_STATUSES = completed/ended/closed/cancelled(TERMINAL) + draft/upcoming(
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
 |------|------|------|
+| 2026-06-15 | Admin Console S1-5 통합 디스패처 리뷰 (reviewer) | ✅ **APPROVE**(c0/maj0/min3). ★id파싱견고(indexOf콜론+BigInt try-catch로 악의 refId 400방어=S1대비 개선·sep<0/빈refId 400·domain 2중화이트리스트)·★★payments 금전안전(update=refund_status+updated_at만·refund_amount/refunded_at/status·PG호출 0·requested 멱등·severity warning)·★court(A)복제 기존PATCH와 1:1실측동일(mapCourtType/region split/트랜잭션3단/좌표/metadata/adminLog/반환 전부일치·import0회귀0)·org reject reason필수·pending가드·컬럼실측정합·inbox큐조건↔처리조건 정합·schema0/api-v1 0/기존6route+inbox 미수정. minor: switch update try-catch부재(inbox목록은 있음·일관성)·org가드 canManage→isSuperAdmin로 좁힘(inbox도 super가드라 일관·더엄격)·community draft큐↔hide/restore 의미어긋남(동작안전). court수동복제 drift위험=참고(A 트레이드오프). 수정요청 0 |
 | 2026-06-15 | 버킷B P1-b 시즌시상 고급필드 리뷰 (reviewer) | ✅ **APPROVE**(c0/maj0/min2). ★AW1 기본부 보존 완벽(page.tsx 120+/0-·기존5블록·officialMatchWhere·DTO 미접촉·블록7 순수ADD)·빈슬롯만 season_awards 교체(Slot 정규화 타입정합)·schema ADD-only(CREATE1+rel4+IDX3·ALTER/DROP0·FK SET NULL/NoAction)·권한가드(upsert/delete requireSuperAdmin·page isSuperAdmin·sidebar super한정)·선수검색 기존API재사용(snake정합)·null가드(user/team/payload 다비면거부)·cafe-blue/색토큰0. tsc EXIT0. minor: bestDefense 베스트5수비+스틸왕 중복매핑(0행미재현)·전체시즌 series무관 누적혼재(단일시즌 무해). 수정요청 0 |
 | 2026-06-15 | Admin Console S2 overview/inbox 리뷰 (reviewer) | ✅ **APPROVE**(c0/maj0/min3). 보안가드(role/admin_role+null방어·비super403·IDOR무관)·직렬화안전(inbox id BigInt→toString 전부·month_revenue Decimal→Number)·매핑실측일치(games Int[1,2]/payments paid·refund requested/orgs·courts pending/reports submitted/community draft nullable안전/Tournament status화이트6종@@index)·KST경계·7일trend day-bucket·schema0·union정렬/cursor경계 전부 PASS. minor: payments.refund_status 인덱스부재(풀스캔·후속ADD권장)·소스별take200 silent상한·delta null 3종(의도). 수정요청 0 |
 | 2026-06-15 | PR-CHAMPION ① + PR-AUTOCOMPLETE ② 리뷰 (reviewer) | ✅ **APPROVE**(c0/maj0/min3). ★FK변환 무결(winner=TT.id→tt.teamId=champion Team.id 전경로)·멱등·mvp미접촉·try-catch격리·★★매치0 생명선 findMany+updateMany 둘다·Bearer·KST당일보호 전부 PASS. schema FK 4개 grep+운영status 실측(final/preopen 0건→갭영향0)+vitest16 PASS+tsc0. minor: EXCLUDED에 final/preopen 누락(영향0·방어권장)·await지연·JS필터 |
 | 2026-06-15 | PR-AUTOCOMPLETE ② Phase3 cron 자동화 (developer) | ✅ 신규 auto-complete-tournaments/route.ts(Bearer가드·kstMidnightUtc PURE·findMany 매치0+status NOT IN→코드필터(end??start<경계)→updateMany 매치0+status 재가드·admin_logs silent). vercel.json `0 18 * * *`(KST03:00) 추가(기존10보존). ★매치0 생명선 findMany+updateMany 둘다·당일보호·champion/mvp 미접촉·schema0. vitest 5 PASS·build✓ route등록. 멀티세션 제약준수. 미푸시1 |
+| 2026-06-15 | Admin Console S1-4 팀 검수(옵션2) 리뷰 (reviewer) | ✅ **APPROVE**(c0/maj0/min3). ★★옵션2 가시성 회귀0(비로그인/타인=기존 active+is_public 동일·로그인만 OR3분기 첫항목=비로그인조건 동일→비공개 active 회귀0·타인pending 절대숨김)·★본인식별 위변조불가(myId=BigInt(session.sub)·captainId/teamMembers.userId 세션비교·클라입력0)·★상세가드 정확(active아니면 본인[captain or active멤버]만·notFound가 집계전 실행·teamMembers include재사용)·where AND배열 OR충돌방지·팀생성 pending전환 흐름안전·review API(super403·Zod·BigInt try-catch·pending만·active93건 INVALID_STATE)·S2 3파일 회귀0(teamReviewQueueWhere 단일source·groupBy active-only)·schema0/api-v1 0. schema실측(Team L402~/status인덱스L480/TeamMember.userId L535). minor: review↔resolve teams case 수동복제 drift·OR미들항목 is_public생략(의도). 수정요청 0 |
+| 2026-06-15 | Admin Console S1 처리뮤테이션1~3 (reviewer) | ✅ APPROVE(c0/maj0/min2) — isSuperAdmin가드403·Zod enum화이트리스트·game_reports submitted멱등가드·suggestions responded_by_id=session.sub위변조불가·스키마실측(memo/reason컬럼부재→adminLog박제 타당·suggestions4컬럼실재)·notify(A)보류(createNotification 0)·snake/BigInt직렬화·schema0/api-v1 0/신규3라우트만. minor: 메인update try-catch부재(Next기본500·무해)·resourceType표기일관 |
 | 2026-06-15 | 버킷B P1-a 코트제보 승인체계 (reviewer) | ✅ APPROVE(c0/maj0/min3) — 트랜잭션 원자성(court_infos.create+submission.update, 필수컬럼 전매핑 throw0)·IDOR(제출 본인강제/GET where user_id/PATCH super_admin)·snake정합·schema무중단(CREATE1+IDX2·ALTER0)·매핑(3x3→outdoor+size·amenities→facilities·photos[0])·중복가드(pending findFirst)·tsc0. minor: XP트랜잭션밖(기존 suggestions 패턴 동일·throw0)·중복승인race이론·GET미소비처. 미push3 |
 | 2026-06-15 | 버킷B P1-a 코트제보 승인체계 (developer) | ✅ 3단계 분리커밋. [1]court_submissions ADD(CREATE1+INDEX2·ALTER/DROP0·count0) [2]POST/GET API+폼실연결(noop→fetch·검토중화면) [3]admin "제보검토"탭+승인PATCH(트랜잭션 court_infos.create+approved+XP / 반려). region→city/district·3x3→outdoor+court_size·amenities→facilities. api-v1 0·신규화면0(탭append)·tsc 3단계PASS. 미푸시3 |
 | 2026-06-15 | PR-CHAMPION ① 우승팀 자동set 유틸 (developer) | ✅ 신규 set-champion.ts(isFinalsRound PURE+resolveChampionTeamId+setTournamentChampion 멱등)·finalize 통합(updated:true분기 try-catch격리)·테스트11 PASS. ★FK변환(winner=TT.id→tt.teamId=champion Team.id). 포맷별(knockout결승/리그1위/다조null). schema0·api-v1 0·tsc0. 멀티세션 제약준수(cron·vercel.json 미접촉) |
@@ -591,10 +939,8 @@ EXCLUDED_STATUSES = completed/ended/closed/cancelled(TERMINAL) + draft/upcoming(
 | 2026-06-15 | Phase2 STEP3 대회종료+우승팀 적용 (developer) | ✅ 5차(7f28)→completed/champion=338(오름)·6차(e06e)→completed/champion=330(YBC). auto-complete 7/7·mvp미접촉·schema0. status분포 published51/completed7. 임시스크립트3 정리(가드3) |
 | 2026-06-15 | PR-MOCK-TO-REAL ④ scrim 검증 (tester) | ⚠️ 9PASS/1부분 — 더미0·실연결·빈상태3분기·tsc0·postcss0·count0증빙. 보낸취소[id]불일치 잠재결함(reviewer crit과 일치) |
 | 2026-06-15 | PR-MOCK-TO-REAL ④ scrim 리뷰 (reviewer) | ⚠️ CHANGES(crit1/maj0/min4) — 보낸취소 URL[id]=from_team→PATCH경로검증 400 확정버그. snake정합·토큰·IDOR·tsc는 PASS |
+| 2026-06-15 | Admin Console S3 snooze 리뷰 (reviewer) | ✅ APPROVE (c0/maj0/min2) — DB구조 실측 모델일치·live_scoreboards0·snooze제외/batch N+1없음·markResolved best-effort·id파싱일관 |
 | 2026-06-15 | PR-MOCK-TO-REAL ④ scrim (developer) | ✅ 더미제거→team_match_requests 실연결·4탭·빈상태3분기·0스키마/0신규라우트·tsc0·postcss0 |
 | 2026-06-15 | Phase 1 상태 레이어 리뷰 (reviewer) | ✅ APPROVE (c0/maj0/min2) — CTA/admin 무영향·필드정합·tsc0. TZ경계 minor |
 | 2026-06-15 | Phase 1 대회 상태 표시 레이어 (developer) | ✅ effectiveTournamentStatus+10파일·테스트8 PASS·build ✓·DB0 |
-| 2026-06-14 | PR-MOCK-TO-REAL ①②③ 머지 (pm) | ✅ main `ee1a0c3` stats/calendar/about |
-| 2026-06-14 | PR-MOCK-TO-REAL ① stats (dev/tester/reviewer) | ✅ MPS단일source·0행우회·PASS9·APPROVE |
-| 2026-06-14 | Phase12 Batch B 7화면 (dev/tester/reviewer) | ✅ 준비중/정적폼/SV1보존·CSS major fix·main |
 </content>
