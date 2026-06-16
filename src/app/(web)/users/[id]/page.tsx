@@ -19,7 +19,10 @@ import { PlayerHero } from "./_v2/player-hero";
 import { ProfileTabs } from "./_v2/profile-tabs";
 import { OverviewTab } from "./_v2/overview-tab";
 import { RecentGamesTab } from "./_v2/recent-games-tab";
+import { PlayerRecordsTab } from "./_v2/player-records-tab";
 import { ActionButtons } from "./_components/action-buttons";
+// 2026-06-16 기록 탭 — 선수 기록 서버 헬퍼(공식가드 집계, 신규 DB 0)
+import { getPlayerRecords } from "@/lib/records/player-records";
 
 /**
  * 타인 프로필 페이지 (/users/[id]) — v2 재구성 (서버 컴포넌트)
@@ -114,6 +117,7 @@ export default async function UserProfilePage({
     mvpMatches,
     teamHistoryRows,
     allStatsForModal,
+    playerRecords,
   ] = await Promise.all([
     // 1) user + 소속 팀 (is_public / active 공개 팀만 이후 필터)
     prisma.user
@@ -438,6 +442,15 @@ export default async function UserProfilePage({
         orderBy: { tournamentMatch: { scheduledAt: "desc" } },
       })
       .catch(() => []),
+
+    // 13) 기록 탭 — 선수 기록 3단위(경기/대회/시즌) 서버 집계 (공식가드, 신규 DB 0)
+    //   2026-06-16: profile-tabs SSR prefetch 정합(결재 Q4 서버 직주입).
+    getPlayerRecords(userIdBigInt).catch(() => ({
+      claimed: false as const,
+      games: [],
+      tournaments: [],
+      seasons: [],
+    })),
   ]);
 
   if (!user) return notFound();
@@ -882,6 +895,20 @@ export default async function UserProfilePage({
           />
         }
         games={<RecentGamesTab matches={recentGameRows} />}
+        records={
+          // 6.1C-6 정합: record 비공개면 기록 미노출(빈 상태). 공개면 실집계 주입.
+          showRecord ? (
+            <PlayerRecordsTab
+              records={playerRecords}
+              playerName={user.nickname ?? undefined}
+            />
+          ) : (
+            <PlayerRecordsTab
+              records={{ claimed: true, games: [], tournaments: [], seasons: [] }}
+              playerName={user.nickname ?? undefined}
+            />
+          )
+        }
       />
     </div>
   );
