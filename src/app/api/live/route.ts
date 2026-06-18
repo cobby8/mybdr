@@ -25,6 +25,9 @@ export async function GET(req: NextRequest) {
         // scheduledAt 가드만 추가해 미래 테스트 데이터 / NULL 방어.
         ...pastOrOngoingSchedule(),
         status: { in: ["live", "in_progress"] },
+        // 비공개 대회 경기 제외 — 비공개(false)만 빼고 null·true(공개)는 통과.
+        //   목록은 단일 대회 헬퍼 부적합 → 관계 필터로 일괄 제외(null 안전).
+        tournament: { is_public: { not: false } },
       },
       orderBy: { started_at: "desc" },
       include: {
@@ -53,6 +56,8 @@ export async function GET(req: NextRequest) {
         ...pastOrOngoingSchedule(),
         status: "completed",
         ended_at: { gte: twentyFourHoursAgo },
+        // 비공개 대회 경기 제외 — 비공개(false)만 빼고 null·true(공개)는 통과.
+        tournament: { is_public: { not: false } },
       },
       orderBy: { ended_at: "desc" },
       take: 10,
