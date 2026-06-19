@@ -1,0 +1,13 @@
+/* TrustCard 720px 분기 — 시안 D Profile.jsx .trust-grid 미디어쿼리 박제.
+ *
+ * 왜: 인라인 gridTemplateColumns 는 모바일 미대응(errors.md 안티패턴) → 클래스로 분기.
+ * 720px 이하: 3열 → 2열, 좌측(매너 등급) 셀은 full-width 로 한 줄 차지 + 하단 구분선. */
+@media (max-width: 720px) {
+  .trust-grid {
+    grid-template-columns: 1fr 1fr !important;
+  }
+  .trust-grid > div:first-child {
+    grid-column: 1 / -1;
+    border-bottom: 1px solid var(--border);
+  }
+}

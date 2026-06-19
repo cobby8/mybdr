@@ -5,6 +5,11 @@
  */
 import { prisma } from "@/lib/db/prisma";
 import type { Prisma } from "@prisma/client";
+// [M4] 종료(status→3) 즉시 평점(=리포트) 작성 요청 알림.
+//   ⓐ 판단: 기존 GAME_REPORT_REQUEST 타입 + game-report-reminders cron 과 "동일 기능"(평점=리포트=game_reports).
+//   따라서 신규 타입/cron 을 만들지 않고 기존 타입을 재사용한다 → 같은 경기에 중복 알림이 나지 않는다.
+import { createNotification } from "@/lib/notifications/create";
+import { NOTIFICATION_TYPES } from "@/lib/notifications/types";
 
 // ---------------------------------------------------------------------------
 // 타입
@@ -233,11 +238,86 @@ export async function lazyEndGame<
       `.catch(() => 0);
       // 우리가 전환했거나(>0) 동시에 다른 요청이 이미 전환했어도, 응답 객체는 3 으로 보정.
       if (updated && updated > 0) {
+        // [M4] 실제 1/2 → 3 전환이 "우리 UPDATE"로 일어난 경우에만(멱등) 평점 작성 요청 알림 발송.
+        //   - 조건부 UPDATE 의 rowCount>0 = 이 호출이 전환의 주체 → 알림도 정확히 1회만 발송.
+        //   - 동시에 다른 요청이 먼저 전환했다면 그쪽 updated 가 1, 우리는 0 rows → 우리는 발송 안 함(중복 방지).
+        //   - fire-and-forget: 알림 실패가 종료 전환/상세 조회를 깨면 안 되므로 await 하지 않고 catch 로 흡수.
+        notifyReportRequestOnEnd(game.id).catch(() => {
+          // 알림 발송 실패는 조용히 무시 — 다음 사이클의 game-report-reminders cron 이 dedupe 후 재시도(보강).
+        });
         return { ...game, status: 3 };
       }
     }
   }
   return game;
+}
+
+/**
+ * [M4] 종료(status→3 전환) 직후 호스트 + 승인 참가자에게 평점(=리포트) 작성 요청 알림.
+ *
+ * 왜 별도 함수로 빼는가:
+ *   - lazyEndGame 은 제네릭(id/status/scheduled_at/duration_hours 만 보장)이라 uuid/organizer_id/
+ *     승인 참가자 등 알림에 필요한 필드를 갖고 있지 않다. 전환이 실제 일어난 1건에 대해서만
+ *     가벼운 추가 조회 1회로 발송 대상을 모은다(과다 조회 0 — WHERE id 단건).
+ *
+ * 중복 방지(핵심):
+ *   - 알림 타입 = 기존 NOTIFICATION_TYPES.GAME_REPORT_REQUEST(신규 타입 금지).
+ *   - action_url = `/games/{uuid}/report` — game-report-reminders cron 과 "동일 키".
+ *   - 따라서 즉시 알림(여기)과 cron 리마인드가 같은 (user_id + type + action_url) 을 공유 →
+ *     cron 의 기존 dedupe(findFirst) 가 이미 보낸 즉시 알림을 보고 재발송을 스킵한다(일관 dedupe).
+ *   - 같은 경기 종료가 다시 lazyEndGame 으로 들어와도 status 가 이미 3 → 0 rows 라 여기 자체가 호출 안 됨(멱등).
+ */
+async function notifyReportRequestOnEnd(gameId: bigint): Promise<void> {
+  // 전환된 경기 1건만 조회 — 알림 대상(호스트 + 승인 참가자) + action_url 생성용 uuid/title.
+  const game = await prisma.games.findUnique({
+    where: { id: gameId },
+    select: {
+      uuid: true,
+      title: true,
+      organizer_id: true,
+      // 승인된 참가자(status=1)만 평점 대상 — cron(route.ts)과 동일한 모집단 정의.
+      game_applications: {
+        where: { status: 1 },
+        select: { user_id: true },
+      },
+    },
+  });
+  // uuid 없으면 action_url 을 만들 수 없으므로 발송 스킵(안전 가드 — cron 과 동일).
+  if (!game || !game.uuid) return;
+
+  const actionUrl = `/games/${game.uuid}/report`;
+  const title = game.title ?? "경기";
+
+  // 호스트 + 승인 참가자 user_id 를 set 으로 중복 제거(호스트가 참가자로도 잡히는 경우 1회만).
+  const userIds = new Set<bigint>();
+  if (game.organizer_id) userIds.add(game.organizer_id);
+  for (const a of game.game_applications) {
+    userIds.add(a.user_id);
+  }
+
+  // 각 대상에게 발송. dedupe 는 cron 과 동일 키(user+type+action_url)이므로,
+  // 여기서도 같은 키의 기존 알림이 있으면 재발송하지 않도록 findFirst 로 사전 확인한다.
+  for (const userId of userIds) {
+    const existing = await prisma.notifications.findFirst({
+      where: {
+        user_id: userId,
+        notification_type: NOTIFICATION_TYPES.GAME_REPORT_REQUEST,
+        action_url: actionUrl,
+      },
+      select: { id: true },
+    });
+    if (existing) continue; // 이미 보냄(cron 또는 이전 즉시 발송) → 중복 방지
+
+    await createNotification({
+      userId,
+      notificationType: NOTIFICATION_TYPES.GAME_REPORT_REQUEST,
+      title: "경기 평가 작성 요청",
+      content: `"${title}" 경기가 종료되었습니다. 평가를 작성해 주세요.`,
+      actionUrl,
+    }).catch(() => {
+      // 개별 알림 실패는 전체를 깨지 않음 — 나머지 대상 발송 계속, cron 이 후속 보강.
+    });
+  }
 }
 
 /**
