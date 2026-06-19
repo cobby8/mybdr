@@ -62,6 +62,8 @@ import { MobileStickyBar } from "./_v2/mobile-sticky-bar";
 // [Phase 2C · UA2 BG1] 내 신청 진행 단계 인디케이터 — 본인 신청 상태(0/1/2)를
 // [신청 완료 → 호스트 승인 → 참가 확정] 3단계로 시각화. 미신청(null)은 미렌더(mock 금지).
 import { ApplyStep } from "./_v2/apply-step";
+// [M3 wave2] 호스트 출석 체크 섹션 — isHost && game.status>=2 일 때만 렌더(HostPanel 아래).
+import { AttendanceSection } from "./_v2/attendance-section";
 
 export const revalidate = 30;
 
@@ -185,6 +187,9 @@ export default async function GameDetailPage({
       position: a.users?.position ?? null,
       // users.skill_level 은 string|null. 빈 문자열·null 인 경우 ParticipantRow 측에서 미노출
       skill_level: a.users?.skill_level ?? null,
+      // M3 wave2: 출석 섹션 초기값용. listGameApplications 가 include(스칼라 전부 반환)라
+      // attended_at 추가 조회 0. Date → ISO 문자열(클라 컴포넌트 직렬화 제약).
+      attended_at: a.attended_at ? new Date(a.attended_at).toISOString() : null,
     }));
 
   // 호스트 전용 신청자 배열
@@ -612,6 +617,27 @@ export default async function GameDetailPage({
                   });
                   return list;
                 })()}
+              />
+            )}
+
+            {/* [M3 wave2] 호스트 출석 체크 섹션 — 시안 C 박제.
+             * 노출조건: isHost && game.status >= 2 (확정/완료 경기에서만).
+             *   DATA-BINDING §4 시안 C: showAttendance = me===host_id && game.status>=2.
+             * 배치: HostPanel(위) ↔ ApplyPanel(아래) 사이 = "HostPanel과 참가자 사이".
+             * 데이터: approvedParticipants(status=1 승인자) 재사용 — 추가 조회 0.
+             *   attended_at(ISO) 유무로 출석 초기 토글. user_id null(게스트)은 토글 비활성. */}
+            {isHost && game.status >= 2 && (
+              <AttendanceSection
+                gameId={id}
+                members={approvedParticipants.map((p) => ({
+                  id: p.id,
+                  user_id: p.user_id,
+                  nickname: p.nickname,
+                  name: p.name,
+                  position: p.position,
+                  skill_level: p.skill_level,
+                  attendedAt: p.attended_at,
+                }))}
               />
             )}
 
