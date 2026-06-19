@@ -2,6 +2,14 @@
 <!-- 담당: debugger, tester | 최대 30항목 -->
 <!-- 이 프로젝트에서 반복되는 에러 패턴, 함정, 주의사항을 기록 -->
 
+### [2026-06-19] 신규 공개 v1 API 라우트 → proxy.ts PUBLIC_API_ROUTES 누락 시 401 전부 차단
+- **분류**: error
+- **발견자**: tester (B2/B3 백엔드 검증)
+- **증상**: 새로 만든 `/api/v1/auth/reset-password-request`·`/api/v1/auth/reset-password`·`/api/v1/app/version` 가 JWT 없이 호출하면 전부 **401 {error:"Unauthorized",code:"UNAUTHORIZED"}**. 라우트 코드 자체는 무결인데 도달조차 못 함. tsc·curl 형식테스트만으론 못 잡고, **인증 없는 실제 호출**을 해봐야 드러남.
+- **원인**: `src/proxy.ts` L125~136 — `/api/v1/*` 중 `PUBLIC_API_ROUTES`(L65~71) 화이트리스트 외 경로는 `Authorization: Bearer/Token` 헤더 없으면 early reject(401). 로그인 전/앱부팅 시 호출되는 공개 엔드포인트는 JWT가 있을 수 없으므로 100% 차단.
+- **예방**: (a) **JWT 불필요한 신규 v1 라우트 추가 시 `src/proxy.ts` `PUBLIC_API_ROUTES`에 경로 등록 필수** (login/kakao/google가 선례). (b) tester는 신규 v1 라우트를 **Authorization 헤더 없이** 1회 호출해 401 차단 여부 먼저 확인. proxy 통과 검증엔 더미 `Bearer dummy`로 라우트 로직 분리 테스트. (c) PUBLIC_API_ROUTES는 `startsWith` 매칭 — prefix 충돌 주의(`/reset-password`가 `/reset-password-request`도 포함).
+- **참조횟수**: 0
+
 ### [2026-06-16] `MatchPlayerStat.minutesPlayed` = 초 단위 + 999 truncate 버그 — 분으로 직접 read 금지
 - **분류**: errors (출전시간 데이터 함정 / source 이원화)
 - **발견자**: live-expert + pm (기록 Records MIN 이슈)
