@@ -238,13 +238,17 @@ export default async function GameDetailPage({
     name: string | null;
   } | null = null;
   let reportCount = 0;
+  // [M4] 종료 경기 CTA 플래그 — 로그인 유저가 "내 평가(game_reports)를 이미 작성했는지".
+  //   true 면 평가 CTA 라벨을 "평가 수정"으로, false 면 "경기 평가"로 분기(아래 하단 버튼).
+  //   종료(status===3) + 로그인 시에만 조회 → 과다 조회 0.
+  let hasMyReport = false;
   // 호스트 + 승인된 신청자 수 (status===1 만 카운트). 평가 모집단의 정의.
   const participantCount = approvedParticipants.length + 1; // 호스트 포함
 
   if (game.status === 3) {
     // MVP 사용자 정보 — final_mvp_user_id 가 세팅된 경우에만 조회
     const mvpId = game.final_mvp_user_id;
-    const [mvpUser, submittedCount] = await Promise.all([
+    const [mvpUser, submittedCount, myReport] = await Promise.all([
       mvpId
         ? prisma.user
             .findUnique({
@@ -258,9 +262,20 @@ export default async function GameDetailPage({
           where: { game_id: game.id, status: "submitted" },
         })
         .catch(() => 0),
+      // [M4] 내 game_reports 존재 여부 — 로그인 시에만 단건 findFirst(있으면 id 1개만).
+      //   @@unique([game_id, reporter_user_id]) 라 본인 리포트는 0/1 건 → 가벼운 조회.
+      session
+        ? prisma.game_reports
+            .findFirst({
+              where: { game_id: game.id, reporter_user_id: BigInt(session.sub) },
+              select: { id: true },
+            })
+            .catch(() => null)
+        : Promise.resolve(null),
     ]);
     finalMvp = mvpUser;
     reportCount = submittedCount;
+    hasMyReport = myReport !== null; // [M4] CTA 분기용 플래그
   }
 
   // 카페 댓글 (기존 유지)
@@ -346,6 +361,53 @@ export default async function GameDetailPage({
              * 데이터: 기존 finalMvp(L239~) / reportCount / participantCount 재사용.
              *   final_mvp_user_id 는 UA1(2C-2, game.ts)·UA5 종료 카드와 동일 소스.
              *   새 쿼리 0. status===3(완료) 일 때만 노출. */}
+
+            {/* [M4 wave2] 평점 CTA 배너 — 종료 경기(status===3) + 내 리포트 미작성(!hasMyReport) 일 때만.
+             *   왜 결과카드 위인가: 종료 직후 가장 먼저 "평가하기" 행동을 유도(DATA-BINDING §3-D
+             *   "status===3 && !my_rating.exists → 배너, 작성 완료 시 제거"). 작성하면 hasMyReport=true 가
+             *   되어 다음 진입부터 배너 소멸. 하단 기존 "경기 평가" 버튼은 그대로 유지(중복 아님 — 상단=유도 배너). */}
+            {game.status === 3 && !hasMyReport && (
+              <Link
+                href={`/games/${id}/report`}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 12,
+                  padding: "14px 18px",
+                  // accent 연한 배경 + 좌측 강조선(토큰만 — 하드코딩 hex 0)
+                  background: "color-mix(in srgb, var(--accent) 8%, transparent)",
+                  borderLeft: "3px solid var(--accent)",
+                  borderRadius: 4,
+                  textDecoration: "none",
+                  color: "inherit",
+                  minHeight: 44, // 터치 타겟
+                }}
+              >
+                <span
+                  className="material-symbols-outlined"
+                  style={{ fontSize: 22, color: "var(--accent)", flexShrink: 0 }}
+                  aria-hidden
+                >
+                  rate_review
+                </span>
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: "var(--ink)" }}>
+                    경기는 어땠나요? 함께 뛴 선수를 평가해주세요
+                  </div>
+                  <div style={{ fontSize: 12, color: "var(--ink-mute)", marginTop: 2 }}>
+                    매너 평가와 MVP 선정으로 더 좋은 매칭을 만들어요
+                  </div>
+                </div>
+                <span
+                  className="material-symbols-outlined"
+                  style={{ fontSize: 20, color: "var(--ink-dim)", flexShrink: 0 }}
+                  aria-hidden
+                >
+                  arrow_forward
+                </span>
+              </Link>
+            )}
+
             {game.status === 3 && (
               <section
                 className="card"
@@ -918,7 +980,11 @@ export default async function GameDetailPage({
                 </Link>
               )}
 
-              {/* 경기 평가 진입점 — 완료된 경기일 때만 노출 (status===3=완료, STATUS_LABEL 기준) */}
+              {/* 경기 평가 진입점 — 완료된 경기일 때만 노출 (status===3=완료, STATUS_LABEL 기준).
+               * [M4] hasMyReport(내 game_reports 존재) 로 CTA 분기:
+               *   - 이미 작성: "평가 수정" + edit 아이콘
+               *   - 미작성   : "경기 평가" + rate_review 아이콘
+               *   (라우트는 동일 — report 페이지가 기존 리포트를 불러와 수정/신규를 처리.) */}
               {game.status === 3 && (
                 <Link
                   href={`/games/${id}/report`}
@@ -929,9 +995,9 @@ export default async function GameDetailPage({
                     className="material-symbols-outlined"
                     style={{ fontSize: 16, marginRight: 4 }}
                   >
-                    rate_review
+                    {hasMyReport ? "edit" : "rate_review"}
                   </span>
-                  경기 평가
+                  {hasMyReport ? "평가 수정" : "경기 평가"}
                 </Link>
               )}
 
