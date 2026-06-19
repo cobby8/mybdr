@@ -1585,6 +1585,9 @@ model game_applications {
   // Phase 10-3 — 게스트 지원 흐름: 농구 경력(년) + 약관 동의 스냅샷
   experience_years Int?      @db.SmallInt
   accepted_terms   Json?     @default("{}")
+  // M2(매칭 대기열) — 대기 순번 + 승격 확정 마감시각 (NULL 허용 무중단 ADD COLUMN)
+  waitlist_position  Int?      @db.SmallInt
+  promotion_deadline DateTime? @db.Timestamp(6)
   users            User      @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_rails_3cac6c4ac4")
   games            games     @relation(fields: [game_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_rails_a07efcd68e")
 

@@ -183,6 +183,15 @@ export function GameCard({
   const isClosing = !isFull && isClosingSoon(scheduledAt, cur, max);
   const isDisabled = isFull || status === 3 || status === 4;
 
+  // [M2 wave2] 정원 마감 시 대기열 가능 여부 분기.
+  //   - 픽업(0)/게스트(1) 이면서 아직 모집중(status=1) 이면 정원이 차도 "대기 가능"
+  //     (백엔드 apply 가 status=3 으로 자동 대기 등록). 연습경기(2)는 대기열 대상 아님.
+  //   - status≥2(확정/완료/취소) 이면 신규 신청·대기 불가 → "마감".
+  const allowsWaitlist = gameType === 0 || gameType === 1;
+  const canWaitlist = isFull && status === 1 && allowsWaitlist;
+  // 만석 마감 칩 노출 여부: 만석이고 대기열도 불가(status≥2 또는 연습경기) 일 때.
+  const isClosedFull = isFull && !canWaitlist;
+
   // 참가비
   const feeNum = feePerPerson ? Number(feePerPerson) : 0;
   const isFree = !feePerPerson || feeNum === 0;
@@ -217,7 +226,8 @@ export function GameCard({
       style={{
         textDecoration: "none",
         color: "inherit",
-        opacity: isDisabled ? 0.6 : 1,
+        // [M2 wave2] 대기 가능 카드는 흐리지 않음 — 만석이어도 대기 신청 유도.
+        opacity: canWaitlist ? 1 : isDisabled ? 0.6 : 1,
       }}
     >
       <div className="gcard__main">
@@ -257,20 +267,38 @@ export function GameCard({
                 {areaLabel}
               </span>
             )}
-            {/* 우측 칩 영역 — 무료/마감임박/주말/초보환영 (margin-left:auto) */}
-            {showFreeChip && (
+            {/* [M2 wave2] 정원 마감 우선 칩 — 대기 가능 / 마감 (만석일 때만, 무료 칩보다 우선) */}
+            {canWaitlist && (
+              <span
+                className="gcard__chip gcard__chip--closing"
+                // 대기 가능 = warn 톤 강조 (closing 칩 토큰 재사용)
+              >
+                대기 가능
+              </span>
+            )}
+            {isClosedFull && (
+              <span
+                className="gcard__chip"
+                style={{ color: "var(--ink-mute)" }}
+              >
+                마감
+              </span>
+            )}
+            {/* 우측 칩 영역 — 무료/마감임박/주말/초보환영 (만석이 아닐 때만) */}
+            {showFreeChip && !isFull && (
               <span className="gcard__chip gcard__chip--free">무료</span>
             )}
-            {isClosing && !showFreeChip && (
+            {isClosing && !showFreeChip && !isFull && (
               <span className="gcard__chip gcard__chip--closing">마감임박</span>
             )}
-            {showWeekendChip && !showFreeChip && !isClosing && (
+            {showWeekendChip && !showFreeChip && !isClosing && !isFull && (
               <span className="gcard__chip">주말</span>
             )}
             {showBeginnerChip &&
               !showFreeChip &&
               !isClosing &&
-              !showWeekendChip && (
+              !showWeekendChip &&
+              !isFull && (
                 <span className="gcard__chip">초보환영</span>
               )}
           </div>
@@ -356,14 +384,17 @@ export function GameCard({
             </div>
           )}
         </div>
+        {/* [M2 wave2] 만석이어도 대기 가능(픽업/게스트 + 모집중)이면 "대기" 라벨 + 활성 톤.
+         *  status≥2(완료/취소)·연습경기 만석은 "마감"(흐림). */}
         <span
           className="btn-apply"
           style={{
             pointerEvents: "none",
-            opacity: isDisabled ? 0.55 : 1,
+            // 대기 가능은 정상 톤 유지, 그 외 마감/완료/취소는 흐림
+            opacity: canWaitlist ? 1 : isDisabled ? 0.55 : 1,
           }}
         >
-          {isDisabled ? "마감" : "신청"}
+          {canWaitlist ? "대기" : isDisabled ? "마감" : "신청"}
         </span>
       </div>
     </Link>

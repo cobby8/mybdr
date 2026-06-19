@@ -11,6 +11,8 @@ interface GameApplyButtonProps {
   profileCompleted: boolean;
   missingFields: string[];
   gameStatus: number;
+  // M2 UI: 정원 마감 여부. true면 라벨만 "대기 신청"으로 표기(동작/엔드포인트 동일 — 백엔드가 자동 status=3 대기 등록).
+  isFull?: boolean;
 }
 
 // 5/7 PR1.5.b — 본인인증 사전 안내
@@ -24,6 +26,7 @@ export function GameApplyButton({
   profileCompleted,
   missingFields,
   gameStatus,
+  isFull = false,
 }: GameApplyButtonProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -115,6 +118,9 @@ export function GameApplyButton({
             ? "✅ 신청 완료"
             : needsIdentity
             ? "본인인증 후 신청 가능 →"
+            : isFull
+            // M2 UI: 정원 마감 시 라벨만 "대기 신청"(클릭 동작은 동일 — 백엔드가 자동 status=3 대기 등록)
+            ? "대기 신청"
             : "🏀 참가 신청"}
         </Button>
       </div>

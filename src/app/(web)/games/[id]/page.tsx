@@ -709,6 +709,9 @@ export default async function GameDetailPage({
 
             {/* [v2.16 Phase 3-1c] ApplyPanel — V2 단일 칼럼 본문 안으로 이동 (이전 우측 sticky).
              * id="apply-panel" 유지 — Ribbon CTA / SlotBoard 빈 슬롯 anchor 타겟. */}
+            {/* M2 wave2: ApplyPanel 에 대기열 분기용 필드 전달 — 내 신청의 대기 순번 /
+             * 승격 마감 / 신청 id. IDOR 안전: myApplication 은 이미 본인 것만 추출됨(L143~145).
+             * BigInt id → string, Date → ISO 문자열(클라 컴포넌트 직렬화 제약). */}
             <div id="apply-panel" style={{ scrollMarginTop: 80 }}>
               <ApplyPanel
                 gameId={id}
@@ -720,6 +723,13 @@ export default async function GameDetailPage({
                 isLoggedIn={Boolean(session)}
                 isHost={isHost}
                 myApplicationStatus={myApplication ? myApplication.status : null}
+                myApplicationId={myApplication ? myApplication.id.toString() : null}
+                waitlistPosition={myApplication?.waitlist_position ?? null}
+                promotionDeadline={
+                  myApplication?.promotion_deadline
+                    ? new Date(myApplication.promotion_deadline).toISOString()
+                    : null
+                }
                 profileCompleted={profileCompleted}
                 missingFields={missingFields}
                 myProfile={
