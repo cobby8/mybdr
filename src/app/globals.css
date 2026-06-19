@@ -3003,6 +3003,123 @@ html.dark {
   align-items: start;
 }
 
+/* ============================================================
+ * [M5 2026-06-19] 찾기 UX — 빠른필터 칩 + 정렬 드롭다운/시트
+ *   시안 Games.jsx <style> 박제. 색상은 var(--*) 토큰만 사용(하드코딩 hex 0).
+ *   정렬 아이콘은 Material Symbols(swap_vert/expand_more/check) — 시안의 ⇅/⌄ 유니코드 대체.
+ * ============================================================ */
+/* -- 빠른필터 칩 바 -- */
+.games-chips {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 18px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+.games-chip {
+  flex: 0 0 auto;
+  padding: 7px 14px;
+  border-radius: var(--radius-chip);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  color: var(--ink-soft);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all .12s;
+}
+.games-chip:hover { background: var(--bg-alt); color: var(--ink); }
+.games-chip[data-active="true"] {
+  background: var(--cafe-blue);
+  border-color: var(--cafe-blue);
+  color: var(--ink-on-brand);
+}
+.games-chip--clear {
+  background: transparent;
+  border-color: transparent;
+  color: var(--ink-dim);
+}
+
+/* -- 정렬 버튼 + 드롭다운(데스크톱) -- */
+.games-sort-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.games-sort-icon { display: none; }
+.games-sort-caret { font-size: 18px; }
+.games-sort-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  z-index: 50;
+  min-width: 200px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  box-shadow: var(--sh-lg);
+  padding: 6px;
+}
+.games-sort-sheet-grip,
+.games-sort-sheet-title { display: none; }
+.games-sort-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius-chip);
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+}
+.games-sort-item:hover { background: var(--bg-alt); }
+.games-sort-item[data-active="true"] { color: var(--accent); }
+
+/* -- 모바일(<=720px) — 정렬 = 아이콘 버튼 + 하단 시트 -- */
+@media (max-width: 720px) {
+  .games-sort-label,
+  .games-sort-caret { display: none; }
+  .games-sort-icon { display: inline; font-size: 18px; }
+  .games-sort-btn { padding: 8px 10px; min-height: 44px; }
+  /* 드롭다운 → 하단 시트 */
+  .games-sort-menu {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    top: auto;
+    min-width: 0;
+    border-radius: var(--radius-card) var(--radius-card) 0 0;
+    padding: 8px 12px calc(16px + env(safe-area-inset-bottom));
+  }
+  .games-sort-sheet-grip {
+    display: block;
+    width: 40px;
+    height: 4px;
+    border-radius: 2px;
+    background: var(--border);
+    margin: 4px auto 10px;
+  }
+  .games-sort-sheet-title {
+    display: block;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: .08em;
+    color: var(--ink-dim);
+    padding: 0 4px 8px;
+  }
+  /* 시트 항목 터치 타깃 44px */
+  .games-sort-item { padding: 14px 12px; min-height: 44px; }
+}
+
 /* ---------- Mobile (<= 720px) ---------- */
 @media (max-width: 720px) {
   .games-header {
