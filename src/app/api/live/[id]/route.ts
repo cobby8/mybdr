@@ -18,6 +18,9 @@ import { computeScoreFromPbp } from "@/lib/tournaments/score-from-pbp";
 // 2026-05-13 FIBA Phase 21: 종이 매치(`settings.recording_mode = "paper"`) 박스스코어 슈팅 6 컬럼 (FG/FG%/3P/3P%/FT/FT%) 클라이언트 hide 게이팅.
 // 종이 기록 = miss/시도 미박제 → 시도=성공=100% → 가짜 정확도 시각 노이즈 차단. 응답에 recording_mode 노출 (snake_case 변환됨).
 import { getRecordingMode } from "@/lib/tournaments/recording-mode";
+// 비공개 대회 노출 차단 가드 (SSR page.tsx / public-* API와 동일 정책 — insider 외 차단).
+//   원격 보안수정(55db5c00)이 신설한 공용 헬퍼 재사용 — 라이브 박스스코어/PBP 잔여 구멍 봉쇄.
+import { blockIfPrivateTournament } from "@/lib/auth/private-tournament-guard";
 
 // 인증 없는 공개 엔드포인트 — 라이브 박스스코어
 // playerStats(종료 후 합계) + play_by_plays(쿼터별 상세 집계)
@@ -65,7 +68,8 @@ export async function GET(
           },
         },
         // 경기장명 fallback용으로 tournament.venue_name 같이 가져옴
-        tournament: { select: { name: true, venue_name: true } },
+        // is_public: 비공개 대회 가드용 (별도 쿼리 회피 — 기존 select 확장).
+        tournament: { select: { name: true, venue_name: true, is_public: true } },
         playerStats: {
           include: {
             tournamentTeamPlayer: {
@@ -78,6 +82,14 @@ export async function GET(
     });
 
     if (!match) {
+      return apiError("Match not found", 404);
+    }
+
+    // 비공개 대회 가드: 관계자(insider) 외에는 존재 숨김.
+    //   라이브 박스스코어(선수별 기록 전체)+PBP 노출 전에 early return — 가장 심각한 잔여 구멍 봉쇄.
+    //   매치 not-found(위)와 동일한 404로 응답 → 비공개 대회 매치의 존재 자체를 숨김.
+    //   is_public 은 match 조회 시 함께 가져온 값을 전달(헬퍼 재조회 생략). null/true=공개 통과.
+    if (await blockIfPrivateTournament(match.tournamentId, match.tournament?.is_public)) {
       return apiError("Match not found", 404);
     }
 

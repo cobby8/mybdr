@@ -76,6 +76,16 @@ export const PATCH = withWebAuth(async (req: Request, routeCtx: RouteCtx, ctx: W
           where: { id: game!.id },
           data: { current_participants: { decrement: 1 } },
         });
+
+        // M1: 정원 복귀 — 거절로 자리가 비어 current<max 이고 status=2(확정)면 1(모집중)로.
+        // 이유: 같은 트랜잭션 내 조건부 UPDATE로 race-safe. 미달이 아니면(>=) no-op.
+        await tx.$executeRaw`
+          UPDATE games
+          SET status = 1, updated_at = NOW()
+          WHERE id = ${game!.id}
+            AND status = 2
+            AND current_participants < max_participants
+        `;
       }
     });
 

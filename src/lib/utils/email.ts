@@ -17,7 +17,7 @@ interface SendEmailParams {
   to: string;
   subject: string;
   html: string;
-  from?: string; // 기본값: noreply@mybdr.co.kr
+  from?: string; // 기본값: noreply@mybdr.kr
 }
 
 // 발송 결과 타입
@@ -29,7 +29,8 @@ interface SendEmailResult {
 
 // Resend API 키 (서버 전용이므로 NEXT_PUBLIC_ 접두사 없음)
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
-const DEFAULT_FROM = "MyBDR <noreply@mybdr.co.kr>";
+// 발신 도메인은 Resend에 검증된 mybdr.kr 로 통일 (DNS SPF/DKIM 일치)
+const DEFAULT_FROM = "MyBDR <noreply@mybdr.kr>";
 
 /**
  * 이메일 발송 함수

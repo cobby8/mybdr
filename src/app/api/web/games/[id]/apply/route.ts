@@ -122,6 +122,16 @@ export const POST = withWebAuth(async (req: Request, routeCtx: RouteCtx, ctx: We
               AND current_participants < max_participants
           `;
           if (reserved === 0) throw Object.assign(new Error("FULL"), { code: "FULL" });
+
+          // M1: 정원 도달 자동전환 — 증가 후 current==max 이고 status=1(모집중)이면 2(확정)로.
+          // 이유: 같은 트랜잭션 내 조건부 UPDATE로 race-safe. 0 rows면 아직 미달 → no-op.
+          await tx.$executeRaw`
+            UPDATE games
+            SET status = 2, updated_at = NOW()
+            WHERE id = ${game!.id}
+              AND status = 1
+              AND current_participants >= max_participants
+          `;
         } else {
           // 정원 제한 없는 경우 단순 증가
           await tx.games.update({

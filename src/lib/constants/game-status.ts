@@ -12,7 +12,18 @@ export const TYPE_BADGE: Record<number, { label: string; color: string; bg: stri
   2: { label: "PRACTICE", color: "var(--color-on-primary)", bg: "var(--color-badge-amber)", gradient: "linear-gradient(135deg, #4a2c0a 0%, #d97706 50%, #ea580c 100%)", icon: "fitness_center" },
 };
 
-// 경기 상태 라벨 (모집중/확정/완료/취소)
+/**
+ * 경기 상태(games.status) 단일 출처 — Int enum 의미.
+ *   0 = 초안     (작성중 / 미공개. 라벨 없음 — 목록·신청 노출 제외)
+ *   1 = 모집중   (신청 가능. 정원 미달)
+ *   2 = 확정     (정원 도달 자동전환 또는 호스트 확정)
+ *   3 = 완료     (경기 종료)
+ *   4 = 취소     (호스트 취소 — soft delete)
+ *
+ * ⚠️ 취소는 4로 통일한다 (M1, 2026-06-19). 과거 DELETE 라우트가 status=5를
+ *    set 하던 흔적이 있었으나(STATUS_LABEL에 5 없어 라벨 깨짐) 5→4로 정정.
+ *    status=5 잔존 데이터 0건 확인 후 코드만 정정(게이트 A).
+ */
 export const STATUS_LABEL: Record<number, { text: string; color: string }> = {
   1: { text: "모집중", color: "var(--color-status-open)" },
   2: { text: "확정",   color: "var(--color-status-confirmed)" },

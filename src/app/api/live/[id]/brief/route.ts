@@ -32,6 +32,9 @@ import {
   generateMatchBrief,
   type MatchBriefInput,
 } from "@/lib/news/match-brief-generator";
+// 비공개 대회 노출 차단 가드 (live/[id]·live route 와 동일 정책 — insider 외 차단).
+//   원격 보안수정이 신설한 공용 헬퍼 재사용 — brief(LLM 기사) 잔여 무인증 노출 구멍 봉쇄.
+import { blockIfPrivateTournament } from "@/lib/auth/private-tournament-guard";
 
 // 한글 받침 검사 → 조사 선택 (tab-summary 의 josa 와 동일 로직)
 // 사용처: flow 분류 외, brief generator 입력엔 직접 사용 안 함 — 여기서는 미사용.
@@ -90,7 +93,15 @@ export async function GET(
           include: { team: { select: { name: true } } },
         },
         // 2026-05-09: dual_tournament 구조 인지 위해 format SELECT 추가.
-        tournament: { select: { venue_name: true, name: true, format: true } },
+        // 2026-06-18: 비공개 대회 가드용 is_public 추가 (헬퍼 재조회 생략 위해 함께 fetch).
+        tournament: {
+          select: {
+            venue_name: true,
+            name: true,
+            format: true,
+            is_public: true,
+          },
+        },
         playerStats: {
           include: {
             tournamentTeamPlayer: {
@@ -110,6 +121,12 @@ export async function GET(
     // status: scheduled | live | completed | cancelled 등
     if (match.status !== "completed") {
       return apiSuccess({ ok: false, reason: "not_completed" });
+    }
+
+    // 비공개 대회 가드: 관계자 외 존재 숨김 — match_not_found 와 동일 응답.
+    //   ★LLM(generateMatchBrief) 호출 앞에 둬 캐시 오염·호출 비용·부분 노출 차단.
+    if (await blockIfPrivateTournament(match.tournamentId, match.tournament?.is_public)) {
+      return apiSuccess({ ok: false, reason: "match_not_found" });
     }
 
     // 점수 (null 가드)
