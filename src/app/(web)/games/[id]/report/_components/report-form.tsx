@@ -46,6 +46,10 @@ export type ReportPlayer = {
   name: string | null;
   image: string | null;
   position: string | null;
+  // [M3 wave2] 출석 여부 — 호스트가 출석 체크 섹션에서 처리한 attended_at 유무.
+  //   true=출석(또는 호스트 본인) / false=미출석(노쇼 후보).
+  //   신규 작성(404)일 때만 attended===false 인 승인자를 노쇼로 prefill 한다.
+  attended: boolean;
 };
 
 // 시각 메타 derive 결과 — 인덱스로 team/num/color 자동 분배
@@ -81,6 +85,9 @@ export type GameReportFormProps = {
   };
   players: ReportPlayer[]; // 호스트 + 승인된 참가자 (중복 제거)
   currentUserId: string; // session.sub (BigInt 문자열)
+  // [M3 보완 ③] 호스트가 출석 체크 섹션을 실제 사용했는지(승인자 중 1명+ 출석됨).
+  //   false 면 = 출석 섹션 미사용 → 신규 리포트 노쇼 prefill 을 발동하지 않는다(빈 배열).
+  attendanceUsed: boolean;
 };
 
 export function GameReportForm({
@@ -89,6 +96,7 @@ export function GameReportForm({
   players,
   // currentUserId는 추후 본인 강조 등에 사용 가능 — 현재는 사용 안 함 (eslint 경고 회피)
   currentUserId: _currentUserId,
+  attendanceUsed,
 }: GameReportFormProps): ReactElement {
   const router = useRouter();
 
@@ -130,12 +138,14 @@ export function GameReportForm({
     if (!gameId) return;
     let cancelled = false;
 
-    const loadDraftFromLocalStorage = () => {
+    // LocalStorage draft prefill. 반환값 = draft 의 noshows 를 실제로 복원했는지 여부.
+    //   false 면 호출부에서 출석(attended=false) 기반 노쇼 초기화로 fallback 한다.
+    const loadDraftFromLocalStorage = (): boolean => {
       // 서버 리포트 없을 때만 LocalStorage prefill 시도
-      if (typeof window === "undefined" || !draftKey) return;
+      if (typeof window === "undefined" || !draftKey) return false;
       try {
         const raw = window.localStorage.getItem(draftKey);
-        if (!raw) return;
+        if (!raw) return false;
         const draft = JSON.parse(raw) as {
           overall?: number;
           comment?: string;
@@ -149,10 +159,28 @@ export function GameReportForm({
         if (draft.mvp === null || typeof draft.mvp === "string") setMvp(draft.mvp ?? null);
         if (draft.ratings && typeof draft.ratings === "object") setRatings(draft.ratings);
         if (draft.reports && typeof draft.reports === "object") setReports(draft.reports);
-        if (Array.isArray(draft.noshows)) setNoshows(draft.noshows);
+        if (Array.isArray(draft.noshows)) {
+          setNoshows(draft.noshows);
+          return true;
+        }
+        return false;
       } catch {
         // 파싱 실패 시 조용히 무시
+        return false;
       }
+    };
+
+    // 출석(attended=false) 기반 노쇼 초기화 — 신규 작성(404)에서 draft 노쇼가 없을 때만.
+    //   호스트 출석 섹션에서 미출석 처리된 승인자(attended===false)를 노쇼로 prefill 한다.
+    //   서버 리포트(is_noshow) > localStorage draft 가 우선이므로 여기서는 fallback 만 담당.
+    const prefillNoshowsFromAttendance = () => {
+      // [M3 보완 ③] 호스트가 출석 섹션을 실제 사용했을 때만 노쇼 prefill.
+      //   attendanceUsed=false = 승인자 전원 미체크 → 출석 섹션 미사용으로 간주 → prefill 0(빈 배열 유지).
+      //   이유: 출석 체크를 안 쓴 경기에서 미체크자 전원을 노쇼로 제안하면 호스트가 혼란.
+      if (!attendanceUsed) return;
+      // attendanceUsed=true(일부라도 출석 체크됨)일 때만 미체크자(attended===false)를 노쇼로 prefill.
+      const initial = players.filter((p) => p.attended === false).map((p) => p.id);
+      if (initial.length > 0) setNoshows(initial);
     };
 
     (async () => {
@@ -195,9 +223,12 @@ export function GameReportForm({
         }
 
         // 404: 리포트 없음 = 신규 작성 모드 (정상)
+        //   노쇼 prefill 우선순위: 서버 리포트(여기선 없음) > localStorage draft >
+        //   (둘 다 없을 때만) attended===false 승인자 출석 기반 초기화.
         if (res.status === 404) {
           if (!cancelled) {
-            loadDraftFromLocalStorage();
+            const draftHadNoshows = loadDraftFromLocalStorage();
+            if (!draftHadNoshows) prefillNoshowsFromAttendance();
             setGate({ kind: "ok" });
           }
           return;
@@ -249,16 +280,20 @@ export function GameReportForm({
           }
           setRatings(ratingMap);
           setReports(flagMap);
+          // 서버 리포트의 is_noshow 가 최우선 — 그대로 복원(출석 fallback 미적용).
           setNoshows(noshowList);
           setCanEdit(ce);
         } else {
-          loadDraftFromLocalStorage();
+          // 200 이나 리포트 본문이 없는 방어 케이스 — 신규 작성에 준해 처리.
+          const draftHadNoshows = loadDraftFromLocalStorage();
+          if (!draftHadNoshows) prefillNoshowsFromAttendance();
         }
         setGate({ kind: "ok" });
       } catch {
-        // 네트워크 오류 등 — 폼은 열어두되 LocalStorage prefill만 시도
+        // 네트워크 오류 등 — 폼은 열어두되 LocalStorage prefill만 시도(없으면 출석 기반).
         if (!cancelled) {
-          loadDraftFromLocalStorage();
+          const draftHadNoshows = loadDraftFromLocalStorage();
+          if (!draftHadNoshows) prefillNoshowsFromAttendance();
           setGate({ kind: "ok" });
         }
       }
@@ -267,7 +302,9 @@ export function GameReportForm({
     return () => {
       cancelled = true;
     };
-  }, [gameId, draftKey, router]);
+    // players 는 server props 로 안정적이지만, prefillNoshowsFromAttendance 가 참조하므로 의존성에 포함.
+    //   [M3 보완 ③] attendanceUsed 도 prefill 게이트에 쓰이므로 의존성에 포함.
+  }, [gameId, draftKey, router, players, attendanceUsed]);
 
   // 선수별 평점 setter (StarRating onChange 와 호환) — id: string
   const setRating = (id: string, v: number) => {
@@ -285,7 +322,15 @@ export function GameReportForm({
 
   // 노쇼 체크박스 토글
   const toggleNoshow = (id: string) => {
-    setNoshows((prev) => (prev.includes(id) ? prev.filter((n) => n !== id) : [...prev, id]));
+    setNoshows((prev) => {
+      const willBeNoshow = !prev.includes(id); // 이번 토글로 "노쇼로 켜지는지" 판정
+      // [M3 보완 ②, 2026-06-19] 노쇼=MVP 불가 일관성 보강.
+      //   왜: MVP 버튼은 노쇼 행에서 disabled 되지만 mvp state 자체는 안 바뀌어,
+      //       MVP 선택 후 그 선수를 노쇼 체크하면 mvp_user_id 로 노쇼선수가 전송됨(recomputeFinalMvp 왜곡).
+      //   방법: 노쇼로 켜지는 선수가 현재 mvp 면 mvp 선택을 해제.
+      if (willBeNoshow && id === mvp) setMvp(null);
+      return willBeNoshow ? [...prev, id] : prev.filter((n) => n !== id);
+    });
   };
 
   // 제출 핸들러 — POST(신규) / PATCH(기존+수정가능) 분기
@@ -640,12 +685,18 @@ export function GameReportForm({
               </p>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
-                {displayPlayers.map((p, i) => (
+                {displayPlayers.map((p, i) => {
+                  // 노쇼 행 여부 — 현재 체크된 noshows 기준(출석 prefill 또는 사용자 토글).
+                  //   노쇼 행은 흐리게(.68) + "노쇼" 뱃지 + MVP 버튼 비활성(불참자는 MVP 부적격).
+                  const isNoshow = noshows.includes(p.id);
+                  return (
                   <div
                     key={p.id}
                     style={{
                       padding: "16px 0",
                       borderTop: i > 0 ? "1px solid var(--border)" : "none",
+                      // 노쇼 처리된 행은 흐리게 — 평가/신고 입력은 가능하나 시각적으로 구분.
+                      opacity: isNoshow ? 0.68 : 1,
                     }}
                   >
                     {/* 선수 헤더: Avatar + 이름/포지션/팀 + MVP 버튼 */}
@@ -687,6 +738,8 @@ export function GameReportForm({
                           >
                             팀 {p.team}
                           </span>
+                          {/* [M3 wave2] 노쇼 뱃지 — 미출석/노쇼 체크된 선수에 표시(badge--warn) */}
+                          {isNoshow && <span className="badge badge--warn">노쇼</span>}
                         </div>
                         <div
                           style={{
@@ -699,12 +752,16 @@ export function GameReportForm({
                           #{p.num}
                         </div>
                       </div>
+                      {/* [M3 wave2] 노쇼(불참)인 선수는 MVP 부적격 → 버튼 비활성.
+                       *   불참자가 MVP 로 남아있지 않도록, 노쇼면 현재 mvp 선택도 무효 취급(표시상). */}
                       <button
                         onClick={() => setMvp(p.id === mvp ? null : p.id)}
                         type="button"
-                        className={`btn btn--sm ${mvp === p.id ? "btn--primary" : ""}`}
+                        disabled={isNoshow}
+                        className={`btn btn--sm ${mvp === p.id && !isNoshow ? "btn--primary" : ""}`}
+                        style={isNoshow ? { cursor: "not-allowed" } : undefined}
                       >
-                        {mvp === p.id ? "★ MVP 추천" : "★ MVP로"}
+                        {mvp === p.id && !isNoshow ? "★ MVP 추천" : "★ MVP로"}
                       </button>
                     </div>
 
@@ -774,7 +831,8 @@ export function GameReportForm({
                       </label>
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>

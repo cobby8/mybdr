@@ -179,9 +179,73 @@ export async function listRecentGames(take = 4) {
 }
 
 /**
+ * [M3, 2026-06-19] lazy 종료 status 실DB 전환.
+ *
+ * 왜:
+ *   - 평점/리포트 작성 권한은 DB의 games.status === 3(완료)을 요구한다.
+ *   - 기존 listGames 의 메모리 오버라이드(scheduled_at < now 면 표시만 3)는
+ *     "보이기만 3" 이라 DB status 는 여전히 1/2 → 평점 권한 판정이 막힌다.
+ *   - 따라서 상세/리포트가 공유하는 단일 조회 진입점(getGame)에서 조회 시점에
+ *     실제 종료된 경기를 DB status=3 으로 1회 동기화(승급)한다.
+ *
+ * 종료 판정:
+ *   - scheduled_at + duration_hours(시간) < now() 이고 status 가 1 또는 2.
+ *   - duration_hours 가 null 이면 종료 시각을 계산할 수 없으므로 전환 보류(no-op).
+ *     (listGames 메모리 오버라이드는 duration 무시·scheduled_at 만 보지만, 여기서는
+ *      실DB 를 바꾸므로 정확한 종료 시각을 쓴다. 보류된 건 종료시각 불명확이라 안전.)
+ *
+ * 멱등·race-safe:
+ *   - 조건부 UPDATE(WHERE status IN (1,2) AND duration_hours IS NOT NULL
+ *     AND scheduled_at + duration_hours 시간 < now()).
+ *   - 이미 3(완료)/4(취소)이면 WHERE 불충족 → 0 rows no-op. 취소는 전환 안 함.
+ *   - 조회된 해당 경기 1건만 갱신(WHERE id = ...). 대량 일괄 UPDATE 금지.
+ *   - GET 시 write 가 일어나는 lazy 패턴 — M3 스펙상 의도된 동작.
+ *
+ * @param game getGame 으로 막 조회한 row (status/scheduled_at/duration_hours 보유)
+ * @returns 전환이 일어났으면 status=3 으로 보정한 객체, 아니면 원본 그대로
+ */
+// [M3 보완 ①, 2026-06-19] report 직링크 경로(report/page.tsx)에서도 재사용하기 위해 export.
+//   - 상세 페이지는 getGame 경유로 이미 lazy 전환되지만, my-games "후기 작성" 직링크는
+//     report/page.tsx 가 getGame 을 거치지 않고 prisma 직접 조회 → DB status 1/2 그대로라
+//     canReportGame 이 GAME_NOT_FINISHED(400) 로 평점 작성을 차단하는 결함이 있었다.
+//   - 멱등·race-safe(아래 조건부 UPDATE) 라 직링크/상세 양쪽에서 중복 호출돼도 안전.
+export async function lazyEndGame<
+  T extends { id: bigint; status: number | null; scheduled_at: Date | null; duration_hours: number | null }
+>(game: T): Promise<T> {
+  // 모집중(1)/확정(2) + scheduled_at·duration_hours 모두 존재할 때만 종료 판정.
+  if (
+    (game.status === 1 || game.status === 2) &&
+    game.scheduled_at !== null &&
+    game.duration_hours !== null
+  ) {
+    // 종료 시각 = scheduled_at + duration_hours 시간. 이미 지났으면 전환 대상.
+    const endsAt = new Date(game.scheduled_at.getTime() + game.duration_hours * 60 * 60 * 1000);
+    if (endsAt < new Date()) {
+      // 조건부 UPDATE — DB 시각(NOW) 기준으로 다시 한 번 검증해 race-safe.
+      // 이미 3/4 이면 status IN (1,2) 불충족 → 0 rows no-op(멱등).
+      const updated = await prisma.$executeRaw`
+        UPDATE games
+        SET status = 3, updated_at = NOW()
+        WHERE id = ${game.id}
+          AND status IN (1, 2)
+          AND duration_hours IS NOT NULL
+          AND scheduled_at + (duration_hours || ' hours')::interval < NOW()
+      `.catch(() => 0);
+      // 우리가 전환했거나(>0) 동시에 다른 요청이 이미 전환했어도, 응답 객체는 3 으로 보정.
+      if (updated && updated > 0) {
+        return { ...game, status: 3 };
+      }
+    }
+  }
+  return game;
+}
+
+/**
  * 경기 상세 조회 (UUID 또는 short UUID)
  * shortId (8자)이면 LIKE 검색, 아니면 정확 매칭.
  * @returns game 또는 null
+ *
+ * ※ [M3] 조회 시 종료된 경기는 DB status=3 으로 lazy 동기화(lazyEndGame).
  */
 export async function getGame(idOrShortUuid: string) {
   if (!idOrShortUuid) return null;
@@ -190,7 +254,7 @@ export async function getGame(idOrShortUuid: string) {
   const numId = Number(idOrShortUuid);
   if (!isNaN(numId) && numId > 0) {
     const game = await prisma.games.findUnique({ where: { id: BigInt(numId) } }).catch(() => null);
-    if (game) return game;
+    if (game) return lazyEndGame(game); // [M3] 종료 경기 DB status=3 승급
   }
 
   // UUID (8자 이상)로 조회
@@ -207,7 +271,8 @@ export async function getGame(idOrShortUuid: string) {
     }
 
     if (fullUuid) {
-      return prisma.games.findUnique({ where: { uuid: fullUuid } }).catch(() => null);
+      const game = await prisma.games.findUnique({ where: { uuid: fullUuid } }).catch(() => null);
+      return game ? lazyEndGame(game) : null; // [M3] 종료 경기 DB status=3 승급
     }
   }
 
