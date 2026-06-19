@@ -28,6 +28,8 @@
 import { useState } from "react";
 import { GameApplyButton } from "../apply-button";
 import { CancelApplyButton } from "../cancel-apply-button";
+// M2 wave2: 승격(promoted) 상태 — 카운트다운 + "참가 확정하기" CTA.
+import { PromoteConfirm } from "./promote-confirm";
 
 export interface ApplyPanelMyProfile {
   nickname: string | null;
@@ -48,8 +50,14 @@ export interface ApplyPanelProps {
   isLoggedIn: boolean;
   /** 호스트 여부 — 본인이면 신청/취소 CTA 미노출 */
   isHost: boolean;
-  /** 내 신청 상태: null(미신청) / 0(대기) / 1(승인) / 2(거절) */
+  /** 내 신청 상태: null(미신청) / 0(신청완료) / 1(승인=확정) / 2(거절) / 3(대기) */
   myApplicationStatus: number | null;
+  /** M2 wave2 — 내 신청 id (승격 확정 POST 대상). 미신청이면 null */
+  myApplicationId?: string | null;
+  /** M2 wave2 — 대기 순번(1부터). status=3 일 때만 유의미 */
+  waitlistPosition?: number | null;
+  /** M2 wave2 — 승격 마감 ISO 문자열. status=3 + 값 있고 미래 = 승격(promoted) 파생 */
+  promotionDeadline?: string | null;
   /** 프로필 완성 여부 (GameApplyButton 필요) */
   profileCompleted: boolean;
   missingFields: string[];
@@ -74,6 +82,9 @@ export function ApplyPanel({
   isLoggedIn,
   isHost,
   myApplicationStatus,
+  myApplicationId,
+  waitlistPosition,
+  promotionDeadline,
   profileCompleted,
   missingFields,
   myProfile,
@@ -86,6 +97,9 @@ export function ApplyPanel({
   const remaining = Math.max(0, max - cur);
   // 진행률 0~100 (max=0 인 경우 0% 로 폴백)
   const progressPct = max > 0 ? Math.min(100, Math.round((cur / max) * 100)) : 0;
+  // M2 UI: 정원 마감 판정 — max 설정됨 + 여석 0. 기존 remaining/max 재사용(신규 조회 0).
+  //   만석이어도 status=1(모집중)이면 신청 시 백엔드가 자동 대기(status=3) 등록 → 버튼/안내 카피만 변경.
+  const isFull = max > 0 && remaining === 0;
 
   // Phase C 결정 5=B: 한마디 textarea / 동의 체크박스 / skill_level select 는 UI 만 박제.
   //   - skill_level: 본인 프로필 기본값을 form state 로만 보유. apply-button.tsx fetch body 변경 0
@@ -108,6 +122,18 @@ export function ApplyPanel({
   // 호스트/거절/승인/대기 상태에선 신청 폼 자체가 안 보이므로 신청자 정보 카드도 가린다.
   const showApplicantInfo =
     isLoggedIn && !isHost && myApplicationStatus == null && myProfile;
+
+  // M2 wave2 — 승격(promoted) 파생 판정.
+  //   promoted = 대기(status=3) AND promotion_deadline 이 존재 AND 미래(아직 안 지남).
+  //   ★서버가 deadline 으로 최종 판정(클라 타이머는 표시용). 타이머 0이어도 confirm 버튼은
+  //     유지하고 서버가 410/통과를 결정한다(DATA-BINDING §2-2).
+  //   여기서 미래 판정은 "승격 안내 vs 단순 대기" UI 분기에만 쓰고, 만료 직후라도
+  //     PromoteConfirm 안에서 카운트다운 0 표시 후 서버 판정에 맡긴다.
+  const isWaiting = myApplicationStatus === 3;
+  const isPromoted =
+    isWaiting &&
+    promotionDeadline != null &&
+    new Date(promotionDeadline).getTime() > Date.now();
   const myDisplay =
     myProfile?.nickname?.trim() || myProfile?.name?.trim() || "회원";
   const myMeta = [
@@ -400,19 +426,98 @@ export function ApplyPanel({
             </p>
           )}
 
-          {/* 로그인 + 호스트 아님 + 미신청 → 신청 버튼 (운영 그대로 — apply-button.tsx fetch 변경 0) */}
+          {/* 로그인 + 호스트 아님 + 미신청 → 신청 버튼 (운영 그대로 — apply-button.tsx fetch 변경 0).
+              M2 UI: 정원 마감(isFull) + 모집중(status=1)이면 버튼 라벨이 "대기 신청"으로 바뀌고
+                     아래 안내 1줄 노출. 클릭 동작/엔드포인트는 동일(백엔드 자동 대기 등록). */}
           {isLoggedIn && !isHost && myApplicationStatus == null && (
-            <GameApplyButton
+            <>
+              {isFull && gameStatus === 1 && (
+                <p
+                  style={{
+                    fontSize: 12,
+                    color: "var(--warn)",
+                    fontWeight: 700,
+                    textAlign: "center",
+                    margin: "0 0 8px",
+                  }}
+                >
+                  정원 마감 · 대기 등록
+                </p>
+              )}
+              <GameApplyButton
+                gameId={gameId}
+                profileCompleted={profileCompleted}
+                missingFields={missingFields}
+                gameStatus={gameStatus}
+                // 만석 + 모집중일 때만 "대기 신청" 라벨 (여석 있으면 기존 "참가 신청")
+                isFull={isFull && gameStatus === 1}
+              />
+            </>
+          )}
+
+          {/* 로그인 + 호스트 아님 + 신청완료(승인 대기) → 취소 버튼 */}
+          {isLoggedIn && !isHost && myApplicationStatus === 0 && (
+            <CancelApplyButton gameId={gameId} />
+          )}
+
+          {/* M2 wave2: 로그인 + 호스트 아님 + 대기(status=3)
+           *   - 승격됨(promoted): 카운트다운 + "참가 확정하기" CTA (PromoteConfirm)
+           *   - 단순 대기(waiting): 대기 N번 안내 + 대기 취소 버튼(기존 CancelApplyButton 재사용 —
+           *     cancel API 가 status=3 도 처리하고 순번 재정렬함). */}
+          {isLoggedIn && !isHost && isPromoted && myApplicationId && (
+            <PromoteConfirm
               gameId={gameId}
-              profileCompleted={profileCompleted}
-              missingFields={missingFields}
-              gameStatus={gameStatus}
+              applicationId={myApplicationId}
+              promotionDeadline={promotionDeadline!}
             />
           )}
 
-          {/* 로그인 + 호스트 아님 + 대기중 → 취소 버튼 */}
-          {isLoggedIn && !isHost && myApplicationStatus === 0 && (
-            <CancelApplyButton gameId={gameId} />
+          {isLoggedIn && !isHost && isWaiting && !isPromoted && (
+            <>
+              {/* 대기 N번 — 시안 GameDetail ApplyPanel "대기중" 박제 (큰 순번 + 안내) */}
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 12,
+                  padding: 14,
+                  background: "var(--bg-alt)",
+                  borderRadius: 6,
+                }}
+              >
+                <div
+                  style={{
+                    fontFamily: "var(--ff-display)",
+                    fontSize: 34,
+                    fontWeight: 900,
+                    color: "var(--warn)",
+                    lineHeight: 1,
+                  }}
+                >
+                  {/* 순번 미상(null)이면 "–" 폴백 — mock 숫자 금지 */}
+                  {waitlistPosition ?? "–"}
+                </div>
+                <div>
+                  <div style={{ fontWeight: 800, fontSize: 14, color: "var(--ink)" }}>
+                    {waitlistPosition != null ? `대기 ${waitlistPosition}번` : "대기중"}
+                  </div>
+                  <div style={{ fontSize: 12, color: "var(--ink-mute)", marginTop: 2 }}>
+                    빈자리 발생 시 순서대로 알림
+                  </div>
+                </div>
+              </div>
+              {/* 대기 취소 — apply/cancel API 가 status=3 취소 + 뒤 순번 재정렬 처리 */}
+              <CancelApplyButton gameId={gameId} />
+              <div
+                style={{
+                  fontSize: 11,
+                  color: "var(--ink-dim)",
+                  textAlign: "center",
+                }}
+              >
+                알림을 받으면 30분 안에 확정해야 해요.
+              </div>
+            </>
           )}
 
           {/* 로그인 + 호스트 아님 + 승인됨 → 성공 배지 */}

@@ -111,8 +111,24 @@ export const POST = withWebAuth(async (req: Request, routeCtx: RouteCtx, ctx: We
 
     // TC-001: 정원 확인 + 신청 생성 + 카운트 갱신을 원자적 트랜잭션으로 처리
     // current_participants를 조건부 UPDATE로 race condition 방지
+    //
+    // M2(대기열): 정원 마감 시 FULL 거절 대신 status=3(대기)으로 받는다.
+    //   isWaitlisted = 트랜잭션 결과로 자리를 못 잡았는지 여부. waitlistPosition = 부여된 대기 순번.
+    let isWaitlisted = false;
+    let waitlistPosition: number | null = null;
     try {
       await prisma.$transaction(async (tx) => {
+        // 게스트 신청이면 추가 필드 포함, 일반은 기존 그대로.
+        // accepted_terms 에 accepted_at 타임스탬프를 함께 박아 동의 시점 기록.
+        // status 는 좌석 확보 여부에 따라 아래에서 결정(여석=0 / 마감=3).
+        const baseData = {
+          game_id: game!.id,
+          user_id: ctx.userId,
+          payment_required: (game!.fee_per_person ?? 0) > 0,
+          created_at: new Date(),
+          updated_at: new Date(),
+        };
+
         // 정원이 있을 때만 원자적 증가 (max_participants 초과 시 0 rows 반환)
         if (game!.max_participants !== null) {
           const reserved = await tx.$executeRaw`
@@ -121,39 +137,44 @@ export const POST = withWebAuth(async (req: Request, routeCtx: RouteCtx, ctx: We
             WHERE id = ${game!.id}
               AND current_participants < max_participants
           `;
-          if (reserved === 0) throw Object.assign(new Error("FULL"), { code: "FULL" });
-
-          // M1: 정원 도달 자동전환 — 증가 후 current==max 이고 status=1(모집중)이면 2(확정)로.
-          // 이유: 같은 트랜잭션 내 조건부 UPDATE로 race-safe. 0 rows면 아직 미달 → no-op.
-          await tx.$executeRaw`
-            UPDATE games
-            SET status = 2, updated_at = NOW()
-            WHERE id = ${game!.id}
-              AND status = 1
-              AND current_participants >= max_participants
-          `;
+          if (reserved === 0) {
+            // M2: 정원 마감 → 거절 대신 대기(status=3). current_participants 변동 없음.
+            isWaitlisted = true;
+            // 대기 순번 = 해당 game 현재 대기(status=3) 중 max(waitlist_position) + 1.
+            // 이유: 같은 트랜잭션 내에서 집계 → 동시 대기 신청 시 순번 부여를 직렬화.
+            const agg = await tx.game_applications.aggregate({
+              where: { game_id: game!.id, status: 3 },
+              _max: { waitlist_position: true },
+            });
+            waitlistPosition = (agg._max.waitlist_position ?? 0) + 1;
+          } else {
+            // 여석 확보 성공 → M1: 정원 도달 자동전환(current==max & status=1 → 2).
+            // 이유: 같은 트랜잭션 내 조건부 UPDATE로 race-safe. 0 rows면 아직 미달 → no-op.
+            await tx.$executeRaw`
+              UPDATE games
+              SET status = 2, updated_at = NOW()
+              WHERE id = ${game!.id}
+                AND status = 1
+                AND current_participants >= max_participants
+            `;
+          }
         } else {
-          // 정원 제한 없는 경우 단순 증가
+          // 정원 제한 없는 경우 단순 증가 (마감 개념 없음 → 대기열 미발생)
           await tx.games.update({
             where: { id: game!.id },
             data: { current_participants: { increment: 1 } },
           });
         }
 
-        // 게스트 신청이면 추가 필드 포함, 일반은 기존 그대로.
-        // accepted_terms 에 accepted_at 타임스탬프를 함께 박아 동의 시점 기록.
-        const baseData = {
-          game_id: game!.id,
-          user_id: ctx.userId,
-          status: 0, // pending
-          payment_required: (game!.fee_per_person ?? 0) > 0,
-          created_at: new Date(),
-          updated_at: new Date(),
-        };
+        // 좌석 확보=status 0(신청완료) / 정원 마감=status 3(대기) + waitlist_position 부여.
+        const finalData = isWaitlisted
+          ? { ...baseData, status: 3, waitlist_position: waitlistPosition }
+          : { ...baseData, status: 0 };
+
         if (isGuest) {
           await tx.game_applications.create({
             data: {
-              ...baseData,
+              ...finalData,
               is_guest: true,
               position: body.position,
               experience_years: body.experience_years,
@@ -166,14 +187,11 @@ export const POST = withWebAuth(async (req: Request, routeCtx: RouteCtx, ctx: We
             },
           });
         } else {
-          await tx.game_applications.create({ data: baseData });
+          await tx.game_applications.create({ data: finalData });
         }
       });
     } catch (e) {
       const err = e as { code?: string; message?: string };
-      if (err.code === "FULL" || err.message === "FULL") {
-        return apiError("정원이 마감된 경기입니다.", 400);
-      }
       // P2002: unique constraint violation (동시 중복 신청)
       if ((err as { code?: string }).code === "P2002") {
         return apiError("이미 참가 신청한 경기입니다.", 409);
@@ -188,8 +206,15 @@ export const POST = withWebAuth(async (req: Request, routeCtx: RouteCtx, ctx: We
     createNotification({
       userId: game.organizer_id,
       notificationType: NOTIFICATION_TYPES.GAME_APPLICATION_RECEIVED,
-      title: isGuest ? "새 게스트 지원" : "새 참가 신청",
-      content: isGuest
+      // M2: 대기 등록은 호스트 즉시 액션 대상이 아니므로 "대기 등록" 안내로 분기.
+      title: isWaitlisted
+        ? "대기 신청 등록"
+        : isGuest
+        ? "새 게스트 지원"
+        : "새 참가 신청",
+      content: isWaitlisted
+        ? `${applicant?.nickname ?? "신청자"}님이 "${game.title}" 대기 ${waitlistPosition}번으로 등록되었습니다.`
+        : isGuest
         ? `${applicant?.nickname ?? "지원자"}님이 "${game.title}"에 게스트로 지원했습니다 (${body.position}, 구력 ${guestExpLabel}).`
         : `${applicant?.nickname ?? "참가자"}님이 "${game.title}"에 참가 신청했습니다.`,
       actionUrl: `/games/${game.uuid?.slice(0, 8) ?? game.id}`,
@@ -226,11 +251,18 @@ export const POST = withWebAuth(async (req: Request, routeCtx: RouteCtx, ctx: We
 
     // 9. 신청자에게 신청 완료 알림 발송 (fire-and-forget)
     // 게스트면 별도 안내 문구 (호스트 승인 + 결제/약관 흐름 강조)
+    // M2: 대기열로 들어간 경우 대기 순번을 안내 (정원 마감 → 빈자리 발생 시 승격 안내 예정).
     createNotification({
       userId: ctx.userId,
       notificationType: NOTIFICATION_TYPES.GAME_APPLICATION_SUBMITTED,
-      title: isGuest ? "게스트 지원 완료" : "참가 신청 완료",
-      content: isGuest
+      title: isWaitlisted
+        ? "대기 신청 완료"
+        : isGuest
+        ? "게스트 지원 완료"
+        : "참가 신청 완료",
+      content: isWaitlisted
+        ? `"${game.title}" 경기 정원이 마감되어 대기 ${waitlistPosition}번으로 신청되었습니다. 빈자리가 생기면 안내해 드립니다.`
+        : isGuest
         ? `"${game.title}" 경기에 게스트 지원이 완료되었습니다. 호스트 승인 후 확정됩니다.`
         : `"${game.title}" 경기에 참가 신청이 완료되었습니다. 호스트 승인 후 확정됩니다.`,
       actionUrl: `/games/${game.uuid?.slice(0, 8) ?? game.id}`,
@@ -238,7 +270,15 @@ export const POST = withWebAuth(async (req: Request, routeCtx: RouteCtx, ctx: We
       notifiableId: game.id,
     }).catch(() => {});
 
-    return apiSuccess({ success: true, message: "참가 신청이 완료되었습니다." });
+    // 응답: 대기열로 들어갔으면 대기 순번을 snake_case 로 노출.
+    return apiSuccess({
+      success: true,
+      message: isWaitlisted
+        ? `정원이 마감되어 대기 ${waitlistPosition}번으로 신청되었습니다.`
+        : "참가 신청이 완료되었습니다.",
+      waitlisted: isWaitlisted,
+      waitlist_position: waitlistPosition,
+    });
   } catch {
     return apiError("참가 신청 중 오류가 발생했습니다.", 500);
   }

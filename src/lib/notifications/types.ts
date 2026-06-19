@@ -7,6 +7,8 @@ export const NOTIFICATION_TYPES = {
   GAME_APPLICATION_REJECTED: "game.application.rejected",     // 신청자: 거부됨
   GAME_CANCELLED: "game.cancelled",                           // 참가자: 경기 취소
   GAME_REPORT_REQUEST: "game.report.request",                 // 참가자/호스트: 경기 종료 후 평가 작성 요청 (Phase 10-2)
+  // M2(매칭 대기열) — 앞 순번 참가자 자리 발생 시 대기 1번에게 승격 기회 안내(자동승인 아님, 마감시각 내 본인/호스트 확정 필요)
+  GAME_WAITLIST_PROMOTED: "game.waitlist.promoted",           // 대기자: 빈자리 발생 → 승격 확정 안내
 
   // 팀 관련
   TEAM_JOIN_REQUEST_RECEIVED: "team.join_request.received",   // 팀장: 가입신청 접수

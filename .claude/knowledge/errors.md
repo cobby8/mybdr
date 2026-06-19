@@ -2,6 +2,14 @@
 <!-- 담당: debugger, tester | 최대 30항목 -->
 <!-- 이 프로젝트에서 반복되는 에러 패턴, 함정, 주의사항을 기록 -->
 
+### [2026-06-19] `prisma db push` broad 실행 위험 — schema 미선언 FK 드리프트(live_scoreboards) 운영 유실 가능
+- **분류**: error (운영 DB / 스키마 드리프트)
+- **발견자**: developer (매칭 M2 ADD COLUMN 작업)
+- **증상**: M2에서 `game_applications` 2컬럼만 추가하려 했는데 `prisma migrate diff` 출력에 무관한 `live_scoreboards` 변경이 섞여나옴: `DROP CONSTRAINT fk_live_scoreboards_match`, `ALTER COLUMN updated_at DROP DEFAULT`. broad `prisma db push`를 돌렸으면 **운영 FK + default가 날아갈 뻔**.
+- **원인**: schema.prisma가 일부 FK를 의도적으로 미선언("FK는 SQL 레벨에서 건다" 주석)·default를 DB에서만 관리 → prisma 입장에선 drift로 보여 push 시 "정리"하려 함. db push는 schema 전체를 DB에 강제 동기화하므로 의도한 1건 외 변경도 함께 적용.
+- **예방**: (a) 운영 DB 컬럼 추가는 **broad `prisma db push` 대신 targeted SQL**(`ALTER TABLE ... ADD COLUMN IF NOT EXISTS ... ` NULL 허용)로 적용 + schema.prisma 수동 동기화. (b) push 전 `prisma migrate diff`로 **의도한 변경만** 나오는지 반드시 확인, 무관 DROP/ALTER 보이면 중단. (c) `--accept-data-loss` 금지. (d) 후속: live_scoreboards FK/default 미선언을 schema에 명시하거나 `@ignore`로 drift 제거 필요.
+- **참조횟수**: 0
+
 ### [2026-06-19] 신규 공개 v1 API 라우트 → proxy.ts PUBLIC_API_ROUTES 누락 시 401 전부 차단
 - **분류**: error
 - **발견자**: tester (B2/B3 백엔드 검증)
