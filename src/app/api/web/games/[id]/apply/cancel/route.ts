@@ -31,6 +31,14 @@ export const DELETE = withWebAuth(async (_req: Request, routeCtx: RouteCtx, ctx:
       return apiError("이미 시작된 경기는 취소할 수 없습니다.", 400);
     }
 
+    // [가드 1] 경기 status가 1(모집중) 또는 2(확정)일 때만 본인취소 허용.
+    // 이유: 완료(3)·취소(4) 경기의 신청을 본인취소하면 current_participants가
+    //       부적절히 차감되어 정합이 깨진다. 모집/확정 단계에서만 정원 변동을 허용.
+    //       (game-status.ts: 1=모집중 / 2=확정 / 3=완료 / 4=취소 단일출처 주석 참조)
+    if (game.status !== 1 && game.status !== 2) {
+      return apiError("취소할 수 없는 경기 상태입니다.", 400);
+    }
+
     const application = await prisma.game_applications.findUnique({
       where: { game_id_user_id: { game_id: game.id, user_id: ctx.userId } },
     });
@@ -40,11 +48,30 @@ export const DELETE = withWebAuth(async (_req: Request, routeCtx: RouteCtx, ctx:
 
     // TC-NEW-023: 삭제 + current_participants 감소를 원자적 트랜잭션으로 처리
     await prisma.$transaction(async (tx) => {
+      // delete 자체는 신청 status와 무관하게 항상 수행 (본인 신청 제거)
       await tx.game_applications.delete({ where: { id: application.id } });
-      await tx.games.update({
-        where: { id: game!.id },
-        data: { current_participants: { decrement: 1 } },
-      });
+
+      // [가드 2] 정원 차감은 신청 status가 0(신청완료) 또는 1(승인)일 때만 수행.
+      // 이유: 거절(status=2) 신청은 거절 처리 시점에 이미 current_participants가
+      //       1 차감됐다. 그 신청자가 본인취소를 호출하면 status 필터 없이 또 차감되어
+      //       이중감소(음수/오염)가 발생 → M1 자동전환(current>=max / current<max)이
+      //       영구 왜곡된다. 따라서 0·1 신청만 자리를 점유 중이므로 그때만 차감/복귀.
+      if (application.status === 0 || application.status === 1) {
+        await tx.games.update({
+          where: { id: game!.id },
+          data: { current_participants: { decrement: 1 } },
+        });
+
+        // M1: 정원 복귀 — 신청 취소로 자리가 비어 current<max 이고 status=2(확정)면 1(모집중)로.
+        // 이유: 같은 트랜잭션 내 조건부 UPDATE로 race-safe. 미달이 아니면 no-op.
+        await tx.$executeRaw`
+          UPDATE games
+          SET status = 1, updated_at = NOW()
+          WHERE id = ${game!.id}
+            AND status = 2
+            AND current_participants < max_participants
+        `;
+      }
     });
 
     return apiSuccess({ success: true, message: "신청이 취소되었습니다." });
