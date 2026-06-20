@@ -7,6 +7,9 @@ import { NextRequest } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { getWebSession } from "@/lib/auth/web-session";
 import { apiSuccess, apiError } from "@/lib/api/response";
+// M1: 취소 시 신청자 전원 알림 (다수 발송 → bulk 유틸)
+import { createNotificationBulk } from "@/lib/notifications/create";
+import { NOTIFICATION_TYPES } from "@/lib/notifications/types";
 
 type RouteCtx = { params: Promise<{ id: string }> };
 
@@ -81,7 +84,7 @@ export async function GET(
 
 // ─────────────────────────────────────────────────
 // PATCH: 경기 수정 (호스트만)
-// - 완료(4)/취소(5) 상태인 경기는 수정 불가
+// - 완료(3)/취소(4) 상태인 경기는 수정 불가
 // - organizer_id로 호스트 여부 검증
 // ─────────────────────────────────────────────────
 export async function PATCH(
@@ -109,8 +112,8 @@ export async function PATCH(
   if (game.organizer_id !== userId) {
     return apiError("경기 호스트만 수정할 수 있습니다.", 403, "FORBIDDEN");
   }
-  // 완료(4)/취소(5) 상태 경기는 수정 불가
-  if (game.status === 4 || game.status === 5) {
+  // 완료(3)/취소(4) 상태 경기는 수정 불가 (status=5는 잔존 데이터 방어)
+  if (game.status === 3 || game.status === 4 || game.status === 5) {
     return apiError("이미 종료되거나 취소된 경기는 수정할 수 없습니다.", 400, "GAME_ENDED");
   }
 
@@ -246,8 +249,11 @@ export async function PATCH(
 
 // ─────────────────────────────────────────────────
 // DELETE: 경기 취소 (호스트만)
-// - 실제 삭제가 아닌 status를 5(취소)로 변경 (soft delete)
-// - 완료(4)/취소(5) 상태인 경기는 취소 불가
+// - 실제 삭제가 아닌 status를 4(취소)로 변경 (soft delete)
+//   ※ M1(2026-06-19): 과거 status=5 set → STATUS_LABEL 라벨 깨짐. 취소=4로 통일.
+// - 완료(3)/취소(4) 상태인 경기는 취소 불가
+// - 취소 시 활성 신청자(0=대기, 1=승인, 3=대기열) 전원에게 GAME_CANCELLED 알림 발송
+//   ※ reviewer 후속②(2026-06-20): M2 추가된 대기자 status=3 누락 → [0,1,3]로 확장. 거절(2)은 제외 유지.
 // ─────────────────────────────────────────────────
 export async function DELETE(
   _req: NextRequest,
@@ -262,10 +268,10 @@ export async function DELETE(
   const { id } = await params;
   const userId = BigInt(session.sub);
 
-  // 경기 존재 + 호스트 확인
+  // 경기 존재 + 호스트 확인 (취소 알림 문구에 title 필요)
   const game = await prisma.games.findUnique({
     where: { uuid: id },
-    select: { id: true, organizer_id: true, status: true },
+    select: { id: true, uuid: true, title: true, organizer_id: true, status: true },
   });
   if (!game) {
     return apiError("존재하지 않는 경기입니다.", 404, "NOT_FOUND");
@@ -274,16 +280,39 @@ export async function DELETE(
   if (game.organizer_id !== userId) {
     return apiError("경기 호스트만 취소할 수 있습니다.", 403, "FORBIDDEN");
   }
-  // 이미 완료/취소된 경기
-  if (game.status === 4 || game.status === 5) {
+  // 이미 완료(3)/취소(4)된 경기
+  // (status=5는 더 이상 set 하지 않지만, 잔존 데이터 방어를 위해 함께 체크)
+  if (game.status === 3 || game.status === 4 || game.status === 5) {
     return apiError("이미 종료되거나 취소된 경기입니다.", 400, "GAME_ENDED");
   }
 
-  // soft delete: status를 5(취소)로 변경
+  // soft delete: status를 4(취소)로 변경
   await prisma.games.update({
     where: { id: game.id },
-    data: { status: 5, updated_at: new Date() },
+    data: { status: 4, updated_at: new Date() },
   });
+
+  // 취소 알림: 아직 활성인 신청자(0=신청완료/대기, 1=승인, 3=대기열) 전원에게 발송.
+  // 이유: 거절(2)된 신청자는 이미 탈락이므로 제외. M2 대기자(3)도 경기가 사라지면 통보 필요 → 포함.
+  // fire-and-forget(취소 자체는 이미 커밋됨).
+  const applicants = await prisma.game_applications.findMany({
+    where: { game_id: game.id, status: { in: [0, 1, 3] } },
+    select: { user_id: true },
+  });
+  if (applicants.length > 0) {
+    const shortId = game.uuid?.slice(0, 8) ?? game.id.toString();
+    createNotificationBulk(
+      applicants.map((a) => ({
+        userId: a.user_id,
+        notificationType: NOTIFICATION_TYPES.GAME_CANCELLED,
+        title: "경기 취소",
+        content: `"${game.title ?? "경기"}"가 호스트에 의해 취소되었습니다.`,
+        actionUrl: `/games/${shortId}`,
+        notifiableType: "game",
+        notifiableId: game.id,
+      }))
+    ).catch(() => {});
+  }
 
   return apiSuccess({ message: "경기가 취소되었습니다." });
 }

@@ -4,6 +4,8 @@ import { createNotification } from "@/lib/notifications/create";
 import { NOTIFICATION_TYPES } from "@/lib/notifications/types";
 import { parseBigIntParam } from "@/lib/utils/parse-bigint";
 import { apiSuccess, apiError } from "@/lib/api/response";
+// M2: 호스트 거절로 빈자리 발생 시 대기열 1번 승격 트리거
+import { promoteNextWaitlist, sendPromotionNotice, type PromotionResult } from "@/lib/games/waitlist";
 
 type RouteCtx = { params: Promise<{ id: string; appId: string }> };
 
@@ -60,6 +62,8 @@ export const PATCH = withWebAuth(async (req: Request, routeCtx: RouteCtx, ctx: W
     const newStatus = body.action === "approve" ? 1 : 2;
 
     // TC-NEW-024: 거절 시 current_participants 감소 (트랜잭션)
+    // M2: 거절로 좌석이 비면 같은 트랜잭션에서 대기열 1번을 승격 후보로 지정.
+    let promotion: PromotionResult | null = null;
     await prisma.$transaction(async (tx) => {
       await tx.game_applications.update({
         where: { id: application.id },
@@ -76,6 +80,20 @@ export const PATCH = withWebAuth(async (req: Request, routeCtx: RouteCtx, ctx: W
           where: { id: game!.id },
           data: { current_participants: { decrement: 1 } },
         });
+
+        // M1: 정원 복귀 — 거절로 자리가 비어 current<max 이고 status=2(확정)면 1(모집중)로.
+        // 이유: 같은 트랜잭션 내 조건부 UPDATE로 race-safe. 미달이 아니면(>=) no-op.
+        await tx.$executeRaw`
+          UPDATE games
+          SET status = 1, updated_at = NOW()
+          WHERE id = ${game!.id}
+            AND status = 2
+            AND current_participants < max_participants
+        `;
+
+        // M2: 거절로 좌석이 비었으니 대기열 1번 승격 트리거 (status=3 유지, 자동승인 X).
+        //   같은 트랜잭션 내 → 좌석 해제와 승격 후보 지정이 원자적.
+        promotion = await promoteNextWaitlist(tx, game!.id);
       }
     });
 
@@ -95,6 +113,18 @@ export const PATCH = withWebAuth(async (req: Request, routeCtx: RouteCtx, ctx: W
       notifiableType: "game",
       notifiableId: game.id,
     }).catch(() => {});
+
+    // M2: 거절로 승격 후보가 지정됐으면 커밋 후 알림 발송 (트랜잭션 밖 fire-and-forget).
+    if (promotion) {
+      const p = promotion as PromotionResult;
+      sendPromotionNotice({
+        userId: p.promotedUserId,
+        gameId: game.id,
+        gameTitle: game.title,
+        shortId: game.uuid?.slice(0, 8) ?? game.id.toString(),
+        deadline: p.deadline,
+      });
+    }
 
     return apiSuccess({
       success: true,

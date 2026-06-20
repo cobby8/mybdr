@@ -28,6 +28,13 @@ interface HostApplicant {
   position: string | null;
   city: string | null;
   district: string | null;
+  // [M6 E-1] 게스트 라벨링 필드 (HostApplications 가 사용 — 전달만)
+  is_guest?: boolean;
+  experience_years?: number | null;
+  message?: string | null;
+  // [M6 E-1] 대기열(status=3) 3구획용 — 순번 / 승격 마감(ISO)
+  waitlist_position?: number | null;
+  promotion_deadline?: string | null;
 }
 
 export interface HostPanelProps {

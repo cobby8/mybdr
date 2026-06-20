@@ -53,6 +53,8 @@ type GameItem = {
   id: string;
   status: number; // 0=대기, 1=승인, 2=거부
   created_at: string;
+  // [M4 wave2] 종료 경기(game.status===3) + 본인 리포트 작성 여부. 평점 CTA 배너 노출 판정용.
+  has_my_report: boolean;
   game: {
     id: string;
     uuid: string | null;
@@ -387,6 +389,13 @@ export default function ProfileActivityPage() {
     teams: cache.teams.length,
   };
 
+  // [M4 wave2] 평점 미작성 종료 경기 — status===3(완료) && !has_my_report.
+  //   왜: 상단 평점 CTA 배너는 이 건이 1개 이상일 때만 노출(DATA-BINDING §3-D). 평점 작성 후
+  //       다음 fetch 에서 has_my_report=true 가 되어 자연 소멸. 첫 건으로 report 딥링크.
+  const unratedEndedGames = cache.games.filter(
+    (g) => g.game?.status === 3 && !g.has_my_report,
+  );
+
   // PR-1C-5 시안 v2.20: 상태 필터 (탭과 공존 — 탭=도메인 / 필터=상태)
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
 
@@ -554,6 +563,12 @@ export default function ProfileActivityPage() {
           </div>
         </div>
       </div>
+
+      {/* [M4 wave2] 평점 CTA 배너 — 평가 미작성 종료 경기가 1건 이상일 때만(작성 시 소멸).
+          loading 끝난 뒤에만 판정(초기 빈 배열로 깜빡임 방지). */}
+      {!loading && unratedEndedGames.length > 0 && (
+        <RatingCtaBanner games={unratedEndedGames} />
+      )}
 
       {/* 시안 v2(1): counters 4종 (검토중 / 예정 / 완료 / 취소·거절)
           2026-05-02 모바일 분기: 모바일 2x2 → sm 1x4 (errors.md 04-29 안티패턴 회피) */}
@@ -772,6 +787,77 @@ export default function ProfileActivityPage() {
         </Link>
       </div>
     </div>
+  );
+}
+
+/* ============================================================
+ * [M4 wave2] 평점 CTA 배너 — 평가 미작성 종료 경기 유도
+ *
+ * 이유: 종료된 경기의 평점(매너/MVP)을 작성하면 매칭 신뢰도가 올라간다.
+ *      "status===3 && !has_my_report" 건이 있을 때만 노출, 작성 시(다음 fetch) 소멸.
+ *
+ * 동작: 첫 미평가 경기로 report 딥링크(여러 건이면 "외 N건" 안내). uuid 앞 8자 = 상세 라우트 규칙.
+ * 디자인: var(--*) 토큰만 · Material Symbols · 좌측 accent 강조선 · 44px 터치.
+ * ============================================================ */
+function RatingCtaBanner({ games }: { games: GameItem[] }) {
+  const first = games[0];
+  const g = first.game;
+  // GameCard 와 동일한 report 딥링크 규칙(uuid 앞 8자 → 상세). report 하위 경로로 연결.
+  const slug = g?.uuid ? g.uuid.slice(0, 8) : g?.id ?? null;
+  const href = slug ? `/games/${slug}/report` : "/profile/activity";
+  const extra = games.length - 1;
+
+  return (
+    <Link
+      href={href}
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 12,
+        padding: "14px 18px",
+        marginBottom: 18,
+        // accent 연한 배경 + 좌측 강조선 (하드코딩 hex 0 — 토큰만)
+        background: "color-mix(in srgb, var(--accent) 8%, transparent)",
+        borderLeft: "3px solid var(--accent)",
+        borderRadius: 4,
+        textDecoration: "none",
+        color: "inherit",
+        minHeight: 44,
+      }}
+    >
+      <span
+        className="material-symbols-outlined"
+        style={{ fontSize: 22, color: "var(--accent)", flexShrink: 0 }}
+        aria-hidden
+      >
+        rate_review
+      </span>
+      <div style={{ minWidth: 0, flex: 1 }}>
+        <div style={{ fontSize: 14, fontWeight: 700, color: "var(--ink)" }}>
+          평가하지 않은 경기가 있어요
+        </div>
+        <div
+          style={{
+            fontSize: 12,
+            color: "var(--ink-mute)",
+            marginTop: 2,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {g?.title ?? "경기"}
+          {extra > 0 ? ` 외 ${extra}건` : ""} · 함께 뛴 선수를 평가해주세요
+        </div>
+      </div>
+      <span
+        className="material-symbols-outlined"
+        style={{ fontSize: 20, color: "var(--ink-dim)", flexShrink: 0 }}
+        aria-hidden
+      >
+        arrow_forward
+      </span>
+    </Link>
   );
 }
 

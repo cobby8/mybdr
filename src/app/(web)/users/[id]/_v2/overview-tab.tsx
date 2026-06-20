@@ -32,6 +32,8 @@ import { ActivityLog, type ActivityEvent } from "./activity-log";
 import { StatsDetailModal, type AllStatsRow } from "./stats-detail-modal";
 // 5/9 추출: 글로벌 CareerStatsGrid (공개+본인 페이지 공용 — Q5=Y-2)
 import { CareerStatsGrid } from "@/components/profile/career-stats-grid";
+// [M4 wave2] 신뢰 카드 (시안 D) — overview 상단 배치
+import { TrustCard, type TrustCardProps } from "./trust-card";
 
 // 외부 import 로 export 통과
 export type { ActivityEvent, AllStatsRow };
@@ -89,6 +91,8 @@ export interface OverviewTabProps {
   events?: ActivityEvent[];
   /** 5/9 Phase 2 — 통산 모달 prefetch raw rows (Q7=A 클라 groupBy) */
   allStatsRows?: AllStatsRow[];
+  /** [M4 wave2] 신뢰 카드(시안 D) 데이터 — manner_score 숫자 미포함(등급 라벨/키만) */
+  trust?: TrustCardProps;
 }
 
 // badge_type → emoji (profile 쪽과 동일 매핑, 중복 수용)
@@ -131,6 +135,7 @@ export function OverviewTab({
   bio,
   events = [],
   allStatsRows = [],
+  trust,
 }: OverviewTabProps) {
   // 5/9 Phase 2: 통산 [더보기] 모달 open state (Q3=A 모달 채택)
   const [statsModalOpen, setStatsModalOpen] = useState(false);
@@ -139,6 +144,8 @@ export function OverviewTab({
     <div className="overview-tab__layout">
       {/* ========== 좌측 main ========== */}
       <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+        {/* [M4 wave2] 신뢰 카드(시안 D) — overview 최상단. trust prop 전달 시에만 노출 */}
+        {trust && <TrustCard {...trust} />}
         {/* 자기소개 — 2026-05-02: PlayerHero 에서 이전 (카드 비대화 해소). bio 있을 때만 노출 */}
         {bio && (
           <div className="card" style={{ padding: "18px 22px" }}>

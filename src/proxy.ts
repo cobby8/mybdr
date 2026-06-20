@@ -68,6 +68,11 @@ const PUBLIC_API_ROUTES = [
   "/api/v1/auth/google", // 모바일 구글 OAuth — JWT 없이 호출 (proxy 401 차단 방지)
   "/api/v1/site-templates",
   "/api/v1/tournaments/connect", // 대회 API 토큰 연결 (JWT 불필요, 토큰 자체가 인증)
+  // 비밀번호 재설정 — 로그인 전(JWT 없음) 호출이라 공개 필수
+  "/api/v1/auth/reset-password-request",
+  "/api/v1/auth/reset-password",
+  // 앱 버전 매니페스트 — 앱 부팅 시(로그인 전) 호출이라 공개 필수
+  "/api/v1/app/version",
 ];
 
 // OBS 오버레이 읽기 전용 라우트(헤더 인증 불가 → ?key= HMAC 보호).

@@ -18,6 +18,8 @@ import type { AllStatsRow } from "./_v2/stats-detail-modal";
 import { PlayerHero } from "./_v2/player-hero";
 import { ProfileTabs } from "./_v2/profile-tabs";
 import { OverviewTab } from "./_v2/overview-tab";
+// [M4 wave2] 신뢰 카드 등급 파생 — profile-trust 라우트와 동일 임계값(공유 유틸).
+import { deriveMannerGrade } from "@/lib/games/manner-grade";
 import { RecentGamesTab } from "./_v2/recent-games-tab";
 import { PlayerRecordsTab } from "./_v2/player-records-tab";
 import { ActionButtons } from "./_components/action-buttons";
@@ -118,6 +120,8 @@ export default async function UserProfilePage({
     teamHistoryRows,
     allStatsForModal,
     playerRecords,
+    trustMvpCount,
+    trustGamesPlayed,
   ] = await Promise.all([
     // 1) user + 소속 팀 (is_public / active 공개 팀만 이후 필터)
     prisma.user
@@ -137,6 +141,9 @@ export default async function UserProfilePage({
           evaluation_rating: true,
           total_games_hosted: true,
           total_games_participated: true,
+          // [M4 wave2] 신뢰 카드 등급 파생용 — manner_score 숫자는 등급 계산 후 버린다(화면 비노출).
+          manner_score: true,
+          manner_count: true,
           profile_image_url: true,
           // 6.1C-6 PU5: 공개 설정 존중 — 운영 PU2(profile/edit) PRIVACY_ROWS 7키 실저장값.
           // select 1줄만 add (기존 12쿼리 무변경). 본인 preview 는 아래 분기에서 bypass.
@@ -451,6 +458,19 @@ export default async function UserProfilePage({
       tournaments: [],
       seasons: [],
     })),
+
+    // 14) [M4 wave2] 신뢰 카드 — 받은 MVP 횟수(final_mvp_user_id 카운트).
+    //   profile-trust 라우트와 동일 파생(공개 프로필이 prisma 직접 파생, 라우트는 다른 소비자용).
+    prisma.games
+      .count({ where: { final_mvp_user_id: userIdBigInt } })
+      .catch(() => 0),
+
+    // 15) [M4 wave2] 신뢰 카드 — 참여(실출석) 경기 수: status=1(승인) AND attended_at != null.
+    prisma.game_applications
+      .count({
+        where: { user_id: userIdBigInt, status: 1, attended_at: { not: null } },
+      })
+      .catch(() => 0),
   ]);
 
   if (!user) return notFound();
@@ -841,6 +861,27 @@ export default async function UserProfilePage({
   const evaluationRating =
     showReview && user.evaluation_rating != null ? Number(user.evaluation_rating) : null;
 
+  // ---- [M4 wave2] 신뢰 카드 데이터 (시안 D) ----
+  // 왜: manner_score 숫자는 비노출(등급 라벨/키만). profile-trust 라우트와 동일 임계값 유틸 사용.
+  //   review(매너 평가) 비공개면 등급도 hide → hasRatings=false 로 "아직 기록 없음" 빈 상태.
+  //   manner_score(Decimal) → number 변환은 등급 계산용으로만 쓰고 trust 객체엔 숫자를 담지 않는다.
+  const mannerScoreNum =
+    user.manner_score !== null ? Number(user.manner_score) : null;
+  const mannerCount = user.manner_count ?? 0;
+  // showReview=false면 count=0 으로 강제 → 등급 null + 빈 상태(비공개 존중).
+  const trustGrade = deriveMannerGrade(
+    showReview ? mannerScoreNum : null,
+    showReview ? mannerCount : 0,
+  );
+  const trust = {
+    hasRatings: showReview && mannerCount > 0,
+    gradeLabel: trustGrade.label, // 등급 라벨만(숫자 비노출)
+    gradeKey: trustGrade.key, // 토큰 키(색상 매핑)
+    // mvp/참여 경기는 record(경기 기록) 범주 — 비공개면 0.
+    mvpCount: showRecord ? trustMvpCount : 0,
+    gamesPlayed: showRecord ? trustGamesPlayed : 0,
+  };
+
   // followersCount/followingCount 는 현재 UI 에 노출하지 않지만 반환된 값은 차후 확장용
   void followersCount;
   void followingCount;
@@ -892,6 +933,8 @@ export default async function UserProfilePage({
             // 5/9 Phase 2 추가: 활동 로그 5종 통합 (Q1=A) + 통산 모달 raw rows (Q7=A)
             events={top5Events}
             allStatsRows={allStatsRows}
+            // [M4 wave2] 신뢰 카드 — overview 상단에 노출(시안 D). manner_score 숫자 미포함.
+            trust={trust}
           />
         }
         games={<RecentGamesTab matches={recentGameRows} />}

@@ -2,6 +2,22 @@
 <!-- 담당: debugger, tester | 최대 30항목 -->
 <!-- 이 프로젝트에서 반복되는 에러 패턴, 함정, 주의사항을 기록 -->
 
+### [2026-06-19] `prisma db push` broad 실행 위험 — schema 미선언 FK 드리프트(live_scoreboards) 운영 유실 가능
+- **분류**: error (운영 DB / 스키마 드리프트)
+- **발견자**: developer (매칭 M2 ADD COLUMN 작업)
+- **증상**: M2에서 `game_applications` 2컬럼만 추가하려 했는데 `prisma migrate diff` 출력에 무관한 `live_scoreboards` 변경이 섞여나옴: `DROP CONSTRAINT fk_live_scoreboards_match`, `ALTER COLUMN updated_at DROP DEFAULT`. broad `prisma db push`를 돌렸으면 **운영 FK + default가 날아갈 뻔**.
+- **원인**: schema.prisma가 일부 FK를 의도적으로 미선언("FK는 SQL 레벨에서 건다" 주석)·default를 DB에서만 관리 → prisma 입장에선 drift로 보여 push 시 "정리"하려 함. db push는 schema 전체를 DB에 강제 동기화하므로 의도한 1건 외 변경도 함께 적용.
+- **예방**: (a) 운영 DB 컬럼 추가는 **broad `prisma db push` 대신 targeted SQL**(`ALTER TABLE ... ADD COLUMN IF NOT EXISTS ... ` NULL 허용)로 적용 + schema.prisma 수동 동기화. (b) push 전 `prisma migrate diff`로 **의도한 변경만** 나오는지 반드시 확인, 무관 DROP/ALTER 보이면 중단. (c) `--accept-data-loss` 금지. (d) 후속: live_scoreboards FK/default 미선언을 schema에 명시하거나 `@ignore`로 drift 제거 필요.
+- **참조횟수**: 0
+
+### [2026-06-19] 신규 공개 v1 API 라우트 → proxy.ts PUBLIC_API_ROUTES 누락 시 401 전부 차단
+- **분류**: error
+- **발견자**: tester (B2/B3 백엔드 검증)
+- **증상**: 새로 만든 `/api/v1/auth/reset-password-request`·`/api/v1/auth/reset-password`·`/api/v1/app/version` 가 JWT 없이 호출하면 전부 **401 {error:"Unauthorized",code:"UNAUTHORIZED"}**. 라우트 코드 자체는 무결인데 도달조차 못 함. tsc·curl 형식테스트만으론 못 잡고, **인증 없는 실제 호출**을 해봐야 드러남.
+- **원인**: `src/proxy.ts` L125~136 — `/api/v1/*` 중 `PUBLIC_API_ROUTES`(L65~71) 화이트리스트 외 경로는 `Authorization: Bearer/Token` 헤더 없으면 early reject(401). 로그인 전/앱부팅 시 호출되는 공개 엔드포인트는 JWT가 있을 수 없으므로 100% 차단.
+- **예방**: (a) **JWT 불필요한 신규 v1 라우트 추가 시 `src/proxy.ts` `PUBLIC_API_ROUTES`에 경로 등록 필수** (login/kakao/google가 선례). (b) tester는 신규 v1 라우트를 **Authorization 헤더 없이** 1회 호출해 401 차단 여부 먼저 확인. proxy 통과 검증엔 더미 `Bearer dummy`로 라우트 로직 분리 테스트. (c) PUBLIC_API_ROUTES는 `startsWith` 매칭 — prefix 충돌 주의(`/reset-password`가 `/reset-password-request`도 포함).
+- **참조횟수**: 0
+
 ### [2026-06-16] `MatchPlayerStat.minutesPlayed` = 초 단위 + 999 truncate 버그 — 분으로 직접 read 금지
 - **분류**: errors (출전시간 데이터 함정 / source 이원화)
 - **발견자**: live-expert + pm (기록 Records MIN 이슈)

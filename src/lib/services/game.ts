@@ -5,6 +5,11 @@
  */
 import { prisma } from "@/lib/db/prisma";
 import type { Prisma } from "@prisma/client";
+// [M4] 종료(status→3) 즉시 평점(=리포트) 작성 요청 알림.
+//   ⓐ 판단: 기존 GAME_REPORT_REQUEST 타입 + game-report-reminders cron 과 "동일 기능"(평점=리포트=game_reports).
+//   따라서 신규 타입/cron 을 만들지 않고 기존 타입을 재사용한다 → 같은 경기에 중복 알림이 나지 않는다.
+import { createNotification } from "@/lib/notifications/create";
+import { NOTIFICATION_TYPES } from "@/lib/notifications/types";
 
 // ---------------------------------------------------------------------------
 // 타입
@@ -179,9 +184,148 @@ export async function listRecentGames(take = 4) {
 }
 
 /**
+ * [M3, 2026-06-19] lazy 종료 status 실DB 전환.
+ *
+ * 왜:
+ *   - 평점/리포트 작성 권한은 DB의 games.status === 3(완료)을 요구한다.
+ *   - 기존 listGames 의 메모리 오버라이드(scheduled_at < now 면 표시만 3)는
+ *     "보이기만 3" 이라 DB status 는 여전히 1/2 → 평점 권한 판정이 막힌다.
+ *   - 따라서 상세/리포트가 공유하는 단일 조회 진입점(getGame)에서 조회 시점에
+ *     실제 종료된 경기를 DB status=3 으로 1회 동기화(승급)한다.
+ *
+ * 종료 판정:
+ *   - scheduled_at + duration_hours(시간) < now() 이고 status 가 1 또는 2.
+ *   - duration_hours 가 null 이면 종료 시각을 계산할 수 없으므로 전환 보류(no-op).
+ *     (listGames 메모리 오버라이드는 duration 무시·scheduled_at 만 보지만, 여기서는
+ *      실DB 를 바꾸므로 정확한 종료 시각을 쓴다. 보류된 건 종료시각 불명확이라 안전.)
+ *
+ * 멱등·race-safe:
+ *   - 조건부 UPDATE(WHERE status IN (1,2) AND duration_hours IS NOT NULL
+ *     AND scheduled_at + duration_hours 시간 < now()).
+ *   - 이미 3(완료)/4(취소)이면 WHERE 불충족 → 0 rows no-op. 취소는 전환 안 함.
+ *   - 조회된 해당 경기 1건만 갱신(WHERE id = ...). 대량 일괄 UPDATE 금지.
+ *   - GET 시 write 가 일어나는 lazy 패턴 — M3 스펙상 의도된 동작.
+ *
+ * @param game getGame 으로 막 조회한 row (status/scheduled_at/duration_hours 보유)
+ * @returns 전환이 일어났으면 status=3 으로 보정한 객체, 아니면 원본 그대로
+ */
+// [M3 보완 ①, 2026-06-19] report 직링크 경로(report/page.tsx)에서도 재사용하기 위해 export.
+//   - 상세 페이지는 getGame 경유로 이미 lazy 전환되지만, my-games "후기 작성" 직링크는
+//     report/page.tsx 가 getGame 을 거치지 않고 prisma 직접 조회 → DB status 1/2 그대로라
+//     canReportGame 이 GAME_NOT_FINISHED(400) 로 평점 작성을 차단하는 결함이 있었다.
+//   - 멱등·race-safe(아래 조건부 UPDATE) 라 직링크/상세 양쪽에서 중복 호출돼도 안전.
+export async function lazyEndGame<
+  T extends { id: bigint; status: number | null; scheduled_at: Date | null; duration_hours: number | null }
+>(game: T): Promise<T> {
+  // 모집중(1)/확정(2) + scheduled_at·duration_hours 모두 존재할 때만 종료 판정.
+  if (
+    (game.status === 1 || game.status === 2) &&
+    game.scheduled_at !== null &&
+    game.duration_hours !== null
+  ) {
+    // 종료 시각 = scheduled_at + duration_hours 시간. 이미 지났으면 전환 대상.
+    const endsAt = new Date(game.scheduled_at.getTime() + game.duration_hours * 60 * 60 * 1000);
+    if (endsAt < new Date()) {
+      // 조건부 UPDATE — DB 시각(NOW) 기준으로 다시 한 번 검증해 race-safe.
+      // 이미 3/4 이면 status IN (1,2) 불충족 → 0 rows no-op(멱등).
+      const updated = await prisma.$executeRaw`
+        UPDATE games
+        SET status = 3, updated_at = NOW()
+        WHERE id = ${game.id}
+          AND status IN (1, 2)
+          AND duration_hours IS NOT NULL
+          AND scheduled_at + (duration_hours || ' hours')::interval < NOW()
+      `.catch(() => 0);
+      // 우리가 전환했거나(>0) 동시에 다른 요청이 이미 전환했어도, 응답 객체는 3 으로 보정.
+      if (updated && updated > 0) {
+        // [M4] 실제 1/2 → 3 전환이 "우리 UPDATE"로 일어난 경우에만(멱등) 평점 작성 요청 알림 발송.
+        //   - 조건부 UPDATE 의 rowCount>0 = 이 호출이 전환의 주체 → 알림도 정확히 1회만 발송.
+        //   - 동시에 다른 요청이 먼저 전환했다면 그쪽 updated 가 1, 우리는 0 rows → 우리는 발송 안 함(중복 방지).
+        //   - fire-and-forget: 알림 실패가 종료 전환/상세 조회를 깨면 안 되므로 await 하지 않고 catch 로 흡수.
+        notifyReportRequestOnEnd(game.id).catch(() => {
+          // 알림 발송 실패는 조용히 무시 — 다음 사이클의 game-report-reminders cron 이 dedupe 후 재시도(보강).
+        });
+        return { ...game, status: 3 };
+      }
+    }
+  }
+  return game;
+}
+
+/**
+ * [M4] 종료(status→3 전환) 직후 호스트 + 승인 참가자에게 평점(=리포트) 작성 요청 알림.
+ *
+ * 왜 별도 함수로 빼는가:
+ *   - lazyEndGame 은 제네릭(id/status/scheduled_at/duration_hours 만 보장)이라 uuid/organizer_id/
+ *     승인 참가자 등 알림에 필요한 필드를 갖고 있지 않다. 전환이 실제 일어난 1건에 대해서만
+ *     가벼운 추가 조회 1회로 발송 대상을 모은다(과다 조회 0 — WHERE id 단건).
+ *
+ * 중복 방지(핵심):
+ *   - 알림 타입 = 기존 NOTIFICATION_TYPES.GAME_REPORT_REQUEST(신규 타입 금지).
+ *   - action_url = `/games/{uuid}/report` — game-report-reminders cron 과 "동일 키".
+ *   - 따라서 즉시 알림(여기)과 cron 리마인드가 같은 (user_id + type + action_url) 을 공유 →
+ *     cron 의 기존 dedupe(findFirst) 가 이미 보낸 즉시 알림을 보고 재발송을 스킵한다(일관 dedupe).
+ *   - 같은 경기 종료가 다시 lazyEndGame 으로 들어와도 status 가 이미 3 → 0 rows 라 여기 자체가 호출 안 됨(멱등).
+ */
+async function notifyReportRequestOnEnd(gameId: bigint): Promise<void> {
+  // 전환된 경기 1건만 조회 — 알림 대상(호스트 + 승인 참가자) + action_url 생성용 uuid/title.
+  const game = await prisma.games.findUnique({
+    where: { id: gameId },
+    select: {
+      uuid: true,
+      title: true,
+      organizer_id: true,
+      // 승인된 참가자(status=1)만 평점 대상 — cron(route.ts)과 동일한 모집단 정의.
+      game_applications: {
+        where: { status: 1 },
+        select: { user_id: true },
+      },
+    },
+  });
+  // uuid 없으면 action_url 을 만들 수 없으므로 발송 스킵(안전 가드 — cron 과 동일).
+  if (!game || !game.uuid) return;
+
+  const actionUrl = `/games/${game.uuid}/report`;
+  const title = game.title ?? "경기";
+
+  // 호스트 + 승인 참가자 user_id 를 set 으로 중복 제거(호스트가 참가자로도 잡히는 경우 1회만).
+  const userIds = new Set<bigint>();
+  if (game.organizer_id) userIds.add(game.organizer_id);
+  for (const a of game.game_applications) {
+    userIds.add(a.user_id);
+  }
+
+  // 각 대상에게 발송. dedupe 는 cron 과 동일 키(user+type+action_url)이므로,
+  // 여기서도 같은 키의 기존 알림이 있으면 재발송하지 않도록 findFirst 로 사전 확인한다.
+  for (const userId of userIds) {
+    const existing = await prisma.notifications.findFirst({
+      where: {
+        user_id: userId,
+        notification_type: NOTIFICATION_TYPES.GAME_REPORT_REQUEST,
+        action_url: actionUrl,
+      },
+      select: { id: true },
+    });
+    if (existing) continue; // 이미 보냄(cron 또는 이전 즉시 발송) → 중복 방지
+
+    await createNotification({
+      userId,
+      notificationType: NOTIFICATION_TYPES.GAME_REPORT_REQUEST,
+      title: "경기 평가 작성 요청",
+      content: `"${title}" 경기가 종료되었습니다. 평가를 작성해 주세요.`,
+      actionUrl,
+    }).catch(() => {
+      // 개별 알림 실패는 전체를 깨지 않음 — 나머지 대상 발송 계속, cron 이 후속 보강.
+    });
+  }
+}
+
+/**
  * 경기 상세 조회 (UUID 또는 short UUID)
  * shortId (8자)이면 LIKE 검색, 아니면 정확 매칭.
  * @returns game 또는 null
+ *
+ * ※ [M3] 조회 시 종료된 경기는 DB status=3 으로 lazy 동기화(lazyEndGame).
  */
 export async function getGame(idOrShortUuid: string) {
   if (!idOrShortUuid) return null;
@@ -190,7 +334,7 @@ export async function getGame(idOrShortUuid: string) {
   const numId = Number(idOrShortUuid);
   if (!isNaN(numId) && numId > 0) {
     const game = await prisma.games.findUnique({ where: { id: BigInt(numId) } }).catch(() => null);
-    if (game) return game;
+    if (game) return lazyEndGame(game); // [M3] 종료 경기 DB status=3 승급
   }
 
   // UUID (8자 이상)로 조회
@@ -207,7 +351,8 @@ export async function getGame(idOrShortUuid: string) {
     }
 
     if (fullUuid) {
-      return prisma.games.findUnique({ where: { uuid: fullUuid } }).catch(() => null);
+      const game = await prisma.games.findUnique({ where: { uuid: fullUuid } }).catch(() => null);
+      return game ? lazyEndGame(game) : null; // [M3] 종료 경기 DB status=3 승급
     }
   }
 

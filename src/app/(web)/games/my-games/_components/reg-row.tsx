@@ -56,6 +56,8 @@ export interface RegItem {
   teamName?: string | null;
   /** 시안의 note — DB 에는 game_applications.message / tournamentTeam.registration_note */
   note?: string | null;
+  /** [M6 E-2] 대기열 순번 (status=waiting 일 때만). game_applications.waitlist_position */
+  waitlistPosition?: number | null;
 }
 
 export function RegRow({ r }: { r: RegItem }) {
@@ -176,6 +178,12 @@ export function RegRow({ r }: { r: RegItem }) {
           >
             {r.whenText && <span>📅 {r.whenText}</span>}
             {r.placeText && <span>📍 {r.placeText}</span>}
+            {/* [M6 E-2] 대기열 순번 — waiting + waitlistPosition 있을 때만 accent 강조 */}
+            {r.status === "waiting" && r.waitlistPosition != null && (
+              <span style={{ color: "var(--accent)", fontWeight: 700 }}>
+                대기 {r.waitlistPosition}번
+              </span>
+            )}
             <span style={{ fontFamily: "var(--ff-mono)", color: "var(--ink-dim)" }}>
               {r.code}
             </span>
@@ -245,6 +253,26 @@ export function RegRow({ r }: { r: RegItem }) {
                 onClick={() => alert("준비 중인 기능입니다")}
               >
                 신청 철회
+              </button>
+            </>
+          )}
+          {/* [M6 E-2] 대기열(waiting) — 상세보기 + 대기 취소. 순번은 메타 라인에 표시. */}
+          {r.status === "waiting" && (
+            <>
+              <Link
+                href={r.href}
+                className="btn btn--sm"
+                style={{ textAlign: "center", textDecoration: "none" }}
+              >
+                상세보기
+              </Link>
+              <button
+                type="button"
+                className="btn btn--sm"
+                style={{ color: "var(--danger)" }}
+                onClick={() => alert("준비 중인 기능입니다")}
+              >
+                대기 취소
               </button>
             </>
           )}

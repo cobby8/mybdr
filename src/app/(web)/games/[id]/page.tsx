@@ -62,6 +62,8 @@ import { MobileStickyBar } from "./_v2/mobile-sticky-bar";
 // [Phase 2C · UA2 BG1] 내 신청 진행 단계 인디케이터 — 본인 신청 상태(0/1/2)를
 // [신청 완료 → 호스트 승인 → 참가 확정] 3단계로 시각화. 미신청(null)은 미렌더(mock 금지).
 import { ApplyStep } from "./_v2/apply-step";
+// [M3 wave2] 호스트 출석 체크 섹션 — isHost && game.status>=2 일 때만 렌더(HostPanel 아래).
+import { AttendanceSection } from "./_v2/attendance-section";
 
 export const revalidate = 30;
 
@@ -185,6 +187,9 @@ export default async function GameDetailPage({
       position: a.users?.position ?? null,
       // users.skill_level 은 string|null. 빈 문자열·null 인 경우 ParticipantRow 측에서 미노출
       skill_level: a.users?.skill_level ?? null,
+      // M3 wave2: 출석 섹션 초기값용. listGameApplications 가 include(스칼라 전부 반환)라
+      // attended_at 추가 조회 0. Date → ISO 문자열(클라 컴포넌트 직렬화 제약).
+      attended_at: a.attended_at ? new Date(a.attended_at).toISOString() : null,
     }));
 
   // 호스트 전용 신청자 배열
@@ -207,6 +212,12 @@ export default async function GameDetailPage({
     is_guest: a.is_guest ?? false,
     experience_years: a.experience_years ?? null,
     message: a.message ?? null,
+    // [M6 E-1] 대기열 3구획용 — listGameApplications 가 include(스칼라 전부 반환)라
+    //   waitlist_position / promotion_deadline 추가 조회 0. Date → ISO 문자열(클라 직렬화 제약).
+    waitlist_position: a.waitlist_position ?? null,
+    promotion_deadline: a.promotion_deadline
+      ? new Date(a.promotion_deadline).toISOString()
+      : null,
   }));
 
   // AboutCard 렌더 판단 — 3 필드 중 하나라도 있을 때만
@@ -233,13 +244,17 @@ export default async function GameDetailPage({
     name: string | null;
   } | null = null;
   let reportCount = 0;
+  // [M4] 종료 경기 CTA 플래그 — 로그인 유저가 "내 평가(game_reports)를 이미 작성했는지".
+  //   true 면 평가 CTA 라벨을 "평가 수정"으로, false 면 "경기 평가"로 분기(아래 하단 버튼).
+  //   종료(status===3) + 로그인 시에만 조회 → 과다 조회 0.
+  let hasMyReport = false;
   // 호스트 + 승인된 신청자 수 (status===1 만 카운트). 평가 모집단의 정의.
   const participantCount = approvedParticipants.length + 1; // 호스트 포함
 
   if (game.status === 3) {
     // MVP 사용자 정보 — final_mvp_user_id 가 세팅된 경우에만 조회
     const mvpId = game.final_mvp_user_id;
-    const [mvpUser, submittedCount] = await Promise.all([
+    const [mvpUser, submittedCount, myReport] = await Promise.all([
       mvpId
         ? prisma.user
             .findUnique({
@@ -253,9 +268,20 @@ export default async function GameDetailPage({
           where: { game_id: game.id, status: "submitted" },
         })
         .catch(() => 0),
+      // [M4] 내 game_reports 존재 여부 — 로그인 시에만 단건 findFirst(있으면 id 1개만).
+      //   @@unique([game_id, reporter_user_id]) 라 본인 리포트는 0/1 건 → 가벼운 조회.
+      session
+        ? prisma.game_reports
+            .findFirst({
+              where: { game_id: game.id, reporter_user_id: BigInt(session.sub) },
+              select: { id: true },
+            })
+            .catch(() => null)
+        : Promise.resolve(null),
     ]);
     finalMvp = mvpUser;
     reportCount = submittedCount;
+    hasMyReport = myReport !== null; // [M4] CTA 분기용 플래그
   }
 
   // 카페 댓글 (기존 유지)
@@ -341,6 +367,53 @@ export default async function GameDetailPage({
              * 데이터: 기존 finalMvp(L239~) / reportCount / participantCount 재사용.
              *   final_mvp_user_id 는 UA1(2C-2, game.ts)·UA5 종료 카드와 동일 소스.
              *   새 쿼리 0. status===3(완료) 일 때만 노출. */}
+
+            {/* [M4 wave2] 평점 CTA 배너 — 종료 경기(status===3) + 내 리포트 미작성(!hasMyReport) 일 때만.
+             *   왜 결과카드 위인가: 종료 직후 가장 먼저 "평가하기" 행동을 유도(DATA-BINDING §3-D
+             *   "status===3 && !my_rating.exists → 배너, 작성 완료 시 제거"). 작성하면 hasMyReport=true 가
+             *   되어 다음 진입부터 배너 소멸. 하단 기존 "경기 평가" 버튼은 그대로 유지(중복 아님 — 상단=유도 배너). */}
+            {game.status === 3 && !hasMyReport && (
+              <Link
+                href={`/games/${id}/report`}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 12,
+                  padding: "14px 18px",
+                  // accent 연한 배경 + 좌측 강조선(토큰만 — 하드코딩 hex 0)
+                  background: "color-mix(in srgb, var(--accent) 8%, transparent)",
+                  borderLeft: "3px solid var(--accent)",
+                  borderRadius: 4,
+                  textDecoration: "none",
+                  color: "inherit",
+                  minHeight: 44, // 터치 타겟
+                }}
+              >
+                <span
+                  className="material-symbols-outlined"
+                  style={{ fontSize: 22, color: "var(--accent)", flexShrink: 0 }}
+                  aria-hidden
+                >
+                  rate_review
+                </span>
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: "var(--ink)" }}>
+                    경기는 어땠나요? 함께 뛴 선수를 평가해주세요
+                  </div>
+                  <div style={{ fontSize: 12, color: "var(--ink-mute)", marginTop: 2 }}>
+                    매너 평가와 MVP 선정으로 더 좋은 매칭을 만들어요
+                  </div>
+                </div>
+                <span
+                  className="material-symbols-outlined"
+                  style={{ fontSize: 20, color: "var(--ink-dim)", flexShrink: 0 }}
+                  aria-hidden
+                >
+                  arrow_forward
+                </span>
+              </Link>
+            )}
+
             {game.status === 3 && (
               <section
                 className="card"
@@ -615,6 +688,27 @@ export default async function GameDetailPage({
               />
             )}
 
+            {/* [M3 wave2] 호스트 출석 체크 섹션 — 시안 C 박제.
+             * 노출조건: isHost && game.status >= 2 (확정/완료 경기에서만).
+             *   DATA-BINDING §4 시안 C: showAttendance = me===host_id && game.status>=2.
+             * 배치: HostPanel(위) ↔ ApplyPanel(아래) 사이 = "HostPanel과 참가자 사이".
+             * 데이터: approvedParticipants(status=1 승인자) 재사용 — 추가 조회 0.
+             *   attended_at(ISO) 유무로 출석 초기 토글. user_id null(게스트)은 토글 비활성. */}
+            {isHost && game.status >= 2 && (
+              <AttendanceSection
+                gameId={id}
+                members={approvedParticipants.map((p) => ({
+                  id: p.id,
+                  user_id: p.user_id,
+                  nickname: p.nickname,
+                  name: p.name,
+                  position: p.position,
+                  skill_level: p.skill_level,
+                  attendedAt: p.attended_at,
+                }))}
+              />
+            )}
+
             {/* [Phase 2C · UA2 BG1] 내 신청 현황 — 본인이 이미 신청한 경우만 노출.
              * 시안 GameDetail.jsx BG1 sidebar "내 신청 현황" step indicator 박제.
              * 운영은 단일 칼럼이라 sidebar 대신 ApplyPanel 바로 위 카드로 배치.
@@ -709,6 +803,9 @@ export default async function GameDetailPage({
 
             {/* [v2.16 Phase 3-1c] ApplyPanel — V2 단일 칼럼 본문 안으로 이동 (이전 우측 sticky).
              * id="apply-panel" 유지 — Ribbon CTA / SlotBoard 빈 슬롯 anchor 타겟. */}
+            {/* M2 wave2: ApplyPanel 에 대기열 분기용 필드 전달 — 내 신청의 대기 순번 /
+             * 승격 마감 / 신청 id. IDOR 안전: myApplication 은 이미 본인 것만 추출됨(L143~145).
+             * BigInt id → string, Date → ISO 문자열(클라 컴포넌트 직렬화 제약). */}
             <div id="apply-panel" style={{ scrollMarginTop: 80 }}>
               <ApplyPanel
                 gameId={id}
@@ -720,6 +817,13 @@ export default async function GameDetailPage({
                 isLoggedIn={Boolean(session)}
                 isHost={isHost}
                 myApplicationStatus={myApplication ? myApplication.status : null}
+                myApplicationId={myApplication ? myApplication.id.toString() : null}
+                waitlistPosition={myApplication?.waitlist_position ?? null}
+                promotionDeadline={
+                  myApplication?.promotion_deadline
+                    ? new Date(myApplication.promotion_deadline).toISOString()
+                    : null
+                }
                 profileCompleted={profileCompleted}
                 missingFields={missingFields}
                 myProfile={
@@ -882,7 +986,11 @@ export default async function GameDetailPage({
                 </Link>
               )}
 
-              {/* 경기 평가 진입점 — 완료된 경기일 때만 노출 (status===3=완료, STATUS_LABEL 기준) */}
+              {/* 경기 평가 진입점 — 완료된 경기일 때만 노출 (status===3=완료, STATUS_LABEL 기준).
+               * [M4] hasMyReport(내 game_reports 존재) 로 CTA 분기:
+               *   - 이미 작성: "평가 수정" + edit 아이콘
+               *   - 미작성   : "경기 평가" + rate_review 아이콘
+               *   (라우트는 동일 — report 페이지가 기존 리포트를 불러와 수정/신규를 처리.) */}
               {game.status === 3 && (
                 <Link
                   href={`/games/${id}/report`}
@@ -893,9 +1001,9 @@ export default async function GameDetailPage({
                     className="material-symbols-outlined"
                     style={{ fontSize: 16, marginRight: 4 }}
                   >
-                    rate_review
+                    {hasMyReport ? "edit" : "rate_review"}
                   </span>
-                  경기 평가
+                  {hasMyReport ? "평가 수정" : "경기 평가"}
                 </Link>
               )}
 

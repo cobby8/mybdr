@@ -100,6 +100,16 @@
 - **권한**: captain_id 직접 매칭 추가 (team_members.role 외에도 captainId 일치 시 권한 부여)
 - **commit**: de6a252, b578c46
 
+### 3-5. 매너점수(manner_score) 노출 정책 — 등급 라벨 카드 허용 (2026-06-19 갱신, M4 wave2)
+- **이전 정책 (§3-1/§3-2)**: "레이팅(미구현) 노출 금지" — 팀/선수 레이팅 숫자를 화면에 띄우지 말 것.
+- **갱신 결정 (2026-06-19)**: `users.manner_score`(Phase 10 실데이터, 0.0~5.0)는 **숫자 대신 "등급 라벨"로 별도 신뢰 카드에 노출 허용**.
+  - ✅ **허용**: 공개 프로필(/users/[id]) overview 상단 "신뢰 카드"(시안 D) — 등급 라벨(아주 좋음/좋음/보통/주의 필요) + 등급색(--ok/--cafe-blue/--ink-mute/--warn) + 4칸 게이지 + MVP 선정 N회 + 참여 N경기.
+  - ✅ **허용**: /profile/activity "내 매너 평가" 카드 — 본인에게만 평균 숫자 노출(기존 BG2 결정 유지).
+  - ❌ **여전히 금지**: **HeroCard(PlayerHero)에 점수(숫자/레이팅) 직접 노출 금지**. `evaluation_rating` 별점은 기존 정책 유지(공개설정 review 존중). 타인에게 manner_score "숫자"를 직접 비교/낙인하는 표시 금지.
+  - **근거**: manner_score는 미구현 "레이팅"이 아니라 실집계 데이터. 단 숫자 직접 노출은 위축/낙인 유발 → 등급 라벨로 추상화하면 안전. DATA-BINDING §2-4 등급 임계 4단계 PM 확정 반영.
+  - **단일 소스**: 등급 임계값/색상은 `src/lib/games/manner-grade.ts`(route·page 공용 유틸)로 고정. 임계 변경 시 이 파일만 수정.
+- **회귀 금지**: 신뢰 카드에 manner_score "숫자"를 다시 박제하지 말 것(등급 라벨/키만). HeroCard에 매너 점수 숫자를 추가하지 말 것.
+
 ## 4. 프로필 페이지 (/profile + /profile/settings)
 
 ### 4-1. ProfileSideNav 모바일 nav 제거

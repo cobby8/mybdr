@@ -91,11 +91,37 @@ export const GET = withWebAuth(async (req: Request, _routeCtx, ctx: WebAuthConte
         },
       });
 
+      /* [M4 wave2] has_my_report — 종료 경기(status=3) 중 본인이 평점(리포트)을 이미 작성했는지.
+       *   왜: /profile/activity 상단 평점 CTA 배너가 "status===3 && !has_my_report" 건이 있을 때만 노출.
+       *   과다조회 0: 종료 경기 game_id 만 모아 game_reports 를 한 번에 묶음 조회(N+1 회피).
+       *   @@unique([game_id, reporter_user_id]) 라 (game_id 단위) 본인 작성 여부 = 존재 여부. */
+      const endedGameIds = rows
+        .filter((r) => r.games != null && r.games.status === 3)
+        .map((r) => r.games!.id);
+
+      const reportedGameIdSet = new Set<bigint>();
+      if (endedGameIds.length > 0) {
+        const myReports = await prisma.game_reports.findMany({
+          where: {
+            game_id: { in: endedGameIds },
+            reporter_user_id: ctx.userId,
+          },
+          select: { game_id: true },
+        });
+        for (const rep of myReports) reportedGameIdSet.add(rep.game_id);
+      }
+
       return apiSuccess({
         items: rows.map((r) => ({
           id: r.id.toString(),
           status: r.status, // 숫자 코드 (0=대기/1=승인/2=거부)
           createdAt: r.created_at,
+          // [M4 wave2] 종료 경기 + 본인 리포트 존재 시 true. 종료 아님/리포트 없음 → false.
+          //   (apiSuccess 가 hasMyReport → has_my_report 로 snake_case 자동 변환)
+          hasMyReport:
+            r.games != null &&
+            r.games.status === 3 &&
+            reportedGameIdSet.has(r.games.id),
           game: r.games
             ? {
                 id: r.games.id.toString(),
