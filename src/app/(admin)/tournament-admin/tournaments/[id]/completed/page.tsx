@@ -3,6 +3,8 @@ import { notFound, redirect } from "next/navigation";
 import { prisma } from "@/lib/db/prisma";
 import { getWebSession } from "@/lib/auth/web-session";
 import { AdminPageHeader } from "@/components/admin/admin-page-header";
+// Track B-c Toss 리스킨 — Material Symbols → lucide-react 키트(<Icon>)
+import { Icon } from "@/components/admin-toss";
 import { AdminCompletedHero } from "./admin-completed-hero";
 import {
   AdminCompletedCardGrid,
@@ -101,7 +103,8 @@ export default async function TournamentCompletedHubPage({
     {
       num: "1",
       title: "결과 박제",
-      icon: "emoji_events",
+      // Material emoji_events → lucide trophy
+      icon: "trophy",
       desc: "우승팀 · 준우승 · 베스트5 · MVP. 순위전/결승 결과를 확정하고 보정해요.",
       state: championDone ? "done" : "idle",
       stateLabel: championDone ? "우승팀 확정됨" : "확정 필요",
@@ -112,7 +115,8 @@ export default async function TournamentCompletedHubPage({
     {
       num: "2",
       title: "매치 결과",
-      icon: "scoreboard",
+      // Material scoreboard → lucide layout-dashboard
+      icon: "layout-dashboard",
       desc: "전체 매치 일정과 스코어를 확인해요. (대시보드 통계 차트는 준비 중)",
       state: "auto",
       stateLabel: "매치 기록",
@@ -123,6 +127,7 @@ export default async function TournamentCompletedHubPage({
     {
       num: "3",
       title: "알기자 발행",
+      // Material newspaper → lucide newspaper
       icon: "newspaper",
       desc: "결과 기반 종료 알기자를 작성/검수 후 발행해요.",
       state: "idle",
@@ -134,7 +139,8 @@ export default async function TournamentCompletedHubPage({
     {
       num: "4",
       title: "사진 · 영상",
-      icon: "photo_library",
+      // Material photo_library → lucide images
+      icon: "images",
       desc: "경기 사진 업로드 + LIVE 영상 매핑. 종료 사이트에 노출돼요.",
       state: "idle",
       stateLabel: "준비 중",
@@ -145,7 +151,8 @@ export default async function TournamentCompletedHubPage({
     {
       num: "5",
       title: "사이트 archive",
-      icon: "public",
+      // Material public → lucide globe
+      icon: "globe",
       desc: "공개 사이트 종료 상태 박제 — 우승팀 hero / 다음 회차 예고.",
       state: site?.isPublished ? "done" : "idle",
       stateLabel: site?.isPublished ? "공개됨" : "비공개",
@@ -161,7 +168,8 @@ export default async function TournamentCompletedHubPage({
   const doneCount = [championDone, !!site?.isPublished].filter(Boolean).length;
 
   return (
-    <div>
+    // Track B-c — Toss 토큰 적용 루트 opt-in
+    <div data-skin="toss">
       {/* 헤더 — setup hub 와 동일 AdminPageHeader 패턴 (breadcrumbs label only) */}
       <AdminPageHeader
         eyebrow="ADMIN · 종료 후 hub"
@@ -176,9 +184,8 @@ export default async function TournamentCompletedHubPage({
         ]}
         actions={
           <Link href={base} className="btn btn--sm">
-            <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
-              arrow_back
-            </span>
+            {/* Material arrow_back → lucide arrow-left */}
+            <Icon name="arrow-left" size={16} />
             대회 관리
           </Link>
         }
@@ -199,7 +206,8 @@ export default async function TournamentCompletedHubPage({
       {/* 진행도 요약 footer — 진짜 판정만 (결과 확정 / 사이트 공개) */}
       <div className="acp-card" style={{ marginTop: 14 }}>
         <div className="acp-card__head" style={{ marginBottom: 0 }}>
-          <span className="acp-card__icon material-symbols-outlined">checklist</span>
+          {/* Material checklist → lucide list-checks (acp-card__icon 슬롯 유지) */}
+          <Icon name="list-checks" size={20} className="acp-card__icon" />
           <div style={{ flex: 1, minWidth: 0 }}>
             <div className="acp-card__num">종료 정리 진행도</div>
             <h3 className="acp-card__title">{doneCount}/2 핵심 항목 완료</h3>

@@ -56,7 +56,8 @@ export default async function MatchesPage({
   const matchStats = await getTournamentMatchStats(id);
 
   return (
-    <div>
+    // Track B-c — Toss 토큰 적용 루트 opt-in (트리거 모달·매치 클라 DOM 상속)
+    <div data-skin="toss">
       {/* 2026-05-12 — 기록 모드 설정 (사용자 요청: 큰 카드 → 메뉴 1개 + 플로팅 모달).
           MatchesClient 상단 액션 영역에 "기록 모드 설정" 버튼 + 모달 트리거.
           서버에서 산출한 stats / defaultMode 를 client wrapper 에 전달. */}

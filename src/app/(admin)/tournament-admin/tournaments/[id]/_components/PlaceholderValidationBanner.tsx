@@ -11,7 +11,7 @@
  *
  * 디자인 룰 (BDR 13):
  *   - var(--color-warning) 톤 (오류 아니라 경고 — 운영 진행은 가능 / 수동 조치 권장)
- *   - rounded-[4px] / material-symbols-outlined "warning" / 모바일 풀너비
+ *   - rounded-[4px] / lucide "triangle-alert" (Track B-c) / 모바일 풀너비
  */
 
 "use client";
@@ -19,6 +19,8 @@
 import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { detectInvalidPlaceholderMatches } from "@/lib/tournaments/placeholder-helpers";
+// Track B-c Toss 리스킨 — Material Symbols → lucide-react 키트(<Icon>)
+import { Icon } from "@/components/admin-toss";
 
 // matches-client.tsx Match type 부분 호환 — 본 배너에 필요한 필드만 명시
 type MatchForValidation = {
@@ -72,14 +74,13 @@ export function PlaceholderValidationBanner({ matches, applyFilter = false }: Pr
       }}
     >
       <div className="flex items-start gap-3">
-        {/* 경고 아이콘 — material-symbols-outlined warning */}
-        <span
-          className="material-symbols-outlined flex-shrink-0"
-          style={{ color: "var(--color-warning)", fontSize: 24 }}
-          aria-hidden="true"
-        >
-          warning
-        </span>
+        {/* 경고 아이콘 — Material warning → lucide triangle-alert */}
+        <Icon
+          name="triangle-alert"
+          size={24}
+          color="var(--color-warning)"
+          className="flex-shrink-0"
+        />
 
         <div className="flex-1 min-w-0">
           {/* 헤더 — 검출 건수 요약 + 펼치기 토글 버튼 */}
@@ -119,9 +120,8 @@ export function PlaceholderValidationBanner({ matches, applyFilter = false }: Pr
               }}
               aria-expanded={expanded}
             >
-              <span className="material-symbols-outlined text-[16px]" aria-hidden="true">
-                {expanded ? "expand_less" : "expand_more"}
-              </span>
+              {/* Material expand_less/more → lucide chevron-up/down */}
+              <Icon name={expanded ? "chevron-up" : "chevron-down"} size={16} />
               {expanded ? "접기" : "상세 보기"}
             </button>
           </div>

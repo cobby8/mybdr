@@ -11,6 +11,8 @@ import {
 import { calculateSetupProgress, canPublish } from "@/lib/tournaments/setup-status";
 import { SetupChecklist } from "./_components/SetupChecklist";
 import { SetupHubMobileSticky } from "./_components/setup-hub-mobile-sticky";
+// Track B-c Toss 리스킨 — Material Symbols → lucide-react 키트(<Icon>)
+import { Icon } from "@/components/admin-toss";
 
 // 이유: 시안 AdminTournamentSetupHub v2.14 의 상태 뱃지 패턴(`admin-stat-pill[data-tone]`)
 //   박제 — Admin-7-A `STATUS_TONE` 매핑과 일관 (17 status 키 4 tone 매핑).
@@ -140,19 +142,22 @@ export default async function TournamentAdminDetailPage({
     {
       href: `/tournament-admin/tournaments/${id}/teams`,
       label: "참가팀 관리",
-      icon: "groups",
+      // Material groups → lucide users
+      icon: "users",
       desc: `${tournament._count.tournamentTeams}팀 등록됨`,
     },
     {
       href: `/tournament-admin/tournaments/${id}/admins`,
       label: "관리자",
-      icon: "admin_panel_settings",
+      // Material admin_panel_settings → lucide shield-user
+      icon: "shield-user",
       desc: "스태프 권한 관리",
     },
     {
       href: `/tournament-admin/tournaments/${id}/recorders`,
       label: "기록원",
-      icon: "edit_note",
+      // Material edit_note → lucide file-pen
+      icon: "file-pen",
       desc: "스탯 기록원 지정",
     },
   ];
@@ -173,7 +178,8 @@ export default async function TournamentAdminDetailPage({
   const subtitleParts = [dateRangeText, formatLabel].filter(Boolean).join(" · ");
 
   return (
-    <div>
+    // Track B-c — Toss 토큰 적용 루트 opt-in (공유셸 미부착)
+    <div data-skin="toss">
       {/* 헤더 — 시안 v2.14 AdminPageHeader 박제 (Admin-2 commit) */}
       <AdminPageHeader
         eyebrow="ADMIN · 대회 운영"
@@ -188,9 +194,8 @@ export default async function TournamentAdminDetailPage({
         actions={
           <>
             <Link href="/tournament-admin/tournaments" className="btn btn--sm">
-              <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
-                arrow_back
-              </span>
+              {/* Material arrow_back → lucide arrow-left */}
+              <Icon name="arrow-left" size={16} />
               대회 목록
             </Link>
           </>
@@ -209,9 +214,8 @@ export default async function TournamentAdminDetailPage({
         )}
         {site?.isPublished && (
           <span className="admin-stat-pill" data-tone="ok">
-            <span className="material-symbols-outlined" style={{ fontSize: 12 }}>
-              public
-            </span>
+            {/* Material public → lucide globe */}
+            <Icon name="globe" size={12} />
             공개 중
           </span>
         )}
@@ -221,9 +225,8 @@ export default async function TournamentAdminDetailPage({
             href={`/tournament-admin/tournaments/${id}/completed`}
             className="btn btn--sm btn--primary"
           >
-            <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
-              emoji_events
-            </span>
+            {/* Material emoji_events → lucide trophy */}
+            <Icon name="trophy" size={16} />
             종료 후 hub
           </Link>
         )}
@@ -274,7 +277,8 @@ export default async function TournamentAdminDetailPage({
             >
               <Card className="cursor-pointer transition-colors hover:bg-[var(--color-elevated)]">
                 <div className="mb-2 text-[var(--color-text-muted)]">
-                  <span className="material-symbols-outlined">{a.icon}</span>
+                  {/* a.icon = 위에서 lucide 이름으로 정의(users/shield-user/file-pen) */}
+                  <Icon name={a.icon} size={24} />
                 </div>
                 <h3 className="font-semibold text-[var(--color-text-primary)]">
                   {a.label}
@@ -293,7 +297,8 @@ export default async function TournamentAdminDetailPage({
             >
               <Card className="cursor-pointer transition-colors hover:bg-[var(--color-elevated)]">
                 <div className="mb-2 text-[var(--color-text-muted)]">
-                  <span className="material-symbols-outlined">open_in_new</span>
+                  {/* Material open_in_new → lucide external-link */}
+                  <Icon name="external-link" size={24} />
                 </div>
                 <h3 className="font-semibold text-[var(--color-text-primary)]">
                   공개 사이트 보기

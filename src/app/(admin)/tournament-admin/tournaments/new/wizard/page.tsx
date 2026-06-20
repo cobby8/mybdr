@@ -28,12 +28,16 @@ import { BDR_PRIMARY_HEX, BDR_SECONDARY_HEX } from "@/lib/constants/colors";
 import { AdminPageHeader } from "@/components/admin/admin-page-header";
 // 2026-05-20 Phase 3 fix — prospectus AI 분석 후 sessionStorage draft 자동 채움.
 import { loadDraft } from "@/lib/tournaments/wizard-draft";
+// 2026-06-21 Track B B-b Toss 리스킨 — Material Symbols → lucide <Icon> 키트.
+//   비주얼만 교체(아이콘 1:1 매핑)·기능/단계/POST body/라우트 변경 0. data-skin="toss" 루트 opt-in.
+import { Icon } from "@/components/admin-toss";
 
 // --- 3단계 구성 (기존 8탭 → 3단계로 간소화) ---
+// 2026-06-21 Toss B-b — icon 값을 lucide kebab 명으로 교체(아이콘만·라벨/key/단계 동일).
 const STEPS = [
-  { key: "info", label: "대회 정보", icon: "emoji_events" },
-  { key: "registration", label: "참가 설정", icon: "group_add" },
-  { key: "confirm", label: "확인 및 생성", icon: "check_circle" },
+  { key: "info", label: "대회 정보", icon: "trophy" },          // emoji_events
+  { key: "registration", label: "참가 설정", icon: "user-plus" }, // group_add
+  { key: "confirm", label: "확인 및 생성", icon: "circle-check" }, // check_circle
 ];
 
 // 대회 방식 옵션 (4종만)
@@ -53,11 +57,12 @@ const GENDER_OPTIONS = [
 // 2026-05-28 PR-1C-14 (PA2) — 진입점 sub-tab 4 옵션 (시안 AdminTournamentWizard1Step.jsx SUBTABS 박제).
 //   quick = 현재 QuickCreateForm 폼 / 나머지 3개 = 기존 라우트로 이동 (라우팅 구조 변경 ❌).
 //   adminOnly = showAssociationCard 권한일 때만 노출 (Phase 6 PR2 분기 재사용).
+// 2026-06-21 Toss B-b — icon 값을 lucide kebab 명으로 교체(아이콘만·key/label/탭 동작 동일).
 const SUBTABS = [
-  { key: "quick", icon: "flash_on", label: "Quick", hint: "이름·시작일만", time: "1분", recommended: true, adminOnly: false },
-  { key: "legacy", icon: "list_alt", label: "단계별 설정", hint: "3-step", time: "5분", recommended: false, adminOnly: false },
-  { key: "prospectus", icon: "description", label: "PDF 요강", hint: "AI 추출", time: "3분", recommended: false, adminOnly: false },
-  { key: "association", icon: "workspace_premium", label: "협회 대회", hint: "super admin", time: "7분", recommended: false, adminOnly: true },
+  { key: "quick", icon: "zap", label: "Quick", hint: "이름·시작일만", time: "1분", recommended: true, adminOnly: false },        // flash_on
+  { key: "legacy", icon: "list-checks", label: "단계별 설정", hint: "3-step", time: "5분", recommended: false, adminOnly: false }, // list_alt
+  { key: "prospectus", icon: "file-text", label: "PDF 요강", hint: "AI 추출", time: "3분", recommended: false, adminOnly: false }, // description
+  { key: "association", icon: "award", label: "협회 대회", hint: "super admin", time: "7분", recommended: false, adminOnly: true }, // workspace_premium
 ] as const;
 
 // draft step(0~4) → 사람이 읽는 단계 라벨. 작성시각이 없으므로 진행도는 step 으로만 표시.
@@ -77,11 +82,12 @@ const pillCls = (active: boolean) =>
       : "bg-[var(--color-border)] text-[var(--color-text-secondary)] hover:bg-[var(--color-border-active)]"
   }`;
 
-// 섹션 제목 컴포넌트 — Material Symbols 아이콘 + bold
+// 섹션 제목 컴포넌트 — 2026-06-21 Toss B-b: Material span → lucide <Icon>(kebab name) 교체.
+//   accent 색상은 인라인 color 로 동등 이전(text-lg≈18px → size 18). 텍스트/구조 동일.
 function SectionTitle({ icon, children }: { icon: string; children: React.ReactNode }) {
   return (
     <h3 className="flex items-center gap-2 text-base font-bold text-[var(--color-text-primary)]">
-      <span className="material-symbols-outlined text-lg text-[var(--color-accent)]">{icon}</span>
+      <Icon name={icon} size={18} color="var(--color-accent)" />
       {children}
     </h3>
   );
@@ -288,11 +294,11 @@ function QuickCreateForm() {
     );
   }
 
-  // 권한 없음
+  // 권한 없음 — 2026-06-21 Toss B-b: early-return 루트에도 data-skin opt-in + lock→lucide.
   if (authStatus === "unauthorized") {
     return (
-      <div className="flex min-h-[40vh] flex-col items-center justify-center gap-4 text-center">
-        <span className="material-symbols-outlined text-5xl text-[var(--color-text-muted)]">lock</span>
+      <div data-skin="toss" className="flex min-h-[40vh] flex-col items-center justify-center gap-4 text-center">
+        <Icon name="lock" size={48} color="var(--color-text-muted)" />
         <h1 className="text-xl font-bold text-[var(--color-text-primary)]">권한이 필요합니다</h1>
         <p className="max-w-md text-sm text-[var(--color-text-muted)]">
           대회를 만들려면 <strong>대회 관리자</strong> 이상의 권한이 필요합니다.
@@ -354,7 +360,8 @@ function QuickCreateForm() {
   }
 
   return (
-    <div className="mx-auto max-w-2xl">
+    // 2026-06-21 Toss B-b: 위저드(Quick) 루트에 data-skin="toss" opt-in(공유셸 미부착·Phase2 패턴).
+    <div data-skin="toss" className="mx-auto max-w-2xl">
       {/* === 헤더: 시안 v2.14 AdminTournamentWizard1Step 패턴 박제 (Admin-7-B Sub-B3) ===
           이유: Sub-B1 (SetupHub) / Sub-B2 (EditWizard) 와 시각 일관성 박제 — AdminPageHeader 공통 컴포넌트.
                 Admin-3 `d98ff79` 박제 시각 자산 (eyebrow Navy + × 종료 confirm 1회) 100% 동등 이전.
@@ -377,7 +384,7 @@ function QuickCreateForm() {
               className="btn btn--sm"
               aria-label="요강 AI 분석"
             >
-              <span className="material-symbols-outlined" style={{ fontSize: 16 }}>upload_file</span>
+              <Icon name="file-up" size={16} />
               요강 분석
             </Link>
             <button
@@ -390,7 +397,7 @@ function QuickCreateForm() {
               className="btn btn--sm"
               aria-label="작성 종료"
             >
-              <span className="material-symbols-outlined" style={{ fontSize: 16 }}>close</span>
+              <Icon name="x" size={16} />
               종료
             </button>
           </>
@@ -419,13 +426,12 @@ function QuickCreateForm() {
               }`}
             >
               <span className="flex items-center gap-1.5 text-sm font-bold text-[var(--color-text-primary)]">
-                <span
-                  className={`material-symbols-outlined text-lg ${
-                    active ? "text-[var(--color-info)]" : "text-[var(--color-text-muted)]"
-                  }`}
-                >
-                  {t.icon}
-                </span>
+                {/* 2026-06-21 Toss B-b: Material span → lucide <Icon>(kebab). active 색상 동등 이전. */}
+                <Icon
+                  name={t.icon}
+                  size={18}
+                  color={active ? "var(--color-info)" : "var(--color-text-muted)"}
+                />
                 {t.label}
                 {/* 추천 칩 — quick 만. info 토큰 (admin 빨강 본문 금지). */}
                 {t.recommended && (
@@ -451,7 +457,7 @@ function QuickCreateForm() {
       {draftMeta && !draftDismissed && (
         <div className="mb-4 flex flex-col gap-3 rounded-md border border-[var(--color-info)]/40 bg-[var(--color-info)]/10 p-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-start gap-3">
-            <span className="material-symbols-outlined text-2xl text-[var(--color-info)]">history</span>
+            <Icon name="history" size={24} color="var(--color-info)" />
             <div>
               <div className="text-sm font-bold text-[var(--color-text-primary)]">
                 이전 작성 이어하기
@@ -479,7 +485,7 @@ function QuickCreateForm() {
               }}
               className="btn btn--sm btn--primary inline-flex items-center gap-1"
             >
-              <span className="material-symbols-outlined" style={{ fontSize: 16 }}>arrow_forward</span>
+              <Icon name="arrow-right" size={16} />
               이어하기
             </button>
           </div>
@@ -492,9 +498,7 @@ function QuickCreateForm() {
       {showAssociationCard && (
         <div className="mb-4 rounded-md border border-[var(--color-info)]/40 bg-[var(--color-info)]/10 p-4">
           <div className="flex items-start gap-3">
-            <span className="material-symbols-outlined text-2xl text-[var(--color-info)]">
-              domain
-            </span>
+            <Icon name="building-2" size={24} color="var(--color-info)" />
             <div className="flex-1">
               <h3 className="text-sm font-bold text-[var(--color-text-primary)]">
                 협회 만들기 (super_admin)
@@ -507,9 +511,7 @@ function QuickCreateForm() {
                 className="mt-2 inline-flex items-center gap-1 rounded-[4px] bg-[var(--color-info)] px-3 py-1.5 text-xs font-bold text-white transition-opacity hover:opacity-90"
               >
                 협회 마법사 열기
-                <span className="material-symbols-outlined text-sm">
-                  arrow_forward
-                </span>
+                <Icon name="arrow-right" size={14} />
               </Link>
             </div>
           </div>
@@ -522,9 +524,12 @@ function QuickCreateForm() {
           박제 룰: 이동 = router.push (legacy 는 ?legacy=1 쿼리). 새 라우트 생성 0 / fetch 0. */}
       {subtab !== "quick" && (
         <TossCard className="flex flex-col items-center gap-3 py-10 text-center hover:scale-100">
-          <span className="material-symbols-outlined text-5xl text-[var(--color-text-muted)]">
-            {SUBTABS.find((t) => t.key === subtab)?.icon}
-          </span>
+          {/* 2026-06-21 Toss B-b: 동적 Material → lucide <Icon>(SUBTABS.icon 은 이미 kebab). */}
+          <Icon
+            name={SUBTABS.find((t) => t.key === subtab)?.icon ?? "circle"}
+            size={48}
+            color="var(--color-text-muted)"
+          />
           <h3 className="text-lg font-bold text-[var(--color-text-primary)]">
             {SUBTABS.find((t) => t.key === subtab)?.label} 방식으로 전환
           </h3>
@@ -543,7 +548,7 @@ function QuickCreateForm() {
             }}
             className="btn btn--primary inline-flex items-center gap-1"
           >
-            <span className="material-symbols-outlined" style={{ fontSize: 16 }}>arrow_forward</span>
+            <Icon name="arrow-right" size={16} />
             이 방식으로 전환
           </button>
         </TossCard>
@@ -560,7 +565,7 @@ function QuickCreateForm() {
       {subtab === "quick" && (
       <form onSubmit={handleCreate} className="space-y-4">
         <TossCard className="space-y-4 hover:scale-100">
-          <SectionTitle icon="edit_note">필수 정보</SectionTitle>
+          <SectionTitle icon="file-pen">필수 정보</SectionTitle>
 
           {/* 대회 이름 (필수) — 모바일 44px+ 입력 친화 */}
           <div>
@@ -618,7 +623,7 @@ function QuickCreateForm() {
                   onClick={() => setShowSeriesForm(true)}
                   className="inline-flex items-center gap-1 rounded-[4px] border border-[var(--color-border)] px-3 py-1.5 text-sm text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-border)]"
                 >
-                  <span className="material-symbols-outlined text-base">add</span>
+                  <Icon name="plus" size={16} />
                   새 시리즈 만들기
                 </button>
               </div>
@@ -630,7 +635,7 @@ function QuickCreateForm() {
                   onClick={() => setShowSeriesForm(true)}
                   className="inline-flex items-center gap-1 text-xs text-[var(--color-info)] hover:underline"
                 >
-                  <span className="material-symbols-outlined text-sm">add</span>
+                  <Icon name="plus" size={14} />
                   새 시리즈 만들기
                 </button>
               </div>
@@ -648,7 +653,7 @@ function QuickCreateForm() {
           {/* 안내 박스 — 운영자에게 흐름 미리 알려주기 */}
           <div className="rounded-md border border-[var(--color-border)] bg-[var(--color-elevated)] p-3 text-xs text-[var(--color-text-muted)]">
             <p className="flex items-start gap-1.5">
-              <span className="material-symbols-outlined text-base text-[var(--color-info)]">info</span>
+              <Icon name="info" size={16} color="var(--color-info)" />
               <span>
                 대회를 만든 후 대시보드의 <strong>설정 체크리스트</strong>를 따라 종별/참가비/대진표 등을 단계별로 진행합니다.
               </span>
@@ -1016,8 +1021,8 @@ function LegacyWizardForm() {
   // 권한 없음
   if (authStatus === "unauthorized") {
     return (
-      <div className="flex min-h-[40vh] flex-col items-center justify-center gap-4 text-center">
-        <span className="material-symbols-outlined text-5xl text-[var(--color-text-muted)]">lock</span>
+      <div data-skin="toss" className="flex min-h-[40vh] flex-col items-center justify-center gap-4 text-center">
+        <Icon name="lock" size={48} color="var(--color-text-muted)" />
         <h1 className="text-xl font-bold text-[var(--color-text-primary)]">권한이 필요합니다</h1>
         <p className="max-w-md text-sm text-[var(--color-text-muted)]">
           대회를 만들려면 <strong>대회 관리자</strong> 이상의 권한이 필요합니다.
@@ -1137,7 +1142,8 @@ function LegacyWizardForm() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl">
+    // 2026-06-21 Toss B-b: Legacy 3-step 위저드 루트에 data-skin="toss" opt-in.
+    <div data-skin="toss" className="mx-auto max-w-3xl">
       {/* === 헤더: 타이틀 + 이전 대회 복사 버튼 === */}
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-xl font-bold sm:text-2xl">새 대회 만들기</h1>
@@ -1145,7 +1151,7 @@ function LegacyWizardForm() {
           onClick={() => setShowCopyModal(true)}
           className="flex items-center gap-1 rounded-[4px] border border-[var(--color-border)] px-3 py-1.5 text-sm text-[var(--color-text-secondary)] hover:bg-[var(--color-border)]"
         >
-          <span className="material-symbols-outlined text-base">content_copy</span>
+          <Icon name="copy" size={16} />
           이전 대회에서 복사
         </button>
       </div>
@@ -1167,14 +1173,13 @@ function LegacyWizardForm() {
               i === currentStep
                 ? "bg-[var(--color-info)] text-white"
                 : i < currentStep
-                  ? "cursor-pointer bg-[rgba(74,222,128,0.15)] text-[var(--color-success)]"
+                  ? "cursor-pointer bg-[color-mix(in_srgb,var(--color-success)_15%,transparent)] text-[var(--color-success)]"
                   : "cursor-not-allowed bg-[var(--color-elevated)] text-[var(--color-text-muted)]"
             }`}
           >
-            <span className="material-symbols-outlined text-lg">
-              {/* 완료된 단계는 체크 아이콘 */}
-              {i < currentStep ? "check_circle" : step.icon}
-            </span>
+            {/* 2026-06-21 Toss B-b: Material → lucide <Icon>. 완료=circle-check, 그 외 step.icon(kebab).
+                색상은 부모 버튼 text-* 의 currentColor 상속(흰/success/muted). */}
+            <Icon name={i < currentStep ? "circle-check" : step.icon} size={18} />
             <span className="hidden sm:inline">{step.label}</span>
             <span className="sm:hidden">{i + 1}</span>
           </button>
@@ -1194,7 +1199,7 @@ function LegacyWizardForm() {
         <div className="space-y-4">
           {/* --- 섹션 1: 기본 정보 --- */}
           <TossCard className="space-y-4 hover:scale-100">
-            <SectionTitle icon="edit_note">기본 정보</SectionTitle>
+            <SectionTitle icon="file-pen">기본 정보</SectionTitle>
 
             {/* 대회명 (필수) */}
             <div>
@@ -1242,7 +1247,7 @@ function LegacyWizardForm() {
                     onClick={() => setShowSeriesForm(true)}
                     className="inline-flex items-center gap-1 rounded-[4px] border border-[var(--color-border)] px-3 py-1.5 text-sm text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-border)]"
                   >
-                    <span className="material-symbols-outlined text-base">add</span>
+                    <Icon name="plus" size={16} />
                     새 시리즈 만들기
                   </button>
                 </div>
@@ -1254,7 +1259,7 @@ function LegacyWizardForm() {
                     onClick={() => setShowSeriesForm(true)}
                     className="inline-flex items-center gap-1 text-xs text-[var(--color-info)] hover:underline"
                   >
-                    <span className="material-symbols-outlined text-sm">add</span>
+                    <Icon name="plus" size={14} />
                     새 시리즈 만들기
                   </button>
                 </div>
@@ -1360,7 +1365,7 @@ function LegacyWizardForm() {
 
           {/* --- 섹션 2: 일정 및 장소 --- */}
           <TossCard className="hover:scale-100">
-            <SectionTitle icon="calendar_month">일정 및 장소</SectionTitle>
+            <SectionTitle icon="calendar">일정 및 장소</SectionTitle>
             {/* ScheduleForm 서브 컴포넌트 재사용 (기존 그대로) */}
             <div className="mt-4">
               <ScheduleForm
@@ -1374,7 +1379,7 @@ function LegacyWizardForm() {
 
           {/* --- 섹션 3: 경기 설정 --- */}
           <TossCard className="space-y-6 hover:scale-100">
-            <SectionTitle icon="sports_basketball">경기 설정</SectionTitle>
+            <SectionTitle icon="volleyball">경기 설정</SectionTitle>
 
             {/* 대회 방식 (FORMAT은 select → GameMethodInput 4종 pill) */}
             <div>
@@ -1454,7 +1459,7 @@ function LegacyWizardForm() {
           {/* --- 섹션 1: 종별/디비전 --- */}
           <TossCard className="hover:scale-100">
             <div className="mb-4 flex items-center justify-between">
-              <SectionTitle icon="category">종별 / 디비전</SectionTitle>
+              <SectionTitle icon="layout-grid">종별 / 디비전</SectionTitle>
               {/* BDR 종별 자동생성기 버튼 */}
               <button
                 type="button"
@@ -1462,7 +1467,7 @@ function LegacyWizardForm() {
                 className="flex items-center gap-2 rounded-md px-4 py-2.5 text-sm font-bold text-white transition-all hover:opacity-90 active:scale-95"
                 style={{ backgroundColor: "var(--color-primary)" }}
               >
-                <span className="material-symbols-outlined text-lg">add_circle</span>
+                <Icon name="circle-plus" size={18} />
                 종별 추가
               </button>
             </div>
@@ -1475,7 +1480,7 @@ function LegacyWizardForm() {
 
           {/* --- 섹션 2: 팀 설정 --- */}
           <TossCard className="hover:scale-100">
-            <SectionTitle icon="groups">팀 설정</SectionTitle>
+            <SectionTitle icon="users">팀 설정</SectionTitle>
             <div className="mt-4">
               {/* TeamSettingsForm 재사용 */}
               <TeamSettingsForm
@@ -1503,12 +1508,13 @@ function LegacyWizardForm() {
             <div>
               <label className={labelCls}>템플릿</label>
               <div className="flex flex-wrap gap-2">
+                {/* 2026-06-21 Toss B-b: 템플릿 icon Material → lucide kebab (gradient 부재→square 의미대체). */}
                 {(
                   [
-                    { value: "basic", label: "기본형", icon: "gradient" },
-                    { value: "poster", label: "포스터형", icon: "image" },
-                    { value: "logo", label: "로고형", icon: "badge" },
-                    { value: "photo", label: "사진형", icon: "photo_camera" },
+                    { value: "basic", label: "기본형", icon: "square" },     // gradient
+                    { value: "poster", label: "포스터형", icon: "image" },   // image
+                    { value: "logo", label: "로고형", icon: "badge" },       // badge
+                    { value: "photo", label: "사진형", icon: "camera" },     // photo_camera
                   ] as const
                 ).map((t) => (
                   <button
@@ -1517,7 +1523,7 @@ function LegacyWizardForm() {
                     onClick={() => setDesignTemplate(t.value)}
                     className={pillCls(designTemplate === t.value)}
                   >
-                    <span className="material-symbols-outlined text-sm align-middle mr-1">{t.icon}</span>
+                    <Icon name={t.icon} size={14} className="align-middle mr-1" />
                     {t.label}
                   </button>
                 ))}
@@ -1608,7 +1614,7 @@ function LegacyWizardForm() {
                       <img src={logoUrl} alt="로고" className="h-16 w-16 rounded-md object-cover shadow-lg" />
                     ) : (
                       <div className="flex h-16 w-16 items-center justify-center rounded-md bg-white/20 text-white">
-                        <span className="material-symbols-outlined text-3xl">emoji_events</span>
+                        <Icon name="trophy" size={30} />
                       </div>
                     )}
                     <p className="text-lg font-bold text-white drop-shadow">{name || "대회 이름"}</p>
@@ -1650,7 +1656,7 @@ function LegacyWizardForm() {
 
           {/* --- 전체 요약 미리보기 --- */}
           <TossCard className="hover:scale-100">
-            <SectionTitle icon="fact_check">입력 내용 확인</SectionTitle>
+            <SectionTitle icon="clipboard-check">입력 내용 확인</SectionTitle>
 
             <div className="mt-4 space-y-3 text-sm">
               {/* 기본 정보 */}

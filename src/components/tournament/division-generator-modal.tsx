@@ -1,6 +1,9 @@
 "use client";
 
 import { useState } from "react";
+// 2026-06-21 Track B B-b Toss 리스킨 — Material Symbols → lucide <Icon> 키트(아이콘만·로직 변경 0).
+//   본 모달은 생성 위저드 자식으로 렌더 → 위저드 루트 data-skin="toss" 상속(별도 부착 불필요).
+import { Icon } from "@/components/admin-toss";
 import {
   GENDERS_LIST,
   CATEGORIES_LIST,
@@ -92,9 +95,7 @@ export function DivisionGeneratorModal({ open, onClose, onApply }: Props) {
         {/* 헤더 */}
         <div className="flex items-center justify-between px-6 pt-6 pb-4">
           <div className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-xl" style={{ color: "var(--color-primary)" }}>
-              layers
-            </span>
+            <Icon name="layers" size={20} color="var(--color-primary)" />
             <h3 className="text-lg font-black uppercase tracking-wider pr-1" style={{ color: "var(--color-text-primary)" }}>
               새 종별 추가
             </h3>
@@ -103,16 +104,17 @@ export function DivisionGeneratorModal({ open, onClose, onApply }: Props) {
             onClick={onClose}
             className="flex h-8 w-8 items-center justify-center rounded-lg transition-colors hover:bg-[var(--color-surface)]"
             style={{ color: "var(--color-text-muted)" }}
+            aria-label="닫기"
           >
-            <span className="material-symbols-outlined text-lg">close</span>
+            <Icon name="x" size={18} />
           </button>
         </div>
 
         <div className="px-6 pb-6 space-y-5">
           {/* STEP 1: 성별 선택 */}
           <div>
-            <p className="text-xs font-medium mb-2" style={{ color: "var(--color-text-muted)" }}>
-              <span className="material-symbols-outlined align-middle text-sm mr-1">wc</span>
+            <p className="flex items-center gap-1 text-xs font-medium mb-2" style={{ color: "var(--color-text-muted)" }}>
+              <Icon name="venus-and-mars" size={14} />
               STEP 1. 성별 선택
             </p>
             <div
@@ -143,8 +145,8 @@ export function DivisionGeneratorModal({ open, onClose, onApply }: Props) {
 
           {/* STEP 2: 종별 선택 */}
           <div>
-            <p className="text-xs font-medium mb-2" style={{ color: "var(--color-text-muted)" }}>
-              <span className="material-symbols-outlined align-middle text-sm mr-1">category</span>
+            <p className="flex items-center gap-1 text-xs font-medium mb-2" style={{ color: "var(--color-text-muted)" }}>
+              <Icon name="layout-grid" size={14} />
               STEP 2. 종별 템플릿
             </p>
             <div className="flex flex-wrap gap-2">
@@ -173,7 +175,7 @@ export function DivisionGeneratorModal({ open, onClose, onApply }: Props) {
           {/* STEP 3: 디비전 선택 */}
           <div>
             <p className="text-xs font-medium mb-2" style={{ color: "var(--color-text-muted)" }}>
-              <span className="material-symbols-outlined align-middle text-sm mr-1">tune</span>
+              <Icon name="sliders-horizontal" size={14} className="align-middle mr-1" />
               STEP 3. 디비전 선택
               {selectedDivs.length > 0 && (
                 <span className="ml-2 font-bold" style={{ color: "var(--color-primary)" }}>
@@ -205,7 +207,7 @@ export function DivisionGeneratorModal({ open, onClose, onApply }: Props) {
                     }
                   >
                     {active && (
-                      <span className="material-symbols-outlined text-sm">check</span>
+                      <Icon name="check" size={14} />
                     )}
                     {div.label}
                   </button>
@@ -218,7 +220,7 @@ export function DivisionGeneratorModal({ open, onClose, onApply }: Props) {
           {showAgeStep && (
             <div>
               <p className="text-xs font-medium mb-2" style={{ color: "var(--color-text-muted)" }}>
-                <span className="material-symbols-outlined align-middle text-sm mr-1">cake</span>
+                <Icon name="cake" size={14} className="align-middle mr-1" />
                 STEP 4. 연령 선택
                 {selectedAges.length > 0 && (
                   <span className="ml-2 font-bold" style={{ color: "var(--color-primary)" }}>
@@ -253,7 +255,7 @@ export function DivisionGeneratorModal({ open, onClose, onApply }: Props) {
                       }
                     >
                       {active && (
-                        <span className="material-symbols-outlined text-sm">check</span>
+                        <Icon name="check" size={14} />
                       )}
                       {age}
                     </button>

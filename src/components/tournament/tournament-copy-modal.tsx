@@ -1,6 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
+// 2026-06-21 Track B B-b Toss 리스킨 — Material Symbols → lucide <Icon> 키트(비주얼만).
+//   본 모달은 생성 위저드 자식으로 렌더 → 위저드 루트 data-skin="toss" 가 상속됨(별도 부착 불필요).
+import { Icon } from "@/components/admin-toss";
 
 // 이전 대회 복사 모달
 // 내 대회 목록을 불러와서 선택하면 설정을 현재 폼에 복사
@@ -139,12 +142,12 @@ export function TournamentCopyModal({ open, onClose, onApply }: Props) {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
       <div className="mx-4 w-full max-w-md rounded-[16px] bg-[var(--color-card)] p-6 shadow-xl">
         <div className="mb-4 flex items-center justify-between">
-          <h3 className="text-lg font-bold text-[var(--color-text-primary)]">
-            <span className="material-symbols-outlined align-middle mr-1">content_copy</span>
+          <h3 className="flex items-center gap-1 text-lg font-bold text-[var(--color-text-primary)]">
+            <Icon name="copy" size={18} />
             이전 대회에서 복사
           </h3>
-          <button onClick={onClose} className="text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]">
-            <span className="material-symbols-outlined">close</span>
+          <button onClick={onClose} className="text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]" aria-label="닫기">
+            <Icon name="x" size={20} />
           </button>
         </div>
 

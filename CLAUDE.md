@@ -14,26 +14,26 @@
 
 ## 🚦 브랜치 / 워크플로우 (최우선)
 
-### 브랜치
-- `main` — 운영. **직접 push 금지**. `dev → main` 머지 권한 = **수빈 단독** (2026-06-14 — 원영 프로젝트 이탈로 갱신. 이전: 원영+수빈)
-- `dev` — 통합. PR 모임
-- `subin` — 수빈 개인
+### 브랜치 (2026-06-21 단독 운영 전환 — subin 폐지, dev 직접 작업)
+- `main` — 운영. **직접 push 금지**. `dev → main` 머지 권한 = **수빈 단독**
+- `dev` — **작업 + 통합 겸용 브랜치**. 수빈이 여기서 직접 작업·커밋·push. 릴리스는 `dev → main` PR 머지
+- ~~`subin` — 수빈 개인~~ (2026-06-21 폐지 — 단독 운영이라 개인 브랜치 불필요. 이제 `dev`에서 직접 작업)
 - ~~`wonyoung` — 원영 개인~~ (2026-06-14 원영 프로젝트 이탈 — 브랜치 비활성)
 
-### 팀 구성 (2026-06-14 원영 이탈로 갱신)
-- **수빈** (snukobe) — `subin` 브랜치, 웹 (Next.js) 메인. **`dev → main` 머지 권한 단독 보유**
-- ~~**원영** — `wonyoung` 브랜치, Flutter 앱 관리~~ → **2026-06-14 프로젝트 이탈**. 브랜치/권한 비활성.
+### 팀 구성 (2026-06-21 단독 운영)
+- **수빈** (snukobe) — **단독 운영**. `dev` 브랜치에서 직접 작업, 웹 (Next.js) 메인. **`dev → main` 머지 권한 단독 보유**
+- ~~**원영** — `wonyoung` 브랜치, Flutter 앱 관리~~ → **2026-06-14 프로젝트 이탈**.
+- ℹ️ 동시 2세션 운영 시: 같은 `dev` 브랜치 공유 → 코드는 각자 영역 디렉토리만 명시적 `git add <경로>`(전체 `git add .` 금지)로 커밋 격리, scratchpad는 자기 블록만 수정·작업로그 append.
 - ⚠️ **Flutter 앱(`/api/v1/...`) 담당 공백** — 원영 이탈로 기록앱(bdr_stat)/`/api/v1` 전담자 없음.
   - 과거 룰("`/api/v1` 변경 시 공지 대상 = 원영")은 **무효**. 현재 **공지 대상 없음**.
   - `/api/v1` 변경은 사후 공지 대신 **사용자(수빈) 결정 필요**. 신규 담당 배정 시 본 항목 갱신.
 
-### 하루 작업 루틴
+### 하루 작업 루틴 (2026-06-21 dev 직접 작업)
 ```bash
 git checkout dev && git pull origin dev
-git checkout subin && git merge dev
-# 작업 → commit → push
-git push origin subin
-# GitHub에서 subin → dev PR
+# 작업 → commit → push (dev에서 직접)
+git push origin dev
+# 릴리스 시점에만: GitHub에서 dev → main PR 생성·머지
 ```
 
 ### 🚨 절대 금지
@@ -63,8 +63,8 @@ git push origin subin
 ### "오늘 작업 시작하자" 체크리스트
 사용자가 **"오늘 작업 시작하자"** 류 말을 하면 본 작업 전 점검 + 승인 받기:
 1. `git remote -v` (github.com/cobby8/mybdr)
-2. `git fetch origin --prune` + main/dev/subin 차이
-3. 현재 브랜치가 subin인지
+2. `git fetch origin --prune` + main/dev 차이
+3. 현재 브랜치가 dev인지
 4. `.env` 존재 + DATABASE_URL 키만 확인 (값 노출 금지) — 운영 DB 정상
 5. `.env.local`에 localhost:3001 오버라이드 있는지
 6. 결과 요약 → "이대로 작업 시작해도 될까요?" 승인

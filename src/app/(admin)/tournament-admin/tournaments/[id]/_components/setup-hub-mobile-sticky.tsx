@@ -21,6 +21,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+// Track B-c Toss 리스킨 — Material Symbols → lucide-react 키트(<Icon>)
+import { Icon } from "@/components/admin-toss";
 
 type Props = {
   tournamentId: string;
@@ -107,9 +109,8 @@ export function SetupHubMobileSticky({
           minHeight: 44, // 디자인 룰 44px+
         }}
       >
-        <span className="material-symbols-outlined text-[18px]">
-          {enabled ? "public" : "lock"}
-        </span>
+        {/* Material public/lock → lucide globe/lock */}
+        <Icon name={enabled ? "globe" : "lock"} size={18} />
         {busy ? "공개 중..." : "공개"}
       </button>
     </div>

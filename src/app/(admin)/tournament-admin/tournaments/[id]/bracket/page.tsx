@@ -215,7 +215,7 @@ export default function BracketAdminPage() {
   };
 
   if (loading)
-    return <div className="flex h-40 items-center justify-center text-[var(--color-text-muted)]">불러오는 중...</div>;
+    return <div data-skin="toss" className="flex h-40 items-center justify-center text-[var(--color-text-muted)]">불러오는 중...</div>;
 
   // 풀리그는 라운드 개념이 없어 "1라운드 팀 배치 편집"을 숨긴다
   // 듀얼토너먼트는 27 매치를 5섹션으로 표시 — 기존 1라운드 편집/전체 목록 UI 숨기고 dual 전용 섹션 사용
@@ -233,7 +233,8 @@ export default function BracketAdminPage() {
   const expectedLeagueMatches = approvedCount >= 2 ? (approvedCount * (approvedCount - 1)) / 2 : 0;
 
   return (
-    <div>
+    // Track B-c — Toss 토큰 적용 루트 opt-in (하위 섹션·모달 DOM 상속)
+    <div data-skin="toss">
       {/* 헤더 */}
       <div className="mb-6">
         <Link
