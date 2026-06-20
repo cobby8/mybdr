@@ -3,6 +3,8 @@ import { getWebSession } from "@/lib/auth/web-session";
 import { prisma } from "@/lib/db/prisma";
 import { isSuperAdmin } from "@/lib/auth/is-super-admin";
 import Link from "next/link";
+// Toss 키트 — lucide 아이콘 래퍼(Icon). CDN injection 금지 규칙상 lucide-react 경유.
+import { Icon } from "@/components/admin-toss";
 
 /**
  * partner-admin 레이아웃 — 서버 컴포넌트로 권한 검증 수행.
@@ -14,6 +16,11 @@ import Link from "next/link";
  *     일관성 어긋남 — super_admin = 전능 권한 정책 위반).
  *   변경: super_admin 이면 partner_members SELECT skip + 첫 active partner 자동 선택 (있으면) /
  *     없으면 sentinel "(super_admin 권한 진입)" 표시.
+ *
+ * 2026-06-21 Phase 3 PR-A — Toss 재스킨(비주얼만).
+ *   셸 루트에 data-skin="toss" opt-in → bare var(--ink)/--bg 등 Toss 토큰 활성화.
+ *   헤더=라이트 카드, 가로탭=.ts-navlink 룩, 아이콘 Material→lucide(<Icon>).
+ *   navItems/href/권한검증 server logic = 변경 0.
  */
 export default async function PartnerAdminLayout({ children }: { children: React.ReactNode }) {
   // 로그인 확인
@@ -50,75 +57,69 @@ export default async function PartnerAdminLayout({ children }: { children: React
   // 파트너사가 승인 상태가 아닐 때 안내 (super_admin sentinel = approved 처리 — 경고 미표시)
   const isApproved = partnerDisplay.status === "approved";
 
-  // 네비게이션 메뉴 항목
+  // 네비게이션 메뉴 항목 — href/label/권한은 불변. icon 만 lucide name(kebab)으로 교체.
+  // (Material dashboard/campaign/stadium → lucide layout-dashboard/megaphone/building)
   const navItems = [
-    { href: "/partner-admin", label: "대시보드", icon: "dashboard" },
-    { href: "/partner-admin/campaigns", label: "캠페인", icon: "campaign" },
-    { href: "/partner-admin/venue", label: "대관 관리", icon: "stadium" },
+    { href: "/partner-admin", label: "대시보드", icon: "layout-dashboard" },
+    { href: "/partner-admin/campaigns", label: "캠페인", icon: "megaphone" },
+    { href: "/partner-admin/venue", label: "대관 관리", icon: "building" },
   ];
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: "var(--color-bg)" }}>
-      {/* 상단 파트너 헤더 */}
+    // data-skin="toss" — 셸 루트 opt-in. var(--bg)/--ink 등 Toss 토큰 활성화(미부착 시 .ts-* 무효).
+    <div data-skin="toss" className="min-h-screen" style={{ backgroundColor: "var(--bg)" }}>
+      {/* 상단 파트너 헤더 — Toss 라이트 카드(흰 배경 + 연한 보더) */}
       <header
         className="border-b px-6 py-4"
         style={{
-          backgroundColor: "var(--color-card)",
-          borderColor: "var(--color-border)",
+          backgroundColor: "var(--card)",
+          borderColor: "var(--border)",
         }}
       >
         <div className="mx-auto max-w-6xl flex items-center justify-between">
           {/* 파트너사 이름 */}
           <div className="flex items-center gap-3">
-            <span
-              className="material-symbols-outlined text-xl"
-              style={{ color: "var(--color-primary)" }}
-            >
-              storefront
-            </span>
+            {/* storefront → lucide store */}
+            <Icon name="store" size={22} color="var(--primary)" />
             <div>
-              <h1 className="text-base font-bold" style={{ color: "var(--color-text-primary)" }}>
+              <h1 className="text-base font-bold" style={{ color: "var(--ink)" }}>
                 {partnerDisplay.name}
               </h1>
-              <p className="text-xs" style={{ color: "var(--color-text-muted)" }}>
+              <p className="text-xs" style={{ color: "var(--ink-mute)" }}>
                 파트너 관리
               </p>
             </div>
           </div>
 
-          {/* 상태 뱃지 */}
+          {/* 상태 뱃지 — 승인 대기 시 warn 톤(.ts-badge--warn) */}
           {!isApproved && (
-            <span
-              className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium"
-              style={{
-                backgroundColor: "var(--color-warning-bg, rgba(255,171,0,0.1))",
-                color: "var(--color-warning, #FFAB00)",
-              }}
-            >
-              <span className="material-symbols-outlined text-sm">pending</span>
+            <span className="ts-badge ts-badge--warn">
+              {/* pending → lucide clock */}
+              <Icon name="clock" size={13} />
               승인 대기중
             </span>
           )}
         </div>
       </header>
 
-      {/* 네비게이션 탭 */}
+      {/* 네비게이션 탭 — Toss .ts-navlink 룩(가로 배치) */}
       <nav
         className="border-b px-6"
         style={{
-          backgroundColor: "var(--color-card)",
-          borderColor: "var(--color-border)",
+          backgroundColor: "var(--card)",
+          borderColor: "var(--border)",
         }}
       >
-        <div className="mx-auto max-w-6xl flex gap-1 overflow-x-auto no-scrollbar">
+        <div className="mx-auto max-w-6xl flex gap-1 overflow-x-auto no-scrollbar py-2">
           {navItems.map((item) => (
             <Link
               key={item.href}
               href={item.href}
-              className="flex items-center gap-1.5 px-4 py-3 text-sm font-medium whitespace-nowrap transition-colors hover:opacity-80"
-              style={{ color: "var(--color-text-secondary)" }}
+              // .ts-navlink = Toss 사이드/탭 링크 룩. 가로탭이라 width 고정 해제(w-auto).
+              className="ts-navlink whitespace-nowrap"
+              style={{ width: "auto" }}
             >
-              <span className="material-symbols-outlined text-lg">{item.icon}</span>
+              <Icon name={item.icon} size={18} />
               {item.label}
             </Link>
           ))}
