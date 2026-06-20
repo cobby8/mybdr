@@ -2,6 +2,8 @@
 
 import { useState, useRef } from "react";
 import Link from "next/link";
+// Toss 키트 Icon — Material Symbols 대체 (lucide 기반)
+import { Icon } from "@/components/admin-toss";
 
 /**
  * /referee/admin/bulk-verify — Excel 일괄 검증 (Client Component).
@@ -155,7 +157,7 @@ export default function AdminBulkVerifyPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" data-skin="toss">
       {/* 헤더 */}
       <header>
         <div className="flex items-center gap-3">
@@ -164,7 +166,8 @@ export default function AdminBulkVerifyPage() {
             className="inline-flex items-center text-sm font-bold"
             style={{ color: "var(--color-text-muted)" }}
           >
-            <span className="material-symbols-outlined text-base">arrow_back</span>
+            {/* arrow_back → arrow-left */}
+            <Icon name="arrow-left" size={16} />
           </Link>
           <div>
             <h1
@@ -247,7 +250,8 @@ export default function AdminBulkVerifyPage() {
                 opacity: step === "previewing" ? 0.5 : 1,
               }}
             >
-              <span className="material-symbols-outlined text-base">upload_file</span>
+              {/* upload_file → file-up */}
+              <Icon name="file-up" size={16} color="#fff" />
               {step === "previewing" ? "분석 중..." : "미리보기"}
             </button>
           </div>
@@ -335,7 +339,8 @@ export default function AdminBulkVerifyPage() {
                 opacity: step === "confirming" ? 0.5 : 1,
               }}
             >
-              <span className="material-symbols-outlined text-base">check_circle</span>
+              {/* check_circle → circle-check */}
+              <Icon name="circle-check" size={16} color="#fff" />
               {step === "confirming"
                 ? "처리 중..."
                 : `${preview.summary.matched}건 검증 확정`}
@@ -368,11 +373,13 @@ export default function AdminBulkVerifyPage() {
             borderRadius: 4,
           }}
         >
-          <span
-            className="material-symbols-outlined text-5xl"
-            style={{ color: "var(--color-success, #22c55e)", fontVariationSettings: "'FILL' 1" }}
-          >
-            task_alt
+          {/* task_alt → circle-check-big (완료 체크 강조), text-5xl=48px */}
+          <span className="inline-flex">
+            <Icon
+              name="circle-check-big"
+              size={48}
+              color="var(--color-success, #22c55e)"
+            />
           </span>
           <h2
             className="mt-4 text-lg font-bold"
@@ -402,7 +409,8 @@ export default function AdminBulkVerifyPage() {
               borderRadius: 4,
             }}
           >
-            <span className="material-symbols-outlined text-base">refresh</span>
+            {/* refresh → refresh-cw */}
+            <Icon name="refresh-cw" size={16} color="#fff" />
             다시 업로드
           </button>
         </section>

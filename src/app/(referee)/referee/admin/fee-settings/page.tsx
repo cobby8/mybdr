@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+// Toss 키트 Icon — Material Symbols 대체 (lucide 기반)
+import { Icon } from "@/components/admin-toss";
 
 /**
  * /referee/admin/fee-settings — 협회 배정비 단가표 설정 (사무국장 전용)
@@ -25,10 +27,12 @@ type Setting = {
   is_default: boolean;
 };
 
+// icon 값은 lucide kebab name (admin-toss Icon 키트 기준)
+// sports(호루라기 부재)→flag · groups→users · edit_note→file-pen · timer→timer(실존)
 const ROLE_INFO = [
-  { key: "fee_main", label: "주심", icon: "sports" },
-  { key: "fee_sub", label: "부심", icon: "groups" },
-  { key: "fee_recorder", label: "기록원", icon: "edit_note" },
+  { key: "fee_main", label: "주심", icon: "flag" },
+  { key: "fee_sub", label: "부심", icon: "users" },
+  { key: "fee_recorder", label: "기록원", icon: "file-pen" },
   { key: "fee_timer", label: "타이머", icon: "timer" },
 ] as const;
 
@@ -109,6 +113,7 @@ export default function AdminFeeSettingsPage() {
   return (
     <div
       className="space-y-6"
+      data-skin="toss"
       style={{ color: "var(--color-text-primary)" }}
     >
       {/* 헤더 */}
@@ -236,12 +241,8 @@ export default function AdminFeeSettingsPage() {
                   }}
                 >
                   <div className="flex items-center gap-2 mb-2">
-                    <span
-                      className="material-symbols-outlined text-xl"
-                      style={{ color: "var(--color-primary)" }}
-                    >
-                      {r.icon}
-                    </span>
+                    {/* r.icon = lucide kebab name (ROLE_INFO), text-xl=20px */}
+                    <Icon name={r.icon} size={20} color="var(--color-primary)" />
                     <span className="text-sm font-bold">{r.label}</span>
                   </div>
                   <div className="relative">
