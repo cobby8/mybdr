@@ -3,12 +3,18 @@
 import { useState } from "react";
 import useSWR, { mutate } from "swr";
 import Link from "next/link";
+// Toss 키트 — 아이콘(Icon) · 버튼(Btn) · 상태 뱃지(Badge)
+import { Icon, Btn, Badge, type BadgeTone } from "@/components/admin-toss";
 
 /**
  * 파트너 캠페인 목록 페이지
  * - 상태별 필터 탭
  * - 캠페인 카드 리스트
  * - 새 캠페인 생성 폼
+ *
+ * 2026-06-21 Phase 3 PR-A — Toss 재스킨(비주얼만).
+ *   루트 data-skin="toss". H+Btn, 필터=.ts-chip, 카드=.ts-card+Badge, 폼=.ts-field.
+ *   POST/filterTabs/statusConfig 매핑 데이터 = 변경 0(색만 Badge tone 으로 표현).
  */
 
 interface Campaign {
@@ -27,14 +33,15 @@ interface Campaign {
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
-// 캠페인 상태 뱃지 색상 매핑
-const statusConfig: Record<string, { label: string; color: string; bg: string }> = {
-  draft: { label: "임시저장", color: "var(--color-text-muted)", bg: "var(--color-surface)" },
-  pending_review: { label: "심사 대기", color: "var(--color-warning, #FFAB00)", bg: "rgba(255,171,0,0.1)" },
-  approved: { label: "승인됨", color: "var(--color-success, #22C55E)", bg: "rgba(34,197,94,0.1)" },
-  rejected: { label: "반려됨", color: "var(--color-primary)", bg: "rgba(227,27,35,0.1)" },
-  paused: { label: "일시정지", color: "var(--color-text-secondary)", bg: "var(--color-surface)" },
-  ended: { label: "종료", color: "var(--color-text-disabled)", bg: "var(--color-surface)" },
+// 캠페인 상태 → Toss Badge tone + 라벨 매핑.
+// (기존 statusConfig 의 색 의미를 그대로 Badge tone 으로 치환 — 데이터/분기 불변)
+const statusConfig: Record<string, { label: string; tone: BadgeTone }> = {
+  draft: { label: "임시저장", tone: "grey" },
+  pending_review: { label: "심사 대기", tone: "warn" },
+  approved: { label: "승인됨", tone: "ok" },
+  rejected: { label: "반려됨", tone: "danger" },
+  paused: { label: "일시정지", tone: "grey" },
+  ended: { label: "종료", tone: "grey" },
 };
 
 export default function PartnerCampaignsPage() {
@@ -53,8 +60,7 @@ export default function PartnerCampaignsPage() {
   const apiUrl = filter === "all" ? "/api/web/partner/campaigns" : `/api/web/partner/campaigns?status=${filter}`;
   const { data: campaigns } = useSWR<Campaign[]>(apiUrl, fetcher);
 
-  // VP3 톤④ — 헤더 합계. 시안은 매출(revenue)까지 노출하나 운영 Campaign 에 revenue 필드 부재(mock)라
-  // 실데이터인 노출·클릭 합계만 reduce 로 산출 (mock 필드 회피).
+  // 헤더 합계 — 실데이터인 노출·클릭 합계만 reduce 로 산출 (mock 매출 필드 회피).
   const totals = (campaigns ?? []).reduce(
     (acc, c) => ({ impressions: acc.impressions + c.impressions, clicks: acc.clicks + c.clicks }),
     { impressions: 0, clicks: 0 },
@@ -94,232 +100,144 @@ export default function PartnerCampaignsPage() {
   }
 
   return (
-    <div className="space-y-6">
-      {/* 헤더 — VP3 톤①(Court Operator badge) + 톤④(노출·클릭 합계) */}
+    // data-skin="toss" — 페이지 루트 opt-in
+    <div data-skin="toss" className="space-y-6">
+      {/* 헤더 — H(타이틀+합계) + Btn(새 캠페인) */}
       <div className="flex items-start justify-between gap-3 flex-wrap">
-        <div>
-          {/* 톤① Court Operator badge — navy+silver (8C-1 답습 hex / Site Operator dark+gold 와 분리) */}
-          <span
-            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-[10.5px] font-extrabold uppercase tracking-wider"
-            style={{
-              background: "linear-gradient(135deg, #1B3C87 0%, #2A4D9E 100%)",
-              border: "1px solid #3A5BA8",
-              color: "#fff",
-            }}
-          >
-            {/* silver 아이콘 (#C0CCDB) — badge 측 구분 색 */}
-            <span className="material-symbols-outlined text-[13px]" style={{ color: "#C0CCDB" }}>
-              stadium
-            </span>
-            Court Operator
-          </span>
-          <h2 className="text-xl font-bold mt-2" style={{ color: "var(--color-text-primary)" }}>
-            캠페인 관리
-          </h2>
-          {/* 톤④ 헤더 합계 — 실데이터 노출·클릭만 (매출은 mock 회피) */}
-          <p className="text-xs mt-1" style={{ color: "var(--color-text-muted)" }}>
+        <div style={{ margin: "2px 0 4px" }}>
+          <h2 style={{ fontSize: 22, fontWeight: 800, color: "var(--ink)" }}>캠페인 관리</h2>
+          {/* 헤더 합계 — 실데이터 노출·클릭만 (매출은 mock 회피) */}
+          <p style={{ fontSize: 13.5, color: "var(--ink-mute)", marginTop: 4 }}>
             노출 {totals.impressions.toLocaleString()} · 클릭 {totals.clicks.toLocaleString()}
           </p>
         </div>
-        <button
-          onClick={() => setShowForm(!showForm)}
-          className="flex items-center gap-1.5 px-4 py-2 rounded text-sm font-medium transition-colors active:scale-95"
-          style={{
-            backgroundColor: "var(--color-primary)",
-            color: "#fff",
-          }}
-        >
-          <span className="material-symbols-outlined text-lg">add</span>
+        {/* add → lucide plus */}
+        <Btn variant="primary" icon="plus" onClick={() => setShowForm(!showForm)}>
           새 캠페인
-        </button>
+        </Btn>
       </div>
 
-      {/* 캠페인 생성 폼 (토글) */}
+      {/* 캠페인 생성 폼 (토글) — .ts-card + .ts-field */}
       {showForm && (
-        <form
-          onSubmit={handleCreate}
-          className="rounded-lg border p-5 space-y-4"
-          style={{
-            backgroundColor: "var(--color-card)",
-            borderColor: "var(--color-border)",
-          }}
-        >
-          <h3 className="text-sm font-bold" style={{ color: "var(--color-text-primary)" }}>
-            새 캠페인 만들기
-          </h3>
-          <p className="text-xs" style={{ color: "var(--color-text-muted)" }}>
-            생성 후 관리자 심사를 거쳐 승인되면 광고가 노출됩니다.
-          </p>
+        <form onSubmit={handleCreate} className="ts-card space-y-4">
+          <div>
+            <h3 className="text-sm font-bold" style={{ color: "var(--ink)" }}>
+              새 캠페인 만들기
+            </h3>
+            <p className="text-xs mt-1" style={{ color: "var(--ink-mute)" }}>
+              생성 후 관리자 심사를 거쳐 승인되면 광고가 노출됩니다.
+            </p>
+          </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {/* 관리용 제목 */}
-            <div>
-              <label className="block text-xs font-medium mb-1" style={{ color: "var(--color-text-secondary)" }}>
-                캠페인명 (내부용) *
-              </label>
+            <div className="ts-field">
+              <label className="ts-field__label">캠페인명 (내부용) *</label>
               <input
                 type="text"
+                className="ts-input"
                 value={formData.title}
                 onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                 required
-                className="w-full rounded border px-3 py-2 text-sm outline-none"
-                style={{
-                  backgroundColor: "var(--color-surface)",
-                  borderColor: "var(--color-border)",
-                  color: "var(--color-text-primary)",
-                }}
                 placeholder="예: 2026 봄 시즌 프로모션"
               />
             </div>
 
             {/* 광고 제목 */}
-            <div>
-              <label className="block text-xs font-medium mb-1" style={{ color: "var(--color-text-secondary)" }}>
-                광고 제목 (표시용) *
-              </label>
+            <div className="ts-field">
+              <label className="ts-field__label">광고 제목 (표시용) *</label>
               <input
                 type="text"
+                className="ts-input"
                 value={formData.headline}
                 onChange={(e) => setFormData({ ...formData, headline: e.target.value })}
                 required
-                className="w-full rounded border px-3 py-2 text-sm outline-none"
-                style={{
-                  backgroundColor: "var(--color-surface)",
-                  borderColor: "var(--color-border)",
-                  color: "var(--color-text-primary)",
-                }}
                 placeholder="예: 체육관 대관 50% 할인!"
               />
             </div>
 
             {/* 링크 URL */}
-            <div>
-              <label className="block text-xs font-medium mb-1" style={{ color: "var(--color-text-secondary)" }}>
-                링크 URL *
-              </label>
+            <div className="ts-field">
+              <label className="ts-field__label">링크 URL *</label>
               <input
                 type="url"
+                className="ts-input"
                 value={formData.link_url}
                 onChange={(e) => setFormData({ ...formData, link_url: e.target.value })}
                 required
-                className="w-full rounded border px-3 py-2 text-sm outline-none"
-                style={{
-                  backgroundColor: "var(--color-surface)",
-                  borderColor: "var(--color-border)",
-                  color: "var(--color-text-primary)",
-                }}
                 placeholder="https://example.com"
               />
             </div>
 
             {/* CTA 텍스트 */}
-            <div>
-              <label className="block text-xs font-medium mb-1" style={{ color: "var(--color-text-secondary)" }}>
-                CTA 버튼 텍스트
-              </label>
+            <div className="ts-field">
+              <label className="ts-field__label">CTA 버튼 텍스트</label>
               <input
                 type="text"
+                className="ts-input"
                 value={formData.cta_text}
                 onChange={(e) => setFormData({ ...formData, cta_text: e.target.value })}
-                className="w-full rounded border px-3 py-2 text-sm outline-none"
-                style={{
-                  backgroundColor: "var(--color-surface)",
-                  borderColor: "var(--color-border)",
-                  color: "var(--color-text-primary)",
-                }}
                 placeholder="자세히 보기"
               />
             </div>
           </div>
 
           {/* 설명 */}
-          <div>
-            <label className="block text-xs font-medium mb-1" style={{ color: "var(--color-text-secondary)" }}>
-              광고 설명
-            </label>
+          <div className="ts-field" style={{ marginBottom: 0 }}>
+            <label className="ts-field__label">광고 설명</label>
             <textarea
+              className="ts-input"
+              style={{ resize: "none" }}
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               rows={3}
-              className="w-full rounded border px-3 py-2 text-sm outline-none resize-none"
-              style={{
-                backgroundColor: "var(--color-surface)",
-                borderColor: "var(--color-border)",
-                color: "var(--color-text-primary)",
-              }}
               placeholder="광고에 표시될 설명문"
             />
           </div>
 
           <div className="flex gap-2 justify-end">
-            <button
-              type="button"
-              onClick={() => setShowForm(false)}
-              className="px-4 py-2 rounded text-sm font-medium"
-              style={{
-                backgroundColor: "var(--color-surface)",
-                color: "var(--color-text-secondary)",
-              }}
-            >
+            <Btn variant="secondary" size="sm" type="button" onClick={() => setShowForm(false)}>
               취소
-            </button>
-            <button
-              type="submit"
-              disabled={submitting}
-              className="px-4 py-2 rounded text-sm font-medium transition-colors active:scale-95 disabled:opacity-50"
-              style={{
-                backgroundColor: "var(--color-primary)",
-                color: "#fff",
-              }}
-            >
+            </Btn>
+            <Btn variant="primary" size="sm" type="submit" disabled={submitting}>
               {submitting ? "생성 중..." : "캠페인 생성"}
-            </button>
+            </Btn>
           </div>
         </form>
       )}
 
-      {/* 필터 탭 — VP3 톤③ cv-fchip 톤(rounded-full + 비활성 칩 border) */}
+      {/* 필터 탭 — Toss .ts-chip (data-active 로 활성 표시) */}
       <div className="flex gap-1.5 overflow-x-auto no-scrollbar">
         {filterTabs.map((tab) => (
           <button
             key={tab.key}
             onClick={() => setFilter(tab.key)}
-            className="px-3.5 py-1.5 rounded-full border text-xs font-medium whitespace-nowrap transition-colors"
-            style={{
-              backgroundColor: filter === tab.key ? "var(--color-primary)" : "var(--color-surface)",
-              borderColor: filter === tab.key ? "var(--color-primary)" : "var(--color-border)",
-              color: filter === tab.key ? "#fff" : "var(--color-text-secondary)",
-            }}
+            className="ts-chip whitespace-nowrap"
+            data-active={filter === tab.key ? "true" : "false"}
           >
             {tab.label}
           </button>
         ))}
       </div>
 
-      {/* 캠페인 목록 — VP3 톤② 카드 grid 2열 (cv-cmp-grid). 로딩/빈상태는 grid 깨짐 방지 위해 별도 분기 */}
+      {/* 캠페인 목록 — .ts-card grid 2열. 로딩/빈상태는 grid 깨짐 방지 위해 별도 분기 */}
       {!campaigns ? (
         // 로딩 스켈레톤
         <div className="grid sm:grid-cols-2 gap-3">
           {Array.from({ length: 4 }).map((_, i) => (
-            <div
-              key={i}
-              className="rounded-lg border p-4 animate-pulse"
-              style={{ backgroundColor: "var(--color-card)", borderColor: "var(--color-border)" }}
-            >
-              <div className="h-4 rounded w-1/3 mb-2" style={{ backgroundColor: "var(--color-surface)" }} />
-              <div className="h-3 rounded w-1/2" style={{ backgroundColor: "var(--color-surface)" }} />
+            <div key={i} className="ts-card animate-pulse">
+              <div className="h-4 rounded w-1/3 mb-2" style={{ backgroundColor: "var(--grey-100)" }} />
+              <div className="h-3 rounded w-1/2" style={{ backgroundColor: "var(--grey-100)" }} />
             </div>
           ))}
         </div>
       ) : campaigns.length === 0 ? (
         <div className="text-center py-12">
-          <span
-            className="material-symbols-outlined text-4xl mb-2 block"
-            style={{ color: "var(--color-text-disabled)" }}
-          >
-            campaign
-          </span>
-          <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>
+          {/* campaign → lucide megaphone */}
+          <div style={{ display: "flex", justifyContent: "center", marginBottom: 8 }}>
+            <Icon name="megaphone" size={36} color="var(--ink-dim)" />
+          </div>
+          <p className="text-sm" style={{ color: "var(--ink-mute)" }}>
             등록된 캠페인이 없습니다.
           </p>
         </div>
@@ -333,46 +251,43 @@ export default function PartnerCampaignsPage() {
               <Link
                 key={c.id}
                 href={`/partner-admin/campaigns/${c.id}`}
-                className="block rounded-lg border p-4 transition-all hover:shadow-md active:scale-[0.99]"
-                style={{
-                  backgroundColor: "var(--color-card)",
-                  borderColor: "var(--color-border)",
-                }}
+                className="ts-card block transition-all hover:shadow-md active:scale-[0.99]"
               >
-                <div className="flex items-start justify-between mb-2">
+                <div className="flex items-start justify-between mb-2 gap-2">
                   <div>
-                    <p className="text-sm font-bold" style={{ color: "var(--color-text-primary)" }}>
+                    <p className="text-sm font-bold" style={{ color: "var(--ink)" }}>
                       {c.title}
                     </p>
-                    <p className="text-xs mt-0.5" style={{ color: "var(--color-text-muted)" }}>
+                    <p className="text-xs mt-0.5" style={{ color: "var(--ink-mute)" }}>
                       {c.headline}
                     </p>
                   </div>
-                  {/* 상태 뱃지 */}
-                  <span
-                    className="px-2 py-0.5 rounded text-[10px] font-medium shrink-0"
-                    style={{ backgroundColor: cfg.bg, color: cfg.color }}
-                  >
-                    {cfg.label}
+                  {/* 상태 뱃지 — Toss Badge(tone) */}
+                  <span className="shrink-0">
+                    <Badge tone={cfg.tone}>{cfg.label}</Badge>
                   </span>
                 </div>
 
-                {/* 하단 통계 */}
-                <div className="flex items-center gap-4 text-xs" style={{ color: "var(--color-text-muted)" }}>
+                {/* 하단 통계 — lucide 아이콘 매핑 */}
+                <div className="flex items-center flex-wrap gap-x-4 gap-y-1 text-xs" style={{ color: "var(--ink-mute)" }}>
                   <span className="flex items-center gap-1">
-                    <span className="material-symbols-outlined text-sm">visibility</span>
+                    {/* visibility → eye */}
+                    <Icon name="eye" size={14} />
                     {c.impressions.toLocaleString()} 노출
                   </span>
                   <span className="flex items-center gap-1">
-                    <span className="material-symbols-outlined text-sm">ads_click</span>
+                    {/* ads_click → mouse-pointer-click */}
+                    <Icon name="mouse-pointer-click" size={14} />
                     {c.clicks.toLocaleString()} 클릭
                   </span>
                   <span className="flex items-center gap-1">
-                    <span className="material-symbols-outlined text-sm">trending_up</span>
+                    {/* trending_up → trending-up */}
+                    <Icon name="trending-up" size={14} />
                     CTR {ctr}%
                   </span>
                   <span className="flex items-center gap-1">
-                    <span className="material-symbols-outlined text-sm">grid_view</span>
+                    {/* grid_view → layout-grid */}
+                    <Icon name="layout-grid" size={14} />
                     {c.placements_count} 배치
                   </span>
                 </div>

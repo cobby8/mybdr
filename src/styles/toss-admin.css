@@ -1,0 +1,380 @@
+/* ============================================================
+   TOSS-ADMIN.CSS — 관리자 Toss 디자인시스템 (Phase 0 이식)
+   박제 source: Dev/design/BDR-current/_handoff-admin-toss-P0/design-files/toss.css
+   박제 target: src/styles/toss-admin.css
+
+   ⚠ 핵심 격리 룰 (네임스페이스 opt-in)
+   - 시안 toss.css 는 :root 에 --bg/--ink/--ok/--warn/--danger 등을 정의했으나,
+     운영 globals.css/admin.css 가 이미 같은 이름의 전역 토큰을 사용 중이다.
+   - bare :root 에 Toss 토큰을 풀면 미리스킨 화면(.admin-shell 포함)이 즉시 Toss 색으로
+     뒤집힌다(리스킨 0 위반). → 따라서 Toss 토큰을 전부 [data-skin="toss"] 스코프로 격리한다.
+   - .ts-* 컴포넌트 규칙도 [data-skin="toss"] 하위로 둔다.
+   - Phase 0 에서는 어디에도 data-skin="toss" 를 붙이지 않으므로 시각 변화 0.
+     Phase 1+ 에서 리스킨된 셸/화면이 <div data-skin="toss"> 로 opt-in 한다.
+
+   라이트 · Toss Blue #3182F6 · radius 24px · Pretendard · lucide-react
+   ============================================================ */
+
+/* ── Toss 토큰 — opt-in 스코프 (전역 :root 오염 0) ───────────────── */
+[data-skin="toss"] {
+  /* Toss Grey scale */
+  --grey-900: #191F28;
+  --grey-800: #333D4B;
+  --grey-700: #4E5968;
+  --grey-600: #6B7684;
+  --grey-500: #8B95A1;
+  --grey-400: #B0B8C1;
+  --grey-300: #D1D6DB;
+  --grey-200: #E5E8EB;
+  --grey-100: #F2F4F6;
+  --grey-50:  #F9FAFB;
+
+  /* Semantic */
+  --bg: #F2F4F6;            /* page */
+  --card: #FFFFFF;
+  --ink: #191F28;           /* primary text */
+  --ink-soft: #4E5968;
+  --ink-mute: #8B95A1;
+  --ink-dim: #B0B8C1;
+  --border: #E5E8EB;
+  --border-strong: #D1D6DB;
+
+  --primary: #3182F6;       /* Toss Blue */
+  --primary-hover: #1B64DA;
+  --primary-weak: #E8F1FE;
+  --primary-fg: #FFFFFF;
+
+  --danger: #F04452;        /* Toss red */
+  --danger-weak: #FCEBEC;
+  --ok: #15B86A;            /* success green */
+  --ok-weak: #E5F7EE;
+  --warn: #FF9500;          /* 대기접수 orange */
+  --warn-weak: #FFF3E0;
+
+  --radius-card: 24px;
+  --radius-btn: 16px;
+  --radius-input: 14px;
+  --radius-chip: 12px;
+
+  --sh-xs: 0 1px 2px rgba(0,0,0,0.05);
+  --sh-sm: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  --sh-md: 0 4px 16px rgba(0,0,0,0.08);
+  --sh-lg: 0 12px 40px rgba(0,0,0,0.14);
+
+  --ff: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+  --ff-mono: 'JetBrains Mono', ui-monospace, monospace;
+
+  --sidebar-w: 248px;
+
+  /* opt-in 영역의 기본 배경/글자/폰트 (body 대신 스코프 루트에 적용) */
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--ff);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* heading 기본값 — opt-in 스코프 한정 */
+[data-skin="toss"] h1,
+[data-skin="toss"] h2,
+[data-skin="toss"] h3,
+[data-skin="toss"] h4,
+[data-skin="toss"] h5,
+[data-skin="toss"] h6 { font-weight: 700; letter-spacing: -0.02em; margin: 0; }
+[data-skin="toss"] * { box-sizing: border-box; }
+
+/* lucide icons */
+[data-skin="toss"] .licon { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; }
+[data-skin="toss"] .licon svg { stroke-width: 2; }
+
+/* ── Buttons ─────────────────────────────────────────────── */
+[data-skin="toss"] .ts-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+  font-family: var(--ff); font-weight: 700; font-size: 15px; line-height: 1;
+  padding: 13px 18px; border-radius: var(--radius-btn); border: 1px solid transparent;
+  cursor: pointer; transition: background .15s, transform .1s, box-shadow .15s, border-color .15s;
+  white-space: nowrap;
+}
+[data-skin="toss"] .ts-btn:active { transform: scale(0.98); }
+[data-skin="toss"] .ts-btn:disabled { opacity: .45; cursor: not-allowed; }
+[data-skin="toss"] .ts-btn--primary { background: var(--primary); color: var(--primary-fg); }
+[data-skin="toss"] .ts-btn--primary:hover:not(:disabled) { background: var(--primary-hover); }
+[data-skin="toss"] .ts-btn--secondary { background: var(--grey-100); color: var(--ink-soft); }
+[data-skin="toss"] .ts-btn--secondary:hover:not(:disabled) { background: var(--grey-200); color: var(--ink); }
+[data-skin="toss"] .ts-btn--ghost { background: transparent; color: var(--ink-soft); }
+[data-skin="toss"] .ts-btn--ghost:hover:not(:disabled) { background: var(--grey-100); }
+[data-skin="toss"] .ts-btn--danger { background: var(--danger-weak); color: var(--danger); }
+[data-skin="toss"] .ts-btn--danger:hover:not(:disabled) { background: var(--danger); color: #fff; }
+[data-skin="toss"] .ts-btn--sm { padding: 9px 13px; font-size: 13px; border-radius: 12px; gap: 5px; }
+[data-skin="toss"] .ts-btn--lg { padding: 16px 22px; font-size: 17px; border-radius: 18px; width: 100%; }
+[data-skin="toss"] .ts-btn--block { width: 100%; }
+
+/* ── Card ─────────────────────────────────────────────────── */
+[data-skin="toss"] .ts-card { background: var(--card); border-radius: var(--radius-card); padding: 24px; box-shadow: var(--sh-sm); border: 1px solid rgba(0,0,0,0.03); }
+[data-skin="toss"] .ts-card--tight { padding: 18px; }
+[data-skin="toss"] .ts-card--flat { box-shadow: none; border: 1px solid var(--border); }
+
+/* ── Input ───────────────────────────────────────────────── */
+[data-skin="toss"] .ts-input {
+  width: 100%; padding: 14px 16px; border-radius: var(--radius-input);
+  border: none; background: var(--grey-100); color: var(--ink);
+  font-size: 16px; font-family: var(--ff); transition: box-shadow .15s, background .15s;
+}
+[data-skin="toss"] .ts-input::placeholder { color: var(--ink-dim); }
+[data-skin="toss"] .ts-input:focus { outline: none; background: #fff; box-shadow: 0 0 0 2px var(--primary); }
+[data-skin="toss"] .ts-field { margin-bottom: 16px; }
+[data-skin="toss"] .ts-field__label { display: block; font-size: 13px; font-weight: 700; color: var(--ink-soft); margin-bottom: 8px; }
+[data-skin="toss"] .ts-field__hint { font-size: 12.5px; color: var(--ink-mute); margin-top: 6px; }
+[data-skin="toss"] .ts-select { width: 100%; padding: 13px 16px; border-radius: var(--radius-input); border: 1px solid var(--border-strong); background: #fff; color: var(--ink); font-size: 15px; font-family: var(--ff); font-weight: 600; cursor: pointer; }
+
+/* ── Badge ───────────────────────────────────────────────── */
+[data-skin="toss"] .ts-badge { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 8px; font-size: 12px; font-weight: 700; }
+[data-skin="toss"] .ts-badge--primary { background: var(--primary-weak); color: var(--primary); }
+[data-skin="toss"] .ts-badge--ok { background: var(--ok-weak); color: var(--ok); }
+[data-skin="toss"] .ts-badge--warn { background: var(--warn-weak); color: var(--warn); }
+[data-skin="toss"] .ts-badge--danger { background: var(--danger-weak); color: var(--danger); }
+[data-skin="toss"] .ts-badge--grey { background: var(--grey-100); color: var(--ink-mute); }
+
+/* ── Chip (selectable) ───────────────────────────────────── */
+[data-skin="toss"] .ts-chip { display: inline-flex; align-items: center; gap: 5px; padding: 9px 15px; border-radius: var(--radius-chip); border: 1.5px solid var(--border); background: #fff; color: var(--ink-soft); font-size: 14px; font-weight: 700; cursor: pointer; font-family: var(--ff); transition: all .12s; }
+[data-skin="toss"] .ts-chip:hover { border-color: var(--border-strong); }
+[data-skin="toss"] .ts-chip[data-active="true"] { border-color: var(--primary); background: var(--primary-weak); color: var(--primary); }
+[data-skin="toss"] .ts-chip--tag { background: var(--primary-weak); color: var(--primary); border-color: transparent; padding: 6px 10px; font-size: 13px; }
+[data-skin="toss"] .ts-chip--tag button { background: none; border: 0; padding: 0; cursor: pointer; color: inherit; opacity: .65; display: inline-flex; }
+[data-skin="toss"] .ts-chip--tag button:hover { opacity: 1; }
+[data-skin="toss"] .ts-chip--age { background: #F3F0FE; color: #6D5AE6; }
+
+/* ── Segmented control ───────────────────────────────────── */
+[data-skin="toss"] .ts-segment { display: flex; gap: 4px; padding: 4px; background: var(--grey-100); border-radius: 14px; }
+[data-skin="toss"] .ts-segment__btn { flex: 1; padding: 10px; border: 0; background: transparent; border-radius: 10px; font-size: 14px; font-weight: 700; color: var(--ink-mute); cursor: pointer; font-family: var(--ff); transition: all .12s; }
+[data-skin="toss"] .ts-segment__btn[data-active="true"] { background: #fff; color: var(--primary); box-shadow: var(--sh-xs); }
+
+/* ── Toggle ──────────────────────────────────────────────── */
+[data-skin="toss"] .ts-toggle { width: 50px; height: 30px; border-radius: 999px; border: 0; background: var(--grey-300); cursor: pointer; padding: 3px; flex: 0 0 auto; transition: background .15s; }
+[data-skin="toss"] .ts-toggle[data-on="true"] { background: var(--primary); }
+[data-skin="toss"] .ts-toggle__knob { display: block; width: 24px; height: 24px; border-radius: 50%; background: #fff; box-shadow: var(--sh-xs); transition: transform .18s cubic-bezier(.2,.8,.2,1); }
+[data-skin="toss"] .ts-toggle[data-on="true"] .ts-toggle__knob { transform: translateX(20px); }
+
+/* ── Checkbox ────────────────────────────────────────────── */
+[data-skin="toss"] .ts-check { width: 24px; height: 24px; border-radius: 8px; border: 2px solid var(--border-strong); background: #fff; display: grid; place-items: center; cursor: pointer; flex: 0 0 auto; transition: all .12s; }
+[data-skin="toss"] .ts-check[data-on="true"] { background: var(--primary); border-color: var(--primary); color: #fff; }
+
+/* ── Step dots ───────────────────────────────────────────── */
+[data-skin="toss"] .ts-steps { display: flex; gap: 6px; margin-bottom: 28px; }
+[data-skin="toss"] .ts-steps__seg { height: 5px; flex: 1; border-radius: 3px; background: var(--grey-200); transition: background .25s; }
+[data-skin="toss"] .ts-steps__seg[data-on="true"] { background: var(--primary); }
+
+/* ── Sidebar ─────────────────────────────────────────────── */
+[data-skin="toss"] .ts-shell { min-height: 100vh; background: var(--bg); }
+[data-skin="toss"] .ts-sidebar { position: fixed; top: 0; left: 0; bottom: 0; width: var(--sidebar-w); background: #fff; border-right: 1px solid var(--border); display: flex; flex-direction: column; z-index: 30; }
+@media (max-width: 900px) { [data-skin="toss"] .ts-sidebar { display: none; } }
+[data-skin="toss"] .ts-sidebar__brand { display: flex; align-items: center; gap: 9px; padding: 22px 22px 18px; font-weight: 800; font-size: 19px; letter-spacing: -0.02em; color: var(--ink); }
+[data-skin="toss"] .ts-sidebar__brand-dot { width: 26px; height: 26px; border-radius: 8px; background: var(--primary); color: #fff; display: grid; place-items: center; font-size: 13px; font-weight: 900; }
+[data-skin="toss"] .ts-sidebar__nav { flex: 1; padding: 8px 14px; display: flex; flex-direction: column; gap: 2px; }
+[data-skin="toss"] .ts-sidebar__label { font-size: 11px; font-weight: 700; color: var(--ink-dim); padding: 14px 12px 6px; letter-spacing: 0.02em; }
+[data-skin="toss"] .ts-navlink { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 0; background: transparent; cursor: pointer; text-align: left; width: 100%; font-size: 15px; font-weight: 600; color: var(--ink-soft); border-radius: 14px; font-family: var(--ff); transition: background .12s, color .12s; }
+[data-skin="toss"] .ts-navlink:hover { background: var(--grey-50); color: var(--ink); }
+[data-skin="toss"] .ts-navlink[data-active="true"] { background: var(--primary-weak); color: var(--primary); font-weight: 700; }
+[data-skin="toss"] .ts-navlink__badge { margin-left: auto; font-size: 11.5px; font-family: var(--ff-mono); font-weight: 700; background: var(--grey-100); color: var(--ink-mute); padding: 2px 8px; border-radius: 8px; }
+[data-skin="toss"] .ts-navlink[data-active="true"] .ts-navlink__badge { background: var(--primary); color: #fff; }
+[data-skin="toss"] .ts-sidebar__foot { padding: 16px; border-top: 1px solid var(--border); }
+[data-skin="toss"] .ts-userchip { display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px; border: 0; background: transparent; border-radius: 14px; cursor: pointer; font-family: var(--ff); }
+[data-skin="toss"] .ts-userchip:hover { background: var(--grey-50); }
+[data-skin="toss"] .ts-avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--primary); color: #fff; display: grid; place-items: center; font-size: 14px; font-weight: 800; flex: 0 0 auto; }
+
+/* ── Main ────────────────────────────────────────────────── */
+[data-skin="toss"] .ts-main { margin-left: var(--sidebar-w); min-height: 100vh; }
+@media (max-width: 900px) { [data-skin="toss"] .ts-main { margin-left: 0; padding-top: 56px; } }
+[data-skin="toss"] .ts-topbar { display: none; }
+@media (max-width: 900px) {
+  [data-skin="toss"] .ts-topbar { display: flex; align-items: center; gap: 12px; position: fixed; top: 0; left: 0; right: 0; height: 56px; padding: 0 16px; background: #fff; border-bottom: 1px solid var(--border); z-index: 40; }
+}
+[data-skin="toss"] .ts-mtoggle { width: 40px; height: 40px; border: 0; background: var(--grey-100); border-radius: 12px; display: grid; place-items: center; cursor: pointer; color: var(--ink); }
+[data-skin="toss"] .ts-main__inner { max-width: 1160px; margin: 0 auto; padding: 36px 32px 80px; }
+@media (max-width: 720px) { [data-skin="toss"] .ts-main__inner { padding: 20px 16px 64px; } }
+
+/* mobile drawer */
+[data-skin="toss"] .ts-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 50; }
+[data-skin="toss"] .ts-drawer { position: fixed; top: 0; left: 0; bottom: 0; width: 280px; background: #fff; z-index: 60; transform: translateX(-100%); transition: transform .22s cubic-bezier(.2,.8,.2,1); display: flex; flex-direction: column; }
+[data-skin="toss"] .ts-drawer[data-open="true"] { transform: translateX(0); }
+
+/* ── Page header ─────────────────────────────────────────── */
+[data-skin="toss"] .ts-ph { margin-bottom: 28px; }
+[data-skin="toss"] .ts-ph__eyebrow { font-size: 13px; font-weight: 700; color: var(--primary); margin-bottom: 8px; }
+[data-skin="toss"] .ts-ph__title { font-size: 28px; font-weight: 800; color: var(--ink); letter-spacing: -0.03em; }
+[data-skin="toss"] .ts-ph__sub { font-size: 15px; color: var(--ink-mute); margin-top: 8px; line-height: 1.6; max-width: 640px; }
+[data-skin="toss"] .ts-ph__row { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap; }
+
+/* ── Table ───────────────────────────────────────────────── */
+[data-skin="toss"] .ts-table { background: #fff; border-radius: 20px; overflow: hidden; box-shadow: var(--sh-sm); }
+[data-skin="toss"] .ts-thead, [data-skin="toss"] .ts-trow { display: grid; align-items: center; gap: 12px; padding: 14px 20px; }
+[data-skin="toss"] .ts-thead { background: var(--grey-50); font-size: 12px; font-weight: 700; color: var(--ink-mute); }
+[data-skin="toss"] .ts-trow { border-top: 1px solid var(--border); }
+[data-skin="toss"] .ts-trow:hover { background: var(--grey-50); }
+
+/* ── Empty ───────────────────────────────────────────────── */
+[data-skin="toss"] .ts-empty { text-align: center; padding: 56px 24px; }
+[data-skin="toss"] .ts-empty__icon { width: 64px; height: 64px; border-radius: 20px; background: var(--grey-100); color: var(--ink-mute); display: grid; place-items: center; margin: 0 auto 16px; }
+[data-skin="toss"] .ts-empty__title { font-size: 17px; font-weight: 700; color: var(--ink); }
+[data-skin="toss"] .ts-empty__desc { font-size: 14px; color: var(--ink-mute); margin-top: 6px; line-height: 1.6; }
+
+/* ── Modal ───────────────────────────────────────────────── */
+[data-skin="toss"] .ts-modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 200; display: grid; place-items: center; padding: 20px; animation: tsfade .15s ease; }
+@keyframes tsfade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes tsrise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+[data-skin="toss"] .ts-modal { background: #fff; border-radius: var(--radius-card); width: 100%; max-width: 520px; max-height: calc(100vh - 40px); display: flex; flex-direction: column; overflow: hidden; box-shadow: var(--sh-lg); animation: tsrise .2s cubic-bezier(.2,.8,.2,1); }
+[data-skin="toss"] .ts-modal__head { padding: 24px 24px 0; }
+[data-skin="toss"] .ts-modal__title { font-size: 20px; font-weight: 800; color: var(--ink); }
+[data-skin="toss"] .ts-modal__sub { font-size: 14px; color: var(--ink-mute); margin-top: 6px; line-height: 1.55; }
+[data-skin="toss"] .ts-modal__body { flex: 1; overflow-y: auto; padding: 20px 24px; }
+[data-skin="toss"] .ts-modal__foot { padding: 16px 24px; display: flex; gap: 10px; border-top: 1px solid var(--border); }
+[data-skin="toss"] .ts-modal__x { position: absolute; }
+
+/* ── Toast ───────────────────────────────────────────────── */
+[data-skin="toss"] .ts-toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); z-index: 300; background: var(--grey-900); color: #fff; padding: 14px 20px; border-radius: 16px; font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 10px; box-shadow: var(--sh-lg); animation: tsrise .2s ease; }
+
+/* mobile phone frame (참가신청 미리보기) */
+[data-skin="toss"] .ts-phone { max-width: 440px; margin: 0 auto; }
+
+/* ============================================================
+   PHASE 1 — 토큰 리매핑 (운영 admin.css/globals 토큰 → Toss 값)
+   박제 source: Dev/design/BDR-current/_handoff-admin-toss-P0 (라이트 전용)
+   박제 target: src/styles/toss-admin.css ([data-skin="toss"] 스코프)
+
+   이유 (왜):
+   - 운영 admin.css / 자식 페이지(.admin-stat-pill / .admin-table / .aside__link /
+     .pa1-hero-stats 등)는 전부 globals.css 의 베이스 토큰
+     (--bg-card / --ink / --accent / --bg-alt / --border / --ok / --warn / --danger
+      / --cafe-blue* …) 또는 admin.css 가 그 위에 얹은 --color-* 별칭을 소비한다.
+   - 이 베이스 토큰만 [data-skin="toss"] 스코프에서 Toss 값으로 덮으면, 마크업을
+     한 글자도 바꾸지 않고 셸/페이지가 Toss 색을 흡수한다 (--color-* 별칭은
+     admin.css 에서 var(--bg-card) 식으로 베이스를 참조하므로 자동 전파).
+
+   어떻게 (라이트 고정):
+   - [data-skin="toss"] 와 [data-theme="dark"] [data-skin="toss"] 두 셀렉터에
+     동일한 라이트 값을 선언한다. 후자는 셀렉터 명세도(0,2,0)가 전자(0,1,0)보다
+     높아, html[data-theme="dark"] 가 걸려 있어도 Toss 영역은 항상 라이트로 고정된다.
+     (핸드오프 "라이트 전용" 결정 — Toss 관리자 영역에 다크 누수 0)
+   ============================================================ */
+[data-skin="toss"],
+[data-theme="dark"] [data-skin="toss"] {
+  /* ── 베이스 surface (globals --bg* 계열) — Toss grey scale ── */
+  --bg:          #F2F4F6;   /* page bg */
+  --bg-elev:     #FFFFFF;   /* 사이드바/패널 표면 */
+  --bg-card:     #FFFFFF;   /* 카드 */
+  --bg-alt:      #F9FAFB;   /* hover/스트라이프 */
+  --bg-head:     #F2F4F6;   /* 테이블 헤더 */
+
+  /* ── Ink (글자 계열) ── */
+  --ink:         #191F28;
+  --ink-soft:    #4E5968;
+  --ink-mute:    #8B95A1;
+  --ink-dim:     #B0B8C1;
+  --ink-on-brand:#FFFFFF;
+
+  /* ── Borders ── */
+  --border:        #E5E8EB;
+  --border-strong: #D1D6DB;
+  --border-hard:   #B0B8C1;
+
+  /* ── Brand chrome — Toss Blue (사이드바 active / 링크 / primary) ── */
+  --cafe-blue:      #3182F6;
+  --cafe-blue-deep: #1B64DA;
+  --cafe-blue-soft: #E8F1FE;
+  --cafe-blue-hair: #C9E0FD;
+  --link:           #3182F6;
+
+  /* ── Accent — Toss 는 brand=Blue 사용 (BDR Red → Toss Blue 로 통일) ──
+     admin.css 가 --color-primary/--color-accent 를 var(--accent) 로 별칭하므로
+     accent 를 Toss Blue 로 두면 admin 영역 강조색이 일괄 Toss Blue 가 된다. */
+  --accent:      #3182F6;
+  --accent-soft: #E8F1FE;
+
+  /* ── Semantic (성공/경고/위험) — Toss 톤 ── */
+  --ok:     #15B86A;
+  --ok-soft:#E5F7EE;
+  --warn:   #FF9500;
+  --warn-soft:#FFF3E0;
+  --danger: #F04452;
+
+  /* ── --color-* 별칭 보강 ──
+     admin.css :root 에서 별칭되지만, 일부 페이지가 admin.css 미커버 토큰
+     (--color-elevated / --color-primary-soft / --color-accent-hover /
+      --color-text-dim)을 직접 var() 로 소비 → Toss 값으로 명시 매핑. */
+  --color-elevated:      #F9FAFB;
+  --color-primary:       #3182F6;
+  --color-primary-soft:  #E8F1FE;
+  --color-accent:        #3182F6;
+  --color-accent-hover:  #1B64DA;
+  --color-accent-light:  #E8F1FE;
+  --color-card:          #FFFFFF;
+  --color-surface:       #FFFFFF;
+  --color-border:        #E5E8EB;
+  --color-border-subtle: #EEF1F4;
+  --color-text-primary:  #191F28;
+  --color-text-secondary:#4E5968;
+  --color-text-muted:    #8B95A1;
+  --color-text-dim:      #B0B8C1;
+  --color-success:       #15B86A;
+  --color-warning:       #FF9500;
+  --color-error:         #F04452;
+
+  /* ── Shadow — Toss soft elevation (다크 brutalist offset 제거) ── */
+  --sh-xs: 0 1px 2px rgba(0,0,0,0.05);
+  --sh-sm: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  --sh-md: 0 4px 16px rgba(0,0,0,0.08);
+  --sh-lg: 0 12px 40px rgba(0,0,0,0.14);
+}
+
+/* ============================================================
+   PHASE 1 — 클래스 오버라이드 (토큰만으로 안 잡히는 radius/구조)
+   토큰 리매핑으로 색은 해결되나, admin.css 의 하드코딩 radius(4px) /
+   다크 전용 규칙([data-theme="dark"] .admin-aside__link 등) 은 Toss 라운딩으로
+   덮어야 한다. 전부 [data-skin="toss"] 스코프 → 누수 0.
+   ============================================================ */
+
+/* 사이드바 링크 — Toss 라운딩(14px) + active=primary-weak.
+   admin.css 의 [data-theme="dark"] .admin-aside__link { border-radius:0 }
+   회귀 방지를 위해 명세도 높은 셀렉터로 라운딩 복원. */
+[data-skin="toss"] .aside__link,
+[data-skin="toss"] .admin-aside__link,
+[data-theme="dark"] [data-skin="toss"] .admin-aside__link {
+  border-radius: 14px;
+}
+[data-theme="dark"] [data-skin="toss"] .admin-aside__link[data-active="true"] {
+  background: var(--accent-soft);
+  color: var(--accent);
+  box-shadow: none;
+}
+/* 사이드바/모바일 그룹 타이틀 — Toss dim 톤 */
+[data-skin="toss"] .aside__title,
+[data-skin="toss"] .admin-aside__title { color: var(--ink-dim); }
+
+/* admin-stat / hero stat 카드 — Toss 카드 라운딩(다크 hard offset 제거) */
+[data-skin="toss"] .admin-stat,
+[data-theme="dark"] [data-skin="toss"] .admin-stat {
+  border-radius: 16px;
+  box-shadow: var(--sh-sm);
+}
+[data-skin="toss"] .pa1-hero-stats { gap: 10px; }
+[data-skin="toss"] .pa1-hero-stat { border-radius: 16px; }
+
+/* admin-stat-pill (상태 뱃지) — Toss 알약 라운딩 */
+[data-skin="toss"] .admin-stat-pill { border-radius: 8px; }
+
+/* 상태 탭 — Toss 강조 */
+[data-skin="toss"] .admin-status-tab[data-active="true"] { color: var(--accent); }
+[data-skin="toss"] .admin-status-tab__count[data-overflow="true"] { color: var(--accent); }
+
+/* 상세 모달 / 모바일 드로어 — Toss 라운딩 + soft shadow (다크 hard 제거) */
+[data-skin="toss"] .admin-detail-modal,
+[data-theme="dark"] [data-skin="toss"] .admin-detail-modal {
+  border-radius: 20px;
+  box-shadow: var(--sh-lg);
+}
+[data-theme="dark"] [data-skin="toss"] .admin-mobile-drawer {
+  border-right-width: 1px;
+  border-right-color: var(--border);
+}
+
+/* admin-table — Toss 라운딩(헤더/행 톤은 토큰이 처리) */
+[data-skin="toss"] .admin-table-wrap { border-radius: 14px; }

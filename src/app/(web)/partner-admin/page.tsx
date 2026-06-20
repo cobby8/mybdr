@@ -2,12 +2,18 @@
 
 import useSWR from "swr";
 import Link from "next/link";
+// Toss 키트 — KPI 카드(StatCard) · 아이콘(Icon)
+import { Icon, StatCard } from "@/components/admin-toss";
 
 /**
  * 파트너 관리 대시보드
  * - 파트너사 정보 요약
  * - 캠페인 통계 (노출/클릭/CTR)
  * - 빠른 액션 링크
+ *
+ * 2026-06-21 Phase 3 PR-A — Toss 재스킨(비주얼만).
+ *   루트에 data-skin="toss". navy hero → 로컬 H 페이지헤더 + StatCard KPI grid.
+ *   상태현황=.ts-card + .ts-badge. 아이콘 Material→lucide. SWR 2개·실데이터 = 변경 0.
  */
 
 // 통계 API 응답 타입
@@ -35,17 +41,29 @@ interface PartnerInfo {
 // SWR fetcher
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
+// 로컬 페이지 헤더(H) — 키트 수정 0. Toss 콘솔 상단 타이틀 룩(작은 라벨 + 큰 제목).
+function H({ title, sub }: { title: string; sub?: string }) {
+  return (
+    <div style={{ margin: "2px 0 4px" }}>
+      <h2 style={{ fontSize: 22, fontWeight: 800, color: "var(--ink)" }}>{title}</h2>
+      {sub && (
+        <p style={{ fontSize: 13.5, color: "var(--ink-mute)", marginTop: 4 }}>{sub}</p>
+      )}
+    </div>
+  );
+}
+
 export default function PartnerDashboardPage() {
   // 파트너 정보 + 통계를 병렬로 가져옴
   const { data: partnerData } = useSWR<PartnerInfo>("/api/web/partner/me", fetcher);
   const { data: statsData } = useSWR<PartnerStats>("/api/web/partner/stats", fetcher);
 
-  // hero stat 데이터 — 실 캠페인 통계 (노출/클릭/CTR + 총 캠페인). icon/color 는 navy hero 에서 불필요해 제거.
+  // KPI stat 데이터 — 실 캠페인 통계 (노출/클릭/CTR + 총 캠페인). lucide 아이콘명(kebab).
   const statCards = [
-    { label: "총 캠페인", value: statsData?.total_campaigns ?? 0 },
-    { label: "총 노출", value: (statsData?.total_impressions ?? 0).toLocaleString() },
-    { label: "총 클릭", value: (statsData?.total_clicks ?? 0).toLocaleString() },
-    { label: "평균 CTR", value: `${statsData?.ctr ?? "0.00"}%` },
+    { icon: "megaphone", label: "총 캠페인", value: statsData?.total_campaigns ?? 0 },
+    { icon: "eye", label: "총 노출", value: (statsData?.total_impressions ?? 0).toLocaleString() },
+    { icon: "mouse-pointer-click", label: "총 클릭", value: (statsData?.total_clicks ?? 0).toLocaleString() },
+    { icon: "trending-up", label: "평균 CTR", value: `${statsData?.ctr ?? "0.00"}%` },
   ];
 
   // 캠페인 상태 레이블 매핑
@@ -59,115 +77,52 @@ export default function PartnerDashboardPage() {
   };
 
   return (
-    <div className="space-y-6">
+    // data-skin="toss" — 페이지 루트 opt-in (셸과 별개로 각 페이지 루트에도 필요)
+    <div data-skin="toss" className="space-y-6">
       {/* ──────────────────────────────────────────────────────────
-          VP1 박제 — Court Operator hero (navy gradient)
-          시안 .cv-partner-hero(navy #16213E→#1B3C87) 셸을 운영 토큰으로 박제.
-          mock(내코트·예약·매출·평점) 대신 실 캠페인 통계를 hero stat 으로 노출.
-          Court Operator badge = navy+silver (Site Operator dark+gold 와 분리).
+          Phase 3 PR-A — navy hero 폐기 → Toss 페이지헤더 + StatCard KPI grid.
+          mock(내코트·예약·매출·평점) 대신 실 캠페인 통계를 StatCard 로 노출(데이터 불변).
           ────────────────────────────────────────────────────────── */}
-      <header
-        className="flex items-start justify-between gap-5 flex-wrap rounded-lg p-6"
-        style={{
-          // 시안 navy gradient 박제 (Court Operator 측 색)
-          background: "linear-gradient(120deg, #16213E 0%, #1B3C87 70%, #24489A 100%)",
-          color: "#fff",
-        }}
-      >
-        <div>
-          {/* Court Operator badge — navy+silver (시안 .court-operator-badge 박제) */}
-          <span
-            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-[10.5px] font-extrabold uppercase tracking-wider"
-            style={{
-              background: "linear-gradient(135deg, #1B3C87 0%, #2A4D9E 100%)",
-              border: "1px solid #3A5BA8",
-              color: "#fff",
-            }}
-          >
-            {/* silver 아이콘 (#C0CCDB) — badge 측 구분 색 */}
-            <span className="material-symbols-outlined text-[13px]" style={{ color: "#C0CCDB" }}>
-              stadium
-            </span>
-            Court Operator
-          </span>
-          <h2 className="text-2xl font-extrabold mt-2.5 mb-1" style={{ color: "#fff" }}>
-            {partnerData?.name ?? "파트너"} 대시보드
-          </h2>
-          <p className="text-xs" style={{ color: "rgba(255,255,255,.72)" }}>
-            PARTNER · 광고 캠페인 현황
-          </p>
-        </div>
+      <H title={`${partnerData?.name ?? "파트너"} 대시보드`} sub="PARTNER · 광고 캠페인 현황" />
 
-        {/* hero stat — 실 캠페인 통계(노출/클릭/CTR + 총 캠페인). mock 미사용 */}
-        <div className="flex gap-6 flex-wrap">
-          {statCards.map((card) => (
-            <div key={card.label}>
-              <div className="text-2xl font-extrabold" style={{ color: "#fff" }}>
-                {card.value}
-              </div>
-              <div
-                className="text-[10px] font-bold uppercase tracking-wide mt-0.5"
-                style={{ color: "rgba(255,255,255,.6)" }}
-              >
-                {card.label}
-              </div>
-            </div>
-          ))}
-        </div>
-      </header>
+      {/* KPI grid — 실 캠페인 통계(노출/클릭/CTR + 총 캠페인). StatCard 키트 재사용 */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        {statCards.map((card) => (
+          <StatCard key={card.label} icon={card.icon} label={card.label} value={card.value} />
+        ))}
+      </div>
 
-      {/* 상태별 캠페인 분포 */}
+      {/* 상태별 캠페인 분포 — .ts-card + .ts-badge */}
       {statsData?.status_counts && Object.keys(statsData.status_counts).length > 0 && (
-        <div
-          className="rounded-lg border p-5"
-          style={{
-            backgroundColor: "var(--color-card)",
-            borderColor: "var(--color-border)",
-          }}
-        >
-          <h3 className="text-sm font-bold mb-3" style={{ color: "var(--color-text-primary)" }}>
+        <div className="ts-card">
+          <h3 className="text-sm font-bold mb-3" style={{ color: "var(--ink)" }}>
             캠페인 상태 현황
           </h3>
-          <div className="flex flex-wrap gap-3">
+          <div className="flex flex-wrap gap-2">
             {Object.entries(statsData.status_counts).map(([status, count]) => (
-              <div
-                key={status}
-                className="flex items-center gap-2 px-3 py-2 rounded-lg"
-                style={{ backgroundColor: "var(--color-surface)" }}
-              >
-                <span className="text-xs font-medium" style={{ color: "var(--color-text-secondary)" }}>
-                  {statusLabels[status] ?? status}
-                </span>
-                <span className="text-sm font-bold" style={{ color: "var(--color-text-primary)" }}>
-                  {count}
-                </span>
-              </div>
+              <span key={status} className="ts-badge ts-badge--grey">
+                {statusLabels[status] ?? status}
+                <span style={{ fontWeight: 800, color: "var(--ink)" }}>{count}</span>
+              </span>
             ))}
           </div>
         </div>
       )}
 
-      {/* 빠른 액션 */}
+      {/* 빠른 액션 — .ts-card(flat) 링크 2개 */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <Link
           href="/partner-admin/campaigns"
-          className="flex items-center gap-3 rounded-lg border p-4 transition-all hover:shadow-md active:scale-[0.98]"
-          style={{
-            backgroundColor: "var(--color-card)",
-            borderColor: "var(--color-border)",
-          }}
+          className="ts-card ts-card--flat flex items-center gap-3 transition-all hover:shadow-md active:scale-[0.98]"
+          style={{ padding: 16 }}
         >
-          <span
-            className="material-symbols-outlined text-2xl"
-            style={{ color: "var(--color-primary)" }}
-          >
-            add_circle
-          </span>
+          {/* add_circle → lucide plus */}
+          <Icon name="plus" size={26} color="var(--primary)" />
           <div>
-            <p className="text-sm font-bold" style={{ color: "var(--color-text-primary)" }}>
+            <p className="text-sm font-bold" style={{ color: "var(--ink)" }}>
               새 캠페인 만들기
             </p>
-            <p className="text-xs" style={{ color: "var(--color-text-muted)" }}>
+            <p className="text-xs" style={{ color: "var(--ink-mute)" }}>
               광고를 등록하고 심사를 요청하세요
             </p>
           </div>
@@ -175,23 +130,16 @@ export default function PartnerDashboardPage() {
 
         <Link
           href="/partner-admin/venue"
-          className="flex items-center gap-3 rounded-lg border p-4 transition-all hover:shadow-md active:scale-[0.98]"
-          style={{
-            backgroundColor: "var(--color-card)",
-            borderColor: "var(--color-border)",
-          }}
+          className="ts-card ts-card--flat flex items-center gap-3 transition-all hover:shadow-md active:scale-[0.98]"
+          style={{ padding: 16 }}
         >
-          <span
-            className="material-symbols-outlined text-2xl"
-            style={{ color: "var(--color-info)" }}
-          >
-            stadium
-          </span>
+          {/* stadium → lucide building */}
+          <Icon name="building" size={26} color="var(--primary)" />
           <div>
-            <p className="text-sm font-bold" style={{ color: "var(--color-text-primary)" }}>
+            <p className="text-sm font-bold" style={{ color: "var(--ink)" }}>
               대관 정보 관리
             </p>
-            <p className="text-xs" style={{ color: "var(--color-text-muted)" }}>
+            <p className="text-xs" style={{ color: "var(--ink-mute)" }}>
               체육관 대관 가격, 운영시간을 설정하세요
             </p>
           </div>
@@ -199,27 +147,17 @@ export default function PartnerDashboardPage() {
       </div>
 
       {/* ──────────────────────────────────────────────────────────
-          cross-domain note (시안 .bl-refund-note 박제) — 정보성 텍스트만(mock 0).
-          코트 예약 결제(court_bookings)가 Phase 6.2 토스 결제와 동일 데이터임을 안내.
+          cross-domain note — 정보성 텍스트만(mock 0). .ts-card(flat).
+          코트 예약 결제(court_bookings)가 토스 결제와 동일 데이터임을 안내.
           ────────────────────────────────────────────────────────── */}
-      <div
-        className="flex items-start gap-3 rounded-lg border p-4"
-        style={{
-          backgroundColor: "var(--color-surface)",
-          borderColor: "var(--color-border)",
-        }}
-      >
-        <span
-          className="material-symbols-outlined text-xl"
-          style={{ color: "var(--color-info)" }}
-        >
-          hub
-        </span>
+      <div className="ts-card ts-card--flat flex items-start gap-3" style={{ padding: 16 }}>
+        {/* hub → lucide share-2 */}
+        <Icon name="share-2" size={20} color="var(--primary)" />
         <div>
-          <p className="text-sm font-bold" style={{ color: "var(--color-text-primary)" }}>
+          <p className="text-sm font-bold" style={{ color: "var(--ink)" }}>
             예약·매출은 결제 시스템과 연동됩니다
           </p>
-          <p className="text-xs mt-0.5" style={{ color: "var(--color-text-muted)" }}>
+          <p className="text-xs mt-0.5" style={{ color: "var(--ink-mute)" }}>
             코트 예약 결제는 토스페이먼츠로 처리되며, 정산 내역은 매월 등록 계좌로 지급됩니다.
           </p>
         </div>

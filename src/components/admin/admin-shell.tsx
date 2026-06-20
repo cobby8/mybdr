@@ -81,8 +81,11 @@ export function AdminShell({
       {!hidden && <AdminMobileNav roles={roles} user={user} />}
 
       <main className="admin-main">
-        {/* 상단 바 — 좌(검색/breadcrumb 등) / 우(사용자/액션) 슬롯 */}
-        <div className="admin-topbar">
+        {/* 상단 바 — 좌(검색/breadcrumb 등) / 우(사용자/액션) 슬롯
+            Phase 1 — 셸 크롬: .admin-topbar 에만 data-skin="toss" opt-in.
+            ⚠ 공유 .admin-shell / .admin-main / .admin-main__inner 엔 절대 금지
+              (Phase 2 미리스킨 자식 페이지 누수 방지). */}
+        <div className="admin-topbar" data-skin="toss">
           <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
             {topbarLeft}
           </div>

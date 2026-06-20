@@ -26,9 +26,12 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 import {
   filterStructureByRoles,
+  toLucide,
   type AdminRole,
   type AdminNavItem,
 } from "./sidebar";
+// Phase 1 (Toss 전환) — Material Symbols → lucide-react (kit Icon, kebab name)
+import { Icon } from "@/components/admin-toss";
 // 2026-05-02 (Admin-Web 시각 통합 v2 Phase 3) — 모바일 admin 드로어에서도 테마 토글 가능
 import { ThemeSwitch } from "@/components/bdr-v2/theme-switch";
 // 2026-05-11 admin 마이페이지 Phase 1 — 드로어 상단 사용자 카드 + 로그아웃 통합
@@ -70,7 +73,8 @@ function renderMobileItem(
         data-active={isActive ? "true" : "false"}
         data-child={isChild ? "true" : "false"}
       >
-        <span className="material-symbols-outlined">{item.icon}</span>
+        {/* Phase 1 — Material Symbols → lucide(<Icon>). 메뉴 정의는 Material 명 유지, 렌더 시 변환 */}
+        <Icon name={toLucide(item.icon)} size={18} />
         <span>{item.label}</span>
       </Link>
       {item.children && item.children.length > 0 && (
@@ -124,31 +128,36 @@ export function AdminMobileNav({ roles, user }: Props) {
 
   return (
     <>
-      {/* 햄버거 버튼 — 시안 .admin-mobile-toggle (admin.css 모바일 fixed top-left) */}
+      {/* 햄버거 버튼 — 시안 .admin-mobile-toggle (admin.css 모바일 fixed top-left)
+          Phase 1 — 셸 크롬: data-skin="toss" opt-in */}
       <button
         type="button"
         onClick={() => setOpen(true)}
         aria-label="관리자 메뉴 열기"
         className="admin-mobile-toggle"
+        data-skin="toss"
       >
-        <span className="material-symbols-outlined">menu</span>
+        <Icon name="menu" size={22} />
       </button>
 
-      {/* 오버레이 — 시안 .admin-mobile-overlay [data-open] */}
+      {/* 오버레이 — 시안 .admin-mobile-overlay [data-open] (Phase 1: data-skin="toss") */}
       <div
         aria-hidden="true"
         onClick={() => setOpen(false)}
         className="admin-mobile-overlay"
         data-open={open ? "true" : "false"}
+        data-skin="toss"
       />
 
-      {/* 드로어 패널 — 시안 .admin-mobile-drawer [data-open] (우측 슬라이드) */}
+      {/* 드로어 패널 — 시안 .admin-mobile-drawer [data-open] (우측 슬라이드)
+          Phase 1 — 셸 크롬: data-skin="toss" opt-in */}
       <aside
         role="dialog"
         aria-modal="true"
         aria-label="관리자 메뉴"
         className="admin-mobile-drawer"
         data-open={open ? "true" : "false"}
+        data-skin="toss"
       >
         {/* 상단: 사용자 카드 + 닫기 — 시안 .admin-mobile-drawer__head */}
         <div className="admin-mobile-drawer__head">
@@ -184,7 +193,7 @@ export function AdminMobileNav({ roles, user }: Props) {
             aria-label="메뉴 닫기"
             className="admin-detail-modal__close"
           >
-            <span className="material-symbols-outlined">close</span>
+            <Icon name="x" size={20} />
           </button>
         </div>
 
@@ -221,7 +230,7 @@ export function AdminMobileNav({ roles, user }: Props) {
               onClick={() => setOpen(false)}
               className="admin-aside__foot-link"
             >
-              <span className="material-symbols-outlined">account_circle</span>
+              <Icon name="circle-user" size={16} />
               마이페이지
             </Link>
           )}
@@ -230,7 +239,7 @@ export function AdminMobileNav({ roles, user }: Props) {
             onClick={() => setOpen(false)}
             className="admin-aside__foot-link"
           >
-            <span className="material-symbols-outlined">arrow_back</span>
+            <Icon name="arrow-left" size={16} />
             사이트로 돌아가기
           </Link>
           {/* 로그아웃 (drawer-card variant — 시안 박제 후속에서 마이그레이션) */}

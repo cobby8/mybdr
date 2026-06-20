@@ -97,7 +97,8 @@ export default async function AdminGamesPage({
   const totalPages = Math.ceil(totalCount / pageSize);
 
   return (
-    <div>
+    // Phase 1 — 페이지 루트에 data-skin="toss" opt-in
+    <div data-skin="toss">
       {/* 2026-05-15 Admin-4-B 박제 — eyebrow + breadcrumbs 추가 (시안 AdminGames.jsx v2.9) */}
       <AdminPageHeader
         eyebrow="ADMIN · 콘텐츠"

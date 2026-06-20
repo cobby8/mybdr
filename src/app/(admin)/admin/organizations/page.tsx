@@ -30,6 +30,8 @@ import {
   AdminDetailModal,
   ModalInfoSection,
 } from "@/components/admin/admin-detail-modal";
+// Phase 1 (Toss 전환) — Material Symbols → lucide(<Icon>)
+import { Icon } from "@/components/admin-toss";
 
 // 단체 타입 정의
 interface Organization {
@@ -148,7 +150,8 @@ export default function AdminOrganizationsPage() {
   }
 
   return (
-    <div>
+    // Phase 1 — 페이지 루트에 data-skin="toss" opt-in
+    <div data-skin="toss">
       {/* 시안 v2.14 — eyebrow + breadcrumbs (Admin-5-C 박제) */}
       <AdminPageHeader
         eyebrow="ADMIN · 외부 관리"
@@ -364,7 +367,7 @@ export default function AdminOrganizationsPage() {
                     className="btn btn--sm disabled:opacity-50"
                     style={{ background: "var(--color-error)", color: "#fff", borderColor: "var(--color-error)" }}
                   >
-                    <span className="material-symbols-outlined text-base align-middle">close</span>
+                    <Icon name="x" size={16} />
                     거절
                   </button>
                   <button
@@ -373,7 +376,7 @@ export default function AdminOrganizationsPage() {
                     className="btn btn--sm disabled:opacity-50"
                     style={{ background: "var(--color-success)", color: "#fff", borderColor: "var(--color-success)" }}
                   >
-                    <span className="material-symbols-outlined text-base align-middle">check</span>
+                    <Icon name="check" size={16} />
                     승인
                   </button>
                 </>
@@ -393,7 +396,7 @@ export default function AdminOrganizationsPage() {
                     className="btn btn--sm disabled:opacity-50"
                     style={{ background: "var(--color-error)", color: "#fff", borderColor: "var(--color-error)" }}
                   >
-                    <span className="material-symbols-outlined text-base align-middle">block</span>
+                    <Icon name="ban" size={16} />
                     거절 확정
                   </button>
                 </>
@@ -405,7 +408,7 @@ export default function AdminOrganizationsPage() {
                   title="단체 해산은 단체 소유자(owner)만 단체 설정에서 처리할 수 있습니다."
                   className="btn btn--sm opacity-50 cursor-not-allowed"
                 >
-                  <span className="material-symbols-outlined text-base align-middle">archive</span>
+                  <Icon name="archive" size={16} />
                   해산 (소유자 전용)
                 </button>
               )}
@@ -416,7 +419,7 @@ export default function AdminOrganizationsPage() {
                   title="복구는 단체 소유자(owner)만 처리할 수 있습니다."
                   className="btn btn--sm opacity-50 cursor-not-allowed"
                 >
-                  <span className="material-symbols-outlined text-base align-middle">restart_alt</span>
+                  <Icon name="rotate-ccw" size={16} />
                   복구 (소유자 전용)
                 </button>
               )}

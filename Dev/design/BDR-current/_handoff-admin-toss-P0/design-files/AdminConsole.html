@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>BDR 관리자 콘솔 — Toss (Phase 1)</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700;800&display=swap" />
+<link rel="stylesheet" href="toss.css" />
+</head>
+<body>
+<div id="root"></div>
+
+<!-- Tweaks -->
+<div id="tweaks" class="tweaks">
+  <div class="tweaks__title">TWEAKS <button id="tweaks-close" style="background:transparent;border:0;color:inherit;cursor:pointer;font-size:16px;line-height:1">×</button></div>
+  <div class="tweaks__lbl">강조색 (Primary)</div>
+  <div class="tweaks__row" data-group="primary">
+    <button class="tweaks__btn" data-val="#3182F6">Toss Blue</button>
+    <button class="tweaks__btn" data-val="#2AC1BC">Teal</button>
+    <button class="tweaks__btn" data-val="#6D5AE6">Violet</button>
+  </div>
+  <div class="tweaks__lbl">카드 라운딩</div>
+  <div class="tweaks__row" data-group="radius">
+    <button class="tweaks__btn" data-val="24px">24px</button>
+    <button class="tweaks__btn" data-val="16px">16px</button>
+  </div>
+</div>
+<script>
+  const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{ "primary": "#3182F6", "radius": "16px" }/*EDITMODE-END*/;
+</script>
+
+<script src="https://unpkg.com/lucide@latest"></script>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script src="toss-data.jsx"></script>
+<script src="admin-data.jsx"></script>
+<script src="admin-data2.jsx"></script>
+<script src="admin-data3.jsx"></script>
+<script type="text/babel" src="toss-kit.jsx"></script>
+<script type="text/babel" src="toss-admin.jsx"></script>
+<script type="text/babel" src="CategoryMaster.jsx"></script>
+<script type="text/babel" src="admin-screens.jsx"></script>
+<script type="text/babel" src="admin-screens2.jsx"></script>
+<script type="text/babel" src="admin-screens3.jsx"></script>
+
+<script type="text/babel">
+const { useState, useEffect } = React;
+
+function Stub({ title, phase }) {
+  return (
+    <div>
+      <div className="ts-ph"><div className="ts-ph__eyebrow">{phase}</div><h1 className="ts-ph__title">{title}</h1></div>
+      <window.Empty icon="construction" title={`${title} — 준비중`} desc={`${phase}에서 Toss 디자인시스템으로 재스킨됩니다. 기존 기능은 그대로 유지됩니다.`} />
+    </div>);
+}
+
+const NAV = [
+  { group: '운영', items: [
+    { id: 'dashboard', icon: 'layout-dashboard', label: '대시보드', ready: true },
+    { id: 'users', icon: 'users', label: '사용자', ready: true },
+    { id: 'tournaments', icon: 'trophy', label: '대회', ready: true },
+    { id: 'games', icon: 'volleyball', label: '경기', ready: true },
+    { id: 'community', icon: 'message-square', label: '커뮤니티', ready: true },
+    { id: 'orgs', icon: 'building-2', label: '단체', ready: true },
+    { id: 'teams', icon: 'shield', label: '팀', ready: true },
+    { id: 'courts', icon: 'map-pin', label: '코트', ready: true },
+  ]},
+  { group: '비즈니스', items: [
+    { id: 'payments', icon: 'credit-card', label: '결제', ready: true },
+    { id: 'plans', icon: 'gem', label: '요금제', ready: true },
+    { id: 'campaigns', icon: 'megaphone', label: '캠페인', ready: true },
+    { id: 'partners', icon: 'handshake', label: '파트너', ready: true },
+    { id: 'analytics', icon: 'bar-chart-3', label: '분석', ready: true },
+  ]},
+  { group: '시스템', items: [
+    { id: 'reports', icon: 'flag', label: '신고', ready: true },
+    { id: 'notifications', icon: 'bell', label: '알림', ready: true },
+    { id: 'suggestions', icon: 'lightbulb', label: '제안', ready: true },
+    { id: 'logs', icon: 'scroll-text', label: '로그', ready: true },
+    { id: 'settings', icon: 'settings', label: '설정', ready: true },
+  ]},
+];
+
+function App() {
+  const [route, setRoute] = useState('dashboard');
+  const [mOpen, setMOpen] = useState(false);
+  const [master, setMaster] = useState(() => window.TOSS.CATEGORY_MASTER.map(c => ({ ...c, divisions: [...c.divisions], ages: [...c.ages] })));
+  const [toastMsg, setToastMsg] = useState(null);
+  const toast = (m) => { setToastMsg(m); clearTimeout(window.__t); window.__t = setTimeout(() => setToastMsg(null), 2600); };
+  const go = (r) => { setRoute(r); setMOpen(false); };
+
+  let screen;
+  if (route === 'users') screen = <window.AdminUsers />;
+  else if (route === 'tournaments') screen = <window.AdminTournaments go={go} />;
+  else if (route === 'games') screen = <window.AdminGames />;
+  else if (route === 'community') screen = <window.AdminCommunity />;
+  else if (route === 'orgs') screen = <window.AdminOrgs />;
+  else if (route === 'dashboard') screen = <window.AdminDashboard go={go} />;
+  else if (route === 'payments') screen = <window.AdminPayments />;
+  else if (route === 'courts') screen = <window.AdminCourts />;
+  else if (route === 'teams') screen = <window.AdminTeams />;
+  else if (route === 'settings') screen = <window.AdminSettings master={master} setMaster={setMaster} toast={toast} />;
+  else if (route === 'analytics') screen = <window.AdminAnalytics />;
+  else if (route === 'reports') screen = <window.AdminReports />;
+  else if (route === 'notifications') screen = <window.AdminNotifications />;
+  else if (route === 'campaigns') screen = <window.AdminCampaigns />;
+  else if (route === 'partners') screen = <window.AdminPartners />;
+  else if (route === 'suggestions') screen = <window.AdminSuggestions />;
+  else if (route === 'plans') screen = <window.AdminPlans />;
+  else if (route === 'logs') screen = <window.AdminLogs />;
+  else { const it = NAV.flatMap(g => g.items).find(i => i.id === route); screen = <Stub title={it?.label || ''} phase={it?.phase || 'Phase 2'} />; }
+
+  const NavList = () => NAV.map((g) =>
+    <React.Fragment key={g.group}>
+      <div className="ts-sidebar__label">{g.group}</div>
+      {g.items.map((it) =>
+        <button key={it.id} type="button" className="ts-navlink" data-active={route === it.id ? 'true' : 'false'} onClick={() => go(it.id)} style={it.ready ? undefined : { opacity: .55 }}>
+          <window.Icon name={it.icon} size={19} /><span>{it.label}</span>
+          {!it.ready && <span className="ts-navlink__badge">P2</span>}
+        </button>)}
+    </React.Fragment>);
+
+  useEffect(() => {
+    const panel = document.getElementById('tweaks'), closeBtn = document.getElementById('tweaks-close');
+    const handler = (e) => {
+      if (e.data?.type === '__activate_edit_mode') panel.setAttribute('data-open', 'true');
+      if (e.data?.type === '__deactivate_edit_mode') panel.setAttribute('data-open', 'false');
+    };
+    window.addEventListener('message', handler);
+    window.parent.postMessage({ type: '__edit_mode_available' }, '*');
+    closeBtn.onclick = () => panel.setAttribute('data-open', 'false');
+    const apply = (gp, v) => {
+      if (gp === 'primary') { document.documentElement.style.setProperty('--primary', v);
+        const mix = { '#3182F6': '#1B64DA', '#2AC1BC': '#1AA39E', '#6D5AE6': '#5544C9' };
+        document.documentElement.style.setProperty('--primary-hover', mix[v] || v);
+        document.documentElement.style.setProperty('--primary-weak', v + '18'); }
+      if (gp === 'radius') document.documentElement.style.setProperty('--radius-card', v);
+    };
+    const sync = { primary: TWEAK_DEFAULTS.primary, radius: TWEAK_DEFAULTS.radius };
+    panel.querySelectorAll('[data-group]').forEach((row) => {
+      const gp = row.getAttribute('data-group');
+      row.querySelectorAll('.tweaks__btn').forEach((btn) => {
+        btn.setAttribute('data-active', btn.getAttribute('data-val') === sync[gp] ? 'true' : 'false');
+        btn.onclick = () => {
+          row.querySelectorAll('.tweaks__btn').forEach((b) => b.setAttribute('data-active', 'false'));
+          btn.setAttribute('data-active', 'true');
+          const v = btn.getAttribute('data-val'); apply(gp, v);
+          window.parent.postMessage({ type: '__edit_mode_set_keys', edits: { [gp]: v } }, '*');
+        };
+      });
+    });
+    apply('primary', sync.primary); apply('radius', sync.radius);
+    return () => window.removeEventListener('message', handler);
+  }, []);
+
+  return (
+    <div className="ts-shell">
+      <aside className="ts-sidebar">
+        <div className="ts-sidebar__brand"><span className="ts-sidebar__brand-dot">B</span> MyBDR <span style={{ fontSize: 12, color: 'var(--ink-dim)', fontWeight: 600 }}>관리자</span></div>
+        <nav className="ts-sidebar__nav"><NavList /></nav>
+        <div className="ts-sidebar__foot">
+          <button className="ts-userchip" type="button"><span className="ts-avatar">DH</span>
+            <span style={{ textAlign: 'left', lineHeight: 1.2 }}><span style={{ display: 'block', fontWeight: 700, fontSize: 14, color: 'var(--ink)' }}>김도훈</span><span style={{ fontSize: 12, color: 'var(--ink-mute)' }}>super admin</span></span>
+            <window.Icon name="chevron-right" size={18} color="var(--ink-dim)" style={{ marginLeft: 'auto' }} />
+          </button>
+        </div>
+      </aside>
+
+      <div className="ts-topbar">
+        <button className="ts-mtoggle" type="button" onClick={() => setMOpen(true)}><window.Icon name="menu" size={22} /></button>
+        <span style={{ fontWeight: 800, fontSize: 16 }}>MyBDR 관리자</span>
+      </div>
+      {mOpen && <div className="ts-overlay" onClick={() => setMOpen(false)} />}
+      <aside className="ts-drawer" data-open={mOpen ? 'true' : 'false'}>
+        <div className="ts-sidebar__brand"><span className="ts-sidebar__brand-dot">B</span> MyBDR</div>
+        <nav className="ts-sidebar__nav"><NavList /></nav>
+      </aside>
+
+      <main className="ts-main"><div className="ts-main__inner">{screen}</div></main>
+      {toastMsg && <div className="ts-toast"><window.Icon name="check-circle-2" size={18} color="var(--ok)" />{toastMsg}</div>}
+    </div>);
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>

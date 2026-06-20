@@ -14,6 +14,8 @@ import {
 import Link from "next/link";
 import { AdminPageHeader } from "@/components/admin/admin-page-header";
 import { AdminUsersTable } from "./admin-users-table";
+// Phase 1 (Toss 전환) — Material Symbols → lucide(<Icon>)
+import { Icon } from "@/components/admin-toss";
 // 6.1C-5(PA1) 박제: 본인 자기 정지 가드 표시용 — 현재 로그인 슈퍼관리자 식별
 import { getWebSession } from "@/lib/auth/web-session";
 // 2026-06-13 PR-PERM-DISPLAY §2-4 — 부제 슈퍼관리자 상한 하드코딩 "4" → 단일 source.
@@ -120,7 +122,8 @@ export default async function AdminUsersPage({
     : `전체 ${totalCount.toLocaleString()}명 · 슈퍼관리자 ${superAdminCount}/${MAX_SUPER_ADMINS}`;
 
   return (
-    <div>
+    // Phase 1 — 페이지 루트에 data-skin="toss" opt-in (Toss 리스킨 영역)
+    <div data-skin="toss">
       {/* 2026-05-15 Admin-5-A 박제 — eyebrow 한국어화 + breadcrumbs + actions
           시안 source: Dev/design/BDR-current/screens/AdminUsers.jsx (line 319~343)
           - eyebrow: "ADMIN · USERS" → "ADMIN · 사용자" (시안 카피 박제) */}
@@ -138,9 +141,7 @@ export default async function AdminUsersPage({
         ]}
         actions={
           <Link href="/admin/game-reports" className="btn btn--sm">
-            <span className="material-symbols-outlined" style={{ fontSize: 14 }}>
-              report
-            </span>
+            <Icon name="flag" size={14} />
             신고 검토로
           </Link>
         }
