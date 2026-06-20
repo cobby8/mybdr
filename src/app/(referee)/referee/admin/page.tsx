@@ -7,6 +7,8 @@ import {
   getAssociationAdmin,
   SUPER_ADMIN_SENTINEL_ROLE,
 } from "@/lib/auth/admin-guard";
+// Toss 스킨(Phase 3B): Material Symbols → lucide Icon 키트 경유.
+import { Icon } from "@/components/admin-toss";
 
 /**
  * /referee/admin — 관리자 대시보드 (서버 컴포넌트).
@@ -146,26 +148,26 @@ export default async function AdminDashboardPage() {
     totalCerts > 0 ? Math.round((verifiedCount / totalCerts) * 100) : 0;
   const unpaidAmount = unpaidTotal._sum.amount ?? 0;
 
-  // 통계 카드 데이터
+  // 통계 카드 데이터. icon=lucide kebab명(Material→lucide 매핑: groups→users·verified→shield-check·payments→banknote·event→calendar)
   const stats = [
     {
-      icon: "groups",
+      icon: "users",
       label: "소속 심판",
       value: `${totalReferees}명`,
     },
     {
-      icon: "verified",
+      icon: "shield-check",
       label: "자격증 검증율",
       value: `${verificationRate}%`,
       sub: `${verifiedCount}/${totalCerts}건`,
     },
     {
-      icon: "payments",
+      icon: "banknote",
       label: "미정산 총액",
       value: `${unpaidAmount.toLocaleString("ko-KR")}원`,
     },
     {
-      icon: "event",
+      icon: "calendar",
       label: "최근 30일 배정",
       value: `${recentAssignments}건`,
     },
@@ -176,59 +178,62 @@ export default async function AdminDashboardPage() {
   //   기존 2개(심판 관리/Excel 일괄 검증) + 신규 6개 (배정/공고/일자별/정산/단가/일괄 등록).
   //   카드 디자인 일관성 유지 (var(--color-primary) 아이콘 + chevron_right + Material Symbols).
   //   /referee/admin/settlements/dashboard / /referee/admin/settings 는 보조 페이지 (사이드바만 박제 / 빠른 메뉴 미박제 — 8개 그리드 일관).
+  // icon=lucide kebab명(Material→lucide: manage_accounts→user-cog·event_available→calendar-check·campaign→megaphone·
+  //   calendar_today→calendar·payments→banknote·monetization_on→circle-dollar-sign·upload_file→file-up·fact_check→clipboard-check)
   const quickLinks = [
     {
       href: "/referee/admin/members",
-      icon: "manage_accounts",
+      icon: "user-cog",
       label: "심판 관리",
       description: "소속 심판 목록 조회 및 자격증 검증",
     },
     {
       href: "/referee/admin/assignments",
-      icon: "event_available",
+      icon: "calendar-check",
       label: "배정 관리",
       description: "경기별 심판/기록원 배정 운영",
     },
     {
       href: "/referee/admin/announcements",
-      icon: "campaign",
+      icon: "megaphone",
       label: "공고 관리",
       description: "심판 배정 신청 공고 게시 및 관리",
     },
     {
       href: "/referee/admin/pools",
-      icon: "calendar_today",
+      icon: "calendar",
       label: "일자별 운영",
       description: "대회별 일자별 풀 대시보드",
     },
     {
       href: "/referee/admin/settlements",
-      icon: "payments",
+      icon: "banknote",
       label: "정산 관리",
       description: "심판 정산 내역 조회 및 처리",
     },
     {
       href: "/referee/admin/fee-settings",
-      icon: "monetization_on",
+      icon: "circle-dollar-sign",
       label: "배정비 단가",
       description: "협회 단가표 설정",
     },
     {
       href: "/referee/admin/bulk-register",
-      icon: "upload_file",
+      icon: "file-up",
       label: "일괄 등록",
       description: "Excel 파일로 심판/기록원 명단 일괄 등록",
     },
     {
       href: "/referee/admin/bulk-verify",
-      icon: "fact_check",
+      icon: "clipboard-check",
       label: "Excel 일괄 검증",
       description: "Excel 파일로 자격증 일괄 검증 처리",
     },
   ];
 
   return (
-    <div className="space-y-6">
+    // data-skin="toss": 페이지 최상위 루트 div 에 부착(Toss 스킨 opt-in)
+    <div className="space-y-6" data-skin="toss">
       {/* 2026-05-11 Phase 1-B — super_admin sentinel 안내 헤더.
           이유: super_admin = 자기 협회 소속 아니어도 진입 가능 (전능 권한). 진입 시 어느 협회
                  데이터인지 명시 (첫 활성 협회 자동 선택). 일반 admin 은 헤더 미표시.
@@ -242,15 +247,12 @@ export default async function AdminDashboardPage() {
               "var(--color-warning-bg, rgba(255,171,0,0.08))",
           }}
         >
-          <span
-            className="material-symbols-outlined"
-            style={{
-              fontSize: 22,
-              color: "var(--color-warning, #FFAB00)",
-            }}
-          >
-            verified
-          </span>
+          {/* Material verified → lucide shield-check. fontSize 22 1:1 이관 */}
+          <Icon
+            name="shield-check"
+            size={22}
+            style={{ color: "var(--color-warning, #FFAB00)" }}
+          />
           <div className="min-w-0">
             <div
               className="text-sm font-semibold"
@@ -310,12 +312,12 @@ export default async function AdminDashboardPage() {
             }}
           >
             <div className="flex items-center gap-2">
-              <span
-                className="material-symbols-outlined text-xl"
+              {/* 동적 아이콘(lucide kebab명). text-xl(=20px) 1:1 이관 */}
+              <Icon
+                name={stat.icon}
+                size={20}
                 style={{ color: "var(--color-primary)" }}
-              >
-                {stat.icon}
-              </span>
+              />
               <span
                 className="text-xs font-bold uppercase tracking-wider"
                 style={{ color: "var(--color-text-muted)" }}
@@ -361,12 +363,12 @@ export default async function AdminDashboardPage() {
                 borderRadius: 4,
               }}
             >
-              <span
-                className="material-symbols-outlined text-2xl"
+              {/* 동적 아이콘(lucide kebab명). text-2xl(=24px) 1:1 이관 */}
+              <Icon
+                name={link.icon}
+                size={24}
                 style={{ color: "var(--color-primary)" }}
-              >
-                {link.icon}
-              </span>
+              />
               <div>
                 <p
                   className="font-bold"
@@ -381,12 +383,13 @@ export default async function AdminDashboardPage() {
                   {link.description}
                 </p>
               </div>
-              <span
-                className="material-symbols-outlined ml-auto text-lg"
+              {/* Material chevron_right → lucide chevron-right. text-lg(=18px) + ml-auto 1:1 */}
+              <Icon
+                name="chevron-right"
+                size={18}
+                className="ml-auto"
                 style={{ color: "var(--color-text-muted)" }}
-              >
-                chevron_right
-              </span>
+              />
             </Link>
           ))}
         </div>

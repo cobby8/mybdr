@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
+import { Icon } from "@/components/admin-toss";
 
 /**
  * /referee/documents -- 본인 서류 관리 페이지.
@@ -33,19 +34,19 @@ type OcrExtracted = Record<string, string | undefined>;
 const DOC_CONFIGS = [
   {
     type: "certificate",
-    icon: "workspace_premium",
+    icon: "award",
     label: "자격증 사본",
     description: "심판/기록원 자격증의 사본을 업로드하세요.",
   },
   {
     type: "id_card",
-    icon: "badge",
+    icon: "id-card",
     label: "신분증 사본",
     description: "주민등록증 또는 운전면허증 앞면을 업로드하세요.",
   },
   {
     type: "bankbook",
-    icon: "account_balance",
+    icon: "landmark",
     label: "통장 사본",
     description: "정산금 입금을 위한 통장 앞면을 업로드하세요.",
   },
@@ -113,7 +114,7 @@ export default function RefereeDocumentsPage() {
     documents.find((d) => d.doc_type === docType);
 
   return (
-    <div className="space-y-6">
+    <div data-skin="toss" className="space-y-6">
       {/* 페이지 헤더 */}
       <header>
         <h1
@@ -139,12 +140,12 @@ export default function RefereeDocumentsPage() {
           borderRadius: 4,
         }}
       >
-        <span
-          className="material-symbols-outlined mt-0.5 text-xl"
-          style={{ color: "var(--color-info, #0079B9)" }}
-        >
-          shield
-        </span>
+        <Icon
+          name="shield"
+          size={20}
+          className="mt-0.5"
+          color="var(--color-info, #0079B9)"
+        />
         <div>
           <p
             className="text-sm font-bold"
@@ -424,16 +425,15 @@ function DocumentCard({
       {/* 카드 헤더: 아이콘 + 라벨 + 상태 뱃지 */}
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <span
-            className="material-symbols-outlined text-2xl"
-            style={{
-              color: isRegistered
+          <Icon
+            name={config.icon}
+            size={24}
+            color={
+              isRegistered
                 ? "var(--color-success, #22c55e)"
-                : "var(--color-text-muted)",
-            }}
-          >
-            {config.icon}
-          </span>
+                : "var(--color-text-muted)"
+            }
+          />
           <div>
             <h3
               className="text-sm font-bold"
@@ -463,12 +463,7 @@ function DocumentCard({
         >
           {isRegistered ? (
             <>
-              <span
-                className="material-symbols-outlined text-xs"
-                style={{ fontVariationSettings: "'FILL' 1" }}
-              >
-                check_circle
-              </span>
+              <Icon name="circle-check" size={12} />
               등록완료
             </>
           ) : (
@@ -540,9 +535,7 @@ function DocumentCard({
                 opacity: ocrLoading ? 0.6 : 1,
               }}
             >
-              <span className="material-symbols-outlined text-sm">
-                document_scanner
-              </span>
+              <Icon name="scan-text" size={14} />
               {ocrLoading ? "추출 중..." : "정보 추출"}
             </button>
 
@@ -562,7 +555,7 @@ function DocumentCard({
                   borderRadius: 4,
                 }}
               >
-                <span className="material-symbols-outlined text-sm">edit</span>
+                <Icon name="pencil" size={14} />
                 직접 입력
               </button>
             )}
@@ -581,9 +574,7 @@ function DocumentCard({
                 opacity: uploading ? 0.6 : 1,
               }}
             >
-              <span className="material-symbols-outlined text-sm">
-                swap_horiz
-              </span>
+              <Icon name="arrow-left-right" size={14} />
               {uploading ? "업로드 중..." : "교체"}
             </button>
 
@@ -601,7 +592,7 @@ function DocumentCard({
                 opacity: deleting ? 0.6 : 1,
               }}
             >
-              <span className="material-symbols-outlined text-sm">delete</span>
+              <Icon name="trash-2" size={14} />
               {deleting ? "삭제 중..." : "삭제"}
             </button>
           </>
@@ -619,9 +610,7 @@ function DocumentCard({
               opacity: uploading ? 0.6 : 1,
             }}
           >
-            <span className="material-symbols-outlined text-sm">
-              upload_file
-            </span>
+            <Icon name="file-up" size={14} />
             {uploading ? "업로드 중..." : "업로드"}
           </button>
         )}
@@ -638,12 +627,11 @@ function DocumentCard({
           }}
         >
           <div className="flex items-center gap-2">
-            <span
-              className="material-symbols-outlined text-base"
-              style={{ color: "var(--color-text-muted)" }}
-            >
-              {ocrStatus === "completed" ? "auto_fix_high" : "edit_note"}
-            </span>
+            <Icon
+              name={ocrStatus === "completed" ? "wand-2" : "file-pen"}
+              size={16}
+              color="var(--color-text-muted)"
+            />
             <p
               className="text-xs font-bold"
               style={{ color: "var(--color-text-primary)" }}
@@ -682,7 +670,7 @@ function DocumentCard({
                 opacity: confirming ? 0.6 : 1,
               }}
             >
-              <span className="material-symbols-outlined text-sm">check</span>
+              <Icon name="check" size={14} />
               {confirming ? "저장 중..." : "확인 저장"}
             </button>
             <button

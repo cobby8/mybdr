@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+// Toss 키트 Icon — Material Symbols 대체 (lucide 기반)
+import { Icon } from "@/components/admin-toss";
 
 /**
  * /referee/admin/settings — 관리자 역할 관리 페이지
@@ -188,7 +190,7 @@ export default function AdminSettingsPage() {
   // ── 로딩 상태 ──
   if (loading) {
     return (
-      <div className="space-y-4">
+      <div className="space-y-4" data-skin="toss">
         <div className="h-8 w-48 animate-pulse" style={{ backgroundColor: "var(--color-surface)", borderRadius: 4 }} />
         <div className="h-64 animate-pulse" style={{ backgroundColor: "var(--color-surface)", borderRadius: 4 }} />
       </div>
@@ -200,15 +202,15 @@ export default function AdminSettingsPage() {
     return (
       <div
         className="flex flex-col items-center justify-center px-6 py-16 text-center"
+        data-skin="toss"
         style={{
           backgroundColor: "var(--color-card)",
           border: "1px solid var(--color-border)",
           borderRadius: 4,
         }}
       >
-        <span className="material-symbols-outlined text-4xl" style={{ color: "var(--color-text-muted)" }}>
-          error
-        </span>
+        {/* error → circle-x, text-4xl=36px */}
+        <Icon name="circle-x" size={36} color="var(--color-text-muted)" />
         <p className="mt-3 text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>
           {error}
         </p>
@@ -228,7 +230,7 @@ export default function AdminSettingsPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" data-skin="toss">
       {/* 헤더 */}
       <header className="flex items-center justify-between">
         <div>
@@ -256,7 +258,8 @@ export default function AdminSettingsPage() {
               borderRadius: 4,
             }}
           >
-            <span className="material-symbols-outlined text-base">person_add</span>
+            {/* person_add → user-plus, text-base=16px */}
+            <Icon name="user-plus" size={16} color="var(--color-text-on-primary, #fff)" />
             관리자 추가
           </button>
         )}
@@ -375,9 +378,8 @@ export default function AdminSettingsPage() {
           <div
             className="flex flex-col items-center justify-center px-6 py-16 text-center"
           >
-            <span className="material-symbols-outlined text-4xl" style={{ color: "var(--color-text-muted)" }}>
-              group
-            </span>
+            {/* group → users, text-4xl=36px */}
+            <Icon name="users" size={36} color="var(--color-text-muted)" />
             <p className="mt-3 text-sm" style={{ color: "var(--color-text-muted)" }}>
               등록된 관리자가 없습니다.
             </p>
@@ -544,7 +546,8 @@ export default function AdminSettingsPage() {
                                   style={{ color: "var(--color-text-secondary)", borderRadius: 4 }}
                                   title="역할 변경"
                                 >
-                                  <span className="material-symbols-outlined text-base">edit</span>
+                                  {/* edit → pencil, text-base=16px */}
+                                  <Icon name="pencil" size={16} color="var(--color-text-secondary)" />
                                 </button>
                                 <button
                                   onClick={() => handleDelete(admin.id.toString(), admin.user_name)}
@@ -552,7 +555,8 @@ export default function AdminSettingsPage() {
                                   style={{ color: "var(--color-error, #ef4444)", borderRadius: 4 }}
                                   title="삭제"
                                 >
-                                  <span className="material-symbols-outlined text-base">delete</span>
+                                  {/* delete → trash-2, text-base=16px */}
+                                  <Icon name="trash-2" size={16} color="var(--color-error, #ef4444)" />
                                 </button>
                               </div>
                             )}
@@ -630,14 +634,16 @@ export default function AdminSettingsPage() {
                           className="p-1.5"
                           style={{ color: "var(--color-text-secondary)" }}
                         >
-                          <span className="material-symbols-outlined text-base">edit</span>
+                          {/* edit → pencil, text-base=16px */}
+                          <Icon name="pencil" size={16} color="var(--color-text-secondary)" />
                         </button>
                         <button
                           onClick={() => handleDelete(admin.id.toString(), admin.user_name)}
                           className="p-1.5"
                           style={{ color: "var(--color-error, #ef4444)" }}
                         >
-                          <span className="material-symbols-outlined text-base">delete</span>
+                          {/* delete → trash-2, text-base=16px */}
+                          <Icon name="trash-2" size={16} color="var(--color-error, #ef4444)" />
                         </button>
                       </div>
                     )}
@@ -662,7 +668,8 @@ export default function AdminSettingsPage() {
           className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider"
           style={{ color: "var(--color-text-muted)" }}
         >
-          <span className="material-symbols-outlined text-base">info</span>
+          {/* info → info, text-base=16px */}
+          <Icon name="info" size={16} color="var(--color-text-muted)" />
           역할별 권한 안내
         </h3>
         <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">

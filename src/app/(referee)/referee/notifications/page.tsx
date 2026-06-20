@@ -14,6 +14,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
+import { Icon } from "@/components/admin-toss";
 
 type Notification = {
   id: string;
@@ -38,14 +39,14 @@ type ListResponse = {
 // (별도 유틸 파일로 뺄 수도 있지만, 파일 하나 줄이기 위해 여기에 유지)
 function iconForType(type: string): string {
   if (type.startsWith("referee.pool.chief")) return "star";
-  if (type.startsWith("referee.pool.selected")) return "how_to_vote";
-  if (type.startsWith("referee.assignment")) return "sports_basketball";
-  if (type.startsWith("referee.settlement")) return "payments";
-  if (type.startsWith("referee.announcement")) return "campaign";
-  if (type.startsWith("tournament")) return "emoji_events";
-  if (type.startsWith("game")) return "sports";
-  if (type.startsWith("team")) return "group";
-  return "notifications";
+  if (type.startsWith("referee.pool.selected")) return "vote";
+  if (type.startsWith("referee.assignment")) return "volleyball";
+  if (type.startsWith("referee.settlement")) return "banknote";
+  if (type.startsWith("referee.announcement")) return "megaphone";
+  if (type.startsWith("tournament")) return "trophy";
+  if (type.startsWith("game")) return "flag";
+  if (type.startsWith("team")) return "users";
+  return "bell";
 }
 
 // 상대 시간 (bell과 동일 규약)
@@ -157,7 +158,7 @@ export default function NotificationsPage() {
   const totalPages = data ? Math.max(1, Math.ceil(data.total / LIMIT)) : 1;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" data-skin="toss">
       {/* 상단 타이틀 + 전체 읽음 */}
       <div className="flex items-center justify-between">
         <h1
@@ -177,7 +178,7 @@ export default function NotificationsPage() {
             borderRadius: 4,
           }}
         >
-          <span className="material-symbols-outlined text-sm">done_all</span>
+          <Icon name="check-check" size={14} />
           전체 읽음
         </button>
       </div>
@@ -268,16 +269,16 @@ export default function NotificationsPage() {
                 }}
               >
                 <div className="flex items-start gap-3">
-                  <span
-                    className="material-symbols-outlined text-xl mt-0.5"
-                    style={{
-                      color: isUnread
+                  <Icon
+                    name={iconForType(n.notification_type)}
+                    size={20}
+                    className="mt-0.5"
+                    color={
+                      isUnread
                         ? "var(--color-primary)"
-                        : "var(--color-text-muted)",
-                    }}
-                  >
-                    {iconForType(n.notification_type)}
-                  </span>
+                        : "var(--color-text-muted)"
+                    }
+                  />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-start justify-between gap-2">
                       <span
@@ -335,9 +336,7 @@ export default function NotificationsPage() {
                 borderRadius: 4,
               }}
             >
-              <span className="material-symbols-outlined text-base">
-                chevron_left
-              </span>
+              <Icon name="chevron-left" size={16} />
             </button>
             <span
               className="px-2 text-xs font-semibold"
@@ -356,9 +355,7 @@ export default function NotificationsPage() {
                 borderRadius: 4,
               }}
             >
-              <span className="material-symbols-outlined text-base">
-                chevron_right
-              </span>
+              <Icon name="chevron-right" size={16} />
             </button>
           </div>
         </div>

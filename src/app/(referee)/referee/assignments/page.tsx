@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { EmptyState } from "../_components/empty-state";
+import { Icon } from "@/components/admin-toss";
 
 /**
  * /referee/assignments — 내 배정 목록 (Client Component)
@@ -128,10 +129,10 @@ export default function RefereeAssignmentsPage() {
   // 프로필 미등록 상태
   if (errorCode === "NO_REFEREE_PROFILE") {
     return (
-      <div className="space-y-6">
+      <div data-skin="toss" className="space-y-6">
         <PageHeader total={0} />
         <EmptyState
-          icon="badge"
+          icon="id-card"
           title="심판 프로필이 필요합니다"
           description="배정 기록을 확인하려면 먼저 심판 프로필을 등록하세요."
           ctaText="프로필 등록하기"
@@ -142,7 +143,7 @@ export default function RefereeAssignmentsPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div data-skin="toss" className="space-y-6">
       <PageHeader total={total} />
 
       {/* 에러 배너 */}
@@ -200,12 +201,7 @@ export default function RefereeAssignmentsPage() {
             borderRadius: 4,
           }}
         >
-          <span
-            className="material-symbols-outlined text-5xl"
-            style={{ color: "var(--color-text-muted)" }}
-          >
-            event
-          </span>
+          <Icon name="calendar" size={48} color="var(--color-text-muted)" />
           <h2
             className="mt-4 text-lg font-bold"
             style={{ color: "var(--color-text-primary)" }}
@@ -327,16 +323,16 @@ export default function RefereeAssignmentsPage() {
                   style={{ color: "var(--color-text-muted)" }}
                 >
                   <span className="flex items-center gap-1">
-                    <span className="material-symbols-outlined text-sm">sports</span>
+                    <Icon name="flag" size={14} />
                     {a.role_label}
                   </span>
                   <span className="flex items-center gap-1">
-                    <span className="material-symbols-outlined text-sm">schedule</span>
+                    <Icon name="clock" size={14} />
                     {a.match?.scheduled_at ? formatDateTime(a.match.scheduled_at) : "-"}
                   </span>
                   {a.match?.venue_name && (
                     <span className="flex items-center gap-1">
-                      <span className="material-symbols-outlined text-sm">location_on</span>
+                      <Icon name="map-pin" size={14} />
                       {a.match.venue_name}
                     </span>
                   )}
@@ -426,7 +422,7 @@ function Pagination({
           opacity: page <= 1 ? 0.5 : 1,
         }}
       >
-        <span className="material-symbols-outlined text-sm">chevron_left</span>
+        <Icon name="chevron-left" size={14} />
         이전
       </button>
       <span
@@ -448,7 +444,7 @@ function Pagination({
         }}
       >
         다음
-        <span className="material-symbols-outlined text-sm">chevron_right</span>
+        <Icon name="chevron-right" size={14} />
       </button>
     </div>
   );

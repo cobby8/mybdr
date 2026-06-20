@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
+import { Icon } from "@/components/admin-toss";
 
 /**
  * /referee/certificates/[id] — 자격증 상세/수정/삭제 (Client Component)
@@ -165,6 +166,7 @@ export default function CertificateDetailPage() {
   if (loading) {
     return (
       <div
+        data-skin="toss"
         className="p-8 text-center text-sm"
         style={{ color: "var(--color-text-muted)" }}
       >
@@ -175,7 +177,7 @@ export default function CertificateDetailPage() {
 
   if (notFound || !cert) {
     return (
-      <div className="space-y-6">
+      <div data-skin="toss" className="space-y-6">
         <header>
           <h1
             className="text-2xl font-black uppercase tracking-wider"
@@ -209,7 +211,7 @@ export default function CertificateDetailPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div data-skin="toss" className="space-y-6">
       {/* 헤더 */}
       <header className="flex items-center justify-between">
         <div>
@@ -233,9 +235,7 @@ export default function CertificateDetailPage() {
                   borderRadius: 4,
                 }}
               >
-                <span className="material-symbols-outlined text-xs">
-                  check_circle
-                </span>
+                <Icon name="circle-check" size={12} />
                 관리자 검증 완료
               </span>
             ) : (
@@ -384,7 +384,7 @@ export default function CertificateDetailPage() {
               opacity: submitting ? 0.6 : 1,
             }}
           >
-            <span className="material-symbols-outlined text-base">delete</span>
+            <Icon name="trash-2" size={16} />
             삭제
           </button>
           <div className="flex gap-2">

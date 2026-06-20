@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+// Toss 키트 Icon — Material Symbols 대체 (lucide 기반)
+import { Icon } from "@/components/admin-toss";
 
 /**
  * /referee/admin/settlements/dashboard — 정산 통계 대시보드
@@ -51,12 +53,14 @@ const STATUS_META: Record<
   string,
   { label: string; color: string; icon: string }
 > = {
-  total:     { label: "전체",     color: "var(--color-text-primary)",    icon: "functions" },
-  pending:   { label: "미지급",   color: "var(--color-text-muted)",       icon: "pending" },
-  scheduled: { label: "지급예정", color: "var(--color-warning, #f59e0b)", icon: "schedule" },
-  paid:      { label: "지급완료", color: "var(--color-success, #22c55e)", icon: "check_circle" },
-  cancelled: { label: "취소",     color: "var(--color-primary, #E31B23)", icon: "cancel" },
-  refunded:  { label: "환수",     color: "var(--color-info, #0079B9)",    icon: "undo" },
+  // icon 값은 lucide kebab name (admin-toss Icon 키트 기준)
+  // functions→sigma · pending/schedule→clock · check_circle→circle-check · cancel→ban · undo→undo-2
+  total:     { label: "전체",     color: "var(--color-text-primary)",    icon: "sigma" },
+  pending:   { label: "미지급",   color: "var(--color-text-muted)",       icon: "clock" },
+  scheduled: { label: "지급예정", color: "var(--color-warning, #f59e0b)", icon: "clock" },
+  paid:      { label: "지급완료", color: "var(--color-success, #22c55e)", icon: "circle-check" },
+  cancelled: { label: "취소",     color: "var(--color-primary, #E31B23)", icon: "ban" },
+  refunded:  { label: "환수",     color: "var(--color-info, #0079B9)",    icon: "undo-2" },
 };
 
 const formatMoney = (n: number) => `${n.toLocaleString("ko-KR")}원`;
@@ -118,7 +122,7 @@ export default function SettlementsDashboardPage() {
   }, [data]);
 
   return (
-    <div className="space-y-6" style={{ color: "var(--color-text-primary)" }}>
+    <div className="space-y-6" data-skin="toss" style={{ color: "var(--color-text-primary)" }}>
       {/* 헤더 */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
@@ -194,14 +198,13 @@ export default function SettlementsDashboardPage() {
                 borderRadius: 4,
               }}
             >
-              <span
-                className="material-symbols-outlined text-base shrink-0"
-                style={{
-                  color: "var(--color-warning, #f59e0b)",
-                  fontVariationSettings: "'FILL' 1",
-                }}
-              >
-                warning
+              {/* warning → triangle-alert, text-base=16px */}
+              <span className="inline-flex shrink-0">
+                <Icon
+                  name="triangle-alert"
+                  size={16}
+                  color="var(--color-warning, #f59e0b)"
+                />
               </span>
               <div className="flex-1">
                 <div className="font-bold">서류 미완비 경고</div>
@@ -490,12 +493,8 @@ function StatCard({
       }}
     >
       <div className="flex items-center gap-2">
-        <span
-          className="material-symbols-outlined text-base"
-          style={{ color, fontVariationSettings: "'FILL' 1" }}
-        >
-          {icon}
-        </span>
+        {/* icon = lucide kebab name (STATUS_META), text-base=16px */}
+        <Icon name={icon} size={16} color={color} />
         <span
           className="text-[11px] font-bold uppercase tracking-wider"
           style={{ color: "var(--color-text-muted)" }}

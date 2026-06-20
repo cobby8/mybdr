@@ -2,6 +2,8 @@ import Link from "next/link";
 import { getWebSession } from "@/lib/auth/web-session";
 import { prisma } from "@/lib/db/prisma";
 import { EmptyState } from "../_components/empty-state";
+// Toss 디자인 전환: Material Symbols → lucide 키트 <Icon>
+import { Icon } from "@/components/admin-toss";
 
 /**
  * /referee/profile — 내 심판 프로필 조회 (Server Component)
@@ -38,10 +40,11 @@ export default async function RefereeProfilePage() {
   // 미등록: 생성 폼으로 안내
   if (!referee) {
     return (
-      <div className="space-y-6">
+      // data-skin="toss": 미등록 빈상태 루트 div
+      <div data-skin="toss" className="space-y-6">
         <PageHeader title="내 프로필" />
         <EmptyState
-          icon="badge"
+          icon="id-card"
           title="심판 프로필이 없습니다"
           description="먼저 심판 프로필을 등록하세요."
           ctaText="프로필 등록"
@@ -52,7 +55,8 @@ export default async function RefereeProfilePage() {
   }
 
   return (
-    <div className="space-y-6">
+    // data-skin="toss": 프로필 본문 루트 div
+    <div data-skin="toss" className="space-y-6">
       <PageHeader title="내 프로필" />
 
       {/* 상단 카드: 기본 정보 */}
@@ -88,7 +92,7 @@ export default async function RefereeProfilePage() {
               borderRadius: 4,
             }}
           >
-            <span className="material-symbols-outlined text-base">edit</span>
+            <Icon name="pencil" size={16} />
             수정
           </Link>
         </div>
