@@ -20,6 +20,8 @@
  */
 
 import Link from "next/link";
+// 2026-06-21 Toss 2C — Material Symbols → lucide <Icon> 키트
+import { Icon } from "@/components/admin-toss";
 
 // suggestions row 직렬화 형식 (page.tsx 에서 변환 후 전달)
 export interface SuggestionRow {
@@ -122,17 +124,15 @@ function SuggestionItem({ s }: { s: SuggestionRow }) {
         borderRadius: "4px",
       }}
     >
-      <span
-        className="material-symbols-outlined mt-0.5"
-        style={{
-          fontSize: 16,
-          color: isPending
-            ? "var(--color-primary)"
-            : "var(--color-text-secondary)",
-        }}
-      >
-        {isPending ? "feedback" : "task_alt"}
-      </span>
+      {/* 2026-06-21 Toss 2C — feedback→message-square-text / task_alt→circle-check-big (size 16, mt-0.5 보존) */}
+      <Icon
+        name={isPending ? "message-square-text" : "circle-check-big"}
+        size={16}
+        className="mt-0.5"
+        color={
+          isPending ? "var(--color-primary)" : "var(--color-text-secondary)"
+        }
+      />
       <div className="flex-1 min-w-0">
         {/* category + 제목 */}
         <div className="flex items-center gap-1.5 min-w-0">

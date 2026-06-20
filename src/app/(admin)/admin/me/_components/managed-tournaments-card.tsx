@@ -28,6 +28,8 @@ import type {
   TournamentAdminEntry,
   TournamentRecorderEntry,
 } from "@/lib/auth/admin-roles";
+// 2026-06-21 Toss 2C — Material Symbols → lucide <Icon> 키트
+import { Icon } from "@/components/admin-toss";
 
 export interface ManagedTournamentsCardProps {
   tournamentAdminMembers: TournamentAdminEntry[];
@@ -196,22 +198,14 @@ function TournamentRow({ row }: { row: ManagedTournamentRow }) {
         >
           {dateRange && (
             <span className="inline-flex items-center gap-0.5">
-              <span
-                className="material-symbols-outlined"
-                style={{ fontSize: 12 }}
-              >
-                event
-              </span>
+              {/* 2026-06-21 Toss 2C — event → calendar (size 12) */}
+              <Icon name="calendar" size={12} />
               {dateRange}
             </span>
           )}
           <span className="inline-flex items-center gap-0.5">
-            <span
-              className="material-symbols-outlined"
-              style={{ fontSize: 12 }}
-            >
-              shield_person
-            </span>
+            {/* 2026-06-21 Toss 2C — shield_person → shield-user (size 12) */}
+            <Icon name="shield-user" size={12} />
             {rolesLabel(row.roles)}
           </span>
         </div>
@@ -270,12 +264,8 @@ function StatusGroupSection({
             borderRadius: "4px",
           }}
         >
-          <span
-            className="material-symbols-outlined"
-            style={{ fontSize: 16 }}
-          >
-            {expanded ? "expand_less" : "expand_more"}
-          </span>
+          {/* 2026-06-21 Toss 2C — expand_less→chevron-up / expand_more→chevron-down (size 16) */}
+          <Icon name={expanded ? "chevron-up" : "chevron-down"} size={16} />
           {expanded ? "접기" : `+${remaining}건 더보기`}
         </button>
       )}
@@ -377,9 +367,8 @@ export function ManagedTournamentsCard({
           className="mt-4 flex items-center gap-1 text-xs"
           style={{ color: "var(--color-text-secondary)" }}
         >
-          <span className="material-symbols-outlined" style={{ fontSize: 14 }}>
-            info
-          </span>
+          {/* 2026-06-21 Toss 2C — info → info (size 14) */}
+          <Icon name="info" size={14} />
           <span>
             표시 상한 {TAKE_LIMIT}건 — 더 많은 권한이 있을 수 있습니다.
             운영자에게 문의하세요.

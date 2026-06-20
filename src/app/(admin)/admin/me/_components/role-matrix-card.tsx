@@ -23,6 +23,8 @@
  */
 
 import type { AdminRoleSummary } from "@/lib/auth/admin-roles";
+// 2026-06-21 Toss 2C — Material Symbols → lucide <Icon> 키트
+import { Icon } from "@/components/admin-toss";
 
 export interface RoleMatrixCardProps {
   roles: AdminRoleSummary;
@@ -64,19 +66,18 @@ function BooleanRow({
       }}
     >
       <div className="flex items-center gap-2 min-w-0">
-        <span
-          className="material-symbols-outlined"
-          style={{
-            fontSize: 22,
-            color: effectiveGranted
+        {/* 2026-06-21 Toss 2C — check_circle→circle-check / remove_circle_outline→circle-minus (size 22) */}
+        <Icon
+          name={effectiveGranted ? "circle-check" : "circle-minus"}
+          size={22}
+          color={
+            effectiveGranted
               ? isSuperAuto
                 ? "var(--color-text-secondary)"
                 : "var(--color-primary)"
-              : "var(--color-text-secondary)",
-          }}
-        >
-          {effectiveGranted ? "check_circle" : "remove_circle_outline"}
-        </span>
+              : "var(--color-text-secondary)"
+          }
+        />
         <div className="min-w-0">
           <div
             className="text-sm font-medium truncate"
@@ -146,17 +147,14 @@ function TournamentList({
       }}
     >
       <div className="flex items-center gap-2">
-        <span
-          className="material-symbols-outlined"
-          style={{
-            fontSize: 22,
-            color: hasItems
-              ? "var(--color-primary)"
-              : "var(--color-text-secondary)",
-          }}
-        >
-          {hasItems ? "verified" : "remove_circle_outline"}
-        </span>
+        {/* 2026-06-21 Toss 2C — verified→badge-check / remove_circle_outline→circle-minus (size 22) */}
+        <Icon
+          name={hasItems ? "badge-check" : "circle-minus"}
+          size={22}
+          color={
+            hasItems ? "var(--color-primary)" : "var(--color-text-secondary)"
+          }
+        />
         <div className="min-w-0">
           <div
             className="text-sm font-medium"
@@ -222,12 +220,8 @@ function TournamentList({
               className="mt-2 flex items-center gap-1 text-xs"
               style={{ color: "var(--color-text-secondary)" }}
             >
-              <span
-                className="material-symbols-outlined"
-                style={{ fontSize: 14 }}
-              >
-                info
-              </span>
+              {/* 2026-06-21 Toss 2C — info → info (size 14) */}
+              <Icon name="info" size={14} />
               <span>
                 표시 상한 {TAKE_LIMIT}건 — 더 많은 권한이 있을 수 있습니다.
                 운영자에게 문의하세요.
@@ -271,17 +265,14 @@ function MembershipRow({
       }}
     >
       <div className="flex items-center gap-2">
-        <span
-          className="material-symbols-outlined"
-          style={{
-            fontSize: 22,
-            color: granted
-              ? "var(--color-primary)"
-              : "var(--color-text-secondary)",
-          }}
-        >
-          {granted ? "verified" : "remove_circle_outline"}
-        </span>
+        {/* 2026-06-21 Toss 2C — verified→badge-check / remove_circle_outline→circle-minus (size 22) */}
+        <Icon
+          name={granted ? "badge-check" : "circle-minus"}
+          size={22}
+          color={
+            granted ? "var(--color-primary)" : "var(--color-text-secondary)"
+          }
+        />
         <div className="min-w-0">
           <div
             className="text-sm font-medium"
@@ -369,12 +360,8 @@ export function RoleMatrixCard({ roles }: RoleMatrixCardProps) {
             backgroundColor: "var(--color-elevated)",
           }}
         >
-          <span
-            className="material-symbols-outlined"
-            style={{ fontSize: 22, color: "var(--color-primary)" }}
-          >
-            shield_person
-          </span>
+          {/* 2026-06-21 Toss 2C — shield_person → shield-user (size 22) */}
+          <Icon name="shield-user" size={22} color="var(--color-primary)" />
           <div className="min-w-0">
             <div
               className="text-sm font-semibold"
@@ -523,19 +510,18 @@ function AssociationAdminRow({
       }}
     >
       <div className="flex items-center gap-2">
-        <span
-          className="material-symbols-outlined"
-          style={{
-            fontSize: 22,
-            color: effectiveGranted
+        {/* 2026-06-21 Toss 2C — verified→badge-check / remove_circle_outline→circle-minus (size 22) */}
+        <Icon
+          name={effectiveGranted ? "badge-check" : "circle-minus"}
+          size={22}
+          color={
+            effectiveGranted
               ? isSuperAuto
                 ? "var(--color-text-secondary)"
                 : "var(--color-primary)"
-              : "var(--color-text-secondary)",
-          }}
-        >
-          {effectiveGranted ? "verified" : "remove_circle_outline"}
-        </span>
+              : "var(--color-text-secondary)"
+          }
+        />
         <div className="min-w-0">
           <div
             className="text-sm font-medium"

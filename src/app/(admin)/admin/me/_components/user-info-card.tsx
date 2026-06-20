@@ -22,6 +22,8 @@
  */
 
 import Link from "next/link";
+// 2026-06-21 Toss 2C — Material Symbols → lucide <Icon> 키트
+import { Icon } from "@/components/admin-toss";
 
 export interface UserInfoCardProps {
   user: {
@@ -107,12 +109,8 @@ export function UserInfoCard({ user }: UserInfoCardProps) {
               title="비밀번호 변경"
               aria-label="비밀번호 변경"
             >
-              <span
-                className="material-symbols-outlined"
-                style={{ fontSize: 16 }}
-              >
-                key
-              </span>
+              {/* 2026-06-21 Toss 2C — key → key (size 16) */}
+              <Icon name="key" size={16} />
               <span>비밀번호 변경</span>
             </Link>
           </div>
@@ -122,12 +120,8 @@ export function UserInfoCard({ user }: UserInfoCardProps) {
             className="mt-1 flex items-center gap-1 text-sm"
             style={{ color: "var(--color-text-secondary)" }}
           >
-            <span
-              className="material-symbols-outlined"
-              style={{ fontSize: 16 }}
-            >
-              mail
-            </span>
+            {/* 2026-06-21 Toss 2C — mail → mail (size 16) */}
+            <Icon name="mail" size={16} />
             <span className="truncate">{user.email}</span>
           </div>
 
@@ -136,12 +130,8 @@ export function UserInfoCard({ user }: UserInfoCardProps) {
             className="mt-1 flex items-center gap-1 text-sm"
             style={{ color: "var(--color-text-secondary)" }}
           >
-            <span
-              className="material-symbols-outlined"
-              style={{ fontSize: 16 }}
-            >
-              event
-            </span>
+            {/* 2026-06-21 Toss 2C — event → calendar (size 16) */}
+            <Icon name="calendar" size={16} />
             <span>가입일: {formatDate(user.createdAt)}</span>
           </div>
 
