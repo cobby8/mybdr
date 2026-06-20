@@ -25,6 +25,8 @@ import Link from "next/link";
 import { Card } from "@/components/ui/card";
 // 2026-05-16 PR-Admin-1 — 단계간 CTA (페이지 footer "다음: 팀 등록 →")
 import { NextStepCTA } from "../_components/NextStepCTA";
+// Track B-c Toss 리스킨 — Material Symbols → lucide-react 키트(<Icon>)
+import { Icon } from "@/components/admin-toss";
 // 2026-05-12 Phase 3.5-D — division format / settings 헬퍼 (lib 분리 → vitest 단위 검증 가능)
 import {
   FORMAT_LABEL,
@@ -161,7 +163,7 @@ export default function DivisionsSetupPage() {
 
   if (loading) {
     return (
-      <div className="space-y-4">
+      <div data-skin="toss" className="space-y-4">
         <div className="h-8 w-48 animate-pulse rounded bg-[var(--color-surface)]" />
         <div className="h-32 animate-pulse rounded-lg bg-[var(--color-surface)]" />
       </div>
@@ -169,7 +171,8 @@ export default function DivisionsSetupPage() {
   }
 
   return (
-    <div className="space-y-6">
+    // Track B-c — Toss 토큰 적용 루트 opt-in
+    <div data-skin="toss" className="space-y-6">
       {/* 헤더 */}
       <div>
         <Link
@@ -230,7 +233,8 @@ export default function DivisionsSetupPage() {
           href={`/tournament-admin/tournaments/${tournamentId}/wizard`}
           className="btn btn--accent inline-flex shrink-0 items-center justify-center gap-1.5"
         >
-          <span className="material-symbols-outlined text-[18px]">add_circle</span>
+          {/* Material add_circle → lucide circle-plus */}
+          <Icon name="circle-plus" size={18} />
           종별 추가
         </Link>
       </div>
@@ -256,12 +260,8 @@ export default function DivisionsSetupPage() {
         */
         <Card>
           <div className="flex flex-col items-center gap-2 py-10 text-center">
-            <span
-              className="material-symbols-outlined text-[48px]"
-              style={{ color: "var(--color-text-muted)" }}
-            >
-              category
-            </span>
+            {/* Material category → lucide layout-grid */}
+            <Icon name="layout-grid" size={48} color="var(--color-text-muted)" />
             <div className="text-base font-bold text-[var(--color-text-primary)]">
               아직 등록된 종별이 없어요
             </div>
@@ -273,7 +273,8 @@ export default function DivisionsSetupPage() {
               href={`/tournament-admin/tournaments/${tournamentId}/wizard`}
               className="btn btn--accent mt-2 inline-flex items-center gap-1.5"
             >
-              <span className="material-symbols-outlined text-[18px]">add</span>
+              {/* Material add → lucide plus */}
+              <Icon name="plus" size={18} />
               종별 추가
             </Link>
           </div>

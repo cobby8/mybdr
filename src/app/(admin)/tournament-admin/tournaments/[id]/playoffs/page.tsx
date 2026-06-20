@@ -136,7 +136,8 @@ export default async function PlayoffsPage({
   }));
 
   return (
-    <div>
+    // Track B-c — Toss 토큰 적용 루트 opt-in (PlayoffsClient DOM 상속)
+    <div data-skin="toss">
       {/* 헤더 — bracket/matches 페이지와 동일 패턴 */}
       <div className="mb-6">
         <Link

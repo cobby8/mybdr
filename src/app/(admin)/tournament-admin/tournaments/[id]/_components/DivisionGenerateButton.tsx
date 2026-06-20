@@ -13,7 +13,7 @@
  *   - 결과 모달 = AdvancePlayoffsButton 패턴 재사용 (Card + 결과 표 + success/warning 톤)
  *
  * 디자인 룰 (BDR 13):
- *   - var(--color-info) Navy 톤 trigger 버튼 / rounded-[4px] / material-symbols "refresh"
+ *   - var(--color-info) Navy 톤 trigger 버튼 / rounded-[4px] / lucide "refresh-cw" (Track B-c)
  *   - 모달 = Card 패턴 / var(--color-success) (생성 성공) 또는 var(--color-warning) (skip/stub) 배너
  *   - 모바일 44px+ 터치
  */
@@ -22,6 +22,8 @@
 
 import { useState } from "react";
 import { Card } from "@/components/ui/card";
+// Track B-c Toss 리스킨 — Material Symbols → lucide-react 키트(<Icon>)
+import { Icon } from "@/components/admin-toss";
 
 type Props = {
   tournamentId: string;
@@ -145,9 +147,8 @@ export function DivisionGenerateButton({
             : `[${divisionCode}] 종별 매치 자동 생성`
         }
       >
-        <span className="material-symbols-outlined align-middle text-[16px]" aria-hidden="true">
-          refresh
-        </span>
+        {/* Material refresh → lucide refresh-cw */}
+        <Icon name="refresh-cw" size={16} className="align-middle" />
         {loading ? "처리 중..." : hasMatches ? "이 종별만 재생성" : "이 종별 생성"}
       </button>
 
@@ -161,13 +162,13 @@ export function DivisionGenerateButton({
             }}
           >
             <div className="flex items-start gap-3">
-              <span
-                className="material-symbols-outlined flex-shrink-0"
-                style={{ color: "var(--color-error)", fontSize: 24 }}
-                aria-hidden="true"
-              >
-                error
-              </span>
+              {/* Material error → lucide circle-x */}
+              <Icon
+                name="circle-x"
+                size={24}
+                color="var(--color-error)"
+                className="flex-shrink-0"
+              />
               <div className="flex-1">
                 <p className="font-semibold" style={{ color: "var(--color-error)" }}>
                   종별 매치 생성 실패
@@ -207,16 +208,13 @@ export function DivisionGenerateButton({
             }}
           >
             <div className="flex items-start gap-3">
-              <span
-                className="material-symbols-outlined flex-shrink-0"
-                style={{
-                  color: isSuccessTone ? "var(--color-success)" : "var(--color-warning)",
-                  fontSize: 24,
-                }}
-                aria-hidden="true"
-              >
-                {isSuccessTone ? "check_circle" : "warning"}
-              </span>
+              {/* Material check_circle/warning → lucide circle-check/triangle-alert */}
+              <Icon
+                name={isSuccessTone ? "circle-check" : "triangle-alert"}
+                size={24}
+                color={isSuccessTone ? "var(--color-success)" : "var(--color-warning)"}
+                className="flex-shrink-0"
+              />
               <div className="flex-1 min-w-0">
                 <p
                   className="font-semibold"

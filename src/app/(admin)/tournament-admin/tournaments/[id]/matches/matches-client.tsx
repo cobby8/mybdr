@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/button";
 import { PlaceholderValidationBanner } from "../_components/PlaceholderValidationBanner";
 // 2026-05-16 PR-Admin-2 — 단일 순위전 진출 trigger (teams 페이지 헤더에서 이동 박제)
 import { AdvancePlayoffsButton } from "../_components/AdvancePlayoffsButton";
+// Track B-c Toss 리스킨 — Material Symbols → lucide-react 키트(<Icon>)
+import { Icon } from "@/components/admin-toss";
 // 2026-05-28 PR-1C-6 옵션 A — 매치 표 시각 박제 (시안 admin.css amt-table). 데이터/onClick 유지, 시각만.
 import "./matches-admin.css";
 
@@ -615,9 +617,8 @@ export default function MatchesClient() {
                     : "bg-[var(--color-elevated)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
                 }`}
               >
-                <span className="material-symbols-outlined align-middle" style={{ fontSize: 14, marginRight: 4 }}>
-                  location_on
-                </span>
+                {/* Material location_on → lucide map-pin */}
+                <Icon name="map-pin" size={14} className="align-middle" style={{ marginRight: 4 }} />
                 {v} ({count})
               </button>
             );

@@ -80,7 +80,8 @@ export default function TournamentRecordersPage() {
   const activeRecorders = recorders.filter((r) => r.is_active);
 
   return (
-    <div className="max-w-2xl mx-auto p-6 space-y-6">
+    // Track B-c — Toss 토큰 적용 루트 opt-in
+    <div data-skin="toss" className="max-w-2xl mx-auto p-6 space-y-6">
       {/* 헤더 */}
       <div className="flex items-center gap-3">
         <Link

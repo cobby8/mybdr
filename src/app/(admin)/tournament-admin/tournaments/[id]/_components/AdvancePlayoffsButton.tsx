@@ -14,7 +14,7 @@
  *   - "확인" 클릭 → onSuccess() → matches load() refetch
  *
  * 디자인 룰 (BDR 13):
- *   - var(--color-info) Navy 톤 trigger 버튼 / rounded-[4px] / material-symbols "trending_up"
+ *   - var(--color-info) Navy 톤 trigger 버튼 / rounded-[4px] / lucide "trending-up" (Track B-c)
  *   - 모달 = Card 패턴 / var(--color-success) 또는 var(--color-warning) 배너
  *   - 모바일 44px+ 터치
  */
@@ -23,6 +23,8 @@
 
 import { useState } from "react";
 import { Card } from "@/components/ui/card";
+// Track B-c Toss 리스킨 — Material Symbols → lucide-react 키트(<Icon>)
+import { Icon } from "@/components/admin-toss";
 
 type Props = {
   tournamentId: string;
@@ -119,9 +121,8 @@ export function AdvancePlayoffsButton({ tournamentId, onSuccess }: Props) {
         }}
         title="모든 종별 예선 종료 후 순위전(A조 N위 vs B조 N위) 자동 매핑"
       >
-        <span className="material-symbols-outlined align-middle text-[18px]" aria-hidden="true">
-          trending_up
-        </span>
+        {/* Material trending_up → lucide trending-up */}
+        <Icon name="trending-up" size={18} className="align-middle" />
         {loading ? "처리 중..." : "예선 종료 → 순위전 진출"}
       </button>
 
@@ -135,13 +136,13 @@ export function AdvancePlayoffsButton({ tournamentId, onSuccess }: Props) {
             }}
           >
             <div className="flex items-start gap-3">
-              <span
-                className="material-symbols-outlined flex-shrink-0"
-                style={{ color: "var(--color-error)", fontSize: 24 }}
-                aria-hidden="true"
-              >
-                error
-              </span>
+              {/* Material error → lucide circle-x */}
+              <Icon
+                name="circle-x"
+                size={24}
+                color="var(--color-error)"
+                className="flex-shrink-0"
+              />
               <div className="flex-1">
                 <p className="font-semibold" style={{ color: "var(--color-error)" }}>
                   순위전 자동 채우기 실패
@@ -182,17 +183,15 @@ export function AdvancePlayoffsButton({ tournamentId, onSuccess }: Props) {
             }}
           >
             <div className="flex items-start gap-3">
-              <span
-                className="material-symbols-outlined flex-shrink-0"
-                style={{
-                  color:
-                    result.total_errors === 0 ? "var(--color-success)" : "var(--color-warning)",
-                  fontSize: 24,
-                }}
-                aria-hidden="true"
-              >
-                {result.total_errors === 0 ? "check_circle" : "warning"}
-              </span>
+              {/* Material check_circle/warning → lucide circle-check/triangle-alert */}
+              <Icon
+                name={result.total_errors === 0 ? "circle-check" : "triangle-alert"}
+                size={24}
+                color={
+                  result.total_errors === 0 ? "var(--color-success)" : "var(--color-warning)"
+                }
+                className="flex-shrink-0"
+              />
               <div className="flex-1 min-w-0">
                 <p
                   className="font-semibold"

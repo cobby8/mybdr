@@ -1,4 +1,6 @@
 import Link from "next/link";
+// Track B-c Toss 리스킨 — Material Symbols → lucide-react 키트(<Icon>)
+import { Icon } from "@/components/admin-toss";
 
 // ============================================================
 // AdminCompletedCardGrid — PR-1C-13 PA7 (D1 · 종료 후 hub 신규 라우트)
@@ -16,7 +18,7 @@ import Link from "next/link";
 export interface CompletedCard {
   num: string; // STEP 번호
   title: string; // 카드 제목
-  icon: string; // Material Symbols 아이콘명
+  icon: string; // lucide 키트 아이콘명 (page.tsx 에서 lucide 이름으로 전달)
   desc: string; // 설명
   state: "done" | "auto" | "idle"; // 상태 톤 (시안 acp-card__state--*)
   stateLabel: string; // 상태 라벨
@@ -35,7 +37,8 @@ function CardBody({ c }: { c: CompletedCard }) {
   return (
     <div className={`acp-card${enabled ? "" : " acp-card--disabled"}`}>
       <div className="acp-card__head">
-        <span className="acp-card__icon material-symbols-outlined">{c.icon}</span>
+        {/* c.icon = lucide 키트 이름(trophy/layout-dashboard/newspaper/images/globe) */}
+        <Icon name={c.icon} size={22} className="acp-card__icon" />
         <div style={{ flex: 1, minWidth: 0 }}>
           <div className="acp-card__num">STEP {c.num}</div>
           <h3 className="acp-card__title">{c.title}</h3>
@@ -69,25 +72,22 @@ function CardBody({ c }: { c: CompletedCard }) {
             className="acp-card__cta"
           >
             {c.cta}
-            <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
-              open_in_new
-            </span>
+            {/* Material open_in_new → lucide external-link */}
+            <Icon name="external-link" size={16} />
           </a>
         ) : (
           <Link href={c.href!} className="acp-card__cta">
             {c.cta}
-            <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
-              arrow_forward
-            </span>
+            {/* Material arrow_forward → lucide arrow-right */}
+            <Icon name="arrow-right" size={16} />
           </Link>
         )
       ) : (
         // 운영 라우트 부재 — 가짜링크 대신 disabled "준비 중"
         <span className="acp-card__cta acp-card__cta--disabled" aria-disabled="true">
           준비 중
-          <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
-            schedule
-          </span>
+          {/* Material schedule → lucide clock */}
+          <Icon name="clock" size={16} />
         </span>
       )}
     </div>

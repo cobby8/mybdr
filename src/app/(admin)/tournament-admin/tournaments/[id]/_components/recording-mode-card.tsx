@@ -24,6 +24,8 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Card } from "@/components/ui/card";
+// Track B-c Toss 리스킨 — Material Symbols → lucide-react 키트(<Icon>)
+import { Icon } from "@/components/admin-toss";
 
 type Mode = "flutter" | "paper";
 type Scope = "all" | "new_only" | "exclude_in_progress";
@@ -64,9 +66,10 @@ const MODE_LABEL: Record<Mode, string> = {
   paper: "종이 기록지(웹)",
 };
 
+// lucide 키트 이름 — Material videogame_asset/description 대체
 const MODE_ICON: Record<Mode, string> = {
-  flutter: "videogame_asset",
-  paper: "description",
+  flutter: "gamepad-2", // videogame_asset
+  paper: "file-text", // description
 };
 
 export function RecordingModeCard({
@@ -157,12 +160,8 @@ export function RecordingModeCard({
     <Card className="mb-6">
       {/* 헤더 — 아이콘 + 타이틀 */}
       <div className="mb-3 flex items-center gap-2">
-        <span
-          className="material-symbols-outlined"
-          style={{ color: "var(--color-primary)", fontSize: 22 }}
-        >
-          tune
-        </span>
+        {/* Material tune → lucide sliders-horizontal */}
+        <Icon name="sliders-horizontal" size={22} color="var(--color-primary)" />
         <h3 className="font-bold text-base">기록 모드 설정</h3>
       </div>
 
@@ -213,9 +212,8 @@ export function RecordingModeCard({
                 }}
                 aria-pressed={active}
               >
-                <span className="material-symbols-outlined" style={{ fontSize: 18 }}>
-                  {MODE_ICON[m]}
-                </span>
+                {/* MODE_ICON = lucide 키트 이름(gamepad-2/file-text) */}
+                <Icon name={MODE_ICON[m]} size={18} />
                 {MODE_LABEL[m]}
               </button>
             );
@@ -385,12 +383,8 @@ function ConfirmModal({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-3 flex items-center gap-2">
-          <span
-            className="material-symbols-outlined"
-            style={{ color: "var(--color-primary)", fontSize: 22 }}
-          >
-            warning
-          </span>
+          {/* Material warning → lucide triangle-alert */}
+          <Icon name="triangle-alert" size={22} color="var(--color-primary)" />
           <h4 className="font-bold">모드 변경 확인</h4>
         </div>
         <p className="mb-4 text-sm" style={{ color: "var(--color-text-secondary)" }}>
