@@ -79,6 +79,7 @@
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
 |------|------|------|
+| 2026-06-21 | Track B Phase4 B-d 경기별 기록자 배정 (settings.recorder_id jsonb) 구현 (developer 세션B) | ✅ 신규 API 2종(matches/[matchId]/recorder PATCH=settings jsonb merge로 recorder_id set/unset·풀검증·IDOR가드·감사로그 / recorders/auto-assign POST=풀 라운드로빈 batch $transaction) + recorders 화면에 "경기별 기록자 배정" Card 추가(경기목록+기록자 select+자동배정·기존 풀 관리 1:1 보존). **settings spread merge**로 기존 키(recording_mode/division_code) 보존·통째 덮어쓰기0. 풀 외 인원 400 RECORDER_NOT_IN_POOL. **추가 스키마0·신규모델0**(settings/tournament_recorders 기존)·TournamentMatch 단일모델 준수. 기존 매치 PATCH route 미접촉(점수/상태 회귀0). tsc EXIT=0. git=대상3파일만(matches API route/teams/referee/schema 0). 미커밋 |
 | 2026-06-21 | Track B Phase4 B-c 대회 상세 나머지 화면 Toss 리스킨 (developer 세션B) | ✅ `tournament-admin/tournaments/[id]/*` 19파일(teams=B-a·wizard 제외) 순수 리스킨. 페이지9(대시보드·divisions·bracket·recorders·site·admins·matches(+client)·playoffs(+client)·completed(+hero/card-grid))+공유_components9. Material→lucide `<Icon>` 키트 교체(전부 실존)+data-skin="toss" 루트 opt-in(early-return·loading 포함, 클라루트는 부모 page 래퍼 상속). 동적 아이콘맵(STATUS_ICON·MODE_ICON·SECTION_TABS·secondaryActions·cards[].icon) lucide명화. 의미대체1(sports_basketball→volleyball). **API/server action/필터/컬럼/문구/라우트/대진로직/SetupChecklist/공개게이트 0 변경**(git diff 로직라인 grep=0). 신규모델/스키마/API 0. tsc EXIT=0. material 잔존0(JSDoc 포함). git=[id] 19파일만M(teams/wizard/schema/api/referee 0). 미커밋 |
 | 2026-06-21 | Track B Phase4 B-b 대회 생성 위저드 Toss 리스킨 (developer 세션B) | ✅ 4파일(new/wizard/page.tsx·prospectus·tournament-copy-modal·division-generator-modal) Material 35위치→lucide `<Icon>` 키트 교체 + data-skin="toss" 루트 opt-in(Quick/Legacy/prospectus 메인+early-return). 의미대체1(gradient→square)·volleyball(농구부재). rgba초록 tint→color-mix 토큰. **API/POST body/단계/DivisionGenerator 로직/이전대회복사 0 변경**(git diff 로직라인 실측). Icon 29종 lucide 실존검증. tsc EXIT=0. material 잔존0. git=대상4파일만M(referee/admin비대회/teams/schema 0). 미커밋 |
 | 2026-06-21 | Track B Phase4 대회 생성+상세(대진통합) 설계 (planner, 읽기전용·코드/스키마 무변경) | ✅ 핵심발견=**운영 대회관리 거의 전부 기구현**(본진=`(admin)/tournament-admin/tournaments/`·admin/tournaments 아님). 생성위저드(Quick/Legacy3-step/복사/Division/prospectus)·상세(SetupChecklist+teams+divisions+bracket+recorders+site+completed)·대진(5포맷)·기록자풀 전부 完·Toss 미리스킨. **진짜 신규 2건뿐**=①입금→자동확정 API(payment_status PATCH 미구현·paid→approved 승격) ②경기별기록자(settings.recorder_id·PM② 확정 jsonb). 하위배치4분해: B-a(입금자동확정 API+teams리스킨·1순위·유일 기능신규) / B-b(생성위저드 리스킨) / B-c(상세나머지 리스킨) / B-d(경기별기록자 settings). 시안 통합5탭IA=분산라우트 유지 권고(전면재구성 보류). status D표 매핑(WAITING=waiting+waiting_number·is_waiting❌)·div_caps 정원·TournamentMatch 단일모델·settings merge·snake·스키마0. PM확정3건(IA·대기승격 자동vs수동·착수순서). 미커밋 |
@@ -378,6 +379,30 @@
 ## 리뷰 결과 (reviewer)
 (완료분은 작업 로그로 압축 — 신규 작업 시 기록)
 
+### [2026-06-21] Track B Phase4 B-d 경기별 기록자 배정 (settings.recorder_id jsonb merge·3파일) — reviewer
+
+📊 종합 판정: **통과 (차단 0 / 권고 2 / 사소 3)**
+
+✅ 잘된 점:
+- **IDOR 차단 정확**: PATCH가 `tournamentMatch.findFirst({ where:{ id:matchBigInt, tournamentId:id } })`로 URL [id]+matchId 동시 검증 → 타 대회 매치 조작 차단(부재 404). 풀 검증도 `tournament_recorders.findFirst({ tournamentId:id, recorderId, isActive:true })`로 동일 대회 활성 풀만 허용 → 풀 외 인원 400 RECORDER_NOT_IN_POOL. 두 가드 모두 tournamentId 스코프 일관.
+- **권한 가드 동형 재사용**: requireRecordersManageAccess가 기존 recorders/route.ts 패턴 1:1 복제(recorder_admin 전역분기→tournament존재404 / fallback requireTournamentAdmin=organizer/TAM/super_admin). isRecorderAdmin은 super_admin 자동흡수. 우회 경로 없음.
+- **jsonb merge 정합 — errors.md 2026-05-17 동형 방지 정확**: `prevSettings` null/array 방어 후 `{...prevSettings}` spread→recorder_id만 set/unset. division_code/recording_mode/timeouts 등 기존 키 보존·통째 덮어쓰기 0. 해제는 `delete nextSettings.recorder_id`(멱등). auto-assign도 `asRecord(m.settings)` spread 동일 패턴.
+- **BigInt 직렬화 정확**: recorder_id는 `.toString()`로 string 저장(JSON BigInt 불가 회피)·응답도 string. parseBigIntParam 변환가드(matchId 실패→404, recorder_id 실패→400).
+- **단일모델·스키마0 준수**: TournamentMatch.settings jsonb만 사용(PM② 확정). 신규 테이블/모델/컬럼 0. 기존 matches/[matchId] PATCH(점수/상태) 미접촉→라이브 회귀 0.
+- **자동배정 견고**: 풀 빈→400, 매치0 또는 targets0→assigned_count:0 정상반환. overwrite 정책 명확(false=미배정만/true=전체). `pool[idx % pool.length]` 라운드로빈 정확. `$transaction(updates)` 배치 원자성(부분실패 방지). orderBy round_number→bracket_position→id로 순서 안정. 과설계 없음(편의기능 수준 적절).
+- **컨벤션**: apiSuccess/apiError·snake_case 수신(body.recorder_id)·adminLog 감사(assign/unassign/auto_assign). UI snake 접근자(is_active/recorder_id) 정합·낙관갱신+실패시 재동기화·IME 가드(L227 isComposing).
+
+🟡 권장(차단아님·후속):
+- **[matches GET 권한 불일치 → recorder_admin UI 무용] matches/route.ts L11** — 경기목록 GET은 `requireTournamentAdmin`만 통과(recorder_admin 전역분기 없음). 반면 PATCH/auto-assign은 requireRecordersManageAccess(recorder_admin 통과). 결과: recorder_admin(본인 대회 아닌 전역 기록원 관리자)이 이 화면 열면 loadMatches가 403→빈 목록→배정 UI 무용. **보안 약화 아님**(organizer/TAM/super_admin은 정상). 기능 일관성 차원 후속(matches GET도 requireRecordersManageAccess로 통일 검토). 단 tournament-admin 화면 자체 접근이 recorder_admin에게 열려있는지는 layout 가드 의존→실사용 빈도 낮을 수 있음.
+- **[UI camelCase 키 → 항상 undefined] recorders/page.tsx L30·33·334·335** — MatchRow.roundName/scheduledAt를 camelCase로 선언했으나 응답은 apiSuccess snake 변환으로 `round_name`/`scheduled_at`. → `m.roundName` 항상 undefined → roundLabel은 `라운드 N`(round_number fallback)로만 동작. scheduledAt/venue 미사용이라 표시영향 round_name 라벨뿐(경미). snake 접근자로 교정 권장(errors.md 2026-06-13 재발7 회피). 동작은 fallback으로 정상.
+
+🟢 사소(무영향):
+- requireRecordersManageAccess 가드가 3파일(recorders/route.ts·recorder/route.ts·auto-assign/route.ts)에 중복 복제. 공용 lib 추출 가능하나 add-only 격리 의도상 현행 OK.
+- auto-assign adminLog resourceId 생략(Tournament uuid≠BigInt 컬럼)—주석 명시·정합.
+- 낙관갱신 시 settings spread에 `recorder_id: recorderUserId || null`—서버는 키삭제(unassign)지만 클라는 null 유지. 표시(getMatchRecorderId가 null/""→null) 동일·실패시 loadMatches 재동기화로 정합.
+
+🔴 필수 수정: **없음** → merge 가능. 권고2(특히 matches GET 권한 통일)는 후속 권장.
+
 ### [2026-06-21] Track B 종별 마스터 관리 화면 (admin_categories CRUD 신규4파일) — reviewer
 
 📊 종합 판정: **통과 (차단 0 / 권고 3 / 사소 3)**
@@ -452,6 +477,39 @@
 🔴 필수 수정: **없음**. 운영 승인 로직이나 트리거 한정·정원 가드·트랜잭션·멱등 전부 견고. 정원 race는 단일운영자 컨텍스트라 차단 미해당(권고). merge 가능.
 
 ## 구현 기록 (developer)
+
+### Track B Phase4 B-d — 경기별 기록자 배정 (settings.recorder_id jsonb) (2026-06-21, developer 세션B)
+
+📝 구현: 경기별 기록자 배정 = **TournamentMatch.settings jsonb 키 `recorder_id`**(PM② 확정·신규 테이블 0·스키마 0). 신규 전용 API 2종 + recorders 화면에 "경기별 기록자 배정" 섹션 추가(기존 풀 관리 1:1 보존).
+
+| 파일 | 변경 내용 | 신규/수정 |
+|------|----------|----------|
+| `src/app/api/web/tournaments/[id]/matches/[matchId]/recorder/route.ts` | PATCH — settings jsonb merge로 recorder_id set/unset. 풀 검증·가드·감사로그 | 신규 |
+| `src/app/api/web/tournaments/[id]/recorders/auto-assign/route.ts` | POST — 풀 라운드로빈 자동배정(미배정만/overwrite옵션)·트랜잭션 batch | 신규 |
+| `src/app/(admin)/tournament-admin/tournaments/[id]/recorders/page.tsx` | "경기별 기록자 배정" Card 추가(경기목록+기록자 select+자동배정 버튼). 기존 풀 관리 무변경 | 수정 |
+
+🔑 **settings jsonb merge 방식**(핵심): `{ ...prevSettings, recorder_id: userId.toString() }` — 기존 settings 키(division_code/recording_mode/timeouts 등) **spread 보존** 후 recorder_id만 set. 해제 시 `delete nextSettings.recorder_id`(키 제거). **통째 덮어쓰기 금지**(errors.md 2026-05-17 division_code 누락 동형 방지). prevSettings는 null/array 방어(typeof object && !Array) 후 Record 캐스팅. BigInt userId는 JSON 직렬화 불가 → **string 저장**.
+
+🛡️ **풀 검증**: 배정 대상 recorder는 `tournament_recorders`(tournamentId+recorderId+isActive) 풀 내 활성 인원만 허용. 풀 외 인원→400 `RECORDER_NOT_IN_POOL`. 해제(null)는 풀 검증 skip. **가드**=`requireRecordersManageAccess`(풀 라우트 recorders/route.ts와 동형 — recorder_admin 전역 / organizer / TAM / super_admin). 매치는 tournamentId 일치 검증(IDOR 방지·findFirst where id+tournamentId).
+
+⚙️ **자동배정**(선택·시안 wand): 풀 인원을 미배정 경기에 라운드로빈(`pool[idx % pool.length]`) 순환. 기본 미배정만(overwrite=false), overwrite=true면 전체 재배정. $transaction batch(부분실패 방지). 단순 순환(과설계 금지)·핵심은 수동 배정.
+
+🧩 **멱등·트랜잭션**: PATCH는 같은 값 재배정/없던 키 해제 모두 무해. settings UPDATE 1건 $transaction. snake_case 응답(match_id/recorder_id). 감사로그 match.recorder.assign/unassign/auto_assign.
+
+💡 tester 참고:
+- 테스트: `/tournament-admin/tournaments/[id]/recorders` 진입 → 하단 "경기별 기록자 배정" 섹션. 풀에 기록원 추가 후 경기별 select로 배정/해제, "자동 배정" 버튼.
+- 정상: select 변경 시 즉시 "배정: 닉네임" 라벨 갱신. (미배정) 선택 시 해제. 자동배정 후 미배정 0.
+- 🚨 집중검증①(jsonb merge): recording_mode/division_code 설정된 경기에 기록자 배정 후 → 그 경기 settings에 recording_mode·division_code **유실 없이** recorder_id만 추가됐는지(matches 화면 종별뱃지·기록모드 보존). curl raw 응답 settings 확인.
+- 🚨 집중검증②(풀 외 차단): 풀에 없는 userId를 직접 PATCH body로 보내면 400 RECORDER_NOT_IN_POOL(클라 select는 풀만 노출하지만 서버 직접 호출 가드).
+- 주의 입력: recorder_id=null/""(해제)·존재하지 않는 matchId(404)·타 대회 matchId(404·tournamentId 불일치).
+
+⚠️ reviewer 참고:
+- settings spread merge로 기존 키 보존(통째 덮어쓰기 0) — prevSettings null/array 방어 적절성.
+- 풀 외 인원 차단(서버 검증) + IDOR(매치 tournamentId 일치).
+- 자동배정 $transaction batch / 라운드로빈 인덱싱.
+- 기존 매치 PATCH 라우트(matches/[matchId]/route.ts) **미접촉**(점수/상태 흐름 회귀0) — recorder는 별도 경량 endpoint 격리(recording-mode 토글 선례 동일).
+
+🔎 검증: `npx tsc --noEmit` EXIT=0 · 추가 스키마 0(settings 기존 jsonb·tournament_recorders 기존) · 신규 모델 0 · TournamentMatch 단일모델 준수 · git status=대상 3파일만(matches API route/teams/referee/schema 0). 미커밋(PM).
 
 ### Track B Phase4 B-b — 대회 생성 위저드 Toss 리스킨 (2026-06-21, developer 세션B)
 
@@ -679,6 +737,25 @@ arrow_back→arrow-left · upload_file→file-up · download→download · check
 
 ## 테스트 결과 (tester)
 (완료분은 작업 로그로 압축 — 신규 작업 시 기록)
+
+### Track B Phase4 B-d 경기별 기록자 배정 (settings.recorder_id jsonb) (2026-06-21, tester — 정적 검증·세션B)
+
+📊 종합: 8개 검증 전부 통과 / 차단 이슈 0 / 후속 minor 1건
+
+| 검증 항목 | 결과 | 비고 |
+|-----------|------|------|
+| tsc --noEmit | ✅ 통과 | EXIT=0 (신규 route 2종+page.tsx 컴파일 정상) |
+| 🚨 settings jsonb merge 기존 키 보존 | ✅ 통과 | recorder/route.ts L130~142·auto-assign L103~108 둘 다 `{...prevSettings, recorder_id}` spread 후 set / 해제는 `delete nextSettings.recorder_id`(키만 제거). **통째 덮어쓰기 0** — division_code/recording_mode/timeouts 등 보존(errors.md 2026-05-17 division_code 누락 동형 회피). prevSettings는 null/array 방어(asRecord/typeof object) |
+| 🚨 풀 검증 (RECORDER_NOT_IN_POOL) | ✅ 통과 | recorder PATCH: recorderUserId!=null 시 `tournament_recorders.findFirst({tournamentId,recorderId,isActive:true})` 없으면 400 RECORDER_NOT_IN_POOL → 풀 외 인원 차단. 해제(null)는 풀검증 skip(정상). auto-assign은 pool=isActive만 조회→순환이라 풀 내 인원만. 가드 requireRecordersManageAccess(recorder_admin/organizer/TAM/super_admin) 기존 recorders/route.ts와 동형 보존 |
+| 🚨 IDOR / 멱등 | ✅ 통과 | match를 `findFirst({id:matchBigInt, tournamentId:id})`로 조회→URL[id]≠match.tournamentId면 404(IDOR 차단). 같은 값 재배정=update 멱등·없던 키 해제=delete 무해(멱등). $transaction 사용(recorder=update 1건/auto-assign=updates 배열 묶음). parseBigIntParam 실패→404·400 방어 |
+| 자동배정 라운드로빈 | ✅ 통과 | `pool[idx % pool.length]` idx=targets 인덱스·pool.length 모듈로 → 과배정/무한루프 0. pool.length===0→400 차단·targets.length===0→assigned_count:0 정상반환. overwrite=false 미배정만 필터(recorder_id null/"")·true 전체. orderBy(round_number/bracket_position/id) 안정 순서. $transaction(updates) 부분실패 방지 |
+| snake_case 정합 (UI 접근자) | ✅ 통과 | 응답 recorder_id/match_id snake. **GET /matches 응답 키 패턴=운영검증 matches-client.tsx Match 타입과 100% 동일**(roundName/scheduledAt/homeTeam=camel·round_number/match_number/venue_name=snake·settings.recorder_id=snake). 새 page.tsx MatchRow·getMatchRecorderId·recorderNameById 접근자 동일패턴→정합. PATCH body=recorder_id(snake) 송신 |
+| 의존 헬퍼/스키마 시그니처 | ✅ 통과 | adminLog(action,resourceType,{resourceId:bigint·targetId·changesMade·severity})·apiError(msg,status,code)·apiSuccess·parseBigIntParam(string)→bigint\|null·isRecorderAdmin·requireTournamentAdmin 전부 일치. recorder_id BigInt→`.toString()`(JSON 직렬화 가드). auto-assign adminLog resourceId 생략(uuid≠BigInt 컬럼 의도적·주석 명시) |
+| 회귀 0 / 격리 | ✅ 통과 | **schema.prisma 무변경·기존 matches route(점수/상태 PATCH·matches/route.ts) 무변경·풀 관리 recorders/route.ts 무변경**(diff 비어있음). 신규 모델 0·신규 스키마 0. B-d 변경물=신규 route 2디렉토리(matches/[matchId]/recorder·recorders/auto-assign)+recorders/page.tsx 3개뿐. (※git diff에 admin-shell/referee-shell 변경 잡히나 이는 세션A Toss 셸 전환물·B-d 무관) |
+
+🔎 실제 런타임(세션 인증 후 PATCH 배정/해제·풀외 400·자동배정 순환·기존 settings 키 보존 SELECT) 검증은 세션 필요로 미수행 — 정적 검증으로 대체. 본 라우트는 api/web(getWebSession 경유)라 errors.md proxy PUBLIC_API_ROUTES(api/v1 전용) 함정 비해당.
+
+⚠️ 후속 minor (차단 아님): GET /matches 응답 키 정합은 운영 matches-client 동일패턴 근거로 판정 — apiSuccess의 camel→snake 일관 동작 특성상 신규 필드 추가 시엔 curl raw 1회 확인 권장(errors.md 06-13 재발6회 함정). 현 B-d는 기존 검증된 동일 응답 재사용이라 위험 0.
 
 ### Track B 종별 마스터 관리 화면 (2026-06-21, tester — 정적 검증 위주)
 

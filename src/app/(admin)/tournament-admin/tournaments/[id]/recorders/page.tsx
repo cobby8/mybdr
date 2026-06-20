@@ -22,6 +22,28 @@ type Recorder = {
   };
 };
 
+// Track B-d — 경기별 기록자 배정용 매치 타입.
+//   GET /matches 응답(snake_case). settings.recorder_id 가 경기별 배정된 기록자 userId(string).
+type MatchRow = {
+  id: string;
+  roundName: string | null;
+  round_number: number | null;
+  match_number: number | null;
+  scheduledAt: string | null;
+  venue_name: string | null;
+  homeTeam: { team: { name: string } } | null;
+  awayTeam: { team: { name: string } } | null;
+  settings: { recorder_id?: string | null; division_code?: string | null; [k: string]: unknown } | null;
+};
+
+// 매치 settings 에서 경기별 배정된 기록자 userId 추출 (없으면 null).
+function getMatchRecorderId(m: MatchRow): string | null {
+  const s = m.settings as Record<string, unknown> | null;
+  if (!s) return null;
+  const rid = s.recorder_id;
+  return rid != null && rid !== "" ? String(rid) : null;
+}
+
 export default function TournamentRecordersPage() {
   const { id } = useParams<{ id: string }>();
   const [recorders, setRecorders] = useState<Recorder[]>([]);
@@ -30,6 +52,13 @@ export default function TournamentRecordersPage() {
   const [adding, setAdding] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+
+  // Track B-d — 경기별 기록자 배정 state
+  const [matches, setMatches] = useState<MatchRow[]>([]);
+  const [matchesLoading, setMatchesLoading] = useState(true);
+  const [assigningId, setAssigningId] = useState<string | null>(null);
+  const [autoAssigning, setAutoAssigning] = useState(false);
+  const [matchError, setMatchError] = useState("");
 
   const load = useCallback(async () => {
     try {
@@ -40,7 +69,18 @@ export default function TournamentRecordersPage() {
     }
   }, [id]);
 
+  // Track B-d — 경기 목록 로드 (경기별 배정 현황 표시용)
+  const loadMatches = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/web/tournaments/${id}/matches`);
+      if (res.ok) setMatches(await res.json());
+    } catch { /* ignore */ } finally {
+      setMatchesLoading(false);
+    }
+  }, [id]);
+
   useEffect(() => { load(); }, [load]);
+  useEffect(() => { loadMatches(); }, [loadMatches]);
 
   const addRecorder = async () => {
     if (!email.trim()) return;
@@ -78,6 +118,84 @@ export default function TournamentRecordersPage() {
   };
 
   const activeRecorders = recorders.filter((r) => r.is_active);
+
+  // Track B-d — 경기별 기록자 배정/해제 (settings.recorder_id PATCH).
+  //   recorderUserId="" → 해제. 풀 인원만 select 에 노출되므로 클라단 검증 추가 불요(서버 풀 검증 존재).
+  const assignRecorder = async (matchId: string, recorderUserId: string) => {
+    setAssigningId(matchId);
+    setMatchError("");
+    try {
+      const res = await fetch(
+        `/api/web/tournaments/${id}/matches/${matchId}/recorder`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          // snake_case 키 — 서버가 body.recorder_id 로 수신
+          body: JSON.stringify({ recorder_id: recorderUserId || null }),
+        }
+      );
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "배정 실패");
+      // 낙관 갱신 — 해당 매치 settings.recorder_id 만 로컬 반영
+      setMatches((prev) =>
+        prev.map((m) =>
+          m.id === matchId
+            ? {
+                ...m,
+                settings: {
+                  ...(m.settings ?? {}),
+                  recorder_id: recorderUserId || null,
+                },
+              }
+            : m
+        )
+      );
+    } catch (e) {
+      setMatchError(e instanceof Error ? e.message : "오류 발생");
+      // 실패 시 서버 진실로 재동기화
+      await loadMatches();
+    } finally {
+      setAssigningId(null);
+    }
+  };
+
+  // Track B-d — 자동 배정 (풀 라운드로빈). 미배정 경기만 채움(overwrite=false).
+  const autoAssign = async () => {
+    if (activeRecorders.length === 0) {
+      setMatchError("먼저 기록원 풀에 인원을 추가하세요.");
+      return;
+    }
+    if (!confirm("미배정 경기에 기록원 풀을 순환 배정합니다. 진행할까요?")) return;
+    setAutoAssigning(true);
+    setMatchError("");
+    try {
+      const res = await fetch(
+        `/api/web/tournaments/${id}/recorders/auto-assign`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ overwrite: false }),
+        }
+      );
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "자동 배정 실패");
+      await loadMatches(); // 서버 결과로 전체 재동기화
+    } catch (e) {
+      setMatchError(e instanceof Error ? e.message : "오류 발생");
+    } finally {
+      setAutoAssigning(false);
+    }
+  };
+
+  // 기록자 userId → 표시명 매핑 (활성 풀에서 조회)
+  const recorderNameById = (userId: string | null): string => {
+    if (!userId) return "미배정";
+    const found = activeRecorders.find((r) => r.recorder_id === userId);
+    return found ? (found.recorder.nickname ?? found.recorder.email) : "(풀 외 인원)";
+  };
+
+  // 미배정 경기 수 (자동배정 버튼 보조 안내)
+  const unassignedCount = matches.filter((m) => !getMatchRecorderId(m)).length;
 
   return (
     // Track B-c — Toss 토큰 적용 루트 opt-in
@@ -172,6 +290,86 @@ export default function TournamentRecordersPage() {
                 </button>
               </li>
             ))}
+          </ul>
+        )}
+      </Card>
+
+      {/* Track B-d — 경기별 기록자 배정 (settings.recorder_id).
+          위 "기록원 풀"에 등록된 인원을 개별 경기에 배정한다. */}
+      <Card className="p-4 space-y-3">
+        <div className="flex items-center justify-between gap-2">
+          <h2 className="font-semibold text-[var(--color-text-primary)]">경기별 기록자 배정</h2>
+          {/* 자동 배정 — 미배정 경기에 풀 라운드로빈 */}
+          <Button
+            variant="secondary"
+            onClick={autoAssign}
+            disabled={autoAssigning || activeRecorders.length === 0 || unassignedCount === 0}
+            className="text-xs"
+          >
+            {autoAssigning ? "배정 중..." : "자동 배정"}
+          </Button>
+        </div>
+        <p className="text-sm text-[var(--color-text-muted)]">
+          위 풀에 등록된 기록원을 각 경기에 지정합니다.
+          {unassignedCount > 0 && ` 미배정 ${unassignedCount}경기.`}
+        </p>
+
+        {matchError && <p className="text-sm text-[var(--color-error)]">{matchError}</p>}
+
+        {matchesLoading ? (
+          <p className="text-sm text-[var(--color-text-muted)]">불러오는 중...</p>
+        ) : matches.length === 0 ? (
+          <p className="text-sm text-[var(--color-text-muted)]">
+            등록된 경기가 없습니다. 대진표를 먼저 생성하세요.
+          </p>
+        ) : activeRecorders.length === 0 ? (
+          <p className="text-sm text-[var(--color-text-muted)]">
+            먼저 기록원 풀에 인원을 추가하면 경기별 배정을 할 수 있습니다.
+          </p>
+        ) : (
+          <ul className="space-y-2">
+            {matches.map((m) => {
+              const recorderId = getMatchRecorderId(m);
+              // 라벨: 라운드/경기번호 + 대진(홈 vs 원정)
+              const roundLabel =
+                m.roundName ?? (m.round_number != null ? `라운드 ${m.round_number}` : "경기");
+              const vsLabel = `${m.homeTeam?.team.name ?? "미정"} vs ${m.awayTeam?.team.name ?? "미정"}`;
+              return (
+                <li
+                  key={m.id}
+                  className="flex flex-col gap-2 p-3 bg-[var(--color-elevated)] rounded-lg sm:flex-row sm:items-center sm:justify-between"
+                >
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-[var(--color-text-primary)] truncate">
+                      {roundLabel}
+                      {m.match_number != null && ` · #${m.match_number}`}
+                    </p>
+                    <p className="text-xs text-[var(--color-text-muted)] truncate">{vsLabel}</p>
+                    {/* 현재 배정 상태 라벨 */}
+                    <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
+                      배정:{" "}
+                      <span className={recorderId ? "text-[var(--color-info)]" : ""}>
+                        {recorderNameById(recorderId)}
+                      </span>
+                    </p>
+                  </div>
+                  {/* 기록자 select — 풀 활성 인원 + (미배정) */}
+                  <select
+                    value={recorderId ?? ""}
+                    disabled={assigningId === m.id}
+                    onChange={(e) => assignRecorder(m.id, e.target.value)}
+                    className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-sm text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/50 disabled:opacity-50 sm:w-48"
+                  >
+                    <option value="">(미배정)</option>
+                    {activeRecorders.map((r) => (
+                      <option key={r.recorder_id} value={r.recorder_id}>
+                        {r.recorder.nickname ?? r.recorder.email}
+                      </option>
+                    ))}
+                  </select>
+                </li>
+              );
+            })}
           </ul>
         )}
       </Card>
