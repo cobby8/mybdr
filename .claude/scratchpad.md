@@ -8,11 +8,14 @@
 
 ### 🅰️ 세션 A — Phase 3 referee 리스킨 (이 세션)
 - **코드 영역**: `src/app/(referee)/referee/*` (회원 + referee-admin). admin/* 비대회는 Phase2 완료·미접촉. tournaments/*·schema는 세션 B 소관.
-- **상태**: Phase 2 백오피스 17화면 **운영 반영 완료**(PR #728→dev·#729→main·0b268ca). 🔨 **Phase 3 referee 리스킨 착수**(26화면, 범위 스캔 중→배치 계획 예정). 미푸시 0. 방식=Phase1~2 패턴 동일(data-skin opt-in+Material→lucide 키트·기능 1:1·schema0).
+- **상태**: Phase 2 운영 반영(0b268ca). 🔨 **Phase 3 referee**(24화면). **✅3A 4f9a405**(셸+회원14+토큰보강)·**✅3B 370c3dd**(admin코어11). **🔨3C 진행중**(정산·운영~7·developer). 자율모드(승인없이 끝까지→push→main). tsc0·material잔존0·격리OK.
+  - **✅ 3A 토큰 보강 완료(PM 결정)**: referee `--color-background`(→#F2F4F6)·`--color-text-on-primary`(→#FFFFFF)는 globals :root 별칭이 다크 고정 → toss-admin.css `[data-skin]` 결합셀렉터(258~)에 명시 추가. admin 미사용 토큰(grep0)이라 Phase1/2 회귀0. 커밋 4f9a405 포함.
+  - **3A 변경 13파일**: _components(referee-shell·notification-bell·empty-state) + page·profile(+edit)·certificates(+[id])·documents·assignments·applications·notifications·settlements. layout.tsx=Material0→무변경. referee-picker=admin배정용 3B로 제외(미접촉). data-skin=셸 크롬 3곳(aside·header·하단nav, main미부착)+각 페이지 루트div(early-return 별도루트 포함). 아이콘=키트Icon만(lucide직접import0). 의미대체: sports(호루라기lucide부재)→flag·health_and_safety→heart-pulse·workspace_premium→award·account_balance→landmark·document_scanner→scan-text·more_horiz→ellipsis.
+- **📦 Phase 3 배치**(referee 독립셸 referee-shell 사용·Phase1 셸 패턴): **3A 셸+회원(~14)**=referee-shell(크롬 data-skin)+공유3(empty-state·notification-bell)+layout+회원8화면(referee·profile(+edit)·certificates(+[id])·documents·assignments·applications·notifications·settlements) / **3B admin코어(~12)**=admin/layout+대시보드·assignments·announcements(+[id])·members(+new·[id]·[id]/documents)·pools / **3C admin정산(~9)**=bulk-register·bulk-verify·settlements(+new-batch·dashboard)·fee-settings·settings. referee-picker→3B(admin 배정용). 방식=셸 크롬에만 data-skin(children wrapper 미부착)+페이지 루트별 data-skin(미작업 admin 누수0)+Material→lucide·기능1:1·schema0. PR=회원/admin 분리.
 
 ### 🅱️ 세션 B — Phase 4 Track B 대회관리 리빌딩 (세션 B가 갱신)
 - **코드 영역**: tournaments 리빌딩 + admin_categories schema(게이트). admin/* 비대회 화면·toss-admin.css 미접촉.
-- **상태**: §0 대조완료·B-1 admin_categories(테이블+4종시드) 완료·커밋(367c1d8). **PM결정 5건 확정(2026-06-21, 권고안 일괄)**: ①cap=div_caps jsonb유지 ②경기별기록자=TournamentMatch.settings jsonb키 ③시드=완료(BDR-join복원검증) ④최소인원/게스트=토글OFF박제 ⑤format_presets=미도입. **→ 추가 스키마변경 0**. 다음=Phase4 리빌딩 **첫배치=종별마스터 관리화면**(planner 설계중). 충돌검증=referee worktree=.claude메타만. stash@{0}=gallery(무관).
+- **상태**: §0 대조완료·B-1 admin_categories(테이블+4종시드) 완료·커밋(367c1d8). **PM결정 5건 확정(2026-06-21, 권고안 일괄)**: ①cap=div_caps jsonb유지 ②경기별기록자=TournamentMatch.settings jsonb키 ③시드=완료(BDR-join복원검증) ④최소인원/게스트=토글OFF박제 ⑤format_presets=미도입. **→ 추가 스키마변경 0**. **Phase4 첫배치=종별마스터 관리화면 완료·커밋 50053a2**(신규4파일·tester+reviewer통과·IME가드). 다음 후보=②참가신청 3단계(로스터·WAITING) or ③대회생성+상세(대진통합) or 사이드바nav 링크(세션A 셸 소관). 충돌검증=referee worktree=.claude메타만. stash@{0}=gallery(무관).
 - **📦 Phase 2 배치 계획**(미리스킨 admin 17화면, Phase1의 5·Phase4 tournaments/[id] 제외):
   - **2A 대시보드·계정·정산(8)**: `/admin`(대시보드)·`/admin/settings`·`/admin/logs`·`/admin/suggestions`·`/admin/season-awards`·`/admin/payments`·`/admin/teams`·`/admin/courts` → PR-2A
   - **2B 발송·분석·엔티티(6)**: `/admin/partners`·`/admin/plans`·`/admin/campaigns`·`/admin/notifications`(아이콘9)·`/admin/analytics`(7)·`/admin/game-reports`(13) → PR-2B
@@ -55,6 +58,7 @@
 ## 수정 요청 (미완료 후속·동작영향 minor)
 | 대상 | 문제 | 상태 |
 |------|------|------|
+| (web) join/page.tsx L148~150·439·263 (차단·reviewer) | 참가신청 대표자 입력칸+클라게이트 제거로 user.phone null 사용자(카카오/구글 가입자) 영구 제출 차단. 서버 joinSchema managerName/managerPhone `.min(1)` 필수인데 자동값 빈값→422·고칠 UI 없음. user_info 빈값 시 입력칸 노출+canNext 게이트 추가(택A) 또는 항상 편집칸(택B) | ✅ 해결 (2026-06-21 developer, 권고A: 조건부 입력칸+canNext trim 게이트·page.tsx 1파일·tsc0·route/schema diff0) |
 | scrim-tabs.tsx L295 (critical) | 보낸취소가 URL[id]=from_team 전송→PATCH(to_team 강제) 항상 400. `patchStatus(counterpart.id)` + null가드 필요 | ⏳ developer 재작업 |
 | scrim PATCH 가드(minor) | 수락/거절 captain only(vice/manager 없음)→isCaptain 헬퍼 통일 검토 | 후속 |
 | game.ts L44 | game_type=parseInt(영문type)→NaN. 영문↔정수 매핑 필요(기존버그) | 후속 |
@@ -74,6 +78,12 @@
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
 |------|------|------|
+| 2026-06-21 | Track B 참가신청 3단계 (Toss 리스킨) **검증** (tester, 세션B·정적) | ✅ 8항목 전부 통과·차단0. 🚨회귀0 확정(route.ts·schema.prisma·joinSchema diff 비어있음)·클라 POST body 동일(대표자/유니폼 자동값)·약관2종 게이트(canSubmit)·본인인증redirect+주장가드+snake접근자 보존·adaptive 2단계·Toss격리(전역셀렉터·:root 오염0·toss-admin.css 미import·lucide-react직접)·join 4파일 국한. tsc EXIT0. 후속minor1(GET bank_* 응답 런타임확인 권장, 표시용·제출영향0). 미커밋 |
+| 2026-06-21 | Toss Phase 3 Batch 3B(referee-admin 코어 11파일) 리스킨 (developer 세션A, 본인+fork2병렬) | ✅ layout(AccessDenied 루트 data-skin+lock→lucide)·referee-picker(자체렌더루트 data-skin·search/x/star)·page대시보드(동적 stat/quickLinks icon값 lucide명화·shield-check/chevron-right)·assignments(루트 data-skin·circle-x/search/trophy×2/plus/info/circle-check)·announcements(+[id] 3루트)·members(+new/[id]2루트/[id]/documents)·pools. data-skin=AccessDenied루트+각 page루트+early-return별도루트(members[id]·documents·announcements[id])+referee-picker자체루트. Material79→키트Icon 전환·잔존0. 동적아이콘(DOC_CONFIGS·삼항 verified/pending) 정의부까지 치환. 의미대체=group_off→user-x(UsersX미존재→UserX)·pending→clock·print→printer·auto_fix_high→wand-sparkles·edit_note→file-pen·star_border→star(fill재현). lucide 전수실존검증(node require)·tsc EXIT0·material잔존0(3C 6파일만 잔존=미접촉정상)·git격리OK(3B 11파일만M·3A/toss-css/admin/tournaments/schema 0). 미커밋 |
+| 2026-06-21 | Track B Phase4 참가신청 3단계 (Toss 리스킨) 구현 (developer, 세션 B) | ✅ 기존 (web) join 화면 4파일 리스킨(page+stepper+success-hero+css). 5→3단계 축소(팀선택+확인/종별·디비전/로스터+약관). 대표자입력칸·유니폼picker 폐지(자동값 POST)·약관2종 ③하단 제출게이트·서류/결제step 폐지·완료=입금안내흡수. Toss 토큰 `.te-enroll[data-skin="toss"]` 루트스코프 self-contained(toss-admin.css 무의존)·lucide-react 직접import. **POST route.ts/joinSchema/schema diff 0**(클라 body 동일). snake접근자·본인인증/주장가드 보존. MIN_PLAYERS/GUEST=false 고정. adaptive 2단계(부문없을시). tsc EXIT0. 미커밋 |
+| 2026-06-21 | Track B 참가신청 3단계 설계 (planner, 읽기전용·코드/스키마 무변경) | ✅ 핵심발견=**기존 (web) join 화면 완전구현 존재**((web)/tournaments/[id]/join/page.tsx 1292줄+_v2 7조각). 라우트권고=**기존 사용자(web) 화면 리스킨**(admin신설❌·신규❌·Toss예외스킨). **기존 POST 무변경 재사용**(route.ts L344~436이 div_caps정원판정·waiting_number=maxWaiting+1·status"waiting"·TTP createMany·payment unpaid default·중복409·주장등번호 single-source 전부 이미처리). 신규파일0·schema0. 변경=page.tsx 3단계축소(팀→디비전→로스터)+유니폼/대표자입력 제거+Toss룩·_v2 4조각 리스킨만. 종별출처=**tournament.categories 유지**(admin_categories❌). 미결2(PM확정 선행): ①서류/약관동의 step 처리 ②(web)다크 vs Toss라이트 충돌→join루트 토큰격리. snake접근자유지·본인인증/주장가드 보존 명시 |
+| 2026-06-21 | Toss Phase 3 Batch 3A(referee 셸+회원 13파일) 리스킨 (developer, 본인+fork 2병렬) | ✅ data-skin opt-in(셸 크롬 3곳·main미부착·페이지 루트별)+Material137→키트lucide Icon 전환. 기능/패칭/server action/라우트/탭/필터/모달/문구 1:1보존. 동적 아이콘헬퍼(iconForType·STATUS_META·DOC_CONFIGS 등) 전부 치환. 의미대체6종(sports→flag 등). lucide직접import0. tsc EXIT0·material잔존0·git격리OK(referee 13파일만 M·admin/toss-css/tournaments/schema 0). 🔧토큰보강 필요(--color-background·text-on-primary 미커버, PM결정 요망). 미커밋 |
+| 2026-06-21 | Track B 종별 마스터 관리 화면 **검증+커밋** (tester+reviewer 병렬→IME가드 수정→PM) | ✅ tester 8항목 통과(snake정합·빈배열·에러매핑·회귀0)·reviewer 차단0(권고3/사소3). 한글 IME 조합가드 2핸들러 추가(reviewer 권고). **커밋 50053a2**(신규4파일+메타). tsc EXIT0. 미푸시2건. PM결정5건 decisions.md 승격 |
 | 2026-06-21 | Track B 종별 마스터 관리 화면 구현 (developer) | ✅ 신규4파일(API route GET/POST·[id] PATCH/DELETE + page서버 + content클라). super_admin가드·Zod TagArr중복차단·P2002→409 DUPLICATE_NAME·P2025→404. UI=시안1:1 TagInput칩·dirty판정 카드별 1PATCH저장·삭제모달·에러배너. prisma generate 불필요(타입실존). snake정합(sort_order). Toss키트·신규CSS0·하드코딩hex0·data-skin 루트div만. schema0·시드0·세션비중첩. tsc EXIT0. 미커밋 |
 | 2026-06-21 | Track B 종별 마스터 관리 화면 설계 (planner, 읽기전용·코드/스키마 무변경) | ✅ 통합위치=신규 라우트 `/admin/categories` 권고(설정탭❌·settings는 use client 2카드라 server조회 못끼움). API 2파일(GET목록/POST/PATCH/DELETE·super_admin가드·Zod TagArr중복차단·P2002→409 DUPLICATE_NAME). UI=page.tsx 서버조회(adminCategory.findMany)+categories-content.tsx 클라(data-skin toss·TagInput 디비전/연령 칩·카드별 저장버튼 권고). 삭제 참조무결성 가드=불필요(FK참조 0건·대회는 category 문자열명만 보유). prisma generate 선행 1순위(미generate 락). snake_case 응답함정·신규 4파일 세션비중첩 명시 |
 | 2026-06-21 | Toss Phase 2 Batch 2C(마지막) 3화면 리스킨 (developer) | ✅ 11파일 M(news page+admin-news-content+compose-content / me page+_components 7). data-skin="toss"=3 page 루트(news page div·me page div·compose-content 루트div=page가 래퍼없이 직접렌더). 자식 content/카드는 DOM상속. Material→lucide(<Icon> 키트) 잔존0(grep news+me 트리=0). lucide 39종 실존 검증(빈span폴백0): open_in_new→external-link·arrow_back→arrow-left·edit_note→file-pen·format_bold→bold·format_italic→italic·format_list_bulleted→list·format_quote→quote·image→image·add_photo_alternate→image-plus·send→send·save→save·schedule→clock·visibility→eye·sports_basketball→volleyball(농구부재)·celebration→party-popper·campaign→megaphone·photo→image·hub→share-2·history→history·check_circle→circle-check·edit→pencil·close→x·verified→badge-check·info→info·warning→triangle-alert·tips_and_updates→lightbulb·event→calendar·shield_person→shield-user·expand_less/more→chevron-up/down·notifications_active→bell-ring·notifications→bell·error→circle-x·remove_circle_outline→circle-minus·feedback→message-square-text·task_alt→circle-check-big·key→key·mail→mail·link→link. news-photo-manager=Material 0(이모지만)→무수정. compose page.tsx=아이콘0·자체 root div 없음→무수정. .ico 래퍼 클래스·fontSize→size·color 인라인 1:1 이관. 기능/문구/server action/패칭 변경0. 2A·2B·Phase1·toss-admin.css·admin-toss·tournaments·schema 변경0. tsc EXIT0. 미커밋 |
@@ -81,11 +91,6 @@
 | 2026-06-21 | Track B-1 admin_categories 테이블+4행 시드 (developer) | ✅ schema 모델 추가(BigInt PK·name@unique)·**broad db push 중단**(live_scoreboards FK DROP 드리프트 섞임)→targeted `db execute` CREATE TABLE만 무중단 적용·raw SQL upsert 4행(일반부/유청소년/유U8~U18/대학부/시니어+40~+70)·실측 count=4·JSON정확·tsc0. ⚠️prisma generate 개발서버(3001 PID78724) 락으로 미완→후속 전 재시작 필요. 임시스크립트 정리. 미커밋 |
 | 2026-06-21 | Toss Phase 2 Batch 2A 8화면 리스킨 (developer) | ✅ 12파일(page8+content3+admin-stat-card). data-skin=8 page루트 div만(content는 DOM상속). Material→lucide(<Icon> 키트) 잔존0: list_alt→list-checks·emoji_events→trophy·sports_basketball→volleyball(농구부재)·group/groups→users·add_circle→circle-plus·currency_exchange→arrow-left-right·add_location_alt→map-pin-plus·edit_note→file-pen·shield_person→shield-user·swap_horiz→arrow-left-right·delete→trash-2·check_circle→circle-check·arrow_forward→arrow-right·trending_flat→move-right. admin-stat-card(대시보드 전용 공유) 내부 교체 안전. 기능라인 변경0(prisma/fetch/action/href grep0)·tsc0·toss-admin.css/admin-toss/Phase1 변경0. 미보강0 |
 | 2026-06-21 | Track B §0 스키마 대조 (planner, 읽기전용·코드/스키마 무변경) | ✅ 계약 "신규5건"→**진짜신규=admin_categories 1건뿐**. DivisionRule format/settings/feeKrw·TTP·brackets(=TournamentMatch통합)·is_waiting(=waiting_number+status"waiting")·tournament_recorders(대회풀) 전부 기존存→중복생성 금지(파손위험). PM결정5건 권고(cap=div_caps유지/경기별기록자 settings jsonb옵션/시드 사용자대조/최소인원·게스트 토글off/format_presets 보류). status매핑 확정(WAITING=status"waiting"·payment default=unpaid). 계약 §3·uuid PK·status값집합 mybdr 불일치 적시 |
-| 2026-06-21 | Toss Phase 1 AdminShell+5화면 리스킨 (developer→tester→reviewer) | ✅ 13파일·통과(차단0). 토큰 리매핑(globals 베이스토큰→`[data-skin]` 라이트Toss값, admin.css `--color-*` 별칭 자동전파·마크업0변경)·Material→lucide(`<Icon>` 키트)·data-skin=셸크롬+5페이지 루트div만(공유래퍼 미부착 grep0). 기능 회귀0·라이트고정·tsc0·globals/admin.css diff0·partner/referee/(web) 변경0 |
-| 2026-06-21 | Toss Phase 3 PR-A partner-admin 재스킨 (developer→tester→reviewer) | ✅ partner-admin/* 5파일(layout·page·venue·campaigns·[id]). 변경 3종(아이콘 lucide·className .ts-*·data-skin). 기능 회귀0(super_admin가드·SWR키·POST/PATCH body·filterTabs·statusConfig·VP2_TABS·isEditable diff0). navy hero→H+StatCard. toss-admin.css 신규규칙0. tsc0 |
-| 2026-06-21 | Toss Phase 0 디자인시스템 이식 (developer→tester→reviewer) | ✅ 통과(차단0/후속). toss-admin.css(Toss토큰+.ts-* 전부 `[data-skin="toss"]` opt-in 격리·bare:root 0)·layout import1줄·admin-toss/(kit.tsx·data.tsx·index.ts). CDN createIcons 제거→lucide-react import. data-skin JSX 실적용0(Phase0 시각변화0). 보완: L237 잔여 `</invoke>` 삭제·a11y 기반박제·ICON_ALIAS(thunderdunk→Zap). schema0·프론트0 |
-| 2026-06-19 | 매칭 M6(최종) 호스트콘솔 (developer→reviewer) | ✅ 통과(차단0). ①데드코드 삭제 ②host-applications 2→3구획(대기승인/확정/대기열 순번배지+승격=confirm POST 재사용) ③MyGames waiting탭+HostGameCard(현황칩+빠른액션·취소=DELETE 재사용). groupBy 1회 N+1회피. 보완: 수동 마감확정 API(/close status1→2)·취소알림 status[0,1,3]. schema0·신규route(close만)·tsc0 |
-| 2026-06-19 | 매칭 M5 찾기UX 정렬·빠른필터·빈상태(시안A) (developer→reviewer) | ✅ 통과(차단0). sortOptions(soon/filling/latest, 가까운순=좌표0이라 제외)·chipOptions(today/weekend/filling/free+near는 로그인&preferred_regions時)·SortMenu(드롭다운↔시트)·빈상태 CTA. 기존 KindTab/FilterChipBar/clientFilters 별개레이어 AND 보존. take60 전체로드 메모리정렬. tsc0·schema0 |
 
 ## 기획설계 (planner-architect)
 
@@ -202,6 +207,71 @@
 
 ⚠️ developer 주의: ①prisma generate 1순위(미완시 page.tsx 컴파일 불가)·포트3001 PID만 ②시안 setMaster 즉시반영=mock → 운영은 **실 API 연동**(fetch+에러+로딩), 더미흐름 박제 금지 ③칩 저장=카드별 저장버튼 권고(채터링 회피).
 
+### 참가신청 3단계 설계 (2026-06-21, 읽기전용·코드/스키마 무변경)
+
+🎯 목표: 시안 Apply.jsx(Toss 룩·3단계: ①참가팀선택+확인 ②종별/디비전(정원·대기) ③출전선수=로스터선택. 유니폼/명단입력 폐지)를 **기존 운영 참가신청 화면 리스킨+단순화**로 박제. ⚠️핵심 발견: **기존 화면이 이미 완전 구현됨** — 신규 화면이 아니라 **기존 page.tsx의 Toss 리스킨+단계 축소**. API/POST 로직은 **무변경 재사용**(시안 요구사항 100% 이미 처리).
+
+**1️⃣ 라우트 위치 권고 = 기존 사용자 (web) 화면 리스킨 (admin 신설 ❌·신규 화면 ❌)**
+- **기존 실측**: 화면=`src/app/(web)/tournaments/[id]/join/page.tsx`(use client·1292줄·v2 시안 박제 완료) + 조각 7개(`_v2/enroll-*.tsx`·`tournament-enroll.css`). API=`src/app/api/web/tournaments/[id]/join/route.ts`(GET 데이터·POST 제출, getWebUser 세션·본인인증 게이트·주장권한).
+- **🔑 기존 POST가 시안 요구 전부 이미 처리**(route.ts L344~436): div_caps[division] 정원판정·`allow_waiting_list` 가드·`waiting_number=maxWaiting+1`·status `isWaiting?"waiting":(auto_approve?"approved":"pending")`·TournamentTeamPlayer createMany·payment_status default `unpaid`(스키마)·중복신청 409·주장 등번호 single-source(team_members 자동복사). → **POST route 변경 0**.
+- **권고 = 기존 page.tsx UI만 Toss로 교체(시안 3단계로 축소)**. 사유: ①참가신청서=**사용자용인데 Toss 스킨 예외**(scratchpad 디자인 분기 §22 명시) — admin 라우트로 옮기면 권한(주장 vs admin)·세션·본인인증 게이트 다 깨짐. ②기존 화면이 이미 시안과 동일 데이터/흐름 → **신규 라우트 무의미·중복**. ③시안이 "사용자가 보게 될 화면"이라 명시(Apply.jsx L7,L70).
+- **신규 vs 기존**: **기존 대체(리스킨)**. 신규 화면 아님. 다만 시안이 **단계를 5→3으로 축소**(유니폼step·서류step·결제step 일부 변경): 시안=①팀선택+확인 ②종별/디비전 ③로스터 → 제출 → 완료(입금안내). 기존=대회확인→[디비전]→로스터(+유니폼)→서류→결제. **축소 범위는 PM 확인 필요**(아래 5️⃣ 리스크 "서류/결제 step 처리").
+- **비유(건물 리모델링)**: 이미 영업 중인 가게(join 화면)의 **인테리어만 Toss풍으로 교체**하고 동선(5칸→3칸)을 줄이는 것. 주방(POST API)·수도배관(세션/권한)은 손대지 않는다. 옆 건물(admin)에 새 가게를 내는 게 아니다.
+
+**2️⃣ 3단계 UI 명세** (기존 page.tsx 내부 stage 분기 재구성 — StepDots 3칸)
+| 단계 | 시안(Apply.jsx) | 컴포넌트·데이터 | 검증(다음 활성) | 기존 매핑 |
+|------|----------------|----------------|----------------|----------|
+| **①참가팀 선택+확인** | TeamCard 리스트+선택 후 InfoRow(팀명/대표자/연락처/지역/유니폼 **표시만**) | `data.my_teams`(GET join·주장팀만)·선택 시 대표자 자동(`user_info.name/phone`) | `!!selectedTeamId`(+대표자 자동채움이라 항상 채워짐) | 기존 stage="info" 팀선택+대표자 입력 → 시안은 **대표자 입력칸 제거**(InfoRow 표시만, 자동값 제출) |
+| **②종별·디비전(정원/대기)** | 종별 chip(CATEGORY_MASTER) → 디비전 카드(`div_caps[d]` cap/current·만석시 "대기접수" Badge·`current>=cap` 판정) | `tournament.categories`(종별→디비전배열)·`div_caps`·`division_counts`(GET) | `!!category && !!division` | 기존 stage="division" 동일 로직(`getDivisionRemaining`·`isFull`·blocked) — 시안 룩으로 |
+| **③출전 선수(로스터)** | 로스터 체크 리스트(`team.roster`)·전체선택토글·선출 Badge·선택수 Badge. **명단입력 UI 0**(이미 등록된 선수 선택만) | `selectedTeam.team_members`→players(체크) | (MIN_PLAYERS_GUARD OFF→) 항상 통과. 단 **서버 roster_min 가드 존속**(POST L257)→제출 실패 가능 | 기존 stage="roster"에서 **유니폼 color picker 제거**(시안=표시만)·jersey/position 입력 이미 없음(자동sync) |
+| 제출 후 완료 | 입금계좌·금액 안내(isWaiting시 "대기 접수"·아니면 "신청 완료") | POST 응답(status·waiting_number) | — | 기존 EnrollSuccessHero 재사용 가능(Toss 룩 교체) |
+
+- **종별·디비전 데이터 출처 주의**: 시안 Apply.jsx는 `master`(CATEGORY_MASTER=admin_categories)에서 종별→디비전을 가져옴. 그러나 **기존 운영 화면은 `tournament.categories`(대회별 jsonb: {부문명:[디비전]})를 단일소스로 사용**. → 권고=**기존 `tournament.categories` 유지**(대회마다 운영하는 종별/디비전이 다름·admin_categories는 마스터 프리셋일 뿐). admin_categories를 신청서에 끌어오면 대회별 실제 모집 디비전과 불일치. **시안의 master 참조는 mock 편의** → 운영은 categories 채택.
+- **StepDots**: 기존 EnrollStepper(5/4단계 adaptive) → 시안 StepDots 3칸. `hasCategories=false`(부문 미설정 대회)면 ②단계 스킵 가능성 → **adaptive 유지**(부문 없으면 2단계). 기존 4-step 분기 로직 참고.
+- **유니폼**: 시안=Step1 InfoRow에 색칩 **표시만**(L91~96·신청 시 미입력). 기존=stage roster에서 color picker로 **편집**(uniformHome/Away state→POST 전송). → 시안 따르면 **편집 제거·팀 색상 자동 전송**(`team.primary_color/secondary_color`를 POST `uniformHome/Away`로). POST는 optional이라 무해.
+- **비유(레고)**: 팀카드·디비전카드·선수카드 = 블록 3종. 기존 블록을 Toss 색·모서리로 갈아끼우고, 유니폼 편집 블록만 빼낸다.
+
+**3️⃣ API/액션 명세 — 기존 POST 재사용 (신규 0)**
+- **재사용 범위(전부)**: `POST /api/web/tournaments/[id]/join`. 시안 요구 = 기존 구현이 이미 충족:
+  - TournamentTeam create(status/waiting_number/payment) + TournamentTeamPlayer createMany(선택 로스터) = **트랜잭션(route.ts L387~436) 그대로**.
+  - 정원충족 판정→status: `isWaiting?"waiting":(auto_approve_teams?"approved":"pending")`(L392). payment_status는 스키마 default `unpaid`(create에 미지정→default). waiting_number=maxWaiting+1(L368~381).
+  - **변경 0**: route.ts·joinSchema 손대지 않음. 클라가 보내는 body(teamId/category/division/uniformHome/uniformAway/managerName/managerPhone/players[])는 기존 그대로.
+- **클라 제출 변경(최소)**: 시안 단순화로 ①유니폼=팀 색상 자동(편집칸 제거) ②대표자=자동값(입력칸 제거). 둘 다 **POST body는 동일 형태로 채워 전송**(서버 무변경). `players`=선택분만 `{userId, playerName, birthDate, isElite}`(기존과 동일·jersey/position 미전송→서버 team_members 자동복사).
+- **GET 재사용**: `GET /api/web/tournaments/[id]/join`(my_teams·div_caps·division_counts·user_info) 그대로. 시안 데이터(MY_TEAMS·DIVISION_CAPS) = 이 GET 응답에 1:1 대응.
+- **MIN_PLAYERS_GUARD/ALLOW_GUEST OFF 박제**: 시안 토글 2개 모두 false 박제(④ PM 확정). ⚠️단 **서버는 roster_min 가드가 이미 존재**(POST L255~259·기본 5명)→선수 5명 미만 제출 시 서버 422. 클라는 시안대로 가드 UI 미노출하되, **제출 실패 에러는 표시**(기존 setError). 게스트 추가 버튼 미노출(ALLOW_GUEST=false).
+
+**4️⃣ 변경/신규 파일** (전부 기존 (web) 화면 리스킨 — 신규 라우트/API 0)
+| 경로 | 역할 | 신규/수정 |
+|------|------|----------|
+| `src/app/(web)/tournaments/[id]/join/page.tsx` | stage 분기 3단계로 축소·Toss 룩(StepDots·ts-card·칩)·유니폼편집/대표자입력 제거·완료화면 | 수정 |
+| `src/app/(web)/tournaments/[id]/join/_v2/enroll-stepper.tsx` | StepDots 3칸 스타일(또는 신규 ts-steps) | 수정 |
+| `src/app/(web)/tournaments/[id]/join/_v2/tournament-enroll.css` | Toss 토큰 매핑(ts-* 클래스). ⚠️**(web) 다크 테마 충돌 주의**(아래 5️⃣) | 수정 |
+| `src/app/(web)/tournaments/[id]/join/_v2/enroll-success-hero.tsx` | 완료(입금안내) Toss 룩 | 수정 |
+| (기타 `_v2/enroll-step-docs.tsx`·`enroll-step-payment.tsx`) | 서류/결제 step 처리 결정에 따라 | PM 확정 후 |
+- **API route.ts·[id]/route.ts·joinSchema·prisma schema = 수정 0**. admin/* 미접촉. admin_categories 미참조(categories 단일소스).
+
+**5️⃣ 주의·리스크 (developer)**
+- **🚨 단계 축소 범위 = PM 확정 필요(최우선)**: 시안 Apply.jsx는 3단계(팀→디비전→로스터)+완료. **서류(docs) step·결제 동의(약관 2종) step이 시안에서 사라짐**. 기존은 서류("준비중" 박제)+결제(약관동의 agreeRules/agreeMedia·입금안내)가 있음. → **약관 동의를 제거하면 기존 동의 흐름 손실**(운영 정책영향). 권고=**시안의 "완료=입금안내"는 기존 EnrollStepPayment의 입금안내를 완료화면으로 흡수**하되, **약관 동의 2종은 완료 직전 유지 검토**(PM 결정). 서류 step("준비중")은 폐지 무해.
+- **🚨 (web) 다크 테마 vs Toss 라이트 충돌**: 참가신청서는 **사용자용이지만 Toss 예외 스킨**(디자인 분기). 그러나 (web)은 **다크 기본+var토큰+Material+AppNav 불변** 영역. Toss(라이트·#3182F6·lucide)를 (web) 안에 넣으면 ①AppNav/전역 다크 토큰과 시각 충돌 ②`data-skin="toss"` 토큰 리매핑이 admin용(globals→라이트)이라 (web)에서 동작 보장 안 됨. → **`tournament-enroll.css`에 Toss 토큰을 join 화면 루트 스코프로 격리**(ts-* 클래스 자체 정의·globals 의존 최소화). lucide는 **lucide-react**(CDN injection 금지·시안 toss-kit의 window.lucide 방식 박제 금지). **PM/디자인 확인**: (web)에 Toss 스킨 실제 적용 시 AppNav와의 시각 경계 처리.
+- **div_caps 정원 동시성·WAITING race**: 기존 POST가 **제출 시점 서버 재판정**(count→cap 비교·트랜잭션 외부라 미세 race 잔존). 시안 Step2 표시(current/cap)는 **표시용**(클라). 동시 제출 시 waiting_number 충돌 가능하나 **기존 동작 그대로**(신규 리스크 아님·DATA-BINDING §5 "서버 재판정" 이미 구현). 변경 0이라 회귀 없음.
+- **로스터 중복/정원**: 기존 POST가 등번호 중복 차단(L331~342·team_members 기준)·roster_min/max 가드(L255~262). 시안 ③단계는 선택만(입력 0)이라 중복 위험↓. 변경 0.
+- **snake_case 함정(★재발6회)**: GET join 응답이 `apiSuccess` 경유 → `my_teams`·`div_caps`·`division_counts`·`user_info`·`is_registration_open` **전부 snake**. 기존 page.tsx 인터페이스도 snake로 정의됨(JoinData L89~96 확인). 리스킨 시 **접근자 snake 유지**(camel로 바꾸면 사일런트 undefined). POST 응답 `waiting_number`도 snake.
+- **본인인증/주장권한 게이트 보존**: 기존 page.tsx 진입 시 me fetch→미인증 redirect(L165~173)·POST는 requireIdentityVerified+주장확인(route.ts L160,L213). **리스킨 시 이 가드 제거 금지**(보안). admin 라우트로 옮기면 다 깨짐 → (web) 유지 근거.
+- **MIN_PLAYERS_GUARD/ALLOW_GUEST OFF 박제**: 클라 토글 2개 false 고정(④ 확정). 게스트 추가 버튼·최소인원 클라가드 UI 미노출. 단 **서버 roster_min 가드는 존속**(시안 주석대로 "추후 확정")—제출 실패 에러만 표시.
+- **세션 충돌(2세션 규약)**: 코드영역=`(web)/tournaments/[id]/join/*`. 세션B(tournaments 리빌딩+schema) 소관이나 **세션A(referee)·admin/* 비중첩**. `git add (web)/tournaments/[id]/join/` 명시. schema0·api/v1 미접촉.
+
+📋 실행 계획:
+| 순서 | 작업 | 담당 | 선행 |
+|------|------|------|------|
+| 1 | **단계 축소·서류/결제step·약관동의·(web)Toss스킨 허용 범위 PM 확정** | pm/사용자 | 없음 |
+| 2 | tournament-enroll.css Toss 토큰 join 루트 스코프 격리(ts-* 자체정의·lucide-react) | developer | 1 |
+| 3 | page.tsx stage 3단계 축소(팀→디비전→로스터)+Toss 룩·유니폼편집/대표자입력 제거·자동값 POST | developer | 1,2 |
+| 4 | enroll-stepper(StepDots 3칸)·success-hero(입금안내 완료) Toss 리스킨 | developer | 3 |
+| 5 | tsc+동작검증(GET 팀·정원/대기·제출 status·snake정합·다크충돌) | tester | 3,4 |
+| 6 | 리뷰(POST 무변경·가드보존·snake·토큰격리·시안충실도) | reviewer (5와 병렬) | 3,4 |
+
+⚠️ developer 주의: ①**POST route.ts/joinSchema/schema 절대 변경 0**(시안 요구 전부 이미 구현·재사용만) ②**snake_case 접근자 유지**(GET/POST 응답 전부 snake·camel 전환 금지) ③**본인인증·주장권한·다크redirect 가드 제거 금지**(보안) ④(web) 다크 vs Toss 라이트 충돌→join 루트 스코프 토큰 격리·lucide-react(CDN injection 금지) ⑤**1순위=PM이 단계축소/약관동의/Toss스킨 범위 확정 전 착수 보류**(설계 미결).
+
 ## 리뷰 결과 (reviewer)
 (완료분은 작업 로그로 압축 — 신규 작업 시 기록)
 
@@ -230,7 +300,58 @@
 
 🔴 필수 수정: **없음** → merge 가능. 권고(특히 IME 가드)는 후속 권장.
 
+### [2026-06-21] Track B 참가신청 3단계 (Toss 리스킨, (web) join 4파일) — reviewer
+
+📊 종합 판정: **수정 필요 (차단 1 / 권고 3 / 사소 2)**
+
+✅ 잘된 점:
+- **POST/스키마/Prisma 0 변경 실측 확인**: `git diff --stat HEAD`로 route.ts·validation 빈 diff 확인. 클라 body(teamId/category/division/uniformHome/uniformAway/managerName/managerPhone/players[]) 형태 = joinSchema와 일치. players는 userId+playerName+birthDate+isElite만 전송, jersey/position 미전송→서버 team_members 자동복사(single source) 정합. 서버 회귀 0.
+- **보안 가드 전부 보존**: ①본인인증 사전 redirect(page L179~183 me fetch→name_verified===false→/onboarding/identity) ②POST requireIdentityVerified(route L160) ③주장 가드(route L213~219 captainId 검증) ④중복신청 409(route L247~252) 전부 유지·미접촉. admin 라우트 이전 없이 (web) 유지로 세션/권한 게이트 보존.
+- **snake_case 접근자 유지(★재발6회)**: my_teams/div_caps/division_counts/user_info/is_registration_open + POST 응답 waiting_number 전부 snake. JoinData 인터페이스 snake 정의·접근 일관. camel 전환 0.
+- **Toss 격리 완전**: CSS 전 규칙이 `.te-enroll[data-skin="toss"]` 프리픽스 스코프. `:root`/html/body/태그 셀렉터 전역 누수 0(grep 확인). Toss 토큰(--primary 등) 루트 스코프 자체정의로 (web) 다크 globals 무의존·라이트 고정. lucide-react 직접 import(CDN/window.lucide 0). 인라인 #fff/#E31B23은 team color 데이터 폴백(테마토큰 아님)—룰10 비위반.
+- **약관 게이트 견고**: canSubmit = !submitting && is_registration_open && agreeRules && agreeMedia && minOk (page L446~451). 약관 2종 미동의 시 제출 버튼 disabled·우회 경로 없음(handleSubmit는 버튼 onClick 단일 진입). adaptive 단계(hasCategories=false→2단계) 분기 정확.
+
+🔴 필수 수정(차단·merge 전 해결):
+- **[대표자 연락처 null → 영구 제출 차단] page.tsx L148~150·195~198·439·263~264** — 시안 단순화로 **대표자 입력칸 + 클라 게이트를 둘 다 제거**했는데, managerName/managerPhone을 user_info 자동값으로만 채우고 빈값이면 `""` 전송. 서버 joinSchema는 `managerName/managerPhone: z.string().min(1)` **필수**(route.ts L26~27). **카카오/구글 가입자 등 user.phone이 null인 사용자**(흔함)는 ①입력칸 없음 ②info단계 canNext가 `!!selectedTeamId`만 체크(대표자 게이트 없음, L439) ③제출 시 422 "대표자 연락처를 입력하세요" ④고칠 UI 없음 → **참가신청 영구 불가**. 이전 page.tsx는 입력칸(L683/698)+게이트(`!managerName||!managerPhone`)가 있어 이 케이스를 막았음 = 명백한 회귀. **수정안 택1**: (A) user_info.phone/name 빈값이면 ①단계에 대표자 이름·연락처 입력칸 노출(자동값 prefill·비면 직접입력)+canNext에 `!!managerName&&!!managerPhone` 추가, (B) 항상 입력칸 표시(자동prefill·편집가능). 시안 "표시만"은 user_info 완비 가정인데 운영 데이터는 phone null 다수→가정 불성립.
+
+🟡 권장(차단아님·후속):
+- **[orphan 파일/dead CSS] _v2/ + tournament-enroll.css L1~316** — 신규 page.tsx가 enroll-aside·enroll-poster·enroll-step-docs·enroll-step-payment 4파일을 더이상 import 안 함(grep: 자기들끼리만 참조). CSS .te-method/.te-success/.te-pay/.te-bank/.te-bill/.te-h3(L22~316 ≈300줄)도 enroll-step-payment.tsx(=orphan)에서만 사용→dead. 컴파일/동작 무해하나 혼동·번들 잔재. 후속 정리 권장(삭제는 developer·세션 충돌 확인 후).
+- **[대표자 자동값 1회 prefill] page.tsx L194~198** — 데이터 로드 시 1회만 prefill, 이후 갱신 없음(신청 1회성이라 무해). 위 차단건 수정 시 함께 정리.
+- **[선출 토글 a11y] page.tsx L925~960** — selrow 버튼 안 선출 배지가 role=button+tabIndex(중첩 인터랙티브). stopPropagation으로 동작 정상이나 button 안 button 경미. 시각/기능 영향 0.
+
+🟢 사소(무영향):
+- formatWon·feeForSelected 등 파생함수 컴포넌트 내 정의(매 렌더 재생성)—소규모 무영향.
+- box-shadow rgba 1곳(.te-success L217·dead CSS 영역)—dead라 영향0.
+
+🚦 차단 1건(대표자 연락처) → "수정 요청" 추가. 나머지는 merge 후 후속 가능.
+
 ## 구현 기록 (developer)
+
+### Phase 3 Batch 3C — referee-admin 정산·운영 Toss 재스킨 (2026-06-21, developer)
+
+📝 구현: referee/admin 정산·운영 7화면 비주얼만 Toss 전환 (기능 100% 보존). 변경 허용 = data-skin opt-in + Material→`<Icon>` 키트 교체뿐. API/패칭/모달/로직/문구 0 변경.
+
+| 파일 | 변경 | data-skin 부착처 |
+|------|------|------------------|
+| bulk-register/page.tsx | 아이콘 6 교체 | 루트 div(단일) |
+| bulk-verify/page.tsx | 아이콘 5 교체 | 루트 div(단일) |
+| settlements/page.tsx | 아이콘 6 교체(테이블+모바일+모달+ModalShell) | 루트 div(단일) |
+| settlements/new-batch/page.tsx | 아이콘 0(없음)·data-skin만 | 루트 div(단일) |
+| settlements/dashboard/page.tsx | STATUS_META icon값 lucide化 + StatCard/warning Icon | 루트 div(단일) |
+| fee-settings/page.tsx | ROLE_INFO icon값 lucide化 + 렌더 Icon | 루트 div(단일) |
+| settings/page.tsx | 아이콘 6 교체 | early-return 3곳(loading·error·메인) 각각 부착 |
+
+🔁 교체 아이콘 매핑 (Material→lucide kebab, 전부 lucide 실존 `node -e` 실측 확인):
+arrow_back→arrow-left · upload_file→file-up · download→download · check_circle→circle-check · task_alt→circle-check-big · list→list · refresh→refresh-cw · playlist_add→list-plus · insights→trending-up · warning→triangle-alert · close→x · functions→sigma · pending/schedule→clock · cancel→ban · undo→undo-2 · sports→flag · groups/group→users · edit_note→file-pen · timer→timer · person_add→user-plus · edit→pencil · delete→trash-2 · info→info · error→circle-x
+
+⚠️ UsersX류 함정 회피 확인: 복수 user 의미는 `users`(Users 실존) 사용·`users-x` 미사용. 의심 아이콘(functions·cancel·undo·insights·task_alt·timer 등) 전부 실측 검증 후 매핑.
+
+🎨 토큰: fontVariationSettings('FILL' 1) 제거(lucide는 fill 개념 무관·시각 동등). 기존 하드코딩 #fff(대비텍스트)·rgba 폴백·var(--color-*) 전부 보존. 신규 하드코딩 hex 0. **토큰 보강 필요 항목: 없음**(3A referee 토큰으로 전부 커버).
+
+💡 tester 참고: 7화면 진입→아이콘 깨짐 없음·정산 상태변경/일괄생성/excel등록/검증/단가저장/관리자추가 동작 동일하면 정상.
+⚠️ reviewer 참고: settings early-return 3곳 data-skin 누락 여부·title 속성 보존(서류 완비 툴팁=Icon 감싼 span으로 이관) 확인 권장.
+
+🔎 검증: tsc --noEmit EXIT=0 · `git status --porcelain -- "src/app/(referee)/"`=3C 7파일만 M(3A·3B·기타 변경0) · referee 트리 전체 `material-symbols` 잔존 0.
 
 ### Track B-1: admin_categories 마이그레이션 + 시드 (진행 중)
 - 옛 BDR-join-v1 DB 4행 확보(REST API·publishable key, 1회성). 구조=id(uuid)/name/divisions(json)/ages(json)/created_at/updated_at. 지시서 4종과 정확 일치.
@@ -302,6 +423,44 @@
 |------|------|----------|----------|------|
 | 1차 | 2026-06-21 | 한글 IME 가드 추가 — onKeyDown Enter commit 2핸들러(TagInput 칩추가 L106·새종별추가 L416)에 `if (e.nativeEvent.isComposing) return;` 선가드. 기능·문구·스킨 변경0, tsc EXIT=0 | categories-content.tsx | reviewer 요청: 한글 조합 중 Enter 시 마지막 글자 잘림(데이터 손상) — conventions.md [2026-05-07] IME 가드 룰 |
 
+### Track B Phase4 참가신청 3단계 (Toss 리스킨) — 2026-06-21 developer (세션 B)
+
+📝 구현: 기존 (web) 참가신청 화면을 **시안 Apply.jsx 3단계 Toss 룩으로 리스킨+단순화**. 신규 화면/라우트/API **0**. POST/route.ts/joinSchema/prisma schema **diff 0**(클라 body 형태 동일 유지).
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| (web)/tournaments/[id]/join/page.tsx | 5→3단계 축소(①팀선택+확인 ②종별·디비전 ③로스터+약관). 대표자 입력칸 폐지(user_info 자동값 state→POST)·유니폼 color picker 폐지(team color 자동값→POST)·약관2종 ③하단 제출게이트·서류/결제step 폐지·완료=입금안내흡수. 루트 `.te-enroll[data-skin="toss"]`. lucide 5종. MIN_PLAYERS_GUARD/ALLOW_GUEST=false 고정 | 수정 |
+| (web)/.../_v2/enroll-stepper.tsx | 5-step 원+라벨+연결선 → StepDots N칸(점·현재칸 알약). StepDef 시그니처 보존 | 수정 |
+| (web)/.../_v2/enroll-success-hero.tsx | Toss 완료화면(ts-done/ts-bankbox). 입금계좌 안내 흡수(bankName/Account/Holder/feeText props 추가)·status="waiting"→warn톤. lucide(Check/Clock/Copy/ArrowLeft/User) | 수정 |
+| (web)/.../_v2/tournament-enroll.css | `.te-enroll[data-skin="toss"]` 루트스코프 self-contained Toss 토큰(--primary/--ink/--border/--warn/--ok/--grey-* 등)+클래스(ts-card/ts-chip/ts-btn/ts-badge/ts-check/ts-steps/ts-selrow/ts-inforow/ts-agree/ts-done/ts-bankbox) 직접 정의. iOS input 16px | 수정 |
+
+- **POST diff 0 확인**: route.ts(API)·joinSchema·schema.prisma **git diff stat 비어있음**(검증 완료). 클라 POST body=기존과 동일(teamId/category/division/uniformHome/uniformAway/managerName/managerPhone/players[{userId,playerName,birthDate,isElite}]). jersey/position 미전송(서버 team_members 자동복사) 유지.
+- **약관 동의 배치**: 시안엔 없으나 기존 운영 흐름 보존 위해 **③ 로스터 단계 하단**(약관 2종 체크박스)으로 이동. agreeRules/agreeMedia 둘 다 true여야 제출버튼 활성(canSubmit 게이트). 초기값 false(미동의 시작). 서류 step("준비중")은 폐지.
+- **종별 출처**: `tournament.categories`(대회별 jsonb) 단일소스 유지. admin_categories 미참조(시안 master 참조는 mock 편의).
+- **Toss 격리 방식**: (web)은 다크기본+toss-admin.css 미로드 → 의존 0. Toss 토큰+클래스를 `.te-enroll[data-skin="toss"]` **루트 스코프로 자체 선언**(globals/admin-css 무의존). (web) 전역 다크 토큰 미접촉·AppNav 등 (web) 레이아웃 미접촉(이 페이지 콘텐츠만 Toss). 아이콘=lucide-react 직접 import(CDN/window.lucide 0). ⚠️CSS 하단 .te-method/.te-success 구(舊) Material 규칙은 미렌더 dead CSS(잔존·무해).
+- **adaptive**: 부문 미설정 대회(hasCategories=false)면 ② 스킵→2단계(StepDots 2칸).
+- **보존**: 본인인증 사전 redirect(me fetch)·주장팀만 노출·접수기간 가드·이미신청 disabled 전부 유지. snake_case 접근자(my_teams/div_caps/division_counts/user_info/is_registration_open/waiting_number) 유지(camel 전환 0).
+- **MIN_PLAYERS_GUARD/ALLOW_GUEST OFF**: 클라 토글 false 고정. 게스트버튼·최소인원 클라 차단가드 미노출. 서버 roster_min 가드는 존속→제출 실패 시 setError 표시(안내문구만 노출).
+- **orphan 컴포넌트**: enroll-aside/poster/step-docs/step-payment 4건 = import 제거(미렌더). 파일은 디스크 잔존·diff 0(삭제 안 함).
+- **tsc**: `npx tsc --noEmit` EXIT=0.
+- **세션**: 코드영역 `(web)/tournaments/[id]/join/*` 4파일만 M. admin/*·referee/*(세션A)·schema·api/v1 미접촉. **미커밋**(PM 소관).
+
+💡 tester 참고:
+- 테스트: 본인인증 완료 사용자로 `/tournaments/{id}/join` 진입(미인증→identity redirect). ①주장팀 카드 선택→팀정보 표시(대표자/연락처/유니폼 자동) ②종별 칩→디비전 카드(정원 N/M팀·만석시 대기접수 배지) ③선수 체크(전체선택 토글·선출 배지)+약관 2종 체크→제출.
+- 정상: 약관 둘 다 체크해야 제출버튼 활성. 제출 성공→완료화면(입금계좌+금액·대기시 warn톤). 부문없는 대회=2단계.
+- 주의 입력: ①약관 미체크 제출 차단 ②선수 5명 미만(roster_min)→서버422→에러배너 노출(클라가드 OFF라 클라는 통과시킴) ③정원만석+대기불허 디비전=disabled ④이미 신청한 팀=disabled.
+
+⚠️ reviewer 참고:
+- POST route.ts/joinSchema/schema diff 0(재사용만)·snake_case 접근자 유지·본인인증/주장 가드 보존 확인.
+- Toss 토큰 루트스코프 격리(.te-enroll[data-skin="toss"])가 (web) 다크 전역 토큰 누수 없는지·lucide-react만(CDN 0).
+- 약관 2종 제출게이트(canSubmit) 로직·유니폼/대표자 자동값 POST 전송 정확성.
+- CSS 하단 .te-method/.te-success 구 Material 규칙 dead CSS(미렌더)—제거 후속 권장(현재 무해).
+
+#### 수정 이력: 대표자 null 차단 수정
+| 회차 | 날짜 | 수정 내용 | 수정 파일 | 사유 |
+|------|------|----------|----------|------|
+| 1차 | 2026-06-21 | 대표자/연락처 InfoRow를 **조건부 입력칸**으로 교체(prefill 값 있으면 표시·비어있으면 편집 input 노출, --bg-elev/--border 토큰·인라인 스타일·신규 CSS 0) + canNext(info 단계) 게이트에 `managerName.trim()`·`managerPhone.trim()` 필수 추가. prefill 1회 유지(user_info 수정값 미덮어씀). route.ts/joinSchema/schema diff 0·tsc EXIT0·page.tsx 1파일 한정 | (web)/tournaments/[id]/join/page.tsx | reviewer 차단: user.phone null(카카오/구글 가입자) 사용자가 자동값 빈값+입력칸 없음+게이트 미체크로 서버 min(1) 422 영구 제출불가(회귀). 권고 A 채택 |
+
 ## 테스트 결과 (tester)
 (완료분은 작업 로그로 압축 — 신규 작업 시 기록)
 
@@ -323,3 +482,23 @@
 🔎 실제 런타임(super_admin 세션 CRUD·중복409) 검증은 세션 필요로 미수행 — 정적 검증으로 대체. 단, errors.md 06-08/06-19 함정(신규 v1 라우트 proxy 화이트리스트 401)은 **본 라우트가 api/web(getWebSession 경유)라 비해당** — proxy PUBLIC_API_ROUTES 무관.
 
 ⚠️ 후속 minor (차단 아님): POST/PATCH Zod 실패 시 `apiError(...,400,"VALIDATION_ERROR")` 직접 사용(공용 `validationError()` 헬퍼는 422 반환). 설계 명세대로 400 채택·동작 정상이나, 프로젝트 다른 라우트와 status code 관례(422) 차이 — 통일 검토 여지. 동작 영향 0.
+
+### Track B 참가신청 3단계 (Toss 리스킨) (2026-06-21, tester — 정적 검증 위주·세션B)
+
+📊 종합: 8개 검증 전부 통과 / 차단 이슈 0 / 후속 minor 1건
+
+| 검증 항목 | 결과 | 비고 |
+|-----------|------|------|
+| tsc --noEmit | ✅ 통과 | EXIT=0 (4파일 컴파일 정상) |
+| 🚨 POST/GET API 무변경(회귀0) | ✅ 통과 | `git diff --stat` — route.ts·prisma/schema.prisma·joinSchema(validation/) **diff 전부 비어있음**. 서버 회귀 0 확정 |
+| 클라 POST body 정합 | ✅ 통과 | page.tsx L265~282 body 키=teamId/category/division/uniformHome/uniformAway/managerName/managerPhone/players[] 기존 동일. 대표자=user_info 자동값(L195~198 GET 응답→state)·유니폼=team primary/secondary_color 자동값(L215~216 handleTeamSelect)·players=jersey/position 미전송(서버 team_members 자동복사) |
+| 약관 동의 게이트 | ✅ 통과 | canSubmit(L446~451)=`!submitting && is_registration_open && agreeRules && agreeMedia && minOk`. agreeRules/agreeMedia 둘 다 true여야 제출버튼 활성(L1083 disabled={!canSubmit}). 동의 없이 제출 불가 |
+| 가드 보존 | ✅ 통과 | 클라=본인인증 사전 redirect(L179~183 name_verified===false→/onboarding/identity)·snake접근자 전부 유지(my_teams/div_caps/division_counts/user_info/is_registration_open/waiting_number — camel 전환 0). 서버=requireIdentityVerified(route L160)·주장 captainId 가드(L214~219 403)·중복409(L250)·roster_min(L257) 전부 존속 |
+| adaptive 2단계 | ✅ 통과 | hasCategories=false(부문 미설정)면 steps=[참가팀,로스터] 2칸(L383~386)·stage 분기 step1→info/그외→roster(L390~398). StepDots도 steps.length만큼 N칸 렌더(stepper L29) |
+| Toss 격리 안전성 | ✅ 통과 | tournament-enroll.css 전 규칙이 `.te-enroll[data-skin="toss"]` 루트 스코프(:root·html·body·`*` 전역 셀렉터 0건 grep 확인). toss-admin.css/admin-toss import 0·window.lucide CDN injection 0·lucide-react 직접 import만(page·success-hero). (web) AppNav 다크 테마 누수 차단 |
+| 회귀 — 4파일 국한 | ✅ 통과 | `git status` join 트리=정확히 4파일 M(page+stepper+success-hero+css). admin/referee/세션A·api/v1·schema 미접촉(referee 변경은 세션A Phase3 별개 작업물·본 작업 무관) |
+
+🔎 실제 제출 런타임(세션·대회데이터 필요·div_caps 정원판정·waiting_number 부여)은 미수행 — 정적 검증으로 대체. POST 무변경이라 기존 동작 그대로 재사용(회귀 위험 0).
+🔎 코드 노트: `feeForSelected()`(L431 function 선언)가 완료화면 분기(L363)에서 호출되나 function 호이스팅으로 정상 — 동작 영향 0.
+
+⚠️ 후속 minor (차단 아님): success-hero가 props로 받는 `bankName/bankAccount/bankHolder/feeText`는 page.tsx가 `tournament.bank_name` 등 GET 응답(snake)에서 정상 전달. 단 GET join route 응답에 bank_* 필드가 실제 포함되는지는 런타임 확인 권장(현 GET select 미확인·표시용이라 누락 시 입금안내 박스만 hide·제출 흐름 영향 0).

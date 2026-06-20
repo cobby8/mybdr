@@ -1,40 +1,47 @@
 "use client";
 
 /**
- * TournamentJoin (Phase 7-1) — v2 시안 박제
+ * TournamentJoin — Track B Phase4 참가신청 3단계 (Toss 리스킨)
  *
- * 시안: Dev/design/BDR v2/screens/TournamentEnroll.jsx
- * 원칙:
- *  - API/Prisma 0 변경 (GET/POST /api/web/tournaments/[id]/join 그대로)
- *  - 보존 9건: 팀선택 / 대표자 / 디비전 / 유니폼 / 선수 / 카테고리 / 입금계좌 / 완료화면 / 대기번호
- *  - 5-step (hasCategories=true) / 4-step (false) adaptive
- *  - 서류 step: "준비 중" 박제 (display only)
- *  - 결제 step: 기존 입금 안내 흐름 유지 (토스 미연결)
- *  - 우측 sticky aside: 포스터 + D-카운터 + 환불 정책
- *
- * 시안 스타일 톤: eyebrow + 32px 거대 헤더 / .card .btn .badge 글로벌 클래스 사용 /
- *               accent 변수 / ff-display + ff-mono 타이포 / 28px/220px 워터마크 폰트
+ * 시안: Dev/design/BDR-current/_handoff-admin-toss-P0/design-files/Apply.jsx
+ * 원칙(이유):
+ *  - API/Prisma 0 변경 — GET/POST /api/web/tournaments/[id]/join 그대로 재사용.
+ *    클라가 보내는 POST body(teamId/category/division/uniformHome/uniformAway/
+ *    managerName/managerPhone/players[]) 형태도 동일 유지 → 서버 회귀 0.
+ *  - 5단계 → 3단계 축소:
+ *      ① 참가팀 선택 + 정보 확인 (대표자 입력칸 폐지 → user_info 자동값 전송)
+ *      ② 종별·디비전 (정원/대기 — tournament.categories 단일소스)
+ *      ③ 출전 선수(로스터) + 약관 동의 2종(제출 게이트) → 제출 → 완료(입금 안내)
+ *  - 부문 미설정 대회는 ② 스킵(adaptive 2단계).
+ *  - 유니폼 color picker 폐지 → team.primary/secondary_color 를 uniformHome/Away 로 자동 전송.
+ *  - 서류 step 폐지 / 입금안내는 완료화면(EnrollSuccessHero)으로 흡수.
+ *  - MIN_PLAYERS_GUARD / ALLOW_GUEST = false 고정(클라 가드 UI 미노출).
+ *    단, 서버 roster_min 가드는 존속 → 제출 실패 시 setError 표시.
+ *  - snake_case 접근자 유지(my_teams/div_caps/division_counts/user_info/is_registration_open).
+ *  - 본인인증 사전 redirect + 주장 가드는 기존 그대로 보존.
+ *  - Toss 스킨은 .te-enroll[data-skin="toss"] 루트 스코프로 격리(_v2/tournament-enroll.css).
+ *    아이콘 = lucide-react 직접 import(CDN/window.lucide 금지).
  */
 
 import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import useSWR from "swr";
+import {
+  Shield,
+  CheckCircle2,
+  Check,
+  Users,
+  AlertTriangle,
+} from "lucide-react";
 
 import { EnrollStepper, type StepDef } from "./_v2/enroll-stepper";
-import { EnrollAside } from "./_v2/enroll-aside";
-import { EnrollPoster } from "./_v2/enroll-poster";
-import { EnrollStepDocs } from "./_v2/enroll-step-docs";
-// PR-1C-4 — UA3 B3 결제 step + 사후 안내 박제 (옵션 B: bank 단일)
-import { EnrollStepPayment } from "./_v2/enroll-step-payment";
 import { EnrollSuccessHero } from "./_v2/enroll-success-hero";
-// 시안 te-* 클래스 (te-pay / te-bill / te-bank / te-success) 박제 css
+// 시안 te-* + Toss .ts-* 클래스 박제 css (join 루트 스코프 self-contained)
 import "./_v2/tournament-enroll.css";
 import { getDisplayName } from "@/lib/utils/player-display-name";
-// 5/9 마이그: 사이트 전역 휴대폰 입력 컴포넌트 (conventions.md 2026-05-08 룰)
-import { PhoneInput } from "@/components/inputs/phone-input";
 
 /* ------------------------------------------------------------------ */
-/*  Types — 기존과 동일                                                  */
+/*  Types — 기존과 동일 (snake_case 응답 그대로)                          */
 /* ------------------------------------------------------------------ */
 
 interface TeamMember {
@@ -81,7 +88,6 @@ interface TournamentInfo {
   fee_notes: string | null;
   roster_min: number | null;
   roster_max: number | null;
-  // v2 헤더 보조 정보 (기존 라우트 응답에 없을 수 있음 → 옵셔널)
   registration_end_at?: string | null;
   edition_label?: string | null;
 }
@@ -106,6 +112,14 @@ interface PlayerEntry {
 }
 
 /* ------------------------------------------------------------------ */
+/*  토글 — 추후 정책 확정용 (현재 OFF 고정)                              */
+/* ------------------------------------------------------------------ */
+// 시안 주석대로 출전 최소인원 가드 / 게스트 추가 = 추후 확정.
+// 클라는 false 고정 → 가드 UI / 게스트 버튼 미노출. (서버 roster_min 가드는 별도 존속)
+const MIN_PLAYERS_GUARD = false;
+const ALLOW_GUEST = false;
+
+/* ------------------------------------------------------------------ */
 /*  유틸                                                                */
 /* ------------------------------------------------------------------ */
 
@@ -113,9 +127,6 @@ function formatWon(n: number | null | undefined): string {
   if (!n) return "무료";
   return `₩${Number(n).toLocaleString()}`;
 }
-
-// 디비전별 컬러 시안 (시안 OPEN/AMATEUR/ROOKIE 톤) — DB에 없으므로 인덱스 매핑
-const DIV_COLORS = ["#0F5FCC", "#10B981", "#F59E0B", "#8B5CF6", "#EF4444"];
 
 /* ------------------------------------------------------------------ */
 /*  Main Component                                                     */
@@ -125,32 +136,33 @@ export default function TournamentJoinPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
 
-  // step 은 1-based — 시안과 동일. 5-step / 4-step adaptive
+  // step 은 1-based. 3단계(부문 있으면) / 2단계(부문 없으면) adaptive
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<JoinData | null>(null);
 
-  // Step 1: 팀 선택 + 대표자
+  // ① 팀 선택
   const [selectedTeamId, setSelectedTeamId] = useState<number | null>(null);
+  // 대표자 — 입력칸 폐지. user_info 자동값을 state에 담아 POST 전송만 한다.
   const [managerName, setManagerName] = useState("");
   const [managerPhone, setManagerPhone] = useState("");
 
-  // Step 2: 부문/디비전
+  // ② 부문/디비전
   const [selectedCategory, setSelectedCategory] = useState("");
   const [selectedDivision, setSelectedDivision] = useState("");
 
-  // Step 3: 유니폼/선수
+  // ③ 유니폼 — color picker 폐지. 팀 색상 자동값을 POST 로만 전송.
   const [uniformHome, setUniformHome] = useState("#E31B23");
   const [uniformAway, setUniformAway] = useState("#FFFFFF");
   const [players, setPlayers] = useState<PlayerEntry[]>([]);
 
-  // Step 5+: 결제 동의 (시안 박제 — 약관 2종)
-  const [agreeRules, setAgreeRules] = useState(true);
-  const [agreeMedia, setAgreeMedia] = useState(true);
+  // 약관 동의 2종 — ③ 로스터 단계 하단의 제출 게이트
+  const [agreeRules, setAgreeRules] = useState(false);
+  const [agreeMedia, setAgreeMedia] = useState(false);
 
-  // 완료(별도 화면) 상태 — step="done" 으로 전환
+  // 완료 상태
   const [done, setDone] = useState(false);
   const [result, setResult] = useState<{
     id: number;
@@ -159,9 +171,7 @@ export default function TournamentJoinPage() {
     message: string;
   } | null>(null);
 
-  // 5/7 PR1.5.b — 본인인증 사전 redirect
-  //   페이지 진입 즉시 me fetch + 미인증이면 onboarding/identity 로 redirect.
-  //   이유(왜): 폼을 다 작성한 후 submit 시점에 차단되면 UX 나쁨. 진입 단계에서 차단.
+  // 본인인증 사전 redirect — 진입 즉시 me fetch + 미인증이면 redirect (보존)
   const { data: me } = useSWR<{ id?: string; name_verified?: boolean } | null>(
     "/api/web/me",
     { dedupingInterval: 30000 },
@@ -172,7 +182,7 @@ export default function TournamentJoinPage() {
     }
   }, [me, router, id]);
 
-  // 데이터 로드 — 기존과 동일
+  // 데이터 로드 — 기존과 동일 (snake_case 응답)
   useEffect(() => {
     fetch(`/api/web/tournaments/${id}/join`)
       .then((r) => r.json())
@@ -181,6 +191,7 @@ export default function TournamentJoinPage() {
           setError(json.error);
         } else {
           setData(json);
+          // 대표자 자동값 — user_info.name/phone 을 state 에 채워 둠(입력칸 없이 POST 전송)
           if (json.user_info) {
             setManagerName(json.user_info.name ?? "");
             setManagerPhone(json.user_info.phone ?? "");
@@ -194,23 +205,26 @@ export default function TournamentJoinPage() {
       });
   }, [id]);
 
-  // 팀 선택 시 멤버 로드 — 기존 로직 그대로
+  // 팀 선택 시 멤버 로드 + 유니폼 색상 자동 세팅(기존 로직 그대로)
   const handleTeamSelect = useCallback(
     (teamId: number) => {
       setSelectedTeamId(teamId);
       const team = data?.my_teams.find((t) => t.id === teamId);
       if (team) {
+        // 유니폼 color picker 폐지 → 팀 색상 자동값. POST 에 그대로 전송된다.
         setUniformHome(team.primary_color ?? "#E31B23");
         setUniformAway(team.secondary_color ?? "#FFFFFF");
         setPlayers(
           team.team_members.map((m) => ({
             userId: m.user_id,
-            // 선수명단 실명 표시 규칙 (conventions.md 2026-05-01)
             name: getDisplayName(m.user, { jerseyNumber: m.jersey_number }),
             jerseyNumber: m.jersey_number,
             position: m.position ?? m.user.position ?? null,
             birthDate: m.user.birth_date
-              ? new Date(m.user.birth_date).toISOString().slice(2, 10).replace(/-/g, "")
+              ? new Date(m.user.birth_date)
+                  .toISOString()
+                  .slice(2, 10)
+                  .replace(/-/g, "")
               : "",
             isElite: false,
             selected: true,
@@ -235,16 +249,11 @@ export default function TournamentJoinPage() {
     [data],
   );
 
-  // 제출 — 기존과 동일 (POST 그대로)
+  // 제출 — POST 그대로 (body 형태 동일 유지)
   const handleSubmit = async () => {
     if (!selectedTeamId || !data) return;
 
     const selectedPlayers = players.filter((p) => p.selected);
-    const rosterMin = data.tournament.roster_min ?? 5;
-    if (selectedPlayers.length < rosterMin) {
-      setError(`최소 ${rosterMin}명의 선수를 선택해야 합니다.`);
-      return;
-    }
 
     setSubmitting(true);
     setError(null);
@@ -257,12 +266,13 @@ export default function TournamentJoinPage() {
           teamId: selectedTeamId,
           category: selectedCategory || undefined,
           division: selectedDivision || undefined,
+          // 유니폼 = 팀 색상 자동값 (편집칸 폐지)
           uniformHome,
           uniformAway,
+          // 대표자 = user_info 자동값 (입력칸 폐지)
           managerName,
           managerPhone,
-          // 2026-05-05 PR3: 옵션 C+UI — jerseyNumber/position 미전송.
-          //   서버가 team_members.jersey_number / position 을 ttp 에 자동 복사 (single source).
+          // jerseyNumber/position 미전송 — 서버가 team_members 에서 자동 복사(single source)
           players: selectedPlayers.map((p) => ({
             userId: p.userId,
             playerName: p.name,
@@ -275,6 +285,7 @@ export default function TournamentJoinPage() {
       const json = await res.json();
 
       if (!res.ok) {
+        // 서버 roster_min 가드 등 실패 → 에러 표시 (클라 가드는 OFF)
         setError(json.error ?? "참가신청에 실패했습니다.");
       } else {
         setResult(json);
@@ -293,35 +304,39 @@ export default function TournamentJoinPage() {
 
   if (loading) {
     return (
-      <div
-        style={{
-          display: "flex",
-          minHeight: "50vh",
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
+      <div className="te-enroll" data-skin="toss">
         <div
-          className="h-8 w-8 animate-spin rounded-full border-4 border-t-transparent"
-          style={{ borderColor: "var(--accent)", borderTopColor: "transparent" }}
-        />
+          style={{
+            display: "flex",
+            minHeight: "50vh",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <div
+            className="h-8 w-8 animate-spin rounded-full border-4 border-t-transparent"
+            style={{ borderColor: "var(--primary)", borderTopColor: "transparent" }}
+          />
+        </div>
       </div>
     );
   }
 
   if (error && !data) {
     return (
-      <div className="page" style={{ maxWidth: 560, margin: "40px auto" }}>
-        <div className="card" style={{ padding: 28, textAlign: "center" }}>
-          <p style={{ color: "var(--err)", fontWeight: 600 }}>{error}</p>
-          <button
-            type="button"
-            className="btn"
-            style={{ marginTop: 16 }}
-            onClick={() => router.back()}
-          >
-            돌아가기
-          </button>
+      <div className="te-enroll" data-skin="toss">
+        <div className="te-enroll__inner">
+          <div className="ts-card" style={{ textAlign: "center" }}>
+            <p style={{ color: "var(--danger)", fontWeight: 600 }}>{error}</p>
+            <button
+              type="button"
+              className="ts-btn ts-btn--secondary"
+              style={{ marginTop: 16 }}
+              onClick={() => router.back()}
+            >
+              돌아가기
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -334,59 +349,76 @@ export default function TournamentJoinPage() {
   const hasCategories = Object.keys(categories).length > 0;
 
   /* ---------------------------------------------------------------- */
-  /*  Step 정의 (5-step / 4-step adaptive)                              */
+  /*  완료 화면 (입금 안내 흡수)                                          */
   /* ---------------------------------------------------------------- */
-  // hasCategories=true: 1.대회확인 / 2.디비전 / 3.로스터 / 4.서류 / 5.결제
-  // hasCategories=false: 1.대회확인 / 2.로스터 / 3.서류 / 4.결제
+  if (done && result) {
+    return (
+      <div className="te-enroll" data-skin="toss">
+        <div className="te-enroll__inner">
+          <EnrollSuccessHero
+            result={result}
+            bankName={tournament.bank_name}
+            bankAccount={tournament.bank_account}
+            bankHolder={tournament.bank_holder}
+            feeText={formatWon(feeForSelected())}
+            onMyApplications={() => router.push("/games/my-games")}
+            onTournamentDetail={() => router.push(`/tournaments/${id}`)}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  /* ---------------------------------------------------------------- */
+  /*  Step 정의 (3단계 / 2단계 adaptive)                                */
+  /* ---------------------------------------------------------------- */
+  // hasCategories=true: ① 대회 확인 / ② 디비전 / ③ 로스터
+  // hasCategories=false: ① 대회 확인 / ② 로스터 (부문 스킵)
   const steps: StepDef[] = hasCategories
     ? [
-        { n: 1, l: "대회 확인" },
+        { n: 1, l: "참가팀" },
         { n: 2, l: "디비전" },
         { n: 3, l: "로스터" },
-        { n: 4, l: "서류" },
-        { n: 5, l: "결제" },
       ]
     : [
-        { n: 1, l: "대회 확인" },
+        { n: 1, l: "참가팀" },
         { n: 2, l: "로스터" },
-        { n: 3, l: "서류" },
-        { n: 4, l: "결제" },
       ];
 
   const lastStep = steps[steps.length - 1].n;
-  // 단계 → 화면 분기를 위한 매핑 (4-step 모드 보정)
-  const stage: "info" | "division" | "roster" | "docs" | "pay" = (() => {
+  // 단계 → 화면 분기 (2단계 모드 보정)
+  const stage: "info" | "division" | "roster" = (() => {
     if (hasCategories) {
       if (step === 1) return "info";
       if (step === 2) return "division";
-      if (step === 3) return "roster";
-      if (step === 4) return "docs";
-      return "pay";
+      return "roster";
     }
     if (step === 1) return "info";
-    if (step === 2) return "roster";
-    if (step === 3) return "docs";
-    return "pay";
+    return "roster";
   })();
 
   /* ---------------------------------------------------------------- */
-  /*  공통 파생값                                                        */
+  /*  파생값                                                            */
   /* ---------------------------------------------------------------- */
 
   const selectedTeam = data.my_teams.find((t) => t.id === selectedTeamId) ?? null;
   const selectedRosterCount = players.filter((p) => p.selected).length;
 
-  // 시안 디비전 인덱스 컬러 매핑
-  const divisionList: Array<{ key: string; label: string; color: string; fee: number | null; cap: number | null; count: number; isFull: boolean; }> =
+  // 디비전 목록 — tournament.categories 단일소스(admin_categories 미참조)
+  const divisionList: Array<{
+    key: string;
+    fee: number | null;
+    cap: number | null;
+    count: number;
+    isFull: boolean;
+  }> =
     selectedCategory && categories[selectedCategory]
-      ? categories[selectedCategory].map((divKey, idx) => {
+      ? categories[selectedCategory].map((divKey) => {
           const info = getDivisionRemaining(divKey);
           const divFees = (tournament.div_fees ?? {}) as Record<string, number>;
           const fee = divFees[divKey] ?? tournament.entry_fee ?? null;
           return {
             key: divKey,
-            label: divKey,
-            color: DIV_COLORS[idx % DIV_COLORS.length],
             fee,
             cap: info?.cap ?? null,
             count: info?.count ?? 0,
@@ -395,631 +427,479 @@ export default function TournamentJoinPage() {
         })
       : [];
 
-  const selDivMeta = divisionList.find((d) => d.key === selectedDivision) ?? null;
-  const feeForSelected = (() => {
+  // 선택 디비전 참가비
+  function feeForSelected(): number | null {
     if (!selectedDivision) return tournament.entry_fee;
     const divFees = (tournament.div_fees ?? {}) as Record<string, number>;
     return divFees[selectedDivision] ?? tournament.entry_fee;
-  })();
-
-  // 마감일
-  const registrationEndAt = tournament.registration_end_at
-    ? new Date(tournament.registration_end_at)
-    : null;
-
-  /* ---------------------------------------------------------------- */
-  /*  완료 화면 (별도) — PR-1C-4: 시안 te-success hero 박제           */
-  /* ---------------------------------------------------------------- */
-  // 왜 컴포넌트로 분리했나: 운영 inline 100+ LOC → 시안 te-success__*
-  //   클래스로 시각 갱신하면서 page.tsx 가독성 향상. 새 라우트 ❌
-  //   (의뢰서 §6 룰 — step=done 분기 안에서만 렌더).
-  if (done && result) {
-    return (
-      <div className="page" style={{ maxWidth: 720, margin: "40px auto" }}>
-        <EnrollSuccessHero
-          result={result}
-          onMyApplications={() => router.push("/games/my-games")}
-          onTournamentDetail={() => router.push(`/tournaments/${id}`)}
-        />
-      </div>
-    );
   }
 
+  // 다음 버튼 활성 조건 (stage별)
+  // ① info: 팀 선택 + 접수중 + 대표자 이름/연락처(서버 joinSchema min(1) 필수와 정합).
+  //    user.phone 이 null 인 카카오/구글 가입자는 자동값이 빈값이라, 입력 전엔 다음 단계로 못 넘어가게 막아
+  //    제출 시 422("대표자 연락처를 입력하세요") 영구 차단을 사전 차단한다.
+  const canNext = (() => {
+    if (stage === "info")
+      return (
+        !!selectedTeamId &&
+        data.is_registration_open &&
+        managerName.trim().length > 0 &&
+        managerPhone.trim().length > 0
+      );
+    if (stage === "division") return !!selectedCategory && !!selectedDivision;
+    return true; // roster
+  })();
+
+  // 마지막(로스터) 제출 게이트 — 약관 2종 동의 + 접수중 + (클라 최소인원 토글 OFF)
+  const minOk = !MIN_PLAYERS_GUARD || selectedRosterCount >= (tournament.roster_min ?? 5);
+  const canSubmit =
+    !submitting &&
+    data.is_registration_open &&
+    agreeRules &&
+    agreeMedia &&
+    minOk;
+
   /* ---------------------------------------------------------------- */
-  /*  Render                                                           */
+  /*  Render                                                          */
   /* ---------------------------------------------------------------- */
   return (
-    <div className="page" style={{ maxWidth: 1200, margin: "0 auto", padding: "24px 16px 80px" }}>
-      {/* breadcrumb — 시안 L51~55 */}
-      <div
-        style={{
-          display: "flex",
-          gap: 6,
-          fontSize: 12,
-          color: "var(--ink-mute)",
-          marginBottom: 12,
-        }}
-      >
-        <a
-          onClick={() => router.push("/")}
-          style={{ cursor: "pointer" }}
-        >
-          홈
-        </a>
-        <span>›</span>
-        <a
-          onClick={() => router.push("/tournaments")}
-          style={{ cursor: "pointer" }}
-        >
-          대회
-        </a>
-        <span>›</span>
-        <a
-          onClick={() => router.push(`/tournaments/${id}`)}
-          style={{ cursor: "pointer" }}
-        >
-          {tournament.name}
-        </a>
-        <span>›</span>
-        <span style={{ color: "var(--ink)" }}>접수</span>
-      </div>
-
-      {/* 헤더 — eyebrow + 32px h1 + 마감 안내 */}
-      <div style={{ marginBottom: 24 }}>
-        <div className="eyebrow">TOURNAMENT ENROLLMENT · 대회 접수</div>
-        <h1
-          style={{
-            margin: "6px 0 0",
-            fontSize: 32,
-            fontWeight: 800,
-            letterSpacing: "-0.02em",
-          }}
-        >
-          {tournament.name}
-        </h1>
-        {registrationEndAt && (
-          <p
-            style={{
-              margin: "4px 0 0",
-              color: "var(--ink-mute)",
-              fontSize: 13,
-            }}
-          >
-            접수마감{" "}
-            <b style={{ color: "var(--err)" }}>
-              {(() => {
-                const diff = Math.ceil(
-                  (registrationEndAt.getTime() - Date.now()) /
-                    (1000 * 60 * 60 * 24),
-                );
-                const m = String(registrationEndAt.getMonth() + 1).padStart(2, "0");
-                const d = String(registrationEndAt.getDate()).padStart(2, "0");
-                const hh = String(registrationEndAt.getHours()).padStart(2, "0");
-                const mm = String(registrationEndAt.getMinutes()).padStart(2, "0");
-                return diff > 0
-                  ? `D-${diff} (${m}/${d} ${hh}:${mm})`
-                  : `마감 (${m}/${d} ${hh}:${mm})`;
-              })()}
-            </b>
-          </p>
-        )}
-      </div>
-
-      {/* 접수 불가 안내 */}
-      {!data.is_registration_open && (
-        <div
-          className="card"
-          style={{
-            padding: "12px 16px",
-            marginBottom: 16,
-            background: "color-mix(in oklab, var(--err) 6%, transparent)",
-            borderColor: "color-mix(in oklab, var(--err) 30%, var(--border))",
-          }}
-        >
-          <p style={{ margin: 0, fontSize: 13, color: "var(--err)", fontWeight: 600 }}>
-            현재 접수 기간이 아닙니다. (안내용 화면)
+    <div className="te-enroll" data-skin="toss">
+      <div className="te-enroll__inner">
+        {/* 헤더 */}
+        <div className="ts-ph" style={{ marginBottom: 18 }}>
+          <div className="ts-ph__eyebrow">대회 참가신청</div>
+          <h1 className="ts-ph__title">{tournament.name}</h1>
+          <p className="ts-ph__sub">
+            가입된 팀 로스터에서 출전 선수를 선택합니다. 팀 정보는 자동으로
+            채워집니다.
           </p>
         </div>
-      )}
 
-      {/* Stepper */}
-      <EnrollStepper steps={steps} current={step} />
+        <div className="ts-card">
+          {/* StepDots */}
+          <EnrollStepper steps={steps} current={step} />
 
-      {/* 에러 */}
-      {error && (
-        <div
-          className="card"
-          style={{
-            padding: "12px 16px",
-            marginBottom: 16,
-            background: "color-mix(in oklab, var(--err) 6%, transparent)",
-            borderColor: "color-mix(in oklab, var(--err) 30%, var(--border))",
-          }}
-        >
-          <p style={{ margin: 0, fontSize: 13, color: "var(--err)" }}>{error}</p>
-        </div>
-      )}
-
-      {/* 2단 레이아웃: main + 우측 sticky aside */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "minmax(0,1fr) 320px",
-          gap: 20,
-          alignItems: "flex-start",
-        }}
-      >
-        {/* ---------------------------- main card --------------------------- */}
-        <div className="card" style={{ padding: "28px 32px" }}>
-          {/* ============= STAGE: info (대회 정보 확인) ============= */}
-          {stage === "info" && (
-            <div>
-              <h2 style={{ margin: "0 0 16px", fontSize: 18, fontWeight: 700 }}>
-                대회 정보 확인
-              </h2>
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "200px 1fr",
-                  gap: 20,
-                  alignItems: "flex-start",
-                  marginBottom: 20,
-                }}
-              >
-                <EnrollPoster
-                  title={tournament.name}
-                  edition={tournament.edition_label ?? null}
-                  height={240}
-                  radius={6}
-                />
-                <div>
-                  <h3
-                    style={{
-                      margin: "0 0 12px",
-                      fontSize: 14,
-                      fontWeight: 700,
-                      color: "var(--ink-soft)",
-                    }}
-                  >
-                    참가 팀 선택
-                  </h3>
-                  {data.my_teams.length === 0 ? (
-                    <div
-                      style={{
-                        textAlign: "center",
-                        fontSize: 13,
-                        color: "var(--ink-mute)",
-                        padding: "20px 0",
-                      }}
-                    >
-                      <p style={{ margin: 0 }}>주장으로 등록된 팀이 없습니다.</p>
-                      <button
-                        type="button"
-                        className="btn btn--sm"
-                        style={{ marginTop: 10 }}
-                        onClick={() => router.push("/teams")}
-                      >
-                        팀 만들기
-                      </button>
-                    </div>
-                  ) : (
-                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                      {data.my_teams.map((team) => {
-                        const alreadyApplied = data.existing_entries.some(
-                          (e) => e.team_id === team.id,
-                        );
-                        const isSelected = selectedTeamId === team.id;
-                        return (
-                          <button
-                            key={team.id}
-                            type="button"
-                            disabled={alreadyApplied}
-                            onClick={() => handleTeamSelect(team.id)}
-                            style={{
-                              textAlign: "left",
-                              padding: "12px 14px",
-                              background: isSelected
-                                ? "color-mix(in oklab, var(--accent) 8%, var(--bg))"
-                                : "transparent",
-                              border: isSelected
-                                ? "2px solid var(--accent)"
-                                : "1px solid var(--border)",
-                              borderRadius: 6,
-                              cursor: alreadyApplied ? "not-allowed" : "pointer",
-                              opacity: alreadyApplied ? 0.5 : 1,
-                              display: "grid",
-                              gridTemplateColumns: "32px 1fr",
-                              gap: 12,
-                              alignItems: "center",
-                            }}
-                          >
-                            <div
-                              style={{
-                                width: 32,
-                                height: 32,
-                                borderRadius: "50%",
-                                border: "2px solid #fff",
-                                background: team.primary_color ?? "var(--cafe-blue, #1B3C87)",
-                              }}
-                            />
-                            <div>
-                              <div style={{ fontWeight: 700, fontSize: 13 }}>
-                                {team.name}
-                              </div>
-                              <div
-                                style={{
-                                  fontSize: 11,
-                                  color: "var(--ink-dim)",
-                                  fontFamily: "var(--ff-mono)",
-                                }}
-                              >
-                                {team.team_members.length}명
-                                {alreadyApplied && " · 이미 신청됨"}
-                              </div>
-                            </div>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-
-                  {/* 대표자 정보 — 선택 후 노출 */}
-                  {selectedTeamId && (
-                    <div style={{ marginTop: 16 }}>
-                      <h3
-                        style={{
-                          margin: "0 0 8px",
-                          fontSize: 13,
-                          fontWeight: 700,
-                          color: "var(--ink-soft)",
-                        }}
-                      >
-                        대표자 정보
-                      </h3>
-                      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                        <input
-                          type="text"
-                          placeholder="이름"
-                          value={managerName}
-                          onChange={(e) => setManagerName(e.target.value)}
-                          style={{
-                            width: "100%",
-                            padding: "9px 12px",
-                            fontSize: 13,
-                            borderRadius: 4,
-                            border: "1px solid var(--border)",
-                            background: "var(--bg)",
-                            color: "var(--ink)",
-                          }}
-                        />
-                        {/* 5/9 PhoneInput 마이그 — 대표자 연락처 (자동 000-0000-0000 포맷) */}
-                        <PhoneInput
-                          placeholder="연락처"
-                          value={managerPhone}
-                          onChange={(v) => setManagerPhone(v)}
-                          style={{
-                            width: "100%",
-                            padding: "9px 12px",
-                            fontSize: 13,
-                            borderRadius: 4,
-                            border: "1px solid var(--border)",
-                            background: "var(--bg)",
-                            color: "var(--ink)",
-                          }}
-                        />
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* 참가 자격 안내 — 시안 좌측 콜아웃 박제 */}
-              <div
-                style={{
-                  padding: "14px 16px",
-                  background: "var(--bg-alt)",
-                  borderRadius: 6,
-                  fontSize: 13,
-                  color: "var(--ink-soft)",
-                  lineHeight: 1.7,
-                  borderLeft: "3px solid var(--accent)",
-                }}
-              >
-                <b>참가 자격 공통</b>
-                <br />
-                · 팀 등록 완료 · 로스터 최소 {tournament.roster_min ?? 5}명 이상
-                <br />
-                · 모든 팀원 만 16세 이상
-                <br />
-                · 다른 아마추어 대회와 일정 중복 없음
-              </div>
+          {/* 접수 불가 안내 */}
+          {!data.is_registration_open && (
+            <div
+              className="ts-badge ts-badge--danger"
+              style={{ marginBottom: 16, display: "block", padding: "10px 14px" }}
+            >
+              현재 접수 기간이 아닙니다. (안내용 화면)
             </div>
           )}
 
-          {/* ============= STAGE: division (디비전 선택) ============= */}
-          {stage === "division" && (
+          {/* 에러 */}
+          {error && (
+            <div
+              style={{
+                marginBottom: 16,
+                padding: "12px 14px",
+                borderRadius: 12,
+                background: "var(--danger-weak)",
+                color: "var(--danger)",
+                fontSize: 13,
+                fontWeight: 600,
+              }}
+            >
+              {error}
+            </div>
+          )}
+
+          {/* ============= ① 참가팀 선택 + 정보 확인 ============= */}
+          {stage === "info" && (
             <div>
-              <h2 style={{ margin: "0 0 4px", fontSize: 18, fontWeight: 700 }}>
-                디비전 선택
+              <h2 style={{ fontSize: 19, fontWeight: 800, marginBottom: 4 }}>
+                참가할 팀을 선택하세요
               </h2>
               <p
                 style={{
-                  margin: "0 0 20px",
-                  fontSize: 13,
+                  fontSize: 13.5,
                   color: "var(--ink-mute)",
+                  marginBottom: 18,
                 }}
               >
-                팀 실력과 구성원에 맞는 디비전을 선택해주세요. 등록 후 변경 불가.
+                가입된 팀에서 선택하면 팀 정보가 자동으로 채워집니다.
               </p>
 
-              {/* 부문 chip */}
-              <div style={{ marginBottom: 16 }}>
+              {data.my_teams.length === 0 ? (
                 <div
                   style={{
-                    fontSize: 11,
-                    fontWeight: 700,
-                    color: "var(--ink-dim)",
-                    marginBottom: 8,
-                    letterSpacing: ".08em",
+                    textAlign: "center",
+                    fontSize: 13.5,
+                    color: "var(--ink-mute)",
+                    padding: "24px 0",
                   }}
                 >
-                  부문
+                  <p style={{ margin: 0 }}>주장으로 등록된 팀이 없습니다.</p>
+                  <button
+                    type="button"
+                    className="ts-btn ts-btn--secondary ts-btn--sm"
+                    style={{ marginTop: 12 }}
+                    onClick={() => router.push("/teams")}
+                  >
+                    팀 만들기
+                  </button>
                 </div>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-                  {Object.keys(categories).map((cat) => {
-                    const isOn = selectedCategory === cat;
+              ) : (
+                <div
+                  style={{ display: "flex", flexDirection: "column", gap: 10 }}
+                >
+                  {data.my_teams.map((team) => {
+                    const alreadyApplied = data.existing_entries.some(
+                      (e) => e.team_id === team.id,
+                    );
+                    const isSelected = selectedTeamId === team.id;
                     return (
                       <button
-                        key={cat}
+                        key={team.id}
                         type="button"
-                        onClick={() => {
-                          setSelectedCategory(cat);
-                          setSelectedDivision("");
-                        }}
-                        className={isOn ? "btn btn--primary btn--sm" : "btn btn--sm"}
+                        className="ts-selrow"
+                        data-on={isSelected ? "true" : "false"}
+                        disabled={alreadyApplied}
+                        onClick={() => handleTeamSelect(team.id)}
                       >
-                        {cat}
+                        {/* 팀 색상 타일 + shield 아이콘 */}
+                        <span
+                          style={{
+                            width: 46,
+                            height: 46,
+                            borderRadius: 14,
+                            background:
+                              team.primary_color ?? "var(--primary)",
+                            border: "2px solid var(--border)",
+                            display: "grid",
+                            placeItems: "center",
+                            flex: "0 0 auto",
+                          }}
+                        >
+                          <Shield
+                            size={22}
+                            color={
+                              team.primary_color === "#FFFFFF"
+                                ? "var(--ink-dim)"
+                                : "#fff"
+                            }
+                          />
+                        </span>
+                        <span style={{ flex: 1, minWidth: 0 }}>
+                          <span
+                            style={{
+                              display: "block",
+                              fontWeight: 800,
+                              fontSize: 16,
+                              color: "var(--ink)",
+                            }}
+                          >
+                            {team.name}
+                          </span>
+                          <span
+                            style={{
+                              display: "block",
+                              fontSize: 13,
+                              color: "var(--ink-mute)",
+                              marginTop: 3,
+                            }}
+                          >
+                            로스터 {team.team_members.length}명
+                            {alreadyApplied && " · 이미 신청됨"}
+                          </span>
+                        </span>
+                        {isSelected && (
+                          <CheckCircle2 size={22} color="var(--primary)" />
+                        )}
                       </button>
                     );
                   })}
                 </div>
-              </div>
+              )}
 
-              {/* 디비전 카드 리스트 — 시안 L117~140 */}
-              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                {divisionList.length === 0 && (
-                  <div
-                    style={{
-                      padding: 16,
-                      fontSize: 13,
-                      color: "var(--ink-mute)",
-                    }}
-                  >
-                    부문을 먼저 선택해주세요.
-                  </div>
-                )}
-                {divisionList.map((d) => {
-                  const isSel = selectedDivision === d.key;
-                  const blocked = d.isFull && !tournament.allow_waiting_list;
-                  return (
-                    <button
-                      key={d.key}
-                      type="button"
-                      disabled={blocked}
-                      onClick={() => setSelectedDivision(d.key)}
-                      style={{
-                        textAlign: "left",
-                        padding: "18px 20px",
-                        background: isSel
-                          ? "var(--bg-alt)"
-                          : "transparent",
-                        border: isSel
-                          ? `2px solid ${d.color}`
-                          : "1px solid var(--border)",
-                        borderRadius: 6,
-                        cursor: blocked ? "not-allowed" : "pointer",
-                        opacity: blocked ? 0.55 : 1,
-                        display: "grid",
-                        gridTemplateColumns: "80px 1fr auto",
-                        gap: 16,
-                        alignItems: "center",
-                      }}
-                    >
-                      {/* 80×80 컬러 타일 */}
-                      <div
-                        style={{
-                          width: 80,
-                          height: 80,
-                          background: d.color,
-                          color: "#fff",
-                          display: "grid",
-                          placeItems: "center",
-                          fontFamily: "var(--ff-display)",
-                          fontWeight: 900,
-                          fontSize: 16,
-                          letterSpacing: ".04em",
-                          borderRadius: 6,
-                          textAlign: "center",
-                          lineHeight: 1.05,
-                          padding: 4,
-                          overflow: "hidden",
-                          wordBreak: "keep-all",
-                        }}
-                      >
-                        {d.label.slice(0, 4)}
-                      </div>
-                      <div>
-                        <div
-                          style={{
-                            display: "flex",
-                            gap: 8,
-                            alignItems: "baseline",
-                            marginBottom: 4,
-                          }}
-                        >
-                          <div
-                            style={{
-                              fontFamily: "var(--ff-display)",
-                              fontSize: 18,
-                              fontWeight: 800,
-                              letterSpacing: "-0.01em",
-                            }}
-                          >
-                            {d.label}
-                          </div>
-                          {d.isFull && (
-                            <span className="badge badge--ghost" style={{ fontSize: 10 }}>
-                              {tournament.allow_waiting_list ? "대기접수" : "마감"}
-                            </span>
-                          )}
-                        </div>
-                        <div
-                          style={{
-                            fontSize: 11,
-                            color: "var(--ink-dim)",
-                            fontFamily: "var(--ff-mono)",
-                          }}
-                        >
-                          {d.cap !== null ? `팀 접수 ${d.count}/${d.cap}` : "정원 미정"}
-                        </div>
-                      </div>
-                      <div style={{ textAlign: "right" }}>
-                        <div
-                          style={{
-                            fontFamily: "var(--ff-display)",
-                            fontSize: 22,
-                            fontWeight: 900,
-                            color: d.color,
-                          }}
-                        >
-                          {d.fee ? `₩${d.fee.toLocaleString()}` : "무료"}
-                        </div>
-                        <div style={{ fontSize: 11, color: "var(--ink-dim)" }}>
-                          / 팀
-                        </div>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* ============= STAGE: roster (로스터 + 유니폼) ============= */}
-          {stage === "roster" && (
-            <div>
-              <h2 style={{ margin: "0 0 4px", fontSize: 18, fontWeight: 700 }}>
-                로스터 등록
-              </h2>
-              <p
-                style={{
-                  margin: "0 0 16px",
-                  fontSize: 13,
-                  color: "var(--ink-mute)",
-                }}
-              >
-                출전 선수를 선택해주세요. ({selectedRosterCount}명 선택
-                {tournament.roster_min && ` · 최소 ${tournament.roster_min}명`}
-                {tournament.roster_max && ` · 최대 ${tournament.roster_max}명`})
-              </p>
-
-              {/* 팀 요약 바 — 시안 L148~155 */}
+              {/* 팀 정보 확인 — 선택 후 표시만(대표자 입력칸 폐지) */}
               {selectedTeam && (
                 <div
-                  style={{
-                    display: "flex",
-                    gap: 10,
-                    marginBottom: 14,
-                    padding: "10px 14px",
-                    background: "var(--bg-alt)",
-                    borderRadius: 6,
-                    alignItems: "center",
-                  }}
+                  className="ts-card ts-card--flat"
+                  style={{ marginTop: 16, padding: 18 }}
                 >
                   <div
                     style={{
-                      width: 40,
-                      height: 40,
-                      borderRadius: 4,
-                      background: selectedTeam.primary_color ?? "var(--cafe-blue, #1B3C87)",
+                      fontSize: 13,
+                      fontWeight: 700,
+                      color: "var(--ink-soft)",
+                      marginBottom: 8,
                     }}
-                  />
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: 800 }}>{selectedTeam.name}</div>
-                    <div
-                      style={{
-                        fontSize: 11,
-                        color: "var(--ink-dim)",
-                        fontFamily: "var(--ff-mono)",
-                      }}
-                    >
-                      전체 {players.length}명 · 선택 {selectedRosterCount}명
-                    </div>
+                  >
+                    팀 정보 확인
+                  </div>
+                  <div className="ts-inforow">
+                    <span className="ts-inforow__label">팀명</span>
+                    <span className="ts-inforow__value">{selectedTeam.name}</span>
+                  </div>
+                  {/* 대표자 — user_info 값이 있으면 표시만, 비어있으면(카카오/구글 가입자 등)
+                      편집 입력칸 노출. 서버 joinSchema 가 managerName/Phone min(1) 필수라
+                      빈값으로 제출하면 422 영구 차단되므로 직접 채울 UI 를 반드시 제공한다. */}
+                  <div className="ts-inforow">
+                    <span className="ts-inforow__label">대표자</span>
+                    {managerName.trim().length > 0 ? (
+                      <span className="ts-inforow__value">{managerName}</span>
+                    ) : (
+                      <input
+                        type="text"
+                        value={managerName}
+                        onChange={(e) => setManagerName(e.target.value)}
+                        placeholder="대표자 이름"
+                        style={{
+                          flex: 1,
+                          maxWidth: 220,
+                          padding: "8px 10px",
+                          borderRadius: 8,
+                          border: "1px solid var(--border)",
+                          background: "var(--bg-elev)",
+                          color: "var(--ink)",
+                          fontSize: 14,
+                          fontWeight: 600,
+                          textAlign: "right",
+                        }}
+                      />
+                    )}
+                  </div>
+                  <div className="ts-inforow">
+                    <span className="ts-inforow__label">연락처</span>
+                    {managerPhone.trim().length > 0 ? (
+                      <span className="ts-inforow__value">{managerPhone}</span>
+                    ) : (
+                      <input
+                        type="tel"
+                        value={managerPhone}
+                        onChange={(e) => setManagerPhone(e.target.value)}
+                        placeholder="예: 010-1234-5678"
+                        style={{
+                          flex: 1,
+                          maxWidth: 220,
+                          padding: "8px 10px",
+                          borderRadius: 8,
+                          border: "1px solid var(--border)",
+                          background: "var(--bg-elev)",
+                          color: "var(--ink)",
+                          fontSize: 14,
+                          fontWeight: 600,
+                          textAlign: "right",
+                        }}
+                      />
+                    )}
+                  </div>
+                  <div className="ts-inforow">
+                    <span className="ts-inforow__label">유니폼</span>
+                    <span style={{ display: "flex", gap: 6 }}>
+                      <span
+                        style={{
+                          width: 22,
+                          height: 22,
+                          borderRadius: 6,
+                          background: uniformHome,
+                          border: "1px solid var(--border)",
+                        }}
+                      />
+                      <span
+                        style={{
+                          width: 22,
+                          height: 22,
+                          borderRadius: 6,
+                          background: uniformAway,
+                          border: "1px solid var(--border)",
+                        }}
+                      />
+                    </span>
                   </div>
                 </div>
               )}
+            </div>
+          )}
 
-              {/* 유니폼 색상 — 기존 보존 */}
+          {/* ============= ② 종별·디비전 ============= */}
+          {stage === "division" && (
+            <div>
+              <h2 style={{ fontSize: 19, fontWeight: 800, marginBottom: 4 }}>
+                종별·디비전을 선택하세요
+              </h2>
+              <p
+                style={{
+                  fontSize: 13.5,
+                  color: "var(--ink-mute)",
+                  marginBottom: 18,
+                }}
+              >
+                디비전별 모집 정원을 확인하세요. 정원 초과 시 대기 접수됩니다.
+              </p>
+
+              {/* 종별 칩 */}
+              <div style={{ marginBottom: 18 }}>
+                <div className="ts-field__label">종별</div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                  {Object.keys(categories).map((cat) => (
+                    <button
+                      key={cat}
+                      type="button"
+                      className="ts-chip"
+                      data-active={selectedCategory === cat ? "true" : "false"}
+                      onClick={() => {
+                        setSelectedCategory(cat);
+                        setSelectedDivision("");
+                      }}
+                    >
+                      {cat}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* 디비전 카드 (모집정원) */}
+              {selectedCategory && (
+                <div>
+                  <div className="ts-field__label">디비전 (모집정원)</div>
+                  <div
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 8,
+                    }}
+                  >
+                    {divisionList.length === 0 && (
+                      <div style={{ fontSize: 13, color: "var(--ink-mute)" }}>
+                        모집 디비전이 없습니다.
+                      </div>
+                    )}
+                    {divisionList.map((d) => {
+                      const isSel = selectedDivision === d.key;
+                      // 만석이지만 대기접수 허용이면 선택 가능(대기), 불허면 차단
+                      const blocked = d.isFull && !tournament.allow_waiting_list;
+                      return (
+                        <button
+                          key={d.key}
+                          type="button"
+                          className="ts-selrow"
+                          data-on={isSel ? "true" : "false"}
+                          data-warn={d.isFull ? "true" : "false"}
+                          disabled={blocked}
+                          onClick={() => setSelectedDivision(d.key)}
+                          style={{ justifyContent: "space-between" }}
+                        >
+                          <span
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 8,
+                            }}
+                          >
+                            <span
+                              style={{
+                                fontWeight: 800,
+                                fontSize: 15,
+                                color: "var(--ink)",
+                              }}
+                            >
+                              {d.key}
+                            </span>
+                            {d.isFull && (
+                              <span className="ts-badge ts-badge--warn">
+                                {tournament.allow_waiting_list
+                                  ? "대기접수"
+                                  : "마감"}
+                              </span>
+                            )}
+                          </span>
+                          <span style={{ textAlign: "right" }}>
+                            <span
+                              style={{
+                                display: "block",
+                                fontSize: 13,
+                                fontWeight: 700,
+                                color: d.isFull
+                                  ? "var(--warn)"
+                                  : "var(--ink-mute)",
+                              }}
+                            >
+                              {d.cap !== null
+                                ? `${d.count}/${d.cap}팀`
+                                : "정원 미정"}
+                            </span>
+                            <span
+                              style={{
+                                display: "block",
+                                fontSize: 12,
+                                color: "var(--ink-dim)",
+                                marginTop: 2,
+                              }}
+                            >
+                              {d.fee ? `₩${d.fee.toLocaleString()}` : "무료"}
+                            </span>
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ============= ③ 출전 선수(로스터) + 약관 동의 ============= */}
+          {stage === "roster" && (
+            <div>
+              <h2 style={{ fontSize: 19, fontWeight: 800, marginBottom: 4 }}>
+                출전 선수를 선택하세요
+              </h2>
+              <p
+                style={{
+                  fontSize: 13.5,
+                  color: "var(--ink-mute)",
+                  marginBottom: 16,
+                }}
+              >
+                {selectedTeam?.name ?? "팀"} 로스터에서 이번 대회 출전 선수를
+                선택합니다. 선수 정보는 이미 등록되어 있어요.
+              </p>
+
+              {/* 선택 수 + 전체 선택 토글 */}
               <div
                 style={{
                   display: "flex",
-                  gap: 16,
-                  marginBottom: 16,
-                  padding: "10px 14px",
-                  background: "var(--bg)",
-                  border: "1px solid var(--border)",
-                  borderRadius: 6,
                   alignItems: "center",
+                  justifyContent: "space-between",
+                  marginBottom: 12,
                 }}
               >
-                <div
-                  style={{
-                    fontSize: 12,
-                    fontWeight: 700,
-                    color: "var(--ink-soft)",
+                <span
+                  className={
+                    selectedRosterCount > 0
+                      ? "ts-badge ts-badge--primary"
+                      : "ts-badge ts-badge--grey"
+                  }
+                >
+                  {selectedRosterCount}명 선택
+                </span>
+                <button
+                  type="button"
+                  className="ts-btn ts-btn--ghost ts-btn--sm"
+                  onClick={() => {
+                    const allSelected =
+                      players.length > 0 &&
+                      players.every((p) => p.selected);
+                    setPlayers((prev) =>
+                      prev.map((p) => ({ ...p, selected: !allSelected })),
+                    );
                   }}
                 >
-                  유니폼
-                </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <span style={{ fontSize: 11, color: "var(--ink-dim)" }}>홈</span>
-                  <input
-                    type="color"
-                    value={uniformHome}
-                    onChange={(e) => setUniformHome(e.target.value)}
-                    style={{
-                      width: 36,
-                      height: 28,
-                      padding: 0,
-                      border: "1px solid var(--border)",
-                      borderRadius: 4,
-                      cursor: "pointer",
-                    }}
-                  />
-                </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <span style={{ fontSize: 11, color: "var(--ink-dim)" }}>어웨이</span>
-                  <input
-                    type="color"
-                    value={uniformAway}
-                    onChange={(e) => setUniformAway(e.target.value)}
-                    style={{
-                      width: 36,
-                      height: 28,
-                      padding: 0,
-                      border: "1px solid var(--border)",
-                      borderRadius: 4,
-                      cursor: "pointer",
-                    }}
-                  />
-                </div>
+                  {players.length > 0 && players.every((p) => p.selected)
+                    ? "전체 해제"
+                    : "전체 선택"}
+                </button>
               </div>
 
               {players.length === 0 ? (
                 <p
                   style={{
                     textAlign: "center",
-                    fontSize: 13,
+                    fontSize: 13.5,
                     color: "var(--ink-mute)",
                     padding: "20px 0",
                   }}
@@ -1027,265 +907,239 @@ export default function TournamentJoinPage() {
                   팀 멤버가 없습니다. 먼저 팀을 선택하세요.
                 </p>
               ) : (
-                <>
-                  {/* 2026-05-05 PR3 옵션 C+UI 안내 — 운영자/캡틴 jersey 직접 입력 진입점 X.
-                      등번호는 "팀별 영구 번호" 가 single source. 팀 페이지에서 본인이 변경.
-                      대회 출전 시 = 시스템이 team_members.jersey_number 를 ttp 에 자동 복사. */}
-                  <div
-                    style={{
-                      padding: "10px 14px",
-                      marginBottom: 12,
-                      background: "var(--bg-alt)",
-                      borderRadius: 6,
-                      fontSize: 12,
-                      color: "var(--ink-soft)",
-                      lineHeight: 1.65,
-                      borderLeft: "3px solid var(--accent)",
-                    }}
-                  >
-                    <b style={{ color: "var(--ink)" }}>등번호 안내</b>
-                    <br />
-                    · 등번호는 <b>팀별 영구 번호</b>로 자동 적용됩니다. (팀 페이지에서 변경)
-                    <br />
-                    · 매치 임시 변경은 <b>라이브 페이지에서 운영자만</b> 가능합니다.
-                  </div>
-
-                  {/* 시안 2-column grid + 카드형 토글 — jersey/position 입력 UI 제거 (자동 sync) */}
-                  {/* 모바일 분기 — auto-fit minmax 으로 작은 화면 (iPhone SE 320px) 에서 자동 1column */}
-                  <div
-                    style={{
-                      display: "grid",
-                      gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
-                      gap: 8,
-                    }}
-                  >
-                    {players.map((p, idx) => {
-                      const sel = p.selected;
-                      return (
-                        <div
-                          key={p.userId}
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 8,
+                  }}
+                >
+                  {players.map((p, idx) => {
+                    const on = p.selected;
+                    return (
+                      <button
+                        key={p.userId}
+                        type="button"
+                        className="ts-selrow"
+                        data-on={on ? "true" : "false"}
+                        onClick={() => {
+                          setPlayers((prev) =>
+                            prev.map((pp, i) =>
+                              i === idx
+                                ? { ...pp, selected: !pp.selected }
+                                : pp,
+                            ),
+                          );
+                        }}
+                      >
+                        {/* 체크 */}
+                        <span className="ts-check" data-on={on ? "true" : "false"}>
+                          {on && <Check size={15} />}
+                        </span>
+                        {/* 등번호 */}
+                        <span
                           style={{
-                            padding: "12px 14px",
-                            background: sel
-                              ? "color-mix(in oklab, var(--accent) 8%, var(--bg))"
-                              : "transparent",
-                            border: sel
-                              ? "2px solid var(--accent)"
-                              : "1px solid var(--border)",
-                            borderRadius: 6,
-                            display: "flex",
-                            flexDirection: "column",
-                            gap: 8,
+                            width: 30,
+                            textAlign: "center",
+                            fontFamily: "var(--ff-mono)",
+                            fontWeight: 800,
+                            fontSize: 15,
+                            color: on ? "var(--primary)" : "var(--ink-mute)",
                           }}
                         >
-                          <label
+                          {p.jerseyNumber ?? "—"}
+                        </span>
+                        <span style={{ flex: 1 }}>
+                          <span
                             style={{
-                              display: "grid",
-                              gridTemplateColumns: "20px 1fr",
-                              gap: 10,
-                              alignItems: "center",
-                              cursor: "pointer",
+                              fontWeight: 700,
+                              fontSize: 15,
+                              color: "var(--ink)",
                             }}
                           >
-                            <input
-                              type="checkbox"
-                              checked={sel}
-                              onChange={() => {
-                                setPlayers((prev) =>
-                                  prev.map((pp, i) =>
-                                    i === idx ? { ...pp, selected: !pp.selected } : pp,
-                                  ),
-                                );
-                              }}
-                              style={{ accentColor: "var(--accent)" }}
-                            />
-                            <div>
-                              <div style={{ fontWeight: 700, fontSize: 13 }}>
-                                {p.name}
-                              </div>
-                              <div
-                                style={{
-                                  fontSize: 10,
-                                  color: "var(--ink-dim)",
-                                  fontFamily: "var(--ff-mono)",
-                                }}
-                              >
-                                #{p.jerseyNumber ?? "—"} · {p.position ?? "—"}
-                              </div>
-                            </div>
-                          </label>
-                          {/* 선출 여부만 잔존 — jersey/position 은 자동 sync 로 제거 */}
-                          <div
-                            style={{
-                              display: "flex",
-                              gap: 6,
-                              alignItems: "center",
-                              paddingLeft: 30,
-                            }}
-                          >
-                            <label
+                            {p.name}
+                          </span>
+                          {p.position && (
+                            <span
                               style={{
-                                display: "flex",
-                                alignItems: "center",
-                                gap: 4,
-                                fontSize: 10,
+                                fontSize: 12.5,
                                 color: "var(--ink-mute)",
-                                fontFamily: "var(--ff-mono)",
+                                marginLeft: 8,
                               }}
                             >
-                              <input
-                                type="checkbox"
-                                checked={p.isElite}
-                                onChange={() => {
-                                  setPlayers((prev) =>
-                                    prev.map((pp, i) =>
-                                      i === idx ? { ...pp, isElite: !pp.isElite } : pp,
-                                    ),
-                                  );
-                                }}
-                                style={{ accentColor: "var(--accent)" }}
-                              />
-                              선출
-                            </label>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </>
+                              {p.position}
+                            </span>
+                          )}
+                        </span>
+                        {/* 선출 토글 (배지 클릭) */}
+                        <span
+                          role="button"
+                          tabIndex={0}
+                          onClick={(e) => {
+                            // 카드 선택과 분리 — 선출 토글만
+                            e.stopPropagation();
+                            setPlayers((prev) =>
+                              prev.map((pp, i) =>
+                                i === idx
+                                  ? { ...pp, isElite: !pp.isElite }
+                                  : pp,
+                              ),
+                            );
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.stopPropagation();
+                              e.preventDefault();
+                              setPlayers((prev) =>
+                                prev.map((pp, i) =>
+                                  i === idx
+                                    ? { ...pp, isElite: !pp.isElite }
+                                    : pp,
+                                ),
+                              );
+                            }
+                          }}
+                          className={
+                            p.isElite
+                              ? "ts-badge ts-badge--danger"
+                              : "ts-badge ts-badge--grey"
+                          }
+                          style={{ cursor: "pointer" }}
+                        >
+                          선출
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
               )}
 
-              {/* 최소 인원 경고 — 시안 L180 */}
-              {tournament.roster_min &&
-                selectedRosterCount < tournament.roster_min && (
-                  <div
-                    style={{
-                      marginTop: 12,
-                      padding: "10px 14px",
-                      background: "color-mix(in oklab, var(--err) 8%, transparent)",
-                      color: "var(--err)",
-                      borderRadius: 4,
-                      fontSize: 12,
-                      fontWeight: 600,
-                    }}
-                  >
-                    ⚠️ 최소 {tournament.roster_min}명을 선택해야 접수가 가능합니다.
-                  </div>
-                )}
+              {/* 게스트 추가 — ALLOW_GUEST OFF 고정으로 미노출 */}
+              {ALLOW_GUEST && (
+                <button
+                  type="button"
+                  className="ts-btn ts-btn--secondary ts-btn--block"
+                  style={{ marginTop: 10 }}
+                >
+                  <Users size={16} /> 게스트 선수 추가
+                </button>
+              )}
+
+              {/* 서버 roster_min 가드 안내 — 클라 가드(MIN_PLAYERS_GUARD) OFF지만
+                  제출 실패를 줄이기 위한 안내만 표시(차단 X) */}
+              <p
+                style={{
+                  fontSize: 11.5,
+                  color: "var(--ink-dim)",
+                  marginTop: 12,
+                  lineHeight: 1.5,
+                }}
+              >
+                ※ 출전 최소 인원·게스트(팀원 외) 추가 정책은 추후 확정됩니다.
+                {tournament.roster_min
+                  ? ` 현재 최소 ${tournament.roster_min}명 등록이 필요합니다.`
+                  : ""}
+              </p>
+
+              {/* 약관 동의 2종 — 제출 게이트(동의 없이 제출 차단) */}
+              <div
+                style={{
+                  marginTop: 18,
+                  paddingTop: 16,
+                  borderTop: "1px solid var(--border)",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 10,
+                }}
+              >
+                <label className="ts-agree">
+                  <input
+                    type="checkbox"
+                    checked={agreeRules}
+                    onChange={(e) => setAgreeRules(e.target.checked)}
+                  />
+                  <span>대회 규정·환불 정책에 동의합니다</span>
+                </label>
+                <label className="ts-agree">
+                  <input
+                    type="checkbox"
+                    checked={agreeMedia}
+                    onChange={(e) => setAgreeMedia(e.target.checked)}
+                  />
+                  <span>경기 촬영·중계·사진 공개에 동의합니다</span>
+                </label>
+              </div>
+
+              {/* 최소인원 미달 경고 — MIN_PLAYERS_GUARD ON일 때만(현재 OFF) */}
+              {MIN_PLAYERS_GUARD && !minOk && (
+                <div
+                  style={{
+                    marginTop: 12,
+                    padding: "10px 14px",
+                    background: "var(--warn-weak)",
+                    color: "var(--warn)",
+                    borderRadius: 12,
+                    fontSize: 12.5,
+                    fontWeight: 600,
+                    display: "flex",
+                    gap: 6,
+                    alignItems: "center",
+                  }}
+                >
+                  <AlertTriangle size={15} />
+                  최소 {tournament.roster_min ?? 5}명을 선택해야 접수가
+                  가능합니다.
+                </div>
+              )}
             </div>
           )}
 
-          {/* ============= STAGE: docs (서류 — "준비 중" 박제) ============= */}
-          {stage === "docs" && <EnrollStepDocs />}
-
-          {/* ============= STAGE: pay (결제 — PR-1C-4 옵션 B 박제) =============
-              왜 컴포넌트로 분리했나: 운영 inline 200+ LOC → 시안 te-pay /
-                te-bill / te-bank / te-pay__note 클래스로 시각 갱신.
-              옵션 B 룰: bank 단일 결제수단만 노출 (manual / card ❌).
-              API/payment_status 변경 0 / 약관 동의 운영 흐름 보존.
-          */}
-          {stage === "pay" && (
-            <EnrollStepPayment
-              tournament={tournament}
-              selectedTeam={selectedTeam}
-              managerName={managerName}
-              managerPhone={managerPhone}
-              selectedCategory={selectedCategory}
-              selectedDivision={selectedDivision}
-              selectedRosterCount={selectedRosterCount}
-              feeForSelected={feeForSelected ?? null}
-              agreeRules={agreeRules}
-              agreeMedia={agreeMedia}
-              onChangeAgreeRules={setAgreeRules}
-              onChangeAgreeMedia={setAgreeMedia}
-            />
-          )}
-
           {/* ---------- 하단 네비게이션 ---------- */}
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              marginTop: 28,
-              paddingTop: 20,
-              borderTop: "1px solid var(--border)",
-            }}
-          >
+          <div style={{ display: "flex", gap: 10, marginTop: 24 }}>
             <button
               type="button"
-              className="btn"
+              className="ts-btn ts-btn--secondary"
+              style={{ flex: 1 }}
               onClick={() => {
-                if (step > 1) setStep(step - 1);
-                else router.back();
+                if (step > 1) {
+                  setError(null);
+                  setStep(step - 1);
+                } else {
+                  router.back();
+                }
               }}
             >
-              {step > 1 ? "← 이전" : "취소"}
+              {step > 1 ? "이전" : "취소"}
             </button>
 
-            {step < lastStep && (
+            {step < lastStep ? (
               <button
                 type="button"
-                className="btn btn--primary"
-                disabled={(() => {
-                  // stage별 다음 버튼 활성 조건
-                  if (stage === "info") {
-                    return (
-                      !selectedTeamId ||
-                      !managerName ||
-                      !managerPhone ||
-                      !data.is_registration_open
-                    );
-                  }
-                  if (stage === "division") {
-                    return !selectedCategory || !selectedDivision;
-                  }
-                  if (stage === "roster") {
-                    return (
-                      selectedRosterCount < (tournament.roster_min ?? 1)
-                    );
-                  }
-                  // docs는 자유 통과 ("준비 중" 박제)
-                  return false;
-                })()}
+                className="ts-btn ts-btn--primary"
+                style={{ flex: 2 }}
+                disabled={!canNext}
                 onClick={() => {
                   setError(null);
                   setStep(step + 1);
                 }}
               >
-                다음 →
+                다음
               </button>
-            )}
-            {step === lastStep && (
+            ) : (
               <button
                 type="button"
-                className="btn btn--primary btn--lg"
-                disabled={
-                  submitting ||
-                  !data.is_registration_open ||
-                  !agreeRules ||
-                  !agreeMedia
-                }
+                className="ts-btn ts-btn--primary"
+                style={{ flex: 2 }}
+                disabled={!canSubmit}
                 onClick={handleSubmit}
               >
                 {submitting
                   ? "제출 중…"
-                  : `참가신청 · ${formatWon(feeForSelected ?? null)}`}
+                  : `신청서 제출 · ${formatWon(feeForSelected())}`}
               </button>
             )}
           </div>
         </div>
-
-        {/* ---------------------------- aside ----------------------------- */}
-        <EnrollAside
-          tournamentName={tournament.name}
-          edition={tournament.edition_label ?? null}
-          selectedDivisionLabel={selDivMeta?.label ?? null}
-          selectedDivisionColor={selDivMeta?.color ?? null}
-          teamName={selectedTeam?.name ?? null}
-          rosterCount={selectedRosterCount}
-          feeText={formatWon(feeForSelected ?? null)}
-          registrationEndAt={registrationEndAt}
-        />
       </div>
     </div>
   );
