@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>BDR 관리자 — Toss 디자인시스템 (P0)</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700;800&display=swap" />
+<link rel="stylesheet" href="toss.css" />
+</head>
+<body>
+<div id="root"></div>
+
+<!-- Tweaks -->
+<div id="tweaks" class="tweaks">
+  <div class="tweaks__title">TWEAKS <button id="tweaks-close" style="background:transparent;border:0;color:inherit;cursor:pointer;font-size:16px;line-height:1">×</button></div>
+  <div class="tweaks__lbl">강조색 (Primary)</div>
+  <div class="tweaks__row" data-group="primary">
+    <button class="tweaks__btn" data-val="#3182F6">Toss Blue</button>
+    <button class="tweaks__btn" data-val="#2AC1BC">Teal</button>
+    <button class="tweaks__btn" data-val="#6D5AE6">Violet</button>
+  </div>
+  <div class="tweaks__lbl">카드 라운딩</div>
+  <div class="tweaks__row" data-group="radius">
+    <button class="tweaks__btn" data-val="24px">24px</button>
+    <button class="tweaks__btn" data-val="16px">16px</button>
+  </div>
+</div>
+<script>
+  const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+    "primary": "#3182F6",
+    "radius": "16px"
+  }/*EDITMODE-END*/;
+</script>
+
+<script src="https://unpkg.com/lucide@latest"></script>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script src="toss-data.jsx"></script>
+<script type="text/babel" src="toss-kit.jsx"></script>
+<script type="text/babel" src="CategoryMaster.jsx"></script>
+<script type="text/babel" src="Apply.jsx"></script>
+
+<script type="text/babel">
+const { useState, useEffect } = React;
+
+function Phase2Stub({ icon, title, desc, go }) {
+  return (
+    <div>
+      <div className="ts-ph"><div className="ts-ph__eyebrow">Phase 2</div><h1 className="ts-ph__title">{title}</h1></div>
+      <window.Empty icon={icon} title={`${title} — 준비중`} desc={desc}>
+        <window.Btn variant="secondary" onClick={() => go('category')}>종별 마스터 보기</window.Btn>
+        <window.Btn onClick={() => go('apply')}>참가신청서 미리보기</window.Btn>
+      </window.Empty>
+    </div>);
+}
+
+function App() {
+  const [route, setRoute] = useState('category');
+  const [mOpen, setMOpen] = useState(false);
+  const [master, setMaster] = useState(() => window.TOSS.CATEGORY_MASTER.map(c => ({ ...c, divisions: [...c.divisions], ages: [...c.ages] })));
+  const [toastMsg, setToastMsg] = useState(null);
+  const toast = (m) => { setToastMsg(m); clearTimeout(window.__t); window.__t = setTimeout(() => setToastMsg(null), 2600); };
+  const go = (r) => { setRoute(r); setMOpen(false); };
+
+  const nav = [
+    { group: '운영', items: [
+      { id: 'dashboard', icon: 'layout-dashboard', label: '대시보드', phase2: true },
+      { id: 'tournaments', icon: 'trophy', label: '대회 관리', phase2: true },
+      { id: 'teams', icon: 'users', label: '참가팀 관리', phase2: true },
+    ]},
+    { group: '설정', items: [
+      { id: 'category', icon: 'tags', label: '종별 마스터' },
+    ]},
+    { group: '미리보기', items: [
+      { id: 'apply', icon: 'clipboard-list', label: '참가신청서' },
+    ]},
+  ];
+
+  let screen;
+  if (route === 'category') screen = <window.CategoryMaster master={master} setMaster={setMaster} toast={toast} />;
+  else if (route === 'apply') screen = <window.Apply master={master} />;
+  else if (route === 'dashboard') screen = <Phase2Stub icon="layout-dashboard" title="대시보드" desc="KPI·차트는 Phase 2에서 Toss 시스템으로 재설계합니다." go={go} />;
+  else if (route === 'tournaments') screen = <Phase2Stub icon="trophy" title="대회 관리" desc="대회 목록·생성 폼·대회 상세(참가팀+대진표)는 Phase 2 범위입니다." go={go} />;
+  else screen = <Phase2Stub icon="users" title="참가팀 관리" desc="인라인 상태 편집·대기 알림은 Phase 2에서 Toss로 재설계합니다." go={go} />;
+
+  const NavList = () => nav.map((g) =>
+    <React.Fragment key={g.group}>
+      <div className="ts-sidebar__label">{g.group}</div>
+      {g.items.map((it) =>
+        <button key={it.id} type="button" className="ts-navlink" data-active={route === it.id ? 'true' : 'false'} onClick={() => go(it.id)} style={it.phase2 ? { opacity: .6 } : undefined}>
+          <window.Icon name={it.icon} size={19} />
+          <span>{it.label}</span>
+          {it.phase2 && <span className="ts-navlink__badge">P2</span>}
+        </button>)}
+    </React.Fragment>);
+
+  // Tweaks
+  useEffect(() => {
+    const panel = document.getElementById('tweaks'), closeBtn = document.getElementById('tweaks-close');
+    const handler = (e) => {
+      if (e.data?.type === '__activate_edit_mode') panel.setAttribute('data-open', 'true');
+      if (e.data?.type === '__deactivate_edit_mode') panel.setAttribute('data-open', 'false');
+    };
+    window.addEventListener('message', handler);
+    window.parent.postMessage({ type: '__edit_mode_available' }, '*');
+    closeBtn.onclick = () => panel.setAttribute('data-open', 'false');
+    const apply = (g, v) => {
+      if (g === 'primary') { document.documentElement.style.setProperty('--primary', v);
+        const mix = { '#3182F6': '#1B64DA', '#2AC1BC': '#1AA39E', '#6D5AE6': '#5544C9' };
+        document.documentElement.style.setProperty('--primary-hover', mix[v] || v);
+        document.documentElement.style.setProperty('--primary-weak', v + '18'); }
+      if (g === 'radius') document.documentElement.style.setProperty('--radius-card', v);
+    };
+    const sync = { primary: TWEAK_DEFAULTS.primary, radius: TWEAK_DEFAULTS.radius };
+    panel.querySelectorAll('[data-group]').forEach((row) => {
+      const group = row.getAttribute('data-group');
+      row.querySelectorAll('.tweaks__btn').forEach((btn) => {
+        btn.setAttribute('data-active', btn.getAttribute('data-val') === sync[group] ? 'true' : 'false');
+        btn.onclick = () => {
+          row.querySelectorAll('.tweaks__btn').forEach((b) => b.setAttribute('data-active', 'false'));
+          btn.setAttribute('data-active', 'true');
+          const v = btn.getAttribute('data-val'); apply(group, v);
+          window.parent.postMessage({ type: '__edit_mode_set_keys', edits: { [group]: v } }, '*');
+        };
+      });
+    });
+    apply('primary', sync.primary); apply('radius', sync.radius);
+    return () => window.removeEventListener('message', handler);
+  }, []);
+
+  return (
+    <div className="ts-shell">
+      <aside className="ts-sidebar">
+        <div className="ts-sidebar__brand"><span className="ts-sidebar__brand-dot">B</span> MyBDR <span style={{ fontSize: 12, color: 'var(--ink-dim)', fontWeight: 600 }}>관리자</span></div>
+        <nav className="ts-sidebar__nav"><NavList /></nav>
+        <div className="ts-sidebar__foot">
+          <button className="ts-userchip" type="button"><span className="ts-avatar">오영</span>
+            <span style={{ textAlign: 'left', lineHeight: 1.2 }}><span style={{ display: 'block', fontWeight: 700, fontSize: 14, color: 'var(--ink)' }}>오영진</span><span style={{ fontSize: 12, color: 'var(--ink-mute)' }}>대회 운영자</span></span>
+            <window.Icon name="chevron-right" size={18} color="var(--ink-dim)" style={{ marginLeft: 'auto' }} />
+          </button>
+        </div>
+      </aside>
+
+      <div className="ts-topbar">
+        <button className="ts-mtoggle" type="button" onClick={() => setMOpen(true)}><window.Icon name="menu" size={22} /></button>
+        <span style={{ fontWeight: 800, fontSize: 16 }}>MyBDR 관리자</span>
+      </div>
+      {mOpen && <div className="ts-overlay" onClick={() => setMOpen(false)} />}
+      <aside className="ts-drawer" data-open={mOpen ? 'true' : 'false'}>
+        <div className="ts-sidebar__brand"><span className="ts-sidebar__brand-dot">B</span> MyBDR</div>
+        <nav className="ts-sidebar__nav"><NavList /></nav>
+      </aside>
+
+      <main className="ts-main"><div className="ts-main__inner">{screen}</div></main>
+
+      {toastMsg && <div className="ts-toast"><window.Icon name="check-circle-2" size={18} color="var(--ok)" />{toastMsg}</div>}
+    </div>);
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>

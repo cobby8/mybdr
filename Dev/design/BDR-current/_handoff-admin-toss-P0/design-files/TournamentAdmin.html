@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>BDR 대회 운영 — Toss (Phase 4)</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700;800&display=swap" />
+<link rel="stylesheet" href="toss.css" />
+<style>
+  .tn-tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border); margin-bottom: 28px; overflow-x: auto; }
+  .tn-tab { padding: 13px 18px; border: 0; background: transparent; font-family: var(--ff); font-size: 15px; font-weight: 700; color: var(--ink-mute); cursor: pointer; border-bottom: 2.5px solid transparent; margin-bottom: -1px; white-space: nowrap; display: inline-flex; align-items: center; gap: 7px; }
+  .tn-tab[data-active="true"] { color: var(--primary); border-bottom-color: var(--primary); }
+  .tn-ctx { display: flex; align-items: center; gap: 14px; padding: 18px 22px; background: #fff; border-radius: 20px; box-shadow: var(--sh-sm); margin-bottom: 24px; flex-wrap: wrap; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<div id="tweaks" class="tweaks">
+  <div class="tweaks__title">TWEAKS <button id="tweaks-close" style="background:transparent;border:0;color:inherit;cursor:pointer;font-size:16px;line-height:1">×</button></div>
+  <div class="tweaks__lbl">강조색 (Primary)</div>
+  <div class="tweaks__row" data-group="primary">
+    <button class="tweaks__btn" data-val="#3182F6">Toss Blue</button>
+    <button class="tweaks__btn" data-val="#2AC1BC">Teal</button>
+    <button class="tweaks__btn" data-val="#6D5AE6">Violet</button>
+  </div>
+  <div class="tweaks__lbl">카드 라운딩</div>
+  <div class="tweaks__row" data-group="radius">
+    <button class="tweaks__btn" data-val="24px">24px</button>
+    <button class="tweaks__btn" data-val="16px">16px</button>
+  </div>
+</div>
+<script>const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{ "primary": "#3182F6", "radius": "16px" }/*EDITMODE-END*/;</script>
+
+<script src="https://unpkg.com/lucide@latest"></script>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script src="toss-data.jsx"></script>
+<script src="admin-data.jsx"></script>
+<script src="tournament-data.jsx"></script>
+<script type="text/babel" src="toss-kit.jsx"></script>
+<script type="text/babel" src="toss-admin.jsx"></script>
+<script type="text/babel" src="tn-screens.jsx"></script>
+
+<script type="text/babel">
+const { useState, useEffect } = React;
+
+function App() {
+  const [tab, setTab] = useState('divisions');
+  const [mOpen, setMOpen] = useState(false);
+  const [genOpen, setGenOpen] = useState(false);
+  const [categories, setCategories] = useState(() => window.TN.TN_CATEGORIES.map(c => ({ ...c, divisions: c.divisions.map(d => ({ ...d, settings: { ...d.settings } })) })));
+  const [teams, setTeams] = useState(() => window.TOSS.ADMIN_TEAMS.map(t => ({ ...t })));
+  const [toastMsg, setToastMsg] = useState(null);
+  const toast = (m) => { setToastMsg(m); clearTimeout(window.__t); window.__t = setTimeout(() => setToastMsg(null), 2600); };
+  const preset = window.TN.TN_PRESET;
+
+  const TABS = [
+    { id: 'divisions', icon: 'layout-grid', label: '종별·디비전' },
+    { id: 'teams', icon: 'users', label: '참가팀' },
+    { id: 'bracket', icon: 'git-fork', label: '대진표' },
+    { id: 'publish', icon: 'globe', label: '공개·완료' },
+  ];
+  const divCount = categories.reduce((a, c) => a + c.divisions.length, 0);
+
+  let body;
+  if (tab === 'divisions') body = <window.TnDivisions categories={categories} setCategories={setCategories} openGenerator={() => setGenOpen(true)} toast={toast} />;
+  else if (tab === 'teams') body = <window.TnTeams teams={teams} setTeams={setTeams} toast={toast} />;
+  else if (tab === 'bracket') body = <window.TnBracket categories={categories} teams={teams} toast={toast} />;
+  else body = <window.TnPublish categories={categories} teams={teams} preset={preset} toast={toast} />;
+
+  const Nav = () =>
+    <nav className="ts-sidebar__nav">
+      <div className="ts-sidebar__label">대회 운영</div>
+      {TABS.map((it) => <button key={it.id} type="button" className="ts-navlink" data-active={tab === it.id ? 'true' : 'false'} onClick={() => { setTab(it.id); setMOpen(false); }}><window.Icon name={it.icon} size={19} /><span>{it.label}</span></button>)}
+      <div className="ts-sidebar__label">도구</div>
+      <button type="button" className="ts-navlink"><window.Icon name="copy" size={19} /><span>이전 대회 복사</span></button>
+      <button type="button" className="ts-navlink"><window.Icon name="settings" size={19} /><span>대회 설정</span></button>
+    </nav>;
+
+  useEffect(() => {
+    const panel = document.getElementById('tweaks'), closeBtn = document.getElementById('tweaks-close');
+    const handler = (e) => { if (e.data?.type === '__activate_edit_mode') panel.setAttribute('data-open', 'true'); if (e.data?.type === '__deactivate_edit_mode') panel.setAttribute('data-open', 'false'); };
+    window.addEventListener('message', handler); window.parent.postMessage({ type: '__edit_mode_available' }, '*');
+    closeBtn.onclick = () => panel.setAttribute('data-open', 'false');
+    const apply = (gp, v) => { if (gp === 'primary') { document.documentElement.style.setProperty('--primary', v); const mix = { '#3182F6': '#1B64DA', '#2AC1BC': '#1AA39E', '#6D5AE6': '#5544C9' }; document.documentElement.style.setProperty('--primary-hover', mix[v] || v); document.documentElement.style.setProperty('--primary-weak', v + '18'); } if (gp === 'radius') document.documentElement.style.setProperty('--radius-card', v); };
+    const sync = { primary: TWEAK_DEFAULTS.primary, radius: TWEAK_DEFAULTS.radius };
+    panel.querySelectorAll('[data-group]').forEach((row) => { const gp = row.getAttribute('data-group'); row.querySelectorAll('.tweaks__btn').forEach((btn) => { btn.setAttribute('data-active', btn.getAttribute('data-val') === sync[gp] ? 'true' : 'false'); btn.onclick = () => { row.querySelectorAll('.tweaks__btn').forEach((b) => b.setAttribute('data-active', 'false')); btn.setAttribute('data-active', 'true'); const v = btn.getAttribute('data-val'); apply(gp, v); window.parent.postMessage({ type: '__edit_mode_set_keys', edits: { [gp]: v } }, '*'); }; }); });
+    apply('primary', sync.primary); apply('radius', sync.radius);
+    return () => window.removeEventListener('message', handler);
+  }, []);
+
+  return (
+    <div className="ts-shell">
+      <aside className="ts-sidebar">
+        <div className="ts-sidebar__brand"><span className="ts-sidebar__brand-dot">B</span> MyBDR <span style={{ fontSize: 12, color: 'var(--ink-dim)', fontWeight: 600 }}>대회운영</span></div>
+        <Nav />
+        <div className="ts-sidebar__foot"><button className="ts-userchip" type="button"><span className="ts-avatar">오영</span><span style={{ textAlign: 'left', lineHeight: 1.2 }}><span style={{ display: 'block', fontWeight: 700, fontSize: 14, color: 'var(--ink)' }}>오영진</span><span style={{ fontSize: 12, color: 'var(--ink-mute)' }}>대회 운영자</span></span><window.Icon name="chevron-right" size={18} color="var(--ink-dim)" style={{ marginLeft: 'auto' }} /></button></div>
+      </aside>
+
+      <div className="ts-topbar"><button className="ts-mtoggle" type="button" onClick={() => setMOpen(true)}><window.Icon name="menu" size={22} /></button><span style={{ fontWeight: 800, fontSize: 16 }}>대회 운영</span></div>
+      {mOpen && <div className="ts-overlay" onClick={() => setMOpen(false)} />}
+      <aside className="ts-drawer" data-open={mOpen ? 'true' : 'false'}><div className="ts-sidebar__brand"><span className="ts-sidebar__brand-dot">B</span> MyBDR</div><Nav /></aside>
+
+      <main className="ts-main"><div className="ts-main__inner">
+        <div className="ts-ph" style={{ marginBottom: 18 }}>
+          <div className="ts-ph__eyebrow">대회 운영</div>
+          <div className="ts-ph__row"><h1 className="ts-ph__title">강남구협회장배 #9</h1><div style={{ display: 'flex', gap: 8 }}><window.Badge tone="warn">작성중</window.Badge></div></div>
+        </div>
+        <div className="tn-ctx">
+          <window.Badge tone="primary">{preset.matchType}</window.Badge>
+          <span style={{ fontSize: 13.5, color: 'var(--ink-soft)' }}>{preset.gameTime} · {preset.ball} · {preset.rule}</span>
+          <span style={{ flex: 1 }} />
+          <span style={{ fontSize: 13, color: 'var(--ink-mute)' }}>{categories.length}종별 · {divCount}디비전 · 참가 {teams.length}팀</span>
+        </div>
+        <div className="tn-tabs">{TABS.map((it) => <button key={it.id} type="button" className="tn-tab" data-active={tab === it.id ? 'true' : 'false'} onClick={() => setTab(it.id)}><window.Icon name={it.icon} size={16} />{it.label}</button>)}</div>
+        {body}
+      </div></main>
+
+      <window.Generator open={genOpen} onClose={() => setGenOpen(false)} onGenerate={(c) => setCategories((p) => [...p, c])} toast={toast} />
+      {toastMsg && <div className="ts-toast"><window.Icon name="check-circle-2" size={18} color="var(--ok)" />{toastMsg}</div>}
+    </div>);
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>
