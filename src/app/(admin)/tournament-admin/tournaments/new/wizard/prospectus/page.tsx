@@ -32,6 +32,8 @@ import {
 } from "@/lib/tournaments/prospectus-to-draft";
 import { loadDraft, saveDraft } from "@/lib/tournaments/wizard-draft";
 import type { WizardDraft } from "@/lib/tournaments/wizard-types";
+// 2026-06-21 Track B B-b Toss 리스킨 — Material Symbols → lucide <Icon> 키트(비주얼만·기능 0).
+import { Icon } from "@/components/admin-toss";
 
 type AuthStatus = "loading" | "unauthenticated" | "unauthorized" | "authorized";
 type AnalyzeStatus = "idle" | "uploading" | "analyzing" | "done" | "failed";
@@ -190,13 +192,9 @@ export default function ProspectusAnalyzePage() {
 
   if (authStatus === "unauthorized") {
     return (
-      <div className="flex min-h-[40vh] flex-col items-center justify-center gap-4 text-center">
-        <span
-          className="material-symbols-outlined text-5xl text-[var(--color-text-muted)]"
-          aria-hidden
-        >
-          lock
-        </span>
+      // 2026-06-21 Toss B-b: early-return 루트에도 data-skin opt-in + lock→lucide.
+      <div data-skin="toss" className="flex min-h-[40vh] flex-col items-center justify-center gap-4 text-center">
+        <Icon name="lock" size={48} color="var(--color-text-muted)" />
         <h1 className="text-xl font-bold text-[var(--color-text-primary)]">
           권한이 필요합니다
         </h1>
@@ -209,7 +207,8 @@ export default function ProspectusAnalyzePage() {
 
   // ============ 메인 UI ============
   return (
-    <div className="mx-auto max-w-3xl space-y-6 p-4 sm:p-6">
+    // 2026-06-21 Toss B-b: 요강 분석 페이지 루트에 data-skin="toss" opt-in.
+    <div data-skin="toss" className="mx-auto max-w-3xl space-y-6 p-4 sm:p-6">
       <header>
         <div className="flex items-center gap-2 text-sm text-[var(--color-text-muted)]">
           <Link
@@ -240,12 +239,9 @@ export default function ProspectusAnalyzePage() {
       {/* 2. uploading / analyzing = 스피너 */}
       {(status === "uploading" || status === "analyzing") && (
         <div className="flex min-h-[200px] flex-col items-center justify-center gap-3 rounded-[4px] bg-[var(--color-surface)] p-8 text-center">
-          <span
-            className="material-symbols-outlined animate-spin text-4xl text-[var(--color-accent)]"
-            aria-hidden
-          >
-            progress_activity
-          </span>
+          {/* 2026-06-21 Toss B-b: progress_activity → lucide loader-circle(animate-spin 보존). */}
+          <Icon name="loader-circle" size={36} color="var(--color-accent)" className="animate-spin" />
+
           <p className="text-base font-medium text-[var(--color-text-primary)]">
             {status === "uploading"
               ? "파일 업로드 중..."
@@ -264,12 +260,9 @@ export default function ProspectusAnalyzePage() {
       {status === "failed" && (
         <div className="space-y-3 rounded-[4px] border border-[var(--color-danger)]/40 bg-[var(--color-surface)] p-4">
           <div className="flex items-start gap-2">
-            <span
-              className="material-symbols-outlined text-2xl text-[var(--color-danger)]"
-              aria-hidden
-            >
-              error
-            </span>
+            {/* 2026-06-21 Toss B-b: error → lucide circle-x. */}
+            <Icon name="circle-x" size={24} color="var(--color-danger)" />
+
             <div className="flex-1">
               <p className="font-medium text-[var(--color-text-primary)]">
                 분석 실패

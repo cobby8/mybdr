@@ -79,6 +79,7 @@
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
 |------|------|------|
+| 2026-06-21 | Track B Phase4 B-b 대회 생성 위저드 Toss 리스킨 (developer 세션B) | ✅ 4파일(new/wizard/page.tsx·prospectus·tournament-copy-modal·division-generator-modal) Material 35위치→lucide `<Icon>` 키트 교체 + data-skin="toss" 루트 opt-in(Quick/Legacy/prospectus 메인+early-return). 의미대체1(gradient→square)·volleyball(농구부재). rgba초록 tint→color-mix 토큰. **API/POST body/단계/DivisionGenerator 로직/이전대회복사 0 변경**(git diff 로직라인 실측). Icon 29종 lucide 실존검증. tsc EXIT=0. material 잔존0. git=대상4파일만M(referee/admin비대회/teams/schema 0). 미커밋 |
 | 2026-06-21 | Track B Phase4 대회 생성+상세(대진통합) 설계 (planner, 읽기전용·코드/스키마 무변경) | ✅ 핵심발견=**운영 대회관리 거의 전부 기구현**(본진=`(admin)/tournament-admin/tournaments/`·admin/tournaments 아님). 생성위저드(Quick/Legacy3-step/복사/Division/prospectus)·상세(SetupChecklist+teams+divisions+bracket+recorders+site+completed)·대진(5포맷)·기록자풀 전부 完·Toss 미리스킨. **진짜 신규 2건뿐**=①입금→자동확정 API(payment_status PATCH 미구현·paid→approved 승격) ②경기별기록자(settings.recorder_id·PM② 확정 jsonb). 하위배치4분해: B-a(입금자동확정 API+teams리스킨·1순위·유일 기능신규) / B-b(생성위저드 리스킨) / B-c(상세나머지 리스킨) / B-d(경기별기록자 settings). 시안 통합5탭IA=분산라우트 유지 권고(전면재구성 보류). status D표 매핑(WAITING=waiting+waiting_number·is_waiting❌)·div_caps 정원·TournamentMatch 단일모델·settings merge·snake·스키마0. PM확정3건(IA·대기승격 자동vs수동·착수순서). 미커밋 |
 | 2026-06-21 | Track B 참가신청 3단계 (Toss 리스킨) **검증** (tester, 세션B·정적) | ✅ 8항목 전부 통과·차단0. 🚨회귀0 확정(route.ts·schema.prisma·joinSchema diff 비어있음)·클라 POST body 동일(대표자/유니폼 자동값)·약관2종 게이트(canSubmit)·본인인증redirect+주장가드+snake접근자 보존·adaptive 2단계·Toss격리(전역셀렉터·:root 오염0·toss-admin.css 미import·lucide-react직접)·join 4파일 국한. tsc EXIT0. 후속minor1(GET bank_* 응답 런타임확인 권장, 표시용·제출영향0). 미커밋 |
 | 2026-06-21 | Toss Phase 3 Batch 3B(referee-admin 코어 11파일) 리스킨 (developer 세션A, 본인+fork2병렬) | ✅ layout(AccessDenied 루트 data-skin+lock→lucide)·referee-picker(자체렌더루트 data-skin·search/x/star)·page대시보드(동적 stat/quickLinks icon값 lucide명화·shield-check/chevron-right)·assignments(루트 data-skin·circle-x/search/trophy×2/plus/info/circle-check)·announcements(+[id] 3루트)·members(+new/[id]2루트/[id]/documents)·pools. data-skin=AccessDenied루트+각 page루트+early-return별도루트(members[id]·documents·announcements[id])+referee-picker자체루트. Material79→키트Icon 전환·잔존0. 동적아이콘(DOC_CONFIGS·삼항 verified/pending) 정의부까지 치환. 의미대체=group_off→user-x(UsersX미존재→UserX)·pending→clock·print→printer·auto_fix_high→wand-sparkles·edit_note→file-pen·star_border→star(fill재현). lucide 전수실존검증(node require)·tsc EXIT0·material잔존0(3C 6파일만 잔존=미접촉정상)·git격리OK(3B 11파일만M·3A/toss-css/admin/tournaments/schema 0). 미커밋 |
@@ -450,6 +451,30 @@
 🔴 필수 수정: **없음**. 운영 승인 로직이나 트리거 한정·정원 가드·트랜잭션·멱등 전부 견고. 정원 race는 단일운영자 컨텍스트라 차단 미해당(권고). merge 가능.
 
 ## 구현 기록 (developer)
+
+### Track B Phase4 B-b — 대회 생성 위저드 Toss 리스킨 (2026-06-21, developer 세션B)
+
+📝 구현: 대회 생성 위저드(Quick 1-step + Legacy 3-step + 이전대회복사 + DivisionGenerator + prospectus) **순수 Toss 리스킨**. 변경 허용 = data-skin="toss" 루트 opt-in + Material→`<Icon>` lucide 키트 교체뿐. API/server action/POST body/단계/필드/문구/라우트/DivisionGenerator 로직/이전대회복사 0 변경.
+
+| 파일 | 변경 | data-skin 부착처 | 신규/수정 |
+|------|------|------------------|----------|
+| `tournament-admin/tournaments/new/wizard/page.tsx` | Material 22 위치→Icon(SectionTitle/STEPS/SUBTABS/템플릿 동적 icon값 포함) + rgba초록 tint→color-mix 토큰 | Quick/Legacy 메인루트 + 각 unauthorized early-return | 수정 |
+| `tournament-admin/tournaments/new/wizard/prospectus/page.tsx` | Material 3(lock·progress_activity·error)→Icon(animate-spin 보존) | 메인루트 + unauthorized early-return | 수정 |
+| `components/tournament/tournament-copy-modal.tsx` | Material 2(content_copy·close)→Icon | 위저드 자식(루트 data-skin 상속·별도부착X) | 수정 |
+| `components/tournament/division-generator-modal.tsx` | Material 8(layers·close·wc·category·tune·cake·check×2)→Icon, **로직 0** | 위저드 자식(상속) | 수정 |
+
+🔁 Material→lucide kebab 매핑 (전부 lucide-react 실존 `node -e` 실측·빈span폴백0·직접 CDN/window.lucide 0):
+add→plus · add_circle→circle-plus · arrow_forward→arrow-right · close→x · content_copy→copy · emoji_events→trophy · history→history · info→info · lock→lock · upload_file→file-up · calendar_month→calendar · category→layout-grid · edit_note→file-pen · fact_check→clipboard-check · groups→users · palette→palette · group_add→user-plus · check_circle→circle-check · description→file-text · flash_on→zap · list_alt→list-checks · photo_camera→camera · workspace_premium→award · domain→building-2 · progress_activity→loader-circle · error→circle-x · layers→layers · wc→venus-and-mars · tune→sliders-horizontal · cake→cake · check→check · image→image · badge→badge
+🔁 의미대체 1건: **gradient(템플릿 기본형)→square** (lucide gradient 부재). sports_basketball→**volleyball**(농구부재·Phase2 선례 동일).
+
+🎨 토큰: 위저드 page.tsx 활성탭 완료배경 raw `rgba(74,222,128,.15)`→`color-mix(in_srgb,var(--color-success)_15%,transparent)` 토큰화. 나머지 var(--color-*) 보존·신규 하드코딩 hex 0. **잔존(미변경·사유)**: division-generator-modal 공유모달의 `#fff`(primary 위 대비텍스트)·rgba 그림자/오버레이는 기존값이고 본 모달은 `[id]/wizard`(편집·B-c)와 공유 → "DivisionGenerator 로직 변경0" 준수 위해 비주얼 회귀 우려로 보존.
+
+✅ 기능 변경 0 확인: git diff 로직라인 grep(fetch/router.push/JSON.stringify/body/POST/useState/seriesId/maxTeams/format 등)=변경 0(주석·icon값 라벨뿐). DivisionGenerator state/toggleDiv/toggleAge/handleCreate/buildYouthDivisionCodes=무변경 실측.
+
+💡 tester 참고: ①`/tournament-admin/tournaments/new/wizard`(Quick) 진입→sub-tab 4종·draft배너·시리즈 dropdown·생성 POST 동작 동일 ②`?legacy=1`(3-step) 진입→3탭 인디케이터·종별추가 모달(DivisionGenerator STEP1~4 cross-product)·이전대회복사 모달·디자인 미리보기·생성 동작 동일 ③`/wizard/prospectus`→PDF업로드·분석 스피너·결과 동작 동일 ④모든 화면 아이콘 깨짐(빈칸) 0이면 정상.
+⚠️ reviewer 참고: ①모달 2종이 위저드 루트 data-skin 상속(React 자식·포털 아님) 정상 여부 ②division-modal 공유모달 #fff/rgba 보존 판단 적절성 ③템플릿/STEPS/SUBTABS 동적 icon값 kebab 일치.
+
+🔎 검증: `npx tsc --noEmit` EXIT=0 · 4파일 material-symbols 잔존 0 · Icon name 29종(static18+dynamic11) 전부 lucide 실존 · git status=대상 4파일만 M(referee/admin비대회/teams/schema 0). 미커밋(PM).
 
 ### Phase 3 Batch 3C — referee-admin 정산·운영 Toss 재스킨 (2026-06-21, developer)
 
