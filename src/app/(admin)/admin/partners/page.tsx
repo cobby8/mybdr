@@ -13,6 +13,8 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { AdminPageHeader } from "@/components/admin/admin-page-header";
+// Toss Phase 2 2B — lucide 키트 Icon (Material Symbols 교체)
+import { Icon } from "@/components/admin-toss";
 // 8C-6 박제 — VA1 Site Operator 뱃지 (dark+gold, /admin/courts 와 공용)
 import { SiteOperatorBadge } from "@/components/admin/site-operator-badge";
 
@@ -102,7 +104,7 @@ export default function AdminPartnersPage() {
   };
 
   return (
-    <div>
+    <div data-skin="toss">
       {/* 시안 v2.14 — eyebrow + breadcrumbs + actions (파트너 등록 버튼은 actions slot) */}
       <AdminPageHeader
         eyebrow="ADMIN · 비즈니스"
@@ -121,7 +123,7 @@ export default function AdminPartnersPage() {
               onClick={() => setShowForm(!showForm)}
               className="btn btn--primary"
             >
-              <span className="material-symbols-outlined" style={{ fontSize: 16 }}>add</span>
+              <Icon name="plus" size={16} />
               파트너 등록
             </button>
           </div>

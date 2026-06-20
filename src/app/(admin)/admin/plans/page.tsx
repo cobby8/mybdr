@@ -20,6 +20,8 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { AdminPageHeader } from "@/components/admin/admin-page-header";
+// Toss Phase 2 2B — lucide 키트 Icon (Material Symbols 교체)
+import { Icon } from "@/components/admin-toss";
 
 // (web) 시안 카드 패턴
 const CARD_CLASS = "rounded-[var(--radius-card)] border p-4 sm:p-5";
@@ -166,7 +168,7 @@ export default function AdminPlansPage() {
   };
 
   return (
-    <div>
+    <div data-skin="toss">
       <AdminPageHeader
         // 시안 v2.14 카피 박제 — eyebrow 영역명 (USERS → 사용자 동일 한글화)
         eyebrow="ADMIN · 비즈니스"
@@ -182,9 +184,7 @@ export default function AdminPlansPage() {
           <>
             {/* 시안 v2.14 — 결제 내역 이동 보조 actions (운영 라우트 /admin/payments) */}
             <Link href="/admin/payments" className="btn">
-              <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
-                credit_card
-              </span>
+              <Icon name="credit-card" size={16} />
               결제 내역
             </Link>
             <Button onClick={openCreate}>+ 요금제 추가</Button>

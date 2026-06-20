@@ -23,6 +23,8 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { AdminPageHeader } from "@/components/admin/admin-page-header";
+// Toss Phase 2 2B — lucide 키트 Icon (Material Symbols 교체)
+import { Icon } from "@/components/admin-toss";
 
 // 신고 플래그 라벨 — DB 코드 → 한국어 표시 + 색조(tone) + 이모지
 // (기존 FLAG_LABELS 확장: 시안 MANNER_FLAG_LABELS 의 emoji/tone 통합)
@@ -162,7 +164,7 @@ export default function AdminGameReportsPage() {
   const queuePending = reports.filter((r) => r.status === "submitted").length;
 
   return (
-    <div>
+    <div data-skin="toss">
       <AdminPageHeader
         eyebrow="ADMIN · 사용자"
         title="매너 평가 검토"
@@ -174,9 +176,7 @@ export default function AdminGameReportsPage() {
         ]}
         actions={
           <Link href="/admin/users" className="btn btn--sm">
-            <span className="material-symbols-outlined" style={{ fontSize: 14 }}>
-              group
-            </span>
+            <Icon name="users" size={14} />
             유저 관리로
           </Link>
         }
@@ -188,18 +188,14 @@ export default function AdminGameReportsPage() {
           onClick={() => setTab("stats")}
           className={`btn btn--sm ${tab === "stats" ? "btn--primary" : ""}`}
         >
-          <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
-            insights
-          </span>
+          <Icon name="line-chart" size={16} />
           매너 통계
         </button>
         <button
           onClick={() => setTab("queue")}
           className={`btn btn--sm ${tab === "queue" ? "btn--primary" : ""}`}
         >
-          <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
-            flag
-          </span>
+          <Icon name="flag" size={16} />
           신고 큐
           {queuePending > 0 && (
             <span className="admin-stat-pill" data-tone="warn" style={{ marginLeft: 4 }}>
@@ -211,9 +207,7 @@ export default function AdminGameReportsPage() {
           onClick={() => setTab("trend")}
           className={`btn btn--sm ${tab === "trend" ? "btn--primary" : ""}`}
         >
-          <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
-            trending_up
-          </span>
+          <Icon name="trending-up" size={16} />
           최근 30일 추세
         </button>
       </div>
@@ -278,9 +272,7 @@ function MannerStatsTab({ stats, loading }: { stats: StatsData | null; loading: 
         {/* 평점 분포 — 구간별 비율만 */}
         <section className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
           <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-[var(--color-text-primary)]">
-            <span className="material-symbols-outlined" style={{ fontSize: 18 }}>
-              bar_chart
-            </span>
+            <Icon name="bar-chart-3" size={18} />
             평점 분포
           </h3>
           <div className="flex flex-col gap-2">
@@ -311,9 +303,7 @@ function MannerStatsTab({ stats, loading }: { stats: StatsData | null; loading: 
             ))}
           </div>
           <p className="mt-3 flex items-center gap-1 text-xs text-[var(--color-text-muted)]">
-            <span className="material-symbols-outlined" style={{ fontSize: 14 }}>
-              info
-            </span>
+            <Icon name="info" size={14} />
             구간별 비율만 노출 — 개별 평가자 / 평가 본문 ❌
           </p>
         </section>
@@ -321,9 +311,7 @@ function MannerStatsTab({ stats, loading }: { stats: StatsData | null; loading: 
         {/* 상위 매너 사용자 — 평균만 (BG2) */}
         <section className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
           <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-[var(--color-text-primary)]">
-            <span className="material-symbols-outlined" style={{ fontSize: 18, color: "var(--color-success)" }}>
-              workspace_premium
-            </span>
+            <Icon name="award" size={18} style={{ color: "var(--color-success)" }} />
             상위 매너 사용자
             <span className="ml-auto text-[10px] font-medium text-[var(--color-text-muted)]">
               평균 4.5+ · 평가 10+
@@ -359,9 +347,7 @@ function MannerStatsTab({ stats, loading }: { stats: StatsData | null; loading: 
       {/* 하위 매너 사용자 — 평균 + flag 종류만 / 개별 건수 ❌ */}
       <section className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
         <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-[var(--color-text-primary)]">
-          <span className="material-symbols-outlined" style={{ fontSize: 18, color: "var(--color-error)" }}>
-            report
-          </span>
+          <Icon name="file-warning" size={18} style={{ color: "var(--color-error)" }} />
           하위 매너 사용자 — 운영진 액션 검토
           <span className="ml-auto text-[10px] font-medium text-[var(--color-text-muted)]">
             평균 3.0- 또는 flags 5+
@@ -438,9 +424,7 @@ function MannerStatsTab({ stats, loading }: { stats: StatsData | null; loading: 
 
         {/* BG2 룰 안내 박스 */}
         <div className="mt-3 flex gap-2 rounded-r border-l-2 border-[var(--color-info)] bg-[var(--color-card)] p-3 text-xs text-[var(--color-text-secondary)]">
-          <span className="material-symbols-outlined" style={{ fontSize: 16, flexShrink: 0, color: "var(--color-info)" }}>
-            verified_user
-          </span>
+          <Icon name="shield-check" size={16} style={{ flexShrink: 0, color: "var(--color-info)" }} />
           <div>
             <strong className="text-[var(--color-text-primary)]">사용자 결재 룰 (BG2)</strong> — 평균 평점 + 받은 flag
             종류만 표시. 개별 평가 건수 / 평가 본문은 신고 큐 탭에서만 (flags 배열 있는 ratings 한정).
@@ -480,9 +464,7 @@ function SummaryCard({
 function EmptyStats() {
   return (
     <div className="flex flex-col items-center gap-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] py-12 text-center">
-      <span className="material-symbols-outlined" style={{ fontSize: 40, color: "var(--color-text-muted)" }}>
-        insights
-      </span>
+      <Icon name="line-chart" size={40} style={{ color: "var(--color-text-muted)" }} />
       <p className="text-sm font-medium text-[var(--color-text-primary)]">아직 매너 평가 데이터가 없습니다.</p>
       <p className="text-xs text-[var(--color-text-muted)]">
         경기 종료 후 평가가 제출되면 최근 30일 통계가 자동으로 표시됩니다.
@@ -518,9 +500,7 @@ function TrendTab({
     <div className="flex flex-col gap-4">
       <section className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
         <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-[var(--color-text-primary)]">
-          <span className="material-symbols-outlined" style={{ fontSize: 18 }}>
-            timeline
-          </span>
+          <Icon name="activity" size={18} />
           평균 평점 추세 (30일)
           <span className="ml-auto text-[10px] font-medium text-[var(--color-text-muted)]">
             범위 {avgRange.min}–{avgRange.max}
@@ -562,9 +542,7 @@ function TrendTab({
         {/* 30일 요약 */}
         <section className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
           <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-[var(--color-text-primary)]">
-            <span className="material-symbols-outlined" style={{ fontSize: 18 }}>
-              trending_flat
-            </span>
+            <Icon name="move-right" size={18} />
             30일 요약
           </h3>
           <div className="grid grid-cols-2 gap-3">
@@ -593,9 +571,7 @@ function TrendTab({
         {/* 신고 발생률 */}
         <section className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
           <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-[var(--color-text-primary)]">
-            <span className="material-symbols-outlined" style={{ fontSize: 18 }}>
-              warning
-            </span>
+            <Icon name="triangle-alert" size={18} />
             신고 발생률
           </h3>
           <div className="text-4xl font-black" style={{ color: "var(--color-warning)" }}>
