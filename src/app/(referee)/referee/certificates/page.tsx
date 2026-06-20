@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
+import { Icon } from "@/components/admin-toss";
 
 /**
  * /referee/certificates — 내 자격증 목록 + 추가 폼 (Client Component)
@@ -145,7 +146,7 @@ export default function RefereeCertificatesPage() {
   // 프로필 미등록 상태: CTA 카드
   if (errorCode === "NO_REFEREE_PROFILE") {
     return (
-      <div className="space-y-6">
+      <div data-skin="toss" className="space-y-6">
         <PageHeader />
         <div
           className="flex flex-col items-center px-6 py-16 text-center"
@@ -155,12 +156,11 @@ export default function RefereeCertificatesPage() {
             borderRadius: 4,
           }}
         >
-          <span
-            className="material-symbols-outlined text-5xl"
-            style={{ color: "var(--color-text-muted)" }}
-          >
-            badge
-          </span>
+          <Icon
+            name="id-card"
+            size={48}
+            color="var(--color-text-muted)"
+          />
           <h2
             className="mt-4 text-lg font-bold"
             style={{ color: "var(--color-text-primary)" }}
@@ -190,7 +190,7 @@ export default function RefereeCertificatesPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div data-skin="toss" className="space-y-6">
       <PageHeader />
 
       {/* 에러 배너 */}
@@ -222,9 +222,7 @@ export default function RefereeCertificatesPage() {
             borderRadius: 4,
           }}
         >
-          <span className="material-symbols-outlined text-base">
-            {formOpen ? "close" : "add"}
-          </span>
+          <Icon name={formOpen ? "x" : "plus"} size={16} />
           {formOpen ? "닫기" : "신규 추가"}
         </button>
       </div>
@@ -414,9 +412,7 @@ export default function RefereeCertificatesPage() {
                           borderRadius: 4,
                         }}
                       >
-                        <span className="material-symbols-outlined text-xs">
-                          check_circle
-                        </span>
+                        <Icon name="circle-check" size={12} />
                         검증
                       </span>
                     ) : (
@@ -446,12 +442,11 @@ export default function RefereeCertificatesPage() {
                     {c.expires_at && ` · 만료: ${formatDate(c.expires_at)}`}
                   </p>
                 </div>
-                <span
-                  className="material-symbols-outlined text-base"
-                  style={{ color: "var(--color-text-muted)" }}
-                >
-                  arrow_forward
-                </span>
+                <Icon
+                  name="arrow-right"
+                  size={16}
+                  color="var(--color-text-muted)"
+                />
               </Link>
             </li>
           ))}

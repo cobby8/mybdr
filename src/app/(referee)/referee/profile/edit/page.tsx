@@ -171,7 +171,9 @@ export default function RefereeProfileEditPage() {
 
   if (loading) {
     return (
+      // data-skin="toss": 로딩 early-return 루트 div
       <div
+        data-skin="toss"
         className="p-8 text-center text-sm"
         style={{ color: "var(--color-text-muted)" }}
       >
@@ -181,7 +183,8 @@ export default function RefereeProfileEditPage() {
   }
 
   return (
-    <div className="space-y-6">
+    // data-skin="toss": 프로필 편집 폼 본문 루트 div
+    <div data-skin="toss" className="space-y-6">
       <header className="flex items-center justify-between">
         <h1
           className="text-2xl font-black uppercase tracking-wider"

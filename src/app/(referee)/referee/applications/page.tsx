@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { Icon } from "@/components/admin-toss";
 
 /**
  * /referee/applications — 본인 배정 신청 페이지.
@@ -200,7 +201,7 @@ export default function ApplicationsPage() {
   );
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" data-skin="toss">
       {/* 헤더 */}
       <div>
         <h1
@@ -492,7 +493,7 @@ export default function ApplicationsPage() {
                 onClick={() => !submitting && setModalAnn(null)}
                 style={{ color: "var(--color-text-muted)" }}
               >
-                <span className="material-symbols-outlined">close</span>
+                <Icon name="x" size={24} />
               </button>
             </div>
 

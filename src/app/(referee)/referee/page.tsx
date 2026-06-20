@@ -2,6 +2,8 @@ import Link from "next/link";
 import { getWebSession } from "@/lib/auth/web-session";
 import { prisma } from "@/lib/db/prisma";
 import { EmptyState } from "./_components/empty-state";
+// Toss 디자인 전환: Material Symbols → lucide 키트 <Icon>
+import { Icon } from "@/components/admin-toss";
 // PR4-UI (2026-05-15): 관리자 진입점 분기 박제용.
 //   이유: recorder_admin/super_admin/협회 관리자가 /referee 진입 시 admin 페이지 발견 경로 0
 //         (사이드바 메뉴만 있고 메인 영역 안내 0) → 상단 CTA 카드 + 빈 프로필 분기 안내 추가.
@@ -50,7 +52,8 @@ export default async function RefereeDashboardPage() {
   //   기본 프로필 등록 화면도 보조 링크로 유지 (admin 도 본인 심판 프로필 등록 가능).
   if (!referee) {
     return (
-      <div className="space-y-6">
+      // data-skin="toss": 미등록 빈상태 루트 div — 페이지 단위 Toss 토큰 활성화
+      <div data-skin="toss" className="space-y-6">
         <header>
           <h1
             className="text-2xl font-black uppercase tracking-wider"
@@ -71,7 +74,7 @@ export default async function RefereeDashboardPage() {
         {isAdmin && <AdminEntryCard />}
 
         <EmptyState
-          icon="badge"
+          icon="id-card"
           title={isAdmin ? "본인 심판 프로필 등록 (선택)" : "심판 프로필이 없습니다"}
           description={
             isAdmin
@@ -87,7 +90,8 @@ export default async function RefereeDashboardPage() {
 
   // 등록 상태: 내 카드 + 빠른 링크
   return (
-    <div className="space-y-6">
+    // data-skin="toss": 대시보드 본문 루트 div — 페이지 단위 Toss 토큰 활성화
+    <div data-skin="toss" className="space-y-6">
       <header>
         <h1
           className="text-2xl font-black uppercase tracking-wider"
@@ -118,12 +122,7 @@ export default async function RefereeDashboardPage() {
             borderRadius: 4,
           }}
         >
-          <span
-            className="material-symbols-outlined text-2xl"
-            style={{ color: "var(--color-success, #22c55e)" }}
-          >
-            check_circle
-          </span>
+          <Icon name="circle-check" size={24} color="var(--color-success, #22c55e)" />
           <div>
             <p
               className="text-sm font-bold"
@@ -178,9 +177,7 @@ export default async function RefereeDashboardPage() {
                     borderRadius: 4,
                   }}
                 >
-                  <span className="material-symbols-outlined text-sm">
-                    apartment
-                  </span>
+                  <Icon name="building-2" size={14} />
                   {referee.association.name}
                 </span>
               )}
@@ -191,9 +188,7 @@ export default async function RefereeDashboardPage() {
                   borderRadius: 4,
                 }}
               >
-                <span className="material-symbols-outlined text-sm">
-                  category
-                </span>
+                <Icon name="tag" size={14} />
                 {referee.role_type}
               </span>
               {referee.level && (
@@ -204,9 +199,7 @@ export default async function RefereeDashboardPage() {
                     borderRadius: 4,
                   }}
                 >
-                  <span className="material-symbols-outlined text-sm">
-                    military_tech
-                  </span>
+                  <Icon name="medal" size={14} />
                   {referee.level}
                 </span>
               )}
@@ -222,9 +215,7 @@ export default async function RefereeDashboardPage() {
             }}
           >
             상세
-            <span className="material-symbols-outlined text-base">
-              arrow_forward
-            </span>
+            <Icon name="arrow-right" size={16} />
           </Link>
         </div>
 
@@ -263,9 +254,7 @@ export default async function RefereeDashboardPage() {
             }}
           >
             관리
-            <span className="material-symbols-outlined text-base">
-              arrow_forward
-            </span>
+            <Icon name="arrow-right" size={16} />
           </Link>
         </div>
       </section>
@@ -276,26 +265,26 @@ export default async function RefereeDashboardPage() {
       <section className="grid grid-cols-2 gap-3">
         <QuickLinkCard
           href="/referee/profile/edit"
-          icon="edit"
+          icon="pencil"
           title="프로필 수정"
           description="소속/지역/등급 변경"
         />
         <QuickLinkCard
           href="/referee/certificates"
-          icon="verified"
+          icon="badge-check"
           title="자격증 관리"
           description="등록 · 수정 · 삭제"
         />
         <QuickLinkCard
           href="/referee/assignments"
-          icon="event"
+          icon="calendar"
           title="배정 기록"
           description="공식 경기 배정 내역"
           disabled
         />
         <QuickLinkCard
           href="/referee/settlements"
-          icon="payments"
+          icon="banknote"
           title="정산 기록"
           description="지급 · 대기 내역"
           disabled
@@ -332,12 +321,7 @@ function QuickLinkCard({
         opacity: disabled ? 0.6 : 1,
       }}
     >
-      <span
-        className="material-symbols-outlined text-2xl"
-        style={{ color: "var(--color-primary)" }}
-      >
-        {icon}
-      </span>
+      <Icon name={icon} size={24} color="var(--color-primary)" />
       <div className="min-w-0 flex-1">
         <h3
           className="text-sm font-bold"
@@ -353,12 +337,7 @@ function QuickLinkCard({
         </p>
       </div>
       {!disabled && (
-        <span
-          className="material-symbols-outlined text-base"
-          style={{ color: "var(--color-text-muted)" }}
-        >
-          arrow_forward
-        </span>
+        <Icon name="arrow-right" size={16} color="var(--color-text-muted)" />
       )}
     </div>
   );
@@ -391,12 +370,7 @@ function AdminEntryCard() {
         borderRadius: 4,
       }}
     >
-      <span
-        className="material-symbols-outlined text-3xl"
-        style={{ color: "var(--color-primary)" }}
-      >
-        admin_panel_settings
-      </span>
+      <Icon name="shield-check" size={28} color="var(--color-primary)" />
       <div className="min-w-0 flex-1">
         <h3
           className="text-sm font-black uppercase tracking-wider"
@@ -415,9 +389,7 @@ function AdminEntryCard() {
           style={{ color: "var(--color-primary)" }}
         >
           관리자 대시보드로 이동
-          <span className="material-symbols-outlined text-base">
-            arrow_forward
-          </span>
+          <Icon name="arrow-right" size={16} />
         </p>
       </div>
     </Link>

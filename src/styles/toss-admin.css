@@ -317,6 +317,11 @@
   --color-success:       #15B86A;
   --color-warning:       #FF9500;
   --color-error:         #F04452;
+  /* referee 전용 별칭 — globals :root 에서 var(--bg) 로 별칭되나 :root 값(다크)에
+     고정되어 [data-skin] 스코프서 재평가 안 됨 → Toss 라이트값 명시 보강(Phase3).
+     admin(Phase1/2) 미사용 토큰이라 회귀 0. */
+  --color-background:        #F2F4F6;
+  --color-text-on-primary:   #FFFFFF;
 
   /* ── Shadow — Toss soft elevation (다크 brutalist offset 제거) ── */
   --sh-xs: 0 1px 2px rgba(0,0,0,0.05);

@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { EmptyState } from "../_components/empty-state";
+import { Icon } from "@/components/admin-toss";
 
 /**
  * /referee/settlements — 내 정산 목록 (Client Component)
@@ -193,10 +194,10 @@ export default function RefereeSettlementsPage() {
   // 프로필 미등록 상태
   if (errorCode === "NO_REFEREE_PROFILE") {
     return (
-      <div className="space-y-6">
+      <div className="space-y-6" data-skin="toss">
         <PageHeader />
         <EmptyState
-          icon="badge"
+          icon="id-card"
           title="심판 프로필이 필요합니다"
           description="정산 기록을 확인하려면 먼저 심판 프로필을 등록하세요."
           ctaText="프로필 등록하기"
@@ -207,7 +208,7 @@ export default function RefereeSettlementsPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" data-skin="toss">
       <PageHeader />
 
       {/* 에러 배너 */}
@@ -237,15 +238,12 @@ export default function RefereeSettlementsPage() {
             borderRadius: 4,
           }}
         >
-          <span
-            className="material-symbols-outlined text-lg shrink-0"
-            style={{
-              color: "var(--color-warning, #f59e0b)",
-              fontVariationSettings: "'FILL' 1",
-            }}
-          >
-            info
-          </span>
+          <Icon
+            name="info"
+            size={18}
+            className="shrink-0"
+            color="var(--color-warning, #f59e0b)"
+          />
           <div className="flex-1 min-w-0">
             <div
               className="text-sm font-bold"
@@ -288,19 +286,19 @@ export default function RefereeSettlementsPage() {
       {/* 합계 카드 3개 */}
       <div className="grid grid-cols-3 gap-3">
         <SummaryCard
-          icon="account_balance_wallet"
+          icon="wallet"
           label="총 정산액"
           amount={summary.total_amount}
           accentColor="var(--color-info, #0079B9)"
         />
         <SummaryCard
-          icon="check_circle"
+          icon="circle-check"
           label="지급완료"
           amount={summary.paid_amount}
           accentColor="var(--color-success, #22c55e)"
         />
         <SummaryCard
-          icon="pending"
+          icon="hourglass"
           label="미지급"
           amount={summary.pending_amount}
           accentColor="var(--color-warning, #f59e0b)"
@@ -347,12 +345,7 @@ export default function RefereeSettlementsPage() {
             borderRadius: 4,
           }}
         >
-          <span
-            className="material-symbols-outlined text-5xl"
-            style={{ color: "var(--color-text-muted)" }}
-          >
-            payments
-          </span>
+          <Icon name="banknote" size={48} color="var(--color-text-muted)" />
           <h2
             className="mt-4 text-lg font-bold"
             style={{ color: "var(--color-text-primary)" }}
@@ -481,13 +474,13 @@ export default function RefereeSettlementsPage() {
                   style={{ color: "var(--color-text-muted)" }}
                 >
                   <span className="flex items-center gap-1">
-                    <span className="material-symbols-outlined text-sm">sports</span>
+                    <Icon name="flag" size={14} />
                     {ROLE_LABEL[s.assignment.role] ?? s.assignment.role}
                   </span>
                   <SettlementStatusBadge status={s.status} />
                   {s.paid_at && (
                     <span className="flex items-center gap-1">
-                      <span className="material-symbols-outlined text-sm">calendar_today</span>
+                      <Icon name="calendar-days" size={14} />
                       {formatDate(s.paid_at)}
                     </span>
                   )}
@@ -551,12 +544,7 @@ function SummaryCard({
       }}
     >
       <div className="flex items-center gap-2">
-        <span
-          className="material-symbols-outlined text-lg"
-          style={{ color: accentColor }}
-        >
-          {icon}
-        </span>
+        <Icon name={icon} size={18} color={accentColor} />
         <span
           className="text-[10px] font-bold uppercase tracking-wider"
           style={{ color: "var(--color-text-muted)" }}
@@ -622,7 +610,7 @@ function Pagination({
           opacity: page <= 1 ? 0.5 : 1,
         }}
       >
-        <span className="material-symbols-outlined text-sm">chevron_left</span>
+        <Icon name="chevron-left" size={14} />
         이전
       </button>
       <span
@@ -644,7 +632,7 @@ function Pagination({
         }}
       >
         다음
-        <span className="material-symbols-outlined text-sm">chevron_right</span>
+        <Icon name="chevron-right" size={14} />
       </button>
     </div>
   );

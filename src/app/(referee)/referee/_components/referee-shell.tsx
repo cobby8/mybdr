@@ -5,6 +5,9 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 // 헤더 우측에 알림 벨 — referee 플랫폼 전용 컴포넌트
 import { NotificationBell } from "./notification-bell";
+// Toss 디자인 전환: Material Symbols 대신 lucide 기반 키트 <Icon> 사용
+// 이유: 관리자(referee 포함) 영역은 Toss 디자인시스템으로 통일 — lucide-react 직접 import 금지, 키트 경유
+import { Icon } from "@/components/admin-toss";
 
 /**
  * 심판 플랫폼 독자 셸.
@@ -46,38 +49,43 @@ type MeResponse = {
 type NavItem = {
   href: string;
   label: string;
-  icon: string; // Material Symbols ligature
+  icon: string; // lucide kebab-case name (키트 <Icon name=...> 에서 PascalCase 변환)
   // 이 메뉴에 필요한 권한 키. null이면 본인 메뉴(모두 표시)
   // "admin"은 특수 키 — 관리자이기만 하면 표시(대시보드)
   requires: string | null;
 };
 
+// Material Symbols ligature → lucide 키트 아이콘 매핑 적용
+// (dashboard→layout-dashboard·badge→id-card·verified→badge-check·description→file-text
+//  ·event→calendar·how_to_reg→user-check·payments→banknote·admin_panel_settings→shield-check
+//  ·event_available→calendar-check·campaign→megaphone·upload_file→file-up·calendar_today→calendar-days
+//  ·insights→trending-up·monetization_on→circle-dollar-sign·settings→settings)
 const NAV_ITEMS: NavItem[] = [
   // ── 본인 메뉴 (모두에게 표시) ──
-  { href: "/referee", label: "대시보드", icon: "dashboard", requires: null },
-  { href: "/referee/profile", label: "내 프로필", icon: "badge", requires: null },
-  { href: "/referee/certificates", label: "내 자격증", icon: "verified", requires: null },
-  { href: "/referee/documents", label: "서류", icon: "description", requires: null },
-  { href: "/referee/assignments", label: "내 배정", icon: "event", requires: null },
+  { href: "/referee", label: "대시보드", icon: "layout-dashboard", requires: null },
+  { href: "/referee/profile", label: "내 프로필", icon: "id-card", requires: null },
+  { href: "/referee/certificates", label: "내 자격증", icon: "badge-check", requires: null },
+  { href: "/referee/documents", label: "서류", icon: "file-text", requires: null },
+  { href: "/referee/assignments", label: "내 배정", icon: "calendar", requires: null },
   // 배정 워크플로우 1차: 본인이 공고에 신청/내 신청 열람
-  { href: "/referee/applications", label: "배정 신청", icon: "how_to_reg", requires: null },
-  { href: "/referee/settlements", label: "내 정산", icon: "payments", requires: null },
+  { href: "/referee/applications", label: "배정 신청", icon: "user-check", requires: null },
+  { href: "/referee/settlements", label: "내 정산", icon: "banknote", requires: null },
 
   // ── 관리자 메뉴 (역할별 필터) ──
   // 관리자 대시보드 — 관리자이기만 하면 표시(임원 포함)
-  { href: "/referee/admin", label: "관리자", icon: "admin_panel_settings", requires: "admin" },
-  { href: "/referee/admin/assignments", label: "배정 관리", icon: "event_available", requires: "assignment_manage" },
+  { href: "/referee/admin", label: "관리자", icon: "shield-check", requires: "admin" },
+  { href: "/referee/admin/assignments", label: "배정 관리", icon: "calendar-check", requires: "assignment_manage" },
   // 배정 워크플로우 1차: 관리자가 신청 공고 게시/관리
-  { href: "/referee/admin/announcements", label: "공고 관리", icon: "campaign", requires: "assignment_manage" },
+  { href: "/referee/admin/announcements", label: "공고 관리", icon: "megaphone", requires: "assignment_manage" },
   // Excel 일괄 사전 등록 (심판/경기원 명단 대량 업로드 + 자동 매칭)
-  { href: "/referee/admin/bulk-register", label: "일괄 등록", icon: "upload_file", requires: "excel_upload" },
+  { href: "/referee/admin/bulk-register", label: "일괄 등록", icon: "file-up", requires: "excel_upload" },
   // 배정 워크플로우 2차: 대회별 일자별 풀 대시보드
-  { href: "/referee/admin/pools", label: "일자별 운영", icon: "calendar_today", requires: "assignment_manage" },
+  { href: "/referee/admin/pools", label: "일자별 운영", icon: "calendar-days", requires: "assignment_manage" },
   // 정산 1차: 정산 관리 + 협회 단가표 (사무국장 위주)
-  { href: "/referee/admin/settlements", label: "정산 관리", icon: "payments", requires: "settlement_view" },
+  { href: "/referee/admin/settlements", label: "정산 관리", icon: "banknote", requires: "settlement_view" },
   // 정산 3차: 통계 대시보드 (사무국장/팀장/임원 열람)
-  { href: "/referee/admin/settlements/dashboard", label: "정산 대시보드", icon: "insights", requires: "settlement_view" },
-  { href: "/referee/admin/fee-settings", label: "배정비 단가", icon: "monetization_on", requires: "settlement_manage" },
+  { href: "/referee/admin/settlements/dashboard", label: "정산 대시보드", icon: "trending-up", requires: "settlement_view" },
+  { href: "/referee/admin/fee-settings", label: "배정비 단가", icon: "circle-dollar-sign", requires: "settlement_manage" },
   { href: "/referee/admin/settings", label: "설정", icon: "settings", requires: "admin_manage" },
 ];
 
@@ -115,13 +123,13 @@ function isNavVisible(item: NavItem, adminInfo: AdminInfo): boolean {
 type BottomTabItem = {
   href: string;
   label: string;
-  icon: string;
+  icon: string; // lucide kebab-case name
 };
 const BOTTOM_TABS: BottomTabItem[] = [
-  { href: "/referee", label: "홈", icon: "dashboard" },
-  { href: "/referee/profile", label: "프로필", icon: "badge" },
-  { href: "/referee/certificates", label: "자격증", icon: "verified" },
-  { href: "/referee/settlements", label: "정산", icon: "payments" },
+  { href: "/referee", label: "홈", icon: "layout-dashboard" },
+  { href: "/referee/profile", label: "프로필", icon: "id-card" },
+  { href: "/referee/certificates", label: "자격증", icon: "badge-check" },
+  { href: "/referee/settlements", label: "정산", icon: "banknote" },
 ];
 
 export function RefereeShell({ children }: { children: React.ReactNode }) {
@@ -177,6 +185,8 @@ export function RefereeShell({ children }: { children: React.ReactNode }) {
        * 좌측 사이드바 (lg 이상)
        * ======================================== */}
       <aside
+        // data-skin="toss": 셸 크롬(사이드바)에 Toss 토큰 활성화 (PR 독립 머지 — children/main 미부착)
+        data-skin="toss"
         className="fixed left-0 top-0 z-40 hidden h-full w-60 flex-col border-r lg:flex"
         style={{
           borderColor: "var(--color-border)",
@@ -190,12 +200,8 @@ export function RefereeShell({ children }: { children: React.ReactNode }) {
             className="flex items-center gap-2"
             style={{ color: "var(--color-text-primary)" }}
           >
-            <span
-              className="material-symbols-outlined text-2xl"
-              style={{ color: "var(--color-primary)" }}
-            >
-              sports
-            </span>
+            {/* 심판 플랫폼 로고 — Material sports(호루라기) lucide 부재 → flag(판정 깃발) 의미 대체 */}
+            <Icon name="flag" size={24} style={{ color: "var(--color-primary)" }} />
             <span className="text-base font-black uppercase tracking-wider">
               심판 플랫폼
             </span>
@@ -244,14 +250,8 @@ export function RefereeShell({ children }: { children: React.ReactNode }) {
                     borderRadius: 4,
                   }}
                 >
-                  <span
-                    className="material-symbols-outlined text-xl"
-                    style={
-                      active ? { fontVariationSettings: "'FILL' 1" } : undefined
-                    }
-                  >
-                    {item.icon}
-                  </span>
+                  {/* 아이콘 색은 부모 Link의 color(active=primary)를 currentColor로 상속 */}
+                  <Icon name={item.icon} size={20} />
                   {item.label}
                 </Link>
               </div>
@@ -272,7 +272,7 @@ export function RefereeShell({ children }: { children: React.ReactNode }) {
               borderRadius: 4,
             }}
           >
-            <span className="material-symbols-outlined text-lg">arrow_back</span>
+            <Icon name="arrow-left" size={18} />
             MyBDR 홈으로
           </Link>
         </div>
@@ -282,6 +282,8 @@ export function RefereeShell({ children }: { children: React.ReactNode }) {
        * 상단 헤더 (모바일+데스크탑 공통, 56px)
        * ======================================== */}
       <header
+        // data-skin="toss": 셸 크롬(헤더)에 Toss 토큰 활성화
+        data-skin="toss"
         className="fixed top-0 z-50 flex h-14 items-center justify-between border-b px-4 backdrop-blur-xl left-0 right-0 lg:left-60"
         style={{
           borderColor: "var(--color-border)",
@@ -296,12 +298,8 @@ export function RefereeShell({ children }: { children: React.ReactNode }) {
             className="flex items-center gap-2"
             style={{ color: "var(--color-text-primary)" }}
           >
-            <span
-              className="material-symbols-outlined text-xl"
-              style={{ color: "var(--color-primary)" }}
-            >
-              sports
-            </span>
+            {/* 모바일 헤더 로고 — sports(호루라기) lucide 부재 → flag 의미 대체 */}
+            <Icon name="flag" size={20} style={{ color: "var(--color-primary)" }} />
             <span className="text-sm font-black uppercase tracking-wider">
               심판 플랫폼
             </span>
@@ -321,7 +319,7 @@ export function RefereeShell({ children }: { children: React.ReactNode }) {
               borderRadius: 4,
             }}
           >
-            <span className="material-symbols-outlined text-base">home</span>
+            <Icon name="house" size={16} />
             MyBDR
           </Link>
         </div>
@@ -341,6 +339,8 @@ export function RefereeShell({ children }: { children: React.ReactNode }) {
        * 하단 탭바 (mobile, lg 미만)
        * ======================================== */}
       <nav
+        // data-skin="toss": 셸 크롬(모바일 하단 탭바)에 Toss 토큰 활성화
+        data-skin="toss"
         className="fixed bottom-0 left-0 z-50 flex h-14 w-full items-center justify-around border-t backdrop-blur-xl lg:hidden"
         style={{
           borderColor: "var(--color-border)",
@@ -359,7 +359,7 @@ export function RefereeShell({ children }: { children: React.ReactNode }) {
                 {
                   href: "/referee/admin",
                   label: "관리자",
-                  icon: "admin_panel_settings",
+                  icon: "shield-check",
                 } as BottomTabItem,
               ]
             : []),
@@ -376,14 +376,8 @@ export function RefereeShell({ children }: { children: React.ReactNode }) {
                   : "var(--color-text-muted)",
               }}
             >
-              <span
-                className="material-symbols-outlined text-2xl"
-                style={
-                  active ? { fontVariationSettings: "'FILL' 1" } : undefined
-                }
-              >
-                {tab.icon}
-              </span>
+              {/* 아이콘 색은 부모 Link의 color(active=primary) currentColor 상속 */}
+              <Icon name={tab.icon} size={24} />
               <span className="text-[9px] font-black uppercase tracking-widest">
                 {tab.label}
               </span>
