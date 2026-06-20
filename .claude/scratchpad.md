@@ -8,7 +8,8 @@
 
 ### 🅰️ 세션 A — Phase 3 referee 리스킨 (이 세션)
 - **코드 영역**: `src/app/(referee)/referee/*` (회원 + referee-admin). admin/* 비대회는 Phase2 완료·미접촉. tournaments/*·schema는 세션 B 소관.
-- **상태**: Phase 2 운영 반영(0b268ca). 🔨 **Phase 3 referee**(24화면). **✅3A 4f9a405**(셸+회원14+토큰보강)·**✅3B 370c3dd**(admin코어11). **🔨3C 진행중**(정산·운영~7·developer). 자율모드(승인없이 끝까지→push→main). tsc0·material잔존0·격리OK.
+- **상태**: ✅ **Phase 3 referee 24화면 운영 반영 완료**(PR #732→dev·#733→main·53e3397). 3A(4f9a405)+3B(370c3dd)+3C(88c7648). referee 플랫폼 전체 Material 잔존0·tsc0·기능회귀0. Toss 관리자 전환 **Phase 0~3 전부 운영 완료**(남은 건 세션B Phase4 대회관리 리빌딩). 세션A 다음 작업 대기(미정).
+  - **⚠️ 발견 문제(전부 해결/무영향)**: ①3A 토큰갭(--color-background/--color-text-on-primary 미커버→[data-skin] 보강, 해결) ②3B 아이콘 오타(UsersX 부재→user-x 교정, 해결) ③referee-picker title 툴팁 일부 span 이관(장식·기능0) ④로컬 build는 dev서버 DLL락으로 미실행→Vercel CI 빌드 의존(운영배포 빌드 결과 확인 권장) ⑤브랜치 정책 변경(subin폐지·dev직접)됐으나 이번 세션은 subin 사용·다음 세션부터 dev 적용 권장.
   - **✅ 3A 토큰 보강 완료(PM 결정)**: referee `--color-background`(→#F2F4F6)·`--color-text-on-primary`(→#FFFFFF)는 globals :root 별칭이 다크 고정 → toss-admin.css `[data-skin]` 결합셀렉터(258~)에 명시 추가. admin 미사용 토큰(grep0)이라 Phase1/2 회귀0. 커밋 4f9a405 포함.
   - **3A 변경 13파일**: _components(referee-shell·notification-bell·empty-state) + page·profile(+edit)·certificates(+[id])·documents·assignments·applications·notifications·settlements. layout.tsx=Material0→무변경. referee-picker=admin배정용 3B로 제외(미접촉). data-skin=셸 크롬 3곳(aside·header·하단nav, main미부착)+각 페이지 루트div(early-return 별도루트 포함). 아이콘=키트Icon만(lucide직접import0). 의미대체: sports(호루라기lucide부재)→flag·health_and_safety→heart-pulse·workspace_premium→award·account_balance→landmark·document_scanner→scan-text·more_horiz→ellipsis.
 - **📦 Phase 3 배치**(referee 독립셸 referee-shell 사용·Phase1 셸 패턴): **3A 셸+회원(~14)**=referee-shell(크롬 data-skin)+공유3(empty-state·notification-bell)+layout+회원8화면(referee·profile(+edit)·certificates(+[id])·documents·assignments·applications·notifications·settlements) / **3B admin코어(~12)**=admin/layout+대시보드·assignments·announcements(+[id])·members(+new·[id]·[id]/documents)·pools / **3C admin정산(~9)**=bulk-register·bulk-verify·settlements(+new-batch·dashboard)·fee-settings·settings. referee-picker→3B(admin 배정용). 방식=셸 크롬에만 data-skin(children wrapper 미부착)+페이지 루트별 data-skin(미작업 admin 누수0)+Material→lucide·기능1:1·schema0. PR=회원/admin 분리.
@@ -44,7 +45,7 @@
 | 작업 | 상태 |
 |------|------|
 | gallery P2 (news_photo 실연결) | ⏸️ `stash@{0}` 보관 — 다른 세션 작업물. 복원 시 `git stash pop` |
-| scrim 보낸취소 [id] 버그 | ⏳ developer 재작업 (아래 수정요청) |
+| ~~scrim 보낸취소 [id] 버그~~ | ✅ 이미 해결(068341b·main) — stale 정정 2026-06-21 |
 | 버킷B 관리자 잔여(시상/코치/갤러리/심판/샵/쪽지) | ⏸️ 결정 대기 `mock-data-absent-admin-plan-2026-06-14.md` |
 | 대회상태 Phase2/3 후속 | ⏸️ 실진행/공지전용 백필 일부 완료, 잔여 대기 |
 
@@ -59,9 +60,9 @@
 | 대상 | 문제 | 상태 |
 |------|------|------|
 | (web) join/page.tsx L148~150·439·263 (차단·reviewer) | 참가신청 대표자 입력칸+클라게이트 제거로 user.phone null 사용자(카카오/구글 가입자) 영구 제출 차단. 서버 joinSchema managerName/managerPhone `.min(1)` 필수인데 자동값 빈값→422·고칠 UI 없음. user_info 빈값 시 입력칸 노출+canNext 게이트 추가(택A) 또는 항상 편집칸(택B) | ✅ 해결 (2026-06-21 developer, 권고A: 조건부 입력칸+canNext trim 게이트·page.tsx 1파일·tsc0·route/schema diff0) |
-| scrim-tabs.tsx L295 (critical) | 보낸취소가 URL[id]=from_team 전송→PATCH(to_team 강제) 항상 400. `patchStatus(counterpart.id)` + null가드 필요 | ⏳ developer 재작업 |
-| scrim PATCH 가드(minor) | 수락/거절 captain only(vice/manager 없음)→isCaptain 헬퍼 통일 검토 | 후속 |
-| game.ts L44 | game_type=parseInt(영문type)→NaN. 영문↔정수 매핑 필요(기존버그) | 후속 |
+| scrim-tabs.tsx L295 (critical) | 보낸취소가 URL[id]=from_team 전송→PATCH 400 | ✅ **이미 해결**(068341b /scrim 실데이터 연결 시 `patchStatus(r.counterpart.id, r.id, "cancelled")`+`disabled !counterpart?.id` 가드 반영·main 확인). 항목 stale였음(2026-06-21 검증) |
+| scrim PATCH 가드(minor) | 수락/거절 captain only(vice/manager 없음)→isCaptain 헬퍼 통일 검토 | 후속(설계 검토 — 결정 필요) |
+| game.ts L49 | game_type=parseInt(type) | ✅ **실버그 아님**(2026-06-21 검증) — KindTab이 `?type=0\|1\|2` 숫자문자열만 전송→parseInt 정상. "all"=type삭제(분기 스킵). 영문 경로 없음. 방어하드닝 불요 |
 | apply-panel.tsx L510/L536 (M2 minor) | 승인/거절 배지 background raw rgba 하드코딩(룰10 경미). color-mix(var(--ok/--danger))로 교체 권장. 시각영향0 | 후속 |
 | tournament-completed-bracket.tsx L274 | 조내 정렬 승수만(gnba 미세순위차) | 후속 |
 | stats / lineup minor | server/client 마크업 중복·C버튼 a11y·badge라벨 | 후속 |
@@ -78,6 +79,7 @@
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
 |------|------|------|
+| 2026-06-21 | Track B Phase4 대회 생성+상세(대진통합) 설계 (planner, 읽기전용·코드/스키마 무변경) | ✅ 핵심발견=**운영 대회관리 거의 전부 기구현**(본진=`(admin)/tournament-admin/tournaments/`·admin/tournaments 아님). 생성위저드(Quick/Legacy3-step/복사/Division/prospectus)·상세(SetupChecklist+teams+divisions+bracket+recorders+site+completed)·대진(5포맷)·기록자풀 전부 完·Toss 미리스킨. **진짜 신규 2건뿐**=①입금→자동확정 API(payment_status PATCH 미구현·paid→approved 승격) ②경기별기록자(settings.recorder_id·PM② 확정 jsonb). 하위배치4분해: B-a(입금자동확정 API+teams리스킨·1순위·유일 기능신규) / B-b(생성위저드 리스킨) / B-c(상세나머지 리스킨) / B-d(경기별기록자 settings). 시안 통합5탭IA=분산라우트 유지 권고(전면재구성 보류). status D표 매핑(WAITING=waiting+waiting_number·is_waiting❌)·div_caps 정원·TournamentMatch 단일모델·settings merge·snake·스키마0. PM확정3건(IA·대기승격 자동vs수동·착수순서). 미커밋 |
 | 2026-06-21 | Track B 참가신청 3단계 (Toss 리스킨) **검증** (tester, 세션B·정적) | ✅ 8항목 전부 통과·차단0. 🚨회귀0 확정(route.ts·schema.prisma·joinSchema diff 비어있음)·클라 POST body 동일(대표자/유니폼 자동값)·약관2종 게이트(canSubmit)·본인인증redirect+주장가드+snake접근자 보존·adaptive 2단계·Toss격리(전역셀렉터·:root 오염0·toss-admin.css 미import·lucide-react직접)·join 4파일 국한. tsc EXIT0. 후속minor1(GET bank_* 응답 런타임확인 권장, 표시용·제출영향0). 미커밋 |
 | 2026-06-21 | Toss Phase 3 Batch 3B(referee-admin 코어 11파일) 리스킨 (developer 세션A, 본인+fork2병렬) | ✅ layout(AccessDenied 루트 data-skin+lock→lucide)·referee-picker(자체렌더루트 data-skin·search/x/star)·page대시보드(동적 stat/quickLinks icon값 lucide명화·shield-check/chevron-right)·assignments(루트 data-skin·circle-x/search/trophy×2/plus/info/circle-check)·announcements(+[id] 3루트)·members(+new/[id]2루트/[id]/documents)·pools. data-skin=AccessDenied루트+각 page루트+early-return별도루트(members[id]·documents·announcements[id])+referee-picker자체루트. Material79→키트Icon 전환·잔존0. 동적아이콘(DOC_CONFIGS·삼항 verified/pending) 정의부까지 치환. 의미대체=group_off→user-x(UsersX미존재→UserX)·pending→clock·print→printer·auto_fix_high→wand-sparkles·edit_note→file-pen·star_border→star(fill재현). lucide 전수실존검증(node require)·tsc EXIT0·material잔존0(3C 6파일만 잔존=미접촉정상)·git격리OK(3B 11파일만M·3A/toss-css/admin/tournaments/schema 0). 미커밋 |
 | 2026-06-21 | Track B Phase4 참가신청 3단계 (Toss 리스킨) 구현 (developer, 세션 B) | ✅ 기존 (web) join 화면 4파일 리스킨(page+stepper+success-hero+css). 5→3단계 축소(팀선택+확인/종별·디비전/로스터+약관). 대표자입력칸·유니폼picker 폐지(자동값 POST)·약관2종 ③하단 제출게이트·서류/결제step 폐지·완료=입금안내흡수. Toss 토큰 `.te-enroll[data-skin="toss"]` 루트스코프 self-contained(toss-admin.css 무의존)·lucide-react 직접import. **POST route.ts/joinSchema/schema diff 0**(클라 body 동일). snake접근자·본인인증/주장가드 보존. MIN_PLAYERS/GUEST=false 고정. adaptive 2단계(부문없을시). tsc EXIT0. 미커밋 |
@@ -272,6 +274,105 @@
 
 ⚠️ developer 주의: ①**POST route.ts/joinSchema/schema 절대 변경 0**(시안 요구 전부 이미 구현·재사용만) ②**snake_case 접근자 유지**(GET/POST 응답 전부 snake·camel 전환 금지) ③**본인인증·주장권한·다크redirect 가드 제거 금지**(보안) ④(web) 다크 vs Toss 라이트 충돌→join 루트 스코프 토큰 격리·lucide-react(CDN injection 금지) ⑤**1순위=PM이 단계축소/약관동의/Toss스킨 범위 확정 전 착수 보류**(설계 미결).
 
+### 대회 생성+상세 설계 (2026-06-21, 읽기전용·코드/스키마 무변경) — Track B Phase4 마지막 배치
+
+🎯 목표: 시안(TournamentAdmin = 대회 생성 3단계 위저드 + 대회 상세 통합 5탭 IA: 종별·디비전/참가팀/대진표/기록자/공개·완료)을 박제. ⚠️**핵심 발견: 운영 대회 관리 기능은 거의 전부 이미 완전 구현됨**. 위치=`(admin)/tournament-admin/tournaments/`(admin/tournaments 아님!). 따라서 이 배치는 **대부분 리스킨(Toss 비주얼 전환)+IA 재배치**이고, **진짜 신규 = 입금→자동확정 API + 경기별 기록자 settings 키 2건뿐**.
+
+**1️⃣ 기존 vs 신규 판정** (Explore 3종 실측 — admin/* 아닌 `tournament-admin/tournaments/` 가 운영 대회관리 본진)
+
+| 영역 | 기존 구현 | 위치 | Toss 리스킨? | 판정 |
+|------|----------|------|------------|------|
+| **대회 생성 위저드** | ✅ **완전** — QuickCreateForm(1-step) + LegacyWizardForm(3-step 기본/참가설정/확인) + DivisionGeneratorModal + 이전대회복사(TournamentCopyModal) + draft복구 + prospectus AI | `tournament-admin/tournaments/new/wizard/page.tsx` | ❌ Material/토큰tailwind | **리스킨**(신규 위저드 ❌·시안 3단계는 기존 Legacy 3-step과 거의 동형) |
+| **대회 상세 대시보드** | ✅ **완전** — SetupChecklist 8항목+공개게이트(필수7 충족시 공개)+통계4카드 | `tournament-admin/tournaments/[id]/page.tsx` | ❌ | 리스킨 |
+| **종별·디비전(DivisionGenerator)** | ✅ **완전** — format드롭다운(8enum)+settings(groupCount등) JSON편집+PATCH즉시저장+Advance | `[id]/divisions/page.tsx` + `_components/DivisionGenerateButton` | ❌ | 리스킨 |
+| **참가팀 관리** | ✅ **거의완전** — 목록+상태별필터+status변경(pending→approved/rejected)+선수accordion+apply_token표 | `[id]/teams/page.tsx` | ❌ | 리스킨 + **입금자동확정만 신규**(아래) |
+| **대진표** | ✅ **완전** — 진행방식분기+듀얼5섹션그룹핑+DualGroupAssignmentEditor+버전관리+종별generator | `[id]/bracket/page.tsx` | ❌ | 리스킨 |
+| **기록자(풀)** | ✅ **완전** — 풀 추가/제거(email)+recorder_admin권한+감사로그 | `[id]/recorders/page.tsx` | ❌ | 리스킨 |
+| **공개·완료** | ✅ **완전** — site발행(공개게이트)+completed정리hub | `[id]/site/page.tsx`+`[id]/completed/page.tsx` | ❌ | 리스킨 |
+| **🆕 입금→자동확정 API** | ❌ **미구현** — payment_status PATCH 엔드포인트 없음·입금확정→approved 자동승격 없음·대기승격 자동화 없음 | (없음) | — | **진짜 신규**(API) |
+| **🆕 경기별 기록자 배정** | ❌ **미구현** — 대회풀만 존재·경기별 select 없음 | (없음) | — | **진짜 신규**(settings.recorder_id PATCH — PM② 확정 settings jsonb 방식) |
+
+- **결론**: 시안 "대회 생성/상세 리빌딩"의 실체 = **(가) `tournament-admin/tournaments/**` 전체 Toss 리스킨**(분량多·기능1:1) + **(나) 미구현 2건(입금자동확정·경기별기록자) 신규 API+UI**. 참가신청(별도 (web) join)처럼 "이미 구현됨"이 대부분.
+- **⚠️ IA 충돌**: 시안=**통합 5탭**(한 화면 탭 전환). 운영=**분산 라우트**(`[id]/teams`, `[id]/bracket`...). → 통합 5탭으로 전면 재구성은 고위험·고비용(기존 7화면 server prefetch·SetupChecklist 깨짐). **권고=분산 라우트 유지 + 각 화면 Toss 리스킨**(IA 통합 ❌). 시안 5탭은 "대시보드 상단 탭 네비"로 흡수(SetupChecklist hub가 이미 그 역할). 전면 통합은 별도 대형 의뢰로.
+
+**2️⃣ 하위 배치 분해 + 우선순위** (큰 범위 → 4개 독립 커밋 배치. 의존순)
+
+| 배치 | 범위 | 신규/리스킨 | 독립커밋 | 우선 |
+|------|------|-----------|---------|------|
+| **B-a. 입금→자동확정 API + 참가팀화면 리스킨** | payment_status PATCH 신규 API(입금확정→approved 자동승격·환불) + `[id]/teams` Toss 리스킨(status/payment select·대기알림·DetailModal) | 신규 API 1 + 리스킨 1화면 | ✅ | **1순위**(시안 핵심차별점=입금자동확정·미구현 유일 기능적 신규) |
+| **B-b. 대회 생성 위저드 Toss 리스킨** | QuickCreateForm + LegacyWizardForm(3-step) + DivisionGeneratorModal + 복사모달 Toss룩 | 리스킨(API 0) | ✅ | 2순위(시안 3단계=기존 Legacy와 동형·비주얼만) |
+| **B-c. 대회 상세 나머지 리스킨** | 대시보드(SetupChecklist)+divisions+bracket+recorders(풀)+site+completed Toss 리스킨 | 리스킨(API 0) | ✅(화면별 더 쪼갤수 있음) | 3순위(분량多·기능1:1) |
+| **B-d. 경기별 기록자 배정(settings.recorder_id)** | matches PATCH에 recorder_id settings키 + `[id]/matches`(또는 recorders 하위) 경기별 select UI + 자동배정 | 신규(settings jsonb·스키마0) | ✅ | 4순위(시안 TnRecorders 경기별·PM② settings 방식 확정) |
+
+- **한 번에 다 못하면**: **B-a만 먼저**(유일한 기능적 신규+시안 핵심). B-b/B-c는 순수 리스킨이라 Phase2 admin 리스킨과 동일 작업·후속 안전. B-d는 독립.
+- 각 배치 `git add` 경로 비중첩(B-a=teams+api / B-b=new/wizard / B-c=[id] 하위화면 / B-d=matches+api). 세션A(referee)·admin/* 비대회 미접촉.
+
+**3️⃣ 각 배치 UI/API/파일 명세** (§0 실필드 바인딩)
+
+**■ B-a. 입금→자동확정 API + 참가팀 리스킨** (1순위)
+- **🆕 신규 API**: `PATCH /api/web/tournaments/[id]/teams/[teamId]` **확장**(기존 status PATCH 라우트에 payment_status 수용 추가) 또는 신규 `payment` 액션.
+  - body: `{ payment_status?: "unpaid"|"paid"|"refunded", status?: ... }`. 가드=기존 canManageTournament 재사용.
+  - **입금자동확정 로직(시안 §3 핵심)**: `payment_status="paid"` 수신 시 → 같은 트랜잭션에서 `status` 가 `pending`이면 `approved`로 자동승격(시안 "paid→CONFIRMED"). approved 전환 시 `current_participants`/`teams_count` 캐시 +1(기존 status PATCH의 teams_count 동기화 패턴 재사용). `refunded`→무승격.
+  - **대기승격(선택)**: approved 정원초과/취소 시 waiting_number 최소 팀 자동승격 — 복잡·시안은 "대기알림 버튼"(수동 알림)만 → **권고=자동승격 미구현, 알림 버튼=createNotification 1회**(또는 토글OFF 박제). PM 확정.
+  - adminLog: `team.payment`/`team.approve`. ⚠️**snake_case**: 응답 payment_status·waiting_number snake.
+- **UI 리스킨** `[id]/teams/page.tsx`(+client): 시안 TnTeams 1:1 — StatusTabs(all/APPLIED/WAITING/CONFIRMED/CANCELED count) + 행별 status select·payment select(.ts-badge--tone) + WAITING행 대기알림 벨버튼 + DetailModal(PanelRow 팀정보+로스터 조인 표시) + CSV. **시안 status(APPLIED/WAITING/CONFIRMED/CANCELED)→mybdr 실값 매핑**(D표): APPLIED=`pending`/WAITING=`waiting`+waiting_number/CONFIRMED=`approved`/CANCELED=`rejected`. payment=`unpaid`/`paid`/`refunded` 그대로.
+
+**■ B-b. 대회 생성 위저드 리스킨** (2순위)
+- API 0(기존 `POST /api/web/tournaments` 재사용·div_caps/div_fees/categories 저장 이미 처리). 
+- UI: `new/wizard/page.tsx`(QuickCreateForm·LegacyWizardForm) Material→Toss(.ts-card·.ts-segment·StepDots 3칸·Btn). **시안 3단계(기본/결제·경기방식/확인)=기존 Legacy 3-step(기본/참가설정/확인)과 동형** → 단계 재설계 ❌·비주얼만. 이전대회복사·DivisionGeneratorModal·draft배너 Toss룩 유지.
+
+**■ B-c. 상세 나머지 리스킨** (3순위·화면별 분할 가능)
+- API 0. `[id]/page.tsx`(SetupChecklist 8항목·공개게이트·통계카드) + `[id]/divisions`(format드롭다운·settings) + `[id]/bracket`(진행방식분기·DualGroupAssignmentEditor·버전) + `[id]/recorders`(풀) + `[id]/site` + `[id]/completed` → 전부 .ts-* + lucide. **기능/컬럼/필터/server action/라우트 1:1·비주얼만**(Phase2 리스킨 패턴 동일).
+
+**■ B-d. 경기별 기록자 배정** (4순위·신규)
+- **🆕 API**: 기존 `PATCH /api/web/tournaments/[id]/matches/[matchId]`(settings JSON 수정 가능 확인됨)에 **recorder_id를 settings jsonb 키로** 수정. body `{ settings: { recorder_id: <userId|null> } }`(기존 settings 키 보존 merge — division_code/timeouts 등 안깨지게 spread). **신규 테이블 0·스키마 0**(PM② 확정).
+- 자동배정(시안 wand): 미배정 경기에 풀(tournament_recorders) 라운드로빈 → 각 매치 settings.recorder_id UPDATE batch. 신규 엔드포인트 `[id]/recorders/auto-assign`(선택).
+- UI: 시안 TnRecorders(DataTable: 경기명·일시·코트·기록자select(풀에서)) — `[id]/recorders` 하위 탭 또는 `[id]/matches`에 컬럼 추가. select options=tournament_recorders 풀+`(미배정)`.
+
+**4️⃣ 변경/신규 파일 목록**
+
+| 경로 | 역할 | 신규/수정 | 배치 |
+|------|------|----------|------|
+| `src/app/api/web/tournaments/[id]/teams/[teamId]/route.ts` | PATCH에 payment_status 수용+입금→approved 자동승격 | 수정 | B-a |
+| `src/app/(admin)/tournament-admin/tournaments/[id]/teams/page.tsx`(+client) | Toss 리스킨(StatusTabs·select badge·대기알림·DetailModal·CSV) | 수정 | B-a |
+| `src/app/(admin)/tournament-admin/tournaments/new/wizard/page.tsx`(+ Quick/Legacy/Division/Copy 컴포넌트) | Toss 리스킨(StepDots·segment·card) | 수정 | B-b |
+| `src/app/(admin)/tournament-admin/tournaments/[id]/page.tsx` + `_components/SetupChecklist.tsx` 등 | Toss 리스킨 | 수정 | B-c |
+| `src/app/(admin)/tournament-admin/tournaments/[id]/{divisions,bracket,recorders,site,completed}/page.tsx`(+client) | Toss 리스킨 | 수정 | B-c |
+| `src/app/api/web/tournaments/[id]/matches/[matchId]/route.ts` | settings.recorder_id 수정 수용(merge) | 수정 | B-d |
+| `src/app/api/web/tournaments/[id]/recorders/auto-assign/route.ts` | (선택) 경기별 자동배정 batch | 신규 | B-d |
+| `src/app/(admin)/tournament-admin/tournaments/[id]/recorders/page.tsx`(+client) | 풀 리스킨 + 경기별 select 추가 | 수정 | B-c+B-d |
+| Toss CSS — `tournament-admin` 셸/페이지 data-skin 부착 (toss-admin.css 재사용·신규CSS 0 목표) | — | (확인) | 전배치 |
+- prisma schema = **수정 0**(전 배치). admin/* 비대회·세션A 미접촉.
+
+**5️⃣ 주의·리스크 (developer)**
+- **🚨 TournamentMatch 단일모델 준수**: 대진=별도 brackets/groups/matches 모델 생성 **절대 금지**(§0). 조=group_name/group_letter, 라운드=round_number, type=settings/format. B-d recorder_id도 **TournamentMatch.settings jsonb 키**(신규 테이블 0).
+- **🚨 settings jsonb merge 필수**: B-d에서 recorder_id 쓸 때 기존 settings(division_code/timeouts/period_format/recording_mode) **spread 보존**(통째 덮어쓰면 종별뱃지·기록모드 유실 — errors.md 2026-05-17 division_code 누락 동형).
+- **div_caps 정원 단일소스**(PM① 확정): 정원=`Tournament.div_caps`(jsonb)만. DivisionRule.cap 도입 ❌. 참가팀 화면 정원표시·대기판정 div_caps 읽기.
+- **status 매핑(D표 엄수)**: 시안 4상태≠mybdr 실값. APPLIED=`pending`/WAITING=`waiting`(+waiting_number, is_waiting 컬럼 ❌)/CONFIRMED=`approved`/CANCELED=`rejected`. payment=`unpaid`(default·계약 "pending" 오류)/`paid`/`refunded`. select option value를 실값으로.
+- **입금자동확정 트랜잭션**: payment=paid→approved 승격은 **같은 $transaction**(payment_status UPDATE + status UPDATE + teams_count +1). 부분실패 방지. 기존 teams/[teamId] PATCH의 teams_count 동기화 패턴 재사용.
+- **snake_case 함정(★재발6회)**: teams GET/PATCH 응답 `payment_status`·`waiting_number`·`current_participants` 전부 snake. client 접근자 snake. server prisma만 camel. 신규필드 전 curl raw 1회.
+- **Toss 스킨(admin=data-skin toss)**: `tournament-admin/tournaments/**` 루트div에 `data-skin="toss"` opt-in(공유셸 미부착·Phase2 패턴). toss-admin.css 토큰 리매핑 재사용·하드코딩 hex 금지·lucide-react만(Material→lucide 1:1). **단 이 영역은 admin이라 (web) 다크충돌 없음**(참가신청서와 달리 순수 관리자).
+- **세션 격리**: tournaments=세션B 소관·referee=세션A 비중첩. `git add` 각 배치 경로만 명시(전체 add 금지). 다른 세션 staged 점검(conventions.md).
+- **추가 스키마 0**(전 배치): payment_status·status·waiting_number·div_caps·settings 전부 기존 컬럼. admin_categories(완료)·신규모델 0.
+- **리스킨 회귀0**: 기능/컬럼/필터/server action/라우트/문구 1:1 유지·비주얼만(Phase1~2 admin 리스킨 룰 동일). git diff로 로직라인 변경0 실측.
+
+📋 실행 계획 (B-a 우선·최대 7단계):
+| 순서 | 작업 | 담당 | 선행 |
+|------|------|------|------|
+| 1 | **PM 확정 3건**: ①IA(분산라우트 유지 vs 통합5탭) ②대기승격 자동 vs 수동알림 ③배치 착수 순서(B-a만? 전체?) | pm/사용자 | 없음 |
+| 2 | B-a API: teams/[teamId] PATCH에 payment_status+입금→approved 자동승격(트랜잭션·teams_count) | developer | 1 |
+| 3 | B-a UI: [id]/teams Toss 리스킨(StatusTabs·select badge·대기알림·DetailModal·status매핑) | developer | 1,2 |
+| 4 | tsc+동작검증(payment=paid→approved 승격·정원·snake·status매핑·회귀0) | tester | 2,3 |
+| 5 | 리뷰(트랜잭션·가드·snake·토큰·시안충실도·TournamentMatch단일모델) | reviewer (4와 병렬) | 2,3 |
+| 6 | B-b 위저드 리스킨(API0) | developer | (B-a 커밋 후) |
+| 7 | B-c 상세 리스킨 + B-d 경기별기록자(settings) — 화면별 분할 | developer | (후속) |
+
+⚠️ developer 주의: ①**B-a만 기능적 신규**(입금자동확정)·나머지는 순수 리스킨(API0·기능1:1) ②**TournamentMatch 단일모델·settings merge·div_caps 정원·status D표 매핑·snake 접근자** 엄수 ③신규모델/스키마 0 ④`tournament-admin/tournaments/` 가 본진(admin/tournaments 아님) ⑤시안 통합5탭 전면재구성 보류(분산라우트 리스킨 권고).
+
+📚 knowledge 승격 후보(PM 판단):
+- architecture.md → "운영 대회관리 본진 = `(admin)/tournament-admin/tournaments/[id]/{teams,divisions,bracket,recorders,site,completed,playoffs,matches}` 분산라우트(통합탭 아님)·생성=new/wizard(Quick/Legacy/prospectus)·전부 구현완료·Toss 미리스킨"
+- decisions.md → "Track B Phase4 = 대부분 리스킨(기능 기구현)·진짜 신규=입금→자동확정 API + 경기별 기록자 settings.recorder_id 2건뿐·통합5탭IA 전면재구성 보류(분산라우트 유지)"
+
 ## 리뷰 결과 (reviewer)
 (완료분은 작업 로그로 압축 — 신규 작업 시 기록)
 
@@ -324,6 +425,29 @@
 - box-shadow rgba 1곳(.te-success L217·dead CSS 영역)—dead라 영향0.
 
 🚦 차단 1건(대표자 연락처) → "수정 요청" 추가. 나머지는 merge 후 후속 가능.
+
+### [2026-06-21] Track B Phase4 B-a 입금→자동확정 API + 참가팀 리스킨 (route.ts PATCH 확장 + teams/page.tsx Toss) — reviewer
+
+📊 종합 판정: **통과 (차단 0 / 권고 3 / 사소 2)** → merge 가능
+
+✅ 잘된 점:
+- **권한 가드 보존**: PATCH/DELETE 둘 다 `requireTournamentAdmin(id)` 1차 진입가드 유지(L13·140)·우회 0. payment_status 변경은 동일 가드 통과자만→임의 변경 불가. canManageTournament 패턴(super_admin/주최자/위임관리자) 위임이라 IDOR 차단 정합.
+- **자동승격 트리거 한정 정확**: `wantsAutoPromote = nextPayment==="paid" && status===undefined && (tt.status pending|waiting)`(L68~71). **status 키 동반 요청이면 미발동**(수동 승인/거절 우선)·이미 approved면 미발동. 클라 updateStatus는 `{status}`만·updatePayment는 `{payment_status}`만 전송→두 흐름 분리 정확. 기존 수동 status 전이(승인/거절/승인변경) 미손상.
+- **정원 카운트 차이 = 의도적·정합**: join L353~359는 cap 카운트 `status in [pending,approved]`(신규신청은 미승인도 자리점유→보수적 대기열). 자동승격 L86~88은 `status:approved`만(이미 입금확인된 팀을 올릴 빈자리 판정)→approved만 세는 게 맞음. cap 미설정·division null이면 무제한 승격(join과 동일 정책). 자기자신 pending/waiting이라 카운트 미포함 정확.
+- **멱등·트랜잭션 정합**: 팀 update+teams_count 동기화를 단일 `$transaction`(L102~131). becomingApproved=`(!wasApproved&&nowApproved)||promoted` 통합판정. teams_count는 approved 진입 시 +1·이탈(rejected/withdrawn) 시 -1·중복증가 가드(`!wasApproved`). approved_at은 미존재 시에만 기록(`becomingApproved&&!wasApproved`). paid 반복 PATCH=paid_at만 갱신·status 무변(멱등). DELETE도 approved일 때만 decrement(L158).
+- **컨벤션**: apiSuccess/apiError·응답 snake(promote_reason)·payment enum 화이트리스트(unpaid/paid/refunded) 검증·snake/camel 양쪽 키 수용. **스키마 0**(payment_status/paid_at/approved_at/division 전부 기존 컬럼·신규 모델 0·TournamentMatch 미생성).
+- **Toss 스킨**: 루트 div data-skin="toss" opt-in(loading 분기 포함)·공유셸 미부착. lucide-react `<Icon>` 키트 import(CDN 0). 아이콘(download/message-circle/volleyball/copy/printer/user-plus/trash-2/pencil/refresh-cw/clipboard-paste/x/chevron 등) 실존. 하드코딩 hex=team primaryColor 데이터 폴백 1곳(L598·테마토큰 아님)·#6D5AE6 0. 기능 1:1(PATCH body·toast·필터·모달 보존). updatePayment toast가 promoted/division_full 결과 정확 안내.
+
+🟡 권장(차단아님·후속):
+- **[자동승격 정원 race] route.ts L78~99** — div_caps SELECT + approvedCount count가 **트랜잭션 밖**, update만 트랜잭션 안. 동일 종별에 동시 paid PATCH 2건 시 둘 다 `approvedCount<cap` 통과→cap+1 초과 가능. 단 운영자 1인 수동 클릭이라 실질 race≈0. 엄밀히는 count+update를 같은 tx로 묶거나 cap-1까지만 자동승격이 안전. 종별 마스터 race 권고와 동류·경미.
+- **[promote 시 division 무근거 가정] L82** — cap 판정에 `tt.division` 사용. division null이면 무제한 승격(cap 미적용)이라 division 미설정 팀은 정원 무관 자동승인. join도 동일 정책이라 회귀 아니나, division 없는 paid 팀이 정원 우회 승급되는 운영 케이스는 인지 필요(설계상 정상).
+- **[teams_count baseline 신뢰] L124~127** — teams_count 증감은 정확하나, 기존 데이터에 teams_count drift가 있으면 누적 오차 지속(이번 변경이 만든 문제 아님·기존 구조). 후속 재계산 점검 권장.
+
+🟢 사소(무영향):
+- updatePayment 응답 `json` no-op일 때 generic toast 폴백(L273)—UX 무영향.
+- promote_reason 외 reason 분기 없음(division_full만)—현재 충분.
+
+🔴 필수 수정: **없음**. 운영 승인 로직이나 트리거 한정·정원 가드·트랜잭션·멱등 전부 견고. 정원 race는 단일운영자 컨텍스트라 차단 미해당(권고). merge 가능.
 
 ## 구현 기록 (developer)
 
@@ -461,6 +585,33 @@ arrow_back→arrow-left · upload_file→file-up · download→download · check
 |------|------|----------|----------|------|
 | 1차 | 2026-06-21 | 대표자/연락처 InfoRow를 **조건부 입력칸**으로 교체(prefill 값 있으면 표시·비어있으면 편집 input 노출, --bg-elev/--border 토큰·인라인 스타일·신규 CSS 0) + canNext(info 단계) 게이트에 `managerName.trim()`·`managerPhone.trim()` 필수 추가. prefill 1회 유지(user_info 수정값 미덮어씀). route.ts/joinSchema/schema diff 0·tsc EXIT0·page.tsx 1파일 한정 | (web)/tournaments/[id]/join/page.tsx | reviewer 차단: user.phone null(카카오/구글 가입자) 사용자가 자동값 빈값+입력칸 없음+게이트 미체크로 서버 min(1) 422 영구 제출불가(회귀). 권고 A 채택 |
 
+### Track B Phase4 B-a — 입금→자동확정 API + 참가팀 화면 Toss 리스킨 — 2026-06-21 developer (세션 B)
+
+📝 구현: ①참가팀 PATCH API에 payment_status 수용 + 입금→자동확정(paid→approved) 로직 신규 / ②참가팀 관리 화면(tournament-admin teams ~1600줄) Toss 리스킨(비주얼만). 추가 스키마 변경 0·신규모델 0·db push 0.
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| src/app/api/web/tournaments/[id]/teams/[teamId]/route.ts | PATCH 확장: payment_status(snake/camel 양쪽 키) unpaid/paid/refunded 검증→400·paid 시 paid_at 기록·입금→자동확정(정원가드+멱등 단일 트랜잭션)·응답에 promoted/promote_reason 동봉 | 수정 |
+| src/app/(admin)/tournament-admin/tournaments/[id]/teams/page.tsx | 루트+loading div `data-skin="toss"`·Material 17처→`<Icon>` lucide 키트·하드코딩hex 0·납부상태 인라인 select(paid 선택 시 자동확정 토스트)·updatePayment 핸들러 추가 | 수정 |
+
+- **입금→자동확정 로직(핵심 신규)**: payment_status="paid" 수신 + 요청에 status 키 **없음** + 현재 status가 pending/waiting 일 때만 자동승격 시도(wantsAutoPromote). status 명시 변경 요청이 오면 그 요청 우선(자동승격 스킵).
+- **정원 가드(필수)**: `Tournament.div_caps[tt.division]` cap 조회 → 현재 `status:"approved"` 카운트 < cap 일 때만 promoted=true. cap 미설정(또는 division null)이면 무제한 승격(기존 정책·join/route.ts 동일). 초과면 promoted=false·promote_reason="division_full"(payment만 paid 반영·status 유지). ⚠️ join 신청 카운트는 `[pending,approved]`지만 여기선 자기자신이 pending/waiting이라 **approved만** 카운트(자기 중복배제). div_caps는 join/route.ts와 동일 단일소스.
+- **트랜잭션·멱등**: payment+status+teams_count 재계산을 단일 `$transaction`. becomingApproved=(명시승인 \|\| 자동승격) 통합 판정으로 teams_count +1 동기화·중복증가 차단. 이미 approved+paid면 wantsAutoPromote=false→promoted=false→teams_count 무변동·status 유지·paid_at만 갱신(부작용 없는 no-op 수준).
+- **기존 보존**: status/seedNumber/groupName/division 전이·requireTournamentAdmin 권한가드·teams_count decrement(거절/취소)·DELETE 핸들러 전부 미변경. 자동승격은 **paid 트리거에만** 추가. §0 status 매핑 준수(approved/pending/waiting/rejected·is_waiting 컬럼 미사용·payment unpaid/paid/refunded). snake_case 응답(promote_reason).
+- **Toss 리스킨**: `data-skin="toss"` 부착으로 toss-admin.css가 `var(--color-*)` 토큰을 라이트 Toss로 자동 리매핑(클래스 변경 최소화). Material 아이콘 17처→`<Icon>` 키트(lucide 19종 `node -e` 실존 검증·빈span폴백0): download·message-circle(chat)·volleyball(농구부재)·chevron-up/down·copy·link-2-off·x·pencil·refresh-cw·printer·clipboard-paste·user-plus·trash-2·briefcase·id-card·user·circle-help·check. 기능/컬럼/필터/문구/CSV/모달/토큰관리/시드 변경 0. 하드코딩 신규 hex 0.
+- **납부 인라인 변경 UI**: 모달 헤더 PaymentBadge 옆에 select(미납/납부/환불) 추가(no-print). onChange→updatePayment→PATCH. paid 응답 promoted=true시 "자동 승인" 토스트·promote_reason="division_full"시 "정원 가득 자동승인 보류" 토스트. 기존 status 버튼(승인/거절/승인변경)은 1:1 보존.
+- **tsc**: `npx tsc --noEmit` EXIT=0. git 격리 = 지정 2파일만 M(세션A/admin비대회/referee/schema 0).
+
+💡 tester 참고:
+- 테스트: super_admin/대회운영자 로그인 → `/tournament-admin/tournaments/[id]/teams` → 팀 카드 클릭(모달) → 납부 select "납부" 선택.
+- 정상: ①pending/waiting 팀 + 정원 여유 → "참가 확정(승인)으로 자동 변경" 토스트 + status가 승인으로 바뀜 ②정원 가득(div_caps 설정+approved≥cap) → "정원 가득 자동승인 보류" 토스트·status 유지·납부만 paid ③div_caps 미설정 → 무제한 승격 ④이미 approved 팀에 paid 재설정 → teams_count 무변동(멱등).
+- 주의 입력: payment_status에 unpaid/paid/refunded 외 값 → 400. status 키와 payment_status를 동시 전송 시 status 우선(자동승격 스킵).
+
+⚠️ reviewer/tester 집중검증 메모:
+- **정원 가드**: approved 카운트 기준 정확성(자기 자신 미포함)·cap 미설정 무제한·초과 시 status 유지+payment만 반영.
+- **멱등**: 이미 approved+paid 재요청 시 teams_count 중복 증가 없는지(becomingApproved=false 확인).
+- **status 전이 보존**: 기존 명시 status 변경(승인/거절/취소) 시 teams_count ±1 동기화가 자동승격 분기와 충돌 없이 1회만 적용되는지.
+
 ## 테스트 결과 (tester)
 (완료분은 작업 로그로 압축 — 신규 작업 시 기록)
 
@@ -502,3 +653,22 @@ arrow_back→arrow-left · upload_file→file-up · download→download · check
 🔎 코드 노트: `feeForSelected()`(L431 function 선언)가 완료화면 분기(L363)에서 호출되나 function 호이스팅으로 정상 — 동작 영향 0.
 
 ⚠️ 후속 minor (차단 아님): success-hero가 props로 받는 `bankName/bankAccount/bankHolder/feeText`는 page.tsx가 `tournament.bank_name` 등 GET 응답(snake)에서 정상 전달. 단 GET join route 응답에 bank_* 필드가 실제 포함되는지는 런타임 확인 권장(현 GET select 미확인·표시용이라 누락 시 입금안내 박스만 hide·제출 흐름 영향 0).
+
+### Track B Phase4 B-a — 입금→자동확정 API + 참가팀 리스킨 (2026-06-21, tester — 정적 코드분석·세션B)
+
+📊 종합: 8개 검증 전부 통과 / 차단 이슈 0 / 후속 minor 1건. 🚨자동승격(정원가드·off-by-one·멱등) 전부 정확.
+
+| 검증 항목 | 결과 | 비고 |
+|-----------|------|------|
+| ① tsc --noEmit | ✅ 통과 | EXIT=0 (지정 2파일 컴파일 정상·Icon 키트 시그니처 정합) |
+| ② 🚨 정원가드 정확성(off-by-one) | ✅ 통과 | route L84~94: cap=`div_caps[tt.division]`·`approvedCount`=`status:"approved"`만 count(L87). 승격대상은 pending/waiting(L71)이라 **자기자신 카운트 미포함**(중복배제 정확). `approvedCount<cap`만 승격(L89)→cap=8·approved=7→7<8 승격(=8 충족)·approved=8→8<8 거짓 보류. **off-by-one 0**. cap null(`if(cap)` L84 — 0/undefined 무제한)·division null(`tt.division?` L82→cap=undefined→무제한, join정책 동일). 초과시 promoted=false·promote_reason="division_full"·payment만 paid·status 유지(L92~93) |
+| ③ 🚨 멱등성 | ✅ 통과 | 이미 approved+paid 팀 재paid: status가 pending/waiting 아님→wantsAutoPromote=false(L71)→promoted=false→becomingApproved=false(L104)→teams_count **무변동**(L124 가드). paid_at만 L117에서 갱신(의도된 no-op). 중복 +1 없음 |
+| ④ 🚨 기존 status 전이 보존 | ✅ 통과 | status 키 명시 시 wantsAutoPromote=false(L70 `status===undefined` 조건)→수동전이 우선·자동승격 스킵. status/seedNumber/groupName/division 전이 L110~114 보존. `requireTournamentAdmin(id)`(L13) 권한가드 미변경. reject/withdrawn 시 teams_count -1(L126) 보존. DELETE 핸들러 미변경(L138~164) |
+| ⑤ 트랜잭션 단일성 | ✅ 통과 | payment+status+teams_count 전부 단일 `$transaction`(L102~131). becomingApproved=(명시승인‖promoted) 통합판정(L104)→teams_count +1 **1회만**(L124~125). 부분적용 차단 |
+| ⑥ status/payment 매핑·is_waiting 미사용 | ✅ 통과 | ALLOWED_PAYMENT=unpaid/paid/refunded(L49)·외 값→400(L54). status값 approved/pending/waiting/rejected 매핑 준수. is_waiting grep 0(§0 D표 정합). schema diff 비어있음(컬럼 paid_at/payment_status/approved_at/div_caps/teams_count 전부 기존存) |
+| ⑦ snake_case 응답·프론트 정합 | ✅ 통과 | 응답 `promoted`/`promote_reason`(L134 snake로 명시). page.tsx updatePayment가 `json.promoted`/`json.promote_reason`·body `payment_status` snake 접근(diff 확인). camel/snake 양쪽 키 수신 가드(L48 `payment_status ?? paymentStatus`) |
+| ⑧ 리스킨 회귀0·격리 | ✅ 통과 | page.tsx diff=Material 17처→`<Icon>` lucide 19종(node require 전수 실존)+data-skin 루트2(loading+main)+납부 select 추가+updatePayment 핸들러뿐. 기능/컬럼/필터/CSV/모달/토큰/통계탭 1:1. Icon 키트=lucide-react(kit.tsx)·CDN주입0. data-skin 루트div만(전역 :root/`*` 0). schema diff 비어있음·지정 2파일만 M(referee/admin비대회/세션A/api-v1 0) |
+
+🔎 실제 런타임(super_admin 세션·실대회 div_caps 정원)은 세션 필요로 미수행 — 정적 코드분석으로 대체.
+
+⚠️ 후속 minor (차단 아님): 정원가드 `count`(L86)가 트랜잭션 시작 전 블록(L78~99)에서 실행(트랜잭션 밖). 동일 종별 다수 paid가 거의 동시 입력 시 approvedCount race로 cap+1 승격 가능성 이론상 존재. 운영자 1건씩 수동처리라 실발생 희박. 후속 강화 시 count를 $transaction 내부 이동 또는 serializable 검토 권장.
