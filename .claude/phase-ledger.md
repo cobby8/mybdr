@@ -257,3 +257,18 @@ Phase 번호 ↑    영역 ↑
 | 2026-06-10 | **Phase 9 v2.29 sync ⑩ ✅** — 알림·메시지·검색 4 시안 / `notify-shared` 신규(148+181) / shared.jsx 9→10 / carry-over diff 0 / 회귀 17 케이스 통과 | Phase 9 박제 zip 도착 (incremental) |
 | 2026-06-10 | **회귀 v2 대회상세 진행중 뷰 박제+머지** (`a9cb476`+`508325a` / #665·#666) — pill탭·cafe-blue 통일 | 대회상세 재구성 시안 박제 |
 | 2026-06-12 | **Phase 9C ⑪⑫⑬⑭ ✅ + 회귀 v2 종료뷰 박제** — 9C-1/3/4(9C-2 스킵) + 대회종료 B안(`ecca28d`+`7d6f89c`) → subin→dev #667 → dev→main #668 (운영 `4199d87`). Phase 9 종료 + 회귀 v2 종료. tester PASS·reviewer APPROVE | STAGE A 마무리 — 사용자 "메인 머지" 결재 |
+
+## 매칭 고도화 M1~M6 (픽업/게스트 경기, 2026-06-19~20)
+
+| Phase | 상태 | PR(subin→dev) | 핵심 |
+|------|------|------|------|
+| M1 성사 코어 | ✅ dev머지 | #717 (`77d1ba1`) | 정원 1→2 자동전환/복귀·취소 status 5→4 통일·취소 알림. 게이트A: status=5 잔존 0건. 본인취소 이중감소 수정 |
+| M2 대기열 | ✅ dev머지 | #718 (`d2d3768`) | status=3 대기·waitlist_position/promotion_deadline ADD COLUMN(게이트B 승인·targeted SQL)·빈자리 트리거·승격 confirm·시안 B |
+| M3 출석→평점 | ✅ dev머지 | #719 (`136b489`) | 출석 토글 API(IDOR)·getGame lazy 종료(status=3)·리포트 노쇼 prefill(출석 사용 시만)·시안 C |
+| M4 평점유도+신뢰카드 | ✅ dev머지 | #720 (`a3631b4`) | status→3 평점 알림(기존 타입 재사용)·24h 리마인드 cron 확장·profile-trust(manner 숫자 비노출)·시안 D·01§3 갱신 |
+| M5 찾기 UX | ✅ dev머지 | #721 (`261d9d6`) | 정렬/필터칩/진행률/빈상태(클라 메모리)·좌표0→가까운순 제외·sort_options 메타·시안 A |
+| M6 호스트 콘솔 | ✅ dev머지 | #722 (`1a63426`) | status맵 데드코드 정리·E-1 3구획·E-2 waiting탭+호스트카드·마감확정 close API·취소 대기자 알림·시안 E-1/E-2 sync |
+
+- **게이트 처리**: A(M1 status=5)=잔존 0건 자동진행 / B(M2 ADD COLUMN)=사용자 승인 후 targeted SQL(broad push가 live_scoreboards 드리프트 끌어와 회피)
+- **schema 변경**: M2 NULL 허용 2컬럼만(무중단). 나머지 schema 0
+- **dev→main 머지 = 수빈 수동 결재 대기** (자동 머지 금지)
