@@ -2,6 +2,16 @@
 <!-- 담당: planner-architect | 최대 30항목 -->
 <!-- "왜 A 대신 B를 선택했는지" 기술 결정의 배경과 이유를 기록 -->
 
+### [2026-06-21] Track B 대회운영 — 외부 flavor 계약서 vs 실스키마 1:1 대조 (진짜 신규=admin_categories 1건뿐)
+- **분류**: decision (외부 계약서 맹신 금지 / 중복 테이블 생성 방지 / 정원 cap 위치)
+- **발견자**: planner-architect + pm (Track B §0 대조 / 커밋 `367c1d8`)
+- **계기**: Track B 작업 지시서의 DATA-BINDING v2 계약이 **BDR-join-v1 flavor**(generic uuid SQL)라 "신규 5건"(admin_categories·TTP 로스터·brackets/groups/matches·DivisionRule 3컬럼·is_waiting)을 만들라고 지시. 그대로 따르면 mybdr가 **이미 보유한 모델과 중복 생성 → 기존 대회/기록 시스템 파손**.
+- **결정**: prisma 실스키마와 1:1 grep 대조 결과 **진짜 신규 = `admin_categories` 1건뿐**. 나머지는 전부 기존 재사용: TTP(L624)·TournamentMatch 단일통합모델(L689, brackets/groups/matches 흡수)·DivisionRule.format/settings/feeKrw(이미 존재)·대기시스템=waiting_number+status"waiting"(is_waiting 불필요).
+- **PM 결정(사용자)**: ①정원 cap = **현행 `Tournament.div_caps`(jsonb) 유지**(join/route.ts가 이미 단일소스로 운영·DivisionRule엔 cap 컬럼 자체가 없음·계약의 rule.cap 권위는 역방향이라 회귀위험) ②경기별 기록자 배정 = 이번 제외(대회풀 tournament_recorders만) ③admin_categories = 옛 BDR-join-v1 DB에서 4종 복원 ④최소인원/게스트 = 토글 off 후속 ⑤format_presets = 보류.
+- **status/payment 배선**: 시안 4상태 → mybdr 실값 = APPLIED:pending/unpaid · WAITING:**status"waiting"+waiting_number**(계약의 pending+is_waiting 아님) · CONFIRMED:approved/paid · CANCELED:rejected. payment default=**unpaid**(계약 "pending" 오류).
+- **대안 기각**: 계약대로 신규 5건 생성(운영 파손) / rule.cap 채택(정원로직 재작성+회귀).
+- **참조횟수**: 0
+
 ### [2026-06-16] records 출전시간(MIN) = minutes-engine(PBP 재계산) 공용 함수 추출·재사용
 - **분류**: decision (출전시간 source 통일 / 기존 엔진 재사용 / 라이브 전처리 추출)
 - **발견자**: pm + live-expert (기록 Records 출전시간 이슈 / `90d67e7`)
@@ -2068,4 +2078,20 @@
 - **실행**: Phase1(표시 코드·main `c7aaa57`) / Phase2(진짜 5·6차 completed+champion 오름338·YBC330, 4차·열혈 보류) / Phase3(공지전용 47건 날짜 백필·completed 7→54).
 - **이유**: 공지전용(매치0)은 앞으로도 계속 생기는 정상 패턴 → 매치0 한정 날짜종료로 진짜 대회 자동 제외 = 오작동 0.
 - **후속**: 우승팀 자동 set 유틸(종료 시 결승 승자→champion_team_id) / Phase3 cron 자동화 / 4차 결승 진행 후 종료 / 열혈 결선 종료 후.
+- **참조횟수**: 0
+
+### [2026-06-21] Track B(관리자 Toss Phase4) 계약 vs mybdr 실스키마 — 신규 1건뿐·중복생성 방지
+- **분류**: decision
+- **발견자**: planner-architect + pm + 사용자 (Track B §0 스키마 대조)
+- **계기**: v2.32 구현계약(DATA-BINDING v2 / BDR-join-v1 flavor)이 "신규 5건"(admin_categories·DivisionRule 3컬럼·TTP 조인·brackets/groups/matches·is_waiting) 주장. 읽기전용 실스키마 1:1 대조 결과 **진짜 신규 = admin_categories 1건뿐**.
+- **대조 결론**: DivisionRule.format/settings/feeKrw·TournamentTeamPlayer(로스터조인 L624~)·brackets/groups/matches(=`TournamentMatch` 단일통합모델로 흡수: group_name/round_number/bracket_position 등)·is_waiting(=`waiting_number Int?`+status="waiting"로 이미구현)·tournament_recorders(대회단위 풀 존재·경기별만 부재) **전부 기존存 → 중복 CREATE 시 기존 대회시스템 파손**.
+- **PM 확정 결정 5건 (2026-06-21, planner 권고안 일괄 채택)**:
+  - **① 정원 cap = `Tournament.div_caps` jsonb 유지** (rule.cap 미채택). join/route.ts가 div_caps 단일소스로 정원판정 운영 중 → 계약의 "rule.cap 권위" 채택 시 정원로직 재작성+회귀. DivisionRule엔 cap 컬럼 자체 부재(계약 가정 오류).
+  - **② 경기별 기록자 = `TournamentMatch.settings` jsonb 키(recorder_id)** 최소침습. 현행 tournament_recorders는 대회단위 풀만·경기별 부재. 정식 match_recorders 테이블은 자동배정/이력 필요 시 후속.
+  - **③ admin_categories 4종 시드 = BDR-join-v1 운영DB 복원·실측 검증 완료**(일반부/유청소년/대학부/시니어).
+  - **④ 출전 최소인원·게스트 = 토글 OFF로 박제**(정책 미정·후속).
+  - **⑤ format_presets = 미도입(보류)**. 운영 사용0·과투자·BDR-join 원본도 고아. format은 DivisionRule.format/settings로 충분.
+  - → **Phase4 리빌딩 추가 스키마 변경 0** (admin_categories 1건 외 신규 마이그레이션 없음).
+- **status/payment 배선 확정**: APPLIED=status`pending`+payment`unpaid` / WAITING=status`waiting`(is_waiting 아님)+waiting_number / CONFIRMED=`approved`+payment`paid` / CANCELED=`rejected`+`unpaid`|`refunded`. 계약 §3(WAITING=pending+is_waiting / payment default=pending)은 실필드 불일치 → 위 표가 정합.
+- **참조**: errors.md "외부 flavor 계약 '신규' 주장 ≠ 실스키마" / scratchpad §0 대조표
 - **참조횟수**: 0
