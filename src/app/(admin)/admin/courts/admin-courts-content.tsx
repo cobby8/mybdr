@@ -7,6 +7,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+// Phase 2A (Toss 전환) — Material Symbols → lucide(<Icon>) 키트
+import { Icon } from "@/components/admin-toss";
 import {
   AdminDetailModal,
   ModalInfoSection,
@@ -155,7 +157,8 @@ export function AdminCourtsContent({
             boxShadow: activeTab === "courts" ? "var(--shadow-card)" : "none",
           }}
         >
-          <span className="material-symbols-outlined mr-1 align-middle text-base">sports_basketball</span>
+          {/* sports_basketball → 농구 lucide 부재 → volleyball 대체 */}
+          <Icon name="volleyball" size={16} className="mr-1 align-middle" />
           코트 관리
         </button>
         {/* P1-a 제보 검토 탭 — 수정 제안/앰배서더와 동형 */}
@@ -168,7 +171,8 @@ export function AdminCourtsContent({
             boxShadow: activeTab === "submissions" ? "var(--shadow-card)" : "none",
           }}
         >
-          <span className="material-symbols-outlined mr-1 align-middle text-base">add_location_alt</span>
+          {/* add_location_alt → lucide map-pin-plus */}
+          <Icon name="map-pin-plus" size={16} className="mr-1 align-middle" />
           제보 검토
           {pendingSubmissions.length > 0 && (
             <span
@@ -188,7 +192,8 @@ export function AdminCourtsContent({
             boxShadow: activeTab === "suggestions" ? "var(--shadow-card)" : "none",
           }}
         >
-          <span className="material-symbols-outlined mr-1 align-middle text-base">edit_note</span>
+          {/* edit_note → lucide file-pen */}
+          <Icon name="file-pen" size={16} className="mr-1 align-middle" />
           수정 제안
           {pendingSuggestions.length > 0 && (
             <span
@@ -208,7 +213,8 @@ export function AdminCourtsContent({
             boxShadow: activeTab === "ambassadors" ? "var(--shadow-card)" : "none",
           }}
         >
-          <span className="material-symbols-outlined mr-1 align-middle text-base">shield_person</span>
+          {/* shield_person → lucide shield-user */}
+          <Icon name="shield-user" size={16} className="mr-1 align-middle" />
           앰배서더
           {pendingAmbassadors.length > 0 && (
             <span
@@ -241,7 +247,8 @@ export function AdminCourtsContent({
       {/* 코트 등록 폼 — 기존 유지 */}
       <div className={`${CARD_CLASS} mb-6 p-5`} style={CARD_STYLE}>
         <h2 className="mb-4 text-sm font-bold" style={{ color: "var(--color-text-primary)" }}>
-          <span className="material-symbols-outlined mr-1 align-middle text-base">add_circle</span>
+          {/* add_circle → lucide circle-plus */}
+          <Icon name="circle-plus" size={16} className="mr-1 align-middle" />
           새 코트 등록
         </h2>
         <form action={createCourtAction} className="flex flex-wrap items-end gap-3">
@@ -365,7 +372,8 @@ export function AdminCourtsContent({
                   value={selected.courtType === "indoor" ? "outdoor" : "indoor"}
                 />
                 <button type="submit" className="btn btn--sm w-full">
-                  <span className="material-symbols-outlined mr-1 align-middle text-base">swap_horiz</span>
+                  {/* swap_horiz → lucide arrow-left-right */}
+                  <Icon name="arrow-left-right" size={16} className="mr-1 align-middle" />
                   {selected.courtType === "indoor" ? "실외로 변경" : "실내로 변경"}
                 </button>
               </form>
@@ -377,7 +385,8 @@ export function AdminCourtsContent({
                   className="btn btn--sm"
                   style={{ borderColor: "var(--color-error)", color: "var(--color-error)" }}
                 >
-                  <span className="material-symbols-outlined mr-1 align-middle text-base">delete</span>
+                  {/* delete → lucide trash-2 */}
+                  <Icon name="trash-2" size={16} className="mr-1 align-middle" />
                   삭제
                 </button>
               </form>
@@ -460,12 +469,13 @@ function SuggestionsTab({ suggestions }: { suggestions: SerializedSuggestion[] }
   if (suggestions.length === 0) {
     return (
       <div className={`${CARD_CLASS} p-8 text-center`} style={CARD_STYLE}>
-        <span
-          className="material-symbols-outlined text-4xl mb-2"
-          style={{ color: "var(--color-text-disabled)" }}
-        >
-          check_circle
-        </span>
+        {/* check_circle → lucide circle-check (빈상태 아이콘) */}
+        <Icon
+          name="circle-check"
+          size={36}
+          className="mb-2"
+          color="var(--color-text-disabled)"
+        />
         <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>
           대기 중인 수정 제안이 없습니다
         </p>
@@ -504,9 +514,9 @@ function SuggestionsTab({ suggestions }: { suggestions: SerializedSuggestion[] }
                   <span style={{ color: "var(--color-text-disabled)" }}>
                     {formatValue(key, diff.old)}
                   </span>
-                  <span className="material-symbols-outlined" style={{ fontSize: "12px", color: "var(--color-text-disabled)" }}>
-                    arrow_forward
-                  </span>
+                  {/* arrow_forward → lucide arrow-right (diff old→new) */}
+                  <Icon name="arrow-right" size={12} color="var(--color-text-disabled)" />
+
                   <span className="font-semibold" style={{ color: "var(--color-info)" }}>
                     {formatValue(key, diff.new)}
                   </span>
@@ -632,12 +642,13 @@ function AmbassadorsTab({ ambassadors }: { ambassadors: SerializedAmbassador[] }
   if (ambassadors.length === 0) {
     return (
       <div className={`${CARD_CLASS} p-8 text-center`} style={CARD_STYLE}>
-        <span
-          className="material-symbols-outlined text-4xl mb-2"
-          style={{ color: "var(--color-text-disabled)" }}
-        >
-          shield_person
-        </span>
+        {/* shield_person → lucide shield-user (빈상태 아이콘) */}
+        <Icon
+          name="shield-user"
+          size={36}
+          className="mb-2"
+          color="var(--color-text-disabled)"
+        />
         <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>
           앰배서더 신청이 없습니다
         </p>
@@ -797,12 +808,13 @@ function SubmissionsReviewTab({ submissions }: { submissions: SerializedSubmissi
   if (submissions.length === 0) {
     return (
       <div className={`${CARD_CLASS} p-8 text-center`} style={CARD_STYLE}>
-        <span
-          className="material-symbols-outlined text-4xl mb-2"
-          style={{ color: "var(--color-text-disabled)" }}
-        >
-          check_circle
-        </span>
+        {/* check_circle → lucide circle-check (빈상태 아이콘) */}
+        <Icon
+          name="circle-check"
+          size={36}
+          className="mb-2"
+          color="var(--color-text-disabled)"
+        />
         <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>
           대기 중인 코트 제보가 없습니다
         </p>

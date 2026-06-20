@@ -78,7 +78,8 @@ export default async function AdminSeasonAwardsPage() {
   });
 
   return (
-    <div>
+    // Phase 2A (Toss 전환) — 페이지 루트에 data-skin="toss" opt-in (content 는 DOM 상속)
+    <div data-skin="toss">
       <AdminPageHeader
         eyebrow="ADMIN · 콘텐츠"
         title="시즌 시상"

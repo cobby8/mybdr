@@ -22,6 +22,8 @@
  * ============================================================ */
 
 import { type ReactNode } from "react";
+// Phase 2A (Toss 전환) — Material Symbols → lucide(<Icon>) 키트
+import { Icon } from "@/components/admin-toss";
 
 interface AdminStatCardProps {
   label: string;
@@ -66,19 +68,18 @@ export function AdminStatCard({
   const content = (
     <>
       <div className="admin-stat__head">
-        {icon && (
-          <span className="material-symbols-outlined" aria-hidden="true">
-            {icon}
-          </span>
-        )}
+        {/* icon prop = lucide kebab 명 (호출부에서 전달) */}
+        {icon && <Icon name={icon} size={20} />}
         <span>{label}</span>
       </div>
       <div className="admin-stat__value">{value}</div>
       {delta && (
         <div className="admin-stat__delta" data-trend={trend}>
-          <span className="material-symbols-outlined" style={{ fontSize: 14 }} aria-hidden="true">
-            {trend === "up" ? "trending_up" : trend === "down" ? "trending_down" : "trending_flat"}
-          </span>
+          {/* trending_flat → lucide 부재 → move-right(수평 화살표) 대체 */}
+          <Icon
+            name={trend === "up" ? "trending-up" : trend === "down" ? "trending-down" : "move-right"}
+            size={14}
+          />
           {delta}
         </div>
       )}

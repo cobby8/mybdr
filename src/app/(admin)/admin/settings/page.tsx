@@ -8,6 +8,8 @@ import { AdminPageHeader } from "@/components/admin/admin-page-header";
 import { useState, useTransition } from "react";
 import Link from "next/link"; // Admin-6 박제 — 시안 actions "활동 로그" Link 신규
 import { clearCacheAction, toggleMaintenanceModeAction } from "@/app/actions/admin-settings";
+// Phase 2A (Toss 전환) — Material Symbols → lucide(<Icon>) 키트
+import { Icon } from "@/components/admin-toss";
 
 // (web) 시안 카드 패턴 — Card 컴포넌트와 동일 룩 (rounded + border + bg + p)
 const CARD_CLASS = "rounded-[var(--radius-card)] border p-4 sm:p-5";
@@ -44,7 +46,8 @@ export default function AdminSettingsPage() {
   }
 
   return (
-    <div>
+    // Phase 2A (Toss 전환) — 페이지 루트에 data-skin="toss" opt-in
+    <div data-skin="toss">
       {/* Admin-6 박제 — 시안 v2.14 AdminSettings.jsx 헤더 패턴 카피 */}
       {/* eyebrow "ADMIN · 시스템" + breadcrumbs + actions (활동 로그 Link) */}
       <AdminPageHeader
@@ -58,9 +61,8 @@ export default function AdminSettingsPage() {
         ]}
         actions={
           <Link href="/admin/logs" className="btn">
-            <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
-              list_alt
-            </span>
+            {/* list_alt → lucide list-checks */}
+            <Icon name="list-checks" size={16} />
             활동 로그
           </Link>
         }
