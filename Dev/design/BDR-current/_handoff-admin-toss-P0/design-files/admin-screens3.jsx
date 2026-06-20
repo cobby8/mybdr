@@ -81,9 +81,14 @@ function AdminReports() {
 // ── 알림 ──────────────────────────────────────────────────────────────
 function AdminNotifications() {
   const D = A3();
-  return <TableScreen eyebrow="ADMIN · 알림" title="알림 관리" sub="앱·SMS·이메일 알림을 발송하고 예약·임시저장을 관리합니다."
+  const [compose, setCompose] = React.useState(false);
+  const [f, setF] = React.useState({ title: '', target: '전체', channel: '앱', when: 'now' });
+  const setK = (k, v) => setF((p) => ({ ...p, [k]: v }));
+  return (
+    <>
+    <TableScreen eyebrow="ADMIN · 알림" title="알림 관리" sub="앱·SMS·이메일 알림을 발송하고 예약·임시저장을 관리합니다."
     dataKey="NOTIS" statusKey="status" statusMap={D.NOTI_STATUS} tabsOrder={['sent', 'scheduled', 'draft']}
-    searchFields={['title']} searchPlaceholder="제목 검색" actions={<Btn icon="send">새 알림</Btn>}
+    searchFields={['title']} searchPlaceholder="제목 검색" actions={<Btn icon="send" onClick={() => { setF({ title: '', target: '전체', channel: '앱', when: 'now' }); setCompose(true); }}>새 알림</Btn>}
     columns={[
       { key: 'title', label: '제목', sortable: true, width: '2.2fr', render: (r) => <span style={{ fontWeight: 700, color: 'var(--ink)' }}>{r.title}</span> },
       { key: 'target', label: '대상', sortable: true, width: 100, render: (r) => <Badge tone="grey">{r.target}</Badge> },
@@ -91,7 +96,15 @@ function AdminNotifications() {
       { key: 'sent', label: '발송수', sortable: true, width: 90, align: 'right', render: (r) => <span style={{ fontFamily: 'var(--ff-mono)', color: 'var(--ink)' }}>{r.sent ? r.sent.toLocaleString() : '—'}</span> },
       { key: 'status', label: '상태', sortable: true, width: 90, render: (r) => <Badge tone={D.NOTI_STATUS[r.status].tone}>{D.NOTI_STATUS[r.status].label}</Badge> },
       { key: 'when', label: '일시', sortable: true, width: 130, render: (r) => <span style={{ fontFamily: 'var(--ff-mono)', fontSize: 12.5, color: 'var(--ink-mute)' }}>{r.when === '—' ? '—' : r.when.slice(5)}</span> },
-    ]} />;
+    ]} />
+    <window.Modal open={compose} onClose={() => setCompose(false)} title="새 알림 작성" sub="대상과 채널을 선택해 알림을 발송하거나 예약합니다."
+      foot={<><Btn variant="secondary" onClick={() => setCompose(false)} style={{ flex: 1 }}>임시저장</Btn><Btn icon={f.when === 'now' ? 'send' : 'clock'} disabled={!f.title.trim()} style={{ flex: 2, opacity: f.title.trim() ? 1 : .5 }} onClick={() => setCompose(false)}>{f.when === 'now' ? '발송' : '예약'}</Btn></>}>
+      <div className="ts-field"><label className="ts-field__label">제목</label><input className="ts-input" autoFocus value={f.title} onChange={(e) => setK('title', e.target.value)} placeholder="알림 제목" /></div>
+      <div className="ts-field"><label className="ts-field__label">대상</label><div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>{['전체', '대기팀', '미입금팀', '참가확정팀'].map((t) => <button key={t} type="button" className="ts-chip" data-active={f.target === t ? 'true' : 'false'} onClick={() => setK('target', t)}>{t}</button>)}</div></div>
+      <div className="ts-field"><label className="ts-field__label">채널</label><div className="ts-segment" style={{ maxWidth: 280 }}>{['앱', 'SMS', '이메일'].map((c) => <button key={c} type="button" className="ts-segment__btn" data-active={f.channel === c ? 'true' : 'false'} onClick={() => setK('channel', c)}>{c}</button>)}</div></div>
+      <div className="ts-field" style={{ marginBottom: 0 }}><label className="ts-field__label">발송 시점</label><div className="ts-segment" style={{ maxWidth: 200 }}>{[['now', '즉시 발송'], ['schedule', '예약']].map(([v, l]) => <button key={v} type="button" className="ts-segment__btn" data-active={f.when === v ? 'true' : 'false'} onClick={() => setK('when', v)}>{l}</button>)}</div></div>
+    </window.Modal>
+    </>);
 }
 
 // ── 캠페인 ────────────────────────────────────────────────────────────

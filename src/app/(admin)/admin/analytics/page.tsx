@@ -4,6 +4,8 @@
 import { prisma } from "@/lib/db/prisma";
 import { StatCard } from "@/components/ui/card";
 import { AdminPageHeader } from "@/components/admin/admin-page-header";
+// Toss Phase 2 2B — lucide 키트 Icon (Material Symbols 교체)
+import { Icon } from "@/components/admin-toss";
 
 // (web) 시안 카드 패턴
 const CARD_CLASS = "rounded-[var(--radius-card)] border p-4 sm:p-5";
@@ -85,7 +87,7 @@ export default async function AdminAnalyticsPage() {
   const maxCount = Math.max(...data.monthlyUsers.map((m) => m.count), 1);
 
   return (
-    <div>
+    <div data-skin="toss">
       {/* Admin-6 박제 — 시안 v2.14 AdminAnalytics.jsx 헤더 패턴 카피 */}
       {/* eyebrow 영문 → 한글 카피("ADMIN · 시스템") + breadcrumbs 신규 */}
       <AdminPageHeader
@@ -104,17 +106,17 @@ export default async function AdminAnalyticsPage() {
         <StatCard
           label="이번 달 가입"
           value={data.thisMonthUsers.toLocaleString()}
-          icon={<span className="material-symbols-outlined text-2xl">person_add</span>}
+          icon={<Icon name="user-plus" size={24} />}
         />
         <StatCard
           label="이번 달 대회"
           value={data.thisMonthTournaments.toLocaleString()}
-          icon={<span className="material-symbols-outlined text-2xl">emoji_events</span>}
+          icon={<Icon name="trophy" size={24} />}
         />
         <StatCard
           label="이번 달 경기"
           value={data.thisMonthGames.toLocaleString()}
-          icon={<span className="material-symbols-outlined text-2xl">sports_basketball</span>}
+          icon={<Icon name="volleyball" size={24} />}
         />
       </div>
 
@@ -139,22 +141,22 @@ export default async function AdminAnalyticsPage() {
         <StatCard
           label="등록 코트"
           value={data.totalCourts.toLocaleString()}
-          icon={<span className="material-symbols-outlined text-2xl">location_on</span>}
+          icon={<Icon name="map-pin" size={24} />}
         />
         <StatCard
           label="커뮤니티 게시글"
           value={data.totalPosts.toLocaleString()}
-          icon={<span className="material-symbols-outlined text-2xl">forum</span>}
+          icon={<Icon name="message-square" size={24} />}
         />
         <StatCard
           label="이번 달 게시글"
           value={data.thisMonthPosts.toLocaleString()}
-          icon={<span className="material-symbols-outlined text-2xl">edit_note</span>}
+          icon={<Icon name="file-pen" size={24} />}
         />
         <StatCard
           label="앰배서더"
           value={`${data.activeAmbassadors} 활동 / ${data.pendingAmbassadors} 대기`}
-          icon={<span className="material-symbols-outlined text-2xl">shield_person</span>}
+          icon={<Icon name="shield-user" size={24} />}
         />
       </div>
 

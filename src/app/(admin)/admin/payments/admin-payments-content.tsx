@@ -15,6 +15,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+// Phase 2A (Toss 전환) — Material Symbols → lucide(<Icon>) 키트
+import { Icon } from "@/components/admin-toss";
 import { AdminStatusTabs } from "@/components/admin/admin-status-tabs";
 import {
   AdminDetailModal,
@@ -227,7 +229,8 @@ export function AdminPaymentsContent({ payments, stats }: Props) {
                       className="btn btn--sm"
                       onClick={() => openRefund(p)}
                     >
-                      <span className="material-symbols-outlined text-base">currency_exchange</span>
+                      {/* currency_exchange → lucide arrow-left-right (환불/교환) */}
+                      <Icon name="arrow-left-right" size={16} />
                       환불
                     </button>
                   ) : p.status === "refunded" && p.refundedAt ? (
@@ -313,7 +316,8 @@ export function AdminPaymentsContent({ payments, stats }: Props) {
                 onClick={submitRefund}
                 disabled={refunding}
               >
-                <span className="material-symbols-outlined text-base">currency_exchange</span>
+                {/* currency_exchange → lucide arrow-left-right (환불/교환) */}
+                <Icon name="arrow-left-right" size={16} />
                 {refunding ? "처리 중…" : "환불 처리"}
               </button>
             </div>

@@ -9,6 +9,8 @@ import { useRouter } from "next/navigation";
 import { LinkifyNewsBody, type LinkifyEntry } from "@/lib/news/linkify-news-body";
 // 2026-05-04: 알기자 기사 사진 업로드/관리 (모바일 카메라 + 멀티 + Hero 지정 + 삭제)
 import { NewsPhotoManager, type NewsPhoto } from "./_components/news-photo-manager";
+// 2026-06-21 Toss 2C — Material Symbols → lucide <Icon> 키트
+import { Icon } from "@/components/admin-toss";
 
 // 2026-05-15 Admin-4-C 박제 — 상태별 admin-stat-pill data-tone + 라벨 매핑
 //   시안 source: Dev/design/BDR-current/screens/AdminNews.jsx (v2.9) status_tone 박제
@@ -203,7 +205,8 @@ export function AdminNewsContent({
                         title="매치 페이지로 이동"
                         className="shrink-0 mt-0.5 flex h-7 w-7 items-center justify-center rounded text-[var(--color-text-dim)] hover:bg-[var(--color-bg-hover)] hover:text-[var(--color-info)]"
                       >
-                        <span className="material-symbols-outlined" style={{ fontSize: 18 }}>open_in_new</span>
+                        {/* 2026-06-21 Toss 2C — open_in_new → external-link (size 18) */}
+                        <Icon name="external-link" size={18} />
                       </Link>
                     )}
                   </li>
@@ -240,7 +243,8 @@ export function AdminNewsContent({
                 aria-label="목록으로"
                 className="lg:hidden flex h-7 w-7 items-center justify-center rounded hover:bg-[var(--color-bg-hover)]"
               >
-                <span className="material-symbols-outlined" style={{ fontSize: 20 }}>arrow_back</span>
+                {/* 2026-06-21 Toss 2C — arrow_back → arrow-left (size 20) */}
+                <Icon name="arrow-left" size={20} />
               </button>
               미리보기
             </span>

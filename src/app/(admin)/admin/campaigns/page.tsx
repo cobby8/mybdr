@@ -7,6 +7,8 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { AdminPageHeader } from "@/components/admin/admin-page-header";
+// Toss Phase 2 2B — lucide 키트 Icon (Material Symbols 교체)
+import { Icon } from "@/components/admin-toss";
 
 // 캠페인 타입 정의
 interface Campaign {
@@ -79,7 +81,7 @@ export default function AdminCampaignsPage() {
   };
 
   return (
-    <div>
+    <div data-skin="toss">
       <AdminPageHeader
         // 시안 v2.14 — eyebrow + breadcrumbs (Admin-5-B 박제 2026-05-15)
         eyebrow="ADMIN · 비즈니스"
@@ -144,7 +146,7 @@ export default function AdminCampaignsPage() {
                 ) : (
                   <div className="w-20 h-14 rounded-lg shrink-0 flex items-center justify-center"
                     style={{ backgroundColor: "var(--color-surface)" }}>
-                    <span className="material-symbols-outlined text-xl" style={{ color: "var(--color-text-disabled)" }}>image</span>
+                    <Icon name="image" size={20} style={{ color: "var(--color-text-disabled)" }} />
                   </div>
                 )}
 

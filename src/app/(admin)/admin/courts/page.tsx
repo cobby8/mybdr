@@ -153,7 +153,8 @@ export default async function AdminCourtsPage({
   }));
 
   return (
-    <div>
+    // Phase 2A (Toss 전환) — 페이지 루트에 data-skin="toss" opt-in (content 는 DOM 상속)
+    <div data-skin="toss">
       {/* 2026-05-15 Admin-4-B 박제 — eyebrow + breadcrumbs 추가 (시안 AdminCourts.jsx v2.9)
           8C-6 박제 — VA1: actions slot 에 Site Operator 뱃지(dark+gold) 노출 */}
       <AdminPageHeader

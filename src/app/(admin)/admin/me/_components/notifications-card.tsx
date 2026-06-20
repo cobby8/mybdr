@@ -20,6 +20,8 @@
  */
 
 import Link from "next/link";
+// 2026-06-21 Toss 2C — Material Symbols → lucide <Icon> 키트
+import { Icon } from "@/components/admin-toss";
 
 // notifications row 직렬화 형식 (page.tsx 에서 변환 후 전달)
 // 이유: bigint id 그대로면 Next.js client prop serialization 에러 → string 변환
@@ -87,17 +89,15 @@ function NotificationItem({ n }: { n: NotificationRow }) {
       }}
     >
       {/* 아이콘 — 미확인이면 BDR Red, 읽음이면 회색 */}
-      <span
-        className="material-symbols-outlined mt-0.5"
-        style={{
-          fontSize: 16,
-          color: isUnread
-            ? "var(--color-primary)"
-            : "var(--color-text-secondary)",
-        }}
-      >
-        {isUnread ? "notifications_active" : "notifications"}
-      </span>
+      {/* 2026-06-21 Toss 2C — notifications_active→bell-ring / notifications→bell (size 16, mt-0.5 보존) */}
+      <Icon
+        name={isUnread ? "bell-ring" : "bell"}
+        size={16}
+        className="mt-0.5"
+        color={
+          isUnread ? "var(--color-primary)" : "var(--color-text-secondary)"
+        }
+      />
       <div className="flex-1 min-w-0">
         {/* type 라벨 + 제목 */}
         <div className="flex items-center gap-1.5 min-w-0">

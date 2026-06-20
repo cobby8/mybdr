@@ -5,6 +5,8 @@
 import { prisma } from "@/lib/db/prisma";
 import { AdminPageHeader } from "@/components/admin/admin-page-header";
 import Link from "next/link";
+// Phase 2A (Toss 전환) — Material Symbols → lucide(<Icon>) 키트
+import { Icon } from "@/components/admin-toss";
 
 // (web) 시안 카드 패턴
 const CARD_CLASS = "rounded-[var(--radius-card)] border";
@@ -103,7 +105,8 @@ export default async function AdminLogsPage({
   const availableDates = Array.from(grouped.keys()).sort((a, b) => b.localeCompare(a));
 
   return (
-    <div>
+    // Phase 2A (Toss 전환) — 페이지 루트에 data-skin="toss" opt-in
+    <div data-skin="toss">
       {/* Admin-6 박제 — 시안 v2.14 AdminLogs.jsx 헤더 패턴 카피 */}
       {/* eyebrow 영문 → 한글 ("ADMIN · 시스템") + breadcrumbs + actions */}
       <AdminPageHeader
@@ -117,9 +120,8 @@ export default async function AdminLogsPage({
         ]}
         actions={
           <Link href="/admin/settings" className="btn">
-            <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
-              settings
-            </span>
+            {/* settings → lucide settings */}
+            <Icon name="settings" size={16} />
             시스템 설정
           </Link>
         }

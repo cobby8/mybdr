@@ -16,6 +16,8 @@ import {
 import { AdminNewsContent } from "./admin-news-content";
 // 2026-05-04: 헬퍼 분리 (community/news/match/admin 3곳 일관성) — buildLinkifyEntriesBatch
 import { buildLinkifyEntriesBatch } from "@/lib/news/build-linkify-entries";
+// 2026-06-21 Toss 2C — Material Symbols → lucide <Icon> 키트 (CDN/lucide-react 직접 import 금지)
+import { Icon } from "@/components/admin-toss";
 
 export const dynamic = "force-dynamic";
 
@@ -131,7 +133,8 @@ export default async function AdminNewsPage({
   });
 
   return (
-    <div>
+    // 2026-06-21 Toss 2C — 페이지 루트 data-skin opt-in (자식 content 는 DOM 상속)
+    <div data-skin="toss">
       {/* 2026-05-15 Admin-4-C 박제 — eyebrow + breadcrumbs (커뮤니티 ← 부모) 추가
           시안 source: Dev/design/BDR-current/screens/AdminNews.jsx (v2.9) header 박제. */}
       <AdminPageHeader
@@ -147,9 +150,8 @@ export default async function AdminNewsPage({
         // 2026-06-14 IA1 — 작성 hub(/admin/news/compose) 진입 링크 1개 추가 (검수 기능 무수정)
         actions={
           <Link href="/admin/news/compose" className="btn btn--primary btn--sm shrink-0">
-            <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
-              edit_note
-            </span>
+            {/* 2026-06-21 Toss 2C — edit_note → file-pen (size 16 이관) */}
+            <Icon name="file-pen" size={16} />
             새 기사 작성
           </Link>
         }

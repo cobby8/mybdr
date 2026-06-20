@@ -24,6 +24,8 @@
 import { useState, FormEvent } from "react";
 import Link from "next/link"; // Admin-6 박제 — 시안 actions "활동 로그" Link 신규
 import { AdminPageHeader } from "@/components/admin/admin-page-header";
+// Toss Phase 2 2B — lucide 키트 Icon (Material Symbols 교체)
+import { Icon } from "@/components/admin-toss";
 
 // (web) 시안 카드 패턴
 const CARD_CLASS = "rounded-[var(--radius-card)] border p-4 sm:p-5";
@@ -45,16 +47,17 @@ const TARGET_OPTIONS: {
   desc: string;
   disabled?: boolean;
 }[] = [
-  { value: "all", label: "전체 유저", icon: "public", desc: "모든 가입 유저" },
-  { value: "active", label: "일반 유저", icon: "person", desc: "관리자 제외 활성 유저" },
+  // icon = lucide kebab명 (2B 교체: public→globe / person→user / shield_person→shield-user / admin_panel_settings→shield-check)
+  { value: "all", label: "전체 유저", icon: "globe", desc: "모든 가입 유저" },
+  { value: "active", label: "일반 유저", icon: "user", desc: "관리자 제외 활성 유저" },
   {
     value: "leader",
     label: "팀장",
-    icon: "shield_person",
+    icon: "shield-user",
     desc: "팀장 권한 대상",
     disabled: true, // 준비 중 — 전송 차단
   },
-  { value: "admin", label: "관리자", icon: "admin_panel_settings", desc: "관리자만" },
+  { value: "admin", label: "관리자", icon: "shield-check", desc: "관리자만" },
 ];
 
 export default function AdminNotificationsPage() {
@@ -123,7 +126,7 @@ export default function AdminNotificationsPage() {
   }
 
   return (
-    <div>
+    <div data-skin="toss">
       {/* Admin-6 박제 — 시안 v2.14 AdminNotifications.jsx 헤더 패턴 카피 */}
       {/* eyebrow + subtitle + breadcrumbs + actions (활동 로그 Link) 신규 */}
       {/* POST /api/web/admin/notifications 비즈 로직 보존 — handleSubmit / fetch / state 0 변경 */}
@@ -138,9 +141,7 @@ export default function AdminNotificationsPage() {
         ]}
         actions={
           <Link href="/admin/logs" className="btn">
-            <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
-              list_alt
-            </span>
+            <Icon name="list-checks" size={16} />
             활동 로그
           </Link>
         }
@@ -246,15 +247,13 @@ export default function AdminNotificationsPage() {
                       }}
                     >
                       <span className="flex w-full items-center justify-between gap-1">
-                        <span
-                          className="material-symbols-outlined"
+                        <Icon
+                          name={opt.icon}
+                          size={18}
                           style={{
-                            fontSize: 18,
                             color: isOn ? "var(--color-primary)" : "var(--color-text-muted)",
                           }}
-                        >
-                          {opt.icon}
-                        </span>
+                        />
                         {/* 팀장 = "준비 중" 뱃지 (warn-soft 톤) */}
                         {opt.disabled && (
                           <span
@@ -272,20 +271,13 @@ export default function AdminNotificationsPage() {
                               borderRadius: 4,
                             }}
                           >
-                            <span className="material-symbols-outlined" style={{ fontSize: 11 }}>
-                              schedule
-                            </span>
+                            <Icon name="clock" size={11} />
                             준비 중
                           </span>
                         )}
                         {/* 선택됨 표시 */}
                         {isOn && (
-                          <span
-                            className="material-symbols-outlined"
-                            style={{ fontSize: 16, color: "var(--color-primary)" }}
-                          >
-                            check_circle
-                          </span>
+                          <Icon name="circle-check" size={16} style={{ color: "var(--color-primary)" }} />
                         )}
                       </span>
                       <span className="text-sm font-semibold">{opt.label}</span>
@@ -334,9 +326,7 @@ export default function AdminNotificationsPage() {
                   color: result.ok ? "var(--color-success, #10b981)" : "var(--color-error)",
                 }}
               >
-                <span className="material-symbols-outlined text-lg">
-                  {result.ok ? "check_circle" : "error"}
-                </span>
+                <Icon name={result.ok ? "circle-check" : "circle-x"} size={18} />
                 {result.message}
               </div>
             )}
@@ -354,7 +344,7 @@ export default function AdminNotificationsPage() {
                 </>
               ) : (
                 <>
-                  <span className="material-symbols-outlined text-lg">send</span>
+                  <Icon name="send" size={18} />
                   알림 발송
                 </>
               )}
@@ -376,23 +366,21 @@ export default function AdminNotificationsPage() {
               className="mb-3 flex items-center gap-1.5 border-b pb-2 text-xs font-semibold"
               style={{ borderColor: "var(--color-border)", color: "var(--color-text-muted)" }}
             >
-              <span className="material-symbols-outlined" style={{ fontSize: 14 }}>
-                smartphone
-              </span>
+              <Icon name="smartphone" size={14} />
               MyBDR · 알림
             </div>
             {/* 미리보기 본문 — 제목 입력 시 알림 카드, 아니면 placeholder */}
             {title.trim() ? (
               <div className="flex gap-2.5">
+                {/* 래퍼 div = 원형 배경/정렬 보존, Icon = bell + primary 색상 (SVG는 flex 정렬 className 미지원) */}
                 <span
-                  className="material-symbols-outlined flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full"
+                  className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full"
                   style={{
                     background: "color-mix(in oklab, var(--color-primary) 12%, transparent)",
                     color: "var(--color-primary)",
-                    fontSize: 19,
                   }}
                 >
-                  notifications
+                  <Icon name="bell" size={19} />
                 </span>
                 <div className="min-w-0 flex-1">
                   <div
@@ -436,9 +424,7 @@ export default function AdminNotificationsPage() {
               color: "var(--cafe-blue-deep)",
             }}
           >
-            <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
-              hub
-            </span>
+            <Icon name="share-2" size={16} />
             <div>
               <div className="font-bold">사용자 알림에 표시됩니다</div>
               <div className="mt-0.5">
@@ -477,12 +463,7 @@ export default function AdminNotificationsPage() {
                 className="flex items-center gap-2 text-base font-bold"
                 style={{ color: "var(--color-text-primary)" }}
               >
-                <span
-                  className="material-symbols-outlined"
-                  style={{ color: "var(--color-primary)", fontSize: 20 }}
-                >
-                  send
-                </span>
+                <Icon name="send" size={20} style={{ color: "var(--color-primary)" }} />
                 알림을 발송할까요?
               </h3>
               <button
@@ -492,9 +473,7 @@ export default function AdminNotificationsPage() {
                 style={{ color: "var(--color-text-muted)" }}
                 aria-label="닫기"
               >
-                <span className="material-symbols-outlined" style={{ fontSize: 18 }}>
-                  close
-                </span>
+                <Icon name="x" size={18} />
               </button>
             </div>
 
@@ -508,12 +487,7 @@ export default function AdminNotificationsPage() {
                   border: "1px solid color-mix(in oklab, var(--warn) 32%, transparent)",
                 }}
               >
-                <span
-                  className="material-symbols-outlined"
-                  style={{ color: "var(--warn)", fontSize: 18 }}
-                >
-                  priority_high
-                </span>
+                <Icon name="triangle-alert" size={18} style={{ color: "var(--warn)" }} />
                 <div className="text-xs" style={{ color: "var(--color-text-primary)" }}>
                   <div className="font-bold">
                     {currentTarget?.label ?? "전체 유저"} 대상에게 발송됩니다
@@ -562,9 +536,7 @@ export default function AdminNotificationsPage() {
                 onClick={handleConfirmSend}
                 className="btn btn--primary flex items-center gap-1.5 disabled:opacity-50"
               >
-                <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
-                  send
-                </span>
+                <Icon name="send" size={16} />
                 발송
               </button>
             </div>

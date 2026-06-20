@@ -51,7 +51,8 @@ export default async function AdminPaymentsPage() {
   }));
 
   return (
-    <div>
+    // Phase 2A (Toss 전환) — 페이지 루트에 data-skin="toss" opt-in (content 는 DOM 상속)
+    <div data-skin="toss">
       <AdminPageHeader
         // 시안 v2.14 — eyebrow + breadcrumbs (Admin-5-B 박제)
         eyebrow="ADMIN · 비즈니스"

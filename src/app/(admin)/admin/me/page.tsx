@@ -194,7 +194,8 @@ export default async function AdminMyPage() {
   }));
 
   return (
-    <div className="space-y-6">
+    // 2026-06-21 Toss 2C — 페이지 루트 data-skin opt-in (7개 카드 자식은 DOM 상속)
+    <div className="space-y-6" data-skin="toss">
       {/* Admin-6 박제 — 시안 v2.14 AdminMe.jsx 헤더 패턴 카피 */}
       {/* raw <header><h1>+<p> → AdminPageHeader (eyebrow + title + subtitle + breadcrumbs) */}
       {/* 시안 카피 그대로: title "내 정보" / subtitle "내 운영자 계정 정보 · 알림 ..." */}

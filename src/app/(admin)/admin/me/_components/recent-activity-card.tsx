@@ -15,6 +15,9 @@
  * server component (interactivity 0 — 상대시간은 SSR 시 계산).
  */
 
+// 2026-06-21 Toss 2C — Material Symbols → lucide <Icon> 키트
+import { Icon } from "@/components/admin-toss";
+
 export interface RecentActivityCardProps {
   logs: AdminLogRow[];
 }
@@ -59,13 +62,13 @@ function severityColor(severity: string | null): string {
   }
 }
 
-// severity → 아이콘
+// severity → 아이콘 (2026-06-21 Toss 2C — lucide <Icon> name: error→circle-x / warning→triangle-alert / info→info)
 function severityIcon(severity: string | null): string {
   switch (severity) {
     case "error":
-      return "error";
+      return "circle-x";
     case "warning":
-      return "warning";
+      return "triangle-alert";
     case "info":
     default:
       return "info";
@@ -105,12 +108,13 @@ function ActivityRow({ log }: { log: AdminLogRow }) {
         borderRadius: "4px",
       }}
     >
-      <span
-        className="material-symbols-outlined mt-0.5"
-        style={{ fontSize: 16, color: severityColor(log.severity) }}
-      >
-        {severityIcon(log.severity)}
-      </span>
+      {/* 2026-06-21 Toss 2C — Material span → Icon (size 16, severityColor→color, mt-0.5 보존) */}
+      <Icon
+        name={severityIcon(log.severity)}
+        size={16}
+        className="mt-0.5"
+        color={severityColor(log.severity)}
+      />
       <div className="flex-1 min-w-0">
         <div
           className="truncate"

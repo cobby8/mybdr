@@ -3501,6 +3501,28 @@ model TournamentDivisionRule {
   @@map("tournament_division_rules")
 }
 
+/// 관리자 콘솔 — 대회 운영 표준 카테고리 (Track B-1 / 2026-06-21 옛 BDR-join-v1 DB 4행 복원).
+///
+/// 박제 룰:
+/// - 옛 DB 원본 = uuid PK / name / divisions(json) / ages(json) / created_at / updated_at
+///   → mybdr 표준 = BigInt @id @default(autoincrement()) + @map snake 로 변환
+/// - name = 카테고리명 (시드 upsert 기준 = @unique → 중복 카테고리 방지 + idempotent 보장)
+/// - divisions = 디비전 코드 배열 (예: ["D3","D4",...]) — Json 기본값 "[]"
+/// - ages = 연령부 코드 배열 (예: ["U8","U9",...] / "+40" ...) — Json 기본값 "[]"
+/// - sortOrder = 정렬 순서 (옛 DB엔 없던 신규 컬럼, 카테고리 표시 순서 제어용)
+/// - 무중단 CREATE TABLE (기존 테이블 영향 0)
+model AdminCategory {
+  id        BigInt   @id @default(autoincrement())
+  name      String   @unique @db.VarChar
+  divisions Json     @default("[]")
+  ages      Json     @default("[]")
+  sortOrder Int      @default(0) @map("sort_order")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("admin_categories")
+}
+
 /// 대회 요강 AI 분석 audit (prospectus AI wizard / Phase 1-C 박제 2026-05-20).
 ///
 /// 박제 룰:
