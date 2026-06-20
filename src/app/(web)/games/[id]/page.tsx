@@ -212,6 +212,12 @@ export default async function GameDetailPage({
     is_guest: a.is_guest ?? false,
     experience_years: a.experience_years ?? null,
     message: a.message ?? null,
+    // [M6 E-1] 대기열 3구획용 — listGameApplications 가 include(스칼라 전부 반환)라
+    //   waitlist_position / promotion_deadline 추가 조회 0. Date → ISO 문자열(클라 직렬화 제약).
+    waitlist_position: a.waitlist_position ?? null,
+    promotion_deadline: a.promotion_deadline
+      ? new Date(a.promotion_deadline).toISOString()
+      : null,
   }));
 
   // AboutCard 렌더 판단 — 3 필드 중 하나라도 있을 때만

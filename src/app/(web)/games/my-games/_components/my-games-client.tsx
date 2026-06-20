@@ -15,18 +15,21 @@
 import { useEffect, useState } from "react";
 import { RegRow, type RegItem } from "./reg-row";
 
-type Tab = "upcoming" | "past" | "cancelled";
+// [M6 E-2] waiting 탭 추가 — 대기열(game_applications.status=3) 신청 분리 노출.
+type Tab = "upcoming" | "waiting" | "past" | "cancelled";
 
 interface Props {
   /** 예정 탭 아이템 (pending + 미래 confirmed) */
   upcoming: RegItem[];
+  /** [M6 E-2] 대기 탭 아이템 (waiting) */
+  waiting: RegItem[];
   /** 지난 경기 탭 아이템 (completed) */
   past: RegItem[];
   /** 취소·환불 탭 아이템 (cancelled) */
   cancelled: RegItem[];
 }
 
-export function MyGamesClient({ upcoming, past, cancelled }: Props) {
+export function MyGamesClient({ upcoming, waiting, past, cancelled }: Props) {
   const [tab, setTab] = useState<Tab>("upcoming");
   const [justApplied, setJustApplied] = useState(false);
 
@@ -40,9 +43,18 @@ export function MyGamesClient({ upcoming, past, cancelled }: Props) {
     }
   }, []);
 
-  const list = tab === "upcoming" ? upcoming : tab === "past" ? past : cancelled;
+  // 활성 탭에 맞는 리스트 선택 (waiting 추가)
+  const list =
+    tab === "upcoming"
+      ? upcoming
+      : tab === "waiting"
+        ? waiting
+        : tab === "past"
+          ? past
+          : cancelled;
   const counts = {
     upcoming: upcoming.length,
+    waiting: waiting.length,
     past: past.length,
     cancelled: cancelled.length,
   };
@@ -125,6 +137,7 @@ export function MyGamesClient({ upcoming, past, cancelled }: Props) {
         {(
           [
             { id: "upcoming", label: "예정" },
+            { id: "waiting", label: "대기" },
             { id: "past", label: "지난 경기" },
             { id: "cancelled", label: "취소·환불" },
           ] as const

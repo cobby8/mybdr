@@ -252,7 +252,8 @@ export async function PATCH(
 // - 실제 삭제가 아닌 status를 4(취소)로 변경 (soft delete)
 //   ※ M1(2026-06-19): 과거 status=5 set → STATUS_LABEL 라벨 깨짐. 취소=4로 통일.
 // - 완료(3)/취소(4) 상태인 경기는 취소 불가
-// - 취소 시 신청자(status 0=대기, 1=승인) 전원에게 GAME_CANCELLED 알림 발송
+// - 취소 시 활성 신청자(0=대기, 1=승인, 3=대기열) 전원에게 GAME_CANCELLED 알림 발송
+//   ※ reviewer 후속②(2026-06-20): M2 추가된 대기자 status=3 누락 → [0,1,3]로 확장. 거절(2)은 제외 유지.
 // ─────────────────────────────────────────────────
 export async function DELETE(
   _req: NextRequest,
@@ -291,10 +292,11 @@ export async function DELETE(
     data: { status: 4, updated_at: new Date() },
   });
 
-  // 취소 알림: 아직 활성인 신청자(0=신청완료/대기, 1=승인) 전원에게 발송.
-  // 이유: 거절(2)된 신청자는 이미 탈락이므로 제외. fire-and-forget(취소 자체는 이미 커밋됨).
+  // 취소 알림: 아직 활성인 신청자(0=신청완료/대기, 1=승인, 3=대기열) 전원에게 발송.
+  // 이유: 거절(2)된 신청자는 이미 탈락이므로 제외. M2 대기자(3)도 경기가 사라지면 통보 필요 → 포함.
+  // fire-and-forget(취소 자체는 이미 커밋됨).
   const applicants = await prisma.game_applications.findMany({
-    where: { game_id: game.id, status: { in: [0, 1] } },
+    where: { game_id: game.id, status: { in: [0, 1, 3] } },
     select: { user_id: true },
   });
   if (applicants.length > 0) {
