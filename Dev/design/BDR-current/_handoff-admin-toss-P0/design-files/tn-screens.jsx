@@ -112,27 +112,40 @@ function TnDivisions({ categories, setCategories, openGenerator, toast }) {
 }
 
 // ── Teams (참가팀) ────────────────────────────────────────────────────
+const ROSTER_POOL = ['오영진/4/PG', '김상우/7/SG', '이재현/11/SF', '박도윤/23/PF', '정해성/32/C', '최우진/5/G', '강민호/9/F', '윤서준/14/G', '임지호/21/F', '한동석/3/PG', '서지훈/8/SG', '남기준/15/SF'];
+function mockRoster(n) { return Array.from({ length: n }).map((_, i) => { const [name, no, pos] = ROSTER_POOL[i % ROSTER_POOL.length].split('/'); return { name, no, pos }; }); }
+function teamsToCsv(teams) {
+  const head = '팀명,영문,대표자,연락처,지역,종별,디비전,선수,승인,입금';
+  const lines = teams.map((t) => [t.name_ko, t.name_en, t.manager, t.phone, `${t.province || ''} ${t.city || ''}`.trim(), t.category, t.division, t.players, t.status, t.payment].join(','));
+  return [head, ...lines].join('\n');
+}
 function TnTeams({ teams, setTeams, toast }) {
   const D = window.TOSS;
   const [tab, setTab] = React.useState('all');
+  const [detail, setDetail] = React.useState(null);
   const update = (id, field, v) => { setTeams(teams.map((t) => t.id === id ? { ...t, [field]: v, ...(field === 'payment' && v === 'paid' ? { status: t.status === 'APPLIED' ? 'CONFIRMED' : t.status } : {}) } : t));
     toast(field === 'payment' ? '입금 상태 변경' : '승인 상태 변경'); };
   const counts = { all: teams.length }; D.STATUS_OPTS.forEach((o) => counts[o.v] = teams.filter((t) => t.status === o.v).length);
   const rows = tab === 'all' ? teams : teams.filter((t) => t.status === tab);
   const stTone = (v) => D.STATUS_OPTS.find((o) => o.v === v)?.tone;
   const pyTone = (v) => D.PAYMENT_OPTS.find((o) => o.v === v)?.tone;
+  const exportCsv = () => {
+    const blob = new Blob(['\uFEFF' + teamsToCsv(teams)], { type: 'text/csv;charset=utf-8;' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = '참가팀.csv'; a.click(); toast('참가팀 CSV 내보내기');
+  };
   return (
     <div>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}><Btn variant="secondary" size="sm" icon="download" onClick={exportCsv}>CSV 내보내기</Btn></div>
       <StatusTabs current={tab} onChange={setTab}
         tabs={[{ key: 'all', label: '전체', count: counts.all }, ...D.STATUS_OPTS.map((o) => ({ key: o.v, label: o.label, count: counts[o.v] }))]} />
       <div className="ts-table">
         <div className="ts-thead" style={{ gridTemplateColumns: '1.3fr 1fr 1fr 0.6fr 1fr 1.2fr' }}><span>팀명</span><span>대표자</span><span>종별·디비전</span><span>선수</span><span>참가비</span><span>승인</span></div>
         {rows.map((t) =>
           <div key={t.id} className="ts-trow" style={{ gridTemplateColumns: '1.3fr 1fr 1fr 0.6fr 1fr 1.2fr' }}>
-            <span><b style={{ color: 'var(--ink)', fontSize: 14 }}>{t.name_ko}</b><span style={{ display: 'block', fontSize: 11.5, color: 'var(--ink-dim)' }}>{t.name_en}</span></span>
+            <button type="button" onClick={() => setDetail(t)} style={{ background: 'none', border: 0, textAlign: 'left', cursor: 'pointer', padding: 0 }}><b style={{ color: 'var(--ink)', fontSize: 14 }}>{t.name_ko}</b><span style={{ display: 'block', fontSize: 11.5, color: 'var(--ink-dim)' }}>{t.name_en}</span></button>
             <span style={{ fontSize: 13.5 }}>{t.manager}<a href={`tel:${t.phone}`} style={{ display: 'block', fontSize: 11.5, color: 'var(--ink-mute)' }}>{t.phone}</a></span>
             <span style={{ fontSize: 13 }}>{t.division} <span style={{ color: 'var(--ink-dim)', fontSize: 11.5 }}>{t.category}</span></span>
-            <span style={{ fontFamily: 'var(--ff-mono)', color: 'var(--ink)' }}>{t.players}</span>
+            <button type="button" onClick={() => setDetail(t)} style={{ background: 'none', border: 0, cursor: 'pointer', fontFamily: 'var(--ff-mono)', color: 'var(--primary)', fontWeight: 700, textAlign: 'left', padding: 0 }}>{t.players}</button>
             <span><select value={t.payment} onChange={(e) => update(t.id, 'payment', e.target.value)} className={`ts-badge ts-badge--${pyTone(t.payment)}`} style={{ border: 0, cursor: 'pointer', fontFamily: 'var(--ff)', fontWeight: 700 }}>{D.PAYMENT_OPTS.map((o) => <option key={o.v} value={o.v}>{o.label}</option>)}</select></span>
             <span style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
               <select value={t.status} onChange={(e) => update(t.id, 'status', e.target.value)} className={`ts-badge ts-badge--${stTone(t.status)}`} style={{ border: 0, cursor: 'pointer', fontFamily: 'var(--ff)', fontWeight: 700 }}>{D.STATUS_OPTS.map((o) => <option key={o.v} value={o.v}>{o.label}</option>)}</select>
@@ -141,6 +154,23 @@ function TnTeams({ teams, setTeams, toast }) {
           </div>)}
         {rows.length === 0 && <div className="ts-empty"><div className="ts-empty__title">해당 팀이 없습니다</div></div>}
       </div>
+
+      <window.DetailModal open={!!detail} onClose={() => setDetail(null)} title={detail?.name_ko}
+        footer={<><Btn variant="secondary" onClick={() => setDetail(null)}>닫기</Btn><Btn icon="mail">대표자 연락</Btn></>}>
+        {detail && <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}><Badge tone={stTone(detail.status)}>{D.STATUS_OPTS.find((o) => o.v === detail.status)?.label}</Badge><Badge tone={pyTone(detail.payment)}>{D.PAYMENT_OPTS.find((o) => o.v === detail.payment)?.label}</Badge><Badge tone="grey">{detail.division}</Badge></div>
+          <div><window.PanelRow label="대표자" value={detail.manager} /><window.PanelRow label="연락처" value={detail.phone} /><window.PanelRow label="지역" value={`${detail.province || ''} ${detail.city || ''}`.trim() || '—'} /><window.PanelRow label="종별·디비전" value={`${detail.category} · ${detail.division}`} /></div>
+          <div>
+            <div style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--ink-soft)', marginBottom: 8 }}>출전 선수 ({detail.players}명) <span style={{ fontWeight: 500, color: 'var(--ink-dim)' }}>· 팀 로스터 조인</span></div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {mockRoster(detail.players).map((p, i) =>
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', background: 'var(--grey-50)', borderRadius: 10 }}>
+                  <span style={{ width: 26, textAlign: 'center', fontFamily: 'var(--ff-mono)', fontWeight: 800, color: 'var(--primary)' }}>{p.no}</span>
+                  <span style={{ flex: 1, fontWeight: 600, color: 'var(--ink)' }}>{p.name}</span><Badge tone="grey">{p.pos}</Badge></div>)}
+            </div>
+          </div>
+        </div>}
+      </window.DetailModal>
     </div>);
 }
 

@@ -45,6 +45,7 @@
 <script type="text/babel" src="toss-kit.jsx"></script>
 <script type="text/babel" src="toss-admin.jsx"></script>
 <script type="text/babel" src="tn-screens.jsx"></script>
+<script type="text/babel" src="tn-extra.jsx"></script>
 
 <script type="text/babel">
 const { useState, useEffect } = React;
@@ -53,6 +54,7 @@ function App() {
   const [tab, setTab] = useState('divisions');
   const [mOpen, setMOpen] = useState(false);
   const [genOpen, setGenOpen] = useState(false);
+  const [wizard, setWizard] = useState(false);
   const [categories, setCategories] = useState(() => window.TN.TN_CATEGORIES.map(c => ({ ...c, divisions: c.divisions.map(d => ({ ...d, settings: { ...d.settings } })) })));
   const [teams, setTeams] = useState(() => window.TOSS.ADMIN_TEAMS.map(t => ({ ...t })));
   const [toastMsg, setToastMsg] = useState(null);
@@ -63,23 +65,26 @@ function App() {
     { id: 'divisions', icon: 'layout-grid', label: '종별·디비전' },
     { id: 'teams', icon: 'users', label: '참가팀' },
     { id: 'bracket', icon: 'git-fork', label: '대진표' },
+    { id: 'recorders', icon: 'clipboard-pen', label: '기록자' },
     { id: 'publish', icon: 'globe', label: '공개·완료' },
   ];
   const divCount = categories.reduce((a, c) => a + c.divisions.length, 0);
 
   let body;
-  if (tab === 'divisions') body = <window.TnDivisions categories={categories} setCategories={setCategories} openGenerator={() => setGenOpen(true)} toast={toast} />;
+  if (wizard) body = <window.TnWizard onDone={(d) => { setWizard(false); toast(`'${d.name || '새 대회'}' 생성 완료`); }} onCancel={() => setWizard(false)} />;
+  else if (tab === 'divisions') body = <window.TnDivisions categories={categories} setCategories={setCategories} openGenerator={() => setGenOpen(true)} toast={toast} />;
   else if (tab === 'teams') body = <window.TnTeams teams={teams} setTeams={setTeams} toast={toast} />;
   else if (tab === 'bracket') body = <window.TnBracket categories={categories} teams={teams} toast={toast} />;
+  else if (tab === 'recorders') body = <window.TnRecorders categories={categories} teams={teams} toast={toast} />;
   else body = <window.TnPublish categories={categories} teams={teams} preset={preset} toast={toast} />;
 
   const Nav = () =>
     <nav className="ts-sidebar__nav">
       <div className="ts-sidebar__label">대회 운영</div>
-      {TABS.map((it) => <button key={it.id} type="button" className="ts-navlink" data-active={tab === it.id ? 'true' : 'false'} onClick={() => { setTab(it.id); setMOpen(false); }}><window.Icon name={it.icon} size={19} /><span>{it.label}</span></button>)}
+      {TABS.map((it) => <button key={it.id} type="button" className="ts-navlink" data-active={!wizard && tab === it.id ? 'true' : 'false'} onClick={() => { setTab(it.id); setWizard(false); setMOpen(false); }}><window.Icon name={it.icon} size={19} /><span>{it.label}</span></button>)}
       <div className="ts-sidebar__label">도구</div>
+      <button type="button" className="ts-navlink" data-active={wizard ? 'true' : 'false'} onClick={() => { setWizard(true); setMOpen(false); }}><window.Icon name="plus-circle" size={19} /><span>새 대회 만들기</span></button>
       <button type="button" className="ts-navlink"><window.Icon name="copy" size={19} /><span>이전 대회 복사</span></button>
-      <button type="button" className="ts-navlink"><window.Icon name="settings" size={19} /><span>대회 설정</span></button>
     </nav>;
 
   useEffect(() => {
