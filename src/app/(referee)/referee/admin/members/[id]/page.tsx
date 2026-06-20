@@ -3,6 +3,8 @@
 import { useEffect, useState, useCallback } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
+// Toss 스킨(3B): Material Symbols → lucide Icon 키트
+import { Icon } from "@/components/admin-toss";
 
 /**
  * /referee/admin/members/[id] — 심판 상세 (Client Component).
@@ -254,13 +256,13 @@ export default function AdminMemberDetailPage() {
   // 에러
   if (errorMsg || !data) {
     return (
-      <div className="space-y-4">
+      <div className="space-y-4" data-skin="toss">
         <Link
           href="/referee/admin/members"
           className="inline-flex items-center gap-1 text-sm font-bold"
           style={{ color: "var(--color-text-muted)" }}
         >
-          <span className="material-symbols-outlined text-base">arrow_back</span>
+          <Icon name="arrow-left" size={16} />
           목록으로
         </Link>
         <div
@@ -281,14 +283,14 @@ export default function AdminMemberDetailPage() {
   const { referee, certificates, assignments, settlements } = data;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" data-skin="toss">
       {/* 뒤로가기 */}
       <Link
         href="/referee/admin/members"
         className="inline-flex items-center gap-1 text-sm font-bold"
         style={{ color: "var(--color-text-muted)" }}
       >
-        <span className="material-symbols-outlined text-base">arrow_back</span>
+        <Icon name="arrow-left" size={16} />
         목록으로
       </Link>
 
@@ -390,7 +392,7 @@ export default function AdminMemberDetailPage() {
                 opacity: matchSearching ? 0.6 : 1,
               }}
             >
-              <span className="material-symbols-outlined text-sm">search</span>
+              <Icon name="search" size={14} />
               {matchSearching ? "검색 중..." : "매칭 후보 검색"}
             </button>
 
@@ -451,9 +453,7 @@ export default function AdminMemberDetailPage() {
                         opacity: matchExecuting ? 0.6 : 1,
                       }}
                     >
-                      <span className="material-symbols-outlined text-sm">
-                        link
-                      </span>
+                      <Icon name="link" size={14} />
                       매칭
                     </button>
                   </div>
@@ -475,12 +475,11 @@ export default function AdminMemberDetailPage() {
       >
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <span
-              className="material-symbols-outlined text-2xl"
+            <Icon
+              name="file-text"
+              size={24}
               style={{ color: "var(--color-text-muted)" }}
-            >
-              description
-            </span>
+            />
             <div>
               <h3
                 className="text-sm font-bold"
@@ -506,9 +505,7 @@ export default function AdminMemberDetailPage() {
             }}
           >
             서류 관리
-            <span className="material-symbols-outlined text-base">
-              arrow_forward
-            </span>
+            <Icon name="arrow-right" size={16} />
           </Link>
         </div>
       </section>
@@ -554,12 +551,11 @@ export default function AdminMemberDetailPage() {
                       {c.cert_type} {c.cert_grade}
                     </span>
                     {c.verified && (
-                      <span
-                        className="material-symbols-outlined text-base"
-                        style={{ color: "var(--color-success, #22c55e)", fontVariationSettings: "'FILL' 1" }}
-                      >
-                        verified
-                      </span>
+                      <Icon
+                        name="shield-check"
+                        size={16}
+                        style={{ color: "var(--color-success, #22c55e)" }}
+                      />
                     )}
                   </div>
                   <p
@@ -584,9 +580,7 @@ export default function AdminMemberDetailPage() {
                     opacity: togglingCertId === String(c.id) ? 0.5 : 1,
                   }}
                 >
-                  <span className="material-symbols-outlined text-sm">
-                    {c.verified ? "cancel" : "check_circle"}
-                  </span>
+                  <Icon name={c.verified ? "circle-x" : "circle-check"} size={14} />
                   {c.verified ? "검증 취소" : "검증"}
                 </button>
               </li>

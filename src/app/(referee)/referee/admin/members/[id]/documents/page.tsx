@@ -3,6 +3,8 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
+// Toss 스킨(3B): Material Symbols → lucide Icon 키트
+import { Icon } from "@/components/admin-toss";
 
 /**
  * /referee/admin/members/[id]/documents -- 관리자용 심판 서류 관리.
@@ -34,19 +36,19 @@ type OcrExtracted = Record<string, string | undefined>;
 const DOC_CONFIGS = [
   {
     type: "certificate",
-    icon: "workspace_premium",
+    icon: "award", // workspace_premium → award
     label: "자격증 사본",
     description: "심판/기록원 자격증의 사본",
   },
   {
     type: "id_card",
-    icon: "badge",
+    icon: "id-card", // badge → id-card
     label: "신분증 사본",
     description: "주민등록증 또는 운전면허증 앞면",
   },
   {
     type: "bankbook",
-    icon: "account_balance",
+    icon: "landmark", // account_balance → landmark
     label: "통장 사본",
     description: "정산금 입금을 위한 통장 앞면",
   },
@@ -206,14 +208,14 @@ export default function AdminMemberDocumentsPage() {
     documents.find((d) => d.doc_type === docType);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" data-skin="toss">
       {/* 뒤로가기 */}
       <Link
         href={`/referee/admin/members/${refereeId}`}
         className="inline-flex items-center gap-1 text-sm font-bold"
         style={{ color: "var(--color-text-muted)" }}
       >
-        <span className="material-symbols-outlined text-base">arrow_back</span>
+        <Icon name="arrow-left" size={16} />
         심판 상세로
       </Link>
 
@@ -242,12 +244,12 @@ export default function AdminMemberDocumentsPage() {
           borderRadius: 4,
         }}
       >
-        <span
-          className="material-symbols-outlined mt-0.5 text-xl"
+        <Icon
+          name="shield"
+          size={20}
+          className="mt-0.5"
           style={{ color: "var(--color-info, #0079B9)" }}
-        >
-          shield
-        </span>
+        />
         <p
           className="text-xs"
           style={{ color: "var(--color-text-secondary)" }}
@@ -267,12 +269,11 @@ export default function AdminMemberDocumentsPage() {
           }}
         >
           <div className="flex items-center gap-3">
-            <span
-              className="material-symbols-outlined text-2xl"
+            <Icon
+              name="printer"
+              size={24}
               style={{ color: "var(--color-text-muted)" }}
-            >
-              print
-            </span>
+            />
             <div>
               <h3
                 className="text-sm font-bold"
@@ -306,7 +307,7 @@ export default function AdminMemberDocumentsPage() {
               cursor: allDocsRegistered && !pdfGenerating ? "pointer" : "not-allowed",
             }}
           >
-            <span className="material-symbols-outlined text-sm">print</span>
+            <Icon name="printer" size={14} />
             {pdfGenerating ? "생성 중..." : "PDF 출력"}
           </button>
         </div>
@@ -554,16 +555,15 @@ function AdminDocumentCard({
       {/* 카드 헤더 */}
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <span
-            className="material-symbols-outlined text-2xl"
+          <Icon
+            name={config.icon}
+            size={24}
             style={{
               color: isRegistered
                 ? "var(--color-success, #22c55e)"
                 : "var(--color-text-muted)",
             }}
-          >
-            {config.icon}
-          </span>
+          />
           <div>
             <h3
               className="text-sm font-bold"
@@ -593,12 +593,7 @@ function AdminDocumentCard({
         >
           {isRegistered ? (
             <>
-              <span
-                className="material-symbols-outlined text-xs"
-                style={{ fontVariationSettings: "'FILL' 1" }}
-              >
-                check_circle
-              </span>
+              <Icon name="circle-check" size={12} />
               등록완료
             </>
           ) : (
@@ -669,9 +664,7 @@ function AdminDocumentCard({
                 opacity: ocrLoading ? 0.6 : 1,
               }}
             >
-              <span className="material-symbols-outlined text-sm">
-                document_scanner
-              </span>
+              <Icon name="scan-text" size={14} />
               {ocrLoading ? "추출 중..." : "정보 추출"}
             </button>
 
@@ -691,7 +684,7 @@ function AdminDocumentCard({
                   borderRadius: 4,
                 }}
               >
-                <span className="material-symbols-outlined text-sm">edit</span>
+                <Icon name="pencil" size={14} />
                 직접 입력
               </button>
             )}
@@ -710,9 +703,7 @@ function AdminDocumentCard({
                 opacity: uploading ? 0.6 : 1,
               }}
             >
-              <span className="material-symbols-outlined text-sm">
-                swap_horiz
-              </span>
+              <Icon name="arrow-left-right" size={14} />
               {uploading ? "업로드 중..." : "교체"}
             </button>
           </>
@@ -729,9 +720,7 @@ function AdminDocumentCard({
               opacity: uploading ? 0.6 : 1,
             }}
           >
-            <span className="material-symbols-outlined text-sm">
-              upload_file
-            </span>
+            <Icon name="file-up" size={14} />
             {uploading ? "업로드 중..." : "대리 업로드"}
           </button>
         )}
@@ -748,12 +737,11 @@ function AdminDocumentCard({
           }}
         >
           <div className="flex items-center gap-2">
-            <span
-              className="material-symbols-outlined text-base"
+            <Icon
+              name={ocrStatus === "completed" ? "wand-sparkles" : "file-pen"}
+              size={16}
               style={{ color: "var(--color-text-muted)" }}
-            >
-              {ocrStatus === "completed" ? "auto_fix_high" : "edit_note"}
-            </span>
+            />
             <p
               className="text-xs font-bold"
               style={{ color: "var(--color-text-primary)" }}
@@ -787,7 +775,7 @@ function AdminDocumentCard({
                 opacity: confirming ? 0.6 : 1,
               }}
             >
-              <span className="material-symbols-outlined text-sm">check</span>
+              <Icon name="check" size={14} />
               {confirming ? "저장 중..." : "확인 저장"}
             </button>
             <button

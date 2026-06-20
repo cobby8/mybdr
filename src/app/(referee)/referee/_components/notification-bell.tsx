@@ -20,6 +20,8 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState, useCallback } from "react";
+// Toss 디자인 전환: Material Symbols → lucide 키트 <Icon>
+import { Icon } from "@/components/admin-toss";
 
 // 알림 단건 타입 — API 응답과 1:1 매핑
 type Notification = {
@@ -53,16 +55,18 @@ function formatRelative(iso: string): string {
 
 // 알림 타입별 아이콘 매핑 — 시각적 구분
 // 이유: 한 줄짜리 알림 목록에서 타입별 색/아이콘이 있어야 훑어보기 좋음
+// lucide kebab name 반환 (star·how_to_vote→vote·sports_basketball→volleyball
+//  ·payments→banknote·campaign→megaphone·emoji_events→trophy·sports→flag·group→users·notifications→bell)
 function iconForType(type: string): string {
   if (type.startsWith("referee.pool.chief")) return "star";
-  if (type.startsWith("referee.pool.selected")) return "how_to_vote";
-  if (type.startsWith("referee.assignment")) return "sports_basketball";
-  if (type.startsWith("referee.settlement")) return "payments";
-  if (type.startsWith("referee.announcement")) return "campaign";
-  if (type.startsWith("tournament")) return "emoji_events";
-  if (type.startsWith("game")) return "sports";
-  if (type.startsWith("team")) return "group";
-  return "notifications";
+  if (type.startsWith("referee.pool.selected")) return "vote";
+  if (type.startsWith("referee.assignment")) return "volleyball";
+  if (type.startsWith("referee.settlement")) return "banknote";
+  if (type.startsWith("referee.announcement")) return "megaphone";
+  if (type.startsWith("tournament")) return "trophy";
+  if (type.startsWith("game")) return "flag";
+  if (type.startsWith("team")) return "users";
+  return "bell";
 }
 
 export function NotificationBell() {
@@ -192,7 +196,8 @@ export function NotificationBell() {
           borderRadius: 4,
         }}
       >
-        <span className="material-symbols-outlined text-xl">notifications</span>
+        {/* 색은 button의 color(text-muted) currentColor 상속 */}
+        <Icon name="bell" size={20} />
         {/* 빨간 원 뱃지 — unread_count > 0일 때만 */}
         {unreadCount > 0 && (
           <span
@@ -290,17 +295,17 @@ export function NotificationBell() {
                   }}
                 >
                   <div className="flex items-start gap-3">
-                    {/* 좌측 아이콘 */}
-                    <span
-                      className="material-symbols-outlined text-lg mt-0.5"
-                      style={{
-                        color: isUnread
+                    {/* 좌측 아이콘 — 안읽음=primary / 읽음=muted */}
+                    <Icon
+                      name={iconForType(n.notification_type)}
+                      size={18}
+                      className="mt-0.5"
+                      color={
+                        isUnread
                           ? "var(--color-primary)"
-                          : "var(--color-text-muted)",
-                      }}
-                    >
-                      {iconForType(n.notification_type)}
-                    </span>
+                          : "var(--color-text-muted)"
+                      }
+                    />
                     {/* 본문 */}
                     <div className="min-w-0 flex-1">
                       <div className="flex items-start justify-between gap-2">

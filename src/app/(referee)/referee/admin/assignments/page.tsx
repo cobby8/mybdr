@@ -5,6 +5,8 @@ import { useCallback, useEffect, useState } from "react";
 import RefereePicker, {
   type RefereePickerPool,
 } from "../../_components/referee-picker";
+// Toss 스킨(Phase 3B): Material Symbols → lucide Icon 키트 경유.
+import { Icon } from "@/components/admin-toss";
 
 /**
  * /referee/admin/assignments — 심판 경기 배정 관리 페이지 (배정워크플로우 3차 리팩토링).
@@ -303,7 +305,8 @@ export default function AssignmentsPage() {
     m.assignments.map((a) => String(a.referee_id));
 
   return (
-    <div className="space-y-6">
+    // data-skin="toss": 페이지 최상위 루트 div(모달은 동일 루트 내부 렌더라 상속)
+    <div className="space-y-6" data-skin="toss">
       {/* 페이지 헤더 */}
       <header className="flex flex-col gap-1">
         <h1
@@ -329,7 +332,8 @@ export default function AssignmentsPage() {
             color: "var(--color-primary)",
           }}
         >
-          <span className="material-symbols-outlined text-base">error</span>
+          {/* Material error → lucide circle-x. text-base(=16px) */}
+          <Icon name="circle-x" size={16} />
           {pageError}
         </div>
       )}
@@ -357,7 +361,8 @@ export default function AssignmentsPage() {
               className="flex items-center gap-1 text-xs font-semibold"
               style={{ color: "var(--color-text-muted)" }}
             >
-              <span className="material-symbols-outlined text-sm">close</span>
+              {/* Material close → lucide x. text-sm(=14px) */}
+              <Icon name="x" size={14} />
               선택 해제
             </button>
           )}
@@ -373,12 +378,12 @@ export default function AssignmentsPage() {
               borderRadius: 4,
             }}
           >
-            <span
-              className="material-symbols-outlined text-lg"
+            {/* Material search → lucide search. text-lg(=18px) */}
+            <Icon
+              name="search"
+              size={18}
               style={{ color: "var(--color-text-muted)" }}
-            >
-              search
-            </span>
+            />
             <input
               type="text"
               placeholder="대회명 검색"
@@ -399,12 +404,12 @@ export default function AssignmentsPage() {
               borderRadius: 4,
             }}
           >
-            <span
-              className="material-symbols-outlined text-xl"
+            {/* Material emoji_events → lucide trophy. text-xl(=20px) */}
+            <Icon
+              name="trophy"
+              size={20}
               style={{ color: "var(--color-primary)" }}
-            >
-              emoji_events
-            </span>
+            />
             <div className="flex-1">
               <div
                 className="text-sm font-bold"
@@ -450,12 +455,13 @@ export default function AssignmentsPage() {
                   color: "var(--color-text-primary)",
                 }}
               >
-                <span
-                  className="material-symbols-outlined text-base mt-0.5"
+                {/* Material emoji_events → lucide trophy. text-base(=16px) + mt-0.5 */}
+                <Icon
+                  name="trophy"
+                  size={16}
+                  className="mt-0.5"
                   style={{ color: "var(--color-text-muted)" }}
-                >
-                  emoji_events
-                </span>
+                />
                 <div className="flex-1">
                   <div className="font-semibold">{t.name}</div>
                   <div
@@ -590,9 +596,8 @@ export default function AssignmentsPage() {
                               : undefined
                           }
                         >
-                          <span className="material-symbols-outlined text-sm">
-                            add
-                          </span>
+                          {/* Material add → lucide plus. text-sm(=14px) */}
+                          <Icon name="plus" size={14} />
                           배정 추가
                         </button>
                       </div>
@@ -609,9 +614,8 @@ export default function AssignmentsPage() {
                           borderRadius: 4,
                         }}
                       >
-                        <span className="material-symbols-outlined text-base">
-                          info
-                        </span>
+                        {/* Material info → lucide info. text-base(=16px) */}
+                        <Icon name="info" size={16} />
                         <span className="flex-1">
                           이 일자에 선정된 인원이 없습니다. 먼저 일자별 운영에서
                           인원을 선정하세요.
@@ -634,9 +638,8 @@ export default function AssignmentsPage() {
                           borderRadius: 4,
                         }}
                       >
-                        <span className="material-symbols-outlined text-base">
-                          check_circle
-                        </span>
+                        {/* Material check_circle → lucide circle-check. text-base(=16px) */}
+                        <Icon name="circle-check" size={16} />
                         모든 선정 인원이 이미 배정되었습니다.
                       </div>
                     )}

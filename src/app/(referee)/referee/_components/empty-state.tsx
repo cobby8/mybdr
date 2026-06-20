@@ -1,4 +1,6 @@
 import Link from "next/link";
+// Toss 디자인 전환: Material Symbols → lucide 키트 <Icon>
+import { Icon } from "@/components/admin-toss";
 
 /**
  * 심판 프로필 미등록 상태 등에서 공통으로 사용할 CTA 카드.
@@ -6,7 +8,7 @@ import Link from "next/link";
  */
 
 type EmptyStateProps = {
-  icon: string; // Material Symbols ligature
+  icon: string; // lucide kebab-case name (호출처에서 lucide 이름으로 전달)
   title: string;
   description: string;
   ctaText: string;
@@ -29,12 +31,7 @@ export function EmptyState({
         borderRadius: 4,
       }}
     >
-      <span
-        className="material-symbols-outlined text-5xl"
-        style={{ color: "var(--color-text-muted)" }}
-      >
-        {icon}
-      </span>
+      <Icon name={icon} size={48} color="var(--color-text-muted)" />
       <h2
         className="mt-4 text-lg font-bold"
         style={{ color: "var(--color-text-primary)" }}
@@ -56,7 +53,7 @@ export function EmptyState({
           borderRadius: 4,
         }}
       >
-        <span className="material-symbols-outlined text-base">add</span>
+        <Icon name="plus" size={16} />
         {ctaText}
       </Link>
     </div>

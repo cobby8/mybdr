@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
+// Toss 키트 Icon — Material Symbols 대체 (lucide 기반)
+import { Icon } from "@/components/admin-toss";
 
 /**
  * /referee/admin/settlements — 관리자 정산 목록 (Client Component)
@@ -309,6 +311,7 @@ export default function AdminSettlementsPage() {
   return (
     <div
       className="space-y-6"
+      data-skin="toss"
       style={{ color: "var(--color-text-primary)" }}
     >
       {/* 페이지 헤더 */}
@@ -333,7 +336,8 @@ export default function AdminSettlementsPage() {
               borderRadius: 4,
             }}
           >
-            <span className="material-symbols-outlined text-sm">playlist_add</span>
+            {/* playlist_add → list-plus, text-sm=14px */}
+            <Icon name="list-plus" size={14} color="var(--color-text-primary)" />
             일괄 생성
           </Link>
           <Link
@@ -345,7 +349,8 @@ export default function AdminSettlementsPage() {
               borderRadius: 4,
             }}
           >
-            <span className="material-symbols-outlined text-sm">insights</span>
+            {/* insights → trending-up (통계/추이), text-sm=14px */}
+            <Icon name="trending-up" size={14} color="var(--color-text-on-primary, #fff)" />
             통계 보기
           </Link>
         </div>
@@ -639,28 +644,30 @@ export default function AdminSettlementsPage() {
                     </td>
                     <td className="px-3 py-2 text-center">
                       {s.documents_complete ? (
+                        // check_circle → circle-check (서류 완비)
                         <span
-                          className="material-symbols-outlined text-base"
-                          style={{
-                            color: "var(--color-success, #22c55e)",
-                            fontVariationSettings: "'FILL' 1",
-                          }}
+                          className="inline-flex"
                           title="서류 3종 완비"
                         >
-                          check_circle
+                          <Icon
+                            name="circle-check"
+                            size={16}
+                            color="var(--color-success, #22c55e)"
+                          />
                         </span>
                       ) : (
+                        // warning → triangle-alert (서류 미완비)
                         <span
-                          className="material-symbols-outlined text-base"
-                          style={{
-                            color: "var(--color-warning, #f59e0b)",
-                            fontVariationSettings: "'FILL' 1",
-                          }}
+                          className="inline-flex"
                           title={`부족: ${s.missing_documents
                             .map((d) => DOC_LABEL[d] ?? d)
                             .join(", ")}`}
                         >
-                          warning
+                          <Icon
+                            name="triangle-alert"
+                            size={16}
+                            color="var(--color-warning, #f59e0b)"
+                          />
                         </span>
                       )}
                     </td>
@@ -757,17 +764,18 @@ export default function AdminSettlementsPage() {
                   <div className="font-black">{formatMoney(s.amount)}</div>
                   <div className="flex items-center gap-1">
                     {!s.documents_complete && (
+                      // warning → triangle-alert (서류 미완비)
                       <span
-                        className="material-symbols-outlined text-base"
-                        style={{
-                          color: "var(--color-warning, #f59e0b)",
-                          fontVariationSettings: "'FILL' 1",
-                        }}
+                        className="inline-flex"
                         title={`부족: ${s.missing_documents
                           .map((d) => DOC_LABEL[d] ?? d)
                           .join(", ")}`}
                       >
-                        warning
+                        <Icon
+                          name="triangle-alert"
+                          size={16}
+                          color="var(--color-warning, #f59e0b)"
+                        />
                       </span>
                     )}
                     <button
@@ -1371,14 +1379,13 @@ function BulkResultModal({
     <ModalShell onClose={onClose} title={`일괄 처리 결과 (${targetLabel})`}>
       <div className="space-y-3 text-sm">
         <div className="flex items-center gap-3">
-          <span
-            className="material-symbols-outlined text-2xl"
-            style={{
-              color: "var(--color-success, #22c55e)",
-              fontVariationSettings: "'FILL' 1",
-            }}
-          >
-            check_circle
+          {/* check_circle → circle-check, text-2xl=24px */}
+          <span className="inline-flex">
+            <Icon
+              name="circle-check"
+              size={24}
+              color="var(--color-success, #22c55e)"
+            />
           </span>
           <div>
             성공:{" "}
@@ -1488,11 +1495,12 @@ function ModalShell({
           <button
             type="button"
             onClick={onClose}
-            className="material-symbols-outlined text-xl"
+            className="inline-flex"
             style={{ color: "var(--color-text-muted)" }}
             aria-label="닫기"
           >
-            close
+            {/* close → x, text-xl=20px */}
+            <Icon name="x" size={20} color="var(--color-text-muted)" />
           </button>
         </div>
         <div className="p-4">{children}</div>

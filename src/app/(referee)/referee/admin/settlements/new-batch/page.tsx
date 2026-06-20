@@ -272,7 +272,7 @@ export default function NewBatchSettlementPage() {
   };
 
   return (
-    <div className="space-y-6" style={{ color: "var(--color-text-primary)" }}>
+    <div className="space-y-6" data-skin="toss" style={{ color: "var(--color-text-primary)" }}>
       {/* 헤더 */}
       <div className="flex items-center justify-between">
         <div>

@@ -4,6 +4,8 @@ import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 // v2.1 P2: DataTableV2 도입 — 데스크톱 표 + 모바일 카드형 자동 변환 통합
 import { DataTableV2, type DataTableColumn } from "@/components/bdr-v2/data-table";
+// Toss 스킨(3B): Material Symbols → lucide Icon 키트
+import { Icon } from "@/components/admin-toss";
 
 /**
  * /referee/admin/members — 소속 심판 관리 목록 (Client Component).
@@ -147,7 +149,7 @@ const MEMBER_COLUMNS: DataTableColumn<MemberItem>[] = [
         }}
       >
         상세
-        <span className="material-symbols-outlined text-sm">chevron_right</span>
+        <Icon name="chevron-right" size={14} />
       </Link>
     ),
   },
@@ -221,7 +223,7 @@ export default function AdminMembersPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" data-skin="toss">
       {/* 헤더 */}
       <header className="flex items-start justify-between gap-4">
         <div>
@@ -253,7 +255,7 @@ export default function AdminMembersPage() {
             borderRadius: 4,
           }}
         >
-          <span className="material-symbols-outlined text-base">person_add</span>
+          <Icon name="user-plus" size={16} />
           사전 등록
         </Link>
       </header>
@@ -358,12 +360,12 @@ export default function AdminMembersPage() {
             borderRadius: 4,
           }}
         >
-          <span
-            className="material-symbols-outlined text-5xl"
+          {/* Material group_off → lucide user-x (UsersX 미존재 → UserX 실존). 빈상태 "심판 없음" */}
+          <Icon
+            name="user-x"
+            size={48}
             style={{ color: "var(--color-text-muted)" }}
-          >
-            group_off
-          </span>
+          />
           <h2
             className="mt-4 text-lg font-bold"
             style={{ color: "var(--color-text-primary)" }}
@@ -402,7 +404,7 @@ export default function AdminMembersPage() {
                   opacity: page <= 1 ? 0.5 : 1,
                 }}
               >
-                <span className="material-symbols-outlined text-sm">chevron_left</span>
+                <Icon name="chevron-left" size={14} />
                 이전
               </button>
               <span
@@ -424,7 +426,7 @@ export default function AdminMembersPage() {
                 }}
               >
                 다음
-                <span className="material-symbols-outlined text-sm">chevron_right</span>
+                <Icon name="chevron-right" size={14} />
               </button>
             </div>
           )}
