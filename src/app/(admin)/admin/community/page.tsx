@@ -3,6 +3,8 @@ import { prisma } from "@/lib/db/prisma";
 import { AdminPageHeader } from "@/components/admin/admin-page-header";
 import { hidePostAction, unhidePostAction, deletePostAction } from "@/app/actions/admin-community";
 import { AdminCommunityContent } from "./admin-community-content";
+// Phase 1 (Toss 전환) — Material Symbols → lucide(<Icon>)
+import { Icon } from "@/components/admin-toss";
 
 export const dynamic = "force-dynamic";
 
@@ -62,7 +64,8 @@ export default async function AdminCommunityPage({
   }));
 
   return (
-    <div>
+    // Phase 1 — 페이지 루트에 data-skin="toss" opt-in
+    <div data-skin="toss">
       {/* 2026-05-15 Admin-4-C 박제 — eyebrow + breadcrumbs + actions (BDR NEWS 링크)
           시안 AdminCommunity.jsx (v2.9) header 박제. */}
       <AdminPageHeader
@@ -75,7 +78,7 @@ export default async function AdminCommunityPage({
         actions={
           // 시안 actions slot — BDR NEWS 페이지 진입 (시안 §actions 박제)
           <Link href="/admin/news" className="btn btn--sm">
-            <span className="material-symbols-outlined" style={{ fontSize: 16 }}>newspaper</span>
+            <Icon name="newspaper" size={16} />
             BDR NEWS
           </Link>
         }

@@ -234,3 +234,147 @@
 
 /* mobile phone frame (참가신청 미리보기) */
 [data-skin="toss"] .ts-phone { max-width: 440px; margin: 0 auto; }
+
+/* ============================================================
+   PHASE 1 — 토큰 리매핑 (운영 admin.css/globals 토큰 → Toss 값)
+   박제 source: Dev/design/BDR-current/_handoff-admin-toss-P0 (라이트 전용)
+   박제 target: src/styles/toss-admin.css ([data-skin="toss"] 스코프)
+
+   이유 (왜):
+   - 운영 admin.css / 자식 페이지(.admin-stat-pill / .admin-table / .aside__link /
+     .pa1-hero-stats 등)는 전부 globals.css 의 베이스 토큰
+     (--bg-card / --ink / --accent / --bg-alt / --border / --ok / --warn / --danger
+      / --cafe-blue* …) 또는 admin.css 가 그 위에 얹은 --color-* 별칭을 소비한다.
+   - 이 베이스 토큰만 [data-skin="toss"] 스코프에서 Toss 값으로 덮으면, 마크업을
+     한 글자도 바꾸지 않고 셸/페이지가 Toss 색을 흡수한다 (--color-* 별칭은
+     admin.css 에서 var(--bg-card) 식으로 베이스를 참조하므로 자동 전파).
+
+   어떻게 (라이트 고정):
+   - [data-skin="toss"] 와 [data-theme="dark"] [data-skin="toss"] 두 셀렉터에
+     동일한 라이트 값을 선언한다. 후자는 셀렉터 명세도(0,2,0)가 전자(0,1,0)보다
+     높아, html[data-theme="dark"] 가 걸려 있어도 Toss 영역은 항상 라이트로 고정된다.
+     (핸드오프 "라이트 전용" 결정 — Toss 관리자 영역에 다크 누수 0)
+   ============================================================ */
+[data-skin="toss"],
+[data-theme="dark"] [data-skin="toss"] {
+  /* ── 베이스 surface (globals --bg* 계열) — Toss grey scale ── */
+  --bg:          #F2F4F6;   /* page bg */
+  --bg-elev:     #FFFFFF;   /* 사이드바/패널 표면 */
+  --bg-card:     #FFFFFF;   /* 카드 */
+  --bg-alt:      #F9FAFB;   /* hover/스트라이프 */
+  --bg-head:     #F2F4F6;   /* 테이블 헤더 */
+
+  /* ── Ink (글자 계열) ── */
+  --ink:         #191F28;
+  --ink-soft:    #4E5968;
+  --ink-mute:    #8B95A1;
+  --ink-dim:     #B0B8C1;
+  --ink-on-brand:#FFFFFF;
+
+  /* ── Borders ── */
+  --border:        #E5E8EB;
+  --border-strong: #D1D6DB;
+  --border-hard:   #B0B8C1;
+
+  /* ── Brand chrome — Toss Blue (사이드바 active / 링크 / primary) ── */
+  --cafe-blue:      #3182F6;
+  --cafe-blue-deep: #1B64DA;
+  --cafe-blue-soft: #E8F1FE;
+  --cafe-blue-hair: #C9E0FD;
+  --link:           #3182F6;
+
+  /* ── Accent — Toss 는 brand=Blue 사용 (BDR Red → Toss Blue 로 통일) ──
+     admin.css 가 --color-primary/--color-accent 를 var(--accent) 로 별칭하므로
+     accent 를 Toss Blue 로 두면 admin 영역 강조색이 일괄 Toss Blue 가 된다. */
+  --accent:      #3182F6;
+  --accent-soft: #E8F1FE;
+
+  /* ── Semantic (성공/경고/위험) — Toss 톤 ── */
+  --ok:     #15B86A;
+  --ok-soft:#E5F7EE;
+  --warn:   #FF9500;
+  --warn-soft:#FFF3E0;
+  --danger: #F04452;
+
+  /* ── --color-* 별칭 보강 ──
+     admin.css :root 에서 별칭되지만, 일부 페이지가 admin.css 미커버 토큰
+     (--color-elevated / --color-primary-soft / --color-accent-hover /
+      --color-text-dim)을 직접 var() 로 소비 → Toss 값으로 명시 매핑. */
+  --color-elevated:      #F9FAFB;
+  --color-primary:       #3182F6;
+  --color-primary-soft:  #E8F1FE;
+  --color-accent:        #3182F6;
+  --color-accent-hover:  #1B64DA;
+  --color-accent-light:  #E8F1FE;
+  --color-card:          #FFFFFF;
+  --color-surface:       #FFFFFF;
+  --color-border:        #E5E8EB;
+  --color-border-subtle: #EEF1F4;
+  --color-text-primary:  #191F28;
+  --color-text-secondary:#4E5968;
+  --color-text-muted:    #8B95A1;
+  --color-text-dim:      #B0B8C1;
+  --color-success:       #15B86A;
+  --color-warning:       #FF9500;
+  --color-error:         #F04452;
+
+  /* ── Shadow — Toss soft elevation (다크 brutalist offset 제거) ── */
+  --sh-xs: 0 1px 2px rgba(0,0,0,0.05);
+  --sh-sm: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  --sh-md: 0 4px 16px rgba(0,0,0,0.08);
+  --sh-lg: 0 12px 40px rgba(0,0,0,0.14);
+}
+
+/* ============================================================
+   PHASE 1 — 클래스 오버라이드 (토큰만으로 안 잡히는 radius/구조)
+   토큰 리매핑으로 색은 해결되나, admin.css 의 하드코딩 radius(4px) /
+   다크 전용 규칙([data-theme="dark"] .admin-aside__link 등) 은 Toss 라운딩으로
+   덮어야 한다. 전부 [data-skin="toss"] 스코프 → 누수 0.
+   ============================================================ */
+
+/* 사이드바 링크 — Toss 라운딩(14px) + active=primary-weak.
+   admin.css 의 [data-theme="dark"] .admin-aside__link { border-radius:0 }
+   회귀 방지를 위해 명세도 높은 셀렉터로 라운딩 복원. */
+[data-skin="toss"] .aside__link,
+[data-skin="toss"] .admin-aside__link,
+[data-theme="dark"] [data-skin="toss"] .admin-aside__link {
+  border-radius: 14px;
+}
+[data-theme="dark"] [data-skin="toss"] .admin-aside__link[data-active="true"] {
+  background: var(--accent-soft);
+  color: var(--accent);
+  box-shadow: none;
+}
+/* 사이드바/모바일 그룹 타이틀 — Toss dim 톤 */
+[data-skin="toss"] .aside__title,
+[data-skin="toss"] .admin-aside__title { color: var(--ink-dim); }
+
+/* admin-stat / hero stat 카드 — Toss 카드 라운딩(다크 hard offset 제거) */
+[data-skin="toss"] .admin-stat,
+[data-theme="dark"] [data-skin="toss"] .admin-stat {
+  border-radius: 16px;
+  box-shadow: var(--sh-sm);
+}
+[data-skin="toss"] .pa1-hero-stats { gap: 10px; }
+[data-skin="toss"] .pa1-hero-stat { border-radius: 16px; }
+
+/* admin-stat-pill (상태 뱃지) — Toss 알약 라운딩 */
+[data-skin="toss"] .admin-stat-pill { border-radius: 8px; }
+
+/* 상태 탭 — Toss 강조 */
+[data-skin="toss"] .admin-status-tab[data-active="true"] { color: var(--accent); }
+[data-skin="toss"] .admin-status-tab__count[data-overflow="true"] { color: var(--accent); }
+
+/* 상세 모달 / 모바일 드로어 — Toss 라운딩 + soft shadow (다크 hard 제거) */
+[data-skin="toss"] .admin-detail-modal,
+[data-theme="dark"] [data-skin="toss"] .admin-detail-modal {
+  border-radius: 20px;
+  box-shadow: var(--sh-lg);
+}
+[data-theme="dark"] [data-skin="toss"] .admin-mobile-drawer {
+  border-right-width: 1px;
+  border-right-color: var(--border);
+}
+
+/* admin-table — Toss 라운딩(헤더/행 톤은 토큰이 처리) */
+[data-skin="toss"] .admin-table-wrap { border-radius: 14px; }

@@ -5,6 +5,41 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 // 2026-05-02 (Admin-Web 시각 통합 v2 Phase 3) — admin 영역에서도 라이트/다크 토글 가능하도록 (web)와 같은 ThemeSwitch 마운트
 import { ThemeSwitch } from "@/components/bdr-v2/theme-switch";
+// Phase 1 (Toss 전환) — Material Symbols → lucide-react. kit Icon 경유(kebab name).
+import { Icon } from "@/components/admin-toss";
+
+// Phase 1 — Material Symbols 아이콘명 → lucide kebab 아이콘명 매핑.
+//   navStructure 의 icon 값(Material 명)을 1:1 로 lucide 명으로 바꿔 <Icon> 에 넘긴다.
+//   메뉴 정의(navStructure)는 그대로 두고 렌더 시점에만 변환 → 라우팅/구조 불변.
+const SIDEBAR_ICON: Record<string, string> = {
+  dashboard: "layout-dashboard",
+  emoji_events: "trophy",
+  manage_accounts: "user-cog",
+  sports_basketball: "volleyball", // lucide 에 basketball/dribbble 부재 → 구기 아이콘 volleyball 로 대체
+  groups: "users",
+  location_on: "map-pin",
+  forum: "message-square",
+  newspaper: "newspaper",
+  group: "users",
+  report: "flag",
+  lightbulb: "lightbulb",
+  payments: "credit-card",
+  credit_card: "credit-card",
+  campaign: "megaphone",
+  handshake: "handshake",
+  analytics: "bar-chart-3",
+  settings: "settings",
+  list_alt: "list",
+  storefront: "store",
+  account_circle: "circle-user",
+  arrow_back: "arrow-left",
+};
+
+// Material 명을 받아 lucide kebab 명으로 변환(미정의 시 원본 그대로 — Icon 이 빈 span 방어).
+//   mobile-admin-nav 도 동일 변환을 쓰도록 export (메뉴 아이콘 일관성).
+export function toLucide(name: string): string {
+  return SIDEBAR_ICON[name] ?? name;
+}
 
 // 권한별 메뉴 접근 정의
 // "all" = 모든 관리자 권한에서 노출
@@ -200,7 +235,8 @@ function renderItem(item: AdminNavItem, pathname: string, depth = 0) {
         style={indentStyle}
       >
         <span>
-          <span className="material-symbols-outlined" style={{ fontSize: 18 }}>{item.icon}</span>
+          {/* Phase 1 — Material Symbols → lucide(<Icon>). 메뉴 정의는 Material 명 유지, 렌더 시 변환 */}
+          <Icon name={toLucide(item.icon)} size={18} />
           {item.label}
         </span>
       </Link>
@@ -223,7 +259,8 @@ export function AdminSidebar({ roles }: AdminSidebarProps) {
   return (
     // 사이드바: CSS 변수 기반 배경/보더 (다크모드 자동 전환)
     // 2026-05-04: overflow-y-auto + flex-1 nav 로 메뉴 많아도 스크롤 가능 (사용자 요청)
-    <aside className="fixed left-0 top-0 z-40 hidden h-screen w-64 flex-col border-r border-[var(--color-border)] bg-[var(--color-surface)] p-4 lg:flex">
+    // Phase 1 — 셸 크롬(사이드바)에만 data-skin="toss" opt-in (공유 .admin-shell/.admin-main 엔 금지)
+    <aside data-skin="toss" className="fixed left-0 top-0 z-40 hidden h-screen w-64 flex-col border-r border-[var(--color-border)] bg-[var(--color-surface)] p-4 lg:flex">
       {/* 로고: BDR 이미지 + ADMIN 배지 */}
       <Link href="/admin" className="mb-6 flex items-center gap-3 px-3 shrink-0">
         <Image src="/images/logo.png" alt="BDR" width={120} height={36} className="h-9 w-auto" />
@@ -263,13 +300,13 @@ export function AdminSidebar({ roles }: AdminSidebarProps) {
           data-active={pathname === "/admin/me" || pathname.startsWith("/admin/me/")}
         >
           <span>
-            <span className="material-symbols-outlined" style={{ fontSize: 18 }}>account_circle</span>
+            <Icon name="circle-user" size={18} />
             마이페이지
           </span>
         </Link>
         <Link href="/" className="aside__link">
           <span>
-            <span className="material-symbols-outlined" style={{ fontSize: 18 }}>arrow_back</span>
+            <Icon name="arrow-left" size={18} />
             사이트로 돌아가기
           </span>
         </Link>

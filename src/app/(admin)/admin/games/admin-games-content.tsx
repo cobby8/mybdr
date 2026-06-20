@@ -11,6 +11,8 @@ import {
   AdminDetailModal,
   ModalInfoSection,
 } from "@/components/admin/admin-detail-modal";
+// Phase 1 (Toss 전환) — Material Symbols → lucide(<Icon>)
+import { Icon } from "@/components/admin-toss";
 
 // 2026-05-29 PR-2C-9 (UD1 BG1) — 신청 1건 (game_applications 직렬화)
 // status: 0=대기 / 1=승인 / 2=거절 (game_applications.status 단일 진실, 2C-7 확정)
@@ -146,9 +148,7 @@ export function AdminGamesContent({ games, updateStatusAction, pagination }: Pro
           }}
         >
           <div className="flex items-center gap-3">
-            <span className="material-symbols-outlined" style={{ color: "var(--color-primary)" }}>
-              notifications_active
-            </span>
+            <Icon name="bell-ring" size={24} color="var(--color-primary)" />
             <div>
               <p className="text-sm font-bold" style={{ color: "var(--color-text-primary)" }}>
                 신청 대기 {totalPending}건 — 호스트 승인 필요
@@ -225,9 +225,7 @@ export function AdminGamesContent({ games, updateStatusAction, pagination }: Pro
                         color: "var(--color-primary)",
                       }}
                     >
-                      <span className="material-symbols-outlined" style={{ fontSize: "14px" }}>
-                        person_add
-                      </span>
+                      <Icon name="user-plus" size={14} />
                       {g.pendingCount}
                     </span>
                   ) : (
@@ -372,9 +370,7 @@ export function AdminGamesContent({ games, updateStatusAction, pagination }: Pro
                       className="flex items-center gap-2 px-4 py-2"
                       style={i > 0 ? { borderTop: "1px solid var(--color-border-subtle)" } : undefined}
                     >
-                      <span className="material-symbols-outlined" style={{ fontSize: "18px", color: "var(--color-text-muted)" }}>
-                        {a.isGuest ? "person_add" : "person"}
-                      </span>
+                      <Icon name={a.isGuest ? "user-plus" : "user"} size={18} color="var(--color-text-muted)" />
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-medium" style={{ color: "var(--color-text-primary)" }}>
                           {a.applicantName}

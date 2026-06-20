@@ -23,6 +23,8 @@ import {
   AdminDetailModal,
   ModalInfoSection,
 } from "@/components/admin/admin-detail-modal";
+// Phase 1 (Toss 전환) — Material Symbols → lucide(<Icon>)
+import { Icon } from "@/components/admin-toss";
 
 interface SerializedTournament {
   id: string;
@@ -481,12 +483,7 @@ export function AdminTournamentsContent({
                 background: "var(--color-elevated)",
               }}
             >
-              <span
-                className="material-symbols-outlined text-xl"
-                style={{ color: "var(--color-error)" }}
-              >
-                warning
-              </span>
+              <Icon name="triangle-alert" size={20} color="var(--color-error)" />
               <p className="text-sm" style={{ color: "var(--color-text-primary)" }}>
                 {hardMode ? (
                   <>
