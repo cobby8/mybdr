@@ -8,6 +8,8 @@
 import { useState, useEffect, useMemo } from "react";
 import { AdminStatusTabs } from "@/components/admin/admin-status-tabs";
 import { MEMBERSHIP_LABELS, type MembershipType } from "@/lib/auth/roles";
+// Phase 1 (Toss 전환) — Material Symbols → lucide(<Icon>)
+import { Icon } from "@/components/admin-toss";
 // v2.1 P2: DataTableV2 도입 — 모바일 ≤720px 자동 카드형 변환
 import { DataTableV2, type DataTableColumn } from "@/components/bdr-v2/data-table";
 
@@ -608,7 +610,7 @@ export function AdminUsersTable({
                         className="rounded-[14px] border p-4 flex items-start gap-2"
                         style={{ borderColor: "var(--color-border)", background: "var(--color-surface)" }}
                       >
-                        <span className="material-symbols-outlined" style={{ fontSize: 18, color: "var(--color-text-muted)" }}>shield_person</span>
+                        <Icon name="shield" size={18} color="var(--color-text-muted)" />
                         <p className="text-xs" style={{ color: "var(--color-text-muted)" }}>
                           본인 계정은 상태·슈퍼관리자 권한·탈퇴·삭제를 변경할 수 없습니다 (자기 정지 방지).
                           역할(멤버십) 변경만 가능합니다.

@@ -26,6 +26,8 @@ import {
   AdminDetailModal,
   ModalInfoSection,
 } from "@/components/admin/admin-detail-modal";
+// Phase 1 (Toss 전환) — Material Symbols → lucide(<Icon>)
+import { Icon } from "@/components/admin-toss";
 
 // 2026-05-15 Admin-4-C 박제 — 상태별 admin-stat-pill data-tone 매핑
 //   hidden 일 때만 warn(주황), 정상 게시는 ok(녹) (시안 v2.9 status_tone 패턴 박제)
@@ -264,9 +266,7 @@ export function AdminCommunityContent({
                         : "bg-[var(--color-warning)]/10 text-[var(--color-warning)] hover:bg-[var(--color-warning)]/20"
                     }`}
                   >
-                    <span className="material-symbols-outlined text-base">
-                      {selected.status === "hidden" ? "visibility" : "visibility_off"}
-                    </span>
+                    <Icon name={selected.status === "hidden" ? "eye" : "eye-off"} size={16} />
                     {selected.status === "hidden" ? "복원" : "숨김"}
                   </button>
                 </form>
@@ -277,7 +277,7 @@ export function AdminCommunityContent({
                     type="submit"
                     className="inline-flex items-center gap-1 rounded-[8px] bg-[var(--color-error)]/10 px-3 py-2 text-sm font-medium text-[var(--color-error)] transition-colors hover:bg-[var(--color-error)]/20"
                   >
-                    <span className="material-symbols-outlined text-base">delete</span>
+                    <Icon name="trash-2" size={16} />
                     삭제
                   </button>
                 </form>

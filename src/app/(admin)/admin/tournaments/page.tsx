@@ -81,7 +81,8 @@ export default async function AdminTournamentsPage({
     auth.state === "active" ? isSuperAdmin(auth.session) : false;
 
   return (
-    <div>
+    // Phase 1 — 페이지 루트에 data-skin="toss" opt-in (목록·상태 화면만 — 대회관리 리빌딩은 트랙B)
+    <div data-skin="toss">
       <AdminPageHeader
         title="대회 관리"
         subtitle={`전체 ${totalCount}개`}
