@@ -2,8 +2,8 @@
 
 ## 현재 작업
 - **요청**: [통합] 픽업/게스트 경기 매칭 고도화 M1→M6 auto-chain 박제 (각 Phase=한 PR subin→dev)
-- **상태**: 🔨 M6 구현완료(developer) → tester/reviewer 대기 (호스트콘솔, 최종, schema0·신규route0). M1✅#717/M2✅#718/M3✅#719/M4✅#720/M5✅#721 all dev머지 / subin=dev
-- **현재 담당**: developer(M6 완료) → tester+reviewer
+- **상태**: ✅ **매칭 M1~M6 전부 dev머지 완료** (#717~#722). subin=dev. **dev→main 머지=수빈 수동 결재 대기**(자동 머지 금지). phase-ledger 등재 완료
+- **현재 담당**: pm (종료 — main 결재 대기)
 - **M6 범위**: ①🔴선결 my-games 로컬 GAME_STATUS_LABEL(3진행중/4완료/5취소) 폐기→game-status.ts 정본(M1 취소=4 오표시 수정) ②E-1 GameDetail HostApplicationsPanel(복구시안 GameDetail.jsx 485줄: 대기승인0/확정1/대기열3 순번·승격) ③E-2 MyGames 호스트카드(승인/정원·대기N+빠른액션)+waiting탭
 - **M6 메모**: E-1(GameDetail HostApplicationsPanel, 시안 복구됨 485줄)+E-2(MyGames)+status맵정리(my-games 로컬 GAME_STATUS_LABEL 폐기→game-status.ts) 묶음. M2는 E-1 없이 머지됨
 - **스펙**: `Dev/matchmaking-CLI프롬프트-확정-M1toM5-2026-06-19.md` + `Dev/design/BDR-current/_handoff-matchmaking-M2-M5/DATA-BINDING.md`
