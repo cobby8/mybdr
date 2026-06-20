@@ -12,7 +12,8 @@
  *   - cancelled(취소) → var(--ink-dim) 더 연한 무채
  * ============================================================ */
 
-export type RegStatus = "confirmed" | "pending" | "completed" | "cancelled";
+// [M6 E-2] waiting 추가 — 대기열(game_applications.status=3) 신청.
+export type RegStatus = "confirmed" | "pending" | "waiting" | "completed" | "cancelled";
 
 interface StatusConfig {
   label: string;
@@ -31,6 +32,12 @@ const STATUS_MAP: Record<RegStatus, StatusConfig> = {
     label: "승인 대기",
     color: "var(--warn)",
     bg: "color-mix(in srgb, var(--warn) 14%, transparent)",
+  },
+  // [M6 E-2] 대기열(status=3) — accent 톤. 순번은 RegRow 에서 별도 표시.
+  waiting: {
+    label: "대기중",
+    color: "var(--accent)",
+    bg: "color-mix(in srgb, var(--accent) 12%, transparent)",
   },
   completed: {
     label: "완료",

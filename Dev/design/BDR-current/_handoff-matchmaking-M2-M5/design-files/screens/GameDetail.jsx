@@ -41,6 +41,7 @@ function GameDetail({ setRoute }) {
   const absentCount = applicants.filter(a => attendance[a.name] === false).length;
 
   const showAttendance = isHost && (phase === 'gameday' || phase === 'ended');
+  const showHostPanel = isHost && phase !== 'ended';
   const showRatingBanner = phase === 'ended' && !rated;
 
   return (
@@ -106,6 +107,9 @@ function GameDetail({ setRoute }) {
               부상 방지를 위해 농구화 지참 필수입니다.
             </p>
           </div>
+
+          {/* 시안 E-1 — 호스트 신청·대기열 관리 패널 (호스트 전용) */}
+          {showHostPanel && <HostApplicationsPanel max={g.spots} setRoute={setRoute}/>}
 
           {/* 시안 C — 호스트 출석 체크 섹션 (호스트 전용) */}
           {showAttendance && (
@@ -182,6 +186,16 @@ function GameDetail({ setRoute }) {
         .att-toggle button + button { border-left: 1px solid var(--border); }
         .att-toggle button[data-active="true"][data-tone="present"] { background: var(--ok); color: var(--ink-on-brand); }
         .att-toggle button[data-active="true"][data-tone="absent"] { background: var(--warn); color: #000; }
+        .hap-sec + .hap-sec { border-top: 1px solid var(--border); margin-top: 18px; padding-top: 18px; }
+        .hap-row { display: grid; grid-template-columns: 40px 1fr auto; gap: 12px; align-items: center; padding: 12px 0; }
+        .hap-row + .hap-row { border-top: 1px solid var(--border); }
+        .hap-actions { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+        .hap-actions .btn { min-height: 36px; }
+        @media (max-width: 720px) {
+          .hap-row { grid-template-columns: 36px 1fr; }
+          .hap-actions { grid-column: 1 / -1; justify-content: stretch; margin-top: 4px; }
+          .hap-actions .btn { flex: 1 1 0; min-height: 44px; }
+        }
         @media (max-width: 900px) { .gd-grid { grid-template-columns: 1fr !important; } .gd-aside { position: static !important; } }
         @media (max-width: 720px) { .att-toggle button { padding: 0 14px; } }
       `}</style>
@@ -311,6 +325,159 @@ function ApplyPanel({ g, phase, applyState, setApplyState, onPromote, setRoute }
           <button className="btn btn--sm" style={{flex:1}}>💬 호스트 문의</button>
           <button className="btn btn--sm" style={{flex:1}}>🔖 저장</button>
         </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── 시안 E-1 · 호스트 신청·대기열 관리 패널 ──────────────────
+ * status 정본: registration 0=신청완료(대기 승인) / 1=승인(확정) / 3=대기(waitlist)
+ * 정책: 빈자리 발생 → 대기 1번 자동 알림 + promotion_deadline. 수동 강제 승격은 보조 액션.
+ */
+function HostApplicationsPanel({ max, setRoute }) {
+  const [pending, setPending] = React.useState([
+    { id:'a1', name:'hoops_m', level:'L.6', pos:'가드', guest:false },
+    { id:'a2', name:'guest_jun', level:'L.5', pos:'포워드', guest:true, career:'동호인 3년', note:'목요일 자주 갑니다. 슛 좋아요!' },
+    { id:'a3', name:'kim_j', level:'L.4', pos:'포워드', guest:false },
+  ]);
+  const [confirmed, setConfirmed] = React.useState([
+    { id:'c1', name:'rdm_captain', level:'L.8', pos:'가드' },
+    { id:'c2', name:'ssg_pg', level:'L.5', pos:'가드' },
+    { id:'c3', name:'iron_c', level:'L.7', pos:'센터' },
+    { id:'c4', name:'pivot_mia', level:'L.5', pos:'포워드' },
+    { id:'c5', name:'block_k', level:'L.4', pos:'가드' },
+    { id:'c6', name:'dawn_r', level:'L.3', pos:'포워드' },
+  ]);
+  const [waitlist, setWaitlist] = React.useState([
+    { id:'w1', name:'late_kim', level:'L.5', pos:'가드', guest:false, notified:false },
+    { id:'w2', name:'guest_min', level:'L.4', pos:'센터', guest:true, career:'입문 1년', note:'잘 부탁드립니다', notified:false },
+  ]);
+  const [saving, setSaving] = React.useState(false);
+  const flash = () => { setSaving(true); setTimeout(()=>setSaving(false), 500); };
+
+  const isFull = confirmed.length >= max;
+
+  const approve = (a) => {
+    if (confirmed.length >= max) return;
+    setPending(p => p.filter(x => x.id !== a.id));
+    setConfirmed(c => [...c, { id:a.id, name:a.name, level:a.level, pos:a.pos }]);
+    flash();
+  };
+  const reject = (a) => { setPending(p => p.filter(x => x.id !== a.id)); flash(); };
+  const notify = (w) => { // 빈자리 발생 → 대기 1번 알림 전송 (자동 정책의 수동 트리거)
+    setWaitlist(list => list.map(x => x.id === w.id ? { ...x, notified:true } : x));
+    flash();
+  };
+  const forcePromote = (w) => { // 보조: 수동 강제 승격
+    setWaitlist(list => list.filter(x => x.id !== w.id));
+    setConfirmed(c => [...c, { id:w.id, name:w.name, level:w.level, pos:w.pos }]);
+    flash();
+  };
+
+  const Avatar = ({ name }) => (
+    <div style={{width:40, height:40, borderRadius:'50%', background:'var(--ink-soft)', color:'var(--bg)', display:'grid', placeItems:'center', fontFamily:'var(--ff-mono)', fontSize:12, fontWeight:700}}>{name.slice(0,2).toUpperCase()}</div>
+  );
+  const Meta = ({ a }) => (
+    <div style={{minWidth:0}}>
+      <div style={{display:'flex', alignItems:'center', gap:6, marginBottom:2, flexWrap:'wrap'}}>
+        <span style={{fontWeight:700, fontSize:14}}>{a.name}</span>
+        {a.guest && <span className="badge badge--soft" style={{fontSize:10}}>GUEST</span>}
+        {a.guest && a.career && <span style={{fontSize:11, color:'var(--ink-dim)'}}>{a.career}</span>}
+      </div>
+      <div style={{fontSize:11, color:'var(--ink-dim)', fontFamily:'var(--ff-mono)'}}>{a.level} · {a.pos}</div>
+      {a.guest && a.note && (
+        <div style={{fontSize:12, color:'var(--ink-soft)', marginTop:4, paddingLeft:10, borderLeft:'2px solid var(--border)', lineHeight:1.5}}>"{a.note}"</div>
+      )}
+    </div>
+  );
+  const SecHead = ({ title, count, tone, extra }) => (
+    <div style={{display:'flex', alignItems:'center', gap:8, marginBottom:10}}>
+      <h3 style={{margin:0, fontSize:13, fontWeight:800, letterSpacing:'.02em'}}>{title}</h3>
+      <span style={{fontFamily:'var(--ff-mono)', fontSize:12, fontWeight:700, color: tone || 'var(--ink-mute)'}}>{count}</span>
+      {extra}
+    </div>
+  );
+
+  return (
+    <div className="card" style={{padding:'22px 26px', marginBottom:16}}>
+      <div style={{display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:6, flexWrap:'wrap', gap:8}}>
+        <h2 style={{margin:0, fontSize:16, fontWeight:700}}>신청 관리 <span style={{fontSize:11, fontWeight:700, color:'var(--accent)', marginLeft:6}}>호스트 전용</span></h2>
+        <div style={{fontSize:12, color:'var(--ink-mute)', display:'flex', gap:10, alignItems:'center'}}>
+          <span style={{fontWeight:700, color: isFull ? 'var(--accent)' : 'var(--ink-soft)'}}>승인 {confirmed.length}/{max}</span>
+          <span>대기 {waitlist.length}</span>
+          {saving && <span style={{color:'var(--ink-dim)'}}>저장중…</span>}
+        </div>
+      </div>
+      {isFull
+        ? <div style={{fontSize:12, fontWeight:700, color:'var(--accent)', marginBottom:16, display:'flex', alignItems:'center', gap:6}}>● 정원 마감 · 확정</div>
+        : <p style={{margin:'0 0 16px', fontSize:12, color:'var(--ink-mute)'}}>승인하면 참가 확정되고 정원이 차면 자동으로 경기가 확정됩니다</p>}
+
+      {/* 1. 대기 승인 (status 0) */}
+      <div className="hap-sec">
+        <SecHead title="대기 승인" count={pending.length} tone="var(--warn)"
+          extra={isFull && pending.length>0 ? <span style={{fontSize:11, color:'var(--ink-dim)'}}>정원 마감 — 승인 불가</span> : null}/>
+        {pending.length === 0 ? (
+          <div style={{fontSize:13, color:'var(--ink-dim)', padding:'10px 0'}}>새 신청이 없어요</div>
+        ) : pending.map(a => (
+          <div key={a.id} className="hap-row">
+            <Avatar name={a.name}/>
+            <Meta a={a}/>
+            <div className="hap-actions">
+              <button className="btn btn--sm btn--primary" disabled={isFull} onClick={()=>approve(a)}>승인</button>
+              <button className="btn btn--sm" onClick={()=>reject(a)}>거절</button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* 2. 확정 참가자 (status 1) */}
+      <div className="hap-sec">
+        <SecHead title="확정 참가자" count={`${confirmed.length}/${max}`} tone="var(--ok)"
+          extra={<button className="btn btn--sm btn--ghost" style={{marginLeft:'auto'}} onClick={()=>setRoute('gameReport')}>출석 체크 →</button>}/>
+        {confirmed.length === 0 ? (
+          <div style={{fontSize:13, color:'var(--ink-dim)', padding:'10px 0'}}>아직 확정된 참가자가 없어요</div>
+        ) : (
+          <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(180px, 1fr))', gap:8}}>
+            {confirmed.map(a => (
+              <div key={a.id} style={{padding:'8px 10px', background:'var(--bg-alt)', borderRadius:6, display:'flex', alignItems:'center', gap:8}}>
+                <div style={{width:30, height:30, borderRadius:'50%', background:'var(--ink-soft)', color:'var(--bg)', display:'grid', placeItems:'center', fontFamily:'var(--ff-mono)', fontSize:10, fontWeight:700}}>{a.name.slice(0,2).toUpperCase()}</div>
+                <div style={{minWidth:0}}>
+                  <div style={{fontWeight:700, fontSize:12, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis'}}>{a.name}</div>
+                  <div style={{fontSize:10, color:'var(--ink-dim)', fontFamily:'var(--ff-mono)'}}>{a.level} · {a.pos}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* 3. 대기열 (status 3) */}
+      <div className="hap-sec">
+        <SecHead title="대기열" count={waitlist.length} tone="var(--accent)"/>
+        {waitlist.length === 0 ? (
+          <div style={{fontSize:13, color:'var(--ink-dim)', padding:'10px 0'}}>대기 중인 신청자가 없어요</div>
+        ) : waitlist.map((w, i) => (
+          <div key={w.id} className="hap-row">
+            <div style={{width:40, height:40, borderRadius:'50%', background:'color-mix(in oklab, var(--accent) 14%, transparent)', color:'var(--accent)', display:'grid', placeItems:'center', fontFamily:'var(--ff-display)', fontSize:17, fontWeight:900}}>{i+1}</div>
+            <Meta a={w}/>
+            <div className="hap-actions">
+              {w.notified ? (
+                <div style={{display:'flex', flexDirection:'column', alignItems:'flex-end', gap:2}}>
+                  <span style={{fontSize:12, fontWeight:700, color:'var(--accent)'}}>알림 전송됨 · 응답 대기</span>
+                  <span style={{fontSize:11, color:'var(--ink-mute)'}}><CountdownText seconds={1790}/></span>
+                  <button className="btn btn--sm btn--ghost" style={{marginTop:2}} onClick={()=>forcePromote(w)}>수동 승격</button>
+                </div>
+              ) : (
+                <button className="btn btn--sm" disabled={!isFull && confirmed.length < max ? false : false} onClick={()=>notify(w)}>승격 알림</button>
+              )}
+            </div>
+          </div>
+        ))}
+        {waitlist.length > 0 && (
+          <p style={{margin:'12px 0 0', fontSize:11, color:'var(--ink-dim)', lineHeight:1.5}}>
+            빈자리가 생기면 대기 1번에게 자동으로 알림이 가고, 30분 안에 응답하지 않으면 다음 순번으로 넘어갑니다. 수동 승격은 즉시 확정 처리됩니다.
+          </p>
+        )}
       </div>
     </div>
   );

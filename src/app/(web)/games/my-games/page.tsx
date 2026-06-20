@@ -7,7 +7,9 @@ import { StatCard } from "./_components/stat-card";
 import { MyGamesClient } from "./_components/my-games-client";
 import type { RegItem } from "./_components/reg-row";
 import type { RegStatus } from "./_components/status-badge";
-import { GameCard } from "@/components/bdr-v2/game-card";
+// [M6 E-2] 호스트 운영 카드 (현황 칩 + 빠른 액션)
+//   기존 GameCard 는 호스트 섹션에서 HostGameCard 로 교체(현황 칩+빠른액션 필요)되어 import 제거.
+import { HostGameCard, type HostGameCardData } from "./_components/host-game-card";
 
 /* ============================================================
  * /games/my-games — BDR v2 "내 신청 내역" (A 변형)
@@ -41,15 +43,10 @@ export const metadata: Metadata = {
 
 export const dynamic = "force-dynamic";
 
-// 경기 status 코드 → 한글 라벨 (하단 "내가 만든 경기" 섹션용)
-const GAME_STATUS_LABEL: Record<number, string> = {
-  0: "대기",
-  1: "모집중",
-  2: "마감",
-  3: "진행중",
-  4: "완료",
-  5: "취소",
-};
+// [M6 ①] 미사용 로컬 GAME_STATUS_LABEL(3=진행중/4=완료/5=취소) 삭제.
+//   - 참조 0건(grep 확인). GameCard 는 자체 STATUS_LABEL(game-status.ts 정본: 4=취소)을
+//     사용하므로 표시 영향 0. M1 에서 취소=4 통일됐는데 이 로컬 맵은 4=완료/5=취소로
+//     어긋난 데드코드라 정리.
 
 // 금액 포맷 — 0/null → "무료", 나머지 → ₩5,000
 function formatFee(fee: number | null | undefined): string {
@@ -183,15 +180,50 @@ export default async function MyGamesPage() {
       .catch(() => []),
   ]);
 
+  // ====== Step 1.5: [M6 E-2] 호스트 경기별 신청 현황 집계 ======
+  //   왜 groupBy 1회만:
+  //     경기마다 count 쿼리를 N번 돌리면 과다조회. hostedGames id 목록으로
+  //     game_applications 를 (game_id, status) 기준 groupBy 1회 호출 → status별 count 집계.
+  //   집계 의미: status=1=승인(확정), status=0=승인 대기, status=3=대기열.
+  const hostedGameIds = hostedGames.map((g) => g.id);
+  const appCounts =
+    hostedGameIds.length > 0
+      ? await prisma.game_applications
+          .groupBy({
+            by: ["game_id", "status"],
+            where: { game_id: { in: hostedGameIds } },
+            _count: { _all: true },
+          })
+          .catch(() => [])
+      : [];
+
+  // game_id(string) → { approved, pending, waiting } 맵으로 변환
+  const countMap = new Map<
+    string,
+    { approved: number; pending: number; waiting: number }
+  >();
+  for (const row of appCounts) {
+    const key = row.game_id.toString();
+    const entry = countMap.get(key) ?? { approved: 0, pending: 0, waiting: 0 };
+    const n = row._count._all;
+    if (row.status === 1) entry.approved += n;
+    else if (row.status === 0) entry.pending += n;
+    else if (row.status === 3) entry.waiting += n;
+    countMap.set(key, entry);
+  }
+
   // ====== Step 2: RegItem 변환 (경기 + 대회 통합) ======
 
   // 경기 신청 → RegItem
   const gameItems: RegItem[] = gameApps.map((a) => {
-    // DB status 숫자코드 → 4종 상태 매핑
+    // DB status 숫자코드 → 5종 상태 매핑
     // 0=대기 → pending / 1=승인 → confirmed or completed / 2=거부 → cancelled
+    // [M6 E-2] 3=대기열 → waiting (game_applications.status=3, M2 신규)
     let status: RegStatus;
     if (a.status === 2) {
       status = "cancelled";
+    } else if (a.status === 3) {
+      status = "waiting";
     } else if (a.status === 0) {
       status = "pending";
     } else {
@@ -227,6 +259,8 @@ export default async function MyGamesPage() {
       role: a.is_guest ? ("guest" as const) : ("player" as const),
       teamName: null,
       note: a.message,
+      // [M6 E-2] 대기열 순번 — status=3(waiting)일 때만 의미. 그 외엔 RegRow 에서 미표시.
+      waitlistPosition: a.waitlist_position ?? null,
     };
   });
 
@@ -274,6 +308,10 @@ export default async function MyGamesPage() {
   // ====== Step 3: 탭별 분류 ======
   const all = [...gameItems, ...tournItems];
   const upcoming = all.filter((r) => r.status === "pending" || r.status === "confirmed");
+  // [M6 E-2] 대기 탭 — 대기열(waiting) 신청만. 순번순 정렬(없으면 뒤로).
+  const waiting = all
+    .filter((r) => r.status === "waiting")
+    .sort((x, y) => (x.waitlistPosition ?? 9999) - (y.waitlistPosition ?? 9999));
   const past = all.filter((r) => r.status === "completed");
   const cancelled = all.filter((r) => r.status === "cancelled");
 
@@ -296,6 +334,36 @@ export default async function MyGamesPage() {
   const monthPaidCount =
     gameApps.filter((a) => a.paid_at && a.paid_at >= firstOfMonth).length +
     tournTeams.filter((t) => t.paid_at && t.paid_at >= firstOfMonth).length;
+
+  // ====== Step 5: [M6 E-2] 호스트 카드 데이터 변환 + 요약 stat ======
+  //   countMap(groupBy 집계)으로 경기별 승인/대기/대기열 수를 합쳐 HostGameCardData 로 변환.
+  const hostCards: HostGameCardData[] = hostedGames.map((g) => {
+    const c = countMap.get(g.id.toString()) ?? { approved: 0, pending: 0, waiting: 0 };
+    const areaLabel = [g.city?.trim(), g.district?.trim()].filter(Boolean).join(" ");
+    const shortUuid = g.uuid?.slice(0, 8);
+    const whenText = formatWhen(g.scheduled_at);
+    const metaLine = [g.venue_name, whenText].filter(Boolean).join(" · ") || "일정 미정";
+    return {
+      id: g.id.toString(),
+      href: `/games/${shortUuid ?? g.id.toString()}`,
+      uuid: g.uuid ?? null,
+      gameType: g.game_type,
+      status: g.status,
+      title: g.title,
+      metaLine,
+      areaLabel,
+      approved: c.approved,
+      pending: c.pending,
+      waiting: c.waiting,
+      maxParticipants: g.max_participants,
+    };
+  });
+  // 호스트 요약 — 모집중(1)/확정(2)/완료(3) (game-status.ts 정본)
+  const hostSummary = {
+    recruiting: hostedGames.filter((g) => g.status === 1).length,
+    confirmed: hostedGames.filter((g) => g.status === 2).length,
+    done: hostedGames.filter((g) => g.status === 3).length,
+  };
 
   return (
     // v2 시안 .page 쉘 — globals.css 에 정의됨
@@ -373,8 +441,13 @@ export default async function MyGamesPage() {
         />
       </div>
 
-      {/* 탭 + 리스트 + 배너 + 정책 footnote — client 쉘 */}
-      <MyGamesClient upcoming={upcoming} past={past} cancelled={cancelled} />
+      {/* 탭 + 리스트 + 배너 + 정책 footnote — client 쉘 ([M6 E-2] waiting 탭 추가) */}
+      <MyGamesClient
+        upcoming={upcoming}
+        waiting={waiting}
+        past={past}
+        cancelled={cancelled}
+      />
 
       {/* ============================================================
        * 하단: 내가 만든 경기 (기존 로직 보존, v2 .card 재스타일)
@@ -408,50 +481,57 @@ export default async function MyGamesPage() {
         </div>
 
         {hostedGames.length > 0 ? (
-          /* [2026-05-20 v2.16] 호스팅 게임 카드 통일 — GameCard 적용
-           * 박제 source: Dev/design/BDR-current/_games_card_final.html
-           * 기존 1줄 .card 인라인 → GameCard (Date Tile + Area Chip + Host) */
-          <div className="games-grid">
-            {hostedGames.map((g) => {
-              // 자동 파생 태그 (games-client.tsx deriveTags 와 동일 규칙 — 인라인)
-              const tags: string[] = [];
-              const feeNum = g.fee_per_person ? Number(g.fee_per_person) : 0;
-              if (!g.fee_per_person || feeNum === 0) tags.push("무료");
-              if (
-                g.skill_level &&
-                ["beginner", "lowest", "low"].includes(g.skill_level)
-              ) {
-                tags.push("초보환영");
-              }
-              if (g.scheduled_at) {
-                const dow = g.scheduled_at.getDay();
-                if (dow === 0 || dow === 6) tags.push("주말");
-              }
-              const areaLabel = [g.city?.trim(), g.district?.trim()]
-                .filter(Boolean)
-                .join(" ");
-              const shortUuid = g.uuid?.slice(0, 8);
-              return (
-                <GameCard
-                  key={g.id.toString()}
-                  href={`/games/${shortUuid ?? g.id.toString()}`}
-                  gameType={g.game_type}
-                  status={g.status}
-                  title={g.title}
-                  venueName={g.venue_name}
-                  areaLabel={areaLabel}
-                  scheduledAt={g.scheduled_at?.toISOString() ?? null}
-                  durationHours={g.duration_hours ?? null}
-                  skillLevel={g.skill_level}
-                  feePerPerson={g.fee_per_person?.toString() ?? null}
-                  currentParticipants={g.current_participants}
-                  maxParticipants={g.max_participants}
-                  authorNickname={g.author_nickname ?? null}
-                  tags={tags}
-                />
-              );
-            })}
-          </div>
+          <>
+            {/* [M6 E-2] 요약 stat — 모집중/확정/완료 (시안 mg-summary 박제) */}
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(3, 1fr)",
+                gap: 10,
+                marginBottom: 18,
+              }}
+            >
+              {[
+                { n: hostSummary.recruiting, lbl: "모집중", tone: "var(--ok)" },
+                { n: hostSummary.confirmed, lbl: "확정", tone: "var(--cafe-blue)" },
+                { n: hostSummary.done, lbl: "완료", tone: "var(--ink-mute)" },
+              ].map((c) => (
+                <div
+                  key={c.lbl}
+                  className="card"
+                  style={{ padding: "14px 16px", borderTop: `3px solid ${c.tone}` }}
+                >
+                  <div
+                    style={{
+                      fontFamily: "var(--ff-display)",
+                      fontSize: 32,
+                      fontWeight: 900,
+                      lineHeight: 1,
+                      color: c.tone,
+                    }}
+                  >
+                    {c.n}
+                  </div>
+                  <div style={{ fontSize: 12, color: "var(--ink-mute)", marginTop: 4 }}>
+                    {c.lbl}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* [M6 E-2] 호스트 운영 카드 그리드 — 현황 칩 + 빠른 액션 */}
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))",
+                gap: 14,
+              }}
+            >
+              {hostCards.map((g) => (
+                <HostGameCard key={g.id} g={g} />
+              ))}
+            </div>
+          </>
         ) : (
           <div
             className="card"
