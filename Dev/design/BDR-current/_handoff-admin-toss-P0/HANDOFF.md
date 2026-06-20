@@ -39,8 +39,8 @@
 ### 참가신청서 (AdminToss.html) — ✅
 3단계: 참가팀 선택·확인 → 종별·디비전(정원/대기접수) → 출전선수 선택(로스터). 유니폼·명단입력 폐지.
 
-### 보류
-- partner-admin · referee 셸 Toss 재스킨 (뒤로 미룸)
+### 보류 해제 ✅
+- **partner-admin · referee 셸 Toss 재스킨** — `PartnerReferee.html` (파트너 센터: 대시보드·코트·캠페인 / 심판 센터: 대시보드·배정·정산). 모드 스위치로 두 셸 전환.
 
 ---
 
