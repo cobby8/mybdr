@@ -1,6 +1,18 @@
 # 코딩 규칙 및 스타일
 <!-- 담당: developer, reviewer | 최대 30항목 -->
 
+### [2026-06-21] 관리자 Toss 스킨 = `[data-skin="toss"]` opt-in 네임스페이스 격리 (전역 토큰 충돌 차단)
+- **분류**: convention
+- **발견자**: reviewer
+- **내용**: 관리자 Toss 디자인시스템(toss-admin.css)의 모든 토큰·`.ts-*` 규칙은 **반드시 `[data-skin="toss"]` 하위 스코프**로 둔다. bare `:root`/`body`에 정의 금지. **사유**: 운영 globals.css·admin.css가 이미 `--bg/--ink/--ok/--warn/--danger/--primary/--border` 등 **같은 이름의 전역 토큰**을 다크모드용으로 사용 중(특히 admin.css `.admin-shell`). Toss 토큰을 bare로 풀면 미리스킨 화면이 즉시 Toss 색으로 뒤집힘(리스킨 0 위반). 시안 toss.css 원본은 :root/body bare 정의이므로 이식 시 **전부 스코프 prefix 추가**가 박제 표준 변환. @keyframes는 글로벌 불가피하나 `ts` 프리픽스로 충돌 회피. 적용처에서 `<div data-skin="toss">`로 opt-in. → 사용자 프론트 `(web)/*`(var토큰·다크·Material)와 완전 분리.
+- **참조횟수**: 0
+
+### [2026-06-21] 관리자 Toss 아이콘 = lucide-react import + kebab→Pascal + ICON_ALIAS (CDN injection 금지)
+- **분류**: convention
+- **발견자**: reviewer
+- **내용**: Toss 키트 Icon은 시안의 `window.lucide.createIcons()` CDN 주입을 **금지**하고 `import * as Lucide from "lucide-react"`로 이식한다. 호출부는 시안 호환 위해 kebab-case 문자열명(`name="search"`) 유지 → 내부에서 kebab→Pascal 변환 후 lucide 컴포넌트 조회. lucide-react(1.7.0)에 부재한 아이콘은 `ICON_ALIAS` 테이블로 별칭(예 `won-sign`→`Banknote`). 매핑 실패 시 빈 span 폴백(런타임 에러·레이아웃깨짐 0). **부재 확인된 아이콘**: `thunderdunk`(별칭 미등록 — Phase 1+ 호출부 이식 전 별칭 추가 또는 치환 필요). `check-circle-2`·`volleyball`은 1.7.0 실존.
+- **참조횟수**: 0
+
 ### [2026-05-16] PM `git add` 전 = `git status` staged 상태 의무 점검 (다른 세션 휩쓸림 영구 차단)
 - **분류**: convention/multi-session-safety
 - **사유**: PR-Admin-1 commit (`4c05c8c`) 시 score-sheet 트랙 22 파일이 다른 세션에 의해 미리 staged 상태 → PM 이 본 PR 만 add 명령 줬지만 이미 staged 된 22 파일도 함께 commit (총 25 files changed) → 의도 위반

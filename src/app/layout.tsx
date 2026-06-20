@@ -8,6 +8,10 @@ import "./globals.css";
 // 이유: globals.css 3195줄에 1154줄 추가 시 가독성/유지보수 저하. 별도 파일로 분리.
 // admin- prefix 클래스만 박제 — 비-admin 영역 영향 0.
 import "../styles/admin.css";
+// Admin-Toss Phase 0 (2026-06-21) — 관리자 Toss 디자인시스템 (시안 toss.css 박제)
+// 이유: 관리자 전용 Toss 스킨. 토큰은 [data-skin="toss"] opt-in 스코프로 격리되어
+//   Phase 0 에서는 적용처 0 → 시각 변화 0. Phase 1+ 에서 리스킨 셸이 opt-in.
+import "../styles/toss-admin.css";
 
 // Archivo — v2 display(헤딩·로고·brutalist dark 대문자) 용. 여러 weight 모두 필요
 const archivo = Archivo({

@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>BDR 파트너 · 심판 — Toss</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700;800&display=swap" />
+<link rel="stylesheet" href="toss.css" />
+<style>
+  .pr-modeswitch { display: flex; gap: 4px; padding: 4px; background: var(--grey-100); border-radius: 12px; margin: 0 14px 8px; }
+  .pr-modeswitch button { flex: 1; padding: 8px; border: 0; background: transparent; border-radius: 9px; font-family: var(--ff); font-size: 13px; font-weight: 700; color: var(--ink-mute); cursor: pointer; }
+  .pr-modeswitch button[data-active="true"] { background: #fff; color: var(--primary); box-shadow: var(--sh-xs); }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<div id="tweaks" class="tweaks">
+  <div class="tweaks__title">TWEAKS <button id="tweaks-close" style="background:transparent;border:0;color:inherit;cursor:pointer;font-size:16px;line-height:1">×</button></div>
+  <div class="tweaks__lbl">강조색 (Primary)</div>
+  <div class="tweaks__row" data-group="primary">
+    <button class="tweaks__btn" data-val="#3182F6">Toss Blue</button>
+    <button class="tweaks__btn" data-val="#2AC1BC">Teal</button>
+    <button class="tweaks__btn" data-val="#6D5AE6">Violet</button>
+  </div>
+</div>
+<script>const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{ "primary": "#3182F6" }/*EDITMODE-END*/;</script>
+
+<script src="https://unpkg.com/lucide@latest"></script>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script src="pr-data.jsx"></script>
+<script type="text/babel" src="toss-kit.jsx"></script>
+<script type="text/babel" src="toss-admin.jsx"></script>
+<script type="text/babel" src="pr-screens.jsx"></script>
+
+<script type="text/babel">
+const { useState, useEffect } = React;
+const PNAV = [{ id: 'home', icon: 'layout-dashboard', label: '대시보드' }, { id: 'venue', icon: 'map-pin', label: '코트' }, { id: 'campaigns', icon: 'megaphone', label: '캠페인' }];
+const RNAV = [{ id: 'home', icon: 'layout-dashboard', label: '대시보드' }, { id: 'assignments', icon: 'flag', label: '경기 배정' }, { id: 'settlements', icon: 'banknote', label: '정산' }];
+
+function App() {
+  const [mode, setMode] = useState('partner');
+  const [route, setRoute] = useState('home');
+  const [mOpen, setMOpen] = useState(false);
+  const [toastMsg, setToastMsg] = useState(null);
+  const toast = (m) => { setToastMsg(m); clearTimeout(window.__t); window.__t = setTimeout(() => setToastMsg(null), 2600); };
+  const go = (r) => { setRoute(r); setMOpen(false); };
+  const switchMode = (m) => { setMode(m); setRoute('home'); setMOpen(false); };
+  const NAV = mode === 'partner' ? PNAV : RNAV;
+  const user = mode === 'partner' ? window.PR.PARTNER : { name: window.PR.REF.name, kind: window.PR.REF.grade };
+
+  let screen;
+  if (mode === 'partner') screen = route === 'venue' ? <window.PartnerVenue /> : route === 'campaigns' ? <window.PartnerCampaigns /> : <window.PartnerHome go={go} />;
+  else screen = route === 'assignments' ? <window.RefAssignments toast={toast} /> : route === 'settlements' ? <window.RefSettlements /> : <window.RefHome go={go} />;
+
+  const Nav = () =>
+    <nav className="ts-sidebar__nav">
+      <div className="pr-modeswitch"><button type="button" data-active={mode === 'partner' ? 'true' : 'false'} onClick={() => switchMode('partner')}>파트너</button><button type="button" data-active={mode === 'referee' ? 'true' : 'false'} onClick={() => switchMode('referee')}>심판</button></div>
+      <div className="ts-sidebar__label">{mode === 'partner' ? '파트너 운영' : '심판 활동'}</div>
+      {NAV.map((it) => <button key={it.id} type="button" className="ts-navlink" data-active={route === it.id ? 'true' : 'false'} onClick={() => go(it.id)}><window.Icon name={it.icon} size={19} /><span>{it.label}</span></button>)}
+    </nav>;
+
+  useEffect(() => {
+    const panel = document.getElementById('tweaks'), closeBtn = document.getElementById('tweaks-close');
+    const handler = (e) => { if (e.data?.type === '__activate_edit_mode') panel.setAttribute('data-open', 'true'); if (e.data?.type === '__deactivate_edit_mode') panel.setAttribute('data-open', 'false'); };
+    window.addEventListener('message', handler); window.parent.postMessage({ type: '__edit_mode_available' }, '*');
+    closeBtn.onclick = () => panel.setAttribute('data-open', 'false');
+    const apply = (v) => { document.documentElement.style.setProperty('--primary', v); const mix = { '#3182F6': '#1B64DA', '#2AC1BC': '#1AA39E', '#6D5AE6': '#5544C9' }; document.documentElement.style.setProperty('--primary-hover', mix[v] || v); document.documentElement.style.setProperty('--primary-weak', v + '18'); };
+    panel.querySelectorAll('.tweaks__btn').forEach((btn) => { btn.setAttribute('data-active', btn.getAttribute('data-val') === TWEAK_DEFAULTS.primary ? 'true' : 'false'); btn.onclick = () => { panel.querySelectorAll('.tweaks__btn').forEach((b) => b.setAttribute('data-active', 'false')); btn.setAttribute('data-active', 'true'); const v = btn.getAttribute('data-val'); apply(v); window.parent.postMessage({ type: '__edit_mode_set_keys', edits: { primary: v } }, '*'); }; });
+    apply(TWEAK_DEFAULTS.primary);
+    return () => window.removeEventListener('message', handler);
+  }, []);
+
+  return (
+    <div className="ts-shell">
+      <aside className="ts-sidebar">
+        <div className="ts-sidebar__brand"><span className="ts-sidebar__brand-dot">B</span> MyBDR <span style={{ fontSize: 12, color: 'var(--ink-dim)', fontWeight: 600 }}>{mode === 'partner' ? '파트너' : '심판'}</span></div>
+        <Nav />
+        <div className="ts-sidebar__foot"><button className="ts-userchip" type="button"><span className="ts-avatar">{user.name.slice(0, 2)}</span><span style={{ textAlign: 'left', lineHeight: 1.2 }}><span style={{ display: 'block', fontWeight: 700, fontSize: 14, color: 'var(--ink)' }}>{user.name}</span><span style={{ fontSize: 12, color: 'var(--ink-mute)' }}>{user.kind}</span></span><window.Icon name="chevron-right" size={18} color="var(--ink-dim)" style={{ marginLeft: 'auto' }} /></button></div>
+      </aside>
+      <div className="ts-topbar"><button className="ts-mtoggle" type="button" onClick={() => setMOpen(true)}><window.Icon name="menu" size={22} /></button><span style={{ fontWeight: 800, fontSize: 16 }}>{mode === 'partner' ? '파트너 센터' : '심판 센터'}</span></div>
+      {mOpen && <div className="ts-overlay" onClick={() => setMOpen(false)} />}
+      <aside className="ts-drawer" data-open={mOpen ? 'true' : 'false'}><div className="ts-sidebar__brand"><span className="ts-sidebar__brand-dot">B</span> MyBDR</div><Nav /></aside>
+      <main className="ts-main"><div className="ts-main__inner">{screen}</div></main>
+      {toastMsg && <div className="ts-toast"><window.Icon name="check-circle-2" size={18} color="var(--ok)" />{toastMsg}</div>}
+    </div>);
+}
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>
