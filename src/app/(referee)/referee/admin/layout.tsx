@@ -2,6 +2,8 @@ import { getWebSession } from "@/lib/auth/web-session";
 import { prisma } from "@/lib/db/prisma";
 // PR3 (2026-05-15): isRecorderAdmin = isSuperAdmin 자동 흡수 (Q1 결재) — isSuperAdmin 단독 import 불필요.
 import { isRecorderAdmin } from "@/lib/auth/is-recorder-admin";
+// Toss 스킨(Phase 3B): Material Symbols → lucide Icon 키트 경유.
+import { Icon } from "@/components/admin-toss";
 
 /**
  * /referee/admin 레이아웃 — 서버 컴포넌트.
@@ -74,7 +76,9 @@ export default async function AdminLayout({
 // 접근 권한 없음 표시 컴포넌트
 function AccessDenied() {
   return (
+    // data-skin="toss": AccessDenied 는 자체 루트 div 를 가진 독립 화면이므로 부착(미작업 3C 누수와 무관).
     <div
+      data-skin="toss"
       className="flex flex-col items-center justify-center px-6 py-24 text-center"
       style={{
         backgroundColor: "var(--color-card)",
@@ -82,12 +86,12 @@ function AccessDenied() {
         borderRadius: 4,
       }}
     >
-      <span
-        className="material-symbols-outlined text-5xl"
+      {/* Material lock → lucide lock (실존). text-5xl(=48px) 크기/색상 1:1 이관 */}
+      <Icon
+        name="lock"
+        size={48}
         style={{ color: "var(--color-text-muted)" }}
-      >
-        lock
-      </span>
+      />
       <h2
         className="mt-4 text-lg font-bold"
         style={{ color: "var(--color-text-primary)" }}

@@ -9,6 +9,8 @@ import { PasswordInput } from "@/components/ui/password-input";
 //   conventions.md [2026-05-08] 사이트 전역 input 룰 — type="tel" / type="date" 직접 사용 금지
 import { PhoneInput } from "@/components/inputs/phone-input";
 import { BirthDateInput } from "@/components/inputs/birth-date-input";
+// Toss 스킨(3B): Material Symbols → lucide Icon 키트
+import { Icon } from "@/components/admin-toss";
 
 /**
  * /referee/admin/members/new — 심판 사전 등록 폼.
@@ -115,14 +117,14 @@ export default function AdminMemberNewPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" data-skin="toss">
       {/* 뒤로가기 */}
       <Link
         href="/referee/admin/members"
         className="inline-flex items-center gap-1 text-sm font-bold"
         style={{ color: "var(--color-text-muted)" }}
       >
-        <span className="material-symbols-outlined text-base">arrow_back</span>
+        <Icon name="arrow-left" size={16} />
         목록으로
       </Link>
 
@@ -456,7 +458,7 @@ export default function AdminMemberNewPage() {
             opacity: submitting ? 0.6 : 1,
           }}
         >
-          <span className="material-symbols-outlined text-lg">person_add</span>
+          <Icon name="user-plus" size={18} />
           {submitting ? "등록 중..." : "심판 사전 등록"}
         </button>
       </form>

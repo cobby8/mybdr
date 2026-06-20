@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { Icon } from "@/components/admin-toss";
 
 /**
  * /referee/admin/pools — 대회별 일자별 풀 대시보드
@@ -219,7 +220,7 @@ export default function AdminPoolsPage() {
 
   // ── 렌더 ──
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" data-skin="toss">
       <div>
         <h1
           className="text-xl font-black tracking-tight"
@@ -449,19 +450,18 @@ export default function AdminPoolsPage() {
                       className="text-xs mb-2 flex items-center gap-1"
                       style={{ color: "var(--color-text-muted)" }}
                     >
-                      <span
-                        className="material-symbols-outlined text-base"
+                      <Icon
+                        name="star"
+                        size={16}
                         style={
                           g.chief
                             ? {
                                 color: "var(--color-primary)",
-                                fontVariationSettings: "'FILL' 1",
+                                fill: "currentColor",
                               }
                             : undefined
                         }
-                      >
-                        {g.chief ? "star" : "star_border"}
-                      </span>
+                      />
                       {g.chief ? (
                         <span
                           style={{ color: "var(--color-text-primary)" }}
@@ -510,9 +510,7 @@ export default function AdminPoolsPage() {
                         }}
                       >
                         공고 상세
-                        <span className="material-symbols-outlined text-sm">
-                          chevron_right
-                        </span>
+                        <Icon name="chevron-right" size={14} />
                       </Link>
                     )}
                   </div>

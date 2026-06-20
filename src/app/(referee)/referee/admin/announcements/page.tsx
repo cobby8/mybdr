@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
+import { Icon } from "@/components/admin-toss";
 
 /**
  * /referee/admin/announcements — 배정 신청 공고 관리 페이지.
@@ -269,7 +270,7 @@ export default function AnnouncementsPage() {
 
   // ── 렌더 ──
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" data-skin="toss">
       {/* 헤더 */}
       <div className="flex items-center justify-between">
         <div>
@@ -295,7 +296,7 @@ export default function AnnouncementsPage() {
             borderRadius: 4,
           }}
         >
-          <span className="material-symbols-outlined text-lg">add</span>
+          <Icon name="plus" size={18} />
           공고 게시
         </button>
       </div>
@@ -487,7 +488,7 @@ export default function AnnouncementsPage() {
                 }}
                 style={{ color: "var(--color-text-muted)" }}
               >
-                <span className="material-symbols-outlined">close</span>
+                <Icon name="x" size={24} />
               </button>
             </div>
 
@@ -750,9 +751,7 @@ export default function AnnouncementsPage() {
                             onClick={() => removeDate(d)}
                             style={{ color: "var(--color-primary)" }}
                           >
-                            <span className="material-symbols-outlined text-base">
-                              close
-                            </span>
+                            <Icon name="x" size={16} />
                           </button>
                         </div>
                       </div>

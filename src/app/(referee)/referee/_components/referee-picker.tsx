@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+// Toss 스킨(Phase 3B): Material Symbols → lucide Icon 키트 경유.
+import { Icon } from "@/components/admin-toss";
 
 /**
  * RefereePicker — 풀 기반 심판 선택 공통 컴포넌트.
@@ -108,7 +110,8 @@ export default function RefereePicker({
   };
 
   return (
-    <div className="relative" ref={rootRef}>
+    // data-skin="toss": 컴포넌트 자체 렌더 루트에 부착(absolute 드롭다운 포함 — 부모 누수 차단 + 독립 사용 안전).
+    <div className="relative" ref={rootRef} data-skin="toss">
       {/* 검색 입력 — search 아이콘 + 실시간 필터링 */}
       <div
         className="flex items-center gap-2 px-3 py-2"
@@ -118,12 +121,12 @@ export default function RefereePicker({
           borderRadius: 4,
         }}
       >
-        <span
-          className="material-symbols-outlined text-lg"
+        {/* Material search → lucide search. text-lg(=18px) 1:1 이관 */}
+        <Icon
+          name="search"
+          size={18}
           style={{ color: "var(--color-text-muted)" }}
-        >
-          search
-        </span>
+        />
         <input
           type="text"
           value={query}
@@ -144,11 +147,11 @@ export default function RefereePicker({
               setQuery("");
               setOpen(true);
             }}
-            className="material-symbols-outlined text-base"
-            style={{ color: "var(--color-text-muted)" }}
+            style={{ color: "var(--color-text-muted)", lineHeight: 0 }}
             title="지우기"
           >
-            close
+            {/* Material close → lucide x. text-base(=16px) 1:1 이관 */}
+            <Icon name="x" size={16} />
           </button>
         )}
       </div>
@@ -195,15 +198,13 @@ export default function RefereePicker({
                         cursor: disabled ? "not-allowed" : "pointer",
                       }}
                     >
-                      {/* 책임자 ⭐ 아이콘 (is_chief) */}
+                      {/* 책임자 ⭐ 아이콘 (is_chief). Material star → lucide star. text-base(=16px) 1:1 */}
                       {p.is_chief && (
-                        <span
-                          className="material-symbols-outlined text-base"
+                        <Icon
+                          name="star"
+                          size={16}
                           style={{ color: "var(--color-primary)" }}
-                          title="책임자"
-                        >
-                          star
-                        </span>
+                        />
                       )}
                       <span className="font-semibold flex-1 truncate">
                         {p.name}

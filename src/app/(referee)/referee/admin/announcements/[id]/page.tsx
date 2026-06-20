@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
+import { Icon } from "@/components/admin-toss";
 
 /**
  * /referee/admin/announcements/[id] — 공고 상세 + 일자별 선정 UI
@@ -285,6 +286,7 @@ export default function AnnouncementDetailPage() {
       <div
         className="py-10 text-center text-sm"
         style={{ color: "var(--color-text-muted)" }}
+        data-skin="toss"
       >
         불러오는 중...
       </div>
@@ -293,13 +295,13 @@ export default function AnnouncementDetailPage() {
 
   if (pageError || !detail) {
     return (
-      <div className="space-y-4">
+      <div className="space-y-4" data-skin="toss">
         <Link
           href="/referee/admin/announcements"
           className="inline-flex items-center gap-1 text-sm"
           style={{ color: "var(--color-text-muted)" }}
         >
-          <span className="material-symbols-outlined text-base">arrow_back</span>
+          <Icon name="arrow-left" size={16} />
           공고 목록
         </Link>
         <div
@@ -317,14 +319,14 @@ export default function AnnouncementDetailPage() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" data-skin="toss">
       {/* 뒤로가기 */}
       <Link
         href="/referee/admin/announcements"
         className="inline-flex items-center gap-1 text-sm"
         style={{ color: "var(--color-text-muted)" }}
       >
-        <span className="material-symbols-outlined text-base">arrow_back</span>
+        <Icon name="arrow-left" size={16} />
         공고 목록
       </Link>
 
@@ -573,16 +575,14 @@ export default function AnnouncementDetailPage() {
                         style={{ color: "var(--color-text-primary)" }}
                       >
                         {p.is_chief && (
-                          <span
-                            className="material-symbols-outlined text-base"
+                          <Icon
+                            name="star"
+                            size={16}
                             style={{
                               color: "var(--color-primary)",
-                              fontVariationSettings: "'FILL' 1",
+                              fill: "currentColor",
                             }}
-                            title="책임자"
-                          >
-                            star
-                          </span>
+                          />
                         )}
                         {p.referee_name}
                       </div>
@@ -610,9 +610,14 @@ export default function AnnouncementDetailPage() {
                         }}
                         title={p.is_chief ? "책임자 해제" : "책임자 지정"}
                       >
-                        <span className="material-symbols-outlined text-base align-middle">
-                          {p.is_chief ? "star" : "star_border"}
-                        </span>
+                        <Icon
+                          name="star"
+                          size={16}
+                          className="align-middle"
+                          style={
+                            p.is_chief ? { fill: "currentColor" } : undefined
+                          }
+                        />
                       </button>
                       <button
                         type="button"
