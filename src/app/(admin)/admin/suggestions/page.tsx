@@ -50,7 +50,8 @@ export default async function AdminSuggestionsPage({
   }));
 
   return (
-    <div>
+    // Phase 2A (Toss 전환) — 페이지 루트에 data-skin="toss" opt-in (content 는 DOM 상속)
+    <div data-skin="toss">
       {/* 2026-05-15 Admin-5-A 박제 — eyebrow + breadcrumbs 추가
           시안 source: Dev/design/BDR-current/screens/AdminSuggestions.jsx (line 272~293) */}
       <AdminPageHeader

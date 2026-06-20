@@ -178,6 +178,11 @@ function AdminTeams() {
 // ════════════════════════════════════════════════ 설정
 function AdminSettings({ master, setMaster, toast }) {
   const [tab, setTab] = React.useState('category');
+  const [admins, setAdmins] = React.useState([
+    { id: 1, name: '김도훈', role: 'super admin' }, { id: 2, name: '이박재', role: 'admin' }, { id: 3, name: '정세훈', role: 'tournament admin' },
+  ]);
+  const ROLES = ['super admin', 'admin', 'tournament admin', '권한 없음'];
+  const setRole = (id, role) => { setAdmins(admins.map((a) => a.id === id ? { ...a, role } : a)); toast(role === '권한 없음' ? '권한 회수' : `권한 변경 · ${role}`); };
   return (
     <div>
       {ph({ eyebrow: 'ADMIN · 설정', title: '설정', sub: '종별 마스터·대표자·일반 설정을 관리합니다.' })}
@@ -192,12 +197,20 @@ function AdminSettings({ master, setMaster, toast }) {
         </div>}
       {tab === 'admins' &&
         <div className="ts-card" style={{ maxWidth: 560 }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {[['김도훈', 'super admin'], ['이박재', 'admin'], ['정세훈', 'tournament admin']].map(([n, r]) =>
-              <div key={n} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0', borderBottom: '1px solid var(--border)' }}>
-                <span className="ts-avatar" style={{ width: 34, height: 34, fontSize: 13 }}>{n.slice(0, 2)}</span>
-                <span style={{ flex: 1, fontWeight: 700, color: 'var(--ink)' }}>{n}</span><Badge tone="grey">{r}</Badge>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            {admins.map((a) =>
+              <div key={a.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 0', borderBottom: '1px solid var(--border)' }}>
+                <span className="ts-avatar" style={{ width: 36, height: 36, fontSize: 13 }}>{a.name.slice(0, 2)}</span>
+                <span style={{ flex: 1, fontWeight: 700, color: 'var(--ink)' }}>{a.name}</span>
+                <select value={a.role} onChange={(e) => setRole(a.id, e.target.value)}
+                  className={'ts-badge ' + (a.role === '권한 없음' ? 'ts-badge--grey' : 'ts-badge--primary')} style={{ border: 0, cursor: 'pointer', fontFamily: 'var(--ff)', fontWeight: 700 }}>
+                  {ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
+                </select>
               </div>)}
+          </div>
+          <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
+            <input className="ts-input" placeholder="이메일로 관리자 초대" style={{ background: '#fff', border: '1px solid var(--border)' }} />
+            <Btn icon="user-plus" onClick={() => toast('초대 메일 발송')}>초대</Btn>
           </div>
         </div>}
     </div>);

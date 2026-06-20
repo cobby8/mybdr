@@ -16,6 +16,8 @@
 
 import { useState, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
+// Phase 2A (Toss 전환) — Material Symbols → lucide(<Icon>) 키트
+import { Icon } from "@/components/admin-toss";
 
 import {
   SEASON_AWARD_CATEGORIES,
@@ -135,7 +137,8 @@ export function AdminSeasonAwardsContent({
       {/* 입력 폼 */}
       <div className={`${CARD_CLASS} mb-6 p-5`} style={CARD_STYLE}>
         <h2 className="mb-1 text-sm font-bold" style={{ color: "var(--color-text-primary)" }}>
-          <span className="material-symbols-outlined mr-1 align-middle text-base">add_circle</span>
+          {/* add_circle → lucide circle-plus */}
+          <Icon name="circle-plus" size={16} className="mr-1 align-middle" />
           시즌 시상 추가
         </h2>
         <p className="mb-4 text-xs" style={{ color: "var(--color-text-muted)" }}>
@@ -295,7 +298,8 @@ export function AdminSeasonAwardsContent({
 
           <div>
             <button type="submit" className="btn btn--primary btn--sm">
-              <span className="material-symbols-outlined mr-1 align-middle text-base">save</span>
+              {/* save → lucide save */}
+              <Icon name="save" size={16} className="mr-1 align-middle" />
               시상 추가
             </button>
           </div>
@@ -348,11 +352,11 @@ export function AdminSeasonAwardsContent({
                         <input type="hidden" name="id" value={a.id} />
                         <button
                           type="submit"
-                          className="material-symbols-outlined text-base"
-                          style={{ color: "var(--color-error)", cursor: "pointer" }}
+                          style={{ color: "var(--color-error)", cursor: "pointer", background: "transparent", border: 0 }}
                           aria-label="삭제"
                         >
-                          delete
+                          {/* delete → lucide trash-2 (버튼 자체가 아이콘이던 것을 <Icon> 으로 교체) */}
+                          <Icon name="trash-2" size={16} />
                         </button>
                       </form>
                     </td>

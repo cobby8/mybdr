@@ -73,7 +73,8 @@ export default async function AdminDashboard() {
   const maxCount = Math.max(...chartData.map((d) => d.count), 1);
 
   return (
-    <div>
+    // Phase 2A (Toss 전환) — 페이지 루트에 data-skin="toss" opt-in (대시보드 리스킨 영역)
+    <div data-skin="toss">
       {/* 페이지 헤더 — 시안 박제 (eyebrow + 큰 title + subtitle) */}
       <AdminPageHeader
         eyebrow="ADMIN · 대시보드"
@@ -86,23 +87,25 @@ export default async function AdminDashboard() {
 
       {/* 통계 카드 4종 — 시안 .admin-stat-grid + AdminStatCard (admin.css 자동 반응형) */}
       <div className="admin-stat-grid">
+        {/* icon = lucide kebab 명 (StatCard 가 <Icon> 키트로 렌더) */}
         <AdminStatCard
-          icon="group"
+          icon="users"
           label="전체 유저"
           value={userCount.toLocaleString()}
         />
         <AdminStatCard
-          icon="emoji_events"
+          icon="trophy"
           label="토너먼트"
           value={tournamentCount}
         />
+        {/* sports_basketball → 농구 아이콘 lucide 부재 → volleyball 대체 */}
         <AdminStatCard
-          icon="sports_basketball"
+          icon="volleyball"
           label="진행중 경기"
           value={matchCount}
         />
         <AdminStatCard
-          icon="groups"
+          icon="users"
           label="등록 팀"
           value={teamCount.toLocaleString()}
         />

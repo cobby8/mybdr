@@ -17,6 +17,8 @@
 import React, { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { SiteOperatorBadge } from "@/components/admin/site-operator-badge";
+// 2026-06-21 Toss 2C — Material Symbols → lucide <Icon> 키트
+import { Icon } from "@/components/admin-toss";
 
 // 카테고리 4종 (시안 ANW_CATS 박제) — key 는 작성 메타, 저장 category 는 "news" 고정
 const CATS = [
@@ -27,13 +29,14 @@ const CATS = [
 ] as const;
 
 // rich text mock toolbar 버튼 (시안 박제 — 동작 미구현)
+// 2026-06-21 Toss 2C — Material명 → lucide <Icon> name (kebab). 버튼 순서/개수/sep 위치(i===4) 보존
 const RICH_BTNS = [
-  "format_bold",
-  "format_italic",
-  "format_list_bulleted",
-  "format_quote",
-  "link",
-  "image",
+  "bold", // format_bold
+  "italic", // format_italic
+  "list", // format_list_bulleted
+  "quote", // format_quote
+  "link", // link
+  "image", // image
 ];
 
 type Stats = { total: number; published: number; draft: number; thisMonth: number };
@@ -135,7 +138,8 @@ export function ComposeContent({
   const tagClass = (k: string) => "nw-tag nw-tag--" + (k === "magazine" ? "news" : k);
 
   return (
-    <div className="oa1-page">
+    // 2026-06-21 Toss 2C — page 가 이 컴포넌트를 래퍼 div 없이 직접 렌더 → 루트에 data-skin opt-in
+    <div className="oa1-page" data-skin="toss">
       <header className="oa1-hero">
         <div>
           <SiteOperatorBadge />
@@ -170,7 +174,8 @@ export function ComposeContent({
         {/* 작성 form */}
         <div className="pm-card">
           <h2 className="pm-card__h" style={{ marginBottom: 16 }}>
-            <span className="ico material-symbols-outlined">edit_note</span>새 기사 작성
+            {/* 2026-06-21 Toss 2C — edit_note → file-pen. .ico 래퍼 클래스 보존 */}
+            <Icon name="file-pen" className="ico" />새 기사 작성
           </h2>
 
           {/* 카테고리 4 */}
@@ -200,7 +205,8 @@ export function ComposeContent({
             <div className="bl-field">
               <div className="anw-xlink">
                 <div className="anw-xlink__h">
-                  <span className="ico material-symbols-outlined">link</span>매치 연결 (대회 / 경기
+                  {/* 2026-06-21 Toss 2C — link → link. .ico 래퍼 보존 */}
+                  <Icon name="link" className="ico" />매치 연결 (대회 / 경기
                   cross-domain)
                 </div>
                 <div className="anw-xlink__row">
@@ -258,7 +264,8 @@ export function ComposeContent({
                   <React.Fragment key={b}>
                     {i === 4 && <span className="anw-rich__sep" />}
                     <button className="anw-rich__btn" tabIndex={-1} type="button">
-                      <span className="ico material-symbols-outlined">{b}</span>
+                      {/* 2026-06-21 Toss 2C — RICH_BTNS lucide name. .ico 래퍼 보존 */}
+                      <Icon name={b} className="ico" />
                     </button>
                   </React.Fragment>
                 ))}
@@ -275,7 +282,8 @@ export function ComposeContent({
           <div className="bl-field">
             <label className="bl-field__l">대표 이미지</label>
             <div className="anw-cover">
-              <span className="ico material-symbols-outlined">add_photo_alternate</span>
+              {/* 2026-06-21 Toss 2C — add_photo_alternate → image-plus. .ico 래퍼 보존 */}
+              <Icon name="image-plus" className="ico" />
               <span>클릭 또는 드래그하여 대표 이미지 업로드</span>
             </div>
           </div>
@@ -284,11 +292,12 @@ export function ComposeContent({
           <div className="bl-field" style={{ marginBottom: 18 }}>
             <label className="bl-field__l">발행 방식</label>
             <div className="anw-opts">
+              {/* 2026-06-21 Toss 2C — ico 값을 lucide name(kebab)으로: send→send / save→save / schedule→clock */}
               {(
                 [
                   ["publish", "send", "바로 발행"],
                   ["draft", "save", "임시저장"],
-                  ["schedule", "schedule", "예약 발행"],
+                  ["schedule", "clock", "예약 발행"],
                 ] as const
               ).map(([k, ico, l]) => (
                 <button
@@ -298,7 +307,7 @@ export function ComposeContent({
                   type="button"
                 >
                   <span className="anw-opt__radio" />
-                  <span className="ico material-symbols-outlined">{ico}</span>
+                  <Icon name={ico} className="ico" />
                   {l}
                 </button>
               ))}
@@ -312,9 +321,11 @@ export function ComposeContent({
             onClick={() => setConfirm(true)}
             type="button"
           >
-            <span className="ico material-symbols-outlined">
-              {pub === "draft" ? "save" : pub === "schedule" ? "schedule" : "send"}
-            </span>
+            {/* 2026-06-21 Toss 2C — save→save / schedule→clock / send→send */}
+            <Icon
+              name={pub === "draft" ? "save" : pub === "schedule" ? "clock" : "send"}
+              className="ico"
+            />
             {pub === "draft" ? "임시저장" : pub === "schedule" ? "예약 발행 설정" : "발행하기"}
           </button>
         </div>
@@ -322,19 +333,24 @@ export function ComposeContent({
         {/* 미리보기 */}
         <aside>
           <div className="anw-preview-h">
-            <span className="ico material-symbols-outlined">visibility</span>미리보기 (사용자 IU2)
+            {/* 2026-06-21 Toss 2C — visibility → eye. .ico 래퍼 보존 */}
+            <Icon name="eye" className="ico" />미리보기 (사용자 IU2)
           </div>
           <div className="anw-preview">
             <div className="anw-preview__cover">
-              <span className="ico material-symbols-outlined">
-                {cat === "match"
-                  ? "sports_basketball"
-                  : cat === "event"
-                    ? "celebration"
-                    : cat === "notice"
-                      ? "campaign"
-                      : "photo"}
-              </span>
+              {/* 2026-06-21 Toss 2C — 카테고리별: sports_basketball→volleyball(농구 부재) / celebration→party-popper / campaign→megaphone / photo→image */}
+              <Icon
+                name={
+                  cat === "match"
+                    ? "volleyball"
+                    : cat === "event"
+                      ? "party-popper"
+                      : cat === "notice"
+                        ? "megaphone"
+                        : "image"
+                }
+                className="ico"
+              />
             </div>
             <div className="anw-preview__body">
               <div className="anw-preview__cat">
@@ -356,7 +372,8 @@ export function ComposeContent({
             </div>
           </div>
           <div className="bl-refund-note" style={{ marginTop: 12 }}>
-            <span className="ico material-symbols-outlined">hub</span>
+            {/* 2026-06-21 Toss 2C — hub → share-2. .ico 래퍼 보존 */}
+            <Icon name="share-2" className="ico" />
             <div>
               <div className="bl-refund-note__t">발행 시 자동 동기화</div>
               <div className="bl-refund-note__d">
@@ -370,7 +387,8 @@ export function ComposeContent({
       {/* 발행 이력 — 실조회 */}
       <div className="pm-card" style={{ marginTop: 4 }}>
         <h2 className="pm-card__h" style={{ marginBottom: 14 }}>
-          <span className="ico material-symbols-outlined">history</span>발행 이력
+          {/* 2026-06-21 Toss 2C — history → history. .ico 래퍼 보존 */}
+          <Icon name="history" className="ico" />발행 이력
         </h2>
         <div className="anw-hist">
           {history.length === 0 ? (
@@ -394,12 +412,12 @@ export function ComposeContent({
                     <small>조회</small>
                   </div>
                   <span className={"anw-status anw-status--" + h.status}>
-                    <span
-                      className="ico material-symbols-outlined"
-                      style={{ fontSize: 12 }}
-                    >
-                      {h.status === "published" ? "check_circle" : "edit"}
-                    </span>
+                    {/* 2026-06-21 Toss 2C — check_circle→circle-check / edit→pencil (size 12 이관) */}
+                    <Icon
+                      name={h.status === "published" ? "circle-check" : "pencil"}
+                      size={12}
+                      className="ico"
+                    />
                     {h.status === "published" ? "발행됨" : "임시저장"}
                   </span>
                 </div>
@@ -415,12 +433,12 @@ export function ComposeContent({
           <div className="bl-modal" onClick={(e) => e.stopPropagation()}>
             <div className="bl-modal__head">
               <h3 className="bl-modal__title">
-                <span
-                  className="ico material-symbols-outlined"
+                {/* 2026-06-21 Toss 2C — send → send. color var(--accent) 인라인 보존 */}
+                <Icon
+                  name="send"
+                  className="ico"
                   style={{ color: "var(--accent)" }}
-                >
-                  send
-                </span>
+                />
                 기사를 발행할까요?
               </h3>
               <button
@@ -428,7 +446,8 @@ export function ComposeContent({
                 onClick={() => setConfirm(false)}
                 type="button"
               >
-                <span className="ico material-symbols-outlined">close</span>
+                {/* 2026-06-21 Toss 2C — close → x. .ico 래퍼 보존 */}
+                <Icon name="x" className="ico" />
               </button>
             </div>
             <div className="bl-modal__body">
@@ -468,7 +487,8 @@ export function ComposeContent({
                 disabled={pending}
                 type="button"
               >
-                <span className="ico material-symbols-outlined">send</span>
+                {/* 2026-06-21 Toss 2C — send → send. .ico 래퍼 보존 */}
+                <Icon name="send" className="ico" />
                 {pub === "publish" ? "발행" : "저장"}
               </button>
             </div>

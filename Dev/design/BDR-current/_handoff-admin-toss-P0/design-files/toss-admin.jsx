@@ -68,6 +68,23 @@ function DataTable({ columns, rows, keyField, state = 'filled', sort, onSortChan
   if (state === 'loading') {
     return <div className="ts-table"><div style={{ padding: 60, textAlign: 'center', color: 'var(--ink-mute)' }}>불러오는 중…</div></div>;
   }
+  if (state === 'error') {
+    return (
+      <div className="ts-table"><div className="ts-empty">
+        <div className="ts-empty__icon" style={{ background: 'var(--danger-weak)', color: 'var(--danger)' }}><Icon name="cloud-off" size={28} /></div>
+        <div className="ts-empty__title">데이터를 불러오지 못했습니다</div>
+        <div className="ts-empty__desc">잠시 후 다시 시도하세요.</div>
+        {onEmptyCta && <div style={{ marginTop: 16 }}><Btn variant="secondary" icon="rotate-ccw" onClick={onEmptyCta}>다시 시도</Btn></div>}
+      </div></div>);
+  }
+  if (state === 'denied') {
+    return (
+      <div className="ts-table"><div className="ts-empty">
+        <div className="ts-empty__icon" style={{ background: 'var(--warn-weak)', color: 'var(--warn)' }}><Icon name="lock" size={28} /></div>
+        <div className="ts-empty__title">접근 권한이 없습니다</div>
+        <div className="ts-empty__desc">이 화면은 상위 권한이 필요합니다. 관리자에게 권한을 요청하세요.</div>
+      </div></div>);
+  }
   if (state === 'empty' || rows.length === 0) {
     return (
       <div className="ts-table"><div className="ts-empty">
@@ -163,6 +180,8 @@ function MockToggle({ value, onChange }) {
       <option value="filled">데이터 있음</option>
       <option value="empty">빈 상태</option>
       <option value="loading">로딩</option>
+      <option value="error">에러</option>
+      <option value="denied">권한없음</option>
     </select>);
 }
 

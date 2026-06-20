@@ -15,6 +15,8 @@
  */
 
 import Link from "next/link";
+// 2026-06-21 Toss 2C — Material Symbols → lucide <Icon> 키트
+import { Icon } from "@/components/admin-toss";
 
 export interface IdentityStatusCardProps {
   identityMethod: string | null;
@@ -25,7 +27,7 @@ export interface IdentityStatusCardProps {
 function getIdentityDisplay(method: string | null): {
   label: string;
   description: string;
-  icon: string; // Material Symbols 아이콘명
+  icon: string; // 2026-06-21 Toss 2C — lucide <Icon> name (kebab)
   iconColor: string; // CSS color (var(--*))
   borderColor: string; // 카드 border 색 (활성 = primary / 경고 = warn / 기본 = border)
   bgColor: string; // 카드 배경
@@ -36,7 +38,8 @@ function getIdentityDisplay(method: string | null): {
     return {
       label: "본인인증 완료 (PASS)",
       description: "PortOne 본인인증으로 검증되었습니다.",
-      icon: "verified",
+      icon: "badge-check", // verified → badge-check
+
       iconColor: "var(--color-primary)",
       borderColor: "var(--color-primary)",
       bgColor: "var(--color-elevated)",
@@ -46,7 +49,8 @@ function getIdentityDisplay(method: string | null): {
     return {
       label: "본인인증 완료 (간편 입력)",
       description: "임시 자체 입력으로 등록되었습니다.",
-      icon: "info",
+      icon: "info", // info → info (lucide 동일)
+
       iconColor: "var(--color-text-secondary)",
       borderColor: "var(--color-border)",
       bgColor: "var(--color-surface)",
@@ -57,7 +61,8 @@ function getIdentityDisplay(method: string | null): {
   return {
     label: "본인인증 미완료",
     description: "본인인증이 필요합니다.",
-    icon: "warning",
+    icon: "triangle-alert", // warning → triangle-alert
+
     iconColor: "var(--color-text-secondary)",
     borderColor: "var(--color-border)",
     bgColor: "var(--color-surface)",
@@ -104,12 +109,8 @@ export function IdentityStatusCard({
       >
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2 min-w-0">
-            <span
-              className="material-symbols-outlined"
-              style={{ fontSize: 22, color: display.iconColor }}
-            >
-              {display.icon}
-            </span>
+            {/* 2026-06-21 Toss 2C — Material span → Icon (fontSize 22→size, iconColor→color) */}
+            <Icon name={display.icon} size={22} color={display.iconColor} />
             <div className="min-w-0">
               <div
                 className="text-sm font-medium"
@@ -148,12 +149,8 @@ export function IdentityStatusCard({
             className="mt-2 flex items-center gap-1 text-xs"
             style={{ color: "var(--color-text-secondary)" }}
           >
-            <span
-              className="material-symbols-outlined"
-              style={{ fontSize: 14 }}
-            >
-              tips_and_updates
-            </span>
+            {/* 2026-06-21 Toss 2C — tips_and_updates → lightbulb (size 14) */}
+            <Icon name="lightbulb" size={14} />
             <span>{display.hint}</span>
           </div>
         )}

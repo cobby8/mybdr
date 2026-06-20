@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>BDR 관리자 화면 인덱스 — Toss</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700;800&display=swap" />
+<link rel="stylesheet" href="toss.css" />
+<style>
+  .idx { max-width: 1080px; margin: 0 auto; padding: 48px 24px 80px; }
+  .idx-hero { margin-bottom: 36px; }
+  .idx-hero h1 { font-size: 32px; font-weight: 800; letter-spacing: -0.03em; }
+  .idx-hero p { font-size: 15px; color: var(--ink-mute); margin-top: 10px; line-height: 1.6; }
+  .idx-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 18px; }
+  .idx-card { display: flex; flex-direction: column; gap: 14px; text-decoration: none; color: inherit; transition: transform .12s, box-shadow .15s; }
+  .idx-card:hover { transform: translateY(-3px); box-shadow: var(--sh-md); }
+  .idx-card__icon { width: 48px; height: 48px; border-radius: 14px; background: var(--primary-weak); color: var(--primary); display: grid; place-items: center; }
+  .idx-card__title { font-size: 18px; font-weight: 800; color: var(--ink); display: flex; align-items: center; gap: 8px; }
+  .idx-card__desc { font-size: 13.5px; color: var(--ink-mute); line-height: 1.55; }
+  .idx-sub { display: flex; flex-wrap: wrap; gap: 6px; padding-top: 12px; border-top: 1px solid var(--border); }
+  .idx-chip { font-size: 11.5px; font-weight: 700; color: var(--ink-soft); background: var(--grey-100); padding: 4px 9px; border-radius: 8px; }
+  .idx-open { margin-top: auto; display: inline-flex; align-items: center; gap: 5px; font-size: 13px; font-weight: 700; color: var(--primary); }
+  .idx-sec { font-size: 13px; font-weight: 800; color: var(--ink-dim); letter-spacing: 0.04em; margin: 34px 0 14px; }
+</style>
+</head>
+<body>
+<div class="idx">
+  <div class="idx-hero">
+    <h1>MyBDR 관리자 — 화면 인덱스</h1>
+    <p>Toss 디자인시스템으로 전환된 관리자 전 영역입니다. 카드를 눌러 각 화면을 확인하세요.</p>
+  </div>
+
+  <div class="idx-sec">핵심 콘솔</div>
+  <div class="idx-grid">
+    <a class="idx-card ts-card" href="AdminConsole.html">
+      <span class="idx-card__icon"><i data-lucide="layout-dashboard"></i></span>
+      <div class="idx-card__title">관리자 콘솔 <span class="ts-badge ts-badge--ok">18</span></div>
+      <div class="idx-card__desc">백오피스 전 페이지. 사이드바 IA + 테이블·필터·상세.</div>
+      <div class="idx-sub"><span class="idx-chip">대시보드</span><span class="idx-chip">사용자</span><span class="idx-chip">대회</span><span class="idx-chip">경기</span><span class="idx-chip">커뮤니티</span><span class="idx-chip">단체</span><span class="idx-chip">팀</span><span class="idx-chip">코트</span><span class="idx-chip">결제</span><span class="idx-chip">요금제</span><span class="idx-chip">캠페인</span><span class="idx-chip">파트너</span><span class="idx-chip">분석</span><span class="idx-chip">신고</span><span class="idx-chip">알림</span><span class="idx-chip">제안</span><span class="idx-chip">로그</span><span class="idx-chip">설정</span></div>
+      <span class="idx-open">열기 <i data-lucide="arrow-right"></i></span>
+    </a>
+
+    <a class="idx-card ts-card" href="TournamentAdmin.html">
+      <span class="idx-card__icon"><i data-lucide="trophy"></i></span>
+      <div class="idx-card__title">대회 운영</div>
+      <div class="idx-card__desc">대회 상세 통합 화면 — 기능 리빌딩. 종별 생성기·대진표·공개 가드.</div>
+      <div class="idx-sub"><span class="idx-chip">종별·디비전</span><span class="idx-chip">참가팀</span><span class="idx-chip">대진표</span><span class="idx-chip">공개·완료</span></div>
+      <span class="idx-open">열기 <i data-lucide="arrow-right"></i></span>
+    </a>
+  </div>
+
+  <div class="idx-sec">사용자용 · 설정</div>
+  <div class="idx-grid">
+    <a class="idx-card ts-card" href="AdminToss.html">
+      <span class="idx-card__icon"><i data-lucide="clipboard-list"></i></span>
+      <div class="idx-card__title">참가신청서 · 종별 마스터</div>
+      <div class="idx-card__desc">신청서 3단계(팀 선택→종별·디비전→출전선수) + 종별 마스터(admin_categories).</div>
+      <div class="idx-sub"><span class="idx-chip">참가신청 3단계</span><span class="idx-chip">종별 마스터</span></div>
+      <span class="idx-open">열기 <i data-lucide="arrow-right"></i></span>
+    </a>
+
+    <a class="idx-card ts-card" href="PartnerReferee.html">
+      <span class="idx-card__icon"><i data-lucide="handshake"></i></span>
+      <div class="idx-card__title">파트너 · 심판</div>
+      <div class="idx-card__desc">파트너 센터 + 심판 센터 셸 (모드 스위치). 셸 골격 유지·Toss 재스킨.</div>
+      <div class="idx-sub"><span class="idx-chip">파트너: 대시보드·코트·캠페인</span><span class="idx-chip">심판: 대시보드·배정·정산</span></div>
+      <span class="idx-open">열기 <i data-lucide="arrow-right"></i></span>
+    </a>
+  </div>
+
+  <div class="idx-sec">참고 문서</div>
+  <div class="idx-grid">
+    <div class="idx-card ts-card" style="cursor:default">
+      <span class="idx-card__icon" style="background:var(--grey-100);color:var(--ink-mute)"><i data-lucide="file-text"></i></span>
+      <div class="idx-card__title">핸드오프 문서</div>
+      <div class="idx-card__desc">HANDOFF.md · README.md · DATA-BINDING.md · PLAN.md — CLI 구현 가이드와 데이터 계약.</div>
+      <div class="idx-sub"><span class="idx-chip">디자인시스템 toss.css</span><span class="idx-chip">데이터 계약</span><span class="idx-chip">v2.38은 _archive로 이관</span></div>
+    </div>
+  </div>
+</div>
+<script src="https://unpkg.com/lucide@latest"></script>
+<script>lucide.createIcons(); document.querySelectorAll('svg.lucide').forEach(s=>{s.setAttribute('width',20);s.setAttribute('height',20);});
+  document.querySelectorAll('.idx-card__icon svg').forEach(s=>{s.setAttribute('width',24);s.setAttribute('height',24);});</script>
+</body>
+</html>
