@@ -383,3 +383,151 @@
 
 /* admin-table — Toss 라운딩(헤더/행 톤은 토큰이 처리) */
 [data-skin="toss"] .admin-table-wrap { border-radius: 14px; }
+
+/* ============================================================
+   ct-* — 새 대회 만들기(CreateTournament) 전용 클래스 (Phase 4 B-2)
+   박제 source: _handoff-admin-toss-P0/_deliver_CreateTournament/CreateTournament.html <style>
+   ⚠ 전부 [data-skin="toss"] 스코프로 격리(전역 오염 0). 시안 :root/bare 셀렉터 → prefix 변환.
+   ============================================================ */
+
+/* 레이아웃 — 헤더 / 2컬럼 그리드 / 하단 고정 생성바 */
+[data-skin="toss"] .ct-page { max-width: 1180px; margin: 0 auto; padding-bottom: 96px; }
+[data-skin="toss"] .ct-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 20px; margin-bottom: 26px; flex-wrap: wrap; }
+[data-skin="toss"] .ct-head__txt { min-width: 0; }
+[data-skin="toss"] .ct-head__aux { display: flex; gap: 8px; flex-wrap: wrap; }
+[data-skin="toss"] .ct-grid { display: grid; grid-template-columns: 1fr; gap: 20px; align-items: start; }
+[data-skin="toss"] .ct-grid--2 { grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr); }
+[data-skin="toss"] .ct-col { min-width: 0; }
+[data-skin="toss"] .ct-grid, [data-skin="toss"] .ct-col, [data-skin="toss"] .ct-grid > *, [data-skin="toss"] .ts-field { min-width: 0; }
+
+/* 카드 헤더 아이콘 배지 */
+[data-skin="toss"] .ct-headicon { width: 32px; height: 32px; border-radius: 10px; background: var(--primary-weak); display: grid; place-items: center; flex: 0 0 auto; }
+
+/* 공통 — 아이콘 버튼 / 빈 박스 / 필수 태그 / 배너 */
+[data-skin="toss"] .ct-iconbtn { width: 30px; height: 30px; border: 0; background: transparent; border-radius: 9px; display: grid; place-items: center; cursor: pointer; color: var(--ink-mute); flex: 0 0 auto; transition: background .12s, color .12s; }
+[data-skin="toss"] .ct-iconbtn:hover { background: var(--grey-200); color: var(--ink); }
+[data-skin="toss"] .ct-emptybox { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 28px 16px; background: var(--grey-50); border: 1px dashed var(--border-strong); border-radius: 16px; color: var(--ink-mute); font-size: 13.5px; text-align: center; }
+[data-skin="toss"] .ct-emptybox--tall { padding: 48px 16px; }
+[data-skin="toss"] .ct-reqtag { font-size: 11px; font-weight: 800; color: var(--danger); background: var(--danger-weak); border-radius: 7px; padding: 4px 8px; white-space: nowrap; flex: 0 0 auto; }
+[data-skin="toss"] .ct-banner { display: flex; align-items: flex-start; gap: 9px; padding: 13px 14px; background: var(--ok-weak); border-radius: 14px; font-size: 13px; color: var(--ink-soft); line-height: 1.5; }
+[data-skin="toss"] .ct-banner svg { flex: 0 0 auto; margin-top: 1px; }
+
+/* 경기장 검색(자동완성) */
+[data-skin="toss"] .ct-vsearch { position: relative; margin-bottom: 14px; }
+[data-skin="toss"] .ct-vsearch__inputwrap { display: flex; align-items: center; gap: 8px; padding: 0 14px; background: var(--grey-100); border-radius: var(--radius-input); transition: box-shadow .15s, background .15s; }
+[data-skin="toss"] .ct-vsearch__inputwrap:focus-within { background: #fff; box-shadow: 0 0 0 2px var(--primary); }
+[data-skin="toss"] .ct-vsearch__inputwrap input { flex: 1; min-width: 0; border: 0; background: transparent; outline: none; padding: 13px 0; font-size: 16px; font-family: var(--ff); color: var(--ink); }
+[data-skin="toss"] .ct-vsearch__inputwrap input::placeholder { color: var(--ink-dim); }
+[data-skin="toss"] .ct-vsearch__menu { position: absolute; top: calc(100% + 6px); left: 0; right: 0; background: #fff; border: 1px solid var(--border); border-radius: 14px; box-shadow: var(--sh-md); z-index: 20; overflow: hidden auto; max-height: 264px; }
+[data-skin="toss"] .ct-vsearch__opt { display: flex; align-items: center; gap: 10px; width: 100%; padding: 11px 14px; border: 0; background: transparent; cursor: pointer; font-family: var(--ff); text-align: left; }
+[data-skin="toss"] .ct-vsearch__opt:hover { background: var(--grey-50); }
+[data-skin="toss"] .ct-vsearch__add { border-top: 1px solid var(--border); }
+
+/* 장소 행 — 코트수 Stepper / 명명 SegSm / 코트 칩 */
+[data-skin="toss"] .ct-venuerow { border: 1px solid var(--border); border-radius: 14px; padding: 12px; background: var(--grey-50); }
+[data-skin="toss"] .ct-venuerow__top { display: flex; align-items: center; gap: 8px; }
+[data-skin="toss"] .ct-venuerow__nm { font-size: 14.5px; font-weight: 800; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+[data-skin="toss"] .ct-venuerow__rg { font-size: 12px; color: var(--ink-mute); white-space: nowrap; }
+[data-skin="toss"] .ct-venuerow__top .ct-iconbtn { margin-left: auto; }
+[data-skin="toss"] .ct-venuerow__ctrl { display: flex; align-items: center; gap: 10px; margin-top: 11px; flex-wrap: wrap; }
+[data-skin="toss"] .ct-venuerow__lbl { font-size: 12.5px; font-weight: 700; color: var(--ink-soft); }
+[data-skin="toss"] .ct-namesel { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+[data-skin="toss"] .ct-courtchips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 11px; padding-top: 11px; border-top: 1px solid var(--border); }
+[data-skin="toss"] .ct-courttag { font-size: 12px; font-weight: 700; font-family: var(--ff-mono); color: var(--primary); background: var(--primary-weak); border-radius: 8px; padding: 4px 9px; }
+
+/* Stepper / SegSm 프리미티브 */
+[data-skin="toss"] .ct-stepper { display: inline-flex; align-items: center; border: 1px solid var(--border-strong); border-radius: 11px; overflow: hidden; background: #fff; flex: 0 0 auto; }
+[data-skin="toss"] .ct-stepper button { width: 38px; height: 38px; border: 0; background: transparent; cursor: pointer; color: var(--ink-soft); display: grid; place-items: center; transition: background .12s; }
+[data-skin="toss"] .ct-stepper button:hover:not(:disabled) { background: var(--grey-50); }
+[data-skin="toss"] .ct-stepper button:disabled { color: var(--ink-dim); cursor: not-allowed; }
+[data-skin="toss"] .ct-stepper__val { min-width: 70px; height: 38px; display: flex; align-items: center; justify-content: center; gap: 4px; border-left: 1px solid var(--border); border-right: 1px solid var(--border); font-family: var(--ff-mono); font-weight: 800; font-size: 16px; color: var(--ink); font-variant-numeric: tabular-nums; }
+[data-skin="toss"] .ct-stepper__val .u { font-size: 11px; font-weight: 700; color: var(--ink-mute); font-family: var(--ff); }
+[data-skin="toss"] .ct-segsm { display: inline-flex; gap: 3px; padding: 3px; background: var(--grey-100); border-radius: 11px; flex: 0 0 auto; }
+[data-skin="toss"] .ct-segsm button { border: 0; background: transparent; border-radius: 8px; padding: 7px 14px; font-family: var(--ff); font-weight: 700; font-size: 12.5px; color: var(--ink-mute); cursor: pointer; transition: color .12s; }
+[data-skin="toss"] .ct-segsm button[data-active="true"] { background: #fff; color: var(--primary); box-shadow: var(--sh-xs); }
+
+/* 대회 일정 — 날짜 블록 / 코트 배정 칩 / 일정 추가 버튼 */
+[data-skin="toss"] .ct-dateblock { border: 1px solid var(--border); border-radius: 14px; padding: 11px 12px; background: var(--grey-50); }
+[data-skin="toss"] .ct-dateblock__head { display: flex; align-items: center; gap: 10px; }
+[data-skin="toss"] .ct-dateblock__n { margin-left: auto; font-size: 11.5px; font-weight: 800; font-family: var(--ff-mono); color: var(--ink-mute); white-space: nowrap; }
+[data-skin="toss"] .ct-daterow__idx { font-size: 11.5px; font-weight: 800; color: var(--ink-mute); white-space: nowrap; flex: 0 0 auto; }
+[data-skin="toss"] .ct-daterow__label { font-family: var(--ff-mono); font-size: 13px; font-weight: 700; color: var(--ink); white-space: nowrap; flex: 0 0 auto; }
+[data-skin="toss"] .ct-courtpick { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+[data-skin="toss"] .ct-courtpick__chip { display: inline-flex; align-items: center; gap: 4px; padding: 7px 11px; border: 1.5px solid var(--border); border-radius: 9px; background: #fff; color: var(--ink-soft); font-family: var(--ff); font-size: 12.5px; font-weight: 700; cursor: pointer; transition: border-color .12s, background .12s, color .12s; }
+[data-skin="toss"] .ct-courtpick__chip:hover { border-color: var(--border-strong); }
+[data-skin="toss"] .ct-courtpick__chip[data-on="true"] { border-color: var(--primary); background: var(--primary-weak); color: var(--primary); }
+[data-skin="toss"] .ct-courthint { display: flex; align-items: center; gap: 6px; margin-top: 9px; font-size: 12px; font-weight: 600; color: var(--ink-dim); }
+[data-skin="toss"] .ct-courthint svg { flex: 0 0 auto; }
+[data-skin="toss"] .ct-adddate { display: flex; align-items: center; justify-content: center; gap: 7px; width: 100%; padding: 11px; border: 1px dashed var(--border-strong); border-radius: 12px; background: var(--grey-50); color: var(--ink-soft); font-family: var(--ff); font-size: 13.5px; font-weight: 700; cursor: pointer; transition: border-color .12s, color .12s; }
+[data-skin="toss"] .ct-adddate:hover { border-color: var(--primary); color: var(--primary); }
+
+/* 후원사 로고 타일 */
+[data-skin="toss"] .ct-sptile { position: relative; width: 124px; }
+[data-skin="toss"] .ct-sptile__name { margin-top: 7px; font-size: 13px; font-weight: 600; color: var(--ink); text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+[data-skin="toss"] .ct-sptile__x { position: absolute; top: 6px; right: 6px; width: 22px; height: 22px; border: 0; border-radius: 7px; background: rgba(25,31,40,0.55); color: #fff; display: grid; place-items: center; cursor: pointer; z-index: 2; }
+[data-skin="toss"] .ct-sptile__x:hover { background: var(--danger); }
+
+/* 이전 대회 불러오기 행 */
+[data-skin="toss"] .ct-pastrow { display: flex; align-items: center; gap: 12px; padding: 13px 14px; background: var(--grey-50); border: 1px solid transparent; border-radius: 14px; cursor: pointer; font-family: var(--ff); width: 100%; transition: border-color .12s, background .12s; }
+[data-skin="toss"] .ct-pastrow:hover { border-color: var(--primary); background: var(--primary-weak); }
+[data-skin="toss"] .ct-pastrow__icon { width: 38px; height: 38px; border-radius: 11px; background: #fff; display: grid; place-items: center; flex: 0 0 auto; box-shadow: var(--sh-xs); }
+
+/* 캘린더 모달 */
+[data-skin="toss"] .ct-cal { user-select: none; }
+[data-skin="toss"] .ct-cal__nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+[data-skin="toss"] .ct-cal__nav button { width: 38px; height: 38px; border: 1px solid var(--border); border-radius: 10px; background: #fff; display: grid; place-items: center; cursor: pointer; color: var(--ink-soft); }
+[data-skin="toss"] .ct-cal__nav button:hover { background: var(--grey-50); border-color: var(--border-strong); }
+[data-skin="toss"] .ct-cal__title { font-size: 16px; font-weight: 800; color: var(--ink); letter-spacing: -0.02em; }
+[data-skin="toss"] .ct-cal__wk { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-bottom: 6px; }
+[data-skin="toss"] .ct-cal__wk span { text-align: center; font-size: 11.5px; font-weight: 800; color: var(--ink-mute); padding: 4px 0; }
+[data-skin="toss"] .ct-cal__wk span[data-wd="0"] { color: var(--danger); }
+[data-skin="toss"] .ct-cal__wk span[data-wd="6"] { color: var(--primary); }
+[data-skin="toss"] .ct-cal__grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+[data-skin="toss"] .ct-cal__pad { aspect-ratio: 1; }
+[data-skin="toss"] .ct-cal__day { aspect-ratio: 1; border: 1.5px solid transparent; border-radius: 10px; background: var(--grey-50); font-family: var(--ff-mono); font-size: 14px; font-weight: 700; color: var(--ink); cursor: pointer; transition: background .1s, border-color .1s, color .1s; }
+[data-skin="toss"] .ct-cal__day:hover { border-color: var(--primary); }
+[data-skin="toss"] .ct-cal__day[data-wd="0"] { color: var(--danger); }
+[data-skin="toss"] .ct-cal__day[data-wd="6"] { color: var(--primary); }
+[data-skin="toss"] .ct-cal__day[data-today="true"] { box-shadow: inset 0 0 0 1.5px var(--border-strong); }
+[data-skin="toss"] .ct-cal__day[data-on="true"] { background: var(--primary); border-color: var(--primary); color: #fff; }
+[data-skin="toss"] .ct-cal__count { display: flex; align-items: center; justify-content: center; gap: 6px; margin-top: 14px; padding: 9px; background: var(--primary-weak); border-radius: 10px; font-size: 13px; font-weight: 800; color: var(--primary); }
+
+/* 하단 고정 생성바 — lg(사이드바 256px) left-64 / 모바일 left-0 은 인라인 미디어쿼리로 처리 */
+[data-skin="toss"] .ct-bar { position: fixed; left: 0; right: 0; bottom: 0; background: rgba(255,255,255,0.92); backdrop-filter: blur(10px); border-top: 1px solid var(--border); z-index: 80; }
+@media (min-width: 1024px) { [data-skin="toss"] .ct-bar { left: 16rem; } }
+[data-skin="toss"] .ct-bar__inner { max-width: 1180px; margin: 0 auto; padding: 14px 32px; display: flex; align-items: center; gap: 14px; }
+[data-skin="toss"] .ct-bar__meta { font-size: 13px; color: var(--ink-mute); white-space: nowrap; }
+
+/* 우측 컬럼 stub 안내 카드(B-3에서 실폼 교체) */
+[data-skin="toss"] .ct-stub { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 40px 18px; background: var(--grey-50); border: 1px dashed var(--border-strong); border-radius: 16px; color: var(--ink-mute); font-size: 13px; text-align: center; line-height: 1.5; }
+
+/* 모바일 720px 분기 — input 16px / 2컬럼 → 1컬럼 / 생성바 메타 숨김 */
+@media (max-width: 720px) {
+  [data-skin="toss"] .ct-grid--2 { grid-template-columns: 1fr; max-width: 620px; margin: 0 auto; }
+  [data-skin="toss"] .ct-bar__inner { padding: 12px 16px; gap: 10px; }
+  [data-skin="toss"] .ct-bar__meta { display: none; }
+  [data-skin="toss"] .ct-namesel { margin-left: 0; }
+}
+
+/* 생성 중 스피너 — @keyframes 는 글로벌 불가피, ct 프리픽스로 충돌 회피 */
+[data-skin="toss"] .ct-spin { width: 16px; height: 16px; border: 2.5px solid rgba(255,255,255,0.45); border-top-color: #fff; border-radius: 50%; display: inline-block; margin-right: 8px; animation: ctspin .7s linear infinite; }
+@keyframes ctspin { to { transform: rotate(360deg); } }
+
+/* === B-4 대회 게시 설정 모달 === */
+/* 날짜 범위(게시기간·참가신청기간) — 시작 ~ 종료 두 date input */
+[data-skin="toss"] .ct-daterange { display: flex; align-items: center; gap: 8px; }
+[data-skin="toss"] .ct-daterange .ts-input { flex: 1; min-width: 0; }
+[data-skin="toss"] .ct-daterange__sep { color: var(--ink-mute); font-weight: 700; flex: 0 0 auto; }
+
+/* 결제 방법 선택(계좌이체만 활성 · 간편결제/카드는 준비 중) */
+[data-skin="toss"] .ct-paygrid { display: flex; flex-direction: column; gap: 8px; }
+[data-skin="toss"] .ct-paychip { display: flex; align-items: center; gap: 11px; width: 100%; padding: 12px 14px; border: 1.5px solid var(--border); border-radius: 12px; background: #fff; font-family: var(--ff); cursor: pointer; transition: border-color .12s, background .12s; }
+[data-skin="toss"] .ct-paychip:hover:not(:disabled) { border-color: var(--border-strong); }
+[data-skin="toss"] .ct-paychip[data-on="true"] { border-color: var(--primary); background: var(--primary-weak); }
+[data-skin="toss"] .ct-paychip:disabled { cursor: not-allowed; background: var(--grey-50); }
+[data-skin="toss"] .ct-paychip__box { width: 22px; height: 22px; border-radius: 7px; border: 2px solid var(--border-strong); background: #fff; display: grid; place-items: center; color: #fff; flex: 0 0 auto; transition: background .12s, border-color .12s; }
+[data-skin="toss"] .ct-paychip[data-on="true"] .ct-paychip__box { background: var(--primary); border-color: var(--primary); }
+[data-skin="toss"] .ct-paychip:disabled .ct-paychip__box { border-color: var(--border); background: var(--grey-100); }
+[data-skin="toss"] .ct-paychip__lbl { font-size: 14.5px; font-weight: 800; color: var(--ink); }
+[data-skin="toss"] .ct-paychip:disabled .ct-paychip__lbl { color: var(--ink-dim); }
+[data-skin="toss"] .ct-paychip__soon { margin-left: auto; font-size: 11px; font-weight: 800; color: var(--warn); background: var(--warn-weak); border-radius: 7px; padding: 4px 9px; flex: 0 0 auto; }
