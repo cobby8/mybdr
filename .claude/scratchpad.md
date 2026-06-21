@@ -59,6 +59,7 @@
 ## 수정 요청 (미완료 후속·동작영향 minor)
 | 대상 | 문제 | 상태 |
 |------|------|------|
+| **schedule-format.ts L36~39 `DivScheduleEntry` (🔴차단·reviewer 2026-06-22 F-2b)** | **디비전 날짜/코트 항상 "–" 사일런트 버그**. `apiSuccess()`=`convertKeysToSnakeCase`가 **jsonb 내부 키까지 재귀 snake 변환**(case.ts L9·L15). F-1 저장 `div_schedule={"디비전명":{dateId,courtId}}`(camel)→division-rules route apiSuccess→응답에선 `{date_id,court_id}`(snake)→schedule-format.ts는 `entry.dateId`/`entry.courtId`(camel) read→undefined→date/court 라벨 둘 다 null→**항상 "–"**. (디비전명 최상위 한글키는 보존·places.court_count/schedule_dates는 정합. 깨지는 곳=div_schedule 값의 dateId/courtId만). **운영 영향 현재 0**(DB에 div_schedule 보유 대회 0건 실측·F-1 직후 미생성)·새 대회+종별일정 입력 시 즉시 발현. **수정안 (A·권고)**: schedule-format.ts `DivScheduleEntry`를 `date_id?`/`court_id?`로 변경+`resolveDivisionSchedule`이 `entry.date_id`/`entry.court_id` 읽기(apiSuccess 변환에 맞춤). (B) route에서 div_schedule만 변환 우회 camel 반환(복잡). planner/dev 가정 "jsonb 내부 round-trip 보존"이 오류였음(errors.md snake 재발 함정 변형) | ✅ **해결 (2026-06-22 developer·되돌림 1회차)** — 권고A(snake로만 읽기)는 디비전명 키 `_u10` 망가짐이 남아 불충분 → **map→배열 변환 채택**(견고). route.ts div_schedule을 `[{division, dateId, courtId}]` 배열로 구성→apiSuccess snake 후 `[{division, date_id, court_id}]`(디비전명=값이라 영문도 보존·내부만 snake). schedule-format `DivScheduleEntry`={division, date_id?, court_id?}·`resolveDivisionSchedule`이 배열 find(label→code). page.tsx state/렌더 배열 정합. snake 정합 재확인(schedule_dates court_ids·places court_count). 저장폼/schema/createTournament/api/v1 미접촉. tsc EXIT0·시뮬 검증. 미커밋 |
 | **ct-create-tournament.tsx L531 + page.tsx L393 + service tournament.ts L154/486 (🔴차단·reviewer 2026-06-21)** | **후원사 추가 시 대회 생성 500 실패**. 새 폼은 `sponsors:{name,logoUrl}[]`(객체배열) 전송→route.ts L239 그대로 통과→createTournament `sponsors:input.sponsors??null`→Prisma `sponsors String? @db.VarChar`(schema L313)에 객체배열 INSERT 시도→**런타임 타입에러로 대회 생성 자체 500**. route에 zod 없어 tsc는 통과(body any)·후원사 0개면 우회되나 1개라도 추가하면 영구 실패. **수정안**: (A)page.tsx handleSubmitDraft에서 `sponsors`를 `JSON.stringify(payload.sponsors)` 문자열화 후 전송(String 컬럼 유지·기존 legacy `sponsors:string` 흐름과 정합) 또는 (B)sponsors 객체배열 전송 중단하고 이름만 `sponsors.map(s=>s.name).join(", ")` 문자열. logoUrl 보존이 필요하면 (A). **로고URL은 sponsors VarChar에 JSON으로만 보존 가능**(전용 컬럼 없음). 단순안=후원사명만 문자열(B) | ✅ **해결 (2026-06-22 developer, 권고B 채택)** — sponsors 소비처 실측: validation L79 `z.string()`·service L154/486 `string`·legacy폼 `useState("")`·**표시화면 `tournament-about.tsx` L42 `val.split(",").map(trim)`**=콤마구분 plain문자열 표준. JSON(A)은 `.split`이 못읽어 표시깨짐→**(B) 후원사명만 콤마 join 채택**. ct-create-tournament L531 `sponsors.map(s=>s.name.trim()).filter(Boolean).join(", ")`+payload타입 `string`화, page.tsx L393 배열`.length`분기→`payload.sponsors \|\| undefined`. 0/1/다수 안전(0→""→미전송·1→"A"·다수→"A, B"→split복원). 로고URL=전용컬럼부재로 1차미저장(후속). schema/createTournament시그니처/api/v1 미접촉. tsc EXIT0 |
 | (web) join/page.tsx L148~150·439·263 (차단·reviewer) | 참가신청 대표자 입력칸+클라게이트 제거로 user.phone null 사용자(카카오/구글 가입자) 영구 제출 차단. 서버 joinSchema managerName/managerPhone `.min(1)` 필수인데 자동값 빈값→422·고칠 UI 없음. user_info 빈값 시 입력칸 노출+canNext 게이트 추가(택A) 또는 항상 편집칸(택B) | ✅ 해결 (2026-06-21 developer, 권고A: 조건부 입력칸+canNext trim 게이트·page.tsx 1파일·tsc0·route/schema diff0) |
 | scrim-tabs.tsx L295 (critical) | 보낸취소가 URL[id]=from_team 전송→PATCH 400 | ✅ **이미 해결**(068341b /scrim 실데이터 연결 시 `patchStatus(r.counterpart.id, r.id, "cancelled")`+`disabled !counterpart?.id` 가드 반영·main 확인). 항목 stale였음(2026-06-21 검증) |
@@ -80,20 +81,99 @@
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
 |------|------|------|
+| 2026-06-22 | F-2b 차단 수정 (되돌림 1회차·div_schedule snake 재귀변환 버그) developer 세션B | ✅ **map→배열 변환으로 견고 해소**. 원인=apiSuccess(convertKeysToSnakeCase)가 응답 전체 재귀변환→div_schedule map의 디비전명 키(영문 `U10`→`_u10`)+내부키(`dateId`→`date_id`) 망가져 camel·map 룩업 소비처 undefined→전 디비전 "–". 수정=①route.ts div_schedule을 `Object.entries`로 `[{division, dateId, courtId}]` **배열** 구성(snake 후 `[{division, date_id, court_id}]`·디비전명은 값이라 영문도 보존) ②schedule-format.ts `DivScheduleEntry`={division, date_id?, court_id?}·`resolveDivisionSchedule(divSchedule[], label, code, ...)` 배열 find(label→code 폴백) ③page.tsx state `Record`→배열·렌더 배열 매칭. **snake 정합 재확인**: div_schedule(division 보존+date_id/court_id)·schedule_dates(court_ids 이미 snake)·places(camel courtCount→court_count 변환 정합). 시뮬레이션(case.ts 재현)으로 영문/한글 디비전명 보존+date_id/court_id 변환+없는 디비전 graceful "–" 확정. 저장폼/schema/createTournament/`/api/v1`/(web) F-2a/세션A 셸 미접촉. tsc EXIT0. git=F-2b 3파일만. tester+reviewer 동일차단 확인→수정. PM 직접확인(route map→배열·schedule-format snake정합). **커밋: F-2a 08cae41·F-2b 7b0935f**(subin·미푸시). |
+| 2026-06-22 | F-2 표시 검증 (tester 세션B·F-2a 로고+F-2b 디비전일정) | ⚠️ **8/9 통과·F-2a 전통과·F-2b 1건 잠재버그(비차단)**. ①tsc EXIT0. ②회귀0=prisma/schema/createTournament/`/api/v1` diff **빈출력**·division-rules route는 **+19 insertions만(삭제0=PATCH/rules/allowed_formats 무변경)**·생성폼 미변경. ③F-2a 폴백=`hasSponsorLogos`(L169) 로고>0→그리드/=0→description파서 폴백(중복0)·img onError 이니셜폴백 존재. ④F-2a use client 순수성=import 0줄·async/await/prisma/server import **0**(순수 props)→하이드레이션 안전. ⑤F-2b 역참조=schedule-format `allCourts`/`fmtDate`가 ct-divisions 정본과 **알고리즘 100%일치**(`${id}_c${i}`·alpha fromCharCode(65+i)·num i+1·M.D요일). **🟠⑥snake 정합 실패(잠재버그)**: `apiSuccess`=convertKeysToSnakeCase가 응답 **전체 재귀변환**→route L73 `div_schedule` 내부 `dateId/courtId`→`date_id/court_id`+영문키 `U10`→`_u10` 변환되나 복제본은 camel 기대→**undefined→룩업 항상실패→전 디비전 "–"**(시뮬확정). places/schedule_dates는 정합(`court_count` snake). **실측 운영DB div_schedule 0건→현재 영향0**(F-1폼 미사용)·저장 즉시 표면화. errors snake↔camel 7회차. ⑦렌더스모크=dev3001 ROOT 500=**globals.css Turbopack `0xc0000142`(자식프로세스 DLL spawn실패) 환경이슈**·globals.css F-2 미변경·코드회귀 아님(이전 tester 동일·재시작 권장). ⑧격리=admin-shell/referee-shell 변경은 6/21 세션A Toss전환분·F-2 미접촉. 코드 정확히 5파일+신규1디렉토리. 미커밋. **차단이슈 없음**. 🟠수정요청: division-rules route L73 div_schedule snake재귀변환→complex키/dateId undefined→"–". 수정안A=load()서 div_schedule만 convertKeysToCamelCase 역변환(키 `_u10`→`U10`은 별도 검토)/B=schedule-format snake정합. F-1 생성폼 실사용 전 수정 권장(현재 운영 0건). |
+| 2026-06-22 | F-2 표시 리뷰 (F-2a (web)후원사로고 + F-2b admin디비전날짜코트) — reviewer 세션B | 🔴**차단1**: F-2b `schedule-format.ts DivScheduleEntry` div_schedule 내부키 **dateId/courtId가 apiSuccess 재귀 snake변환으로 date_id/court_id가 됨**→camel read undefined→**날짜/코트 항상 "–"**(case.ts L9·L15 jsonb 내부키도 재귀변환·planner/dev "round-trip 보존" 가정 오류). 운영영향 현재0(div_schedule 보유대회 0건 실측). 권고A=schedule-format DivScheduleEntry를 date_id/court_id로. **F-2a `"use client"` 전환=안전**(server전용 import 0·하이드레이션 미스매치 0·번들경미·page.tsx server import 정상). F-2a 디자인 mybdr준수(var토큰·Material·lucide/Toss/hex 0)·로고중복회피 정확·settings server camel 보존 정합. F-2b route 읽기전용·기존기능 보존·Toss준수. 권고2(snake경유 확인룰 conventions승격·court_count snake의존 인지)·사소2(img raw·IIFE). tsc EXIT0. 수정요청 등재. |
+| 2026-06-22 | F-2b 디비전별 날짜/코트 admin divisions 표시 (developer 세션B·Toss) | ✅ 변경 2파일+신규1. ①신규 `divisions/_components/schedule-format.ts`=역참조 헬퍼(`allCourts`/`fmtDate` ct-divisions 정본 복제·`lookupDateLabel`/`lookupCourtLabel`/`resolveDivisionSchedule`. courtId`<venueId>_c<idx>`→`${place.name} ${suffix}코트`(alpha=A/B·num=1/2)·dateId→`M.D(요일)`·룩업실패 null). ct-divisions 미접촉(import 아닌 복제→생성폼 회귀0). ②`division-rules/route.ts` GET=tournament select `{settings,schedule_dates,places}` **읽기 추가**·응답 최상위 snake `div_schedule`(settings.div_schedule 추출)/`schedule_dates`/`places` 동봉. **PATCH/write/시그니처/기존 rules·allowed_formats 무변경**(+19줄). ③`divisions/page.tsx`=div_schedule+소스 state 3개 추가·load()서 응답 저장·각 rule 행에 날짜/코트 칩(`resolveDivisionSchedule`). 매칭키=`label` 우선→`code` 폴백·값없으면 "–". 기존 컬럼/format/진출매핑/GroupSettings 보존(추가만). Toss준수(`data-skin="toss"` 루트 유지·lucide Icon `calendar`/`map-pin`·var(--color-*) toss토큰·하드코딩hex0·Material0). jsonb 내부키(dateId/courtId) camel 보존(snake 변환X). schema/createTournament/api/v1 미접촉. tsc EXIT0. git=F-2b 3파일만(세션A/F-2a 영역 미접촉). 미커밋. |
+| 2026-06-22 | F-2a 후원사 로고 (web) 대회상세 about 표시 (developer 세션B) | ✅ 변경 2파일(page.tsx +2 / tournament-about.tsx +60/-9). ①page.tsx about 호출부 `sponsorLogos={(tournament.settings as any)?.sponsor_logos ?? []}` 1 prop(settings 이미 select·prisma0). ②about=`"use client"` 추가(img onError)·`SponsorLogo` 컴포넌트 신규(img+이니셜 폴백)·sponsors 섹션 `hasSponsorLogos` 분기(로고 우선·없으면 텍스트 폴백 회귀0). description+"Sponsored By:" 게이트 그대로 유지. mybdr 디자인 준수(var토큰·Material·lucide/Toss/hardcode hex 0). schema/route/createTournament/api/v1 미접촉. tsc EXIT0. git=수정2파일만. 미커밋. |
+| 2026-06-22 | 생성폼 F-2 표시 설계 (planner 세션B·읽기전용·코드/스키마 무변경·prisma금지) | ✅ **디자인 맥락 분기 확정·스키마/API write 0**. ①**후원사 로고=(web) 대회상세 about**(mybdr 디자인·var토큰·Material·AppNav 보존)·page.tsx settings 이미 select(L168)→about에 `sponsorLogos` prop 1개 전달만(추가prisma0). 🔑기존 sponsors 섹션은 description "Sponsored By:" 파서(`.split(",")`·errors.md L9 정정)라 settings.sponsor_logos와 출처상이→중복 위험→**sponsor_logos 있으면 그것(로고)·없으면 description 폴백(택가)**. img onError 이니셜 폴백. ②**디비전일정=admin divisions page**(Toss·lucide·toss-admin.css)·역참조=`ct-divisions allCourts()`(courtId`<venueId>_c<idx>`→`${place.name} ${suffix}코트`·naming alpha=A/B·num=1/2)+`fmtDate`(schedule_dates date→M.D요일) **정본 재사용**. div_schedule 키=디비전명→DivisionRule.code/label 매칭. ③**가용갭**: (web) settings camel(prisma)·이미 select=로고 즉시가용 / admin divisions(client·API snake)는 settings/schedule_dates/places **미fetch**→division-rules API에 **읽기 select 3개 추가**(최상위 snake·jsonb내부 round-trip보존). ④**스키마/API write 변경 불필요**(prisma·createTournament·api/v1 무변경·division-rules는 읽기select만). ⑤배치=**F-2a 로고(mybdr·2파일) / F-2b 디비전일정(Toss·2파일+조인유틸) 분리**(디자인 정반대→한 PR 혼동 차단). 변경파일=page.tsx+about(F-2a)·division-rules route+divisions page+조인유틸(F-2b). 미커밋. |
 | 2026-06-22 | F-1 후원사로고·디비전날짜코트 settings jsonb 저장 (developer 세션B) | ✅ 변경 2파일(ct-create-tournament·page.tsx, +32/-0). ①`CtDraftPayload.settings?` 추가 ②publish() sponsorLogos(로고있는것만 `{name,logoUrl}`)·divSchedule(`{디비전명:{dateId,courtId}}` 둘다있을때만) 맵→비어있지않은것만 settings(`sponsor_logos`/`div_schedule` snake) ③page.tsx body `settings:payload.settings` 1줄. 빈값생략(둘다비면 undefined→미전송). sponsors콤마문자열·평면변환 전부보존·schema/route/tournament/api/v1 미접촉(createTournament settings 기존수신 round-trip). tsc EXIT0. 세션A셸 미접촉. 미커밋. |
 | 2026-06-22 | 생성폼 후속(로고·디비전날짜코트) 저장위치 설계 (planner 세션B·읽기전용·코드/스키마 무변경) | ✅ **두 후속 모두 Tournament.settings jsonb로 무스키마 해결 = YES**. ①settings 무스키마=`settings Json?`(schema L326)·createTournament 수신경로 기존존재(tournament.ts L179·L524 round-trip)·route.ts L270 전달·단 page.tsx body·CtDraftPayload에 settings키만 추가 필요. ②로고=`settings.sponsor_logos`(`[{name,logoUrl}]`)·sponsors컬럼 콤마문자열 B안 현행유지. 🔑**소비처 정정**: errors.md L9 "tournament-about `.split(",")`=sponsors컬럼"은 오인(그건 description 'Sponsored By:' 파서)·실 컬럼소비처=수정wizard(plain·쉼표구분) + OBS스코어보드(molten/stiz 문자열필터)뿐→콤마문자열 정합·settings추가 무영향. ct는 이미 `Sponsor{logoUrl}` state+ImageUploader 완비(publish L541서 버림). ③디비전날짜코트=`settings.div_schedule`(`{디비전명:{dateId,courtId}}`)·DivisionItem 이미 dateId/courtId보유(ct-divisions L29)+입력UI완성·publish L515~518서 의도적 손실→맵구성 1블록 추가. **스키마 승인 불필요**(prisma무변경·api/v1무영향·createTournament 시그니처무변경). 변경파일=ct-create-tournament+page.tsx 2개(저장만)·소비처표시는 F-2 후속분리. 배치=F-1저장(2파일·tsc커밋) / F-2표시(about·디비전일정 역참조·선택). 미커밋. |
 | 2026-06-22 | 새 대회 생성폼 B-4 reviewer 차단 1건 수정 + 권고①③ (developer 세션B·되돌림루프 1회차) | ✅ **차단(sponsors 500) 해결** — 소비처 실측(표시화면 `.split(",")` plain문자열 표준)→**권고B(이름만 콤마join) 채택**(JSON-A는 표시깨짐). ct-create-tournament L72 payload타입 `string`화·L531 `map(s=>s.name.trim()).filter().join(", ")` / page.tsx L393 `.length`분기→`\|\|undefined`. 0/1/다수 안전. 로고URL 1차미저장. **권고①** ct-divisions 배너 "종별규칙 자동생성"→"종별·디비전 구성 저장·세부규칙은 생성후 설정"(DivisionRule 미생성 오해제거). **권고③** 평면변환부 dateId/courtId 1차미저장 주석박제(createTournament 키부재·API/schema 확장금지·UI유지+사일런트손실 명시). schema/createTournament/api/v1/toss-admin.css/세션A셸 미접촉. tsc EXIT0. PM 소비처 재확인(tournament-about.tsx L42 `.split(",")` 정합). **B-2~B-4+수정 한커밋 567d142**(6파일·2402+/146-·subin·미푸시2). dev서버 stale=포트3001 PID179416만 종료 후 재기동. |
 | 2026-06-21 | 새 대회 생성폼 B-2+B-3+B-4 검증 (tester 세션B) | ✅ **8/8 통과·차단이슈 0**. ①tsc EXIT0 재확인. ②페이지 렌더 스모크=wizard는 미들웨어 인증게이트로 307→`/login?callbackUrl=`(정상·미인증). ③payload정합=handleSubmitDraft가 categories평면변환(catRecord{종별:[디비전]}+divCaps+divFees)·places확장·scheduleDates(court_ids)·gameRules12키 POST body 배선·응답snake `data.redirect_url`접근 정합. route.ts L142~163 전 키 수신·L218~258 createTournament 전달 실측. ④회귀0=createTournament/route.ts/schema/`/api/v1` diff **비어있음**(B-4 백엔드 미접촉). legacy/prospectus/association 셸 보존. ⑤필수검증=submit()에서 대회명·정규대회선택·주최·주관·장소·일정·종별(totalDiv===0) 누락 시 toast차단·게시모달 미오픈. ⑥state계약=CategoryItem/DivisionItem/GameRules·shotClock=boolean·GAME_SETTINGS_DEFAULTS 정본 export→메인폼 import 일원화 일치. ⑦Toss격리=ct-page 루트·page.tsx data-skin="toss" 부모래퍼·Material실사용0(주석만)·하드코딩hex0(유니폼팔레트만 도메인예외)·lucide CDN0·toss-admin.css B-4추가분 `*/`조기종료0·중괄호균형. ⑧격리=세션A admin-shell/referee-shell 미접촉(생성폼 5파일 국한). ⚠️**비차단 환경이슈**: dev서버 3001이 globals.css Turbopack stale로 ROOT/`/tournaments`/`/login` **전 페이지 500**("Failed to write app endpoint·Caused by globals.css") — globals.css **미변경(이 작업 무관·마지막커밋6/19)**·toss-admin.css 조기종료0 → errors.md "Turbopack HMR stale" 함정. 코드회귀 아님. **dev서버 재시작 권장**(PM판단·종료금지룰). |
-| 2026-06-21 | 새 대회 생성폼 B-4 마무리(우측 통합+게시모달+POST배선) (developer 세션B) | ✅ 수정2(ct-create-tournament·page.tsx)+toss-admin.css(게시모달 3클래스). **우측 stub2카드→실폼**: `<CtDivisions value={categories} onChange={setCategories} scheduleDates={변환} venues toast/>`+`<CtGameSettings value={gameRules} onChange={setGameRules}/>`. state추가=`categories:CategoryItem[]`·`gameRules:GameRules`(GAME_SETTINGS_DEFAULTS import 일원화·d state에서 game키 제거·로컬 defaults 삭제). **검증**=종별1개+(totalDiv===0 차단) 추가→통과시 게시모달 오픈. **PublishModal**(내부컴포넌트·신규파일0)=게시기간·참가신청기간(date2)·결제방법(계좌이체만 활성/간편·카드 준비중disabled)·은행select+계좌+예금주(`p.pays.includes("bank")`조건). **평면변환**=CategoryItem[]→`categories{종별명:[디비전명]}`+`divCaps{디비전명:cap}`+`divFees{디비전명:fee}`. **POST배선**(page.tsx handleSubmitDraft async)=`POST /api/web/tournaments` body=name·seriesId(정규시만)·organizer·host·sponsors·logoUrl(포스터)·startDate/endDate(게시기간)·registrationStartAt/EndAt(참가신청)·places·scheduleDates·gameRules·categories/divCaps/divFees·bankName/Account/Holder. 응답 snake `data.redirect_url`→성공 router.push·실패 showToast. saving=loading state 재사용(모달버튼 스피너ct-spin·진행중 닫기금지). **API/createTournament/route.ts/schema/`/api/v1` 미접촉**(전부 기존 수신키 실측확인: route.ts L147 categories/divCaps/divFees·L155 gameRules/scheduleDates·createTournament L136~173·502~504 div_caps/div_fees/game_rules/schedule_dates). 게시모달 클래스=`.ct-daterange/.ct-paygrid/.ct-paychip`(시안 toss.css 1:1·`[data-skin="toss"]`스코프·--warn/--warn-weak/--primary-weak 기존토큰). 미사용 courtsOf import 정리. lucide(trophy/check 실존)·Material0·hex0·IME가드(계좌/예금주)·dev서버미접촉. tsc EXIT0. git=대상2수정(ct-create-tournament untracked·page.tsx M)+toss-admin.css M·admin-shell/referee-shell 미접촉. 미커밋(PM). |
-| 2026-06-21 | 새 대회 생성폼 B-3 우측 컬럼 2종 (developer 세션B) | ✅ 신규2(ct-divisions·ct-game-settings·controlled). **ct-divisions**=종별·디비전 제너레이터·props`{value:CategoryItem[];onChange;scheduleDates;venues;toast}`·`/api/web/admin/categories`GET실연동(snake `sort_order`·폴백 graceful)·DivisionGenerator모달4단계(성별·종별템플릿·디비전·연령·여성부w·곱집합)·디비전별cap/fee/dateId/courtId·venues→코트풀(`<venueId>_c<idx>`)read-only. 시안 `method`필드=계약(DivisionItem) 미존재로 제거(진행방식=DivisionRule소관). **ct-game-settings**=경기설정12키·props`{value:GameRules;onChange}`·유니폼16색picker(UniformModal·hex직접입력·휘도잉크)·프리셋4·Stepper·**shotClock=boolean**(SegSm 사용/미사용). **`GAME_SETTINGS_DEFAULTS`+`GameRules`타입 정본 export**(L37~50). 가드=page.tsx·ct-create-tournament·ct-schedule-venue·toss-admin.css·API·createTournament·schema·`/api/v1` 전부 미접촉(categories GET 읽기만). 재사용`.ct-*`(headicon/iconbtn/reqtag/banner/emptybox/stepper/segsm)만 클래스참조·우측전용 inline `var(--*)`·보라`#6D5AE6`→`var(--primary)`토큰화·lucide15종실존·Material0·hex0(유니폼팔레트 도메인예외)·IME가드·dev서버미접촉. tsc EXIT0(신규2 자체정합·전체에러0). git=신규2파일만stage(`A`)·B-2미접촉. 미커밋(PM). 통합위치=B-4(ct-create-tournament 우측 `.ct-stub` 2카드→CtDivisions/CtGameSettings 교체+state). |
-| 2026-06-21 | 새 대회 생성폼 B-2 2컬럼 셸+좌측 컬럼 (developer 세션B) | ✅ 신규2(ct-create-tournament·ct-schedule-venue)+수정2(page.tsx quick탭 풀폭 early-return→CtCreateTournament·toss-admin.css `.ct-*` 70규칙+ctspin). **좌측 완성**=대회명(인라인검증)·정규대회(시리즈 `/api/web/series/my` 실연동+InlineSeriesForm)·주최·주관·후원사(ImageUploader)·포스터(ImageUploader)·일정장소(VenueSearch자동완성·코트Stepper1~8·명명SegSm·CalendarModal다중·날짜별코트배정·pruneCourts). **우측 stub**=`.ct-stub` 2카드(B-3). **제출 보류B-4**=검증후 onSubmitDraft→페이로드확인 토스트만(POST없음·payload는 B-1 places확장/scheduleDates `court_ids`/gameRules12키 변환완료). 가드=route/createTournament/Zod/schema/`/api/v1` 미접촉·prospectus/협회/draft 보존·lucide20종실존(ICON_ALIAS불요)·Material0·hex0(유니폼저지색 도메인예외)·IME가드·dev서버미접촉. `.ct-bar` lg `left:16rem`/모바일 `left:0`·720px 1컬럼. tsc EXIT0. git=대상4파일만(admin-shell/referee-shell 미접촉). 미커밋(PM). 잔여=B-3우측·B-4제출배선 |
-| 2026-06-21 | 새 대회 생성폼 B-1 schema+POST 3필드 확장 (developer 세션B) | ✅ 🔴ALTER targeted 적용=`tournaments.schedule_dates jsonb DEFAULT '[]'`(`prisma db execute`·broad push 중단=diff에 live_scoreboards FK drift 혼입 확인). 사후실측 컬럼 정상·65행 보존. schema 1줄 ADD(places 인접). POST 확장=route.ts body분해 `gameRules,scheduleDates` 추가+createTournament 전달 / tournament.ts `CreateTournamentInput` 2필드+places타입확장(id/region/courtCount/naming)+createData game_rules/schedule_dates jsonb round-trip. **3필드 전부 optional**(미전송→`{}`/`[]` 기본값·회귀0). DivisionRule 미생성·시리즈 $transaction·status=draft 불변. prisma generate=DLL락→포트3001 PID78724만 종료 후 성공(개발서버 종료됨·재시작 PM판단). tsc EXIT0. tester 6항목 통과(차단0). git diff=대상3파일만(28+/1-). **커밋 478cf88**(subin·미푸시) |
-| 2026-06-21 | 새 대회 생성폼 전면교체 실행계획 (planner 세션B·읽기전용·코드/스키마 무변경·PM확정 가나다 전제) | ✅ 🔴**스키마diff=ADD COLUMN 1개뿐**(`schedule_dates Json? @default("[]")`·NULL허용 무중단·승인후 targeted SQL). game_rules(L304 죽은컬럼)·places(L317 jsonb)·DivisionRule.settings(L3496)=전부 기존컬럼 활성/타입확장. (가)game_rules=시안 GAME_SETTINGS 12키 1:1 jsonb(camel그대로·Flutter무영향). (나)schedule_dates=`[{id,date,court_ids[]}]`·코트id=`<venueId>_c<idx>`·places[].courtCount/naming 파생(court테이블 신설❌). (다)전면교체=page.tsx(1849줄 Quick/Legacy/SUBTABS) **본문만 2컬럼교체**·라우트불변→외부링크0파손. **POST/createTournament 100%재사용**+3필드확장(route.ts L142분해+tournament.ts createData L460). ⚠️**DivisionRule 자동생성=createTournament 미수행**(grep0·categories jsonb만 저장·DivisionRule은 [id]/divisions 다운스트림)→시안"자동생성"=신규동작·1차 categories jsonb 권고. 배치4분해(B-1 schema+POST게이트 / B-2 좌측 / B-3 우측 / B-4 통합·게시모달). prospectus/협회마법사=보존·draft자동채움 유지. 시안 정규대회=시리즈·CATEGORY_MASTER=admin_categories실연동. 미커밋 |
+| 2026-06-21 | 새 대회 생성폼 B-1~B-4 (백엔드+2컬럼폼+게시모달) (developer 세션B) | ✅ B-1 schema `schedule_dates` jsonb targeted ALTER+POST 3필드(커밋 478cf88) / B-2 2컬럼셸+좌측(ct-create-tournament·ct-schedule-venue) / B-3 우측(ct-divisions·ct-game-settings·shotClock boolean) / B-4 통합+PublishModal(계좌이체만)+POST배선(categories 평면변환·snake redirect_url). createTournament/schema/api/v1 미접촉(기존 수신키 재사용). tsc EXIT0. B-2~4 커밋 567d142. 상세=knowledge/decisions.md. |
 | 2026-06-21 | 새 대회 생성폼 정합 조사 (planner 세션B·읽기전용·코드/스키마 무변경) | ✅ 🟢**Flutter 게이트=키변경 NO·충돌0**(match-sync.ts+sync route 전수정독=game_rules 미read·점수/스탯/PBP만 / `Tournament.game_rules`=dead column schema L304有·src grep 0). 시안 경기설정(유니폼·방식·파울·타임아웃) 서버 미저장=신규빈공간. 시안"GameRules 1:1정합"=Flutter앱 내부모델 정합이지 서버계약 아님. §2=시리즈/결제/admin_categories 재사용·신규0. 🔴**진짜신규=날짜↔코트 배정**(tournament_date·date_court grep 0·places는 평면 장소배열·courts/court_infos=픽업게임DB 무관)→jsonb확장 권고(places확장+schedule_dates·DivisionRule date/court는 settings흡수·무중단). 화면=시안 2컬럼단일폼 vs 기존 step위저드(Toss리스킨完)→**신규페이지 추가(병행) 권고**. PM결정3건(가:game_rules저장위치/나:날짜코트 jsonb vs정규테이블/다:리빌딩범위)·🚦schema게이트 대상. 미커밋 |
 | 2026-06-21 | Track B 참가신청 3단계 후속 정리 (developer 세션B) | ✅ ①orphan 4파일 git rm(_v2/enroll-aside·poster·step-docs·step-payment·소스 import grep 0 확인·aside→poster 둘다삭제) ②dead CSS 제거(tournament-enroll.css 구 Material 구역 .te-h3/pay*/method*/bank*/bill*/success* 전량·615→308줄·약307줄·Toss .ts-*53규칙 유지) ③대표자/연락처 UI=값있으면span/없으면input 삼항→**항상 prefill input**(편집가능·canNext trim게이트 유지·빈값회귀 보존). route.ts/joinSchema/schema diff0·본인인증/주장가드/약관게이트/snake/adaptive 보존. tsc EXIT0. git=join영역만(삭제4·수정2). 미커밋(PM) |
 | 2026-06-21 | Track B Phase4 후속 비차단 3건 수리 (developer) | ✅ ①B-a teams PATCH approvedCount조회 $transaction **내부 이동**(race강화·동시 paid시 cap초과 차단·cap값조회는 tx밖 유지·`{updated,promoted}`반환) ②B-d matches GET 가드 `requireTournamentAdmin`→`requireRecordersManageAccess`(recorder_admin 통과·PATCH와 정합·POST 미접촉) ③B-d recorders page `roundName/scheduledAt`→`round_name/scheduled_at` snake교정(**응답키 실측 확정**=apiSuccess→convertKeysToSnakeCase→snake). 가드조건/승격로직/멱등/teams_count 동기화 전부 동일. 스키마0·신규모델0·기능회귀0. tsc EXIT0. git=대상3파일만(teams API/matches API/recorders page). 미커밋(PM) |
 
 ## 기획설계 (planner-architect)
+
+### 생성폼 F-2 표시 설계 (2026-06-22, 읽기전용·코드/스키마 무변경·prisma 금지)
+
+🎯 목표: F-1이 `Tournament.settings`에 저장한 ①`sponsor_logos`(`[{name,logoUrl}]`) ②`div_schedule`(`{디비전명:{dateId,courtId}}`)를 화면에 노출하는 **최소 표시 구현안**. 디자인 맥락 분기 확정.
+
+**🔑 핵심 판정 (한 줄)**: 후원사 로고 = **(web) 대회상세 about** (mybdr 디자인) / 디비전 일정 = **admin divisions 페이지** (Toss) 권고. 둘 다 **스키마/API 변경 0**(settings는 이미 가용·schedule_dates/places만 server fetch에 추가).
+
+---
+
+**1️⃣ 후원사 로고 — 표시 위치 + 디자인 룰**
+
+- **소비처 후보 실측**:
+  | 화면 | settings 가용? | 후원사 영역 | 디자인 |
+  |------|---------------|------------|--------|
+  | (web) 대회상세 `tournament-about.tsx` | ✅ page.tsx L168 `settings:true` 이미 select·**그러나 about엔 미전달**(props=description/categories/format만) | ✅ **있음** — sec.type==="sponsors" 블록(L354~375·이름만 텍스트 박스 그리드) | **mybdr**(var(--color-*)·다크·Material Symbols·AppNav frozen) |
+  | admin 대회상세 `[id]/page.tsx` | ✅ settings select有 | ❌ 없음 | Toss |
+- **권고 = (web) 대회상세 about** (이유 ①사용자 대면 = 후원사 노출의 자연스러운 자리 ②이미 후원사 섹션 존재 ③settings 이미 select됨 → 추가 prisma 0, page.tsx에서 about로 1 prop 전달만).
+- **🚨 디자인 룰 (절대) = mybdr 기존**. (web)/* 이므로 **var(--color-*) 토큰·다크·Material Symbols Outlined·AppNav frozen 절대 보존**. lucide/Toss/#3182F6 **금지**. 기존 about 카드 패턴(`rounded-[var(--radius-card)]`·`border-[var(--color-border)]`·`bg-[var(--color-card)]`) 그대로. 로고 깨짐 시 CSS 그라디언트/이니셜 폴백(룰: 이미지 없으면 이니셜).
+- **🔑 기존 "Sponsored By:" 섹션과 충돌/중복 주의 (errors.md L9 정정 핵심)**:
+  - 기존 about의 `sponsors` 섹션은 **`description` 텍스트의 "Sponsored By:" 라인 파서**(L40~42 `.split(",")`)이지 `Tournament.sponsors` 컬럼/settings 소비 아님. **데이터 출처가 다름**.
+  - F-2 `settings.sponsor_logos`(로고URL 보유)와 기존 description 파서(이름만)는 **별개 데이터**. 둘 다 떠서 **후원사 중복 표시** 위험 → **택1 권고**: (가)신규 `settings.sponsor_logos`만 표시하고 description "Sponsored By:" 섹션은 **있으면 로고 그리드로 대체/우선**(`sponsor_logos.length>0`면 그것만) (나)단순히 신규 카드 1개 추가(중복 감수). **권고=(가)** — `sponsor_logos` 있으면 그것을(로고 포함), 없으면 기존 description 파서 폴백.
+- **로고 표시 안 (최소)**: about에 props `sponsorLogos?: {name,logoUrl}[]` 1개 추가 → `sponsorLogos.length>0`이면 기존 sponsors 섹션 대신 **로고 그리드**(`<img src={logoUrl}>` + onError 시 이니셜 폴백·이름 라벨). 기존 sponsors 섹션 마크업/토큰 재사용.
+
+---
+
+**2️⃣ 디비전별 날짜/코트 — 표시 위치 + 역참조 조인**
+
+- **소비처 후보 실측**:
+  | 화면 | 디비전 표시 영역 | settings/schedule_dates/places 가용? |
+  |------|----------------|--------------------------------------|
+  | admin `[id]/divisions/page.tsx` (Client) | ✅ 종별·디비전 운영 화면(format/조설정/cap/fee) — API `division-rules` snake fetch | ⚠️ settings/schedule_dates/places **현재 미fetch** |
+  | (web) 대회상세 about / division-chips | 종별·디비전 칩만(날짜/코트 영역 없음) | settings有·schedule_dates/places **미select** |
+- **권고 = admin divisions 페이지**(이유 ①디비전별 운영 정보의 자연스러운 자리 ②운영자가 "어느 디비전이 며칠 어느 코트"를 보는 화면 ③Toss 스킨 일관). 단 divisions는 **DivisionRule 기반**이고 `div_schedule`은 **디비전명 키 맵**이라 **디비전명으로 매칭**(DivisionRule.code/label ↔ div_schedule 키).
+- **🚨 디자인 룰 = Toss**. admin/* 이므로 `data-skin="toss"`·lucide(`@/components/admin-toss`의 `<Icon>`)·라이트·#3182F6. Material/var(--color-*)mybdr토큰 금지(toss-admin.css 토큰 사용).
+- **🔑 역참조 조인 로직 (사람이 읽는 값 변환)** — 정본 알고리즘은 `ct-divisions.tsx` `allCourts()`(L72~81)·`fmtDate()`(L83~88)에 이미 존재:
+  - **dateId → 날짜**: `schedule_dates`(`[{id,date,court_ids}]`)에서 `find(d=>d.id===dateId).date` → `fmtDate`(M.D (요일)) 변환.
+  - **courtId(`<venueId>_c<idx>`) → 코트명**: ①`courtId`를 `_c`로 분해 → `venueId` + `idx` ②`places`(확장형 `[{id,name,courtCount,naming}]`)에서 `place.id===venueId` 찾기 ③코트번호 = `naming==="alpha" ? String.fromCharCode(65+idx) : String(idx+1)` ④코트명 = `${place.name} ${suffix}코트`. **`allCourts(places)` 그대로 재사용**(places→court옵션 펼침 후 `c.id===courtId`로 `c.full` 룩업)이 가장 안전(중복 로직 0).
+  - ⚠️ `div_schedule` 값에 dateId/courtId 둘 다 있을 때만 F-1이 저장(둘 중 하나라도 없으면 키 자체 부재) → 표시 시 키 존재 여부로 분기.
+- **데이터 가용 갭**: admin divisions(Client)는 현재 API fetch만. div_schedule/schedule_dates/places를 쓰려면 **(a) division-rules API 응답에 추가** 또는 **(b) admin `[id]/page.tsx`(Server)에서 fetch해 divisions로 prop drilling**. divisions가 별도 라우트(Client·자체 fetch)라 **(a) API 확장이 최소** — `/api/web/admin/tournaments/[id]/division-rules` route가 tournament select에 settings/schedule_dates/places 추가 후 응답에 포함(snake). API 확장은 **읽기 select 추가만**(write/스키마 0).
+
+---
+
+**3️⃣ 데이터 가용성·snake 함정**
+
+- **(web) about (로고)**: page.tsx = **Server + Prisma 직접(camelCase)**. `settings` 이미 select됨(L168) → `tournament.settings.sponsor_logos` **그대로 read**(camel/snake 무관 — jsonb 내부 키는 F-1이 박은 `sponsor_logos` snake 그대로 보존). **추가 prisma select 불요**. about에 prop 전달만.
+- **admin divisions (디비전 일정)**: divisions page = **Client + API fetch(snake)**. `div_schedule`/`schedule_dates`/`places`는 **현재 응답에 없음** → division-rules API select 확장 필요. 응답은 `apiSuccess`→**자동 snake 변환**(최상위). 단 jsonb 내부 키(`div_schedule`의 디비전명 키·`{dateId,courtId}`)는 **round-trip 보존**(snake 변환 안 됨) → 프론트에서 `divSchedule[divName].dateId` camel 그대로 접근(F-1이 camel `dateId`/`courtId`로 저장). ⚠️ **최상위 키만 snake**(`div_schedule`·`schedule_dates`·`places`), **jsonb 내부는 저장 그대로**. errors.md "시안 DB미보유 가정 ≠ 실측" 유의: settings는 실측 가용 확정(미보유 아님).
+
+---
+
+**4️⃣ 최소 구현안 + 배치 (변경 파일)**
+
+📍 변경/신규 파일:
+| 표시 | 파일 | 변경 요지 | 신규/수정 | 디자인 |
+|------|------|----------|----------|--------|
+| **로고(F-2a)** | (web) `tournaments/[id]/page.tsx` | about 호출부에 `sponsorLogos={(tournament.settings as any)?.sponsor_logos ?? []}` 1 prop 전달(L707~709). select 추가 불요(settings 이미 있음) | 수정 | mybdr |
+| **로고(F-2a)** | (web) `_components/tournament-about.tsx` | props에 `sponsorLogos?:{name,logoUrl}[]` 추가 → 있으면 기존 sponsors 섹션 자리에 로고 그리드(img+onError 이니셜 폴백). 기존 var토큰/카드 마크업 재사용 | 수정 | mybdr·Material·var(--color-*) |
+| **디비전일정(F-2b)** | `/api/web/admin/tournaments/[id]/division-rules` route | tournament select에 `settings`·`schedule_dates`·`places` 추가 → 응답에 포함(snake 최상위·jsonb 내부 보존) | 수정 | (API·읽기 select만) |
+| **디비전일정(F-2b)** | admin `[id]/divisions/page.tsx` | 디비전 행에 날짜/코트 표시 컬럼 추가. `div_schedule[divName]` → `allCourts(places)`로 코트명·`schedule_dates`로 날짜 역참조 | 수정 | Toss·lucide·toss-admin.css |
+| (조인 유틸·선택) | 신규 `lib`나 divisions 내부 헬퍼 | `allCourts`/`fmtDate` 로직 재사용(ct-divisions에서 추출 or 복제) | 신규/복제 | — |
+
+🔗 기존 코드 연결:
+- 역참조 정본 = `ct-divisions.tsx` `allCourts()`(코트id→코트명)·`fmtDate()`(date→라벨). divisions page는 client라 import 가능(ct-divisions는 wizard 전용이라 직접 import보다 **로직 복제 or 공용 유틸 추출** 권고 — 의존 방향 깔끔).
+- about sponsors 섹션 = `tournament-about.tsx` L354~375 마크업 재사용(토큰·카드 동일).
+
+🧩 배치 분해 (작게·독립):
+- **F-2a (후원사 로고·(web) mybdr)**: page.tsx 1 prop + about 로고 그리드. 2파일·tsc만 커밋 가능. **디비전일정과 독립**.
+- **F-2b (디비전 일정·admin Toss)**: division-rules API select 확장 + divisions page 날짜/코트 컬럼 + 역참조 조인. 2파일+조인유틸. **로고와 독립**.
+- 둘은 **디자인 맥락이 정반대**(mybdr vs Toss)라 **반드시 분리 배치**(한 PR에 섞으면 디자인 룰 혼동 위험).
+
+⚠️ developer 주의사항:
+- **(web) F-2a = mybdr 디자인 절대 보존**: lucide/Toss/#3182F6/하드코딩색 **금지**. var(--color-*)·Material Symbols만. AppNav/기존 about 카드 레이아웃 **회귀 0**(sponsors 섹션 교체만·다른 섹션 무변경).
+- **admin F-2b = Toss**: `@/components/admin-toss` Icon(lucide)·toss-admin.css 토큰. Material 금지.
+- **역참조 안전**: `div_schedule` 값에 dateId/courtId 둘 다 있을 때만 키 존재(F-1 가드). 룩업 실패(dateId가 schedule_dates에 없음·courtId가 places에 없음) 시 **graceful**(해당 항목 숨김·"-" 표시). `allCourts` 재사용이 suffix 도출(num→1/2/3·alpha→A/B/C) 정합.
+- **snake 함정**: settings 최상위는 (web) camel(prisma)·(admin) snake(API). **jsonb 내부 키(sponsor_logos 배열의 name/logoUrl·div_schedule의 dateId/courtId)는 F-1 저장 형태 그대로**(snake 변환 안 됨). 응답 curl 1회 확인 권장.
+- **스키마/API write 변경 불필요**: prisma 무변경·createTournament 무변경·api/v1 무영향. F-2b의 division-rules API는 **읽기 select 추가만**(write/route 시그니처 무변경). ✅ **읽기 전용 표시·스키마 0 확인**.
+
+📚 knowledge 승격 후보(PM): decisions.md → "F-2 표시 = 로고 (web) about(mybdr·settings 이미 select·prop 전달만) / 디비전일정 admin divisions(Toss·division-rules API에 settings/schedule_dates/places 읽기 select 추가·allCourts 역참조 재사용)·디자인 맥락 분리 배치" / conventions.md → "코트id `<venueId>_c<idx>` → 코트명 역참조 = `allCourts(places)` 정본 재사용(naming alpha=A/B/C·num=1/2/3)".
 
 ### 생성폼 후속(로고·디비전날짜코트) 저장위치 설계 (2026-06-22, 읽기전용·코드/스키마 무변경)
 
@@ -528,6 +608,32 @@ places?: { id:string; name:string; region?:string; courtCount:number; naming:"nu
 ## 리뷰 결과 (reviewer)
 (완료분은 작업 로그로 압축 — 신규 작업 시 기록)
 
+### [2026-06-22] F-2 표시 (F-2a (web) 후원사로고 + F-2b admin 디비전 날짜/코트) — reviewer
+
+📊 종합 판정: **수정 필요 (🔴차단 1 / 🟡권고 2 / 🔵사소 2)**
+
+✅ 잘된 점:
+- **F-2a `"use client"` 전환 = 안전**: server 전용 import(async fetch·cookies·server-only) 끌어쓰는 것 0. 컴포넌트는 props만 받는 순수 렌더(파서 + 마크업)라 client 전환에 부작용 없음. page.tsx(server)는 `import { TournamentAbout }` 그대로 동작(client 컴포넌트를 server에서 import = 정상 RSC 패턴). 하이드레이션 미스매치 위험 0(랜덤·Date.now·window 접근 0). 번들 비대 우려도 경미(파서 로직만, 외부 의존 추가 0).
+- **F-2a 디자인 mybdr 준수**: `var(--color-*)` 토큰만·Material Symbols(`material-symbols-outlined`)만·lucide/Toss/#3182F6/하드코딩 hex **0**. AppNav·기존 about 카드 레이아웃 회귀 0(sponsors 섹션만 분기 교체·다른 섹션 무변경).
+- **F-2a 후원사 중복 회피 정확**: `hasSponsorLogos`(settings.sponsor_logos) 있으면 로고 그리드, 없으면 description "Sponsored By:" 파서 폴백 — 출처 다른 두 데이터 중복 표시 차단(planner 권고 (가) 정확 구현). img onError 이니셜 폴백·무한루프 가드 OK(onError가 src 변경 안 함→재요청 없음).
+- **F-2a settings 가용·snake 정합**: page.tsx는 Server+Prisma 직접(apiSuccess 미경유)→settings jsonb 그대로 read. `settings: true` select 이미 존재(L168)·내부 `sponsor_logos`/`logoUrl` 키 보존→SponsorLogo prop 정합. 추가 prisma select 0.
+- **F-2b division-rules route 읽기 전용**: tournament select(settings/schedule_dates/places) **읽기 추가만**·PATCH/write/시그니처/기존 rules·allowed_formats 응답 무변경(+19줄). 회귀 안전.
+- **F-2b divisions page 기존 기능 보존**: format/조설정/진출매핑/GroupSettings/컬럼 전부 유지·날짜코트 칩만 추가. Toss 준수(`data-skin="toss"`·lucide `calendar`/`map-pin`·toss 토큰·Material 0). 키 안정성 OK(`r.id` key). 룩업 실패 시 "–" graceful.
+- **schedule-format.ts allCourts/fmtDate 정본 복제 정확**: ct-divisions 알고리즘과 1:1(suffix alpha=A/B·num=1/2·`${name} ${suffix}코트`·M.D(요일)). import 아닌 복제→생성폼 회귀 0.
+
+🔴 필수 수정 (차단):
+- **[schedule-format.ts L36~39 `DivScheduleEntry` + page.tsx L334 매칭]** **디비전 날짜/코트가 항상 "–"로 표시되는 사일런트 버그**. 근본 원인: `apiSuccess()`=`convertKeysToSnakeCase`가 **재귀적으로 jsonb 내부 키까지 전부 snake 변환**(case.ts L9·L15 — 배열·중첩 객체 재귀). planner/developer가 가정한 "jsonb 내부 키 round-trip 보존"은 **오류**(errors.md 재발6회 함정의 변형). 흐름: F-1이 `div_schedule={"디비전명":{dateId,courtId}}`(camel) 저장 → route가 `div_schedule` 통째 apiSuccess → 응답에선 **`{date_id, court_id}`(snake)로 변환** → schedule-format.ts `DivScheduleEntry`는 `dateId`/`courtId`(camel)만 정의 → `entry.dateId`=undefined → lookupDateLabel/lookupCourtLabel 둘 다 null → **항상 "–"**. (디비전명 최상위 키는 한글이라 `[A-Z]` 정규식 미적용→보존 OK / places.courtCount→court_count는 schedule-format이 `court_count` 기대라 우연히 정합 / schedule_dates는 id·date·court_ids 전부 영향무→정합. **유일 깨지는 곳=div_schedule 값의 dateId/courtId**). **수정안 (택1)**: (A) schedule-format.ts `DivScheduleEntry`를 `date_id?`/`court_id?`로 바꾸고 `resolveDivisionSchedule`이 `entry.date_id`/`entry.court_id` 읽기(가장 단순·apiSuccess 변환에 맞춤) / (B) route GET에서 div_schedule만 apiSuccess 변환 우회해 camel 그대로 응답(`div_schedule`을 별도 raw 반환·복잡). **권고=(A)**. ⚠ **운영 영향 현재 0**(DB에 div_schedule 가진 대회 0건·F-1 직후라 미생성 확인) — 새 대회 생성+종별 일정 입력 시 즉시 발현. → 수정 요청 테이블 등재.
+
+🟡 권고 수정:
+- **[page.tsx L711 `(tournament.settings as any)?.sponsor_logos`]** F-2a 로고는 page.tsx가 server+prisma 직접이라 camel 보존돼 정합하나, **F-2b div_schedule 버그를 거꾸로 증명**: 같은 settings jsonb라도 (web)server(camel 보존) vs admin API(snake 변환) 경로가 정반대. 향후 settings 내부 키를 새 소비처에서 읽을 때 **"이 데이터가 apiSuccess 경유인가" 1회 확인** 룰을 conventions.md 승격 권고(snake 재발 함정 박제).
+- **[schedule-format.ts L51 `court_count` 의존]** F-1 저장은 `courtCount`(camel)인데 apiSuccess가 `court_count`로 변환해줘서 **우연히** 정합. div_schedule 버그를 (A)안으로 고칠 때 이 부분이 snake 의존임을 같이 인지(일관성). 현재 동작은 정상이라 변경 불요·인지만.
+
+🔵 사소:
+- **[tournament-about.tsx L130 `<img>`]** next/image 아닌 raw `<img>` 사용(외부 로고 URL·onError 폴백 위해 의도적). 도메인 unknown이라 next/image config 부담 회피 합리적. alt={name} 있어 a11y OK. 이슈 아님(확인 완료).
+- **[divisions page.tsx L333 IIFE]** rule 행마다 `(() => {...})()` 즉시실행으로 entry 룩업·렌더. 가독성 약간 떨어지나 동작·성능 영향 0(rule 수 적음). 후속 시 헬퍼 추출 고려 가능·현 단계 무방.
+
+---
+
 ### [2026-06-21] 새 대회 생성폼 UI B-2+B-3+B-4 (ct-* 4파일 + page.tsx POST배선 + toss-admin.css) — reviewer
 
 📊 종합 판정: **수정 필요 (🔴차단 1 / 🟡권고 3 / 🔵사소 3)**
@@ -651,6 +757,62 @@ places?: { id:string; name:string; region?:string; courtCount:number; naming:"nu
 🔴 필수 수정: **없음**. 운영 승인 로직이나 트리거 한정·정원 가드·트랜잭션·멱등 전부 견고. 정원 race는 단일운영자 컨텍스트라 차단 미해당(권고). merge 가능.
 
 ## 구현 기록 (developer)
+
+### F-2a — 후원사 로고 (web) 대회 상세 about 표시 (2026-06-22, developer 세션B)
+
+📝 구현: F-1에서 `settings.sponsor_logos`(jsonb)에 저장된 후원사 로고를 (web) 대회 상세 about 섹션에 표시. 기존 description "Sponsored By:" 텍스트 sponsors 섹션 자리에 로고 그리드(img + onError 이니셜 폴백)를 렌더. 로고 데이터 없으면 기존 텍스트 폴백 그대로 → 회귀 0.
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| `(web) tournaments/[id]/page.tsx` | about 호출부에 `sponsorLogos={(tournament.settings as any)?.sponsor_logos ?? []}` 1 prop 전달(L706~). settings 이미 select(L168)·prisma/select 추가 0 | 수정 |
+| `(web) _components/tournament-about.tsx` | ①`"use client"` 추가(img onError 이벤트 핸들러 필요) ②props에 `sponsorLogos?:{name,logoUrl}[]` 추가 ③`SponsorLogo` 컴포넌트 신규(img+onError→이니셜 폴백) ④sponsors 섹션 분기: `hasSponsorLogos`면 로고 그리드, 아니면 기존 텍스트 박스 | 수정 |
+
+🔑 표시·폴백 로직:
+- `sponsorLogos.length > 0` (=`hasSponsorLogos`) → description의 sponsors 섹션 자리에 로고 그리드(`<img src={logoUrl}>` + onError 시 이름 이니셜/텍스트 박스로 폴백) 렌더. 중복 표시 방지(텍스트 sponsors 대체).
+- `sponsorLogos.length === 0` → 기존 description 파서의 텍스트 sponsors 섹션 그대로(회귀 0).
+- ⚠️ about 섹션은 `description` 있을 때 + description에 "Sponsored By:" 줄이 있을 때만 sponsors 섹션 생성 → 게이트 구조 **그대로 유지**(설명/Sponsored By 없이 로고만 있는 경우 미표시 = F-2a 범위 밖·의도된 동작).
+
+🎨 mybdr 디자인 준수: `var(--color-border/card/elevated/text-secondary)`·`rounded-[var(--radius-card)]`·`rounded-lg` 기존 sponsors 마크업 재사용. lucide/Toss/#3182F6/하드코딩 hex **0**. Material Symbols만(추가 사용 없음). AppNav·다른 about 섹션 회귀 0.
+
+🔒 가드: prisma/schema/route/createTournament/`/api/v1` 미접촉. settings as any 접근(snake `sponsor_logos` round-trip). `git add` = 수정 2파일만((admin)·F-2b 영역 미접촉). 미커밋. tsc EXIT 0.
+
+💡 tester 참고:
+- 테스트: settings.sponsor_logos에 `[{name,logoUrl}]` 있는 대회 + description에 "Sponsored By:" 줄 있는 대회 → about 진입 시 "공식 후원사" 카드에 로고 이미지 그리드 표시.
+- 정상: 로고 URL 정상이면 이미지, 깨진 URL이면 onError로 이름 텍스트 박스 폴백.
+- 주의: sponsor_logos 없는 기존 대회 = 텍스트 sponsors 그대로(회귀 0 확인 필요).
+
+⚠️ reviewer 참고:
+- `"use client"` 전환: 기존 server 컴포넌트였으나 img onError 이벤트 핸들러 때문에 client 필요. 상호작용 상태 없어 회귀 위험 낮음 — SSR/하이드레이션 영향 확인 권장.
+
+### F-2b — 디비전별 날짜/코트 admin divisions 표시 (2026-06-22, developer 세션B·Toss)
+
+📝 최초 구현(작업 로그 06-22 참조): division-rules route GET에 settings/schedule_dates/places 읽기 추가 + schedule-format.ts 역참조 헬퍼 신규 + divisions page 날짜/코트 칩. **최초 구현은 div_schedule 을 map 그대로 응답에 넣어** `apiSuccess`(convertKeysToSnakeCase) 재귀 변환에 의해 디비전명 키(영문 `U10`→`_u10`)·내부키(`dateId`→`date_id`)가 망가져 소비처(camel·map 룩업) undefined → 전 디비전 "–" **차단 버그**(reviewer+tester 합치).
+
+#### 수정 이력
+| 회차 | 날짜 | 수정 내용 | 수정 파일 | 사유 |
+|------|------|----------|----------|------|
+| 1차 | 2026-06-22 | **map→배열 변환**으로 snake 재귀변환 함정 견고 회피 | division-rules/route.ts · schedule-format.ts · divisions/page.tsx | reviewer F-2b 차단(apiSuccess 재귀 snake로 디비전명 키 망가짐 + dateId/courtId snake 불일치) |
+
+🔑 수정 방식 = **map을 배열로**(디비전명을 키→값으로 옮겨 snake 변환에서 보존):
+1. **division-rules/route.ts**: 응답 `div_schedule`을 `Object.entries(map).map(([division,v])=>({division, dateId:v.dateId, courtId:v.courtId}))` **배열**로 구성. apiSuccess가 snake 변환 → `[{division, date_id, court_id}]`(디비전명은 **값**이라 영문도 보존·내부 식별자만 snake). PATCH/write/시그니처/기존 rules·allowed_formats 무변경(읽기 0 write 0 유지).
+2. **schedule-format.ts**: `DivScheduleEntry`를 `{division:string; date_id?; court_id?}` 배열 항목으로 변경. `resolveDivisionSchedule(divSchedule[], label, code, scheduleDates, places)` = 배열에서 `division===label` 우선 → `code` 폴백 find 후 `entry.date_id`/`entry.court_id` 역참조. `allCourts`/`fmtDate`/`lookupDateLabel`/`lookupCourtLabel`(코트·날짜 변환) 로직 무변경.
+3. **divisions/page.tsx**: `divSchedule` state `Record`→`DivScheduleEntry[]` 배열. load()서 `Array.isArray(json.div_schedule)?...:[]`. 렌더 소비를 map 룩업(`divSchedule[r.label]`)→`resolveDivisionSchedule(divSchedule, r.label, r.code, ...)` 배열 매칭으로 변경. 칩 마크업·Toss(`data-skin="toss"`·lucide `calendar`/`map-pin`·var(--color-*) toss토큰·Material 0) 그대로.
+
+🔎 snake 정합 재확인(배열 수정 후):
+- **div_schedule**: 배열 항목 디비전명 `division`(값·영문 `U10` 보존) + `date_id`/`court_id`(snake) — 소비처 정합 ✅. 시뮬레이션으로 영문/한글 디비전명 보존 + date_id/court_id 변환 + 없는 디비전 graceful "–" 확정.
+- **schedule_dates**: F-1 저장 `{id, date, court_ids}` → apiSuccess 후 `id`/`date`(단어·불변)·`court_ids`(이미 snake) → `ScheduleDateLite` 정합 ✅.
+- **places**: F-1 저장 camel `courtCount` → apiSuccess가 `court_count`로 변환 → `PlaceLite.court_count` 정합 ✅(우연 정합 아니라 변환 결과 — 배열 수정과 무관하게 유지).
+
+💡 tester 참고:
+- 테스트: 새 생성폼에서 디비전별 날짜/코트 지정 후 게시 → 해당 대회 admin divisions(`/tournament-admin/tournaments/[id]/divisions`) 진입 → 각 디비전 행에 날짜 칩(`M.D (요일)`)·코트 칩(`장소명 N코트`) 표시.
+- 정상: 영문 디비전명(`U10` 등)도 "–" 아닌 실제 일정 표시(이전 차단 버그 = 전부 "–"). 한글 디비전명도 동일.
+- 주의: dateId/courtId 미지정 디비전·매칭 실패는 "–"(graceful). div_schedule 없는 기존 대회도 "–"(회귀 0).
+
+⚠️ reviewer 참고:
+- 저장 폼(ct-create-tournament.tsx) **미접촉** — div_schedule 은 여전히 map으로 settings에 저장. **응답을 만드는 route에서만 배열로 변환**(저장 형식 불변·F-1 영역 보존).
+- snake 함정 견고 해소: 단순히 소비처를 snake로만 고치면 디비전명 키(`_u10`) 망가짐이 남으므로, 디비전명을 값으로 옮긴 배열 방식 채택.
+
+🔎 검증: `npx tsc --noEmit` EXIT=0. 시뮬레이션(case.ts 재현)으로 배열 snake 정합·디비전명 보존 확정. schema/createTournament/`/api/v1`/(web) F-2a/세션A 셸 미접촉. `git add` = F-2b 3파일만. 미커밋(PM 재검증 후).
 
 ### F-1 — 후원사 로고·디비전 날짜/코트 settings jsonb 저장 (2026-06-22, developer 세션B)
 

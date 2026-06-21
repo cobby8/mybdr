@@ -2,6 +2,15 @@
 <!-- 담당: debugger, tester | 최대 30항목 -->
 <!-- 이 프로젝트에서 반복되는 에러 패턴, 함정, 주의사항을 기록 -->
 
+### [2026-06-22] apiSuccess snake 변환은 jsonb 내부·동적 키까지 재귀 → 중첩 map 통째로 망가짐 (snake 함정 7회차)
+- **분류**: 함정 (apiSuccess snake↔camel / jsonb 중첩 / 동적 키)
+- **발견자**: reviewer + tester (생성폼 F-2b 디비전 일정 표시)
+- **증상**: admin divisions에서 디비전별 날짜/코트가 **항상 "–"**. tsc 통과·런타임 에러 없음(사일런트). 운영 영향 당시 0(데이터 미생성)이라 검증 안 했으면 배포 후 발현.
+- **원인**: `apiSuccess()`=`convertKeysToSnakeCase`(`case.ts` L5~18)가 응답 **전체를 재귀** 변환 → jsonb 값으로 넣은 중첩 map `div_schedule={디비전명:{dateId,courtId}}`도 변환 대상. ①내부 키 `dateId`→`date_id` ②**동적 키(디비전명)도 변환**: 영문 `U10`→`_u10`(한글은 보존). 소비처가 camel·원본키 기대 → 룩업 전멸. planner/developer가 "jsonb 내부는 round-trip 보존(snake 변환 안 됨)"으로 가정했으나 **API(apiSuccess) 경로에선 정반대**((web) server 직접 prisma는 camel 보존이라 경로별로 다름 — 헷갈림 원인).
+- **해결**: 단순히 소비처를 snake로 읽게만 고치면 **동적 키 망가짐(U10→_u10)이 남음**. → route에서 **map을 배열로 변환**해 동적 키를 **값**으로 이동: `{디비전명:{dateId,courtId}}` → `[{division:디비전명, dateId, courtId}]`. apiSuccess가 snake해도 `division`은 값이라 원본 보존, 내부만 `date_id/court_id`. 소비처는 `arr.find(e=>e.division===label||code)` + snake 필드로 읽음.
+- **예방**: (a) **settings/jsonb를 apiSuccess로 내보낼 때 동적/영문 키를 가진 중첩 객체는 배열-of-레코드로 변환**(키를 값 필드로). (b) "이 데이터가 apiSuccess 경유인가 vs server 직접 prisma인가" 먼저 판별 — 같은 jsonb라도 **(web) server=camel 보존 / admin API=재귀 snake**로 정반대. (c) snake 변환은 **중첩·배열·동적 키까지 전부** 건드린다(최상위만이 아님). (d) 데이터 0건이라도 **시뮬레이션/코드추적으로 변환 후 키 형태** 확인.
+- **참조횟수**: 0
+
 ### [2026-06-22] 폼 필드 타입 ≠ DB 컬럼 타입 → route body `any` 통과 → 런타임 500 (tsc 미검출)
 - **분류**: 함정 (폼↔DB 타입 정합 / 사일런트 런타임 에러)
 - **발견자**: reviewer (새 대회 생성폼 B-4 리뷰)
