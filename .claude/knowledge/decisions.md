@@ -2095,3 +2095,15 @@
 - **status/payment 배선 확정**: APPLIED=status`pending`+payment`unpaid` / WAITING=status`waiting`(is_waiting 아님)+waiting_number / CONFIRMED=`approved`+payment`paid` / CANCELED=`rejected`+`unpaid`|`refunded`. 계약 §3(WAITING=pending+is_waiting / payment default=pending)은 실필드 불일치 → 위 표가 정합.
 - **참조**: errors.md "외부 flavor 계약 '신규' 주장 ≠ 실스키마" / scratchpad §0 대조표
 - **참조횟수**: 0
+
+### [2026-06-21] Track B Phase4 구현 — 대부분 기존 리스킨, 기능 신규 2건 (dev 머지 #734)
+- **분류**: decision + architecture
+- **발견자**: planner + pm + developer (Phase4 6배치)
+- **핵심**: "대회관리 리빌딩"의 실체 = **기존 구현 위 Toss 리스킨이 대부분**. 참가신청·대회생성·상세·대진은 이미 완전 구현(위치=`(admin)/tournament-admin/tournaments/` + 참가신청은 `(web)/tournaments/[id]/join`). **기능적 신규는 단 2건**.
+- **배치별 결정**:
+  - **참가신청 3단계**(83d697c): 기존 (web) join 리스킨+단계 5→3 축소. **POST/GET/joinSchema/schema 무변경**(기존이 div_caps정원·waiting_number·TTP·status 전부 처리). (web) 다크 영역 내 Toss 예외 스킨 = `.te-enroll[data-skin=toss]` 루트 격리 CSS(globals 의존0). 약관동의 2종 유지(서류 step만 폐지). ⚠️회귀수정=대표자 phone null(카카오/구글) 시 입력칸+canNext 게이트(joinSchema min(1) 정합).
+  - **B-a 입금→자동확정**(d8ea07f·기능신규): teams PATCH 확장 — `payment_status=paid`+status키없음+pending/waiting → `div_caps[division]` 정원가드 하에 approved 자동승격. 초과면 보류(promoted:false). 단일 $transaction·멱등. ⚠️정원 count가 tx 밖(운영자1인 race≈0·후속 tx내 이동 권장).
+  - **B-b/B-c**(2f4e0f9·5e2b358·리스킨): 생성 위저드 + 상세 19파일 Material→lucide·data-skin. 기능1:1.
+  - **B-d 경기별 기록자**(3955d2e·기능신규·PM②): `TournamentMatch.settings` jsonb **merge**(recorder_id set/unset·기존 키 spread 보존·통째덮어쓰기 금지). 풀(tournament_recorders isActive) 외 400. 신규 테이블0.
+- **공통**: 추가 스키마 0·신규 모델 0·TournamentMatch 단일모델 준수. 전 배치 tester+reviewer 통과(차단0). IA=분산 라우트 유지(통합 5탭 미채택)·대기승격=수동.
+- **참조횟수**: 0
