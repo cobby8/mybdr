@@ -410,6 +410,8 @@ function QuickCreateForm() {
             bankName: payload.bankName || undefined,
             bankAccount: payload.bankAccount || undefined,
             bankHolder: payload.bankHolder || undefined,
+            // F-1: 후원사 로고·디비전 일정 보존(settings jsonb) — 있을 때만 전송
+            settings: payload.settings,
           }),
         });
         const data = await res.json();

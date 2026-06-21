@@ -92,6 +92,13 @@ export type CtDraftPayload = {
   bankName: string;
   bankAccount: string;
   bankHolder: string;
+  // ── F-1: 무스키마 보존 데이터(Tournament.settings jsonb) ──────────────
+  //   왜: sponsors 컬럼(String)·categories/divCaps/divFees(Record) 로는 보존 못 하는
+  //       ①후원사 로고URL ②디비전별 경기날짜/코트 를 settings jsonb 에 담아 저장한다.
+  //       createTournament 가 settings 인자를 이미 받으므로(round-trip) schema/API 확장 0.
+  //   ⚠ settings 내부 키는 자동 snake 변환 대상 아님(jsonb 내부) → sponsor_logos/div_schedule
+  //      snake 키를 직접 박는다. 둘 다 비면 settings 자체를 생략(undefined).
+  settings?: Record<string, unknown>;
 };
 
 // =====================================================================
@@ -527,6 +534,27 @@ export function CtCreateTournament({
       });
     });
 
+    // ── F-1: settings jsonb 로 보존할 두 종류 데이터 구성 ──────────────────
+    //   ① 후원사 로고URL — sponsors 컬럼은 이름만(콤마문자열) 저장하므로 로고는 여기 별도 보존.
+    //      로고가 있는 후원사만 {name, logoUrl} 로 수집(이름은 trim).
+    const sponsorLogos = sponsors
+      .filter((s) => s.logoUrl)
+      .map((s) => ({ name: s.name.trim(), logoUrl: s.logoUrl }));
+    //   ② 디비전별 경기날짜/코트 — categories/divCaps/divFees 로는 못 담는 dateId/courtId 를
+    //      { 디비전명: { dateId, courtId } } 맵으로 보존. dateId·courtId 둘 다 값이 있을 때만.
+    const divSchedule: Record<string, { dateId: string; courtId: string }> = {};
+    categories.forEach((c) => {
+      c.divisions.forEach((dv) => {
+        if (dv.dateId && dv.courtId) {
+          divSchedule[dv.name] = { dateId: dv.dateId, courtId: dv.courtId };
+        }
+      });
+    });
+    //   비어있지 않은 것만 settings 에 담는다(둘 다 비면 settings 자체 생략 → undefined).
+    const settings: Record<string, unknown> = {};
+    if (sponsorLogos.length > 0) settings.sponsor_logos = sponsorLogos;
+    if (Object.keys(divSchedule).length > 0) settings.div_schedule = divSchedule;
+
     const { name, isRegular, seriesId, seriesName, organizer, host, poster } = d;
     onSubmitDraft({
       name: name.trim(),
@@ -556,6 +584,8 @@ export function CtCreateTournament({
       bankName: pub.pays.includes("bank") ? pub.bank : "",
       bankAccount: pub.pays.includes("bank") ? pub.account : "",
       bankHolder: pub.pays.includes("bank") ? pub.holder : "",
+      // F-1: 후원사 로고·디비전 일정 보존(둘 다 비면 undefined → 미전송)
+      settings: Object.keys(settings).length > 0 ? settings : undefined,
     });
   };
 
