@@ -12,6 +12,8 @@
 
 import { useState } from "react";
 import { RecordingModeCard } from "./recording-mode-card";
+// Track B-c Toss 리스킨 — Material Symbols → lucide-react 키트(<Icon>)
+import { Icon } from "@/components/admin-toss";
 
 type Mode = "flutter" | "paper";
 
@@ -55,7 +57,8 @@ export function RecordingModeTriggerClient({ tournamentId, defaultMode, matchSta
           onClick={() => setOpen(true)}
           className="btn btn--sm"
         >
-          <span className="material-symbols-outlined text-base align-middle mr-1">tune</span>
+          {/* Material tune → lucide sliders-horizontal */}
+          <Icon name="sliders-horizontal" size={16} className="align-middle mr-1" />
           기록 모드 설정
         </button>
       </div>
@@ -79,7 +82,8 @@ export function RecordingModeTriggerClient({ tournamentId, defaultMode, matchSta
               className="absolute right-3 top-3 z-10 rounded-[4px] p-2 text-[var(--color-text-muted)] hover:bg-[var(--color-surface)]"
               aria-label="닫기"
             >
-              <span className="material-symbols-outlined">close</span>
+              {/* Material close → lucide x */}
+              <Icon name="x" size={24} />
             </button>
             {/* RecordingModeCard 그대로 wrap — 기능 100% 보존 */}
             <RecordingModeCard

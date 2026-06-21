@@ -79,10 +79,11 @@ export default function TournamentAdminsPage() {
   };
 
   if (loading)
-    return <div className="flex h-40 items-center justify-center text-[var(--color-text-muted)]">불러오는 중...</div>;
+    return <div data-skin="toss" className="flex h-40 items-center justify-center text-[var(--color-text-muted)]">불러오는 중...</div>;
 
   return (
-    <div>
+    // Track B-c — Toss 토큰 적용 루트 opt-in
+    <div data-skin="toss">
       <div className="mb-6">
         <Link href={`/tournament-admin/tournaments/${id}`} className="text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]">← 대회 관리</Link>
         <h1 className="mt-1 text-xl font-bold sm:text-2xl">관리자 관리</h1>

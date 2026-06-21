@@ -8,7 +8,7 @@
  *   - matches → null = PR-Admin-2 단일 순위전 trigger 로 흡수 (별 CTA 없음).
  *
  * 디자인 룰 (BDR 13):
- *   - var(--color-info) Navy 톤 / rounded-[4px] / material-symbols-outlined "arrow_forward"
+ *   - var(--color-info) Navy 톤 / rounded-[4px] / lucide "arrow-right" (Track B-c)
  *   - 모바일 full-width / PC 우측 정렬 / 44px+ 터치 영역
  *
  * 사용:
@@ -22,6 +22,8 @@
 
 import Link from "next/link";
 import { Card } from "@/components/ui/card";
+// Track B-c Toss 리스킨 — Material Symbols → lucide-react 키트(<Icon>)
+import { Icon } from "@/components/admin-toss";
 
 // ─────────────────────────────────────────────────────────────────────────
 // 단계 매핑 — 컴포넌트 내부 single source (admin-flow-audit §3 자연 흐름)
@@ -74,7 +76,8 @@ export function NextStepCTA({
               minHeight: 44,
             }}
           >
-            <span className="material-symbols-outlined align-middle text-[18px]">lock</span>
+            {/* Material lock → lucide lock */}
+            <Icon name="lock" size={18} className="align-middle" />
             {next.label}
           </button>
           {disabledReason && (
@@ -101,7 +104,8 @@ export function NextStepCTA({
           }}
         >
           {next.label}
-          <span className="material-symbols-outlined align-middle text-[18px]">arrow_forward</span>
+          {/* Material arrow_forward → lucide arrow-right */}
+          <Icon name="arrow-right" size={18} className="align-middle" />
         </Link>
       </div>
     </Card>

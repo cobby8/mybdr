@@ -6,6 +6,8 @@ import Link from "next/link";
 import { Card } from "@/components/ui/card";
 // 2026-05-16 PR-Admin-1 — 단계간 CTA (페이지 footer "다음: 대진표 생성 →")
 import { NextStepCTA } from "../_components/NextStepCTA";
+// Track B-a Toss 리스킨 — Material Symbols → lucide-react 키트(<Icon>)
+import { Icon } from "@/components/admin-toss";
 
 /* ---------- 타입 ---------- */
 
@@ -247,6 +249,38 @@ export default function TournamentTeamsPage() {
     }
   };
 
+  /* --- Track B-a: 납부 상태 변경 (paid 설정 시 입금→자동확정 트리거) --- */
+  // 이유(왜): 운영자가 입금 확인 후 "납부"로 바꾸면 서버가 정원 가드 통과 시 자동으로 승인 처리한다.
+  //   응답의 promoted / promote_reason 으로 결과(승격 / 정원초과 보류)를 토스트 안내한다.
+  const updatePayment = async (teamId: string, paymentStatus: string) => {
+    setActionLoading(teamId);
+    try {
+      const res = await fetch(`/api/web/tournaments/${id}/teams/${teamId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ payment_status: paymentStatus }),
+      });
+      // 응답 key 는 snake_case (apiSuccess 자동 변환) — promoted / promote_reason
+      const json = await res.json().catch(() => null);
+      if (paymentStatus === "paid" && json) {
+        if (json.promoted) {
+          showToast("입금 확인 — 참가 확정(승인)으로 자동 변경되었습니다.");
+        } else if (json.promote_reason === "division_full") {
+          showToast("입금 처리됨 — 단, 해당 종별 정원이 가득 차 자동 승인은 보류되었습니다.");
+        } else {
+          showToast("납부 상태가 변경되었습니다.");
+        }
+      } else {
+        showToast("납부 상태가 변경되었습니다.");
+      }
+      await load();
+    } catch {
+      showToast("네트워크 오류");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
   /* --- Phase 4-B 옵션 B (모달 inline 액션 4건) --- */
 
   // 토큰 재발급
@@ -436,10 +470,10 @@ export default function TournamentTeamsPage() {
   };
 
   if (loading)
-    return <div className="flex h-40 items-center justify-center text-[var(--color-text-muted)]">불러오는 중...</div>;
+    return <div data-skin="toss" className="flex h-40 items-center justify-center text-[var(--color-text-muted)]">불러오는 중...</div>;
 
   return (
-    <div>
+    <div data-skin="toss">
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
           <Link href={`/tournament-admin/tournaments/${id}`} className="text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]">&larr; 대회 관리</Link>
@@ -458,7 +492,7 @@ export default function TournamentTeamsPage() {
             className="btn btn--sm"
             title="모든 팀의 토큰 URL을 CSV 파일로 다운로드"
           >
-            <span className="material-symbols-outlined text-base align-middle mr-1">download</span>
+            <Icon name="download" size={16} className="align-middle mr-1" />
             CSV 다운로드 ({aliveTokenCount(tokenMap)})
           </button>
           <button
@@ -468,7 +502,7 @@ export default function TournamentTeamsPage() {
             className="btn btn--primary btn--sm"
             title="카톡 발송용 메시지 일괄 복사 (팀별 안내문 포함)"
           >
-            <span className="material-symbols-outlined text-base align-middle mr-1">chat</span>
+            <Icon name="message-circle" size={16} className="align-middle mr-1" />
             카톡 메시지 복사
           </button>
           {/* 2026-05-16 PR-Admin-2 — "순위전 자동 채우기" 버튼은 matches 페이지로 이동 박제됨 (AdvancePlayoffsButton).
@@ -478,10 +512,10 @@ export default function TournamentTeamsPage() {
 
       {/* 등록 경로 통계 카드 (Phase 3-D 권장 4 — 강남구 일괄 박제 vs 코치 신청 구분 시각화) */}
       <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
-        <ViaStatCard label="운영자 등록" count={viaStats.admin} icon="business_center" />
-        <ViaStatCard label="코치 신청" count={viaStats.coach_token} icon="badge" />
-        <ViaStatCard label="본인 신청" count={viaStats.self} icon="person" />
-        <ViaStatCard label="경로 미상" count={viaStats.null} icon="help" />
+        <ViaStatCard label="운영자 등록" count={viaStats.admin} icon="briefcase" />
+        <ViaStatCard label="코치 신청" count={viaStats.coach_token} icon="id-card" />
+        <ViaStatCard label="본인 신청" count={viaStats.self} icon="user" />
+        <ViaStatCard label="경로 미상" count={viaStats.null} icon="circle-help" />
       </div>
 
       {/* 통계 탭 — status 분류 + 코치 미입력 (운영자 박제 + 코치 명단 0건)
@@ -504,8 +538,8 @@ export default function TournamentTeamsPage() {
 
       {filtered.length === 0 ? (
         <Card className="py-12 text-center text-[var(--color-text-muted)]">
-          <div className="mb-2 text-3xl">
-            <span className="material-symbols-outlined text-4xl">sports_basketball</span>
+          <div className="mb-2 flex justify-center">
+            <Icon name="volleyball" size={36} />
           </div>
           {filter === "all" ? "참가 신청한 팀이 없습니다." : `${STATUS_LABEL[filter]} 상태의 팀이 없습니다.`}
         </Card>
@@ -593,9 +627,11 @@ export default function TournamentTeamsPage() {
                     </p>
                   </div>
                   {/* 펼침 화살표 */}
-                  <span className="material-symbols-outlined text-[var(--color-text-muted)] text-lg">
-                    {expandedTeamId === tt.id ? "expand_less" : "expand_more"}
-                  </span>
+                  <Icon
+                    name={expandedTeamId === tt.id ? "chevron-up" : "chevron-down"}
+                    size={18}
+                    color="var(--color-text-muted)"
+                  />
                 </div>
 
                 <div className="flex items-center gap-3">
@@ -616,9 +652,7 @@ export default function TournamentTeamsPage() {
                           : "cursor-not-allowed bg-[var(--color-elevated)] text-[var(--color-text-muted)] opacity-60"
                       }`}
                     >
-                      <span className="material-symbols-outlined text-sm">
-                        {tokenAlive ? "content_copy" : "link_off"}
-                      </span>
+                      <Icon name={tokenAlive ? "copy" : "link-2-off"} size={14} />
                       {tokenAlive ? "URL 복사" : "만료"}
                     </button>
                   ) : (
@@ -752,7 +786,7 @@ export default function TournamentTeamsPage() {
                 title="닫기"
                 aria-label="닫기"
               >
-                <span className="material-symbols-outlined">close</span>
+                <Icon name="x" size={20} />
               </button>
               {/* 모달 헤더 — 팀 정보 + 액션 (프린트 / 닫기) — Phase 3-F 옵션 A 5건 통합
                   2026-05-11 모바일 최적화: 좁은 화면(<sm)에서 정보·액션 세로 분리 + 액션 wrap */}
@@ -795,8 +829,25 @@ export default function TournamentTeamsPage() {
                     )}
                     <ViaBadge appliedVia={token?.appliedVia ?? null} />
                     <StatusBadge status={expandedTeam.status} />
-                    {/* 3. 납부 상태 배지 */}
+                    {/* 3. 납부 상태 배지 (프린트 포함 표시) */}
                     <PaymentBadge status={token?.paymentStatus ?? null} />
+                    {/* Track B-a — 납부 상태 인라인 변경 (paid 선택 시 입금→자동확정 트리거) */}
+                    <select
+                      value={token?.paymentStatus ?? "unpaid"}
+                      onChange={(e) => updatePayment(expandedTeam.id, e.target.value)}
+                      disabled={actionLoading === expandedTeam.id}
+                      className="no-print rounded-[4px] border px-2 py-0.5 text-[10px] font-semibold"
+                      style={{
+                        borderColor: "var(--color-border)",
+                        background: "var(--color-card)",
+                        color: "var(--color-text-secondary)",
+                      }}
+                      title="납부 상태 변경 (납부 선택 시 자동 승인)"
+                    >
+                      <option value="unpaid">미납</option>
+                      <option value="paid">납부</option>
+                      <option value="refunded">환불</option>
+                    </select>
                     {token?.waitingNumber && (
                       <span className="rounded-full bg-[var(--color-warning)]/15 px-2 py-0.5 text-xs font-medium text-[var(--color-warning)]">
                         대기 {token.waitingNumber}번
@@ -870,7 +921,7 @@ export default function TournamentTeamsPage() {
                           title="코치 정보 편집"
                           style={{ color: "var(--color-text-muted)" }}
                         >
-                          <span className="material-symbols-outlined text-xs">edit</span>
+                          <Icon name="pencil" size={12} />
                         </button>
                       </>
                     )}
@@ -913,7 +964,7 @@ export default function TournamentTeamsPage() {
                       style={{ color: "var(--color-info)" }}
                       title="토큰 재발급"
                     >
-                      <span className="material-symbols-outlined text-xs">refresh</span>
+                      <Icon name="refresh-cw" size={12} />
                       재발급
                     </button>
                     {token?.updatedAt && (
@@ -932,7 +983,7 @@ export default function TournamentTeamsPage() {
                       className="btn btn--sm"
                       title={`토큰 만료: ${token.applyTokenExpiresAt ? new Date(token.applyTokenExpiresAt).toLocaleDateString("ko-KR") : "-"}`}
                     >
-                      <span className="material-symbols-outlined text-base align-middle mr-1">content_copy</span>
+                      <Icon name="copy" size={16} className="align-middle mr-1" />
                       URL 복사
                     </button>
                   )}
@@ -987,7 +1038,7 @@ export default function TournamentTeamsPage() {
                     className="btn btn--sm"
                     title="선수 명단 프린트"
                   >
-                    <span className="material-symbols-outlined text-base align-middle mr-1">print</span>
+                    <Icon name="printer" size={16} className="align-middle mr-1" />
                     프린트
                   </button>
                   {/* 닫기 X 버튼은 모달 우상단 absolute 로 이동 (위 button.absolute.right-3.top-3) */}
@@ -1011,7 +1062,7 @@ export default function TournamentTeamsPage() {
                     className="btn btn--sm"
                     title="카톡 명단 텍스트 일괄 입력"
                   >
-                    <span className="material-symbols-outlined text-base align-middle mr-1">content_paste</span>
+                    <Icon name="clipboard-paste" size={16} className="align-middle mr-1" />
                     일괄 입력
                   </button>
                   <button
@@ -1019,7 +1070,7 @@ export default function TournamentTeamsPage() {
                     onClick={() => setShowAddForm(!showAddForm)}
                     className="btn btn--primary btn--sm"
                   >
-                    <span className="material-symbols-outlined text-base align-middle mr-1">person_add</span>
+                    <Icon name="user-plus" size={16} className="align-middle mr-1" />
                     선수 추가
                   </button>
                 </div>
@@ -1114,7 +1165,7 @@ export default function TournamentTeamsPage() {
                               className="rounded-[4px] p-1 text-[var(--color-text-muted)] hover:bg-[var(--color-error)]/10 hover:text-[var(--color-error)]"
                               title="선수 삭제"
                             >
-                              <span className="material-symbols-outlined text-lg">delete</span>
+                              <Icon name="trash-2" size={18} />
                             </button>
                           </td>
                         </tr>
@@ -1271,7 +1322,7 @@ function ImportPlayersModal({
           className="absolute right-3 top-3 rounded-[4px] p-2 text-[var(--color-text-muted)] hover:bg-[var(--color-surface)]"
           aria-label="닫기"
         >
-          <span className="material-symbols-outlined">close</span>
+          <Icon name="x" size={20} />
         </button>
         <h2 className="mb-4 text-lg font-bold">선수 일괄 입력</h2>
         <p className="mb-3 text-xs" style={{ color: "var(--color-text-muted)" }}>
@@ -1492,12 +1543,7 @@ function ViaStatCard({ label, count, icon }: { label: string; count: number; ico
       className="flex items-center gap-3 rounded-[4px] border p-3"
       style={{ borderColor: "var(--color-border)", background: "var(--color-elevated)" }}
     >
-      <span
-        className="material-symbols-outlined text-2xl"
-        style={{ color: "var(--color-accent)" }}
-      >
-        {icon}
-      </span>
+      <Icon name={icon} size={24} color="var(--color-accent)" />
       <div>
         <p className="text-xs" style={{ color: "var(--color-text-muted)" }}>
           {label}

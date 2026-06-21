@@ -15,7 +15,7 @@
  *
  * 디자인 룰 (BDR 13):
  *   - var(--color-info) Navy / var(--color-success) / var(--color-warning) 토큰만
- *   - rounded-[4px] / material-symbols-outlined 만 (lucide-react ❌)
+ *   - rounded-[4px] / Toss 리스킨 후 lucide-react 키트(<Icon>) 사용 (Track B-c)
  *   - 모바일 = Card 스택 / PC = 섹션 사이 자연 간격 (space-y-6)
  */
 
@@ -40,6 +40,8 @@ import type { DivisionStanding } from "@/lib/tournaments/division-advancement";
 import { AdvancePlayoffsButton } from "../_components/AdvancePlayoffsButton";
 import { PlaceholderValidationBanner } from "../_components/PlaceholderValidationBanner";
 import { StandingsTable } from "../_components/StandingsTable";
+// Track B-c Toss 리스킨 — Material Symbols → lucide-react 키트(<Icon>)
+import { Icon } from "@/components/admin-toss";
 // PR-1C-8 — 시안 E1 apl-* 클래스 (탭 / 결승 hero 시각). 토큰 대체본.
 import "./playoffs-admin.css";
 
@@ -133,11 +135,13 @@ function getDivisionCode(m: PlayoffsMatch): string | null {
 // ─────────────────────────────────────────────────────────────────────────
 type SectionKey = "standings" | "ranking" | "final" | "result";
 
+// icon = lucide 키트 이름 — Material leaderboard/sports_basketball/emoji_events/edit_note 대체
+//   (lucide 농구 아이콘 부재 → volleyball 의미대체, 기존 선례 동일)
 const SECTION_TABS: Array<{ k: SectionKey; lbl: string; icon: string }> = [
-  { k: "standings", lbl: "순위표", icon: "leaderboard" },
-  { k: "ranking", lbl: "순위전", icon: "sports_basketball" },
-  { k: "final", lbl: "결승", icon: "emoji_events" },
-  { k: "result", lbl: "결과 박제", icon: "edit_note" },
+  { k: "standings", lbl: "순위표", icon: "bar-chart-3" }, // leaderboard
+  { k: "ranking", lbl: "순위전", icon: "volleyball" }, // sports_basketball
+  { k: "final", lbl: "결승", icon: "trophy" }, // emoji_events
+  { k: "result", lbl: "결과 박제", icon: "file-pen" }, // edit_note
 ];
 
 export function PlayoffsClient({ tournamentId, divisionStandings, matches }: Props) {
@@ -326,13 +330,8 @@ export function PlayoffsClient({ tournamentId, divisionStandings, matches }: Pro
               className={`apl-tabs__tab${section === t.k ? " is-on" : ""}`}
               onClick={() => setSection(t.k)}
             >
-              <span
-                className="material-symbols-outlined"
-                style={{ fontSize: 16 }}
-                aria-hidden="true"
-              >
-                {t.icon}
-              </span>
+              {/* t.icon = lucide 키트 이름(bar-chart-3/volleyball/trophy/file-pen) */}
+              <Icon name={t.icon} size={16} />
               {t.lbl}
               {count != null && <span className="apl-tabs__num">{count}</span>}
             </button>
@@ -352,9 +351,8 @@ export function PlayoffsClient({ tournamentId, divisionStandings, matches }: Pro
              ───────────────────────────────────────────────────────── */}
           <section>
             <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
-              <span className="material-symbols-outlined align-middle text-[16px]" aria-hidden="true">
-                leaderboard
-              </span>{" "}
+              {/* Material leaderboard → lucide bar-chart-3 */}
+              <Icon name="bar-chart-3" size={16} className="align-middle" />{" "}
               종별 예선 결과 ({visibleStandings.length}
               {selectedDivision ? "종별 (선택)" : "종별"})
             </h2>
@@ -379,9 +377,8 @@ export function PlayoffsClient({ tournamentId, divisionStandings, matches }: Pro
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div className="flex-1">
                 <p className="text-sm font-semibold text-[var(--color-text-primary)]">
-                  <span className="material-symbols-outlined align-middle text-[18px]" aria-hidden="true">
-                    trending_up
-                  </span>{" "}
+                  {/* Material trending_up → lucide trending-up */}
+                  <Icon name="trending-up" size={18} className="align-middle" />{" "}
                   예선 종료 → 순위전 진출
                 </p>
                 <p className="mt-1 text-xs text-[var(--color-text-muted)]">
@@ -411,9 +408,8 @@ export function PlayoffsClient({ tournamentId, divisionStandings, matches }: Pro
         <div className="apl-section">
           <section>
             <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
-              <span className="material-symbols-outlined align-middle text-[16px]" aria-hidden="true">
-                sports_basketball
-              </span>{" "}
+              {/* Material sports_basketball → lucide volleyball (농구 부재 의미대체) */}
+              <Icon name="volleyball" size={16} className="align-middle" />{" "}
               순위전 매치 ({rankingMatches.length}경기)
             </h2>
             {rankingMatches.length === 0 ? (
@@ -452,9 +448,8 @@ export function PlayoffsClient({ tournamentId, divisionStandings, matches }: Pro
         <div className="apl-section">
           <section>
             <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
-              <span className="material-symbols-outlined align-middle text-[16px]" aria-hidden="true">
-                emoji_events
-              </span>{" "}
+              {/* Material emoji_events → lucide trophy */}
+              <Icon name="trophy" size={16} className="align-middle" />{" "}
               결승전 & 우승팀 ({finalMatches.length}종별 결승)
             </h2>
             {finalMatches.length === 0 ? (
@@ -494,13 +489,13 @@ export function PlayoffsClient({ tournamentId, divisionStandings, matches }: Pro
         <div className="apl-section">
           <Card>
             <div className="flex items-start gap-3">
-              <span
-                className="material-symbols-outlined flex-shrink-0"
-                style={{ color: "var(--color-info)", fontSize: 26 }}
-                aria-hidden="true"
-              >
-                emoji_events
-              </span>
+              {/* Material emoji_events → lucide trophy */}
+              <Icon
+                name="trophy"
+                size={26}
+                color="var(--color-info)"
+                className="flex-shrink-0"
+              />
               <div className="flex-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <h3 className="text-base font-bold text-[var(--color-text-primary)]">
@@ -722,13 +717,8 @@ function FinalCard({
           }}
         >
           <div className="flex items-center gap-2">
-            <span
-              className="material-symbols-outlined"
-              style={{ color: "var(--color-success)", fontSize: 24 }}
-              aria-hidden="true"
-            >
-              emoji_events
-            </span>
+            {/* Material emoji_events → lucide trophy */}
+            <Icon name="trophy" size={24} color="var(--color-success)" />
             <div>
               <p className="text-xs text-[var(--color-text-muted)]">우승팀</p>
               <p className="text-base font-bold" style={{ color: "var(--color-success)" }}>

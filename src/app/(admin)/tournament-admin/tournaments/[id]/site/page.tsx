@@ -220,7 +220,7 @@ export default function TournamentSitePage() {
 
   if (loading) {
     return (
-      <div className="flex h-40 items-center justify-center text-[var(--color-text-muted)]">
+      <div data-skin="toss" className="flex h-40 items-center justify-center text-[var(--color-text-muted)]">
         불러오는 중...
       </div>
     );
@@ -230,7 +230,7 @@ export default function TournamentSitePage() {
 
   if (site?.is_published) {
     return (
-      <div>
+      <div data-skin="toss">
         <div className="mb-6">
           <Link href={`/tournament-admin/tournaments/${id}`} className="text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]">
             ← 대회 관리
@@ -340,7 +340,8 @@ export default function TournamentSitePage() {
   // ─── 위자드 (3단계) ──────────────────────────────────────────────────────
 
   return (
-    <div>
+    // Track B-c — Toss 토큰 적용 루트 opt-in
+    <div data-skin="toss">
       {/* 헤더 */}
       <div className="mb-8">
         <Link href={`/tournament-admin/tournaments/${id}`} className="text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]">

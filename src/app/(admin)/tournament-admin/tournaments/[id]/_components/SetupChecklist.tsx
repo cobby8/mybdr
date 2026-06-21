@@ -28,17 +28,19 @@ import {
   type ChecklistItem,
   type ChecklistStatus,
 } from "@/lib/tournaments/setup-status";
+// Track B-c Toss 리스킨 — Material Symbols → lucide-react 키트(<Icon>)
+import { Icon } from "@/components/admin-toss";
 
 // ─────────────────────────────────────────────────────────────────────────
 // status → 색상/아이콘 매핑 (단일 진실의 원천 — UI 룰 변경 시 한 곳만 수정)
 // ─────────────────────────────────────────────────────────────────────────
 
-// 카드 좌측 상태 아이콘 (Material Symbols 이름)
+// 카드 좌측 상태 아이콘 (lucide 키트 이름 — Material check_circle/pending/radio_button_unchecked/lock 대체)
 const STATUS_ICON: Record<ChecklistStatus, string> = {
-  complete: "check_circle",
-  in_progress: "pending",
-  empty: "radio_button_unchecked",
-  locked: "lock",
+  complete: "circle-check", // check_circle
+  in_progress: "clock", // pending
+  empty: "circle", // radio_button_unchecked
+  locked: "lock", // lock
 };
 
 // 카드 좌측 아이콘 색상 (CSS 변수)
@@ -164,12 +166,8 @@ export function SetupChecklist({
           }}
           role="status"
         >
-          <span
-            className="material-symbols-outlined text-[16px]"
-            style={{ color: "var(--color-warning)" }}
-          >
-            lock
-          </span>
+          {/* Material lock → lucide lock */}
+          <Icon name="lock" size={16} color="var(--color-warning)" />
           {toast.deps.map((d) => `${d}단계`).join(" · ")} 완료 후 {toast.step}단계
           진행 가능
         </div>
@@ -261,9 +259,8 @@ function PublishGate({
           color: "var(--color-text-muted)",
         }}
       >
-        <span className="material-symbols-outlined align-middle text-[16px]">
-          info
-        </span>{" "}
+        {/* Material info → lucide info */}
+        <Icon name="info" size={16} className="align-middle" />{" "}
         사이트를 먼저 박제하세요. (6단계 → 사이트 설정)
       </div>
     );
@@ -282,12 +279,8 @@ function PublishGate({
       >
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2">
-            <span
-              className="material-symbols-outlined"
-              style={{ color: "var(--color-success)", fontSize: 20 }}
-            >
-              public
-            </span>
+            {/* Material public → lucide globe */}
+            <Icon name="globe" size={20} color="var(--color-success)" />
             <span className="text-sm font-semibold text-[var(--color-text-primary)]">
               대회 사이트 공개 중
             </span>
@@ -332,9 +325,8 @@ function PublishGate({
             minHeight: 44,
           }}
         >
-          <span className="material-symbols-outlined align-middle text-[18px] mr-1">
-            rocket_launch
-          </span>
+          {/* Material rocket_launch → lucide rocket */}
+          <Icon name="rocket" size={18} className="align-middle mr-1" />
           {busy ? "공개 중..." : "대회 공개하기"}
         </button>
         {error && (
@@ -363,9 +355,8 @@ function PublishGate({
           opacity: 0.7,
         }}
       >
-        <span className="material-symbols-outlined align-middle text-[18px] mr-1">
-          lock
-        </span>
+        {/* Material lock → lucide lock */}
+        <Icon name="lock" size={18} className="align-middle mr-1" />
         공개 잠금 (필수 항목 미완료)
       </button>
       <div
@@ -378,10 +369,9 @@ function PublishGate({
             "color-mix(in srgb, var(--color-warning) 8%, transparent)",
         }}
       >
-        <p className="mb-1 font-semibold text-[var(--color-text-primary)]">
-          <span className="material-symbols-outlined align-middle text-[16px] mr-1">
-            warning
-          </span>
+        <p className="mb-1 font-semibold text-[var(--color-text-primary)] inline-flex items-center">
+          {/* Material warning → lucide triangle-alert */}
+          <Icon name="triangle-alert" size={16} className="mr-1" />
           다음 항목을 완료해주세요
         </p>
         <ul className="ml-1 list-disc pl-4 text-[var(--color-text-muted)]">
@@ -429,12 +419,8 @@ function ChecklistCard({
           style={{ color: STATUS_COLOR[item.status] }}
           aria-label={STATUS_LABEL[item.status]}
         >
-          <span
-            className="material-symbols-outlined"
-            style={{ fontSize: 28 }}
-          >
-            {STATUS_ICON[item.status]}
-          </span>
+          {/* STATUS_ICON = lucide 키트 이름(circle-check/clock/circle/lock) */}
+          <Icon name={STATUS_ICON[item.status]} size={28} />
         </div>
 
         {/* 본문 */}
@@ -493,9 +479,8 @@ function ChecklistCard({
               className="mt-2 text-xs"
               style={{ color: "var(--color-text-muted)" }}
             >
-              <span className="material-symbols-outlined align-middle text-[14px]">
-                lock
-              </span>{" "}
+              {/* Material lock → lucide lock */}
+              <Icon name="lock" size={14} className="align-middle" />{" "}
               {item.lockedReason}
             </p>
           )}
@@ -506,7 +491,8 @@ function ChecklistCard({
               className="mt-1 flex items-center gap-1 text-[11px]"
               style={{ color: "var(--color-text-muted)" }}
             >
-              <span className="material-symbols-outlined text-[13px]">link</span>
+              {/* Material link → lucide link */}
+              <Icon name="link" size={13} />
               {deps.map((d) => `${d}단계`).join(" · ")} 완료 후 진행
             </p>
           )}
@@ -518,7 +504,8 @@ function ChecklistCard({
             className="flex-shrink-0 self-center"
             style={{ color: "var(--color-text-muted)" }}
           >
-            <span className="material-symbols-outlined">chevron_right</span>
+            {/* Material chevron_right → lucide chevron-right */}
+            <Icon name="chevron-right" size={24} />
           </div>
         )}
       </div>

@@ -314,3 +314,301 @@
   .te-success__title { font-size: 24px; }
   .te-success { padding: 40px 16px 20px; }
 }
+
+/* ============================================================================
+   Track B Phase4 — 참가신청 3단계 Toss 리스킨 (self-contained)
+   ----------------------------------------------------------------------------
+   왜 이렇게 했나(이유):
+     참가신청서는 사용자(web) 영역이지만 Toss 스킨 "예외"다(디자인 분기 §22).
+     (web)은 다크 기본이고 toss-admin.css는 (web)에 로드되지 않으므로,
+     Toss 토큰(--primary/--ink/--border/--warn/--ok/--grey-*)과 .ts-* 클래스를
+     **join 페이지 루트(.te-enroll[data-skin="toss"])에만 스코프해 자체 정의**한다.
+     이렇게 하면 (web) 전역 다크 토큰을 건드리지 않고 이 페이지만 Toss 라이트가 된다.
+   방법(어떻게):
+     ① .te-enroll[data-skin="toss"] 셀렉터에 Toss 토큰을 직접 선언(globals 의존 0)
+     ② 그 아래 .ts-card / .ts-chip / .ts-btn / .ts-badge / .ts-check / .ts-steps 정의
+     ③ (web) 다크 [data-theme] 가 있어도 같은 스코프 토큰이 항상 라이트로 고정
+   ============================================================================ */
+.te-enroll[data-skin="toss"] {
+  /* --- Toss 토큰 (라이트 고정) --- */
+  --primary: #3182F6;
+  --primary-weak: #E8F1FE;
+  --primary-deep: #1B64DA;
+  --ink: #191F28;
+  --ink-soft: #333D4B;
+  --ink-mute: #6B7684;
+  --ink-dim: #8B95A1;
+  --border: #E5E8EB;
+  --border-strong: #D1D6DB;
+  --warn: #FF8A00;
+  --warn-weak: #FFF4E5;
+  --ok: #15803D;
+  --ok-weak: #E7F7EC;
+  --danger: #E5484D;
+  --danger-weak: #FDECEC;
+  --grey-50: #F9FAFB;
+  --grey-100: #F2F4F6;
+  --sh-sm: 0 1px 3px rgba(0, 0, 0, 0.06);
+  --sh-md: 0 4px 16px rgba(0, 0, 0, 0.08);
+  --r-card: 18px;
+  --r-field: 14px;
+  /* 페이지 전체 배경 + 본문 글꼴 — (web) 다크 캔버스 위 라이트 패널 */
+  background: var(--grey-100);
+  color: var(--ink);
+  font-family: var(--ff-body, 'Pretendard', system-ui, sans-serif);
+  min-height: 100vh;
+  padding: 24px 16px 80px;
+}
+
+/* 본문 폭 제한 (모바일 우선 단일 컬럼) */
+.te-enroll[data-skin="toss"] .te-enroll__inner {
+  max-width: 560px;
+  margin: 0 auto;
+}
+
+/* --- 헤더 --- */
+.te-enroll[data-skin="toss"] .ts-ph__eyebrow {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: var(--primary);
+  text-transform: uppercase;
+}
+.te-enroll[data-skin="toss"] .ts-ph__title {
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  margin: 6px 0 0;
+}
+.te-enroll[data-skin="toss"] .ts-ph__sub {
+  font-size: 13.5px;
+  color: var(--ink-mute);
+  margin: 6px 0 0;
+  line-height: 1.6;
+}
+
+/* --- 카드 --- */
+.te-enroll[data-skin="toss"] .ts-card {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: var(--r-card);
+  box-shadow: var(--sh-sm);
+  padding: 22px;
+}
+.te-enroll[data-skin="toss"] .ts-card--flat {
+  box-shadow: none;
+  background: var(--grey-50);
+}
+
+/* --- StepDots (3칸 점) --- */
+.te-enroll[data-skin="toss"] .ts-steps {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 22px;
+}
+.te-enroll[data-skin="toss"] .ts-steps__dot {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--border);
+  transition: all 0.2s ease;
+  flex: 0 0 auto;
+  width: 8px;
+}
+.te-enroll[data-skin="toss"] .ts-steps__dot[data-on="true"] {
+  background: var(--primary);
+}
+.te-enroll[data-skin="toss"] .ts-steps__dot[data-cur="true"] {
+  width: 26px;
+  background: var(--primary);
+}
+
+/* --- 칩 (종별) --- */
+.te-enroll[data-skin="toss"] .ts-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 16px;
+  border-radius: 9999px;
+  border: 1.5px solid var(--border);
+  background: #fff;
+  color: var(--ink-soft);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s ease;
+}
+.te-enroll[data-skin="toss"] .ts-chip[data-active="true"] {
+  border-color: var(--primary);
+  background: var(--primary-weak);
+  color: var(--primary-deep);
+}
+
+/* --- 필드 라벨 --- */
+.te-enroll[data-skin="toss"] .ts-field__label {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink-soft);
+  margin-bottom: 10px;
+}
+
+/* --- 버튼 --- */
+.te-enroll[data-skin="toss"] .ts-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 14px 18px;
+  border-radius: var(--r-field);
+  border: 1.5px solid transparent;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  min-height: 48px;
+  transition: all 0.15s ease;
+}
+.te-enroll[data-skin="toss"] .ts-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.te-enroll[data-skin="toss"] .ts-btn--primary {
+  background: var(--primary);
+  color: #fff;
+}
+.te-enroll[data-skin="toss"] .ts-btn--primary:not(:disabled):hover {
+  background: var(--primary-deep);
+}
+.te-enroll[data-skin="toss"] .ts-btn--secondary {
+  background: var(--grey-100);
+  color: var(--ink-soft);
+}
+.te-enroll[data-skin="toss"] .ts-btn--ghost {
+  background: transparent;
+  color: var(--ink-mute);
+  border-color: var(--border);
+}
+.te-enroll[data-skin="toss"] .ts-btn--sm {
+  padding: 8px 12px;
+  min-height: 36px;
+  font-size: 13px;
+}
+.te-enroll[data-skin="toss"] .ts-btn--block {
+  width: 100%;
+}
+
+/* --- 배지 --- */
+.te-enroll[data-skin="toss"] .ts-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 9999px;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+.te-enroll[data-skin="toss"] .ts-badge--primary { background: var(--primary-weak); color: var(--primary-deep); }
+.te-enroll[data-skin="toss"] .ts-badge--warn { background: var(--warn-weak); color: var(--warn); }
+.te-enroll[data-skin="toss"] .ts-badge--danger { background: var(--danger-weak); color: var(--danger); }
+.te-enroll[data-skin="toss"] .ts-badge--grey { background: var(--grey-100); color: var(--ink-mute); }
+
+/* --- 체크박스 (선수 선택) --- */
+.te-enroll[data-skin="toss"] .ts-check {
+  width: 24px;
+  height: 24px;
+  border-radius: 8px;
+  border: 2px solid var(--border-strong);
+  background: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  flex: 0 0 auto;
+}
+.te-enroll[data-skin="toss"] .ts-check[data-on="true"] {
+  background: var(--primary);
+  border-color: var(--primary);
+}
+
+/* --- 정보 행 (팀 정보 확인) --- */
+.te-enroll[data-skin="toss"] .ts-inforow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 11px 0;
+  border-bottom: 1px solid var(--border);
+}
+.te-enroll[data-skin="toss"] .ts-inforow:last-child { border-bottom: 0; }
+.te-enroll[data-skin="toss"] .ts-inforow__label { font-size: 14px; color: var(--ink-mute); }
+.te-enroll[data-skin="toss"] .ts-inforow__value { font-size: 14px; font-weight: 600; color: var(--ink); }
+
+/* --- 선택 가능한 행(팀/디비전/선수) 공통 --- */
+.te-enroll[data-skin="toss"] .ts-selrow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 14px 16px;
+  border-radius: 16px;
+  border: 2px solid var(--border);
+  background: #fff;
+  cursor: pointer;
+  font-family: inherit;
+  text-align: left;
+  transition: all 0.15s ease;
+}
+.te-enroll[data-skin="toss"] .ts-selrow[data-on="true"] {
+  border-color: var(--primary);
+  background: var(--primary-weak);
+}
+.te-enroll[data-skin="toss"] .ts-selrow[data-warn="true"][data-on="true"] {
+  border-color: var(--warn);
+  background: var(--warn-weak);
+}
+.te-enroll[data-skin="toss"] .ts-selrow:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* --- 약관 동의 --- */
+.te-enroll[data-skin="toss"] .ts-agree {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  font-size: 13.5px;
+  color: var(--ink-soft);
+  cursor: pointer;
+  line-height: 1.5;
+}
+.te-enroll[data-skin="toss"] .ts-agree input { margin-top: 2px; accent-color: var(--primary); width: 18px; height: 18px; }
+
+/* --- 완료 화면(입금 안내) --- */
+.te-enroll[data-skin="toss"] .ts-done {
+  text-align: center;
+  padding: 12px 0;
+}
+.te-enroll[data-skin="toss"] .ts-done__icon {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  color: #fff;
+  display: grid;
+  place-items: center;
+  margin: 0 auto 16px;
+}
+.te-enroll[data-skin="toss"] .ts-done__icon[data-tone="ok"] { background: var(--ok); }
+.te-enroll[data-skin="toss"] .ts-done__icon[data-tone="warn"] { background: var(--warn); }
+.te-enroll[data-skin="toss"] .ts-done__title { font-size: 21px; font-weight: 800; color: var(--ink); margin: 0; }
+.te-enroll[data-skin="toss"] .ts-done__sub { font-size: 14px; color: var(--ink-mute); margin: 8px 0 20px; line-height: 1.6; }
+.te-enroll[data-skin="toss"] .ts-bankbox {
+  background: var(--grey-50);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 22px;
+  text-align: left;
+}
+
+/* iOS input 16px 보장 (확대 방지) */
+.te-enroll[data-skin="toss"] input { font-size: 16px; }
