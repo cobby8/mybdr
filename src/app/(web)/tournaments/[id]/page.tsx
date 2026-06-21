@@ -707,6 +707,8 @@ export default async function TournamentDetailPage({
           description={tournament.description}
           categories={categories}
           format={tournament.format}
+          // F-2a: settings jsonb 내 sponsor_logos(snake) — 로고 표시용. 없으면 [] 폴백
+          sponsorLogos={(tournament.settings as any)?.sponsor_logos ?? []}
         />
       )}
 

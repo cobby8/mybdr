@@ -1,3 +1,6 @@
+// F-2a: 후원사 로고 img onError(이벤트 핸들러) 사용 → 클라이언트 컴포넌트 필요
+"use client";
+
 /**
  * 대회 설명 섹션 (About the Tournament)
  * - parseDescription 로직을 page.tsx에서 그대로 가져옴 (100% 동일)
@@ -114,18 +117,56 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
   );
 }
 
+// -- 후원사 로고 1건 (이미지 + onError 이니셜 폴백) --
+//    이유: 외부 로고 URL이 깨질 수 있으므로 img onError 시 이름 이니셜 박스로 대체.
+//    'use client' 없이 인라인 onError 핸들러를 쓰려고 별도 클라이언트 컴포넌트로 분리.
+function SponsorLogo({ name, logoUrl }: { name: string; logoUrl: string }) {
+  return (
+    <div
+      className="flex items-center justify-center rounded-lg border p-6 transition-colors"
+      style={{ borderColor: "var(--color-border)", backgroundColor: "var(--color-elevated)" }}
+    >
+      {/* 로고 이미지 — 로드 실패 시 onError로 숨기고 형제 폴백(이니셜) 표시 */}
+      <img
+        src={logoUrl}
+        alt={name}
+        className="max-h-12 w-auto object-contain"
+        onError={(e) => {
+          // 이미지 숨김 + 다음 형제(이니셜 폴백) 노출 — 깨진 이미지 아이콘 방지
+          const img = e.currentTarget;
+          img.style.display = "none";
+          const fallback = img.nextElementSibling as HTMLElement | null;
+          if (fallback) fallback.style.display = "block";
+        }}
+      />
+      {/* 폴백: 후원사명 (기본 숨김, onError 시 노출) — 기존 sponsors 섹션 텍스트 스타일 재사용 */}
+      <span
+        className="text-sm font-bold"
+        style={{ display: "none", color: "var(--color-text-secondary)" }}
+      >
+        {name}
+      </span>
+    </div>
+  );
+}
+
 // -- 메인 컴포넌트 --
 export function TournamentAbout({
   description,
   categories,
   format,
+  sponsorLogos = [],
 }: {
   description: string;
   categories: Record<string, string[]>;
   format: string | null;
+  // F-2a: 후원사 로고 배열(settings.sponsor_logos). 있으면 로고 그리드 우선 렌더
+  sponsorLogos?: { name: string; logoUrl: string }[];
 }) {
   const sections = parseDescription(description);
   const hasCategories = Object.keys(categories).length > 0;
+  // 로고 데이터가 있으면 description 파서의 sponsors 섹션은 건너뛴다(중복 표시 방지)
+  const hasSponsorLogos = sponsorLogos.length > 0;
 
   // 포맷 라벨 -- DB에 저장된 영어 포맷값을 한글로 변환
   const FORMAT_LABEL: Record<string, string> = {
@@ -352,6 +393,11 @@ export function TournamentAbout({
 
         // sponsors: 후원사
         if (sec.type === "sponsors") {
+          // F-2a: 로고 데이터가 있으면 로고 그리드를 우선 렌더(텍스트 sponsors 대체).
+          //       없으면 기존 description 파서 결과(텍스트) 그대로 폴백 → 회귀 0.
+          const sponsorEntries = hasSponsorLogos
+            ? sponsorLogos.map((s) => ({ name: s.name, logoUrl: s.logoUrl }))
+            : sec.sponsors.map((s) => ({ name: s, logoUrl: "" }));
           return (
             <div
               key={i}
@@ -360,15 +406,20 @@ export function TournamentAbout({
             >
               <SectionTitle>공식 후원사</SectionTitle>
               <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-                {sec.sponsors.map((s) => (
-                  <div
-                    key={s}
-                    className="flex items-center justify-center rounded-lg border p-6 transition-colors"
-                    style={{ borderColor: "var(--color-border)", backgroundColor: "var(--color-elevated)" }}
-                  >
-                    <span className="text-sm font-bold" style={{ color: "var(--color-text-secondary)" }}>{s}</span>
-                  </div>
-                ))}
+                {sponsorEntries.map((s) =>
+                  // 로고 URL이 있으면 이미지(+이니셜 폴백) / 없으면 기존 텍스트 박스
+                  s.logoUrl ? (
+                    <SponsorLogo key={s.name} name={s.name} logoUrl={s.logoUrl} />
+                  ) : (
+                    <div
+                      key={s.name}
+                      className="flex items-center justify-center rounded-lg border p-6 transition-colors"
+                      style={{ borderColor: "var(--color-border)", backgroundColor: "var(--color-elevated)" }}
+                    >
+                      <span className="text-sm font-bold" style={{ color: "var(--color-text-secondary)" }}>{s.name}</span>
+                    </div>
+                  )
+                )}
               </div>
             </div>
           );
