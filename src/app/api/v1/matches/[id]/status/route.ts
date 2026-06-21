@@ -15,7 +15,9 @@ import { assertRecordingMode } from "@/lib/tournaments/recording-mode";
 import { applyScoreSafetyNet } from "@/lib/services/match-score-recompute";
 
 const statusSchema = z.object({
-  status: z.enum(["in_progress", "completed", "cancelled"]),
+  // 2026-06-21: 태블릿 구버전 앱이 보내는 'live'를 enum 통과시키기 위해 추가.
+  //   (아래 PATCH 핸들러에서 즉시 'in_progress'로 정규화 — 새 DB 상태값 도입 없음)
+  status: z.enum(["in_progress", "completed", "cancelled", "live"]),
 });
 
 // PATCH /api/v1/matches/:id/status
@@ -40,7 +42,9 @@ export async function PATCH(
     const parsed = statusSchema.safeParse(body);
     if (!parsed.success) return apiError("유효하지 않은 상태값입니다.", 400);
 
-    const { status } = parsed.data;
+    // 태블릿 구버전 앱이 보내는 'live'는 내부 표준값 'in_progress'로 정규화
+    // (새 DB 상태값 도입 없이 scheduled->in_progress 기존 허용 경로로 흡수)
+    const status = parsed.data.status === "live" ? "in_progress" : parsed.data.status;
 
     const match = await getMatchScore(matchId);
     if (!match) return apiError("경기를 찾을 수 없습니다.", 404);
