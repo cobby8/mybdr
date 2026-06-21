@@ -151,6 +151,8 @@ export const POST = withWebAuth(async (req: Request, ctx: WebAuthContext) => {
       // 대회 관리 확장 필드
       organizer, host, sponsors, gameTime, gameBall, gameMethod, places, gender,
       rules, prizeInfo,
+      // 새 대회 생성폼 — (가) 경기설정 12키 jsonb / (나) 날짜↔코트 배정 jsonb (전부 optional)
+      gameRules, scheduleDates,
       // 디자인 템플릿 + 이미지 URL
       designTemplate, logoUrl, bannerUrl,
       // settings JSON (bracket 세부설정 등) — createTournament에 그대로 전달
@@ -239,6 +241,9 @@ export const POST = withWebAuth(async (req: Request, ctx: WebAuthContext) => {
       gameBall: gameBall || undefined,
       gameMethod: gameMethod || undefined,
       places: places || undefined,
+      // 새 대회 생성폼 신규 3필드 — 안 보내면 createTournament가 기본값({}/[]) 처리 (회귀 0)
+      gameRules: gameRules || undefined,
+      scheduleDates: scheduleDates || undefined,
       gender: gender || undefined,
       rules: rules || undefined,
       prizeInfo: prizeInfo || undefined,
