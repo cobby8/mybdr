@@ -8,10 +8,10 @@
 
 ### 🅰️ 세션 A — Phase 3 referee 리스킨 (이 세션)
 - **코드 영역**: `src/app/(referee)/referee/*` (회원 + referee-admin). admin/* 비대회는 Phase2 완료·미접촉. tournaments/*·schema는 세션 B 소관.
-- **상태**: ✅ **Phase 3 referee 24화면 운영 반영 완료**(PR #732→dev·#733→main·53e3397). 3A(4f9a405)+3B(370c3dd)+3C(88c7648). referee 플랫폼 전체 Material 잔존0·tsc0·기능회귀0. Toss 관리자 전환 **Phase 0~3 전부 운영 완료**(남은 건 세션B Phase4 대회관리 리빌딩). 세션A 다음 작업 대기(미정).
-  - **⚠️ 발견 문제(전부 해결/무영향)**: ①3A 토큰갭(--color-background/--color-text-on-primary 미커버→[data-skin] 보강, 해결) ②3B 아이콘 오타(UsersX 부재→user-x 교정, 해결) ③referee-picker title 툴팁 일부 span 이관(장식·기능0) ④로컬 build는 dev서버 DLL락으로 미실행→Vercel CI 빌드 의존(운영배포 빌드 결과 확인 권장) ⑤브랜치 정책 변경(subin폐지·dev직접)됐으나 이번 세션은 subin 사용·다음 세션부터 dev 적용 권장.
-  - **✅ 3A 토큰 보강 완료(PM 결정)**: referee `--color-background`(→#F2F4F6)·`--color-text-on-primary`(→#FFFFFF)는 globals :root 별칭이 다크 고정 → toss-admin.css `[data-skin]` 결합셀렉터(258~)에 명시 추가. admin 미사용 토큰(grep0)이라 Phase1/2 회귀0. 커밋 4f9a405 포함.
-  - **3A 변경 13파일**: _components(referee-shell·notification-bell·empty-state) + page·profile(+edit)·certificates(+[id])·documents·assignments·applications·notifications·settlements. layout.tsx=Material0→무변경. referee-picker=admin배정용 3B로 제외(미접촉). data-skin=셸 크롬 3곳(aside·header·하단nav, main미부착)+각 페이지 루트div(early-return 별도루트 포함). 아이콘=키트Icon만(lucide직접import0). 의미대체: sports(호루라기lucide부재)→flag·health_and_safety→heart-pulse·workspace_premium→award·account_balance→landmark·document_scanner→scan-text·more_horiz→ellipsis.
+- **상태**: ✅ **Toss 관리자 전환 Phase 0~3 전부 운영 완료**. Phase2 백오피스17(#728/#729·0b268ca)·Phase3 referee24(#732/#733·53e3397). 전 배치 tsc0·Material잔존0·기능회귀0·영역격리. 미푸시0(내 작업 전부 main). 세션A 디자인 트랙 종료.
+  - **🔧 운영 트러블슈팅 — 마스터즈 대회 기록(2026-06-21, 운영 DB 단일대회 변경·승인·완료)**: 원인=경기 paper 모드라 플러터 앱 기록이 서버 차단(recording-mode.ts). 조치=6경기+대회 default→**flutter**, status→**in_progress**(임시스크립트·audit박제·정리완료). 결과=경기342 자동동기화(235 PBP·completed). **4강/결승 대진 생성**: 347(토파즈vs포티지 14:20)·349(피벗vs파란날개 15:20)·348(결승 16:30, 승자 자동진출). 상세 함정=errors.md 박제.
+  - **➡️ 플러터 앱 관련 남은 작업 = 다른 세션 이관**(세션A 추적 종료): 예선 5경기 앱 재전송 / 자동전환 화이트리스트(`registration` 누락) / 종료 자동전환 — 전부 `/api/v1` Flutter 영역, **다른 세션 진행 중**.
+  - **⚠️ Phase3 발견(해결됨)**: 3A 토큰갭(referee --color-background/--color-text-on-primary→[data-skin] 보강 4f9a405)·3B 아이콘오타(UsersX부재→user-x)·로컬build dev서버 DLL락→Vercel CI 의존(#729/#733 빌드결과 확인권장)·브랜치정책 변경(subin폐지·dev직접, 다음세션부터).
 - **📦 Phase 3 배치**(referee 독립셸 referee-shell 사용·Phase1 셸 패턴): **3A 셸+회원(~14)**=referee-shell(크롬 data-skin)+공유3(empty-state·notification-bell)+layout+회원8화면(referee·profile(+edit)·certificates(+[id])·documents·assignments·applications·notifications·settlements) / **3B admin코어(~12)**=admin/layout+대시보드·assignments·announcements(+[id])·members(+new·[id]·[id]/documents)·pools / **3C admin정산(~9)**=bulk-register·bulk-verify·settlements(+new-batch·dashboard)·fee-settings·settings. referee-picker→3B(admin 배정용). 방식=셸 크롬에만 data-skin(children wrapper 미부착)+페이지 루트별 data-skin(미작업 admin 누수0)+Material→lucide·기능1:1·schema0. PR=회원/admin 분리.
 
 ### 🅱️ 세션 B — Phase 4 Track B 대회관리 리빌딩 (세션 B가 갱신)
@@ -59,6 +59,7 @@
 ## 수정 요청 (미완료 후속·동작영향 minor)
 | 대상 | 문제 | 상태 |
 |------|------|------|
+| **ct-create-tournament.tsx L531 + page.tsx L393 + service tournament.ts L154/486 (🔴차단·reviewer 2026-06-21)** | **후원사 추가 시 대회 생성 500 실패**. 새 폼은 `sponsors:{name,logoUrl}[]`(객체배열) 전송→route.ts L239 그대로 통과→createTournament `sponsors:input.sponsors??null`→Prisma `sponsors String? @db.VarChar`(schema L313)에 객체배열 INSERT 시도→**런타임 타입에러로 대회 생성 자체 500**. route에 zod 없어 tsc는 통과(body any)·후원사 0개면 우회되나 1개라도 추가하면 영구 실패. **수정안**: (A)page.tsx handleSubmitDraft에서 `sponsors`를 `JSON.stringify(payload.sponsors)` 문자열화 후 전송(String 컬럼 유지·기존 legacy `sponsors:string` 흐름과 정합) 또는 (B)sponsors 객체배열 전송 중단하고 이름만 `sponsors.map(s=>s.name).join(", ")` 문자열. logoUrl 보존이 필요하면 (A). **로고URL은 sponsors VarChar에 JSON으로만 보존 가능**(전용 컬럼 없음). 단순안=후원사명만 문자열(B) | ✅ **해결 (2026-06-22 developer, 권고B 채택)** — sponsors 소비처 실측: validation L79 `z.string()`·service L154/486 `string`·legacy폼 `useState("")`·**표시화면 `tournament-about.tsx` L42 `val.split(",").map(trim)`**=콤마구분 plain문자열 표준. JSON(A)은 `.split`이 못읽어 표시깨짐→**(B) 후원사명만 콤마 join 채택**. ct-create-tournament L531 `sponsors.map(s=>s.name.trim()).filter(Boolean).join(", ")`+payload타입 `string`화, page.tsx L393 배열`.length`분기→`payload.sponsors \|\| undefined`. 0/1/다수 안전(0→""→미전송·1→"A"·다수→"A, B"→split복원). 로고URL=전용컬럼부재로 1차미저장(후속). schema/createTournament시그니처/api/v1 미접촉. tsc EXIT0 |
 | (web) join/page.tsx L148~150·439·263 (차단·reviewer) | 참가신청 대표자 입력칸+클라게이트 제거로 user.phone null 사용자(카카오/구글 가입자) 영구 제출 차단. 서버 joinSchema managerName/managerPhone `.min(1)` 필수인데 자동값 빈값→422·고칠 UI 없음. user_info 빈값 시 입력칸 노출+canNext 게이트 추가(택A) 또는 항상 편집칸(택B) | ✅ 해결 (2026-06-21 developer, 권고A: 조건부 입력칸+canNext trim 게이트·page.tsx 1파일·tsc0·route/schema diff0) |
 | scrim-tabs.tsx L295 (critical) | 보낸취소가 URL[id]=from_team 전송→PATCH 400 | ✅ **이미 해결**(068341b /scrim 실데이터 연결 시 `patchStatus(r.counterpart.id, r.id, "cancelled")`+`disabled !counterpart?.id` 가드 반영·main 확인). 항목 stale였음(2026-06-21 검증) |
 | scrim PATCH 가드(minor) | 수락/거절 captain only(vice/manager 없음)→isCaptain 헬퍼 통일 검토 | 후속(설계 검토 — 결정 필요) |
@@ -79,28 +80,55 @@
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
 |------|------|------|
+| 2026-06-22 | F-1 후원사로고·디비전날짜코트 settings jsonb 저장 (developer 세션B) | ✅ 변경 2파일(ct-create-tournament·page.tsx, +32/-0). ①`CtDraftPayload.settings?` 추가 ②publish() sponsorLogos(로고있는것만 `{name,logoUrl}`)·divSchedule(`{디비전명:{dateId,courtId}}` 둘다있을때만) 맵→비어있지않은것만 settings(`sponsor_logos`/`div_schedule` snake) ③page.tsx body `settings:payload.settings` 1줄. 빈값생략(둘다비면 undefined→미전송). sponsors콤마문자열·평면변환 전부보존·schema/route/tournament/api/v1 미접촉(createTournament settings 기존수신 round-trip). tsc EXIT0. 세션A셸 미접촉. 미커밋. |
+| 2026-06-22 | 생성폼 후속(로고·디비전날짜코트) 저장위치 설계 (planner 세션B·읽기전용·코드/스키마 무변경) | ✅ **두 후속 모두 Tournament.settings jsonb로 무스키마 해결 = YES**. ①settings 무스키마=`settings Json?`(schema L326)·createTournament 수신경로 기존존재(tournament.ts L179·L524 round-trip)·route.ts L270 전달·단 page.tsx body·CtDraftPayload에 settings키만 추가 필요. ②로고=`settings.sponsor_logos`(`[{name,logoUrl}]`)·sponsors컬럼 콤마문자열 B안 현행유지. 🔑**소비처 정정**: errors.md L9 "tournament-about `.split(",")`=sponsors컬럼"은 오인(그건 description 'Sponsored By:' 파서)·실 컬럼소비처=수정wizard(plain·쉼표구분) + OBS스코어보드(molten/stiz 문자열필터)뿐→콤마문자열 정합·settings추가 무영향. ct는 이미 `Sponsor{logoUrl}` state+ImageUploader 완비(publish L541서 버림). ③디비전날짜코트=`settings.div_schedule`(`{디비전명:{dateId,courtId}}`)·DivisionItem 이미 dateId/courtId보유(ct-divisions L29)+입력UI완성·publish L515~518서 의도적 손실→맵구성 1블록 추가. **스키마 승인 불필요**(prisma무변경·api/v1무영향·createTournament 시그니처무변경). 변경파일=ct-create-tournament+page.tsx 2개(저장만)·소비처표시는 F-2 후속분리. 배치=F-1저장(2파일·tsc커밋) / F-2표시(about·디비전일정 역참조·선택). 미커밋. |
+| 2026-06-22 | 새 대회 생성폼 B-4 reviewer 차단 1건 수정 + 권고①③ (developer 세션B·되돌림루프 1회차) | ✅ **차단(sponsors 500) 해결** — 소비처 실측(표시화면 `.split(",")` plain문자열 표준)→**권고B(이름만 콤마join) 채택**(JSON-A는 표시깨짐). ct-create-tournament L72 payload타입 `string`화·L531 `map(s=>s.name.trim()).filter().join(", ")` / page.tsx L393 `.length`분기→`\|\|undefined`. 0/1/다수 안전. 로고URL 1차미저장. **권고①** ct-divisions 배너 "종별규칙 자동생성"→"종별·디비전 구성 저장·세부규칙은 생성후 설정"(DivisionRule 미생성 오해제거). **권고③** 평면변환부 dateId/courtId 1차미저장 주석박제(createTournament 키부재·API/schema 확장금지·UI유지+사일런트손실 명시). schema/createTournament/api/v1/toss-admin.css/세션A셸 미접촉. tsc EXIT0. PM 소비처 재확인(tournament-about.tsx L42 `.split(",")` 정합). **B-2~B-4+수정 한커밋 567d142**(6파일·2402+/146-·subin·미푸시2). dev서버 stale=포트3001 PID179416만 종료 후 재기동. |
+| 2026-06-21 | 새 대회 생성폼 B-2+B-3+B-4 검증 (tester 세션B) | ✅ **8/8 통과·차단이슈 0**. ①tsc EXIT0 재확인. ②페이지 렌더 스모크=wizard는 미들웨어 인증게이트로 307→`/login?callbackUrl=`(정상·미인증). ③payload정합=handleSubmitDraft가 categories평면변환(catRecord{종별:[디비전]}+divCaps+divFees)·places확장·scheduleDates(court_ids)·gameRules12키 POST body 배선·응답snake `data.redirect_url`접근 정합. route.ts L142~163 전 키 수신·L218~258 createTournament 전달 실측. ④회귀0=createTournament/route.ts/schema/`/api/v1` diff **비어있음**(B-4 백엔드 미접촉). legacy/prospectus/association 셸 보존. ⑤필수검증=submit()에서 대회명·정규대회선택·주최·주관·장소·일정·종별(totalDiv===0) 누락 시 toast차단·게시모달 미오픈. ⑥state계약=CategoryItem/DivisionItem/GameRules·shotClock=boolean·GAME_SETTINGS_DEFAULTS 정본 export→메인폼 import 일원화 일치. ⑦Toss격리=ct-page 루트·page.tsx data-skin="toss" 부모래퍼·Material실사용0(주석만)·하드코딩hex0(유니폼팔레트만 도메인예외)·lucide CDN0·toss-admin.css B-4추가분 `*/`조기종료0·중괄호균형. ⑧격리=세션A admin-shell/referee-shell 미접촉(생성폼 5파일 국한). ⚠️**비차단 환경이슈**: dev서버 3001이 globals.css Turbopack stale로 ROOT/`/tournaments`/`/login` **전 페이지 500**("Failed to write app endpoint·Caused by globals.css") — globals.css **미변경(이 작업 무관·마지막커밋6/19)**·toss-admin.css 조기종료0 → errors.md "Turbopack HMR stale" 함정. 코드회귀 아님. **dev서버 재시작 권장**(PM판단·종료금지룰). |
+| 2026-06-21 | 새 대회 생성폼 B-4 마무리(우측 통합+게시모달+POST배선) (developer 세션B) | ✅ 수정2(ct-create-tournament·page.tsx)+toss-admin.css(게시모달 3클래스). **우측 stub2카드→실폼**: `<CtDivisions value={categories} onChange={setCategories} scheduleDates={변환} venues toast/>`+`<CtGameSettings value={gameRules} onChange={setGameRules}/>`. state추가=`categories:CategoryItem[]`·`gameRules:GameRules`(GAME_SETTINGS_DEFAULTS import 일원화·d state에서 game키 제거·로컬 defaults 삭제). **검증**=종별1개+(totalDiv===0 차단) 추가→통과시 게시모달 오픈. **PublishModal**(내부컴포넌트·신규파일0)=게시기간·참가신청기간(date2)·결제방법(계좌이체만 활성/간편·카드 준비중disabled)·은행select+계좌+예금주(`p.pays.includes("bank")`조건). **평면변환**=CategoryItem[]→`categories{종별명:[디비전명]}`+`divCaps{디비전명:cap}`+`divFees{디비전명:fee}`. **POST배선**(page.tsx handleSubmitDraft async)=`POST /api/web/tournaments` body=name·seriesId(정규시만)·organizer·host·sponsors·logoUrl(포스터)·startDate/endDate(게시기간)·registrationStartAt/EndAt(참가신청)·places·scheduleDates·gameRules·categories/divCaps/divFees·bankName/Account/Holder. 응답 snake `data.redirect_url`→성공 router.push·실패 showToast. saving=loading state 재사용(모달버튼 스피너ct-spin·진행중 닫기금지). **API/createTournament/route.ts/schema/`/api/v1` 미접촉**(전부 기존 수신키 실측확인: route.ts L147 categories/divCaps/divFees·L155 gameRules/scheduleDates·createTournament L136~173·502~504 div_caps/div_fees/game_rules/schedule_dates). 게시모달 클래스=`.ct-daterange/.ct-paygrid/.ct-paychip`(시안 toss.css 1:1·`[data-skin="toss"]`스코프·--warn/--warn-weak/--primary-weak 기존토큰). 미사용 courtsOf import 정리. lucide(trophy/check 실존)·Material0·hex0·IME가드(계좌/예금주)·dev서버미접촉. tsc EXIT0. git=대상2수정(ct-create-tournament untracked·page.tsx M)+toss-admin.css M·admin-shell/referee-shell 미접촉. 미커밋(PM). |
+| 2026-06-21 | 새 대회 생성폼 B-3 우측 컬럼 2종 (developer 세션B) | ✅ 신규2(ct-divisions·ct-game-settings·controlled). **ct-divisions**=종별·디비전 제너레이터·props`{value:CategoryItem[];onChange;scheduleDates;venues;toast}`·`/api/web/admin/categories`GET실연동(snake `sort_order`·폴백 graceful)·DivisionGenerator모달4단계(성별·종별템플릿·디비전·연령·여성부w·곱집합)·디비전별cap/fee/dateId/courtId·venues→코트풀(`<venueId>_c<idx>`)read-only. 시안 `method`필드=계약(DivisionItem) 미존재로 제거(진행방식=DivisionRule소관). **ct-game-settings**=경기설정12키·props`{value:GameRules;onChange}`·유니폼16색picker(UniformModal·hex직접입력·휘도잉크)·프리셋4·Stepper·**shotClock=boolean**(SegSm 사용/미사용). **`GAME_SETTINGS_DEFAULTS`+`GameRules`타입 정본 export**(L37~50). 가드=page.tsx·ct-create-tournament·ct-schedule-venue·toss-admin.css·API·createTournament·schema·`/api/v1` 전부 미접촉(categories GET 읽기만). 재사용`.ct-*`(headicon/iconbtn/reqtag/banner/emptybox/stepper/segsm)만 클래스참조·우측전용 inline `var(--*)`·보라`#6D5AE6`→`var(--primary)`토큰화·lucide15종실존·Material0·hex0(유니폼팔레트 도메인예외)·IME가드·dev서버미접촉. tsc EXIT0(신규2 자체정합·전체에러0). git=신규2파일만stage(`A`)·B-2미접촉. 미커밋(PM). 통합위치=B-4(ct-create-tournament 우측 `.ct-stub` 2카드→CtDivisions/CtGameSettings 교체+state). |
+| 2026-06-21 | 새 대회 생성폼 B-2 2컬럼 셸+좌측 컬럼 (developer 세션B) | ✅ 신규2(ct-create-tournament·ct-schedule-venue)+수정2(page.tsx quick탭 풀폭 early-return→CtCreateTournament·toss-admin.css `.ct-*` 70규칙+ctspin). **좌측 완성**=대회명(인라인검증)·정규대회(시리즈 `/api/web/series/my` 실연동+InlineSeriesForm)·주최·주관·후원사(ImageUploader)·포스터(ImageUploader)·일정장소(VenueSearch자동완성·코트Stepper1~8·명명SegSm·CalendarModal다중·날짜별코트배정·pruneCourts). **우측 stub**=`.ct-stub` 2카드(B-3). **제출 보류B-4**=검증후 onSubmitDraft→페이로드확인 토스트만(POST없음·payload는 B-1 places확장/scheduleDates `court_ids`/gameRules12키 변환완료). 가드=route/createTournament/Zod/schema/`/api/v1` 미접촉·prospectus/협회/draft 보존·lucide20종실존(ICON_ALIAS불요)·Material0·hex0(유니폼저지색 도메인예외)·IME가드·dev서버미접촉. `.ct-bar` lg `left:16rem`/모바일 `left:0`·720px 1컬럼. tsc EXIT0. git=대상4파일만(admin-shell/referee-shell 미접촉). 미커밋(PM). 잔여=B-3우측·B-4제출배선 |
+| 2026-06-21 | 새 대회 생성폼 B-1 schema+POST 3필드 확장 (developer 세션B) | ✅ 🔴ALTER targeted 적용=`tournaments.schedule_dates jsonb DEFAULT '[]'`(`prisma db execute`·broad push 중단=diff에 live_scoreboards FK drift 혼입 확인). 사후실측 컬럼 정상·65행 보존. schema 1줄 ADD(places 인접). POST 확장=route.ts body분해 `gameRules,scheduleDates` 추가+createTournament 전달 / tournament.ts `CreateTournamentInput` 2필드+places타입확장(id/region/courtCount/naming)+createData game_rules/schedule_dates jsonb round-trip. **3필드 전부 optional**(미전송→`{}`/`[]` 기본값·회귀0). DivisionRule 미생성·시리즈 $transaction·status=draft 불변. prisma generate=DLL락→포트3001 PID78724만 종료 후 성공(개발서버 종료됨·재시작 PM판단). tsc EXIT0. tester 6항목 통과(차단0). git diff=대상3파일만(28+/1-). **커밋 478cf88**(subin·미푸시) |
+| 2026-06-21 | 새 대회 생성폼 전면교체 실행계획 (planner 세션B·읽기전용·코드/스키마 무변경·PM확정 가나다 전제) | ✅ 🔴**스키마diff=ADD COLUMN 1개뿐**(`schedule_dates Json? @default("[]")`·NULL허용 무중단·승인후 targeted SQL). game_rules(L304 죽은컬럼)·places(L317 jsonb)·DivisionRule.settings(L3496)=전부 기존컬럼 활성/타입확장. (가)game_rules=시안 GAME_SETTINGS 12키 1:1 jsonb(camel그대로·Flutter무영향). (나)schedule_dates=`[{id,date,court_ids[]}]`·코트id=`<venueId>_c<idx>`·places[].courtCount/naming 파생(court테이블 신설❌). (다)전면교체=page.tsx(1849줄 Quick/Legacy/SUBTABS) **본문만 2컬럼교체**·라우트불변→외부링크0파손. **POST/createTournament 100%재사용**+3필드확장(route.ts L142분해+tournament.ts createData L460). ⚠️**DivisionRule 자동생성=createTournament 미수행**(grep0·categories jsonb만 저장·DivisionRule은 [id]/divisions 다운스트림)→시안"자동생성"=신규동작·1차 categories jsonb 권고. 배치4분해(B-1 schema+POST게이트 / B-2 좌측 / B-3 우측 / B-4 통합·게시모달). prospectus/협회마법사=보존·draft자동채움 유지. 시안 정규대회=시리즈·CATEGORY_MASTER=admin_categories실연동. 미커밋 |
+| 2026-06-21 | 새 대회 생성폼 정합 조사 (planner 세션B·읽기전용·코드/스키마 무변경) | ✅ 🟢**Flutter 게이트=키변경 NO·충돌0**(match-sync.ts+sync route 전수정독=game_rules 미read·점수/스탯/PBP만 / `Tournament.game_rules`=dead column schema L304有·src grep 0). 시안 경기설정(유니폼·방식·파울·타임아웃) 서버 미저장=신규빈공간. 시안"GameRules 1:1정합"=Flutter앱 내부모델 정합이지 서버계약 아님. §2=시리즈/결제/admin_categories 재사용·신규0. 🔴**진짜신규=날짜↔코트 배정**(tournament_date·date_court grep 0·places는 평면 장소배열·courts/court_infos=픽업게임DB 무관)→jsonb확장 권고(places확장+schedule_dates·DivisionRule date/court는 settings흡수·무중단). 화면=시안 2컬럼단일폼 vs 기존 step위저드(Toss리스킨完)→**신규페이지 추가(병행) 권고**. PM결정3건(가:game_rules저장위치/나:날짜코트 jsonb vs정규테이블/다:리빌딩범위)·🚦schema게이트 대상. 미커밋 |
 | 2026-06-21 | Track B 참가신청 3단계 후속 정리 (developer 세션B) | ✅ ①orphan 4파일 git rm(_v2/enroll-aside·poster·step-docs·step-payment·소스 import grep 0 확인·aside→poster 둘다삭제) ②dead CSS 제거(tournament-enroll.css 구 Material 구역 .te-h3/pay*/method*/bank*/bill*/success* 전량·615→308줄·약307줄·Toss .ts-*53규칙 유지) ③대표자/연락처 UI=값있으면span/없으면input 삼항→**항상 prefill input**(편집가능·canNext trim게이트 유지·빈값회귀 보존). route.ts/joinSchema/schema diff0·본인인증/주장가드/약관게이트/snake/adaptive 보존. tsc EXIT0. git=join영역만(삭제4·수정2). 미커밋(PM) |
 | 2026-06-21 | Track B Phase4 후속 비차단 3건 수리 (developer) | ✅ ①B-a teams PATCH approvedCount조회 $transaction **내부 이동**(race강화·동시 paid시 cap초과 차단·cap값조회는 tx밖 유지·`{updated,promoted}`반환) ②B-d matches GET 가드 `requireTournamentAdmin`→`requireRecordersManageAccess`(recorder_admin 통과·PATCH와 정합·POST 미접촉) ③B-d recorders page `roundName/scheduledAt`→`round_name/scheduled_at` snake교정(**응답키 실측 확정**=apiSuccess→convertKeysToSnakeCase→snake). 가드조건/승격로직/멱등/teams_count 동기화 전부 동일. 스키마0·신규모델0·기능회귀0. tsc EXIT0. git=대상3파일만(teams API/matches API/recorders page). 미커밋(PM) |
-| 2026-06-21 | Track B 종별 마스터(`/admin/categories`) 사이드바 nav 링크 추가 (developer 세션B) | ✅ `sidebar.tsx` navStructure "시스템" 그룹에 "종별 관리"(super_admin 전용·시스템 설정과 동일 가드) 항목 추가(시스템 설정↔활동 로그 사이)+`SIDEBAR_ICON`에 `grid_view→layout-grid` 매핑. mobile-admin-nav도 같은 navStructure 공유→모바일 자동 반영. 기존 항목/순서/그룹 변경0(추가만)·schema0·신규route0. tsc EXIT=0. git add=sidebar.tsx만. 미커밋(PM) |
-| 2026-06-21 | Track B Phase4 B-d 경기별 기록자 배정 (settings.recorder_id jsonb) 구현 (developer 세션B) | ✅ 신규 API 2종(matches/[matchId]/recorder PATCH=settings jsonb merge로 recorder_id set/unset·풀검증·IDOR가드·감사로그 / recorders/auto-assign POST=풀 라운드로빈 batch $transaction) + recorders 화면에 "경기별 기록자 배정" Card 추가(경기목록+기록자 select+자동배정·기존 풀 관리 1:1 보존). **settings spread merge**로 기존 키(recording_mode/division_code) 보존·통째 덮어쓰기0. 풀 외 인원 400 RECORDER_NOT_IN_POOL. **추가 스키마0·신규모델0**(settings/tournament_recorders 기존)·TournamentMatch 단일모델 준수. 기존 매치 PATCH route 미접촉(점수/상태 회귀0). tsc EXIT=0. git=대상3파일만(matches API route/teams/referee/schema 0). 미커밋 |
-| 2026-06-21 | Track B Phase4 B-c 대회 상세 나머지 화면 Toss 리스킨 (developer 세션B) | ✅ `tournament-admin/tournaments/[id]/*` 19파일(teams=B-a·wizard 제외) 순수 리스킨. 페이지9(대시보드·divisions·bracket·recorders·site·admins·matches(+client)·playoffs(+client)·completed(+hero/card-grid))+공유_components9. Material→lucide `<Icon>` 키트 교체(전부 실존)+data-skin="toss" 루트 opt-in(early-return·loading 포함, 클라루트는 부모 page 래퍼 상속). 동적 아이콘맵(STATUS_ICON·MODE_ICON·SECTION_TABS·secondaryActions·cards[].icon) lucide명화. 의미대체1(sports_basketball→volleyball). **API/server action/필터/컬럼/문구/라우트/대진로직/SetupChecklist/공개게이트 0 변경**(git diff 로직라인 grep=0). 신규모델/스키마/API 0. tsc EXIT=0. material 잔존0(JSDoc 포함). git=[id] 19파일만M(teams/wizard/schema/api/referee 0). 미커밋 |
-| 2026-06-21 | Track B Phase4 B-b 대회 생성 위저드 Toss 리스킨 (developer 세션B) | ✅ 4파일(new/wizard/page.tsx·prospectus·tournament-copy-modal·division-generator-modal) Material 35위치→lucide `<Icon>` 키트 교체 + data-skin="toss" 루트 opt-in(Quick/Legacy/prospectus 메인+early-return). 의미대체1(gradient→square)·volleyball(농구부재). rgba초록 tint→color-mix 토큰. **API/POST body/단계/DivisionGenerator 로직/이전대회복사 0 변경**(git diff 로직라인 실측). Icon 29종 lucide 실존검증. tsc EXIT=0. material 잔존0. git=대상4파일만M(referee/admin비대회/teams/schema 0). 미커밋 |
-| 2026-06-21 | Track B Phase4 대회 생성+상세(대진통합) 설계 (planner, 읽기전용·코드/스키마 무변경) | ✅ 핵심발견=**운영 대회관리 거의 전부 기구현**(본진=`(admin)/tournament-admin/tournaments/`·admin/tournaments 아님). 생성위저드(Quick/Legacy3-step/복사/Division/prospectus)·상세(SetupChecklist+teams+divisions+bracket+recorders+site+completed)·대진(5포맷)·기록자풀 전부 完·Toss 미리스킨. **진짜 신규 2건뿐**=①입금→자동확정 API(payment_status PATCH 미구현·paid→approved 승격) ②경기별기록자(settings.recorder_id·PM② 확정 jsonb). 하위배치4분해: B-a(입금자동확정 API+teams리스킨·1순위·유일 기능신규) / B-b(생성위저드 리스킨) / B-c(상세나머지 리스킨) / B-d(경기별기록자 settings). 시안 통합5탭IA=분산라우트 유지 권고(전면재구성 보류). status D표 매핑(WAITING=waiting+waiting_number·is_waiting❌)·div_caps 정원·TournamentMatch 단일모델·settings merge·snake·스키마0. PM확정3건(IA·대기승격 자동vs수동·착수순서). 미커밋 |
-| 2026-06-21 | Track B 참가신청 3단계 (Toss 리스킨) **검증** (tester, 세션B·정적) | ✅ 8항목 전부 통과·차단0. 🚨회귀0 확정(route.ts·schema.prisma·joinSchema diff 비어있음)·클라 POST body 동일(대표자/유니폼 자동값)·약관2종 게이트(canSubmit)·본인인증redirect+주장가드+snake접근자 보존·adaptive 2단계·Toss격리(전역셀렉터·:root 오염0·toss-admin.css 미import·lucide-react직접)·join 4파일 국한. tsc EXIT0. 후속minor1(GET bank_* 응답 런타임확인 권장, 표시용·제출영향0). 미커밋 |
-| 2026-06-21 | Toss Phase 3 Batch 3B(referee-admin 코어 11파일) 리스킨 (developer 세션A, 본인+fork2병렬) | ✅ layout(AccessDenied 루트 data-skin+lock→lucide)·referee-picker(자체렌더루트 data-skin·search/x/star)·page대시보드(동적 stat/quickLinks icon값 lucide명화·shield-check/chevron-right)·assignments(루트 data-skin·circle-x/search/trophy×2/plus/info/circle-check)·announcements(+[id] 3루트)·members(+new/[id]2루트/[id]/documents)·pools. data-skin=AccessDenied루트+각 page루트+early-return별도루트(members[id]·documents·announcements[id])+referee-picker자체루트. Material79→키트Icon 전환·잔존0. 동적아이콘(DOC_CONFIGS·삼항 verified/pending) 정의부까지 치환. 의미대체=group_off→user-x(UsersX미존재→UserX)·pending→clock·print→printer·auto_fix_high→wand-sparkles·edit_note→file-pen·star_border→star(fill재현). lucide 전수실존검증(node require)·tsc EXIT0·material잔존0(3C 6파일만 잔존=미접촉정상)·git격리OK(3B 11파일만M·3A/toss-css/admin/tournaments/schema 0). 미커밋 |
-| 2026-06-21 | Track B Phase4 참가신청 3단계 (Toss 리스킨) 구현 (developer, 세션 B) | ✅ 기존 (web) join 화면 4파일 리스킨(page+stepper+success-hero+css). 5→3단계 축소(팀선택+확인/종별·디비전/로스터+약관). 대표자입력칸·유니폼picker 폐지(자동값 POST)·약관2종 ③하단 제출게이트·서류/결제step 폐지·완료=입금안내흡수. Toss 토큰 `.te-enroll[data-skin="toss"]` 루트스코프 self-contained(toss-admin.css 무의존)·lucide-react 직접import. **POST route.ts/joinSchema/schema diff 0**(클라 body 동일). snake접근자·본인인증/주장가드 보존. MIN_PLAYERS/GUEST=false 고정. adaptive 2단계(부문없을시). tsc EXIT0. 미커밋 |
-| 2026-06-21 | Track B 참가신청 3단계 설계 (planner, 읽기전용·코드/스키마 무변경) | ✅ 핵심발견=**기존 (web) join 화면 완전구현 존재**((web)/tournaments/[id]/join/page.tsx 1292줄+_v2 7조각). 라우트권고=**기존 사용자(web) 화면 리스킨**(admin신설❌·신규❌·Toss예외스킨). **기존 POST 무변경 재사용**(route.ts L344~436이 div_caps정원판정·waiting_number=maxWaiting+1·status"waiting"·TTP createMany·payment unpaid default·중복409·주장등번호 single-source 전부 이미처리). 신규파일0·schema0. 변경=page.tsx 3단계축소(팀→디비전→로스터)+유니폼/대표자입력 제거+Toss룩·_v2 4조각 리스킨만. 종별출처=**tournament.categories 유지**(admin_categories❌). 미결2(PM확정 선행): ①서류/약관동의 step 처리 ②(web)다크 vs Toss라이트 충돌→join루트 토큰격리. snake접근자유지·본인인증/주장가드 보존 명시 |
-| 2026-06-21 | Toss Phase 3 Batch 3A(referee 셸+회원 13파일) 리스킨 (developer, 본인+fork 2병렬) | ✅ data-skin opt-in(셸 크롬 3곳·main미부착·페이지 루트별)+Material137→키트lucide Icon 전환. 기능/패칭/server action/라우트/탭/필터/모달/문구 1:1보존. 동적 아이콘헬퍼(iconForType·STATUS_META·DOC_CONFIGS 등) 전부 치환. 의미대체6종(sports→flag 등). lucide직접import0. tsc EXIT0·material잔존0·git격리OK(referee 13파일만 M·admin/toss-css/tournaments/schema 0). 🔧토큰보강 필요(--color-background·text-on-primary 미커버, PM결정 요망). 미커밋 |
-| 2026-06-21 | Track B 종별 마스터 관리 화면 **검증+커밋** (tester+reviewer 병렬→IME가드 수정→PM) | ✅ tester 8항목 통과(snake정합·빈배열·에러매핑·회귀0)·reviewer 차단0(권고3/사소3). 한글 IME 조합가드 2핸들러 추가(reviewer 권고). **커밋 50053a2**(신규4파일+메타). tsc EXIT0. 미푸시2건. PM결정5건 decisions.md 승격 |
-| 2026-06-21 | Track B 종별 마스터 관리 화면 구현 (developer) | ✅ 신규4파일(API route GET/POST·[id] PATCH/DELETE + page서버 + content클라). super_admin가드·Zod TagArr중복차단·P2002→409 DUPLICATE_NAME·P2025→404. UI=시안1:1 TagInput칩·dirty판정 카드별 1PATCH저장·삭제모달·에러배너. prisma generate 불필요(타입실존). snake정합(sort_order). Toss키트·신규CSS0·하드코딩hex0·data-skin 루트div만. schema0·시드0·세션비중첩. tsc EXIT0. 미커밋 |
-| 2026-06-21 | Track B 종별 마스터 관리 화면 설계 (planner, 읽기전용·코드/스키마 무변경) | ✅ 통합위치=신규 라우트 `/admin/categories` 권고(설정탭❌·settings는 use client 2카드라 server조회 못끼움). API 2파일(GET목록/POST/PATCH/DELETE·super_admin가드·Zod TagArr중복차단·P2002→409 DUPLICATE_NAME). UI=page.tsx 서버조회(adminCategory.findMany)+categories-content.tsx 클라(data-skin toss·TagInput 디비전/연령 칩·카드별 저장버튼 권고). 삭제 참조무결성 가드=불필요(FK참조 0건·대회는 category 문자열명만 보유). prisma generate 선행 1순위(미generate 락). snake_case 응답함정·신규 4파일 세션비중첩 명시 |
-| 2026-06-21 | Toss Phase 2 Batch 2C(마지막) 3화면 리스킨 (developer) | ✅ 11파일 M(news page+admin-news-content+compose-content / me page+_components 7). data-skin="toss"=3 page 루트(news page div·me page div·compose-content 루트div=page가 래퍼없이 직접렌더). 자식 content/카드는 DOM상속. Material→lucide(<Icon> 키트) 잔존0(grep news+me 트리=0). lucide 39종 실존 검증(빈span폴백0): open_in_new→external-link·arrow_back→arrow-left·edit_note→file-pen·format_bold→bold·format_italic→italic·format_list_bulleted→list·format_quote→quote·image→image·add_photo_alternate→image-plus·send→send·save→save·schedule→clock·visibility→eye·sports_basketball→volleyball(농구부재)·celebration→party-popper·campaign→megaphone·photo→image·hub→share-2·history→history·check_circle→circle-check·edit→pencil·close→x·verified→badge-check·info→info·warning→triangle-alert·tips_and_updates→lightbulb·event→calendar·shield_person→shield-user·expand_less/more→chevron-up/down·notifications_active→bell-ring·notifications→bell·error→circle-x·remove_circle_outline→circle-minus·feedback→message-square-text·task_alt→circle-check-big·key→key·mail→mail·link→link. news-photo-manager=Material 0(이모지만)→무수정. compose page.tsx=아이콘0·자체 root div 없음→무수정. .ico 래퍼 클래스·fontSize→size·color 인라인 1:1 이관. 기능/문구/server action/패칭 변경0. 2A·2B·Phase1·toss-admin.css·admin-toss·tournaments·schema 변경0. tsc EXIT0. 미커밋 |
-| 2026-06-21 | Toss Phase 2 Batch 2B 6화면 리스킨 (developer) | ✅ partners·plans·campaigns·notifications·analytics·game-reports 6 page.tsx만 M(2A·Phase1·toss-admin.css·admin-toss·tournaments·schema 변경0). data-skin="toss"=6 page 루트 div. Material→lucide(<Icon> 키트) 잔존0(grep). lucide 33종 실존 검증(빈span폴백0). 표 외 추가분 0(전부 명세 표대로). notifications bell 미리보기=래퍼 span에 원형bg/정렬 보존+Icon 색상. tsc EXIT0 |
-| 2026-06-21 | Track B-1 admin_categories 테이블+4행 시드 (developer) | ✅ schema 모델 추가(BigInt PK·name@unique)·**broad db push 중단**(live_scoreboards FK DROP 드리프트 섞임)→targeted `db execute` CREATE TABLE만 무중단 적용·raw SQL upsert 4행(일반부/유청소년/유U8~U18/대학부/시니어+40~+70)·실측 count=4·JSON정확·tsc0. ⚠️prisma generate 개발서버(3001 PID78724) 락으로 미완→후속 전 재시작 필요. 임시스크립트 정리. 미커밋 |
-| 2026-06-21 | Toss Phase 2 Batch 2A 8화면 리스킨 (developer) | ✅ 12파일(page8+content3+admin-stat-card). data-skin=8 page루트 div만(content는 DOM상속). Material→lucide(<Icon> 키트) 잔존0: list_alt→list-checks·emoji_events→trophy·sports_basketball→volleyball(농구부재)·group/groups→users·add_circle→circle-plus·currency_exchange→arrow-left-right·add_location_alt→map-pin-plus·edit_note→file-pen·shield_person→shield-user·swap_horiz→arrow-left-right·delete→trash-2·check_circle→circle-check·arrow_forward→arrow-right·trending_flat→move-right. admin-stat-card(대시보드 전용 공유) 내부 교체 안전. 기능라인 변경0(prisma/fetch/action/href grep0)·tsc0·toss-admin.css/admin-toss/Phase1 변경0. 미보강0 |
-| 2026-06-21 | Track B §0 스키마 대조 (planner, 읽기전용·코드/스키마 무변경) | ✅ 계약 "신규5건"→**진짜신규=admin_categories 1건뿐**. DivisionRule format/settings/feeKrw·TTP·brackets(=TournamentMatch통합)·is_waiting(=waiting_number+status"waiting")·tournament_recorders(대회풀) 전부 기존存→중복생성 금지(파손위험). PM결정5건 권고(cap=div_caps유지/경기별기록자 settings jsonb옵션/시드 사용자대조/최소인원·게스트 토글off/format_presets 보류). status매핑 확정(WAITING=status"waiting"·payment default=unpaid). 계약 §3·uuid PK·status값집합 mybdr 불일치 적시 |
 
 ## 기획설계 (planner-architect)
+
+### 생성폼 후속(로고·디비전날짜코트) 저장위치 설계 (2026-06-22, 읽기전용·코드/스키마 무변경)
+
+🎯 결론: **두 후속 모두 스키마 변경 0(Tournament.settings jsonb 활용)으로 가능 = YES**. 신규 컬럼·prisma 명령 불필요.
+
+**1️⃣ settings 무스키마 가능 = ✅ YES (실측 확정)**
+- `Tournament.settings Json? @default("{}")`(schema L326) 존재. createTournament가 `settings?: Record<string,unknown>` 인자 수신(tournament.ts L179)→`JSON.parse(JSON.stringify(input.settings))` round-trip 저장(L524~526, BigInt/readonly 안전). route.ts POST가 body의 `settings` 분해(L159)→`settings: settings && typeof === "object" ? settings : undefined`(L270) 전달.
+- **다만 현재 page.tsx handleSubmitDraft body에 settings 키 미전송**(L387~413 확인)·CtDraftPayload에 settings 필드 없음 → **page.tsx·ct payload에 settings 1키 추가만 하면 끝**(route/service 무변경).
+- 멀티키 merge 패턴 = decisions.md L492~512 표준(`{...(match.settings as Record), 신규키}`) 이미 확립. 1차 생성은 신규대회라 기존 settings 없음 → 단순 `{ sponsor_logos, div_schedule }` 객체 통째 전송이면 충분.
+
+**2️⃣ 후원사 로고URL — 무스키마 설계 ✅**
+- 🔑 **소비처 실측 정정(중요)**: errors.md L9·scratchpad L62가 "표시화면 tournament-about.tsx L42 `.split(",")` = sponsors 컬럼 표준"이라 했으나 **오인**. 그 split은 `description` 텍스트의 **"Sponsored By:" 라인 파서**(L40~42)이지 `Tournament.sponsors` **컬럼** 소비 아님. `Tournament.sponsors` 컬럼 소비처 전수(Explore 교차검증): ①편집 = 수정 wizard(`tournaments/[id]/wizard/page.tsx` L219 prefill·L728 textarea·L974 미리보기·L469 PATCH·placeholder "후원사 (쉼표 구분)"L731) ②**유일 렌더 표시 = OBS 스코어보드**(`obs/scoreboard/page.tsx` L190~196·`s.sponsors`에서 "molten"/"stiz" **문자열 필터**로 브랜드로고 2종만) ③공개 대회상세 about = **미사용**(description 파서만) ④GET /tournaments/[id] 응답 = sponsors 누락(TOURNAMENT_DETAIL_INCLUDE 미포함). → **콤마구분 plain 문자열이 정합 포맷**(수정wizard + OBS 둘 다 plain string 호환).
+- **설계**: `sponsors`(String 콤마이름)는 **현행 유지**(B안·콤마 join 그대로·수정wizard 호환·회귀0). 로고URL은 **`settings.sponsor_logos`(jsonb `[{name,logoUrl}]`)에 별도 저장**. 무스키마 가능 = ✅.
+- ct-create-tournament는 **이미 `Sponsor={id,name,logoUrl}` state + 로고 입력 UI(ImageUploader·L344~357) 완비** → publish()에서 logoUrl이 버려질 뿐. payload에 `sponsorLogos: sponsors.filter(s=>s.logoUrl).map(s=>({name,logoUrl}))` 1줄 추가.
+- ⚠️ **읽어 표시하는 소비처 = 현재 0건**(컬럼·settings 양쪽). 로고를 화면에 띄우려면 **소비처 신규 필요**(대회 상세 about·admin 상세). 1차 = 저장만(write), 표시는 후속 배치로 분리 권장(저장↔표시 디커플). 표시 0이어도 데이터 무손실 보존이 목적이면 1차로 충분.
+
+**3️⃣ 디비전별 날짜/코트 — 무스키마 설계 ✅**
+- DivisionItem이 **이미 `dateId?`·`courtId?` 보유**(ct-divisions.tsx L29~30)+입력 UI 완성(L172~195). publish() 평면변환(ct-create-tournament L519~528)이 catRecord/divCaps/divFees 3종만 만들고 **dateId/courtId를 의도적으로 버림**(L515~518 사일런트손실 주석 박제).
+- **설계**: `settings.div_schedule`(jsonb `{디비전명:{dateId,courtId}}`)에 저장. 평면변환부에 `divSchedule[dv.name]={dateId:dv.dateId,courtId:dv.courtId}`(dateId/courtId 둘 다 있을 때만) 맵 구성 1블록 추가 → payload→POST body settings에 흡수. DivisionRule 1차 미생성(PM결정 유지)이므로 Tournament.settings 흡수가 정합. 무스키마 = ✅.
+- ⚠️ 소비처(디비전별 일정 표시)도 현재 0 → 1차 저장만. dateId=scheduleDates[].id 참조·courtId=`<venueId>_c<idx>` 참조라 표시 시 역참조 조인 필요(후속).
+
+**4️⃣ 판정 + 최소 구현안**
+- ① **settings 무스키마 = YES** / ② 로고=`settings.sponsor_logos`·디비전날짜코트=`settings.div_schedule` (둘 다 무스키마) / ③ 스키마 승인 **불필요**(prisma 무변경·api/v1 무영향·createTournament 시그니처 무변경).
+- 📍 변경 파일 (3개·전부 생성폼 영역·세션B 소관):
+  | 파일 | 변경 요지 | 신규/수정 |
+  |------|----------|----------|
+  | `ct-create-tournament.tsx` | CtDraftPayload에 `settings?:{sponsor_logos?,div_schedule?}` 1필드 추가 / publish()에서 sponsorLogos·divSchedule 맵 구성(L519~528·L539~542 인접) → payload.settings 채움 | 수정 |
+  | `wizard/page.tsx` | handleSubmitDraft body에 `settings: payload.settings && Object.keys(payload.settings).length ? payload.settings : undefined` 1줄 추가(L387~413 body) | 수정 |
+  | (소비처·후속분리) 대회상세 about / admin 상세 | settings.sponsor_logos·div_schedule 읽어 표시 | 신규(후속배치) |
+  - route.ts·tournament.ts·schema·`/api/v1` = **전부 무변경**(settings 수신 경로 기존 존재).
+- 🧩 배치 분해(작게):
+  - **F-1 (저장만·코드2파일)**: ct payload `settings` 필드 + publish() 맵 구성 + page.tsx body 1줄. tsc만으로 커밋 가능(소규모). 로고·디비전날짜코트 둘 다 settings에 저장.
+  - **F-2 (표시·후속·선택)**: 대회상세 about에 sponsor_logos 로고그리드 / 디비전 일정에 div_schedule 역참조 표시. 소비처 신규라 별도 배치.
+- ⚠️ developer 주의: ①snake 함정 = settings는 jsonb 내부라 **자동 snake 변환 대상 아님**(키 그대로 round-trip). 응답에서 `data.settings.sponsor_logos` 그대로. 단 sponsors **컬럼**은 응답키 snake. ②sponsors 컬럼 B안(콤마 join) **현행 유지**(수정wizard 회귀 방지) — settings는 **추가**만. ③settings 빈객체면 미전송(`undefined`)해 기존 settings round-trip 무해. ④BigInt 직렬화=settings엔 BigInt 없음(문자열만)·안전. ⑤소비처 0 = 저장 후 화면 변화 없음(정상·F-2에서 표시). ⑥createTournament 시그니처 무변경·api/v1 무영향 확인(settings는 웹 전용·match-sync 미read).
+- 📚 knowledge 승격 후보(PM): decisions.md → "생성폼 후속(로고·디비전날짜코트) = Tournament.settings jsonb 흡수·스키마0(sponsor_logos/div_schedule 키)" / errors.md 정정 → "Tournament.sponsors 컬럼 소비처 = 수정wizard 1곳(콤마 plain)·tournament-about의 split은 description 'Sponsored By:' 파서지 컬럼 아님(L9 오인 정정)".
 
 ### 🔒 Track B §0 스키마 대조 결과 (2026-06-21, 읽기전용 검증)
 
@@ -379,8 +407,151 @@
 - architecture.md → "운영 대회관리 본진 = `(admin)/tournament-admin/tournaments/[id]/{teams,divisions,bracket,recorders,site,completed,playoffs,matches}` 분산라우트(통합탭 아님)·생성=new/wizard(Quick/Legacy/prospectus)·전부 구현완료·Toss 미리스킨"
 - decisions.md → "Track B Phase4 = 대부분 리스킨(기능 기구현)·진짜 신규=입금→자동확정 API + 경기별 기록자 settings.recorder_id 2건뿐·통합5탭IA 전면재구성 보류(분산라우트 유지)"
 
+### 새 대회 생성폼 전면교체 실행계획 (읽기전용, 2026-06-21 planner)
+
+🎯 목표: 시안 CreateTournament(2컬럼 단일폼·경기설정·날짜↔코트·게시모달)로 **기존 위저드 UI 전면교체**. 백엔드(POST·createTournament·검증)는 최대 보존·새 필드만 확장. PM확정 전제 (가)game_rules활성 (나)jsonb확장 (다)UI만 교체.
+
+#### 🔴 1. 스키마 diff (승인용 — db push 절대 금지·텍스트만)
+
+**1-A. (나) `schedule_dates` 신규 컬럼 — 무중단 NULL허용 ADD**
+```prisma
+// model Tournament 내부 (places 컬럼 L317 인접에 추가)
+  schedule_dates  Json?  @default("[]")  @map("schedule_dates")
+```
+- 무중단 보장: NULL 허용 + `@default("[]")` → 기존 행 영향 0(ADD COLUMN ... NULL). prisma db push 시 단일 ADD COLUMN, DROP/ALTER 0. ⚠️ errors.md[06-19] 룰: broad push 금지 → push 전 `prisma migrate diff` 로 의도 ADD만인지 확인, 무관 drift(live_scoreboards 등) 보이면 중단·targeted `ALTER TABLE tournaments ADD COLUMN IF NOT EXISTS schedule_dates jsonb DEFAULT '[]'` 적용.
+
+**1-B. (나) `places` 컬럼 — 스키마 변경 0(타입만 확장)**
+- 현재 `places Json?`(schema L317·이미 jsonb). createTournament 서비스 타입은 `{name,address}[]`(tournament.ts L158)인데 **DB는 자유 jsonb** → 컬럼 ADD 불필요. TS 타입만 확장:
+```ts
+// tournament.ts CreateTournamentData (L158 교체 — 스키마 무관·타입만)
+places?: { id:string; name:string; region?:string; courtCount:number; naming:"num"|"alpha" }[];
+```
+- 코트는 places[].courtCount/naming 으로 표현(별도 court 테이블 신설 ❌·시안 코트=파생값). 운영 courts/court_infos 테이블=픽업게임 DB 무관(§1차조사).
+
+**1-C. `schedule_dates` jsonb 데이터 구조 설계** (날짜↔코트 N:N)
+```jsonc
+// Tournament.schedule_dates = 날짜별 배정 코트(시안 dates[] 1:1)
+[
+  { "id":"dt1", "date":"2026-08-15", "court_ids":["v1_c0","v1_c1"] },
+  { "id":"dt2", "date":"2026-08-16", "court_ids":["v1_c0"] }
+]
+// court_id 형식 = "<venueId>_c<index>" (시안 courtsOf 규칙·places[].id 파생).
+// 코트 라벨(1코트/A코트)은 places[].naming 으로 런타임 파생(저장 ❌·중복방지).
+```
+- 다중일자=배열 길이 N. 코트 1~8=places[].courtCount. 명명=places[].naming("num"=1·2 / "alpha"=A·B).
+
+**1-D. DivisionRule dateId/courtId 흡수 = `settings` jsonb (스키마 ADD 0)**
+- TournamentDivisionRule.settings(schema L3496·이미 jsonb)에 흡수:
+```jsonc
+// 디비전별 경기일·코트 매칭(시안 div.dateId/courtId → settings)
+"settings": { "date_id":"dt1", "court_id":"v1_c0", /* 기존 group_count 등 보존 */ }
+```
+- ⚠️ settings spread merge 필수(errors.md 2026-05-17 division_code 누락 동형). 단 **생성 시점엔 DivisionRule 행이 아직 없음**(아래 2-D 참조)—jsonb categories에 우선 박제 or POST 확장 시 createMany.
+
+**1-E. (가) `game_rules` jsonb 저장 구조 — 죽은 컬럼 활성**
+- `Tournament.game_rules Json? @default("{}")`(schema L304·이미 존재·src grep 0=완전 미사용). **시안 GAME_SETTINGS_DEFAULTS 12키 그대로 박제**(매핑 ❌·1:1):
+```jsonc
+// Tournament.game_rules = 시안 ct-game-settings.jsx GAME_SETTINGS_DEFAULTS 1:1
+{
+  "homeColor":"#FFFFFF", "awayColor":"#1B2A4A", "vestProvided":false,
+  "quarterType":"4Q", "quarterMinutes":10, "clockMode":"dead", "shotClock":true,
+  "foulLimit":5, "teamFoulBonus":5, "firstHalfTimeouts":2, "secondHalfTimeouts":3,
+  "timeoutDuration":30
+}
+```
+- camelCase 키 그대로 저장(jsonb는 변환 무관·apiSuccess snake변환은 응답 최상위 키만). Flutter 무영향 확정(§1차조사: match-sync.ts game_rules 미read).
+
+**스키마 변경 총계: ADD COLUMN 1개(schedule_dates)뿐.** game_rules·places·DivisionRule.settings = 전부 기존 컬럼. 무중단.
+
+#### 🟡 2. 기존 위저드 전면교체 영향 분석
+
+**2-A. 대상 파일 구조(실측)**
+| 파일 | 현재 역할 | 처리 |
+|------|----------|------|
+| `tournament-admin/tournaments/new/wizard/page.tsx`(1849줄) | `QuickCreateForm`(1-step)+`LegacyWizardForm`(3-step)+SUBTABS+draft배너 | **전면교체**(2컬럼 단일폼으로 본문 재작성·라우터 분기 제거 가능) |
+| `new/wizard/prospectus/page.tsx` | PDF AI 분석 진입 | **보존**(시안 [PDF로 채우기]=보조 진입점·라우트 유지) |
+| `_v2/wizard/association` | 협회 마법사 | **보존**(시안 [협회 마법사]=별도 라우트) |
+| `components/tournament/division-generator-modal.tsx` | 종별 자동생성 모달 | 재사용 or 시안 DivisionGenerator로 교체 |
+| `components/tournament/tournament-copy-modal.tsx` | 이전대회 복사 | 재사용(시안 [이전 대회 불러오기]=동일 기능) |
+| `components/tournament/{schedule-form,registration-settings-form,team-settings-form,bracket-settings-form,game-time-input,game-ball-input}.tsx` | Legacy 폼 조각 | **교체대상**(시안 2컬럼이 흡수·orphan 정리 후속) |
+
+**2-B. POST 엔드포인트·payload(실측)**: `POST /api/web/tournaments`(route.ts) → `createTournament()`(tournament.ts L216~). body 키=name·format·seriesId·places·categories·divCaps·divFees·gender·organizer·host·sponsors·entryFee·bank*·maxTeams·settings 등(route.ts L142~161 구조분해). **재사용 100%**. 응답=`{tournamentId, redirectUrl}`(snake변환→redirect_url).
+
+**2-C. 재사용 백엔드 경계 + 확장지점**
+- ✅ **그대로 재사용**: name필수검증·FORMAT_MAP·날짜파싱(L176~187)·seriesId 권한가드(requireSeriesOwner L204)·createTournament $transaction(시리즈카운터+1)·status="draft"·withWebAuth·hasCreatePermission(구독게이트).
+- 🔧 **POST body 확장 3지점**(route.ts L142 분해 + L216 createTournament 호출 + tournament.ts createData L460~507):
+  1. `gameRules` 신규 키 수신 → `createData.game_rules = input.gameRules ?? {}`. (route.ts 분해 + createTournament 타입/매핑 추가)
+  2. `scheduleDates` 신규 키 수신 → `createData.schedule_dates = input.scheduleDates ?? []`.
+  3. `places` 확장형 수용(courtCount/naming/region 포함) — DB jsonb라 코드만 타입확장(1-B). createData.places 이미 통과(L478).
+- ⚠️ **DivisionRule 자동생성 = 현재 createTournament 미수행**(grep 0·divisionRule.create 0). 운영은 categories/divCaps/divFees를 **Tournament jsonb**로만 저장→DivisionRule은 `[id]/divisions` 다운스트림 생성(DivisionGenerateButton). **시안 "저장하면 종별규칙 N건 자동생성"=신규 동작**. **권고 = 1차는 기존대로 categories jsonb 저장**(div.dateId/courtId는 categories jsonb에 함께 박제·DivisionRule createMany는 후속배치)—전면교체 회귀 최소화. POST에 DivisionRule createMany 추가는 B-4 선택.
+
+**2-D. 진입점 grep(전면교체 시 깨지는 곳)**: `new/wizard` 링크 참조처 = ①사이드바/대시보드 "새 대회" 버튼 ②QuickCreateForm 내부 self-link(`?legacy=1`·전면교체로 제거) ③prospectus가 draft저장 후 `/new/wizard` redirect(loadDraft 자동채움 의존). → **draft 자동채움(loadDraft) 보존 필요**(prospectus 흐름 안깨지게). 라우트 경로(`/tournament-admin/tournaments/new/wizard`) 자체는 **불변**(page.tsx 본문만 교체)→외부 링크 0 파손.
+
+#### 🟢 3. 배치 분해 + 파일 목록 (B-4까지·1배치 1PR)
+
+| 배치 | 범위 | 신규/수정 | 스키마 | 우선 |
+|------|------|----------|--------|------|
+| **B-1 schema+POST 확장** | schedule_dates ADD COLUMN(승인후 targeted SQL)+game_rules/scheduleDates/places확장형 POST 수용 | route.ts·tournament.ts 수정 | ADD 1 | 1순위(게이트) |
+| **B-2 좌측 컬럼 폼** | 대회정보(이름·정규대회=시리즈·주최·주관·후원사·포스터)+일정·장소(VenueSearch·코트수1~8·명명·캘린더다중·날짜별코트) | page.tsx 본문 교체+신규 컴포넌트 | 0 | 2순위 |
+| **B-3 우측 컬럼 폼** | 종별·디비전(DivisionGenerator·div별 cap/fee/dateId/courtId 매칭)+경기설정(CTGameSettings 12키·유니폼·프리셋·파울·타임아웃) | 신규 컴포넌트 | 0 | 3순위 |
+| **B-4 통합·게시모달·검증** | 하단고정 생성바+PublishModal(게시/접수기간·결제=계좌만·입금계좌)+필수검증 토스트+POST 통합 submit+draft자동채움 보존 | page.tsx 통합 | 0 | 4순위 |
+
+**변경/신규 파일**
+| 경로 | 역할 | 신규/수정 | 배치 |
+|------|------|----------|------|
+| `prisma/schema.prisma` | Tournament.schedule_dates ADD(승인후) | 수정 | B-1 |
+| `src/app/api/web/tournaments/route.ts` | POST body에 gameRules·scheduleDates·places확장 수신 | 수정 | B-1 |
+| `src/lib/services/tournament.ts` | CreateTournamentData 타입+createData에 game_rules/schedule_dates/places확장 | 수정 | B-1 |
+| `src/app/(admin)/tournament-admin/tournaments/new/wizard/page.tsx` | 2컬럼 단일폼으로 본문 전면교체(Quick/Legacy/SUBTABS 제거·draft자동채움 보존) | 수정(전면) | B-2~4 |
+| `.../new/wizard/_components/ct-*.tsx`(좌측·우측·게임설정·게시모달·캘린더·종별제너레이터) | 시안 CT 컴포넌트 운영 포팅(Toss키트·lucide) | 신규 | B-2~4 |
+| `components/tournament/{schedule-form,registration-settings-form,team-settings-form,bracket-settings-form,game-*-input}.tsx` | Legacy orphan(전면교체로 미사용) | 정리 대상(후속) | B-4후속 |
+
+**시안→운영 매핑(주의)**
+- **정규대회(시안 isRegular/REGULAR_SERIES)** = 운영 **시리즈**(seriesId). 시안 REGULAR_SERIES mock→운영 `/api/web/series/my` 실연동(Quick폼 패턴 재사용). "새 정규대회 생성"=InlineSeriesForm 재사용.
+- **종별 마스터(시안 CATEGORY_MASTER)** = 운영 **admin_categories**(Track B-1 완료·`/api/web/admin/categories` GET). DivisionGenerator 템플릿 소스를 mock→실 API.
+- **METHODS(진행방식)** = 운영 FORMAT_OPTIONS 4종(group_stage_knockout/dual_tournament/single_elimination/full_league_knockout). div.method→DivisionRule.format or categories jsonb.
+- **결제(시안 PublishModal pays)** = 계좌이체만 활성(간편/카드 "준비중" 박제·PG 미연동). bank/account/holder→bankName/bankAccount/bankHolder(POST 기존 키).
+- **Toss 키트**: `@/components/admin-toss` Icon(lucide)·`.ts-*`·`data-skin="toss"` 루트 opt-in(공유셸 미부착·Phase2 패턴). 시안 `window.{Icon,Btn,Badge,Modal}`→운영 admin-toss 컴포넌트. 하드코딩 hex 금지(유니폼 16색 hex=도메인 데이터 예외).
+
+⚠️ developer 주의:
+- **prisma db push 절대 금지**(B-1 schedule_dates=수빈 승인후 targeted SQL `ADD COLUMN IF NOT EXISTS`). broad push→live_scoreboards drift 위험(errors.md[06-19]).
+- **snake_case 함정**: game_rules/schedule_dates는 jsonb 내부 camelCase 그대로 저장(변환 무관). 단 POST 응답 `redirect_url`(snake)·GET 조회 시 최상위 키만 snake변환.
+- **DivisionRule 자동생성 보류**: 1차는 categories jsonb 저장(기존 동작)·DivisionRule createMany는 B-4 선택(시안 "자동생성" 충실도 vs 회귀 trade-off→PM 판단).
+- **draft 자동채움 보존**: prospectus→loadDraft 흐름 안깨지게(전면교체 시 useEffect loadDraft 유지).
+- **places 코트=파생**: 별도 court 테이블 신설 ❌·places[].courtCount/naming jsonb로 표현.
+- **세션격리**: tournaments=세션B 소관. `git add` new/wizard·route.ts·tournament.ts·schema만 명시(referee·admin비대회 0).
+
+📚 knowledge 승격 후보:
+- decisions.md → "새 대회 생성폼 전면교체 = UI만 교체·POST/createTournament 보존+3필드 확장(game_rules 죽은컬럼 활성·schedule_dates jsonb ADD·places 확장형). DivisionRule 자동생성은 createTournament 미수행(categories jsonb만·DivisionRule은 [id]/divisions 다운스트림)"
+- architecture.md → "Tournament.game_rules(L304)·schedule_dates(신규) jsonb=대회 생성폼 경기설정·날짜코트 저장처. createTournament는 categories/divCaps/divFees를 jsonb로만 저장(DivisionRule 행 미생성)"
+
 ## 리뷰 결과 (reviewer)
 (완료분은 작업 로그로 압축 — 신규 작업 시 기록)
+
+### [2026-06-21] 새 대회 생성폼 UI B-2+B-3+B-4 (ct-* 4파일 + page.tsx POST배선 + toss-admin.css) — reviewer
+
+📊 종합 판정: **수정 필요 (🔴차단 1 / 🟡권고 3 / 🔵사소 3)**
+
+✅ 잘된 점:
+- **snake/camel 정합 정확(errors.md 재발5회 함정 회피)**: ① POST 응답 `data.redirect_url`(snake) 우선·`redirectUrl` 폴백 — apiSuccess 자동 snake 변환 대응 정확. ② categories GET 수신 `json.data.categories` + snake 키(`sort_order`) 정규화·폴백 graceful(ct-divisions L420~433). ③ scheduleDates `court_ids`(snake) 규격으로 변환 후 전송 — service 수신 타입(L173)과 1:1.
+- **createTournament 수신키 정합 실측 일치**: categories/divCaps/divFees(route L147·service L502~504)·gameRules/scheduleDates(route L155·service L171/173)·organizer/host/logoUrl/bankName 전부 기존 수신키 — **API/route/schema/`/api/v1` 미접촉**(회귀안전 ✅). gameRules는 camelCase 12키 jsonb 그대로 저장(service L492 round-trip)·Flutter 무영향.
+- **GAME_SETTINGS_DEFAULTS 일원화 정확**: ct-game-settings가 GameRules 타입+기본값 정본 export → 메인폼이 import(중복정의 0·drift 방지). shotClock=boolean 시안·B-1 jsonb 1:1 정합(ct-game-settings L27/44·SegSm 사용/미사용 매핑 L366).
+- **controlled 패턴 + 불변갱신 정확**: ct-divisions/ct-game-settings 자체 state 0(부모 소유)·mutators 전부 map/filter 불변. pruneCourts(코트 삭제 시 무효배정 정리·메인폼 L426)·useEffect cleanup(`alive` 플래그·ct-divisions L416~444) 정상.
+- **한글 IME 가드 일관**: 후원사·디비전명·hex·계좌·예금주·경기장검색 Enter 핸들러 전부 `e.nativeEvent.isComposing` 가드(CLAUDE.md i18n 룰 준수).
+- **Toss 격리·토큰 준수**: `data-skin="toss"` 루트 opt-in(page L428)·하드코딩 hex는 유니폼 팔레트(도메인 예외)만·나머지 `var(--*)`·lucide-react만(Material 0)·게시모달 ct-* 클래스 toss-admin.css 스코프 정합 확인.
+
+🔴 필수 수정 (차단):
+- **[ct-create-tournament.tsx L531 / page.tsx L393 / service tournament.ts L154·486]** 후원사 1개라도 추가 시 **대회 생성 500 실패**. 새 폼은 `sponsors:{name,logoUrl}[]`(객체배열) 전송 → service `sponsors:input.sponsors??null` → Prisma `sponsors String? @db.VarChar`(schema L313)에 객체배열 INSERT → **런타임 타입에러**. route에 zod 없어 tsc 통과(body any)라 사일런트. 후원사 0개면 우회되나 추가 시 영구 실패. → **수정 요청 테이블 등재**. 수정안=(A)page.tsx에서 `JSON.stringify(payload.sponsors)` 문자열화 전송(로고 보존) 또는 (B)`sponsors.map(s=>s.name).join(", ")`(이름만·로고 버림).
+
+🟡 권고 수정:
+- **[ct-divisions L498 안내배너 문구]** "저장하면 종별 규칙 {N}건이 자동 생성됩니다 — …진행방식…" 문구가 **DivisionRule 자동생성을 약속**하나, planner 조사(scratchpad 작업로그)대로 **createTournament는 DivisionRule을 생성하지 않음**(categories/divCaps/divFees jsonb만 저장·DivisionRule은 [id]/divisions 다운스트림 수동). 사용자가 "규칙 자동생성"을 기대하고 다운스트림 미진행 시 혼동. 문구를 "종별·디비전 {N}건이 등록됩니다"로 완화 권고(과약속 제거). 동작영향 0(표시만).
+- **[ct-create-tournament L491 / 게시모달 검증 공백]** submit 1차검증은 종별·장소·일정만 보고, **게시모달의 게시기간·참가신청기간·계좌는 빈값이어도 통과**(전부 optional 전송). 시안 의도가 게시기간 필수면 PublishModal onConfirm 전 가드 필요. 현 동작=빈 게시기간 대회 생성 가능(status=draft라 무해할 수 있음·PM 의도 확인). 동작영향 minor.
+- **[ct-divisions L195·평면변환 publish L514~520 코트/날짜 매칭 미배선]** 디비전별 dateId/courtId 입력칸은 있으나, publish 평면변환이 **divCaps/divFees만 추출하고 dateId/courtId는 버림**(POST 미전송). service는 scheduleDates(대회단위)만 저장·디비전별 날짜코트 매칭은 미반영. 입력 UX가 저장으로 이어지지 않아 사용자 기대 어긋남(현 단계 범위 밖일 수 있음·PM 확인). 코트 옵션 폴백(L195 배정 없으면 전체 코트 노출)도 UX 모호.
+
+🔵 사소:
+- **[ct-schedule-venue.tsx courtsOf]** 메인폼은 `allCourts`만 import(L26~29)·courtsOf 미import → 정상. ct-schedule-venue 내부 courtsOf 사용(L404) 정상. 이슈 없음(확인 완료).
+- **[LoadPreviousModal·PAST_TOURNAMENTS / PDF·협회 마법사 버튼 L566~571]** mockup/toast-only stub(백엔드 미연동)=의도된 후속(시안 1:1). 사용자에게 "준비 중" 인지 가능하면 OK.
+- **[ct-divisions DivisionItem.method 부재]** 시안 진행방식 필드 제거(DivisionRule 소관)는 계약 우선 정당. 단 위 배너 과약속(권고1)과 맞물려 혼동 가능 — 문구완화로 해소.
 
 ### [2026-06-21] Track B Phase4 B-d 경기별 기록자 배정 (settings.recorder_id jsonb merge·3파일) — reviewer
 
@@ -480,6 +651,157 @@
 🔴 필수 수정: **없음**. 운영 승인 로직이나 트리거 한정·정원 가드·트랜잭션·멱등 전부 견고. 정원 race는 단일운영자 컨텍스트라 차단 미해당(권고). merge 가능.
 
 ## 구현 기록 (developer)
+
+### F-1 — 후원사 로고·디비전 날짜/코트 settings jsonb 저장 (2026-06-22, developer 세션B)
+
+📝 구현: 생성폼 입력 UI(후원사 로고 / 디비전별 경기날짜·코트)가 publish() 에서 버려지던 두 데이터를 `Tournament.settings`(jsonb)에 무스키마 보존. schema/route.ts/tournament.ts/`/api/v1` 전부 미접촉(저장만).
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| `ct-create-tournament.tsx` | ①`CtDraftPayload`에 `settings?: Record<string,unknown>` 필드 추가 ②`publish()`에서 sponsorLogos(로고 있는 후원사만 `{name,logoUrl}`)·divSchedule(`{디비전명:{dateId,courtId}}` dateId·courtId 둘 다 있을 때만) 맵 구성 → 비어있지 않은 것만 settings에 담아 payload에 추가 | 수정 |
+| `wizard/page.tsx` | POST body에 `settings: payload.settings` 1줄 추가(undefined면 자연 미전송) | 수정 |
+
+🔑 settings 구조(snake 키·jsonb 내부라 자동 snake 변환 대상 아님):
+```js
+settings: {
+  sponsor_logos: [{ name, logoUrl }, ...],                 // 로고 있는 것만
+  div_schedule: { "디비전명": { dateId, courtId }, ... }    // dateId·courtId 둘 다 있을 때만
+}
+```
+
+🔒 빈값 생략·기존 동작 보존: sponsorLogos 0건+divSchedule 0건 → settings `{}` → `undefined` 전송(기존 settings round-trip 무해). sponsors 콤마문자열(L542)·categories/divCaps/divFees 평면변환(L519~528) **전부 그대로**. createTournament 가 settings 인자 기존 수신(round-trip) → API/schema 확장 0.
+
+💡 tester 참고:
+- 테스트: 대회 생성 위저드(`/tournament-admin/tournaments/new/wizard`) → 후원사에 로고 첨부 + 디비전에 경기날짜·코트 지정 후 게시 → POST body `settings.sponsor_logos`/`settings.div_schedule` 확인. 표시 소비처는 0(F-2 후속) → 화면 변화 없음이 정상.
+- 정상: 로고 없는 후원사·dateId/courtId 미지정 디비전은 settings에 미포함. 둘 다 비면 settings 키 자체 미전송.
+- 주의 입력: 로고 1개+디비전 일정 1개만 채워도 settings 부분 저장(다른 키 생략). 디비전명 중복 시 마지막 값으로 덮어씀(div_schedule도 동일).
+
+⚠️ reviewer 참고:
+- settings 내부 키는 jsonb 내부라 snake 수동(`sponsor_logos`/`div_schedule`). sponsors **컬럼**만 응답키 snake.
+- 로고URL은 sponsors 컬럼(String) 대신 settings 보존(전용 컬럼 부재). 표시 소비처 미구현(F-2).
+
+🔎 검증: `npx tsc --noEmit` EXIT=0. `git diff --stat HEAD` = 대상 2파일만(+32/-0). 세션A admin-shell/referee-shell 미접촉. 미커밋(PM).
+
+### 새 대회 생성폼 B-1 — schema ADD + POST 3필드 확장 (2026-06-21, developer 세션B)
+
+📝 구현: 시안 새 대회 생성폼의 **백엔드 토대만**(UI는 B-2~B-4 소관). schema 컬럼 1개 ADD + POST 3필드(gameRules/scheduleDates/places확장) 수용. DivisionRule 미생성·기존 생성흐름 전부 보존.
+
+| 파일 | 변경 내용 | 신규/수정 |
+|------|----------|----------|
+| `prisma/schema.prisma` | Tournament에 `schedule_dates Json? @default("[]") @map("schedule_dates")` 추가(places 인접) | 수정 |
+| `src/app/api/web/tournaments/route.ts` | POST body 구조분해에 `gameRules, scheduleDates` 추가(+5줄) + createTournament 호출에 2필드 전달. places는 기존 수신 그대로(타입만 확장) | 수정 |
+| `src/lib/services/tournament.ts` | `CreateTournamentInput`에 `gameRules?`/`scheduleDates?` 추가 + `places` 타입 확장(id/region/courtCount/naming) + createData에 `game_rules`/`schedule_dates` jsonb round-trip 매핑 | 수정 |
+
+🔴 **ALTER 적용(운영 DB targeted)**: `prisma migrate diff` 결과 무관 drift(live_scoreboards FK DROP·updated_at DROP DEFAULT·admin_categories) 섞여나옴 확인 → **broad push 중단**(errors.md[06-19] 룰), `ALTER TABLE tournaments ADD COLUMN IF NOT EXISTS schedule_dates jsonb DEFAULT '[]'::jsonb` 만 `prisma db execute`로 적용. **사후 실측**: information_schema 조회 = `schedule_dates / jsonb / DEFAULT '[]'::jsonb` 정상 생성·기존 65행 보존(데이터 손실 0). 임시 SQL/스크립트 즉시 삭제.
+
+🔧 **prisma generate**: 1차 EPERM(query_engine DLL 락) → 포트3001 PID 78724만 `taskkill //f //pid`(im node.exe 금지)로 종료 → 재실행 성공(v6.19.2). ⚠️ **개발서버 종료됨** — B-1은 백엔드라 dev 서버 불필요하나 재시작은 PM/사용자 판단.
+
+🔑 **회귀 0 근거**: 3필드 전부 optional. route.ts `gameRules || undefined`·tournament.ts `input.gameRules ? {...} : {}` → 미전송 시 schema @default(`{}`/`[]`)로 떨어져 기존 행과 동일. jsonb 내부는 camelCase 그대로 저장(apiSuccess snake 변환은 응답 최상위 키만). DivisionRule.create 미수행 동작·시리즈 $transaction·status="draft" 전부 불변.
+
+🔎 검증: `npx tsc --noEmit` EXIT=0. `git diff --stat` = 대상 3파일만(28+/1-). schema/route/tournament 외 변경 0. 미커밋(PM).
+
+### 새 대회 생성폼 B-4 — 우측 통합 + 게시 모달 + POST 배선 (2026-06-21, developer 세션B)
+
+📝 구현: 메인 폼 우측 stub 2카드를 B-3 실폼으로 교체 + 시안 PublishModal(게시/결제 정보) 추가 + 게시 모달 확인 시 실제 `POST /api/web/tournaments` 배선. **API/createTournament/route.ts/schema/`/api/v1` 미접촉**(기존 수신 키만 활용 — B-1에서 이미 확장 완료).
+
+| 파일 | 변경 내용 | 신규/수정 |
+|------|----------|----------|
+| `_components/ct-create-tournament.tsx` | ①우측 stub2→`<CtDivisions>`+`<CtGameSettings>` 교체 ②`categories:CategoryItem[]`·`gameRules:GameRules` state 추가(로컬 GAME_SETTINGS_DEFAULTS 삭제→ct-game-settings import 일원화·d state에서 game키 제거) ③필수검증에 `totalDiv===0` 종별 차단 추가 ④`submit`=검증→게시모달 오픈 / `publish`=평면변환+onSubmitDraft ⑤PublishModal 내부 컴포넌트 추가(신규파일0) ⑥CtDraftPayload에 categories(평면)+게시정보 확장 ⑦미사용 courtsOf import 정리 | 수정(untracked) |
+| `wizard/page.tsx` | quick 분기 handleSubmitDraft를 stub토스트→실제 async POST 배선(payload 그대로 전송·snake `data.redirect_url`·성공 redirect·실패 showToast) + CtCreateTournament `saving={loading}` 전달(loading state 재사용) | 수정 |
+| `src/styles/toss-admin.css` | 게시모달 3클래스 `.ct-daterange`/`.ct-paygrid`/`.ct-paychip`(+`__sep`/`__box`/`__lbl`/`__soon`) `[data-skin="toss"]` 스코프 추가(시안 toss.css 1:1) | 수정 |
+
+🔑 **categories 평면변환** (시안 CategoryItem[] → createTournament 3개 Record):
+```
+입력: [{name:"남성 일반부", divisions:[{name:"D4",cap:16,fee:60000},{name:"D5",cap:16,fee:50000}]}]
+→ categories: { "남성 일반부": ["D4","D5"] }
+  divCaps:    { "D4":16, "D5":16 }
+  divFees:    { "D4":60000, "D5":50000 }
+```
+⚠ 디비전명이 createTournament 단일 키 → 디비전명 중복 시 마지막 값으로 덮어씀(시안 가정 동일).
+
+🔑 **게시 모달 필드 매핑**: 게시기간(postStart/End)→`startDate`/`endDate` · 참가신청기간(regStart/End)→`registrationStartAt`/`registrationEndAt` · 결제(계좌이체만 활성, 간편결제·카드는 disabled "준비 중")→`bankName`/`bankAccount`/`bankHolder`. 포스터→`logoUrl`(대표 이미지).
+
+🔑 **검증 규칙**(submit 1차): 대회명·주최·주관·(정규대회 시)정규대회선택·장소·대회일정·**종별·디비전(totalDiv≥1, B-4 신규)** 누락 시 토스트+차단. 통과 시 게시 모달 오픈. 게시 모달 확인(publish)에서 평면변환 후 POST.
+
+🔑 **회귀/가드 0 근거**: createTournament가 categories/divCaps/divFees(L136~138·502~504 div_caps/div_fees jsonb)·gameRules/scheduleDates(L171·173·492~497 game_rules/schedule_dates) 이미 수신(B-1)·route.ts L147/L155 body 분해 존재 → **API/schema 확장 0**. POST 라우트는 Zod 강제 검증 없이 raw destructure+name만 필수 → 신규 키 422 위험 0. saving=loading 재사용(중복 제출 방지·진행 중 모달 닫기 금지). lucide(trophy/check 실존)·Material0·하드코딩 hex0(유니폼 팔레트는 B-3 도메인 예외·B-4 신규 hex 없음)·IME 가드(계좌번호/예금주)·`var(--*)` 토큰만(--warn/--warn-weak/--primary-weak 기존)·dev서버 미접촉.
+
+💡 tester 참고:
+- **테스트 방법**: `/tournament-admin/tournaments/new?subtab=quick`(또는 quick 탭) 진입 → 좌측(대회명·주최·주관·장소·일정) + 우측(종별 추가→디비전 생성, 경기 설정) 입력 → "대회 생성" → 게시 모달에서 게시/참가신청 기간·계좌 입력 → "대회 생성" → 성공 시 대시보드 redirect.
+- **정상 동작**: 종별 0개면 "필수 입력 누락: 종별·디비전" 토스트로 차단(게시 모달 안 뜸). 게시 모달 "대회 생성" 클릭 시 버튼 스피너+잠금→성공 redirect / 실패 토스트.
+- **주의할 입력**: ①디비전명 중복(다른 종별에 같은 디비전명) → divCaps/divFees 마지막 값 덮어씀(의도). ②간편결제·카드 버튼은 disabled(클릭 무반응 정상). ③게시기간/참가신청기간 미입력 가능(optional·미전송). ④실제 대회가 운영 DB에 생성됨(단일 DB 정책) — 테스트 생성분 정리 필요 여부 PM 확인.
+
+⚠️ reviewer 참고:
+- 평면변환 로직(publish 함수)·POST body 키 매핑(page.tsx handleSubmitDraft)이 createTournament 수신 키와 정합하는지 확인 권장.
+- 미사용 courtsOf import 제거(B-2 잔재) — ct-schedule-venue export에는 영향 없음.
+
+🔎 검증: `npx tsc --noEmit` EXIT=0(2회). git status = ct-create-tournament(untracked·B-2 신규)·page.tsx(M)·toss-admin.css(M)·B-3 ct-divisions/ct-game-settings(staged)·ct-schedule-venue(untracked). admin-shell/referee-shell(세션A) 미접촉. 미커밋(PM).
+
+### 새 대회 생성폼 B-2 — 2컬럼 셸 + 좌측 컬럼 (2026-06-21, developer 세션B)
+
+📝 구현: 시안 CreateTournament 의 **셸(2컬럼+헤더+하단 고정 생성바) + 좌측 컬럼 완성 + 우측 stub(B-3)**. quick 탭 본문을 풀폭 단일폼으로 전면교체. 제출(POST) 배선은 B-4 보류 — 좌측 입력·검증 UI까지.
+
+| 파일 | 변경 내용 | 신규/수정 |
+|------|----------|----------|
+| `new/wizard/_components/ct-create-tournament.tsx` | 메인 폼 — 셸(ct-head 헤더·ct-grid--2·ct-bar 하단바)+좌측 대회정보(대회명·정규대회 시리즈 실연동·주최·주관·후원사·포스터)+우측 stub 2카드+state(d/venues/dates/sponsors)+submit 검증(누락 토스트)+B-1 payload(places확장·scheduleDates `court_ids`)+이전대회 불러오기 모달 | 신규 |
+| `new/wizard/_components/ct-schedule-venue.tsx` | 일정·장소 블록 — VenueSearch(자동완성+직접추가)·코트수 Stepper(1~8)·명명 SegSm(숫자/알파벳)·코트칩·CalendarModal(다중일자)·날짜별 코트 배정칩. courtsOf/allCourts/ctUid 유틸(court id=`<venueId>_c<idx>`) | 신규 |
+| `src/styles/toss-admin.css` | `.ct-*` 70여 규칙 `[data-skin="toss"]` 스코프 추가(레이아웃·venue·stepper·segsm·calendar·dateblock·sponsor·pastrow·bar·stub)+`@keyframes ctspin`+모바일 720px 분기. `.ct-bar` lg(min-w 1024) `left:16rem`(사이드바 256px)/모바일 `left:0` | 수정 |
+| `new/wizard/page.tsx` | quick 탭 = 풀폭 early-return → `<CtCreateTournament>` 렌더(서브탭/AdminPageHeader 셸 숨김·focused)+토스트 state(showToast)+CtDraftPayload 핸들러(B-4 배선 전 페이로드 확인 토스트). legacy/prospectus/association 탭은 기존 셸 보존 | 수정 |
+
+🟢 **좌측 완성도**: 대회명(필수·인라인 검증) / 정규대회 여부(일반·정규 세그먼트) / 정규대회 선택(`/api/web/series/my` 실연동 dropdown + InlineSeriesForm 신규생성 재사용) / 주최·주관(필수) / 후원사(이름+ImageUploader 로고) / 포스터(ImageUploader 3:4) / 일정·장소(VenueSearch·코트Stepper·명명·CalendarModal·날짜별 코트배정) — **전 항목 동작**. 시안 mockup(image-slot/REGULAR_SERIES)은 운영 컴포넌트(ImageUploader/series 실연동)로 대체.
+
+🟡 **우측 stub**: 종별·디비전 / 경기 설정 = `.ct-stub` 안내 카드 2개("다음 단계 B-3에서 구현"). state.categories 는 빈 배열 보관(payload 미포함, B-3/B-4 연동).
+
+🔴 **제출 배선 보류(B-4)**: "대회 생성" 클릭 = 좌측 필수값 검증(대회명/주최/주관/정규대회선택/장소/일정 누락 시 토스트) 후 `onSubmitDraft(payload)` → 현재는 **페이로드 확인 토스트만**(실제 POST 없음). payload 는 B-1 형태(places 확장·scheduleDates `[{id,date,court_ids[]}]`·gameRules 12키)로 변환 완료 → B-4 가 그대로 fetch.
+
+🔑 **가드 준수**: POST route·createTournament·Zod·schema·`/api/v1` 미접촉(UI만). prospectus/협회마법사 라우트·draft 자동채움(useEffect) 보존. lucide 키트 `<Icon>`(20종 전부 실존·ICON_ALIAS 추가 불요)·Material 잔존 0·하드코딩 hex 0(유니폼 저지색 #FFFFFF/#1B2A4A 는 도메인 데이터 예외)·rgba JSX 0(전부 CSS 이동). `data-skin="toss"` 루트 opt-in·공유셸 미부착. 한글 IME 가드(VenueSearch·SponsorField Enter). dev 서버 미접촉.
+
+💡 tester 참고:
+- **테스트 경로**: `/tournament-admin/tournaments/new/wizard` (quick 탭 = 기본). legacy 는 `?legacy=1`.
+- **정상 동작**: 2컬럼(데스크탑)·1컬럼(720px↓). 장소 검색→등록→코트수 2↑ 시 명칭 세그먼트+코트칩. 일정선택→캘린더 다중→날짜별 코트칩 토글. "대회 생성"→누락 토스트 또는 페이로드 확인 토스트(POST 없음=정상, B-4 대기).
+- **주의 입력**: 정규대회 선택 시 시리즈 dropdown 빈 상태(`/api/web/series/my` 무응답)·InlineSeriesForm 생성. 장소 0/일정 0 시 빈박스. 코트 삭제 시 dates 무효 courtId 자동 정리(pruneCourts).
+
+🔎 검증: `npx tsc --noEmit` EXIT=0. lucide 20종 실존 확인. git=신규 2파일+수정 2파일(page.tsx/toss-admin.css)만. admin-shell/referee-shell 미접촉(세션A 영역). 미커밋(PM).
+
+📋 잔여: B-3(우측 종별·디비전 빌더 + 경기 설정) / B-4(제출 POST 배선 + 게시 설정 모달).
+
+💡 tester 참고:
+- 테스트: 기존 대회 생성 흐름(3필드 미전송)이 회귀 없는지 — POST `/api/web/tournaments`로 name만 보내 200+redirectUrl 확인. 신규 3필드는 아직 UI 없음(B-2~4)이라 curl로 `gameRules:{...}`·`scheduleDates:[{id,date,court_ids}]` 전송 시 DB 저장 확인.
+- 정상: 미전송 시 game_rules=`{}`·schedule_dates=`[]` 박제. 전송 시 jsonb 그대로 저장(camelCase 키 보존).
+- 주의: 응답 키는 snake(`redirect_url`). DB 조회 시 game_rules/schedule_dates는 server prisma=camel, apiSuccess 응답=snake.
+
+⚠️ reviewer 참고:
+- 봐줬으면: ① jsonb round-trip 직렬화(`JSON.parse(JSON.stringify(...))`) — settings 기존 패턴 답습 ② places 타입 확장이 기존 `{name,address}` 호출부 깨지 않는지(address optional화) ③ ALTER가 targeted 1줄만 적용됐는지(drift 미혼입).
+
+### 새 대회 생성폼 B-3 — 우측 컬럼 컴포넌트 2종 (2026-06-21, developer 세션B)
+
+📝 구현: 시안 CreateTournament 의 **우측 컬럼 2 카드(controlled component)** — ① 종별·디비전 제너레이터 ② 경기 설정 12키. B-2 가 우측을 `.ct-stub` 안내카드로 비워둠 → 본 단계가 실폼 신규 작성. **통합(메인폼 배선)은 B-4 별도** — 본 단계는 신규 2파일만 생성(메인폼·page.tsx·toss-admin.css 미접촉).
+
+| 파일 | 변경 내용 | 신규/수정 |
+|------|----------|----------|
+| `new/wizard/_components/ct-divisions.tsx` | 종별·디비전 제너레이터(controlled). props `{value:CategoryItem[]; onChange; scheduleDates; venues; toast}`. `/api/web/admin/categories` GET 실연동(종별 마스터·응답 snake `sort_order`)→DivisionGenerator 모달(성별·종별템플릿·디비전·연령 4단계·여성부 w접미·디비전×연령 곱집합)→디비전별 cap/fee/dateId/courtId 입력. venues→코트풀(`<venueId>_c<idx>`)·날짜 select read-only. CategoryCard/안내배너 | 신규 |
+| `new/wizard/_components/ct-game-settings.tsx` | 경기 설정 12키(controlled). props `{value:GameRules; onChange; homeName?; awayName?}`. 유니폼 16색 picker(UniformModal·hex직접입력·휘도 대비잉크)·홈어웨이 색교체·조끼체크·경기방식 프리셋4·운영방식/쿼터수/쿼터시간/샷클락·파울/타임아웃 Stepper. **`GAME_SETTINGS_DEFAULTS` 정본 export**(L37~50·`GameRules` 타입 동반 export) | 신규 |
+
+🔑 **props 인터페이스(계약 준수)**:
+- `CategoryItem={id:string; name:string; divisions:DivisionItem[]}` / `DivisionItem={id; name; cap?; fee?; dateId?; courtId?}` — **계약 1:1**(시안의 `method` 필드는 계약에 없어 제거·진행방식은 DivisionRule 다운스트림 소관). `ScheduleDate={id; date; court_ids[]}` / `Venue={id;name;region;courtCount;naming}` = read-only 옵션(부모 좌측폼 소유). export 됨(통합 시 메인폼 import).
+- `GameRules` = camelCase 12키(B-1 game_rules jsonb 1:1). **`shotClock: boolean`**(SegSm "사용"=true/"미사용"=false). export.
+
+🔑 **shotClock boolean 반영**: 타입 `shotClock: boolean`, DEFAULTS `shotClock: true`, UI=`<SegSm options={["사용","미사용"]} index={d.shotClock?0:1} onSelect={(i)=>set("shotClock", i===0)} />`. 시안·B-2·B-1 정합(PM 승인).
+
+🔑 **GAME_SETTINGS_DEFAULTS export 위치**: `ct-game-settings.tsx` L37~50(`export const GAME_SETTINGS_DEFAULTS: GameRules = {...}`). 통합(B-4) 시 메인폼(ct-create-tournament)이 자체 보유한 defaults 를 **이 export 로 교체·일원화** 예정.
+
+🔑 **가드 준수**: 신규 2파일만 생성. page.tsx·ct-create-tournament·ct-schedule-venue·toss-admin.css **미접촉**(통합 배선 B-4). API·createTournament·schema·`/api/v1` 미접촉(categories GET 읽기만). 재사용 `.ct-*` 클래스(ct-headicon/ct-iconbtn/ct-reqtag/ct-banner/ct-emptybox(--tall)/ct-stepper/ct-segsm)만 클래스명 참조, 우측 전용(ct-cat/ct-dvn/ct-uni/ct-pal/ct-set 등)은 inline `var(--*)`. lucide 15종 전부 실존(ICON_ALIAS 불요)·Material 0·하드코딩 hex 0(유니폼 16색 팔레트만 도메인 예외)·시안 보라톤 `#6D5AE6`→`var(--primary)` 토큰화. 한글 IME 가드(디비전명·hex input Enter). dev 서버 미접촉.
+
+💡 tester 참고:
+- **통합 전이라 단독 렌더 불가** — 메인폼(B-4)이 `value`/`onChange` 배선해야 화면 표시. 본 단계 검증 = 타입 정합 + 컴파일.
+- **자체 동작(B-4 배선 후)**: 종별 "추가"→모달(성별·종별템플릿 admin_categories 실연동·디비전·연령)→"종별 생성"→카드 append. 디비전별 정원/참가비/날짜/코트 select. 경기설정=유니폼 셀 클릭→16색 모달, 프리셋 칩, Stepper.
+- **주의 입력**: ① `/api/web/admin/categories` 무응답 시 모달 2단계 "등록된 종별 마스터 없음"(빈배열 graceful) ② 날짜 미선택 시 코트 select=전체 풀, 날짜 선택 시 그 날짜 배정 코트만 ③ hex 직접입력 정규식 검증(`#RRGGBB`/`#RGB`).
+
+🔎 검증: `npx tsc --noEmit` EXIT=0(신규 2파일 자체 정합·전체 에러 0). lucide 15종 실존 확인(layout-grid/trash-2/x/calendar/map-pin/info/plus/check/sliders-horizontal/shirt/clock/flag/minus/arrow-left-right/search). git=신규 2파일만 stage(`A`)·B-2 파일 미접촉. 미커밋(PM).
+
+📋 통합 시 끼울 위치(B-4): `ct-create-tournament.tsx` 우측 컬럼 `.ct-stub` 2카드(L515~539)를 → `<CtDivisions value={categories} onChange={setCategories} scheduleDates={...} venues={venues} toast={toast} />` + `<CtGameSettings value={gameRules} onChange={setGameRules} />` 로 교체. state 추가: `categories: CategoryItem[]`(현재 빈배열 주석만)·`gameRules`는 d 분리 또는 별도 state. 메인폼 defaults→`GAME_SETTINGS_DEFAULTS` import 일원화. submit payload 에 categories(→DivisionRule 다운스트림)·gameRules 반영.
+
+⚠️ reviewer 참고:
+- 봐줬으면: ① 계약(DivisionItem)에 없는 시안 `method` 제거가 적절한지(진행방식은 DivisionRule 소관 — 본 폼은 cap/fee/날짜/코트만) ② categories GET 응답 파싱 폴백(`json?.data?.categories ?? json?.categories ?? []`)이 apiSuccess 표준과 정합인지 ③ 날짜 변경 시 courtId 초기화(`{dateId, courtId:undefined}`)로 무효 코트 잔존 방지.
 
 ### Track B 참가신청 3단계 후속 정리 — orphan/dead CSS/대표자 편집 (2026-06-21, developer)
 
@@ -798,6 +1120,23 @@ arrow_back→arrow-left · upload_file→file-up · download→download · check
 ## 테스트 결과 (tester)
 (완료분은 작업 로그로 압축 — 신규 작업 시 기록)
 
+### 새 대회 생성폼 B-1 — schema ADD + POST 3필드 확장 (2026-06-22, tester — 정적/타입 검증·세션B)
+
+📊 종합: 6개 검증 전부 통과 / 차단 이슈 0 / 후속 minor 1건(B-1 무관·기존 코드)
+
+| 검증 항목 | 결과 | 비고 |
+|-----------|------|------|
+| tsc --noEmit | ✅ 통과 | EXIT=0. places 타입 확장(address optional化)이 기존 호출부 미파괴(wizard·prospectus-to-draft `[{name,address}]` 통과). gameRules/scheduleDates 신규 필드 컴파일 정상 |
+| 회귀 0 (3필드 전부 optional) | ✅ 통과 | route.ts `gameRules\|\|undefined`·`scheduleDates\|\|undefined` / tournament.ts `...(input.gameRules ? {game_rules:...} : {})` spread. **미전송 시 createData에서 키 자체가 빠져** schema @default(`{}`/`[]`)로 떨어짐 → 기존 행과 동일. 기존 생성 흐름(name만) 안전 |
+| 기존 로직 보존 (git diff 검증) | ✅ 통과 | status="draft" default(L475)·$transaction(L533)·DivisionRule 미생성 라인 **이번 diff 미포함**(context로만 표시) = 미변경. diff=3파일 28+/1- 한정. createData 신규 매핑 2줄만 추가, 기존 로직 라인 무손상 |
+| schema 정합 (DB 컬럼 실측·SELECT only) | ✅ 통과 | information_schema 조회: `schedule_dates`=jsonb DEFAULT `'[]'::jsonb`(신규 ADD 정상)·`game_rules`=jsonb DEFAULT `'{}'::jsonb`(기존 컬럼 재사용·이번 diff엔 schedule_dates만)·`places`=jsonb. prisma @map snake 정합. 운영 영향 0(SELECT만)·임시 스크립트 즉시 삭제 |
+| snake 정합 (저장/응답) | ✅ 통과 | createData가 prisma 컬럼명 snake `game_rules`/`schedule_dates`로 매핑. jsonb **내부 값**은 `JSON.parse(JSON.stringify())` round-trip으로 camelCase 그대로 보존(apiSuccess snake 변환은 응답 최상위 키만·jsonb 내부 미변환). 응답 키 `redirect_url` snake |
+| 격리 (3파일 국한·api/v1 미접촉) | ✅ 통과 | git diff=schema/route/tournament 3파일만. `src/app/api/v1/` diff 비어있음(Flutter 영역 미접촉). UI(B-2~4 소관) 미생성 정상 |
+
+🔎 실제 런타임(POST 세션 인증 후 name만/3필드 전송 → DB 저장 SELECT 검증)은 개발서버 종료 상태로 미수행 — 정적/타입/diff/DB컬럼 실측으로 대체(작업 지시 정합). 본 라우트는 api/web(getWebSession)라 errors.md proxy PUBLIC_API_ROUTES(api/v1 전용) 함정 비해당.
+
+⚠️ 후속 minor (차단 아님·B-1 무관): tournament.ts L500 `rules: input.rules ?? input.rules ?? null` 중복 `??` 표현 — 동작상 `input.rules ?? null`과 동일(무해). **이번 B-1 diff에 미포함된 기존 코드**라 B-1 통과에 영향 0. 차후 정리 권장 수준.
+
 ### Track B Phase4 B-d 경기별 기록자 배정 (settings.recorder_id jsonb) (2026-06-21, tester — 정적 검증·세션B)
 
 📊 종합: 8개 검증 전부 통과 / 차단 이슈 0 / 후속 minor 1건
@@ -874,3 +1213,56 @@ arrow_back→arrow-left · upload_file→file-up · download→download · check
 🔎 실제 런타임(super_admin 세션·실대회 div_caps 정원)은 세션 필요로 미수행 — 정적 코드분석으로 대체.
 
 ⚠️ 후속 minor (차단 아님): 정원가드 `count`(L86)가 트랜잭션 시작 전 블록(L78~99)에서 실행(트랜잭션 밖). 동일 종별 다수 paid가 거의 동시 입력 시 approvedCount race로 cap+1 승격 가능성 이론상 존재. 운영자 1건씩 수동처리라 실발생 희박. 후속 강화 시 count를 $transaction 내부 이동 또는 serializable 검토 권장.
+
+### 새 대회 만들기 생성폼 정합 조사 (읽기전용, 2026-06-21 planner — 코드/스키마 무변경)
+
+🎯 결론 요약 (Flutter 게이트 판정 = **🟢 키 변경 필요 NO / 충돌 0**):
+- 시안 README가 "기록앱 GameRules 1:1 정합"이라 했으나, 이는 **Flutter 앱(bdr_stat_v3) 내부 `game_rules.dart` 모델**이지 mybdr 서버 DB와의 계약이 아님. **mybdr 서버는 시안의 경기설정(유니폼·방식·파울·타임아웃)을 현재 저장/사용하지 않음** = 신규 빈공간 → 충돌할 기존 키가 애초에 없음.
+- **match-sync는 game_rules를 1바이트도 안 읽음**: `match-sync.ts`+`sync/route.ts` 전수 정독 결과 = 점수/status/quarter_scores/player_stats(22필드)/play_by_plays만 처리. 경기 룰(쿼터시간·파울한도·타임아웃·유니폼) **읽기 0**. Flutter는 자체 game_rules.dart로 현장 운영만 하고 서버엔 결과(점수·스탯·PBP)만 sync.
+- **`Tournament.game_rules` 컬럼은 dead column**: schema L304에 `game_rules Json? @default("{}")` 실재하나, **`grep "game_rules"` src/ 전체 = 0건**(읽기·쓰기 코드 전무). validation/service/route 어디도 미사용. → 시안 경기설정을 여기 박제 시 **신규 활용**(기존 키 충돌 불가).
+
+🔴 **조사1. match-sync game_rules 키 대조 (Flutter 게이트)**
+| 시안 GAME_SETTINGS state 키 (ct-game-settings.jsx) | mybdr 서버 매핑 | 판정 |
+|------|------|------|
+| homeColor / awayColor (유니폼 hex) | **서버 미저장**(team primary/secondary_color 별개·매치 sync에 유니폼 없음) | 신규 빈공간 |
+| vestProvided (조끼 제공) | 서버 미저장 | 신규 빈공간 |
+| quarterType('4Q'/'HALF') / quarterMinutes | 서버 미저장(quarter_scores는 PBP 결과·룰 아님) | 신규 빈공간 |
+| clockMode('nonstop'/'dead') / shotClock | 서버 미저장 (sync의 shot_clock_seconds=PBP **이벤트 값**·룰 무관) | 신규 빈공간 |
+| foulLimit / teamFoulBonus | 서버 미저장 (sync의 personal_fouls=선수 **기록 결과**·룰 무관) | 신규 빈공간 |
+| firstHalfTimeouts / secondHalfTimeouts / timeoutDuration | 서버 미저장 | 신규 빈공간 |
+- ✅ **판정: 시안 경기설정 ↔ 기존 game_rules JSON 키 충돌 = 0. 키 추가/변경/삭제로 인한 Flutter 회귀 위험 = 없음**(Flutter는 이 값들을 서버에서 받지 않고 앱 내부 기본값+현장조정으로 운영). → 시안 GAME_SETTINGS_DEFAULTS를 `Tournament.game_rules`(dead column 활성화) 또는 `Tournament.settings.game_rules` jsonb에 **그대로 신규 박제** 가능. **저장 위치만 PM 결정 필요**(아래 권고).
+- ⚠️ 단, "1:1 정합" 표현은 **시안 폼 항목 ↔ Flutter 앱 game_rules.dart 항목**의 정합(현장 기록 일관성용)이지 서버 연동 계약이 아님. 서버 박제는 **순수 신규 메타 저장**(현재 Flutter가 서버에서 읽지 않으므로 박제해도 즉시 효과 0 — 향후 Flutter가 대회설정 fetch 연동 시 활용될 준비값). → developer는 "이 값을 저장하면 Flutter 동작이 바뀐다"고 오해 금지.
+- 💡 저장위치 권고: **`Tournament.game_rules`(L304 dead column) 활성화** 권고. 사유=의미상 정확(game_rules=경기 룰)·settings 오염 회피·snake 정합. validation/tournament.ts + service/tournament.ts에 `gameRules` 필드 추가 필요(현재 places처럼). 대안=`settings.game_rules` jsonb(스키마0이나 settings 비대). → PM 택1.
+
+🟡 **조사2. §2 정합표 실측 검증 (중복 생성 방지)**
+| 시안 영역 | 운영 실제 | 판정 |
+|------|------|------|
+| 정규대회(시리즈) seriesId/seriesName | `Tournament.series_id`(L282 BigInt?) + `tournament_series` 모델 존재 | ✅ 재사용·신규0 |
+| 장소(venues) name/region | `Tournament.venue_name`(L306)·`venue_address`(L307)·`places`(L317 Json `{name,address}[]`·validation L84 실사용) | ⚠️ 부분(아래 코트 참조) |
+| 결제(입금계좌) | `Tournament.settings`/bank 필드+`entry_fee`(L300)·종별 참가비=`div_fees`/`DivisionRule.feeKrw`(L3480) | ✅ 재사용·신규0 |
+| admin_categories(종별마스터) | AdminCategory(L3504~ BigInt PK·4종 시드 완료) | ✅ **이미 완료**(확인만·B-1 커밋 367c1d8) |
+- 🔴 **진짜 신규 후보 = 날짜↔코트 배정 구조 (시안의 핵심 신규)**:
+  - **운영 schema에 날짜별 코트 배정 구조 = 전무**. grep `tournament_date`·`date_court`·`court_assign`·DivisionRule의 date/court 필드 = **전부 0건**.
+  - 시안 데이터 모델(create-tournament.jsx 실측): `venues[].{name,region,courtCount,naming('num'/'alpha')}` → 코트 파생(`courtsOf`=venue별 N개 코트 id 생성) / `dates[].{id,date,courtIds[]}` (날짜 1개 ↔ 코트 N개 **N:N 토글 배정**) / `categories[].divisions[].{method,cap,fee,dateId,courtId}` (디비전 1개 = 날짜1+코트1 매칭).
+  - 운영 현실: `Tournament.places`(Json `{name,address}[]`)는 **장소명/주소 평면 배열뿐 — 코트 수·명명규칙·날짜배정 개념 0**. `courts`/`court_infos` 테이블은 **사용자 픽업게임용 코트DB**(대회 일정배정과 무관·tournament FK 없음). `TournamentMatch.venue_id`(L703)는 courts FK지만 **매치 단위**(생성폼의 사전 날짜↔코트 배정과 다른 레이어).
+  - **최소 신규안 (기존 구조 확장 우선)**: 신규 테이블 없이 **`Tournament.places` jsonb 스키마 확장**으로 흡수 권고. 예: `places=[{id,name,region,courtCount,naming,courts:[{id,full}]}]` + 신규 `Tournament.schedule_dates` jsonb(`[{id,date,courtIds[]}]`) 또는 settings 내 키. 정규 테이블(tournament_dates + date_courts 조인)은 **날짜별 코트 쿼리/통계 필요 시에만**(현재 미요구 → jsonb 권고·무중단·스키마 ADD COLUMN 1개 NULL허용).
+- **`TournamentDivisionRule`에 dateId/courtId 필드 필요 여부**: 현재 DivisionRule에 date/court 컬럼 **없음**(code/label/birthYear/grade/feeKrw/sortOrder/format/settings만 L3472~3496). 시안은 디비전별 경기날짜+코트 매칭 요구 → **DivisionRule.settings jsonb에 `match_date_id`/`match_court_id` 키 흡수 권고**(스키마 ADD 0·settings는 이미 자유형 jsonb). 정식 FK 컬럼은 날짜/코트가 정규 테이블화될 때만.
+
+🟢 **조사3. 시안 화면 구조 vs 기존 위저드 (리빌딩 범위 판단)**
+- **시안 = 2컬럼 단일 페이지** (create-tournament.jsx L432~): 좌(대회정보: 명/정규여부/주최/주관/후원사/포스터 + 일정·장소: VenueSearch→코트수·명명 + CalendarModal 날짜다중선택 + 날짜블록별 코트칩 토글) / 우(종별·디비전 제너레이터 + 디비전별 정원·참가비·날짜·코트 + 경기설정 카드) + **하단 고정 [대회 생성] 바**(누락항목 토스트 차단) + 게시모달(게시·접수기간·결제수단·입금계좌).
+- **기존 운영 = 다중 경로 위저드** (`tournament-admin/tournaments/new/wizard/`): Quick / Legacy 3-step / 이전대회복사(tournament-copy-modal) / Division 제너레이터 모달 / prospectus AI. **이미 Toss 리스킨 완료**(B-b 커밋 2f4e0f9). 단계 분할형(step-by-step) — 시안의 단일 2컬럼과 IA 상이.
+- **리빌딩 범위 판단 = 🔶 신규 페이지 추가 권고(기존 위저드 교체 ❌·병행)**:
+  - 사유 ①시안의 **날짜↔코트 배정·코트 명명·경기설정**은 기존 위저드에 **없는 신규 기능** → 기존 step UI에 끼우기보다 시안 2컬럼 단일폼이 정합. ②기존 위저드(Quick/Legacy/복사/prospectus)는 **각각 다른 진입 시나리오** 서비스 중 → 교체 시 4경로 회귀 위험 큼. ③신규 생성폼은 schema 확장(places jsonb·schedule_dates) 동반 → 기존 위저드 POST(`series/[id]/editions`·`tournaments` route)와 **payload 구조 다름** → 별도 라우트가 격리 안전.
+  - 권고 라우트: `tournament-admin/tournaments/new/` 신규 단일폼 페이지(시안 2컬럼) + 기존 `/new/wizard`는 유지(또는 "간편 생성" 링크로 강등). **PM 결정 필요**(전면 교체 vs 병행 vs 기존 위저드에 경기설정·날짜코트 섹션만 증설).
+  - 비유(주방 리모델링): 기존 위저드=여러 출입문 있는 식당(Quick=테이크아웃·Legacy=홀·복사=단골재주문). 시안 단일폼=새 메인홀 1개로 통합한 설계. 기존 출입문들을 다 막고 새 홀만 두면(전면교체) 단골 동선 끊김 → 새 메인홀을 **추가로 열고** 기존 문은 보조로 두는 게 안전.
+
+📌 PM 결정 필요 (착수 전):
+- **(가)** 경기설정 저장 위치 = `Tournament.game_rules`(dead column 활성·권고) vs `settings.game_rules` jsonb. → validation/service 필드 추가 동반.
+- **(나)** 날짜↔코트 배정 저장 = `places` jsonb 확장 + `schedule_dates` jsonb 신규 컬럼(권고·무중단) vs 정규 테이블(tournament_dates+date_courts). DivisionRule date/court는 settings jsonb 흡수 권고.
+- **(다)** 리빌딩 범위 = 신규 단일폼 페이지 추가(권고·병행) vs 기존 위저드 전면 교체 vs 기존 위저드에 섹션만 증설.
+- ⚠️ 위 (가)(나)는 **schema 변경(ADD COLUMN NULL허용 무중단)** 동반 가능 → 🚦 게이트(db push 전 PM 승인) 적용 대상.
+
+📚 knowledge 승격 후보(PM 판단):
+- decisions.md → "시안 '기록앱 GameRules 1:1 정합' = Flutter 앱 내부 모델 정합이지 서버 연동 계약 아님 — match-sync는 game_rules 미사용·서버 경기룰 저장 0"
+- errors.md → "`Tournament.game_rules` = dead column(schema有·코드 grep 0) — 시안 경기설정 박제 시 신규 활용이며 Flutter 회귀 0(서버 미read)"
+- architecture.md → "대회 날짜↔코트 배정 구조 부재 — places(평면 장소배열)뿐·courts/court_infos는 픽업게임 코트DB·생성폼 날짜코트는 신규(jsonb 확장 권고)"
