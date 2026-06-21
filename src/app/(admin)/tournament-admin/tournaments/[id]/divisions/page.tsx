@@ -36,6 +36,13 @@ import {
   ADVANCE_PER_GROUP_DEFAULT,
   calculateTotalTeams,
 } from "@/lib/tournaments/division-formats";
+// 2026-06-22 F-2b — 디비전 일정(날짜/코트) 역참조 표시 헬퍼
+import {
+  resolveDivisionSchedule,
+  type ScheduleDateLite,
+  type PlaceLite,
+  type DivScheduleEntry,
+} from "./_components/schedule-format";
 
 interface DivisionRule {
   id: string;
@@ -58,6 +65,11 @@ export default function DivisionsSetupPage() {
 
   const [rules, setRules] = useState<DivisionRule[]>([]);
   const [allowedFormats, setAllowedFormats] = useState<string[]>([]);
+  // 2026-06-22 F-2b — 디비전 일정 역참조용 데이터(div_schedule 배열 + 룩업 소스)
+  //   route 에서 map→배열로 변환해 내보내므로(디비전명 snake 변환 회피) 배열로 받는다.
+  const [divSchedule, setDivSchedule] = useState<DivScheduleEntry[]>([]);
+  const [scheduleDates, setScheduleDates] = useState<ScheduleDateLite[]>([]);
+  const [places, setPlaces] = useState<PlaceLite[]>([]);
   const [loading, setLoading] = useState(true);
   const [savingId, setSavingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -83,6 +95,14 @@ export default function DivisionsSetupPage() {
       }
       setRules((json.rules ?? []) as DivisionRule[]);
       setAllowedFormats((json.allowed_formats ?? []) as string[]);
+      // F-2b — 디비전 일정 역참조 데이터(배열·route 에서 map→배열 변환·snake)
+      setDivSchedule(
+        Array.isArray(json.div_schedule)
+          ? (json.div_schedule as DivScheduleEntry[])
+          : [],
+      );
+      setScheduleDates((json.schedule_dates ?? []) as ScheduleDateLite[]);
+      setPlaces((json.places ?? []) as PlaceLite[]);
     } catch {
       setError("네트워크 오류");
     } finally {
@@ -306,6 +326,34 @@ export default function DivisionsSetupPage() {
                     {/* 2026-05-12 룰 변경: 어린 학년 자유 참가 — gradeMax 이하 표시 */}
                     {r.grade_max != null ? `${r.grade_max}학년 이하` : "학년 제한 없음"} · 참가비 {r.fee_krw.toLocaleString()}원
                   </p>
+                  {/*
+                    2026-06-22 F-2b — 디비전별 경기 날짜/코트 표시.
+                    div_schedule 배열에서 division ↔ DivisionRule.label 우선 매칭, 없으면 code 폴백.
+                    역참조 실패(매칭/값 부재/룩업 실패)는 "–" 로 graceful 표시.
+                  */}
+                  {(() => {
+                    const { dateLabel, courtLabel } = resolveDivisionSchedule(
+                      divSchedule,
+                      r.label,
+                      r.code,
+                      scheduleDates,
+                      places,
+                    );
+                    return (
+                      <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                        <span className="inline-flex items-center gap-1 rounded-[4px] border px-1.5 py-0.5 text-[11px] font-medium text-[var(--color-text-muted)]"
+                          style={{ borderColor: "var(--color-border)", background: "var(--color-elevated)" }}>
+                          <Icon name="calendar" size={12} />
+                          {dateLabel ?? "–"}
+                        </span>
+                        <span className="inline-flex items-center gap-1 rounded-[4px] border px-1.5 py-0.5 text-[11px] font-medium text-[var(--color-text-muted)]"
+                          style={{ borderColor: "var(--color-border)", background: "var(--color-elevated)" }}>
+                          <Icon name="map-pin" size={12} />
+                          {courtLabel ?? "–"}
+                        </span>
+                      </div>
+                    );
+                  })()}
                 </div>
                 <div className="flex items-center gap-2">
                   <label className="text-xs text-[var(--color-text-muted)]">진행 방식:</label>
