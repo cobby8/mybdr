@@ -72,34 +72,46 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
 
   // 정원 가드: div_caps[division] 대비 현재 approved 수가 cap 미만일 때만 승격 허용.
   //   cap 미설정(또는 division 없음)이면 무제한 승격(기존 정책 — join/route.ts와 동일).
-  let promoted = false;
+  // B-a race 강화(2026-06-21): cap 값 조회는 tx 밖(읽기 전용·동시성 무관)이지만,
+  //   approvedCount 비교 + status 승격(read-modify-write)은 반드시 단일 $transaction 안에서 수행한다.
+  //   기존엔 count가 tx 밖이라 두 paid 요청이 동시에 같은 count를 읽고 둘 다 승격 → cap 초과 가능했음.
+  //   이제 count를 tx 내부로 이동해 동일 트랜잭션 격리 안에서 cap 판정 → 초과 차단.
   let promoteReason: string | null = null;
+
+  // div_caps[division] cap 값 — 읽기 전용 메타라 tx 밖 조회로 충분(값 자체는 동시 변경 대상 아님).
+  let cap: number | undefined = undefined;
   if (wantsAutoPromote) {
     const divCaps = (await prisma.tournament.findUnique({
       where: { id },
       select: { div_caps: true },
     }))?.div_caps as Record<string, number> | null;
-    const cap = tt.division ? divCaps?.[tt.division] : undefined;
-
-    if (cap) {
-      // 현재 승인된(approved) 팀 수만 카운트 — 자기 자신은 아직 pending/waiting이라 미포함.
-      const approvedCount = await prisma.tournamentTeam.count({
-        where: { tournamentId: id, division: tt.division, status: "approved" },
-      });
-      if (approvedCount < cap) {
-        promoted = true;
-      } else {
-        // 정원 초과 → 승격 보류. payment만 paid로 반영하고 status는 유지한다.
-        promoteReason = "division_full";
-      }
-    } else {
-      // cap 미설정 → 무제한 승격.
-      promoted = true;
-    }
+    cap = tt.division ? divCaps?.[tt.division] : undefined;
   }
 
   // TC-NEW-007 / B-a: 팀 업데이트 + payment + status + teams_count 동기화를 단일 트랜잭션으로 처리.
-  const updated = await prisma.$transaction(async (tx) => {
+  const { updated, promoted } = await prisma.$transaction(async (tx) => {
+    // B-a: 자동승격 cap 판정을 tx 내부에서 수행(count→비교→update 원자화).
+    //   cap 미설정 시 무제한 승격. cap 있으면 현재 approved 수가 cap 미만일 때만 승격.
+    let promoted = false;
+    if (wantsAutoPromote) {
+      if (cap) {
+        // 현재 승인된(approved) 팀 수만 카운트 — 자기 자신은 아직 pending/waiting이라 미포함.
+        //   tx 내부 count라 동시 paid 요청과 직렬화되어 cap 초과 승격을 막는다.
+        const approvedCount = await tx.tournamentTeam.count({
+          where: { tournamentId: id, division: tt.division, status: "approved" },
+        });
+        if (approvedCount < cap) {
+          promoted = true;
+        } else {
+          // 정원 초과 → 승격 보류. payment만 paid로 반영하고 status는 유지한다.
+          promoteReason = "division_full";
+        }
+      } else {
+        // cap 미설정 → 무제한 승격.
+        promoted = true;
+      }
+    }
+
     // 명시적 status 변경(승인 시) 또는 자동승격으로 approved가 되는지 통합 판정.
     const becomingApproved = (!wasApproved && nowApproved) || promoted;
 
@@ -127,7 +139,8 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
       await tx.tournament.update({ where: { id }, data: { teams_count: { decrement: 1 } } });
     }
 
-    return u;
+    // promoted를 함께 반환 — tx 내부에서 확정된 승격 결과를 응답에 동봉하기 위함.
+    return { updated: u, promoted };
   });
 
   // B-a: 자동승격 결과를 응답에 동봉(UI 토스트 안내용). promoted=false+reason="division_full"이면 정원초과 보류.
