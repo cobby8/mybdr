@@ -634,58 +634,53 @@ export default function TournamentJoinPage() {
                     <span className="ts-inforow__label">팀명</span>
                     <span className="ts-inforow__value">{selectedTeam.name}</span>
                   </div>
-                  {/* 대표자 — user_info 값이 있으면 표시만, 비어있으면(카카오/구글 가입자 등)
-                      편집 입력칸 노출. 서버 joinSchema 가 managerName/Phone min(1) 필수라
-                      빈값으로 제출하면 422 영구 차단되므로 직접 채울 UI 를 반드시 제공한다. */}
+                  {/* 대표자/연락처 — 값 유무와 무관하게 항상 prefill 된 입력칸으로 노출한다.
+                      이유: user_info 자동값(가입정보)이 틀리거나 비어 있어도(카카오/구글 가입자)
+                      사용자가 직접 수정할 수 있어야 한다. 표시-only(span) 였을 때는 자동값이
+                      틀려도 고칠 수 없어 잘못된 값 그대로 제출되는 문제가 있었다.
+                      canNext 게이트(managerName/managerPhone trim 필수)는 그대로 유지되어
+                      빈값 제출(서버 joinSchema min(1) → 422)은 계속 차단된다. */}
                   <div className="ts-inforow">
                     <span className="ts-inforow__label">대표자</span>
-                    {managerName.trim().length > 0 ? (
-                      <span className="ts-inforow__value">{managerName}</span>
-                    ) : (
-                      <input
-                        type="text"
-                        value={managerName}
-                        onChange={(e) => setManagerName(e.target.value)}
-                        placeholder="대표자 이름"
-                        style={{
-                          flex: 1,
-                          maxWidth: 220,
-                          padding: "8px 10px",
-                          borderRadius: 8,
-                          border: "1px solid var(--border)",
-                          background: "var(--bg-elev)",
-                          color: "var(--ink)",
-                          fontSize: 14,
-                          fontWeight: 600,
-                          textAlign: "right",
-                        }}
-                      />
-                    )}
+                    <input
+                      type="text"
+                      value={managerName}
+                      onChange={(e) => setManagerName(e.target.value)}
+                      placeholder="대표자 이름"
+                      style={{
+                        flex: 1,
+                        maxWidth: 220,
+                        padding: "8px 10px",
+                        borderRadius: 8,
+                        border: "1px solid var(--border)",
+                        background: "var(--bg-elev)",
+                        color: "var(--ink)",
+                        fontSize: 14,
+                        fontWeight: 600,
+                        textAlign: "right",
+                      }}
+                    />
                   </div>
                   <div className="ts-inforow">
                     <span className="ts-inforow__label">연락처</span>
-                    {managerPhone.trim().length > 0 ? (
-                      <span className="ts-inforow__value">{managerPhone}</span>
-                    ) : (
-                      <input
-                        type="tel"
-                        value={managerPhone}
-                        onChange={(e) => setManagerPhone(e.target.value)}
-                        placeholder="예: 010-1234-5678"
-                        style={{
-                          flex: 1,
-                          maxWidth: 220,
-                          padding: "8px 10px",
-                          borderRadius: 8,
-                          border: "1px solid var(--border)",
-                          background: "var(--bg-elev)",
-                          color: "var(--ink)",
-                          fontSize: 14,
-                          fontWeight: 600,
-                          textAlign: "right",
-                        }}
-                      />
-                    )}
+                    <input
+                      type="tel"
+                      value={managerPhone}
+                      onChange={(e) => setManagerPhone(e.target.value)}
+                      placeholder="예: 010-1234-5678"
+                      style={{
+                        flex: 1,
+                        maxWidth: 220,
+                        padding: "8px 10px",
+                        borderRadius: 8,
+                        border: "1px solid var(--border)",
+                        background: "var(--bg-elev)",
+                        color: "var(--ink)",
+                        fontSize: 14,
+                        fontWeight: 600,
+                        textAlign: "right",
+                      }}
+                    />
                   </div>
                   <div className="ts-inforow">
                     <span className="ts-inforow__label">유니폼</span>

@@ -79,6 +79,9 @@
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
 |------|------|------|
+| 2026-06-21 | Track B 참가신청 3단계 후속 정리 (developer 세션B) | ✅ ①orphan 4파일 git rm(_v2/enroll-aside·poster·step-docs·step-payment·소스 import grep 0 확인·aside→poster 둘다삭제) ②dead CSS 제거(tournament-enroll.css 구 Material 구역 .te-h3/pay*/method*/bank*/bill*/success* 전량·615→308줄·약307줄·Toss .ts-*53규칙 유지) ③대표자/연락처 UI=값있으면span/없으면input 삼항→**항상 prefill input**(편집가능·canNext trim게이트 유지·빈값회귀 보존). route.ts/joinSchema/schema diff0·본인인증/주장가드/약관게이트/snake/adaptive 보존. tsc EXIT0. git=join영역만(삭제4·수정2). 미커밋(PM) |
+| 2026-06-21 | Track B Phase4 후속 비차단 3건 수리 (developer) | ✅ ①B-a teams PATCH approvedCount조회 $transaction **내부 이동**(race강화·동시 paid시 cap초과 차단·cap값조회는 tx밖 유지·`{updated,promoted}`반환) ②B-d matches GET 가드 `requireTournamentAdmin`→`requireRecordersManageAccess`(recorder_admin 통과·PATCH와 정합·POST 미접촉) ③B-d recorders page `roundName/scheduledAt`→`round_name/scheduled_at` snake교정(**응답키 실측 확정**=apiSuccess→convertKeysToSnakeCase→snake). 가드조건/승격로직/멱등/teams_count 동기화 전부 동일. 스키마0·신규모델0·기능회귀0. tsc EXIT0. git=대상3파일만(teams API/matches API/recorders page). 미커밋(PM) |
+| 2026-06-21 | Track B 종별 마스터(`/admin/categories`) 사이드바 nav 링크 추가 (developer 세션B) | ✅ `sidebar.tsx` navStructure "시스템" 그룹에 "종별 관리"(super_admin 전용·시스템 설정과 동일 가드) 항목 추가(시스템 설정↔활동 로그 사이)+`SIDEBAR_ICON`에 `grid_view→layout-grid` 매핑. mobile-admin-nav도 같은 navStructure 공유→모바일 자동 반영. 기존 항목/순서/그룹 변경0(추가만)·schema0·신규route0. tsc EXIT=0. git add=sidebar.tsx만. 미커밋(PM) |
 | 2026-06-21 | Track B Phase4 B-d 경기별 기록자 배정 (settings.recorder_id jsonb) 구현 (developer 세션B) | ✅ 신규 API 2종(matches/[matchId]/recorder PATCH=settings jsonb merge로 recorder_id set/unset·풀검증·IDOR가드·감사로그 / recorders/auto-assign POST=풀 라운드로빈 batch $transaction) + recorders 화면에 "경기별 기록자 배정" Card 추가(경기목록+기록자 select+자동배정·기존 풀 관리 1:1 보존). **settings spread merge**로 기존 키(recording_mode/division_code) 보존·통째 덮어쓰기0. 풀 외 인원 400 RECORDER_NOT_IN_POOL. **추가 스키마0·신규모델0**(settings/tournament_recorders 기존)·TournamentMatch 단일모델 준수. 기존 매치 PATCH route 미접촉(점수/상태 회귀0). tsc EXIT=0. git=대상3파일만(matches API route/teams/referee/schema 0). 미커밋 |
 | 2026-06-21 | Track B Phase4 B-c 대회 상세 나머지 화면 Toss 리스킨 (developer 세션B) | ✅ `tournament-admin/tournaments/[id]/*` 19파일(teams=B-a·wizard 제외) 순수 리스킨. 페이지9(대시보드·divisions·bracket·recorders·site·admins·matches(+client)·playoffs(+client)·completed(+hero/card-grid))+공유_components9. Material→lucide `<Icon>` 키트 교체(전부 실존)+data-skin="toss" 루트 opt-in(early-return·loading 포함, 클라루트는 부모 page 래퍼 상속). 동적 아이콘맵(STATUS_ICON·MODE_ICON·SECTION_TABS·secondaryActions·cards[].icon) lucide명화. 의미대체1(sports_basketball→volleyball). **API/server action/필터/컬럼/문구/라우트/대진로직/SetupChecklist/공개게이트 0 변경**(git diff 로직라인 grep=0). 신규모델/스키마/API 0. tsc EXIT=0. material 잔존0(JSDoc 포함). git=[id] 19파일만M(teams/wizard/schema/api/referee 0). 미커밋 |
 | 2026-06-21 | Track B Phase4 B-b 대회 생성 위저드 Toss 리스킨 (developer 세션B) | ✅ 4파일(new/wizard/page.tsx·prospectus·tournament-copy-modal·division-generator-modal) Material 35위치→lucide `<Icon>` 키트 교체 + data-skin="toss" 루트 opt-in(Quick/Legacy/prospectus 메인+early-return). 의미대체1(gradient→square)·volleyball(농구부재). rgba초록 tint→color-mix 토큰. **API/POST body/단계/DivisionGenerator 로직/이전대회복사 0 변경**(git diff 로직라인 실측). Icon 29종 lucide 실존검증. tsc EXIT=0. material 잔존0. git=대상4파일만M(referee/admin비대회/teams/schema 0). 미커밋 |
@@ -478,7 +481,64 @@
 
 ## 구현 기록 (developer)
 
-### Track B Phase4 B-d — 경기별 기록자 배정 (settings.recorder_id jsonb) (2026-06-21, developer 세션B)
+### Track B 참가신청 3단계 후속 정리 — orphan/dead CSS/대표자 편집 (2026-06-21, developer)
+
+📝 구현: reviewer 지적 후속 정리 3건. 영역 = `(web)/tournaments/[id]/join/*` 만. POST route.ts·joinSchema·prisma schema 변경 0.
+
+| 파일 | 변경 내용 | 신규/수정 |
+|------|----------|----------|
+| `_v2/enroll-aside.tsx` | orphan(소스 import 0·자기들끼리만 참조) → git rm | 삭제 |
+| `_v2/enroll-poster.tsx` | orphan(aside만 import·aside도 삭제) → git rm | 삭제 |
+| `_v2/enroll-step-docs.tsx` | orphan(소스 import 0) → git rm | 삭제 |
+| `_v2/enroll-step-payment.tsx` | orphan(소스 import 0·구 5단계 결제 step) → git rm | 삭제 |
+| `_v2/tournament-enroll.css` | dead CSS 제거: 구 Material 구역(.te-h3/.te-pay*/.te-method*/.te-bank*/.te-bill*/.te-success*) 전량 삭제. 615→308줄(약 307줄). Toss 구역(.te-enroll[data-skin]+.ts-* 53규칙) 유지 | 수정 |
+| `page.tsx` | 대표자/연락처 표시 = 값 있으면 span(수정불가)/없으면 input 삼항 → **항상 prefill input**(값 있어도 편집 가능). canNext trim 게이트(L446~447) 유지 | 수정 |
+
+🔑 **orphan 삭제 안전성**: 소스(.ts/.tsx) 전체 grep(`from "...enroll-aside|poster|step-docs|step-payment"`) = 매치 1건뿐(enroll-aside→enroll-poster, 둘 다 삭제대상). page.tsx import = enroll-stepper·enroll-success-hero 2개만(orphan 0). 나머지 grep 매치는 전부 Dev/design 시안(.md/.jsx, 영역 외)·scratchpad 기록 → 런타임 참조 0.
+
+🔑 **dead CSS 판정**: 구 Material 클래스(.te-h3/.te-pay*/.te-method*/.te-bank*/.te-bill*)는 **오직 삭제된 orphan enroll-step-payment.tsx에서만** className 사용. .te-success*는 어디서도 미사용(success-hero는 .ts-* 사용). page/stepper/success-hero가 쓰는 .te-enroll·.te-enroll__inner·.ts-* 는 전부 보존. 헤더 주석을 정리 사유로 교체.
+
+🔑 **대표자 편집 UI**: 빈값 케이스(카카오/구글 가입자 user.phone null)는 기존에도 input이라 회귀수정 보존됨. 삼항 제거로 자동값이 틀려도 항상 수정 가능. 빈값 제출은 canNext(managerName/managerPhone trim 필수)+서버 joinSchema min(1)으로 계속 차단.
+
+🔎 검증: `npx tsc --noEmit` EXIT=0(삭제 import 깨짐 0). route.ts/joinSchema/schema diff 0. 본인인증·주장가드·약관2종 게이트·snake접근자·adaptive 2단계 보존. git=join 영역만(삭제4 git rm·수정2). 미커밋(PM).
+
+💡 tester 참고:
+- 테스트: `/tournaments/[id]/join` 진입 → 팀 선택 후 "팀 정보 확인" 카드의 대표자/연락처가 입력칸으로 표시(자동값 prefill)되는지. 자동값 수정 후 다음/제출 시 수정값 POST 전송 확인.
+- 정상: 값 있어도 input 편집 가능·빈값이면 다음 버튼 비활성(canNext). 완료 화면(success-hero)·종별/로스터 단계 변화 0. join 외 화면 영향 0.
+- 주의 입력: managerName/Phone 공백만 입력 시 다음 버튼 비활성 유지돼야 함(trim 게이트).
+
+⚠️ reviewer 참고:
+- orphan 삭제 후 _v2/ 잔존 = enroll-stepper.tsx·enroll-success-hero.tsx·tournament-enroll.css 3건(전부 page.tsx 실사용).
+- CSS 정리는 규칙 삭제만·살아있는 .ts-* 규칙 값 변경 0(시각 회귀 0).
+
+### Track B Phase4 후속 비차단 이슈 3건 수리 (2026-06-21, developer)
+
+📝 구현: Track B Phase4 reviewer 지적 비차단 3건(race 강화·권한 정합·snake 키 정합) 수리. 기능 회귀 0(가드 정렬·tx 이동·키 정합만). 영역=tournament-admin/tournaments + api/web/tournaments 만.
+
+| 파일 | 변경 내용 | 신규/수정 |
+|------|----------|----------|
+| `src/app/api/web/tournaments/[id]/teams/[teamId]/route.ts` | B-a: div_caps approvedCount 조회를 $transaction **내부**로 이동(read-modify-write 원자화). cap 값 조회는 tx 밖 유지(읽기 전용). promoted 판정을 tx 안에서 확정·`{updated,promoted}` 반환 | 수정 |
+| `src/app/api/web/tournaments/[id]/matches/route.ts` | B-d: GET 가드를 `requireTournamentAdmin`→`requireRecordersManageAccess`(로컬 가드 추가)로 정렬. recorder_admin 통과. **POST는 requireTournamentAdmin 그대로 미접촉** | 수정 |
+| `src/app/(admin)/tournament-admin/tournaments/[id]/recorders/page.tsx` | B-d: MatchRow 타입·접근자 `roundName`→`round_name`, `scheduledAt`→`scheduled_at` snake 교정 | 수정 |
+
+🔑 **수정1 race 강화**: 기존엔 `prisma.tournamentTeam.count`(approvedCount)가 $transaction **밖**이라 동시 paid 처리 시 두 요청이 같은 count를 읽고 둘 다 승격→cap 초과 가능. count를 `tx.tournamentTeam.count`로 tx 내부 이동→동일 트랜잭션 격리 안에서 cap 비교. cap 값 자체(div_caps) 조회는 동시 변경 대상 아니라 tx 밖 유지(불필요한 tx 비대화 회피). 가드 조건·승격 로직·멱등·teams_count 동기화 **전부 동일**, 위치만 이동.
+
+🔑 **수정2 권한 정합**: matches GET이 `requireTournamentAdmin`만→recorder_admin 403→경기목록 빈상태→B-d 배정 UI 무용. PATCH(`matches/[matchId]/recorder`)·auto-assign과 동일한 `requireRecordersManageAccess`(recorder_admin 전역/organizer/TAM/super_admin)로 정렬. 가드 함수는 recorder/route.ts·recorders/route.ts와 **동형 로컬 정의**(공유 모듈 추출은 영역 확대라 미실시). POST(경기 수동 생성)는 미접촉.
+
+🔑 **수정3 응답 키 실측 결과(snake 확정)**: `matches/route.ts` GET = `apiSuccess(listMatches(id))`. `apiSuccess`(response.ts) = `NextResponse.json(convertKeysToSnakeCase(data))`. `listMatches`(services/match.ts:82)는 Prisma 객체 그대로 반환(Prisma 필드명 camel `roundName`/`scheduledAt`). → 응답 직렬화 시 **snake `round_name`/`scheduled_at`로 변환됨(camel 아님 확정)**. page.tsx가 `m.roundName`(camel)로 읽어 항상 fallback "라운드 N"으로만 동작 중이었음 → snake 교정. (reviewer 우려 = 정확. 응답이 실제 snake라 변경 적용함.)
+
+🔎 검증: `npx tsc --noEmit` EXIT=0 · 스키마 0 · 신규 모델 0 · git status=대상 3파일만(teams API/matches API/recorders page). 미커밋(PM).
+
+💡 tester 참고:
+- 수정1: 같은 division에 cap=N 설정 후 N개 approved 상태에서 추가 팀(pending) paid 처리→승격 보류(`promote_reason:"division_full"`). 동시 2건 paid는 race라 실측 어려움(코드 리뷰로 tx 내부 count 확인).
+- 수정2: recorder_admin 계정으로 `/tournament-admin/tournaments/[id]/recorders` 진입→경기목록 정상 로드(이전엔 403 빈상태). organizer/TAM도 기존대로 동작.
+- 수정3: 경기에 roundName(예 "16강")이 있으면 라벨이 "16강"으로 표시(이전엔 "라운드 N" fallback). roundName 없으면 기존대로 "라운드 N".
+
+⚠️ reviewer 참고:
+- 수정1: cap 값(div_caps) 조회는 tx 밖·count만 tx 안 — 의도적 분리(읽기전용 메타 vs 경합 카운트).
+- 수정2: 가드 함수가 3파일에 동형 중복(recorders/route.ts, recorder/route.ts, matches/route.ts). 공유 모듈 추출은 영역 확대(lib 신규)라 보류 — PM 판단.
+
+
 
 📝 구현: 경기별 기록자 배정 = **TournamentMatch.settings jsonb 키 `recorder_id`**(PM② 확정·신규 테이블 0·스키마 0). 신규 전용 API 2종 + recorders 화면에 "경기별 기록자 배정" 섹션 추가(기존 풀 관리 1:1 보존).
 

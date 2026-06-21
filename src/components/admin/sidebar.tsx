@@ -29,6 +29,8 @@ const SIDEBAR_ICON: Record<string, string> = {
   handshake: "handshake",
   analytics: "bar-chart-3",
   settings: "settings",
+  // Track B 종별 관리 — 그리드형 카테고리 뷰 아이콘
+  grid_view: "layout-grid",
   list_alt: "list",
   storefront: "store",
   account_circle: "circle-user",
@@ -154,6 +156,8 @@ export const navStructure: AdminNavEntry[] = [
     items: [
       { type: "item", href: "/admin/analytics", label: "분석", icon: "analytics", roles: ["super_admin", "site_admin"] },
       { type: "item", href: "/admin/settings", label: "시스템 설정", icon: "settings", roles: ["super_admin"] },
+      // Track B 종별 마스터(/admin/categories) — super_admin 전용 (시스템 설정과 동일 가드)
+      { type: "item", href: "/admin/categories", label: "종별 관리", icon: "grid_view", roles: ["super_admin"] },
       { type: "item", href: "/admin/logs", label: "활동 로그", icon: "list_alt", roles: ["super_admin"] },
     ],
   },
