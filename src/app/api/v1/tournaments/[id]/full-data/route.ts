@@ -59,6 +59,9 @@ async function handler(
       seed_number: t.seedNumber,
       wins: t.wins,
       losses: t.losses,
+      // 감독(매니저)명 노출 — Flutter 기록앱이 경기 진입 시 감독 자동 씨드(setManager)에 사용.
+      //   tournamentTeam.manager_name 스칼라 필드(include 결과에 자동 포함, null 가능).
+      manager_name: t.manager_name,
     })),
     players: players.map((p) => ({
       id: Number(p.id),
