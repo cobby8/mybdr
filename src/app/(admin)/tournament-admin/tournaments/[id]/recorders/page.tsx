@@ -26,10 +26,13 @@ type Recorder = {
 //   GET /matches 응답(snake_case). settings.recorder_id 가 경기별 배정된 기록자 userId(string).
 type MatchRow = {
   id: string;
-  roundName: string | null;
+  // 2026-06-21 정합: GET /matches 응답은 apiSuccess→convertKeysToSnakeCase 거쳐 snake_case.
+  //   Prisma 필드 roundName/scheduledAt 은 응답에서 round_name/scheduled_at 로 변환됨.
+  //   camelCase 로 읽으면 round_name 라벨이 항상 fallback("라운드 N")으로만 떨어짐 → snake 로 교정.
+  round_name: string | null;
   round_number: number | null;
   match_number: number | null;
-  scheduledAt: string | null;
+  scheduled_at: string | null;
   venue_name: string | null;
   homeTeam: { team: { name: string } } | null;
   awayTeam: { team: { name: string } } | null;
@@ -332,7 +335,7 @@ export default function TournamentRecordersPage() {
               const recorderId = getMatchRecorderId(m);
               // 라벨: 라운드/경기번호 + 대진(홈 vs 원정)
               const roundLabel =
-                m.roundName ?? (m.round_number != null ? `라운드 ${m.round_number}` : "경기");
+                m.round_name ?? (m.round_number != null ? `라운드 ${m.round_number}` : "경기");
               const vsLabel = `${m.homeTeam?.team.name ?? "미정"} vs ${m.awayTeam?.team.name ?? "미정"}`;
               return (
                 <li
