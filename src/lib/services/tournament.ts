@@ -66,6 +66,13 @@ export const MY_TOURNAMENT_SELECT = {
   apiToken: true,
   logo_url: true,
   tournament_series: { select: { name: true } },
+  // 2026-06-22: 완료 경기 수(진행률 표시용) — Flutter 대회카드 "N/M 경기" 진행바.
+  //   matches_count(전체)는 위 denormalized 컬럼, 완료수는 필터 카운트로 산출.
+  _count: {
+    select: {
+      tournamentMatches: { where: { status: "completed" } },
+    },
+  },
 } as const;
 
 /** 관리자 상세 조회 include */
@@ -201,6 +208,7 @@ type RawMyTournament = {
   apiToken: string | null;
   logo_url: string | null;
   tournament_series: { name: string } | null;
+  _count?: { tournamentMatches: number } | null;
 };
 
 interface MyTournamentItem {
@@ -214,6 +222,7 @@ interface MyTournamentItem {
   venue_address: string | null;
   team_count: number;
   match_count: number;
+  completed_match_count: number;
   series_name: string | null;
   role: string;
   can_edit: boolean;
@@ -238,6 +247,7 @@ function toMyTournamentItem(
     venue_address: t.venue_address,
     team_count: t.teams_count ?? 0,
     match_count: t.matches_count ?? 0,
+    completed_match_count: t._count?.tournamentMatches ?? 0,
     series_name: t.tournament_series?.name ?? null,
     role,
     can_edit: canEdit,
