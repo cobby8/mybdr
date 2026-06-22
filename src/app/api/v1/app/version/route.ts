@@ -25,8 +25,8 @@ import { NextResponse } from "next/server";
 //   ★앱(클라)은 latest_version_name(semver)로 비교 — 'v' 접두는 클라가 방어하나 미사용 권장.
 //   ★배포마다: 아래 버전/sha256/size + download/route.ts 의 TAG·ASSET_NAME 동시 갱신.
 const LATEST = {
-  latest_version_code: 4,
-  latest_version_name: "0.1.2",
+  latest_version_code: 5,
+  latest_version_name: "0.1.3",
   // 이 코드 미만 버전은 강제 업데이트 대상
   min_supported_version_code: 1,
   // 강제 업데이트 여부 (true 면 앱이 진입 차단)
@@ -34,10 +34,10 @@ const LATEST = {
   // 비공개 릴리스 APK 를 중계하는 서버 프록시(공개 repo 노출 없음)
   apk_url: "https://www.mybdr.kr/api/v1/app/download",
   // bdr-0.1.2.apk 실측 SHA256 / 바이트
-  sha256: "333331e7bb0772fba4dfbbd62834dcdfe82f9c6650ff4faabd09e3d92493c226",
-  size_bytes: 78968804,
+  sha256: "5b359cc872d9e6e70ff019f1bba2ecaa4eb804821cbbca06a99bc675e2ebe468",
+  size_bytes: 78968900,
   // 릴리스 노트 (배열)
-  release_notes: ["설정 화면 신설(계정·업데이트·데이터·동기화·기록 기본값·정보)", "쿼터 라인업 3열 카드", "태블릿 풀스크린", "자동설치 안정화"],
+  release_notes: ["전체화면 꽉채움", "라인업 창 가림 수정", "설정 화면"],
 } as const;
 
 export async function GET() {
