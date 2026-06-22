@@ -9,6 +9,8 @@ import { randomBytes } from "crypto";
 import { prisma } from "@/lib/db/prisma";
 // Prisma namespace — Json 타입 호환용 InputJsonValue 캐스팅에 사용
 import type { Prisma } from "@prisma/client";
+// 대회 기록방식(풀스탯/전자기록지/수기) — my-tournaments 응답 default_recording_mode 산출용
+import { getTournamentDefaultMode } from "@/lib/tournaments/recording-mode";
 
 // ---------------------------------------------------------------------------
 // apiToken 발급 헬퍼 — Flutter 앱 대회 진입 토큰 (64자 hex)
@@ -65,6 +67,9 @@ export const MY_TOURNAMENT_SELECT = {
   matches_count: true,
   apiToken: true,
   logo_url: true,
+  // 2026-06-22: 기록방식(default_recording_mode) 산출용 — settings JSON. Flutter '내 대회'
+  //   목록이 '수기(manual)' 대회를 제외하는 데 사용(풀스탯/전자기록지만 노출).
+  settings: true,
   tournament_series: { select: { name: true } },
   // 2026-06-22: 완료 경기 수(진행률 표시용) — Flutter 대회카드 "N/M 경기" 진행바.
   //   matches_count(전체)는 위 denormalized 컬럼, 완료수는 필터 카운트로 산출.
@@ -209,6 +214,7 @@ type RawMyTournament = {
   logo_url: string | null;
   tournament_series: { name: string } | null;
   _count?: { tournamentMatches: number } | null;
+  settings: Prisma.JsonValue | null;
 };
 
 interface MyTournamentItem {
@@ -223,6 +229,7 @@ interface MyTournamentItem {
   team_count: number;
   match_count: number;
   completed_match_count: number;
+  default_recording_mode: string; // "flutter" | "paper" | "manual" — 앱 '내 대회' 노출 판정
   series_name: string | null;
   role: string;
   can_edit: boolean;
@@ -248,6 +255,7 @@ function toMyTournamentItem(
     team_count: t.teams_count ?? 0,
     match_count: t.matches_count ?? 0,
     completed_match_count: t._count?.tournamentMatches ?? 0,
+    default_recording_mode: getTournamentDefaultMode({ settings: t.settings }),
     series_name: t.tournament_series?.name ?? null,
     role,
     can_edit: canEdit,

@@ -27,7 +27,8 @@ import { Card } from "@/components/ui/card";
 // Track B-c Toss 리스킨 — Material Symbols → lucide-react 키트(<Icon>)
 import { Icon } from "@/components/admin-toss";
 
-type Mode = "flutter" | "paper";
+// 2026-06-22: "manual"(수기) 추가 — BDR 기록 시스템 미사용 대회.
+type Mode = "flutter" | "paper" | "manual";
 type Scope = "all" | "new_only" | "exclude_in_progress";
 
 interface Props {
@@ -60,16 +61,18 @@ const SCOPE_OPTIONS: Array<{ value: Scope; label: string; desc: string }> = [
   },
 ];
 
-// 모드 라벨 매핑 — Flutter 기록앱 / 종이 기록지(웹)
+// 모드 라벨 매핑 — Flutter 기록앱 / 종이 기록지(웹) / 수기(BDR 미사용)
 const MODE_LABEL: Record<Mode, string> = {
   flutter: "Flutter 기록앱",
   paper: "종이 기록지(웹)",
+  manual: "수기 (BDR 미사용)",
 };
 
 // lucide 키트 이름 — Material videogame_asset/description 대체
 const MODE_ICON: Record<Mode, string> = {
   flutter: "gamepad-2", // videogame_asset
   paper: "file-text", // description
+  manual: "pencil", // 수기 — BDR 시스템 밖에서 손으로 기록
 };
 
 export function RecordingModeCard({
@@ -194,8 +197,9 @@ export function RecordingModeCard({
         <div className="mb-2 text-xs font-semibold" style={{ color: "var(--color-text-secondary)" }}>
           새 모드 선택
         </div>
-        <div className="grid grid-cols-2 gap-2">
-          {(["flutter", "paper"] as Mode[]).map((m) => {
+        {/* 2026-06-22: 2지선다 → 3지선다(수기 추가). grid-cols-3 로 자연 확장 */}
+        <div className="grid grid-cols-3 gap-2">
+          {(["flutter", "paper", "manual"] as Mode[]).map((m) => {
             const active = selectedMode === m;
             return (
               <button
@@ -219,6 +223,24 @@ export function RecordingModeCard({
             );
           })}
         </div>
+
+        {/* 수기 모드 안내 — selectedMode="manual" 일 때만 의미 1줄 노출 */}
+        {selectedMode === "manual" && (
+          <div
+            className="mt-2 flex items-start gap-1.5 rounded-[4px] p-2 text-xs"
+            style={{
+              backgroundColor:
+                "color-mix(in srgb, var(--color-primary) 8%, transparent)",
+              color: "var(--color-text-secondary)",
+            }}
+          >
+            <Icon name="info" size={14} color="var(--color-primary)" />
+            <span>
+              수기 = BDR 기록 시스템(앱/전자기록지) 미사용. 기록앱 &lsquo;내
+              대회&rsquo; 목록에서 제외됩니다.
+            </span>
+          </div>
+        )}
       </div>
 
       {/* 영향 범위 라디오 — 3개 옵션 */}
