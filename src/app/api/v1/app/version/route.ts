@@ -25,8 +25,8 @@ import { NextResponse } from "next/server";
 //   ★앱(클라)은 latest_version_name(semver)로 비교 — 'v' 접두는 클라가 방어하나 미사용 권장.
 //   ★배포마다: 아래 버전/sha256/size + download/route.ts 의 TAG·ASSET_NAME 동시 갱신.
 const LATEST = {
-  latest_version_code: 7,
-  latest_version_name: "0.1.5",
+  latest_version_code: 8,
+  latest_version_name: "0.1.6",
   // 이 코드 미만 버전은 강제 업데이트 대상
   min_supported_version_code: 1,
   // 강제 업데이트 여부 (true 면 앱이 진입 차단)
@@ -34,10 +34,10 @@ const LATEST = {
   // 비공개 릴리스 APK 를 중계하는 서버 프록시(공개 repo 노출 없음)
   apk_url: "https://www.mybdr.kr/api/v1/app/download",
   // bdr-0.1.5.apk 실측 SHA256 / 바이트
-  sha256: "11261efd4d231bfccbf79a259a5c90117a5c5f385499855f692185700c097b4d",
-  size_bytes: 79198424,
+  sha256: "720db6406f0e6381271cbd76b46f0adc4e87ce14e55abc2ce2bdb52971ba7632",
+  size_bytes: 79231192,
   // 릴리스 노트 (배열)
-  release_notes: ["타임아웃 요청 대기 흐름", "벤치 팀파울/TO 인디케이터 분리", "어시스트 로그 표시 개선"],
+  release_notes: ["액션 알림 위치 개선", "프리게임 선수 선택 안내 오버레이화", "연속 액션 알림 겹침 방지"],
 } as const;
 
 export async function GET() {
