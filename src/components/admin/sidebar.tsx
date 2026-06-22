@@ -29,6 +29,8 @@ const SIDEBAR_ICON: Record<string, string> = {
   handshake: "handshake",
   analytics: "bar-chart-3",
   settings: "settings",
+  // A1 IA 재편 — 시스템 그룹 "알림" 항목 아이콘 (Material notifications → lucide bell)
+  notifications: "bell",
   // Track B 종별 관리 — 그리드형 카테고리 뷰 아이콘
   grid_view: "layout-grid",
   list_alt: "list",
@@ -71,16 +73,24 @@ export interface AdminNavGroup {
 export type AdminNavEntry = AdminNavItem | AdminNavGroup;
 
 // 2026-05-04: 메뉴 그룹화 — 18개 평면 → 6개 그룹 (사용자 요청)
-// 그룹: 운영 / 콘텐츠 / 사용자 / 비즈니스 / 시스템 / 외부 관리
-// 커뮤니티 children = BDR NEWS (사용자 요청)
+// 2026-06-22: v2.40 통합 콘솔 Phase A1 — 6그룹 → 1단독 + 4그룹 IA 재편 (시안 방향)
+//   변경 = "그룹 배치·라벨"만. 각 항목의 href / roles / children 은 100% 보존(라우트·권한 0 변경).
+//   ┌ (단독) 대시보드
+//   ├ 운영           : 대회 / 경기 / 팀 / 단체 / 코트
+//   ├ 사용자·커뮤니티 : 유저 / 커뮤니티(+BDR NEWS) / 시즌 시상 / 신고 검토 / 건의사항
+//   ├ 비즈니스       : 결제 / 요금제 / 광고 캠페인 / 파트너
+//   ├ 시스템         : 분석 / 종별 / 알림 / 활동 로그 / 시스템 설정
+//   └ (4그룹 밖) 외부 관리 : 협력업체 (별도 권한 partner_member)
+//   흡수/이동: 시즌 시상·신고 검토 → 사용자·커뮤니티 / 단체·알림 = 라우트 존재했으나 메뉴 누락분 명시 추가.
+//   BDR NEWS = 독립 항목 아님 → 커뮤니티 하위 sub-item 으로 유지(기존 그대로).
 export const navStructure: AdminNavEntry[] = [
-  // 운영 (단독 항목 — 그룹 헤더 없음)
+  // 대시보드 (단독 항목 — 그룹 헤더 없음)
   { type: "item", href: "/admin", label: "대시보드", icon: "dashboard", roles: "all" },
 
-  // 그룹: 콘텐츠
+  // 그룹: 운영 — 대회 흐름 핵심 엔티티 (대회/경기/팀/단체/코트)
   {
     type: "group",
-    label: "콘텐츠",
+    label: "운영",
     items: [
       {
         type: "item",
@@ -90,7 +100,7 @@ export const navStructure: AdminNavEntry[] = [
         icon: "emoji_events",
         roles: ["super_admin", "site_admin"],
         // 2026-05-04: 대회 관리자(tournament_admin) 전용 진입점을 sub-item 으로 통합.
-        // 이전 외부 관리 그룹에 별도 위치 → "대회 관리" 메뉴 안으로 삽입 (사용자 요청).
+        // A1 — "대회 운영자 도구" 진입점은 대회 관리 sub-item 으로 현행 유지(이동 없음).
         children: [
           {
             type: "item",
@@ -103,9 +113,19 @@ export const navStructure: AdminNavEntry[] = [
       },
       { type: "item", href: "/admin/games", label: "경기 관리", icon: "sports_basketball", roles: ["super_admin", "site_admin"] },
       { type: "item", href: "/admin/teams", label: "팀 관리", icon: "groups", roles: ["super_admin", "site_admin"] },
+      // A1 — 단체 관리(/admin/organizations) 명시 추가 (라우트 기존 존재·메뉴 누락분).
+      //   다른 운영 항목과 동일 권한(super_admin·site_admin).
+      { type: "item", href: "/admin/organizations", label: "단체 관리", icon: "group", roles: ["super_admin", "site_admin"] },
       { type: "item", href: "/admin/courts", label: "코트 관리", icon: "location_on", roles: ["super_admin", "site_admin"] },
-      // 시즌 시상(P1-b) — super_admin 직접 입력(올스타/감독/MVP코멘트/수비/매너 등)
-      { type: "item", href: "/admin/season-awards", label: "시즌 시상", icon: "emoji_events", roles: ["super_admin"] },
+    ],
+  },
+
+  // 그룹: 사용자·커뮤니티 — 유저 + 커뮤니티 콘텐츠 + 시상/신고/건의
+  {
+    type: "group",
+    label: "사용자·커뮤니티",
+    items: [
+      { type: "item", href: "/admin/users", label: "유저 관리", icon: "group", roles: ["super_admin", "site_admin"] },
       {
         type: "item",
         href: "/admin/community",
@@ -114,6 +134,7 @@ export const navStructure: AdminNavEntry[] = [
         roles: ["super_admin", "site_admin"],
         children: [
           // 2026-05-04: 알기자 (BDR NEWS) 검수 페이지를 커뮤니티 하위로 (사용자 요청)
+          //   A1 — BDR NEWS 독립 항목 제거 방침에 부합(이미 커뮤니티 sub-item).
           {
             type: "item",
             href: "/admin/news",
@@ -123,47 +144,44 @@ export const navStructure: AdminNavEntry[] = [
           },
         ],
       },
-    ],
-  },
-
-  // 그룹: 사용자
-  {
-    type: "group",
-    label: "사용자",
-    items: [
-      { type: "item", href: "/admin/users", label: "유저 관리", icon: "group", roles: ["super_admin", "site_admin"] },
+      // 시즌 시상(P1-b) — super_admin 직접 입력(올스타/감독/MVP코멘트/수비/매너 등)
+      //   A1 — 콘텐츠 그룹 → 사용자·커뮤니티 그룹 이동(권한·href 동일).
+      { type: "item", href: "/admin/season-awards", label: "시즌 시상", icon: "emoji_events", roles: ["super_admin"] },
+      // A1 — 신고 검토(game-reports) → 사용자·커뮤니티 그룹 이동(권한·href 동일).
       { type: "item", href: "/admin/game-reports", label: "신고 검토", icon: "report", roles: ["super_admin"] },
       { type: "item", href: "/admin/suggestions", label: "건의사항", icon: "lightbulb", roles: ["super_admin"] },
     ],
   },
 
-  // 그룹: 비즈니스
+  // 그룹: 비즈니스 — 결제·요금제·광고·파트너
   {
     type: "group",
     label: "비즈니스",
     items: [
-      { type: "item", href: "/admin/plans", label: "요금제 관리", icon: "payments", roles: ["super_admin"] },
       { type: "item", href: "/admin/payments", label: "결제", icon: "credit_card", roles: ["super_admin"] },
+      { type: "item", href: "/admin/plans", label: "요금제 관리", icon: "payments", roles: ["super_admin"] },
       { type: "item", href: "/admin/campaigns", label: "광고 캠페인", icon: "campaign", roles: ["super_admin", "partner_member"] },
       { type: "item", href: "/admin/partners", label: "파트너 관리", icon: "handshake", roles: ["super_admin"] },
     ],
   },
 
-  // 그룹: 시스템
+  // 그룹: 시스템 — 분석·종별·알림·로그·설정
   {
     type: "group",
     label: "시스템",
     items: [
       { type: "item", href: "/admin/analytics", label: "분석", icon: "analytics", roles: ["super_admin", "site_admin"] },
-      { type: "item", href: "/admin/settings", label: "시스템 설정", icon: "settings", roles: ["super_admin"] },
       // Track B 종별 마스터(/admin/categories) — super_admin 전용 (시스템 설정과 동일 가드)
       { type: "item", href: "/admin/categories", label: "종별 관리", icon: "grid_view", roles: ["super_admin"] },
+      // A1 — 알림(/admin/notifications) 명시 추가 (라우트 기존 존재·메뉴 누락분). 발송 = super_admin 전용.
+      { type: "item", href: "/admin/notifications", label: "알림", icon: "notifications", roles: ["super_admin"] },
       { type: "item", href: "/admin/logs", label: "활동 로그", icon: "list_alt", roles: ["super_admin"] },
+      { type: "item", href: "/admin/settings", label: "시스템 설정", icon: "settings", roles: ["super_admin"] },
     ],
   },
 
-  // 그룹: 외부 관리 (별도 권한 — partner_member)
-  // 2026-05-04: tournament_admin 진입점은 "콘텐츠 > 대회 관리 > 대회 운영자 도구" sub-item 으로 통합 (사용자 요청).
+  // 그룹: 외부 관리 (별도 권한 — partner_member). 본 콘솔 4그룹 IA 밖 별도 항목.
+  // 2026-05-04: tournament_admin 진입점은 "운영 > 대회 관리 > 대회 운영자 도구" sub-item 으로 통합 (사용자 요청).
   {
     type: "group",
     label: "외부 관리",
