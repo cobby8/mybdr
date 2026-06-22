@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>BDR 관리자 콘솔 — 통합 (v2.40)</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700;800&display=swap" />
+<link rel="stylesheet" href="toss.css" />
+<link rel="stylesheet" href="au.css" />
+<link rel="stylesheet" href="au-detail.css" />
+<link rel="stylesheet" href="au-forms.css" />
+<style>
+  /* tweak: 테이블 밀도 */
+  [data-density="compact"] .au-trow { min-height: 52px; }
+  [data-density="compact"] .au-thead { height: 42px; }
+  [data-density="compact"] .ts-main__inner { padding-top: 28px; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<!-- Tweaks -->
+<div id="tweaks" class="tweaks">
+  <div class="tweaks__title">TWEAKS <button id="tweaks-close" style="background:transparent;border:0;color:inherit;cursor:pointer;font-size:16px;line-height:1">×</button></div>
+  <div class="tweaks__lbl">강조색 (Primary)</div>
+  <div class="tweaks__row" data-group="primary">
+    <button class="tweaks__btn" data-val="#3182F6">Toss Blue</button>
+    <button class="tweaks__btn" data-val="#2AC1BC">Teal</button>
+    <button class="tweaks__btn" data-val="#6D5AE6">Violet</button>
+  </div>
+  <div class="tweaks__lbl">테이블 밀도</div>
+  <div class="tweaks__row" data-group="density">
+    <button class="tweaks__btn" data-val="roomy">여유</button>
+    <button class="tweaks__btn" data-val="compact">고밀도</button>
+  </div>
+  <div class="tweaks__lbl">카드 라운딩</div>
+  <div class="tweaks__row" data-group="radius">
+    <button class="tweaks__btn" data-val="24px">24px</button>
+    <button class="tweaks__btn" data-val="16px">16px</button>
+  </div>
+</div>
+<script>
+  const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+    "primary": "#6D5AE6",
+    "density": "roomy",
+    "radius": "24px"
+  }/*EDITMODE-END*/;
+</script>
+
+<script src="https://unpkg.com/lucide@latest"></script>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script src="admin-data.jsx"></script>
+<script src="admin-data2.jsx"></script>
+<script src="admin-data3.jsx"></script>
+<script src="au-extra-data.jsx"></script>
+<script src="au-detail-data.jsx"></script>
+<script src="au-forms-data.jsx"></script>
+<script type="text/babel" src="toss-kit.jsx"></script>
+<script type="text/babel" src="au-kit.jsx"></script>
+<script type="text/babel" src="au-screens.jsx"></script>
+<script type="text/babel" src="au-screens2.jsx"></script>
+<script type="text/babel" src="au-detail.jsx"></script>
+<script type="text/babel" src="au-detail2.jsx"></script>
+<script type="text/babel" src="au-forms.jsx"></script>
+
+<script type="text/babel">
+const { useState, useEffect } = React;
+const ADB = window.ADMIN;
+
+// 정리된 IA — 1 단독 + 4 그룹 (라이브 구조를 단순·정돈)
+const NAV = [
+  { items: [{ id: 'dashboard', icon: 'layout-dashboard', label: '대시보드' }] },
+  { group: '운영', items: [
+    { id: 'tournaments', icon: 'trophy', label: '대회 관리', count: ADB.TOURNAMENTS.length },
+    { id: 'games', icon: 'volleyball', label: '경기 관리', count: ADB.GAMES.length },
+    { id: 'teams', icon: 'users', label: '팀 관리', count: ADB.TEAMS.length },
+    { id: 'orgs', icon: 'building-2', label: '단체 관리', count: ADB.ORGS.length },
+    { id: 'courts', icon: 'map-pin', label: '코트 관리', count: ADB.COURTS.length },
+  ]},
+  { group: '사용자 · 커뮤니티', items: [
+    { id: 'users', icon: 'user-cog', label: '유저 관리', count: ADB.USERS.length },
+    { id: 'community', icon: 'message-square', label: '커뮤니티' },
+    { id: 'awards', icon: 'medal', label: '시즌 시상' },
+    { id: 'reports', icon: 'flag', label: '신고 검토', count: ADB.REPORTS.filter(r => r.status === 'pending').length },
+    { id: 'suggestions', icon: 'lightbulb', label: '건의사항' },
+  ]},
+  { group: '비즈니스', items: [
+    { id: 'payments', icon: 'credit-card', label: '결제' },
+    { id: 'plans', icon: 'gem', label: '요금제' },
+    { id: 'campaigns', icon: 'megaphone', label: '광고 캠페인' },
+    { id: 'partners', icon: 'handshake', label: '파트너' },
+  ]},
+  { group: '시스템', items: [
+    { id: 'analytics', icon: 'bar-chart-3', label: '분석' },
+    { id: 'categories', icon: 'layout-grid', label: '종별 관리' },
+    { id: 'notifications', icon: 'bell', label: '알림' },
+    { id: 'logs', icon: 'list', label: '활동 로그' },
+    { id: 'settings', icon: 'settings', label: '시스템 설정' },
+  ]},
+];
+
+const SCREENS = {
+  dashboard: (go) => <window.AuDashboard go={go} />,
+  users: (go) => <window.AuUsers go={go} />,
+  tournaments: (go) => <window.AuTournaments go={go} />,
+  games: (go) => <window.AuGames go={go} />,
+  teams: (go) => <window.AuTeams go={go} />,
+  orgs: (go) => <window.AuOrgs go={go} />,
+  courts: (go) => <window.AuCourts go={go} />,
+  // 상세(드릴다운) 라우트 — base:id(:tab)
+  user: (go, id) => <window.AuUserDetail id={id} go={go} />,
+  tournament: (go, id, tab) => <window.AuTournamentDetail id={id} initialTab={tab} go={go} />,
+  game: (go, id) => <window.AuGameDetail id={id} go={go} />,
+  team: (go, id) => <window.AuTeamDetail id={id} go={go} />,
+  org: (go, id) => <window.AuOrgDetail id={id} go={go} />,
+  court: (go, id) => <window.AuCourtDetail id={id} go={go} />,
+  // 상세 2 — 신고/결제/캐페인/파트너/게시글/기사
+  report: (go, id) => <window.AuReportDetail id={id} go={go} />,
+  payment: (go, id) => <window.AuPaymentDetail id={id} go={go} />,
+  campaign: (go, id) => <window.AuCampaignDetail id={id} go={go} />,
+  partner: (go, id) => <window.AuPartnerDetail id={id} go={go} />,
+  post: (go, id) => <window.AuPostDetail id={id} go={go} />,
+  news: (go, id) => <window.AuNewsDetail id={id} go={go} />,
+  // 생성/작성 플로우
+  'create-tournament': (go) => <window.AuCreateTournament go={go} />,
+  'compose-notification': (go) => <window.AuComposeNotification go={go} />,
+  'create-campaign': (go) => <window.AuCreateCampaign go={go} />,
+  'write-news': (go) => <window.AuWriteNews go={go} />,
+  community: (go) => <window.AuCommunity go={go} />,
+  awards: () => <window.AuAwards />,
+  reports: (go) => <window.AuReports go={go} />,
+  suggestions: () => <window.AuSuggestions />,
+  payments: (go) => <window.AuPayments go={go} />,
+  plans: () => <window.AuPlans />,
+  campaigns: (go) => <window.AuCampaigns go={go} />,
+  partners: (go) => <window.AuPartners go={go} />,
+  analytics: () => <window.AuAnalytics />,
+  categories: () => <window.AuCategories />,
+  notifications: (go) => <window.AuNotifications go={go} />,
+  logs: () => <window.AuLogs />,
+  settings: () => <window.AuSettings />,
+};
+
+function App() {
+  const [route, setRoute] = useState(() => {
+    try { return new URLSearchParams(location.search).get('route') || localStorage.getItem('bdradmin.route') || 'dashboard'; }
+    catch (e) { return 'dashboard'; }
+  });
+  const [mOpen, setMOpen] = useState(false);
+  const go = (r) => { setRoute(r); setMOpen(false); try { localStorage.setItem('bdradmin.route', r); } catch (e) {} };
+  useEffect(() => { document.querySelector('.ts-main')?.scrollTo(0, 0); window.scrollTo(0, 0); }, [route]);
+
+  // 상세 라우트는 부모 탭을 활성 표시
+  const PARENT = { user: 'users', tournament: 'tournaments', game: 'games', team: 'teams', org: 'orgs', court: 'courts', report: 'reports', payment: 'payments', campaign: 'campaigns', partner: 'partners', post: 'community', news: 'community', 'create-tournament': 'tournaments', 'compose-notification': 'notifications', 'create-campaign': 'campaigns', 'write-news': 'community' };
+  const baseRoute = route.split(':')[0];
+  const activeNav = PARENT[baseRoute] || baseRoute;
+
+  const NavList = () => NAV.map((g, gi) => (
+    <React.Fragment key={gi}>
+      {g.group && <div className="ts-sidebar__label">{g.group}</div>}
+      {g.items.map((it) => (
+        <button key={it.id} type="button" className="ts-navlink" data-active={activeNav === it.id ? 'true' : 'false'} onClick={() => go(it.id)}>
+          <window.Icon name={it.icon} size={18} /><span>{it.label}</span>
+          {it.count != null && <span className="ts-navlink__count">{it.count}</span>}
+        </button>
+      ))}
+    </React.Fragment>
+  ));
+
+  // Tweaks wiring
+  useEffect(() => {
+    const panel = document.getElementById('tweaks'), closeBtn = document.getElementById('tweaks-close');
+    const handler = (e) => {
+      if (e.data?.type === '__activate_edit_mode') panel.setAttribute('data-open', 'true');
+      if (e.data?.type === '__deactivate_edit_mode') panel.setAttribute('data-open', 'false');
+    };
+    window.addEventListener('message', handler);
+    window.parent.postMessage({ type: '__edit_mode_available' }, '*');
+    closeBtn.onclick = () => panel.setAttribute('data-open', 'false');
+    const apply = (gp, v) => {
+      if (gp === 'primary') {
+        document.documentElement.style.setProperty('--primary', v);
+        const mix = { '#3182F6': '#1B64DA', '#2AC1BC': '#1AA39E', '#6D5AE6': '#5544C9' };
+        const weak = { '#3182F6': '#E8F1FE', '#2AC1BC': '#E2F7F6', '#6D5AE6': '#EFEBFD' };
+        document.documentElement.style.setProperty('--primary-hover', mix[v] || v);
+        document.documentElement.style.setProperty('--primary-weak', weak[v] || (v + '18'));
+      }
+      if (gp === 'density') document.body.setAttribute('data-density', v);
+      if (gp === 'radius') document.documentElement.style.setProperty('--radius-card', v);
+    };
+    const sync = { primary: TWEAK_DEFAULTS.primary, density: TWEAK_DEFAULTS.density, radius: TWEAK_DEFAULTS.radius };
+    panel.querySelectorAll('[data-group]').forEach((row) => {
+      const gp = row.getAttribute('data-group');
+      row.querySelectorAll('.tweaks__btn').forEach((btn) => {
+        btn.setAttribute('data-active', btn.getAttribute('data-val') === sync[gp] ? 'true' : 'false');
+        btn.onclick = () => {
+          row.querySelectorAll('.tweaks__btn').forEach((b) => b.setAttribute('data-active', 'false'));
+          btn.setAttribute('data-active', 'true');
+          apply(gp, btn.getAttribute('data-val'));
+          window.parent.postMessage({ type: '__edit_mode_set_keys', edits: { [gp]: btn.getAttribute('data-val') } }, '*');
+        };
+      });
+    });
+    Object.entries(sync).forEach(([k, v]) => apply(k, v));
+    return () => window.removeEventListener('message', handler);
+  }, []);
+
+  const [rBase, rId, rTab] = route.split(':');
+  const screen = (SCREENS[rBase] || SCREENS.dashboard)(go, rId, rTab);
+
+  return (
+    <div className="ts-shell">
+      <aside className="ts-sidebar">
+        <a className="ts-sidebar__brand" href="../../../../BDR 통합 연결.html" style={{ textDecoration: 'none' }}>
+          <span className="ts-sidebar__brand-dot">B</span> MyBDR <span className="ts-sidebar__brand-badge">Admin</span>
+        </a>
+        <nav className="ts-sidebar__nav"><NavList /></nav>
+        <div className="ts-sidebar__foot">
+          <button className="ts-userchip" type="button">
+            <span className="ts-avatar">김</span>
+            <span style={{ textAlign: 'left', lineHeight: 1.25, minWidth: 0 }}>
+              <span style={{ display: 'block', fontWeight: 700, fontSize: 14, color: 'var(--ink)' }}>김도훈</span>
+              <span style={{ fontSize: 12, color: 'var(--ink-mute)' }}>최고 관리자</span>
+            </span>
+            <window.Icon name="chevron-right" size={18} color="var(--ink-dim)" style={{ marginLeft: 'auto' }} />
+          </button>
+        </div>
+      </aside>
+
+      <div className="ts-topbar">
+        <button className="ts-mtoggle" type="button" onClick={() => setMOpen(true)}><window.Icon name="menu" size={22} /></button>
+        <span style={{ fontWeight: 800, fontSize: 16 }}>MyBDR 관리자</span>
+      </div>
+      {mOpen && <div className="ts-overlay" onClick={() => setMOpen(false)} />}
+      <aside className="ts-drawer" data-open={mOpen ? 'true' : 'false'}>
+        <div className="ts-sidebar__brand"><span className="ts-sidebar__brand-dot">B</span> MyBDR <span className="ts-sidebar__brand-badge">Admin</span></div>
+        <nav className="ts-sidebar__nav" style={{ overflowY: 'auto' }}><NavList /></nav>
+      </aside>
+
+      <main className="ts-main"><div className="ts-main__inner">{screen}</div></main>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>

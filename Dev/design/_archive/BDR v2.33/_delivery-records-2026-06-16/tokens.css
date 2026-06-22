@@ -1,0 +1,73 @@
+/* ============================================================
+   BDR v2.18 — tokens.css
+   Single source of truth for color / type / spacing / radius.
+   Phase 1B: 대회 사용자 측 + 사용자↔관리자 연결 다리.
+   ============================================================ */
+
+:root {
+  /* BDR brand */
+  --bdr-red: #E31B23;
+  --bdr-red-ink: #B3141A;
+  --bdr-navy: #1B3C87;
+
+  /* Surfaces */
+  --bg: #F4F6FA;
+  --bg-elev: #FFFFFF;
+  --bg-card: #FFFFFF;
+  --bg-alt: #F8FAFD;
+  --bg-head: #EEF2F7;
+
+  /* Ink */
+  --ink: #1A1E27;
+  --ink-soft: #404755;
+  --ink-mute: #6B7280;
+  --ink-dim: #8C94A0;
+
+  /* Borders */
+  --border: #E3E7ED;
+  --border-strong: #D0D5DD;
+
+  /* Cafe blue (informational / nav active) */
+  --cafe-blue: #0F5FCC;
+  --cafe-blue-deep: #0A4CA6;
+  --cafe-blue-soft: #E8F1FC;
+  --cafe-blue-hair: #C7DCF5;
+
+  /* Accent = BDR red */
+  --accent: var(--bdr-red);
+  --accent-deep: var(--bdr-red-ink);
+  --accent-soft: #FDE8E9;
+  --accent-hair: #F5C6C8;
+
+  /* States */
+  --ok: #1CA05E;
+  --ok-soft: #E1F4EA;
+  --ok-hair: #C7E8D7;
+  --warn: #E8A33B;
+  --warn-soft: #FBEED2;
+  --warn-hair: #F0DCA6;
+  --err: #DC2626;
+  --err-soft: #FDE8E9;
+
+  /* Shadow */
+  --sh-xs: 0 1px 2px rgba(15, 23, 42, .04);
+  --sh-sm: 0 2px 6px rgba(15, 23, 42, .06);
+  --sh-md: 0 6px 16px rgba(15, 23, 42, .08);
+
+  /* Fonts */
+  --ff-display: 'Archivo', 'Pretendard', sans-serif;
+  --ff-body: 'Pretendard', sans-serif;
+  --ff-mono: 'JetBrains Mono', monospace;
+
+  /* Radius — 4px buttons/inputs, 6-8px cards */
+  --r-xs: 3px;
+  --r-sm: 4px;
+  --r-md: 6px;
+  --r-lg: 8px;
+}
+
+/* Kind scoping — pickup / guest / scrim color packs (v2.16 dark) */
+.kind-pickup    { --kind: #1B3C87; --kind-deep: #0F234F; --kind-soft: var(--cafe-blue-soft); --kind-hair: var(--cafe-blue-hair); }
+.kind-guest     { --kind: #8B0E15; --kind-deep: #5C0810; --kind-soft: var(--accent-soft);    --kind-hair: var(--accent-hair); }
+.kind-scrimmage { --kind: #0A5132; --kind-deep: #053823; --kind-soft: var(--ok-soft);        --kind-hair: var(--ok-hair); }
+.kind-tn        { --kind: var(--accent); --kind-deep: var(--accent-deep); --kind-soft: var(--accent-soft); --kind-hair: var(--accent-hair); }
