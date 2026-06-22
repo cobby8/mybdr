@@ -74,18 +74,20 @@ export function AdminShell({
 
   return (
     // admin-shell 클래스 — admin.css 박제 (시안 그대로)
-    <div className={`admin-shell ${hidden ? "admin-shell--hidden-aside" : ""}`}>
+    // 2026-06-21 Toss 전환 완료: data-skin="toss" 를 셸 루트로 승격.
+    //   - Phase 1/2 콘솔 전 화면 + Phase 3 가 리스킨 완료되어, 토픽바 한정 opt-in
+    //     제약(미리스킨 누수 방지)이 더는 불필요 → 사이드바·메인 프레임·콘텐츠 전체가
+    //     toss-admin.css 의 [data-skin="toss"] 토큰·.admin-aside/.admin-table 등 override 를 흡수.
+    //   - 토큰 별칭(--color-* → Toss)이 [data-skin] 스코프에 완비되어 기존 컴포넌트도 자동 전환.
+    <div className={`admin-shell ${hidden ? "admin-shell--hidden-aside" : ""}`} data-skin="toss">
       {/* 사이드바 — hidden variant 시 미렌더 */}
       {!hidden && <AdminSidebar roles={roles} />}
       {/* 모바일 햄버거 + 드로어 — hidden variant 시 미렌더 */}
       {!hidden && <AdminMobileNav roles={roles} user={user} />}
 
       <main className="admin-main">
-        {/* 상단 바 — 좌(검색/breadcrumb 등) / 우(사용자/액션) 슬롯
-            Phase 1 — 셸 크롬: .admin-topbar 에만 data-skin="toss" opt-in.
-            ⚠ 공유 .admin-shell / .admin-main / .admin-main__inner 엔 절대 금지
-              (Phase 2 미리스킨 자식 페이지 누수 방지). */}
-        <div className="admin-topbar" data-skin="toss">
+        {/* 상단 바 — 좌(검색/breadcrumb 등) / 우(사용자/액션) 슬롯 (셸 루트 data-skin 상속) */}
+        <div className="admin-topbar">
           <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
             {topbarLeft}
           </div>
