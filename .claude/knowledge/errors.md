@@ -359,6 +359,7 @@
   - **Step 1 (90% 케이스)**: dev 서버 단순 재시작 (Ctrl+C → `npm run dev`)
   - **Step 2 (Step 1 실패 시)**: `.next` + `node_modules/.cache` 삭제 후 재시작
   - **금지**: `taskkill //f //im node.exe` (다른 프로젝트 dev 서버 + Claude Code 자체 동시 죽음). 포트별 PID 종료만 허용
+- **변종 [2026-06-22] FATAL panic `Failed to write app endpoint /(web)/page · Caused by globals.css · 0xc0000142`**: PostCSS 자식 프로세스(node) spawn 실패(`0xc0000142`=Windows DLL 초기화 실패). globals.css 미변경인데 발생 = 캐시 손상/프로세스 자원 고갈(세션 중 에이전트가 node 다수 spawn한 여파 추정). 기동은 `Ready` 뜨나 **첫 요청 컴파일에서 500 panic 반복**. **🔑 이 변종은 재시작 단독(Step 1) 불충분 — 반드시 `.next` 삭제(Step 2) 직행**(포트 PID 종료 → `rm -rf .next` → `npm run dev` → curl로 GET / 200 확인). 코드 회귀 아님(tsc 0).
 - **재발 방지 룰**:
   - **큰 파일 ± 의존 컴포넌트 동시 변경 commit/머지 후** → dev 서버 자동 재시작 권장 (HMR 신뢰 X)
   - **"Recoverable Error" 라벨 = 코드 문제 아님** 1차 가설로 dev 서버 재시작부터. 코드 회귀 X
