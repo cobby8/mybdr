@@ -73,6 +73,8 @@ const PUBLIC_API_ROUTES = [
   "/api/v1/auth/reset-password",
   // 앱 버전 매니페스트 — 앱 부팅 시(로그인 전) 호출이라 공개 필수
   "/api/v1/app/version",
+  // 앱 APK 다운로드 프록시 — ota_update 가 인증 헤더 없이 호출(비공개 릴리스 → 서명 URL 302). 공개 필수
+  "/api/v1/app/download",
 ];
 
 // OBS 오버레이 읽기 전용 라우트(헤더 인증 불가 → ?key= HMAC 보호).
