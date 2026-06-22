@@ -25,19 +25,19 @@ import { NextResponse } from "next/server";
 //   ★앱(클라)은 latest_version_name(semver)로 비교 — 'v' 접두는 클라가 방어하나 미사용 권장.
 //   ★배포마다: 아래 버전/sha256/size + download/route.ts 의 TAG·ASSET_NAME 동시 갱신.
 const LATEST = {
-  latest_version_code: 6,
-  latest_version_name: "0.1.4",
+  latest_version_code: 7,
+  latest_version_name: "0.1.5",
   // 이 코드 미만 버전은 강제 업데이트 대상
   min_supported_version_code: 1,
   // 강제 업데이트 여부 (true 면 앱이 진입 차단)
   is_mandatory: false,
   // 비공개 릴리스 APK 를 중계하는 서버 프록시(공개 repo 노출 없음)
   apk_url: "https://www.mybdr.kr/api/v1/app/download",
-  // bdr-0.1.2.apk 실측 SHA256 / 바이트
-  sha256: "1e3b5cbf805c1fec5b4a30830ba4879902d1c4f4c1d1807e7ad2ef7de904e46b",
-  size_bytes: 79083732,
+  // bdr-0.1.5.apk 실측 SHA256 / 바이트
+  sha256: "11261efd4d231bfccbf79a259a5c90117a5c5f385499855f692185700c097b4d",
+  size_bytes: 79198424,
   // 릴리스 노트 (배열)
-  release_notes: ["대회목록 당겨서 새로고침", "대회카드 일정·장소·진행률", "대회상태 날짜 자동분류", "기록방식별 목록 노출", "동기화 안정화", "점수·라인업 보정"],
+  release_notes: ["타임아웃 요청 대기 흐름", "벤치 팀파울/TO 인디케이터 분리", "어시스트 로그 표시 개선"],
 } as const;
 
 export async function GET() {
