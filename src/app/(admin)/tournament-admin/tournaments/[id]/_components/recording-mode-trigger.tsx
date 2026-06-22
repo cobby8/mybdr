@@ -15,7 +15,7 @@ import { RecordingModeCard } from "./recording-mode-card";
 // Track B-c Toss 리스킨 — Material Symbols → lucide-react 키트(<Icon>)
 import { Icon } from "@/components/admin-toss";
 
-type Mode = "flutter" | "paper";
+type Mode = "flutter" | "paper" | "manual";
 
 interface Props {
   tournamentId: string;
@@ -31,7 +31,11 @@ interface Props {
 export function RecordingModeTriggerClient({ tournamentId, defaultMode, matchStats }: Props) {
   const [open, setOpen] = useState(false);
 
-  const modeLabel = defaultMode === "paper" ? "종이 기록지" : "Flutter 기록앱";
+  const modeLabel = defaultMode === "paper"
+      ? "종이 기록지"
+      : defaultMode === "manual"
+          ? "수기"
+          : "Flutter 기록앱";
 
   return (
     <>
