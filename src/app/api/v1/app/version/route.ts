@@ -19,20 +19,25 @@ import { NextResponse } from "next/server";
  */
 
 // 릴리스마다 이 상수만 갱신한다 (단일 source).
+//   ★[AUTOUPDATE-D] APK 는 비공개 GitHub 릴리스(cobby8/bdr_stat_v3)에 두고,
+//     apk_url 은 같은 서버의 프록시(/api/v1/app/download)를 가리킨다. 프록시가
+//     서버 토큰(GH_RELEASE_TOKEN)으로 단기 서명 URL 을 받아 302 리다이렉트한다.
+//   ★앱(클라)은 latest_version_name(semver)로 비교 — 'v' 접두는 클라가 방어하나 미사용 권장.
+//   ★배포마다: 아래 버전/sha256/size + download/route.ts 의 TAG·ASSET_NAME 동시 갱신.
 const LATEST = {
-  latest_version_code: 1,
-  latest_version_name: "v0.1.0",
+  latest_version_code: 3,
+  latest_version_name: "0.1.1",
   // 이 코드 미만 버전은 강제 업데이트 대상
   min_supported_version_code: 1,
   // 강제 업데이트 여부 (true 면 앱이 진입 차단)
   is_mandatory: false,
-  // TODO: APK Blob 업로드 후 실제 public URL 로 교체
-  apk_url: "https://www.mybdr.kr/downloads/placeholder.apk",
-  // TODO: APK 업로드 후 sha256 / size_bytes 실측값으로 갱신
-  sha256: "",
-  size_bytes: 0,
+  // 비공개 릴리스 APK 를 중계하는 서버 프록시(공개 repo 노출 없음)
+  apk_url: "https://www.mybdr.kr/api/v1/app/download",
+  // bdr-0.1.1.apk 실측 SHA256 / 바이트
+  sha256: "33ff2f73fae23801849986bfd7dd6b7f69364bc2a83ec5903682dc5364d449f2",
+  size_bytes: 78246576,
   // 릴리스 노트 (배열)
-  release_notes: ["초기 릴리스"],
+  release_notes: ["PG1 그리드 정합", "퇴장 재진입 차단", "자유투 기록 안정화"],
 } as const;
 
 export async function GET() {
