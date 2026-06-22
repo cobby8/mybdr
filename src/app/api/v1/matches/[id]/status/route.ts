@@ -17,7 +17,9 @@ import { applyScoreSafetyNet } from "@/lib/services/match-score-recompute";
 const statusSchema = z.object({
   // 2026-06-21: 태블릿 구버전 앱이 보내는 'live'를 enum 통과시키기 위해 추가.
   //   (아래 PATCH 핸들러에서 즉시 'in_progress'로 정규화 — 새 DB 상태값 도입 없음)
-  status: z.enum(["in_progress", "completed", "cancelled", "live"]),
+  // 2026-06-22: 'scheduled' 추가 — 기록 시작 후 저장 없이 폐기("저장 안 하고 나가기")한
+  //   테스트 경기를 '예정'으로 되돌리는 앱 흐름 지원(in_progress->scheduled, 전이표도 허용).
+  status: z.enum(["in_progress", "completed", "cancelled", "live", "scheduled"]),
 });
 
 // PATCH /api/v1/matches/:id/status
