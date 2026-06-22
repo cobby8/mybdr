@@ -33,9 +33,9 @@ const LATEST = {
   is_mandatory: false,
   // 비공개 릴리스 APK 를 중계하는 서버 프록시(공개 repo 노출 없음)
   apk_url: "https://www.mybdr.kr/api/v1/app/download",
-  // bdr-0.1.1.apk 실측 SHA256 / 바이트
-  sha256: "33ff2f73fae23801849986bfd7dd6b7f69364bc2a83ec5903682dc5364d449f2",
-  size_bytes: 78246576,
+  // bdr-0.1.1.apk 실측 SHA256 / 바이트 (FileProvider 설치수정 포함 재빌드본)
+  sha256: "7b278c8327c8884dc3948ffc7c5b1e09e5edd2b38770c95284a36e2193319ff2",
+  size_bytes: 78263548,
   // 릴리스 노트 (배열)
   release_notes: ["PG1 그리드 정합", "퇴장 재진입 차단", "자유투 기록 안정화"],
 } as const;
