@@ -1,5 +1,7 @@
 import { prisma } from "@/lib/db/prisma";
 import { AdminPageHeader } from "@/components/admin/admin-page-header";
+// v2.40 A3-1a — 통합 콘솔 키트 StatRow(status 카운트 띠)
+import { StatRow } from "@/components/admin/console-kit";
 import { updateGameStatusAction } from "@/app/actions/admin-games";
 import { AdminGamesContent } from "./admin-games-content";
 
@@ -30,7 +32,7 @@ export default async function AdminGamesPage({
       }
     : undefined;
 
-  const [games, totalCount] = await Promise.all([
+  const [games, totalCount, statusGroups] = await Promise.all([
     prisma.games.findMany({
       where,
       orderBy: { scheduled_at: "desc" },
@@ -65,7 +67,21 @@ export default async function AdminGamesPage({
       },
     }),
     prisma.games.count({ where }),
+    // v2.40 A3-1a — StatRow 통계 띠용 status 분포 집계.
+    //   목록(take)·검색필터(where)와 별개로 "전체" 기준 status 분포를 보여주기 위해
+    //   where 없이 groupBy 1건 추가 (새 route 아님·서버 SELECT 만·write 0).
+    prisma.games.groupBy({
+      by: ["status"],
+      _count: { _all: true },
+    }),
   ]);
+
+  // status별 건수 맵 — game status: 1=모집중 / 2=확정 / 3=완료 / 4=취소 (null 은 1 로 합산·직렬화 기본값 일치)
+  const statusCounts: Record<number, number> = {};
+  for (const g of statusGroups) {
+    const key = g.status ?? 1;
+    statusCounts[key] = (statusCounts[key] ?? 0) + g._count._all;
+  }
 
   const serialized = games.map((g) => ({
     id: String(g.id),
@@ -96,6 +112,15 @@ export default async function AdminGamesPage({
 
   const totalPages = Math.ceil(totalCount / pageSize);
 
+  // v2.40 A3-1a — StatRow 통계 띠 항목 (전체 + status 분포·groupBy 실측).
+  const statItems = [
+    { icon: "volleyball", label: "전체", value: totalCount },
+    { icon: "loader", label: "모집중", value: statusCounts[1] ?? 0 },
+    { icon: "check", label: "확정", value: statusCounts[2] ?? 0 },
+    { icon: "flag", label: "완료", value: statusCounts[3] ?? 0 },
+    { icon: "x", label: "취소", value: statusCounts[4] ?? 0 },
+  ];
+
   return (
     // Phase 1 — 페이지 루트에 data-skin="toss" opt-in
     <div data-skin="toss">
@@ -108,6 +133,7 @@ export default async function AdminGamesPage({
         searchDefaultValue={q ?? ""}
         breadcrumbs={[{ label: "ADMIN" }, { label: "콘텐츠" }, { label: "경기 관리" }]}
       />
+      <StatRow items={statItems} />
       <AdminGamesContent
         games={serialized}
         updateStatusAction={updateGameStatusAction}

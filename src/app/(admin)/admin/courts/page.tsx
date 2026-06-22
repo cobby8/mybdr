@@ -1,7 +1,4 @@
 import { prisma } from "@/lib/db/prisma";
-import { AdminPageHeader } from "@/components/admin/admin-page-header";
-// 8C-6 박제 — VA1 Site Operator 뱃지 (dark+gold, /admin/partners 와 공용)
-import { SiteOperatorBadge } from "@/components/admin/site-operator-badge";
 import {
   createCourtAction,
   updateCourtAction,
@@ -154,41 +151,9 @@ export default async function AdminCourtsPage({
 
   return (
     // Phase 2A (Toss 전환) — 페이지 루트에 data-skin="toss" opt-in (content 는 DOM 상속)
+    // v2.40 A3-1b — PageHead/StatRow 는 content(코트 관리 탭) 안에서 키트로 렌더.
+    //   기존 count 4종(전체/활성/미승인/신고)을 props 로 전달만 함(서버 쿼리 0변경).
     <div data-skin="toss">
-      {/* 2026-05-15 Admin-4-B 박제 — eyebrow + breadcrumbs 추가 (시안 AdminCourts.jsx v2.9)
-          8C-6 박제 — VA1: actions slot 에 Site Operator 뱃지(dark+gold) 노출 */}
-      <AdminPageHeader
-        eyebrow="ADMIN · 콘텐츠"
-        title="코트 관리"
-        subtitle={`전체 ${totalCount}개`}
-        searchPlaceholder="코트명, 주소 검색"
-        searchDefaultValue={q ?? ""}
-        breadcrumbs={[{ label: "ADMIN" }, { label: "콘텐츠" }, { label: "코트 관리" }]}
-        actions={<SiteOperatorBadge />}
-      />
-
-      {/* 8C-6 박제 — VA1 hero stat strip (전체/활성/미승인/신고).
-          운영 pa1-hero-stats 공용 클래스 재사용. 전부 실측 count (mock 0).
-          "신고" = court_reports active(미처리) 건수 — count-only, 신고 탭/모달 미생성 */}
-      <div className="pa1-hero-stats">
-        <div className="pa1-hero-stat">
-          <div className="pa1-hero-stat__num">{totalCount.toLocaleString()}</div>
-          <div className="pa1-hero-stat__lbl">전체 코트</div>
-        </div>
-        <div className="pa1-hero-stat">
-          <div className="pa1-hero-stat__num" data-tone="ok">{activeCourtsCount.toLocaleString()}</div>
-          <div className="pa1-hero-stat__lbl">활성</div>
-        </div>
-        <div className="pa1-hero-stat">
-          <div className="pa1-hero-stat__num" data-tone="warn">{pendingCourtsCount.toLocaleString()}</div>
-          <div className="pa1-hero-stat__lbl">미승인</div>
-        </div>
-        <div className="pa1-hero-stat">
-          <div className="pa1-hero-stat__num" data-tone="err">{pendingReportsCount.toLocaleString()}</div>
-          <div className="pa1-hero-stat__lbl">신고</div>
-        </div>
-      </div>
-
       <AdminCourtsContent
         courts={serialized}
         pendingSuggestions={serializedSuggestions}
@@ -197,6 +162,10 @@ export default async function AdminCourtsPage({
         createCourtAction={createCourtAction}
         updateCourtAction={updateCourtAction}
         deleteCourtAction={deleteCourtAction}
+        totalCount={totalCount}
+        activeCourtsCount={activeCourtsCount}
+        pendingCourtsCount={pendingCourtsCount}
+        pendingReportsCount={pendingReportsCount}
       />
     </div>
   );

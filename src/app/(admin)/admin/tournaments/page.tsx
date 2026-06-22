@@ -1,8 +1,19 @@
 import { prisma } from "@/lib/db/prisma";
 import { AdminPageHeader } from "@/components/admin/admin-page-header";
+// v2.40 A3-1a — 통합 콘솔 키트 StatRow(status 카운트 띠)
+import { StatRow } from "@/components/admin/console-kit";
 import { updateTournamentStatusAction } from "@/app/actions/admin-tournaments";
 import { toggleTournamentVisibilityAction } from "@/app/actions/admin-tournaments";
 import { AdminTournamentsContent } from "./admin-tournaments-content";
+
+// 상태코드 → 탭키 정규화 (StatRow 카운트 파생용 — content 와 동일 매핑)
+const TO_TAB_KEY: Record<string, string> = {
+  draft: "draft", upcoming: "draft",
+  registration: "registration", registration_open: "registration", active: "registration",
+  published: "registration", open: "registration", opening_soon: "registration", registration_closed: "registration",
+  in_progress: "in_progress", live: "in_progress", ongoing: "in_progress", group_stage: "in_progress",
+  completed: "completed", ended: "completed", closed: "completed", cancelled: "completed",
+};
 // 2026-06-14 대회 삭제 — super_admin 여부 판단용 (Hard 삭제 옵션 노출 분기).
 //   DELETE API(route.ts)와 동일 헬퍼(isSuperAdmin) 사용 → UI 노출 ↔ API 허용 판정 정합성 보장.
 //   isSuperAdmin 은 session.role 또는 session.admin_role 둘 중 하나만 "super_admin" 이어도 true →
@@ -80,6 +91,21 @@ export default async function AdminTournamentsPage({
   const isSuper =
     auth.state === "active" ? isSuperAdmin(auth.session) : false;
 
+  // v2.40 A3-1a — StatRow 카운트(현재 페이지 직렬화 데이터 기준 클라 파생·추가 SELECT 0).
+  //   status 별 분포를 탭키로 정규화해 합산. 페이지 단위(take) 기준이라 "현재 페이지" 분포.
+  const tabCounts: Record<string, number> = { draft: 0, registration: 0, in_progress: 0, completed: 0 };
+  for (const t of serialized) {
+    const k = TO_TAB_KEY[t.status ?? "draft"] ?? "draft";
+    tabCounts[k] = (tabCounts[k] ?? 0) + 1;
+  }
+  const statItems = [
+    { icon: "trophy", label: "전체", value: totalCount },
+    { icon: "file-pen", label: "준비중", value: tabCounts.draft },
+    { icon: "clipboard-list", label: "접수중", value: tabCounts.registration },
+    { icon: "play", label: "진행중", value: tabCounts.in_progress },
+    { icon: "flag", label: "종료", value: tabCounts.completed },
+  ];
+
   return (
     // Phase 1 — 페이지 루트에 data-skin="toss" opt-in (목록·상태 화면만 — 대회관리 리빌딩은 트랙B)
     <div data-skin="toss">
@@ -89,6 +115,7 @@ export default async function AdminTournamentsPage({
         searchPlaceholder="대회명 검색"
         searchDefaultValue={q ?? ""}
       />
+      <StatRow items={statItems} />
       <AdminTournamentsContent
         tournaments={serialized}
         updateStatusAction={updateTournamentStatusAction}

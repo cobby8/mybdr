@@ -5,33 +5,29 @@
  * pending 단체를 승인/거절하고, 전체 단체 목록을 관리한다.
  *
  * 2026-05-15: Admin-5-C 박제 (BDR v2.14)
- * - AdminPageHeader eyebrow + breadcrumbs (시안 v2.14)
- * - statusBadge(inline bg) → STATUS_TONE + admin-stat-pill[data-tone]
- *   (pending=warn / approved=ok / rejected=err)
- * - 비즈 로직 (fetch/handleApprove/handleReject/state) 100% 보존
- *
  * 2026-05-29: OA1 박제 (BDR v2.22 · PR-4C-5)
- * - Hero 4상태 분포 stat (대기/승인/보관/거절) — 전체 목록 실측 count
- * - archived(보관) 필터 탭 추가 (시안 4분면)
- * - 행 클릭 → 상세 모달(BO1): AdminDetailModal/ModalInfoSection 재사용
- *   · 신청 정보 = OU3 신청 form 동일 organizations 컬럼
- *     (name·description·region·contact_email·website_url·apply_note)
- *   · approved → 운영 활동 통계(series_count·members_count 실측)
- * - BO5 status 전환:
- *   · 승인/거절 = 기존 워크플로우(approve/reject route) 활용
- *   · 해산(archived)/복구 = owner 전용 archive route(Phase E 정책) → admin은 disabled 안내
- *   · 정지(suspend) = 운영 status/route 없음 → hide
- * - 비즈 로직(fetch/handleApprove/handleReject/state) 100% 보존
+ *
+ * 2026-06-22: v2.40 A3-1b — 통합 콘솔 키트(console-kit) 리스킨.
+ * - AdminPageHeader → PageHead / 4-stat grid → StatRow / .btn 탭 → Toolbar+useFilter(클라)
+ * - <table> → DataTable(PrimaryCell·StatusBadge·pagination) / AdminDetailModal → Drawer(DL)
+ * - 데이터/액션/라우트 0변경 — fetch/handleApprove/handleReject/fetchStatusCounts/state 전부 유지(UI만).
  */
 
-import { useState, useEffect, useCallback } from "react";
-import { AdminPageHeader } from "@/components/admin/admin-page-header";
+import { useState, useEffect, useCallback, useMemo } from "react";
+// v2.40 A3-1b — 통합 콘솔 키트로 교체
 import {
-  AdminDetailModal,
-  ModalInfoSection,
-} from "@/components/admin/admin-detail-modal";
-// Phase 1 (Toss 전환) — Material Symbols → lucide(<Icon>)
-import { Icon } from "@/components/admin-toss";
+  PageHead,
+  StatRow,
+  Toolbar,
+  DataTable,
+  Drawer,
+  DL,
+  PrimaryCell,
+  StatusBadge,
+  useFilter,
+  type Column,
+  type StatusMeta,
+} from "@/components/admin/console-kit";
 
 // 단체 타입 정의
 interface Organization {
@@ -51,24 +47,23 @@ interface Organization {
   members_count: number;
   created_at: string;
   approved_at: string | null;
+  // v2.40 A3-1b — useFilter<T extends FilterableRow> 제약(인덱스 시그니처) 충족용
+  [key: string]: unknown;
 }
 
-// 시안 v2.14 — admin-stat-pill[data-tone] 매핑
-// (pending=warn / approved=ok / rejected=err / archived=mute)
-const STATUS_TONE: Record<string, "ok" | "warn" | "err" | "info" | "mute"> = {
-  pending: "warn",
-  approved: "ok",
-  rejected: "err",
-  archived: "mute",
+// v2.40 A3-1b — StatusBadge 매핑(상태코드 → 톤/라벨).
+//   (기존 STATUS_LABEL/STATUS_TONE 를 Badge 매핑으로 통합)
+// 기존 admin-stat-pill tone(warn/ok/err/mute) → Badge tone(primary/ok/danger/grey)로 변환.
+//   pending=대기(primary) / approved=승인(ok) / rejected=거절(danger) / archived=보관(grey)
+const STATUS_BADGE_MAP: Record<string, StatusMeta> = {
+  pending: { tone: "primary", label: "대기" },
+  approved: { tone: "ok", label: "승인" },
+  rejected: { tone: "danger", label: "거절" },
+  archived: { tone: "grey", label: "보관" },
 };
 
-// 상태별 라벨 매핑 (OA1 — archived=보관 추가)
-const STATUS_LABEL: Record<string, string> = {
-  pending: "대기",
-  approved: "승인",
-  rejected: "거절",
-  archived: "보관",
-};
+// useFilter 검색 대상 필드 — 컴포넌트 밖 상수(매 렌더 새 참조 방지)
+const FILTER_FIELDS: (keyof Organization)[] = ["name", "region"];
 
 export default function AdminOrganizationsPage() {
   const [orgs, setOrgs] = useState<Organization[]>([]);
@@ -79,10 +74,13 @@ export default function AdminOrganizationsPage() {
   const [rejectReason, setRejectReason] = useState("");
   // OA1 — Hero 4상태 분포 stat용 전체 목록 (필터 무관 status 집계)
   const [statusCounts, setStatusCounts] = useState<Record<string, number>>({});
-  // OA1 — 행 클릭 시 표시할 상세 모달 대상 (BO1)
+  // OA1 — 행 클릭 시 표시할 상세 모달(→ Drawer) 대상 (BO1)
   const [selected, setSelected] = useState<Organization | null>(null);
+  // v2.40 A3-1b — DataTable 페이지네이션 현재 페이지(클라)
+  const [page, setPage] = useState(1);
+  const perPage = 20;
 
-  // 단체 목록 조회
+  // 단체 목록 조회 — 기존 fetch 로직 100% 유지(서버 status 필터)
   const fetchOrgs = useCallback(async () => {
     setLoading(true);
     const qs = filter ? `?status=${filter}` : "";
@@ -94,7 +92,7 @@ export default function AdminOrganizationsPage() {
     setLoading(false);
   }, [filter]);
 
-  // OA1 — Hero stat용 전체 분포 조회 (필터와 독립, status별 count 집계)
+  // OA1 — Hero stat용 전체 분포 조회 (필터와 독립, status별 count 집계) — 신규 쿼리 0(기존 그대로)
   const fetchStatusCounts = useCallback(async () => {
     const res = await fetch(`/api/web/admin/organizations`); // status 미지정 = 전체
     if (res.ok) {
@@ -111,26 +109,26 @@ export default function AdminOrganizationsPage() {
     fetchOrgs();
   }, [fetchOrgs]);
 
-  // OA1 — 마운트 시 1회 + 액션 후 분포 갱신 (handleApprove/Reject에서 재호출)
+  // OA1 — 마운트 시 1회 + 액션 후 분포 갱신
   useEffect(() => {
     fetchStatusCounts();
   }, [fetchStatusCounts]);
 
-  // 승인 처리
+  // 승인 처리 — 기존 로직 100% 유지
   async function handleApprove(id: string) {
     setActionLoading(id);
     const res = await fetch(`/api/web/admin/organizations/${id}/approve`, {
       method: "POST",
     });
     if (res.ok) {
-      await fetchOrgs(); // 목록 새로고침
-      await fetchStatusCounts(); // OA1 — Hero 분포 갱신
-      setSelected(null); // OA1 — 모달 닫기
+      await fetchOrgs();
+      await fetchStatusCounts();
+      setSelected(null);
     }
     setActionLoading(null);
   }
 
-  // 거절 처리
+  // 거절 처리 — 기존 로직 100% 유지
   async function handleReject(id: string) {
     if (!rejectReason.trim()) return;
     setActionLoading(id);
@@ -143,219 +141,161 @@ export default function AdminOrganizationsPage() {
       setRejectId(null);
       setRejectReason("");
       await fetchOrgs();
-      await fetchStatusCounts(); // OA1 — Hero 분포 갱신
-      setSelected(null); // OA1 — 모달 닫기
+      await fetchStatusCounts();
+      setSelected(null);
     }
     setActionLoading(null);
   }
 
+  // v2.40 A3-1b — 검색만 useFilter로 클라 필터(탭은 서버 status 필터라 유지).
+  //   tab은 "all" 고정으로 두고(서버에서 이미 status 분리됨) 검색어만 적용.
+  const { q, setQ, filtered } = useFilter<Organization>(orgs, FILTER_FIELDS);
+
+  // 검색 결과 변동 시 페이지 1로 리셋(범위 밖 페이지 방지)
+  useEffect(() => {
+    setPage(1);
+  }, [q, filter]);
+
+  // 현재 페이지 슬라이스
+  const pageRows = useMemo(
+    () => filtered.slice((page - 1) * perPage, page * perPage),
+    [filtered, page]
+  );
+
+  // 상태 필터 탭 — 기존 5탭(대기/승인/보관/거절/전체) 유지. value "" = 전체.
+  const tabs = useMemo(
+    () => [
+      { id: "pending", label: "대기", n: statusCounts.pending ?? 0 },
+      { id: "approved", label: "승인", n: statusCounts.approved ?? 0 },
+      { id: "archived", label: "보관", n: statusCounts.archived ?? 0 },
+      { id: "rejected", label: "거절", n: statusCounts.rejected ?? 0 },
+      { id: "all", label: "전체", n: statusCounts.all ?? 0 },
+    ],
+    [statusCounts]
+  );
+
+  // DataTable 컬럼 정의 — 기존 6열(단체명/지역/신청자/상태/신청일) 유지(액션은 Drawer foot로 이동)
+  const columns: Column<Organization>[] = useMemo(
+    () => [
+      {
+        key: "name",
+        label: "단체명",
+        render: (org) => (
+          <PrimaryCell
+            initials={(org.name ?? "?")[0]}
+            title={org.name}
+            meta={org.apply_note ? `메모: ${org.apply_note}` : undefined}
+          />
+        ),
+      },
+      {
+        key: "region",
+        label: "지역",
+        width: 120,
+        hideSm: true,
+        render: (org) => org.region || "-",
+      },
+      {
+        key: "owner",
+        label: "신청자",
+        width: 200,
+        hideSm: true,
+        render: (org) => (
+          <div>
+            <div>{org.owner.nickname}</div>
+            <div style={{ fontSize: 12, color: "var(--muted)" }}>
+              {org.owner.email}
+            </div>
+          </div>
+        ),
+      },
+      {
+        key: "status",
+        label: "상태",
+        width: 90,
+        align: "center",
+        render: (org) => <StatusBadge map={STATUS_BADGE_MAP} value={org.status} />,
+      },
+      {
+        key: "created_at",
+        label: "신청일",
+        width: 120,
+        align: "right",
+        hideSm: true,
+        render: (org) => new Date(org.created_at).toLocaleDateString("ko-KR"),
+      },
+    ],
+    []
+  );
+
   return (
-    // Phase 1 — 페이지 루트에 data-skin="toss" opt-in
+    // 페이지 루트에 data-skin="toss" opt-in 유지
     <div data-skin="toss">
-      {/* 시안 v2.14 — eyebrow + breadcrumbs (Admin-5-C 박제) */}
-      <AdminPageHeader
+      {/* PageHead — eyebrow(아이콘+라벨) + 제목 + 보조설명 */}
+      <PageHead
         eyebrow="ADMIN · 외부 관리"
+        icon="building-2"
         title="단체 관리"
-        subtitle="단체 신청 승인 / 거절 및 전체 단체 목록을 관리합니다."
-        breadcrumbs={[
-          { label: "ADMIN" },
-          { label: "외부 관리" },
-          { label: "단체 관리" },
+        sub="단체 신청 승인 / 거절 및 전체 단체 목록을 관리합니다."
+      />
+
+      {/* StatRow — OA1 4상태 분포(실측 statusCounts 재사용, 신규 쿼리 0) */}
+      <StatRow
+        items={[
+          { icon: "clock", label: "대기", value: statusCounts.pending ?? 0 },
+          { icon: "circle-check", label: "승인", value: statusCounts.approved ?? 0 },
+          { icon: "archive", label: "보관", value: statusCounts.archived ?? 0 },
+          { icon: "ban", label: "거절", value: statusCounts.rejected ?? 0 },
         ]}
       />
 
-      {/* OA1 — Hero 4상태 분포 stat (실측 count, 시안 4분면) */}
-      <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
-        {[
-          { key: "pending", label: "대기", tone: "warn" as const },
-          { key: "approved", label: "승인", tone: "ok" as const },
-          { key: "archived", label: "보관", tone: "mute" as const },
-          { key: "rejected", label: "거절", tone: "err" as const },
-        ].map((s) => (
-          <div
-            key={s.key}
-            className="rounded-md border border-[var(--color-border)] bg-[var(--color-card)] px-4 py-3"
-          >
-            {/* 숫자: 상태별 토큰 색 (data-tone과 동일 의미 톤) */}
-            <div
-              className="text-2xl font-black tabular-nums"
-              style={{
-                color:
-                  s.tone === "ok"
-                    ? "var(--color-success)"
-                    : s.tone === "warn"
-                      ? "var(--color-warning)"
-                      : s.tone === "err"
-                        ? "var(--color-error)"
-                        : "var(--color-text-muted)",
-              }}
-            >
-              {statusCounts[s.key] ?? 0}
-            </div>
-            <div className="mt-0.5 text-xs font-medium text-[var(--color-text-muted)]">
-              {s.label}
-            </div>
-          </div>
-        ))}
-      </div>
+      {/* Toolbar — 검색(클라 useFilter) + 상태 탭(서버 status 필터) */}
+      <Toolbar
+        search={q}
+        onSearch={setQ}
+        placeholder="단체명, 지역 검색"
+        tabs={tabs}
+        active={filter === "" ? "all" : filter}
+        onTab={(id) => setFilter(id === "all" ? "" : id)}
+      />
 
-      {/* 상태 필터 탭 — (web) .btn 패턴 (OA1 — archived 추가) */}
-      <div className="mb-4 flex flex-wrap gap-2">
-        {[
-          { value: "pending", label: "대기" },
-          { value: "approved", label: "승인" },
-          { value: "archived", label: "보관" },
-          { value: "rejected", label: "거절" },
-          { value: "", label: "전체" },
-        ].map((tab) => (
-          <button
-            key={tab.value}
-            onClick={() => setFilter(tab.value)}
-            className={`btn btn--sm ${filter === tab.value ? "btn--primary" : ""}`}
-          >
-            {tab.label}
-            {/* OA1 — 탭별 실측 건수 (전체는 all 키) */}
-            <span className="ml-1.5 opacity-60 tabular-nums">
-              {tab.value === "" ? statusCounts.all ?? 0 : statusCounts[tab.value] ?? 0}
-            </span>
-          </button>
-        ))}
-      </div>
-
-      {/* 목록 테이블 */}
-      {loading ? (
-        <p className="py-8 text-center text-[var(--color-text-muted)]">
-          불러오는 중...
-        </p>
-      ) : orgs.length === 0 ? (
-        <p className="py-8 text-center text-[var(--color-text-muted)]">
-          {filter === "pending"
+      {/* DataTable — 행 클릭 시 Drawer 열기. 페이지네이션 클라 */}
+      <DataTable<Organization>
+        columns={columns}
+        rows={pageRows}
+        keyField="id"
+        state={loading ? "loading" : "filled"}
+        onRowClick={(org) => setSelected(org)}
+        pagination={{
+          page,
+          perPage,
+          total: filtered.length,
+          onChange: setPage,
+        }}
+        emptyTitle={
+          filter === "pending"
             ? "대기 중인 신청이 없습니다."
             : filter === "archived"
               ? "보관된 단체가 없습니다."
-              : "해당 단체가 없습니다."}
-        </p>
-      ) : (
-        <div className="overflow-x-auto admin-table-wrap">
-          {/* admin-table: 모바일 ≤720px 카드 변환 (globals.css [Admin Phase B]) */}
-          <table className="admin-table w-full text-left text-sm">
-            <thead>
-              <tr>
-                <th className="px-4 py-3 font-medium">단체명</th>
-                <th className="px-4 py-3 font-medium">지역</th>
-                <th className="px-4 py-3 font-medium">신청자</th>
-                <th className="px-4 py-3 font-medium">상태</th>
-                <th className="px-4 py-3 font-medium">신청일</th>
-                <th className="px-4 py-3 font-medium">액션</th>
-              </tr>
-            </thead>
-            <tbody>
-              {orgs.map((org) => {
-                return (
-                  // OA1 — 행 클릭 시 상세 모달 열기 (BO1). 액션 버튼 클릭은 stopPropagation으로 분리
-                  <tr
-                    key={org.id}
-                    onClick={() => setSelected(org)}
-                    className="cursor-pointer"
-                  >
-                    <td data-primary="true" className="px-4 py-3">
-                      <div className="font-medium text-[var(--color-text-primary)]">{org.name}</div>
-                      {org.apply_note && (
-                        <div className="mt-0.5 text-xs text-[var(--color-text-muted)]">
-                          메모: {org.apply_note}
-                        </div>
-                      )}
-                    </td>
-                    <td data-label="지역" className="px-4 py-3 text-[var(--color-text-secondary)]">
-                      {org.region || "-"}
-                    </td>
-                    <td data-label="신청자" className="px-4 py-3">
-                      <div className="text-[var(--color-text-primary)]">{org.owner.nickname}</div>
-                      <div className="text-xs text-[var(--color-text-muted)]">{org.owner.email}</div>
-                    </td>
-                    <td data-label="상태" className="px-4 py-3">
-                      {/* 시안 v2.14 — admin-stat-pill data-tone (미매치 시 mute 폴백) */}
-                      <span className="admin-stat-pill" data-tone={STATUS_TONE[org.status] ?? "mute"}>
-                        {STATUS_LABEL[org.status] ?? org.status}
-                      </span>
-                    </td>
-                    <td data-label="신청일" className="px-4 py-3 text-[var(--color-text-muted)]">
-                      {new Date(org.created_at).toLocaleDateString("ko-KR")}
-                    </td>
-                    {/* OA1 — 액션 셀 클릭은 모달 열기와 분리 (stopPropagation) */}
-                    <td
-                      data-actions="true"
-                      className="px-4 py-3"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      {/* pending일 때만 승인/거절 버튼 표시 — (web) .btn 패턴 (success/error 톤 inline) */}
-                      {org.status === "pending" && (
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => handleApprove(org.id)}
-                            disabled={actionLoading === org.id}
-                            className="btn btn--sm disabled:opacity-50"
-                            style={{ background: "var(--color-success)", color: "#fff", borderColor: "var(--color-success)" }}
-                          >
-                            승인
-                          </button>
-                          <button
-                            onClick={() => setRejectId(org.id)}
-                            disabled={actionLoading === org.id}
-                            className="btn btn--sm disabled:opacity-50"
-                            style={{ background: "var(--color-error)", color: "#fff", borderColor: "var(--color-error)" }}
-                          >
-                            거절
-                          </button>
-                        </div>
-                      )}
-                      {/* 거절 사유 입력 폼 */}
-                      {rejectId === org.id && (
-                        <div className="mt-2 flex gap-2">
-                          <input
-                            type="text"
-                            value={rejectReason}
-                            onChange={(e) => setRejectReason(e.target.value)}
-                            placeholder="거절 사유"
-                            className="flex-1 rounded border px-2 py-1 text-xs"
-                            style={{ borderColor: "var(--color-border)", background: "var(--color-surface)", color: "var(--color-text-primary)" }}
-                          />
-                          <button
-                            onClick={() => handleReject(org.id)}
-                            disabled={!rejectReason.trim() || actionLoading === org.id}
-                            className="btn btn--sm disabled:opacity-50"
-                            style={{ background: "var(--color-error)", color: "#fff", borderColor: "var(--color-error)" }}
-                          >
-                            확인
-                          </button>
-                          <button
-                            onClick={() => { setRejectId(null); setRejectReason(""); }}
-                            className="btn btn--sm"
-                          >
-                            취소
-                          </button>
-                        </div>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
+              : "해당 단체가 없습니다."
+        }
+      />
 
-      {/* OA1 — 상세 모달 (BO1): 행 클릭 시 신청 정보 + 운영 활동 + status 액션 */}
-      <AdminDetailModal
-        isOpen={selected !== null}
+      {/* Drawer — 행 클릭 시 신청 정보 요약 + (pending) 승인/거절 액션 */}
+      <Drawer
+        open={selected !== null}
         onClose={() => {
           setSelected(null);
-          // 모달 닫을 때 거절 입력 상태도 초기화 (모달 내 거절 폼 사용 시)
           setRejectId(null);
           setRejectReason("");
         }}
         title={selected ? selected.name : ""}
-        actions={
+        sub={
+          selected
+            ? `/${selected.slug}${selected.region ? ` · ${selected.region}` : ""}`
+            : undefined
+        }
+        foot={
           selected ? (
             <div className="flex flex-wrap items-center justify-end gap-2">
               {/* pending — 승인/거절 (기존 워크플로우 활용) */}
@@ -367,7 +307,6 @@ export default function AdminOrganizationsPage() {
                     className="btn btn--sm disabled:opacity-50"
                     style={{ background: "var(--color-error)", color: "#fff", borderColor: "var(--color-error)" }}
                   >
-                    <Icon name="x" size={16} />
                     거절
                   </button>
                   <button
@@ -376,7 +315,6 @@ export default function AdminOrganizationsPage() {
                     className="btn btn--sm disabled:opacity-50"
                     style={{ background: "var(--color-success)", color: "#fff", borderColor: "var(--color-success)" }}
                   >
-                    <Icon name="check" size={16} />
                     승인
                   </button>
                 </>
@@ -396,30 +334,27 @@ export default function AdminOrganizationsPage() {
                     className="btn btn--sm disabled:opacity-50"
                     style={{ background: "var(--color-error)", color: "#fff", borderColor: "var(--color-error)" }}
                   >
-                    <Icon name="ban" size={16} />
                     거절 확정
                   </button>
                 </>
               )}
-              {/* approved — BO5 해산(archived). owner 전용 archive route(Phase E) → admin disabled 안내 */}
+              {/* approved — 해산은 owner 전용(Phase E) → admin disabled 안내 */}
               {selected.status === "approved" && (
                 <button
                   disabled
                   title="단체 해산은 단체 소유자(owner)만 단체 설정에서 처리할 수 있습니다."
                   className="btn btn--sm opacity-50 cursor-not-allowed"
                 >
-                  <Icon name="archive" size={16} />
                   해산 (소유자 전용)
                 </button>
               )}
-              {/* archived/rejected — 복구. owner 전용 archive route → admin disabled 안내 */}
+              {/* archived/rejected — 복구도 owner 전용 → admin disabled 안내 */}
               {(selected.status === "archived" || selected.status === "rejected") && (
                 <button
                   disabled
                   title="복구는 단체 소유자(owner)만 처리할 수 있습니다."
                   className="btn btn--sm opacity-50 cursor-not-allowed"
                 >
-                  <Icon name="rotate-ccw" size={16} />
                   복구 (소유자 전용)
                 </button>
               )}
@@ -429,78 +364,45 @@ export default function AdminOrganizationsPage() {
       >
         {selected && (
           <div className="space-y-4">
-            {/* 상태 뱃지 + slug (헤더 보조 정보) */}
-            <div className="flex items-center gap-2">
-              <span className="admin-stat-pill" data-tone={STATUS_TONE[selected.status] ?? "mute"}>
-                {STATUS_LABEL[selected.status] ?? selected.status}
-              </span>
-              <span className="text-xs text-[var(--color-text-muted)]">
-                /{selected.slug}
-                {selected.region ? ` · ${selected.region}` : ""}
-              </span>
+            {/* 상태 뱃지 */}
+            <div>
+              <StatusBadge map={STATUS_BADGE_MAP} value={selected.status} />
             </div>
 
-            {/* BO1 — 신청 정보 (OU3 신청 form 동일 organizations 컬럼) */}
-            <ModalInfoSection
-              title="신청 정보"
+            {/* BO1 — 신청 정보(DL 요약). OU3 신청 form 동일 organizations 컬럼 */}
+            <DL
               rows={[
-                [
-                  "신청자",
-                  `${selected.owner.nickname} · ${selected.owner.email}`,
-                ],
-                ["소개", selected.description],
-                ["활동 지역", selected.region],
-                ["연락 이메일", selected.contact_email],
-                ["웹사이트", selected.website_url],
-                ["신청 메모", selected.apply_note],
-                [
-                  "신청일",
-                  new Date(selected.created_at).toLocaleDateString("ko-KR"),
-                ],
+                ["신청자", `${selected.owner.nickname} · ${selected.owner.email}`],
+                ["소개", selected.description || "-"],
+                ["활동 지역", selected.region || "-"],
+                ["연락 이메일", selected.contact_email || "-"],
+                ["웹사이트", selected.website_url || "-"],
+                ["신청 메모", selected.apply_note || "-"],
+                ["신청일", new Date(selected.created_at).toLocaleDateString("ko-KR")],
                 [
                   "승인일",
                   selected.approved_at
                     ? new Date(selected.approved_at).toLocaleDateString("ko-KR")
-                    : null,
+                    : "-",
                 ],
                 // 거절 상태일 때만 사유 표시
                 ...(selected.status === "rejected"
-                  ? ([["거절 사유", selected.rejection_reason]] as [
-                      string,
-                      string | null,
-                    ][])
+                  ? ([["거절 사유", selected.rejection_reason || "-"]] as [string, string][])
                   : []),
               ]}
             />
 
-            {/* approved — BO5 운영 활동 통계 (실측: series_count / members_count) */}
+            {/* approved — BO5 운영 활동 통계(실측 series_count / members_count) */}
             {selected.status === "approved" && (
-              <div>
-                <p className="mb-1.5 text-[11px] font-black uppercase tracking-widest text-[var(--color-text-muted)]">
-                  운영 활동
-                </p>
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="rounded-md border border-[var(--color-border)] bg-[var(--color-elevated)] px-4 py-3 text-center">
-                    <div className="text-xl font-black tabular-nums text-[var(--color-success)]">
-                      {selected.series_count}
-                    </div>
-                    <div className="mt-0.5 text-xs text-[var(--color-text-muted)]">
-                      시리즈
-                    </div>
-                  </div>
-                  <div className="rounded-md border border-[var(--color-border)] bg-[var(--color-elevated)] px-4 py-3 text-center">
-                    <div className="text-xl font-black tabular-nums text-[var(--color-text-primary)]">
-                      {selected.members_count}
-                    </div>
-                    <div className="mt-0.5 text-xs text-[var(--color-text-muted)]">
-                      멤버
-                    </div>
-                  </div>
-                </div>
-              </div>
+              <DL
+                rows={[
+                  ["시리즈", `${selected.series_count}개`],
+                  ["멤버", `${selected.members_count}명`],
+                ]}
+              />
             )}
 
-            {/* pending — 거절 사유 입력 (모달 내 거절 모드일 때만) */}
+            {/* pending — 거절 사유 입력(모달 내 거절 모드일 때만) */}
             {selected.status === "pending" && rejectId === selected.id && (
               <div>
                 <label className="mb-1.5 block text-[11px] font-black uppercase tracking-widest text-[var(--color-error)]">
@@ -522,7 +424,7 @@ export default function AdminOrganizationsPage() {
             )}
           </div>
         )}
-      </AdminDetailModal>
+      </Drawer>
     </div>
   );
 }

@@ -1,30 +1,39 @@
 "use client";
 
-// 2026-05-04: (web) 디자인 시스템 통일 (Phase C-3)
-// - <Card> wrapper 제거 / <Badge> → .badge--soft + 상태별 inline color
-// - 페이지 크기 / 페이지네이션 → .btn .btn--sm
+// 2026-06-22 v2.40 Phase A3-1a — 통합 콘솔 키트(console-kit) 통일.
+//   변경: Toolbar(탭) + DataTable(행 요약 Drawer) 로 UI 교체.
+//   유지(0변경): 데이터 패칭(page.tsx 서버 ?q= + 서버 페이지네이션)·server action
+//     (updateStatusAction)·라우트 href·삭제 확인 모달(AdminDetailModal·기존 로직 이식)·
+//     권한(isSuperAdmin)·snake 접근자.
+//   설계 메모:
+//     - 검색은 page.tsx AdminPageHeader 의 서버 ?q= 폼이 담당 → Toolbar 는 탭만(검색칸 미노출).
+//       useFilter 는 "클라 탭 필터" 전용(서버 페이징과 충돌 금지·기존 activeTab 동작 보존).
+//     - StatRow(status 카운트)는 page.tsx 에서 클라 파생(SELECT 0)해 prop 으로 받음.
+//     - 행 클릭 → Drawer(가벼운 요약 + 핵심 액션). 삭제 확인 모달은 별도 AdminDetailModal 유지.
 //
-// 2026-05-11 Phase 2-C IA 재설계:
-// - admin/tournaments 모달 = "행정" 전용으로 단순화 (운영자 페이지에 모든 운영 위임)
-// - 제거: 공개 토글 / 상태 변경 dropdown / 신청서 관리 Link (운영자 페이지로 이관)
-// - 추가: "대회 운영 페이지로 이동" Link (primary) + 행정 placeholder 4건 (Phase 3 예정)
-// - server action 2개 (updateStatus / toggleVisibility) 는 import 제거 (행정 모달 미사용)
-//
-// 2026-05-15 Admin-4-A 박제 (v2.14):
-// - 상태 뱃지: .badge--soft + inline color → .admin-stat-pill[data-tone=...] (admin.css 박제)
-// - 공개 뱃지: 동일 패턴. 비즈 로직 / state / props 시그니처 100% 보존.
-// - 토큰 --color-* 는 globals.css alias 로 신 토큰 자동 매핑 — 추가 치환 불필요.
+// (이전 이력)
+// 2026-05-04: (web) 디자인 시스템 통일 / 2026-05-11 Phase 2-C IA / 2026-05-15 Admin-4-A 박제.
 
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
-import { AdminStatusTabs } from "@/components/admin/admin-status-tabs";
 import {
   AdminDetailModal,
-  ModalInfoSection,
 } from "@/components/admin/admin-detail-modal";
-// Phase 1 (Toss 전환) — Material Symbols → lucide(<Icon>)
-import { Icon } from "@/components/admin-toss";
+// v2.40 A3-1a — 통합 콘솔 키트
+import {
+  Toolbar,
+  DataTable,
+  Drawer,
+  DL,
+  PrimaryCell,
+  StatusBadge,
+  useFilter,
+  type Column,
+  type StatusMeta,
+  type FilterableRow,
+} from "@/components/admin/console-kit";
+import { Icon, Btn } from "@/components/admin-toss";
 
 interface SerializedTournament {
   id: string;
@@ -56,13 +65,14 @@ const STATUS_LABEL: Record<string, string> = {
   completed: "종료", ended: "종료", closed: "종료", cancelled: "종료",
 };
 
-// 2026-05-15 Admin-4-A 박제 — STATUS_STYLE inline 색 → admin-stat-pill data-tone 매핑.
-// draft=mute / registration=info / in_progress=ok / completed=mute (시안 v2.14 박제 패턴)
-const STATUS_TONE: Record<string, "mute" | "info" | "ok" | "warn" | "err" | "accent"> = {
-  draft: "mute",
-  registration: "info",
-  in_progress: "ok",
-  completed: "mute",
+// v2.40 A3-1a — StatusBadge map (탭키 → 톤/라벨).
+//   기존 admin-stat-pill data-tone 매핑을 키트 Badge tone 으로 변환(승인 규약):
+//   draft(mute→grey)·registration(info→primary)·in_progress(ok)·completed(mute→grey).
+const STATUS_META: Record<string, StatusMeta> = {
+  draft: { tone: "grey", label: "준비중" },
+  registration: { tone: "primary", label: "접수중" },
+  in_progress: { tone: "ok", label: "진행중" },
+  completed: { tone: "grey", label: "종료" },
 };
 
 const FORMAT_LABEL: Record<string, string> = {
@@ -72,19 +82,37 @@ const FORMAT_LABEL: Record<string, string> = {
   full_league_knockout: "풀리그+토너먼트", swiss: "스위스 라운드",
 };
 
-// Phase 2-C 행정 모달은 상태 변경 / 공개 토글 모두 운영자 페이지로 이관 — TRANSITIONS 사용 안 함.
+// 탭 라벨(useFilter 의 클라 탭 필터용)
+const TAB_LABEL: Record<string, string> = {
+  draft: "준비중", registration: "접수중", in_progress: "진행중", completed: "종료",
+};
 
 const PAGE_SIZE_OPTIONS = [10, 20, 30];
 
+// 상태코드 → 탭키 정규화 (컴포넌트 밖 상수 함수 — 매 렌더 재생성 방지)
+const TO_TAB_KEY: Record<string, string> = {
+  draft: "draft", upcoming: "draft",
+  registration: "registration", registration_open: "registration", active: "registration",
+  published: "registration", open: "registration", opening_soon: "registration", registration_closed: "registration",
+  in_progress: "in_progress", live: "in_progress", ongoing: "in_progress", group_stage: "in_progress",
+  completed: "completed", ended: "completed", closed: "completed", cancelled: "completed",
+};
+const toTabKey = (status: string): string => TO_TAB_KEY[status] ?? "draft";
+
+// useFilter 검색 필드(클라) — 현재 검색은 서버 ?q= 가 담당하므로 빈 배열.
+//   탭 필터만 활성. FIELDS 는 컴포넌트 밖 상수(매 렌더 새 참조 방지·승인 규약 §3).
+const FILTER_FIELDS: (keyof FilterRow)[] = [];
+
+// useFilter 가 status 로 탭 매칭하므로, 행에 정규화된 status(탭키)를 부여한 형태로 변환.
+//   FilterableRow(키트 제약 — status?:string + 인덱스 시그니처) 를 충족하도록 교차.
+type FilterRow = SerializedTournament & { status: string } & FilterableRow;
+
 interface Props {
   tournaments: SerializedTournament[];
-  // Phase 2-C — server action 2개는 prop 시그니처 유지 (호출처 page.tsx 영향 0)
-  // 실제 사용은 안 함. Phase 3 행정 메뉴 구현 시 다시 활용 가능.
+  // server action 2개는 prop 시그니처 유지(호출처 page.tsx 영향 0).
   updateStatusAction: (formData: FormData) => Promise<void>;
   toggleVisibilityAction: (formData: FormData) => Promise<void>;
   pagination: Pagination;
-  // 2026-06-14 대회 삭제 — super_admin 일 때만 "완전 삭제(복구불가)" Hard 옵션 노출.
-  //   일반 운영/관리자는 Soft(취소) 만 가능 (API 측 super_admin 가드와 동일 정책).
   isSuperAdmin: boolean;
 }
 
@@ -99,24 +127,24 @@ export function AdminTournamentsContent({
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  const [activeTab, setActiveTab] = useState("all");
+  // 행에 정규화된 탭키 status 를 부여 (useFilter 탭 매칭용).
+  //   object literal 은 인덱스 시그니처를 구조적으로 추론받지 못하므로 FilterRow 로 단언.
+  const rows = tournaments.map(
+    (t) => ({ ...t, status: toTabKey(t.status ?? "draft") }) as FilterRow,
+  );
+
+  // 클라 탭 필터(검색 X — 서버 ?q= 담당). tab="all" 이면 전체.
+  const { tab, setTab, filtered } = useFilter<FilterRow>(rows, FILTER_FIELDS);
+
   const [selected, setSelected] = useState<SerializedTournament | null>(null);
 
-  // 2026-06-14 대회 삭제 모달 상태.
-  //   deleteTarget: 삭제 확인 모달 대상 (null = 닫힘)
-  //   confirmName: 사용자가 입력한 대회명 (정확히 일치해야 삭제 버튼 활성)
-  //   hardMode: super_admin 이 "완전 삭제(복구불가)" 체크 시 true → ?hard=1 전송
-  //   deleting: 요청 진행 중 (중복 클릭 방지)
-  //   deleteError: 실패 메시지 표시
-  const [deleteTarget, setDeleteTarget] = useState<SerializedTournament | null>(
-    null,
-  );
+  // 삭제 확인 모달 상태(기존 로직 100% 보존).
+  const [deleteTarget, setDeleteTarget] = useState<SerializedTournament | null>(null);
   const [confirmName, setConfirmName] = useState("");
   const [hardMode, setHardMode] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
-  // 삭제 확인 모달 열기 — 입력값 초기화하며 대상 지정.
   const openDeleteModal = (t: SerializedTournament) => {
     setConfirmName("");
     setHardMode(false);
@@ -124,14 +152,12 @@ export function AdminTournamentsContent({
     setDeleteTarget(t);
   };
 
-  // 삭제 확인 모달 닫기 — 진행 중이 아닐 때만.
   const closeDeleteModal = () => {
     if (deleting) return;
     setDeleteTarget(null);
   };
 
-  // 삭제 실행 — DELETE /api/web/tournaments/:id (hardMode 면 ?hard=1).
-  //   성공 시: 모달 2개(삭제 확인 + 상세) 모두 닫고 router.refresh() 로 목록 갱신.
+  // 삭제 실행 — DELETE /api/web/tournaments/:id (hardMode 면 ?hard=1). 기존 로직 그대로.
   const handleDelete = async () => {
     if (!deleteTarget) return;
     setDeleting(true);
@@ -143,7 +169,6 @@ export function AdminTournamentsContent({
         { method: "DELETE" },
       );
       if (!res.ok) {
-        // API 는 apiError() 로 { error: { message } } 형태 반환 (snake_case 변환 영향 없음).
         let message = "삭제에 실패했습니다.";
         try {
           const body = await res.json();
@@ -155,7 +180,6 @@ export function AdminTournamentsContent({
         setDeleting(false);
         return;
       }
-      // 성공 — 모달 닫고 목록 새로고침.
       setDeleteTarget(null);
       setSelected(null);
       setDeleting(false);
@@ -166,33 +190,21 @@ export function AdminTournamentsContent({
     }
   };
 
-  const toTabKey = (status: string): string => {
-    const map: Record<string, string> = {
-      draft: "draft", upcoming: "draft",
-      registration: "registration", registration_open: "registration", active: "registration",
-      published: "registration", open: "registration", opening_soon: "registration", registration_closed: "registration",
-      in_progress: "in_progress", live: "in_progress", ongoing: "in_progress", group_stage: "in_progress",
-      completed: "completed", ended: "completed", closed: "completed", cancelled: "completed",
-    };
-    return map[status] ?? "draft";
-  };
-
-  const filtered =
-    activeTab === "all"
-      ? tournaments
-      : tournaments.filter((t) => toTabKey(t.status ?? "draft") === activeTab);
-
+  // 탭(전체 + 4 status) — 카운트는 정규화된 status 기준.
+  const tabKeys = ["draft", "registration", "in_progress", "completed"];
   const tabs = [
-    { key: "all", label: "전체", count: tournaments.length },
-    { key: "draft", label: "준비중", count: tournaments.filter((t) => toTabKey(t.status ?? "draft") === "draft").length },
-    { key: "registration", label: "접수중", count: tournaments.filter((t) => toTabKey(t.status ?? "draft") === "registration").length },
-    { key: "in_progress", label: "진행중", count: tournaments.filter((t) => toTabKey(t.status ?? "draft") === "in_progress").length },
-    { key: "completed", label: "종료", count: tournaments.filter((t) => toTabKey(t.status ?? "draft") === "completed").length },
+    { id: "all", label: "전체", n: rows.length },
+    ...tabKeys.map((k) => ({
+      id: k,
+      label: TAB_LABEL[k],
+      n: rows.filter((r) => r.status === k).length,
+    })),
   ];
 
   const fmtDate = (iso: string | null) =>
     iso ? new Date(iso).toLocaleDateString("ko-KR") : "-";
 
+  // 서버 페이징 네비게이션(기존 로직 그대로).
   const navigate = (updates: Record<string, string | null>) => {
     const params = new URLSearchParams(searchParams.toString());
     for (const [key, value] of Object.entries(updates)) {
@@ -206,238 +218,198 @@ export function AdminTournamentsContent({
     navigate({ pageSize: String(size), page: "1" });
   };
 
-  const handlePage = (p: number) => {
-    navigate({ page: String(p) });
-  };
-
   const { page, pageSize, totalPages, totalCount } = pagination;
   const rangeStart = (page - 1) * pageSize + 1;
   const rangeEnd = Math.min(page * pageSize, totalCount);
 
+  // DataTable 컬럼 — 시안 au-screens AuTournaments 패턴(데이터/문구 유지).
+  const columns: Column<FilterRow>[] = [
+    {
+      key: "name",
+      label: "대회",
+      render: (r) => (
+        <PrimaryCell
+          initials="🏆"
+          title={r.name}
+          meta={r.organizerName ?? r.organizerEmail ?? "-"}
+        />
+      ),
+    },
+    {
+      key: "public",
+      label: "공개",
+      align: "center",
+      width: "80px",
+      render: (r) => (
+        <StatusBadge
+          map={{
+            yes: { tone: "ok", label: "공개" },
+            no: { tone: "grey", label: "비공개" },
+          }}
+          value={r.isPublic ? "yes" : "no"}
+        />
+      ),
+    },
+    {
+      key: "date",
+      label: "날짜",
+      width: "110px",
+      hideSm: true,
+      render: (r) => (
+        <span style={{ color: "var(--ink-mute)" }}>{fmtDate(r.createdAt)}</span>
+      ),
+    },
+    {
+      key: "status",
+      label: "상태",
+      align: "center",
+      width: "92px",
+      render: (r) => <StatusBadge map={STATUS_META} value={r.status} />,
+    },
+  ];
+
   return (
     <>
-      <AdminStatusTabs tabs={tabs} activeTab={activeTab} onChange={setActiveTab} />
+      {/* 상태 탭 — 검색칸 미노출(서버 ?q= 가 헤더 폼에서 담당) */}
+      <Toolbar tabs={tabs} active={tab} onTab={setTab} />
 
-      {/* 리스트 헤더: 표시 개수 + 페이지 크기 선택 */}
+      {/* 리스트 헤더: 표시 개수 + 페이지 크기 선택(기존 동작 보존) */}
       <div className="mb-2 flex items-center justify-between">
-        <span className="text-sm" style={{ color: "var(--color-text-muted)" }}>
+        <span className="text-sm" style={{ color: "var(--ink-mute)" }}>
           {totalCount > 0 ? `${rangeStart}–${rangeEnd} / ${totalCount}개` : "0개"}
         </span>
         <div className="flex items-center gap-1">
-          <span className="text-xs" style={{ color: "var(--color-text-muted)" }}>페이지당</span>
+          <span className="text-xs" style={{ color: "var(--ink-mute)" }}>페이지당</span>
           {PAGE_SIZE_OPTIONS.map((size) => (
-            <button
+            <Btn
               key={size}
+              size="sm"
+              variant={pageSize === size ? "primary" : "ghost"}
               onClick={() => handlePageSize(size)}
-              className={`btn btn--sm ${pageSize === size ? "btn--primary" : ""}`}
             >
               {size}개
-            </button>
+            </Btn>
           ))}
         </div>
       </div>
 
-      {/* admin-table-wrap: 모바일 카드 변환 시 overflow-x: visible 강제 (globals.css [Admin Phase B]) */}
-      <div className="overflow-x-auto admin-table-wrap">
-        {/* admin-table: 모바일 (≤720px) 카드형 자동 변환 (globals.css [Admin Phase B], 2026-05-02) */}
-        <table className="admin-table w-full text-left text-sm">
-          <thead>
-            <tr>
-              <th className="px-5 py-4 font-medium">대회명</th>
-              <th className="w-[90px] px-5 py-4 font-medium">상태</th>
-              <th className="w-[70px] px-4 py-4 font-medium">공개</th>
-              <th className="w-[100px] px-5 py-4 font-medium">날짜</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.map((t) => {
-              const status = t.status ?? "draft";
-              const tabKey = toTabKey(status);
-              return (
-                <tr key={t.id} onClick={() => setSelected(t)} className="cursor-pointer">
-                  {/* data-primary="true": 모바일에서 카드 헤딩 (큰 폰트 + dashed border) */}
-                  <td data-primary="true" className="px-5 py-3">
-                    <p className="truncate font-medium" style={{ color: "var(--color-text-primary)" }}>
-                      {t.name}
-                    </p>
-                    <p className="text-xs" style={{ color: "var(--color-text-muted)" }}>
-                      {t.organizerName ?? t.organizerEmail ?? "-"}
-                    </p>
-                  </td>
-                  <td data-label="상태" className="px-5 py-3">
-                    {/* Admin-4-A 박제 — admin-stat-pill[data-tone] 시안 패턴 (admin.css) */}
-                    <span className="admin-stat-pill" data-tone={STATUS_TONE[tabKey] ?? "mute"}>
-                      {STATUS_LABEL[status] ?? status}
-                    </span>
-                  </td>
-                  <td data-label="공개" className="px-4 py-3">
-                    {/* 공개=ok / 비공개=mute (시안 박제) */}
-                    <span className="admin-stat-pill" data-tone={t.isPublic ? "ok" : "mute"}>
-                      {t.isPublic ? "공개" : "비공개"}
-                    </span>
-                  </td>
-                  {/* whitespace-nowrap으로 날짜 줄바꿈 방지 */}
-                  <td data-label="날짜" className="whitespace-nowrap px-5 py-3" style={{ color: "var(--color-text-muted)" }}>
-                    {fmtDate(t.createdAt)}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-      {filtered.length === 0 && (
-        <div className="p-8 text-center" style={{ color: "var(--color-text-muted)" }}>
-          해당하는 토너먼트가 없습니다.
-        </div>
-      )}
+      {/* 키트 DataTable — keyField/onRowClick/서버 pagination */}
+      <DataTable
+        columns={columns}
+        rows={filtered}
+        keyField="id"
+        onRowClick={(r) => setSelected(r)}
+        pagination={{
+          page,
+          perPage: pageSize,
+          total: totalCount,
+          onChange: (p) => navigate({ page: String(p) }),
+        }}
+        emptyTitle="해당하는 대회가 없습니다."
+      />
 
-      {/* 페이지네이션 — (web) .btn 패턴 적용 */}
-      {totalPages > 1 && (
-        <div className="mt-4 flex items-center justify-center gap-1">
-          <button
-            onClick={() => handlePage(page - 1)}
-            disabled={page <= 1}
-            className="btn btn--sm disabled:pointer-events-none disabled:opacity-30"
-          >
-            ←
-          </button>
-          {Array.from({ length: totalPages }, (_, i) => i + 1)
-            .filter((p) => p === 1 || p === totalPages || Math.abs(p - page) <= 2)
-            .reduce<(number | "...")[]>((acc, p, idx, arr) => {
-              if (idx > 0 && p - (arr[idx - 1] as number) > 1) acc.push("...");
-              acc.push(p);
-              return acc;
-            }, [])
-            .map((p, idx) =>
-              p === "..." ? (
-                <span key={`ellipsis-${idx}`} className="px-2 text-sm" style={{ color: "var(--color-text-muted)" }}>…</span>
-              ) : (
-                <button
-                  key={p}
-                  onClick={() => handlePage(p as number)}
-                  className={`btn btn--sm min-w-[32px] ${page === p ? "btn--primary" : ""}`}
-                >
-                  {p}
-                </button>
-              )
-            )}
-          <button
-            onClick={() => handlePage(page + 1)}
-            disabled={page >= totalPages}
-            className="btn btn--sm disabled:pointer-events-none disabled:opacity-30"
-          >
-            →
-          </button>
-        </div>
-      )}
-
-      {/* 상세 모달 */}
-      {selected && (
-        <AdminDetailModal
-          isOpen={!!selected}
-          onClose={() => setSelected(null)}
-          title={selected.name}
-          actions={
-            <div className="flex flex-col gap-3">
-              {/* Phase 2-C — "대회 운영 페이지로 이동" primary CTA. 모든 운영(공개/상태/팀/매치)은 운영자 페이지에서 처리. */}
-              <Link
-                href={`/tournament-admin/tournaments/${selected.id}`}
-                className="btn btn--primary"
-                style={{ textAlign: "center" }}
-              >
-                대회 운영 페이지로 이동
-              </Link>
-
-              {/* 2026-05-12 Phase 4 — 행정 관리 실 액션 활성화 (대회 승인 / 운영자 변경 / 감사 로그) */}
-              <div
-                className="rounded-[8px] border p-3"
-                style={{ borderColor: "var(--color-border)", background: "var(--color-elevated)" }}
-              >
-                <p
-                  className="mb-2 text-xs font-semibold uppercase"
-                  style={{ color: "var(--color-text-muted)", letterSpacing: "0.04em" }}
-                >
-                  행정 관리
-                </p>
-                <div className="grid grid-cols-2 gap-2">
-                  {/* 대회 승인 — draft → registration_open 으로 status 변경 (server action) */}
-                  {selected.status === "draft" ? (
-                    <form action={updateStatusAction}>
-                      <input type="hidden" name="tournament_id" value={selected.id} />
-                      <input type="hidden" name="status" value="registration_open" />
-                      <button
-                        type="submit"
-                        className="btn btn--sm w-full"
-                        style={{ background: "var(--color-success)", color: "#fff", borderColor: "var(--color-success)" }}
-                      >
-                        대회 승인
-                      </button>
-                    </form>
-                  ) : (
-                    <button type="button" disabled className="btn btn--sm opacity-50 cursor-not-allowed">
-                      이미 승인됨
-                    </button>
-                  )}
-                  {/* 운영자 변경 — 별 페이지 */}
-                  <Link
-                    href={`/admin/tournaments/${selected.id}/transfer-organizer`}
-                    className="btn btn--sm w-full"
-                    style={{ textAlign: "center" }}
-                  >
-                    운영자 변경
-                  </Link>
-                  {/* 감사 로그 — 별 페이지 */}
-                  <Link
-                    href={`/admin/tournaments/${selected.id}/audit-log`}
-                    className="btn btn--sm w-full"
-                    style={{ textAlign: "center" }}
-                  >
-                    감사 로그
-                  </Link>
-                  {/* 2026-06-14 대회 삭제 활성화 — 클릭 시 이름 확인 모달 open. */}
-                  <button
-                    type="button"
-                    onClick={() => openDeleteModal(selected)}
-                    className="btn btn--sm"
-                    style={{ color: "var(--color-error)", borderColor: "var(--color-error)" }}
-                  >
-                    대회 삭제
-                  </button>
-                </div>
-                <p className="mt-2 text-xs" style={{ color: "var(--color-text-muted)" }}>
-                  ※ 기본 삭제는 "취소" 처리(복구 가능)입니다.
-                  {isSuperAdmin ? " 완전 삭제는 복구할 수 없습니다." : ""}
-                </p>
-              </div>
+      {/* 행 요약 Drawer — 가벼운 요약 + 핵심 액션(상세/운영 페이지·행정) */}
+      <Drawer
+        open={!!selected}
+        onClose={() => setSelected(null)}
+        title={selected?.name}
+        sub={
+          selected
+            ? `${selected.organizerName ?? selected.organizerEmail ?? "-"} 주최`
+            : ""
+        }
+        foot={
+          selected ? (
+            <Link
+              href={`/tournament-admin/tournaments/${selected.id}`}
+              className="ts-btn ts-btn--primary"
+              style={{ flex: 1, textAlign: "center" }}
+            >
+              대회 운영 페이지로 이동
+            </Link>
+          ) : undefined
+        }
+      >
+        {selected && (
+          <>
+            <div style={{ marginBottom: 18 }}>
+              <StatusBadge map={STATUS_META} value={toTabKey(selected.status ?? "draft")} />
             </div>
-          }
-        >
-          <div className="space-y-4">
-            <ModalInfoSection
-              title="대회 정보"
+            <DL
               rows={[
                 ["공개 여부", selected.isPublic ? "공개" : "비공개"],
                 ["주최자", selected.organizerName ?? selected.organizerEmail ?? "-"],
                 ["형식", FORMAT_LABEL[selected.format ?? ""] ?? selected.format ?? "-"],
                 ["참가팀", `${selected.teamCount}팀`],
                 ["경기수", `${selected.matchCount}경기`],
-              ]}
-            />
-            <ModalInfoSection
-              title="일정"
-              rows={[
                 ["시작일", fmtDate(selected.startDate)],
                 ["종료일", fmtDate(selected.endDate)],
                 ["생성일", fmtDate(selected.createdAt)],
               ]}
             />
-          </div>
-        </AdminDetailModal>
-      )}
 
-      {/* 2026-06-14 대회 삭제 확인 모달 — AdminDetailModal 재사용 (디자인 일관).
-          이름 정확 입력 시에만 삭제 버튼 활성 / 기본 Soft(취소) / super_admin 만 Hard 옵션 노출. */}
+            {/* 행정 관리 — 기존 server action / 라우트 href 100% 보존 */}
+            <div
+              className="mt-4 rounded-[8px] border p-3"
+              style={{ borderColor: "var(--border)", background: "var(--grey-50)" }}
+            >
+              <p
+                className="mb-2 text-xs font-semibold uppercase"
+                style={{ color: "var(--ink-mute)", letterSpacing: "0.04em" }}
+              >
+                행정 관리
+              </p>
+              <div className="grid grid-cols-2 gap-2">
+                {/* 대회 승인 — draft → registration_open (server action) */}
+                {selected.status === "draft" ? (
+                  <form action={updateStatusAction}>
+                    <input type="hidden" name="tournament_id" value={selected.id} />
+                    <input type="hidden" name="status" value="registration_open" />
+                    <Btn type="submit" size="sm" variant="primary" block>
+                      대회 승인
+                    </Btn>
+                  </form>
+                ) : (
+                  <Btn type="button" size="sm" variant="ghost" disabled block>
+                    이미 승인됨
+                  </Btn>
+                )}
+                {/* 운영자 변경 — 별 페이지 */}
+                <Link
+                  href={`/admin/tournaments/${selected.id}/transfer-organizer`}
+                  className="ts-btn ts-btn--secondary ts-btn--sm"
+                  style={{ textAlign: "center" }}
+                >
+                  운영자 변경
+                </Link>
+                {/* 감사 로그 — 별 페이지 */}
+                <Link
+                  href={`/admin/tournaments/${selected.id}/audit-log`}
+                  className="ts-btn ts-btn--secondary ts-btn--sm"
+                  style={{ textAlign: "center" }}
+                >
+                  감사 로그
+                </Link>
+                {/* 대회 삭제 — 이름 확인 모달 open(기존 로직) */}
+                <Btn
+                  type="button"
+                  size="sm"
+                  variant="danger"
+                  onClick={() => openDeleteModal(selected)}
+                >
+                  대회 삭제
+                </Btn>
+              </div>
+              <p className="mt-2 text-xs" style={{ color: "var(--ink-mute)" }}>
+                ※ 기본 삭제는 &quot;취소&quot; 처리(복구 가능)입니다.
+                {isSuperAdmin ? " 완전 삭제는 복구할 수 없습니다." : ""}
+              </p>
+            </div>
+          </>
+        )}
+      </Drawer>
+
+      {/* 삭제 확인 모달 — 기존 AdminDetailModal + 로직 100% 보존(데이터/액션 0변경) */}
       {deleteTarget && (
         <AdminDetailModal
           isOpen={!!deleteTarget}
@@ -453,7 +425,6 @@ export function AdminTournamentsContent({
               >
                 취소
               </button>
-              {/* 이름 정확 입력 시에만 활성. hardMode 면 강조(빨강) 표시. */}
               <button
                 type="button"
                 onClick={handleDelete}
@@ -475,7 +446,6 @@ export function AdminTournamentsContent({
           }
         >
           <div className="space-y-4">
-            {/* 경고 안내 — Soft/Hard 분기 설명 */}
             <div
               className="flex items-start gap-2 rounded-md border p-3"
               style={{
@@ -499,7 +469,6 @@ export function AdminTournamentsContent({
               </p>
             </div>
 
-            {/* 이름 확인 입력 — 정확 일치해야 삭제 활성 */}
             <div>
               <label
                 className="mb-1.5 block text-xs"
@@ -525,7 +494,6 @@ export function AdminTournamentsContent({
               />
             </div>
 
-            {/* super_admin 전용 — 완전 삭제(복구불가) 옵션 */}
             {isSuperAdmin && (
               <label
                 className="flex items-center gap-2 text-sm"
@@ -540,7 +508,6 @@ export function AdminTournamentsContent({
               </label>
             )}
 
-            {/* 실패 메시지 */}
             {deleteError && (
               <p className="text-sm" style={{ color: "var(--color-error)" }}>
                 {deleteError}
