@@ -72,6 +72,7 @@ async function handler(
       jersey_number: p.jerseyNumber,
       position: p.position,
       role: p.role,
+      is_elite: p.is_elite ?? false,
       is_starter: p.isStarter ?? false,
     })),
     matches: matches.map((m) => ({
