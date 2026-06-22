@@ -31,6 +31,9 @@ import { loadDraft } from "@/lib/tournaments/wizard-draft";
 // 2026-06-21 Track B B-b Toss 리스킨 — Material Symbols → lucide <Icon> 키트.
 //   비주얼만 교체(아이콘 1:1 매핑)·기능/단계/POST body/라우트 변경 0. data-skin="toss" 루트 opt-in.
 import { Icon } from "@/components/admin-toss";
+// 2026-06-21 Track B Phase4 B-2 — 새 대회 생성폼(2컬럼 단일폼). quick 탭 본문 전면교체.
+//   좌측(대회정보·일정장소) 완성 + 우측 stub(B-3) + 하단 고정 생성바. 제출 POST 배선은 B-4.
+import { CtCreateTournament, type CtDraftPayload } from "./_components/ct-create-tournament";
 
 // --- 3단계 구성 (기존 8탭 → 3단계로 간소화) ---
 // 2026-06-21 Toss B-b — icon 값을 lucide kebab 명으로 교체(아이콘만·라벨/key/단계 동일).
@@ -160,6 +163,12 @@ function QuickCreateForm() {
   const [name, setName] = useState("");
   // 권장 (선택): 시작일 (날짜 입력 type=date — YYYY-MM-DD)
   const [startDate, setStartDate] = useState("");
+  // 2026-06-21 B-2 — 새 대회 생성폼 토스트(시안 toast 콜백 대체). 2.4초 후 자동 사라짐.
+  const [toastMsg, setToastMsg] = useState<string | null>(null);
+  const showToast = useCallback((msg: string) => {
+    setToastMsg(msg);
+    window.setTimeout(() => setToastMsg(null), 2400);
+  }, []);
 
   // 시리즈 dropdown / 인라인 생성 — UI-1.3 의 동일 패턴 재사용
   type SeriesOption = {
@@ -359,6 +368,91 @@ function QuickCreateForm() {
     }
   }
 
+  // === 2026-06-21 B-2 — quick 탭: 2컬럼 단일 생성폼(풀폭). 시안 CreateTournament.
+  //   이유: 시안은 자체 헤더(ct-head)·하단 고정 생성바를 가진 풀폭 단일 페이지 → AdminPageHeader/SUBTABS
+  //         셸과 겹친다. quick 일 때는 셸을 렌더하지 않고 풀폭 폼만 보인다(focused·서브탭 숨김).
+  //   B-4: 게시 모달 확인 시 실제 POST /api/web/tournaments 배선.
+  //   legacy/prospectus/association 전환은 아래 셸 return 에서 처리(quick 외 탭).
+  if (subtab === "quick") {
+    // ── B-4 제출 배선 ──────────────────────────────────────────────────
+    //   왜: payload 는 ct-create-tournament 에서 이미 POST body 형태로 평면변환 완료.
+    //       categories/divCaps/divFees/gameRules/scheduleDates 는 createTournament 가 받는 키 →
+    //       API/schema 확장 0. 응답 키는 apiSuccess snake → redirect_url.
+    const handleSubmitDraft = async (payload: CtDraftPayload) => {
+      setLoading(true); // CtCreateTournament saving 으로 전달 → 모달 버튼 스피너/잠금
+      try {
+        const res = await fetch("/api/web/tournaments", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: payload.name,
+            // 시리즈(정규대회) 연결 — POST seriesId 키(camelCase). 미연결 시 미전송.
+            seriesId: payload.isRegular ? payload.seriesId ?? undefined : undefined,
+            organizer: payload.organizer || undefined,
+            host: payload.host || undefined,
+            // 후원사 = 콤마 구분 plain 문자열(ct-create-tournament 에서 변환). 빈 문자열이면 미전송.
+            sponsors: payload.sponsors || undefined,
+            logoUrl: payload.poster || undefined, // 포스터 → logoUrl(대회 대표 이미지)
+            // 일정·장소(B-1 확장형)
+            startDate: payload.startDate || undefined,
+            endDate: payload.endDate || undefined,
+            registrationStartAt: payload.registrationStartAt || undefined,
+            registrationEndAt: payload.registrationEndAt || undefined,
+            places: payload.places.length > 0 ? payload.places : undefined,
+            scheduleDates: payload.scheduleDates.length > 0 ? payload.scheduleDates : undefined,
+            // 경기 설정(camelCase jsonb)
+            gameRules: payload.gameRules,
+            // 종별·디비전(평면변환된 3개 Record)
+            categories: Object.keys(payload.categories).length > 0 ? payload.categories : undefined,
+            divCaps: Object.keys(payload.divCaps).length > 0 ? payload.divCaps : undefined,
+            divFees: Object.keys(payload.divFees).length > 0 ? payload.divFees : undefined,
+            // 결제(계좌이체)
+            bankName: payload.bankName || undefined,
+            bankAccount: payload.bankAccount || undefined,
+            bankHolder: payload.bankHolder || undefined,
+            // F-1: 후원사 로고·디비전 일정 보존(settings jsonb) — 있을 때만 전송
+            settings: payload.settings,
+          }),
+        });
+        const data = await res.json();
+        if (res.ok) {
+          // 응답 키 — apiSuccess snake_case 변환 → redirect_url. 폴백 camelCase.
+          router.push(data.redirect_url ?? data.redirectUrl ?? "/tournament-admin/tournaments");
+        } else {
+          showToast(data.error ?? "대회 생성 중 오류가 발생했습니다.");
+          setLoading(false);
+        }
+      } catch {
+        showToast("네트워크 오류가 발생했습니다.");
+        setLoading(false);
+      }
+    };
+    return (
+      <div data-skin="toss">
+        <CtCreateTournament
+          seriesOptions={seriesOptions}
+          seriesLoaded={seriesLoaded}
+          myOrgs={myOrgs}
+          onSeriesCreated={handleSeriesCreated}
+          onCancel={() => {
+            if (confirm("진행 중인 작성을 종료하시겠습니까?")) {
+              router.push("/tournament-admin");
+            }
+          }}
+          onSubmitDraft={handleSubmitDraft}
+          saving={loading}
+          toast={showToast}
+        />
+        {/* 토스트 — 하단 중앙 고정 (ts-toast 는 toss-admin.css) */}
+        {toastMsg && (
+          <div className="ts-toast" role="status">
+            {toastMsg}
+          </div>
+        )}
+      </div>
+    );
+  }
+
   return (
     // 2026-06-21 Toss B-b: 위저드(Quick) 루트에 data-skin="toss" opt-in(공유셸 미부착·Phase2 패턴).
     <div data-skin="toss" className="mx-auto max-w-2xl">
@@ -521,8 +615,9 @@ function QuickCreateForm() {
       {/* === 2026-05-28 PR-1C-14 (PA2) — quick 외 sub-tab 선택 시 "전환 안내 카드" ===
           이유: legacy/prospectus/association 탭은 별도 라우트가 정답(라우팅 구조 변경 ❌).
                 각 방식 설명 + 기존 라우트로 이동 버튼만 표시 (시안 L170~191 패턴).
-          박제 룰: 이동 = router.push (legacy 는 ?legacy=1 쿼리). 새 라우트 생성 0 / fetch 0. */}
-      {subtab !== "quick" && (
+          박제 룰: 이동 = router.push (legacy 는 ?legacy=1 쿼리). 새 라우트 생성 0 / fetch 0.
+          2026-06-21 B-2: quick 탭은 위 early-return(2컬럼 폼)으로 분리 → 여기 도달 시 subtab 은 항상 quick 외. */}
+      {(
         <TossCard className="flex flex-col items-center gap-3 py-10 text-center hover:scale-100">
           {/* 2026-06-21 Toss B-b: 동적 Material → lucide <Icon>(SUBTABS.icon 은 이미 kebab). */}
           <Icon
@@ -554,150 +649,7 @@ function QuickCreateForm() {
         </TossCard>
       )}
 
-      {/* 에러 메시지 — color-mix 토큰 (admin 빨강 본문 금지 룰) */}
-      {subtab === "quick" && error && (
-        <div className="mb-4 rounded-md bg-[color-mix(in_srgb,var(--color-error)_10%,transparent)] px-4 py-3 text-sm text-[var(--color-error)]">
-          {error}
-        </div>
-      )}
-
-      {/* quick 탭일 때만 생성 폼 노출 (다른 탭은 위 전환 카드). */}
-      {subtab === "quick" && (
-      <form onSubmit={handleCreate} className="space-y-4">
-        <TossCard className="space-y-4 hover:scale-100">
-          <SectionTitle icon="file-pen">필수 정보</SectionTitle>
-
-          {/* 대회 이름 (필수) — 모바일 44px+ 입력 친화 */}
-          <div>
-            <label className={labelCls}>대회 이름 *</label>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className={inputCls}
-              placeholder="예: 2026 봄 시즌 BDR 대회"
-              autoFocus
-              required
-            />
-          </div>
-
-          {/* 시작일 (선택 — 나중에 설정 가능) */}
-          <div>
-            <label className={labelCls}>시작일 (선택)</label>
-            <input
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              className={inputCls}
-            />
-            <p className="mt-1 text-xs text-[var(--color-text-muted)]">
-              아직 미정이면 비워두세요. 대시보드에서 나중에 설정할 수 있어요.
-            </p>
-          </div>
-
-          {/* 소속 시리즈 (선택) — UI-1.3 패턴 재사용 */}
-          <div>
-            <label className={labelCls}>소속 시리즈 (선택)</label>
-            <select
-              value={seriesId ?? ""}
-              onChange={(e) => setSeriesId(e.target.value === "" ? null : e.target.value)}
-              className={inputCls}
-              disabled={!seriesLoaded}
-            >
-              <option value="">개인 대회 (시리즈 없음)</option>
-              {seriesOptions.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name} ({s.organization?.name ?? "단체 미연결"})
-                </option>
-              ))}
-            </select>
-
-            {/* 빈 상태 + 새 시리즈 트리거 */}
-            {seriesLoaded && !showSeriesForm && seriesOptions.length === 0 && (
-              <div className="mt-2">
-                <p className="mb-2 text-xs text-[var(--color-text-muted)]">
-                  아직 보유한 시리즈가 없습니다.
-                </p>
-                <button
-                  type="button"
-                  onClick={() => setShowSeriesForm(true)}
-                  className="inline-flex items-center gap-1 rounded-[4px] border border-[var(--color-border)] px-3 py-1.5 text-sm text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-border)]"
-                >
-                  <Icon name="plus" size={16} />
-                  새 시리즈 만들기
-                </button>
-              </div>
-            )}
-            {seriesLoaded && !showSeriesForm && seriesOptions.length > 0 && (
-              <div className="mt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowSeriesForm(true)}
-                  className="inline-flex items-center gap-1 text-xs text-[var(--color-info)] hover:underline"
-                >
-                  <Icon name="plus" size={14} />
-                  새 시리즈 만들기
-                </button>
-              </div>
-            )}
-
-            {showSeriesForm && (
-              <InlineSeriesForm
-                myOrgs={myOrgs}
-                onCreated={handleSeriesCreated}
-                onCancel={() => setShowSeriesForm(false)}
-              />
-            )}
-          </div>
-
-          {/* 안내 박스 — 운영자에게 흐름 미리 알려주기 */}
-          <div className="rounded-md border border-[var(--color-border)] bg-[var(--color-elevated)] p-3 text-xs text-[var(--color-text-muted)]">
-            <p className="flex items-start gap-1.5">
-              <Icon name="info" size={16} color="var(--color-info)" />
-              <span>
-                대회를 만든 후 대시보드의 <strong>설정 체크리스트</strong>를 따라 종별/참가비/대진표 등을 단계별로 진행합니다.
-              </span>
-            </p>
-          </div>
-
-          {/* === 2026-05-28 PR-1C-14 (PA2) — 3-step flow 안내 (NOW / NEXT / THEN) ===
-              이유: 운영자가 "지금 입력 → 다음 셋업 → 공개" 전체 흐름을 미리 인지 → 입력 부담 완화.
-              박제 룰: 순수 텍스트 카드 3개. 클릭/이동 없음 → API 영향 0. info 토큰만 사용. */}
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-            {[
-              { num: "NOW", title: "기본 정보 입력", desc: "이름 · 시작일 · 시리즈" },
-              { num: "NEXT", title: "셋업 hub 8 카드", desc: "종별 · 팀 · 대진 · 사이트" },
-              { num: "THEN", title: "공개하기", desc: "사용자가 신청 시작" },
-            ].map((s) => (
-              <div
-                key={s.num}
-                className="rounded-md border border-[var(--color-border)] bg-[var(--color-elevated)] p-3"
-              >
-                <div className="text-xs font-bold text-[var(--color-info)]">{s.num}</div>
-                <div className="mt-1 text-sm font-bold text-[var(--color-text-primary)]">{s.title}</div>
-                <div className="mt-0.5 text-xs text-[var(--color-text-muted)]">{s.desc}</div>
-              </div>
-            ))}
-          </div>
-        </TossCard>
-
-        {/* === 생성 CTA — 풀와이드 / 모바일 친화 44px+ === */}
-        <button
-          type="submit"
-          disabled={loading || !name.trim()}
-          className="btn btn--primary w-full disabled:opacity-50"
-        >
-          {loading ? "생성 중..." : "대회 만들기"}
-        </button>
-
-        {/* 레거시 폼 안내 — 1주 운영 후 폐기 예정. 마음에 안 들면 ?legacy=1 로 돌아가기 가능 */}
-        <p className="text-center text-xs text-[var(--color-text-muted)]">
-          <Link href="/tournament-admin/tournaments/new/wizard?legacy=1" className="hover:underline">
-            예전 상세 폼으로 만들기
-          </Link>
-        </p>
-      </form>
-      )}
+      {/* quick 탭 본문은 위 early-return(2컬럼 풀폭 폼)으로 분리됨 — 여기엔 quick 외 전환 카드만 노출. */}
     </div>
   );
 }

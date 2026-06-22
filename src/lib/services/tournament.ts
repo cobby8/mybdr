@@ -155,10 +155,22 @@ export interface CreateTournamentInput {
   gameTime?: string;
   gameBall?: string;
   gameMethod?: string;
-  places?: { name: string; address: string }[];
+  // 장소(시안 새 대회 생성폼 확장형) — 코트수/명명/지역은 선택. DB는 자유 jsonb라 기존 {name,address}도 통과.
+  places?: {
+    id?: string;
+    name: string;
+    address?: string;
+    region?: string;
+    courtCount?: number;
+    naming?: "num" | "alpha";
+  }[];
   gender?: string;
   rules?: string;
   prizeInfo?: string;
+  // (가) 경기설정 — 시안 GAME_SETTINGS 12키 그대로 저장(jsonb 내부 camelCase 보존). 미전송 시 {}.
+  gameRules?: Record<string, unknown>;
+  // (나) 날짜↔코트 배정 — [{id,date,court_ids:[]}] 구조. 미전송 시 [].
+  scheduleDates?: { id: string; date: string; court_ids: string[] }[];
   // 디자인 템플릿 + 이미지 URL
   designTemplate?: string;
   logoUrl?: string;
@@ -476,6 +488,14 @@ export async function createTournament(input: CreateTournamentInput) {
     game_ball: input.gameBall ?? null,
     game_method: input.gameMethod ?? null,
     places: input.places ?? undefined,
+    // (가) 경기설정 jsonb — 시안 12키 그대로. 미전송 시 {} (스키마 @default 처리).
+    ...(input.gameRules
+      ? { game_rules: JSON.parse(JSON.stringify(input.gameRules)) as Prisma.InputJsonValue }
+      : {}),
+    // (나) 날짜↔코트 jsonb — [{id,date,court_ids:[]}]. 미전송 시 [] (스키마 @default 처리).
+    ...(input.scheduleDates
+      ? { schedule_dates: JSON.parse(JSON.stringify(input.scheduleDates)) as Prisma.InputJsonValue }
+      : {}),
     gender: input.gender ?? null,
     rules: input.rules ?? input.rules ?? null,
     prize_info: input.prizeInfo ?? null,

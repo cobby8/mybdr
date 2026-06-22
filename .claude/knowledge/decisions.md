@@ -2,6 +2,17 @@
 <!-- 담당: planner-architect | 최대 30항목 -->
 <!-- "왜 A 대신 B를 선택했는지" 기술 결정의 배경과 이유를 기록 -->
 
+### [2026-06-21] Track B Phase4 새 대회 생성폼 전면교체 — 4개 PM 결정 + Flutter 게이트 오해 차단
+- **분류**: decision (생성폼 리빌딩 / 경기설정 저장 / 날짜↔코트 스키마 / Flutter 무영향)
+- **발견자**: planner-architect + pm (새 대회 만들기 지시서 정합 조사 2회)
+- **계기**: 지시서가 경기설정(game_rules)을 "🔴 최우선 Flutter 게이트(키 변경 시 수빈 승인)"로 지목. 시안=`_handoff-admin-toss-P0/_deliver_CreateTournament/` 2컬럼 단일폼.
+- **🟢 Flutter 게이트 오해 차단(핵심)**: `match-sync.ts`(759줄)+`/api/v1/.../matches/sync/route.ts` 전수 정독 결과 **game_rules를 읽는 코드 0**. `Tournament.game_rules`(schema L304)는 **죽은 컬럼**(src grep 0). 기록앱은 룰값을 서버에서 안 받고 앱 내부 기본값+현장조정으로 운영, 서버엔 **결과(점수/스탯/PBP)만 sync**. → 시안 "GameRules 1:1 정합"=Flutter 앱 내부 모델 정합이지 서버 계약 아님. **경기설정 서버 박제해도 Flutter 무영향·회귀 0·키 변경 승인 불요**.
+- **PM 결정(사용자) 4건**: ①경기설정 저장 = **`game_rules` 죽은 컬럼 활성**(시안 12키 1:1 박제, settings jsonb 흡수 아님) ②날짜↔코트 = **jsonb 확장 무중단**(`schedule_dates` 신규 컬럼 ADD 1개 + `places` TS타입 확장 + DivisionRule date/court는 settings 흡수, 정규 테이블 신설 ❌) ③리빌딩 범위 = **기존 위저드 전면교체**(UI만 교체·POST/createTournament 백엔드 100% 재사용) ④종별규칙(DivisionRule) = **1차 jsonb 저장만**(createMany 자동생성 보류 — 기존 동작 유지·회귀 최소).
+- **schedule_dates 구조**: `[{id, date, court_ids:["<venueId>_c<idx>"]}]`. 코트 수 1~8=places[].courtCount, 명명(숫자/알파벳)=places[].naming 파생.
+- **대안 기각**: settings jsonb 흡수(game_rules 죽은 컬럼이 더 명시적) / 정규 date_court 테이블(마이그레이션 과투자) / 신규 단일폼 병행(사용자가 전면교체 선택) / DivisionRule createMany 자동생성(다운스트림 중복생성 검증 부담).
+- **배치**: B-1 schema ADD+POST 확장 / B-2 좌측컬럼 / B-3 우측컬럼 / B-4 통합·게시모달. 각 1PR.
+- **참조횟수**: 0
+
 ### [2026-06-21] Track B 대회운영 — 외부 flavor 계약서 vs 실스키마 1:1 대조 (진짜 신규=admin_categories 1건뿐)
 - **분류**: decision (외부 계약서 맹신 금지 / 중복 테이블 생성 방지 / 정원 cap 위치)
 - **발견자**: planner-architect + pm (Track B §0 대조 / 커밋 `367c1d8`)
@@ -2094,4 +2105,16 @@
   - → **Phase4 리빌딩 추가 스키마 변경 0** (admin_categories 1건 외 신규 마이그레이션 없음).
 - **status/payment 배선 확정**: APPLIED=status`pending`+payment`unpaid` / WAITING=status`waiting`(is_waiting 아님)+waiting_number / CONFIRMED=`approved`+payment`paid` / CANCELED=`rejected`+`unpaid`|`refunded`. 계약 §3(WAITING=pending+is_waiting / payment default=pending)은 실필드 불일치 → 위 표가 정합.
 - **참조**: errors.md "외부 flavor 계약 '신규' 주장 ≠ 실스키마" / scratchpad §0 대조표
+- **참조횟수**: 0
+
+### [2026-06-21] Track B Phase4 구현 — 대부분 기존 리스킨, 기능 신규 2건 (dev 머지 #734)
+- **분류**: decision + architecture
+- **발견자**: planner + pm + developer (Phase4 6배치)
+- **핵심**: "대회관리 리빌딩"의 실체 = **기존 구현 위 Toss 리스킨이 대부분**. 참가신청·대회생성·상세·대진은 이미 완전 구현(위치=`(admin)/tournament-admin/tournaments/` + 참가신청은 `(web)/tournaments/[id]/join`). **기능적 신규는 단 2건**.
+- **배치별 결정**:
+  - **참가신청 3단계**(83d697c): 기존 (web) join 리스킨+단계 5→3 축소. **POST/GET/joinSchema/schema 무변경**(기존이 div_caps정원·waiting_number·TTP·status 전부 처리). (web) 다크 영역 내 Toss 예외 스킨 = `.te-enroll[data-skin=toss]` 루트 격리 CSS(globals 의존0). 약관동의 2종 유지(서류 step만 폐지). ⚠️회귀수정=대표자 phone null(카카오/구글) 시 입력칸+canNext 게이트(joinSchema min(1) 정합).
+  - **B-a 입금→자동확정**(d8ea07f·기능신규): teams PATCH 확장 — `payment_status=paid`+status키없음+pending/waiting → `div_caps[division]` 정원가드 하에 approved 자동승격. 초과면 보류(promoted:false). 단일 $transaction·멱등. ⚠️정원 count가 tx 밖(운영자1인 race≈0·후속 tx내 이동 권장).
+  - **B-b/B-c**(2f4e0f9·5e2b358·리스킨): 생성 위저드 + 상세 19파일 Material→lucide·data-skin. 기능1:1.
+  - **B-d 경기별 기록자**(3955d2e·기능신규·PM②): `TournamentMatch.settings` jsonb **merge**(recorder_id set/unset·기존 키 spread 보존·통째덮어쓰기 금지). 풀(tournament_recorders isActive) 외 400. 신규 테이블0.
+- **공통**: 추가 스키마 0·신규 모델 0·TournamentMatch 단일모델 준수. 전 배치 tester+reviewer 통과(차단0). IA=분산 라우트 유지(통합 5탭 미채택)·대기승격=수동.
 - **참조횟수**: 0

@@ -2,6 +2,33 @@
 <!-- 담당: debugger, tester | 최대 30항목 -->
 <!-- 이 프로젝트에서 반복되는 에러 패턴, 함정, 주의사항을 기록 -->
 
+### [2026-06-22] apiSuccess snake 변환은 jsonb 내부·동적 키까지 재귀 → 중첩 map 통째로 망가짐 (snake 함정 7회차)
+- **분류**: 함정 (apiSuccess snake↔camel / jsonb 중첩 / 동적 키)
+- **발견자**: reviewer + tester (생성폼 F-2b 디비전 일정 표시)
+- **증상**: admin divisions에서 디비전별 날짜/코트가 **항상 "–"**. tsc 통과·런타임 에러 없음(사일런트). 운영 영향 당시 0(데이터 미생성)이라 검증 안 했으면 배포 후 발현.
+- **원인**: `apiSuccess()`=`convertKeysToSnakeCase`(`case.ts` L5~18)가 응답 **전체를 재귀** 변환 → jsonb 값으로 넣은 중첩 map `div_schedule={디비전명:{dateId,courtId}}`도 변환 대상. ①내부 키 `dateId`→`date_id` ②**동적 키(디비전명)도 변환**: 영문 `U10`→`_u10`(한글은 보존). 소비처가 camel·원본키 기대 → 룩업 전멸. planner/developer가 "jsonb 내부는 round-trip 보존(snake 변환 안 됨)"으로 가정했으나 **API(apiSuccess) 경로에선 정반대**((web) server 직접 prisma는 camel 보존이라 경로별로 다름 — 헷갈림 원인).
+- **해결**: 단순히 소비처를 snake로 읽게만 고치면 **동적 키 망가짐(U10→_u10)이 남음**. → route에서 **map을 배열로 변환**해 동적 키를 **값**으로 이동: `{디비전명:{dateId,courtId}}` → `[{division:디비전명, dateId, courtId}]`. apiSuccess가 snake해도 `division`은 값이라 원본 보존, 내부만 `date_id/court_id`. 소비처는 `arr.find(e=>e.division===label||code)` + snake 필드로 읽음.
+- **예방**: (a) **settings/jsonb를 apiSuccess로 내보낼 때 동적/영문 키를 가진 중첩 객체는 배열-of-레코드로 변환**(키를 값 필드로). (b) "이 데이터가 apiSuccess 경유인가 vs server 직접 prisma인가" 먼저 판별 — 같은 jsonb라도 **(web) server=camel 보존 / admin API=재귀 snake**로 정반대. (c) snake 변환은 **중첩·배열·동적 키까지 전부** 건드린다(최상위만이 아님). (d) 데이터 0건이라도 **시뮬레이션/코드추적으로 변환 후 키 형태** 확인.
+- **참조횟수**: 0
+
+### [2026-06-22] 폼 필드 타입 ≠ DB 컬럼 타입 → route body `any` 통과 → 런타임 500 (tsc 미검출)
+- **분류**: 함정 (폼↔DB 타입 정합 / 사일런트 런타임 에러)
+- **발견자**: reviewer (새 대회 생성폼 B-4 리뷰)
+- **증상**: 새 생성폼이 후원사를 `{name,logoUrl}[]` **객체배열**로 전송. tsc EXIT 0 통과·페이지 렌더 정상. 그러나 후원사를 1개라도 추가해 "대회 생성"하면 **런타임 500**(0개면 우회되어 안 터짐 → 검증 누락되기 쉬움).
+- **원인**: `POST /api/web/tournaments` route의 body가 `any`(zod 미적용) → 타입 불일치가 **tsc로 안 잡힘**. `createTournament`가 그대로 Prisma `sponsors String? @db.VarChar`(schema L313) 컬럼에 객체배열 INSERT 시도 → DB 타입에러. `Tournament.sponsors` 컬럼의 실제 소비처 = (a) 수정 wizard(쉼표구분 textarea) (b) OBS 스코어보드(문자열 필터) **둘 다 콤마 plain 문자열**. ⚠️ `tournament-about.tsx` L42 `.split(",")`는 `description`의 "Sponsored By:" 라인 파서이지 sponsors 컬럼 소비 아님(2026-06-22 planner 정정 — 최초 오인 박제분 수정).
+- **해결**: 폼 전송을 **소비처 포맷(콤마 plain 문자열)에 맞춤** — `sponsors.map(s=>s.name.trim()).filter(Boolean).join(", ")` (String 컬럼 유지). JSON.stringify(A안)은 기존 소비처가 깨져서 기각. 로고URL은 후속(F-1)에서 `settings.sponsor_logos` jsonb로 분리 저장.
+- **예방**: (a) **신규 폼 필드를 DB에 저장하기 전, ①소비처(표시화면)가 그 값을 어떻게 read/parse하는지 ②DB 컬럼 실제 타입(String/Json/Int) 을 grep으로 먼저 확인**하고 거기에 맞춰 전송. 임의 포맷 추측 금지. (b) route body가 `any/zod미적용`이면 tsc가 폼↔DB 타입 불일치를 **절대 못 잡음** → 객체/배열을 String 컬럼에 보내는 실수가 사일런트. (c) tester는 "0개일 때만 동작"하는 optional 필드를 **1개+ 넣고** 제출 경로까지 점검(운영 DB 오염 주의 — 코드추적으로 대체).
+- **참조횟수**: 0
+
+### [2026-06-21] paper 기록모드 = 플러터 앱 기록 서버 차단 → "기록했는데 0건" 운영 함정
+- **분류**: 함정 (기록 모드 / 운영)
+- **발견자**: live-expert (마스터즈 대회 기록 안뜸 조사)
+- **증상**: 운영자가 "플러터 기록앱으로 대회를 기록 중인데 대회 기록 화면에 1건도 안 뜬다". DB 실측 시 해당 대회 경기 전부 `scheduled`·PBP/stats/scoreboard 0건. 사용자 인식("기록 중")과 DB(0건)가 정면 충돌.
+- **원인**: 경기 `settings.recording_mode="paper"`. `recording-mode.ts` §게이팅 — **Flutter v1 sync 라우트는 paper 매치를 server-side 차단**(웹 종이기록지와 충돌 방지). 즉 앱이 기록을 보내도 서버가 거부 → 앱 로컬엔 데이터 있으나 서버 0건. 대회가 `registration` 상태에 머물러 "진행중"으로도 안 보임. (마스터즈는 6/20 누군가 flutter→paper 일괄전환했었음)
+- **해결**: `recording-mode/bulk` 로직으로 경기+대회 default → **flutter 재전환**(audit 박제). 모드 풀리는 즉시 앱이 보관하던 데이터 자동 동기화(경기342: 235 PBP·completed). 단 앱이 이미 "전송완료/실패"로 처리한 과거 경기는 일괄동기화서 스킵 → **경기별 강제 재전송** 필요(앱 측).
+- **예방**: (a) "기록 안뜸" 신고 시 **먼저 `recording_mode` 확인**(paper면 앱 기록 차단이 원인). (b) 기록 방식(flutter/paper)과 대회 모드 설정 일치 점검. (c) 서버엔 데이터 없는데 "연결해달라" 요청 시 **가짜 입력 금지** — 앱 동기화로만 복구. (d) 코드버그: `status/route.ts:99` 경기→대회 자동 in_progress 화이트리스트 `[draft,registration_open,registration_closed]`에 **`registration` 누락** → 추가 검토.
+- **참조횟수**: 0
+
 ### [2026-06-19] `prisma db push` broad 실행 위험 — schema 미선언 FK 드리프트(live_scoreboards) 운영 유실 가능
 - **분류**: error (운영 DB / 스키마 드리프트)
 - **발견자**: developer (매칭 M2 ADD COLUMN 작업)
@@ -332,6 +359,7 @@
   - **Step 1 (90% 케이스)**: dev 서버 단순 재시작 (Ctrl+C → `npm run dev`)
   - **Step 2 (Step 1 실패 시)**: `.next` + `node_modules/.cache` 삭제 후 재시작
   - **금지**: `taskkill //f //im node.exe` (다른 프로젝트 dev 서버 + Claude Code 자체 동시 죽음). 포트별 PID 종료만 허용
+- **변종 [2026-06-22] FATAL panic `Failed to write app endpoint /(web)/page · Caused by globals.css · 0xc0000142`**: PostCSS 자식 프로세스(node) spawn 실패(`0xc0000142`=Windows DLL 초기화 실패). globals.css 미변경인데 발생 = 캐시 손상/프로세스 자원 고갈(세션 중 에이전트가 node 다수 spawn한 여파 추정). 기동은 `Ready` 뜨나 **첫 요청 컴파일에서 500 panic 반복**. **🔑 이 변종은 재시작 단독(Step 1) 불충분 — 반드시 `.next` 삭제(Step 2) 직행**(포트 PID 종료 → `rm -rf .next` → `npm run dev` → curl로 GET / 200 확인). 코드 회귀 아님(tsc 0).
 - **재발 방지 룰**:
   - **큰 파일 ± 의존 컴포넌트 동시 변경 commit/머지 후** → dev 서버 자동 재시작 권장 (HMR 신뢰 X)
   - **"Recoverable Error" 라벨 = 코드 문제 아님** 1차 가설로 dev 서버 재시작부터. 코드 회귀 X

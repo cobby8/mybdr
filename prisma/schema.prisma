@@ -315,6 +315,8 @@ model Tournament {
   game_ball                              String?                       @db.VarChar
   game_method                            String?
   places                                 Json?
+  // 날짜↔코트 배정(시안 새 대회 생성폼). 구조 = [{id,date,court_ids:[]}]. NULL 허용·무중단 ADD.
+  schedule_dates                         Json?                         @default("[]") @map("schedule_dates")
   gender                                 String?                       @db.VarChar
   design_template                        String?                       @db.VarChar
   status                                 String?                       @default("draft") @db.VarChar
