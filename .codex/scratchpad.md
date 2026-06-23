@@ -9,6 +9,7 @@
 | WS1 운영 워크스페이스 | 완료 | `[id]/page.tsx` 구조 전환, API/DB 변경 없음 |
 
 ## 작업 로그
+- 2026-06-23 housekeeping: 사용 완료된 `scripts/_temp/count-news-photo.mjs` 임시 실측 스크립트 정리.
 - 2026-06-23 docs: 라이브 도메인 전담 에이전트 정의 `live-expert`를 `.codex/agents`에 추가.
 - 2026-06-23 docs: 프로젝트 작업 규칙 `AGENTS.md`를 repo 기준 문서로 추가.
 - 2026-06-23 docs: 루트 대회상태/기록실 CLI·시안 문서와 시안 커버리지 전수조사 문서를 이력으로 정리.
