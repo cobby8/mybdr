@@ -480,6 +480,14 @@ export async function GET(
       const key = typeof ttpId === "bigint" ? ttpId : BigInt(ttpId);
       return pbpMinutesBySec.get(key) ?? 0;
     };
+    const getSyncedSec = (stat: { minutesPlayed?: number | null } | null | undefined): number | null => {
+      const sec = stat?.minutesPlayed;
+      return typeof sec === "number" && Number.isFinite(sec) && sec > 0 ? sec : null;
+    };
+    const getDisplaySec = (
+      ttpId: number | bigint | null | undefined,
+      stat?: { minutesPlayed?: number | null } | null,
+    ): number => getSyncedSec(stat) ?? getPbpSec(ttpId);
     const getPbpQuarterSec = (ttpId: number | bigint, q: number): number => {
       const key = typeof ttpId === "bigint" ? ttpId : BigInt(ttpId);
       return pbpMinutesByQ.get(key)?.get(q) ?? 0;
@@ -675,10 +683,10 @@ export async function GET(
         const row = statsMap.get(pid);
         if (!row) continue;
 
-        // (시간) PBP-only 총 출전초
-        const totalPbp = getPbpSec(pid);
-        row.min_seconds = totalPbp;
-        row.min = Math.round(totalPbp / 60);
+        // Prefer app-synced total seconds; fall back to PBP inference.
+        const totalSec = getDisplaySec(pid, stat);
+        row.min_seconds = totalSec;
+        row.min = Math.round(totalSec / 60);
 
         // quarterStatsJson 에서 plus_minus 만 추출 → quarter_stats 주입
         if (stat.quarterStatsJson) {
@@ -789,11 +797,10 @@ export async function GET(
           row.quarter_stats = merged;
         }
       }
-      // 2026-05-03: 진행 중 분기 — 모든 row 의 row.min/min_seconds 도 PBP-only 로 통일
-      // (위 quarterStatsJson 처리는 match.playerStats 가 있는 row 만 다룸 → 없는 row 보강)
+      // Fill missing row.min/min_seconds from PBP without overwriting app-synced minutes.
       for (const row of [...homePlayers, ...awayPlayers]) {
         const totalPbp = getPbpSec(row.id);
-        if (totalPbp > 0) {
+        if ((row.min_seconds ?? 0) <= 0 && totalPbp > 0) {
           row.min_seconds = totalPbp;
           row.min = Math.round(totalPbp / 60);
         }
@@ -833,8 +840,8 @@ export async function GET(
       const toPlayerRow = (player: TtpEntry, stat: PlayerStatEntry | null): PlayerRow => {
         const user = player.users;
         const playerIdNum = Number(player.id);
-        // PBP-only 출전시간 (DNP 시 0)
-        const minSeconds = getPbpSec(playerIdNum);
+        // Prefer app-synced total seconds; fall back to PBP inference.
+        const minSeconds = getDisplaySec(playerIdNum, stat);
         const row: PlayerRow = {
           // 2026-05-16: id = ttp.id 로 통일 (기존 stat.id 는 stat 없을 때 null → 라인업 fallback row 박제 불가).
           //   line 1155 BUG 주석 ("home_players[].id 분기에 따라 ttp.id 또는 stat.id") 도 본 변경으로 자동 해소.

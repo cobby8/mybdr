@@ -755,6 +755,37 @@ export default function LiveBoxScorePage() {
     }
   }, [id]);
 
+  const handleShareLivePage = useCallback(async () => {
+    if (typeof window === "undefined" || !match) return;
+
+    const url = window.location.href;
+    const title = `${match.home_team.name} vs ${match.away_team.name}`;
+    const text = `${match.tournament_name} 라이브 스코어`;
+    const showMessage = (message: string, delayMs = 2200) => {
+      setTransientError(message);
+      window.setTimeout(() => {
+        setTransientError((current) => (current === message ? null : current));
+      }, delayMs);
+    };
+
+    try {
+      if (navigator.share) {
+        await navigator.share({ title, text, url });
+        return;
+      }
+      await navigator.clipboard.writeText(url);
+      showMessage("라이브 링크를 복사했습니다");
+    } catch (err) {
+      if ((err as Error)?.name === "AbortError") return;
+      try {
+        await navigator.clipboard.writeText(url);
+        showMessage("라이브 링크를 복사했습니다");
+      } catch {
+        showMessage("링크 복사에 실패했습니다", 2500);
+      }
+    }
+  }, [match]);
+
   useEffect(() => {
     fetchMatch();
     timerRef.current = setInterval(fetchMatch, POLL_INTERVAL);
@@ -1227,8 +1258,11 @@ export default function LiveBoxScorePage() {
             color: "var(--color-warning, #f59e0b)",
           }}
         >
-          <span className="material-symbols-outlined text-sm animate-spin" style={{ animationDuration: "1.5s" }}>
-            sync
+          <span
+            className={`material-symbols-outlined text-sm ${transientError.includes("링크") ? "" : "animate-spin"}`}
+            style={{ animationDuration: "1.5s" }}
+          >
+            {transientError.includes("링크") ? "content_copy" : "sync"}
           </span>
           {transientError}
         </div>
@@ -1383,6 +1417,30 @@ export default function LiveBoxScorePage() {
             </button>
           )}
           {/* 헤더 우측: 테마 토글만 유지. 새로고침 버튼은 스코어카드 가운데로 이동 (Phase 1) */}
+          <button
+            type="button"
+            onClick={handleShareLivePage}
+            aria-label="라이브 페이지 공유"
+            title="라이브 페이지 공유"
+            className="hidden sm:flex items-center gap-1 px-2 py-1.5 rounded-md text-xs transition-colors hover:bg-[var(--color-elevated)]"
+            style={{
+              color: "var(--color-text-secondary)",
+              border: "1px solid var(--color-border)",
+            }}
+          >
+            <span className="material-symbols-outlined text-base">ios_share</span>
+            <span>공유</span>
+          </button>
+          <button
+            type="button"
+            onClick={handleShareLivePage}
+            aria-label="라이브 페이지 공유"
+            title="라이브 페이지 공유"
+            className="sm:hidden flex items-center justify-center w-8 h-8 rounded-md transition-colors hover:bg-[var(--color-elevated)]"
+            style={{ color: "var(--color-text-secondary)" }}
+          >
+            <span className="material-symbols-outlined text-base">ios_share</span>
+          </button>
           <ThemeToggle />
         </div>
       </div>
@@ -2145,12 +2203,12 @@ function BoxScoreTable({
                     {/* 2026-05-10 PlayerLink/TeamLink 2단계 — DNP 행 이름 셀도 동일하게 link. */}
                     <PlayerLink userId={p.user_id} name={p.name} />
                   </td>
-                  {/* MIN 셀에 "DNP" — text-xs + semibold + muted 색으로 시각적 구분 */}
+                  {/* MIN 셀: 앱 통계 화면과 동일하게 미출전은 "-"로 표시 */}
                   <td
                     className="py-2 px-0.5 text-center text-xs font-semibold tracking-wider"
                     style={{ color: "var(--color-text-muted)" }}
                   >
-                    DNP
+                    -
                   </td>
                   {/* 나머지 16개 스탯 셀은 모두 "-" */}
                   <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-muted)" }}>-</td>
@@ -2771,12 +2829,12 @@ function PrintBoxScoreTable({
                 <td>{p.plus_minus != null ? (p.plus_minus > 0 ? `+${p.plus_minus}` : p.plus_minus) : "-"}</td>
               </tr>
             ))}
-            {/* DNP 행 — MIN에 "DNP", 나머지 "-" */}
+            {/* DNP 행 — MIN 포함 전부 "-" */}
             {dnpPlayers.map((p) => (
               <tr key={`dnp-${p.id}`}>
                 <td>{p.jersey_number ?? "-"}</td>
                 <td style={{ textAlign: "left" }}>{p.name}</td>
-                <td style={{ fontWeight: 600 }}>DNP</td>
+                <td style={{ fontWeight: 600 }}>-</td>
                 <td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td>
                 <td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td>
               </tr>

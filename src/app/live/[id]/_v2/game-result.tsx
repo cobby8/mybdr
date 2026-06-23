@@ -18,7 +18,7 @@
 // 진입: /live/[id] (경기 종료 자동) / 알림 "경기 결과 보기" 클릭
 // 복귀: /games/[id] / /games/my-games / /live (다른 경기 보기)
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { HeroScoreboard } from "./hero-scoreboard";
 import { MvpBanner } from "./mvp-banner";
@@ -207,6 +207,38 @@ export function GameResultV2({ match }: { match: MatchDataV2 }) {
   const [printDialogOpen, setPrintDialogOpen] = useState(false);
   const [printOptions, setPrintOptions] = useState<PrintOptions | null>(null);
   const [isPrinting, setIsPrinting] = useState(false);
+  const [shareMessage, setShareMessage] = useState<string | null>(null);
+
+  const handleShareResultPage = useCallback(async () => {
+    if (typeof window === "undefined") return;
+
+    const url = window.location.href;
+    const title = `${match.home_team.name} vs ${match.away_team.name}`;
+    const text = `${match.tournament_name} 경기 결과`;
+    const showMessage = (message: string, delayMs = 2200) => {
+      setShareMessage(message);
+      window.setTimeout(() => {
+        setShareMessage((current) => (current === message ? null : current));
+      }, delayMs);
+    };
+
+    try {
+      if (navigator.share) {
+        await navigator.share({ title, text, url });
+        return;
+      }
+      await navigator.clipboard.writeText(url);
+      showMessage("링크를 복사했습니다");
+    } catch (err) {
+      if ((err as Error)?.name === "AbortError") return;
+      try {
+        await navigator.clipboard.writeText(url);
+        showMessage("링크를 복사했습니다");
+      } catch {
+        showMessage("링크 복사에 실패했습니다", 2500);
+      }
+    }
+  }, [match]);
 
   // OT 쿼터 분리 — 다이얼로그/박스스코어/인쇄 모두 OT1/OT2+ 분리 지원 (2026-05-20).
   // otCount = home.ot 배열 길이 (0=없음 / 1=OT1만 / 2=OT1+OT2 / N+). hasOT는 backward-compat.
@@ -272,6 +304,35 @@ export function GameResultV2({ match }: { match: MatchDataV2 }) {
       className="page"
       style={{ maxWidth: 1200, margin: "0 auto", padding: "24px 16px" }}
     >
+      {shareMessage && (
+        <div
+          data-print-hide
+          role="status"
+          aria-live="polite"
+          style={{
+            position: "fixed",
+            top: 16,
+            right: 16,
+            zIndex: 50,
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            padding: "8px 12px",
+            borderRadius: 8,
+            background: "var(--surface)",
+            border: "1px solid var(--border)",
+            color: "var(--ink)",
+            boxShadow: "0 10px 24px rgba(0, 0, 0, 0.18)",
+            fontSize: 13,
+          }}
+        >
+          <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
+            content_copy
+          </span>
+          {shareMessage}
+        </div>
+      )}
+
       {/* 2026-05-02: 종료 매치 페이지 nav bar — 뒤로/홈 + 토너먼트명 (페이지 나가기 기능)
           data-print-hide 으로 프린트 시 자동 숨김 */}
       <div
@@ -345,6 +406,29 @@ export function GameResultV2({ match }: { match: MatchDataV2 }) {
         >
           {match.tournament_name}
         </span>
+        <button
+          type="button"
+          onClick={handleShareResultPage}
+          aria-label="라이브 결과 페이지 공유"
+          title="라이브 결과 페이지 공유"
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            width: 34,
+            height: 34,
+            background: "transparent",
+            border: "1px solid var(--border)",
+            borderRadius: 6,
+            color: "var(--ink-soft)",
+            cursor: "pointer",
+            touchAction: "manipulation",
+          }}
+        >
+          <span className="material-symbols-outlined" style={{ fontSize: 18 }}>
+            ios_share
+          </span>
+        </button>
         {/* 경기 종료 라벨 */}
         <span
           style={{
