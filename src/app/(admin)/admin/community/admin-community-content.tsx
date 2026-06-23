@@ -21,13 +21,22 @@
 //   - page.tsx 서버쿼리·requireSuperAdmin·hide/unhide/delete 3 액션 0 변경
 
 import { useState } from "react";
-import { AdminStatusTabs } from "@/components/admin/admin-status-tabs";
 import {
   AdminDetailModal,
   ModalInfoSection,
 } from "@/components/admin/admin-detail-modal";
 // Phase 1 (Toss 전환) — Material Symbols → lucide(<Icon>)
 import { Icon } from "@/components/admin-toss";
+// v2.40 A3-2a — 통합 콘솔 키트(통계 띠/툴바/목록). 상태탭=Toolbar / 목록=DataTable.
+//   ⚠ 상세 모달(AdminDetailModal)·hide/unhide/delete·카테고리 chip 은 기존 그대로 보존.
+import {
+  StatRow,
+  Toolbar,
+  DataTable,
+  PrimaryCell,
+  StatusBadge,
+  type Column,
+} from "@/components/admin/console-kit";
 
 // 2026-05-15 Admin-4-C 박제 — 상태별 admin-stat-pill data-tone 매핑
 //   hidden 일 때만 warn(주황), 정상 게시는 ok(녹) (시안 v2.9 status_tone 패턴 박제)
@@ -67,6 +76,70 @@ const CATEGORY_LABEL: Record<string, string> = {
   notice: "공지사항",
   marketplace: "농구장터",
 };
+
+// v2.40 A3-2a — 목록 날짜 포맷(컴포넌트 밖 상수 함수 — 매 렌더 재생성 방지).
+const fmtListDate = (iso: string) => new Date(iso).toLocaleDateString("ko-KR");
+
+// v2.40 A3-2a — 키트 DataTable 컬럼(제목/카테고리/작성자/날짜). 기존 표 컬럼/문구 1:1 유지.
+//   제목 셀: 숨김/삭제됨 prefix + dim 처리 보존(기존 동작 동일).
+const POST_COLUMNS: Column<SerializedPost>[] = [
+  {
+    key: "title",
+    label: "제목",
+    render: (p) => {
+      const isHidden = p.status === "hidden";
+      const isDeleted = p.status === "deleted";
+      return (
+        <PrimaryCell
+          title={
+            <span className={isHidden || isDeleted ? "opacity-60" : undefined}>
+              {isHidden && (
+                <span className="mr-1.5 text-xs" style={{ color: "var(--color-error)" }}>[숨김]</span>
+              )}
+              {isDeleted && (
+                <span className="mr-1.5 text-xs" style={{ color: "var(--color-error)" }}>[삭제됨]</span>
+              )}
+              {p.title}
+            </span>
+          }
+        />
+      );
+    },
+  },
+  {
+    key: "category",
+    label: "카테고리",
+    width: "120px",
+    render: (p) => (
+      <StatusBadge
+        map={{
+          cat: { tone: "grey", label: CATEGORY_LABEL[p.category ?? ""] ?? p.category ?? "기타" },
+        }}
+        value="cat"
+      />
+    ),
+  },
+  {
+    key: "author",
+    label: "작성자",
+    width: "120px",
+    hideSm: true,
+    render: (p) => (
+      <span style={{ color: "var(--color-text-muted)" }}>
+        {p.authorName ?? p.authorEmail ?? "-"}
+      </span>
+    ),
+  },
+  {
+    key: "date",
+    label: "날짜",
+    width: "100px",
+    hideSm: true,
+    render: (p) => (
+      <span style={{ color: "var(--color-text-muted)" }}>{fmtListDate(p.createdAt)}</span>
+    ),
+  },
+];
 
 interface Props {
   posts: SerializedPost[];
@@ -122,47 +195,25 @@ export function AdminCommunityContent({
 
   return (
     <>
-      {/* 5C-5 CA1 — Hero 4-stat (전체/핀/신고/삭제됨) 실측 집계. 핀·신고는 데이터/모델 부재 "—" hide
-          OA1(단체 관리) Hero 4분면 grid 패턴 답습 */}
-      <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
-        {[
-          { label: "전체", value: posts.length, tone: "ok" as const },
-          // 핀: community_posts 핀 필드 부재 → mock 0 → "—"
-          { label: "핀", value: "—", tone: "mute" as const },
+      {/* v2.40 A3-2a — Hero 4-stat 을 키트 StatRow 로 통일 (전체/핀/신고/삭제됨).
+          핀·신고는 데이터/모델 부재로 "—" 그대로(기존 동작 유지·집계 0변경). */}
+      <StatRow
+        items={[
+          { icon: "file-text", label: "전체", value: posts.length },
+          // 핀: community_posts 핀 필드 부재 → "—"
+          { icon: "pin", label: "핀", value: "—" },
           // 신고: 신고(Report) 모델 운영 부재 (A2 lock) → "—"
-          { label: "신고", value: "—", tone: "mute" as const },
-          { label: "삭제됨", value: deletedPosts.length, tone: "err" as const },
-        ].map((s) => (
-          <div
-            key={s.label}
-            className="rounded-md border border-[var(--color-border)] bg-[var(--color-card)] px-4 py-3"
-          >
-            {/* 숫자: 상태별 토큰 색 (OA1 Hero stat 톤 매핑 동일) */}
-            <div
-              className="text-2xl font-black tabular-nums"
-              style={{
-                color:
-                  s.tone === "ok"
-                    ? "var(--color-success)"
-                    : s.tone === "err"
-                      ? "var(--color-error)"
-                      : "var(--color-text-muted)",
-              }}
-            >
-              {s.value}
-            </div>
-            <div className="mt-0.5 text-xs font-medium text-[var(--color-text-muted)]">
-              {s.label}
-            </div>
-          </div>
-        ))}
-      </div>
+          { icon: "flag", label: "신고", value: "—" },
+          { icon: "trash-2", label: "삭제됨", value: deletedPosts.length },
+        ]}
+      />
 
-      {/* 5C-5 CA1 — 상태 탭 (활성/삭제됨). 탭 전환 시 카테고리 필터 초기화 */}
-      <AdminStatusTabs
-        tabs={statusTabs}
-        activeTab={statusTab}
-        onChange={(k) => {
+      {/* v2.40 A3-2a — 상태 탭(활성/삭제됨)을 키트 Toolbar 로 통일. 탭 전환 시 카테고리 필터 초기화.
+          상태 탭은 active/deleted 단순 분기라 useFilter 미사용(기존 statusTab 로직 유지). */}
+      <Toolbar
+        tabs={statusTabs.map((t) => ({ id: t.key, label: t.label, n: t.count }))}
+        active={statusTab}
+        onTab={(k) => {
           setStatusTab(k);
           setCatFilter("all");
         }}
@@ -181,64 +232,15 @@ export function AdminCommunityContent({
         ))}
       </div>
 
-      {/* 2026-05-04: <Card> wrapper 제거 — (web) board 와 동일 단순 구조 */}
-      <div className="overflow-x-auto admin-table-wrap">
-        {/* admin-table: 모바일 ≤720px 카드 변환 (globals.css [Admin Phase B]) */}
-        <table className="admin-table w-full text-left text-sm">
-          <thead>
-            <tr>
-              <th className="px-5 py-4 font-medium">제목</th>
-              <th className="w-[100px] px-5 py-4 font-medium">카테고리</th>
-              <th className="w-[100px] px-5 py-4 font-medium">작성자</th>
-              <th className="w-[90px] px-5 py-4 font-medium">날짜</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.map((p) => {
-              const isHidden = p.status === "hidden";
-              // 5C-5 CA1 — 삭제됨 글도 prefix + dim 처리 (삭제됨 탭 표시용)
-              const isDeleted = p.status === "deleted";
-              return (
-                <tr
-                  key={p.id}
-                  onClick={() => setSelected(p)}
-                  className={`cursor-pointer ${isHidden || isDeleted ? "opacity-60" : ""}`}
-                >
-                  <td data-primary="true" className="px-5 py-3">
-                    <p className="truncate font-medium" style={{ color: "var(--color-text-primary)" }}>
-                      {isHidden && (
-                        <span className="mr-1.5 text-xs" style={{ color: "var(--color-error)" }}>[숨김]</span>
-                      )}
-                      {isDeleted && (
-                        <span className="mr-1.5 text-xs" style={{ color: "var(--color-error)" }}>[삭제됨]</span>
-                      )}
-                      {p.title}
-                    </p>
-                  </td>
-                  <td data-label="카테고리" className="px-5 py-3">
-                    {/* 2026-05-15 Admin-4-C 박제 — admin-stat-pill[data-tone="mute"] 통일
-                        (시안 v2.9 type_label 패턴 — 카테고리는 의미 톤 0 = mute) */}
-                    <span className="admin-stat-pill" data-tone="mute">
-                      {CATEGORY_LABEL[p.category ?? ""] ?? p.category ?? "기타"}
-                    </span>
-                  </td>
-                  <td data-label="작성자" className="px-5 py-3 truncate" style={{ color: "var(--color-text-muted)" }}>
-                    {p.authorName ?? p.authorEmail ?? "-"}
-                  </td>
-                  <td data-label="날짜" className="px-5 py-3" style={{ color: "var(--color-text-muted)" }}>
-                    {fmtDate(p.createdAt)}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-        {filtered.length === 0 && (
-          <div className="p-8 text-center" style={{ color: "var(--color-text-muted)" }}>
-            게시글이 없습니다.
-          </div>
-        )}
-      </div>
+      {/* v2.40 A3-2a — 키트 DataTable (제목/카테고리/작성자/날짜). 행 클릭=기존 상세 모달 열기 그대로.
+          숨김/삭제됨 prefix·dim 처리는 컬럼 render 에서 보존(POST_COLUMNS). */}
+      <DataTable<SerializedPost>
+        keyField="id"
+        rows={filtered}
+        columns={POST_COLUMNS}
+        onRowClick={(p) => setSelected(p)}
+        emptyTitle="게시글이 없습니다."
+      />
 
       {/* 상세 모달 */}
       {selected && (

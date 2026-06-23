@@ -16,6 +16,8 @@ import { AdminPageHeader } from "@/components/admin/admin-page-header";
 import { AdminUsersTable } from "./admin-users-table";
 // Phase 1 (Toss 전환) — Material Symbols → lucide(<Icon>)
 import { Icon } from "@/components/admin-toss";
+// v2.40 A3-2a — 통합 콘솔 키트(통계 띠). Hero 4-stat 을 키트 StatRow 로 통일.
+import { StatRow } from "@/components/admin/console-kit";
 // 6.1C-5(PA1) 박제: 본인 자기 정지 가드 표시용 — 현재 로그인 슈퍼관리자 식별
 import { getWebSession } from "@/lib/auth/web-session";
 // 2026-06-13 PR-PERM-DISPLAY §2-4 — 부제 슈퍼관리자 상한 하드코딩 "4" → 단일 source.
@@ -147,26 +149,16 @@ export default async function AdminUsersPage({
         }
       />
 
-      {/* 6.1C-5(PA1) 박제: Hero 4-stat strip — 시안 oa1-hero__stats 패턴 (전체/활성/정지/관리자)
-          전부 실측 (totalCount / status groupBy / superAdminCount). 우승(titles)은 미페칭이라 hide */}
-      <div className="pa1-hero-stats">
-        <div className="pa1-hero-stat">
-          <div className="pa1-hero-stat__num">{totalCount.toLocaleString()}</div>
-          <div className="pa1-hero-stat__lbl">전체</div>
-        </div>
-        <div className="pa1-hero-stat">
-          <div className="pa1-hero-stat__num" data-tone="ok">{activeCount.toLocaleString()}</div>
-          <div className="pa1-hero-stat__lbl">활성</div>
-        </div>
-        <div className="pa1-hero-stat">
-          <div className="pa1-hero-stat__num" data-tone="err">{suspendedCount.toLocaleString()}</div>
-          <div className="pa1-hero-stat__lbl">정지</div>
-        </div>
-        <div className="pa1-hero-stat">
-          <div className="pa1-hero-stat__num" data-tone="warn">{superAdminCount.toLocaleString()}</div>
-          <div className="pa1-hero-stat__lbl">관리자</div>
-        </div>
-      </div>
+      {/* v2.40 A3-2a — Hero 4-stat 을 키트 StatRow 로 통일 (전체/활성/정지/관리자)
+          카운트는 기존 실측 그대로 재사용 (totalCount / status groupBy / superAdminCount) — 신규 쿼리 0. */}
+      <StatRow
+        items={[
+          { icon: "users", label: "전체", value: totalCount.toLocaleString() },
+          { icon: "user-check", label: "활성", value: activeCount.toLocaleString() },
+          { icon: "user-x", label: "정지", value: suspendedCount.toLocaleString() },
+          { icon: "shield", label: "관리자", value: superAdminCount.toLocaleString() },
+        ]}
+      />
 
       {error && (
         <div

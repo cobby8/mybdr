@@ -18,6 +18,15 @@ import { useState, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 // Phase 2A (Toss 전환) — Material Symbols → lucide(<Icon>) 키트
 import { Icon } from "@/components/admin-toss";
+// v2.40 A3-2a — 통합 콘솔 키트(목록/툴바). 목록 table→DataTable + Toolbar(검색).
+//   ⚠ 입력 폼(선수검색 autocomplete)·upsert/delete 액션은 전부 기존 그대로 보존.
+import {
+  Toolbar,
+  DataTable,
+  useFilter,
+  type Column,
+  type FilterableRow,
+} from "@/components/admin/console-kit";
 
 import {
   SEASON_AWARD_CATEGORIES,
@@ -67,6 +76,14 @@ interface UserHit {
   email: string | null;
   name: string | null;
 }
+
+// v2.40 A3-2a — useFilter 검색 행 타입(키트 FilterableRow 제약 충족 위해 교차).
+//   상태탭 없음 → tab="all" 고정. 검색만 사용(시리즈/카테고리/수상자/코멘트).
+//   _search = 검색 대상 텍스트를 합친 단일 필드(소문자 부분일치).
+type AwardRow = SerializedAward & { _search: string } & FilterableRow;
+
+// useFilter 검색 필드(컴포넌트 밖 상수 — 매 렌더 새 참조 방지·승인 규약 §3).
+const FILTER_FIELDS: (keyof AwardRow)[] = ["_search"];
 
 interface Props {
   seriesList: SeriesOption[];
@@ -131,6 +148,94 @@ export function AdminSeasonAwardsContent({
   // mvp_quote 카테고리는 quote 필드, 그 외는 comment 필드 강조
   const isQuoteCat = category === "mvp_quote";
   const multiSlot = SEASON_AWARD_MULTI_SLOT[category];
+
+  // v2.40 A3-2a — 목록 검색용 rows 변환. 각 행에 검색 대상 텍스트(_search)를 합쳐 부여.
+  //   시리즈명/카테고리라벨/수상자명·팀명/코멘트를 소문자로 합침(useFilter 부분일치).
+  const awardRows: AwardRow[] = awards.map((a) => {
+    const catLabel =
+      SEASON_AWARD_CATEGORY_LABELS[a.category as SeasonAwardCategory] ?? a.category;
+    const recipient = a.recipientName ?? a.teamName ?? "";
+    const commentText = a.quote ?? a.comment ?? "";
+    const seriesText = a.seriesName ?? (a.seasonYear ? String(a.seasonYear) : "전체");
+    return {
+      ...a,
+      _search: `${seriesText} ${catLabel} ${recipient} ${commentText}`.toLowerCase(),
+    } as AwardRow;
+  });
+
+  // 클라 검색 필터(상태탭 없음 → tab="all" 고정). q 만 사용.
+  const { q, setQ, filtered } = useFilter<AwardRow>(awardRows, FILTER_FIELDS);
+
+  // v2.40 A3-2a — 키트 DataTable 컬럼(시리즈/카테고리/수상자/코멘트/순서/삭제).
+  //   삭제 컬럼은 deleteAction·router 를 쓰므로 컴포넌트 내부에서 정의(기존 form action 100% 보존).
+  const columns: Column<AwardRow>[] = [
+    {
+      key: "series",
+      label: "시리즈",
+      width: "140px",
+      render: (a) => a.seriesName ?? (a.seasonYear ? `${a.seasonYear}` : "전체"),
+    },
+    {
+      key: "category",
+      label: "카테고리",
+      width: "120px",
+      render: (a) =>
+        SEASON_AWARD_CATEGORY_LABELS[a.category as SeasonAwardCategory] ?? a.category,
+    },
+    {
+      key: "recipient",
+      label: "수상 선수/팀",
+      render: (a) => a.recipientName ?? a.teamName ?? "—",
+    },
+    {
+      key: "comment",
+      label: "코멘트",
+      hideSm: true,
+      render: (a) => (
+        <span style={{ color: "var(--color-text-muted)" }}>
+          {a.quote ?? a.comment ?? "—"}
+        </span>
+      ),
+    },
+    {
+      key: "order",
+      label: "순서",
+      align: "center",
+      width: "70px",
+      hideSm: true,
+      render: (a) => a.displayOrder,
+    },
+    {
+      key: "delete",
+      label: "삭제",
+      align: "center",
+      width: "70px",
+      render: (a) => (
+        // 기존 삭제 form action 100% 보존(deleteAction + router.refresh).
+        <form
+          action={async (fd) => {
+            await deleteAction(fd);
+            router.refresh();
+          }}
+        >
+          <input type="hidden" name="id" value={a.id} />
+          <button
+            type="submit"
+            style={{
+              color: "var(--color-error)",
+              cursor: "pointer",
+              background: "transparent",
+              border: 0,
+            }}
+            aria-label="삭제"
+          >
+            {/* delete → lucide trash-2 */}
+            <Icon name="trash-2" size={16} />
+          </button>
+        </form>
+      ),
+    },
+  ];
 
   return (
     <div>
@@ -306,67 +411,17 @@ export function AdminSeasonAwardsContent({
         </form>
       </div>
 
-      {/* 기존 시상 목록 */}
-      <div className="overflow-x-auto admin-table-wrap">
-        <table className="admin-table w-full text-left text-sm">
-          <thead>
-            <tr>
-              <th className="px-5 py-4 font-medium">시리즈</th>
-              <th className="px-5 py-4 font-medium">카테고리</th>
-              <th className="px-5 py-4 font-medium">수상 선수/팀</th>
-              <th className="px-5 py-4 font-medium">코멘트</th>
-              <th className="w-[80px] px-5 py-4 font-medium">순서</th>
-              <th className="w-[80px] px-5 py-4 font-medium">삭제</th>
-            </tr>
-          </thead>
-          <tbody>
-            {awards.length === 0 ? (
-              <tr>
-                <td colSpan={6} className="px-5 py-8 text-center" style={{ color: "var(--color-text-muted)" }}>
-                  등록된 시상이 없습니다. 위에서 추가하세요.
-                </td>
-              </tr>
-            ) : (
-              awards.map((a) => {
-                const catLabel =
-                  SEASON_AWARD_CATEGORY_LABELS[a.category as SeasonAwardCategory] ?? a.category;
-                const recipient =
-                  a.recipientName ?? a.teamName ?? "—";
-                const commentText = a.quote ?? a.comment ?? "";
-                return (
-                  <tr key={a.id}>
-                    <td className="px-5 py-4">{a.seriesName ?? (a.seasonYear ? `${a.seasonYear}` : "전체")}</td>
-                    <td className="px-5 py-4">{catLabel}</td>
-                    <td className="px-5 py-4">{recipient}</td>
-                    <td className="px-5 py-4" style={{ color: "var(--color-text-muted)" }}>
-                      {commentText || "—"}
-                    </td>
-                    <td className="px-5 py-4">{a.displayOrder}</td>
-                    <td className="px-5 py-4">
-                      <form
-                        action={async (fd) => {
-                          await deleteAction(fd);
-                          router.refresh();
-                        }}
-                      >
-                        <input type="hidden" name="id" value={a.id} />
-                        <button
-                          type="submit"
-                          style={{ color: "var(--color-error)", cursor: "pointer", background: "transparent", border: 0 }}
-                          aria-label="삭제"
-                        >
-                          {/* delete → lucide trash-2 (버튼 자체가 아이콘이던 것을 <Icon> 으로 교체) */}
-                          <Icon name="trash-2" size={16} />
-                        </button>
-                      </form>
-                    </td>
-                  </tr>
-                );
-              })
-            )}
-          </tbody>
-        </table>
-      </div>
+      {/* v2.40 A3-2a — 목록 검색 툴바(시리즈/카테고리/수상자/코멘트 부분일치) */}
+      <Toolbar search={q} onSearch={setQ} placeholder="시리즈·카테고리·수상자 검색" />
+
+      {/* v2.40 A3-2a — 키트 DataTable (시리즈/카테고리/수상자/코멘트/순서/삭제).
+          입력 폼·삭제 server action 보존. 클라 검색 결과(filtered) 표시. */}
+      <DataTable<AwardRow>
+        keyField="id"
+        rows={filtered}
+        columns={columns}
+        emptyTitle="등록된 시상이 없습니다. 위에서 추가하세요."
+      />
     </div>
   );
 }

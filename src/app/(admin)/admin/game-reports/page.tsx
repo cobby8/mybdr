@@ -22,9 +22,10 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import { AdminPageHeader } from "@/components/admin/admin-page-header";
 // Toss Phase 2 2B — lucide 키트 Icon (Material Symbols 교체)
 import { Icon } from "@/components/admin-toss";
+// v2.40 A3-2b — 통합 콘솔 키트(PageHead/Toolbar 헤더만 정합·차트/큐 본문은 보존)
+import { PageHead, Toolbar } from "@/components/admin/console-kit";
 
 // 신고 플래그 라벨 — DB 코드 → 한국어 표시 + 색조(tone) + 이모지
 // (기존 FLAG_LABELS 확장: 시안 MANNER_FLAG_LABELS 의 emoji/tone 통합)
@@ -165,15 +166,12 @@ export default function AdminGameReportsPage() {
 
   return (
     <div data-skin="toss">
-      <AdminPageHeader
+      {/* v2.40 A3-2b — AdminPageHeader→PageHead 키트 정합(차트/큐 본문은 보존) */}
+      <PageHead
+        icon="users"
         eyebrow="ADMIN · 사용자"
         title="매너 평가 검토"
-        subtitle="BG2 사용자 결재 룰 — 평균 평점 + 받은 flag 종류만 노출 / 개별 평가 건수는 신고 큐에서만. 마이페이지 '내 매너' 카드와 동일 룰."
-        breadcrumbs={[
-          { label: "ADMIN" },
-          { label: "사용자" },
-          { label: "매너 평가" },
-        ]}
+        sub="BG2 사용자 결재 룰 — 평균 평점 + 받은 flag 종류만 노출 / 개별 평가 건수는 신고 큐에서만. 마이페이지 '내 매너' 카드와 동일 룰."
         actions={
           <Link href="/admin/users" className="btn btn--sm">
             <Icon name="users" size={14} />
@@ -182,37 +180,19 @@ export default function AdminGameReportsPage() {
         }
       />
 
-      {/* 3 탭 — (web) .btn 패턴 (활성 .btn--primary) */}
-      <div className="mb-4 flex flex-wrap gap-2">
-        <button
-          onClick={() => setTab("stats")}
-          className={`btn btn--sm ${tab === "stats" ? "btn--primary" : ""}`}
-        >
-          <Icon name="line-chart" size={16} />
-          매너 통계
-        </button>
-        <button
-          onClick={() => setTab("queue")}
-          className={`btn btn--sm ${tab === "queue" ? "btn--primary" : ""}`}
-        >
-          <Icon name="flag" size={16} />
-          신고 큐
-          {queuePending > 0 && (
-            <span className="admin-stat-pill" data-tone="warn" style={{ marginLeft: 4 }}>
-              {queuePending}
-            </span>
-          )}
-        </button>
-        <button
-          onClick={() => setTab("trend")}
-          className={`btn btn--sm ${tab === "trend" ? "btn--primary" : ""}`}
-        >
-          <Icon name="trending-up" size={16} />
-          최근 30일 추세
-        </button>
-      </div>
+      {/* v2.40 A3-2b — 3 탭(stats/queue/trend) → Toolbar 키트 정합.
+          신고 큐 검토대기 건수는 탭의 n(우측 카운트)으로 이동. */}
+      <Toolbar
+        tabs={[
+          { id: "stats", label: "매너 통계" },
+          { id: "queue", label: "신고 큐", n: queuePending > 0 ? queuePending : null },
+          { id: "trend", label: "최근 30일 추세" },
+        ]}
+        active={tab}
+        onTab={(id) => setTab(id as Tab)}
+      />
 
-      {/* 탭 본문 */}
+      {/* 탭 본문 — 차트(stats/trend)·신고 큐(queue) 카드 시각/데이터 그대로 보존 */}
       {tab === "stats" && <MannerStatsTab stats={stats} loading={statsLoading} />}
       {tab === "trend" && <TrendTab trend={trend} stats={stats} loading={statsLoading} />}
       {tab === "queue" && (

@@ -6,12 +6,13 @@
 // - 자체 rounded bg-* 버튼 → .btn .btn--primary / .btn--sm
 
 import { useState, useEffect, useMemo } from "react";
-import { AdminStatusTabs } from "@/components/admin/admin-status-tabs";
 import { MEMBERSHIP_LABELS, type MembershipType } from "@/lib/auth/roles";
 // Phase 1 (Toss 전환) — Material Symbols → lucide(<Icon>)
 import { Icon } from "@/components/admin-toss";
-// v2.1 P2: DataTableV2 도입 — 모바일 ≤720px 자동 카드형 변환
-import { DataTableV2, type DataTableColumn } from "@/components/bdr-v2/data-table";
+// v2.40 A3-2a — 통합 콘솔 키트(목록/툴바). 역할탭=Toolbar / 목록=DataTable.
+//   ⚠ 상세 모달·loadMore·배번편집·프로필편집은 전부 기존 그대로 보존(키트화 안 함).
+//   역할탭은 membershipType 복합 조건이라 useFilter 미사용 — Toolbar UI 만 교체하고 기존 필터 로직 유지.
+import { Toolbar, DataTable, type Column } from "@/components/admin/console-kit";
 
 interface SerializedUser {
   id: string;
@@ -148,11 +149,12 @@ function fmtCreatedAt(iso: string): string {
 //   기존: [닉네임 / 이메일 / 역할 / 관리자 / 상태] = 5컬럼
 //   변경: [가입일시 / 닉네임 / 이메일 / 역할 / 관리자 / 상태] = 6컬럼
 //   닉네임 primary 유지 (모바일 카드 제목)
-const USER_COLUMNS: DataTableColumn<SerializedUser>[] = [
+const USER_COLUMNS: Column<SerializedUser>[] = [
   {
     key: "createdAt",
     label: "가입일시",
     width: "150px",
+    hideSm: true,
     render: (u) => (
       <span
         className="text-xs tabular-nums whitespace-nowrap"
@@ -165,7 +167,6 @@ const USER_COLUMNS: DataTableColumn<SerializedUser>[] = [
   {
     key: "nickname",
     label: "닉네임",
-    primary: true,
     width: "1.2fr",
     render: (u) => (
       <span className="font-medium">
@@ -372,16 +373,21 @@ export function AdminUsersTable({
 
   return (
     <>
-      {/* 역할별 필터 탭 */}
-      <AdminStatusTabs tabs={roleTabs} activeTab={activeRoleTab} onChange={setActiveRoleTab} />
+      {/* v2.40 A3-2a — 역할별 필터 탭을 키트 Toolbar 로 통일 (검색칸 미노출=서버 ?q= 헤더폼 담당).
+          탭은 membershipType 복합 조건이라 기존 activeRoleTab 필터 로직 그대로 사용. */}
+      <Toolbar
+        tabs={roleTabs.map((t) => ({ id: t.key, label: t.label, n: t.count }))}
+        active={activeRoleTab}
+        onTab={setActiveRoleTab}
+      />
 
-      {/* v2.1 P2: DataTableV2 — 데스크톱 표 + 모바일 ≤720px 자동 카드형 (G-1 룰) */}
-      <DataTableV2<SerializedUser>
-        rowKey={(u) => u.id}
+      {/* v2.40 A3-2a — 키트 DataTable (keyField/onRowClick). 행 클릭=기존 상세 모달 열기 그대로 */}
+      <DataTable<SerializedUser>
+        keyField="id"
         rows={filteredUsers}
         columns={USER_COLUMNS}
         onRowClick={(user) => { setSelectedUser(user); setTab("info"); setConfirm(null); }}
-        emptyMessage="조건에 맞는 회원이 없습니다."
+        emptyTitle="조건에 맞는 회원이 없습니다."
       />
 
       {/* 2026-05-04: 더보기 버튼 (페이지네이션 대체) — 검색 시에도 동일하게 작동
