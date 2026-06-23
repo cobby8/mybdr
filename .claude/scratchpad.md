@@ -3,7 +3,7 @@
 ## 현재 작업
 - **요청**: v2.40 통합 Admin Console 리아키텍처 (A0~A5). 시안=`Dev/design/BDR v2.40/_admin-unified/` / 계획=`v2.40-admin-console-update-plan-2026-06-22.md` + A0메모 `Dev/design/prompts/_v2.40-A0-design-notes.md`
 - **상태**: **단독 운영(dev 직접 작업·subin 폐지·2026-06-21)**. v2.40 진행 중 — 아래 진행표 참조. dev→main 머지 = 수빈 단독.
-- **이번 세션 완료(2026-06-22~23)**: 새 대회 생성폼 B-1~F-2(main 머지 #739) → subin→dev ff·subin 삭제 → v2.40 A1·A0·A2·A3-1·A3-2·A3-3·A3-4·A4-1.
+- **이번 세션 완료(2026-06-22~23)**: 새 대회 생성폼 B-1~F-2(main 머지 #739) → subin→dev ff·subin 삭제 → v2.40 A1·A0·A2·A3-1·A3-2·A3-3·A3-4·A4-1·A4-2·A5.
 
 ### 📋 v2.40 진행표 (Admin Console A0~A5)
 | Phase | 내용 | 상태 |
@@ -15,13 +15,13 @@
 | A3-2 사용자·커뮤니티5 | users·community·season-awards·game-reports·suggestions | ✅ e2b851f (미푸시1) |
 | A3-3 비즈니스4 | payments·plans·campaigns·partners | ✅ e29b860 (미푸시) |
 | **A3-4 시스템5** | analytics·categories·notifications·logs·settings | ✅ 986cb1f (미푸시) |
-| **A4 드릴다운 상세** | user/team/court/game·org·tournament(읽기요약 D2)·엔티티 | A4-1 f1b25a1 (미푸시) · A4-2 org+tournament 완료(커밋 대기) |
-| A5 생성 플로우 | compose-notification·create-campaign·write-news·AddModal | 대기 |
+| **A4 드릴다운 상세** | user/team/court/game·org·tournament(읽기요약 D2)·엔티티 | ✅ A4-1 f1b25a1 · A4-2 8713f2a (미푸시) |
+| A5 생성 플로우 | compose-notification·create-campaign·write-news·AddModal | ✅ create-campaign 완료(미푸시) · 나머지 기존 폼 재사용 |
 
 **확정 결재**: D1 전면채택 / D2 대회상세=읽기요약 이중유지 / D3 게시글신고 보류 / D4 au.css→toss-admin.css 흡수.
 **키트 통일 규약**: PageHead→StatRow→Toolbar→DataTable(keyField/onRowClick/pagination)→Drawer. Badge tone(info→primary·mute→grey·err→danger). useFilter 클라탭전용·FIELDS 상수·`&FilterableRow` 교차단언. **복잡 모달/폼/차트는 보존**(목록/툴바/StatRow만 키트화). 데이터/액션/라우트/권한 0변경·UI만.
 **A3 진척**: 19/19 화면 완료(A3-1·A3-2·A3-3·A3-4). 배치당 PR 1건·수빈 dev→main 결재.
-**A4 진척**: A4-1 user/team/court/game 상세 4종 + A4-2 org/tournament 읽기요약 완료. 다음=A5 생성 플로우.
+**A4 진척**: user/team/court/game/org/tournament 상세 완료. **A5 진척**: create-campaign 신규 생성 모달+POST 완료, notifications/news/plans/partners/categories/courts/season-awards 기존 작성·추가 폼 재사용.
 
 ### 🅰️ 세션 A — Phase 3 referee 리스킨 (이 세션)
 - **코드 영역**: `src/app/(referee)/referee/*` (회원 + referee-admin). admin/* 비대회는 Phase2 완료·미접촉. tournaments/*·schema는 세션 B 소관.
@@ -150,6 +150,7 @@
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
 |------|------|------|
+| 2026-06-23 | **v2.40 A5 생성 플로우 — 캠페인 생성 보강** | ✅ `/admin/campaigns`에 생성 모달(파트너 선택·배치 채널 복수·시작/종료일·실시간 미리보기) 추가, `POST /api/admin/campaigns` 신설(ad_campaigns+ad_placements). notifications/news/plans/partners/categories/courts/season-awards는 기존 작성·추가 폼 재사용. `tsc --noEmit` 통과, `/admin/campaigns` 307 인증 리다이렉트 확인. |
 | 2026-06-23 | **v2.40 A4-2 단체·대회 상세 읽기요약** | ✅ 신규 상세라우트 `/admin/organizations/[id]`, `/admin/tournaments/[id]` 추가. 조직=멤버/시리즈/회차 요약, 대회=개요/참가팀/대진표/정산 탭. 정산 실측: TournamentTeam.status=approved, payment_status=paid/unpaid/waived, RefereeSettlement 0건. `tsc --noEmit` 통과, 2 URL 307 인증 리다이렉트 확인. |
 | 2026-06-23 | **v2.40 A4-1 드릴다운 상세 4종(user·team·court·game)** | ✅ 신규 상세라우트 4개+detail-kit+목록 상세링크+CSS 추가. Prisma SELECT/read-only, query tab 방식, 서버액션/DB write/schema/api/v1 0변경. `cmd /c npx tsc --noEmit --incremental false` 통과, 4 URL 307 인증 리다이렉트 확인. |
 | 2026-06-23 | **v2.40 A3-4 시스템5 키트 통일 (analytics·categories·notifications·logs·settings)** | ✅ 5파일 수정. PageHead/StatRow/Panel/StatusBadge 적용, analytics/logs prisma 조회와 notifications/settings actions·categories CRUD 보존. `cmd /c npx tsc --noEmit --incremental false` 통과, admin 5 URL 307 인증 리다이렉트 확인. |
