@@ -114,7 +114,10 @@ export function computeQuarterScoresFromPbp(
 //   - pbpCount === 0 → skip (PBP 0 = 갱신 의미 0 = NULL/0 박제 회피)
 //   - 그 외 (Flutter + 신규 completed 전환 + PBP 1+) → true
 export type ShouldAutoSyncInput = {
-  recordingMode: "flutter" | "paper";
+  // 2026-06-22: RecordingMode 3값화(manual 추가) 대응 — 매치 레벨 getRecordingMode 는
+  //   실제로 flutter/paper 만 반환(manual 은 대회 레벨 전용)하나, 타입 정합 위해 허용.
+  //   manual 은 paper 가 아니라 아래 분기에서 flutter 와 동일 취급(매치엔 안 들어옴).
+  recordingMode: "flutter" | "paper" | "manual";
   newStatus: string;
   previousStatus: string;
   pbpCount: number;

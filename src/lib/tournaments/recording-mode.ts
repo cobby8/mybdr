@@ -24,13 +24,17 @@ import type { Prisma } from "@prisma/client";
 import { apiError } from "@/lib/api/response";
 import { prisma } from "@/lib/db/prisma";
 
-// 매치 기록 모드 — Flutter 기록앱(JWT) vs 웹 종이 기록지(BFF)
-export type RecordingMode = "flutter" | "paper";
+// 기록 방식 — Flutter 기록앱(풀스탯) / 웹 전자기록지(기본) / 수기(BDR 시스템 미사용)
+//   2026-06-22: "manual"(수기) 추가 — 대회 단위 전용. 수기 대회는 Flutter '내 대회' 목록에서
+//   제외(BDR 기록 시스템을 안 쓰는 대회). 매치 게이팅(getRecordingMode/assertRecordingMode)은
+//   여전히 flutter/paper 2분기만 사용(수기 대회는 시스템에 기록 매치가 없음).
+export type RecordingMode = "flutter" | "paper" | "manual";
 
-// "paper" 만 명시적으로 매칭 — 그 외 (null / undefined / "flutter" / 기타) 모두 fallback
+// "paper"/"manual" 만 명시적으로 매칭 — 그 외 (null / undefined / "flutter" / 기타) 모두 fallback
 // 이유: 기존 운영 매치 (settings={} 또는 settings=null) 100% 가 Flutter 자동 호환 보장
 const PAPER_MODE: RecordingMode = "paper";
 const FLUTTER_MODE: RecordingMode = "flutter";
+const MANUAL_MODE: RecordingMode = "manual";
 
 /**
  * 매치의 기록 모드 추출.
@@ -216,7 +220,10 @@ export function getTournamentDefaultMode(tournament: {
     return FLUTTER_MODE;
   }
   const value = (settings as Record<string, unknown>).default_recording_mode;
-  return value === PAPER_MODE ? PAPER_MODE : FLUTTER_MODE;
+  // 명시적 paper / manual 만 매칭 — 그 외(누락·flutter·미상)는 flutter fallback.
+  if (value === PAPER_MODE) return PAPER_MODE;
+  if (value === MANUAL_MODE) return MANUAL_MODE;
+  return FLUTTER_MODE;
 }
 
 /**

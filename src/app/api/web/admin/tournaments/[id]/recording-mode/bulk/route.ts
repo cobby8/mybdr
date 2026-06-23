@@ -38,6 +38,7 @@ import { getWebSession } from "@/lib/auth/web-session";
 import { canManageTournament } from "@/lib/auth/tournament-permission";
 import {
   getRecordingMode,
+  getTournamentDefaultMode,
   withRecordingMode,
   withTournamentDefaultMode,
   type RecordingMode,
@@ -47,7 +48,9 @@ import { adminLog } from "@/lib/admin/log";
 // 본 라우트 입력 zod schema.
 // reason 5자 이상 — 사용자 결재 명시 (운영 history 추적 필수).
 const PostBodySchema = z.object({
-  mode: z.enum(["flutter", "paper"]),
+  // 2026-06-22: "manual"(수기) 추가 — 대회를 BDR 기록 시스템 미사용으로 설정.
+  //   manual 도 RecordingMode 타입이라 아래 일괄 적용/audit 경로는 분기 추가 없이 그대로 통과.
+  mode: z.enum(["flutter", "paper", "manual"]),
   scope: z.enum(["all", "new_only", "exclude_in_progress"]),
   reason: z
     .string()
@@ -129,13 +132,9 @@ export async function POST(req: NextRequest, { params }: Ctx) {
 
   // 7) tournament default mode 갱신 — bulk 호출 시 항상 동기화 (운영자 의도 박제)
   // 변경 전 default 도 산출해서 audit 박제 (default_changed 응답용)
-  const oldDefault = ((): RecordingMode => {
-    const s = tournament.settings;
-    if (!s || typeof s !== "object" || Array.isArray(s)) return "flutter";
-    return (s as Record<string, unknown>).default_recording_mode === "paper"
-      ? "paper"
-      : "flutter";
-  })();
+  // 2026-06-22: 인라인 paper/flutter 2분기 → getTournamentDefaultMode 재사용.
+  //   헬퍼가 manual 도 인식하므로 manual→manual 변경 시 default_changed 오탐 방지.
+  const oldDefault: RecordingMode = getTournamentDefaultMode(tournament);
   const defaultChanged = oldDefault !== newMode;
   const newTournamentSettings = withTournamentDefaultMode(tournament.settings, newMode);
 
