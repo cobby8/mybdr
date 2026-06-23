@@ -1,9 +1,7 @@
 import { apiSuccess, apiError } from "@/lib/api/response";
 import { getAssociationAdmin } from "@/lib/auth/admin-guard";
 import { prisma } from "@/lib/db/prisma";
-// 공용 ExcelRow 타입 — xlsx sheet_to_json 결과의 행 타입 (any 제거)
-import type { ExcelRow } from "@/lib/types/excel-row";
-import * as XLSX from "xlsx";
+import { readXlsxRows } from "@/lib/excel/read-xlsx-rows";
 
 /**
  * /api/web/admin/bulk-verify/preview
@@ -63,17 +61,13 @@ export async function POST(req: Request) {
       return apiError("파일 크기는 5MB 이하여야 합니다.", 400, "FILE_TOO_LARGE");
     }
 
-    // xlsx 파싱
-    const buffer = await file.arrayBuffer();
-    const workbook = XLSX.read(buffer, { type: "array" });
-    const sheetName = workbook.SheetNames[0];
-    if (!sheetName) {
-      return apiError("시트를 찾을 수 없습니다.", 400, "NO_SHEET");
+    if (!file.name.toLowerCase().endsWith(".xlsx")) {
+      return apiError("xlsx 파일만 업로드 가능합니다.", 400, "INVALID_FILE_TYPE");
     }
 
-    const sheet = workbook.Sheets[sheetName];
-    // 공용 ExcelRow 타입 — 동적 키 + 원시타입 허용 (any 제거)
-    const jsonData = XLSX.utils.sheet_to_json<ExcelRow>(sheet, { defval: "" });
+    // xlsx 파싱
+    const buffer = await file.arrayBuffer();
+    const jsonData = await readXlsxRows(buffer);
 
     // 헤더 검증
     if (jsonData.length === 0) {

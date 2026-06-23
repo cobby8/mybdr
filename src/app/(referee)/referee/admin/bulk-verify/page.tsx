@@ -72,8 +72,8 @@ export default function AdminBulkVerifyPage() {
     }
 
     // 확장자 검증
-    if (!file.name.endsWith(".xlsx") && !file.name.endsWith(".xls")) {
-      setErrorMsg("xlsx 또는 xls 파일만 업로드 가능합니다.");
+    if (!file.name.toLowerCase().endsWith(".xlsx")) {
+      setErrorMsg("xlsx 파일만 업로드 가능합니다.");
       return;
     }
 
@@ -227,14 +227,14 @@ export default function AdminBulkVerifyPage() {
             className="mt-1 text-xs"
             style={{ color: "var(--color-text-muted)" }}
           >
-            xlsx/xls 파일, 최대 5MB, 500행 이내
+            xlsx 파일, 최대 5MB, 500행 이내
           </p>
 
           <div className="mt-4 flex items-center gap-3">
             <input
               ref={fileInputRef}
               type="file"
-              accept=".xlsx,.xls"
+              accept=".xlsx"
               className="text-sm"
               style={{ color: "var(--color-text-primary)" }}
             />

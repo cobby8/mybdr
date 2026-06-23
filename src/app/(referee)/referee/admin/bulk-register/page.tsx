@@ -2,7 +2,7 @@
 
 import { useState, useRef } from "react";
 import Link from "next/link";
-import * as XLSX from "xlsx";
+import writeExcelFile from "write-excel-file/browser";
 // Toss 키트 Icon — Material Symbols 대체 (lucide 기반)
 import { Icon } from "@/components/admin-toss";
 
@@ -111,7 +111,7 @@ export default function AdminBulkRegisterPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // 템플릿 다운로드 — 클라이언트에서 xlsx 생성 (서버 경유 불필요)
-  const handleTemplateDownload = () => {
+  const handleTemplateDownload = async () => {
     const template = [
       ["이름", "전화번호", "생년월일", "주민등록번호", "자격증번호", "급수", "구분"],
       [
@@ -125,10 +125,13 @@ export default function AdminBulkRegisterPage() {
       ],
       ["김기록", "010-2222-3333", "1985-06-15", "", "", "1급", "기록원"],
     ];
-    const ws = XLSX.utils.aoa_to_sheet(template);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "심판명단");
-    XLSX.writeFile(wb, "referee-bulk-template.xlsx");
+    try {
+      await writeExcelFile(template, { sheet: "심판명단" }).toFile(
+        "referee-bulk-template.xlsx"
+      );
+    } catch {
+      setErrorMsg("템플릿 파일 생성에 실패했습니다.");
+    }
   };
 
   // 1단계: 파일 업로드 → 미리보기
@@ -139,9 +142,9 @@ export default function AdminBulkRegisterPage() {
       return;
     }
 
-    // 확장자 검증 — xlsx/xls만 허용
-    if (!file.name.endsWith(".xlsx") && !file.name.endsWith(".xls")) {
-      setErrorMsg("xlsx 또는 xls 파일만 업로드 가능합니다.");
+    // 확장자 검증 — xlsx만 허용
+    if (!file.name.toLowerCase().endsWith(".xlsx")) {
+      setErrorMsg("xlsx 파일만 업로드 가능합니다.");
       return;
     }
 
@@ -305,7 +308,7 @@ export default function AdminBulkRegisterPage() {
               <strong>선택 헤더</strong>: 생년월일, 주민등록번호, 자격증번호, 급수, 구분
             </p>
             <p style={{ color: "var(--color-text-muted)" }}>
-              xlsx/xls 파일, 최대 5MB, 500행 이내
+              xlsx 파일, 최대 5MB, 500행 이내
             </p>
             <p style={{ color: "var(--color-text-muted)" }}>
               &quot;구분&quot; 컬럼이 비어있으면 아래에서 선택한 기본값으로 등록됩니다.
@@ -347,7 +350,7 @@ export default function AdminBulkRegisterPage() {
             <input
               ref={fileInputRef}
               type="file"
-              accept=".xlsx,.xls"
+              accept=".xlsx"
               className="text-sm"
               style={{ color: "var(--color-text-primary)" }}
             />

@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { apiSuccess, apiError } from "@/lib/api/response";
 import { checkRateLimit, RATE_LIMITS } from "@/lib/security/rate-limit";
 import { getClientIp } from "@/lib/security/get-client-ip";
+import { readXlsxRows } from "@/lib/excel/read-xlsx-rows";
 
 /**
  * GET /api/web/rankings/bdr?division=general|university
@@ -78,17 +79,7 @@ function findColumnKey(
  * xlsx 바이너리 데이터를 파싱하여 BdrRankingItem 배열로 변환
  */
 async function parseXlsx(buffer: ArrayBuffer): Promise<BdrRankingItem[]> {
-  // xlsx 라이브러리를 동적 import (번들 크기 ~1MB 절약)
-  const XLSX = await import("xlsx");
-  // xlsx 라이브러리로 워크북 읽기
-  const workbook = XLSX.read(buffer, { type: "array" });
-  // 첫 번째 시트 사용
-  const sheetName = workbook.SheetNames[0];
-  if (!sheetName) return [];
-
-  const sheet = workbook.Sheets[sheetName];
-  // 시트를 JSON 배열로 변환 (첫 행이 헤더)
-  const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet);
+  const rows = await readXlsxRows(buffer);
   if (rows.length === 0) return [];
 
   // 헤더 자동 감지: 첫 번째 행의 키들에서 각 필드에 해당하는 컬럼명 찾기

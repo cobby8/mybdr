@@ -4,9 +4,7 @@ import {
   hasPermission,
 } from "@/lib/auth/admin-guard";
 import { prisma } from "@/lib/db/prisma";
-// 공용 ExcelRow 타입 — xlsx sheet_to_json 결과의 행 타입 (any 제거)
-import type { ExcelRow } from "@/lib/types/excel-row";
-import * as XLSX from "xlsx";
+import { readXlsxRows } from "@/lib/excel/read-xlsx-rows";
 
 /**
  * /api/web/referee-admin/bulk-register/preview
@@ -174,20 +172,16 @@ export async function POST(req: Request) {
 
     // 기본 role_type: body의 값 (referee 또는 game_official → scorer)
     // 엑셀 "구분" 컬럼이 있으면 그 값이 우선
+    if (!file.name.toLowerCase().endsWith(".xlsx")) {
+      return apiError("xlsx 파일만 업로드 가능합니다.", 400, "INVALID_FILE_TYPE");
+    }
+
     const defaultRoleType: "referee" | "scorer" | "timer" =
       ROLE_LABEL_MAP[defaultRoleTypeRaw.toLowerCase()] ?? "referee";
 
     // 4) xlsx 파싱
     const buffer = await file.arrayBuffer();
-    const workbook = XLSX.read(buffer, { type: "array" });
-    const sheetName = workbook.SheetNames[0];
-    if (!sheetName) {
-      return apiError("시트를 찾을 수 없습니다.", 400, "NO_SHEET");
-    }
-
-    const sheet = workbook.Sheets[sheetName];
-    // 공용 ExcelRow 타입 — 동적 키 + 원시타입 허용 (any 제거)
-    const jsonData = XLSX.utils.sheet_to_json<ExcelRow>(sheet, { defval: "" });
+    const jsonData = await readXlsxRows(buffer);
 
     if (jsonData.length === 0) {
       return apiError("데이터가 없습니다.", 400, "EMPTY_DATA");
