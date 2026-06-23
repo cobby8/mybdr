@@ -22,6 +22,69 @@ import { getRecordingMode } from "@/lib/tournaments/recording-mode";
 //   원격 보안수정(55db5c00)이 신설한 공용 헬퍼 재사용 — 라이브 박스스코어/PBP 잔여 구멍 봉쇄.
 import { blockIfPrivateTournament } from "@/lib/auth/private-tournament-guard";
 
+const LIVE_SCOREBOARD_STALE_MS = 10_000;
+
+function asPayloadRecord(payload: unknown): Record<string, unknown> | null {
+  if (payload === null || typeof payload !== "object" || Array.isArray(payload)) {
+    return null;
+  }
+  return payload as Record<string, unknown>;
+}
+
+function readString(value: unknown): string | null {
+  return typeof value === "string" && value.trim().length > 0 ? value : null;
+}
+
+function readNumber(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string" && value.trim().length > 0) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+}
+
+function readBoolean(value: unknown): boolean {
+  return typeof value === "boolean" ? value : false;
+}
+
+function periodToQuarter(period: string | null): number | null {
+  if (!period) return null;
+  const q = period.match(/^Q(\d+)$/i);
+  if (q) return Number(q[1]);
+  const ot = period.match(/^OT(\d*)$/i);
+  if (ot) return 4 + Number(ot[1] || "1");
+  return null;
+}
+
+function normalizeLiveScoreboard(
+  row: { payload: unknown; updatedAt: Date } | null,
+) {
+  if (!row) return null;
+  const payload = asPayloadRecord(row.payload);
+  if (!payload) return null;
+
+  const period = readString(payload.period);
+  const updatedAt = row.updatedAt;
+  const ageMs = Math.max(0, Date.now() - updatedAt.getTime());
+
+  return {
+    period,
+    currentQuarter: periodToQuarter(period),
+    clock: readString(payload.clock),
+    clockRunning: readBoolean(payload.clkRunning),
+    clockRemainMs: readNumber(payload.clkRemainMs),
+    shotClock: readString(payload.sc24),
+    homeScore: readNumber(payload.scoreH),
+    awayScore: readNumber(payload.scoreA),
+    homeFouls: readNumber(payload.homeFouls),
+    awayFouls: readNumber(payload.awayFouls),
+    updatedAt: updatedAt.toISOString(),
+    ageMs,
+    stale: ageMs > LIVE_SCOREBOARD_STALE_MS,
+  };
+}
+
 // 인증 없는 공개 엔드포인트 — 라이브 박스스코어
 // playerStats(종료 후 합계) + play_by_plays(쿼터별 상세 집계)
 export async function GET(
@@ -92,6 +155,13 @@ export async function GET(
     if (await blockIfPrivateTournament(match.tournamentId, match.tournament?.is_public)) {
       return apiError("Match not found", 404);
     }
+
+    const liveScoreboard = normalizeLiveScoreboard(
+      await prisma.liveScoreboard.findUnique({
+        where: { matchId: BigInt(matchId) },
+        select: { payload: true, updatedAt: true },
+      }),
+    );
 
     // 2026-05-09: 라이브 매치 카드 패널 PR1 — 같은 날 (KST) + 같은 대회 매치 list.
     // 사용자 결정 Q1=A (API 응답 확장) / Q2=A (KST 같은 날) / Q3=A (시간순 ASC) / Q4=A (가변 N건).
@@ -1112,7 +1182,10 @@ export async function GET(
       orderBy: [{ created_at: "desc" }],
       select: { quarter: true },
     });
-    const currentQuarter = latestPbp?.quarter ?? null;
+    const currentQuarter =
+      liveScoreboard && !liveScoreboard.stale
+        ? (liveScoreboard.currentQuarter ?? latestPbp?.quarter ?? null)
+        : (latestPbp?.quarter ?? null);
 
     // 2026-04-22: GameResult v2 — MVP 선정 (GameScore 공식 단순화 버전)
     // 이유: 시안 GameResult.jsx 의 MVP 배너 렌더를 위해 playerStats 기반으로 최고 점수 선수 1명 추출.
@@ -1334,6 +1407,7 @@ export async function GET(
         // 티빙 스타일 스코어카드 신규 필드 — 경기장명 + 진행 쿼터
         venueName,
         currentQuarter,
+        liveScoreboard,
         // 2026-04-16: 쿼터별 이벤트 기반 상세 스탯 존재 여부 (프론트 안내 배너 + "—" 처리용)
         // apiSuccess가 camelCase → snake_case 변환하므로 클라이언트는 has_quarter_event_detail로 수신
         hasQuarterEventDetail,

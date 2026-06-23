@@ -113,6 +113,22 @@ interface PlayByPlayRow {
   away_score_at_time: number;
 }
 
+interface LiveScoreboardState {
+  period: string | null;
+  current_quarter: number | null;
+  clock: string | null;
+  clock_running: boolean;
+  clock_remain_ms: number | null;
+  shot_clock: string | null;
+  home_score: number | null;
+  away_score: number | null;
+  home_fouls: number | null;
+  away_fouls: number | null;
+  updated_at: string;
+  age_ms: number;
+  stale: boolean;
+}
+
 interface MatchData {
   id: number;
   // 2026-05-05 PR4 — 운영자 모달 (W1 임시 jersey 번호) 가 admin-check + jersey-override API 호출 시 사용.
@@ -144,6 +160,7 @@ interface MatchData {
   // 티빙 스타일 — 경기장명(없으면 null) + 현재 진행 쿼터(라이브 아닐 때 null)
   venue_name?: string | null;
   current_quarter?: number | null;
+  live_scoreboard?: LiveScoreboardState | null;
   // 2026-04-16: 쿼터별 이벤트 기반 상세 스탯 존재 여부
   // false면 Flutter "최종 스탯 입력 모드"로 기록된 경기 → 쿼터 필터 활성 시 안내 배너 + 스탯 "-" 처리
   has_quarter_event_detail: boolean;
@@ -210,11 +227,51 @@ const ACTION_LABEL: Record<string, string> = {
   "1pt_miss": "자유투 실패",
 };
 
+const LIVE_SCOREBOARD_STALE_MS = 10_000;
+
 function formatGameClock(seconds: number): string {
   const total = Math.round(seconds);
   const m = Math.floor(total / 60);
   const s = total % 60;
-  return `${m}:${s.toString().padStart(2, "0")}`;
+  return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
+}
+
+function formatClockMs(ms: number): string {
+  return formatGameClock(Math.ceil(Math.max(0, ms) / 1000));
+}
+
+function liveScoreboardAgeMs(
+  scoreboard: LiveScoreboardState | null | undefined,
+  nowMs: number,
+): number | null {
+  if (!scoreboard?.updated_at) return null;
+  const updatedAtMs = new Date(scoreboard.updated_at).getTime();
+  if (!Number.isFinite(updatedAtMs)) return null;
+  return Math.max(0, nowMs - updatedAtMs);
+}
+
+function isLiveScoreboardStale(
+  scoreboard: LiveScoreboardState | null | undefined,
+  nowMs: number,
+): boolean {
+  const ageMs = liveScoreboardAgeMs(scoreboard, nowMs);
+  return !scoreboard || scoreboard.stale || ageMs === null || ageMs > LIVE_SCOREBOARD_STALE_MS;
+}
+
+function liveClockText(
+  scoreboard: LiveScoreboardState | null | undefined,
+  nowMs: number,
+): string | null {
+  if (!scoreboard?.clock) return null;
+  if (
+    scoreboard.clock_running &&
+    scoreboard.clock_remain_ms !== null &&
+    !isLiveScoreboardStale(scoreboard, nowMs)
+  ) {
+    const ageMs = liveScoreboardAgeMs(scoreboard, nowMs) ?? 0;
+    return formatClockMs(scoreboard.clock_remain_ms - ageMs);
+  }
+  return scoreboard.clock;
 }
 
 function getQuarterLabel(q: number): string {
@@ -440,11 +497,27 @@ function ScoreDisplay({ value, flash }: { value: number; flash: boolean }) {
   );
 }
 
-// 중앙 정보 블록: 상태 라벨 + 일시 + 장소
+// 중앙 정보 블록: 상태 라벨 + 라이브 경기 시간 + 일시 + 장소
 // 기존 5단 레이아웃 내 JSX 블록을 그대로 추출. getCenterStatusLabel / formatMatchDateTime 재사용
-function CenterInfoBlock({ match, isLive }: { match: MatchData; isLive: boolean }) {
-  void isLive; // 현재는 상태 라벨 헬퍼가 match.status/current_quarter만 쓰지만, 추후 확장 대비 시그니처 유지
+function CenterInfoBlock({
+  match,
+  isLive,
+  clockNowMs,
+}: {
+  match: MatchData;
+  isLive: boolean;
+  clockNowMs: number;
+}) {
   const { text, highlight } = getCenterStatusLabel(match.status, match.current_quarter);
+  const scoreboard = match.live_scoreboard;
+  const scoreboardStale = isLiveScoreboardStale(scoreboard, clockNowMs);
+  const clockText = isLive ? liveClockText(scoreboard, clockNowMs) : null;
+  const statusText = isLive && scoreboard?.period && !scoreboardStale ? scoreboard.period : text;
+  const metaParts: string[] = [];
+  if (scoreboard?.shot_clock) metaParts.push(`샷클락 ${scoreboard.shot_clock}`);
+  if (scoreboard?.home_fouls != null && scoreboard.away_fouls != null) {
+    metaParts.push(`팀파울 ${scoreboard.home_fouls}-${scoreboard.away_fouls}`);
+  }
   const dt = formatMatchDateTime(match.scheduled_at, match.started_at);
   return (
     <div className="flex flex-col items-center gap-2 px-1 min-w-0">
@@ -453,8 +526,27 @@ function CenterInfoBlock({ match, isLive }: { match: MatchData; isLive: boolean 
         className={`whitespace-nowrap ${highlight ? "text-xl font-semibold" : "text-lg"}`}
         style={{ color: highlight ? "var(--color-primary)" : "var(--color-text-muted)" }}
       >
-        {text}
+        {statusText}
       </span>
+      {clockText && (
+        <span
+          className="text-2xl sm:text-3xl font-black leading-none whitespace-nowrap"
+          style={{
+            color: scoreboardStale ? "var(--color-text-muted)" : "var(--color-text-primary)",
+            fontFeatureSettings: '"tnum"',
+          }}
+        >
+          {clockText}
+        </span>
+      )}
+      {isLive && scoreboard && (scoreboardStale || metaParts.length > 0) && (
+        <span
+          className="text-[11px] sm:text-xs whitespace-nowrap"
+          style={{ color: scoreboardStale ? "var(--color-warning)" : "var(--color-text-muted)" }}
+        >
+          {scoreboardStale ? "현장 신호 지연" : metaParts.join(" · ")}
+        </span>
+      )}
       {/* 일시 — 모바일은 text-sm으로 한 단계 축소 (좁은 가로폭 대응) */}
       {dt && (
         <span
@@ -496,6 +588,7 @@ export default function LiveBoxScorePage() {
   const [transientError, setTransientError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [isLive, setIsLive] = useState(false);
+  const [clockNowMs, setClockNowMs] = useState(() => Date.now());
   const [homeFlash, setHomeFlash] = useState(false);
   const [awayFlash, setAwayFlash] = useState(false);
   const prevScoreRef = useRef<{ home: number; away: number } | null>(null);
@@ -578,6 +671,21 @@ export default function LiveBoxScorePage() {
   // zoom 분기 derived (state 분리 안 함 — isMobile 단일 source-of-truth)
   const zoomScale = isMobile ? 1 : 1.1;
 
+  useEffect(() => {
+    const scoreboard = match?.live_scoreboard;
+    if (!isLive || !scoreboard?.clock_running || isLiveScoreboardStale(scoreboard, Date.now())) {
+      return;
+    }
+    setClockNowMs(Date.now());
+    const clockTimer = setInterval(() => setClockNowMs(Date.now()), 1000);
+    return () => clearInterval(clockTimer);
+  }, [
+    isLive,
+    match?.live_scoreboard?.clock_running,
+    match?.live_scoreboard?.clock_remain_ms,
+    match?.live_scoreboard?.updated_at,
+  ]);
+
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const fetchMatch = useCallback(async () => {
@@ -601,22 +709,34 @@ export default function LiveBoxScorePage() {
       }
       const data = await res.json();
       const m = data.match as MatchData;
+      const receivedAtMs = Date.now();
+      const scoreboardFresh =
+        m.live_scoreboard != null && !isLiveScoreboardStale(m.live_scoreboard, receivedAtMs);
+      const nextHomeScore =
+        scoreboardFresh && m.live_scoreboard?.home_score != null
+          ? m.live_scoreboard.home_score
+          : m.home_score;
+      const nextAwayScore =
+        scoreboardFresh && m.live_scoreboard?.away_score != null
+          ? m.live_scoreboard.away_score
+          : m.away_score;
 
       // 점수 변경 감지 → 플래시 효과
       if (prevScoreRef.current) {
-        if (m.home_score !== prevScoreRef.current.home) {
+        if (nextHomeScore !== prevScoreRef.current.home) {
           setHomeFlash(true);
           setTimeout(() => setHomeFlash(false), 800);
         }
-        if (m.away_score !== prevScoreRef.current.away) {
+        if (nextAwayScore !== prevScoreRef.current.away) {
           setAwayFlash(true);
           setTimeout(() => setAwayFlash(false), 800);
         }
       }
-      prevScoreRef.current = { home: m.home_score, away: m.away_score };
+      prevScoreRef.current = { home: nextHomeScore, away: nextAwayScore };
 
       setMatch(m);
       setLastUpdated(new Date());
+      setClockNowMs(receivedAtMs);
       setIsLive(m.status === "live" || m.status === "in_progress");
       setError(null);
       // 정상 응답 시 transientError 클리어 (자동 복구 표시)
@@ -1021,6 +1141,16 @@ export default function LiveBoxScorePage() {
       matchDate.getMonth() === 3 /* 0-indexed: 3 === 4월 */ &&
       (matchDate.getDate() === 11 || matchDate.getDate() === 12)
     : false;
+  const liveScoreboardFresh =
+    match.live_scoreboard != null && !isLiveScoreboardStale(match.live_scoreboard, clockNowMs);
+  const displayHomeScore =
+    liveScoreboardFresh && match.live_scoreboard?.home_score != null
+      ? match.live_scoreboard.home_score
+      : match.home_score;
+  const displayAwayScore =
+    liveScoreboardFresh && match.live_scoreboard?.away_score != null
+      ? match.live_scoreboard.away_score
+      : match.away_score;
 
   const qs = match.quarter_scores;
   const qh = qs?.home;
@@ -1432,18 +1562,18 @@ export default function LiveBoxScorePage() {
           </div>
           {/* Row2: 점수 - 중앙정보 - 점수. justify-between로 양 끝 정렬 */}
           <div className="flex items-center justify-between gap-2 px-2">
-            <ScoreDisplay value={match.home_score} flash={homeFlash} />
-            <CenterInfoBlock match={match} isLive={isLive} />
-            <ScoreDisplay value={match.away_score} flash={awayFlash} />
+            <ScoreDisplay value={displayHomeScore} flash={homeFlash} />
+            <CenterInfoBlock match={match} isLive={isLive} clockNowMs={clockNowMs} />
+            <ScoreDisplay value={displayAwayScore} flash={awayFlash} />
           </div>
         </div>
 
         {/* 데스크톱 전용: 기존 5단 가로 레이아웃 */}
         <div className="hidden sm:flex items-center justify-between gap-4">
           <TeamBlock team={match.home_team} isHome logoSize={72} />
-          <ScoreDisplay value={match.home_score} flash={homeFlash} />
-          <CenterInfoBlock match={match} isLive={isLive} />
-          <ScoreDisplay value={match.away_score} flash={awayFlash} />
+          <ScoreDisplay value={displayHomeScore} flash={homeFlash} />
+          <CenterInfoBlock match={match} isLive={isLive} clockNowMs={clockNowMs} />
+          <ScoreDisplay value={displayAwayScore} flash={awayFlash} />
           <TeamBlock team={match.away_team} isHome={false} logoSize={72} />
         </div>
 
