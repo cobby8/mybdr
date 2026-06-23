@@ -92,6 +92,13 @@ function firstLockedReason(items: Array<ChecklistItem | undefined>): string | un
   return items.find((item) => item?.status === "locked" && item.lockedReason)?.lockedReason;
 }
 
+function statusIcon(status: WorkspaceStatus): string {
+  if (status === "complete") return "circle-check";
+  if (status === "in_progress") return "clock";
+  if (status === "locked") return "lock";
+  return "circle";
+}
+
 export function TournamentWorkspace({
   progress,
   tournamentId,
@@ -137,9 +144,9 @@ export function TournamentWorkspace({
         ],
       },
       {
-        id: "public",
+        id: "ready",
         title: "공개 준비",
-        subtitle: "기본 정보, 신청 정책, 사이트 설정",
+        subtitle: "기본 정보, 시리즈, 신청 정책, 사이트",
         status: combineStatus(publicItems),
         summary: countComplete(publicItems),
         icon: "globe-2",
@@ -223,11 +230,13 @@ export function TournamentWorkspace({
     }
   }, [sections]);
 
-  const activeSection = sections.find((section) => section.id === activeId) ?? sections[0];
-
   const selectSection = (id: string) => {
     setActiveId(id);
     window.history.replaceState(null, "", `#${id}`);
+    document.getElementById(`workspace-${id}`)?.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
   };
 
   return (
@@ -300,46 +309,17 @@ export function TournamentWorkspace({
         </div>
       </div>
 
-      <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_320px]">
-        <WorkspaceSectionCard section={activeSection} progress={progress} />
-
-        <aside
-          className="rounded-[var(--radius-card)] border p-4"
-          style={{ borderColor: "var(--color-border)", backgroundColor: "var(--color-card)" }}
-        >
-          <h3 className="text-sm font-bold text-[var(--color-text-primary)]">바로가기</h3>
-          <div className="mt-3 grid gap-2">
-            {activeSection.actions.map((action) => (
-              <Link
-                key={action.href}
-                href={action.href}
-                className="inline-flex min-h-[44px] items-center justify-between gap-2 rounded-[4px] border px-3 py-2 text-sm font-semibold transition-colors hover:bg-[var(--color-elevated)]"
-                style={{ borderColor: "var(--color-border)", color: "var(--color-text-primary)" }}
-              >
-                <span className="inline-flex items-center gap-2">
-                  <Icon name={action.icon} size={16} />
-                  {action.label}
-                </span>
-                <Icon name="chevron-right" size={16} />
-              </Link>
-            ))}
-            {activeSection.id === "summary" && isSitePublished && siteSubdomain && (
-              <a
-                href={`https://${siteSubdomain}.mybdr.kr`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex min-h-[44px] items-center justify-between gap-2 rounded-[4px] border px-3 py-2 text-sm font-semibold transition-colors hover:bg-[var(--color-elevated)]"
-                style={{ borderColor: "var(--color-border)", color: "var(--color-text-primary)" }}
-              >
-                <span className="inline-flex items-center gap-2">
-                  <Icon name="external-link" size={16} />
-                  공개 사이트 보기
-                </span>
-                <Icon name="chevron-right" size={16} />
-              </a>
-            )}
-          </div>
-        </aside>
+      <div className="grid gap-3 lg:grid-cols-2">
+        {sections.map((section) => (
+          <WorkspaceSectionCard
+            key={section.id}
+            section={section}
+            progress={progress}
+            active={activeId === section.id}
+            isSitePublished={isSitePublished}
+            siteSubdomain={siteSubdomain}
+          />
+        ))}
       </div>
 
       <details
@@ -365,9 +345,15 @@ export function TournamentWorkspace({
 function WorkspaceSectionCard({
   section,
   progress,
+  active,
+  isSitePublished,
+  siteSubdomain,
 }: {
   section: WorkspaceSection;
   progress: SetupProgress;
+  active: boolean;
+  isSitePublished: boolean;
+  siteSubdomain?: string | null;
 }) {
   const relatedItems = section.itemKeys
     .map((key) => getItem(progress, key))
@@ -375,9 +361,10 @@ function WorkspaceSectionCard({
 
   return (
     <div
+      id={`workspace-${section.id}`}
       className="rounded-[var(--radius-card)] border p-4 sm:p-5"
       style={{
-        borderColor: "var(--color-border)",
+        borderColor: active ? "var(--color-primary)" : "var(--color-border)",
         backgroundColor: "var(--color-card)",
         opacity: section.status === "locked" ? 0.78 : 1,
       }}
@@ -386,6 +373,7 @@ function WorkspaceSectionCard({
         <div className="min-w-0">
           <div className="mb-2 flex flex-wrap items-center gap-2">
             <span className="admin-stat-pill" data-tone={STATUS_TONE[section.status]}>
+              <Icon name={statusIcon(section.status)} size={12} />
               {STATUS_LABEL[section.status]}
             </span>
             <span className="text-xs font-semibold text-[var(--color-text-muted)]">
@@ -410,26 +398,51 @@ function WorkspaceSectionCard({
       )}
 
       {relatedItems.length > 0 && (
-        <div className="mt-4 grid gap-2 sm:grid-cols-2">
+        <div className="mt-4 divide-y" style={{ borderColor: "var(--color-border)" }}>
           {relatedItems.map((item) => (
             <div
               key={item.key}
-              className="rounded-[4px] border p-3"
-              style={{ borderColor: "var(--color-border)", backgroundColor: "var(--color-elevated)" }}
+              className="flex flex-col gap-1 py-2 first:pt-0 last:pb-0 sm:flex-row sm:items-start sm:justify-between"
             >
-              <div className="mb-1 flex items-center justify-between gap-2">
+              <div className="min-w-0">
                 <span className="text-sm font-semibold text-[var(--color-text-primary)]">
                   {READABLE_ITEM_TITLE[item.key] ?? item.title}
                 </span>
-                <span className="admin-stat-pill" data-tone={STATUS_TONE[item.status]}>
-                  {STATUS_LABEL[item.status]}
-                </span>
+                <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">{item.summary}</p>
               </div>
-              <p className="text-xs text-[var(--color-text-muted)]">{item.summary}</p>
+              <span className="admin-stat-pill shrink-0 self-start" data-tone={STATUS_TONE[item.status]}>
+                {STATUS_LABEL[item.status]}
+              </span>
             </div>
           ))}
         </div>
       )}
+
+      <div className="mt-4 flex flex-wrap gap-2">
+        {section.actions.map((action) => (
+          <Link
+            key={action.href}
+            href={action.href}
+            className="inline-flex min-h-[44px] items-center gap-1.5 rounded-[4px] border px-3 py-2 text-sm font-semibold transition-colors hover:bg-[var(--color-elevated)]"
+            style={{ borderColor: "var(--color-border)", color: "var(--color-text-primary)" }}
+          >
+            <Icon name={action.icon} size={16} />
+            {action.label}
+          </Link>
+        ))}
+        {section.id === "summary" && isSitePublished && siteSubdomain && (
+          <a
+            href={`https://${siteSubdomain}.mybdr.kr`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex min-h-[44px] items-center gap-1.5 rounded-[4px] border px-3 py-2 text-sm font-semibold transition-colors hover:bg-[var(--color-elevated)]"
+            style={{ borderColor: "var(--color-border)", color: "var(--color-text-primary)" }}
+          >
+            <Icon name="external-link" size={16} />
+            공개 사이트 보기
+          </a>
+        )}
+      </div>
     </div>
   );
 }
