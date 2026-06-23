@@ -674,6 +674,96 @@
 [data-skin="toss"] .au-card-title { font-size: 16px; font-weight: 800; letter-spacing: -0.01em; margin-bottom: 4px; }
 [data-skin="toss"] .au-card-sub { font-size: 13px; color: var(--ink-mute); margin-bottom: 16px; }
 
+/* ── 드릴다운 상세 (A4) ───────────────────────────────── */
+[data-skin="toss"] .au-back {
+  display: inline-flex; align-items: center; gap: 6px;
+  border: 0; background: transparent; cursor: pointer; font-family: var(--ff);
+  font-size: 13.5px; font-weight: 700; color: var(--ink-mute); white-space: nowrap;
+  padding: 6px 10px 6px 6px; border-radius: 10px; margin-bottom: 14px;
+  text-decoration: none;
+}
+[data-skin="toss"] .au-back:hover { background: var(--grey-100); color: var(--ink); }
+[data-skin="toss"] .au-dhead { display: flex; align-items: flex-start; gap: 16px; flex-wrap: wrap; margin-bottom: 18px; }
+[data-skin="toss"] .au-dhead__avatar {
+  width: 64px; height: 64px; border-radius: 18px; flex: 0 0 auto; display: grid; place-items: center;
+  font-size: 24px; font-weight: 800; background: var(--primary-weak); color: var(--primary);
+}
+[data-skin="toss"] .au-dhead__avatar--grey { background: var(--grey-100); color: var(--ink-soft); }
+[data-skin="toss"] .au-dhead__main { min-width: 0; flex: 1 1 280px; }
+[data-skin="toss"] .au-dhead__eyebrow {
+  font-size: 12.5px; font-weight: 700; color: var(--ink-mute); margin-bottom: 6px;
+  display: flex; align-items: center; gap: 6px;
+}
+[data-skin="toss"] .au-dhead__eyebrow svg { color: var(--primary); }
+[data-skin="toss"] .au-dhead__title {
+  font-size: 25px; font-weight: 800; letter-spacing: -0.03em; color: var(--ink);
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+}
+[data-skin="toss"] .au-dhead__sub { font-size: 14px; color: var(--ink-mute); margin-top: 7px; line-height: 1.5; }
+[data-skin="toss"] .au-dhead__badges { display: flex; gap: 7px; flex-wrap: wrap; margin-top: 11px; }
+[data-skin="toss"] .au-dhead__actions { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; }
+[data-skin="toss"] .au-dtabs {
+  display: flex; gap: 4px; border-bottom: 1px solid var(--border);
+  margin: 20px 0 24px; overflow-x: auto;
+}
+[data-skin="toss"] .au-dtab {
+  border: 0; background: transparent; cursor: pointer; font-family: var(--ff);
+  font-size: 14.5px; font-weight: 700; color: var(--ink-mute); text-decoration: none;
+  padding: 12px 14px; border-bottom: 2.5px solid transparent; margin-bottom: -1px;
+  white-space: nowrap; display: inline-flex; align-items: center; gap: 7px;
+}
+[data-skin="toss"] .au-dtab:hover { color: var(--ink); }
+[data-skin="toss"] .au-dtab[data-active="true"] { color: var(--primary); border-bottom-color: var(--primary); }
+[data-skin="toss"] .au-dtab__n {
+  font-family: var(--ff-mono); font-size: 11.5px; font-weight: 700;
+  background: var(--grey-100); color: var(--ink-mute); padding: 1px 7px; border-radius: 7px;
+}
+[data-skin="toss"] .au-dtab[data-active="true"] .au-dtab__n { background: var(--primary-weak); color: var(--primary); }
+[data-skin="toss"] .au-ministat {
+  display: grid; gap: 1px; background: var(--border); border-radius: 16px; overflow: hidden;
+  border: 1px solid var(--border);
+}
+[data-skin="toss"] .au-ministat__cell { background: var(--card); padding: 16px 14px; min-width: 0; }
+[data-skin="toss"] .au-ministat__v {
+  font-size: 22px; font-weight: 800; letter-spacing: -0.02em; color: var(--ink);
+  font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+[data-skin="toss"] .au-ministat__l { font-size: 12px; font-weight: 600; color: var(--ink-mute); margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+[data-skin="toss"] .au-dgrid { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 16px; align-items: start; }
+[data-skin="toss"] .au-dgrid--wide { grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr); }
+[data-skin="toss"] .au-dstack { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+[data-skin="toss"] .au-sub { width: 100%; border-collapse: collapse; font-size: 14px; }
+[data-skin="toss"] .au-sub th {
+  text-align: left; font-size: 12px; font-weight: 700; color: var(--ink-mute);
+  padding: 0 12px 10px; border-bottom: 1px solid var(--border); white-space: nowrap;
+}
+[data-skin="toss"] .au-sub td { padding: 13px 12px; border-bottom: 1px solid var(--grey-100); color: var(--ink); vertical-align: middle; }
+[data-skin="toss"] .au-sub tr:last-child td { border-bottom: 0; }
+[data-skin="toss"] .au-sub tbody tr:hover { background: var(--grey-50); }
+[data-skin="toss"] .au-sub__name { font-weight: 700; }
+[data-skin="toss"] .au-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+[data-skin="toss"] .au-chips__item {
+  display: inline-flex; align-items: center; gap: 6px; padding: 8px 13px; border-radius: 11px;
+  background: var(--grey-100); color: var(--ink-soft); font-size: 13.5px; font-weight: 600;
+}
+[data-skin="toss"] .au-feed { display: flex; flex-direction: column; gap: 0; }
+[data-skin="toss"] .au-feed__row { display: grid; grid-template-columns: 10px minmax(0,1fr); gap: 12px; padding: 14px 0; border-bottom: 1px solid var(--grey-100); }
+[data-skin="toss"] .au-feed__row:last-child { border-bottom: 0; }
+[data-skin="toss"] .au-feed__dot { width: 10px; height: 10px; border-radius: 50%; margin-top: 5px; background: var(--primary); }
+[data-skin="toss"] .au-feed__title { font-size: 14px; font-weight: 800; color: var(--ink); }
+[data-skin="toss"] .au-feed__desc { font-size: 13px; color: var(--ink-mute); margin-top: 3px; }
+[data-skin="toss"] .au-feed__meta { font-size: 12px; color: var(--ink-dim); margin-top: 5px; }
+[data-skin="toss"] .au-empty-detail {
+  min-height: 180px; display: grid; place-items: center; align-content: center; gap: 8px;
+  color: var(--ink-mute); text-align: center; padding: 28px;
+}
+[data-skin="toss"] .au-empty-detail__title { font-size: 14px; font-weight: 800; color: var(--ink-soft); }
+[data-skin="toss"] .au-empty-detail__desc { font-size: 13px; color: var(--ink-mute); }
+@media (max-width: 920px) {
+  [data-skin="toss"] .au-dgrid,
+  [data-skin="toss"] .au-dgrid--wide { grid-template-columns: 1fr; }
+}
+
 /* responsive: 비핵심 컬럼 숨김 (DataTable hideSm) */
 @media (max-width: 860px) {
   [data-skin="toss"] .au-hide-sm { display: none !important; }

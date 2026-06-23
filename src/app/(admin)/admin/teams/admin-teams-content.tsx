@@ -11,6 +11,7 @@
 // (이전 이력) 2026-05-04: (web) 디자인 시스템 통일 / 2026-05-29 PR-3C-6 TA1/TA2 박제.
 
 import { useState } from "react";
+import Link from "next/link";
 // v2.40 A3-1a — 통합 콘솔 키트
 import {
   Toolbar,
@@ -134,26 +135,34 @@ export function AdminTeamsContent({ teams, updateStatusAction }: Props) {
         sub={selected?.city ?? ""}
         foot={
           selected ? (
-            <form
-              action={updateStatusAction}
-              className="flex w-full items-center gap-2"
-              onSubmit={() => setSelected(null)}
-            >
-              <input type="hidden" name="team_id" value={selected.id} />
-              <input
-                type="hidden"
-                name="status"
-                value={selected.status === "active" ? "inactive" : "active"}
-              />
-              <Btn
-                type="submit"
-                size="sm"
-                variant={selected.status !== "active" ? "primary" : "secondary"}
-                block
+            <div className="flex w-full items-center gap-2">
+              <Link
+                href={`/admin/teams/${selected.id}`}
+                className="btn btn--sm flex-1 justify-center"
               >
-                {selected.status === "active" ? "비활성화" : "활성화"}
-              </Btn>
-            </form>
+                상세 페이지 열기
+              </Link>
+              <form
+                action={updateStatusAction}
+                className="flex-1"
+                onSubmit={() => setSelected(null)}
+              >
+                <input type="hidden" name="team_id" value={selected.id} />
+                <input
+                  type="hidden"
+                  name="status"
+                  value={selected.status === "active" ? "inactive" : "active"}
+                />
+                <Btn
+                  type="submit"
+                  size="sm"
+                  variant={selected.status !== "active" ? "primary" : "secondary"}
+                  block
+                >
+                  {selected.status === "active" ? "비활성화" : "활성화"}
+                </Btn>
+              </form>
+            </div>
           ) : undefined
         }
       >

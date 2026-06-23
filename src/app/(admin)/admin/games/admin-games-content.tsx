@@ -14,6 +14,7 @@
 
 import { useState } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
+import Link from "next/link";
 // v2.40 A3-1a — 통합 콘솔 키트
 import {
   Toolbar,
@@ -278,26 +279,37 @@ export function AdminGamesContent({ games, updateStatusAction, pagination }: Pro
         title={selected?.title ?? "(제목 없음)"}
         sub={selected ? TYPE_LABEL[selected.gameType] : ""}
         foot={
-          selected && (TRANSITIONS[selected.status] ?? []).length > 0 ? (
-            <form
-              action={updateStatusAction}
-              className="flex w-full items-center gap-2"
-              onSubmit={() => setSelected(null)}
-            >
-              <input type="hidden" name="game_id" value={selected.id} />
-              <select
-                name="status"
-                defaultValue=""
-                className="ts-select"
-                style={{ flex: 1 }}
+          selected ? (
+            <div className="flex w-full items-center gap-2">
+              <Link
+                href={`/admin/games/${selected.id}`}
+                className="btn btn--sm flex-1 justify-center"
               >
-                <option value="" disabled>상태 변경</option>
-                {(TRANSITIONS[selected.status] ?? []).map((s) => (
-                  <option key={s} value={s}>{STATUS_LABEL[s] ?? String(s)}</option>
-                ))}
-              </select>
-              <Btn type="submit" size="sm" variant="primary">적용</Btn>
-            </form>
+                상세 페이지 열기
+              </Link>
+              {(TRANSITIONS[selected.status] ?? []).length > 0 && (
+                <form
+                  action={updateStatusAction}
+                  className="flex items-center gap-2"
+                  style={{ flex: 1.5 }}
+                  onSubmit={() => setSelected(null)}
+                >
+                  <input type="hidden" name="game_id" value={selected.id} />
+                  <select
+                    name="status"
+                    defaultValue=""
+                    className="ts-select"
+                    style={{ flex: 1 }}
+                  >
+                    <option value="" disabled>상태 변경</option>
+                    {(TRANSITIONS[selected.status] ?? []).map((s) => (
+                      <option key={s} value={s}>{STATUS_LABEL[s] ?? String(s)}</option>
+                    ))}
+                  </select>
+                  <Btn type="submit" size="sm" variant="primary">적용</Btn>
+                </form>
+              )}
+            </div>
           ) : undefined
         }
       >

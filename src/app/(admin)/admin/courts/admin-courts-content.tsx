@@ -7,6 +7,7 @@
 
 import { useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 // Phase 2A (Toss 전환) — Material Symbols → lucide(<Icon>) 키트
 import { Icon } from "@/components/admin-toss";
 // v2.40 A3-1b — 통합 콘솔 키트(코트 관리 탭만 적용. 등록 폼/3탭은 보존)
@@ -444,6 +445,12 @@ export function AdminCourtsContent({
         foot={
           selected ? (
             <div className="flex items-center gap-2">
+              <Link
+                href={`/admin/courts/${selected.id}`}
+                className="btn btn--sm"
+              >
+                상세 페이지 열기
+              </Link>
               {/* 유형 토글 — server action form 그대로 보존 */}
               <form action={updateCourtAction} className="flex-1">
                 <input type="hidden" name="court_id" value={selected.id} />

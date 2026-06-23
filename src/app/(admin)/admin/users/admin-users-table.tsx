@@ -6,6 +6,7 @@
 // - 자체 rounded bg-* 버튼 → .btn .btn--primary / .btn--sm
 
 import { useState, useEffect, useMemo } from "react";
+import Link from "next/link";
 import { MEMBERSHIP_LABELS, type MembershipType } from "@/lib/auth/roles";
 // Phase 1 (Toss 전환) — Material Symbols → lucide(<Icon>)
 import { Icon } from "@/components/admin-toss";
@@ -446,6 +447,17 @@ export function AdminUsersTable({
                   <span className="admin-stat-pill" data-tone={role.tone}>{role.label}</span>
                   {statusBadge(u.status)}
                   {u.provider && <span className="rounded-full bg-white/15 px-2 py-0.5 text-xs text-white/80">{u.provider}</span>}
+                  <Link
+                    href={`/admin/users/${u.id}`}
+                    className="btn btn--sm"
+                    style={{
+                      background: "var(--color-card)",
+                      color: "var(--color-text-primary)",
+                      borderColor: "transparent",
+                    }}
+                  >
+                    상세 페이지 열기
+                  </Link>
                 </div>
               </div>
 
