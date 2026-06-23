@@ -9,6 +9,7 @@
 | WS1 운영 워크스페이스 | 완료 | `[id]/page.tsx` 구조 전환, API/DB 변경 없음 |
 
 ## 작업 로그
+- 2026-06-23 design(sync): v2.40 통합 Admin Console 원본을 `BDR-current/_handoff-admin-v2.40-unified/`에 흡수하고 큐 상태를 정정.
 - 2026-06-23 housekeeping: 사용 완료된 `scripts/_temp/count-news-photo.mjs` 임시 실측 스크립트 정리.
 - 2026-06-23 docs: 라이브 도메인 전담 에이전트 정의 `live-expert`를 `.codex/agents`에 추가.
 - 2026-06-23 docs: 프로젝트 작업 규칙 `AGENTS.md`를 repo 기준 문서로 추가.

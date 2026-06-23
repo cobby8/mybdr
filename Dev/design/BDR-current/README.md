@@ -1,3 +1,18 @@
+# BDR-current — 활성 시안 인덱스
+
+> 2026-06-23 갱신: v2.40 통합 Admin Console 원본을 `BDR-current/_handoff-admin-v2.40-unified/`에 흡수했습니다.
+> 이후 v2.40 콘솔 박제/검증 프롬프트는 `Dev/design/BDR v2.40/` 직접 참조 대신 이 활성 handoff를 기준으로 보세요.
+
+## 최신 handoff
+
+| 경로 | 내용 | 상태 |
+|---|---|---|
+| `_handoff-admin-v2.40-unified/` | v2.40 통합 Admin Console 원본 (`_admin-unified`) | 2026-06-23 흡수 완료 |
+| `_handoff-admin-toss-P0/` | 관리자 Toss 전환 + 새 대회 생성폼 전달물 | 보존 |
+| `_handoff-matchmaking-M2-M5/` | 매칭 고도화 M2~M5 시안 전달물 | 보존 |
+
+---
+
 # BDR v2.29 — Phase 9 (알림·메시지·검색) 박제
 
 > **박제일**: 2026-06-07
