@@ -140,6 +140,7 @@ export function TournamentWorkspace({
     const divisionItems = [divisions];
     const matchItems = [recording, bracket];
     const divisionsReady = divisions?.status === "complete";
+    const recordingReady = recording?.status === "complete";
     const bracketReady = bracket?.status === "complete";
 
     return [
@@ -225,8 +226,27 @@ export function TournamentWorkspace({
         summary: `${matchCount}경기 생성됨 · ${recording?.summary ?? "기록 설정 확인"}`,
         icon: "clipboard-list",
         itemKeys: ["recording", "bracket"],
+        facts: [
+          {
+            label: "현재 상태",
+            value: `${matchCount}경기 생성됨 · ${recording?.summary ?? "기록 설정 확인"}`,
+          },
+          {
+            label: "다음 액션",
+            value: !divisionsReady
+              ? "종별/운영 방식 완료 후 경기와 기록 설정을 진행하세요"
+              : !bracketReady
+                ? "대진표 생성 후 경기 목록과 기록 모드를 확인하세요"
+                : recordingReady
+                  ? "경기별 스코어 입력과 기록원 배정을 확인하세요"
+                  : "기록 모드를 먼저 확정하세요",
+          },
+        ],
         lockedReason: firstLockedReason(matchItems),
-        actions: [{ label: "경기/기록 관리", href: `${base}/matches`, icon: "clipboard-list" }],
+        actions: [
+          { label: "경기/기록 관리", href: `${base}/matches`, icon: "clipboard-list" },
+          { label: "기록원 지정", href: `${base}/recorders`, icon: "file-pen" },
+        ],
       },
       {
         id: "bracket",
@@ -264,6 +284,18 @@ export function TournamentWorkspace({
         summary: isCompleted ? "종료 후 정리 단계입니다" : "운영 권한과 종료 처리를 준비하세요",
         icon: "shield-user",
         itemKeys: [],
+        facts: [
+          {
+            label: "운영 권한",
+            value: "관리자와 기록원은 각 상세 페이지에서 지정합니다",
+          },
+          {
+            label: "종료 흐름",
+            value: isCompleted
+              ? "종료 후 정리 화면에서 결과를 확인하세요"
+              : "경기 운영 완료 후 종료 처리로 이동하세요",
+          },
+        ],
         actions: [
           { label: "관리자", href: `${base}/admins`, icon: "shield-user" },
           { label: "기록원", href: `${base}/recorders`, icon: "file-pen" },
