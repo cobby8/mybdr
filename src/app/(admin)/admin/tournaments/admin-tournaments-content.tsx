@@ -320,13 +320,22 @@ export function AdminTournamentsContent({
         }
         foot={
           selected ? (
-            <Link
-              href={`/tournament-admin/tournaments/${selected.id}`}
-              className="ts-btn ts-btn--primary"
-              style={{ flex: 1, textAlign: "center" }}
-            >
-              대회 운영 페이지로 이동
-            </Link>
+            <div className="flex w-full flex-wrap gap-2">
+              <Link
+                href={`/admin/tournaments/${selected.id}`}
+                className="ts-btn ts-btn--primary"
+                style={{ flex: 1, textAlign: "center" }}
+              >
+                상세 페이지 열기
+              </Link>
+              <Link
+                href={`/tournament-admin/tournaments/${selected.id}`}
+                className="ts-btn ts-btn--secondary"
+                style={{ flex: 1, textAlign: "center" }}
+              >
+                운영 페이지
+              </Link>
+            </div>
           ) : undefined
         }
       >

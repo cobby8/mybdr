@@ -14,6 +14,7 @@
  */
 
 import { useState, useEffect, useCallback, useMemo } from "react";
+import Link from "next/link";
 // v2.40 A3-1b — 통합 콘솔 키트로 교체
 import {
   PageHead,
@@ -298,6 +299,13 @@ export default function AdminOrganizationsPage() {
         foot={
           selected ? (
             <div className="flex flex-wrap items-center justify-end gap-2">
+              <Link
+                href={`/admin/organizations/${selected.id}`}
+                className="ts-btn ts-btn--primary ts-btn--sm"
+                style={{ textAlign: "center" }}
+              >
+                상세 페이지 열기
+              </Link>
               {/* pending — 승인/거절 (기존 워크플로우 활용) */}
               {selected.status === "pending" && rejectId !== selected.id && (
                 <>

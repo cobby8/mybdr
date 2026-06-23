@@ -15,13 +15,13 @@
 | A3-2 사용자·커뮤니티5 | users·community·season-awards·game-reports·suggestions | ✅ e2b851f (미푸시1) |
 | A3-3 비즈니스4 | payments·plans·campaigns·partners | ✅ e29b860 (미푸시) |
 | **A3-4 시스템5** | analytics·categories·notifications·logs·settings | ✅ 986cb1f (미푸시) |
-| **A4 드릴다운 상세** | user/team/court/game·org·tournament(읽기요약 D2)·엔티티 | A4-1 4종 완료(커밋 대기) · A4-2 org+tournament 다음 |
+| **A4 드릴다운 상세** | user/team/court/game·org·tournament(읽기요약 D2)·엔티티 | A4-1 f1b25a1 (미푸시) · A4-2 org+tournament 완료(커밋 대기) |
 | A5 생성 플로우 | compose-notification·create-campaign·write-news·AddModal | 대기 |
 
 **확정 결재**: D1 전면채택 / D2 대회상세=읽기요약 이중유지 / D3 게시글신고 보류 / D4 au.css→toss-admin.css 흡수.
 **키트 통일 규약**: PageHead→StatRow→Toolbar→DataTable(keyField/onRowClick/pagination)→Drawer. Badge tone(info→primary·mute→grey·err→danger). useFilter 클라탭전용·FIELDS 상수·`&FilterableRow` 교차단언. **복잡 모달/폼/차트는 보존**(목록/툴바/StatRow만 키트화). 데이터/액션/라우트/권한 0변경·UI만.
 **A3 진척**: 19/19 화면 완료(A3-1·A3-2·A3-3·A3-4). 배치당 PR 1건·수빈 dev→main 결재.
-**A4 진척**: A4-1 user/team/court/game 상세 4종 완료. 다음=A4-2 org+tournament 상세(읽기요약 D2·정산 실측).
+**A4 진척**: A4-1 user/team/court/game 상세 4종 + A4-2 org/tournament 읽기요약 완료. 다음=A5 생성 플로우.
 
 ### 🅰️ 세션 A — Phase 3 referee 리스킨 (이 세션)
 - **코드 영역**: `src/app/(referee)/referee/*` (회원 + referee-admin). admin/* 비대회는 Phase2 완료·미접촉. tournaments/*·schema는 세션 B 소관.
@@ -150,6 +150,7 @@
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
 |------|------|------|
+| 2026-06-23 | **v2.40 A4-2 단체·대회 상세 읽기요약** | ✅ 신규 상세라우트 `/admin/organizations/[id]`, `/admin/tournaments/[id]` 추가. 조직=멤버/시리즈/회차 요약, 대회=개요/참가팀/대진표/정산 탭. 정산 실측: TournamentTeam.status=approved, payment_status=paid/unpaid/waived, RefereeSettlement 0건. `tsc --noEmit` 통과, 2 URL 307 인증 리다이렉트 확인. |
 | 2026-06-23 | **v2.40 A4-1 드릴다운 상세 4종(user·team·court·game)** | ✅ 신규 상세라우트 4개+detail-kit+목록 상세링크+CSS 추가. Prisma SELECT/read-only, query tab 방식, 서버액션/DB write/schema/api/v1 0변경. `cmd /c npx tsc --noEmit --incremental false` 통과, 4 URL 307 인증 리다이렉트 확인. |
 | 2026-06-23 | **v2.40 A3-4 시스템5 키트 통일 (analytics·categories·notifications·logs·settings)** | ✅ 5파일 수정. PageHead/StatRow/Panel/StatusBadge 적용, analytics/logs prisma 조회와 notifications/settings actions·categories CRUD 보존. `cmd /c npx tsc --noEmit --incremental false` 통과, admin 5 URL 307 인증 리다이렉트 확인. |
 | 2026-06-23 | **v2.40 A3-3 비즈니스4 키트 통일 (payments·plans·campaigns·partners)** | ✅ 5파일 수정. PageHead/StatRow/Toolbar/DataTable/StatusBadge/PrimaryCell 적용, 환불·CRUD·승인/반려 fetch와 폼/모달 보존. `cmd /c npx tsc --noEmit --incremental false` 통과, admin 4 URL 307 인증 리다이렉트 확인. |
