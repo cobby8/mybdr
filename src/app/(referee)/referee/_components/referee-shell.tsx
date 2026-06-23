@@ -177,7 +177,10 @@ export function RefereeShell({ children }: { children: React.ReactNode }) {
   };
 
   return (
+    // 2026-06-21 Toss 전환 완료: data-skin="toss" 를 셸 루트로 승격
+    //   (기존: 사이드바만 부착 → main/children 프레임 미전환 버그). 회원 화면 리스킨 완료로 전체 부착.
     <div
+      data-skin="toss"
       className="flex min-h-screen flex-col"
       style={{ backgroundColor: "var(--color-background)" }}
     >

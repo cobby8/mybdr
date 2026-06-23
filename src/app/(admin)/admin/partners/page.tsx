@@ -12,11 +12,19 @@
  * ============================================================ */
 
 import { useState, useEffect, useCallback } from "react";
-import { AdminPageHeader } from "@/components/admin/admin-page-header";
 // Toss Phase 2 2B — lucide 키트 Icon (Material Symbols 교체)
 import { Icon } from "@/components/admin-toss";
 // 8C-6 박제 — VA1 Site Operator 뱃지 (dark+gold, /admin/courts 와 공용)
 import { SiteOperatorBadge } from "@/components/admin/site-operator-badge";
+import {
+  DataTable,
+  PageHead,
+  PrimaryCell,
+  StatRow,
+  StatusBadge,
+  Toolbar,
+  type Column,
+} from "@/components/admin/console-kit";
 
 // 파트너 타입 정의
 interface Partner {
@@ -34,21 +42,11 @@ interface Partner {
   created_at: string;
 }
 
-// 시안 v2.14 — admin-stat-pill[data-tone] 매핑
-// (pending=warn / approved=ok / rejected=err / suspended=mute)
-const STATUS_TONE: Record<string, "ok" | "warn" | "err" | "info" | "mute"> = {
-  pending: "warn",
-  approved: "ok",
-  rejected: "err",
-  suspended: "mute",
-};
-
-// 상태별 라벨 매핑 (운영 4개 상태 보존)
-const STATUS_LABEL: Record<string, string> = {
-  pending: "대기",
-  approved: "승인",
-  rejected: "반려",
-  suspended: "정지",
+const STATUS_META = {
+  pending: { tone: "warn" as const, label: "대기" },
+  approved: { tone: "ok" as const, label: "승인" },
+  rejected: { tone: "danger" as const, label: "반려" },
+  suspended: { tone: "grey" as const, label: "정지" },
 };
 
 export default function AdminPartnersPage() {
@@ -103,18 +101,95 @@ export default function AdminPartnersPage() {
     }
   };
 
+  const tabs = [
+    { id: "", label: "전체" },
+    { id: "pending", label: "대기" },
+    { id: "approved", label: "승인" },
+    { id: "rejected", label: "반려" },
+  ];
+
+  const columns: Column<Partner>[] = [
+    {
+      key: "name",
+      label: "파트너사",
+      width: "minmax(220px,1.5fr)",
+      render: (p) => (
+        <PrimaryCell
+          initials={p.name.slice(0, 1)}
+          title={p.name}
+          meta={p.contact_email || "-"}
+          accent
+        />
+      ),
+    },
+    {
+      key: "owner",
+      label: "소유자",
+      width: "minmax(150px,1fr)",
+      render: (p) => p.owner.nickname || p.owner.email,
+    },
+    {
+      key: "campaigns_count",
+      label: "캠페인",
+      width: "100px",
+      align: "center",
+      render: (p) => `${p.campaigns_count}개`,
+    },
+    {
+      key: "status",
+      label: "상태",
+      width: "100px",
+      align: "center",
+      render: (p) => <StatusBadge map={STATUS_META} value={p.status} />,
+    },
+    {
+      key: "id",
+      label: "관리",
+      width: "160px",
+      align: "right",
+      render: (p) => (
+        <span className="inline-flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+          {p.status === "pending" && (
+            <>
+              <button onClick={() => handleStatusChange(p.id, "approved")} className="btn btn--sm">
+                승인
+              </button>
+              <button
+                onClick={() => handleStatusChange(p.id, "rejected")}
+                className="btn btn--sm"
+                style={{ borderColor: "var(--danger)", color: "var(--danger)" }}
+              >
+                반려
+              </button>
+            </>
+          )}
+          {p.status === "approved" && (
+            <button
+              onClick={() => handleStatusChange(p.id, "suspended")}
+              className="btn btn--sm"
+              style={{ borderColor: "var(--danger)", color: "var(--danger)" }}
+            >
+              정지
+            </button>
+          )}
+          {p.status === "suspended" && (
+            <button onClick={() => handleStatusChange(p.id, "approved")} className="btn btn--sm">
+              재승인
+            </button>
+          )}
+        </span>
+      ),
+    },
+  ];
+
   return (
     <div data-skin="toss">
       {/* 시안 v2.14 — eyebrow + breadcrumbs + actions (파트너 등록 버튼은 actions slot) */}
-      <AdminPageHeader
-        eyebrow="ADMIN · 비즈니스"
+      <PageHead
+        icon="handshake"
+        eyebrow="ADMIN / 비즈니스"
         title="파트너 관리"
-        subtitle="광고 파트너사 등록 / 승인 / 관리"
-        breadcrumbs={[
-          { label: "ADMIN" },
-          { label: "비즈니스" },
-          { label: "파트너 관리" },
-        ]}
+        sub="광고 파트너사 등록 / 승인 / 관리"
         actions={
           // 8C-6 박제 — VA1: Site Operator 뱃지(dark+gold) + 기존 등록 버튼
           <div className="flex items-center gap-2">
@@ -130,23 +205,16 @@ export default function AdminPartnersPage() {
         }
       />
 
-      {/* 상태 필터 탭 — (web) .btn 패턴 (Organizations 박제와 일관) */}
-      <div className="mb-4 flex gap-2">
-        {[
-          { value: "", label: "전체" },
-          { value: "pending", label: "대기" },
-          { value: "approved", label: "승인" },
-          { value: "rejected", label: "반려" },
-        ].map((tab) => (
-          <button
-            key={tab.value}
-            onClick={() => setFilter(tab.value)}
-            className={`btn btn--sm ${filter === tab.value ? "btn--primary" : ""}`}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
+      <StatRow
+        items={[
+          { icon: "handshake", label: "현재 목록", value: partners.length.toLocaleString() },
+          { icon: "clock", label: "대기", value: partners.filter((p) => p.status === "pending").length.toLocaleString() },
+          { icon: "megaphone", label: "캠페인", value: partners.reduce((sum, p) => sum + p.campaigns_count, 0).toLocaleString() },
+          { icon: "users", label: "멤버", value: partners.reduce((sum, p) => sum + p.members_count, 0).toLocaleString() },
+        ]}
+      />
+
+      <Toolbar tabs={tabs} active={filter} onTab={setFilter} />
 
       {/* 신규 등록 폼 (토글) */}
       {showForm && (
@@ -207,80 +275,7 @@ export default function AdminPartnersPage() {
           등록된 파트너가 없습니다
         </div>
       ) : (
-        <div className="rounded-md border overflow-hidden admin-table-wrap"
-          style={{ borderColor: "var(--color-border)" }}>
-          {/* admin-table: 모바일 ≤720px 카드 변환 (globals.css [Admin Phase B]) */}
-          <table className="admin-table w-full text-sm">
-            <thead>
-              <tr style={{ backgroundColor: "var(--color-surface)" }}>
-                <th className="text-left px-4 py-3 font-medium" style={{ color: "var(--color-text-secondary)" }}>파트너사</th>
-                <th className="text-left px-4 py-3 font-medium" style={{ color: "var(--color-text-secondary)" }}>소유자</th>
-                <th className="text-center px-4 py-3 font-medium" style={{ color: "var(--color-text-secondary)" }}>캠페인</th>
-                <th className="text-center px-4 py-3 font-medium" style={{ color: "var(--color-text-secondary)" }}>상태</th>
-                <th className="text-center px-4 py-3 font-medium" style={{ color: "var(--color-text-secondary)" }}>관리</th>
-              </tr>
-            </thead>
-            <tbody>
-              {partners.map((p) => {
-                return (
-                  <tr key={p.id} className="border-t" style={{ borderColor: "var(--color-border)" }}>
-                    <td data-primary="true" className="px-4 py-3">
-                      <p className="font-medium" style={{ color: "var(--color-text-primary)" }}>{p.name}</p>
-                      <p className="text-xs" style={{ color: "var(--color-text-muted)" }}>{p.contact_email || "-"}</p>
-                    </td>
-                    <td data-label="소유자" className="px-4 py-3" style={{ color: "var(--color-text-secondary)" }}>
-                      {p.owner.nickname || p.owner.email}
-                    </td>
-                    <td data-label="캠페인" className="px-4 py-3 text-center" style={{ color: "var(--color-text-secondary)" }}>
-                      {p.campaigns_count}개
-                    </td>
-                    <td data-label="상태" className="px-4 py-3 text-center">
-                      {/* 시안 v2.14 — admin-stat-pill data-tone (미매치 시 mute 폴백) */}
-                      <span className="admin-stat-pill" data-tone={STATUS_TONE[p.status] ?? "mute"}>
-                        {STATUS_LABEL[p.status] ?? p.status}
-                      </span>
-                    </td>
-                    <td data-actions="true" className="px-4 py-3 text-center">
-                      <div className="flex items-center justify-center gap-1">
-                        {/* 승인 대기 상태일 때 승인/반려 버튼 */}
-                        {p.status === "pending" && (
-                          <>
-                            <button onClick={() => handleStatusChange(p.id, "approved")}
-                              className="px-2 py-1 rounded text-xs font-medium text-white"
-                              style={{ backgroundColor: "var(--color-success)" }}>
-                              승인
-                            </button>
-                            <button onClick={() => handleStatusChange(p.id, "rejected")}
-                              className="px-2 py-1 rounded text-xs font-medium text-white"
-                              style={{ backgroundColor: "var(--color-error)" }}>
-                              반려
-                            </button>
-                          </>
-                        )}
-                        {/* 승인 상태일 때 정지 버튼 */}
-                        {p.status === "approved" && (
-                          <button onClick={() => handleStatusChange(p.id, "suspended")}
-                            className="px-2 py-1 rounded text-xs font-medium"
-                            style={{ color: "var(--color-error)" }}>
-                            정지
-                          </button>
-                        )}
-                        {/* 정지 상태일 때 재승인 버튼 */}
-                        {p.status === "suspended" && (
-                          <button onClick={() => handleStatusChange(p.id, "approved")}
-                            className="px-2 py-1 rounded text-xs font-medium"
-                            style={{ color: "var(--color-success)" }}>
-                            재승인
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+        <DataTable columns={columns} rows={partners} keyField="id" emptyTitle="등록된 파트너가 없습니다" />
       )}
     </div>
   );

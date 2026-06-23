@@ -19,9 +19,9 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { AdminPageHeader } from "@/components/admin/admin-page-header";
 // Toss Phase 2 2B — lucide 키트 Icon (Material Symbols 교체)
 import { Icon } from "@/components/admin-toss";
+import { PageHead, StatRow, StatusBadge } from "@/components/admin/console-kit";
 
 // (web) 시안 카드 패턴
 const CARD_CLASS = "rounded-[var(--radius-card)] border p-4 sm:p-5";
@@ -44,6 +44,10 @@ type Plan = {
 };
 
 const PLAN_TYPE_LABELS: Record<string, string> = { monthly: "월 구독", one_time: "1회 구매" };
+const ACTIVE_META = {
+  active: { label: "활성", tone: "ok" as const },
+  inactive: { label: "비활성", tone: "grey" as const },
+};
 const FEATURE_KEY_OPTIONS = [
   { value: "team_create", label: "팀 생성권" },
   { value: "pickup_game", label: "픽업게임" },
@@ -169,17 +173,11 @@ export default function AdminPlansPage() {
 
   return (
     <div data-skin="toss">
-      <AdminPageHeader
-        // 시안 v2.14 카피 박제 — eyebrow 영역명 (USERS → 사용자 동일 한글화)
-        eyebrow="ADMIN · 비즈니스"
+      <PageHead
+        icon="package"
+        eyebrow="ADMIN / 비즈니스"
         title="요금제 관리"
-        subtitle="유료·무료 플랜의 가격·기능·가입자 추이를 관리합니다."
-        // 시안 breadcrumbs (ADMIN › 비즈니스 › 요금제 관리)
-        breadcrumbs={[
-          { label: "ADMIN" },
-          { label: "비즈니스" },
-          { label: "요금제 관리" },
-        ]}
+        sub="유료·무료 플랜의 가격·기능·가입자 추이를 관리합니다."
         actions={
           <>
             {/* 시안 v2.14 — 결제 내역 이동 보조 actions (운영 라우트 /admin/payments) */}
@@ -190,6 +188,15 @@ export default function AdminPlansPage() {
             <Button onClick={openCreate}>+ 요금제 추가</Button>
           </>
         }
+      />
+
+      <StatRow
+        items={[
+          { icon: "package-check", label: "전체 요금제", value: plans.length.toLocaleString() },
+          { icon: "toggle-right", label: "활성", value: plans.filter((p) => p.is_active).length.toLocaleString(), trend: "up", delta: "active" },
+          { icon: "gift", label: "프로모션 대상", value: promoStats.reduce((sum, s) => sum + s.count, 0).toLocaleString() },
+          { icon: "credit-card", label: "유료 플랜", value: plans.filter((p) => p.price > 0).length.toLocaleString() },
+        ]}
       />
 
       {/* 프로모션 관리 */}
@@ -258,9 +265,7 @@ export default function AdminPlansPage() {
                 {/* 상단: 이름 + 활성 배지 */}
                 <div className="mb-3 flex items-start justify-between gap-2">
                   <span className="font-semibold" style={{ color: "var(--color-text-primary)" }}>{plan.name}</span>
-                  <span className="admin-stat-pill" data-tone={plan.is_active ? "ok" : "mute"}>
-                    {plan.is_active ? "활성" : "비활성"}
-                  </span>
+                  <StatusBadge map={ACTIVE_META} value={plan.is_active ? "active" : "inactive"} />
                 </div>
 
                 {/* 타입 / 기능 키 태그 */}

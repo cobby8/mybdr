@@ -23,9 +23,9 @@
 
 import { useState, FormEvent } from "react";
 import Link from "next/link"; // Admin-6 박제 — 시안 actions "활동 로그" Link 신규
-import { AdminPageHeader } from "@/components/admin/admin-page-header";
 // Toss Phase 2 2B — lucide 키트 Icon (Material Symbols 교체)
 import { Icon } from "@/components/admin-toss";
+import { PageHead, StatRow } from "@/components/admin/console-kit";
 
 // (web) 시안 카드 패턴
 const CARD_CLASS = "rounded-[var(--radius-card)] border p-4 sm:p-5";
@@ -130,21 +130,26 @@ export default function AdminNotificationsPage() {
       {/* Admin-6 박제 — 시안 v2.14 AdminNotifications.jsx 헤더 패턴 카피 */}
       {/* eyebrow + subtitle + breadcrumbs + actions (활동 로그 Link) 신규 */}
       {/* POST /api/web/admin/notifications 비즈 로직 보존 — handleSubmit / fetch / state 0 변경 */}
-      <AdminPageHeader
-        eyebrow="ADMIN · 시스템"
+      <PageHead
+        icon="send"
+        eyebrow="ADMIN / 시스템"
         title="알림 발송"
-        subtitle="시스템 알림을 대상별로 발송합니다. 일반 유저 대상 발송은 신중히 진행하세요."
-        breadcrumbs={[
-          { label: "ADMIN" },
-          { label: "시스템" },
-          { label: "알림 발송" },
-        ]}
+        sub="시스템 알림을 대상별로 발송합니다. 일반 유저 대상 발송은 신중히 진행하세요."
         actions={
           <Link href="/admin/logs" className="btn">
             <Icon name="list-checks" size={16} />
             활동 로그
           </Link>
         }
+      />
+
+      <StatRow
+        items={[
+          { icon: "globe", label: "발송 대상", value: "3종" },
+          { icon: "shield-user", label: "팀장 대상", value: "준비 중" },
+          { icon: "link", label: "이동 URL", value: actionUrl.trim() ? "입력됨" : "선택" },
+          { icon: "smartphone", label: "미리보기", value: title.trim() ? "활성" : "대기" },
+        ]}
       />
 
       {/* 9C-4: 작성 form(좌) + 미리보기(우) 2열 그리드 (NA1 nt-na-grid 박제) */}

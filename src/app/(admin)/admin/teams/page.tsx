@@ -1,5 +1,7 @@
 import { prisma } from "@/lib/db/prisma";
 import { AdminPageHeader } from "@/components/admin/admin-page-header";
+// v2.40 A3-1a — 통합 콘솔 키트 StatRow(status 카운트 띠)
+import { StatRow } from "@/components/admin/console-kit";
 import { updateTeamStatusAction } from "@/app/actions/admin-teams";
 import { AdminTeamsContent } from "./admin-teams-content";
 
@@ -60,14 +62,17 @@ export default async function AdminTeamsPage({
       (statusCounts[g.status ?? "active"] ?? 0) + g._count._all;
   }
 
-  // TA1 통계 띠 항목 정의 (실 status 값만, 0건은 hide).
-  // tone = admin-stat-pill 톤: active=ok / inactive=err / merged=info / dissolved=mute
-  const statusStats: { key: string; label: string; tone: string }[] = [
-    { key: "active", label: "활동중", tone: "ok" },
-    { key: "inactive", label: "비활성", tone: "err" },
-    { key: "merged", label: "통합됨", tone: "info" },
-    { key: "dissolved", label: "해산됨", tone: "mute" },
+  // v2.40 A3-1a — StatRow 통계 띠 항목 (실 status 값만·0건은 hide·기존 statusGroups 재사용).
+  //   icon = 키트 StatRow 아이콘(lucide). 라벨/실측값은 기존 TA1 박제 그대로.
+  const statusStats: { key: string; label: string; icon: string }[] = [
+    { key: "active", label: "활동중", icon: "circle-check" },
+    { key: "inactive", label: "비활성", icon: "circle-x" },
+    { key: "merged", label: "통합됨", icon: "git-merge" },
+    { key: "dissolved", label: "해산됨", icon: "circle-minus" },
   ];
+  const statItems = statusStats
+    .filter((s) => (statusCounts[s.key] ?? 0) > 0) // 0건은 띠에서 숨김(mock 금지)
+    .map((s) => ({ icon: s.icon, label: s.label, value: statusCounts[s.key] ?? 0 }));
 
   // 직렬화
   const serialized = teams.map((t) => ({
@@ -97,20 +102,8 @@ export default async function AdminTeamsPage({
         breadcrumbs={[{ label: "ADMIN" }, { label: "콘텐츠" }, { label: "팀 관리" }]}
       />
 
-      {/* 2026-05-29 PR-3C-6 TA1 박제 — Hero status 통계 띠.
-          AdminPageHeader는 그대로 두고 아래에 실 status 분포 칩을 배치.
-          0건 status는 미표시(hide), 실값이 들어오면 자동 표시(mock 금지). */}
-      <div className="flex flex-wrap items-center gap-2 px-1 pb-4">
-        {statusStats.map((s) => {
-          const count = statusCounts[s.key] ?? 0;
-          if (count === 0) return null; // 0건은 띠에서 숨김
-          return (
-            <span key={s.key} className="admin-stat-pill" data-tone={s.tone}>
-              {s.label} {count}
-            </span>
-          );
-        })}
-      </div>
+      {/* v2.40 A3-1a — TA1 status 통계 띠를 키트 StatRow 로 통일(실값만·0건 hide·mock 금지). */}
+      {statItems.length > 0 && <StatRow items={statItems} />}
 
       <AdminTeamsContent
         teams={serialized}

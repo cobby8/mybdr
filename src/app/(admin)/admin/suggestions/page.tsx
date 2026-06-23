@@ -1,5 +1,7 @@
 import { prisma } from "@/lib/db/prisma";
 import { AdminPageHeader } from "@/components/admin/admin-page-header";
+// v2.40 A3-2b — 통합 콘솔 키트 통계띠(StatRow)
+import { StatRow } from "@/components/admin/console-kit";
 import { updateSuggestionStatusAction } from "@/app/actions/admin-suggestions";
 import { AdminSuggestionsContent } from "./admin-suggestions-content";
 
@@ -49,6 +51,15 @@ export default async function AdminSuggestionsPage({
     authorEmail: s.users_suggestions_user_idTousers?.email ?? null,
   }));
 
+  // v2.40 A3-2b — 통계띠 카운트. 현재 페이지(take:50) serialized 기준 클라 파생(SELECT 추가 0).
+  const countBy = (st: string) => serialized.filter((s) => s.status === st).length;
+  const statItems = [
+    { icon: "inbox", label: "전체", value: totalCount.toLocaleString() },
+    { icon: "circle-dashed", label: "대기", value: countBy("pending") },
+    { icon: "clock", label: "처리중", value: countBy("open") + countBy("in_progress") },
+    { icon: "check-circle-2", label: "완료", value: countBy("resolved") },
+  ];
+
   return (
     // Phase 2A (Toss 전환) — 페이지 루트에 data-skin="toss" opt-in (content 는 DOM 상속)
     <div data-skin="toss">
@@ -66,6 +77,8 @@ export default async function AdminSuggestionsPage({
           { label: "건의사항" },
         ]}
       />
+      {/* v2.40 A3-2b — 통계띠(status별 count·클라 파생) */}
+      <StatRow items={statItems} />
       <AdminSuggestionsContent
         suggestions={serialized}
         updateStatusAction={updateSuggestionStatusAction}

@@ -1,5 +1,5 @@
 # 프로젝트 지식 목차
-> 최종 갱신: 2026-06-22 (새 대회 생성폼 2컬럼 단일폼 전면교체 Track B Phase4 B-1~B-4 — schedule_dates 컬럼+game_rules 활성+종별/경기설정 UI. subin 미푸시 2건. dev→main 수빈 결재 대기)
+> 최종 갱신: 2026-06-23 (생성폼 B-1~F-2 main머지 #739 → subin폐지·dev단독 → v2.40 통합 Admin Console A1·A0·A2·A3-1·A3-2 완료. console-kit 키트 박제+10/19화면 통일. dev 미푸시 1건. 잔여=A3-3·A3-4·A4·A5)
 
 ## 파일별 요약
 | 파일 | 항목 수 | 최종 업데이트 | 설명 |

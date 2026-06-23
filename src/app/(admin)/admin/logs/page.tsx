@@ -3,18 +3,10 @@
 // - 날짜 필터 칩: 자체 rounded → .btn .btn--sm (활성은 .btn--primary)
 
 import { prisma } from "@/lib/db/prisma";
-import { AdminPageHeader } from "@/components/admin/admin-page-header";
 import Link from "next/link";
 // Phase 2A (Toss 전환) — Material Symbols → lucide(<Icon>) 키트
 import { Icon } from "@/components/admin-toss";
-
-// (web) 시안 카드 패턴
-const CARD_CLASS = "rounded-[var(--radius-card)] border";
-const CARD_STYLE: React.CSSProperties = {
-  borderColor: "var(--color-border)",
-  backgroundColor: "var(--color-card)",
-  boxShadow: "var(--shadow-card)",
-};
+import { Badge, PageHead, Panel, StatusBadge } from "@/components/admin/console-kit";
 
 export const dynamic = "force-dynamic";
 
@@ -24,18 +16,10 @@ const SEVERITY_COLOR: Record<string, string> = {
   error: "text-[var(--color-error)]",
 };
 
-// Admin-6 박제 — 시안 v2.14 AdminLogs.jsx severity_tone 매핑
-// info/warn/error → admin-stat-pill[data-tone] (info/warn/err)
-// 시안 라벨도 영문 대문자 (INFO/WARN/ERROR/CRIT) — 운영은 enum "info"/"warning"/"error" 만 보유
-const SEVERITY_TONE: Record<string, string> = {
-  info: "info",
-  warning: "warn",
-  error: "err",
-};
-const SEVERITY_LABEL: Record<string, string> = {
-  info: "INFO",
-  warning: "WARN",
-  error: "ERROR",
+const SEVERITY_META = {
+  info: { label: "INFO", tone: "primary" as const },
+  warning: { label: "WARN", tone: "warn" as const },
+  error: { label: "ERROR", tone: "danger" as const },
 };
 
 const ACTION_LABEL: Record<string, string> = {
@@ -109,15 +93,11 @@ export default async function AdminLogsPage({
     <div data-skin="toss">
       {/* Admin-6 박제 — 시안 v2.14 AdminLogs.jsx 헤더 패턴 카피 */}
       {/* eyebrow 영문 → 한글 ("ADMIN · 시스템") + breadcrumbs + actions */}
-      <AdminPageHeader
-        eyebrow="ADMIN · 시스템"
+      <PageHead
+        icon="list-checks"
+        eyebrow="ADMIN / 시스템"
         title="활동 로그"
-        subtitle={`${dateFilter ? `${dateFilter} 로그` : "최근 200건"} · 총 ${logs.length}건`}
-        breadcrumbs={[
-          { label: "ADMIN" },
-          { label: "시스템" },
-          { label: "활동 로그" },
-        ]}
+        sub={`${dateFilter ? `${dateFilter} 로그` : "최근 200건"} / 총 ${logs.length}건`}
         actions={
           <Link href="/admin/settings" className="btn">
             {/* settings → lucide settings */}
@@ -143,9 +123,11 @@ export default async function AdminLogsPage({
       </div>
 
       {logs.length === 0 ? (
-        <div className={`${CARD_CLASS} p-8 text-center`} style={{ ...CARD_STYLE, color: "var(--color-text-muted)" }}>
+        <Panel>
+          <div className="p-8 text-center" style={{ color: "var(--color-text-muted)" }}>
           {dateFilter ? `${dateFilter}에 기록된 활동이 없습니다.` : "활동 로그가 없습니다."}
-        </div>
+          </div>
+        </Panel>
       ) : (
         <div className="space-y-8">
           {availableDates.map((dateKey) => {
@@ -190,7 +172,7 @@ export default async function AdminLogsPage({
                   </a>
                 </div>
 
-                <div className={`${CARD_CLASS} overflow-hidden`} style={CARD_STYLE}>
+                <Panel pad={0}>
                   <div className="divide-y divide-[var(--color-border-subtle)]">
                     {dayLogs.map((log) => {
                       const changes = log.changes_made as Record<string, unknown> | null;
@@ -211,20 +193,12 @@ export default async function AdminLogsPage({
                           <div className="min-w-0 flex-1">
                             <div className="flex flex-wrap items-center gap-2">
                               {/* Admin-6 박제 — severity pill (시안 admin-stat-pill[data-tone]) */}
-                              <span
-                                className="admin-stat-pill"
-                                data-tone={SEVERITY_TONE[log.severity ?? "info"] ?? "info"}
-                                style={{ fontFamily: "var(--ff-mono)", fontSize: 10, letterSpacing: "0.04em", fontWeight: 700 }}
-                              >
-                                {SEVERITY_LABEL[log.severity ?? "info"] ?? (log.severity ?? "info").toUpperCase()}
-                              </span>
+                              <StatusBadge map={SEVERITY_META} value={log.severity ?? "info"} />
                               <span className={`font-mono text-xs font-semibold ${SEVERITY_COLOR[log.severity ?? "info"]}`}>
                                 {log.action}
                               </span>
                               {/* resource_type → admin-stat-pill mute (시안 source_label 패턴) */}
-                              <span className="admin-stat-pill" data-tone="mute" style={{ fontFamily: "var(--ff-mono)", fontSize: 10 }}>
-                                {log.resource_type}
-                              </span>
+                              <Badge tone="grey">{log.resource_type}</Badge>
                               {ACTION_LABEL[log.action] && (
                                 <span className="text-xs text-[var(--color-text-secondary)]">-- {ACTION_LABEL[log.action]}</span>
                               )}
@@ -264,7 +238,7 @@ export default async function AdminLogsPage({
                       );
                     })}
                   </div>
-                </div>
+                </Panel>
               </div>
             );
           })}

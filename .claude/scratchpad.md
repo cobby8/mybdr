@@ -1,10 +1,27 @@
 # 작업 스크래치패드
 
 ## 현재 작업
-- **요청**: 관리자 Toss 디자인시스템 전환 (Phase 0~4). 시안=`Dev/design/BDR-current/_handoff-admin-toss-P0/`
-- **상태**: Phase 0/1/3 PR-A 완료(origin/dev 머지 #725·#726). **동시 2세션 운영 중** — 아래 세션별 블록(🅰️/🅱️) 참조.
+- **요청**: v2.40 통합 Admin Console 리아키텍처 (A0~A5). 시안=`Dev/design/BDR v2.40/_admin-unified/` / 계획=`v2.40-admin-console-update-plan-2026-06-22.md` + A0메모 `Dev/design/prompts/_v2.40-A0-design-notes.md`
+- **상태**: **단독 운영(dev 직접 작업·subin 폐지·2026-06-21)**. v2.40 진행 중 — 아래 진행표 참조. dev→main 머지 = 수빈 단독.
+- **이번 세션 완료(2026-06-22~23)**: 새 대회 생성폼 B-1~F-2(main 머지 #739) → subin→dev ff·subin 삭제 → v2.40 A1·A0·A2·A3-1·A3-2·A3-3·A3-4·A4-1·A4-2·A5.
 
-> ⚠️ **세션 충돌 방지 규약 (2026-06-21, 사용자 결정 — 옵션3)**: 메인 worktree에서 2세션 동시 작업. ①각 세션은 **자기 블록(🅰️/🅱️)만 수정**, 상대 블록·공용 섹션(§0 대조표/완료Phase) 미수정. ②작업 로그는 **append만**(기존 줄 덮어쓰기 금지). ③코드는 **각자 영역 디렉토리만** 명시적 `git add <경로>`(전체 `git add .` 금지) → 커밋 격리. ④두 영역은 디렉토리 비중첩(A=admin 비대회 / B=tournaments+schema)이라 working tree 충돌 0.
+### 📋 v2.40 진행표 (Admin Console A0~A5)
+| Phase | 내용 | 상태 |
+|-------|------|------|
+| A1 IA 재그룹 | sidebar 6→1+4그룹 | ✅ 4da8189 (푸시) |
+| A0 사전설계 | 정산쿼리·키트API·19섹션 매핑 메모 | ✅ 커밋 |
+| A2 공통 키트 | console-kit 신규8+DataTable hideSm+au.css 흡수 | ✅ 커밋 |
+| A3-1 운영5 | tournaments·games·teams·organizations·courts | ✅ e797d6a (푸시) |
+| A3-2 사용자·커뮤니티5 | users·community·season-awards·game-reports·suggestions | ✅ e2b851f (미푸시1) |
+| A3-3 비즈니스4 | payments·plans·campaigns·partners | ✅ e29b860 (미푸시) |
+| **A3-4 시스템5** | analytics·categories·notifications·logs·settings | ✅ 986cb1f (미푸시) |
+| **A4 드릴다운 상세** | user/team/court/game·org·tournament(읽기요약 D2)·엔티티 | ✅ A4-1 f1b25a1 · A4-2 8713f2a (미푸시) |
+| A5 생성 플로우 | compose-notification·create-campaign·write-news·AddModal | ✅ create-campaign 완료(미푸시) · 나머지 기존 폼 재사용 |
+
+**확정 결재**: D1 전면채택 / D2 대회상세=읽기요약 이중유지 / D3 게시글신고 보류 / D4 au.css→toss-admin.css 흡수.
+**키트 통일 규약**: PageHead→StatRow→Toolbar→DataTable(keyField/onRowClick/pagination)→Drawer. Badge tone(info→primary·mute→grey·err→danger). useFilter 클라탭전용·FIELDS 상수·`&FilterableRow` 교차단언. **복잡 모달/폼/차트는 보존**(목록/툴바/StatRow만 키트화). 데이터/액션/라우트/권한 0변경·UI만.
+**A3 진척**: 19/19 화면 완료(A3-1·A3-2·A3-3·A3-4). 배치당 PR 1건·수빈 dev→main 결재.
+**A4 진척**: user/team/court/game/org/tournament 상세 완료. **A5 진척**: create-campaign 신규 생성 모달+POST 완료, notifications/news/plans/partners/categories/courts/season-awards 기존 작성·추가 폼 재사용.
 
 ### 🅰️ 세션 A — Phase 3 referee 리스킨 (이 세션)
 - **코드 영역**: `src/app/(referee)/referee/*` (회원 + referee-admin). admin/* 비대회는 Phase2 완료·미접촉. tournaments/*·schema는 세션 B 소관.
@@ -13,6 +30,58 @@
   - **➡️ 플러터 앱 관련 남은 작업 = 다른 세션 이관**(세션A 추적 종료): 예선 5경기 앱 재전송 / 자동전환 화이트리스트(`registration` 누락) / 종료 자동전환 — 전부 `/api/v1` Flutter 영역, **다른 세션 진행 중**.
   - **⚠️ Phase3 발견(해결됨)**: 3A 토큰갭(referee --color-background/--color-text-on-primary→[data-skin] 보강 4f9a405)·3B 아이콘오타(UsersX부재→user-x)·로컬build dev서버 DLL락→Vercel CI 의존(#729/#733 빌드결과 확인권장)·브랜치정책 변경(subin폐지·dev직접, 다음세션부터).
 - **📦 Phase 3 배치**(referee 독립셸 referee-shell 사용·Phase1 셸 패턴): **3A 셸+회원(~14)**=referee-shell(크롬 data-skin)+공유3(empty-state·notification-bell)+layout+회원8화면(referee·profile(+edit)·certificates(+[id])·documents·assignments·applications·notifications·settlements) / **3B admin코어(~12)**=admin/layout+대시보드·assignments·announcements(+[id])·members(+new·[id]·[id]/documents)·pools / **3C admin정산(~9)**=bulk-register·bulk-verify·settlements(+new-batch·dashboard)·fee-settings·settings. referee-picker→3B(admin 배정용). 방식=셸 크롬에만 data-skin(children wrapper 미부착)+페이지 루트별 data-skin(미작업 admin 누수0)+Material→lucide·기능1:1·schema0. PR=회원/admin 분리.
+
+#### 구현 기록 — v2.40 A3-1a 키트 통일 (developer 세션A·2026-06-22)
+
+📝 구현한 기능: `/admin/tournaments`·`/admin/games`·`/admin/teams` 3목록 화면을 통합 콘솔 키트(`console-kit`)로 통일. 데이터 패칭·서버액션·라우트·검색/페이징 0변경, UI 렌더만 키트로 교체.
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| `admin/tournaments/page.tsx` | StatRow(status 클라 파생·SELECT 0)+TO_TAB_KEY 상수 | 수정 |
+| `admin/tournaments/admin-tournaments-content.tsx` | Toolbar(탭)+DataTable+Drawer 키트화·삭제 확인 모달 기존 보존 | 수정 |
+| `admin/games/page.tsx` | 서버 groupBy 1건 신규(status 분포·write 0)+StatRow | 수정 |
+| `admin/games/admin-games-content.tsx` | 키트화·신청현황 리스트 Drawer body 이식(조회 전용) | 수정 |
+| `admin/teams/page.tsx` | 인라인 pill 띠→StatRow(기존 statusGroups groupBy 재사용) | 수정 |
+| `admin/teams/admin-teams-content.tsx` | 키트화·전적 조건부 hide 보존 | 수정 |
+
+핵심: ①검색=서버 ?q=(AdminPageHeader 헤더폼)·useFilter=클라 탭 필터 전용(FILTER_FIELDS=[] 컴포넌트밖 상수). ②DataTable keyField="id"·onRowClick·pagination{page,perPage,total,onChange}·hideSm. ③Badge tone 변환 info→primary·mute→grey·err→danger. ④FilterableRow 제약=행타입 `& FilterableRow`+object literal `as FilterRow`(games는 status number→string Omit·onRowClick서 games.find로 원본 복원).
+
+💡 tester: 3화면 탭/헤더검색/행클릭 Drawer/페이징/액션(tournaments 승인·운영자·감사·삭제, games 상태변경+신청현황, teams 토글). 키트화 전과 동일 결과·삭제 모달 이름게이트·super_admin Hard 보존. 주의=games 신청현황 0/다건·게스트, tournaments status 다양값 탭키 정규화, teams 전적 0 hide.
+
+⚠️ reviewer: ①games onRowClick games.find 원본복원(status number) ②StatusBadge tone↔기존 admin-stat-pill 시멘틱 ③삭제 모달은 기존 AdminDetailModal+var(--color-*) 유지(의도) ④StatRow count 출처 혼재(tournaments=현재페이지 클라·games/teams=전체 groupBy). tsc EXIT0·미커밋.
+
+#### 구현 기록 — v2.40 A3-2b 키트 정합 (developer 세션A·2026-06-23)
+
+📝 구현한 기능: `/admin/suggestions`(키트 풀 교체) + `/admin/game-reports`(PageHead/Toolbar만 정합·차트/큐 보존).
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| `admin/suggestions/admin-suggestions-content.tsx` | 풀 교체: AdminStatusTabs→Toolbar(탭)·admin-table→DataTable·AdminDetailModal→Drawer(DL+내용박스+foot 상태변경 form)·admin-stat-pill→StatusBadge | 수정 |
+| `admin/suggestions/page.tsx` | StatRow 통계띠 추가(status별 count·serialized 클라 파생·SELECT 0) | 수정 |
+| `admin/game-reports/page.tsx` | AdminPageHeader→PageHead·3 btn탭→Toolbar(큐 카운트는 tab.n). 차트(stats/trend)·신고 큐 카드 본문 시각/데이터 그대로 보존 | 수정 |
+
+핵심: ①**suggestions 풀 교체** — 검색=서버 ?q=(AdminPageHeader 헤더폼 유지)·useFilter=클라 탭 전용(FILTER_FIELDS=[] 컴포넌트밖 상수). StatusBadge tone 변환 mute→grey·warn→warn·ok→ok. TRANSITIONS 상태전환 규칙·updateSuggestionStatusAction 시그니처 보존. Drawer foot=전환가능 상태>0일 때만 상태변경 form(기존 게이트 보존)·select required. 내용박스 토큰=var(--border)/var(--card)/var(--ink)(toss-admin.css 실존 토큰·`--line`/`--surface` 부재라 교정). ②**game-reports 헤더만 정합** — PageHead(icon/eyebrow/title/sub/actions)·Toolbar(stats/queue/trend 탭·큐 검토대기 건수=tab.n). 신고 큐 카드는 중첩 ratings/flags 구조라 DataTable화 안 함(복잡→보존 원칙). fetch(`/api/web/admin/game-reports`·`/stats`)·차트 SVG/막대·statusBadge/flagMeta/BG2 룰 무변경. ③**D3 가드**: 커뮤니티 게시글 신고 탭 신설 0(모델 부재·현재 없음 유지).
+
+💡 tester: suggestions=탭(전체/대기/접수됨/처리중/완료)·행클릭 Drawer(내용 전체+상태변경 select)·상태 적용(updateSuggestionStatusAction)·StatRow 통계띠·서버 ?q= 헤더검색. game-reports=PageHead 헤더·3탭(통계/큐/추세) 전환·신고 큐 카운트 뱃지·차트 정상 렌더·신고 큐 카드 정상. 키트화 전과 동일 결과. 주의=suggestions resolved 상태(전환 없음→foot 폼 미노출)·game-reports 큐 0건(빈 메시지)·통계 0건(EmptyStats).
+
+⚠️ reviewer: ①suggestions StatusBadge tone 매핑(mute→grey·warn→warn·ok→ok)↔기존 admin-stat-pill 시멘틱 ②Drawer 상태변경 form은 nextStates>0 게이트 보존(기존 actions 조건 동일) ③game-reports는 헤더/툴바만 키트·차트/큐 본문 미접촉(데이터/fetch 0변경)·신고 큐 카드 보존(테이블화 안 함) ④StatRow count=suggestions는 현재페이지(take:50) 클라 파생(전체는 totalCount). tsc EXIT0·미커밋(game-reports·suggestions 디렉토리만).
+
+#### 구현 기록 — v2.40 A3-2a 키트 통일 (developer 세션A·2026-06-23)
+
+📝 구현한 기능: `/admin/users`·`/admin/community`·`/admin/season-awards` 3화면을 통합 콘솔 키트(`console-kit`)로 통일. **목록/툴바/StatRow만 키트화** — 상세 모달·입력 폼은 부피·복잡 액션 큼이라 기존 그대로 보존(승인 결정). 데이터 패칭·서버액션·라우트 0변경.
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| `admin/users/page.tsx` | Hero 4-stat(`pa1-hero-stats`)→키트 StatRow(전체/활성/정지/관리자·기존 totalCount·status groupBy·superAdminCount 재사용·신규쿼리0) | 수정 |
+| `admin/users/admin-users-table.tsx` | AdminStatusTabs→Toolbar(역할탭)·DataTableV2→키트 DataTable(가입일/닉/이메일/구독등급/운영권한/상태)·행클릭=**기존 상세모달 그대로** | 수정 |
+| `admin/community/admin-community-content.tsx` | Hero 4-stat→StatRow(전체/핀"—"/신고"—"/삭제됨)·AdminStatusTabs→Toolbar(상태탭)·`<table>`→DataTable(제목/카테고리/작성자/날짜)·**카테고리 chip 유지**·행클릭=**기존 AdminDetailModal 그대로** | 수정 |
+| `admin/season-awards/admin-season-awards-content.tsx` | 목록 `<table>`→DataTable(시리즈/카테고리/수상자/코멘트/순서/삭제)+Toolbar(검색)·**입력 폼(선수검색 autocomplete) 미접촉 보존**·삭제 form action 컬럼 render 이식 | 수정 |
+
+핵심: ①**보존 우선**=users 상세모달(409~703 lazy detail·배번편집 TournamentRow·프로필편집 ProfileEditForm·위험영역·loadMore·5 server action)·community 모달(hide/unhide/delete·BDR NEWS·status필터·카테고리 chip)·season-awards 입력폼(autocomplete·upsert/delete) 전부 미접촉. ②**StatRow 재사용**=users는 page.tsx 기존 status groupBy(activeCount/suspendedCount)·community는 기존 posts 배열 집계 그대로(신규 쿼리 0). season-awards는 통계띠 추가 안 함(승인). ③**역할탭/상태탭=useFilter 미사용**(users 역할탭은 membershipType 복합조건·community 상태탭은 active/deleted 분기라 useFilter 단순 status매칭 부적합)→Toolbar UI만 교체하고 기존 필터 로직 보존. season-awards만 useFilter로 클라 검색(_search 합친 단일필드·FILTER_FIELDS 컴포넌트밖 상수·상태탭없음 tab="all"고정). ④**Badge tone 변환**=community STATUS_TONE err→danger·mute→grey(StatusBadge map). ⑤**검색**=users/community는 서버 ?q=(AdminPageHeader 헤더폼)유지·Toolbar는 탭만(검색칸 미노출). season-awards는 신규 클라 검색(서버검색 없던 화면).
+
+💡 tester: 3화면 — users(역할탭 전체/일반/호스트/관리자·행클릭 상세모달 6탭 액션·배번편집·loadMore·헤더 ?q=)·community(상태탭 활성/삭제됨·카테고리 chip·행클릭 모달 숨김/삭제·삭제됨 prefix·헤더 ?q=)·season-awards(입력폼 선수검색 autocomplete·시상추가·목록 검색·삭제). 키트화 전과 동일 결과. 주의=users 본인행 가드·community 핀/신고 "—"·season-awards 검색 부분일치·삭제 후 router.refresh.
+
+⚠️ reviewer: ①목록/툴바/StatRow만 키트화·상세모달·입력폼은 **의도적 보존**(키트화 안 함). ②users/community 역할·상태탭은 useFilter 아닌 기존 복합 필터 로직 유지(Toolbar는 UI만). ③season-awards 삭제 컬럼 render에 form action 이식(deleteAction·router 클로저 위해 컬럼을 컴포넌트 내부 정의). ④community STATUS_META 미사용분 제거(카테고리는 인라인 map)·fmtDate 모달에서 유지. ⑤격리=정확히 4파일(3화면). game-reports·suggestions diff는 다른 작업물(미접촉). tsc EXIT0·미커밋.
 
 ### 🅱️ 세션 B — Phase 4 Track B 대회관리 리빌딩 (세션 B가 갱신)
 - **코드 영역**: tournaments 리빌딩 + admin_categories schema(게이트). admin/* 비대회 화면·toss-admin.css 미접촉.
@@ -81,22 +150,56 @@
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
 |------|------|------|
+| 2026-06-23 | **v2.40 A5 생성 플로우 — 캠페인 생성 보강** | ✅ `/admin/campaigns`에 생성 모달(파트너 선택·배치 채널 복수·시작/종료일·실시간 미리보기) 추가, `POST /api/admin/campaigns` 신설(ad_campaigns+ad_placements). notifications/news/plans/partners/categories/courts/season-awards는 기존 작성·추가 폼 재사용. `tsc --noEmit` 통과, `/admin/campaigns` 307 인증 리다이렉트 확인. |
+| 2026-06-23 | **v2.40 A4-2 단체·대회 상세 읽기요약** | ✅ 신규 상세라우트 `/admin/organizations/[id]`, `/admin/tournaments/[id]` 추가. 조직=멤버/시리즈/회차 요약, 대회=개요/참가팀/대진표/정산 탭. 정산 실측: TournamentTeam.status=approved, payment_status=paid/unpaid/waived, RefereeSettlement 0건. `tsc --noEmit` 통과, 2 URL 307 인증 리다이렉트 확인. |
+| 2026-06-23 | **v2.40 A4-1 드릴다운 상세 4종(user·team·court·game)** | ✅ 신규 상세라우트 4개+detail-kit+목록 상세링크+CSS 추가. Prisma SELECT/read-only, query tab 방식, 서버액션/DB write/schema/api/v1 0변경. `cmd /c npx tsc --noEmit --incremental false` 통과, 4 URL 307 인증 리다이렉트 확인. |
+| 2026-06-23 | **v2.40 A3-4 시스템5 키트 통일 (analytics·categories·notifications·logs·settings)** | ✅ 5파일 수정. PageHead/StatRow/Panel/StatusBadge 적용, analytics/logs prisma 조회와 notifications/settings actions·categories CRUD 보존. `cmd /c npx tsc --noEmit --incremental false` 통과, admin 5 URL 307 인증 리다이렉트 확인. |
+| 2026-06-23 | **v2.40 A3-3 비즈니스4 키트 통일 (payments·plans·campaigns·partners)** | ✅ 5파일 수정. PageHead/StatRow/Toolbar/DataTable/StatusBadge/PrimaryCell 적용, 환불·CRUD·승인/반려 fetch와 폼/모달 보존. `cmd /c npx tsc --noEmit --incremental false` 통과, admin 4 URL 307 인증 리다이렉트 확인. |
+| 2026-06-23 | **v2.40 A3-2 키트 통일 리뷰 (reviewer 세션A·tester와 병렬·5화면7파일)** | ✅ **통과·차단 0**. tsc EXIT0. **①회귀안전(최우선)**=5화면 데이터패칭(users findMany/count·community community_posts·season-awards season_awards/series·suggestions suggestions·game-reports fetch)·서버액션 시그니처(updateUserRole/Status·toggleAdmin·forceWithdraw·delete·updateProfile·updateJersey / hide/unhide/delete / upsert/delete / updateSuggestionStatus)·라우트href·**snake접근자**·권한가드(season-awards isSuperAdmin·users currentUserId 본인가드) **0변경**(UI만 키트). schema·`/api/v1` diff **빈출력**. **②부분적용 타당성**=users **상세모달6탭**(409~709 lazy detail·배번편집 TournamentRow·ProfileEditForm 3필드+사유·위험영역 confirm)·community **AdminDetailModal**(hide/unhide/delete form·카테고리 chip·삭제됨 액션 hide)·season-awards **입력폼 autocomplete**(debounce 검색·user_id hidden)·game-reports **차트(stats/trend)+신고 큐 카드**(중첩 ratings/flags) 전부 **의도 보존**=복잡→보존 원칙 부합·손상0. **③키트 일관성**=A3-1과 동일 규약(DataTable keyField="id"/onRowClick·StatusBadge map·PageHead/Toolbar/StatRow·useFilter FIELDS 컴포넌트밖 상수). suggestions Drawer foot 상태변경 form=`nextStates>0` 게이트(TRANSITIONS 보존)·select required. **④CSS토큰 교정 검증**: 시안 `--line`/`--surface` toss-admin.css **부재**(grep 0)·교정된 `--border`(L39)·`--card`(L34)·`--ink`(L35)·`--ink-mute`(L37) **전부 실존**. 하드코딩hex 신규0·lucide만(아이콘 30종 lucide 실존 실측·Material0). **⑤검색/탭 정합**=서버?q=(users/community/suggestions 헤더폼)·클라 useFilter(season-awards 단일 _search·suggestions 탭만 FIELDS=[])·기존 복합필터 보존(users 역할탭 membershipType·community 상태탭+카테고리chip)=충돌0. **⑥품질**=Toolbar IME 가드 정상·Drawer ESC/aria-modal·StatRow key=index(고정 items 무해)·**season-awards 삭제 form action을 컬럼 render에 이식**(deleteAction+router.refresh 클로저 위해 컴포넌트 내부 정의=정확). **권고2건(비차단)**: ①**suggestions StatusBadge 미매핑 fallback 약화**=기존 `STATUS_LABEL[s]??s.status`(원본값 표시)→신규 StatusBadge는 미매핑 시 **null(빈셀)**. STATUS_META=pending/open/in_progress/resolved 4값만·TRANSITIONS도 동일4값·NULL→pending. **DB suggestions 0건 실측**(groupBy 빈배열)→**현재 영향0**·향후 4값外 status INSERT 시에만 빈셀. ②StatRow count 출처혼재(suggestions=현재페이지 take:50 클라파생 vs users 전체groupBy)=A3-1 동일 잠재(통계띠 의미 일관성). **차단 이슈 없음.** |
+| 2026-06-23 | **v2.40 A3-2 키트 통일 검증 (tester 세션A·reviewer와 병렬·5화면7파일 정적)** | ✅ **8/8 통과·차단이슈 0·회귀 0**. ①tsc `--noEmit` **EXIT0** 재확인. ②회귀0(데이터/액션/라우트)=prisma schema·`/api/v1` diff **빈출력**·users page count 재사용(totalCount/status groupBy/superAdminCount·신규쿼리0)·community hide/unhide/delete·season-awards upsert/delete autocomplete·suggestions updateSuggestionStatusAction·game-reports fetch(`/api/web/admin/game-reports`·`/stats`) **시그니처 무변경**(UI/StatRow만 키트 교체). ③보존확인=users **상세모달**(loadMore L325·배번편집 TournamentRow·ProfileEditForm·위험영역 잔존)·community **AdminDetailModal**(L247·hide/unhide form L261)·season-awards **입력폼 autocomplete·삭제 form action**(deleteAction+router.refresh 컬럼 render 이식)·game-reports **차트(stats/trend)+신고 큐 카드** 그대로(중첩 ratings/flags 복잡→테이블화 안 함)·suggestions **TRANSITIONS/nextStates 게이트**(L141·nextStates>0일 때만 foot form). ④StatRow쿼리=users **재사용(신규0)**·community 기존 posts 배열 집계·suggestions **클라파생**(serialized.filter·SELECT 추가0). ⑤**CSS토큰=교정 정확**: 시안 `--line`/`--surface`는 grep **부재**·교정된 `--card`(toss-admin.css L34)·`--ink`(L35)·`--border`(L39) **전부 실존**(silent 미적용0). ⑥키트규약 일관=5화면 전부 console-kit 단일 import·DataTable keyField="id"/onRowClick·StatusBadge map(mute→grey·warn→warn·ok→ok / community err→danger)·useFilter season-awards만(FILTER_FIELDS 컴포넌트밖 상수)·PageHead/Toolbar/StatRow 동형(A3-1과 동일). ⑦**D3가드**=game-reports 커뮤니티 게시글 신고 탭 신설 **0**·신규모델/테이블 **0**. ⑧격리=`git diff HEAD --name-only -- src/`=**정확히 7파일뿐**(referee/admin-shell 변경은 HEAD diff 미포함=별개 커밋분)·신규 하드코딩hex **0건**(추가줄 검사)·lucide·var(--*)·data-skin="toss" 루트 유지. 정적검증(admin 307리다이렉트로 HTTP렌더 불가→git diff·grep 실측·개발서버 미접촉·DB SELECT만). **차단이슈 없음.** |
+| 2026-06-23 | **v2.40 A3-2b 키트 정합 (developer 세션A·suggestions 풀교체 + game-reports 헤더만)** | ✅ **3파일 수정·tsc EXIT0**. suggestions content=Toolbar(탭)+DataTable+Drawer(DL+내용박스+foot 상태변경)+StatusBadge 풀 교체·page.tsx StatRow 통계띠(클라 파생). game-reports=AdminPageHeader→PageHead·3 btn탭→Toolbar(큐 카운트 tab.n)만 정합·**차트(stats/trend)·신고 큐 카드 본문 보존**(중첩 ratings/flags 복잡→테이블화 안 함). 0변경=라우트·권한·snake·서버액션(updateSuggestionStatusAction)·fetch·schema·api/v1. D3 게시글 신고 탭 신설 0. data-skin 루트 유지·하드코딩hex0·lucide·var(--*) 실존토큰 교정(--line/--surface 부재→--border/--card). git=game-reports·suggestions 디렉토리만(community/season-awards/users=A3-2a 다른 작업물 미접촉). 미커밋. |
+| 2026-06-23 | **v2.40 A3-2a 키트 통일 (developer 세션A·users·community·season-awards·데이터/액션/라우트 0)** | ✅ **4파일(3화면) 수정·tsc EXIT0**. **목록/툴바/StatRow만 키트화**·상세모달·입력폼 보존(승인). users=Hero stat→StatRow(기존 groupBy 재사용)·역할탭→Toolbar·DataTableV2→DataTable·행클릭 **상세모달 그대로**(loadMore·배번편집·프로필편집·5 server action 보존). community=4-stat→StatRow·상태탭→Toolbar·table→DataTable·**카테고리 chip 유지**·행클릭 **AdminDetailModal 그대로**(hide/unhide/delete 보존). season-awards=목록 table→DataTable+Toolbar(신규 클라검색)·**입력폼 autocomplete·upsert/delete 보존**·삭제 form action 컬럼 render 이식. 역할/상태탭=useFilter 미사용(복합조건)·Toolbar UI만 교체·기존 필터로직 유지. Badge tone 변환(err→danger·mute→grey). 0변경=라우트href·권한가드·snake접근자·server action 시그니처·DB write·schema·api/v1. git=3디렉토리만(game-reports·suggestions=다른작업물 미접촉). 미커밋. |
+| 2026-06-22 | **v2.40 A3-1 키트 통일 리뷰 (reviewer·tester와 병렬·9파일 5화면)** | ✅ **통과·차단 0**. tsc EXIT0. **회귀안전(최우선)**=5화면 데이터패칭·서버액션 시그니처(updateTournament/Game/Team/Court·approve/reject·create/update/delete)·라우트href·권한(isSuperAdmin getAuthUser 일치)·snake접근자 **0변경**(UI만 키트 교체). 복잡동작 보존확인: tournaments 삭제 이름게이트(confirmName!==name)+hardMode(super전용 체크박스) AdminDetailModal **별도 보존**·games 신청현황 조회전용 이식(승인/거절은 호스트)·organizations 승인/거절 fetch+거절사유·courts 등록폼+3탭(제보·제안·앰배서더) **미접촉**. **키트 일관성**=5화면 PageHead/StatRow/Toolbar/DataTable/Drawer 동일 패턴·DataTable keyField/onRowClick/pagination 시그니처 정합·Badge tone 매핑 BadgeTone(primary/ok/warn/danger/grey) 전부 실존(games warn 포함)·useFilter 클라탭/검색 전용 FILTER_FIELDS 컴포넌트밖 상수. **검색/페이징 정합**=organizations/courts는 클라 pageRows 슬라이스+total:filtered.length(**DataTable이 rows 미재슬라이스**라 이중필터링 없음)·tournaments/games는 서버페이징+클라탭(useFilter tab="all"고정이라 서버 status분리·?q=와 X충돌). **품질**=신규 하드코딩hex0(삭제모달/3탭 #fff·var(--color-error)는 기존 mybdr 토큰 보존분)·lucide만(Material0)·StatusBadge 미매핑→null 폴백·Drawer ESC·Toolbar IME가드 정상. **권고3건(비차단)**: ①**타입처리 통일권고**=A3-1a `& FilterableRow`교차단언+`as FilterRow` vs A3-1b `[key:string]:unknown`인덱스시그니처 혼재 → 둘 다 타입안전성 약화 동급이나 **인덱스시그니처가 오타접근 silent허용 측면 약간 더 느슨**·향후 통일 시 교차단언(A3-1a) 방향 권고하나 회귀위험0. ②StatRow count 출처혼재(tournaments=현재페이지 클라파생 vs games/teams=전체 groupBy)→통계띠 의미 일관성 점검. ③서버페이징+클라탭 동시적용 시 탭선택해도 페이저 total=전체 totalCount라 페이지수↔실표시 불일치 가능(의도된 동작·UX혼란 잠재). **차단 이슈 없음.** |
+| 2026-06-22 | **v2.40 A3-1 키트통일 검증 (tester 세션A·reviewer와 병렬·9파일5화면 정적)** | ✅ **7/7 통과·차단이슈 0·회귀 0**. ①tsc `--noEmit` EXIT0 재확인. ②회귀0(데이터/액션/라우트)=schema·`/api/v1` diff **빈출력**·각 화면 데이터패칭(findMany/count) 무변경·서버액션 시그니처(updateTournament/Game/TeamStatusAction·organizations approve/reject·courts create/update/deleteCourtAction) 보존·라우트href(tournament-admin·transfer-organizer·audit-log·DELETE /api/web/tournaments/:id·/approve·/reject) 무변경. ③StatRow쿼리=games `groupBy(status)` **신규1건만 SELECT(where없이·write0)**·tournaments **클라파생(serialized기준·SELECT0)**·teams 기존 statusGroups **재사용**·organizations statusCounts **재사용(신규쿼리0)**·courts 기존count 4종 props전달(쿼리0). ④복잡기능 전보존=tournaments **삭제확인모달**(confirmName.trim()!==deleteTarget.name 이름게이트+hardMode super_admin+DELETE fetch+router.refresh L143~504 잔존)·games **신청현황 game_applications 조회전용** Drawer body 이식·organizations **승인/거절 handleApprove/handleReject/rejectReason/fetchStatusCounts** Drawer로 보존·courts **등록폼(createCourtAction)+3탭(submissions/suggestions/ambassadors)** 미접촉 보존·teams **전적 조건부hide**(0이면 미표시) 보존. ⑤권한가드=isSuperAdmin 무변경·snake 접근자 보존. ⑥키트규약 일관=5화면 전부 `@/components/admin/console-kit` 단일 import·DataTable(keyField/onRowClick/pagination)·Badge tone매핑(info→primary·mute→grey·err→danger)·useFilter 클라 탭/검색 전용(FILTER_FIELDS 컴포넌트밖 빈/상수·서버?q=·status필터와 비충돌)·StatRow/PageHead/Toolbar/Drawer 동형. **A3-1a 타입단언**(games `Omit<...,"status">&{status:string}&FilterableRow`+`as FilterRow`·String(g.status) 실변환이라 단언 거짓아님·onRowClick games.find 원본 number 복원) vs **A3-1b 인덱스시그니처**(`[key:string]:unknown` FilterableRow 제약충족·단언없는 더 안전 패턴)=**런타임 동일·타입표현만 상이**. ⑦격리=`git diff HEAD --name-only -- src/`=**정확히 9파일뿐**(키트 console-kit·data.tsx·세션A/B 셸·다른 admin화면 미접촉)·신규 하드코딩hex **0건**·Material/lucide CDN주입 **0건**(lucide는 주석1줄)·var(--*)/toss토큰·`data-skin="toss"` 루트 유지. 정적검증(admin 307리다이렉트로 HTTP렌더 불가→코드레벨 git diff·grep 실측·개발서버 미접촉). **차단이슈 없음.** |
+| 2026-06-22 | **v2.40 A3-1b 키트 리스킨 (developer·organizations·courts·데이터/액션/라우트 0변경)** | ✅ **3파일 수정·tsc EXIT0**. organizations page.tsx=PageHead/StatRow(statusCounts 재사용·신규쿼리0)/Toolbar(검색 useFilter 클라+상태탭 서버 status필터 유지)/DataTable(PrimaryCell·StatusBadge·클라 pagination)/Drawer(DL·pending이면 foot 승인/거절·거절사유). fetch/handleApprove/handleReject/fetchStatusCounts/state 전부 유지. courts page.tsx=hero/헤더 제거→content로 server count 4종 props 전달(쿼리0). courts content=코트 관리 탭만 PageHead(SiteOperatorBadge)+StatRow+Toolbar+DataTable+Drawer(foot=유형토글/삭제 server action form 보존)·**등록 폼 카드·3탭(Submissions/Suggestions/Ambassadors) 미접촉 보존**. Badge tone(pending→primary·approved→ok·rejected→danger·archived→grey / active→ok·inactive→danger)·useFilter FIELDS 컴포넌트밖 상수·인터페이스 `[key:string]:unknown`(FilterableRow 제약)·lucide9 실존검증. 0변경=라우트href·권한가드·snake접근자·server action 시그니처·DB write·schema·api/v1. data-skin="toss" 루트 유지·하드코딩hex0·var(--*)·Material0. git=organizations·courts 디렉토리만(tournaments·games·teams·키트·세션A 셸 미접촉). 미커밋. |
+| 2026-06-22 | **v2.40 A3-1a 키트 통일 (developer·tournaments·games·teams·데이터/라우트/DB write 0)** | ✅ 6파일·tsc0. AdminStatusTabs→Toolbar·table→DataTable·AdminDetailModal→Drawer. StatRow=games groupBy신규/tournaments클라파생/teams재사용. 복잡보존=tournaments 삭제모달·games 신청현황. useFilter 클라탭전용·`&FilterableRow`교차단언. 0변경=라우트/액션/권한/snake/schema/api. git=3화면6파일만. 미커밋. |
+| 2026-06-22 | **v2.40 A2 키트 박제+검증 (developer+tester+reviewer·세션A)** | ✅ 신규8(console-kit·서버5+StatusBadge+클라3 toolbar/drawer/use-filter)+DataTable hideSm 1필드+au.css→toss-admin.css 흡수(`[data-skin="toss"]`스코프·au-slide만 글로벌). 재사용3 re-export. 더미 렌더검증후 제거. tester 7/7·reviewer 통과(차단0·권고3: dead CSS·index key·useFilter fields 상수). tsc0. 미커밋→커밋. |
+| 2026-06-22 | **v2.40 A1 사이드바 IA 재편+검증 (developer+tester+reviewer·세션A)** | ✅ sidebar.tsx 1파일·6그룹→1단독+4그룹+외부관리. navStructure 배치·라벨만(href·roles·filter 로직 100%보존)·mobile-nav import 자동반영. 신규명시 단체관리·알림(라우트 기존존재). tester 8/8·reviewer 통과(role 노출 17건 동일·차단0). tsc0. 커밋 4da8189(푸시). |
 | 2026-06-22 | F-2b 차단 수정 (되돌림 1회차·div_schedule snake 재귀변환 버그) developer 세션B | ✅ **map→배열 변환으로 견고 해소**. 원인=apiSuccess(convertKeysToSnakeCase)가 응답 전체 재귀변환→div_schedule map의 디비전명 키(영문 `U10`→`_u10`)+내부키(`dateId`→`date_id`) 망가져 camel·map 룩업 소비처 undefined→전 디비전 "–". 수정=①route.ts div_schedule을 `Object.entries`로 `[{division, dateId, courtId}]` **배열** 구성(snake 후 `[{division, date_id, court_id}]`·디비전명은 값이라 영문도 보존) ②schedule-format.ts `DivScheduleEntry`={division, date_id?, court_id?}·`resolveDivisionSchedule(divSchedule[], label, code, ...)` 배열 find(label→code 폴백) ③page.tsx state `Record`→배열·렌더 배열 매칭. **snake 정합 재확인**: div_schedule(division 보존+date_id/court_id)·schedule_dates(court_ids 이미 snake)·places(camel courtCount→court_count 변환 정합). 시뮬레이션(case.ts 재현)으로 영문/한글 디비전명 보존+date_id/court_id 변환+없는 디비전 graceful "–" 확정. 저장폼/schema/createTournament/`/api/v1`/(web) F-2a/세션A 셸 미접촉. tsc EXIT0. git=F-2b 3파일만. tester+reviewer 동일차단 확인→수정. PM 직접확인(route map→배열·schedule-format snake정합). **커밋: F-2a 08cae41·F-2b 7b0935f**(subin·미푸시). |
 | 2026-06-22 | F-2 표시 검증 (tester 세션B·F-2a 로고+F-2b 디비전일정) | ⚠️ **8/9 통과·F-2a 전통과·F-2b 1건 잠재버그(비차단)**. ①tsc EXIT0. ②회귀0=prisma/schema/createTournament/`/api/v1` diff **빈출력**·division-rules route는 **+19 insertions만(삭제0=PATCH/rules/allowed_formats 무변경)**·생성폼 미변경. ③F-2a 폴백=`hasSponsorLogos`(L169) 로고>0→그리드/=0→description파서 폴백(중복0)·img onError 이니셜폴백 존재. ④F-2a use client 순수성=import 0줄·async/await/prisma/server import **0**(순수 props)→하이드레이션 안전. ⑤F-2b 역참조=schedule-format `allCourts`/`fmtDate`가 ct-divisions 정본과 **알고리즘 100%일치**(`${id}_c${i}`·alpha fromCharCode(65+i)·num i+1·M.D요일). **🟠⑥snake 정합 실패(잠재버그)**: `apiSuccess`=convertKeysToSnakeCase가 응답 **전체 재귀변환**→route L73 `div_schedule` 내부 `dateId/courtId`→`date_id/court_id`+영문키 `U10`→`_u10` 변환되나 복제본은 camel 기대→**undefined→룩업 항상실패→전 디비전 "–"**(시뮬확정). places/schedule_dates는 정합(`court_count` snake). **실측 운영DB div_schedule 0건→현재 영향0**(F-1폼 미사용)·저장 즉시 표면화. errors snake↔camel 7회차. ⑦렌더스모크=dev3001 ROOT 500=**globals.css Turbopack `0xc0000142`(자식프로세스 DLL spawn실패) 환경이슈**·globals.css F-2 미변경·코드회귀 아님(이전 tester 동일·재시작 권장). ⑧격리=admin-shell/referee-shell 변경은 6/21 세션A Toss전환분·F-2 미접촉. 코드 정확히 5파일+신규1디렉토리. 미커밋. **차단이슈 없음**. 🟠수정요청: division-rules route L73 div_schedule snake재귀변환→complex키/dateId undefined→"–". 수정안A=load()서 div_schedule만 convertKeysToCamelCase 역변환(키 `_u10`→`U10`은 별도 검토)/B=schedule-format snake정합. F-1 생성폼 실사용 전 수정 권장(현재 운영 0건). |
 | 2026-06-22 | F-2 표시 리뷰 (F-2a (web)후원사로고 + F-2b admin디비전날짜코트) — reviewer 세션B | 🔴**차단1**: F-2b `schedule-format.ts DivScheduleEntry` div_schedule 내부키 **dateId/courtId가 apiSuccess 재귀 snake변환으로 date_id/court_id가 됨**→camel read undefined→**날짜/코트 항상 "–"**(case.ts L9·L15 jsonb 내부키도 재귀변환·planner/dev "round-trip 보존" 가정 오류). 운영영향 현재0(div_schedule 보유대회 0건 실측). 권고A=schedule-format DivScheduleEntry를 date_id/court_id로. **F-2a `"use client"` 전환=안전**(server전용 import 0·하이드레이션 미스매치 0·번들경미·page.tsx server import 정상). F-2a 디자인 mybdr준수(var토큰·Material·lucide/Toss/hex 0)·로고중복회피 정확·settings server camel 보존 정합. F-2b route 읽기전용·기존기능 보존·Toss준수. 권고2(snake경유 확인룰 conventions승격·court_count snake의존 인지)·사소2(img raw·IIFE). tsc EXIT0. 수정요청 등재. |
 | 2026-06-22 | F-2b 디비전별 날짜/코트 admin divisions 표시 (developer 세션B·Toss) | ✅ 변경 2파일+신규1. ①신규 `divisions/_components/schedule-format.ts`=역참조 헬퍼(`allCourts`/`fmtDate` ct-divisions 정본 복제·`lookupDateLabel`/`lookupCourtLabel`/`resolveDivisionSchedule`. courtId`<venueId>_c<idx>`→`${place.name} ${suffix}코트`(alpha=A/B·num=1/2)·dateId→`M.D(요일)`·룩업실패 null). ct-divisions 미접촉(import 아닌 복제→생성폼 회귀0). ②`division-rules/route.ts` GET=tournament select `{settings,schedule_dates,places}` **읽기 추가**·응답 최상위 snake `div_schedule`(settings.div_schedule 추출)/`schedule_dates`/`places` 동봉. **PATCH/write/시그니처/기존 rules·allowed_formats 무변경**(+19줄). ③`divisions/page.tsx`=div_schedule+소스 state 3개 추가·load()서 응답 저장·각 rule 행에 날짜/코트 칩(`resolveDivisionSchedule`). 매칭키=`label` 우선→`code` 폴백·값없으면 "–". 기존 컬럼/format/진출매핑/GroupSettings 보존(추가만). Toss준수(`data-skin="toss"` 루트 유지·lucide Icon `calendar`/`map-pin`·var(--color-*) toss토큰·하드코딩hex0·Material0). jsonb 내부키(dateId/courtId) camel 보존(snake 변환X). schema/createTournament/api/v1 미접촉. tsc EXIT0. git=F-2b 3파일만(세션A/F-2a 영역 미접촉). 미커밋. |
 | 2026-06-22 | F-2a 후원사 로고 (web) 대회상세 about 표시 (developer 세션B) | ✅ 변경 2파일(page.tsx +2 / tournament-about.tsx +60/-9). ①page.tsx about 호출부 `sponsorLogos={(tournament.settings as any)?.sponsor_logos ?? []}` 1 prop(settings 이미 select·prisma0). ②about=`"use client"` 추가(img onError)·`SponsorLogo` 컴포넌트 신규(img+이니셜 폴백)·sponsors 섹션 `hasSponsorLogos` 분기(로고 우선·없으면 텍스트 폴백 회귀0). description+"Sponsored By:" 게이트 그대로 유지. mybdr 디자인 준수(var토큰·Material·lucide/Toss/hardcode hex 0). schema/route/createTournament/api/v1 미접촉. tsc EXIT0. git=수정2파일만. 미커밋. |
 | 2026-06-22 | 생성폼 F-2 표시 설계 (planner 세션B·읽기전용·코드/스키마 무변경·prisma금지) | ✅ **디자인 맥락 분기 확정·스키마/API write 0**. ①**후원사 로고=(web) 대회상세 about**(mybdr 디자인·var토큰·Material·AppNav 보존)·page.tsx settings 이미 select(L168)→about에 `sponsorLogos` prop 1개 전달만(추가prisma0). 🔑기존 sponsors 섹션은 description "Sponsored By:" 파서(`.split(",")`·errors.md L9 정정)라 settings.sponsor_logos와 출처상이→중복 위험→**sponsor_logos 있으면 그것(로고)·없으면 description 폴백(택가)**. img onError 이니셜 폴백. ②**디비전일정=admin divisions page**(Toss·lucide·toss-admin.css)·역참조=`ct-divisions allCourts()`(courtId`<venueId>_c<idx>`→`${place.name} ${suffix}코트`·naming alpha=A/B·num=1/2)+`fmtDate`(schedule_dates date→M.D요일) **정본 재사용**. div_schedule 키=디비전명→DivisionRule.code/label 매칭. ③**가용갭**: (web) settings camel(prisma)·이미 select=로고 즉시가용 / admin divisions(client·API snake)는 settings/schedule_dates/places **미fetch**→division-rules API에 **읽기 select 3개 추가**(최상위 snake·jsonb내부 round-trip보존). ④**스키마/API write 변경 불필요**(prisma·createTournament·api/v1 무변경·division-rules는 읽기select만). ⑤배치=**F-2a 로고(mybdr·2파일) / F-2b 디비전일정(Toss·2파일+조인유틸) 분리**(디자인 정반대→한 PR 혼동 차단). 변경파일=page.tsx+about(F-2a)·division-rules route+divisions page+조인유틸(F-2b). 미커밋. |
-| 2026-06-22 | F-1 후원사로고·디비전날짜코트 settings jsonb 저장 (developer 세션B) | ✅ 변경 2파일(ct-create-tournament·page.tsx, +32/-0). ①`CtDraftPayload.settings?` 추가 ②publish() sponsorLogos(로고있는것만 `{name,logoUrl}`)·divSchedule(`{디비전명:{dateId,courtId}}` 둘다있을때만) 맵→비어있지않은것만 settings(`sponsor_logos`/`div_schedule` snake) ③page.tsx body `settings:payload.settings` 1줄. 빈값생략(둘다비면 undefined→미전송). sponsors콤마문자열·평면변환 전부보존·schema/route/tournament/api/v1 미접촉(createTournament settings 기존수신 round-trip). tsc EXIT0. 세션A셸 미접촉. 미커밋. |
-| 2026-06-22 | 생성폼 후속(로고·디비전날짜코트) 저장위치 설계 (planner 세션B·읽기전용·코드/스키마 무변경) | ✅ **두 후속 모두 Tournament.settings jsonb로 무스키마 해결 = YES**. ①settings 무스키마=`settings Json?`(schema L326)·createTournament 수신경로 기존존재(tournament.ts L179·L524 round-trip)·route.ts L270 전달·단 page.tsx body·CtDraftPayload에 settings키만 추가 필요. ②로고=`settings.sponsor_logos`(`[{name,logoUrl}]`)·sponsors컬럼 콤마문자열 B안 현행유지. 🔑**소비처 정정**: errors.md L9 "tournament-about `.split(",")`=sponsors컬럼"은 오인(그건 description 'Sponsored By:' 파서)·실 컬럼소비처=수정wizard(plain·쉼표구분) + OBS스코어보드(molten/stiz 문자열필터)뿐→콤마문자열 정합·settings추가 무영향. ct는 이미 `Sponsor{logoUrl}` state+ImageUploader 완비(publish L541서 버림). ③디비전날짜코트=`settings.div_schedule`(`{디비전명:{dateId,courtId}}`)·DivisionItem 이미 dateId/courtId보유(ct-divisions L29)+입력UI완성·publish L515~518서 의도적 손실→맵구성 1블록 추가. **스키마 승인 불필요**(prisma무변경·api/v1무영향·createTournament 시그니처무변경). 변경파일=ct-create-tournament+page.tsx 2개(저장만)·소비처표시는 F-2 후속분리. 배치=F-1저장(2파일·tsc커밋) / F-2표시(about·디비전일정 역참조·선택). 미커밋. |
-| 2026-06-22 | 새 대회 생성폼 B-4 reviewer 차단 1건 수정 + 권고①③ (developer 세션B·되돌림루프 1회차) | ✅ **차단(sponsors 500) 해결** — 소비처 실측(표시화면 `.split(",")` plain문자열 표준)→**권고B(이름만 콤마join) 채택**(JSON-A는 표시깨짐). ct-create-tournament L72 payload타입 `string`화·L531 `map(s=>s.name.trim()).filter().join(", ")` / page.tsx L393 `.length`분기→`\|\|undefined`. 0/1/다수 안전. 로고URL 1차미저장. **권고①** ct-divisions 배너 "종별규칙 자동생성"→"종별·디비전 구성 저장·세부규칙은 생성후 설정"(DivisionRule 미생성 오해제거). **권고③** 평면변환부 dateId/courtId 1차미저장 주석박제(createTournament 키부재·API/schema 확장금지·UI유지+사일런트손실 명시). schema/createTournament/api/v1/toss-admin.css/세션A셸 미접촉. tsc EXIT0. PM 소비처 재확인(tournament-about.tsx L42 `.split(",")` 정합). **B-2~B-4+수정 한커밋 567d142**(6파일·2402+/146-·subin·미푸시2). dev서버 stale=포트3001 PID179416만 종료 후 재기동. |
-| 2026-06-21 | 새 대회 생성폼 B-2+B-3+B-4 검증 (tester 세션B) | ✅ **8/8 통과·차단이슈 0**. ①tsc EXIT0 재확인. ②페이지 렌더 스모크=wizard는 미들웨어 인증게이트로 307→`/login?callbackUrl=`(정상·미인증). ③payload정합=handleSubmitDraft가 categories평면변환(catRecord{종별:[디비전]}+divCaps+divFees)·places확장·scheduleDates(court_ids)·gameRules12키 POST body 배선·응답snake `data.redirect_url`접근 정합. route.ts L142~163 전 키 수신·L218~258 createTournament 전달 실측. ④회귀0=createTournament/route.ts/schema/`/api/v1` diff **비어있음**(B-4 백엔드 미접촉). legacy/prospectus/association 셸 보존. ⑤필수검증=submit()에서 대회명·정규대회선택·주최·주관·장소·일정·종별(totalDiv===0) 누락 시 toast차단·게시모달 미오픈. ⑥state계약=CategoryItem/DivisionItem/GameRules·shotClock=boolean·GAME_SETTINGS_DEFAULTS 정본 export→메인폼 import 일원화 일치. ⑦Toss격리=ct-page 루트·page.tsx data-skin="toss" 부모래퍼·Material실사용0(주석만)·하드코딩hex0(유니폼팔레트만 도메인예외)·lucide CDN0·toss-admin.css B-4추가분 `*/`조기종료0·중괄호균형. ⑧격리=세션A admin-shell/referee-shell 미접촉(생성폼 5파일 국한). ⚠️**비차단 환경이슈**: dev서버 3001이 globals.css Turbopack stale로 ROOT/`/tournaments`/`/login` **전 페이지 500**("Failed to write app endpoint·Caused by globals.css") — globals.css **미변경(이 작업 무관·마지막커밋6/19)**·toss-admin.css 조기종료0 → errors.md "Turbopack HMR stale" 함정. 코드회귀 아님. **dev서버 재시작 권장**(PM판단·종료금지룰). |
-| 2026-06-21 | 새 대회 생성폼 B-1~B-4 (백엔드+2컬럼폼+게시모달) (developer 세션B) | ✅ B-1 schema `schedule_dates` jsonb targeted ALTER+POST 3필드(커밋 478cf88) / B-2 2컬럼셸+좌측(ct-create-tournament·ct-schedule-venue) / B-3 우측(ct-divisions·ct-game-settings·shotClock boolean) / B-4 통합+PublishModal(계좌이체만)+POST배선(categories 평면변환·snake redirect_url). createTournament/schema/api/v1 미접촉(기존 수신키 재사용). tsc EXIT0. B-2~4 커밋 567d142. 상세=knowledge/decisions.md. |
-| 2026-06-21 | 새 대회 생성폼 정합 조사 (planner 세션B·읽기전용·코드/스키마 무변경) | ✅ 🟢**Flutter 게이트=키변경 NO·충돌0**(match-sync.ts+sync route 전수정독=game_rules 미read·점수/스탯/PBP만 / `Tournament.game_rules`=dead column schema L304有·src grep 0). 시안 경기설정(유니폼·방식·파울·타임아웃) 서버 미저장=신규빈공간. 시안"GameRules 1:1정합"=Flutter앱 내부모델 정합이지 서버계약 아님. §2=시리즈/결제/admin_categories 재사용·신규0. 🔴**진짜신규=날짜↔코트 배정**(tournament_date·date_court grep 0·places는 평면 장소배열·courts/court_infos=픽업게임DB 무관)→jsonb확장 권고(places확장+schedule_dates·DivisionRule date/court는 settings흡수·무중단). 화면=시안 2컬럼단일폼 vs 기존 step위저드(Toss리스킨完)→**신규페이지 추가(병행) 권고**. PM결정3건(가:game_rules저장위치/나:날짜코트 jsonb vs정규테이블/다:리빌딩범위)·🚦schema게이트 대상. 미커밋 |
-| 2026-06-21 | Track B 참가신청 3단계 후속 정리 (developer 세션B) | ✅ ①orphan 4파일 git rm(_v2/enroll-aside·poster·step-docs·step-payment·소스 import grep 0 확인·aside→poster 둘다삭제) ②dead CSS 제거(tournament-enroll.css 구 Material 구역 .te-h3/pay*/method*/bank*/bill*/success* 전량·615→308줄·약307줄·Toss .ts-*53규칙 유지) ③대표자/연락처 UI=값있으면span/없으면input 삼항→**항상 prefill input**(편집가능·canNext trim게이트 유지·빈값회귀 보존). route.ts/joinSchema/schema diff0·본인인증/주장가드/약관게이트/snake/adaptive 보존. tsc EXIT0. git=join영역만(삭제4·수정2). 미커밋(PM) |
-| 2026-06-21 | Track B Phase4 후속 비차단 3건 수리 (developer) | ✅ ①B-a teams PATCH approvedCount조회 $transaction **내부 이동**(race강화·동시 paid시 cap초과 차단·cap값조회는 tx밖 유지·`{updated,promoted}`반환) ②B-d matches GET 가드 `requireTournamentAdmin`→`requireRecordersManageAccess`(recorder_admin 통과·PATCH와 정합·POST 미접촉) ③B-d recorders page `roundName/scheduledAt`→`round_name/scheduled_at` snake교정(**응답키 실측 확정**=apiSuccess→convertKeysToSnakeCase→snake). 가드조건/승격로직/멱등/teams_count 동기화 전부 동일. 스키마0·신규모델0·기능회귀0. tsc EXIT0. git=대상3파일만(teams API/matches API/recorders page). 미커밋(PM) |
+| 2026-06-22 | F-1 후원사로고·디비전날짜코트 settings jsonb 저장 (developer 세션B) | ✅ 변경 2파일(ct-create-tournament·page.tsx, +32/-0). settings(`sponsor_logos`/`div_schedule` snake) 저장·schema/route/tournament/api/v1 미접촉. tsc EXIT0. 미커밋. |
+| 2026-06-22 | **v2.40 A0 사전설계 (planner 세션A·조사·문서만·src 0·prisma 0)** | ✅ 산출 `Dev/design/prompts/_v2.40-A0-design-notes.md`. **정산**=수입 TournamentTeam(payment_status='paid'×entry_fee/div_fees·payments는 Plan/CourtBooking만·대회참가비 없음)/지출 RefereeSettlement(assignment→match→tournament 2단계쿼리·운영비는 모델부재 보류)/순이익 부분산출. **키트**=9프리미티브 중 3 재사용(DataTable·Badge·StatCard·기존 admin-toss)·8 신규·DataTable은 Column에 hideSm 1필드만 추가·서버6/클라4 경계. **19섹션**=server prisma10/client API8·stat 절반 기존재·신규 count 3(games/community/suggestions). schema read만·실측0. 미커밋(PM 커밋). |
 
 ## 기획설계 (planner-architect)
+
+### v2.40 A0 사전설계 요약 (2026-06-22 세션A·조사·문서만·src 0변경·prisma 명령 0)
+
+🎯 목표: v2.40 통합 Admin Console 박제(A2 키트·A3 목록·A4 상세) 전 **데이터 출처·정산쿼리·키트 시그니처** 사전 확정. 산출 = `Dev/design/prompts/_v2.40-A0-design-notes.md`(문서 1개).
+
+**1️⃣ 정산(A4 tournament:id 정산탭)**
+- 🚨 **대회 참가비는 `payments`에 없음** — payments.payable_type 실측값 = `"Plan"`(구독)·`"CourtBooking"`(코트예약)뿐(src 전수grep). 대회 참가비 = **오프라인 입금 모델**(Tournament.bank_* 계좌안내).
+- **수입(산출가능)** = `TournamentTeam.payment_status='paid'`(기본 unpaid) × 참가비. 참가비 = `Tournament.div_fees`(Json `{종별:금액}`) 종별룩업 우선 → 없으면 `entry_fee`(Decimal) 폴백. Decimal→Number·BigInt→toString.
+- **지출** = 전용모델 부재(Cost/Expense/Spend/Payout 0건). 유일 실측 = `RefereeSettlement.amount`(심판비) — 연결 `RefereeSettlement.assignment_id`→`RefereeAssignment.tournament_match_id`→`TournamentMatch.tournamentId`. **relation 미선언이라 2단계 쿼리**(대회 match.id[] 조회→assignment IN→settlement 합). 대관/물품/상금 = **DB부재 보류·"—"표기**.
+- **순이익** = 수입−심판비 (운영비 미반영 **추정치 라벨 필수**). 시안 정산수치(수입448만/지출234만)=mock. 정산확정버튼=D2(읽기요약)라 미구현 or tournament-admin 위임.
+- ⚠️ A4 착수 시 실측1회: TournamentTeam.status 승인계열 distinct·div_fees 키형식·RefereeSettlement.status (억측금지).
+
+**2️⃣ 키트(A2)·server/클라 경계**
+- 🔑 **기존 `src/components/admin-toss/`(kit.tsx+data.tsx)에 6개 이미 존재** — DataTable·Badge(StatusBadge)·StatCard·DetailModal·StatusTabs·FilterBar·PanelRow. A2=신규9 박제 아니라 **재사용3(DataTable·Badge·StatCard)+신규8(PageHead·StatRow·Toolbar·Drawer·Panel·DL·PrimaryCell·useFilter)**.
+- **DataTable**: 기존 `Column<T>{key,label,width,align(left/center/right),sortable,render}`에 **`hideSm?` 1필드만 추가**하면 시안 요구 100%(신규 DataTable 금지). 기존이 정렬·페이지네이션·empty까지 더 강력.
+- **경계**: 서버가능6(PageHead·StatRow·Panel·DL·PrimaryCell·Badge=순수표시) / `'use client'`4(DataTable·Toolbar·Drawer·useFilter=인터랙션). 패턴=server prisma→직렬화→client wrapper props→wrapper서 useFilter+Toolbar+DataTable+Drawer.
+- **CSS(D4)**: au.css `.au-*` → toss-admin.css 흡수(`[data-skin="toss"]`·신규파일0). **시안원본 추출완료** `Dev/design/BDR v2.40/_admin-unified/`(au-kit.jsx·au.css·au-detail.jsx 등).
+- Drawer(A3 행클릭 요약)↔라우트상세(A4 풀탭) 경계 분리.
+
+**3️⃣ 19섹션 매핑(메모 §3 표)**
+- **server prisma 10**(대시보드·tournaments·games·teams·courts·users·community·payments·analytics·logs+season-awards·categories) = camelCase·prisma 그대로유지. **client API 8**(organizations·game-reports·plans·campaigns·partners·notifications·settings) = snake접근자 유지(errors 7회함정).
+- StatRow stat: ✅기존재 다수(대시보드/teams/users/courts/payments/analytics groupBy·organizations/game-reports/plans API) / 🆕신규 count 소량 3(games·community·suggestions status별·SELECT 영향0) / —불요(폼·로그·마스터).
+- 키트적용 = UI셸만 교체, **데이터패칭·서버액션·라우트 100%유지**. 행액션15화면=Drawer foot에 기존액션 연결.
+
+📋 A2 착수 준비 = ✅완료. 신규DB0(D3보류)·prisma0. **다음=A2 키트 박제**(신규8+hideSm추가+au.css흡수) ∥ A3 가능.
 
 ### 생성폼 F-2 표시 설계 (2026-06-22, 읽기전용·코드/스키마 무변경·prisma 금지)
 
@@ -757,6 +860,96 @@ places?: { id:string; name:string; region?:string; courtCount:number; naming:"nu
 🔴 필수 수정: **없음**. 운영 승인 로직이나 트리거 한정·정원 가드·트랜잭션·멱등 전부 견고. 정원 race는 단일운영자 컨텍스트라 차단 미해당(권고). merge 가능.
 
 ## 구현 기록 (developer)
+
+### A3-1b — `/admin/organizations`·`/admin/courts` 콘솔 키트 리스킨 (2026-06-22, developer · 세션A · 데이터/액션/라우트 0변경·UI만)
+
+📝 구현: A2 키트(`@/components/admin/console-kit`)로 두 화면 목록 리스킨. **데이터 패칭·server action·라우트·권한가드·DB·schema·`/api/v1` 0변경**(UI 셸만 교체). courts 등록 폼=server-action `<form>` 카드 그대로 보존(Drawer로 안 옮김). courts 제보검토·수정제안·앰배서더 3탭 미접촉 보존.
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| `src/app/(admin)/admin/organizations/page.tsx` | AdminPageHeader→PageHead / 4-stat grid→StatRow(statusCounts 재사용·신규쿼리0) / .btn 탭→Toolbar(검색 useFilter 클라+상태탭 서버 status필터 유지) / `<table>`→DataTable(PrimaryCell·StatusBadge·클라 pagination perPage20) / AdminDetailModal→Drawer(DL 요약·pending이면 foot 승인/거절·거절사유 input). `fetch`/`handleApprove`/`handleReject`/`fetchStatusCounts`/state 전부 유지. STATUS_LABEL/STATUS_TONE→StatusBadge map 통합 | 수정 |
+| `src/app/(admin)/admin/courts/page.tsx` | AdminPageHeader+hero stat strip 제거→content로 위임. 기존 server count 4종(total/active/pending/report)을 content에 props 전달만(서버 쿼리 0변경) | 수정 |
+| `src/app/(admin)/admin/courts/admin-courts-content.tsx` | **코트 관리 탭만** 키트화: PageHead(actions=SiteOperatorBadge)+StatRow(count props 재사용)+Toolbar(검색 클라)+DataTable(PrimaryCell·StatusBadge·pagination)+Drawer(DL·foot=유형토글/삭제 server action form 보존). 등록 폼 카드·3탭(Submissions/Suggestions/Ambassadors) 미접촉. AdminDetailModal/ModalInfoSection·STATUS_TONE/STATUS_LABEL 미사용 제거 | 수정 |
+
+🔑 StatRow=신규 쿼리 0(organizations=기존 statusCounts 재사용 / courts=page.tsx server count props 전달). Badge tone 매핑: 상태 pending→primary·approved→ok·rejected→danger·archived→grey / 코트 active→ok·inactive→danger. useFilter FIELDS=컴포넌트 밖 상수. 인터페이스에 `[key:string]:unknown` 추가(useFilter `FilterableRow` 제약 충족). lucide 9종 실존 검증(Building2·Clock·CircleCheck·Archive·Ban·MapPin·Flag·ArrowLeftRight·Trash2).
+
+💡 tester 참고:
+- **테스트 방법**: `/admin/organizations`·`/admin/courts`(super/site admin 로그인). organizations=탭 전환 시 서버 재fetch(status별)·검색은 클라 부분일치·행 클릭 Drawer·pending 단체 승인/거절(거절사유 입력)·StatRow 4분포. courts=코트 관리 탭 검색·행 클릭 Drawer·유형 토글/삭제 server action·등록 폼 동작·나머지 3탭 정상.
+- **정상 동작**: 승인/거절 후 목록+StatRow 갱신·Drawer 닫힘. 코트 등록/유형변경/삭제 server action 정상. 3탭 미변경.
+- **주의할 입력**: 한글 검색(IME 가드)·페이지네이션 경계(검색/탭 변경 시 page 1 리셋)·빈 목록 emptyTitle.
+
+⚠️ reviewer 참고:
+- 봐줬으면 하는 부분: ①organizations 탭=서버 status필터 유지(useFilter는 검색만, tab "all" 고정 안 씀) — 기존 `filter` state로 서버 fetch 분기 유지했는지 ②courts 등록 폼·3탭 100% 보존 ③Drawer foot의 server action `<form>` hidden input 시그니처 무변경 ④count props 전달=서버 쿼리 0변경.
+
+### A2 — v2.40 통합 Admin Console 키트 박제 (2026-06-22, developer · 세션A · 데이터/라우트/DB 미접촉)
+
+📝 구현: 시안 `au-kit.jsx`/`au.css`(`Dev/design/BDR v2.40/_admin-unified/`)를 src로 박제. **신규 8 키트 + DataTable `hideSm` 1필드 + StatusBadge + au.css 흡수**. 기존 `admin-toss/`(DataTable·Badge·StatCard)는 신규로 만들지 않고 배럴에서 re-export(A0 메모 §2-1 — 기존이 정렬·페이지네이션까지 더 강력).
+
+| 파일 경로 | 변경 내용 | 신규/수정 | 서버/클라 |
+|----------|----------|----------|----------|
+| `src/components/admin/console-kit/page-head.tsx` | PageHead `{eyebrow?,icon?,title,sub?,actions?}` — eyebrow+제목+우측액션 | 신규 | 서버 |
+| `src/components/admin/console-kit/stat-row.tsx` | StatRow `{items:{icon,label,value,delta?,trend?}[]}` — `.au-stat` 박제(delta/trend) | 신규 | 서버 |
+| `src/components/admin/console-kit/panel.tsx` | Panel `{title?,sub?,right?,pad?,children}` — `.ts-card` 래퍼 | 신규 | 서버 |
+| `src/components/admin/console-kit/dl.tsx` | DL `{rows:[key,value][]}` — 정의목록 | 신규 | 서버 |
+| `src/components/admin/console-kit/primary-cell.tsx` | PrimaryCell `{initials?,title,meta?,accent?}` — 아바타+제목/메타 셀 | 신규 | 서버 |
+| `src/components/admin/console-kit/status-badge.tsx` | StatusBadge `{map,value}` — Badge 래퍼(map 룩업·없으면 null) | 신규 | 서버 |
+| `src/components/admin/console-kit/toolbar.tsx` | Toolbar `{search?,onSearch?,placeholder?,tabs?,active?,onTab?,right?}` + **IME 가드**(compositionstart~end 중 onSearch 보류) | 신규 | 클라 |
+| `src/components/admin/console-kit/drawer.tsx` | Drawer `{open,onClose,title,sub?,children,foot?}` + ESC 닫기 | 신규 | 클라 |
+| `src/components/admin/console-kit/use-filter.ts` | useFilter `<T>(rows,fields)=>{q,setQ,tab,setTab,filtered}` — 제네릭·status 탭+검색 | 신규 | 클라(훅) |
+| `src/components/admin/console-kit/index.ts` | 배럴 — 신규8 export + 재사용3(DataTable·Badge·StatCard) `@/components/admin-toss` re-export | 신규 | — |
+| `src/components/admin-toss/data.tsx` | `Column<T>`에 `hideSm?:boolean` 1필드 추가 + thead/trow 렌더 시 `c.hideSm?"au-hide-sm"` 클래스. **기존 동작·정렬·페이지네이션 0변경** | 수정 | — |
+| `src/styles/toss-admin.css` | au.css `.au-*` 전부를 L533 이후에 `[data-skin="toss"]` prefix로 흡수(픽셀값 시안 그대로). `@keyframes au-slide`만 글로벌·`tsfade` 기존 재사용. 신규 css 파일 0 | 수정 | — |
+
+🎨 au.css 흡수 범위: head/stats(+delta data-trend)/toolbar/search/tabs/table·thead·trow·cell-r/c·mut/num/primary-cell·av·av--p/table__foot·pager/drawer(+overlay·head·title·sub·body·foot·x)/dl(+section-title)/grid-2·card-title·card-sub/hide-sm. **bars/hbar/feed/plans/setrow는 키트 컴포넌트가 아니므로 제외**(화면별 일회성 마크업·A3+ 필요 시 추가). au.css의 `.ts-sidebar*`/`.ts-main__inner` 재정의도 흡수 안 함(운영 셸 충돌 회피).
+
+💡 tester 참고:
+- **테스트 방법**: 키트 자체는 화면 미배치(A3에서 사용). tsc EXIT0 확인 + 더미(`_kit-preview`)는 이미 제거됨. 재현하려면 `data-skin="toss"` 루트 안에서 8키트 import해 렌더.
+- **정상 동작**: 서버5는 props만으로 렌더(하이드레이션 무관). Toolbar 한글 검색 시 조합 중 글자 안 끊김(IME 가드). Drawer ESC/오버레이 클릭 닫힘. useFilter는 tab="all"이면 전체·검색은 fields 부분일치. DataTable `hideSm:true` 컬럼은 ≤860px에서 숨김.
+- **주의할 입력**: ①Toolbar 한글 연속 입력(조합 끊김 회귀 여부) ②StatusBadge value가 map에 없을 때 null(빈 렌더) ③DataTable hideSm 추가가 기존 hideSm 미지정 컬럼에 영향0(className undefined)인지 ④`[data-skin="toss"]` 밖에서 `.au-*` 스타일 누수0(스코프 prefix 전수 적용).
+- ⚠️ **GET 로드 검증 제약**: admin/* 미들웨어가 인증 전 `/login` 307 리다이렉트(없는 라우트도 307)라 HTTP 렌더 직접 확인 불가. tsc 0 + 순수표시/표준훅 구성으로 런타임 위험 판단(빌드 에러 0). dev 서버 globals.css Turbopack `0xc0000142` 환경이슈는 이 작업 무관.
+
+⚠️ reviewer 참고:
+- **DataTable 회귀 0 확인**: `hideSm` 필드 추가 + className 분기 2곳(thead L386·trow L431)만 변경. 기존 정렬/선택/페이지네이션/empty 로직 무변경.
+- **CSS 스코프**: 흡수된 `.au-*` 전부 `[data-skin="toss"]` prefix 확인(미디어쿼리 내부 셀렉터 포함). `@keyframes au-slide`만 글로벌(ct/ts keyframe 패턴 동일).
+- **배럴 re-export 정합**: DataTable·Badge·StatCard는 admin-toss 단일 source(중복 박제 0). StatusBadge만 신규(시안 StatusBadge=Badge 래퍼).
+- **양립**: 기존 AdminPageHeader·admin-detail-modal·admin-stat-card 삭제 0(A3/A4 순차 대체 예정). 세션A 셸/기존 화면 미접촉.
+
+### A1 — admin 사이드바 IA 6그룹 → 1단독+4그룹 재편 (2026-06-22, developer · v2.40 통합 콘솔 Phase A1)
+
+📝 구현: site-operator admin 사이드바를 시안 방향(1단독 + 4그룹)으로 재편. **라우트 href·권한 roles·필터 로직 0 변경**, 그룹 배치·라벨·아이콘 매핑만 수정. `navStructure`(sidebar.tsx) 단일 source라 mobile-admin-nav.tsx는 import만 하므로 자동 반영 → **1파일 수정**.
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| `src/components/admin/sidebar.tsx` | ①SIDEBAR_ICON에 `notifications: "bell"` 1건 추가(알림 항목용) ②navStructure를 6그룹→1단독+4그룹 재구성(href/roles/children 전부 보존) | 수정 |
+| `src/components/admin/mobile-admin-nav.tsx` | **미접촉**(navStructure·filterStructureByRoles·toLucide를 sidebar.tsx에서 import → 자동 동일 IA) | — |
+
+🔑 새 그룹 구조:
+- **(단독)** 대시보드 `/admin` (roles "all")
+- **운영**: 대회 관리(+대회 운영자 도구 sub) · 경기 · 팀 · **단체**(신규 명시) · 코트 — 운영 엔티티 `["super_admin","site_admin"]`
+- **사용자·커뮤니티**: 유저 · 커뮤니티(+BDR NEWS sub) · **시즌 시상**(콘텐츠→이동) · **신고 검토**(사용자→이동) · 건의사항
+- **비즈니스**: 결제 · 요금제 · 광고 캠페인 · 파트너
+- **시스템**: 분석 · 종별 관리 · **알림**(신규 명시) · 활동 로그 · 시스템 설정
+- **외부 관리**(4그룹 밖 별도): 협력업체 `["partner_member"]`
+
+🔁 흡수/이동:
+- BDR NEWS = 독립 항목 아님 → 커뮤니티 하위 sub-item 유지(기존 그대로·라우트 보존).
+- 시즌 시상·신고 검토 = 사용자·커뮤니티 그룹으로 이동(권한·href 동일).
+- 단체 관리(`/admin/organizations`)·알림(`/admin/notifications`) = 라우트 **기존 존재**하나 메뉴 누락분 → 명시 추가. 단체=운영 그룹 super/site, 알림=시스템 그룹 super 전용.
+- 대회 운영자 도구(`/tournament-admin`) = 대회 관리 sub-item 현행 유지(이동 없음).
+
+🔒 보존 확인:
+- **라우트 href 변경 0** — 모든 항목 기존 href 그대로 이동(grep으로 href 문자열 8그룹내 전부 동일 확인).
+- **권한 매트릭스 100% 유지** — roles 배열·filterItemByRoles(self/children 재귀·effectiveHref rewrite)·filterStructureByRoles(빈 그룹 자동 제외)·active 판정(renderItem `pathname.startsWith`) 무변경.
+- DB·서버 액션·페이지 컴포넌트 미수정. 하드코딩 hex 0·lucide(<Icon> 키트)만·Material 0.
+
+💡 tester 참고:
+- 테스트 방법: admin 로그인(super_admin) → 사이드바 그룹 헤더 5개(운영/사용자·커뮤니티/비즈니스/시스템/외부 관리) + 상단 단독 대시보드 확인. 모바일 햄버거 드로어도 동일 그룹 확인.
+- 정상 동작: ①단체 관리·알림 메뉴가 새로 보임 ②시즌 시상·신고 검토가 사용자·커뮤니티 그룹에 위치 ③각 메뉴 클릭 시 기존 라우트로 정상 진입(404 0).
+- 주의 입력(role별 노출): super_admin=전 그룹 / site_admin=대시보드+운영(시즌시상·신고 제외)+사용자·커뮤니티 일부+분석 / partner_member=대시보드+광고캠페인+외부관리(협력업체)만. tournament_admin=대시보드+대회 운영자 도구(parent rewrite로 대회 관리 진입점 노출). 빈 그룹은 헤더째 자동 제외.
+
+⚠️ reviewer 참고:
+- 봐줄 부분: ①href 문자열이 이동 전후 100% 동일한지(라우트 회귀) ②단체/알림 신규 항목의 roles가 페이지 실제 가드와 어긋나지 않는지(메뉴는 노출만·페이지는 자체 fetch 가드라 과노출 시에도 데이터 가드는 별개지만 IA 정합성 확인) ③filterItemByRoles parent-self-blocked+child-visible(대회 운영자 도구) 동작이 운영 그룹 이동 후에도 유지되는지.
+- tsc EXIT 0. `git add` = sidebar.tsx 1파일만. 미커밋(PM이 tester+reviewer 검증 후).
 
 ### F-2a — 후원사 로고 (web) 대회 상세 about 표시 (2026-06-22, developer 세션B)
 

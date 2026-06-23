@@ -5,14 +5,27 @@
 // - <Badge> → .badge--soft + 상태별 inline color
 // - 자체 rounded bg-* 버튼 → .btn .btn--primary / .btn--sm
 
-import { useState } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 // Phase 2A (Toss 전환) — Material Symbols → lucide(<Icon>) 키트
 import { Icon } from "@/components/admin-toss";
+// v2.40 A3-1b — 통합 콘솔 키트(코트 관리 탭만 적용. 등록 폼/3탭은 보존)
 import {
-  AdminDetailModal,
-  ModalInfoSection,
-} from "@/components/admin/admin-detail-modal";
+  PageHead,
+  StatRow,
+  Toolbar,
+  DataTable,
+  Drawer,
+  DL,
+  PrimaryCell,
+  StatusBadge,
+  useFilter,
+  type Column,
+  type StatusMeta,
+} from "@/components/admin/console-kit";
+// 8C-6 박제 — VA1 Site Operator 뱃지 (dark+gold, /admin/partners 와 공용)
+import { SiteOperatorBadge } from "@/components/admin/site-operator-badge";
 import { EDITABLE_FIELDS, type EditableFieldKey } from "@/lib/constants/court";
 
 // (web) 시안 카드 패턴
@@ -35,6 +48,8 @@ interface SerializedCourt {
   isFree: boolean | null;
   reviewsCount: number;
   createdAt: string;
+  // v2.40 A3-1b — useFilter<T extends FilterableRow> 제약(인덱스 시그니처) 충족용
+  [key: string]: unknown;
 }
 
 // 위키 수정 제안 타입
@@ -104,17 +119,15 @@ const AMENITY_LABEL: Record<string, string> = {
   rental: "용품 대여",
 };
 
-const STATUS_LABEL: Record<string, string> = {
-  active: "운영중",
-  inactive: "비활성",
+// v2.40 A3-1b — StatusBadge 매핑(코트 상태코드 → 톤/라벨).
+//   active=운영중(ok) / inactive=비활성(danger). (기존 STATUS_TONE/STATUS_LABEL 를 Badge 매핑으로 통합)
+const COURT_STATUS_BADGE_MAP: Record<string, StatusMeta> = {
+  active: { tone: "ok", label: "운영중" },
+  inactive: { tone: "danger", label: "비활성" },
 };
 
-// 2026-05-15 Admin-4-B 박제 — STATUS_STYLE inline 색 → admin-stat-pill data-tone 매핑.
-// active=ok / inactive=err (시안 AdminCourts.jsx v2.9 status_tone 박제 패턴 — 운영중/폐쇄/등록대기)
-const STATUS_TONE: Record<string, "mute" | "info" | "ok" | "warn" | "err" | "accent"> = {
-  active: "ok",
-  inactive: "err",
-};
+// useFilter 검색 대상 필드 — 컴포넌트 밖 상수(매 렌더 새 참조 방지)
+const COURT_FILTER_FIELDS: (keyof SerializedCourt)[] = ["name", "address", "city"];
 
 interface Props {
   courts: SerializedCourt[];
@@ -124,6 +137,11 @@ interface Props {
   createCourtAction: (formData: FormData) => Promise<void>;
   updateCourtAction: (formData: FormData) => Promise<void>;
   deleteCourtAction: (formData: FormData) => Promise<void>;
+  // v2.40 A3-1b — page.tsx 에서 server count 전달(신규 쿼리 0). StatRow 에 표시
+  totalCount: number;
+  activeCourtsCount: number;
+  pendingCourtsCount: number;
+  pendingReportsCount: number;
 }
 
 export function AdminCourtsContent({
@@ -134,18 +152,98 @@ export function AdminCourtsContent({
   createCourtAction,
   updateCourtAction,
   deleteCourtAction,
+  totalCount,
+  activeCourtsCount,
+  pendingCourtsCount,
+  pendingReportsCount,
 }: Props) {
   // 탭 상태: "courts" | "submissions" | "suggestions" | "ambassadors"
   const [activeTab, setActiveTab] = useState<
     "courts" | "submissions" | "suggestions" | "ambassadors"
   >("courts");
   const [selected, setSelected] = useState<SerializedCourt | null>(null);
+  // v2.40 A3-1b — DataTable 페이지네이션 현재 페이지(클라)
+  const [page, setPage] = useState(1);
+  const perPage = 20;
 
   const fmtDate = (iso: string) =>
     new Date(iso).toLocaleDateString("ko-KR");
 
+  // v2.40 A3-1b — 코트 목록 클라 검색 필터(코트명/주소/도시). 탭 미사용(상태 탭 없음).
+  const { q, setQ, filtered } = useFilter<SerializedCourt>(courts, COURT_FILTER_FIELDS);
+
+  // 검색 변동 시 페이지 1로 리셋
+  useEffect(() => {
+    setPage(1);
+  }, [q]);
+
+  // 현재 페이지 슬라이스
+  const pageRows = useMemo(
+    () => filtered.slice((page - 1) * perPage, page * perPage),
+    [filtered, page]
+  );
+
+  // DataTable 컬럼 — 기존 축소 테이블(코트명/도시/유형) + 상태 배지 추가
+  const courtColumns: Column<SerializedCourt>[] = useMemo(
+    () => [
+      {
+        key: "name",
+        label: "코트명",
+        render: (c) => (
+          <PrimaryCell
+            initials={(c.name ?? "?")[0]}
+            title={c.name}
+            meta={c.address}
+          />
+        ),
+      },
+      {
+        key: "city",
+        label: "도시",
+        width: 140,
+        hideSm: true,
+        render: (c) => `${c.city}${c.district ? ` ${c.district}` : ""}`,
+      },
+      {
+        key: "courtType",
+        label: "유형",
+        width: 80,
+        align: "center",
+        render: (c) => COURT_TYPE_LABEL[c.courtType] ?? c.courtType,
+      },
+      {
+        key: "status",
+        label: "상태",
+        width: 90,
+        align: "center",
+        render: (c) => <StatusBadge map={COURT_STATUS_BADGE_MAP} value={c.status} />,
+      },
+    ],
+    []
+  );
+
   return (
     <>
+      {/* v2.40 A3-1b — PageHead (기존 AdminPageHeader 대체). 우측 액션=Site Operator 뱃지 */}
+      <PageHead
+        eyebrow="ADMIN · 콘텐츠"
+        icon="map-pin"
+        title="코트 관리"
+        sub={`전체 ${totalCount.toLocaleString()}개`}
+        actions={<SiteOperatorBadge />}
+      />
+
+      {/* v2.40 A3-1b — StatRow (기존 hero stat strip 대체. server count props 재사용·신규 쿼리 0).
+          "신고" = court_reports active(미처리) 건수 — count-only */}
+      <StatRow
+        items={[
+          { icon: "map-pin", label: "전체 코트", value: totalCount.toLocaleString() },
+          { icon: "circle-check", label: "활성", value: activeCourtsCount.toLocaleString() },
+          { icon: "clock", label: "미승인", value: pendingCourtsCount.toLocaleString() },
+          { icon: "flag", label: "신고", value: pendingReportsCount.toLocaleString() },
+        ]}
+      />
+
       {/* ─── 탭 네비게이션 ─── */}
       <div className="flex gap-1 mb-4 rounded-lg p-1" style={{ backgroundColor: "var(--color-surface)" }}>
         <button
@@ -310,56 +408,50 @@ export function AdminCourtsContent({
         </form>
       </div>
 
-      {/* 축소된 테이블: 코트명 / 도시 / 유형 (3칸) */}
-      <div className="overflow-x-auto admin-table-wrap">
-        {/* admin-table: 모바일 ≤720px 카드 변환 (globals.css [Admin Phase B]) */}
-        <table className="admin-table w-full text-left text-sm">
-          <thead>
-            <tr>
-              <th className="px-5 py-4 font-medium">코트명</th>
-              <th className="w-[120px] px-5 py-4 font-medium">도시</th>
-              <th className="w-[80px] px-5 py-4 font-medium">유형</th>
-            </tr>
-          </thead>
-          <tbody>
-            {courts.map((c) => (
-              <tr key={c.id} onClick={() => setSelected(c)} className="cursor-pointer">
-                <td data-primary="true" className="px-5 py-3">
-                  <p className="truncate font-medium" style={{ color: "var(--color-text-primary)" }}>
-                    {c.name}
-                  </p>
-                  <p className="truncate text-xs" style={{ color: "var(--color-text-muted)" }}>
-                    {c.address}
-                  </p>
-                </td>
-                <td data-label="도시" className="px-5 py-3" style={{ color: "var(--color-text-muted)" }}>
-                  {c.city}{c.district ? ` ${c.district}` : ""}
-                </td>
-                <td data-label="유형" className="px-5 py-3" style={{ color: "var(--color-text-muted)" }}>
-                  {COURT_TYPE_LABEL[c.courtType] ?? c.courtType}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      {courts.length === 0 && (
-        <div className="p-8 text-center" style={{ color: "var(--color-text-muted)" }}>
-          등록된 코트가 없습니다.
-        </div>
-      )}
+      {/* v2.40 A3-1b — Toolbar(검색) + DataTable. 행 클릭 → Drawer */}
+      <Toolbar
+        search={q}
+        onSearch={setQ}
+        placeholder="코트명, 주소 검색"
+      />
+      <DataTable<SerializedCourt>
+        columns={courtColumns}
+        rows={pageRows}
+        keyField="id"
+        onRowClick={(c) => setSelected(c)}
+        pagination={{
+          page,
+          perPage,
+          total: filtered.length,
+          onChange: setPage,
+        }}
+        emptyTitle="등록된 코트가 없습니다."
+      />
 
       {/* 상세 모달 */}
       </>}
 
-      {selected && (
-        <AdminDetailModal
-          isOpen={!!selected}
-          onClose={() => setSelected(null)}
-          title={selected.name}
-          actions={
+      {/* v2.40 A3-1b — 코트 상세 = Drawer(기존 AdminDetailModal 대체).
+          foot = 유형 토글/삭제 server action form 그대로 보존 */}
+      <Drawer
+        open={selected !== null}
+        onClose={() => setSelected(null)}
+        title={selected ? selected.name : ""}
+        sub={
+          selected
+            ? `${selected.city}${selected.district ? ` ${selected.district}` : ""}`
+            : undefined
+        }
+        foot={
+          selected ? (
             <div className="flex items-center gap-2">
-              {/* 유형 토글 */}
+              <Link
+                href={`/admin/courts/${selected.id}`}
+                className="btn btn--sm"
+              >
+                상세 페이지 열기
+              </Link>
+              {/* 유형 토글 — server action form 그대로 보존 */}
               <form action={updateCourtAction} className="flex-1">
                 <input type="hidden" name="court_id" value={selected.id} />
                 <input type="hidden" name="name" value={selected.name} />
@@ -377,7 +469,7 @@ export function AdminCourtsContent({
                   {selected.courtType === "indoor" ? "실외로 변경" : "실내로 변경"}
                 </button>
               </form>
-              {/* 삭제 */}
+              {/* 삭제 — server action form 그대로 보존 */}
               <form action={deleteCourtAction}>
                 <input type="hidden" name="court_id" value={selected.id} />
                 <button
@@ -391,32 +483,29 @@ export function AdminCourtsContent({
                 </button>
               </form>
             </div>
-          }
-        >
+          ) : undefined
+        }
+      >
+        {selected && (
           <div className="space-y-4">
-            <ModalInfoSection
-              title="코트 정보"
+            {/* 상태 뱃지 */}
+            <div>
+              <StatusBadge map={COURT_STATUS_BADGE_MAP} value={selected.status} />
+            </div>
+            {/* 코트 정보(DL 요약) */}
+            <DL
               rows={[
                 ["주소", selected.address],
                 ["도시", `${selected.city}${selected.district ? ` ${selected.district}` : ""}`],
                 ["유형", COURT_TYPE_LABEL[selected.courtType] ?? selected.courtType],
-                ["상태", (
-                  // Admin-4-B 박제 — admin-stat-pill[data-tone] (admin.css)
-                  <span className="admin-stat-pill" data-tone={STATUS_TONE[selected.status] ?? "mute"}>
-                    {STATUS_LABEL[selected.status] ?? selected.status}
-                  </span>
-                )],
                 ["무료 여부", selected.isFree === null ? "미확인" : selected.isFree ? "무료" : "유료"],
                 ["리뷰수", `${selected.reviewsCount}건`],
+                ["등록일", fmtDate(selected.createdAt)],
               ]}
             />
-            <ModalInfoSection
-              title="기타"
-              rows={[["등록일", fmtDate(selected.createdAt)]]}
-            />
           </div>
-        </AdminDetailModal>
-      )}
+        )}
+      </Drawer>
     </>
   );
 }

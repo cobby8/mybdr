@@ -1,6 +1,12 @@
 # 코딩 규칙 및 스타일
 <!-- 담당: developer, reviewer | 최대 30항목 -->
 
+### [2026-06-23] console-kit StatusBadge 미매핑 = null(빈셀) → status map 완전성 의무
+- **분류**: convention
+- **발견자**: reviewer
+- **내용**: `<StatusBadge map={META} value={status} />`(console-kit)는 `map[value]` 없으면 **null 반환(렌더 안 함=빈 셀)**. 기존 admin-stat-pill 패턴 `STATUS_LABEL[s]??s.status`(미매핑 시 **원본 status 문자열을 그대로 표시**)와 **동작 다름**. admin-stat-pill→StatusBadge 변환 시 META map 이 해당 화면의 **모든 가능 status 값을 망라**해야 미표시 회귀 0. 변환 전 DB `groupBy(status)` 실측으로 distinct status 전수 확인 권장. (A3-2b suggestions 사례: META=pending/open/in_progress/resolved 4값·DB 0건이라 현재 영향0이나, 4값 外 status INSERT 시 빈 셀. NULL→pending 폴백은 page.tsx `??"pending"` 으로 가드됨.) **tone 변환 표준**(admin-stat-pill data-tone → BadgeTone): `mute→grey` · `info→primary` · `err→danger` · `warn→warn` · `ok→ok`(BadgeTone=primary/ok/warn/danger/grey 5종만 실존, info/mute/err 부재).
+- **참조횟수**: 0
+
 ### [2026-06-21] 관리자 Toss 스킨 = `[data-skin="toss"]` opt-in 네임스페이스 격리 (전역 토큰 충돌 차단)
 - **분류**: convention
 - **발견자**: reviewer

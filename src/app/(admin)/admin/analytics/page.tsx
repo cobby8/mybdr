@@ -2,18 +2,7 @@
 // - <Card> wrapper → div + 토큰. StatCard 는 통계 시각화 의도 유지
 
 import { prisma } from "@/lib/db/prisma";
-import { StatCard } from "@/components/ui/card";
-import { AdminPageHeader } from "@/components/admin/admin-page-header";
-// Toss Phase 2 2B — lucide 키트 Icon (Material Symbols 교체)
-import { Icon } from "@/components/admin-toss";
-
-// (web) 시안 카드 패턴
-const CARD_CLASS = "rounded-[var(--radius-card)] border p-4 sm:p-5";
-const CARD_STYLE: React.CSSProperties = {
-  borderColor: "var(--color-border)",
-  backgroundColor: "var(--color-card)",
-  boxShadow: "var(--shadow-card)",
-};
+import { PageHead, Panel, StatRow } from "@/components/admin/console-kit";
 
 export const dynamic = "force-dynamic";
 
@@ -90,79 +79,35 @@ export default async function AdminAnalyticsPage() {
     <div data-skin="toss">
       {/* Admin-6 박제 — 시안 v2.14 AdminAnalytics.jsx 헤더 패턴 카피 */}
       {/* eyebrow 영문 → 한글 카피("ADMIN · 시스템") + breadcrumbs 신규 */}
-      <AdminPageHeader
-        eyebrow="ADMIN · 시스템"
+      <PageHead
+        icon="bar-chart-3"
+        eyebrow="ADMIN / 시스템"
         title="분석"
-        subtitle="이번 달 가입 / 토너먼트 / 경기 / 게시글 + 6개월 추이"
-        breadcrumbs={[
-          { label: "ADMIN" },
-          { label: "시스템" },
-          { label: "분석" },
+        sub="이번 달 가입 / 토너먼트 / 경기 / 게시글 + 6개월 추이"
+      />
+
+      <StatRow
+        items={[
+          { icon: "user-plus", label: "이번 달 가입", value: data.thisMonthUsers.toLocaleString(), trend: "up", delta: "users" },
+          { icon: "trophy", label: "이번 달 대회", value: data.thisMonthTournaments.toLocaleString() },
+          { icon: "volleyball", label: "이번 달 경기", value: data.thisMonthGames.toLocaleString() },
+          { icon: "file-pen", label: "이번 달 게시글", value: data.thisMonthPosts.toLocaleString() },
         ]}
       />
 
-      {/* 이번 달 통계: Material Symbols 아이콘 사용 */}
-      <div className="mb-6 grid gap-4 sm:grid-cols-3">
-        <StatCard
-          label="이번 달 가입"
-          value={data.thisMonthUsers.toLocaleString()}
-          icon={<Icon name="user-plus" size={24} />}
-        />
-        <StatCard
-          label="이번 달 대회"
-          value={data.thisMonthTournaments.toLocaleString()}
-          icon={<Icon name="trophy" size={24} />}
-        />
-        <StatCard
-          label="이번 달 경기"
-          value={data.thisMonthGames.toLocaleString()}
-          icon={<Icon name="volleyball" size={24} />}
-        />
-      </div>
-
-      {/* 누적 통계 */}
-      <div className="mb-6 grid gap-4 sm:grid-cols-3">
-        <div className={CARD_CLASS} style={CARD_STYLE}>
-          <p className="text-xs" style={{ color: "var(--color-text-muted)" }}>전체 유저</p>
-          <p className="mt-1 text-xl font-bold sm:text-2xl">{data.totalUsers.toLocaleString()}</p>
-        </div>
-        <div className={CARD_CLASS} style={CARD_STYLE}>
-          <p className="text-xs" style={{ color: "var(--color-text-muted)" }}>전체 대회</p>
-          <p className="mt-1 text-xl font-bold sm:text-2xl">{data.totalTournaments.toLocaleString()}</p>
-        </div>
-        <div className={CARD_CLASS} style={CARD_STYLE}>
-          <p className="text-xs" style={{ color: "var(--color-text-muted)" }}>전체 경기</p>
-          <p className="mt-1 text-xl font-bold sm:text-2xl">{data.totalGames.toLocaleString()}</p>
-        </div>
-      </div>
-
-      {/* 코트 / 커뮤니티 / 앰배서더 통계 */}
-      <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard
-          label="등록 코트"
-          value={data.totalCourts.toLocaleString()}
-          icon={<Icon name="map-pin" size={24} />}
-        />
-        <StatCard
-          label="커뮤니티 게시글"
-          value={data.totalPosts.toLocaleString()}
-          icon={<Icon name="message-square" size={24} />}
-        />
-        <StatCard
-          label="이번 달 게시글"
-          value={data.thisMonthPosts.toLocaleString()}
-          icon={<Icon name="file-pen" size={24} />}
-        />
-        <StatCard
-          label="앰배서더"
-          value={`${data.activeAmbassadors} 활동 / ${data.pendingAmbassadors} 대기`}
-          icon={<Icon name="shield-user" size={24} />}
-        />
-      </div>
+      <StatRow
+        items={[
+          { icon: "users", label: "전체 유저", value: data.totalUsers.toLocaleString() },
+          { icon: "trophy", label: "전체 대회", value: data.totalTournaments.toLocaleString() },
+          { icon: "activity", label: "전체 경기", value: data.totalGames.toLocaleString() },
+          { icon: "map-pin", label: "등록 코트", value: data.totalCourts.toLocaleString() },
+          { icon: "message-square", label: "커뮤니티 게시글", value: data.totalPosts.toLocaleString() },
+          { icon: "shield-user", label: "앰배서더", value: `${data.activeAmbassadors} 활동 / ${data.pendingAmbassadors} 대기` },
+        ]}
+      />
 
       {/* 월별 가입 추이 */}
-      <div className={CARD_CLASS} style={CARD_STYLE}>
-        <h2 className="mb-4 text-lg font-semibold">월별 가입 추이 (최근 6개월)</h2>
+      <Panel title="월별 가입 추이 (최근 6개월)">
         {data.monthlyUsers.length > 0 ? (
           <div className="flex h-48 items-end gap-3">
             {data.monthlyUsers.map((m) => {
@@ -189,7 +134,7 @@ export default async function AdminAnalyticsPage() {
             데이터가 없습니다.
           </div>
         )}
-      </div>
+      </Panel>
     </div>
   );
 }
