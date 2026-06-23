@@ -19,6 +19,12 @@ type WorkspaceAction = {
   icon: string;
 };
 
+type WorkspaceFact = {
+  label: string;
+  value: string;
+  tone?: "ok" | "warn" | "info" | "mute";
+};
+
 type WorkspaceSection = {
   id: string;
   title: string;
@@ -29,6 +35,7 @@ type WorkspaceSection = {
   actions: WorkspaceAction[];
   lockedReason?: string;
   itemKeys: string[];
+  facts?: WorkspaceFact[];
 };
 
 type Props = {
@@ -41,6 +48,7 @@ type Props = {
   hasSite: boolean;
   siteSubdomain?: string | null;
   isCompleted: boolean;
+  readyFacts: WorkspaceFact[];
 };
 
 const STATUS_LABEL: Record<WorkspaceStatus, string> = {
@@ -109,6 +117,7 @@ export function TournamentWorkspace({
   hasSite,
   siteSubdomain,
   isCompleted,
+  readyFacts,
 }: Props) {
   const base = `/tournament-admin/tournaments/${tournamentId}`;
   const gate = canPublish(progress);
@@ -151,6 +160,7 @@ export function TournamentWorkspace({
         summary: countComplete(publicItems),
         icon: "globe-2",
         itemKeys: ["basic", "registration", "site"],
+        facts: readyFacts,
         lockedReason: firstLockedReason(publicItems),
         actions: [
           { label: "기본 정보 수정", href: `${base}/wizard`, icon: "pencil" },
@@ -219,7 +229,17 @@ export function TournamentWorkspace({
         ],
       },
     ];
-  }, [base, gate.missing.length, gate.ok, isCompleted, matchCount, maxTeams, progress, teamCount]);
+  }, [
+    base,
+    gate.missing.length,
+    gate.ok,
+    isCompleted,
+    matchCount,
+    maxTeams,
+    progress,
+    readyFacts,
+    teamCount,
+  ]);
 
   const [activeId, setActiveId] = useState("summary");
 
@@ -395,6 +415,24 @@ function WorkspaceSectionCard({
         <p className="mt-4 rounded-[4px] border p-3 text-sm text-[var(--color-text-muted)]" style={{ borderColor: "var(--color-border)", backgroundColor: "var(--color-elevated)" }}>
           <Icon name="lock" size={14} className="align-middle" /> {section.lockedReason}
         </p>
+      )}
+
+      {section.facts && section.facts.length > 0 && (
+        <div className="mt-4 divide-y" style={{ borderColor: "var(--color-border)" }}>
+          {section.facts.map((fact) => (
+            <div
+              key={fact.label}
+              className="flex flex-col gap-1 py-2 first:pt-0 last:pb-0 sm:flex-row sm:items-start sm:justify-between"
+            >
+              <span className="text-sm font-semibold text-[var(--color-text-primary)]">
+                {fact.label}
+              </span>
+              <span className="text-sm text-[var(--color-text-muted)] sm:max-w-[70%] sm:text-right">
+                {fact.value}
+              </span>
+            </div>
+          ))}
+        </div>
       )}
 
       {relatedItems.length > 0 && (

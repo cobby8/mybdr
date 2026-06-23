@@ -150,6 +150,42 @@ export default async function TournamentAdminDetailPage({
       }`
     : null;
   const subtitleParts = [dateRangeText, formatLabel].filter(Boolean).join(" · ");
+  const registrationPolicyText = [
+    `정원 ${tournament.maxTeams ?? "미설정"}팀`,
+    tournament.entry_fee
+      ? `참가비 ${Number(tournament.entry_fee).toLocaleString()}원`
+      : "참가비 무료",
+    tournament.auto_approve_teams == null
+      ? "승인 방식 미설정"
+      : tournament.auto_approve_teams
+        ? "자동 승인"
+        : "수동 승인",
+  ].join(" · ");
+  const readyFacts = [
+    {
+      label: "기본 정보",
+      value: [
+        dateRangeText ?? "일정 미설정",
+        tournament.venue_name ? `장소 ${tournament.venue_name}` : "장소 미설정",
+      ].join(" · "),
+    },
+    {
+      label: "시리즈",
+      value: tournament.series_id ? "연결됨" : "미연결",
+    },
+    {
+      label: "신청 정책",
+      value: registrationPolicyText,
+    },
+    {
+      label: "사이트",
+      value: site
+        ? site.isPublished
+          ? `${site.subdomain ?? "사이트"} 공개 중`
+          : `${site.subdomain ?? "사이트"} 비공개`
+        : "사이트 미생성",
+    },
+  ];
 
   return (
     // Track B-c — Toss 토큰 적용 루트 opt-in (공유셸 미부착)
@@ -239,6 +275,7 @@ export default async function TournamentAdminDetailPage({
         hasSite={!!site}
         siteSubdomain={site?.subdomain}
         isCompleted={isCompleted}
+        readyFacts={readyFacts}
       />
 
       {/* ⭐ PR-1C-9 (B1) — 모바일 sticky 공개 버튼 (시안 atsh-mobile-sticky 박제).
