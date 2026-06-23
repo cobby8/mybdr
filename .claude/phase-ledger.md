@@ -295,3 +295,11 @@ Phase 번호 ↑    영역 ↑
 | main 추가 이력 | ✅ dev 흡수 | app update 0.1.2~0.1.7, recording-mode/manual, completed_match_count, match revert fix 등 통합 |
 | 릴리스 PR | ✅ 완료 | PR #754 `release: v2.40 admin console and workspace updates` merge 완료 (`23081b8`) |
 | 운영 정합 | ✅ 완료 | `origin/dev == origin/main` — PR merge 후 dev fast-forward 및 push 완료 |
+
+## 일관성 QA / STAGE EFG 재개 준비 (2026-06-23)
+
+| 항목 | 상태 | 메모 |
+|------|------|------|
+| QA 기준 갱신 | ✅ 준비 완료 | v2.31 기준 기존 QA 패키지를 v2.40/`fc72e9c` 기준으로 갱신. `BDR-current/` 전체 + v2.40 Admin Console + Toss P0 + 매칭 M2~M5 포함 |
+| Claude.ai 전달 패키지 | ✅ 준비 완료 | `Dev/design/prompts/design-consistency-qa-brief-2026-06-23.md`, `design-consistency-qa-delivery-2026-06-23.md` |
+| STAGE E/F/G 순서 | ✅ 정리 완료 | QA → STAGE E(Home+legal/offline) → STAGE F(잔여 사용자) → STAGE G(PA3/referee 별도 결재) |
