@@ -63,11 +63,11 @@ v2.40 커밋은 `origin/dev`까지 반영됐고, 활성 시안에도 흡수됨.
 | 매칭 M6 | `1a63426` / PR #722 기준 dev 반영 확인 | main 배포 여부만 확인 |
 | 새 대회 생성폼 +8 | 운영 반영 완료 | PR #754 완료 |
 | BDR-current 역박제 갭 | v2.40 핵심 갭 해소 | 이후 새 UI 변경 시 역박제 룰 계속 적용 |
-| 일관성 QA | Claude.ai paste 대기 | 필요 시 재개 |
-| STAGE E/F/G | 결재 대기 | home+legal / 잔여 사용자 / PA3-referee |
+| 일관성 QA | v2.40 기준 패키지 준비 완료 | Claude.ai paste + baseline zip 첨부 |
+| STAGE E/F/G | 실행 순서 정리 완료 | QA → STAGE E(home+legal) → STAGE F(잔여 사용자) → STAGE G(PA3/referee) |
 
 ---
 
 ## 현재 한 줄
 
-`dev == origin/dev == origin/main`이고 v2.40 핵심 시안 갭과 릴리스가 완료됨. 다음은 **일관성 QA/STAGE E/F/G 재개** 순서가 안전함.
+`dev == origin/dev == origin/main`이고 v2.40 핵심 시안 갭과 릴리스가 완료됨. 다음은 **일관성 QA v2.40 패키지 전달 → STAGE E 착수** 순서가 안전함.

@@ -14,10 +14,10 @@
 | 미푸시 커밋 | 0 |
 | 미수신 커밋 | 0 |
 | `.git/config` | 정상 동작 확인 (`git config --list`) |
-| 최근 HEAD | `5dbc9b4 design(sync): v2.40 admin console BDR-current 반영` |
+| 최근 HEAD | `fc72e9c Merge pull request #755 from cobby8/dev` |
 | 워킹트리 | clean |
 | phase-ledger | `.claude/phase-ledger.md` 존재·추적 중 |
-| main 배포 정합 | PR #754 merge 완료. `origin/dev == origin/main` |
+| main 배포 정합 | PR #754/#755 merge 완료. `origin/dev == origin/main` |
 
 ---
 
@@ -31,8 +31,8 @@
 | 4 | **매칭 M6 상태 확인** | 완료 확인 | CLI | `1a63426` / PR #722 기준 dev 반영 확인 |
 | 5 | **새 대회 생성폼 +8 배포 확인** | 운영 반영 완료 | CLI | PR #754로 main merge 완료 |
 | 6 | **BDR-current 역박제 갭 검토** | v2.40 핵심 갭 해소 | CLI | v2.40 원본을 `_handoff-admin-v2.40-unified/`에 흡수 |
-| A | 일관성 QA 패스 | 이월 | 수빈 | 필요 시 Claude.ai paste 재개 |
-| B | STAGE E/F/G | 결재 대기 | 수빈 | home+legal / 잔여 사용자 / PA3-referee |
+| A | 일관성 QA 패스 | 준비 완료 | 수빈 | 2026-06-23 v2.40 기준 QA 패키지 전달 대기 |
+| B | STAGE E/F/G | 실행 순서 정리 완료 | 수빈 | QA → STAGE E → STAGE F → STAGE G 권장 |
 
 ---
 
@@ -59,8 +59,9 @@ b52e9bf docs(admin): v2.40 콘솔 A0 사전설계 메모
 
 ## 3. 권장 실행 순서
 
-1. 일관성 QA 패스 재개 여부 결정
-2. STAGE E/F/G 결재 순서 확정
+1. Claude.ai에 `design-consistency-qa-delivery-2026-06-23.md` paste + QA baseline zip 첨부
+2. QA 회신 zip 도착 시 `_qa/bake-fix-checklist.md` 기준 CLI batch 분할
+3. QA 병행 또는 직후 STAGE E(Home + legal/offline) 의뢰서 작성
 
 ---
 
