@@ -14,7 +14,7 @@
 
 import React from "react";
 import { Icon, Btn, Badge, Modal } from "@/components/admin-toss";
-import { AdminPageHeader } from "@/components/admin/admin-page-header";
+import { PageHead, Panel, StatRow } from "@/components/admin/console-kit";
 
 // 클라/서버 공통 종별 형태 — apiSuccess snake 와 page.tsx 직렬화에 정합(sort_order).
 export type CategoryItem = {
@@ -378,14 +378,19 @@ export function CategoriesContent({ initial }: { initial: CategoryItem[] }) {
 
   return (
     <>
-      <AdminPageHeader
-        eyebrow="ADMIN · 설정"
+      <PageHead
+        icon="layout-grid"
+        eyebrow="ADMIN / 시스템"
         title="종별 관리"
-        subtitle="대회 생성 시 불러올 종별·디비전·연령 기본 구성"
-        breadcrumbs={[
-          { label: "ADMIN" },
-          { label: "설정" },
-          { label: "종별 관리" },
+        sub="대회 생성 시 불러올 종별·디비전·연령 기본 구성"
+      />
+
+      <StatRow
+        items={[
+          { icon: "layout-grid", label: "종별", value: list.length.toLocaleString() },
+          { icon: "layers", label: "디비전", value: list.reduce((sum, c) => sum + c.divisions.length, 0).toLocaleString() },
+          { icon: "cake", label: "연령 옵션", value: list.reduce((sum, c) => sum + c.ages.length, 0).toLocaleString() },
+          { icon: "database", label: "소스", value: "admin_categories" },
         ]}
       />
 
@@ -407,8 +412,7 @@ export function CategoriesContent({ initial }: { initial: CategoryItem[] }) {
       )}
 
       {/* 새 종별 추가 카드 */}
-      <div className="ts-card" style={{ marginBottom: 20 }}>
-        <label className="ts-field__label">새 종별 추가</label>
+      <Panel title="새 종별 추가" pad={20} style={{ marginBottom: 20 }}>
         <div style={{ display: "flex", gap: 10 }}>
           <input
             className="ts-input"
@@ -426,7 +430,7 @@ export function CategoriesContent({ initial }: { initial: CategoryItem[] }) {
             {adding ? "추가 중…" : "추가"}
           </Btn>
         </div>
-      </div>
+      </Panel>
 
       {/* 종별 카드 리스트 */}
       <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
@@ -442,8 +446,8 @@ export function CategoriesContent({ initial }: { initial: CategoryItem[] }) {
       </div>
 
       {/* 안내 푸터 (시안 info 박스) */}
-      <div
-        className="ts-card ts-card--flat"
+      <Panel
+        pad={16}
         style={{
           marginTop: 16,
           display: "flex",
@@ -466,7 +470,7 @@ export function CategoriesContent({ initial }: { initial: CategoryItem[] }) {
           연결됩니다. 현재 4종(일반부·유청소년·대학부·시니어)은 기존 데이터 복원
           시드입니다.
         </div>
-      </div>
+      </Panel>
     </>
   );
 }

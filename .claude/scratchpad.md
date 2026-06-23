@@ -3,7 +3,7 @@
 ## 현재 작업
 - **요청**: v2.40 통합 Admin Console 리아키텍처 (A0~A5). 시안=`Dev/design/BDR v2.40/_admin-unified/` / 계획=`v2.40-admin-console-update-plan-2026-06-22.md` + A0메모 `Dev/design/prompts/_v2.40-A0-design-notes.md`
 - **상태**: **단독 운영(dev 직접 작업·subin 폐지·2026-06-21)**. v2.40 진행 중 — 아래 진행표 참조. dev→main 머지 = 수빈 단독.
-- **이번 세션 완료(2026-06-22~23)**: 새 대회 생성폼 B-1~F-2(main 머지 #739) → subin→dev ff·subin 삭제 → v2.40 A1·A0·A2·A3-1·A3-2·A3-3.
+- **이번 세션 완료(2026-06-22~23)**: 새 대회 생성폼 B-1~F-2(main 머지 #739) → subin→dev ff·subin 삭제 → v2.40 A1·A0·A2·A3-1·A3-2·A3-3·A3-4.
 
 ### 📋 v2.40 진행표 (Admin Console A0~A5)
 | Phase | 내용 | 상태 |
@@ -13,14 +13,14 @@
 | A2 공통 키트 | console-kit 신규8+DataTable hideSm+au.css 흡수 | ✅ 커밋 |
 | A3-1 운영5 | tournaments·games·teams·organizations·courts | ✅ e797d6a (푸시) |
 | A3-2 사용자·커뮤니티5 | users·community·season-awards·game-reports·suggestions | ✅ e2b851f (미푸시1) |
-| **A3-3 비즈니스4** | payments·plans·campaigns·partners | ✅ 완료 (커밋 대기) |
-| **A3-4 시스템5** | analytics·categories·notifications·logs·settings | ⏭️ 다음 |
-| A4 드릴다운 상세 | user/team/court/game·org·tournament(읽기요약 D2)·엔티티 | 대기 |
+| A3-3 비즈니스4 | payments·plans·campaigns·partners | ✅ e29b860 (미푸시) |
+| **A3-4 시스템5** | analytics·categories·notifications·logs·settings | ✅ 완료 (커밋 대기) |
+| **A4 드릴다운 상세** | user/team/court/game·org·tournament(읽기요약 D2)·엔티티 | ⏭️ 다음 |
 | A5 생성 플로우 | compose-notification·create-campaign·write-news·AddModal | 대기 |
 
 **확정 결재**: D1 전면채택 / D2 대회상세=읽기요약 이중유지 / D3 게시글신고 보류 / D4 au.css→toss-admin.css 흡수.
 **키트 통일 규약**: PageHead→StatRow→Toolbar→DataTable(keyField/onRowClick/pagination)→Drawer. Badge tone(info→primary·mute→grey·err→danger). useFilter 클라탭전용·FIELDS 상수·`&FilterableRow` 교차단언. **복잡 모달/폼/차트는 보존**(목록/툴바/StatRow만 키트화). 데이터/액션/라우트/권한 0변경·UI만.
-**A3 진척**: 14/19 화면 완료(A3-1·A3-2·A3-3). 배치당 PR 1건·수빈 dev→main 결재.
+**A3 진척**: 19/19 화면 완료(A3-1·A3-2·A3-3·A3-4). 배치당 PR 1건·수빈 dev→main 결재.
 
 ### 🅰️ 세션 A — Phase 3 referee 리스킨 (이 세션)
 - **코드 영역**: `src/app/(referee)/referee/*` (회원 + referee-admin). admin/* 비대회는 Phase2 완료·미접촉. tournaments/*·schema는 세션 B 소관.
@@ -149,6 +149,7 @@
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
 |------|------|------|
+| 2026-06-23 | **v2.40 A3-4 시스템5 키트 통일 (analytics·categories·notifications·logs·settings)** | ✅ 5파일 수정. PageHead/StatRow/Panel/StatusBadge 적용, analytics/logs prisma 조회와 notifications/settings actions·categories CRUD 보존. `cmd /c npx tsc --noEmit --incremental false` 통과, admin 5 URL 307 인증 리다이렉트 확인. |
 | 2026-06-23 | **v2.40 A3-3 비즈니스4 키트 통일 (payments·plans·campaigns·partners)** | ✅ 5파일 수정. PageHead/StatRow/Toolbar/DataTable/StatusBadge/PrimaryCell 적용, 환불·CRUD·승인/반려 fetch와 폼/모달 보존. `cmd /c npx tsc --noEmit --incremental false` 통과, admin 4 URL 307 인증 리다이렉트 확인. |
 | 2026-06-23 | **v2.40 A3-2 키트 통일 리뷰 (reviewer 세션A·tester와 병렬·5화면7파일)** | ✅ **통과·차단 0**. tsc EXIT0. **①회귀안전(최우선)**=5화면 데이터패칭(users findMany/count·community community_posts·season-awards season_awards/series·suggestions suggestions·game-reports fetch)·서버액션 시그니처(updateUserRole/Status·toggleAdmin·forceWithdraw·delete·updateProfile·updateJersey / hide/unhide/delete / upsert/delete / updateSuggestionStatus)·라우트href·**snake접근자**·권한가드(season-awards isSuperAdmin·users currentUserId 본인가드) **0변경**(UI만 키트). schema·`/api/v1` diff **빈출력**. **②부분적용 타당성**=users **상세모달6탭**(409~709 lazy detail·배번편집 TournamentRow·ProfileEditForm 3필드+사유·위험영역 confirm)·community **AdminDetailModal**(hide/unhide/delete form·카테고리 chip·삭제됨 액션 hide)·season-awards **입력폼 autocomplete**(debounce 검색·user_id hidden)·game-reports **차트(stats/trend)+신고 큐 카드**(중첩 ratings/flags) 전부 **의도 보존**=복잡→보존 원칙 부합·손상0. **③키트 일관성**=A3-1과 동일 규약(DataTable keyField="id"/onRowClick·StatusBadge map·PageHead/Toolbar/StatRow·useFilter FIELDS 컴포넌트밖 상수). suggestions Drawer foot 상태변경 form=`nextStates>0` 게이트(TRANSITIONS 보존)·select required. **④CSS토큰 교정 검증**: 시안 `--line`/`--surface` toss-admin.css **부재**(grep 0)·교정된 `--border`(L39)·`--card`(L34)·`--ink`(L35)·`--ink-mute`(L37) **전부 실존**. 하드코딩hex 신규0·lucide만(아이콘 30종 lucide 실존 실측·Material0). **⑤검색/탭 정합**=서버?q=(users/community/suggestions 헤더폼)·클라 useFilter(season-awards 단일 _search·suggestions 탭만 FIELDS=[])·기존 복합필터 보존(users 역할탭 membershipType·community 상태탭+카테고리chip)=충돌0. **⑥품질**=Toolbar IME 가드 정상·Drawer ESC/aria-modal·StatRow key=index(고정 items 무해)·**season-awards 삭제 form action을 컬럼 render에 이식**(deleteAction+router.refresh 클로저 위해 컴포넌트 내부 정의=정확). **권고2건(비차단)**: ①**suggestions StatusBadge 미매핑 fallback 약화**=기존 `STATUS_LABEL[s]??s.status`(원본값 표시)→신규 StatusBadge는 미매핑 시 **null(빈셀)**. STATUS_META=pending/open/in_progress/resolved 4값만·TRANSITIONS도 동일4값·NULL→pending. **DB suggestions 0건 실측**(groupBy 빈배열)→**현재 영향0**·향후 4값外 status INSERT 시에만 빈셀. ②StatRow count 출처혼재(suggestions=현재페이지 take:50 클라파생 vs users 전체groupBy)=A3-1 동일 잠재(통계띠 의미 일관성). **차단 이슈 없음.** |
 | 2026-06-23 | **v2.40 A3-2 키트 통일 검증 (tester 세션A·reviewer와 병렬·5화면7파일 정적)** | ✅ **8/8 통과·차단이슈 0·회귀 0**. ①tsc `--noEmit` **EXIT0** 재확인. ②회귀0(데이터/액션/라우트)=prisma schema·`/api/v1` diff **빈출력**·users page count 재사용(totalCount/status groupBy/superAdminCount·신규쿼리0)·community hide/unhide/delete·season-awards upsert/delete autocomplete·suggestions updateSuggestionStatusAction·game-reports fetch(`/api/web/admin/game-reports`·`/stats`) **시그니처 무변경**(UI/StatRow만 키트 교체). ③보존확인=users **상세모달**(loadMore L325·배번편집 TournamentRow·ProfileEditForm·위험영역 잔존)·community **AdminDetailModal**(L247·hide/unhide form L261)·season-awards **입력폼 autocomplete·삭제 form action**(deleteAction+router.refresh 컬럼 render 이식)·game-reports **차트(stats/trend)+신고 큐 카드** 그대로(중첩 ratings/flags 복잡→테이블화 안 함)·suggestions **TRANSITIONS/nextStates 게이트**(L141·nextStates>0일 때만 foot form). ④StatRow쿼리=users **재사용(신규0)**·community 기존 posts 배열 집계·suggestions **클라파생**(serialized.filter·SELECT 추가0). ⑤**CSS토큰=교정 정확**: 시안 `--line`/`--surface`는 grep **부재**·교정된 `--card`(toss-admin.css L34)·`--ink`(L35)·`--border`(L39) **전부 실존**(silent 미적용0). ⑥키트규약 일관=5화면 전부 console-kit 단일 import·DataTable keyField="id"/onRowClick·StatusBadge map(mute→grey·warn→warn·ok→ok / community err→danger)·useFilter season-awards만(FILTER_FIELDS 컴포넌트밖 상수)·PageHead/Toolbar/StatRow 동형(A3-1과 동일). ⑦**D3가드**=game-reports 커뮤니티 게시글 신고 탭 신설 **0**·신규모델/테이블 **0**. ⑧격리=`git diff HEAD --name-only -- src/`=**정확히 7파일뿐**(referee/admin-shell 변경은 HEAD diff 미포함=별개 커밋분)·신규 하드코딩hex **0건**(추가줄 검사)·lucide·var(--*)·data-skin="toss" 루트 유지. 정적검증(admin 307리다이렉트로 HTTP렌더 불가→git diff·grep 실측·개발서버 미접촉·DB SELECT만). **차단이슈 없음.** |
