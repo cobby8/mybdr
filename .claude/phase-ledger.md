@@ -290,7 +290,8 @@ Phase 번호 ↑    영역 ↑
 
 | 항목 | 상태 | 메모 |
 |------|------|------|
-| `origin/dev` | ✅ 최신 | `5dbc9b4`까지 push 완료 |
+| `origin/dev` | ✅ 최신 | `23081b8`까지 push 완료 |
 | `origin/main` 대비 `origin/dev` | ✅ 분기 해소 | `07427de`로 `origin/main` 27커밋을 dev에 병합. `origin/dev..origin/main` = 0 |
 | main 추가 이력 | ✅ dev 흡수 | app update 0.1.2~0.1.7, recording-mode/manual, completed_match_count, match revert fix 등 통합 |
-| 다음 릴리스 | ⏳ 수빈 결재 대기 | `origin/main..origin/dev` = 22커밋. dev→main PR 생성/머지 판단 가능 |
+| 릴리스 PR | ✅ 완료 | PR #754 `release: v2.40 admin console and workspace updates` merge 완료 (`23081b8`) |
+| 운영 정합 | ✅ 완료 | `origin/dev == origin/main` — PR merge 후 dev fast-forward 및 push 완료 |
