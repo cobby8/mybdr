@@ -17,19 +17,18 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 // Phase 2A (Toss 전환) — Material Symbols → lucide(<Icon>) 키트
 import { Icon } from "@/components/admin-toss";
-import { AdminStatusTabs } from "@/components/admin/admin-status-tabs";
 import {
   AdminDetailModal,
   ModalInfoSection,
 } from "@/components/admin/admin-detail-modal";
-
-// (web) 시안 카드 패턴
-const CARD_CLASS = "rounded-[var(--radius-card)] border p-4 sm:p-5";
-const CARD_STYLE: React.CSSProperties = {
-  borderColor: "var(--color-border)",
-  backgroundColor: "var(--color-card)",
-  boxShadow: "var(--shadow-card)",
-};
+import {
+  DataTable,
+  PrimaryCell,
+  StatRow,
+  StatusBadge,
+  Toolbar,
+  type Column,
+} from "@/components/admin/console-kit";
 
 // 서버에서 직렬화된 결제 타입
 interface SerializedPayment {
@@ -69,6 +68,26 @@ const STATUS_TONE: Record<string, "ok" | "warn" | "err" | "info" | "mute"> = {
   partial_refunded: "info",
 };
 
+const STATUS_META = Object.fromEntries(
+  Object.entries(STATUS_LABEL).map(([key, label]) => [
+    key,
+    {
+      label,
+      tone:
+        STATUS_TONE[key] === "err"
+          ? "danger"
+          : STATUS_TONE[key] === "mute"
+            ? "grey"
+            : STATUS_TONE[key] === "info"
+              ? "primary"
+              : STATUS_TONE[key],
+    },
+  ])
+) as Record<
+  string,
+  { label: string; tone: "ok" | "warn" | "danger" | "primary" | "grey" }
+>;
+
 interface Props {
   payments: SerializedPayment[];
   stats: {
@@ -98,9 +117,72 @@ export function AdminPaymentsContent({ payments, stats }: Props) {
   // 시안 BA1 4탭 — 성공/실패/환불됨/환불대기.
   // 환불대기(refund_wait)는 시안 mock 으로 DB status 에 없음 → 탭에서 제외 (mock 0 lock).
   const tabs = [
-    { key: "paid", label: "성공", count: stats.paidCount },
-    { key: "failed", label: "실패", count: stats.failedCount },
-    { key: "refunded", label: "환불됨", count: stats.refundedCount },
+    { id: "paid", label: "성공", n: stats.paidCount },
+    { id: "failed", label: "실패", n: stats.failedCount },
+    { id: "refunded", label: "환불됨", n: stats.refundedCount },
+  ];
+
+  const columns: Column<SerializedPayment>[] = [
+    {
+      key: "userName",
+      label: "유저",
+      width: "minmax(220px,1.5fr)",
+      render: (p) => (
+        <PrimaryCell
+          initials={(p.userName ?? p.userEmail ?? "U").slice(0, 1)}
+          title={p.userName ?? "사용자"}
+          meta={p.userEmail ?? "-"}
+          accent
+        />
+      ),
+    },
+    {
+      key: "finalAmount",
+      label: "금액",
+      width: "140px",
+      align: "right",
+      render: (p) => `${p.finalAmount.toLocaleString()}원`,
+    },
+    {
+      key: "status",
+      label: "상태",
+      width: "110px",
+      align: "center",
+      render: (p) => <StatusBadge map={STATUS_META} value={p.status} />,
+    },
+    {
+      key: "createdAt",
+      label: "날짜",
+      width: "120px",
+      hideSm: true,
+      render: (p) => fmtDate(p.createdAt),
+    },
+    {
+      key: "id",
+      label: "액션",
+      width: "140px",
+      align: "right",
+      render: (p) => (
+        <span onClick={(e) => e.stopPropagation()}>
+          {p.status === "paid" ? (
+            <button
+              type="button"
+              className="btn btn--sm"
+              onClick={() => openRefund(p)}
+            >
+              <Icon name="arrow-left-right" size={16} />
+              환불
+            </button>
+          ) : p.status === "refunded" && p.refundedAt ? (
+            <span className="text-xs" style={{ color: "var(--ink-mute)" }}>
+              환불 {fmtDate(p.refundedAt)}
+            </span>
+          ) : (
+            <span className="text-xs" style={{ color: "var(--ink-mute)" }}>—</span>
+          )}
+        </span>
+      ),
+    },
   ];
 
   const fmtDate = (iso: string) =>
@@ -158,99 +240,24 @@ export function AdminPaymentsContent({ payments, stats }: Props) {
   return (
     <>
       {/* Hero 4-stat (시안 BA1 oa1-hero__stats 톤) — 이번달 결제액 자리에 총 결제액 사용(기간 필터 미구현) */}
-      <div className="mb-6 grid gap-4 grid-cols-2 sm:grid-cols-4">
-        <div className={CARD_CLASS} style={CARD_STYLE}>
-          <p className="text-xs" style={{ color: "var(--color-text-muted)" }}>총 결제 금액</p>
-          <p className="mt-1 text-lg font-bold sm:text-2xl">{stats.totalPaid.toLocaleString()}원</p>
-        </div>
-        <div className={CARD_CLASS} style={CARD_STYLE}>
-          <p className="text-xs" style={{ color: "var(--color-text-muted)" }}>성공 건수</p>
-          <p className="mt-1 text-lg font-bold sm:text-2xl" style={{ color: "var(--color-success)" }}>{stats.paidCount.toLocaleString()}건</p>
-        </div>
-        <div className={CARD_CLASS} style={CARD_STYLE}>
-          <p className="text-xs" style={{ color: "var(--color-text-muted)" }}>환불 합계</p>
-          <p className="mt-1 text-lg font-bold sm:text-2xl" style={{ color: "var(--color-info)" }}>{stats.refundedSum.toLocaleString()}원</p>
-        </div>
-        <div className={CARD_CLASS} style={CARD_STYLE}>
-          <p className="text-xs" style={{ color: "var(--color-text-muted)" }}>실패 건수</p>
-          <p className="mt-1 text-lg font-bold sm:text-2xl" style={{ color: "var(--color-error)" }}>{stats.failedCount.toLocaleString()}건</p>
-        </div>
-      </div>
+      <StatRow
+        items={[
+          { icon: "wallet", label: "총 결제 금액", value: `${stats.totalPaid.toLocaleString()}원` },
+          { icon: "check-circle-2", label: "성공 건수", value: `${stats.paidCount.toLocaleString()}건`, trend: "up", delta: "paid" },
+          { icon: "rotate-ccw", label: "환불 합계", value: `${stats.refundedSum.toLocaleString()}원` },
+          { icon: "x-circle", label: "실패 건수", value: `${stats.failedCount.toLocaleString()}건`, trend: "down", delta: "failed" },
+        ]}
+      />
 
-      <AdminStatusTabs tabs={tabs} activeTab={activeTab} onChange={setActiveTab} />
+      <Toolbar tabs={tabs} active={activeTab} onTab={setActiveTab} />
 
-      {/* 테이블: 유저 / 금액 / 상태 / 날짜 / 액션 (5칸) — BA1 액션 열 추가 */}
-      <div className="overflow-x-auto admin-table-wrap">
-        {/* admin-table: 모바일 ≤720px 카드 변환 (globals.css [Admin Phase B]) */}
-        <table className="admin-table w-full text-left text-sm">
-          <thead>
-            <tr>
-              <th className="px-5 py-4 font-medium">유저</th>
-              <th className="w-[120px] px-5 py-4 font-medium">금액</th>
-              <th className="w-[80px] px-5 py-4 font-medium">상태</th>
-              <th className="w-[90px] px-5 py-4 font-medium">날짜</th>
-              <th className="w-[100px] px-5 py-4 font-medium" style={{ textAlign: "right" }}>액션</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.map((p) => (
-              <tr key={p.id} onClick={() => setSelected(p)} className="cursor-pointer">
-                <td data-primary="true" className="px-5 py-3">
-                  <p className="font-medium" style={{ color: "var(--color-text-primary)" }}>
-                    {p.userName ?? "사용자"}
-                  </p>
-                  <p className="text-xs" style={{ color: "var(--color-text-muted)" }}>
-                    {p.userEmail ?? "-"}
-                  </p>
-                </td>
-                <td data-label="금액" className="px-5 py-3 font-semibold">
-                  {p.finalAmount.toLocaleString()}원
-                </td>
-                <td data-label="상태" className="px-5 py-3">
-                  {/* 시안 v2.14 — admin-stat-pill data-tone (미매치 시 mute 폴백) */}
-                  <span className="admin-stat-pill" data-tone={STATUS_TONE[p.status] ?? "mute"}>
-                    {STATUS_LABEL[p.status] ?? p.status}
-                  </span>
-                </td>
-                <td data-label="날짜" className="px-5 py-3" style={{ color: "var(--color-text-muted)" }}>
-                  {fmtDate(p.createdAt)}
-                </td>
-                {/* 액션 열 — paid: 환불 버튼(모달 open) / refunded: 환불일 / 그외: — */}
-                {/* stopPropagation: 행 클릭(상세 모달)과 분리 */}
-                <td
-                  data-label="액션"
-                  className="px-5 py-3"
-                  style={{ textAlign: "right" }}
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  {p.status === "paid" ? (
-                    <button
-                      type="button"
-                      className="btn btn--sm"
-                      onClick={() => openRefund(p)}
-                    >
-                      {/* currency_exchange → lucide arrow-left-right (환불/교환) */}
-                      <Icon name="arrow-left-right" size={16} />
-                      환불
-                    </button>
-                  ) : p.status === "refunded" && p.refundedAt ? (
-                    <span className="text-xs" style={{ color: "var(--color-text-muted)" }}>
-                      환불 {fmtDate(p.refundedAt)}
-                    </span>
-                  ) : (
-                    <span className="text-xs" style={{ color: "var(--color-text-muted)" }}>—</span>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      {filtered.length === 0 && (
-        <div className="p-8 text-center" style={{ color: "var(--color-text-muted)" }}>
-          결제 내역이 없습니다.
-        </div>
-      )}
+      <DataTable
+        columns={columns}
+        rows={filtered}
+        keyField="id"
+        onRowClick={setSelected}
+        emptyTitle="결제 내역이 없습니다"
+      />
 
       {/* 상세 모달 */}
       {selected && (
@@ -269,10 +276,7 @@ export function AdminPaymentsContent({ payments, stats }: Props) {
                 ["금액", `${selected.finalAmount.toLocaleString()}원`],
                 ["결제 방법", selected.paymentMethod ?? "-"],
                 ["상태", (
-                  // 시안 v2.14 — admin-stat-pill data-tone (ReactNode row)
-                  <span className="admin-stat-pill" data-tone={STATUS_TONE[selected.status] ?? "mute"}>
-                    {STATUS_LABEL[selected.status] ?? selected.status}
-                  </span>
+                  <StatusBadge map={STATUS_META} value={selected.status} />
                 )],
               ]}
             />

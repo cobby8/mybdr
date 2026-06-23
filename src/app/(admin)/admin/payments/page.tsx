@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db/prisma";
-import { AdminPageHeader } from "@/components/admin/admin-page-header";
+import { PageHead } from "@/components/admin/console-kit";
 import { AdminPaymentsContent } from "./admin-payments-content";
 
 export const dynamic = "force-dynamic";
@@ -53,16 +53,11 @@ export default async function AdminPaymentsPage() {
   return (
     // Phase 2A (Toss 전환) — 페이지 루트에 data-skin="toss" opt-in (content 는 DOM 상속)
     <div data-skin="toss">
-      <AdminPageHeader
-        // 시안 v2.14 — eyebrow + breadcrumbs (Admin-5-B 박제)
-        eyebrow="ADMIN · 비즈니스"
+      <PageHead
+        icon="credit-card"
+        eyebrow="ADMIN / 비즈니스"
         title="결제 관리"
-        subtitle={`전체 ${payments.length}건`}
-        breadcrumbs={[
-          { label: "ADMIN" },
-          { label: "비즈니스" },
-          { label: "결제" },
-        ]}
+        sub={`전체 ${payments.length.toLocaleString()}건의 결제 내역을 확인합니다.`}
       />
       <AdminPaymentsContent
         payments={serialized}

@@ -6,9 +6,15 @@
  * ============================================================ */
 
 import { useState, useEffect, useCallback } from "react";
-import { AdminPageHeader } from "@/components/admin/admin-page-header";
-// Toss Phase 2 2B — lucide 키트 Icon (Material Symbols 교체)
-import { Icon } from "@/components/admin-toss";
+import {
+  DataTable,
+  PageHead,
+  PrimaryCell,
+  StatRow,
+  StatusBadge,
+  Toolbar,
+  type Column,
+} from "@/components/admin/console-kit";
 
 // 캠페인 타입 정의
 interface Campaign {
@@ -31,19 +37,14 @@ interface Campaign {
   created_at: string;
 }
 
-// 시안 v2.14 — admin-stat-pill[data-tone] 매핑 (2026-05-15 박제)
-// draft=info (초안) / pending=warn (심사) / approved=ok / rejected=err / paused=mute / ended=mute
-function statusBadge(status: string) {
-  const map: Record<string, { tone: "ok" | "warn" | "err" | "info" | "mute"; label: string }> = {
-    draft:    { tone: "info",  label: "초안" },
-    pending:  { tone: "warn",  label: "심사중" },
-    approved: { tone: "ok",    label: "승인" },
-    rejected: { tone: "err",   label: "반려" },
-    paused:   { tone: "mute",  label: "일시정지" },
-    ended:    { tone: "mute",  label: "종료" },
-  };
-  return map[status] || map.draft;
-}
+const STATUS_META = {
+  draft: { tone: "primary" as const, label: "초안" },
+  pending: { tone: "warn" as const, label: "심사중" },
+  approved: { tone: "ok" as const, label: "승인" },
+  rejected: { tone: "danger" as const, label: "반려" },
+  paused: { tone: "grey" as const, label: "일시정지" },
+  ended: { tone: "grey" as const, label: "종료" },
+};
 
 // CTR 계산 (클릭률)
 function ctr(impressions: number, clicks: number): string {
@@ -80,42 +81,113 @@ export default function AdminCampaignsPage() {
     if (res.ok) fetchCampaigns();
   };
 
+  const tabs = [
+    { id: "", label: "전체" },
+    { id: "pending", label: "심사중" },
+    { id: "approved", label: "승인" },
+    { id: "rejected", label: "반려" },
+    { id: "paused", label: "일시정지" },
+  ];
+
+  const columns: Column<Campaign>[] = [
+    {
+      key: "headline",
+      label: "캠페인",
+      width: "minmax(260px,1.7fr)",
+      render: (c) => (
+        <PrimaryCell
+          initials={c.partner_name.slice(0, 1)}
+          title={c.headline}
+          meta={`${c.partner_name} · ${c.title}`}
+          accent
+        />
+      ),
+    },
+    {
+      key: "status",
+      label: "상태",
+      width: "110px",
+      align: "center",
+      render: (c) => <StatusBadge map={STATUS_META} value={c.status} />,
+    },
+    {
+      key: "impressions",
+      label: "노출",
+      width: "120px",
+      align: "right",
+      hideSm: true,
+      render: (c) => c.impressions.toLocaleString(),
+    },
+    {
+      key: "clicks",
+      label: "클릭/CTR",
+      width: "130px",
+      align: "right",
+      render: (c) => `${c.clicks.toLocaleString()} · ${ctr(c.impressions, c.clicks)}`,
+    },
+    {
+      key: "placements_count",
+      label: "배치",
+      width: "90px",
+      align: "center",
+      hideSm: true,
+      render: (c) => `${c.placements_count}곳`,
+    },
+    {
+      key: "id",
+      label: "액션",
+      width: "160px",
+      align: "right",
+      render: (c) => (
+        <span className="inline-flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+          {c.status === "pending" && (
+            <>
+              <button onClick={() => handleStatusChange(c.id, "approved")} className="btn btn--sm">
+                승인
+              </button>
+              <button
+                onClick={() => handleStatusChange(c.id, "rejected")}
+                className="btn btn--sm"
+                style={{ borderColor: "var(--danger)", color: "var(--danger)" }}
+              >
+                반려
+              </button>
+            </>
+          )}
+          {c.status === "approved" && (
+            <button onClick={() => handleStatusChange(c.id, "paused")} className="btn btn--sm">
+              일시정지
+            </button>
+          )}
+          {c.status === "paused" && (
+            <button onClick={() => handleStatusChange(c.id, "approved")} className="btn btn--sm">
+              재개
+            </button>
+          )}
+        </span>
+      ),
+    },
+  ];
+
   return (
     <div data-skin="toss">
-      <AdminPageHeader
-        // 시안 v2.14 — eyebrow + breadcrumbs (Admin-5-B 박제 2026-05-15)
-        eyebrow="ADMIN · 비즈니스"
+      <PageHead
+        icon="megaphone"
+        eyebrow="ADMIN / 비즈니스"
         title="광고 캠페인"
-        subtitle="채널별 캠페인 집행과 전환·ROI 성과를 추적합니다."
-        breadcrumbs={[
-          { label: "ADMIN" },
-          { label: "비즈니스" },
-          { label: "광고 캠페인" },
+        sub="채널별 캠페인 집행과 전환·ROI 성과를 추적합니다."
+      />
+
+      <StatRow
+        items={[
+          { icon: "megaphone", label: "현재 목록", value: campaigns.length.toLocaleString() },
+          { icon: "clock", label: "심사중", value: campaigns.filter((c) => c.status === "pending").length.toLocaleString() },
+          { icon: "mouse-pointer-click", label: "클릭", value: campaigns.reduce((sum, c) => sum + c.clicks, 0).toLocaleString() },
+          { icon: "layout-grid", label: "배치", value: campaigns.reduce((sum, c) => sum + c.placements_count, 0).toLocaleString() },
         ]}
       />
 
-      {/* 상태 필터 탭 */}
-      <div className="flex items-center gap-2 mb-6 flex-wrap">
-        {[
-          { value: "", label: "전체" },
-          { value: "pending", label: "심사중" },
-          { value: "approved", label: "승인" },
-          { value: "rejected", label: "반려" },
-          { value: "paused", label: "일시정지" },
-        ].map((tab) => (
-          <button
-            key={tab.value}
-            onClick={() => setFilter(tab.value)}
-            className="px-3 py-1.5 rounded text-sm font-medium transition-colors"
-            style={{
-              backgroundColor: filter === tab.value ? "var(--color-primary)" : "var(--color-surface)",
-              color: filter === tab.value ? "#fff" : "var(--color-text-secondary)",
-            }}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
+      <Toolbar tabs={tabs} active={filter} onTab={setFilter} />
 
       {/* 캠페인 목록 */}
       {loading ? (
@@ -130,83 +202,7 @@ export default function AdminCampaignsPage() {
           캠페인이 없습니다
         </div>
       ) : (
-        <div className="space-y-3">
-          {campaigns.map((c) => {
-            const badge = statusBadge(c.status);
-            return (
-              <div
-                key={c.id}
-                className="rounded-md border p-4 flex items-start gap-4"
-                style={{ backgroundColor: "var(--color-card)", borderColor: "var(--color-border)" }}
-              >
-                {/* 광고 이미지 미리보기 */}
-                {c.image_url ? (
-                  <div className="w-20 h-14 rounded-lg overflow-hidden shrink-0 bg-cover bg-center"
-                    style={{ backgroundImage: `url(${c.image_url})` }} />
-                ) : (
-                  <div className="w-20 h-14 rounded-lg shrink-0 flex items-center justify-center"
-                    style={{ backgroundColor: "var(--color-surface)" }}>
-                    <Icon name="image" size={20} style={{ color: "var(--color-text-disabled)" }} />
-                  </div>
-                )}
-
-                {/* 캠페인 정보 */}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    <p className="text-sm font-bold truncate" style={{ color: "var(--color-text-primary)" }}>
-                      {c.headline}
-                    </p>
-                    {/* 시안 v2.14 — admin-stat-pill[data-tone] (inline bg/text 제거) */}
-                    <span className="admin-stat-pill shrink-0" data-tone={badge.tone}>
-                      {badge.label}
-                    </span>
-                  </div>
-                  <p className="text-xs mb-1" style={{ color: "var(--color-text-muted)" }}>
-                    {c.partner_name} · {c.title}
-                  </p>
-                  <div className="flex items-center gap-4 text-xs" style={{ color: "var(--color-text-secondary)" }}>
-                    <span>노출 {c.impressions.toLocaleString()}</span>
-                    <span>클릭 {c.clicks.toLocaleString()}</span>
-                    <span>CTR {ctr(c.impressions, c.clicks)}</span>
-                    <span>배치 {c.placements_count}곳</span>
-                  </div>
-                </div>
-
-                {/* 액션 버튼 */}
-                <div className="flex items-center gap-1 shrink-0">
-                  {c.status === "pending" && (
-                    <>
-                      <button onClick={() => handleStatusChange(c.id, "approved")}
-                        className="px-3 py-1.5 rounded text-xs font-bold text-white"
-                        style={{ backgroundColor: "var(--color-success)" }}>
-                        승인
-                      </button>
-                      <button onClick={() => handleStatusChange(c.id, "rejected")}
-                        className="px-3 py-1.5 rounded text-xs font-bold text-white"
-                        style={{ backgroundColor: "var(--color-error)" }}>
-                        반려
-                      </button>
-                    </>
-                  )}
-                  {c.status === "approved" && (
-                    <button onClick={() => handleStatusChange(c.id, "paused")}
-                      className="px-3 py-1.5 rounded text-xs font-medium"
-                      style={{ color: "var(--color-warning)" }}>
-                      일시정지
-                    </button>
-                  )}
-                  {c.status === "paused" && (
-                    <button onClick={() => handleStatusChange(c.id, "approved")}
-                      className="px-3 py-1.5 rounded text-xs font-medium"
-                      style={{ color: "var(--color-success)" }}>
-                      재개
-                    </button>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
+        <DataTable columns={columns} rows={campaigns} keyField="id" emptyTitle="캠페인이 없습니다" />
       )}
     </div>
   );
