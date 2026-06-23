@@ -17,7 +17,7 @@
 | 최근 HEAD | `5dbc9b4 design(sync): v2.40 admin console BDR-current 반영` |
 | 워킹트리 | clean |
 | phase-ledger | `.claude/phase-ledger.md` 존재·추적 중 |
-| main 배포 정합 | `origin/main..origin/dev` 20 / `origin/dev..origin/main` 27 — 분기 상태 |
+| main 배포 정합 | `origin/main` 27커밋 dev 병합 완료. `origin/main..origin/dev` 22 / `origin/dev..origin/main` 0 |
 
 ---
 
@@ -29,7 +29,7 @@
 | 2 | **v2.40 admin console 후속 확인** | dev 반영 + BDR-current 흡수 완료 | CLI | `_handoff-admin-v2.40-unified/` 기준으로 후속 검증 |
 | 3 | **phase-ledger 경로 정리** | 완료 | CLI | 실제 경로 `.claude/phase-ledger.md`로 확정. `AGENTS.md` 경로 정정 |
 | 4 | **매칭 M6 상태 확인** | 완료 확인 | CLI | `1a63426` / PR #722 기준 dev 반영 확인 |
-| 5 | **새 대회 생성폼 +8 배포 확인** | dev 반영 + BDR-current handoff 보존 | CLI | main과 dev가 분기. 릴리스 전 통합/충돌 확인 필요 |
+| 5 | **새 대회 생성폼 +8 배포 확인** | dev 반영 + BDR-current handoff 보존 | CLI | 분기 해소 완료. dev→main PR 결재 가능 |
 | 6 | **BDR-current 역박제 갭 검토** | v2.40 핵심 갭 해소 | CLI | v2.40 원본을 `_handoff-admin-v2.40-unified/`에 흡수 |
 | A | 일관성 QA 패스 | 이월 | 수빈 | 필요 시 Claude.ai paste 재개 |
 | B | STAGE E/F/G | 결재 대기 | 수빈 | home+legal / 잔여 사용자 / PA3-referee |
@@ -59,8 +59,8 @@ b52e9bf docs(admin): v2.40 콘솔 A0 사전설계 메모
 
 ## 3. 권장 실행 순서
 
-1. origin/main 변경 27커밋을 dev에 통합할지 결정
-2. 새 대회 생성폼 + v2.40 admin console 릴리스 PR 충돌 여부 확인
+1. 새 대회 생성폼 + v2.40 admin console dev→main 릴리스 PR 판단
+2. PR 생성 시 Vercel/GitHub checks 확인
 3. 일관성 QA 패스 재개 여부 결정
 4. STAGE E/F/G 결재 순서 확정
 
