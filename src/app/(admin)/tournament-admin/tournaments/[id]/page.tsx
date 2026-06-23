@@ -268,6 +268,7 @@ export default async function TournamentAdminDetailPage({
       <TournamentWorkspace
         progress={progress}
         tournamentId={id}
+        divisionCount={tournament.divisionRules.length}
         teamCount={tournament._count.tournamentTeams}
         maxTeams={tournament.maxTeams}
         matchCount={tournament._count.tournamentMatches}

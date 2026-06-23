@@ -41,6 +41,7 @@ type WorkspaceSection = {
 type Props = {
   progress: SetupProgress;
   tournamentId: string;
+  divisionCount: number;
   teamCount: number;
   maxTeams: number | null;
   matchCount: number;
@@ -110,6 +111,7 @@ function statusIcon(status: WorkspaceStatus): string {
 export function TournamentWorkspace({
   progress,
   tournamentId,
+  divisionCount,
   teamCount,
   maxTeams,
   matchCount,
@@ -137,6 +139,8 @@ export function TournamentWorkspace({
     const publicItems = [basic, registration, site];
     const divisionItems = [divisions];
     const matchItems = [recording, bracket];
+    const divisionsReady = divisions?.status === "complete";
+    const bracketReady = bracket?.status === "complete";
 
     return [
       {
@@ -176,6 +180,18 @@ export function TournamentWorkspace({
         summary: maxTeams ? `${teamCount} / ${maxTeams}팀 등록됨` : `${teamCount}팀 등록됨`,
         icon: "users",
         itemKeys: [],
+        facts: [
+          {
+            label: "현재 상태",
+            value: maxTeams ? `${teamCount} / ${maxTeams}팀 등록됨` : `${teamCount}팀 등록됨`,
+          },
+          {
+            label: "다음 액션",
+            value: divisionsReady
+              ? "승인, 입금, 로스터, 시드를 정리하세요"
+              : "종별/운영 방식 완료 후 참가팀을 정리하세요",
+          },
+        ],
         actions: [{ label: "참가팀 관리", href: `${base}/teams`, icon: "users" }],
       },
       {
@@ -186,6 +202,18 @@ export function TournamentWorkspace({
         summary: divisions?.summary ?? "종별 설정 상태를 확인하세요",
         icon: "layout-grid",
         itemKeys: ["divisions"],
+        facts: [
+          {
+            label: "현재 상태",
+            value: `${divisionCount}개 종별 · ${divisions?.summary ?? "운영 방식 확인 필요"}`,
+          },
+          {
+            label: "다음 액션",
+            value: divisionsReady
+              ? "참가팀 승인과 시드 배치를 확인하세요"
+              : "종별 정의와 운영 방식을 먼저 완료하세요",
+          },
+        ],
         lockedReason: divisions?.lockedReason,
         actions: [{ label: "종별 설정", href: `${base}/divisions`, icon: "layout-grid" }],
       },
@@ -208,6 +236,20 @@ export function TournamentWorkspace({
         summary: bracket?.summary ?? "대진표 상태를 확인하세요",
         icon: "git-branch",
         itemKeys: ["bracket"],
+        facts: [
+          {
+            label: "현재 상태",
+            value: `${matchCount}경기 생성됨`,
+          },
+          {
+            label: "다음 액션",
+            value: !divisionsReady
+              ? "종별/운영 방식 완료 후 대진표를 생성하세요"
+              : bracketReady
+                ? "대진표 확인 후 순위전/결승 흐름을 점검하세요"
+                : "참가팀과 시드 확인 후 대진표를 생성하세요",
+          },
+        ],
         lockedReason: bracket?.lockedReason,
         actions: [
           { label: "대진표", href: `${base}/bracket`, icon: "git-branch" },
@@ -231,6 +273,7 @@ export function TournamentWorkspace({
     ];
   }, [
     base,
+    divisionCount,
     gate.missing.length,
     gate.ok,
     isCompleted,

@@ -15,3 +15,4 @@
 - 2026-06-23 상태정정: 09:00 큐의 `.git/config`/미push 차단 이슈가 현재 해소됨을 확인하고 6/23 next-actions/CLI 큐를 실제 상태로 갱신.
 - 2026-06-23 WS1: `/tournament-admin/tournaments/[id]`를 섹션 탭 기반 운영 워크스페이스로 개편하고 tsc 검증 통과.
 - 2026-06-23 WS2: ready section summary rows added with existing page data; no API/DB changes.
+- 2026-06-23 WS3: divisions-teams-bracket flow hints added with existing counts; no API/DB changes.
