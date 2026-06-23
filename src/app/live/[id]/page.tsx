@@ -2179,8 +2179,8 @@ function BoxScoreTable({
                   </td>
                 </tr>
               ))}
-              {/* 2026-04-15: DNP 행 재구조화 — colSpan 제거, NBA 스타일로 셀마다 채움.
-                  MIN 셀에 "DNP" 표시, 나머지 스탯 16개는 모두 "-" */}
+              {/* 2026-04-15: DNP 행 재구조화 — colSpan 제거, 셀마다 "-".
+                  앱/라이브/인쇄 통계 모두 미출전 선수는 "-"로 통일한다. */}
               {dnpPlayers.map((p, i) => (
                 <tr
                   key={`dnp-${p.id}`}
