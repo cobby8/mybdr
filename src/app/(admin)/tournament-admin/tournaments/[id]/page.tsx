@@ -9,7 +9,7 @@ import {
   TOURNAMENT_FORMAT_LABEL,
 } from "@/lib/constants/tournament-status";
 import { calculateSetupProgress, canPublish } from "@/lib/tournaments/setup-status";
-import { SetupChecklist } from "./_components/SetupChecklist";
+import { TournamentWorkspace } from "./_components/TournamentWorkspace";
 import { SetupHubMobileSticky } from "./_components/setup-hub-mobile-sticky";
 // Track B-c Toss 리스킨 — Material Symbols → lucide-react 키트(<Icon>)
 import { Icon } from "@/components/admin-toss";
@@ -136,32 +136,6 @@ export default async function TournamentAdminDetailPage({
   //   새 쿼리/계산 0 — 위 progress 결과를 canPublish() 로 한 줄 도출.
   const publishGate = canPublish(progress);
 
-  // 보조 액션 4개 — 체크리스트에 흡수되지 않는 운영성 진입점.
-  //   참가팀 (정원 관리 vs 신청 정책 분리) / 관리자 / 기록원 / 공개 사이트 외부 링크.
-  const secondaryActions = [
-    {
-      href: `/tournament-admin/tournaments/${id}/teams`,
-      label: "참가팀 관리",
-      // Material groups → lucide users
-      icon: "users",
-      desc: `${tournament._count.tournamentTeams}팀 등록됨`,
-    },
-    {
-      href: `/tournament-admin/tournaments/${id}/admins`,
-      label: "관리자",
-      // Material admin_panel_settings → lucide shield-user
-      icon: "shield-user",
-      desc: "스태프 권한 관리",
-    },
-    {
-      href: `/tournament-admin/tournaments/${id}/recorders`,
-      label: "기록원",
-      // Material edit_note → lucide file-pen
-      icon: "file-pen",
-      desc: "스탯 기록원 지정",
-    },
-  ];
-
   // 이유: 시안 v2.14 AdminTournamentSetupHub 헤더 패턴 박제 — eyebrow + breadcrumbs +
   //   actions slot. subtitle 에 시작일·종료일·D-Day·format 통합 (한 줄 표시).
   //   상태 + D-Day 는 본문 상단 메타 라인(admin-stat-pill)으로 분리 — 시안 동일 패턴.
@@ -254,63 +228,18 @@ export default async function TournamentAdminDetailPage({
         ))}
       </div>
 
-      {/* ⭐ 셋업 체크리스트 (8 항목 + progress) — 기존 8 메뉴 카드 대체 */}
-      {/* 2026-05-13 UI-5: 공개 게이트 props 추가 (tournamentId / isSitePublished / hasSite) */}
-      <SetupChecklist
+      {/* WS1 — 체크리스트 허브를 섹션형 운영 워크스페이스로 승격. */}
+      <TournamentWorkspace
         progress={progress}
         tournamentId={id}
+        teamCount={tournament._count.tournamentTeams}
+        maxTeams={tournament.maxTeams}
+        matchCount={tournament._count.tournamentMatches}
         isSitePublished={!!site?.isPublished}
         hasSite={!!site}
+        siteSubdomain={site?.subdomain}
+        isCompleted={isCompleted}
       />
-
-      {/* 보조 액션 (참가팀 / 관리자 / 기록원 / 공개 사이트) */}
-      <section className="mt-2">
-        <h2 className="mb-3 text-sm font-bold uppercase tracking-wide text-[var(--color-text-muted)]">
-          빠른 액션
-        </h2>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {secondaryActions.map((a) => (
-            <Link
-              key={a.href}
-              href={a.href}
-              className="block text-[var(--color-text-primary)]"
-            >
-              <Card className="cursor-pointer transition-colors hover:bg-[var(--color-elevated)]">
-                <div className="mb-2 text-[var(--color-text-muted)]">
-                  {/* a.icon = 위에서 lucide 이름으로 정의(users/shield-user/file-pen) */}
-                  <Icon name={a.icon} size={24} />
-                </div>
-                <h3 className="font-semibold text-[var(--color-text-primary)]">
-                  {a.label}
-                </h3>
-                <p className="mt-1 text-sm text-[var(--color-text-muted)]">{a.desc}</p>
-              </Card>
-            </Link>
-          ))}
-          {/* 공개 사이트 보기 — site 박제 + 공개 시만 노출 */}
-          {site?.isPublished && site.subdomain && (
-            <a
-              href={`https://${site.subdomain}.mybdr.kr`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="block text-[var(--color-text-primary)]"
-            >
-              <Card className="cursor-pointer transition-colors hover:bg-[var(--color-elevated)]">
-                <div className="mb-2 text-[var(--color-text-muted)]">
-                  {/* Material open_in_new → lucide external-link */}
-                  <Icon name="external-link" size={24} />
-                </div>
-                <h3 className="font-semibold text-[var(--color-text-primary)]">
-                  공개 사이트 보기
-                </h3>
-                <p className="mt-1 text-sm text-[var(--color-text-muted)]">
-                  {site.subdomain}.mybdr.kr
-                </p>
-              </Card>
-            </a>
-          )}
-        </div>
-      </section>
 
       {/* ⭐ PR-1C-9 (B1) — 모바일 sticky 공개 버튼 (시안 atsh-mobile-sticky 박제).
           PC(sm 이상)는 컴포넌트 내부 sm:hidden 으로 미노출 — 본문 PublishGate 가 처리. */}
