@@ -14,7 +14,8 @@
 | dev 미push | v2.40 +3 추정 | `git rev-list --count '@{u}..HEAD'` = 0 |
 | origin/dev 대비 behind | 미검증 | `git rev-list --count 'HEAD..@{u}'` = 0 |
 | v2.40 admin console | dev 커밋 후 push 대기 | dev push 완료 + `BDR-current/_handoff-admin-v2.40-unified/` 흡수 |
-| phase-ledger | 적체 11일 | `.Codex/phase-ledger.md` 파일 없음. 실제 경로 재정의 필요 |
+| phase-ledger | 적체 11일 | `.claude/phase-ledger.md` 존재·추적 중. v2.40 정착/배포정합 상태 갱신 |
+| main 배포 정합 | 미검증 | `origin/main..origin/dev` 20 / `origin/dev..origin/main` 27 — 분기 상태 |
 
 ---
 
@@ -46,12 +47,12 @@ v2.40 커밋은 `origin/dev`까지 반영됐고, 활성 시안에도 흡수됨.
 
 ## 액션 3 — phase-ledger 경로 정리
 
-문서들은 `.Codex/phase-ledger.md` 또는 `.claude/phase-ledger.md`를 언급하지만 현재 파일이 없음.
+실제 경로는 `.claude/phase-ledger.md`로 확인됨. `AGENTS.md`의 `.Codex/phase-ledger.md` 표기는 `.claude/phase-ledger.md`로 정정.
 
-권장:
-- 새 ledger를 만들기 전, 기존 기록이 삭제/이동된 것인지 확인.
-- 없으면 `WORKFLOW.md`와 `AGENTS.md` 중 하나로 경로를 통일한 뒤 생성.
-- 현재 단독 운영 체계에 맞춰 `subin` 기준 문구 제거.
+반영:
+- v2.40 Admin Console A0~A5 + 운영 워크스페이스 + BDR-current 역박제 완료 행 추가
+- `origin/main`/`origin/dev` 분기 상태 추가
+- 릴리스 전 main 변경 27커밋 통합 또는 PR 충돌 확인 필요
 
 ---
 
@@ -60,7 +61,7 @@ v2.40 커밋은 `origin/dev`까지 반영됐고, 활성 시안에도 흡수됨.
 | 큐 | 상태 | 다음 |
 |---|---|---|
 | 매칭 M6 | `1a63426` / PR #722 기준 dev 반영 확인 | main 배포 여부만 확인 |
-| 새 대회 생성폼 +8 | dev 반영 + `BDR-current` handoff 보존 | main 배포 여부 확인 |
+| 새 대회 생성폼 +8 | dev 반영 + `BDR-current` handoff 보존 | main/dev 분기 해소 후 릴리스 |
 | BDR-current 역박제 갭 | v2.40 핵심 갭 해소 | 이후 새 UI 변경 시 역박제 룰 계속 적용 |
 | 일관성 QA | Claude.ai paste 대기 | 필요 시 재개 |
 | STAGE E/F/G | 결재 대기 | home+legal / 잔여 사용자 / PA3-referee |
@@ -69,4 +70,4 @@ v2.40 커밋은 `origin/dev`까지 반영됐고, 활성 시안에도 흡수됨.
 
 ## 현재 한 줄
 
-`dev == origin/dev`이고 v2.40 핵심 시안 갭은 해소됨. 다음은 **phase-ledger 경로 정리 → main 배포 여부 확인 → 일관성 QA/STAGE E/F/G 재개** 순서가 안전함.
+`dev == origin/dev`이고 v2.40 핵심 시안 갭은 해소됨. 다만 `origin/main`과 `origin/dev`가 분기되어 있으므로 다음은 **main 변경 27커밋 통합/충돌 확인 → 릴리스 PR 판단 → 일관성 QA/STAGE E/F/G 재개** 순서가 안전함.

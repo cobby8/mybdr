@@ -14,8 +14,10 @@
 | 미푸시 커밋 | 0 |
 | 미수신 커밋 | 0 |
 | `.git/config` | 정상 동작 확인 (`git config --list`) |
-| 최근 HEAD | `90c984f docs: record temp script cleanup` 이후 dev push 완료 |
+| 최근 HEAD | `5dbc9b4 design(sync): v2.40 admin console BDR-current 반영` |
 | 워킹트리 | clean |
+| phase-ledger | `.claude/phase-ledger.md` 존재·추적 중 |
+| main 배포 정합 | `origin/main..origin/dev` 20 / `origin/dev..origin/main` 27 — 분기 상태 |
 
 ---
 
@@ -25,9 +27,9 @@
 |---|---|---|---|---|
 | 1 | **워킹트리 정리 범위 확정** | 완료 | CLI | 문서/시안 산출물 정리 및 push 완료. `git add .` 미사용 |
 | 2 | **v2.40 admin console 후속 확인** | dev 반영 + BDR-current 흡수 완료 | CLI | `_handoff-admin-v2.40-unified/` 기준으로 후속 검증 |
-| 3 | **phase-ledger 경로 정리** | 파일 없음 | CLI/수빈 | `.Codex/phase-ledger.md` 또는 `.claude/phase-ledger.md` 중 실제 경로 결정 후 복구/생성 |
+| 3 | **phase-ledger 경로 정리** | 완료 | CLI | 실제 경로 `.claude/phase-ledger.md`로 확정. `AGENTS.md` 경로 정정 |
 | 4 | **매칭 M6 상태 확인** | 완료 확인 | CLI | `1a63426` / PR #722 기준 dev 반영 확인 |
-| 5 | **새 대회 생성폼 +8 배포 확인** | dev 반영 + BDR-current handoff 보존 | CLI | main 배포 여부만 별도 확인 |
+| 5 | **새 대회 생성폼 +8 배포 확인** | dev 반영 + BDR-current handoff 보존 | CLI | main과 dev가 분기. 릴리스 전 통합/충돌 확인 필요 |
 | 6 | **BDR-current 역박제 갭 검토** | v2.40 핵심 갭 해소 | CLI | v2.40 원본을 `_handoff-admin-v2.40-unified/`에 흡수 |
 | A | 일관성 QA 패스 | 이월 | 수빈 | 필요 시 Claude.ai paste 재개 |
 | B | STAGE E/F/G | 결재 대기 | 수빈 | home+legal / 잔여 사용자 / PA3-referee |
@@ -57,8 +59,8 @@ b52e9bf docs(admin): v2.40 콘솔 A0 사전설계 메모
 
 ## 3. 권장 실행 순서
 
-1. phase-ledger 경로 결정 및 복구/생성
-2. 새 대회 생성폼 + v2.40 admin console main 배포 여부 확인
+1. origin/main 변경 27커밋을 dev에 통합할지 결정
+2. 새 대회 생성폼 + v2.40 admin console 릴리스 PR 충돌 여부 확인
 3. 일관성 QA 패스 재개 여부 결정
 4. STAGE E/F/G 결재 순서 확정
 

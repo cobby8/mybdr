@@ -5,7 +5,7 @@
 수빈은 **Cowork = 허브** / **Codex.ai = 시안** / **Codex CLI = 코드 박제** 세 플랫폼을 함께 사용. 갱신·결정·핸드오프는 다음 문서를 봄:
 
 - **`WORKFLOW.md`** (최상위) — 세 플랫폼 역할 / 명명 통일 (Phase NA/NB/NC, B/S/G, UA1~UD3) / 핸드오프 라이프사이클 13 단계 / source of truth 우선순위 7 단계 / **수빈 본인 수동 액션 5 단계 체크리스트**
-- **`.Codex/phase-ledger.md`** — Phase 1~N 의 단계별 상태 (의뢰 / Codex.ai / zip / sync / 박제 / 검증) 실시간 ledger. 세 플랫폼이 같이 보고 갱신
+- **`.claude/phase-ledger.md`** — Phase 1~N 의 단계별 상태 (의뢰 / Codex.ai / zip / sync / 박제 / 검증) 실시간 ledger. 세 플랫폼이 같이 보고 갱신
 - **`scripts/sync-bdr-current.ps1`** — Codex.ai zip → BDR-current/ 자동 sync (§🗂️ 5단계 자동화)
 
 → 신규 Phase 시작 시 WORKFLOW.md §부록 B "신규 Phase 표준 절차" 부터 시작.

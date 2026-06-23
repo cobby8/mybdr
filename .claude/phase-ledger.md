@@ -272,3 +272,25 @@ Phase 번호 ↑    영역 ↑
 - **게이트 처리**: A(M1 status=5)=잔존 0건 자동진행 / B(M2 ADD COLUMN)=사용자 승인 후 targeted SQL(broad push가 live_scoreboards 드리프트 끌어와 회피)
 - **schema 변경**: M2 NULL 허용 2컬럼만(무중단). 나머지 schema 0
 - **dev→main 머지 = 수빈 수동 결재 대기** (자동 머지 금지)
+
+## v2.40 통합 Admin Console 정착 (2026-06-22~23)
+
+| 단계 | 영역 | 상태 | 책임자 | 갱신일 | 메모 |
+|------|------|------|------|------|------|
+| A0 사전설계 | admin console | ✅ 완료 | CLI | 2026-06-22 | `b52e9bf` — 정산쿼리·키트 API·19섹션 매핑 |
+| A1 IA 재그룹 | admin sidebar | ✅ 완료 | CLI | 2026-06-22 | `4da8189` — 6그룹 → 1단독+4그룹 |
+| A2 공통 키트 | console-kit | ✅ 완료 | CLI | 2026-06-22 | `124d8ae` — PageHead/StatRow/Toolbar/DataTable/Drawer 등 |
+| A3 목록 화면 | 19섹션 목록 | ✅ 완료 | CLI | 2026-06-22 | `e797d6a`·`e2b851f`·`e29b860`·`986cb1f` |
+| A4 상세 화면 | 드릴다운 상세 | ✅ 완료 | CLI | 2026-06-22 | `f1b25a1`·`8713f2a` |
+| A5 생성 플로우 | 캠페인 생성 | ✅ 완료 | CLI | 2026-06-22 | `f29b36b` |
+| 운영 워크스페이스 | tournament-admin | ✅ 완료 | CLI | 2026-06-23 | `2f67cab`~`051362c` — 대회 운영 후반 워크스페이스 안내 강화 |
+| BDR-current 역박제 | v2.40 `_admin-unified` | ✅ 완료 | CLI | 2026-06-23 | `5dbc9b4` — `Dev/design/BDR-current/_handoff-admin-v2.40-unified/` 19파일 흡수. 이후 v2.40 참조는 BDR-current 기준 |
+
+## 배포 정합 상태 (2026-06-23)
+
+| 항목 | 상태 | 메모 |
+|------|------|------|
+| `origin/dev` | ✅ 최신 | `5dbc9b4`까지 push 완료 |
+| `origin/main` 대비 `origin/dev` | ⚠️ 분기 | `origin/main..origin/dev` = 20커밋 / `origin/dev..origin/main` = 27커밋 |
+| main 추가 이력 | ⚠️ dev 미흡수 | app update 0.1.2~0.1.7, recording-mode/manual, completed_match_count, match revert fix 등 |
+| 다음 릴리스 | ⏳ 수빈 결재 대기 | dev→main PR 전 `origin/main` 변경을 dev에 통합하거나 PR 충돌 여부 확인 필요 |
