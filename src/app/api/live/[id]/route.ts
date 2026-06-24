@@ -22,6 +22,73 @@ import { getRecordingMode } from "@/lib/tournaments/recording-mode";
 //   원격 보안수정(55db5c00)이 신설한 공용 헬퍼 재사용 — 라이브 박스스코어/PBP 잔여 구멍 봉쇄.
 import { blockIfPrivateTournament } from "@/lib/auth/private-tournament-guard";
 
+type LiveScoreboardSnapshot = {
+  period: string | null;
+  clock: string | null;
+  clkRunning: boolean | null;
+  clkRemainMs: number | null;
+  scoreH: number | null;
+  scoreA: number | null;
+  updatedAt: string | null;
+};
+
+function getLiveScoreboardPayload(payload: unknown): Record<string, unknown> | null {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) return null;
+  return payload as Record<string, unknown>;
+}
+
+function readScoreboardString(payload: Record<string, unknown>, key: string): string | null {
+  const value = payload[key];
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function readScoreboardNumber(payload: Record<string, unknown>, key: string): number | null {
+  const value = payload[key];
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function readScoreboardBoolean(payload: Record<string, unknown>, key: string): boolean | null {
+  const value = payload[key];
+  return typeof value === "boolean" ? value : null;
+}
+
+function buildLiveScoreboardSnapshot(
+  row: { payload: unknown; updatedAt: Date } | null,
+): LiveScoreboardSnapshot | null {
+  if (!row) return null;
+  const payload = getLiveScoreboardPayload(row.payload);
+  if (!payload) return null;
+  return {
+    period: readScoreboardString(payload, "period"),
+    clock: readScoreboardString(payload, "clock"),
+    clkRunning: readScoreboardBoolean(payload, "clkRunning"),
+    clkRemainMs: readScoreboardNumber(payload, "clkRemainMs"),
+    scoreH: readScoreboardNumber(payload, "scoreH"),
+    scoreA: readScoreboardNumber(payload, "scoreA"),
+    updatedAt: row.updatedAt.toISOString(),
+  };
+}
+
+function quarterFromLiveScoreboardPeriod(period: string | null): number | null {
+  if (!period) return null;
+  const q = /^Q(\d+)$/i.exec(period);
+  if (q) return Math.max(1, Number(q[1]));
+  const ot = /^OT(\d+)$/i.exec(period);
+  if (ot) return 4 + Math.max(1, Number(ot[1]));
+  return null;
+}
+
+function secondsFromLiveScoreboard(snapshot: LiveScoreboardSnapshot | null): number | null {
+  if (!snapshot) return null;
+  if (snapshot.clkRemainMs != null) {
+    return Math.max(0, Math.round(snapshot.clkRemainMs / 1000));
+  }
+  if (!snapshot.clock) return null;
+  const parts = /^(\d{1,2}):([0-5]\d)$/.exec(snapshot.clock);
+  if (!parts) return null;
+  return Number(parts[1]) * 60 + Number(parts[2]);
+}
+
 // 인증 없는 공개 엔드포인트 — 라이브 박스스코어
 // playerStats(종료 후 합계) + play_by_plays(쿼터별 상세 집계)
 export async function GET(
@@ -1122,8 +1189,22 @@ export async function GET(
       orderBy: [{ created_at: "desc" }],
       select: { quarter: true, game_clock_seconds: true },
     });
-    const currentQuarter = latestPbp?.quarter ?? null;
-    const currentGameClockSeconds = latestPbp?.game_clock_seconds ?? null;
+    const liveScoreboardRow = await prisma.liveScoreboard.findUnique({
+      where: { matchId: BigInt(matchId) },
+      select: { payload: true, updatedAt: true },
+    });
+    const liveScoreboard = buildLiveScoreboardSnapshot(liveScoreboardRow);
+    const isLiveStatus =
+      match.status === "live" || match.status === "in_progress" || match.status === "halftime";
+    const liveScoreboardQuarter = isLiveStatus
+      ? quarterFromLiveScoreboardPeriod(liveScoreboard?.period ?? null)
+      : null;
+    const liveScoreboardClockSeconds = isLiveStatus
+      ? secondsFromLiveScoreboard(liveScoreboard)
+      : null;
+    const currentQuarter = liveScoreboardQuarter ?? latestPbp?.quarter ?? null;
+    const currentGameClockSeconds =
+      liveScoreboardClockSeconds ?? latestPbp?.game_clock_seconds ?? null;
 
     // 2026-04-22: GameResult v2 — MVP 선정 (GameScore 공식 단순화 버전)
     // 이유: 시안 GameResult.jsx 의 MVP 배너 렌더를 위해 playerStats 기반으로 최고 점수 선수 1명 추출.
@@ -1346,6 +1427,7 @@ export async function GET(
         venueName,
         currentQuarter,
         currentGameClockSeconds,
+        liveScoreboard: isLiveStatus ? liveScoreboard : null,
         // 2026-04-16: 쿼터별 이벤트 기반 상세 스탯 존재 여부 (프론트 안내 배너 + "—" 처리용)
         // apiSuccess가 camelCase → snake_case 변환하므로 클라이언트는 has_quarter_event_detail로 수신
         hasQuarterEventDetail,
