@@ -51,21 +51,21 @@ const SCOPE_OPTIONS: Array<{ value: Scope; label: string; desc: string }> = [
   },
   {
     value: "new_only",
-    label: "신규(미설정) 매치만 적용",
+    label: "미설정 경기만 적용",
     desc: "운영자가 한번도 모드를 지정하지 않은 매치만 변경합니다.",
   },
   {
     value: "exclude_in_progress",
-    label: "진행 중(in_progress) 매치 제외",
-    desc: "라이브 진행 중 매치를 제외한 나머지 매치만 변경합니다.",
+    label: "진행 중 경기 제외",
+    desc: "진행 중 경기를 제외한 나머지 경기만 변경합니다.",
   },
 ];
 
 // 모드 라벨 매핑 — Flutter 기록앱 / 종이 기록지(웹) / 수기(BDR 미사용)
 const MODE_LABEL: Record<Mode, string> = {
-  flutter: "Flutter 기록앱",
-  paper: "종이 기록지(웹)",
-  manual: "수기 (BDR 미사용)",
+  flutter: "기록앱",
+  paper: "전자기록지",
+  manual: "수기",
 };
 
 // lucide 키트 이름 — Material videogame_asset/description 대체
@@ -143,7 +143,7 @@ export function RecordingModeCard({
         // 성공 — affected_count + mode 표시 (snake_case — apiSuccess 변환)
         setResultMsg({
           type: "success",
-          text: `${data.affected_count}건 매치 모드 변경 완료 (${MODE_LABEL[data.mode as Mode]})`,
+          text: `${data.affected_count}건 경기 기록 방식 변경 완료 (${MODE_LABEL[data.mode as Mode]})`,
         });
         // 사유 초기화 (다음 변경 위해)
         setReason("");
@@ -182,8 +182,8 @@ export function RecordingModeCard({
         </div>
         <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs" style={{ color: "var(--color-text-muted)" }}>
           <span>총 {matchStats.total}건</span>
-          <span>Flutter {matchStats.flutter}건</span>
-          <span>종이 {matchStats.paper}건</span>
+          <span>기록앱 {matchStats.flutter}건</span>
+          <span>전자기록지 {matchStats.paper}건</span>
           {matchStats.inProgress > 0 && (
             <span style={{ color: "var(--color-primary)" }}>
               진행중 {matchStats.inProgress}건
@@ -206,7 +206,7 @@ export function RecordingModeCard({
                 key={m}
                 type="button"
                 onClick={() => setSelectedMode(m)}
-                className="flex items-center justify-center gap-2 rounded-[4px] border px-3 py-2 text-sm font-semibold transition-colors"
+                className="flex items-center justify-center gap-2 rounded-[12px] border px-3 py-2 text-sm font-semibold transition-colors"
                 style={{
                   borderColor: active ? "var(--color-primary)" : "var(--color-border)",
                   backgroundColor: active
@@ -227,7 +227,7 @@ export function RecordingModeCard({
         {/* 수기 모드 안내 — selectedMode="manual" 일 때만 의미 1줄 노출 */}
         {selectedMode === "manual" && (
           <div
-            className="mt-2 flex items-start gap-1.5 rounded-[4px] p-2 text-xs"
+            className="mt-2 flex items-start gap-1.5 rounded-[12px] p-2 text-xs"
             style={{
               backgroundColor:
                 "color-mix(in srgb, var(--color-primary) 8%, transparent)",
@@ -236,8 +236,7 @@ export function RecordingModeCard({
           >
             <Icon name="info" size={14} color="var(--color-primary)" />
             <span>
-              수기 = BDR 기록 시스템(앱/전자기록지) 미사용. 기록앱 &lsquo;내
-              대회&rsquo; 목록에서 제외됩니다.
+              수기 = 앱과 전자기록지를 사용하지 않는 방식입니다.
             </span>
           </div>
         )}
@@ -246,13 +245,13 @@ export function RecordingModeCard({
       {/* 영향 범위 라디오 — 3개 옵션 */}
       <div className="mb-4">
         <div className="mb-2 text-xs font-semibold" style={{ color: "var(--color-text-secondary)" }}>
-          ⚠️ 적용 범위
+          적용 범위
         </div>
         <div className="space-y-2">
           {SCOPE_OPTIONS.map((opt) => (
             <label
               key={opt.value}
-              className="flex cursor-pointer items-start gap-2 rounded-[4px] border p-2 text-sm transition-colors"
+              className="flex cursor-pointer items-start gap-2 rounded-[12px] border p-2 text-sm transition-colors"
               style={{
                 borderColor:
                   scope === opt.value
@@ -298,8 +297,8 @@ export function RecordingModeCard({
           onChange={(e) => setReason(e.target.value)}
           rows={2}
           maxLength={500}
-          placeholder="예: 결승 매치 종이 기록지 운영 결정"
-          className="w-full rounded-[4px] border p-2 text-sm"
+          placeholder="결승은 전자기록지 운영"
+          className="ts-input min-h-[88px] text-sm"
           style={{
             borderColor: "var(--color-border)",
             backgroundColor: "var(--color-card)",
@@ -314,7 +313,7 @@ export function RecordingModeCard({
       {/* 결과 메시지 (inline) */}
       {resultMsg && (
         <div
-          className="mb-3 rounded-[4px] border p-2 text-sm"
+          className="mb-3 rounded-[12px] border p-2 text-sm"
           style={{
             borderColor:
               resultMsg.type === "success"
@@ -340,12 +339,7 @@ export function RecordingModeCard({
           type="button"
           onClick={handleApplyClick}
           disabled={pending}
-          className="rounded-[4px] px-4 py-2 text-sm font-semibold transition-opacity"
-          style={{
-            backgroundColor: "var(--color-primary)",
-            color: "#fff",
-            opacity: pending ? 0.6 : 1,
-          }}
+          className="ts-btn ts-btn--primary ts-btn--sm"
         >
           {pending ? "처리 중..." : "모드 변경 적용"}
         </button>
@@ -392,12 +386,13 @@ function ConfirmModal({
 
   return (
     <div
+      data-skin="toss"
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
       style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
       onClick={onCancel}
     >
       <div
-        className="w-full max-w-sm rounded-[var(--radius-card)] border p-5"
+        className="w-full max-w-sm rounded-[24px] border p-5 shadow-[var(--sh-lg)]"
         style={{
           borderColor: "var(--color-border)",
           backgroundColor: "var(--color-card)",
@@ -407,37 +402,28 @@ function ConfirmModal({
         <div className="mb-3 flex items-center gap-2">
           {/* Material warning → lucide triangle-alert */}
           <Icon name="triangle-alert" size={22} color="var(--color-primary)" />
-          <h4 className="font-bold">모드 변경 확인</h4>
+          <h4 className="font-bold">기록 방식 변경 확인</h4>
         </div>
         <p className="mb-4 text-sm" style={{ color: "var(--color-text-secondary)" }}>
           최대 <strong style={{ color: "var(--color-primary)" }}>{previewCount}건</strong>의 매치가{" "}
-          <strong>{MODE_LABEL[selectedMode]}</strong> 모드로 변경됩니다.
+          <strong>{MODE_LABEL[selectedMode]}</strong> 방식으로 변경됩니다.
           <br />
           <span className="text-xs" style={{ color: "var(--color-text-muted)" }}>
-            (이미 동일 모드 매치는 자동 skip — 실제 영향 매치 수는 응답에서 확인)
+            이미 같은 방식인 경기는 자동 제외됩니다.
           </span>
         </p>
         <div className="flex justify-end gap-2">
           <button
             type="button"
             onClick={onCancel}
-            className="rounded-[4px] border px-3 py-2 text-sm"
-            style={{
-              borderColor: "var(--color-border)",
-              color: "var(--color-text-primary)",
-              backgroundColor: "var(--color-card)",
-            }}
+            className="ts-btn ts-btn--secondary ts-btn--sm"
           >
             취소
           </button>
           <button
             type="button"
             onClick={onConfirm}
-            className="rounded-[4px] px-3 py-2 text-sm font-semibold"
-            style={{
-              backgroundColor: "var(--color-primary)",
-              color: "#fff",
-            }}
+            className="ts-btn ts-btn--primary ts-btn--sm"
           >
             변경 적용
           </button>

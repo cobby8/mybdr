@@ -1,23 +1,28 @@
 # Scratchpad
 
-## 현재 작업
-- 2026-06-24 보안 감사 마무리: PostCSS override 적용으로 `npm audit` 0건 검증 완료.
+- 2026-06-25 feat(ranking): added API-keyless manual seed review report generator.
+- 2026-06-24 feat(ranking): added candidate signal analysis fields for ranking research JSON.
+- 2026-06-24 feat(ranking): added Daum BDR cafe seeds and Tavily web-search adapter candidate.
+- 2026-06-24 feat(ranking): expanded ranking research collector to multi-source registry with official/manual source support.
+- 2026-06-24 feat(ranking): added community basketball ranking research keyword seed and Naver search collection PoC.
 
-## 진행 현황표
+## Current Task
+- 2026-06-25 done: merged tournament admin workspace work into dev, fixed tests, and verified `tsc`, full test, and build before production merge.
+- 2026-06-25 done: aligned tournament admin setup with creation flow for sponsors, multi-venue/date/court data, global save, and mobile 2-row game preset chips.
+- 2026-06-25 done: verified create flow preserves multi-venue/date/court division scheduling via `settings.div_schedule` and corrected generator copy.
+- 2026-06-25 done: removed gender from tournament admin info card after confirming creation handles gender in division generator.
+- 2026-06-25 done: removed tournament status field from admin info card and tightened workspace/game-settings vertical spacing.
+
+## 진행 현황
 | 작업 | 상태 | 비고 |
 |---|---|---|
-| 엑셀 보안 개선 | 완료 | `xlsx` 제거, `read-excel-file`/`write-excel-file` 전환 |
-| PostCSS 보안 개선 | 완료 | `overrides.postcss="$postcss"`로 Next 내부 취약 사본 제거 |
-| 검증 | 완료 | `npm audit` 0건, `tsc`, `next build`, `git diff --check` 확인 |
+| 대회 관리자 워크스페이스 | 완료 | 단일 페이지, lazy panels, 생성 흐름 정합 |
+| dev 검증 및 푸시 | 완료 | `tsc`, `npm test`, `npm build` 통과 |
+| 운영 머지 | 진행 중 | `dev -> main` 충돌 정리 중 |
 
 ## 작업 로그
-- 2026-06-24 fix: PostCSS override로 Next 내부 취약 사본 제거, `npm audit` 0건 및 빌드 통과 확인.
-- 2026-06-24 fix: 취약 `xlsx`를 제거하고 `.xlsx` 전용 파서/템플릿 생성기로 교체, high/critical audit 0건 확인.
-- 2026-06-23 docs: 일관성 QA v2.40 패키지와 STAGE E/F/G 실행 순서 문서화 진행.
-- 2026-06-23 release: dev→main PR #755를 merge하고 dev/main 정합을 `fc72e9c`로 맞춤.
-- 2026-06-23 release: dev→main PR #754를 merge하고 dev/main 정합을 `23081b8`로 맞춤.
-- 2026-06-23 release-prep: `origin/main` 27커밋을 dev에 충돌 없이 병합하고 main/dev 분기 해소 상태를 기록.
-- 2026-06-23 docs: 실제 phase-ledger 경로를 `.claude/phase-ledger.md`로 정정하고 v2.40 정착·main/dev 분기 상태를 기록.
-- 2026-06-23 design(sync): v2.40 통합 Admin Console 원본을 `BDR-current/_handoff-admin-v2.40-unified/`에 흡수하고 큐 상태를 정정.
-- 2026-06-23 housekeeping: 사용 완료된 `scripts/_temp/count-news-photo.mjs` 임시 실측 스크립트 정리.
-- 2026-06-23 docs: 라이브 도메인 전담 에이전트 정의 `live-expert`를 `.codex/agents`에 추가.
+- 2026-06-25 release: dev를 main에 머지하기 위해 원격 dev/main 동기화, rebase, 테스트와 빌드 재검증.
+- 2026-06-25 feat(admin): 대회 관리자 설정을 생성 흐름과 맞춰 다중 후원사, 체육관, 일정 저장과 모바일 2행 경기 프리셋을 반영.
+- 2026-06-25 docs(tournament): 운영 src 더미 데이터 금지와 관리자 제어 배선 원칙을 추가하고 대회 영역 배선 점검.
+- 2026-06-24 fix: PostCSS override로 Next 하위 취약 버전 제거, `npm audit` 0건 및 빌드 통과 확인.
+- 2026-06-24 fix: 취약 `xlsx`를 제거하고 `.xlsx` 전용 파서와 스플릿 생성기로 교체, high/critical audit 0건 확인.

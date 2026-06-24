@@ -9,7 +9,6 @@ import { buildLoginRedirect } from "@/lib/auth/redirect";
 // 2026-05-12 hotfix — CopyLinkButton 등 client component 가 useToast 호출 → (admin) 영역에 ToastProvider 부재로 throw.
 // (web)/(score-sheet) layout 과 동일 패턴으로 ToastProvider mount.
 import { ToastProvider } from "@/contexts/toast-context";
-import { TournamentAdminNav } from "./_components/tournament-admin-nav";
 
 // AdminSidebar/AdminMobileNav role 타입 (admin/layout.tsx 와 동일)
 type AdminRole =
@@ -27,7 +26,7 @@ type AdminRole =
  * role: tournament_admin 또는 super_admin 만 접근 가능 (admin/layout.tsx 와 동일 권한 체크).
  * 미로그인 또는 권한 부족 시 홈으로 리다이렉트.
  *
- * UI: admin sidebar (lg+) + AdminMobileNav (모바일) + TournamentAdminNav (sub-nav 대시보드/단체/내 대회/시리즈/템플릿).
+ * UI: admin sidebar (lg+) + AdminMobileNav (모바일).
  */
 export default async function TournamentAdminLayout({ children }: { children: React.ReactNode }) {
   const session = await getWebSession();
@@ -78,12 +77,10 @@ export default async function TournamentAdminLayout({ children }: { children: Re
         </div>
         {/* 모바일 햄버거 + 드로어 (lg 미만) */}
         <div className="lg:hidden">
-          <AdminMobileNav roles={roles} />
+          <AdminMobileNav roles={roles} scope="tournament" />
         </div>
         <main className="lg:ml-64">
-          <div className="mx-auto max-w-7xl p-6 pt-16 lg:pt-6">
-            {/* 대회 관리 sub-nav (대시보드/단체/내 대회/시리즈/템플릿) */}
-            <TournamentAdminNav />
+          <div className="mx-auto max-w-[1600px] p-6 pt-16 lg:pt-6">
             {children}
           </div>
         </main>

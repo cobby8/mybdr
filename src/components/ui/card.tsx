@@ -14,7 +14,7 @@ export function Card({
 }) {
   return (
     <div
-      className={`rounded-[var(--radius-card)] border p-4 sm:p-5 transition-all duration-200 ${className}`}
+      className={`ui-card rounded-[var(--radius-card)] border p-4 sm:p-5 transition-all duration-200 ${className}`}
       style={{
         borderColor: "var(--color-border)",
         backgroundColor: "var(--color-card)",

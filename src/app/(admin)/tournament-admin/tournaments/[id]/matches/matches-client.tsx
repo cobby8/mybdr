@@ -2,9 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useParams, useSearchParams } from "next/navigation";
-import Link from "next/link";
 import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 // 2026-05-16 PR-Admin-3 — placeholder 매치 검증 배너 (강남구협회장배 사고 재발 방지)
 import { PlaceholderValidationBanner } from "../_components/PlaceholderValidationBanner";
 // 2026-05-16 PR-Admin-2 — 단일 순위전 진출 trigger (teams 페이지 헤더에서 이동 박제)
@@ -86,6 +84,18 @@ const STATUS_COLOR: Record<string, string> = {
   bye: "text-[var(--color-text-muted)]",
 };
 
+function formatMatchDate(value: string | null) {
+  if (!value) return "미정";
+  return new Date(value).toLocaleDateString("ko-KR", {
+    month: "short",
+    day: "numeric",
+  });
+}
+
+function formatMatchTeams(match: Match) {
+  return `${match.homeTeam?.team.name ?? "미정"} 대 ${match.awayTeam?.team.name ?? "미정"}`;
+}
+
 function ScoreModal({
   match,
   teams,
@@ -157,7 +167,7 @@ function ScoreModal({
 
       // 모드 변경 시 사용자 confirm — 진행 중 매치 사고 방지
       if (modeChanged) {
-        const next = recordingMode === "paper" ? "종이 기록지(웹)" : "Flutter 기록앱";
+        const next = recordingMode === "paper" ? "전자기록지" : "기록앱";
         if (
           !confirm(
             `이 매치 기록 모드를 [${next}] 로 전환합니다.\n진행 중 매치는 신중히 결정하세요.`
@@ -224,14 +234,24 @@ function ScoreModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" onClick={onClose}>
+    <div
+      data-skin="toss"
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 no-print sm:p-4"
+      style={{ background: "rgba(0,0,0,0.45)" }}
+      onClick={onClose}
+    >
       <div
-        className="w-full max-w-md rounded-[20px] border border-[var(--color-border)] bg-[var(--color-card)] p-6"
+        className="relative max-h-[calc(100vh-32px)] w-full max-w-2xl overflow-y-auto rounded-[24px] border bg-[var(--card)] p-4 shadow-[var(--sh-lg)] sm:p-6"
+        style={{ borderColor: "var(--border)" }}
         onClick={(e) => e.stopPropagation()}
       >
-        <h3 className="mb-4 text-lg font-semibold">
-          {match.roundName ?? "경기"} – {match.match_number ? `#${match.match_number}` : ""}
+        <button type="button" onClick={onClose} className="ct-iconbtn absolute right-3 top-3" aria-label="닫기">
+          <Icon name="x" size={20} />
+        </button>
+        <h3 className="mb-1 pr-10 text-lg font-bold text-[var(--ink)]">
+          {match.roundName ?? "경기"} {match.match_number ? `#${match.match_number}` : ""}
         </h3>
+        <p className="mb-4 text-sm text-[var(--ink-mute)]">{formatMatchTeams(match)}</p>
 
         {/* [2026-04-22] 하드코딩 색상 → --color-* 토큰화 */}
         {error && (
@@ -241,11 +261,11 @@ function ScoreModal({
         )}
 
         {/* 팀 배정 */}
-        <div className="mb-4 grid grid-cols-2 gap-3">
+        <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div>
-            <label className="mb-1 block text-xs text-[var(--color-text-muted)]">홈팀</label>
+            <label className="ts-field__label">홈팀</label>
             <select
-              className="w-full rounded-[12px] border-none bg-[var(--color-elevated)] px-3 py-2 text-sm text-[var(--color-text-primary)]"
+              className="ts-select"
               value={homeTeamId}
               onChange={(e) => setHomeTeamId(e.target.value)}
             >
@@ -256,9 +276,9 @@ function ScoreModal({
             </select>
           </div>
           <div>
-            <label className="mb-1 block text-xs text-[var(--color-text-muted)]">원정팀</label>
+            <label className="ts-field__label">원정팀</label>
             <select
-              className="w-full rounded-[12px] border-none bg-[var(--color-elevated)] px-3 py-2 text-sm text-[var(--color-text-primary)]"
+              className="ts-select"
               value={awayTeamId}
               onChange={(e) => setAwayTeamId(e.target.value)}
             >
@@ -277,7 +297,7 @@ function ScoreModal({
             min={0}
             value={homeScore}
             onChange={(e) => setHomeScore(Number(e.target.value))}
-            className="w-full rounded-[12px] border-none bg-[var(--color-elevated)] px-3 py-3 text-center text-xl font-bold sm:text-2xl text-[var(--color-text-primary)]"
+            className="ts-input text-center text-xl font-bold sm:text-2xl"
           />
           <div className="text-center text-sm text-[var(--color-text-muted)]">:</div>
           <input
@@ -285,15 +305,15 @@ function ScoreModal({
             min={0}
             value={awayScore}
             onChange={(e) => setAwayScore(Number(e.target.value))}
-            className="w-full rounded-[12px] border-none bg-[var(--color-elevated)] px-3 py-3 text-center text-xl font-bold sm:text-2xl text-[var(--color-text-primary)]"
+            className="ts-input text-center text-xl font-bold sm:text-2xl"
           />
         </div>
 
         {/* 상태 */}
         <div className="mb-3">
-          <label className="mb-1 block text-xs text-[var(--color-text-muted)]">상태</label>
+          <label className="ts-field__label">상태</label>
           <select
-            className="w-full rounded-[12px] border-none bg-[var(--color-elevated)] px-3 py-2 text-sm text-[var(--color-text-primary)]"
+            className="ts-select"
             value={status}
             onChange={(e) => setStatus(e.target.value)}
           >
@@ -306,9 +326,9 @@ function ScoreModal({
 
         {/* 승자 */}
         <div className="mb-3">
-          <label className="mb-1 block text-xs text-[var(--color-text-muted)]">승자 팀</label>
+          <label className="ts-field__label">승자 팀</label>
           <select
-            className="w-full rounded-[12px] border-none bg-[var(--color-elevated)] px-3 py-2 text-sm text-[var(--color-text-primary)]"
+            className="ts-select"
             value={winnerId}
             onChange={(e) => setWinnerId(e.target.value)}
           >
@@ -327,23 +347,23 @@ function ScoreModal({
         </div>
 
         {/* 일정 */}
-        <div className="mb-3 grid grid-cols-2 gap-3">
+        <div className="mb-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div>
-            <label className="mb-1 block text-xs text-[var(--color-text-muted)]">경기 일시</label>
+            <label className="ts-field__label">경기 일시</label>
             <input
               type="datetime-local"
               value={scheduledAt}
               onChange={(e) => setScheduledAt(e.target.value)}
-              className="w-full rounded-[12px] border-none bg-[var(--color-elevated)] px-3 py-2 text-sm text-[var(--color-text-primary)]"
+              className="ts-input"
             />
           </div>
           <div>
-            <label className="mb-1 block text-xs text-[var(--color-text-muted)]">경기장</label>
+            <label className="ts-field__label">경기장</label>
             <input
               value={venueName}
               onChange={(e) => setVenueName(e.target.value)}
               placeholder="경기장명"
-              className="w-full rounded-[12px] border-none bg-[var(--color-elevated)] px-3 py-2 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)]"
+              className="ts-input"
             />
           </div>
         </div>
@@ -351,23 +371,21 @@ function ScoreModal({
         {/* 2026-05-11: Phase 1-A — 매치별 기록 모드 토글.
             Flutter 기록앱 (기본) ↔ 종이 기록지(웹). 한 매치 = 한 모드 (충돌 자체 차단). */}
         <div className="mb-3">
-          <label className="mb-1 block text-xs text-[var(--color-text-muted)]">
-            기록 모드
-          </label>
+          <label className="ts-field__label">기록 방식</label>
           <select
-            className="w-full rounded-[12px] border-none bg-[var(--color-elevated)] px-3 py-2 text-sm text-[var(--color-text-primary)]"
+            className="ts-select"
             value={recordingMode}
             onChange={(e) =>
               setRecordingMode(e.target.value as "flutter" | "paper")
             }
           >
-            <option value="flutter">Flutter 기록앱 (기본)</option>
-            <option value="paper">종이 기록지 (웹)</option>
+            <option value="flutter">기록앱</option>
+            <option value="paper">전자기록지</option>
           </select>
           {recordingMode === "paper" && (
             <>
               <p className="mt-1 text-xs" style={{ color: "var(--color-warning)" }}>
-                ⚠ 종이 모드 — Flutter 앱에서 점수 입력이 차단됩니다.
+                전자기록지 사용 중에는 기록앱 점수 입력이 차단됩니다.
               </p>
               {/* 2026-05-11: Phase 1-B-2 — paper 모드 매치는 종이 기록지 입력 페이지로 이동 */}
               {match.id && (
@@ -375,29 +393,30 @@ function ScoreModal({
                   href={`/score-sheet/${match.id}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="mt-2 inline-block rounded-[4px] px-3 py-1.5 text-xs font-medium text-white"
-                  style={{ backgroundColor: "var(--color-primary)" }}
+                  className="ts-btn ts-btn--secondary ts-btn--sm mt-2"
                 >
-                  📝 종이 기록지 입력 페이지로 이동 →
+                  전자기록지 열기
                 </a>
               )}
             </>
           )}
         </div>
 
-        <div className="flex gap-2">
-          <Button variant="secondary" onClick={onClose} className="flex-1">취소</Button>
+        <div className="flex flex-col-reverse gap-2 sm:flex-row">
+          <button type="button" onClick={onClose} className="ts-btn ts-btn--secondary ts-btn--block sm:flex-1">
+            취소
+          </button>
           {/* [2026-04-22] 하드코딩 색상 → --color-* 토큰화 (Tailwind arbitrary + color-mix, hover 10→20%) */}
           {/* 2026-05-12 — pill 9999px ❌ → rounded-[4px]. 위험 액션 = error 톤 보존 */}
           <button
             onClick={del}
-            className="rounded-[4px] px-4 py-2 text-sm bg-[color-mix(in_srgb,var(--color-error)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--color-error)_20%,transparent)] text-[var(--color-error)]"
+            className="ts-btn ts-btn--danger sm:flex-1"
           >
             삭제
           </button>
-          <Button onClick={save} disabled={saving} className="flex-1">
+          <button type="button" onClick={save} disabled={saving} className="ts-btn ts-btn--primary ts-btn--block sm:flex-1">
             {saving ? "저장 중..." : "저장"}
-          </Button>
+          </button>
         </div>
       </div>
     </div>
@@ -493,35 +512,31 @@ export default function MatchesClient() {
     return <div className="flex h-40 items-center justify-center text-[var(--color-text-muted)]">불러오는 중...</div>;
 
   return (
-    <div>
-      <div className="mb-6 flex items-center justify-between">
+    <div data-skin="toss" className="space-y-4">
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <Link href={`/tournament-admin/tournaments/${id}`} className="text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]">
-            ← 대회 관리
-          </Link>
-          <h1 className="mt-1 text-xl font-bold sm:text-2xl">경기 관리</h1>
-          {/* 2026-05-16 PR-Admin-6 — 순위전·결승 hub 진입 link (운영자 단계 10~11 흐름 단축) */}
-          <Link
-            href={`/tournament-admin/tournaments/${id}/playoffs`}
-            className="mt-1 inline-block text-xs text-[var(--color-info)] hover:underline"
-          >
-            순위전·결승 hub →
-          </Link>
+          <h3 className="text-base font-bold text-[var(--ink)]">경기 운영</h3>
+          <p className="mt-1 text-sm text-[var(--ink-mute)]">일정, 점수, 기록 방식을 관리합니다.</p>
         </div>
         <div className="flex flex-wrap gap-2">
           {matches.length > 0 ? (
-            <Button
-              variant="secondary"
+            <button
+              type="button"
               onClick={() => generateBracket(true)}
               disabled={generating}
-              className="text-xs"
+              className="ts-btn ts-btn--secondary ts-btn--sm"
             >
               {generating ? "생성 중..." : "대진표 재생성"}
-            </Button>
+            </button>
           ) : (
-            <Button onClick={() => generateBracket(false)} disabled={generating}>
+            <button
+              type="button"
+              onClick={() => generateBracket(false)}
+              disabled={generating}
+              className="ts-btn ts-btn--primary ts-btn--sm"
+            >
               {generating ? "생성 중..." : "대진표 생성"}
-            </Button>
+            </button>
           )}
           {/* 2026-05-16 PR-Admin-2 — 단일 순위전 진출 trigger (matches 페이지 단일 위치).
               teams 페이지 기존 버튼 제거 + 본 위치로 이동 (admin-flow §3 단계 10 정렬).
@@ -561,11 +576,8 @@ export default function MatchesClient() {
           <button
             type="button"
             onClick={() => setDivisionFilter(null)}
-            className={`rounded-[4px] px-3 py-1.5 text-xs font-medium transition-colors ${
-              divisionFilter === null
-                ? "bg-[var(--color-info)] text-white"
-                : "bg-[var(--color-elevated)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
-            }`}
+            className="ts-chip"
+            data-active={divisionFilter === null}
           >
             전체 ({matches.length})
           </button>
@@ -576,11 +588,8 @@ export default function MatchesClient() {
                 key={code}
                 type="button"
                 onClick={() => setDivisionFilter(code)}
-                className={`rounded-[4px] px-3 py-1.5 text-xs font-medium transition-colors ${
-                  divisionFilter === code
-                    ? "bg-[var(--color-info)] text-white"
-                    : "bg-[var(--color-elevated)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
-                }`}
+                className="ts-chip"
+                data-active={divisionFilter === code}
               >
                 {code} ({count})
               </button>
@@ -596,11 +605,8 @@ export default function MatchesClient() {
           <button
             type="button"
             onClick={() => setVenueFilter(null)}
-            className={`rounded-[4px] px-3 py-1.5 text-xs font-medium transition-colors ${
-              venueFilter === null
-                ? "bg-[var(--color-info)] text-white"
-                : "bg-[var(--color-elevated)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
-            }`}
+            className="ts-chip"
+            data-active={venueFilter === null}
           >
             전체
           </button>
@@ -611,11 +617,8 @@ export default function MatchesClient() {
                 key={v}
                 type="button"
                 onClick={() => setVenueFilter(v)}
-                className={`rounded-[4px] px-3 py-1.5 text-xs font-medium transition-colors ${
-                  venueFilter === v
-                    ? "bg-[var(--color-info)] text-white"
-                    : "bg-[var(--color-elevated)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
-                }`}
+                className="ts-chip"
+                data-active={venueFilter === v}
               >
                 {/* Material location_on → lucide map-pin */}
                 <Icon name="map-pin" size={14} className="align-middle" style={{ marginRight: 4 }} />
@@ -628,7 +631,9 @@ export default function MatchesClient() {
 
       {matches.length === 0 ? (
         <Card className="py-16 text-center text-[var(--color-text-muted)]">
-          <div className="mb-3 text-4xl">📋</div>
+          <div className="mb-3 flex justify-center">
+            <Icon name="calendar-plus" size={36} />
+          </div>
           <p className="mb-1 font-medium">경기가 없습니다</p>
           <p className="text-sm">
             승인된 팀이{" "}
@@ -659,97 +664,110 @@ export default function MatchesClient() {
                 <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
                   {roundLabel}
                 </h2>
-                {/* 2026-05-28 PR-1C-6 옵션 A — 라운드별 매치 목록을 시안 amt-table 표로 박제.
-                    데이터/그룹화/onClick(모달 오픈) 100% 유지, 시각만 한 줄 카드 → 표 행으로 변경.
-                    amt-table-wrap 이 overflow:hidden + border-radius 처리 → 모바일은 css 가 가로 스크롤. */}
-                <div className="amt-table-wrap">
-                  <table className="amt-table">
-                    <thead>
-                      <tr>
-                        <th>시간</th>
-                        <th>코트</th>
-                        <th>종별</th>
-                        <th>대진</th>
-                        <th>스코어</th>
-                        <th>상태</th>
-                        <th>#</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {roundMatches.map((match) => (
-                        // 행 전체 클릭 = 기존 모달 오픈 흐름 그대로 (onClick 유지)
-                        <tr
-                          key={match.id}
-                          className="cursor-pointer"
-                          onClick={() => setSelectedMatch(match)}
-                        >
-                          {/* 시간 — scheduledAt 있으면 날짜 표시 (운영 데이터 진짜) */}
-                          <td>
-                            {match.scheduledAt ? (
-                              <span className="amt-table__time">
-                                {new Date(match.scheduledAt).toLocaleDateString("ko-KR", {
-                                  month: "short",
-                                  day: "numeric",
-                                })}
-                              </span>
-                            ) : (
-                              <span className="amt-table__div">미정</span>
-                            )}
-                          </td>
-
-                          {/* 코트(체육관) — venue_name (null 시 '-') */}
-                          <td>
-                            {match.venue_name ? (
-                              <span className="amt-table__court">{match.venue_name}</span>
-                            ) : (
-                              <span className="amt-table__div">-</span>
-                            )}
-                          </td>
-
-                          {/* 종별 — settings.division_code (null 시 '-') */}
-                          <td>
-                            <span className="amt-table__div">
-                              {getMatchDivision(match) ?? "-"}
-                            </span>
-                          </td>
-
-                          {/* 대진 — 홈 vs 원정. 승자 팀명 = success 톤 보존 (승리=긍정 시맨틱) */}
-                          <td>
-                            <span className="amt-table__teams">
-                              <b className={match.winner_team_id === match.homeTeamId && match.homeTeamId ? "text-[var(--color-success)]" : ""}>
-                                {match.homeTeam?.team.name ?? "미정"}
-                              </b>
-                              <span className="vs">vs</span>
-                              <b className={match.winner_team_id === match.awayTeamId && match.awayTeamId ? "text-[var(--color-success)]" : ""}>
-                                {match.awayTeam?.team.name ?? "미정"}
-                              </b>
-                            </span>
-                          </td>
-
-                          {/* 스코어 — homeScore : awayScore (운영 데이터 진짜) */}
-                          <td>
-                            <span className="amt-table__score">
-                              {match.homeScore} : {match.awayScore}
-                            </span>
-                          </td>
-
-                          {/* 상태 — 운영 STATUS_LABEL + STATUS_COLOR 톤 보존 */}
-                          <td>
-                            <span className={`text-xs font-semibold ${STATUS_COLOR[match.status] ?? "text-[var(--color-text-muted)]"}`}>
-                              {STATUS_LABEL[match.status] ?? match.status}
-                            </span>
-                          </td>
-
-                          {/* 경기 번호 — 시안 '입력/수정/준비' 버튼 대신 #번호 (행 클릭이 이미 모달 오픈) */}
-                          <td>
-                            <span className="amt-table__div">
-                              #{match.match_number ?? "-"}
-                            </span>
-                          </td>
+                <div className="space-y-2 md:hidden">
+                  {roundMatches.map((match) => (
+                    <button
+                      key={match.id}
+                      type="button"
+                      onClick={() => setSelectedMatch(match)}
+                      className="w-full rounded-[16px] border bg-[var(--card)] p-4 text-left shadow-[var(--sh-sm)]"
+                      style={{ borderColor: "var(--border)" }}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="font-bold text-[var(--ink)]">{formatMatchTeams(match)}</p>
+                          <p className="mt-1 text-xs text-[var(--ink-mute)]">
+                            {formatMatchDate(match.scheduledAt)} · {match.venue_name ?? "코트 미정"} · {getMatchDivision(match) ?? "종별 미정"}
+                          </p>
+                        </div>
+                        <span className={`shrink-0 text-xs font-semibold ${STATUS_COLOR[match.status] ?? "text-[var(--color-text-muted)]"}`}>
+                          {STATUS_LABEL[match.status] ?? match.status}
+                        </span>
+                      </div>
+                      <div className="mt-3 flex items-center justify-between">
+                        <span className="font-mono text-lg font-black text-[var(--ink)]">
+                          {match.homeScore} : {match.awayScore}
+                        </span>
+                        <span className="text-xs font-semibold text-[var(--ink-mute)]">
+                          #{match.match_number ?? "-"}
+                        </span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+                <div className="hidden md:block">
+                  <div className="amt-table-wrap">
+                    <table className="amt-table">
+                      <thead>
+                        <tr>
+                          <th>시간</th>
+                          <th>코트</th>
+                          <th>종별</th>
+                          <th>대진</th>
+                          <th>스코어</th>
+                          <th>상태</th>
+                          <th>#</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody>
+                        {roundMatches.map((match) => (
+                          <tr
+                            key={match.id}
+                            className="cursor-pointer"
+                            onClick={() => setSelectedMatch(match)}
+                          >
+                            <td>
+                              {match.scheduledAt ? (
+                                <span className="amt-table__time">
+                                  {formatMatchDate(match.scheduledAt)}
+                                </span>
+                              ) : (
+                                <span className="amt-table__div">미정</span>
+                              )}
+                            </td>
+                            <td>
+                              {match.venue_name ? (
+                                <span className="amt-table__court">{match.venue_name}</span>
+                              ) : (
+                                <span className="amt-table__div">-</span>
+                              )}
+                            </td>
+                            <td>
+                              <span className="amt-table__div">
+                                {getMatchDivision(match) ?? "-"}
+                              </span>
+                            </td>
+                            <td>
+                              <span className="amt-table__teams">
+                                <b className={match.winner_team_id === match.homeTeamId && match.homeTeamId ? "text-[var(--color-success)]" : ""}>
+                                  {match.homeTeam?.team.name ?? "미정"}
+                                </b>
+                                <span className="vs">대</span>
+                                <b className={match.winner_team_id === match.awayTeamId && match.awayTeamId ? "text-[var(--color-success)]" : ""}>
+                                  {match.awayTeam?.team.name ?? "미정"}
+                                </b>
+                              </span>
+                            </td>
+                            <td>
+                              <span className="amt-table__score">
+                                {match.homeScore} : {match.awayScore}
+                              </span>
+                            </td>
+                            <td>
+                              <span className={`text-xs font-semibold ${STATUS_COLOR[match.status] ?? "text-[var(--color-text-muted)]"}`}>
+                                {STATUS_LABEL[match.status] ?? match.status}
+                              </span>
+                            </td>
+                            <td>
+                              <span className="amt-table__div">
+                                #{match.match_number ?? "-"}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               </div>
             );

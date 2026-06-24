@@ -44,6 +44,7 @@ export type ChecklistTournamentInput = {
   name: string;
   startDate: Date | null;
   venue_name: string | null;
+  places?: Prisma.JsonValue | null;
   series_id: bigint | null;
   maxTeams: number | null;
   entry_fee: Prisma.Decimal | null;
@@ -67,10 +68,23 @@ export type ChecklistRelationInput = {
 // 항목별 판정 함수 — 각 함수는 boolean 만 반환 (UI 책임 0)
 // ─────────────────────────────────────────────────────────────────────────
 
-/** 1. 기본 정보 — name (필수) + startDate + venue_name 모두 박제. */
+function getConfiguredPlaceCount(places: Prisma.JsonValue | null | undefined): number {
+  if (!Array.isArray(places)) return 0;
+  return places.filter((place) => {
+    if (!place || typeof place !== "object" || Array.isArray(place)) return false;
+    const name = (place as Record<string, unknown>).name;
+    return typeof name === "string" && name.trim().length > 0;
+  }).length;
+}
+
+function hasConfiguredPlaces(places: Prisma.JsonValue | null | undefined): boolean {
+  return getConfiguredPlaceCount(places) > 0;
+}
+
+/** 1. 기본 정보 — name (필수) + startDate + venue_name 또는 places 모두 박제. */
 export function isBasicInfoComplete(t: ChecklistTournamentInput): boolean {
-  // 이유: 사이트 공개 + 매치 일정 산출에 startDate 필수. venue_name 없으면 운영자 안내 불가.
-  return Boolean(t.name && t.startDate && t.venue_name);
+  // 이유: 생성/관리 모두 다중 체육관 places를 장소 source로 사용한다.
+  return Boolean(t.name && t.startDate && (t.venue_name || hasConfiguredPlaces(t.places)));
 }
 
 /** 2. 시리즈 연결 — series_id null 아님 (선택 항목, 단계로만 노출). */
@@ -220,7 +234,12 @@ export function calculateSetupProgress(
   const totalDivisionsCount = r.divisionRules.length;
 
   // 요약 텍스트 헬퍼 (한 줄 — 모든 카드 동일 톤)
-  const venueSummary = t.venue_name ? `장소: ${t.venue_name}` : "장소 미설정";
+  const configuredPlaceCount = getConfiguredPlaceCount(t.places);
+  const venueSummary = t.venue_name
+    ? `장소: ${t.venue_name}`
+    : configuredPlaceCount > 0
+      ? `장소: ${configuredPlaceCount}곳`
+      : "장소 미설정";
   const seriesSummary = seriesLinked ? "시리즈 연결됨" : "시리즈 미연결 (선택)";
   // 통합 카드 #3 "종별 + 운영 방식" summary
   //   - 종별 미정의 = "종별 미정의"
@@ -255,9 +274,15 @@ export function calculateSetupProgress(
       step: 1,
       title: "기본 정보",
       summary: basic ? venueSummary : "이름·일정·장소 미박제",
-      status: basic ? "complete" : statusFromAnyField(t.name, t.startDate, t.venue_name),
+      status: basic
+        ? "complete"
+        : statusFromAnyField(
+            t.name,
+            t.startDate,
+            t.venue_name || (configuredPlaceCount > 0 ? "places" : null),
+          ),
       icon: "info",
-      link: `${base}/wizard`,
+      link: `${base}#setup`,
       required: true,
     },
     {
@@ -267,7 +292,7 @@ export function calculateSetupProgress(
       summary: seriesSummary,
       status: seriesLinked ? "complete" : "empty",
       icon: "linked_services",
-      link: `${base}/wizard`,
+      link: `${base}#setup`,
       required: false, // 선택 항목
     },
     // ⭐ PR-Admin-5 통합 카드 — 종별 정의 + 운영 방식 (같은 페이지 = /divisions)
@@ -287,7 +312,7 @@ export function calculateSetupProgress(
             ? "in_progress"
             : "empty",
       icon: "category",
-      link: `${base}/divisions`,
+      link: `${base}#structure`,
       required: true,
       lockedReason: !basic ? "기본 정보를 먼저 박제하세요" : undefined,
       // PR-1C-9 (B1): 잠금 시 선행 = 1단계 기본 정보 (잠금 판정 = !basic)
@@ -306,7 +331,7 @@ export function calculateSetupProgress(
       icon: "how_to_reg",
       // 2026-05-13 UI-1.5 — wizard 의 RegistrationSettingsForm 영역(Step 2 = 참가 설정) 으로 바로 진입.
       //   ?step=N (1-based) 은 [id]/wizard/page.tsx 의 initialStep 로직이 0-based 로 변환해 적용.
-      link: `${base}/wizard?step=2`,
+      link: `${base}#setup`,
       required: true,
     },
     {
@@ -318,7 +343,7 @@ export function calculateSetupProgress(
       //   → 사이트 박제만 완료되면 5번 카드 ✅ (공개는 hub 의 공개 버튼이 별도 책임)
       status: !basic ? "locked" : siteComplete ? "complete" : "empty",
       icon: "language",
-      link: `${base}/site`,
+      link: `${base}#publish`,
       required: true,
       lockedReason: !basic ? "기본 정보를 먼저 박제하세요" : undefined,
       // PR-1C-9 (B1): 잠금 시 선행 = 1단계 기본 정보 (잠금 판정 = !basic)
@@ -331,7 +356,7 @@ export function calculateSetupProgress(
       summary: recordingSummary,
       status: !divsComplete ? "locked" : recordingComplete ? "complete" : "empty",
       icon: "edit_note",
-      link: `${base}/matches`,
+      link: `${base}#matches`,
       required: true,
       lockedReason: !divsComplete ? "종별 + 운영 방식을 먼저 박제하세요" : undefined,
       // PR-1C-9 (B1): 잠금 시 선행 = 3단계 종별 + 운영 방식 (잠금 판정 = !divsComplete)
@@ -344,7 +369,7 @@ export function calculateSetupProgress(
       summary: bracketSummary,
       status: !divsComplete ? "locked" : bracketComplete ? "complete" : "empty",
       icon: "account_tree",
-      link: `${base}/bracket`,
+      link: `${base}#structure`,
       required: true,
       lockedReason: !divsComplete ? "종별 + 운영 방식을 먼저 박제하세요" : undefined,
       // PR-1C-9 (B1): 잠금 시 선행 = 3단계 종별 + 운영 방식 (잠금 판정 = !divsComplete)

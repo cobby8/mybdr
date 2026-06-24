@@ -3,13 +3,14 @@
 // players 와 join 안 됨 → 매치별 jersey 매핑 응답 스키마상 표현 불가. Flutter 앱은 매치 진입 시
 // v1/matches/[id]/stats (이미 PR5 적용) 또는 roster 를 호출해 그 매치의 정확값을 받음.
 // 따라서 본 full-data dump 는 ttp.jerseyNumber 직접 사용이 정답.
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { withAuth, withErrorHandler, type AuthContext } from "@/lib/api/middleware";
-import { apiSuccess, notFound, forbidden } from "@/lib/api/response";
+import { notFound, forbidden } from "@/lib/api/response";
 import { getTournamentFullData, hasAccessToTournament } from "@/lib/services/tournament";
 import { getDisplayName } from "@/lib/utils/player-display-name";
 import { isSuperAdmin } from "@/lib/auth/is-super-admin";
 import { isRecorderAdmin } from "@/lib/auth/is-recorder-admin";
+import { toGameRulesResponse } from "@/lib/tournaments/game-rules";
 
 // FR-024: 토너먼트 전체 데이터 다운로드 (Flutter 오프라인 동기화)
 // 이 라우트는 Flutter와의 호환성을 위해 명시적 snake_case 사용
@@ -34,8 +35,9 @@ async function handler(
   if (!fullData) return notFound("Tournament not found");
 
   const { tournament, teams, players, matches, playerStats } = fullData;
+  const gameRules = toGameRulesResponse(tournament.game_rules);
 
-  return apiSuccess({
+  return NextResponse.json({
     tournament: {
       id: tournament.id,
       name: tournament.name,
@@ -47,7 +49,7 @@ async function handler(
       team_count: teams.length,
       logo_url: tournament.logo_url ?? null,
       court_bg_url: tournament.court_bg_url ?? null,
-      game_rules: tournament.game_rules ?? null,
+      ...gameRules,
     },
     teams: teams.map((t) => ({
       id: Number(t.id),

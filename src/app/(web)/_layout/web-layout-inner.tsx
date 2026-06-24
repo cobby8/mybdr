@@ -73,13 +73,13 @@ function WebLayoutBody({ children, initialUser }: WebLayoutInnerProps) {
       } | null;
       if (u && u.id) {
         // 2026-05-15 — 관리자 진입 URL 도출.
-        //   우선순위: super_admin → /admin (전역) / 협회 관리자 → /tournament-admin / recorder_admin → /referee/admin
+        //   우선순위: super_admin → /admin (전역) / 협회 관리자 → 내 권한 대회 목록 / recorder_admin → /referee/admin
         //   다중 권한 보유 시 super_admin 우선 (포함 범위 가장 넓음).
         const adminEntryUrl: string | null =
           u.admin_role === "super_admin" || u.admin_info?.role === "super_admin_sentinel"
             ? "/admin"
             : u.admin_info?.is_admin
-              ? "/tournament-admin"
+              ? "/tournament-admin/tournaments"
               : u.recorder_admin
                 ? "/referee/admin"
                 : null;

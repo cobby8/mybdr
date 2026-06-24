@@ -59,7 +59,7 @@ export function WizardShell({
         subtitle="super_admin 전용 — 협회 본체 + 사무국장 + 단가표를 차례로 등록합니다."
         breadcrumbs={[
           { label: "ADMIN" },
-          { label: "대회 운영자 도구" },
+          { label: "대회 관리" },
           { label: "협회 마법사" },
         ]}
         actions={

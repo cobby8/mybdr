@@ -436,7 +436,7 @@ function QuickCreateForm() {
           onSeriesCreated={handleSeriesCreated}
           onCancel={() => {
             if (confirm("진행 중인 작성을 종료하시겠습니까?")) {
-              router.push("/tournament-admin");
+              router.push("/tournament-admin/tournaments");
             }
           }}
           onSubmitDraft={handleSubmitDraft}
@@ -459,15 +459,15 @@ function QuickCreateForm() {
       {/* === 헤더: 시안 v2.14 AdminTournamentWizard1Step 패턴 박제 (Admin-7-B Sub-B3) ===
           이유: Sub-B1 (SetupHub) / Sub-B2 (EditWizard) 와 시각 일관성 박제 — AdminPageHeader 공통 컴포넌트.
                 Admin-3 `d98ff79` 박제 시각 자산 (eyebrow Navy + × 종료 confirm 1회) 100% 동등 이전.
-                breadcrumbs 3단계 (ADMIN › 대회 운영자 도구 › 새 대회) 신규 박제.
+                breadcrumbs 3단계 (ADMIN › 대회 관리 › 새 대회) 신규 박제.
           비즈 보존 (UI-2 `60dd37e`): 라우터 분기 / QuickCreateForm state / handleCreate POST / Phase 6 PR2 카드 / InlineSeriesForm 변경 0. */}
       <AdminPageHeader
-        eyebrow="대회 운영자 도구 · 마법사 진행 중"
+        eyebrow="대회 관리 · 마법사 진행 중"
         title="새 대회 만들기"
         subtitle="이름만 입력해도 대회를 만들 수 있어요. 나머지 설정은 대회 대시보드에서 차근차근 진행하세요."
         breadcrumbs={[
           { label: "ADMIN" },
-          { label: "대회 운영자 도구" },
+          { label: "대회 관리" },
           { label: "새 대회" },
         ]}
         actions={
@@ -485,7 +485,7 @@ function QuickCreateForm() {
               type="button"
               onClick={() => {
                 if (confirm("진행 중인 작성을 종료하시겠습니까?")) {
-                  router.push("/tournament-admin");
+                  router.push("/tournament-admin/tournaments");
                 }
               }}
               className="btn btn--sm"

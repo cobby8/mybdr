@@ -411,7 +411,7 @@ export function BoxScoreTable({
                 </tr>
               ))}
 
-              {/* DNP 행 — 통계 표기는 앱과 맞춰 MIN 포함 전부 "-" */}
+              {/* 미출전 선수는 앱 통계 화면과 맞춰 MIN 포함 전체 칸을 "-"로 표시 */}
               {dnpPlayers.map((p, i) => (
                 <tr
                   key={`dnp-${p.id}`}
@@ -434,7 +434,7 @@ export function BoxScoreTable({
                     {/* 2026-05-10 PlayerLink/TeamLink 2단계 — DNP 행 이름 셀도 동일하게 공개프로필 link. */}
                     <PlayerLink userId={p.user_id} name={p.name} />
                   </td>
-                  {/* DNP 셀: 정상행 MIN 자리. 앱 통계 화면과 동일하게 "-"로 표시한다. */}
+                  {/* 미출전 행의 MIN 자리도 앱 통계 화면과 맞춰 "-"로 표시 */}
                   {!isPaperMatch && (
                     <td
                       className="py-2 px-0.5 text-center text-xs font-semibold tracking-wider"

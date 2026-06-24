@@ -48,6 +48,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
         name: tournament.name,
         startDate: tournament.startDate,
         venue_name: tournament.venue_name,
+        places: tournament.places,
         series_id: tournament.series_id,
         maxTeams: tournament.maxTeams,
         entry_fee: tournament.entry_fee,

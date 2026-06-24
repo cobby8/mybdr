@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useParams } from "next/navigation";
+import { PanelLoadingState } from "./panel-loading-state";
 import Link from "next/link";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -78,8 +79,7 @@ export default function TournamentAdminsPage() {
     } catch { /* ignore */ }
   };
 
-  if (loading)
-    return <div data-skin="toss" className="flex h-40 items-center justify-center text-[var(--color-text-muted)]">불러오는 중...</div>;
+  if (loading) return <PanelLoadingState label="운영진 정보를 준비 중입니다." />;
 
   return (
     // Track B-c — Toss 토큰 적용 루트 opt-in

@@ -495,9 +495,8 @@ export function CtDivisions({
           <div className="ct-banner">
             <Icon name="info" size={15} color="var(--ok)" />
             <span>
-              {/* ⚠ 1차: DivisionRule 은 createTournament 가 생성하지 않음(categories jsonb 저장만).
-                   "자동 생성" 표현은 실제 동작과 어긋나 오해 → 저장 범위만 안내하도록 완화. */}
-              저장하면 <b style={{ color: "var(--ink)" }}>종별·디비전 구성 {totalDiv}건</b>이 저장됩니다. 세부 경기 규칙(진행방식·날짜·코트)은 대회 생성 후 상세 화면에서 설정합니다.
+              저장하면 <b style={{ color: "var(--ink)" }}>종별·디비전 구성 {totalDiv}건</b>과
+              디비전별 경기날짜·코트 배정이 저장됩니다. 진행방식과 배정은 대회 상세에서 다시 조정할 수 있습니다.
             </span>
           </div>
         </div>

@@ -32,10 +32,10 @@ export function RecordingModeTriggerClient({ tournamentId, defaultMode, matchSta
   const [open, setOpen] = useState(false);
 
   const modeLabel = defaultMode === "paper"
-      ? "종이 기록지"
+      ? "전자기록지"
       : defaultMode === "manual"
           ? "수기"
-          : "Flutter 기록앱";
+          : "기록앱";
 
   return (
     <>
@@ -51,7 +51,7 @@ export function RecordingModeTriggerClient({ tournamentId, defaultMode, matchSta
           <p className="text-sm">
             대회 기본: <span className="font-semibold">{modeLabel}</span>{" "}
             <span style={{ color: "var(--color-text-muted)" }}>
-              · 총 {matchStats.total}건 (Flutter {matchStats.flutter} / 종이 {matchStats.paper}
+              · 총 {matchStats.total}건 (기록앱 {matchStats.flutter} / 전자기록지 {matchStats.paper}
               {matchStats.inProgress > 0 && ` / 진행중 ${matchStats.inProgress}`})
             </span>
           </p>
@@ -59,7 +59,7 @@ export function RecordingModeTriggerClient({ tournamentId, defaultMode, matchSta
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="btn btn--sm"
+          className="ts-btn ts-btn--secondary ts-btn--sm"
         >
           {/* Material tune → lucide sliders-horizontal */}
           <Icon name="sliders-horizontal" size={16} className="align-middle mr-1" />
@@ -72,18 +72,18 @@ export function RecordingModeTriggerClient({ tournamentId, defaultMode, matchSta
         <div
           role="dialog"
           aria-modal="true"
-          className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-4"
+          className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-3 sm:p-4"
           style={{ background: "rgba(0,0,0,0.5)" }}
           onClick={() => setOpen(false)}
         >
           <div
-            className="relative my-4 w-full max-w-3xl"
+            className="relative my-3 w-full max-w-3xl sm:my-4"
             onClick={(e) => e.stopPropagation()}
           >
             <button
               type="button"
               onClick={() => setOpen(false)}
-              className="absolute right-3 top-3 z-10 rounded-[4px] p-2 text-[var(--color-text-muted)] hover:bg-[var(--color-surface)]"
+              className="ct-iconbtn absolute right-3 top-3 z-10"
               aria-label="닫기"
             >
               {/* Material close → lucide x */}

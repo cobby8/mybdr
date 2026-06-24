@@ -388,7 +388,7 @@ describe("setup-status — calculateSetupProgress 종합 (PR-Admin-5: 8→7 통�
     const p = calculateSetupProgress(tid, buildFullTournament(), buildFullRelation());
     const regItem = p.items.find((i) => i.key === "registration");
     expect(regItem).toBeDefined();
-    expect(regItem?.link).toMatch(/\/wizard\?step=2$/);
+    expect(regItem?.link).toMatch(/#setup$/);
   });
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -406,7 +406,7 @@ describe("setup-status — calculateSetupProgress 종합 (PR-Admin-5: 8→7 통�
     expect(divs).toBeDefined();
     expect(divs?.step).toBe(3);
     expect(divs?.title).toBe("종별 + 운영 방식");
-    expect(divs?.link).toMatch(/\/divisions$/);
+    expect(divs?.link).toMatch(/#structure$/);
     expect(divs?.required).toBe(true);
   });
 

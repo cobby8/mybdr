@@ -224,7 +224,7 @@ export default async function AdminTournamentDetailPage({
             <Link href={`/tournament-admin/tournaments/${id}`} className="btn btn--sm">
               운영 페이지
             </Link>
-            <Link href={`/tournament-admin/tournaments/${id}/teams`} className="btn btn--sm">
+            <Link href={`/tournament-admin/tournaments/${id}#teams`} className="btn btn--sm">
               참가팀 운영
             </Link>
           </>
@@ -307,10 +307,10 @@ export default async function AdminTournamentDetailPage({
                 <Link href={`/tournament-admin/tournaments/${id}`} className="ts-btn ts-btn--primary ts-btn--sm">
                   운영 허브
                 </Link>
-                <Link href={`/tournament-admin/tournaments/${id}/bracket`} className="ts-btn ts-btn--secondary ts-btn--sm">
+                <Link href={`/tournament-admin/tournaments/${id}#structure`} className="ts-btn ts-btn--secondary ts-btn--sm">
                   대진 운영
                 </Link>
-                <Link href={`/tournament-admin/tournaments/${id}/matches`} className="ts-btn ts-btn--secondary ts-btn--sm">
+                <Link href={`/tournament-admin/tournaments/${id}#matches`} className="ts-btn ts-btn--secondary ts-btn--sm">
                   경기 운영
                 </Link>
               </div>

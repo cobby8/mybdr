@@ -15,39 +15,20 @@
 
 import React from "react";
 import { Icon, Btn, Badge, Modal } from "@/components/admin-toss";
+import {
+  GAME_RULE_DEFAULTS,
+  GAME_RULE_PRESETS,
+  applyGameRulePreset,
+  type GameRulePreset,
+  type TournamentGameRules,
+} from "@/lib/tournaments/game-rules";
 
 // ── GameRules 계약 (camelCase · B-1 game_rules jsonb 1:1) ────────────────
-export type GameRules = {
-  homeColor: string;
-  awayColor: string;
-  vestProvided: boolean;
-  quarterType: string; // "4Q" | "HALF"
-  quarterMinutes: number;
-  clockMode: string; // "nonstop" | "dead"
-  shotClock: boolean; // ⚠ boolean (시안·B-2 정합)
-  foulLimit: number;
-  teamFoulBonus: number;
-  firstHalfTimeouts: number;
-  secondHalfTimeouts: number;
-  timeoutDuration: number;
-};
+export type GameRules = TournamentGameRules;
 
 // ── 경기 설정 기본값 (정본 export) — 통합 시 메인 폼이 import 해 일원화 ───
 //   값 출처: game_rules.dart GameRules.defaults (유니폼만 의뢰 디폴트).
-export const GAME_SETTINGS_DEFAULTS: GameRules = {
-  homeColor: "#FFFFFF", // 화이트 (밝은색)
-  awayColor: "#1B2A4A", // 네이비 (어두운색)
-  vestProvided: false,
-  quarterType: "4Q",
-  quarterMinutes: 10,
-  clockMode: "dead",
-  shotClock: true,
-  foulLimit: 5,
-  teamFoulBonus: 5,
-  firstHalfTimeouts: 2,
-  secondHalfTimeouts: 3,
-  timeoutDuration: 30,
-};
+export const GAME_SETTINGS_DEFAULTS: GameRules = GAME_RULE_DEFAULTS;
 
 // ── 유니폼 16색 팔레트 (기록앱 showUniformPalette 큐레이션과 동일) ───────
 //   [이름, hex]. 도메인 저지색 → hex 직접 사용 = 기록앱 승인 예외.
@@ -58,13 +39,8 @@ const UNIFORM_PALETTE: [string, string][] = [
   ["그레이", "#8A93A0"], ["마룬", "#7A1620"], ["틸", "#0E7C86"], ["골드", "#C9A227"],
 ];
 
-// 경기 방식 프리셋 (기록앱 _kPresets 와 동일 — 시간구성만).
-const GAME_PRESETS: { label: string; quarterType: string; minutes: number; toFirst: number; toSecond: number }[] = [
-  { label: "6분 4쿼터", quarterType: "4Q", minutes: 6, toFirst: 1, toSecond: 1 },
-  { label: "7분 4쿼터", quarterType: "4Q", minutes: 7, toFirst: 1, toSecond: 2 },
-  { label: "10분 4쿼터", quarterType: "4Q", minutes: 10, toFirst: 2, toSecond: 3 },
-  { label: "10분 전후반", quarterType: "HALF", minutes: 10, toFirst: 1, toSecond: 1 },
-];
+// 경기 방식 프리셋 (기록앱 _kPresets 와 동일).
+const GAME_PRESETS = GAME_RULE_PRESETS;
 
 // ── 휘도 유틸 (기록앱 1:1) ───────────────────────────────────────────────
 function lum(hex: string): number {
@@ -87,7 +63,7 @@ function hexName(hex: string): string {
 // ── 공통 소품 ────────────────────────────────────────────────────────────
 function CardHead({ icon, title, action }: { icon: string; title: string; action?: React.ReactNode }) {
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 11, marginBottom: 18 }}>
+    <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
       <span className="ct-headicon">
         <Icon name={icon} size={18} color="var(--primary)" />
       </span>
@@ -100,7 +76,7 @@ function CardHead({ icon, title, action }: { icon: string; title: string; action
 // 소제목 (유니폼 / 경기 방식 / 파울·타임아웃 구분)
 function Subhead({ icon, label, hint }: { icon: string; label: string; hint?: string }) {
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 7, margin: "20px 0 11px", fontSize: 12.5, fontWeight: 800, color: "var(--ink-soft)" }}>
+    <div style={{ display: "flex", alignItems: "center", gap: 7, margin: "12px 0 8px", fontSize: 12.5, fontWeight: 800, color: "var(--ink-soft)" }}>
       <Icon name={icon} size={15} color="var(--ink-mute)" />
       <span>{label}</span>
       {hint && <span style={{ marginLeft: "auto", fontSize: 11.5, fontWeight: 600, color: "var(--ink-dim)" }}>{hint}</span>}
@@ -142,13 +118,38 @@ function SegSm({ options, index, onSelect }: { options: string[]; index: number;
 // 설정 행 (좌: 이름·힌트 / 우: 컨트롤) — inline 스타일(우측 전용)
 function SetRow({ name, hint, control }: { name: string; hint?: string; control: React.ReactNode }) {
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "11px 0", borderBottom: "1px solid var(--border)" }}>
+    <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderBottom: "1px solid var(--border)" }}>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontSize: 13.5, fontWeight: 700, color: "var(--ink)" }}>{name}</div>
         {hint && <div style={{ fontSize: 11.5, color: "var(--ink-mute)", marginTop: 2 }}>{hint}</div>}
       </div>
       {control}
     </div>
+  );
+}
+
+function RuleDetails({
+  icon,
+  title,
+  summary,
+  children,
+}: {
+  icon: string;
+  title: string;
+  summary: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <details className="ct-rule-details">
+      <summary>
+        <span className="ct-rule-details__title">
+          <Icon name={icon} size={15} color="var(--ink-mute)" />
+          {title}
+        </span>
+        <span className="ct-rule-details__summary">{summary}</span>
+      </summary>
+      {children}
+    </details>
   );
 }
 
@@ -203,7 +204,7 @@ function UniformModal({ open, side, current, onClose, onPick }: { open: boolean;
         <span style={{ width: 42, height: 42, borderRadius: 10, background: valid ? hex : "var(--grey-100)", border: "2px solid var(--border-strong)", flex: "0 0 auto" }} />
         <div style={{ flex: 1 }}>
           <div className="ts-field__label" style={{ marginBottom: 4 }}>
-            직접 입력 (HEX)
+            직접 입력
           </div>
           <input
             className="ts-input"
@@ -243,7 +244,7 @@ function UniformCell({ team, hex, label, onClick }: { team: string; hex: string;
         display: "flex",
         alignItems: "center",
         gap: 10,
-        padding: "12px 14px",
+        padding: "10px 12px",
         background: "var(--grey-50)",
         border: "1px solid var(--border)",
         borderRadius: 14,
@@ -253,7 +254,7 @@ function UniformCell({ team, hex, label, onClick }: { team: string; hex: string;
       }}
     >
       {/* 색 미리보기 칩 */}
-      <span style={{ width: 34, height: 34, borderRadius: 9, background: hex, border: "2px solid var(--border-strong)", flex: "0 0 auto" }} />
+      <span style={{ width: 30, height: 30, borderRadius: 9, background: hex, border: "2px solid var(--border-strong)", flex: "0 0 auto" }} />
       <span style={{ flex: 1, minWidth: 0 }}>
         <span style={{ display: "block", fontSize: 11.5, fontWeight: 700, color: "var(--ink-mute)" }}>{label}</span>
         <span style={{ display: "block", fontSize: 14, fontWeight: 800, color: "var(--ink)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{team}</span>
@@ -286,97 +287,130 @@ export function CtGameSettings({
   // 어느 유니폼 셀을 편집 중인지 ("home" | "away" | null)
   const [uniSide, setUniSide] = React.useState<"home" | "away" | null>(null);
 
-  const activePreset = (p: (typeof GAME_PRESETS)[number]) =>
-    d.quarterType === p.quarterType && d.quarterMinutes === p.minutes && d.firstHalfTimeouts === p.toFirst && d.secondHalfTimeouts === p.toSecond;
+  const activePreset = (p: GameRulePreset) =>
+    d.quarterType === p.quarterType &&
+    d.quarterMinutes === p.quarterMinutes &&
+    d.clockMode === p.clockMode &&
+    d.firstHalfTimeouts === p.firstHalfTimeouts &&
+    d.secondHalfTimeouts === p.secondHalfTimeouts;
 
   return (
-    <section className="ts-card">
+    <section className="ts-card ct-game-rules-card">
       <CardHead icon="sliders-horizontal" title="경기 설정" action={<Badge tone="primary">기록앱 정합</Badge>} />
 
-      {/* ── 유니폼 색상 ── */}
-      <Subhead icon="shirt" label="유니폼 색상" hint="홈 밝은색 · 어웨이 어두운색" />
-      <div style={{ display: "flex", gap: 10 }}>
-        <UniformCell team={homeName} hex={d.homeColor} label="홈" onClick={() => setUniSide("home")} />
-        <UniformCell team={awayName} hex={d.awayColor} label="어웨이" onClick={() => setUniSide("away")} />
-      </div>
-      {/* 홈·어웨이 색 교체 */}
-      <button
-        type="button"
-        onClick={() => setMany({ homeColor: d.awayColor, awayColor: d.homeColor })}
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: 6,
-          marginTop: 10,
-          padding: "8px 12px",
-          background: "var(--grey-100)",
-          border: 0,
-          borderRadius: 10,
-          fontSize: 12.5,
-          fontWeight: 700,
-          color: "var(--ink-soft)",
-          fontFamily: "var(--ff)",
-          cursor: "pointer",
-        }}
-      >
-        <Icon name="arrow-left-right" size={16} />홈 · 어웨이 색 교체
-      </button>
-      {/* 조끼 제공 체크 */}
-      <label style={{ display: "flex", alignItems: "flex-start", gap: 10, marginTop: 12, cursor: "pointer" }}>
-        <input
-          type="checkbox"
-          checked={d.vestProvided}
-          onChange={(e) => set("vestProvided", e.target.checked)}
-          style={{ marginTop: 2, width: 18, height: 18, accentColor: "var(--primary)", cursor: "pointer", flex: "0 0 auto" }}
-        />
-        <span>
-          <span style={{ display: "block", fontSize: 13.5, fontWeight: 700, color: "var(--ink)" }}>팀 조끼(번호 조끼) 제공</span>
-          <span style={{ display: "block", fontSize: 11.5, color: "var(--ink-mute)", marginTop: 1 }}>주최 측이 조끼를 지급하는 경우 선택 (선택 옵션)</span>
-        </span>
-      </label>
-
-      {/* ── 경기 방식 ── */}
-      <Subhead icon="clock" label="경기 방식" hint="프리셋 또는 직접 조정" />
-      {/* 프리셋 칩 */}
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 4 }}>
-        {GAME_PRESETS.map((p) => (
+      <div className="ct-rule-topgrid">
+        <div>
+          {/* ── 유니폼 색상 ── */}
+          <Subhead icon="shirt" label="유니폼 색상" hint="홈 밝은색 · 원정 어두운색" />
+          <div style={{ display: "flex", gap: 10 }}>
+            <UniformCell team={homeName} hex={d.homeColor} label="홈" onClick={() => setUniSide("home")} />
+            <UniformCell team={awayName} hex={d.awayColor} label="원정" onClick={() => setUniSide("away")} />
+          </div>
+          {/* 홈·원정 색 교체 */}
           <button
-            key={p.label}
             type="button"
-            className="ts-chip"
-            data-active={activePreset(p) ? "true" : "false"}
-            onClick={() => setMany({ quarterType: p.quarterType, quarterMinutes: p.minutes, firstHalfTimeouts: p.toFirst, secondHalfTimeouts: p.toSecond })}
+            onClick={() => setMany({ homeColor: d.awayColor, awayColor: d.homeColor })}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              marginTop: 8,
+              padding: "7px 11px",
+              background: "var(--grey-100)",
+              border: 0,
+              borderRadius: 10,
+              fontSize: 12.5,
+              fontWeight: 700,
+              color: "var(--ink-soft)",
+              fontFamily: "var(--ff)",
+              cursor: "pointer",
+            }}
           >
-            {p.label}
+            <Icon name="arrow-left-right" size={16} />홈 · 원정 색 교체
           </button>
-        ))}
-      </div>
-      <SetRow
-        name="운영 방식"
-        hint="논스탑=러닝클락 · 데드=데드볼 정지"
-        control={<SegSm options={["논스탑", "데드"]} index={d.clockMode === "nonstop" ? 0 : 1} onSelect={(i) => set("clockMode", i === 0 ? "nonstop" : "dead")} />}
-      />
-      <SetRow
-        name="쿼터 수"
-        hint="정규 쿼터 구성"
-        control={<SegSm options={["4쿼터", "전후반"]} index={d.quarterType === "HALF" ? 1 : 0} onSelect={(i) => set("quarterType", i === 1 ? "HALF" : "4Q")} />}
-      />
-      <SetRow name="쿼터 시간" hint="분 / 쿼터" control={<Stepper value={d.quarterMinutes} unit="분" min={1} max={20} onChange={(v) => set("quarterMinutes", v)} />} />
-      {/* ⚠ shotClock = boolean (사용/미사용 → true/false) */}
-      <SetRow name="샷클락" hint="24초 · 리바운드 14초" control={<SegSm options={["사용", "미사용"]} index={d.shotClock ? 0 : 1} onSelect={(i) => set("shotClock", i === 0)} />} />
+          {/* 조끼 제공 체크 */}
+          <label style={{ display: "flex", alignItems: "flex-start", gap: 10, marginTop: 9, cursor: "pointer" }}>
+            <input
+              type="checkbox"
+              checked={d.vestProvided}
+              onChange={(e) => set("vestProvided", e.target.checked)}
+              style={{ marginTop: 2, width: 18, height: 18, accentColor: "var(--primary)", cursor: "pointer", flex: "0 0 auto" }}
+            />
+            <span>
+              <span style={{ display: "block", fontSize: 13.5, fontWeight: 700, color: "var(--ink)" }}>팀 조끼(번호 조끼) 제공</span>
+              <span style={{ display: "block", fontSize: 11.5, color: "var(--ink-mute)", marginTop: 1 }}>주최 측이 조끼를 지급하는 경우 선택</span>
+            </span>
+          </label>
+        </div>
 
-      {/* ── 파울 · 타임아웃 ── */}
-      <Subhead icon="flag" label="파울 · 타임아웃" />
-      <SetRow name="개인 파울 한도" hint="초과 시 강제 교체" control={<Stepper value={d.foulLimit} unit="파울" min={4} max={6} onChange={(v) => set("foulLimit", v)} />} />
-      <SetRow name="팀파울 보너스" hint="쿼터당 · 초과 시 자유투" control={<Stepper value={d.teamFoulBonus} unit="파울" min={3} max={7} onChange={(v) => set("teamFoulBonus", v)} />} />
-      <SetRow name="타임아웃 · 전반" hint="1·2쿼터 합산" control={<Stepper value={d.firstHalfTimeouts} unit="회" min={0} max={4} onChange={(v) => set("firstHalfTimeouts", v)} />} />
-      <SetRow name="타임아웃 · 후반" hint="3·4쿼터 합산" control={<Stepper value={d.secondHalfTimeouts} unit="회" min={0} max={4} onChange={(v) => set("secondHalfTimeouts", v)} />} />
-      <SetRow name="타임아웃 시간" hint="1회당 · 기본 30초" control={<Stepper value={d.timeoutDuration} unit="초" min={30} max={90} step={10} onChange={(v) => set("timeoutDuration", v)} />} />
+        <div>
+          {/* ── 경기 방식 ── */}
+          <Subhead icon="clock" label="경기 방식" hint="프리셋 또는 직접 조정" />
+          {/* 프리셋 칩 */}
+          <div className="ct-preset-grid">
+            {GAME_PRESETS.map((p) => (
+              <button
+                key={p.label}
+                type="button"
+                className="ts-chip"
+                data-active={activePreset(p) ? "true" : "false"}
+                onClick={() => onChange(applyGameRulePreset(d, p))}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="ct-rulegrid">
+        <SetRow
+          name="운영 방식"
+          hint="논스톱=계속 진행 · 올데드=시계 정지"
+          control={<SegSm options={["논스톱", "올데드"]} index={d.clockMode === "nonstop" ? 0 : 1} onSelect={(i) => onChange(applyGameRulePreset(d, { label: "", quarterType: d.quarterType, quarterMinutes: d.quarterMinutes, clockMode: i === 0 ? "nonstop" : "dead", firstHalfTimeouts: d.firstHalfTimeouts, secondHalfTimeouts: d.secondHalfTimeouts }))} />}
+        />
+        <SetRow
+          name="쿼터 수"
+          hint="정규 쿼터 구성"
+          control={<SegSm options={["4쿼터", "전후반"]} index={d.quarterType === "HALF" ? 1 : 0} onSelect={(i) => onChange(applyGameRulePreset(d, { label: "", quarterType: i === 1 ? "HALF" : "4Q", quarterMinutes: d.quarterMinutes, clockMode: d.clockMode, firstHalfTimeouts: d.firstHalfTimeouts, secondHalfTimeouts: d.secondHalfTimeouts }))} />}
+        />
+        <SetRow name="쿼터 시간" hint="분 / 쿼터" control={<Stepper value={d.quarterMinutes} unit="분" min={1} max={20} onChange={(v) => onChange(applyGameRulePreset(d, { label: "", quarterType: d.quarterType, quarterMinutes: v, clockMode: d.clockMode, firstHalfTimeouts: d.firstHalfTimeouts, secondHalfTimeouts: d.secondHalfTimeouts }))} />} />
+        <SetRow name="연장 시간" hint="분 / 연장" control={<Stepper value={d.overtimeMinutes} unit="분" min={1} max={20} onChange={(v) => set("overtimeMinutes", v)} />} />
+        <SetRow name="막판 득점 정지" hint="올데드에서만 적용" control={<Stepper value={d.lastScoreStopMin} unit="분" min={0} max={2} onChange={(v) => set("lastScoreStopMin", v)} />} />
+        <SetRow name="샷클락" hint="24초 · 리바운드 14초" control={<SegSm options={["사용", "미사용"]} index={d.shotClockEnabled ? 0 : 1} onSelect={(i) => set("shotClockEnabled", i === 0)} />} />
+      </div>
+
+      <RuleDetails
+        icon="flag"
+        title="파울 · 타임아웃"
+        summary={`개인 ${d.foulLimit} · 팀 ${d.teamFoulBonus} · 타임아웃 ${d.firstHalfTimeouts}/${d.secondHalfTimeouts}`}
+      >
+        <div className="ct-rulegrid">
+        <SetRow name="개인 파울 한도" hint="초과 시 강제 교체" control={<Stepper value={d.foulLimit} unit="파울" min={4} max={6} onChange={(v) => set("foulLimit", v)} />} />
+        <SetRow name="팀파울 보너스" hint="쿼터당 · 초과 시 자유투" control={<Stepper value={d.teamFoulBonus} unit="파울" min={3} max={7} onChange={(v) => set("teamFoulBonus", v)} />} />
+        <SetRow name="타임아웃 · 전반" hint="1·2쿼터 합산" control={<Stepper value={d.firstHalfTimeouts} unit="회" min={0} max={4} onChange={(v) => set("firstHalfTimeouts", v)} />} />
+        <SetRow name="타임아웃 · 후반" hint="3·4쿼터 합산" control={<Stepper value={d.secondHalfTimeouts} unit="회" min={0} max={4} onChange={(v) => set("secondHalfTimeouts", v)} />} />
+        <SetRow name="타임아웃 시간" hint="1회당 · 기본 30초" control={<Stepper value={d.timeoutDurationSeconds} unit="초" min={30} max={90} step={10} onChange={(v) => set("timeoutDurationSeconds", v)} />} />
+        </div>
+      </RuleDetails>
+
+      <RuleDetails
+        icon="timer"
+        title="휴식 시간"
+        summary={`쿼터 ${d.shortBreakDurationSeconds}초 · 하프 ${d.halftimeDurationSeconds}초`}
+      >
+        <div className="ct-rulegrid">
+        <SetRow name="쿼터 사이" hint="1·3쿼터 후" control={<Stepper value={d.shortBreakDurationSeconds} unit="초" min={0} max={600} step={30} onChange={(v) => set("shortBreakDurationSeconds", v)} />} />
+        <SetRow name="하프타임" hint="2쿼터 후" control={<Stepper value={d.halftimeDurationSeconds} unit="초" min={0} max={900} step={30} onChange={(v) => set("halftimeDurationSeconds", v)} />} />
+        <SetRow name="연장 전 휴식" hint="연장 시작 전" control={<Stepper value={d.overtimeBreakDurationSeconds} unit="초" min={0} max={600} step={30} onChange={(v) => set("overtimeBreakDurationSeconds", v)} />} />
+        <SetRow name="휴식 자동 시작" control={<SegSm options={["사용", "미사용"]} index={d.autoIntervalTimerEnabled ? 0 : 1} onSelect={(i) => set("autoIntervalTimerEnabled", i === 0)} />} />
+        </div>
+      </RuleDetails>
 
       {/* 유니폼 색 선택 모달 (홈/어웨이 공용) */}
       <UniformModal
         open={uniSide !== null}
-        side={uniSide === "home" ? "홈" : "어웨이"}
+        side={uniSide === "home" ? "홈" : "원정"}
         current={uniSide === "home" ? d.homeColor : d.awayColor}
         onClose={() => setUniSide(null)}
         onPick={(hex) => {

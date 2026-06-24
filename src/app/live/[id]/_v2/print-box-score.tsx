@@ -432,13 +432,13 @@ function PrintBoxScoreTable({
                 )}
               </tr>
             ))}
-            {/* DNP 행 — 앱/화면 통계와 맞춰 MIN 포함 전부 "-"로 표시한다.
+            {/* 미출전 선수는 앱 통계 화면과 맞춰 MIN 포함 전체 칸을 "-"로 표시.
                 2026-05-13 FIBA Phase 21: 종이 매치 시 슈팅 6 컬럼 hide → 16 → 10 으로 줄임. */}
             {dnpPlayers.map((p) => (
               <tr key={`dnp-${p.id}`}>
                 <td>{p.jersey_number ?? "-"}</td>
                 <td style={{ textAlign: "left" }}>{p.name}</td>
-                {/* DNP 셀: 정상행 MIN 자리. paper 매치도 화면 통계와 동일하게 "-"로 표시한다. */}
+                {/* 미출전 행의 MIN 자리도 앱 통계 화면과 맞춰 "-"로 표시 */}
                 {!isPaperMatch && <td style={{ fontWeight: 600 }}>-</td>}
                 {/* 2026-05-13 paper 매치 슈팅 6컬럼 hide + 2026-05-17 MIN/+/- 추가 hide → 16 - 6 - 2 = 8 */}
                 {Array.from({ length: isPaperMatch ? 8 : 16 }).map((_, idx) => (

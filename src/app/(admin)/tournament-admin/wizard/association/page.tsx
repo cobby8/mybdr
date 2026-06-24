@@ -87,10 +87,10 @@ export default function AssociationWizardPage() {
     }
   }, [authStatus, router]);
 
-  // 권한 부족 시 tournament-admin 메인으로 redirect (시안 spec — "협회 생성은 super_admin 전용").
+  // 권한 부족 시 대회 관리 목록으로 redirect (협회 생성은 super_admin 전용).
   useEffect(() => {
     if (authStatus === "unauthorized") {
-      router.push("/tournament-admin");
+      router.push("/tournament-admin/tournaments");
     }
   }, [authStatus, router]);
 
@@ -277,10 +277,10 @@ export default function AssociationWizardPage() {
         }
       }
 
-      // 5) 성공 — draft 삭제 + tournament-admin 메인으로 redirect.
-      //    이유: 협회 상세 페이지 (`/tournament-admin/associations/[id]`) 가 아직 PR 없음 → tournament-admin 안전 fallback.
+      // 5) 성공 — draft 삭제 + 대회 관리 목록으로 redirect.
+      //    이유: 협회 상세 페이지 (`/tournament-admin/associations/[id]`) 가 아직 PR 없음 → 목록 fallback.
       clearDraft();
-      router.push("/tournament-admin?association_created=1");
+      router.push("/tournament-admin/tournaments");
     } catch {
       setSubmitError("네트워크 오류가 발생했습니다. 잠시 후 다시 시도하세요.");
       setSubmitting(false);

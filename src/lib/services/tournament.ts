@@ -11,6 +11,8 @@ import { prisma } from "@/lib/db/prisma";
 import type { Prisma } from "@prisma/client";
 // 대회 기록방식(풀스탯/전자기록지/수기) — my-tournaments 응답 default_recording_mode 산출용
 import { getTournamentDefaultMode } from "@/lib/tournaments/recording-mode";
+import { normalizeGameRules } from "@/lib/tournaments/game-rules";
+import { buildDivisionRuleSeedsFromCategories } from "@/lib/tournaments/division-rule-sync";
 
 // ---------------------------------------------------------------------------
 // apiToken 발급 헬퍼 — Flutter 앱 대회 진입 토큰 (64자 hex)
@@ -476,6 +478,7 @@ export async function getMyTournaments(
  */
 export async function createTournament(input: CreateTournamentInput) {
   const apiToken = generateApiToken();
+  const gameRules = input.gameRules ? normalizeGameRules(input.gameRules) : undefined;
 
   // tournament.create data — series_id 가 있으면 함께 박제. 권한 검증은 호출자 책임.
   // Unchecked 변형 사용 — series_id (관계 connect 없이 raw FK) 박제 위해.
@@ -507,8 +510,8 @@ export async function createTournament(input: CreateTournamentInput) {
     game_method: input.gameMethod ?? null,
     places: input.places ?? undefined,
     // (가) 경기설정 jsonb — 시안 12키 그대로. 미전송 시 {} (스키마 @default 처리).
-    ...(input.gameRules
-      ? { game_rules: JSON.parse(JSON.stringify(input.gameRules)) as Prisma.InputJsonValue }
+    ...(gameRules
+      ? { game_rules: JSON.parse(JSON.stringify(gameRules)) as Prisma.InputJsonValue }
       : {}),
     // (나) 날짜↔코트 jsonb — [{id,date,court_ids:[]}]. 미전송 시 [] (스키마 @default 처리).
     ...(input.scheduleDates
@@ -544,19 +547,35 @@ export async function createTournament(input: CreateTournamentInput) {
       : {}),
   };
 
-  // seriesId 박제 시 — $transaction 안에서 (1) tournament INSERT (2) series 카운터 +1 원자 처리.
-  // 둘 중 하나 실패 시 전체 롤백 → 카운터 stale 사고 차단.
-  // seriesId 없으면 기존 단일 prisma.tournament.create 흐름 유지 (회귀 0).
-  const tournament = input.seriesId != null
-    ? await prisma.$transaction(async (tx) => {
-        const created = await tx.tournament.create({ data: createData });
+  const divisionRuleSeeds = buildDivisionRuleSeedsFromCategories({
+    categories: input.categories,
+    divFees: input.divFees,
+    entryFee: input.entryFee ?? 0,
+    format: input.format ?? "single_elimination",
+  });
+
+  // 대회 생성과 종별 운영 룰 생성을 한 트랜잭션으로 묶어 반쪽 생성 상태를 막는다.
+  const tournament = await prisma.$transaction(async (tx) => {
+    const created = await tx.tournament.create({ data: createData });
+
+    if (divisionRuleSeeds.length > 0) {
+      await tx.tournamentDivisionRule.createMany({
+        data: divisionRuleSeeds.map((rule) => ({
+          ...rule,
+          tournamentId: created.id,
+        })),
+      });
+    }
+
+    if (input.seriesId != null) {
         await tx.tournament_series.update({
-          where: { id: input.seriesId! },
+          where: { id: input.seriesId },
           data: { tournaments_count: { increment: 1 } },
         });
-        return created;
-      })
-    : await prisma.tournament.create({ data: createData });
+    }
+
+    return created;
+  });
 
   // 서브도메인이 있으면 TournamentSite 생성
   if (input.subdomain) {

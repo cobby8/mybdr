@@ -2,9 +2,8 @@ import { prisma } from "@/lib/db/prisma";
 import { getWebSession } from "@/lib/auth/web-session";
 import { isSuperAdmin } from "@/lib/auth/is-super-admin";
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { AdminPageHeader } from "@/components/admin/admin-page-header";
-// PR-1C-7 박제 (A1 AdminTournamentAdminList) — 4 옵션 진입 panel + 상태 탭 + 카드 list
-import { AdminEntryCta } from "./_components/admin-entry-cta";
 import {
   AdminTournamentList,
   type AdminTournamentRow,
@@ -15,11 +14,10 @@ export const dynamic = "force-dynamic";
 /**
  * 본인 운영 대회 목록 — /tournament-admin/tournaments
  *
- * 2026-05-28 PR-1C-7 (A1 진입점 통합) 박제:
- *   - 단일 hero "+ 새 대회 만들기" Link → 4 옵션 인라인 panel (AdminEntryCta)
- *     · Quick / 단계별 / PDF 요강 / 협회(super_admin) = 운영 실제 라우트 매핑
- *   - <Card> 카드 리스트 → 시안 aen-tabs(상태 탭) + aen-row(카드) (AdminTournamentList)
- *   - Prisma 쿼리 / super_admin 분기 / 데이터 패칭 = 비즈 0 변경 (시각만)
+ * 2026-06-24 IA 단순화:
+ *   - "대회 운영자 도구" 허브를 제거하고 대회 관리 목록을 진입점으로 고정.
+ *   - 생성은 헤더의 단일 "+ 새 대회 만들기" 액션만 유지.
+ *   - Prisma 쿼리 / super_admin 분기 / 권한 필터 = 비즈 0 변경.
  *
  * 2026-05-15 Admin-7-A 박제 (이전):
  *   - raw <h1> + Link → AdminPageHeader (eyebrow/breadcrumbs/actions)
@@ -63,20 +61,26 @@ export default async function TournamentAdminTournamentsPage() {
 
   return (
     <div>
-      {/* AdminPageHeader 보존 — eyebrow + breadcrumbs (actions 의 단일 CTA 는 hero panel 로 이동) */}
+      {/* AdminPageHeader 보존 — 목록 화면의 단일 생성 CTA 만 노출 */}
       <AdminPageHeader
         eyebrow={`ADMIN · 대회 운영${isSuper ? " · SUPER" : ""}`}
         title={headerLabel}
         subtitle={`${isSuper ? "전체" : "내가 운영하는"} 대회를 상태별로 관리합니다.`}
         breadcrumbs={[
           { label: "ADMIN" },
-          { label: "대회 운영자 도구" },
+          { label: "대회 관리" },
           { label: headerLabel },
         ]}
+        actions={
+          <Link
+            href="/tournament-admin/tournaments/new/wizard"
+            className="btn btn--primary"
+            style={{ textDecoration: "none" }}
+          >
+            + 새 대회 만들기
+          </Link>
+        }
       />
-
-      {/* PR-1C-7: 단일 hero CTA → 4 옵션 인라인 panel (협회 옵션 = super_admin 전용) */}
-      <AdminEntryCta isSuperAdmin={isSuper} />
 
       {/* PR-1C-7: 상태 탭 + 검색 + 카드 list (클라이언트 필터 / 새 fetch ❌) */}
       <AdminTournamentList rows={rows} />
