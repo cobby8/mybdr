@@ -36,6 +36,7 @@ import { MatchYouTubeModal } from "./_v2/match-youtube-modal";
 // API 응답 same_day_matches[] 가 비어있거나 1건 이하면 Rail 자체 null 반환 (영역 hidden).
 import { LiveMatchCardRail } from "./_v2/live-match-card-rail";
 import type { LiveMatchCardData } from "./_v2/live-match-card";
+import { LiveShareButton } from "./_v2/live-share-button";
 // 2026-05-10 PlayerLink/TeamLink 2단계 마이그 — 라이브/scheduled/ready 매치 hero scoreboard 팀명·박스스코어 선수명 link.
 import { TeamLink } from "@/components/links/team-link";
 import { PlayerLink } from "@/components/links/player-link";
@@ -1222,6 +1223,7 @@ export default function LiveBoxScorePage() {
               <span>기록하기</span>
             </Link>
           )}
+          <LiveShareButton iconOnlyOnMobile />
           {/* 2026-05-05 PR4 — 운영자 전용 "임시 번호" 버튼 (W1 매치 한정 jersey override).
               isAdmin = admin-check 통과 시에만 노출. 모달 열면 home/away players 전달. */}
           {isAdmin && (
@@ -1991,8 +1993,7 @@ function BoxScoreTable({
                   </td>
                 </tr>
               ))}
-              {/* 2026-04-15: DNP 행 재구조화 — colSpan 제거, NBA 스타일로 셀마다 채움.
-                  MIN 셀에 "DNP" 표시, 나머지 스탯 16개는 모두 "-" */}
+              {/* 미출전 행 — colSpan 없이 셀마다 "-"를 채워 표 폭을 유지 */}
               {dnpPlayers.map((p, i) => (
                 <tr
                   key={`dnp-${p.id}`}
@@ -2015,12 +2016,12 @@ function BoxScoreTable({
                     {/* 2026-05-10 PlayerLink/TeamLink 2단계 — DNP 행 이름 셀도 동일하게 link. */}
                     <PlayerLink userId={p.user_id} name={p.name} />
                   </td>
-                  {/* MIN 셀에 "DNP" — text-xs + semibold + muted 색으로 시각적 구분 */}
+                  {/* 미출전 선수는 앱 통계 화면과 맞춰 MIN도 "-"로 표시 */}
                   <td
                     className="py-2 px-0.5 text-center text-xs font-semibold tracking-wider"
                     style={{ color: "var(--color-text-muted)" }}
                   >
-                    DNP
+                    -
                   </td>
                   {/* 나머지 16개 스탯 셀은 모두 "-" */}
                   <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-muted)" }}>-</td>
@@ -2641,12 +2642,12 @@ function PrintBoxScoreTable({
                 <td>{p.plus_minus != null ? (p.plus_minus > 0 ? `+${p.plus_minus}` : p.plus_minus) : "-"}</td>
               </tr>
             ))}
-            {/* DNP 행 — MIN에 "DNP", 나머지 "-" */}
+            {/* 미출전 선수는 앱 통계 화면과 맞춰 MIN도 "-"로 표시 */}
             {dnpPlayers.map((p) => (
               <tr key={`dnp-${p.id}`}>
                 <td>{p.jersey_number ?? "-"}</td>
                 <td style={{ textAlign: "left" }}>{p.name}</td>
-                <td style={{ fontWeight: 600 }}>DNP</td>
+                <td style={{ fontWeight: 600 }}>-</td>
                 <td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td>
                 <td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td>
               </tr>

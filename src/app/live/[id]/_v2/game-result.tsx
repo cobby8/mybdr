@@ -30,6 +30,7 @@ import { TabPlayers } from "./tab-players";
 import { TabTimeline } from "./tab-timeline";
 import { TabShotChart } from "./tab-shot-chart";
 import { PrintBoxScoreArea } from "./print-box-score";
+import { LiveShareButton } from "./live-share-button";
 // 2026-05-02: 옛 page.tsx 의 풀 프린트 다이얼로그 복원
 import { PrintOptionsDialog, type PrintOptions } from "./print-options-dialog";
 
@@ -345,6 +346,15 @@ export function GameResultV2({ match }: { match: MatchDataV2 }) {
         >
           {match.tournament_name}
         </span>
+        <LiveShareButton
+          iconOnlyOnMobile
+          style={{
+            height: 34,
+            backgroundColor: "var(--bg-elev)",
+            color: "var(--ink-soft)",
+            borderColor: "var(--border)",
+          }}
+        />
         {/* 경기 종료 라벨 */}
         <span
           style={{
