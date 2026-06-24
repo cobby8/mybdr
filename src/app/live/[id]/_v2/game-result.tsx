@@ -32,6 +32,7 @@ import { TabShotChart } from "./tab-shot-chart";
 import { PrintBoxScoreArea } from "./print-box-score";
 // 2026-05-02: 옛 page.tsx 의 풀 프린트 다이얼로그 복원
 import { PrintOptionsDialog, type PrintOptions } from "./print-options-dialog";
+import { ShareLiveButton } from "./share-live-button";
 
 // page.tsx 의 MatchData 와 동일한 공용 타입 — 순환 참조 피하려 여기에 최소 정의를 다시 둠
 // (리팩토링 금지 원칙상 page.tsx export 를 건드리지 않기 위함)
@@ -263,6 +264,11 @@ export function GameResultV2({ match }: { match: MatchDataV2 }) {
     };
   }, [printOptions, match]);
 
+  const shareTitle = `${match.home_team.name} vs ${match.away_team.name} 라이브 스코어`;
+  const shareText = match.round_name
+    ? `${match.tournament_name} - ${match.round_name}`
+    : match.tournament_name;
+
   return (
     // v2 디자인 토큰 사용 (globals.css 의 .page / --ink / --accent 등)
     // 2026-05-02: data-live-root + data-printing — 프린트 시 #box-score-print-area 외 노드 숨김
@@ -345,6 +351,24 @@ export function GameResultV2({ match }: { match: MatchDataV2 }) {
         >
           {match.tournament_name}
         </span>
+        <ShareLiveButton
+          title={shareTitle}
+          text={shareText}
+          className="btn btn--sm"
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 4,
+            padding: "7px 10px",
+            background: "var(--bg-elev)",
+            color: "var(--ink-soft)",
+            border: "1px solid var(--border)",
+            borderRadius: 4,
+            cursor: "pointer",
+            fontSize: 12,
+            fontWeight: 600,
+          }}
+        />
         {/* 경기 종료 라벨 */}
         <span
           style={{

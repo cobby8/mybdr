@@ -411,7 +411,7 @@ export function BoxScoreTable({
                 </tr>
               ))}
 
-              {/* DNP 행 — MIN 셀에 "DNP" 표시, 나머지 16개 셀은 "-" */}
+              {/* DNP 행 — 사용자 표시값은 "-"로 통일 */}
               {dnpPlayers.map((p, i) => (
                 <tr
                   key={`dnp-${p.id}`}
@@ -434,13 +434,13 @@ export function BoxScoreTable({
                     {/* 2026-05-10 PlayerLink/TeamLink 2단계 — DNP 행 이름 셀도 동일하게 공개프로필 link. */}
                     <PlayerLink userId={p.user_id} name={p.name} />
                   </td>
-                  {/* DNP 셀: 정상행 MIN 자리. 2026-05-17 paper 매치 시 MIN hide → DNP 표시는 첫 일반 셀(PTS 자리)로 이동 */}
+                  {/* DNP 셀: 정상행 MIN 자리. 2026-06-24 사용자 표시값은 "-"로 통일 */}
                   {!isPaperMatch && (
                     <td
                       className="py-2 px-0.5 text-center text-xs font-semibold tracking-wider"
                       style={{ color: "var(--color-text-muted)" }}
                     >
-                      DNP
+                      -
                     </td>
                   )}
                   {/* 2026-05-13 FIBA Phase 21: paper 매치 시 슈팅 6 컬럼 hide. 2026-05-17 paper 매치 시 MIN/+/- 추가 hide → 16 - 6 - 2 = 8 */}
@@ -450,7 +450,7 @@ export function BoxScoreTable({
                       className="py-2 px-0.5 text-center text-xs font-semibold tracking-wider"
                       style={{ color: "var(--color-text-muted)" }}
                     >
-                      {isPaperMatch && idx === 0 ? "DNP" : "-"}
+                      -
                     </td>
                   ))}
                 </tr>

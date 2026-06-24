@@ -432,18 +432,18 @@ function PrintBoxScoreTable({
                 )}
               </tr>
             ))}
-            {/* DNP 행 — MIN 셀에 "DNP", 나머지 셀 "-".
+            {/* DNP 행 — 사용자 표시값은 "-"로 통일.
                 2026-05-13 FIBA Phase 21: 종이 매치 시 슈팅 6 컬럼 hide → 16 → 10 으로 줄임. */}
             {dnpPlayers.map((p) => (
               <tr key={`dnp-${p.id}`}>
                 <td>{p.jersey_number ?? "-"}</td>
                 <td style={{ textAlign: "left" }}>{p.name}</td>
-                {/* DNP 셀: 정상행 MIN 자리. paper 매치 시 MIN hide → DNP 표시는 첫 일반 셀(PTS 자리)로 이동 */}
-                {!isPaperMatch && <td style={{ fontWeight: 600 }}>DNP</td>}
+                {/* DNP 셀: 정상행 MIN 자리. 2026-06-24 사용자 표시값은 "-"로 통일 */}
+                {!isPaperMatch && <td style={{ fontWeight: 600 }}>-</td>}
                 {/* 2026-05-13 paper 매치 슈팅 6컬럼 hide + 2026-05-17 MIN/+/- 추가 hide → 16 - 6 - 2 = 8 */}
                 {Array.from({ length: isPaperMatch ? 8 : 16 }).map((_, idx) => (
                   <td key={idx} style={isPaperMatch && idx === 0 ? { fontWeight: 600 } : undefined}>
-                    {isPaperMatch && idx === 0 ? "DNP" : "-"}
+                    -
                   </td>
                 ))}
               </tr>

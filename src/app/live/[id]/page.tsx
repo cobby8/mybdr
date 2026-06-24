@@ -36,6 +36,7 @@ import { MatchYouTubeModal } from "./_v2/match-youtube-modal";
 // API 응답 same_day_matches[] 가 비어있거나 1건 이하면 Rail 자체 null 반환 (영역 hidden).
 import { LiveMatchCardRail } from "./_v2/live-match-card-rail";
 import type { LiveMatchCardData } from "./_v2/live-match-card";
+import { ShareLiveButton } from "./_v2/share-live-button";
 // 2026-05-10 PlayerLink/TeamLink 2단계 마이그 — 라이브/scheduled/ready 매치 hero scoreboard 팀명·박스스코어 선수명 link.
 import { TeamLink } from "@/components/links/team-link";
 import { PlayerLink } from "@/components/links/player-link";
@@ -1073,6 +1074,11 @@ export default function LiveBoxScorePage() {
     return <GameResultV2 match={match as unknown as MatchDataV2} />;
   }
 
+  const shareTitle = `${match.home_team.name} vs ${match.away_team.name} 라이브 스코어`;
+  const shareText = match.round_name
+    ? `${match.tournament_name} - ${match.round_name}`
+    : match.tournament_name;
+
   return (
     // 페이지 최상단 컨테이너 — 배경/글자 기본색은 모두 CSS 변수 사용 (테마 전환 대응)
     // 2026-04-15: zoom 1.1로 전체 UI 110% 확대 (박스스코어 가독성 개선)
@@ -1253,6 +1259,22 @@ export default function LiveBoxScorePage() {
             </button>
           )}
           {/* 헤더 우측: 테마 토글만 유지. 새로고침 버튼은 스코어카드 가운데로 이동 (Phase 1) */}
+          <ShareLiveButton
+            title={shareTitle}
+            text={shareText}
+            className="hidden sm:flex items-center gap-1 px-2 py-1.5 rounded-md text-xs transition-colors hover:bg-[var(--color-elevated)]"
+            style={{
+              color: "var(--color-text-secondary)",
+              border: "1px solid var(--color-border)",
+            }}
+          />
+          <ShareLiveButton
+            title={shareTitle}
+            text={shareText}
+            compact
+            className="sm:hidden flex items-center justify-center w-8 h-8 rounded-md transition-colors hover:bg-[var(--color-elevated)]"
+            style={{ color: "var(--color-text-secondary)" }}
+          />
           <ThemeToggle />
         </div>
       </div>
@@ -1992,7 +2014,7 @@ function BoxScoreTable({
                 </tr>
               ))}
               {/* 2026-04-15: DNP 행 재구조화 — colSpan 제거, NBA 스타일로 셀마다 채움.
-                  MIN 셀에 "DNP" 표시, 나머지 스탯 16개는 모두 "-" */}
+                  2026-06-24: 사용자 표시값은 DNP 대신 "-"로 통일. */}
               {dnpPlayers.map((p, i) => (
                 <tr
                   key={`dnp-${p.id}`}
@@ -2015,12 +2037,12 @@ function BoxScoreTable({
                     {/* 2026-05-10 PlayerLink/TeamLink 2단계 — DNP 행 이름 셀도 동일하게 link. */}
                     <PlayerLink userId={p.user_id} name={p.name} />
                   </td>
-                  {/* MIN 셀에 "DNP" — text-xs + semibold + muted 색으로 시각적 구분 */}
+                  {/* MIN 셀도 사용자 표시값은 "-"로 통일 */}
                   <td
                     className="py-2 px-0.5 text-center text-xs font-semibold tracking-wider"
                     style={{ color: "var(--color-text-muted)" }}
                   >
-                    DNP
+                    -
                   </td>
                   {/* 나머지 16개 스탯 셀은 모두 "-" */}
                   <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-muted)" }}>-</td>
@@ -2641,12 +2663,12 @@ function PrintBoxScoreTable({
                 <td>{p.plus_minus != null ? (p.plus_minus > 0 ? `+${p.plus_minus}` : p.plus_minus) : "-"}</td>
               </tr>
             ))}
-            {/* DNP 행 — MIN에 "DNP", 나머지 "-" */}
+            {/* DNP 행 — 사용자 표시값은 "-"로 통일 */}
             {dnpPlayers.map((p) => (
               <tr key={`dnp-${p.id}`}>
                 <td>{p.jersey_number ?? "-"}</td>
                 <td style={{ textAlign: "left" }}>{p.name}</td>
-                <td style={{ fontWeight: 600 }}>DNP</td>
+                <td style={{ fontWeight: 600 }}>-</td>
                 <td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td>
                 <td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td>
               </tr>
