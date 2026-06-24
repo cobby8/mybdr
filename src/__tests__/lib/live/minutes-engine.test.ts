@@ -179,6 +179,38 @@ describe("calculateMinutes — PBP-only 출전시간 엔진", () => {
     expect(bySec.get(ID(6))).toBe(240);
   });
 
+  it("케이스 7b: Flutter split sub_out/sub_in rows also count bench minutes", () => {
+    const starters = [ID(1), ID(2), ID(3), ID(4), ID(5)];
+    const pbps: MinutesPbp[] = [
+      ...makeQuarterStarters(1, starters),
+      {
+        ttpId: ID(5), quarter: 1, clock: 300, type: "sub_out",
+        subtype: null, subInId: null, subOutId: ID(5),
+      },
+      {
+        ttpId: ID(6), quarter: 1, clock: 300, type: "sub_in",
+        subtype: null, subInId: ID(6), subOutId: null,
+      },
+      {
+        ttpId: ID(1), quarter: 1, clock: 0, type: "shot",
+        subtype: null, subInId: null, subOutId: null,
+      },
+    ];
+
+    const dbStartersByTeam = new Map<bigint, Set<bigint>>();
+    dbStartersByTeam.set(BigInt(100), new Set(starters));
+
+    const { bySec } = calculateMinutes({
+      pbps,
+      qLen: QLEN,
+      numQuarters: 1,
+      dbStartersByTeam,
+    });
+
+    expect(bySec.get(ID(5))).toBe(300);
+    expect(bySec.get(ID(6))).toBe(300);
+  });
+
   it("케이스 8 (보강): 쿼터별 결과 byQuarterSec 정확 분리", () => {
     const starters = [ID(1), ID(2), ID(3), ID(4), ID(5)];
     const pbps: MinutesPbp[] = [

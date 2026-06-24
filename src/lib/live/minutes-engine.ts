@@ -22,7 +22,7 @@ export type MinutesPbp = {
   ttpId: bigint | null;          // tournament_team_player_id
   quarter: number;
   clock: number;                  // game_clock_seconds (쿼터 시작 = qLen, 종료 = 0)
-  type: string;                   // action_type (특히 'substitution')
+  type: string;                   // action_type ('substitution' 또는 Flutter 'sub_in'/'sub_out')
   subtype: string | null;         // action_subtype ("in:X,out:Y" 형태)
   subInId: bigint | null;         // sub_in_player_id 컬럼 (있으면 우선)
   subOutId: bigint | null;        // sub_out_player_id 컬럼
@@ -43,6 +43,34 @@ export type MinutesResult = {
   byQuarterSec: Map<bigint, Map<number, number>>;    // ttpId → quarter → 초
 };
 
+type SubEvent = { clock: number; inId: bigint | null; outId: bigint | null };
+
+function subEventFromPbp(p: MinutesPbp): SubEvent | null {
+  if (p.type === "sub_in") {
+    const inId = p.subInId ?? p.ttpId;
+    return inId ? { clock: p.clock, inId, outId: null } : null;
+  }
+
+  if (p.type === "sub_out") {
+    const outId = p.subOutId ?? p.ttpId;
+    return outId ? { clock: p.clock, inId: null, outId } : null;
+  }
+
+  if (p.type !== "substitution") return null;
+
+  let inId = p.subInId;
+  let outId = p.subOutId;
+  if (!inId || !outId) {
+    const m = p.subtype?.match(/^in:(\d+),out:(\d+)$/);
+    if (m) {
+      inId = inId ?? BigInt(m[1]);
+      outId = outId ?? BigInt(m[2]);
+    }
+  }
+
+  return inId || outId ? { clock: p.clock, inId, outId } : null;
+}
+
 /**
  * PBP-only fallback — DB isStarter 미주입 또는 endLineup 비현실 시에만 호출.
  * 메인 path 는 dbStartersByTeam + endLineup chain 사용 권장.
@@ -56,23 +84,11 @@ export type MinutesResult = {
  *   5번을 starter 로 잡아야 정확. "sub_in 받은 적 있다" 만으로 제외하면 오류.
  */
 function inferStartersFromPbp(qPbps: MinutesPbp[]): Set<bigint> {
-  // sub_in/out 파싱: 컬럼 우선, 없으면 action_subtype "in:X,out:Y" 정규식
-  type Sub = { clock: number; inId: bigint; outId: bigint };
-  const subs: Sub[] = [];
+  // sub_in/out 파싱: Flutter split row, 컬럼, action_subtype "in:X,out:Y" 모두 지원.
+  const subs: SubEvent[] = [];
   for (const p of qPbps) {
-    if (p.type !== "substitution") continue;
-    let inId = p.subInId;
-    let outId = p.subOutId;
-    if (!inId || !outId) {
-      const m = p.subtype?.match(/^in:(\d+),out:(\d+)$/);
-      if (m) {
-        inId = inId ?? BigInt(m[1]);
-        outId = outId ?? BigInt(m[2]);
-      }
-    }
-    if (inId && outId) {
-      subs.push({ clock: p.clock, inId, outId });
-    }
+    const sub = subEventFromPbp(p);
+    if (sub) subs.push(sub);
   }
 
   // 쿼터 내 등장 선수 (PBP 액션 + sub 양쪽)
@@ -81,14 +97,14 @@ function inferStartersFromPbp(qPbps: MinutesPbp[]): Set<bigint> {
     if (p.ttpId) everSeen.add(p.ttpId);
   }
   for (const s of subs) {
-    everSeen.add(s.inId);
-    everSeen.add(s.outId);
+    if (s.inId) everSeen.add(s.inId);
+    if (s.outId) everSeen.add(s.outId);
   }
 
   // 첫 sub 이전 (clock > firstSubClock) 에 액션을 한 선수 — starter 확정
   const firstSubClock = subs.length > 0 ? subs[0].clock : -1;
-  const subInIds = new Set(subs.map((s) => s.inId));
-  const subOutIds = new Set(subs.map((s) => s.outId));
+  const subInIds = new Set(subs.map((s) => s.inId).filter((id): id is bigint => id != null));
+  const subOutIds = new Set(subs.map((s) => s.outId).filter((id): id is bigint => id != null));
   const seenBeforeFirstSub = new Set<bigint>();
   if (firstSubClock >= 0) {
     for (const p of qPbps) {
@@ -162,22 +178,10 @@ export function calculateMinutes(input: MinutesInput): MinutesResult {
     if (qPbps.length === 0) continue; // 시작 안 된 쿼터
 
     // sub PBP 파싱 (시뮬용) — inferStartersFromPbp 와 동일 룰 (컬럼 우선 + subtype 폴백)
-    type Sub = { clock: number; inId: bigint; outId: bigint };
-    const subs: Sub[] = [];
+    const subs: SubEvent[] = [];
     for (const p of qPbps) {
-      if (p.type !== "substitution") continue;
-      let inId = p.subInId;
-      let outId = p.subOutId;
-      if (!inId || !outId) {
-        const m = p.subtype?.match(/^in:(\d+),out:(\d+)$/);
-        if (m) {
-          inId = inId ?? BigInt(m[1]);
-          outId = outId ?? BigInt(m[2]);
-        }
-      }
-      if (inId && outId) {
-        subs.push({ clock: p.clock, inId, outId });
-      }
+      const sub = subEventFromPbp(p);
+      if (sub) subs.push(sub);
     }
 
     // === Q1 starter 결정 ===
@@ -224,8 +228,8 @@ export function calculateMinutes(input: MinutesInput): MinutesResult {
         }
       }
       // sub 적용: out 제거, in 추가
-      active.delete(sub.outId);
-      active.add(sub.inId);
+      if (sub.outId) active.delete(sub.outId);
+      if (sub.inId) active.add(sub.inId);
       lastClock = sub.clock;
     }
 
