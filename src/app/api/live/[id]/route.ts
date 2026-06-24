@@ -1330,13 +1330,14 @@ export async function GET(
     const playByPlays = sortedPbp.slice(0, 500).map((p, idx) => {
       const pid = p.tournament_team_player_id ? Number(p.tournament_team_player_id) : null;
       const playerInfo = pid ? playerNameById.get(pid) : null;
+      const isTeamOwned = p.tournament_team_player_id == null;
       return {
         id: idx, // PBP 자체 id 는 BigInt 라 serialize 이슈 회피용 인덱스
         quarter: p.quarter ?? 1,
         game_clock_seconds: p.game_clock_seconds ?? 0,
         team_id: p.tournament_team_id ? Number(p.tournament_team_id) : 0,
         jersey_number: playerInfo?.jersey_number ?? null,
-        player_name: playerInfo?.name ?? "",
+        player_name: playerInfo?.name ?? (isTeamOwned ? "팀" : ""),
         action_type: p.action_type ?? "",
         action_subtype: p.action_subtype ?? null,
         is_made: p.is_made ?? null,
