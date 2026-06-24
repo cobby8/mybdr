@@ -382,6 +382,7 @@ describe("match-sync — syncSingleMatch existingMatch 분기 (SELECT 통합)", 
         },
         play_by_plays: { deleteMany: vi.fn() },
         matchPlayerStat: { deleteMany: vi.fn() },
+        liveScoreboard: { deleteMany: vi.fn() },
       },
     }));
     vi.doMock("@/lib/tournaments/update-standings", () => ({
@@ -449,6 +450,7 @@ describe("match-sync — syncSingleMatch existingMatch 분기 (SELECT 통합)", 
         },
         play_by_plays: { deleteMany: vi.fn() },
         matchPlayerStat: { deleteMany: vi.fn() },
+        liveScoreboard: { deleteMany: vi.fn() },
       },
     }));
     vi.doMock("@/lib/tournaments/update-standings", () => ({
@@ -533,6 +535,7 @@ describe("match-sync — syncSingleMatch MPS deleteMany NOT IN 가드 (F3-α)", 
           deleteMany: mpsDeleteMany,
           upsert: mpsUpsert,
         },
+        liveScoreboard: { deleteMany: vi.fn() },
       },
     }));
     vi.doMock("@/lib/tournaments/update-standings", () => ({
@@ -809,6 +812,7 @@ describe("match-sync — syncSingleMatch quarterScores 자동 갱신 통합 (F1 
         },
         play_by_plays: { deleteMany: pbpDeleteMany, upsert: pbpUpsert },
         matchPlayerStat: { deleteMany: vi.fn(), upsert: vi.fn() },
+        liveScoreboard: { deleteMany: vi.fn() },
       },
     }));
     vi.doMock("@/lib/tournaments/update-standings", () => ({

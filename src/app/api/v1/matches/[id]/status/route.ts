@@ -17,7 +17,7 @@ import { applyScoreSafetyNet } from "@/lib/services/match-score-recompute";
 const statusSchema = z.object({
   // 2026-06-21: 태블릿 구버전 앱이 보내는 'live'를 enum 통과시키기 위해 추가.
   //   (아래 PATCH 핸들러에서 즉시 'in_progress'로 정규화 — 새 DB 상태값 도입 없음)
-  status: z.enum(["in_progress", "completed", "cancelled", "live"]),
+  status: z.enum(["scheduled", "in_progress", "completed", "cancelled", "live"]),
 });
 
 // PATCH /api/v1/matches/:id/status
@@ -100,6 +100,10 @@ export async function PATCH(
     }
 
     // 경기가 live(in_progress)되면 대회도 자동으로 in_progress 전환
+    if (status === "scheduled" || status === "cancelled") {
+      await prisma.liveScoreboard.deleteMany({ where: { matchId } });
+    }
+
     if (status === "in_progress" && match.tournamentId) {
       prisma.tournament.updateMany({
         where: {

@@ -20,7 +20,7 @@ export const VALID_TRANSITIONS: Record<string, string[]> = {
  *   - in_progress->in_progress / completed->completed 멱등 허용(재시도 시 400 방지)
  */
 export const RECORDER_TRANSITIONS: Record<string, string[]> = {
-  scheduled:   ["in_progress", "completed", "cancelled"],
-  in_progress: ["completed", "in_progress", "cancelled"],
+  scheduled:   ["scheduled", "in_progress", "completed", "cancelled"],
+  in_progress: ["scheduled", "completed", "in_progress", "cancelled"],
   completed:   ["completed"], // 재시도 멱등(이미 완료된 경기 재업로드 시 400 방지)
 };

@@ -555,9 +555,10 @@ export async function syncSingleMatch(
     await Promise.all([
       prisma.play_by_plays.deleteMany({ where: { tournament_match_id: matchId } }),
       prisma.matchPlayerStat.deleteMany({ where: { tournamentMatchId: matchId } }),
+      prisma.liveScoreboard.deleteMany({ where: { matchId } }),
     ]);
     console.log(
-      `[match-sync] Reset detected matchId=${match.server_id} — cleared PBP & stats`
+      `[match-sync] Reset detected matchId=${match.server_id} — cleared PBP, stats & live scoreboard`
     );
   }
 
