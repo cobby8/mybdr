@@ -1,0 +1,93 @@
+{
+  "version": "2026-06-24",
+  "description": "Source registry for BDR ranking research collection. Search adapters produce normalized candidates; manual/static sources are review targets and future watcher seeds.",
+  "sources": [
+    {
+      "id": "naver-cafe",
+      "label": "Naver Cafe public search",
+      "adapter": "naver-cafe",
+      "enabled": true,
+      "searchable": true,
+      "requiresCredentials": ["NAVER_CLIENT_ID", "NAVER_CLIENT_SECRET"],
+      "trustLevel": 60,
+      "notes": "Public Naver Cafe search result candidates. Requires human review before ranking use."
+    },
+    {
+      "id": "naver-blog",
+      "label": "Naver Blog search",
+      "adapter": "naver-blog",
+      "enabled": true,
+      "searchable": true,
+      "requiresCredentials": ["NAVER_CLIENT_ID", "NAVER_CLIENT_SECRET"],
+      "trustLevel": 55,
+      "notes": "Blog result candidates for tournament reports, recaps, and team mentions."
+    },
+    {
+      "id": "official-kba",
+      "label": "대한민국농구협회",
+      "adapter": "official-site",
+      "enabled": true,
+      "searchable": false,
+      "trustLevel": 95,
+      "urls": [
+        {
+          "label": "KBA main",
+          "url": "https://www.koreabasketball.or.kr/main/",
+          "notes": "Official KBA site; domestic competitions, 3x3, records, notices."
+        },
+        {
+          "label": "KBA branches",
+          "url": "https://www.koreabasketball.or.kr/about/branch.php",
+          "notes": "Regional association directory."
+        },
+        {
+          "label": "KBA division system",
+          "url": "https://www.kba-il.kr/",
+          "notes": "Division/i-League integrated system; league, tournament, records, schedule menus."
+        }
+      ]
+    },
+    {
+      "id": "daum-cafe",
+      "label": "Daum Cafe / BDR community",
+      "adapter": "manual-url",
+      "enabled": true,
+      "searchable": false,
+      "trustLevel": 70,
+      "urls": [
+        {
+          "label": "BDR Daum Cafe search target",
+          "url": "https://cafe.daum.net/",
+          "notes": "Seed for BDR/dongari basketball room URL discovery. Add exact board URLs after confirmation."
+        }
+      ],
+      "notes": "Daum Cafe does not have the same simple open search API path as Naver. Use manual URL seeds first, then add a dedicated adapter only for confirmed public pages."
+    },
+    {
+      "id": "google-search-candidate",
+      "label": "Google/web search candidate",
+      "adapter": "search-api-candidate",
+      "enabled": false,
+      "searchable": true,
+      "trustLevel": 50,
+      "requiresCredentials": ["WEB_SEARCH_API_KEY"],
+      "queryTemplates": [
+        "{query} 농구",
+        "site:cafe.daum.net {query}",
+        "site:instagram.com {query}",
+        "site:youtube.com {query}"
+      ],
+      "notes": "Placeholder for a future web-search provider. Compare Brave Search, Bing Web Search, SerpAPI, Tavily, or Google alternatives before enabling."
+    },
+    {
+      "id": "manual-url",
+      "label": "Manual URL intake",
+      "adapter": "manual-url",
+      "enabled": true,
+      "searchable": false,
+      "trustLevel": 65,
+      "urls": [],
+      "notes": "Use this for pasted URLs from Daum Cafe, Instagram posts, YouTube videos, images, or association pages."
+    }
+  ]
+}

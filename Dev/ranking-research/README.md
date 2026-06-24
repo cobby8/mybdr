@@ -11,6 +11,7 @@
 | 파일 | 역할 |
 |---|---|
 | `keyword-seed.json` | 공식 협회, 디비전, 동호회, 대회 결과 키워드 seed |
+| `sources.json` | 네이버, 공식 사이트, 다음카페, 웹검색 후보 등 수집 출처 registry |
 | `../../scripts/collect-ranking-research.mjs` | 네이버 카페글/블로그 검색 PoC |
 
 ## 실행
@@ -19,6 +20,12 @@ API 키 없이 쿼리 계획만 확인:
 
 ```powershell
 node scripts/collect-ranking-research.mjs --dry-run --limit 20
+```
+
+멀티소스 계획 확인:
+
+```powershell
+node scripts/collect-ranking-research.mjs --dry-run --source naver-cafe,naver-blog,official-kba,daum-cafe --limit 10
 ```
 
 네이버 검색 API 키로 실제 후보 수집:
@@ -33,6 +40,12 @@ node scripts/collect-ranking-research.mjs --limit 40 --display 10
 
 ```powershell
 node scripts/collect-ranking-research.mjs --group bdr_community --group tournament_results --limit 30
+```
+
+공식/수동 URL 후보를 JSON에 포함:
+
+```powershell
+node scripts/collect-ranking-research.mjs --include-manual --out tmp/ranking-research-candidates.json
 ```
 
 출력 파일 지정:
