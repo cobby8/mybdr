@@ -25,23 +25,24 @@ import { NextResponse } from "next/server";
 //   ★앱(클라)은 latest_version_name(semver)로 비교 — 'v' 접두는 클라가 방어하나 미사용 권장.
 //   ★배포마다: 아래 버전/sha256/size + download/route.ts 의 TAG·ASSET_NAME 동시 갱신.
 const LATEST = {
-  latest_version_code: 9,
-  latest_version_name: "0.1.7",
+  latest_version_code: 10,
+  latest_version_name: "0.1.8",
   // 이 코드 미만 버전은 강제 업데이트 대상
   min_supported_version_code: 1,
   // 강제 업데이트 여부 (true 면 앱이 진입 차단)
   is_mandatory: false,
   // 비공개 릴리스 APK 를 중계하는 서버 프록시(공개 repo 노출 없음)
   apk_url: "https://www.mybdr.kr/api/v1/app/download",
-  // bdr-0.1.7.apk 실측 SHA256 / 바이트
-  sha256: "89eb52318eccb6647eae7cc2586a12c1d12244896cd9d6c780519e2357d2a4b2",
-  size_bytes: 79444380,
+  // bdr-0.1.8.apk 실측 SHA256 / 바이트
+  sha256: "2e8e243930fb724dae6cfc25837b03c8de13f5dd486d3a5cf76adcbd6c4636fb",
+  size_bytes: 79657448,
   // 릴리스 노트 (배열)
   release_notes: [
-    "PBP 실행취소/되살리기 안전성 개선",
-    "FIBA 파울 규정 정합",
-    "U/D 파울 후 공격권 및 샷클락 14초 정합",
-    "액션 입력 UI 안정화",
+    "팀 단위 데드볼 이벤트 시계 정지 개선",
+    "벤치/감독 테크니컬 파울 자유투 흐름 반영",
+    "대회 확정 화면 공유 및 LIVE 진입 연결",
+    "기록 화면 로스터 주장/임시번호 수정 저장 연결",
+    "경기 목록 정렬 메뉴와 설정 지원 액션 연결",
   ],
 } as const;
 
