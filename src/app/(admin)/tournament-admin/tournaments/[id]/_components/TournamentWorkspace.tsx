@@ -175,6 +175,18 @@ export function TournamentWorkspace({
       : bracketReady
         ? "in_progress"
         : "locked";
+    const staffRecorderStatus: WorkspaceStatus = recordingReady ? "in_progress" : "locked";
+    const staffAssignmentStatus: WorkspaceStatus =
+      recordingReady && bracketReady
+        ? isCompleted
+          ? "complete"
+          : "in_progress"
+        : "locked";
+    const staffCompletionStatus: WorkspaceStatus = isCompleted
+      ? "complete"
+      : bracketReady
+        ? "in_progress"
+        : "locked";
 
     return [
       {
@@ -403,6 +415,42 @@ export function TournamentWorkspace({
             value: isCompleted
               ? "종료 후 정리 화면에서 결과를 확인하세요"
               : "경기 운영 완료 후 종료 처리로 이동하세요",
+          },
+        ],
+        flow: [
+          {
+            label: "1. 관리자 권한",
+            description: "대회 관리자와 보조 운영자 권한을 점검합니다",
+            status: "in_progress",
+            icon: "shield-user",
+            href: `${base}/admins`,
+          },
+          {
+            label: "2. 기록원 풀",
+            description: recordingReady
+              ? "기록원 후보를 추가하고 활성 상태를 확인합니다"
+              : "기록 모드 확정 후 기록원 풀을 준비하세요",
+            status: staffRecorderStatus,
+            icon: "file-pen",
+            href: `${base}/recorders`,
+          },
+          {
+            label: "3. 경기별 배정",
+            description: recordingReady && bracketReady
+              ? "미배정 경기에 기록원을 배정하세요"
+              : "기록 모드와 대진표가 준비되면 경기별 배정이 이어집니다",
+            status: staffAssignmentStatus,
+            icon: "list-checks",
+            href: `${base}/recorders`,
+          },
+          {
+            label: "4. 종료 후 정리",
+            description: isCompleted
+              ? "종료 후 hub에서 결과와 공개 상태를 정리 중입니다"
+              : "결승 종료 후 결과 확정과 사이트 archive를 진행하세요",
+            status: staffCompletionStatus,
+            icon: "trophy",
+            href: `${base}/completed`,
           },
         ],
         actions: [
