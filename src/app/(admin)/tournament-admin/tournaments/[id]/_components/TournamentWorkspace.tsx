@@ -25,6 +25,14 @@ type WorkspaceFact = {
   tone?: "ok" | "warn" | "info" | "mute";
 };
 
+type WorkspaceFlowStep = {
+  label: string;
+  description: string;
+  status: WorkspaceStatus;
+  icon: string;
+  href?: string;
+};
+
 type WorkspaceSection = {
   id: string;
   title: string;
@@ -36,6 +44,7 @@ type WorkspaceSection = {
   lockedReason?: string;
   itemKeys: string[];
   facts?: WorkspaceFact[];
+  flow?: WorkspaceFlowStep[];
 };
 
 type Props = {
@@ -142,6 +151,13 @@ export function TournamentWorkspace({
     const divisionsReady = divisions?.status === "complete";
     const recordingReady = recording?.status === "complete";
     const bracketReady = bracket?.status === "complete";
+    const matchScheduleStatus: WorkspaceStatus = bracketReady
+      ? "complete"
+      : divisionsReady
+        ? "empty"
+        : "locked";
+    const scoreInputStatus: WorkspaceStatus = bracketReady ? "in_progress" : "locked";
+    const recorderStatus: WorkspaceStatus = recordingReady ? "in_progress" : "locked";
 
     return [
       {
@@ -235,11 +251,49 @@ export function TournamentWorkspace({
             label: "다음 액션",
             value: !divisionsReady
               ? "종별/운영 방식 완료 후 경기와 기록 설정을 진행하세요"
-              : !bracketReady
-                ? "대진표 생성 후 경기 목록과 기록 모드를 확인하세요"
-                : recordingReady
-                  ? "경기별 스코어 입력과 기록원 배정을 확인하세요"
-                  : "기록 모드를 먼저 확정하세요",
+                : !bracketReady
+                  ? "대진표 생성 후 경기 목록과 기록 모드를 확인하세요"
+                  : recordingReady
+                    ? "경기별 스코어 입력과 기록원 배정을 확인하세요"
+                    : "기록 모드를 먼저 확정하세요",
+          },
+        ],
+        flow: [
+          {
+            label: "1. 기록 모드",
+            description: recordingReady
+              ? recording?.summary ?? "기록 방식 확정됨"
+              : "경기 전 기본 기록 방식을 확정하세요",
+            status: recording?.status ?? "empty",
+            icon: "settings-2",
+            href: `${base}/matches`,
+          },
+          {
+            label: "2. 경기 일정",
+            description: bracketReady
+              ? `${matchCount}경기 생성됨`
+              : "대진표 생성 후 경기 목록이 준비됩니다",
+            status: matchScheduleStatus,
+            icon: "calendar-clock",
+            href: `${base}/bracket`,
+          },
+          {
+            label: "3. 스코어 입력",
+            description: bracketReady
+              ? "경기별 행에서 스코어 입력으로 진입합니다"
+              : "경기 생성 후 스코어 입력이 가능합니다",
+            status: scoreInputStatus,
+            icon: "square-pen",
+            href: `${base}/matches`,
+          },
+          {
+            label: "4. 기록원",
+            description: recordingReady
+              ? "경기별 기록자 배정을 확인하세요"
+              : "기록 모드 확정 후 기록원을 지정하세요",
+            status: recorderStatus,
+            icon: "file-pen",
+            href: `${base}/recorders`,
           },
         ],
         lockedReason: firstLockedReason(matchItems),
@@ -510,6 +564,19 @@ function WorkspaceSectionCard({
         </div>
       )}
 
+      {section.flow && section.flow.length > 0 && (
+        <div className="mt-4">
+          <p className="mb-2 text-xs font-bold uppercase text-[var(--color-text-muted)]">
+            운영 흐름
+          </p>
+          <div className="space-y-2">
+            {section.flow.map((step) => (
+              <WorkspaceFlowRow key={`${step.label}-${step.href ?? "static"}`} step={step} />
+            ))}
+          </div>
+        </div>
+      )}
+
       {relatedItems.length > 0 && (
         <div className="mt-4 divide-y" style={{ borderColor: "var(--color-border)" }}>
           {relatedItems.map((item) => (
@@ -557,5 +624,52 @@ function WorkspaceSectionCard({
         )}
       </div>
     </div>
+  );
+}
+
+function WorkspaceFlowRow({ step }: { step: WorkspaceFlowStep }) {
+  const isLocked = step.status === "locked";
+  const content = (
+    <div
+      className="flex min-h-[44px] items-start gap-3 rounded-[4px] border p-3 transition-colors"
+      style={{
+        borderColor: "var(--color-border)",
+        backgroundColor: "var(--color-elevated)",
+        opacity: isLocked ? 0.68 : 1,
+      }}
+    >
+      <div
+        className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-[4px]"
+        style={{ backgroundColor: "var(--color-card)", color: "var(--color-text-primary)" }}
+      >
+        <Icon name={step.icon} size={16} />
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-sm font-bold text-[var(--color-text-primary)]">
+            {step.label}
+          </span>
+          <span className="admin-stat-pill" data-tone={STATUS_TONE[step.status]}>
+            {STATUS_LABEL[step.status]}
+          </span>
+        </div>
+        <p className="mt-1 text-sm text-[var(--color-text-muted)]">{step.description}</p>
+      </div>
+      {!isLocked && step.href && (
+        <Icon
+          name="arrow-up-right"
+          size={16}
+          className="mt-1 shrink-0 text-[var(--color-text-muted)]"
+        />
+      )}
+    </div>
+  );
+
+  if (!step.href || isLocked) return content;
+
+  return (
+    <Link href={step.href} className="block">
+      {content}
+    </Link>
   );
 }
