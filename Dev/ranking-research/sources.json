@@ -24,7 +24,7 @@
     },
     {
       "id": "official-kba",
-      "label": "대한민국농구협회",
+      "label": "KBA official sources",
       "adapter": "official-site",
       "enabled": true,
       "searchable": false,
@@ -56,7 +56,7 @@
       "trustLevel": 70,
       "urls": [
         {
-          "label": "BDR 동아리농구방",
+          "label": "BDR dongarry cafe",
           "url": "https://cafe.daum.net/dongarry",
           "notes": "Daum search exposed this as a core BDR/dongari basketball room candidate. Treat as primary manual/watch seed until board-level access rules are confirmed."
         },
@@ -82,7 +82,7 @@
       "trustLevel": 50,
       "requiresCredentials": ["TAVILY_API_KEY"],
       "queryTemplates": [
-        "{query} 농구",
+        "{query} basketball",
         "site:cafe.daum.net {query}",
         "site:instagram.com {query}",
         "site:youtube.com {query}"
@@ -101,7 +101,7 @@
       "trustLevel": 45,
       "requiresCredentials": ["GOOGLE_SEARCH_API_KEY", "GOOGLE_SEARCH_ENGINE_ID"],
       "queryTemplates": [
-        "{query} 농구",
+        "{query} basketball",
         "site:cafe.daum.net {query}",
         "site:instagram.com {query}",
         "site:youtube.com {query}"
@@ -117,7 +117,7 @@
       "trustLevel": 45,
       "requiresCredentials": ["BRAVE_SEARCH_API_KEY"],
       "queryTemplates": [
-        "{query} 농구",
+        "{query} basketball",
         "site:cafe.daum.net {query}",
         "site:instagram.com {query}"
       ],

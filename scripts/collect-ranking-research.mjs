@@ -184,6 +184,15 @@ const SIGNAL_TOKENS = {
   noise: ["프로농구", "KBL", "NBA", "WKBL", "고교농구", "중고농구", "엘리트"],
 };
 
+const REVIEW_SIGNAL_TOKENS = {
+  result: ["\uC6B0\uC2B9", "\uC900\uC6B0\uC2B9", "\uCD5C\uC885\uC21C\uC704", "\uC21C\uC704\uD45C", "\uACBD\uAE30\uACB0\uACFC", "\uACB0\uACFC", "\uC2A4\uCF54\uC5B4", "\uACB0\uC2B9", "4\uAC15", "8\uAC15"],
+  recruiting: ["\uBAA8\uC9D1", "\uCC38\uAC00\uC2E0\uCCAD", "\uCC38\uAC00\uD300", "\uC811\uC218", "\uC2E0\uCCAD", "\uC120\uCC29\uC21C"],
+  schedule: ["\uC77C\uC815", "\uB300\uC9C4\uD45C", "\uC870\uD3B8\uC131", "\uC608\uC120", "\uBCF8\uC120", "\uD0C0\uC784\uD14C\uC774\uBE14"],
+  basketball: ["\uB18D\uAD6C", "3x3", "3\uB3003", "\uB3D9\uD638\uD68C", "\uC0DD\uD65C\uCCB4\uC721", "\uD074\uB7FD", "\uB514\uBE44\uC804", "\uB9AC\uADF8", "basketball"],
+  official: ["\uD611\uD68C", "\uB300\uD55C\uBBFC\uAD6D\uB18D\uAD6C\uD611\uD68C", "KBA", "\uB514\uBE44\uC804", "i-League", "\uC544\uC774\uB9AC\uADF8"],
+  noise: ["\uD504\uB85C\uB18D\uAD6C", "KBL", "NBA", "WKBL", "\uACE0\uAD50\uB18D\uAD6C", "\uC911\uACE0\uB18D\uAD6C", "\uC5D8\uB9AC\uD2B8"],
+};
+
 function matchedTokens(text, tokens) {
   return tokens.filter((token) => text.includes(token.toLowerCase()));
 }
@@ -191,7 +200,7 @@ function matchedTokens(text, tokens) {
 function analyzeCandidate(item) {
   const text = `${item.title} ${item.description}`.toLowerCase();
   const signals = Object.fromEntries(
-    Object.entries(SIGNAL_TOKENS).map(([key, tokens]) => [key, matchedTokens(text, tokens)]),
+    Object.entries(REVIEW_SIGNAL_TOKENS).map(([key, tokens]) => [key, matchedTokens(text, tokens)]),
   );
   const sourceTrust = Number(item.sourceTrustLevel ?? 0);
 
