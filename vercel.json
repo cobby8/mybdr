@@ -29,6 +29,10 @@
       "schedule": "*/5 * * * *"
     },
     {
+      "path": "/api/cron/match-venue-reminders",
+      "schedule": "*/30 * * * *"
+    },
+    {
       "path": "/api/cron/stale-pending-fix",
       "schedule": "0 * * * *"
     },

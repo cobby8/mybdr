@@ -23,6 +23,19 @@ export type Venue = {
   region: string;
   courtCount: number;
   naming: "num" | "alpha";
+  provider?: "kakao" | "google";
+  placeId?: string;
+  lat?: number;
+  lng?: number;
+  phone?: string;
+  category?: string;
+  mapUrl?: string;
+  routeUrl?: string;
+};
+export type VenueDraft = Omit<Venue, "id" | "courtCount" | "naming"> & {
+  id?: string;
+  courtCount?: number;
+  naming?: "num" | "alpha";
 };
 export type DateRow = {
   id: string;
@@ -54,6 +67,42 @@ const VENUE_DB: { name: string; region: string }[] = [
 // ── 유틸 (시안 1:1) ───────────────────────────────────────────────────
 export const ctUid = (p: string) =>
   `${p}${Date.now()}_${Math.random().toString(36).slice(2, 5)}`;
+
+export function venueFromDraft(draft: VenueDraft): Venue {
+  return {
+    id: draft.id ?? ctUid("v"),
+    name: draft.name.trim(),
+    region: draft.region?.trim() ?? "",
+    courtCount: Math.max(1, Number(draft.courtCount) || 1),
+    naming: draft.naming === "alpha" ? "alpha" : "num",
+    provider: draft.provider,
+    placeId: draft.placeId,
+    lat: draft.lat,
+    lng: draft.lng,
+    phone: draft.phone,
+    category: draft.category,
+    mapUrl: draft.mapUrl,
+    routeUrl: draft.routeUrl,
+  };
+}
+
+export function serializeVenue(venue: Venue) {
+  return {
+    id: venue.id,
+    name: venue.name.trim(),
+    region: venue.region.trim(),
+    courtCount: Math.max(1, Number(venue.courtCount) || 1),
+    naming: venue.naming === "alpha" ? "alpha" : "num",
+    provider: venue.provider,
+    placeId: venue.placeId,
+    lat: venue.lat,
+    lng: venue.lng,
+    phone: venue.phone,
+    category: venue.category,
+    mapUrl: venue.mapUrl,
+    routeUrl: venue.routeUrl,
+  };
+}
 
 // 코트 접미사 — 숫자(1,2..) 또는 알파벳(A,B..)
 const courtSuffix = (venue: Venue, i: number) =>
@@ -134,26 +183,95 @@ function SegSm({
   );
 }
 
-// ── 경기장 검색 (자동완성 + 직접 추가) ────────────────────────────────
+type PlaceSearchResult = {
+  place_id: string;
+  name: string;
+  address: string;
+  provider?: "kakao" | "google";
+  lat?: number;
+  lng?: number;
+  phone?: string;
+  category?: string;
+  map_url?: string;
+  route_url?: string;
+};
+
+// ── 경기장 검색 (카카오 장소 검색 + 직접 추가) ────────────────────────
 function VenueSearch({
   venues,
   onAdd,
 }: {
   venues: Venue[];
-  onAdd: (name: string, region: string) => void;
+  onAdd: (venue: VenueDraft) => void;
 }) {
   const [q, setQ] = React.useState("");
   const [open, setOpen] = React.useState(false);
+  const [loading, setLoading] = React.useState(false);
+  const [results, setResults] = React.useState<PlaceSearchResult[]>([]);
   const ql = q.trim().toLowerCase();
-  const names = venues.map((v) => v.name);
-  const results = VENUE_DB.filter(
-    (v) => !names.includes(v.name) && (v.name + " " + v.region).toLowerCase().includes(ql),
-  ).slice(0, 8);
-  const exact = VENUE_DB.some((v) => v.name === q.trim()) || names.includes(q.trim());
-  const pick = (name: string, region: string) => {
-    onAdd(name, region);
+  const registeredNames = venues.map((v) => v.name.trim());
+  const registeredPlaceIds = new Set(venues.map((v) => v.placeId).filter(Boolean));
+  const localResults = ql
+    ? VENUE_DB.filter(
+        (v) =>
+          !registeredNames.includes(v.name) &&
+          (v.name + " " + v.region).toLowerCase().includes(ql),
+      ).slice(0, 8)
+    : [];
+  const filteredResults = results.filter(
+    (v) => !registeredNames.includes(v.name.trim()) && !registeredPlaceIds.has(v.place_id),
+  );
+  const exact = registeredNames.includes(q.trim());
+
+  React.useEffect(() => {
+    const query = q.trim();
+    if (query.length < 2) {
+      setResults([]);
+      setLoading(false);
+      return;
+    }
+
+    const controller = new AbortController();
+    const timer = window.setTimeout(async () => {
+      setLoading(true);
+      try {
+        const res = await fetch(`/api/web/place-search?query=${encodeURIComponent(query)}`, {
+          signal: controller.signal,
+        });
+        const data = await res.json();
+        setResults((data.results ?? []) as PlaceSearchResult[]);
+      } catch (error) {
+        if (!controller.signal.aborted) setResults([]);
+      } finally {
+        if (!controller.signal.aborted) setLoading(false);
+      }
+    }, 250);
+
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
+  }, [q]);
+
+  const pick = (venue: VenueDraft) => {
+    onAdd(venue);
     setQ("");
     setOpen(false);
+    setResults([]);
+  };
+  const pickPlace = (place: PlaceSearchResult) => {
+    pick({
+      name: place.name,
+      region: place.address,
+      provider: place.provider,
+      placeId: place.place_id,
+      lat: place.lat,
+      lng: place.lng,
+      phone: place.phone,
+      category: place.category,
+      mapUrl: place.map_url,
+      routeUrl: place.route_url,
+    });
   };
   return (
     <div className="ct-vsearch">
@@ -161,7 +279,7 @@ function VenueSearch({
         <Icon name="search" size={18} color="var(--ink-dim)" />
         <input
           value={q}
-          placeholder="경기장명·지역으로 검색 (지도 연결 예정)"
+          placeholder="경기장명·주소 검색"
           onChange={(e) => {
             setQ(e.target.value);
             setOpen(true);
@@ -173,20 +291,31 @@ function VenueSearch({
             if (e.nativeEvent.isComposing) return;
             if (e.key === "Enter" && q.trim()) {
               e.preventDefault();
-              pick(q.trim(), "");
+              pick({ name: q.trim(), region: "" });
             }
           }}
         />
+        {loading && <span className="ct-spin" aria-label="검색 중" />}
         {q && (
           <button type="button" className="ct-iconbtn" onMouseDown={(e) => e.preventDefault()} onClick={() => setQ("")} aria-label="지우기">
             <Icon name="x" size={15} />
           </button>
         )}
       </div>
-      {open && (results.length > 0 || (ql && !exact)) && (
+      {open && (loading || filteredResults.length > 0 || localResults.length > 0 || (ql && !exact)) && (
         <div className="ct-vsearch__menu">
-          {results.map((v) => (
-            <button key={v.name} type="button" className="ct-vsearch__opt" onMouseDown={(e) => e.preventDefault()} onClick={() => pick(v.name, v.region)}>
+          {filteredResults.map((v) => (
+            <button key={v.place_id} type="button" className="ct-vsearch__opt" onMouseDown={(e) => e.preventDefault()} onClick={() => pickPlace(v)}>
+              <Icon name="map-pin" size={16} color="var(--primary)" />
+              <span style={{ flex: 1, minWidth: 0 }}>
+                <span style={{ display: "block", fontWeight: 600, fontSize: 14, color: "var(--ink)" }}>{v.name}</span>
+                <span style={{ fontSize: 12, color: "var(--ink-mute)" }}>{v.address || "주소 정보 없음"}</span>
+              </span>
+              {v.provider === "kakao" && <span className="ct-courttag">지도</span>}
+            </button>
+          ))}
+          {filteredResults.length === 0 && localResults.map((v) => (
+            <button key={v.name} type="button" className="ct-vsearch__opt" onMouseDown={(e) => e.preventDefault()} onClick={() => pick({ name: v.name, region: v.region })}>
               <Icon name="map-pin" size={16} color="var(--primary)" />
               <span style={{ flex: 1, minWidth: 0 }}>
                 <span style={{ display: "block", fontWeight: 600, fontSize: 14, color: "var(--ink)" }}>{v.name}</span>
@@ -195,7 +324,7 @@ function VenueSearch({
             </button>
           ))}
           {ql && !exact && (
-            <button type="button" className="ct-vsearch__opt ct-vsearch__add" onMouseDown={(e) => e.preventDefault()} onClick={() => pick(q.trim(), "")}>
+            <button type="button" className="ct-vsearch__opt ct-vsearch__add" onMouseDown={(e) => e.preventDefault()} onClick={() => pick({ name: q.trim(), region: "" })}>
               <Icon name="plus" size={16} color="var(--primary)" />
               <span style={{ fontWeight: 700, color: "var(--primary)" }}>“{q.trim()}” 직접 추가</span>
             </button>
@@ -346,7 +475,7 @@ export function ScheduleVenue({
   embedded?: boolean;
   syncDates: (dateStrings: string[]) => void;
   removeDate: (id: string) => void;
-  addVenue: (name: string, region: string) => void;
+  addVenue: (venue: VenueDraft) => void;
   updateVenue: (id: string, patch: Partial<Venue>) => void;
   removeVenue: (id: string) => void;
   toggleDateCourt: (dateId: string, courtId: string) => void;
@@ -383,6 +512,16 @@ export function ScheduleVenue({
                   <Icon name="map-pin" size={15} color="var(--primary)" />
                   <span className="ct-venuerow__nm">{v.name}</span>
                   {v.region && <span className="ct-venuerow__rg">{v.region}</span>}
+                  {v.mapUrl && (
+                    <a href={v.mapUrl} target="_blank" rel="noopener noreferrer" className="ct-courttag">
+                      지도
+                    </a>
+                  )}
+                  {v.routeUrl && (
+                    <a href={v.routeUrl} target="_blank" rel="noopener noreferrer" className="ct-courttag">
+                      길안내
+                    </a>
+                  )}
                   <button type="button" className="ct-iconbtn" onClick={() => removeVenue(v.id)} aria-label="장소 삭제">
                     <Icon name="x" size={15} />
                   </button>

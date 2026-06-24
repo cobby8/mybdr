@@ -12,8 +12,11 @@ import {
   ScheduleVenue,
   allCourts,
   ctUid,
+  serializeVenue,
+  venueFromDraft,
   type DateRow,
   type Venue,
+  type VenueDraft,
 } from "../../new/wizard/_components/ct-schedule-venue";
 import { CtGameSettings, type GameRules } from "../../new/wizard/_components/ct-game-settings";
 
@@ -238,12 +241,17 @@ export function TournamentWorkspace({
     patchForm("sponsors", next);
   }
 
-  function addVenue(name: string, region: string) {
-    const v = name.trim();
-    if (!v) return;
+  function addVenue(draft: VenueDraft) {
+    const venue = venueFromDraft(draft);
+    if (!venue.name) return;
+    if (form.places.some((item) => item.name === venue.name || (venue.placeId && item.placeId === venue.placeId))) {
+      setMessage("이미 등록된 장소입니다.");
+      setSaveState("error");
+      return;
+    }
     patchForm("places", [
       ...form.places,
-      { id: ctUid("v"), name: v, region: region.trim(), courtCount: 1, naming: "num" },
+      venue,
     ]);
   }
 
@@ -324,13 +332,7 @@ export function TournamentWorkspace({
       .filter((s) => s.logoUrl)
       .map((s) => ({ name: s.name, logoUrl: s.logoUrl }));
     const places = form.places
-      .map((place) => ({
-        id: place.id,
-        name: place.name.trim(),
-        region: place.region.trim(),
-        courtCount: Math.max(1, Number(place.courtCount) || 1),
-        naming: place.naming === "alpha" ? "alpha" : "num",
-      }))
+      .map(serializeVenue)
       .filter((place) => place.name);
     const scheduleDates = form.schedule_dates
       .map((date) => ({

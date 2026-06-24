@@ -20,6 +20,7 @@ export type NotifCategory = "tournament" | "game" | "team" | "community" | "syst
 export function categorize(type: string): NotifCategory {
   if (type.startsWith("tournament.")) return "tournament";
   if (type.startsWith("game.")) return "game";
+  if (type.startsWith("match.")) return "game";
   if (type.startsWith("team.") || type === "follow") return "team";
   if (type === "like" || type.startsWith("comment.")) return "community";
   return "system"; // referee.*, system.*, weekly.*, 그 외 모두 fallback
@@ -70,6 +71,7 @@ export const TYPES_BY_CATEGORY: Record<NotifCategory, readonly string[]> = {
     "game.application.rejected",
     "game.cancelled",
     "game.report.request", // Phase 10-2 — 경기 종료 후 평가 요청 알림
+    "match.venue.reminder",
   ],
   team: [
     "team.join_request.received",

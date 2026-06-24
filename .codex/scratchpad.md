@@ -7,6 +7,7 @@
 - 2026-06-24 feat(ranking): added community basketball ranking research keyword seed and Naver search collection PoC.
 
 ## Current Task
+- 2026-06-25 done: implemented Kakao-first tournament venue search, venue route links, public schedule directions, and match-day navigation reminders.
 - 2026-06-25 done: merged tournament admin workspace work into dev, fixed tests, and verified `tsc`, full test, and build before production merge.
 - 2026-06-25 done: aligned tournament admin setup with creation flow for sponsors, multi-venue/date/court data, global save, and mobile 2-row game preset chips.
 - 2026-06-25 done: verified create flow preserves multi-venue/date/court division scheduling via `settings.div_schedule` and corrected generator copy.
@@ -17,10 +18,12 @@
 | 작업 | 상태 | 비고 |
 |---|---|---|
 | 대회 관리자 워크스페이스 | 완료 | 단일 페이지, lazy panels, 생성 흐름 정합 |
+| 지도/길안내 배선 | 완료 | 카카오 장소 검색, places JSON 보존, 공개 일정 링크, 경기장 알림 |
 | dev 검증 및 푸시 | 완료 | `tsc`, `npm test`, `npm build` 통과 |
-| 운영 머지 | 진행 중 | `dev -> main` 충돌 정리 중 |
+| 운영 머지 | 보류 | 최신 요청은 지도/길안내 구현, 푸시/머지 미요청 |
 
 ## 작업 로그
+- 2026-06-25 feat(tournament): 카카오 장소 검색과 경기장 길안내 링크/알림 흐름을 대회 생성·관리·공개 일정에 연결.
 - 2026-06-25 release: dev를 main에 머지하기 위해 원격 dev/main 동기화, rebase, 테스트와 빌드 재검증.
 - 2026-06-25 feat(admin): 대회 관리자 설정을 생성 흐름과 맞춰 다중 후원사, 체육관, 일정 저장과 모바일 2행 경기 프리셋을 반영.
 - 2026-06-25 docs(tournament): 운영 src 더미 데이터 금지와 관리자 제어 배선 원칙을 추가하고 대회 영역 배선 점검.

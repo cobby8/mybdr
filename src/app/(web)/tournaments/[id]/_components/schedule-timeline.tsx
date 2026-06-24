@@ -48,6 +48,8 @@ export interface ScheduleMatch {
   //   둘 다 옵셔널 — 일반 대회 (단일 종별 / 단일 체육관) 회귀 0.
   division?: string | null;
   venueName?: string | null;
+  venueMapUrl?: string | null;
+  venueRouteUrl?: string | null;
 }
 
 // 종별 색상 매핑 — 6 종별 가시성 (BDR 토큰 우선, primary/info/success/warning/secondary 분산)
@@ -639,6 +641,21 @@ export function ScheduleTimeline({ matches, teams, selectedDate: selectedDatePro
                               </span>
                               {match.venueName}
                             </span>
+                            {match.venueRouteUrl && (
+                              <a
+                                href={match.venueRouteUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                onClick={(e) => e.stopPropagation()}
+                                className="inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-xs font-bold"
+                                style={{
+                                  color: "var(--color-primary)",
+                                  backgroundColor: "var(--color-primary-soft)",
+                                }}
+                              >
+                                길안내
+                              </a>
+                            )}
                           </>
                         )}
                       </div>
