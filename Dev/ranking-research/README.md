@@ -76,6 +76,16 @@ node scripts/collect-ranking-research.mjs --out tmp/ranking-research-candidates.
 | 보류 후보 | 모집글, 일정글, 후기글처럼 결과 여부가 불명확한 글 |
 | 제외 후보 | 프로/학생 엘리트 기사, 농구와 무관한 검색 오탐 |
 
+## 후보 JSON 필드
+
+| 필드 | 의미 |
+|---|---|
+| `candidateType` | `result_candidate`, `recruiting_candidate`, `schedule_candidate`, `basketball_mention`, `source_seed`, `unknown` |
+| `confidence` | 제목/요약 신호와 source trust를 합산한 0~100 우선순위 |
+| `signals` | 결과/모집/일정/농구/공식/노이즈 키워드 매칭 목록 |
+| `sourceTrustLevel` | `sources.json`에 정의한 출처 신뢰도 |
+| `relevanceScore` | 정렬용 원점수 |
+
 ## 다음 단계
 
 1. 후보 JSON 100~300건을 수빈이 훑어보고 유효 키워드/오탐 키워드를 분리한다.

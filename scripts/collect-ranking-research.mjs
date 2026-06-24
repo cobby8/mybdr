@@ -175,6 +175,63 @@ function scoreCandidate(item) {
   return score;
 }
 
+const SIGNAL_TOKENS = {
+  result: ["우승", "준우승", "최종순위", "순위표", "경기결과", "결과", "스코어", "결승", "4강", "8강"],
+  recruiting: ["모집", "참가신청", "참가팀", "접수", "신청", "선착순"],
+  schedule: ["일정", "대진표", "조편성", "예선", "본선", "타임테이블"],
+  basketball: ["농구", "3x3", "3대3", "동호회", "생활체육", "클럽", "디비전", "리그"],
+  official: ["협회", "대한민국농구협회", "KBA", "디비전", "i-League", "아이리그"],
+  noise: ["프로농구", "KBL", "NBA", "WKBL", "고교농구", "중고농구", "엘리트"],
+};
+
+function matchedTokens(text, tokens) {
+  return tokens.filter((token) => text.includes(token.toLowerCase()));
+}
+
+function analyzeCandidate(item) {
+  const text = `${item.title} ${item.description}`.toLowerCase();
+  const signals = Object.fromEntries(
+    Object.entries(SIGNAL_TOKENS).map(([key, tokens]) => [key, matchedTokens(text, tokens)]),
+  );
+  const sourceTrust = Number(item.sourceTrustLevel ?? 0);
+
+  let score = 0;
+  score += signals.result.length * 3;
+  score += signals.basketball.length * 2;
+  score += signals.official.length * 2;
+  score += signals.schedule.length;
+  score += signals.recruiting.length;
+  score -= signals.noise.length * 3;
+  score += Math.round(sourceTrust / 20);
+
+  let candidateType = "unknown";
+  if (item.adapter === "manual-url" || item.adapter === "official-site") {
+    candidateType = "source_seed";
+  } else if (signals.result.length >= 2 && signals.basketball.length >= 1) {
+    candidateType = "result_candidate";
+  } else if (signals.recruiting.length >= 1 && signals.basketball.length >= 1) {
+    candidateType = "recruiting_candidate";
+  } else if (signals.schedule.length >= 1 && signals.basketball.length >= 1) {
+    candidateType = "schedule_candidate";
+  } else if (signals.basketball.length >= 1) {
+    candidateType = "basketball_mention";
+  }
+
+  return {
+    candidateType,
+    relevanceScore: score,
+    confidence: Math.max(0, Math.min(100, score * 8)),
+    signals,
+  };
+}
+
+function enrichCandidate(item) {
+  return {
+    ...item,
+    ...analyzeCandidate(item),
+  };
+}
+
 function credentialStatus(source) {
   const missing = (source.requiresCredentials ?? []).filter((name) => !process.env[name]);
   return {
@@ -208,6 +265,7 @@ async function fetchNaver(source, query, display) {
     const normalized = {
       source: source.id,
       sourceLabel: source.label,
+      sourceTrustLevel: source.trustLevel ?? 0,
       adapter: source.adapter,
       query: query.query,
       sourceQuery: query.sourceQuery,
@@ -220,10 +278,7 @@ async function fetchNaver(source, query, display) {
       collectedAt: new Date().toISOString(),
       raw: item,
     };
-    return {
-      ...normalized,
-      relevanceScore: scoreCandidate(normalized),
-    };
+    return enrichCandidate(normalized);
   });
 }
 
@@ -258,6 +313,7 @@ async function fetchTavily(source, query, display) {
     const normalized = {
       source: source.id,
       sourceLabel: source.label,
+      sourceTrustLevel: source.trustLevel ?? 0,
       adapter: source.adapter,
       query: query.query,
       sourceQuery: query.sourceQuery,
@@ -270,10 +326,7 @@ async function fetchTavily(source, query, display) {
       collectedAt: new Date().toISOString(),
       raw: item,
     };
-    return {
-      ...normalized,
-      relevanceScore: scoreCandidate(normalized),
-    };
+    return enrichCandidate(normalized);
   });
 }
 
@@ -288,6 +341,7 @@ function buildManualCandidates(sources, includeManual) {
         const normalized = {
           source: source.id,
           sourceLabel: source.label,
+          sourceTrustLevel: source.trustLevel ?? 0,
           adapter: source.adapter,
           query: null,
           sourceQuery: null,
@@ -300,10 +354,7 @@ function buildManualCandidates(sources, includeManual) {
           collectedAt: now,
           raw: entry,
         };
-        return {
-          ...normalized,
-          relevanceScore: scoreCandidate(normalized),
-        };
+        return enrichCandidate(normalized);
       }),
     );
 }
@@ -320,6 +371,7 @@ function dedupeCandidates(candidates) {
   }
 
   return deduped.sort((a, b) => {
+    if (b.confidence !== a.confidence) return b.confidence - a.confidence;
     if (b.relevanceScore !== a.relevanceScore) return b.relevanceScore - a.relevanceScore;
     return a.title.localeCompare(b.title, "ko");
   });
