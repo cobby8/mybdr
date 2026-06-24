@@ -70,6 +70,8 @@ async function handler(
       jersey_number: p.jerseyNumber,
       position: p.position,
       role: p.role,
+      phone: p.phone,
+      auto_registered: p.auto_registered ?? false,
       is_starter: p.isStarter ?? false,
       is_elite: p.is_elite ?? false,
     })),

@@ -30,6 +30,7 @@ import { withWebAuth, type WebAuthContext } from "@/lib/auth/web-session";
 import { apiSuccess, apiError } from "@/lib/api/response";
 import { isIdentityGateEnabled } from "@/lib/auth/identity-gate-flag";
 import { adminLog } from "@/lib/admin/log";
+import { matchPlayersByPhone } from "@/lib/services/player-matching";
 
 /**
  * 요청 페이로드 검증 — 클라이언트 검증과 동일 패턴 (서버 신뢰 재검증)
@@ -141,6 +142,8 @@ export const POST = withWebAuth(async (req: Request, ctx: WebAuthContext) => {
     });
 
     // 감사 로그 — 사용자 결정 Q5 (mock 통과자 운영 추적)
+    const linkedPlayers = await matchPlayersByPhone(ctx.userId, phone);
+
     // adminLog 헬퍼는 admin_id 에 현재 세션 user 를 자동 사용 — 본인이 본인을 self-update
     // severity=info 로 일반 운영 이벤트 표시 (warning/error 아님)
     await adminLog("mock_identity_verified", "user", {
@@ -164,6 +167,7 @@ export const POST = withWebAuth(async (req: Request, ctx: WebAuthContext) => {
       name_verified: updated.name_verified,
       verified_at: updated.verified_at,
       identity_method: updated.identity_method,
+      linked_players: linkedPlayers,
     });
   } catch (e) {
     console.error("[POST /api/web/identity/mock-verify]", e);

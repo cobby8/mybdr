@@ -12,6 +12,11 @@ export const onsitePlayerRegistrationSchema = z.object({
     .int("등번호는 정수여야 합니다")
     .min(0, "등번호는 0 이상이어야 합니다")
     .max(99, "등번호는 99 이하여야 합니다"),
+  phone: z
+    .string()
+    .regex(/^[0-9]{10,11}$/, "전화번호는 숫자 10~11자리")
+    .optional()
+    .nullable(),
   position: z
     .enum(["PG", "SG", "SF", "PF", "C"])
     .optional()

@@ -1,4 +1,4 @@
-// 2026-05-16: match_player_jersey resolver 미적용 — 매치 컨텍스트 없는 팀 영구 명단 endpoint.
+﻿// 2026-05-16: match_player_jersey resolver 미적용 — 매치 컨텍스트 없는 팀 영구 명단 endpoint.
 // POST = 선수 등록 (ttp.jerseyNumber 직접 INSERT — 본 컬럼이 source-of-truth 자체).
 // GET = 팀 선수 명단 증분 동기화 (Flutter 앱 캐싱용, 매치 무관). 두 경로 모두 resolver 적용 대상 아님.
 // 매치별 정확값은 v1/matches/[id]/stats / roster (이미 PR5 적용) 가 담당.
@@ -8,6 +8,7 @@ import { withErrorHandler, type AuthContext } from "@/lib/api/middleware";
 import { apiSuccess, apiError, forbidden, validationError } from "@/lib/api/response";
 import { verifyToken } from "@/lib/auth/jwt";
 import { onsitePlayerRegistrationSchema } from "@/lib/validation/player";
+import { ensureTeamMemberForTournamentPlayer } from "@/lib/services/player-matching";
 import { findUserIdByName } from "@/lib/tournaments/link-player-user";
 import { getDisplayName } from "@/lib/utils/player-display-name";
 // 2026-05-16: recorder_admin 전역 흡수 (Flutter 기록앱 모든 대회 선수 등록 통과)
@@ -101,7 +102,7 @@ async function handlePost(
     return validationError(result.error.issues);
   }
 
-  const { player_name, jersey_number, position, birth_date } = result.data;
+  const { player_name, jersey_number, phone, position, birth_date } = result.data;
 
   // 팀 존재 확인 (해당 대회 소속인지)
   const tournamentTeam = await prisma.tournamentTeam.findFirst({
@@ -126,23 +127,47 @@ async function handlePost(
   // - 매칭 실패 시 null (기존 동작과 동일)
   // - try-catch: 매칭 실패가 선수 등록을 막으면 안 됨
   let matchedUserId: bigint | null = null;
-  try {
-    matchedUserId = await findUserIdByName(
-      player_name,
-      tournamentTeam.teamId,
-      BigInt(teamId)
-    );
-  } catch {
-    // 매칭 에러 시 무시 -- userId: null로 진행
+
+  if (phone) {
+    const phoneCandidates = [phone];
+    if (/^010\d{8}$/.test(phone)) {
+      phoneCandidates.push(`${phone.slice(0, 3)}-${phone.slice(3, 7)}-${phone.slice(7)}`);
+    }
+    const user = await prisma.user.findFirst({
+      where: { phone: { in: phoneCandidates } },
+      select: { id: true },
+    });
+    if (user) {
+      const alreadyInTeam = await prisma.tournamentTeamPlayer.findFirst({
+        where: { tournamentTeamId: BigInt(teamId), userId: user.id },
+        select: { id: true },
+      });
+      if (alreadyInTeam) {
+        return apiError("이미 해당 팀 엔트리에 등록된 전화번호입니다.", 400);
+      }
+      matchedUserId = user.id;
+    }
   }
 
-  // 선수 생성 (auto_registered = true, FR-103, FR-105, FR-113)
+  if (!matchedUserId) {
+    try {
+      matchedUserId = await findUserIdByName(
+        player_name,
+        tournamentTeam.teamId,
+        BigInt(teamId),
+      );
+    } catch {
+      // 매칭 실패는 선수 등록을 막지 않는다.
+    }
+  }
+
   const player = await prisma.tournamentTeamPlayer.create({
     data: {
       tournamentTeamId: BigInt(teamId),
       userId: matchedUserId,
       player_name,
       jerseyNumber: jersey_number,
+      phone: phone ?? null,
       position: position ?? null,
       birth_date: birth_date ?? null,
       role: "player",
@@ -152,6 +177,17 @@ async function handlePost(
     },
   });
 
+  if (matchedUserId) {
+    await ensureTeamMemberForTournamentPlayer(matchedUserId, player.id).catch((error) => {
+      console.warn("[onsite-player] team member auto-join skipped", {
+        userId: matchedUserId?.toString(),
+        tournamentTeamPlayerId: player.id.toString(),
+        error: error instanceof Error ? error.message : String(error),
+      });
+    });
+  }
+
+
   return apiSuccess(
     {
       id: Number(player.id),
@@ -159,6 +195,7 @@ async function handlePost(
       user_id: player.userId ? Number(player.userId) : null,
       player_name: player.player_name,
       jersey_number: player.jerseyNumber,
+      phone: player.phone,
       position: player.position,
       is_active: true,
       auto_registered: true,
@@ -217,6 +254,7 @@ async function handleGet(
       // 선수명단 실명 표시 규칙 (conventions.md 2026-05-01)
       user_name: getDisplayName(p.users, { player_name: p.player_name, jerseyNumber: p.jerseyNumber }, `Player #${p.jerseyNumber ?? p.id}`),
       jersey_number: p.jerseyNumber,
+      phone: p.phone,
       position: p.position,
       is_active: p.is_active ?? true,
       auto_registered: p.auto_registered ?? false,

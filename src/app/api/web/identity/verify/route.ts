@@ -31,6 +31,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/db/prisma";
 import { withWebAuth, type WebAuthContext } from "@/lib/auth/web-session";
 import { apiSuccess, apiError } from "@/lib/api/response";
+import { matchPlayersByPhone } from "@/lib/services/player-matching";
 
 // 요청 페이로드 — 클라가 보낼 수 있는 유일한 값 = identityVerificationId
 const verifySchema = z.object({
@@ -148,12 +149,15 @@ export const POST = withWebAuth(async (req: Request, ctx: WebAuthContext) => {
       },
     });
 
+    const linkedPlayers = await matchPlayersByPhone(ctx.userId, customer.phoneNumber);
+
     return apiSuccess({
       id: updated.id.toString(),
       verified_name: updated.verified_name,
       verified_phone: updated.verified_phone,
       name_verified: updated.name_verified,
       verified_at: updated.verified_at,
+      linked_players: linkedPlayers,
     });
   } catch (e) {
     console.error("[POST /api/web/identity/verify]", e);
