@@ -1120,9 +1120,10 @@ export async function GET(
     const latestPbp = await prisma.play_by_plays.findFirst({
       where: { tournament_match_id: BigInt(matchId) },
       orderBy: [{ created_at: "desc" }],
-      select: { quarter: true },
+      select: { quarter: true, game_clock_seconds: true },
     });
     const currentQuarter = latestPbp?.quarter ?? null;
+    const currentGameClockSeconds = latestPbp?.game_clock_seconds ?? null;
 
     // 2026-04-22: GameResult v2 — MVP 선정 (GameScore 공식 단순화 버전)
     // 이유: 시안 GameResult.jsx 의 MVP 배너 렌더를 위해 playerStats 기반으로 최고 점수 선수 1명 추출.
@@ -1344,6 +1345,7 @@ export async function GET(
         // 티빙 스타일 스코어카드 신규 필드 — 경기장명 + 진행 쿼터
         venueName,
         currentQuarter,
+        currentGameClockSeconds,
         // 2026-04-16: 쿼터별 이벤트 기반 상세 스탯 존재 여부 (프론트 안내 배너 + "—" 처리용)
         // apiSuccess가 camelCase → snake_case 변환하므로 클라이언트는 has_quarter_event_detail로 수신
         hasQuarterEventDetail,

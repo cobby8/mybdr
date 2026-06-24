@@ -1933,7 +1933,7 @@ model play_by_plays {
   id                        BigInt               @id @default(autoincrement())
   local_id                  String               @unique(map: "index_play_by_plays_on_local_id") @db.VarChar
   tournament_match_id       BigInt
-  tournament_team_player_id BigInt
+  tournament_team_player_id BigInt?
   tournament_team_id        BigInt
   quarter                   Int
   game_clock_seconds        Int
@@ -1963,7 +1963,7 @@ model play_by_plays {
   description               String?
   created_at                DateTime             @db.Timestamp(6)
   updated_at                DateTime             @db.Timestamp(6)
-  tournament_team_players   TournamentTeamPlayer @relation(fields: [tournament_team_player_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_rails_7df9a7edee")
+  tournament_team_players   TournamentTeamPlayer? @relation(fields: [tournament_team_player_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_rails_7df9a7edee")
   tournament_matches        TournamentMatch      @relation(fields: [tournament_match_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_rails_d6c4443091")
   tournament_teams          TournamentTeam       @relation(fields: [tournament_team_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_rails_d9baaba46c")
 

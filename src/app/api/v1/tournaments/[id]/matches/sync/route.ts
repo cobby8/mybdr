@@ -24,7 +24,7 @@ import { isRecorderAdmin } from "@/lib/auth/is-recorder-admin";
 // 단일 경기 동기화 스키마 (Flutter bdr_stat 앱용)
 const playByPlaySchema = z.object({
   local_id: z.string().min(1),
-  tournament_team_player_id: z.number().int().min(0),
+  tournament_team_player_id: z.number().int().min(0).optional().nullable(),
   tournament_team_id: z.number().int().min(0),
   quarter: z.number().int().min(1).max(8),
   game_clock_seconds: z.number().int().min(0),

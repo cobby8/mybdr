@@ -145,6 +145,7 @@ interface MatchData {
   // 티빙 스타일 — 경기장명(없으면 null) + 현재 진행 쿼터(라이브 아닐 때 null)
   venue_name?: string | null;
   current_quarter?: number | null;
+  current_game_clock_seconds?: number | null;
   // 2026-04-16: 쿼터별 이벤트 기반 상세 스탯 존재 여부
   // false면 Flutter "최종 스탯 입력 모드"로 기록된 경기 → 쿼터 필터 활성 시 안내 배너 + 스탯 "-" 처리
   has_quarter_event_detail: boolean;
@@ -215,7 +216,7 @@ function formatGameClock(seconds: number): string {
   const total = Math.round(seconds);
   const m = Math.floor(total / 60);
   const s = total % 60;
-  return `${m}:${s.toString().padStart(2, "0")}`;
+  return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
 }
 
 function getQuarterLabel(q: number): string {
@@ -269,6 +270,22 @@ function formatMatchDateTime(
   const HH = String(d.getHours()).padStart(2, "0");
   const mm = String(d.getMinutes()).padStart(2, "0");
   return `${yyyy}.${MM}.${DD} ${HH}:${mm}`;
+}
+
+function formatLiveUpdatedTime(iso: string | null | undefined): string | null {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return null;
+  const HH = String(d.getHours()).padStart(2, "0");
+  const mm = String(d.getMinutes()).padStart(2, "0");
+  const ss = String(d.getSeconds()).padStart(2, "0");
+  return `${HH}:${mm}:${ss}`;
+}
+
+function getLiveClockLabel(match: MatchData): string | null {
+  if (!match.current_quarter) return null;
+  if (match.current_game_clock_seconds == null) return getQuarterLabel(match.current_quarter);
+  return `${getQuarterLabel(match.current_quarter)} ${formatGameClock(match.current_game_clock_seconds)}`;
 }
 
 // 팀명에서 이니셜 추출 — 로고가 없을 때 원형 배지 안에 표기
@@ -444,9 +461,10 @@ function ScoreDisplay({ value, flash }: { value: number; flash: boolean }) {
 // 중앙 정보 블록: 상태 라벨 + 일시 + 장소
 // 기존 5단 레이아웃 내 JSX 블록을 그대로 추출. getCenterStatusLabel / formatMatchDateTime 재사용
 function CenterInfoBlock({ match, isLive }: { match: MatchData; isLive: boolean }) {
-  void isLive; // 현재는 상태 라벨 헬퍼가 match.status/current_quarter만 쓰지만, 추후 확장 대비 시그니처 유지
   const { text, highlight } = getCenterStatusLabel(match.status, match.current_quarter);
   const dt = formatMatchDateTime(match.scheduled_at, match.started_at);
+  const liveClock = isLive ? getLiveClockLabel(match) : null;
+  const liveUpdatedAt = isLive ? formatLiveUpdatedTime(match.updated_at) : null;
   return (
     <div className="flex flex-col items-center gap-2 px-1 min-w-0">
       {/* 상태 라벨 — highlight(진행 중 쿼터 등)면 primary red + 크게 */}
@@ -456,6 +474,20 @@ function CenterInfoBlock({ match, isLive }: { match: MatchData; isLive: boolean 
       >
         {text}
       </span>
+      {(liveClock || liveUpdatedAt) && (
+        <div
+          className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-xs sm:text-sm"
+          style={{ color: "var(--color-text-secondary)" }}
+        >
+          {liveClock && <span className="whitespace-nowrap">기준 경기시간 {liveClock}</span>}
+          {liveClock && liveUpdatedAt && (
+            <span aria-hidden className="opacity-60">
+              ·
+            </span>
+          )}
+          {liveUpdatedAt && <span className="whitespace-nowrap">현장 갱신 {liveUpdatedAt}</span>}
+        </div>
+      )}
       {/* 일시 — 모바일은 text-sm으로 한 단계 축소 (좁은 가로폭 대응) */}
       {dt && (
         <span
@@ -2241,7 +2273,7 @@ function PbpSection({ match }: { match: MatchData }) {
                     </td>
                     {/* 선수이름 컬럼 신규 — 없으면 "-" (사용자 명시 룰표 = # 다음). */}
                     <td className="py-1.5 px-2 whitespace-nowrap" style={{ color: "var(--color-text-secondary)" }}>
-                      {pbp.player_name || "-"}
+                      {pbp.player_name || (pbp.jersey_number == null ? "팀" : "-")}
                     </td>
                     <td className="py-1.5 px-2" style={{ color: "var(--color-text-primary)" }}>
                       {actionLabel}

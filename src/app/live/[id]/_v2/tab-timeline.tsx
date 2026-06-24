@@ -252,7 +252,7 @@ function pickChipColors(bg: string): { textColor: string; borderColor: string } 
 
 // action_type/subtype → 한국어 설명
 function formatEventBody(e: PlayByPlayRowV2): string {
-  const name = e.player_name || `#${e.jersey_number ?? "-"}`;
+  const name = e.player_name || (e.jersey_number == null ? "팀" : `#${e.jersey_number}`);
   const made = e.is_made === true;
   const missed = e.is_made === false;
   const pts = e.points_scored;

@@ -515,6 +515,7 @@ describe("match-sync — syncSingleMatch MPS deleteMany NOT IN 가드 (F3-α)", 
     const mpsDeleteMany = vi.fn().mockResolvedValue({ count: 0 });
     const mpsUpsert = vi.fn().mockResolvedValue({});
     const pbpDeleteMany = vi.fn().mockResolvedValue({ count: 0 });
+    const pbpUpsert = vi.fn().mockResolvedValue({});
     const updateMock = vi.fn().mockResolvedValue({});
     const findUniqueMock = vi.fn().mockResolvedValue({ format: "single_elimination" });
 
@@ -527,7 +528,7 @@ describe("match-sync — syncSingleMatch MPS deleteMany NOT IN 가드 (F3-α)", 
         tournament: {
           findUnique: findUniqueMock,
         },
-        play_by_plays: { deleteMany: pbpDeleteMany },
+        play_by_plays: { deleteMany: pbpDeleteMany, upsert: pbpUpsert },
         matchPlayerStat: {
           deleteMany: mpsDeleteMany,
           upsert: mpsUpsert,
@@ -549,7 +550,7 @@ describe("match-sync — syncSingleMatch MPS deleteMany NOT IN 가드 (F3-α)", 
       finalizeMatchCompletion: vi.fn().mockResolvedValue({}),
     }));
 
-    return { mpsDeleteMany, mpsUpsert, pbpDeleteMany };
+    return { mpsDeleteMany, mpsUpsert, pbpDeleteMany, pbpUpsert };
   }
 
   // PlayerStatInput 풀 필드를 채우는 헬퍼 — minimal valid stat (% / efficiency 는 0 처리).
@@ -581,6 +582,40 @@ describe("match-sync — syncSingleMatch MPS deleteMany NOT IN 가드 (F3-α)", 
       plus_minus: 0,
       fouled_out: false,
       ejected: false,
+    };
+  }
+
+  function makePbp(localId: string, ttpId: number | null) {
+    return {
+      local_id: localId,
+      tournament_team_player_id: ttpId,
+      tournament_team_id: 10,
+      quarter: 2,
+      game_clock_seconds: 0,
+      shot_clock_seconds: null,
+      action_type: "rebound",
+      action_subtype: "defensive",
+      is_made: null,
+      points_scored: 0,
+      court_x: null,
+      court_y: null,
+      court_zone: null,
+      shot_distance: null,
+      home_score_at_time: 30,
+      away_score_at_time: 28,
+      assist_player_id: null,
+      rebound_player_id: null,
+      block_player_id: null,
+      steal_player_id: null,
+      fouled_player_id: null,
+      sub_in_player_id: null,
+      sub_out_player_id: null,
+      is_flagrant: false,
+      is_technical: false,
+      is_fastbreak: false,
+      is_second_chance: false,
+      is_from_turnover: false,
+      description: null,
     };
   }
 
@@ -701,6 +736,30 @@ describe("match-sync — syncSingleMatch MPS deleteMany NOT IN 가드 (F3-α)", 
     // deleteMany 절대 호출 안됨 (player_stats undefined 분기 = if 블록 skip)
     expect(mpsDeleteMany).not.toHaveBeenCalled();
     expect(mpsUpsert).not.toHaveBeenCalled();
+  });
+
+  it("C5: team rebound PBP keeps null tournament_team_player_id", async () => {
+    const { pbpUpsert } = setupMocks();
+    const { syncSingleMatch } = await import("@/lib/services/match-sync");
+
+    const result = await syncSingleMatch({
+      tournamentId: "t-f3a",
+      match: {
+        server_id: 999,
+        home_score: 30,
+        away_score: 28,
+        status: "in_progress",
+      },
+      play_by_plays: [makePbp("team-reb-1", null)],
+      existingMatch: existingMatchStub,
+    });
+
+    expect(result.ok).toBe(true);
+    expect(pbpUpsert).toHaveBeenCalledTimes(1);
+    const upsertCall = pbpUpsert.mock.calls[0][0];
+    expect(upsertCall.create.tournament_team_player_id).toBeNull();
+    expect(upsertCall.create.action_type).toBe("rebound");
+    expect(upsertCall.create.action_subtype).toBe("defensive");
   });
 });
 

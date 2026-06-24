@@ -105,7 +105,7 @@ export interface PlayerStatInput {
  */
 export interface PlayByPlayInput {
   local_id: string;
-  tournament_team_player_id: number;
+  tournament_team_player_id?: number | null;
   tournament_team_id: number;
   quarter: number;
   game_clock_seconds: number;
@@ -651,14 +651,20 @@ export async function syncSingleMatch(
       },
     });
 
-    // player_id=0 인 PBP (타임아웃/쿼터시작 등) 는 upsert 에서 제외
+    // 선수 없는 팀 이벤트(팀 리바운드 등)는 null 로 저장한다.
+    // 구버전 payload 의 0 센티넬(타임아웃 등)은 기존처럼 PBP 저장에서 제외한다.
     const validPbps = play_by_plays.filter(
-      (pbp) => pbp.tournament_team_player_id > 0 && pbp.tournament_team_id > 0
+      (pbp) =>
+        (pbp.tournament_team_player_id == null ||
+          pbp.tournament_team_player_id > 0) &&
+        pbp.tournament_team_id > 0
     );
     const pbpPromises = validPbps.map((pbp) => {
       const pbpData = {
         tournament_match_id: matchId,
-        tournament_team_player_id: BigInt(pbp.tournament_team_player_id),
+        tournament_team_player_id: pbp.tournament_team_player_id
+          ? BigInt(pbp.tournament_team_player_id)
+          : null,
         tournament_team_id: BigInt(pbp.tournament_team_id),
         quarter: pbp.quarter,
         game_clock_seconds: pbp.game_clock_seconds,
