@@ -698,14 +698,17 @@ export async function syncSingleMatch(
         updated_at: now,
       };
 
+      const createData = {
+        local_id: pbp.local_id,
+        ...pbpData,
+        created_at: now,
+      } as Prisma.play_by_playsUncheckedCreateInput;
+      const updateData = pbpData as Prisma.play_by_playsUncheckedUpdateInput;
+
       return prisma.play_by_plays.upsert({
         where: { local_id: pbp.local_id },
-        create: {
-          local_id: pbp.local_id,
-          ...pbpData,
-          created_at: now,
-        },
-        update: pbpData,
+        create: createData,
+        update: updateData,
       });
     });
     await Promise.all(pbpPromises);
