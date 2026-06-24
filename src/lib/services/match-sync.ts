@@ -105,7 +105,7 @@ export interface PlayerStatInput {
  */
 export interface PlayByPlayInput {
   local_id: string;
-  tournament_team_player_id: number;
+  tournament_team_player_id: number | null;
   tournament_team_id: number;
   quarter: number;
   game_clock_seconds: number;
@@ -651,14 +651,23 @@ export async function syncSingleMatch(
       },
     });
 
-    // player_id=0 인 PBP (타임아웃/쿼터시작 등) 는 upsert 에서 제외
+    // Team-owned PBP rows (timeout, team turnover, team rebound, bench tech)
+    // do not belong to an individual player. Flutter may send null, while
+    // older clients used 0 as a sentinel; both are stored as null.
     const validPbps = play_by_plays.filter(
-      (pbp) => pbp.tournament_team_player_id > 0 && pbp.tournament_team_id > 0
+      (pbp) =>
+        pbp.tournament_team_id > 0 &&
+        (pbp.tournament_team_player_id === null ||
+          pbp.tournament_team_player_id >= 0)
     );
     const pbpPromises = validPbps.map((pbp) => {
+      const playerId =
+        pbp.tournament_team_player_id && pbp.tournament_team_player_id > 0
+          ? BigInt(pbp.tournament_team_player_id)
+          : null;
       const pbpData = {
         tournament_match_id: matchId,
-        tournament_team_player_id: BigInt(pbp.tournament_team_player_id),
+        tournament_team_player_id: playerId,
         tournament_team_id: BigInt(pbp.tournament_team_id),
         quarter: pbp.quarter,
         game_clock_seconds: pbp.game_clock_seconds,

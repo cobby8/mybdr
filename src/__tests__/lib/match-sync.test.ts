@@ -772,7 +772,7 @@ describe("match-sync — syncSingleMatch quarterScores 자동 갱신 통합 (F1 
       }),
     }));
 
-    return { updateMock };
+    return { updateMock, pbpUpsert };
   }
 
   /**
@@ -780,19 +780,28 @@ describe("match-sync — syncSingleMatch quarterScores 자동 갱신 통합 (F1 
    * is_made / points_scored / quarter / tournament_team_id 만 케이스별 변경.
    */
   function makePbp(overrides: {
+    tournament_team_player_id?: number | null;
     quarter?: number;
     tournament_team_id?: number;
+    action_type?: string;
+    action_subtype?: string | null;
     points_scored?: number;
     is_made?: boolean | null;
     local_id?: string;
   }) {
+    const tournamentTeamPlayerId =
+      overrides.tournament_team_player_id === undefined
+        ? 1
+        : overrides.tournament_team_player_id;
+
     return {
       local_id: overrides.local_id ?? "pbp-test-1",
-      tournament_team_player_id: 1,
+      tournament_team_player_id: tournamentTeamPlayerId,
       tournament_team_id: overrides.tournament_team_id ?? 10,
       quarter: overrides.quarter ?? 1,
       game_clock_seconds: 600,
-      action_type: "score",
+      action_type: overrides.action_type ?? "score",
+      action_subtype: overrides.action_subtype ?? null,
       is_made: overrides.is_made ?? true,
       points_scored: overrides.points_scored ?? 2,
       home_score_at_time: 0,
@@ -1022,5 +1031,49 @@ describe("match-sync — syncSingleMatch quarterScores 자동 갱신 통합 (F1 
     // input.QS 그대로 (재진입 skip / 운영자 정정 보존)
     expect(updateData.quarterScores.home).toEqual(adminCorrectedQs.home);
     expect(updateData.quarterScores.away).toEqual(adminCorrectedQs.away);
+  });
+
+  it("Q-int-5: team-owned PBP null player id is upserted as null", async () => {
+    const { pbpUpsert } = setupMocks();
+    const { syncSingleMatch } = await import("@/lib/services/match-sync");
+
+    const flutterExistingMatch = {
+      id: BigInt(704),
+      tournamentId: "t-flutter",
+      homeTeamId: BigInt(HOME_TID),
+      awayTeamId: BigInt(AWAY_TID),
+      winner_team_id: null,
+      status: "in_progress",
+      started_at: new Date("2026-05-23T10:00:00Z"),
+      settings: null,
+    };
+
+    const result = await syncSingleMatch({
+      tournamentId: "t-flutter",
+      match: {
+        server_id: 704,
+        home_score: 10,
+        away_score: 8,
+        status: "in_progress",
+      },
+      play_by_plays: [
+        makePbp({
+          local_id: "team-rebound-1",
+          tournament_team_player_id: null,
+          tournament_team_id: HOME_TID,
+          action_type: "rebound",
+          action_subtype: "defensive",
+          points_scored: 0,
+          is_made: null,
+        }),
+      ],
+      existingMatch: flutterExistingMatch,
+    });
+
+    expect(result.ok).toBe(true);
+    expect(pbpUpsert).toHaveBeenCalledTimes(1);
+    const call = pbpUpsert.mock.calls[0][0];
+    expect(call.create.tournament_team_player_id).toBeNull();
+    expect(call.update.tournament_team_player_id).toBeNull();
   });
 });
