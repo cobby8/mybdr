@@ -71,6 +71,7 @@ async function handler(
       position: p.position,
       role: p.role,
       is_starter: p.isStarter ?? false,
+      is_elite: p.is_elite ?? false,
     })),
     matches: matches.map((m) => ({
       id: Number(m.id),
