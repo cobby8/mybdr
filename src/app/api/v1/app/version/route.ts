@@ -25,22 +25,22 @@ import { NextResponse } from "next/server";
 //   ★앱(클라)은 latest_version_name(semver)로 비교 — 'v' 접두는 클라가 방어하나 미사용 권장.
 //   ★배포마다: 아래 버전/sha256/size + download/route.ts 의 TAG·ASSET_NAME 동시 갱신.
 const LATEST = {
-  latest_version_code: 11,
-  latest_version_name: "0.1.9",
+  latest_version_code: 12,
+  latest_version_name: "0.1.10",
   // 이 코드 미만 버전은 강제 업데이트 대상
   min_supported_version_code: 1,
   // 강제 업데이트 여부 (true 면 앱이 진입 차단)
   is_mandatory: false,
   // 비공개 릴리스 APK 를 중계하는 서버 프록시(공개 repo 노출 없음)
   apk_url: "https://www.mybdr.kr/api/v1/app/download",
-  // bdr-0.1.9.apk 실측 SHA256 / 바이트
-  sha256: "96860178c22f366eb2d432810de841d7f6cc81b280e84fb031915b898ea8808c",
-  size_bytes: 79534663,
+  // bdr-0.1.10.apk 실측 SHA256 / 바이트
+  sha256: "3bbcd2eb7464b3a01deb87af3fc079e3e940b7eb0418f131137d5be6bfd26dc7",
+  size_bytes: 79616583,
   // 릴리스 노트 (배열)
   release_notes: [
-    "Google 로그인 호환성 개선",
-    "Lenovo/ZUI 태블릿 계정 선택기 멈춤 우회",
-    "서버 idToken 검증용 Web Client ID 유지",
+    "현장 긴급 선수 추가",
+    "팀파울 표시 안정화",
+    "골든 기준 갱신 및 안정성 검증",
   ],
 } as const;
 
