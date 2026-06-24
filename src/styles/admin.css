@@ -259,8 +259,8 @@
   top: 12px;
   left: 12px;
   z-index: 50;
-  width: 40px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
   background: var(--bg-elev);
   border: 1px solid var(--border);
   border-radius: 6px;
@@ -274,6 +274,10 @@
 }
 .admin-mobile-toggle:hover { background: var(--bg-alt); }
 .admin-mobile-toggle .material-symbols-outlined { font-size: 22px; }
+.admin-mobile-drawer .admin-aside__link,
+.admin-mobile-drawer .admin-aside__foot-link {
+  min-height: 44px;
+}
 
 .admin-mobile-overlay {
   display: none;
@@ -1277,7 +1281,8 @@
   flex-wrap: wrap;
 }
 .aen-tabs__tab {
-  padding: 7px 12px;
+  min-height: 44px;
+  padding: 10px 12px;
   font-size: 12.5px; font-weight: 600;
   color: var(--ink-soft);
   background: transparent; border: 0; cursor: pointer;
@@ -1293,6 +1298,30 @@
   padding: 1px 6px; border-radius: 8px; letter-spacing: 0.04em;
 }
 .aen-tabs__tab.is-on .aen-tabs__count { background: color-mix(in srgb, var(--bg) 25%, transparent); color: var(--bg); }
+.atm-toolbar__search {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--ink-soft);
+}
+.atm-toolbar__search input {
+  min-height: 40px;
+  min-width: 180px;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--ink);
+  font-family: var(--ff-body);
+}
+.atm-toolbar__search .ico {
+  font-family: 'Material Symbols Outlined';
+  font-size: 18px;
+}
 
 /* Tournament list 카드 (admin) */
 .aen-list { display: flex; flex-direction: column; gap: 10px; }
@@ -1356,6 +1385,16 @@
 @media (max-width: 768px) {
   .aen-hero { grid-template-columns: 1fr; }
   .aen-grid { grid-template-columns: 1fr; }
+  .aen-tabs { align-items: stretch; }
+  .atm-toolbar__search {
+    width: 100%;
+    margin-left: 0 !important;
+  }
+  .atm-toolbar__search input {
+    min-width: 0;
+    width: 100%;
+    font-size: 16px !important;
+  }
   .aen-row { grid-template-columns: 1fr auto; gap: 8px; }
   .aen-row__date { grid-column: 1 / -1; }
   .aen-row__cta { display: none; }

@@ -86,7 +86,7 @@ export function UserDropdown({
             {[
               { href: "/profile", label: "프로필" },
               { href: "/games/my-games", label: "내 경기" },
-              { href: "/tournament-admin", label: "대회 관리" },
+              { href: "/tournament-admin/tournaments", label: "대회 관리" },
               ...(isSuperAdmin ? [{ href: "/admin", label: "관리자" }] : []),
             ].map((item) => (
               <Link

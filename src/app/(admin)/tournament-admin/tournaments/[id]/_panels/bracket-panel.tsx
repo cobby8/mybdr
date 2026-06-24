@@ -6,7 +6,8 @@ import Link from "next/link";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 // 2026-05-04 (P4) — 듀얼 조 배정 에디터 (16팀 → 4그룹 배정 + 페어링 모드 + 저장/생성)
-import { DualGroupAssignmentEditor } from "./_components/dual-group-assignment-editor";
+import { DualGroupAssignmentEditor } from "../bracket/_components/dual-group-assignment-editor";
+import { PanelLoadingState } from "./panel-loading-state";
 import type { SemifinalPairingMode } from "@/lib/tournaments/dual-defaults";
 // 2026-05-16 PR-Admin-1 — 단계간 CTA (페이지 footer "다음: 경기 관리 →")
 import { NextStepCTA } from "../_components/NextStepCTA";
@@ -214,8 +215,7 @@ export default function BracketAdminPage() {
     }
   };
 
-  if (loading)
-    return <div data-skin="toss" className="flex h-40 items-center justify-center text-[var(--color-text-muted)]">불러오는 중...</div>;
+  if (loading) return <PanelLoadingState label="대진 정보를 준비 중입니다." />;
 
   // 풀리그는 라운드 개념이 없어 "1라운드 팀 배치 편집"을 숨긴다
   // 듀얼토너먼트는 27 매치를 5섹션으로 표시 — 기존 1라운드 편집/전체 목록 UI 숨기고 dual 전용 섹션 사용
@@ -473,7 +473,7 @@ export default function BracketAdminPage() {
               전체 경기 ({data?.matches.length}경기)
             </h2>
             <Link
-              href={`/tournament-admin/tournaments/${id}/matches`}
+              href={`/tournament-admin/tournaments/${id}#matches`}
               className="text-xs text-[var(--color-info)] hover:underline"
             >
               경기 관리로 이동 →
@@ -485,7 +485,7 @@ export default function BracketAdminPage() {
               return (
                 <div key={rn ?? "x"}>
                   <p className="mb-1 text-xs font-medium uppercase tracking-wide text-[var(--color-text-muted)]">
-                    {rMatches[0]?.roundName ?? `라운드 ${rn}`}
+                    {rMatches[0]?.roundName ?? (rn != null ? `라운드 ${rn}` : "라운드 미정")}
                   </p>
                   {rMatches.map((m) => (
                     <div key={m.id} className="mb-1 flex items-center gap-2 rounded-[10px] bg-[var(--color-surface)] px-3 py-2 text-sm">
@@ -594,7 +594,7 @@ function DualBracketSections({
           듀얼토너먼트 ({matches.length}경기)
         </h2>
         <Link
-          href={`/tournament-admin/tournaments/${tournamentId}/matches`}
+          href={`/tournament-admin/tournaments/${tournamentId}#matches`}
           className="text-xs text-[var(--color-info)] hover:underline"
         >
           경기 관리로 이동 →
@@ -713,7 +713,7 @@ function DualMatchCard({ match }: { match: Match }) {
             #{match.match_number ?? "-"}
           </span>
           <span className="font-medium text-[var(--color-text-secondary)]">
-            {match.roundName ?? `라운드 ${match.round_number ?? "?"}`}
+            {match.roundName ?? (match.round_number != null ? `라운드 ${match.round_number}` : "라운드 미정")}
           </span>
         </div>
         <span
@@ -851,7 +851,7 @@ function DivisionBracketSections({
           종별 대진표 ({matches.length}경기 / {divisionEntries.length}종별)
         </h2>
         <Link
-          href={`/tournament-admin/tournaments/${tournamentId}/matches`}
+          href={`/tournament-admin/tournaments/${tournamentId}#matches`}
           className="text-xs text-[var(--color-info)] hover:underline"
         >
           경기 관리로 이동 →
@@ -936,7 +936,7 @@ function DivisionBracketSections({
                 {/* 2026-05-12 Phase 3.5-B — 종별 deep link → matches 페이지 자동 필터 */}
                 {divCode !== "_no_division" && (
                   <Link
-                    href={`/tournament-admin/tournaments/${tournamentId}/matches?division=${encodeURIComponent(divCode)}`}
+                    href={`/tournament-admin/tournaments/${tournamentId}#matches`}
                     className="text-xs text-[var(--color-info)] hover:underline"
                   >
                     경기 관리 →

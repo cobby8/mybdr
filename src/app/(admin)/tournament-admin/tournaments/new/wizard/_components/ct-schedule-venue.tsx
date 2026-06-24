@@ -332,6 +332,7 @@ export function ScheduleVenue({
   dates,
   venues,
   courts,
+  embedded = false,
   syncDates,
   removeDate,
   addVenue,
@@ -342,6 +343,7 @@ export function ScheduleVenue({
   dates: DateRow[];
   venues: Venue[];
   courts: Court[];
+  embedded?: boolean;
   syncDates: (dateStrings: string[]) => void;
   removeDate: (id: string) => void;
   addVenue: (name: string, region: string) => void;
@@ -351,7 +353,7 @@ export function ScheduleVenue({
 }) {
   const [calOpen, setCalOpen] = React.useState(false);
   return (
-    <section className="ts-card">
+    <section className={embedded ? "ct-embedded-block" : "ts-card"}>
       {/* 카드 헤더 */}
       <div style={{ display: "flex", alignItems: "center", gap: 11, marginBottom: 18 }}>
         <span className="ct-headicon">

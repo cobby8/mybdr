@@ -7,6 +7,7 @@ import { checkRateLimit, RATE_LIMITS } from "@/lib/security/rate-limit";
 import { getClientIp } from "@/lib/security/get-client-ip";
 // 2026-05-12 Phase B 정합성 가드 — seriesId 전달 시 권한 검증 (본인 시리즈만).
 import { requireSeriesOwner, SeriesPermissionError } from "@/lib/auth/series-permission";
+import { normalizeGameRules } from "@/lib/tournaments/game-rules";
 
 /**
  * GET /api/web/tournaments
@@ -242,7 +243,7 @@ export const POST = withWebAuth(async (req: Request, ctx: WebAuthContext) => {
       gameMethod: gameMethod || undefined,
       places: places || undefined,
       // 새 대회 생성폼 신규 3필드 — 안 보내면 createTournament가 기본값({}/[]) 처리 (회귀 0)
-      gameRules: gameRules || undefined,
+      gameRules: gameRules ? normalizeGameRules(gameRules) : undefined,
       scheduleDates: scheduleDates || undefined,
       gender: gender || undefined,
       rules: rules || undefined,

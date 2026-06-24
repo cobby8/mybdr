@@ -79,6 +79,43 @@ function setupMocks(opts: {
         return Promise.resolve({ id: args.where.id });
       }),
     },
+    tournamentMatch: {
+      findMany: vi.fn().mockResolvedValue([]),
+      deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
+    },
+    play_by_plays: {
+      deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
+    },
+    matchPlayerStat: {
+      deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
+    },
+    matchLineupConfirmed: {
+      deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
+    },
+    tournamentTeamPlayer: {
+      deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
+    },
+    tournamentTeam: {
+      deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
+    },
+    site_sections: {
+      deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
+    },
+    site_pages: {
+      deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
+    },
+    tournamentSite: {
+      deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
+    },
+    tournamentAdminMember: {
+      deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
+    },
+    tournament_bracket_versions: {
+      deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
+    },
+    tournamentDivisionRule: {
+      deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
+    },
     tournament_series: {
       update: vi.fn().mockImplementation((args: { where: { id: bigint }; data: unknown }) => {
         captures.seriesUpdateCalls.push(args);

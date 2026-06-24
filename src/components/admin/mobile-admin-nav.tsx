@@ -39,6 +39,7 @@ import { LogoutButton } from "@/app/(admin)/admin/_components/logout-button";
 
 interface Props {
   roles: AdminRole[];
+  scope?: "default" | "tournament";
   // 2026-05-11: 드로어 상단 사용자 카드용 — layout 에서 prop 전달
   user?: {
     nickname: string | null;
@@ -88,7 +89,32 @@ function renderMobileItem(
   );
 }
 
-export function AdminMobileNav({ roles, user }: Props) {
+function getTournamentMobileStructure(): ReturnType<typeof filterStructureByRoles> {
+  return [
+    {
+      type: "group",
+      label: "대회 관리",
+      items: [
+        {
+          type: "item",
+          href: "/tournament-admin/tournaments",
+          label: "내 대회",
+          icon: "emoji_events",
+          roles: "all",
+        },
+        {
+          type: "item",
+          href: "/tournament-admin/tournaments/new/wizard",
+          label: "새 대회 만들기",
+          icon: "add_circle",
+          roles: "all",
+        },
+      ],
+    },
+  ];
+}
+
+export function AdminMobileNav({ roles, scope = "default", user }: Props) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
   // 드로어 상단 사용자 카드 표시용 (user prop 있을 때만)
@@ -97,8 +123,9 @@ export function AdminMobileNav({ roles, user }: Props) {
     : null;
   const initial = user ? getInitial(user.nickname, user.email) : null;
 
-  // 유저 역할에 맞는 메뉴만 필터링 (sidebar 와 동일 — 그룹화 구조)
-  const visibleStructure = filterStructureByRoles(roles);
+  // tournament-admin 모바일은 실제 업무 진입점만 노출한다.
+  const visibleStructure =
+    scope === "tournament" ? getTournamentMobileStructure() : filterStructureByRoles(roles);
 
   // ESC 키로 닫기
   useEffect(() => {

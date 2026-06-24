@@ -122,7 +122,7 @@ export function AppNav({
           {user ? (
             <>
               {/* 2026-05-15 — 관리자 진입 (계정 이름 왼쪽). 비관리자는 user.admin_entry_url=null → 미노출.
-                              super_admin → /admin / 협회 관리자 → /tournament-admin / recorder_admin → /referee/admin */}
+                              super_admin → /admin / 협회 관리자 → 내 권한 대회 목록 / recorder_admin → /referee/admin */}
               {user.admin_entry_url && (
                 <>
                   <Link href={user.admin_entry_url}>관리자</Link>

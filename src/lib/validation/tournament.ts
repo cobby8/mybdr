@@ -81,7 +81,21 @@ export const updateTournamentSchema = z
     game_time: z.string().nullable(),
     game_ball: z.string().nullable(),
     game_method: z.string().nullable(),
-    places: z.array(z.object({ name: z.string(), address: z.string() })).nullable(),
+    game_rules: z.record(z.string(), z.unknown()).optional(),
+    places: z.array(z.object({
+      id: z.string().optional(),
+      name: z.string(),
+      address: z.string().optional(),
+      region: z.string().optional(),
+      courtCount: z.number().int().min(1).optional(),
+      court_count: z.number().int().min(1).optional(),
+      naming: z.enum(["num", "alpha"]).optional(),
+    })).nullable(),
+    schedule_dates: z.array(z.object({
+      id: z.string(),
+      date: z.string(),
+      court_ids: z.array(z.string()),
+    })).nullable(),
     // 디자인 템플릿 + 이미지 URL
     design_template: z.enum(["basic", "poster", "logo", "photo"]).nullable(),
     logo_url: z.string().url().nullable().or(z.literal("")).or(z.null()),

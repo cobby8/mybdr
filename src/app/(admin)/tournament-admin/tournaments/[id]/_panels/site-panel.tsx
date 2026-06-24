@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useParams } from "next/navigation";
+import { PanelLoadingState } from "./panel-loading-state";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 // 2026-05-11: BDR 브랜드 hex hardcode 단일화
@@ -218,13 +219,7 @@ export default function TournamentSitePage() {
     setStep(3);
   };
 
-  if (loading) {
-    return (
-      <div data-skin="toss" className="flex h-40 items-center justify-center text-[var(--color-text-muted)]">
-        불러오는 중...
-      </div>
-    );
-  }
+  if (loading) return <PanelLoadingState label="사이트 설정을 준비 중입니다." />;
 
   // ─── 발행 완료 상태 ──────────────────────────────────────────────────────
 
@@ -305,7 +300,7 @@ export default function TournamentSitePage() {
             <p className="mt-0.5 font-mono text-sm text-[var(--color-text-muted)]">{selectedColor}</p>
           </button>
           <Link
-            href={`/tournament-admin/tournaments/${id}/site/pages`}
+            href={`/tournament-admin/tournaments/${id}#publish`}
             className="rounded-md border border-[var(--color-border)] bg-white p-5 text-left shadow-sm transition-shadow hover:shadow-md"
           >
             <p className="text-2xl mb-2">📄</p>

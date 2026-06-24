@@ -1,66 +1,109 @@
 /**
- * 2026-05-12 Phase 3.5 — 종별 진행 방식 (format + settings) 관리 API.
+ * 종별 진행 방식 관리 API.
  *
- * 도메인:
- *   - Tournament.format = 단일 enum (대회 전체 1 진행 방식 가정).
- *   - 강남구협회장배 = 6 종별 × 다른 진행 방식 (i3-U9 링크제 / i2-U11 듀얼 / 등)
- *   - TournamentDivisionRule.format 컬럼 (Phase 3.5 신설) → 종별 단위 박제.
- *
- * 엔드포인트:
- *   GET  /api/web/admin/tournaments/[id]/division-rules
- *        → 종별 룰 목록 + format + settings
- *
- *   PATCH /api/web/admin/tournaments/[id]/division-rules/[ruleId]
- *        body: { format?, settings?, groupCount?, ... }
- *        → 단일 종별 룰 UPDATE
- *
- * 권한: canManageTournament (super_admin / organizer / TAM / 단체 admin).
+ * GET  /api/web/admin/tournaments/[id]/division-rules
+ * POST /api/web/admin/tournaments/[id]/division-rules
  */
 
 import { type NextRequest } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { getWebSession } from "@/lib/auth/web-session";
 import { canManageTournament } from "@/lib/auth/tournament-permission";
-import { apiSuccess, unauthorized, forbidden } from "@/lib/api/response";
-// 2026-05-12 Phase 3.5-D — ALLOWED_FORMATS 단일 source of truth (lib/tournaments/division-formats.ts).
+import { apiSuccess, apiError, unauthorized, forbidden } from "@/lib/api/response";
 import { ALLOWED_FORMATS } from "@/lib/tournaments/division-formats";
+import {
+  buildDivisionRuleSeedsFromCategories,
+  normalizeCategoryMap,
+  normalizeNumberMap,
+  toCategorySelectionItems,
+} from "@/lib/tournaments/division-rule-sync";
+
+function serializeRule(r: {
+  id: bigint;
+  code: string;
+  label: string;
+  gradeMin: number | null;
+  gradeMax: number | null;
+  feeKrw: number;
+  sortOrder: number;
+  format: string | null;
+  settings: unknown;
+}) {
+  return {
+    id: r.id.toString(),
+    code: r.code,
+    label: r.label,
+    grade_min: r.gradeMin,
+    grade_max: r.gradeMax,
+    fee_krw: r.feeKrw,
+    sort_order: r.sortOrder,
+    format: r.format,
+    settings: r.settings,
+  };
+}
+
+function serializeMasterCategory(c: {
+  id: bigint;
+  name: string;
+  divisions: unknown;
+  ages: unknown;
+  sortOrder: number;
+}) {
+  return {
+    id: c.id.toString(),
+    name: c.name,
+    divisions: Array.isArray(c.divisions) ? c.divisions : [],
+    ages: Array.isArray(c.ages) ? c.ages : [],
+    sort_order: c.sortOrder,
+  };
+}
+
+async function authorizeTournament(id: string) {
+  const session = await getWebSession();
+  if (!session) return { response: unauthorized() };
+
+  const userId = BigInt(session.sub);
+  const allowed = await canManageTournament(id, userId, session);
+  if (!allowed) return { response: forbidden() };
+
+  return { session };
+}
 
 export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const session = await getWebSession();
-  if (!session) return unauthorized();
-  const userId = BigInt(session.sub);
-  const allowed = await canManageTournament(id, userId, session);
-  if (!allowed) return forbidden();
+  const auth = await authorizeTournament(id);
+  if ("response" in auth) return auth.response;
 
-  const rules = await prisma.tournamentDivisionRule.findMany({
-    where: { tournamentId: id },
-    orderBy: { sortOrder: "asc" },
-  });
+  const [rules, tournament, masterCategories] = await Promise.all([
+    prisma.tournamentDivisionRule.findMany({
+      where: { tournamentId: id },
+      orderBy: { sortOrder: "asc" },
+    }),
+    prisma.tournament.findUnique({
+      where: { id },
+      select: {
+        categories: true,
+        div_caps: true,
+        div_fees: true,
+        settings: true,
+        schedule_dates: true,
+        places: true,
+      },
+    }),
+    prisma.adminCategory.findMany({
+      orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
+    }),
+  ]);
+  if (!tournament) return apiError("대회를 찾을 수 없습니다", 404, "NOT_FOUND");
 
-  // 2026-06-22 F-2b — 디비전별 날짜/코트 표시용 읽기 select(추가만, write 0).
-  //   새 생성폼이 settings.div_schedule({디비전명:{dateId,courtId}}) 에 저장한 일정을
-  //   divisions 화면에서 사람이 읽는 라벨로 역참조하려면 schedule_dates/places 가 필요.
-  const tournament = await prisma.tournament.findUnique({
-    where: { id },
-    select: { settings: true, schedule_dates: true, places: true },
-  });
-  // settings.div_schedule 만 추출(나머지 settings 키는 표시에 불필요).
   const settingsObj =
-    tournament?.settings && typeof tournament.settings === "object"
+    tournament.settings && typeof tournament.settings === "object"
       ? (tournament.settings as Record<string, unknown>)
       : {};
 
-  // 🔑 div_schedule 을 map → 배열로 변환하는 이유:
-  //   apiSuccess() = convertKeysToSnakeCase 가 응답 전체를 재귀 변환한다(case.ts L5~18).
-  //   원본 map {디비전명:{dateId,courtId}} 를 그대로 내보내면
-  //     ① 내부 키 dateId/courtId → date_id/court_id 변환(소비처 정합 깨짐)
-  //     ② 디비전명이 "키" 라서 영문 디비전명(U10)까지 snake 변환됨 → "_u10" 으로 망가짐
-  //   → 디비전명을 "값"(division 필드)으로 옮긴 배열로 만들면 디비전명은 보존되고
-  //     내부 식별자만 snake(date_id/court_id) 로 변환된다. 소비처는 배열 + snake 로 읽는다.
   const rawDivSchedule = settingsObj.div_schedule;
   const divScheduleList: Array<{
     division: string;
@@ -73,30 +116,121 @@ export async function GET(
             const entry =
               v && typeof v === "object" ? (v as Record<string, unknown>) : {};
             return {
-              division, // 디비전명 = 값 → snake 변환 영향 없음(원본 보존)
-              dateId: entry.dateId, // → 응답에선 date_id 로 변환됨
-              courtId: entry.courtId, // → 응답에선 court_id 로 변환됨
+              division,
+              dateId: entry.dateId,
+              courtId: entry.courtId,
             };
           },
         )
       : [];
 
   return apiSuccess({
-    rules: rules.map((r) => ({
-      id: r.id.toString(),
-      code: r.code,
-      label: r.label,
-      grade_min: r.gradeMin,
-      grade_max: r.gradeMax,
-      fee_krw: r.feeKrw,
-      sort_order: r.sortOrder,
-      format: r.format,
-      settings: r.settings,
-    })),
+    rules: rules.map(serializeRule),
     allowed_formats: ALLOWED_FORMATS,
-    // F-2b 읽기 추가분 — 디비전 일정 역참조 데이터(배열·apiSuccess 가 snake 변환)
+    master_categories: masterCategories.map(serializeMasterCategory),
+    current_categories: toCategorySelectionItems(
+      tournament.categories,
+      tournament.div_caps,
+      tournament.div_fees,
+    ),
     div_schedule: divScheduleList,
-    schedule_dates: tournament?.schedule_dates ?? [],
-    places: tournament?.places ?? [],
+    schedule_dates: tournament.schedule_dates ?? [],
+    places: tournament.places ?? [],
+  });
+}
+
+export async function POST(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params;
+  const auth = await authorizeTournament(id);
+  if ("response" in auth) return auth.response;
+
+  const raw = await req.json().catch(() => null);
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    return apiError("잘못된 요청입니다", 400, "BAD_REQUEST");
+  }
+
+  const body = raw as Record<string, unknown>;
+  const categories = normalizeCategoryMap(body.categories);
+  const divCaps = normalizeNumberMap(body.div_caps ?? body.divCaps);
+  const divFees = normalizeNumberMap(body.div_fees ?? body.divFees);
+
+  if (Object.keys(categories).length === 0) {
+    return apiError("종별을 하나 이상 선택하세요", 400, "EMPTY_DIVISIONS");
+  }
+
+  const [tournament, existingRules] = await Promise.all([
+    prisma.tournament.findUnique({
+      where: { id },
+      select: { id: true, format: true, entry_fee: true },
+    }),
+    prisma.tournamentDivisionRule.findMany({
+      where: { tournamentId: id },
+      orderBy: { sortOrder: "asc" },
+    }),
+  ]);
+  if (!tournament) return apiError("대회를 찾을 수 없습니다", 404, "NOT_FOUND");
+
+  const seeds = buildDivisionRuleSeedsFromCategories({
+    categories,
+    divFees,
+    entryFee: Number(tournament.entry_fee ?? 0),
+    format: tournament.format ?? "single_elimination",
+  });
+  const existingByCode = new Map(existingRules.map((rule) => [rule.code, rule]));
+  const createSeeds = seeds.filter((seed) => !existingByCode.has(seed.code));
+  const updateSeeds = seeds.filter((seed) => existingByCode.has(seed.code));
+
+  const updatedRules = await prisma.$transaction(async (tx) => {
+    await tx.tournament.update({
+      where: { id },
+      data: {
+        categories,
+        div_caps: divCaps,
+        div_fees: divFees,
+      },
+    });
+
+    await Promise.all(
+      updateSeeds.map((seed) => {
+        const existing = existingByCode.get(seed.code);
+        if (!existing) return Promise.resolve(null);
+        return tx.tournamentDivisionRule.update({
+          where: { id: existing.id },
+          data: {
+            label: seed.label,
+            feeKrw: seed.feeKrw,
+            sortOrder: seed.sortOrder,
+            format: existing.format ?? seed.format,
+          },
+        });
+      }),
+    );
+
+    if (createSeeds.length > 0) {
+      await tx.tournamentDivisionRule.createMany({
+        data: createSeeds.map((seed) => ({
+          ...seed,
+          tournamentId: id,
+        })),
+      });
+    }
+
+    return tx.tournamentDivisionRule.findMany({
+      where: { tournamentId: id },
+      orderBy: { sortOrder: "asc" },
+    });
+  });
+
+  return apiSuccess({
+    rules: updatedRules.map(serializeRule),
+    current_categories: toCategorySelectionItems(categories, divCaps, divFees),
+    sync_result: {
+      created: createSeeds.length,
+      updated: updateSeeds.length,
+      preserved: Math.max(existingRules.length - updateSeeds.length, 0),
+    },
   });
 }

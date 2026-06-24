@@ -8,6 +8,7 @@ import { Card } from "@/components/ui/card";
 import { NextStepCTA } from "../_components/NextStepCTA";
 // Track B-a Toss 리스킨 — Material Symbols → lucide-react 키트(<Icon>)
 import { Icon } from "@/components/admin-toss";
+import { PanelLoadingState } from "./panel-loading-state";
 
 /* ---------- 타입 ---------- */
 
@@ -294,7 +295,7 @@ export default function TournamentTeamsPage() {
       if (!res.ok) return showToast(json.error ?? "재발급 실패");
       if (json.apply_token_url) {
         try { await navigator.clipboard.writeText(json.apply_token_url); } catch { /* ignore */ }
-        showToast(`재발급 완료 — URL 복사됨 (만료 ${new Date(json.expires_at).toLocaleDateString("ko-KR")})`);
+        showToast(`재발급 완료 — 링크가 복사되었습니다. (만료 ${new Date(json.expires_at).toLocaleDateString("ko-KR")})`);
       } else {
         showToast("재발급 완료");
       }
@@ -469,8 +470,7 @@ export default function TournamentTeamsPage() {
     null: teams.filter((tt) => !tokenMap[tt.id]?.appliedVia).length,
   };
 
-  if (loading)
-    return <div data-skin="toss" className="flex h-40 items-center justify-center text-[var(--color-text-muted)]">불러오는 중...</div>;
+  if (loading) return <PanelLoadingState label="참가팀 정보를 준비 중입니다." />;
 
   return (
     <div data-skin="toss">
@@ -490,20 +490,20 @@ export default function TournamentTeamsPage() {
             onClick={() => downloadTokenCsv(teams, tokenMap)}
             disabled={!aliveTokenCount(tokenMap)}
             className="btn btn--sm"
-            title="모든 팀의 토큰 URL을 CSV 파일로 다운로드"
+            title="모든 팀의 명단 입력 링크를 파일로 받기"
           >
             <Icon name="download" size={16} className="align-middle mr-1" />
-            CSV 다운로드 ({aliveTokenCount(tokenMap)})
+            토큰 파일 받기 ({aliveTokenCount(tokenMap)})
           </button>
           <button
             type="button"
             onClick={() => copyAllTokenMessages(teams, tokenMap, showToast)}
             disabled={!aliveTokenCount(tokenMap)}
             className="btn btn--primary btn--sm"
-            title="카톡 발송용 메시지 일괄 복사 (팀별 안내문 포함)"
+            title="카톡 발송용 안내문 일괄 복사"
           >
             <Icon name="message-circle" size={16} className="align-middle mr-1" />
-            카톡 메시지 복사
+            카톡 문구 복사
           </button>
           {/* 2026-05-16 PR-Admin-2 — "순위전 자동 채우기" 버튼은 matches 페이지로 이동 박제됨 (AdvancePlayoffsButton).
               admin-flow §3 단계 10 = "예선 종료 → 순위전 진출" 은 matches 페이지가 자연스러운 위치. */}
@@ -526,12 +526,11 @@ export default function TournamentTeamsPage() {
           <button
             key={s}
             onClick={() => setFilter(s)}
-            className={`flex items-center gap-1.5 whitespace-nowrap rounded-[4px] px-4 py-2 text-sm transition-colors ${
-              filter === s ? "bg-[var(--color-info)] font-semibold text-white" : "bg-[var(--color-elevated)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
-            }`}
+            className="ts-chip"
+            data-active={filter === s}
           >
             {s === "all" ? "전체" : s === "coach_pending" ? "코치 미입력" : STATUS_LABEL[s]}
-            <span className="rounded-full bg-black/20 px-1.5 py-0.5 text-xs">{counts[s]}</span>
+            <span className="rounded-[8px] bg-[var(--grey-100)] px-1.5 py-0.5 text-xs">{counts[s]}</span>
           </button>
         ))}
       </div>
@@ -587,9 +586,9 @@ export default function TournamentTeamsPage() {
             return (
             <Card key={tt.id}>
               {/* 팀 정보 행 */}
-              <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div
-                  className="flex cursor-pointer items-center gap-3"
+                  className="flex min-w-0 cursor-pointer items-center gap-3"
                   onClick={() => toggleTeam(tt.id)}
                 >
                   {/* 팀 색상 아이콘 — 정사각형(W=H) 원형은 룰 10에 따라 9999px 회피 → 50% */}
@@ -604,12 +603,12 @@ export default function TournamentTeamsPage() {
                       <ViaBadge appliedVia={token?.appliedVia ?? null} />
                       <StatusBadge status={tt.status} />
                       {token?.waitingNumber && (
-                        <span className="rounded-full bg-[var(--color-warning)]/15 px-2 py-0.5 text-xs font-medium text-[var(--color-warning)]">
+                        <span className="rounded-[8px] bg-[var(--color-warning)]/15 px-2 py-0.5 text-xs font-medium text-[var(--color-warning)]">
                           대기 {token.waitingNumber}번
                         </span>
                       )}
                       {isCoachPending(tt) && (
-                        <span className="rounded-full bg-[var(--color-info)]/15 px-2 py-0.5 text-xs font-medium text-[var(--color-info)]">
+                        <span className="rounded-[8px] bg-[var(--color-info)]/15 px-2 py-0.5 text-xs font-medium text-[var(--color-info)]">
                           코치 입력 대기
                         </span>
                       )}
@@ -634,7 +633,7 @@ export default function TournamentTeamsPage() {
                   />
                 </div>
 
-                <div className="flex items-center gap-3">
+                <div className="flex w-full flex-wrap items-center justify-start gap-2 sm:w-auto sm:justify-end">
                   {/* Phase 2-C — 토큰 URL 복사 버튼 */}
                   {/* 토큰 자체가 발급된 적이 없는 팀(직접 등록 등) = "-" / 만료 = "만료" 표시 */}
                   {token ? (
@@ -646,14 +645,14 @@ export default function TournamentTeamsPage() {
                       }}
                       disabled={!tokenAlive}
                       title={tokenAlive ? `만료: ${formatExpiry(token.applyTokenExpiresAt)}` : "토큰 만료됨"}
-                      className={`flex items-center gap-1 rounded-[4px] px-3 py-1.5 text-xs font-medium ${
+                      className={`ts-btn ts-btn--sm ${
                         tokenAlive
-                          ? "bg-[var(--color-info)]/10 text-[var(--color-info)] hover:bg-[var(--color-info)]/20"
-                          : "cursor-not-allowed bg-[var(--color-elevated)] text-[var(--color-text-muted)] opacity-60"
+                          ? "ts-btn--secondary"
+                          : "cursor-not-allowed opacity-60"
                       }`}
                     >
                       <Icon name={tokenAlive ? "copy" : "link-2-off"} size={14} />
-                      {tokenAlive ? "URL 복사" : "만료"}
+                      {tokenAlive ? "링크 복사" : "만료"}
                     </button>
                   ) : (
                     <span className="text-xs text-[var(--color-text-muted)]" title="토큰 미발급">—</span>
@@ -676,7 +675,7 @@ export default function TournamentTeamsPage() {
                   )}
 
                   {/* 상태 뱃지 */}
-                  <span className={`rounded-full px-3 py-1 text-xs font-medium ${STATUS_COLOR[tt.status] ?? ""}`}>
+                  <span className={`rounded-[8px] px-3 py-1 text-xs font-medium ${STATUS_COLOR[tt.status] ?? ""}`}>
                     {STATUS_LABEL[tt.status] ?? tt.status}
                   </span>
 
@@ -686,14 +685,14 @@ export default function TournamentTeamsPage() {
                       <button
                         onClick={() => updateStatus(tt.id, "approved")}
                         disabled={actionLoading === tt.id}
-                        className="rounded-[4px] bg-[var(--color-game-team)]/10 px-3 py-1.5 text-xs font-medium text-[var(--color-game-team)] hover:bg-[var(--color-game-team)]/20 disabled:opacity-50"
+                        className="ts-btn ts-btn--primary ts-btn--sm"
                       >
                         승인
                       </button>
                       <button
                         onClick={() => updateStatus(tt.id, "rejected")}
                         disabled={actionLoading === tt.id}
-                        className="rounded-[4px] bg-[var(--color-error)]/10 px-3 py-1.5 text-xs font-medium text-[var(--color-error)] hover:bg-[var(--color-error)]/20 disabled:opacity-50"
+                        className="ts-btn ts-btn--danger ts-btn--sm"
                       >
                         거절
                       </button>
@@ -703,7 +702,7 @@ export default function TournamentTeamsPage() {
                     <button
                       onClick={() => updateStatus(tt.id, "rejected")}
                       disabled={actionLoading === tt.id}
-                      className="rounded-[4px] bg-[var(--color-error)]/10 px-3 py-1.5 text-xs font-medium text-[var(--color-error)] hover:bg-[var(--color-error)]/20 disabled:opacity-50"
+                      className="ts-btn ts-btn--danger ts-btn--sm"
                     >
                       거절
                     </button>
@@ -712,7 +711,7 @@ export default function TournamentTeamsPage() {
                     <button
                       onClick={() => updateStatus(tt.id, "approved")}
                       disabled={actionLoading === tt.id}
-                      className="rounded-[4px] bg-[var(--color-game-team)]/10 px-3 py-1.5 text-xs font-medium text-[var(--color-game-team)] hover:bg-[var(--color-game-team)]/20 disabled:opacity-50"
+                      className="ts-btn ts-btn--primary ts-btn--sm"
                     >
                       승인으로 변경
                     </button>
@@ -752,7 +751,7 @@ export default function TournamentTeamsPage() {
       {toast && (
         <div
           role="status"
-          className="fixed top-20 right-4 z-50 rounded-[4px] border border-[var(--color-border)] bg-[var(--color-elevated)] px-4 py-3 text-sm text-[var(--color-text-primary)] shadow-md no-print"
+          className="fixed top-20 right-4 z-50 rounded-[16px] border border-[var(--border)] bg-[var(--card)] px-4 py-3 text-sm text-[var(--ink)] shadow-[var(--sh-md)] no-print"
           style={{ minWidth: 220 }}
         >
           {toast}
@@ -768,21 +767,21 @@ export default function TournamentTeamsPage() {
           <div
             role="dialog"
             aria-modal="true"
-            className="fixed inset-0 z-40 flex items-start justify-center overflow-y-auto p-4 no-print"
+            className="fixed inset-0 z-40 flex items-start justify-center overflow-y-auto p-3 no-print sm:p-4"
             style={{ background: "rgba(0,0,0,0.5)" }}
             onClick={() => { setExpandedTeamId(null); setPlayers([]); setShowAddForm(false); }}
           >
             <div
               id="team-detail-printable"
-              className="relative my-4 w-full max-w-3xl rounded-[4px] border bg-[var(--color-elevated)] p-6"
-              style={{ borderColor: "var(--color-border)" }}
+              className="relative my-3 w-full max-w-3xl rounded-[24px] border bg-[var(--card)] p-4 shadow-[var(--sh-lg)] sm:my-4 sm:p-6"
+              style={{ borderColor: "var(--border)" }}
               onClick={(e) => e.stopPropagation()}
             >
               {/* 2026-05-12 — 닫기 X 버튼 우상단 절대 위치 (모달 표준 패턴) */}
               <button
                 type="button"
                 onClick={() => { setExpandedTeamId(null); setPlayers([]); setShowAddForm(false); }}
-                className="absolute right-3 top-3 z-10 rounded-[4px] p-2 text-[var(--color-text-muted)] hover:bg-[var(--color-surface)] no-print"
+                className="ct-iconbtn absolute right-3 top-3 z-10 no-print"
                 title="닫기"
                 aria-label="닫기"
               >
@@ -799,7 +798,7 @@ export default function TournamentTeamsPage() {
                       <select
                         value={token?.category ?? ""}
                         onChange={(e) => changeCategory(expandedTeam.id, e.target.value)}
-                        className="rounded-[4px] px-2 py-0.5 text-[10px] font-semibold uppercase no-print"
+                        className="rounded-[8px] px-2 py-0.5 text-[10px] font-semibold no-print"
                         style={{
                           background: "color-mix(in srgb, var(--color-accent) 15%, transparent)",
                           color: "var(--color-accent)",
@@ -816,7 +815,7 @@ export default function TournamentTeamsPage() {
                     ) : (
                       token?.category && (
                         <span
-                          className="rounded-[4px] px-2 py-0.5 text-[10px] font-semibold uppercase"
+                          className="rounded-[8px] px-2 py-0.5 text-[10px] font-semibold"
                           style={{
                             background: "color-mix(in srgb, var(--color-accent) 15%, transparent)",
                             color: "var(--color-accent)",
@@ -836,7 +835,7 @@ export default function TournamentTeamsPage() {
                       value={token?.paymentStatus ?? "unpaid"}
                       onChange={(e) => updatePayment(expandedTeam.id, e.target.value)}
                       disabled={actionLoading === expandedTeam.id}
-                      className="no-print rounded-[4px] border px-2 py-0.5 text-[10px] font-semibold"
+                      className="no-print rounded-[8px] border px-2 py-0.5 text-[10px] font-semibold"
                       style={{
                         borderColor: "var(--color-border)",
                         background: "var(--color-card)",
@@ -849,7 +848,7 @@ export default function TournamentTeamsPage() {
                       <option value="refunded">환불</option>
                     </select>
                     {token?.waitingNumber && (
-                      <span className="rounded-full bg-[var(--color-warning)]/15 px-2 py-0.5 text-xs font-medium text-[var(--color-warning)]">
+                      <span className="rounded-[8px] bg-[var(--color-warning)]/15 px-2 py-0.5 text-xs font-medium text-[var(--color-warning)]">
                         대기 {token.waitingNumber}번
                       </span>
                     )}
@@ -866,7 +865,7 @@ export default function TournamentTeamsPage() {
                           value={managerForm.name}
                           onChange={(e) => setManagerForm({ ...managerForm, name: e.target.value })}
                           placeholder="코치 이름"
-                          className="w-24 rounded-[4px] border px-2 py-0.5 text-xs"
+                          className="w-24 rounded-[8px] border px-2 py-0.5 text-xs"
                           style={{ borderColor: "var(--color-border)", background: "var(--color-card)" }}
                         />
                         <input
@@ -874,13 +873,13 @@ export default function TournamentTeamsPage() {
                           value={managerForm.phone}
                           onChange={(e) => setManagerForm({ ...managerForm, phone: e.target.value })}
                           placeholder="010-XXXX-XXXX"
-                          className="w-32 rounded-[4px] border px-2 py-0.5 text-xs"
+                          className="w-32 rounded-[8px] border px-2 py-0.5 text-xs"
                           style={{ borderColor: "var(--color-border)", background: "var(--color-card)" }}
                         />
                         <button
                           type="button"
                           onClick={() => saveManager(expandedTeam.id)}
-                          className="rounded-[4px] px-2 py-0.5 text-[10px] font-medium text-white"
+                          className="rounded-[8px] px-2 py-0.5 text-[10px] font-medium text-white"
                           style={{ background: "var(--color-success)" }}
                         >
                           저장
@@ -888,7 +887,7 @@ export default function TournamentTeamsPage() {
                         <button
                           type="button"
                           onClick={() => setEditingManager(false)}
-                          className="rounded-[4px] px-2 py-0.5 text-[10px]"
+                          className="rounded-[8px] px-2 py-0.5 text-[10px]"
                           style={{ color: "var(--color-text-muted)" }}
                         >
                           취소
@@ -941,7 +940,7 @@ export default function TournamentTeamsPage() {
                           const v = e.target.value ? Number(e.target.value) : null;
                           if (v !== (expandedTeam.seedNumber ?? null)) updateSeed(expandedTeam.id, v);
                         }}
-                        className="w-14 rounded-[4px] border px-2 py-0.5 text-xs focus:outline-none focus:ring-1"
+                        className="w-14 rounded-[8px] border px-2 py-0.5 text-xs focus:outline-none focus:ring-1"
                         style={{
                           borderColor: "var(--color-border)",
                           background: "var(--color-card)",
@@ -984,7 +983,7 @@ export default function TournamentTeamsPage() {
                       title={`토큰 만료: ${token.applyTokenExpiresAt ? new Date(token.applyTokenExpiresAt).toLocaleDateString("ko-KR") : "-"}`}
                     >
                       <Icon name="copy" size={16} className="align-middle mr-1" />
-                      URL 복사
+                      링크 복사
                     </button>
                   )}
                   {/* 2. 승인 / 거절 액션 (status 분기) */}
@@ -1046,7 +1045,7 @@ export default function TournamentTeamsPage() {
               </div>
 
               {/* 선수 명단 헤더 + 4. 진행률 (rosterMin/Max 대비) */}
-              <div className="mb-3 flex items-center justify-between">
+              <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-center gap-2">
                   <h3 className="text-sm font-semibold">선수 명단 ({players.length}명)</h3>
                   <RosterProgressBadge
@@ -1055,7 +1054,7 @@ export default function TournamentTeamsPage() {
                     max={rosterRule.max}
                   />
                 </div>
-                <div className="flex gap-2 no-print">
+                <div className="flex flex-wrap gap-2 no-print">
                   <button
                     type="button"
                     onClick={() => setShowImportModal(true)}
@@ -1078,35 +1077,35 @@ export default function TournamentTeamsPage() {
 
               {/* 선수 추가 폼 */}
               {showAddForm && (
-                <div className="mb-4 rounded-[4px] bg-[var(--color-surface)] p-4 no-print">
-                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                <div className="mb-4 rounded-[16px] bg-[var(--grey-50)] p-4 no-print">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
                     <input
                       type="text"
                       placeholder="이름 *"
                       value={addForm.player_name}
                       onChange={(e) => setAddForm({ ...addForm, player_name: e.target.value })}
-                      className="rounded-[4px] border border-[var(--color-border)] bg-[var(--color-card)] px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[var(--color-accent)]"
+                      className="ts-input"
                     />
                     <input
                       type="text"
                       placeholder="전화번호"
                       value={addForm.phone}
                       onChange={(e) => setAddForm({ ...addForm, phone: e.target.value })}
-                      className="rounded-[4px] border border-[var(--color-border)] bg-[var(--color-card)] px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[var(--color-accent)]"
+                      className="ts-input"
                     />
                     <input
                       type="number"
                       placeholder="등번호"
                       value={addForm.jersey_number}
                       onChange={(e) => setAddForm({ ...addForm, jersey_number: e.target.value })}
-                      className="rounded-[4px] border border-[var(--color-border)] bg-[var(--color-card)] px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[var(--color-accent)]"
+                      className="ts-input"
                     />
                     <input
                       type="text"
-                      placeholder="포지션 (G, F 등)"
+                      placeholder="포지션"
                       value={addForm.position}
                       onChange={(e) => setAddForm({ ...addForm, position: e.target.value })}
-                      className="rounded-[4px] border border-[var(--color-border)] bg-[var(--color-card)] px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[var(--color-accent)]"
+                      className="ts-input"
                     />
                   </div>
                   <div className="mt-3 flex justify-end gap-2">
@@ -1133,7 +1132,34 @@ export default function TournamentTeamsPage() {
               ) : players.length === 0 ? (
                 <p className="py-8 text-center text-sm text-[var(--color-text-muted)]">등록된 선수가 없습니다.</p>
               ) : (
-                <div className="overflow-x-auto">
+                <>
+                <div className="space-y-2 sm:hidden">
+                  {players.map((p) => (
+                    <div key={p.id} className="rounded-[16px] bg-[var(--grey-50)] p-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="font-semibold text-[var(--ink)]">
+                            {p.jersey_number ? `${p.jersey_number}번 · ` : ""}{p.player_name ?? "-"}
+                          </p>
+                          <p className="mt-1 text-xs text-[var(--ink-mute)]">
+                            {(p as { birth_date?: string }).birth_date ?? "-"} · {(p as { school_name?: string }).school_name ?? "-"}
+                          </p>
+                          <p className="mt-1 text-xs text-[var(--ink-mute)]">
+                            보호자 {(p as { parent_name?: string }).parent_name ?? "-"} · {(p as { parent_phone?: string }).parent_phone ?? p.phone ?? "-"}
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => handleDeletePlayer(p.id)}
+                          className="ct-iconbtn no-print"
+                          title="선수 삭제"
+                        >
+                          <Icon name="trash-2" size={18} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="hidden overflow-x-auto sm:block">
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b border-[var(--color-border)] text-left text-xs text-[var(--color-text-muted)]">
@@ -1162,7 +1188,7 @@ export default function TournamentTeamsPage() {
                           <td className="py-2 text-right no-print">
                             <button
                               onClick={() => handleDeletePlayer(p.id)}
-                              className="rounded-[4px] p-1 text-[var(--color-text-muted)] hover:bg-[var(--color-error)]/10 hover:text-[var(--color-error)]"
+                              className="ct-iconbtn"
                               title="선수 삭제"
                             >
                               <Icon name="trash-2" size={18} />
@@ -1173,6 +1199,7 @@ export default function TournamentTeamsPage() {
                     </tbody>
                   </table>
                 </div>
+                </>
               )}
 
               {/* 프린트 푸터 — 프린트 시에만 표시 */}
@@ -1289,14 +1316,14 @@ function ImportPlayersModal({
         if (json.code === "DIVISION_VALIDATION_FAILED" && Array.isArray(json.errors)) {
           setError(`종별 검증 실패:\n${json.errors.map((e: { index: number; message: string }) => `${e.index + 1}번: ${e.message}`).join("\n")}`);
         } else {
-          setError(json.error ?? "import 실패");
+          setError(json.error ?? "입력 실패");
         }
         setSubmitting(false);
         return;
       }
       const warningNote = Array.isArray(json.warnings) && json.warnings.length > 0
         ? ` (경고 ${json.warnings.length}건)` : "";
-      onSuccess(`${json.inserted_count}명 INSERT${overwrite ? ` / ${json.deleted_count}명 삭제` : ""}${warningNote}`);
+      onSuccess(`${json.inserted_count}명 입력${overwrite ? ` / ${json.deleted_count}명 삭제` : ""}${warningNote}`);
     } catch {
       setError("네트워크 오류");
       setSubmitting(false);
@@ -1307,47 +1334,42 @@ function ImportPlayersModal({
     <div
       role="dialog"
       aria-modal="true"
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 no-print"
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 no-print sm:p-4"
       style={{ background: "rgba(0,0,0,0.6)" }}
       onClick={onClose}
     >
       <div
-        className="relative w-full max-w-2xl rounded-[4px] border bg-[var(--color-elevated)] p-6"
-        style={{ borderColor: "var(--color-border)" }}
+        className="relative w-full max-w-2xl rounded-[24px] border bg-[var(--card)] p-4 shadow-[var(--sh-lg)] sm:p-6"
+        style={{ borderColor: "var(--border)" }}
         onClick={(e) => e.stopPropagation()}
       >
         <button
           type="button"
           onClick={onClose}
-          className="absolute right-3 top-3 rounded-[4px] p-2 text-[var(--color-text-muted)] hover:bg-[var(--color-surface)]"
+          className="ct-iconbtn absolute right-3 top-3"
           aria-label="닫기"
         >
           <Icon name="x" size={20} />
         </button>
         <h2 className="mb-4 text-lg font-bold">선수 일괄 입력</h2>
-        <p className="mb-3 text-xs" style={{ color: "var(--color-text-muted)" }}>
-          한 줄 한 명. 형식: <code className="rounded bg-black/10 px-1">이름/생년월일/등번호/포지션/학교명/부모님성함/부모님연락처</code>
+        <p className="mb-3 text-xs" style={{ color: "var(--ink-mute)" }}>
+          한 줄에 한 명씩 입력합니다. 순서: 이름/생년월일/등번호/포지션/학교명/보호자/연락처
         </p>
         <textarea
           value={text}
           onChange={(e) => setText(e.target.value)}
           rows={10}
-          placeholder={"홍길동/2017-05-16/7/G/강남초등학교/홍판서/010-1234-5678\n김철수/2017.8.22/12/F/잠실초등학교/김아빠/010-9876-5432"}
-          className="w-full rounded-[4px] border px-3 py-2 text-sm font-mono focus:outline-none focus:ring-1"
-          style={{
-            borderColor: "var(--color-border)",
-            background: "var(--color-card)",
-            color: "var(--color-text-primary)",
-          }}
+          placeholder={"홍길동/2017-05-16/7/가드/강남초등학교/홍판서/010-1234-5678\n김철수/2017.8.22/12/포워드/잠실초등학교/김보호자/010-9876-5432"}
+          className="ts-input min-h-[220px] font-mono text-sm"
         />
         <div className="mt-3 flex flex-wrap items-center gap-4 text-xs">
           <label className="flex items-center gap-1">
             <input type="checkbox" checked={overwrite} onChange={(e) => setOverwrite(e.target.checked)} />
-            <span>기존 명단 전체 삭제 후 입력 (overwrite)</span>
+            <span>기존 명단 전체 삭제 후 입력</span>
           </label>
           <label className="flex items-center gap-1">
             <input type="checkbox" checked={strict} onChange={(e) => setStrict(e.target.checked)} />
-            <span>종별 룰 strict 검증 (위반 시 거부)</span>
+            <span>종별 규칙 엄격 검증</span>
           </label>
         </div>
         {parseError && (
@@ -1392,7 +1414,7 @@ function ViaBadge({ appliedVia }: { appliedVia: string | null }) {
   if (!appliedVia || !map[appliedVia]) {
     return (
       <span
-        className="rounded-full px-2 py-0.5 text-[10px] font-medium"
+        className="rounded-[8px] px-2 py-0.5 text-[10px] font-medium"
         style={{ background: "var(--color-elevated)", color: "var(--color-text-muted)" }}
       >
         경로 미상
@@ -1402,7 +1424,7 @@ function ViaBadge({ appliedVia }: { appliedVia: string | null }) {
   const cfg = map[appliedVia];
   return (
     <span
-      className="rounded-full px-2 py-0.5 text-[10px] font-medium"
+      className="rounded-[8px] px-2 py-0.5 text-[10px] font-medium"
       style={{ background: cfg.bg, color: cfg.fg }}
     >
       {cfg.label}
@@ -1441,7 +1463,7 @@ function StatusBadge({ status }: { status: string }) {
   };
   return (
     <span
-      className="rounded-full px-2 py-0.5 text-[10px] font-medium"
+      className="rounded-[8px] px-2 py-0.5 text-[10px] font-medium"
       style={{ background: cfg.bg, color: cfg.fg }}
     >
       {cfg.label}
@@ -1477,7 +1499,7 @@ function PaymentBadge({ status }: { status: string | null }) {
   const cfg = map[status];
   return (
     <span
-      className="rounded-full px-2 py-0.5 text-[10px] font-medium"
+      className="rounded-[8px] px-2 py-0.5 text-[10px] font-medium"
       style={{ background: cfg.bg, color: cfg.fg }}
     >
       {cfg.label}
@@ -1511,7 +1533,7 @@ function RosterProgressBadge({
   }
   return (
     <span
-      className="rounded-full px-2 py-0.5 text-[10px] font-medium"
+      className="rounded-[8px] px-2 py-0.5 text-[10px] font-medium"
       style={{
         background: `color-mix(in srgb, ${color} 12%, transparent)`,
         color,
@@ -1540,8 +1562,8 @@ function formatUpdatedAt(iso: string): string {
 function ViaStatCard({ label, count, icon }: { label: string; count: number; icon: string }) {
   return (
     <div
-      className="flex items-center gap-3 rounded-[4px] border p-3"
-      style={{ borderColor: "var(--color-border)", background: "var(--color-elevated)" }}
+      className="flex items-center gap-3 rounded-[16px] border p-3"
+      style={{ borderColor: "var(--border)", background: "var(--grey-50)" }}
     >
       <Icon name={icon} size={24} color="var(--color-accent)" />
       <div>
@@ -1641,5 +1663,5 @@ function copyAllTokenMessages(
   navigator.clipboard
     .writeText(text)
     .then(() => toast(`${blocks.length}팀 메시지 복사 완료 — 단톡방에 붙여넣기`))
-    .catch(() => toast("복사에 실패했습니다. CSV 다운로드를 사용하세요."));
+    .catch(() => toast("복사에 실패했습니다. 토큰 파일 받기를 사용하세요."));
 }

@@ -290,7 +290,7 @@ export default async function ScoreSheetPage({ params }: PageProps) {
           </p>
           <div className="mt-4 flex flex-col items-center gap-2 sm:flex-row sm:justify-center">
             <Link
-              href={`/tournament-admin/tournaments/${tournament.id}/matches`}
+              href={`/tournament-admin/tournaments/${tournament.id}#matches`}
               className="inline-block rounded-[4px] px-4 py-2 text-sm font-medium text-white"
               style={{ backgroundColor: "var(--color-primary)" }}
             >

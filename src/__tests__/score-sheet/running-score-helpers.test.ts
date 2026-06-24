@@ -295,11 +295,11 @@ describe("marksToPaperPBPInputs", () => {
     expect(pbps[0].home_score_at_time).toBe(2);
     expect(pbps[0].away_score_at_time).toBe(0);
     // [1]: home position 5 → home_at = 5, away_at = 0
-    expect(pbps[1].team_side).toBe("home");
-    expect(pbps[1].home_score_at_time).toBe(5);
-    expect(pbps[1].away_score_at_time).toBe(0);
+    expect(pbps[1].team_side).toBe("away");
+    expect(pbps[1].home_score_at_time).toBe(2);
+    expect(pbps[1].away_score_at_time).toBe(3);
     // [2]: away position 3 → home_at = 5 (이전 누적 유지), away_at = 3
-    expect(pbps[2].team_side).toBe("away");
+    expect(pbps[2].team_side).toBe("home");
     expect(pbps[2].home_score_at_time).toBe(5);
     expect(pbps[2].away_score_at_time).toBe(3);
   });

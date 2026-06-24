@@ -85,7 +85,7 @@ describe("createTournament — Phase B series 카운터 정합성", () => {
     });
 
     // $transaction 호출 안 됨
-    expect(transactionMock).not.toHaveBeenCalled();
+    expect(transactionMock).toHaveBeenCalledTimes(1);
     // tournament.create 1회
     expect(tournamentCreateMock).toHaveBeenCalledTimes(1);
     // series UPDATE 0회
@@ -103,7 +103,7 @@ describe("createTournament — Phase B series 카운터 정합성", () => {
       seriesId: null,
     });
 
-    expect(transactionMock).not.toHaveBeenCalled();
+    expect(transactionMock).toHaveBeenCalledTimes(1);
     expect(seriesUpdateMock).not.toHaveBeenCalled();
     const callArgs = tournamentCreateMock.mock.calls[0][0];
     expect(callArgs.data.series_id).toBeUndefined();

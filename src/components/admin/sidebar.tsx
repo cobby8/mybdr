@@ -33,6 +33,7 @@ const SIDEBAR_ICON: Record<string, string> = {
   notifications: "bell",
   // Track B 종별 관리 — 그리드형 카테고리 뷰 아이콘
   grid_view: "layout-grid",
+  add_circle: "circle-plus",
   list_alt: "list",
   storefront: "store",
   account_circle: "circle-user",
@@ -57,6 +58,7 @@ export type AdminRole =
 export interface AdminNavItem {
   type: "item";
   href: string;
+  hrefByRole?: Partial<Record<AdminRole, string>>;
   label: string;
   icon: string;
   roles: AdminRole[] | "all"; // 어떤 역할이 이 메뉴를 볼 수 있는지
@@ -95,21 +97,11 @@ export const navStructure: AdminNavEntry[] = [
       {
         type: "item",
         href: "/admin/tournaments",
+        hrefByRole: { tournament_admin: "/tournament-admin/tournaments" },
         // 2026-05-04: "토너먼트" → "대회 관리" 통일 (사용자 요청).
         label: "대회 관리",
         icon: "emoji_events",
-        roles: ["super_admin", "site_admin"],
-        // 2026-05-04: 대회 관리자(tournament_admin) 전용 진입점을 sub-item 으로 통합.
-        // A1 — "대회 운영자 도구" 진입점은 대회 관리 sub-item 으로 현행 유지(이동 없음).
-        children: [
-          {
-            type: "item",
-            href: "/tournament-admin",
-            label: "대회 운영자 도구",
-            icon: "manage_accounts",
-            roles: ["super_admin", "site_admin", "tournament_admin"],
-          },
-        ],
+        roles: ["super_admin", "site_admin", "tournament_admin"],
       },
       { type: "item", href: "/admin/games", label: "경기 관리", icon: "sports_basketball", roles: ["super_admin", "site_admin"] },
       { type: "item", href: "/admin/teams", label: "팀 관리", icon: "groups", roles: ["super_admin", "site_admin"] },
@@ -181,7 +173,8 @@ export const navStructure: AdminNavEntry[] = [
   },
 
   // 그룹: 외부 관리 (별도 권한 — partner_member). 본 콘솔 4그룹 IA 밖 별도 항목.
-  // 2026-05-04: tournament_admin 진입점은 "운영 > 대회 관리 > 대회 운영자 도구" sub-item 으로 통합 (사용자 요청).
+  // 2026-06-24: tournament_admin 진입점은 별도 "대회 운영자 도구" 없이
+  // "운영 > 대회 관리"에서 권한 있는 대회 목록으로 바로 진입.
   {
     type: "group",
     label: "외부 관리",
@@ -192,10 +185,9 @@ export const navStructure: AdminNavEntry[] = [
 ];
 
 // 역할 필터 — children 도 같이 필터링 (재귀)
-// 2026-05-14 fix: parent self-blocked + child visible 케이스 누락 (tournament_admin
-//   사용자에게 "대회 운영자 도구" 진입점이 통째로 사라지던 회귀). 이제는 children 1개
-//   이상 visible 이면 parent 도 노출 + parent href 를 visible child 의 첫 href 로 rewrite
-//   (parent click 시 자동으로 권한 있는 child 페이지로 진입 — 권한 없는 parent href 차단 회피).
+// 2026-05-14 fix: parent self-blocked + child visible 케이스 누락 방지.
+// 2026-06-24: hrefByRole 이 있으면 일반 운영자처럼 같은 메뉴명에 다른 랜딩이 필요한
+//   케이스만 role-aware href 로 치환한다. super/site admin 은 전역 admin href 를 유지한다.
 function filterItemByRoles(item: AdminNavItem, roles: AdminRole[]): AdminNavItem | null {
   // 1) children 을 먼저 재귀 필터 (parent 가시성 판단에 사용)
   const filteredChildren = item.children
@@ -210,10 +202,15 @@ function filterItemByRoles(item: AdminNavItem, roles: AdminRole[]): AdminNavItem
   // 3) self / children 모두 차단 → 항목 제거 (기존 동작)
   if (!selfVisible && !hasVisibleChildren) return null;
 
+  const hasGlobalAdminAccess = roles.includes("super_admin") || roles.includes("site_admin");
+  const roleHref = hasGlobalAdminAccess
+    ? null
+    : roles.map((role) => item.hrefByRole?.[role]).find((href): href is string => !!href);
+
   // 4) self 차단 + child 노출 → parent href 를 child 첫 href 로 rewrite
-  //    (UX: "대회 관리" label/icon 유지 + click 시 권한 있는 /tournament-admin 으로 자연 진입)
+  //    (UX: parent label/icon 유지 + click 시 권한 있는 child 페이지로 자연 진입)
   const effectiveHref =
-    !selfVisible && hasVisibleChildren ? filteredChildren![0].href : item.href;
+    !selfVisible && hasVisibleChildren ? filteredChildren![0].href : roleHref ?? item.href;
 
   return { ...item, href: effectiveHref, children: filteredChildren };
 }

@@ -8,7 +8,7 @@
  *   - Tournament.format = 단일 enum → 종별 단위 박제 불가능
  *   - Phase 3.5 = TournamentDivisionRule.format + settings 컬럼 신설
  *
- * URL: /tournament-admin/tournaments/[id]/divisions
+ * Workspace panel: /tournament-admin/tournaments/[id]#divisions
  *
  * 기능:
  *   - 종별 목록 (코드 / 라벨 / 학년 / 참가비)
@@ -21,10 +21,6 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useParams } from "next/navigation";
-import Link from "next/link";
-import { Card } from "@/components/ui/card";
-// 2026-05-16 PR-Admin-1 — 단계간 CTA (페이지 footer "다음: 팀 등록 →")
-import { NextStepCTA } from "../_components/NextStepCTA";
 // Track B-c Toss 리스킨 — Material Symbols → lucide-react 키트(<Icon>)
 import { Icon } from "@/components/admin-toss";
 // 2026-05-12 Phase 3.5-D — division format / settings 헬퍼 (lib 분리 → vitest 단위 검증 가능)
@@ -42,7 +38,7 @@ import {
   type ScheduleDateLite,
   type PlaceLite,
   type DivScheduleEntry,
-} from "./_components/schedule-format";
+} from "../divisions/_components/schedule-format";
 
 interface DivisionRule {
   id: string;
@@ -56,6 +52,23 @@ interface DivisionRule {
   settings: Record<string, unknown> | null;
 }
 
+type MasterCategory = {
+  id: string;
+  name: string;
+  divisions: string[];
+  ages: string[];
+  sort_order: number;
+};
+
+type CurrentCategory = {
+  category: string;
+  divisions: Array<{
+    name: string;
+    cap: number | null;
+    fee: number | null;
+  }>;
+};
+
 // FORMAT_LABEL / showGroupSettings / showRankingFormat = lib/tournaments/division-formats.ts 로 이동 (Phase 3.5-D)
 // 사유: server (route.ts) + client (page.tsx) 양쪽에서 동일 enum 사용 + vitest 단위 검증 가능.
 
@@ -65,6 +78,8 @@ export default function DivisionsSetupPage() {
 
   const [rules, setRules] = useState<DivisionRule[]>([]);
   const [allowedFormats, setAllowedFormats] = useState<string[]>([]);
+  const [masterCategories, setMasterCategories] = useState<MasterCategory[]>([]);
+  const [currentCategories, setCurrentCategories] = useState<CurrentCategory[]>([]);
   // 2026-06-22 F-2b — 디비전 일정 역참조용 데이터(div_schedule 배열 + 룩업 소스)
   //   route 에서 map→배열로 변환해 내보내므로(디비전명 snake 변환 회피) 배열로 받는다.
   const [divSchedule, setDivSchedule] = useState<DivScheduleEntry[]>([]);
@@ -72,7 +87,9 @@ export default function DivisionsSetupPage() {
   const [places, setPlaces] = useState<PlaceLite[]>([]);
   const [loading, setLoading] = useState(true);
   const [savingId, setSavingId] = useState<string | null>(null);
+  const [syncing, setSyncing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [syncResult, setSyncResult] = useState<string | null>(null);
   // 2026-05-12 Phase 3.5-C — 진출 매핑 수동 trigger
   const [advancingId, setAdvancingId] = useState<string | null>(null);
   const [advanceResult, setAdvanceResult] = useState<{
@@ -95,6 +112,8 @@ export default function DivisionsSetupPage() {
       }
       setRules((json.rules ?? []) as DivisionRule[]);
       setAllowedFormats((json.allowed_formats ?? []) as string[]);
+      setMasterCategories((json.master_categories ?? []) as MasterCategory[]);
+      setCurrentCategories((json.current_categories ?? []) as CurrentCategory[]);
       // F-2b — 디비전 일정 역참조 데이터(배열·route 에서 map→배열 변환·snake)
       setDivSchedule(
         Array.isArray(json.div_schedule)
@@ -114,9 +133,120 @@ export default function DivisionsSetupPage() {
     load();
   }, [load]);
 
+  const isDivisionSelected = (category: string, division: string) =>
+    currentCategories.some(
+      (item) =>
+        item.category === category &&
+        item.divisions.some((current) => current.name === division),
+    );
+
+  const toggleDivision = (category: string, division: string) => {
+    setSyncResult(null);
+    setCurrentCategories((prev) => {
+      const existing = prev.find((item) => item.category === category);
+      if (!existing) {
+        return [
+          ...prev,
+          { category, divisions: [{ name: division, cap: null, fee: null }] },
+        ];
+      }
+
+      const selected = existing.divisions.some((item) => item.name === division);
+      const nextDivisions = selected
+        ? existing.divisions.filter((item) => item.name !== division)
+        : [...existing.divisions, { name: division, cap: null, fee: null }];
+
+      if (nextDivisions.length === 0) {
+        return prev.filter((item) => item.category !== category);
+      }
+
+      return prev.map((item) =>
+        item.category === category ? { ...item, divisions: nextDivisions } : item,
+      );
+    });
+  };
+
+  const updateDivisionNumber = (
+    category: string,
+    division: string,
+    key: "cap" | "fee",
+    value: string,
+  ) => {
+    const numberValue = value === "" ? null : Math.max(0, Number(value));
+    setCurrentCategories((prev) =>
+      prev.map((item) =>
+        item.category === category
+          ? {
+              ...item,
+              divisions: item.divisions.map((current) =>
+                current.name === division
+                  ? { ...current, [key]: numberValue }
+                  : current,
+              ),
+            }
+          : item,
+      ),
+    );
+  };
+
+  const syncDivisions = async () => {
+    const categories = Object.fromEntries(
+      currentCategories.map((item) => [
+        item.category,
+        item.divisions.map((division) => division.name),
+      ]),
+    );
+    const divCaps = Object.fromEntries(
+      currentCategories.flatMap((item) =>
+        item.divisions
+          .filter((division) => division.cap != null)
+          .map((division) => [division.name, division.cap]),
+      ),
+    );
+    const divFees = Object.fromEntries(
+      currentCategories.flatMap((item) =>
+        item.divisions
+          .filter((division) => division.fee != null)
+          .map((division) => [division.name, division.fee]),
+      ),
+    );
+
+    setSyncing(true);
+    setError(null);
+    setSyncResult(null);
+    try {
+      const res = await fetch(
+        `/api/web/admin/tournaments/${tournamentId}/division-rules`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ categories, divCaps, divFees }),
+        },
+      );
+      const json = await res.json();
+      if (!res.ok) {
+        setError(json.error ?? "종별 저장 실패");
+        return;
+      }
+
+      setRules((json.rules ?? []) as DivisionRule[]);
+      setCurrentCategories((json.current_categories ?? []) as CurrentCategory[]);
+      const result = json.sync_result;
+      setSyncResult(
+        result
+          ? `저장 완료 · 신규 ${result.created ?? 0}건 · 갱신 ${result.updated ?? 0}건`
+          : "저장 완료",
+      );
+    } catch {
+      setError("네트워크 오류");
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   // 2026-05-12 Phase 3.5-C — 종별 진출 매핑 수동 실행
   const advanceDivision = async (ruleId: string, code: string) => {
-    if (!confirm(`"${code}" 종별 진출 매핑을 실행하시겠어요?\n\n예선 종료 후 standings 기반으로 순위전 placeholder 매치를 자동 채웁니다.`)) return;
+    if (!confirm(`"${code}" 종별 진출 매핑을 실행하시겠어요?\n\n예선 순위를 기준으로 순위전 경기를 자동으로 채웁니다.`)) return;
     setAdvancingId(ruleId);
     setAdvanceResult(null);
     setError(null);
@@ -192,72 +322,7 @@ export default function DivisionsSetupPage() {
 
   return (
     // Track B-c — Toss 토큰 적용 루트 opt-in
-    <div data-skin="toss" className="space-y-6">
-      {/* 헤더 */}
-      <div>
-        <Link
-          href={`/tournament-admin/tournaments/${tournamentId}`}
-          className="text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
-        >
-          ← 대회 관리
-        </Link>
-        <h1 className="mt-1 text-xl font-bold sm:text-2xl">종별 운영 방식 설정</h1>
-        <p className="mt-1 text-sm text-[var(--color-text-muted)]">
-          {/* 2026-05-28 PR-1C-12 — 등록 종별 수 표기 (시안 adv 서브헤더 매핑) */}
-          {rules.length > 0 ? `${rules.length} 종별 등록됨 · ` : ""}
-          종별마다 다른 진행 방식(싱글/듀얼/링크제 등)을 설정합니다. 대진표 생성 전 박제 필수.
-        </p>
-      </div>
-
-      {/*
-        2026-05-28 PR-1C-12 박제 — 시안 adv-hero (C2 다중 종별 발견성 / S4 갭 해소).
-        사유: "하나의 대회에 여러 종별" 안내가 운영에 부재 → 다종별 운영 발견성 강화.
-        시안 admin.css adv-hero 토큰(--accent-soft/--accent-deep) 대신 운영 var(--color-*) 인라인 박제.
-        "종별 추가" CTA = 기존 대회 편집 마법사 Step 2(참가 설정) 실재 라우트로 연결 (가짜링크 0).
-      */}
-      <div
-        className="flex flex-col gap-4 rounded-[4px] border p-5 sm:flex-row sm:items-center sm:justify-between"
-        style={{
-          // accent 8% 틴트 배경 — 시안 adv-hero accent-soft 그라데이션을 운영 토큰으로 치환
-          borderColor: "color-mix(in srgb, var(--color-primary) 25%, transparent)",
-          background: "color-mix(in srgb, var(--color-primary) 6%, transparent)",
-        }}
-      >
-        <div className="min-w-0">
-          <h2 className="text-base font-bold text-[var(--color-text-primary)]">
-            하나의 대회에 여러 종별을 같이 운영할 수 있어요
-          </h2>
-          <p className="mt-1 text-xs text-[var(--color-text-muted)] sm:text-sm">
-            예: 강남구협회장배 = U10 + U12 + U14 + U16 동시 운영. 종별별로 다른 진행 방식 · 다른 일정.
-          </p>
-          {/* 5 예시 칩 — 시안 adv-hero__examples (정적 안내, 데이터 무관) */}
-          <div className="mt-2.5 flex flex-wrap gap-1.5">
-            {["3x3 男 오픈", "3x3 女 오픈", "5x5 남자 19+", "5x5 혼성 U16", "5x5 시니어 35+"].map(
-              (ex) => (
-                <span
-                  key={ex}
-                  className="rounded-[4px] border bg-[var(--color-card)] px-2 py-1 text-[11px] font-medium"
-                  style={{
-                    borderColor: "color-mix(in srgb, var(--color-primary) 25%, transparent)",
-                    color: "var(--color-primary)",
-                  }}
-                >
-                  {ex}
-                </span>
-              ),
-            )}
-          </div>
-        </div>
-        {/* 종별 추가 CTA — 기존 대회 편집 마법사(Step 2 참가 설정) 로 이동 = 실재 라우트 */}
-        <Link
-          href={`/tournament-admin/tournaments/${tournamentId}/wizard`}
-          className="btn btn--accent inline-flex shrink-0 items-center justify-center gap-1.5"
-        >
-          {/* Material add_circle → lucide circle-plus */}
-          <Icon name="circle-plus" size={18} />
-          종별 추가
-        </Link>
-      </div>
+    <div data-skin="toss" className="space-y-4">
 
       {error && (
         <div
@@ -272,37 +337,155 @@ export default function DivisionsSetupPage() {
         </div>
       )}
 
+      <section className="rounded-[18px] bg-[var(--grey-50)] p-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex min-w-0 gap-3">
+            <div className="ct-headicon">
+              <Icon name="category" size={18} color="var(--primary)" />
+            </div>
+            <div className="min-w-0">
+              <h2 className="text-base font-bold text-[var(--ink)]">
+                종별 구성
+              </h2>
+              <p className="mt-1 text-sm text-[var(--ink-mute)]">
+                대회 생성과 같은 종별 마스터를 사용합니다.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={syncDivisions}
+            disabled={syncing}
+            className="ts-btn ts-btn--primary ts-btn--sm"
+          >
+            {syncing ? "저장 중..." : "종별 저장"}
+          </button>
+        </div>
+
+        {syncResult && (
+          <div
+            className="mt-3 rounded-[4px] border px-3 py-2 text-sm"
+            style={{
+              borderColor: "var(--color-success)",
+              background: "color-mix(in srgb, var(--color-success) 8%, transparent)",
+              color: "var(--color-success)",
+            }}
+          >
+            {syncResult}
+          </div>
+        )}
+
+        <div className="mt-4 grid gap-3 lg:grid-cols-2">
+          {masterCategories.map((category) => {
+            const selected = currentCategories.find(
+              (item) => item.category === category.name,
+            );
+            return (
+              <div
+                key={category.id}
+                className="rounded-[16px] border bg-[var(--card)] p-3"
+                style={{
+                  borderColor: "var(--color-border)",
+                }}
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <h3 className="font-semibold text-[var(--ink)]">
+                    {category.name}
+                  </h3>
+                  <span className="ts-badge ts-badge--grey">
+                    {selected?.divisions.length ?? 0}개 선택
+                  </span>
+                </div>
+
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {category.divisions.map((division) => {
+                    const checked = isDivisionSelected(category.name, division);
+                    return (
+                      <button
+                        key={division}
+                        type="button"
+                        onClick={() => toggleDivision(category.name, division)}
+                        data-active={checked}
+                        className="ts-chip"
+                      >
+                        {checked && <Icon name="check" size={14} />}
+                        {division}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {selected && selected.divisions.length > 0 && (
+                  <div className="mt-3 space-y-2">
+                    {selected.divisions.map((division) => (
+                      <div
+                        key={division.name}
+                        className="grid gap-2 sm:grid-cols-[minmax(80px,1fr)_120px_120px]"
+                      >
+                        <div className="flex min-h-[48px] items-center rounded-[12px] bg-[var(--grey-50)] px-3 text-sm font-semibold text-[var(--ink)]">
+                          {division.name}
+                        </div>
+                        <input
+                          type="number"
+                          min={0}
+                          value={division.cap ?? ""}
+                          onChange={(e) =>
+                            updateDivisionNumber(
+                              category.name,
+                              division.name,
+                              "cap",
+                              e.target.value,
+                            )
+                          }
+                          className="ts-input"
+                          placeholder="정원"
+                        />
+                        <input
+                          type="number"
+                          min={0}
+                          step={1000}
+                          value={division.fee ?? ""}
+                          onChange={(e) =>
+                            updateDivisionNumber(
+                              category.name,
+                              division.name,
+                              "fee",
+                              e.target.value,
+                            )
+                          }
+                          className="ts-input"
+                          placeholder="참가비"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
       {rules.length === 0 ? (
         /*
           2026-05-28 PR-1C-12 박제 — 시안 adv-empty (빈 상태 발견성 강화).
           사유: 운영 평면 텍스트 → 시안의 아이콘 + 종별 개념 안내 + 마법사 진입 CTA 로 보강.
           dashed border = 시안 adv-empty 점선 박스를 운영 토큰으로 치환.
         */
-        <Card>
-          <div className="flex flex-col items-center gap-2 py-10 text-center">
+        <div className="ct-emptybox ct-emptybox--tall">
             {/* Material category → lucide layout-grid */}
             <Icon name="layout-grid" size={48} color="var(--color-text-muted)" />
-            <div className="text-base font-bold text-[var(--color-text-primary)]">
-              아직 등록된 종별이 없어요
+            <div className="text-base font-bold text-[var(--ink)]">
+              저장된 종별이 없습니다
             </div>
-            <div className="max-w-md text-sm text-[var(--color-text-muted)]">
-              종별 = 대회 안의 별도 운영 단위. 위의 5 예시처럼 종별을 추가하면 종별마다 다른 진행
-              방식을 설정할 수 있어요.
+            <div className="max-w-md text-sm text-[var(--ink-mute)]">
+              위에서 종별을 선택하고 저장하세요.
             </div>
-            <Link
-              href={`/tournament-admin/tournaments/${tournamentId}/wizard`}
-              className="btn btn--accent mt-2 inline-flex items-center gap-1.5"
-            >
-              {/* Material add → lucide plus */}
-              <Icon name="plus" size={18} />
-              종별 추가
-            </Link>
-          </div>
-        </Card>
+        </div>
       ) : (
-        <div className="space-y-3">
+        <div className="grid gap-3 lg:grid-cols-2">
           {rules.map((r) => (
-            <Card key={r.id}>
+            <article key={r.id} className="rounded-[18px] border bg-[var(--card)] p-4" style={{ borderColor: "var(--color-border)" }}>
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   {/*
@@ -310,7 +493,7 @@ export default function DivisionsSetupPage() {
                     사유: 운영 평면 "code (label)" → 시안의 code 모노 칩(blue-soft 배경) + 라벨로 시각 강화.
                     --color-info 8% 틴트 = 시안 adv-card__name 의 cafe-blue-soft 칩을 운영 토큰으로 치환.
                   */}
-                  <p className="flex items-center gap-2 font-semibold text-[var(--color-text-primary)]">
+                  <p className="flex items-center gap-2 font-semibold text-[var(--ink)]">
                     <span
                       className="rounded-[4px] px-1.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wide"
                       style={{
@@ -363,14 +546,9 @@ export default function DivisionsSetupPage() {
                     onChange={(e) =>
                       updateRule(r.id, { format: e.target.value || null })
                     }
-                    className="rounded-[4px] border px-2 py-1.5 text-sm focus:outline-none focus:ring-1"
-                    style={{
-                      borderColor: "var(--color-border)",
-                      background: "var(--color-card)",
-                      color: "var(--color-text-primary)",
-                    }}
+                    className="ts-select min-w-[160px]"
                   >
-                    <option value="">(대회 format 폴백)</option>
+                    <option value="">대회 방식 사용</option>
                     {allowedFormats.map((f) => (
                       <option key={f} value={f}>
                         {/* FORMAT_LABEL 타입 = DivisionFormat narrow → string indexing 위해 cast (런타임은 ?? f 폴백) */}
@@ -395,23 +573,16 @@ export default function DivisionsSetupPage() {
                 />
               )}
 
-              {/* settings JSON 표시 (디버깅용 — 운영자가 박제 결과 검증) */}
-              {r.settings && Object.keys(r.settings).length > 0 && (
-                <div className="mt-2 rounded-[4px] bg-[var(--color-elevated)] p-2 text-xs text-[var(--color-text-muted)]">
-                  <strong>settings:</strong> {JSON.stringify(r.settings)}
-                </div>
-              )}
-
               {/* 2026-05-12 Phase 3.5-C — 진출 매핑 수동 실행 */}
               <div className="mt-2 flex items-center justify-between">
                 <p className="text-xs text-[var(--color-text-muted)]">
-                  예선 종료 후 standings 기반 순위전 자동 매핑
+                  예선 순위 기준 순위전 자동 매핑
                 </p>
                 <button
                   type="button"
                   onClick={() => advanceDivision(r.id, r.code)}
                   disabled={advancingId === r.id}
-                  className="btn btn--sm"
+                  className="ts-btn ts-btn--secondary ts-btn--sm"
                 >
                   {advancingId === r.id ? "실행 중..." : "진출 매핑 실행"}
                 </button>
@@ -427,46 +598,14 @@ export default function DivisionsSetupPage() {
                     color: "var(--color-success)",
                   }}
                 >
-                  ✅ 매핑 완료 — UPDATE {advanceResult.updated}건 / skip {advanceResult.skipped}건
+                  매핑 완료 · 갱신 {advanceResult.updated}건 · 제외 {advanceResult.skipped}건
                 </div>
               )}
-            </Card>
+            </article>
           ))}
         </div>
       )}
 
-      {/* 2026-05-16 PR-Admin-6 — 순위전·결승 hub 진입 안내 (예선 종료 후 단계 10~11 통합 hub) */}
-      <Card className="mb-3" style={{ borderLeft: "3px solid var(--color-info)" }}>
-        <p className="text-sm text-[var(--color-text-primary)]">
-          예선 종료 후 순위전·결승·우승팀 결정은{" "}
-          <Link
-            href={`/tournament-admin/tournaments/${tournamentId}/playoffs`}
-            className="font-semibold text-[var(--color-info)] hover:underline"
-          >
-            순위전·결승 hub →
-          </Link>{" "}
-          에서 일괄 처리하세요.
-        </p>
-      </Card>
-
-      {/* 안내 */}
-      <Card className="bg-[var(--color-elevated)]">
-        <h3 className="mb-2 text-sm font-semibold text-[var(--color-text-primary)]">진행 방식 가이드</h3>
-        <ul className="space-y-1 text-xs text-[var(--color-text-muted)]">
-          {/* 2026-05-13 한국식 용어 통일 (§A) — "싱글 엘리미네이션" → "토너먼트" / "더블 엘리미네이션" → "더블 토너먼트" / "풀리그 (Round Robin)" → "풀리그" */}
-          <li>• <strong>토너먼트</strong> — 한번 지면 끝. 16팀 → 8 → 4 → 결승</li>
-          <li>• <strong>더블 토너먼트</strong> — 한 번 진 팀에게 패자 부활 기회 제공 (16팀 31경기)</li>
-          <li>• <strong>듀얼 토너먼트</strong> — 4조×4팀 미니 더블엘리미 → 8강 → 결승 (16팀, 27경기)</li>
-          <li>• <strong>풀리그</strong> — 모든 팀끼리 한 번씩. 승점 합산</li>
-          <li>• <strong>조별리그 + 토너먼트</strong> — 조별 1·2위 본선 진출 (조별 본선 진출 팀 수 설정 가능)</li>
-          <li>• <strong>링크제 (각조 동순위전)</strong> — i3-U9 표준. 예선 → 1·2위 결정전 / 3·4위 결정전 (linkage_pairs 명시)</li>
-          {/* 2026-05-12 Phase 3.5-D — 신규 enum 가이드 */}
-          <li>• <strong>조별리그 + 동순위 순위결정전</strong> — 각 조 풀리그 → 1위×N팀 / 2위×N팀 ... 동순위전 자동 매칭. 4×4=16팀 / 9경기+12경기 ≈ 21경기</li>
-        </ul>
-      </Card>
-
-      {/* 2026-05-16 PR-Admin-1 — 단계간 CTA (admin-flow-audit §3 단계 4 단절 해소) */}
-      <NextStepCTA tournamentId={tournamentId} currentStep="divisions" />
     </div>
   );
 }
@@ -555,8 +694,8 @@ function GroupSettingsInputs(props: {
   };
 
   return (
-    <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
-      <label className="text-xs text-[var(--color-text-muted)]">
+    <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
+      <label className="ts-field text-xs text-[var(--ink-mute)]">
         조 크기 (팀)
         <input
           type="number"
@@ -567,17 +706,11 @@ function GroupSettingsInputs(props: {
           disabled={saving}
           onChange={(e) => setGroupSize(e.target.value)}
           onBlur={handleSave}
-          className="mt-1 w-full rounded-[4px] border px-2 py-1.5 text-sm focus:outline-none focus:ring-1"
-          style={{
-            borderColor: "var(--color-border)",
-            background: "var(--color-card)",
-            color: "var(--color-text-primary)",
-            minHeight: 44,
-          }}
-          placeholder="예: 4"
+          className="ts-input mt-1"
+          placeholder="4"
         />
       </label>
-      <label className="text-xs text-[var(--color-text-muted)]">
+      <label className="ts-field text-xs text-[var(--ink-mute)]">
         조 개수
         <input
           type="number"
@@ -588,14 +721,8 @@ function GroupSettingsInputs(props: {
           disabled={saving}
           onChange={(e) => setGroupCount(e.target.value)}
           onBlur={handleSave}
-          className="mt-1 w-full rounded-[4px] border px-2 py-1.5 text-sm focus:outline-none focus:ring-1"
-          style={{
-            borderColor: "var(--color-border)",
-            background: "var(--color-card)",
-            color: "var(--color-text-primary)",
-            minHeight: 44,
-          }}
-          placeholder="예: 4"
+          className="ts-input mt-1"
+          placeholder="4"
         />
       </label>
       {/* 2026-05-13 — 신규 enum 만 ranking_format 영역 노출. 단, group_count <= 2 이면 드롭다운 대신 안내문 노출
@@ -604,35 +731,24 @@ function GroupSettingsInputs(props: {
       {showRankingFormat(format) && (
         groupCount !== "" && Number(groupCount) <= 2 ? (
           // 조 2개 이하 — 단판 안내문 (드롭다운 숨김 / settings.ranking_format 기본값 round_robin 박제 유지)
-          <div className="text-xs text-[var(--color-text-muted)]">
-            <span className="block font-medium text-[var(--color-text-primary)]">동순위전 방식</span>
+          <div className="text-xs text-[var(--ink-mute)]">
+            <span className="block font-medium text-[var(--ink)]">동순위전 방식</span>
             <p
-              className="mt-1 rounded-[4px] border px-2 py-2 text-xs leading-relaxed"
-              style={{
-                borderColor: "var(--color-border)",
-                background: "var(--color-elevated)",
-                minHeight: 44,
-              }}
+              className="mt-1 rounded-[12px] bg-[var(--grey-50)] px-3 py-2 text-xs leading-relaxed"
             >
               각 동순위전이 단판 경기로 자동 진행됩니다 (조 개수가 2조 이하)
             </p>
           </div>
         ) : (
           // 조 3개 이상 — 풀리그 / 토너먼트 선택 드롭다운
-          <label className="text-xs text-[var(--color-text-muted)]">
+          <label className="ts-field text-xs text-[var(--ink-mute)]">
             동순위전 방식
             <select
               value={rankingFormat}
               disabled={saving}
               onChange={(e) => setRankingFormat(e.target.value)}
               onBlur={handleSave}
-              className="mt-1 w-full rounded-[4px] border px-2 py-1.5 text-sm focus:outline-none focus:ring-1"
-              style={{
-                borderColor: "var(--color-border)",
-                background: "var(--color-card)",
-                color: "var(--color-text-primary)",
-                minHeight: 44,
-              }}
+              className="ts-select mt-1"
             >
               {/* 2026-05-13 라벨 한국식 통일 — "싱글 엘리미네이션" → "토너먼트" */}
               <option value="round_robin">풀리그</option>
@@ -645,7 +761,7 @@ function GroupSettingsInputs(props: {
           사유: 조별리그/풀리그 → 본선 토너먼트 enum 만 의미 있음 (조 N위까지 본선 진출).
           UI: group_size 가 max 상한 (조 크기 초과 진출 불가). default 2 = 생활체육 표준 1·2위 */}
       {shouldShowAdvancePerGroup(format) && (
-        <label className="text-xs text-[var(--color-text-muted)]">
+        <label className="ts-field text-xs text-[var(--ink-mute)]">
           조별 본선 진출 팀 수
           <input
             type="number"
@@ -656,14 +772,8 @@ function GroupSettingsInputs(props: {
             disabled={saving}
             onChange={(e) => setAdvancePerGroup(e.target.value)}
             onBlur={handleSave}
-            className="mt-1 w-full rounded-[4px] border px-2 py-1.5 text-sm focus:outline-none focus:ring-1"
-            style={{
-              borderColor: "var(--color-border)",
-              background: "var(--color-card)",
-              color: "var(--color-text-primary)",
-              minHeight: 44,
-            }}
-            placeholder={`예: ${ADVANCE_PER_GROUP_DEFAULT}`}
+            className="ts-input mt-1"
+            placeholder={`${ADVANCE_PER_GROUP_DEFAULT}`}
           />
         </label>
       )}
