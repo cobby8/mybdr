@@ -158,6 +158,23 @@ export function TournamentWorkspace({
         : "locked";
     const scoreInputStatus: WorkspaceStatus = bracketReady ? "in_progress" : "locked";
     const recorderStatus: WorkspaceStatus = recordingReady ? "in_progress" : "locked";
+    const bracketFlowStatus: WorkspaceStatus =
+      bracket?.status ?? (divisionsReady ? "empty" : "locked");
+    const playoffsStatus: WorkspaceStatus = bracketReady
+      ? isCompleted
+        ? "complete"
+        : "in_progress"
+      : "locked";
+    const finalStatus: WorkspaceStatus = bracketReady
+      ? isCompleted
+        ? "complete"
+        : "in_progress"
+      : "locked";
+    const completionStatus: WorkspaceStatus = isCompleted
+      ? "complete"
+      : bracketReady
+        ? "in_progress"
+        : "locked";
 
     return [
       {
@@ -322,6 +339,44 @@ export function TournamentWorkspace({
               : bracketReady
                 ? "대진표 확인 후 순위전/결승 흐름을 점검하세요"
                 : "참가팀과 시드 확인 후 대진표를 생성하세요",
+          },
+        ],
+        flow: [
+          {
+            label: "1. 대진표 생성",
+            description: bracketReady
+              ? `${matchCount}경기 생성됨`
+              : "참가팀과 시드 확인 후 대진표를 생성하세요",
+            status: bracketFlowStatus,
+            icon: "git-branch",
+            href: `${base}/bracket`,
+          },
+          {
+            label: "2. 순위표 확인",
+            description: bracketReady
+              ? "예선 결과 기반 순위표를 확인합니다"
+              : "대진표 생성 후 순위표 흐름이 준비됩니다",
+            status: playoffsStatus,
+            icon: "bar-chart-3",
+            href: `${base}/playoffs`,
+          },
+          {
+            label: "3. 순위전/결승",
+            description: bracketReady
+              ? "순위전 placeholder와 결승 매치를 점검하세요"
+              : "예선 종료 후 순위전/결승 흐름으로 이어집니다",
+            status: finalStatus,
+            icon: "trophy",
+            href: `${base}/playoffs`,
+          },
+          {
+            label: "4. 종료 처리",
+            description: isCompleted
+              ? "종료 후 정리 단계 완료"
+              : "결승 종료 후 결과 확정과 공개 상태를 정리하세요",
+            status: completionStatus,
+            icon: "flag",
+            href: `${base}/completed`,
           },
         ],
         lockedReason: bracket?.lockedReason,
