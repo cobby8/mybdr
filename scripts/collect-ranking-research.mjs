@@ -11,6 +11,7 @@ const NAVER_ENDPOINTS = {
   "naver-cafe": "https://openapi.naver.com/v1/search/cafearticle.json",
   "naver-blog": "https://openapi.naver.com/v1/search/blog.json",
 };
+const TAVILY_ENDPOINT = "https://api.tavily.com/search";
 
 const SOURCE_ALIASES = {
   cafe: "naver-cafe",
@@ -226,6 +227,56 @@ async function fetchNaver(source, query, display) {
   });
 }
 
+async function fetchTavily(source, query, display) {
+  const response = await fetch(TAVILY_ENDPOINT, {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${process.env.TAVILY_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      query: query.sourceQuery,
+      search_depth: source.searchDepth ?? "basic",
+      max_results: Math.min(display, 20),
+      topic: source.topic ?? "general",
+      include_answer: false,
+      include_raw_content: false,
+      include_images: false,
+      include_domains: source.includeDomains ?? undefined,
+      exclude_domains: source.excludeDomains ?? undefined,
+      country: source.country ?? "south korea",
+    }),
+  });
+
+  if (!response.ok) {
+    const body = await response.text();
+    throw new Error(`${source.id} ${response.status}: ${body.slice(0, 160)}`);
+  }
+
+  const data = await response.json();
+  return (data.results ?? []).map((item) => {
+    const normalized = {
+      source: source.id,
+      sourceLabel: source.label,
+      adapter: source.adapter,
+      query: query.query,
+      sourceQuery: query.sourceQuery,
+      groupId: query.groupId,
+      groupLabel: query.groupLabel,
+      term: query.term,
+      title: stripHtml(item.title),
+      link: item.url,
+      description: stripHtml(item.content),
+      collectedAt: new Date().toISOString(),
+      raw: item,
+    };
+    return {
+      ...normalized,
+      relevanceScore: scoreCandidate(normalized),
+    };
+  });
+}
+
 function buildManualCandidates(sources, includeManual) {
   if (!includeManual) return [];
 
@@ -321,7 +372,7 @@ async function main() {
 
   const runnableSources = sources.filter((source) => {
     if (!source.searchable) return false;
-    if (!(source.adapter in NAVER_ENDPOINTS)) return false;
+    if (!(source.adapter in NAVER_ENDPOINTS) && source.adapter !== "tavily-search") return false;
     return credentialStatus(source).ok;
   });
   const needsDryRun = args.dryRun || runnableSources.length === 0;
@@ -366,7 +417,9 @@ async function main() {
     for (const source of runnableSources) {
       for (const sourceQuery of sourceQueryFor(source, query)) {
         try {
-          const items = await fetchNaver(source, { ...query, sourceQuery }, args.display);
+          const items = source.adapter === "tavily-search"
+            ? await fetchTavily(source, { ...query, sourceQuery }, args.display)
+            : await fetchNaver(source, { ...query, sourceQuery }, args.display);
           candidates.push(...items);
           console.log(`[ok] ${source.id} "${sourceQuery}" -> ${items.length}`);
         } catch (error) {

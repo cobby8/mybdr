@@ -56,28 +56,72 @@
       "trustLevel": 70,
       "urls": [
         {
-          "label": "BDR Daum Cafe search target",
+          "label": "BDR 동아리농구방",
+          "url": "https://cafe.daum.net/dongarry",
+          "notes": "Daum search exposed this as a core BDR/dongari basketball room candidate. Treat as primary manual/watch seed until board-level access rules are confirmed."
+        },
+        {
+          "label": "BDR League cafe candidate",
+          "url": "https://cafe.daum.net/bdrleague",
+          "notes": "Daum search exposed this as a BDR league candidate. Verify whether it contains ranking-relevant results before enabling automated watching."
+        },
+        {
+          "label": "Daum Cafe root",
           "url": "https://cafe.daum.net/",
-          "notes": "Seed for BDR/dongari basketball room URL discovery. Add exact board URLs after confirmation."
+          "notes": "Fallback root for manual URL intake and exact board discovery."
         }
       ],
       "notes": "Daum Cafe does not have the same simple open search API path as Naver. Use manual URL seeds first, then add a dedicated adapter only for confirmed public pages."
     },
     {
-      "id": "google-search-candidate",
-      "label": "Google/web search candidate",
-      "adapter": "search-api-candidate",
-      "enabled": false,
+      "id": "tavily-search",
+      "label": "Tavily web search",
+      "adapter": "tavily-search",
+      "enabled": true,
       "searchable": true,
       "trustLevel": 50,
-      "requiresCredentials": ["WEB_SEARCH_API_KEY"],
+      "requiresCredentials": ["TAVILY_API_KEY"],
       "queryTemplates": [
         "{query} 농구",
         "site:cafe.daum.net {query}",
         "site:instagram.com {query}",
         "site:youtube.com {query}"
       ],
-      "notes": "Placeholder for a future web-search provider. Compare Brave Search, Bing Web Search, SerpAPI, Tavily, or Google alternatives before enabling."
+      "searchDepth": "basic",
+      "topic": "general",
+      "country": "south korea",
+      "notes": "First general web-search adapter. Good for Daum Cafe, official sites, Instagram/YouTube discovery, and broad web candidates. Requires human review."
+    },
+    {
+      "id": "google-search-candidate",
+      "label": "Google programmable/custom search candidate",
+      "adapter": "search-api-candidate",
+      "enabled": false,
+      "searchable": true,
+      "trustLevel": 45,
+      "requiresCredentials": ["GOOGLE_SEARCH_API_KEY", "GOOGLE_SEARCH_ENGINE_ID"],
+      "queryTemplates": [
+        "{query} 농구",
+        "site:cafe.daum.net {query}",
+        "site:instagram.com {query}",
+        "site:youtube.com {query}"
+      ],
+      "notes": "Keep as a comparison candidate, not the first implementation target. Google Programmable Search has product-transition risk and setup overhead."
+    },
+    {
+      "id": "brave-search-candidate",
+      "label": "Brave Search API candidate",
+      "adapter": "search-api-candidate",
+      "enabled": false,
+      "searchable": true,
+      "trustLevel": 45,
+      "requiresCredentials": ["BRAVE_SEARCH_API_KEY"],
+      "queryTemplates": [
+        "{query} 농구",
+        "site:cafe.daum.net {query}",
+        "site:instagram.com {query}"
+      ],
+      "notes": "Keep as a comparison candidate. Official app pages blocked direct CLI inspection during setup, so verify current plans before implementation."
     },
     {
       "id": "manual-url",

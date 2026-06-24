@@ -12,6 +12,7 @@
 |---|---|
 | `keyword-seed.json` | 공식 협회, 디비전, 동호회, 대회 결과 키워드 seed |
 | `sources.json` | 네이버, 공식 사이트, 다음카페, 웹검색 후보 등 수집 출처 registry |
+| `web-search-provider-notes.md` | 네이버 외 웹검색 provider 비교와 선택 근거 |
 | `../../scripts/collect-ranking-research.mjs` | 네이버 카페글/블로그 검색 PoC |
 
 ## 실행
@@ -28,12 +29,25 @@ node scripts/collect-ranking-research.mjs --dry-run --limit 20
 node scripts/collect-ranking-research.mjs --dry-run --source naver-cafe,naver-blog,official-kba,daum-cafe --limit 10
 ```
 
+Tavily 웹검색 dry-run:
+
+```powershell
+node scripts/collect-ranking-research.mjs --dry-run --source tavily-search --limit 10
+```
+
 네이버 검색 API 키로 실제 후보 수집:
 
 ```powershell
 $env:NAVER_CLIENT_ID="..."
 $env:NAVER_CLIENT_SECRET="..."
 node scripts/collect-ranking-research.mjs --limit 40 --display 10
+```
+
+Tavily 웹검색 API 키로 실제 후보 수집:
+
+```powershell
+$env:TAVILY_API_KEY="..."
+node scripts/collect-ranking-research.mjs --source tavily-search --group bdr_community --limit 20 --display 5
 ```
 
 특정 그룹만 수집:
