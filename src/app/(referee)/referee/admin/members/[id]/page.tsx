@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 // Toss 스킨(3B): Material Symbols → lucide Icon 키트
 import { Icon } from "@/components/admin-toss";
+import { formatOfficialLevel } from "@/lib/referee/official-roles";
 
 /**
  * /referee/admin/members/[id] — 심판 상세 (Client Component).
@@ -316,7 +317,7 @@ export default function AdminMemberDetailPage() {
           <InfoRow label="이메일" value={referee.user_email} />
           <InfoRow label="전화번호" value={referee.user_phone} />
           <InfoRow label="생년월일" value={referee.user_birth_date ? formatDate(referee.user_birth_date) : null} />
-          <InfoRow label="등급" value={referee.level} />
+          <InfoRow label="등급" value={formatOfficialLevel(referee.level)} />
           <InfoRow label="자격번호" value={referee.license_number} />
           <InfoRow label="역할" value={referee.role_type} />
           <InfoRow label="상태" value={referee.status} />

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { Icon } from "@/components/admin-toss";
+import { formatOfficialLevel } from "@/lib/referee/official-roles";
 
 /**
  * /referee/admin/announcements/[id] — 공고 상세 + 일자별 선정 UI
@@ -590,7 +591,10 @@ export default function AnnouncementDetailPage() {
                         className="mt-0.5 text-[11px]"
                         style={{ color: "var(--color-text-muted)" }}
                       >
-                        {p.referee_cert_grade ?? p.referee_level ?? "등급 미등록"}
+                        {p.referee_cert_grade ??
+                          (p.referee_level
+                            ? formatOfficialLevel(p.referee_level)
+                            : "등급 미등록")}
                       </div>
                     </div>
                     <div className="ml-3 flex items-center gap-1">

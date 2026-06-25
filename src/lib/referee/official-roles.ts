@@ -22,6 +22,26 @@ export const GAME_OFFICIAL_CAPABILITY_LABELS = {
 export const KBA_REFEREE_CERT_GRADES = ["1급", "2급", "3급"] as const;
 export const KBA_GAME_OFFICIAL_CERT_GRADES = ["1급", "2급", "3급"] as const;
 
+export const OFFICIAL_LEVEL_LABELS: Record<string, string> = {
+  beginner: "3급",
+  intermediate: "2급",
+  advanced: "1급",
+  international: "FIBA/국제",
+};
+
+export const OFFICIAL_LEVEL_OPTIONS = [
+  { value: "", label: "선택 안 함" },
+  { value: "beginner", label: OFFICIAL_LEVEL_LABELS.beginner },
+  { value: "intermediate", label: OFFICIAL_LEVEL_LABELS.intermediate },
+  { value: "advanced", label: OFFICIAL_LEVEL_LABELS.advanced },
+  { value: "international", label: OFFICIAL_LEVEL_LABELS.international },
+] as const;
+
+export function formatOfficialLevel(level: string | null | undefined): string {
+  if (!level) return "-";
+  return OFFICIAL_LEVEL_LABELS[level] ?? level;
+}
+
 export const REFEREE_DISCIPLINE_LABELS = {
   "5x5": "5x5 심판",
   "3x3": "3x3 심판",

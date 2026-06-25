@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 // Toss 스킨(Phase 3B): Material Symbols → lucide Icon 키트 경유.
 import { Icon } from "@/components/admin-toss";
+import { formatOfficialLevel } from "@/lib/referee/official-roles";
 
 /**
  * RefereePicker — 풀 기반 심판 선택 공통 컴포넌트.
@@ -220,7 +221,7 @@ export default function RefereePicker({
                             borderRadius: 4,
                           }}
                         >
-                          {p.level}
+                          {formatOfficialLevel(p.level)}
                         </span>
                       )}
                       {/* 이미 배정됨 뱃지 */}

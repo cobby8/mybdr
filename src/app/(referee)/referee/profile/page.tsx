@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db/prisma";
 import { EmptyState } from "../_components/empty-state";
 // Toss 디자인 전환: Material Symbols → lucide 키트 <Icon>
 import { Icon } from "@/components/admin-toss";
+import { formatOfficialLevel } from "@/lib/referee/official-roles";
 
 /**
  * /referee/profile — 내 심판 프로필 조회 (Server Component)
@@ -108,7 +109,7 @@ export default async function RefereeProfilePage() {
         }}
       >
         <Field label="역할" value={referee.role_type} />
-        <Field label="숙련도" value={referee.level ?? "-"} />
+        <Field label="숙련도" value={formatOfficialLevel(referee.level)} />
         <Field
           label="자격번호"
           value={referee.license_number ?? "-"}

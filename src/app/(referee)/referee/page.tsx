@@ -10,6 +10,7 @@ import { Icon } from "@/components/admin-toss";
 //   isRecorderAdmin = isSuperAdmin 자동 흡수 (Q1) / getAssociationAdmin = 협회 관리자 (sentinel 동시 통과).
 import { isRecorderAdmin } from "@/lib/auth/is-recorder-admin";
 import { getAssociationAdmin } from "@/lib/auth/admin-guard";
+import { formatOfficialLevel } from "@/lib/referee/official-roles";
 
 /**
  * /referee — 심판 플랫폼 대시보드 (Server Component)
@@ -200,7 +201,7 @@ export default async function RefereeDashboardPage() {
                   }}
                 >
                   <Icon name="medal" size={14} />
-                  {referee.level}
+                  {formatOfficialLevel(referee.level)}
                 </span>
               )}
             </div>
