@@ -38,9 +38,8 @@ export const GET = withWebAuth(async (_req: Request, ctx: WebAuthContext) => {
       return apiSuccess({ items: [] });
     }
 
-    // 2) role_type 매핑: Referee.role_type은 "referee/scorer/timer" 등인데
-    //    공고의 role_type은 "referee" | "game_official" 이분법.
-    //    referee → referee, 그 외(scorer/timer 등) → game_official 로 판단
+    // 2) role_type 매핑: Referee.role_type은 "referee" | "game_official" 기준이다.
+    //    방어적으로 referee 외 값은 경기원 공고 버킷으로 판단한다.
     const myRoleBucket: "referee" | "game_official" =
       referee.role_type === "referee" ? "referee" : "game_official";
 

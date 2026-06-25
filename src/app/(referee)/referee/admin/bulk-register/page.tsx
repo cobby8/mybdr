@@ -6,6 +6,7 @@ import writeExcelFile from "write-excel-file/browser";
 // Toss 키트 Icon — Material Symbols 대체 (lucide 기반)
 import { Icon } from "@/components/admin-toss";
 import {
+  formatOfficialLevel,
   OFFICIAL_ROLE_LABELS,
   type OfficialRoleType,
 } from "@/lib/referee/official-roles";
@@ -84,14 +85,6 @@ const ROW_STATUS_BADGE: Record<
     color: "#fff",
     label: "오류",
   },
-};
-
-// level 코드 → 한글 라벨 표기
-const LEVEL_LABEL: Record<string, string> = {
-  beginner: "입문",
-  intermediate: "중급",
-  advanced: "고급",
-  international: "국제",
 };
 
 export default function AdminBulkRegisterPage() {
@@ -477,7 +470,7 @@ export default function AdminBulkRegisterPage() {
                       style={{ color: "var(--color-text-secondary)" }}
                     >
                       {row.level
-                        ? LEVEL_LABEL[row.level] ?? row.level
+                        ? formatOfficialLevel(row.level)
                         : row.level_raw ?? "-"}
                     </td>
                     <td

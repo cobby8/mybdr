@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import {
+  OFFICIAL_LEVEL_OPTIONS,
   OFFICIAL_ROLE_LABELS,
   type OfficialRoleType,
 } from "@/lib/referee/official-roles";
@@ -278,11 +279,11 @@ export default function RefereeProfileEditPage() {
               borderRadius: 4,
             }}
           >
-            <option value="">선택 안 함</option>
-            <option value="beginner">Beginner</option>
-            <option value="intermediate">Intermediate</option>
-            <option value="advanced">Advanced</option>
-            <option value="international">International</option>
+            {OFFICIAL_LEVEL_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
           </select>
         </Field>
 

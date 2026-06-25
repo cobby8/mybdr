@@ -6,6 +6,10 @@ import Link from "next/link";
 import { DataTableV2, type DataTableColumn } from "@/components/bdr-v2/data-table";
 // Toss 스킨(3B): Material Symbols → lucide Icon 키트
 import { Icon } from "@/components/admin-toss";
+import {
+  formatOfficialLevel,
+  OFFICIAL_LEVEL_OPTIONS,
+} from "@/lib/referee/official-roles";
 
 /**
  * /referee/admin/members — 소속 심판 관리 목록 (Client Component).
@@ -54,14 +58,6 @@ const VERIFICATION_TABS = [
   { value: "false", label: "미검증" },
 ] as const;
 
-const LEVEL_OPTIONS = [
-  { value: "", label: "전체 등급" },
-  { value: "beginner", label: "초급" },
-  { value: "intermediate", label: "중급" },
-  { value: "advanced", label: "상급" },
-  { value: "international", label: "국제" },
-] as const;
-
 // 검증 상태 뱃지
 const VERIFY_BADGE: Record<string, { bg: string; color: string; label: string }> = {
   verified:   { bg: "var(--color-success, #22c55e)", color: "#fff", label: "검증" },
@@ -102,7 +98,7 @@ const MEMBER_COLUMNS: DataTableColumn<MemberItem>[] = [
     label: "등급",
     width: "100px",
     render: (m) => (
-      <span style={{ color: "var(--color-text-secondary)" }}>{m.level ?? "-"}</span>
+      <span style={{ color: "var(--color-text-secondary)" }}>{formatOfficialLevel(m.level)}</span>
     ),
   },
   {
@@ -335,7 +331,7 @@ export default function AdminMembersPage() {
             borderRadius: 4,
           }}
         >
-          {LEVEL_OPTIONS.map((opt) => (
+          {[{ value: "", label: "전체 등급" }, ...OFFICIAL_LEVEL_OPTIONS.filter((opt) => opt.value)].map((opt) => (
             <option key={opt.value} value={opt.value}>
               {opt.label}
             </option>

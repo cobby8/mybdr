@@ -3,6 +3,7 @@
 // - 날짜 필터 칩: 자체 rounded → .btn .btn--sm (활성은 .btn--primary)
 
 import { prisma } from "@/lib/db/prisma";
+import type { Prisma } from "@prisma/client";
 import Link from "next/link";
 // Phase 2A (Toss 전환) — Material Symbols → lucide(<Icon>) 키트
 import { Icon } from "@/components/admin-toss";
@@ -32,7 +33,49 @@ const ACTION_LABEL: Record<string, string> = {
   "tournament.status_change": "대회 상태 변경",
   "settings.cache_clear": "캐시 초기화",
   "settings.maintenance_toggle": "점검모드 변경",
+  record_app_impact_check: "기록앱 영향 판정",
 };
+
+const CHANGE_KEY_LABEL: Record<string, string> = {
+  summary: "요약",
+  diff_summary: "diff",
+  changed_files: "변경 파일",
+  api_paths: "API 경로",
+  db_models: "DB 모델",
+  response_fields: "응답 필드",
+  impact: "기록앱 영향",
+  api_contract_changes: "API 계약",
+  backward_compatibility: "하위 호환성",
+  user_decision_required: "사용자 결정",
+  reasons: "판정 이유",
+  added: "추가",
+  removed: "삭제",
+  renamed: "이름 변경",
+  semantic_changes: "의미 변경",
+};
+
+const IMPACT_VALUE_LABEL: Record<string, string> = {
+  none: "영향 없음",
+  needs_review: "확인 필요",
+  risk: "위험",
+};
+
+const CONTRACT_CHANGE_LABEL: Record<string, string> = {
+  none: "변경 없음",
+  field_addition: "필드 추가",
+  field_removal: "필드 삭제",
+  field_rename: "필드 이름 변경",
+  semantic_change: "의미 변경",
+  auth_change: "인증 변경",
+};
+
+const COMPATIBILITY_VALUE_LABEL: Record<string, string> = {
+  maintained: "유지",
+  may_break: "깨질 수 있음",
+  unknown: "확인 필요",
+};
+
+type LogKindFilter = "record-app";
 
 function toKSTDate(date: Date): string {
   // YYYY-MM-DD (KST)
@@ -54,20 +97,88 @@ function toKSTFull(date: Date): string {
   return date.toLocaleString("ko-KR", { timeZone: "Asia/Seoul" });
 }
 
+function buildLogsHref(params: { date?: string; kind?: LogKindFilter }) {
+  const search = new URLSearchParams();
+  if (params.date) search.set("date", params.date);
+  if (params.kind) search.set("kind", params.kind);
+  const query = search.toString();
+  return query ? `/admin/logs?${query}` : "/admin/logs";
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === "object" && !Array.isArray(value);
+}
+
+function formatChangeKey(key: string) {
+  return CHANGE_KEY_LABEL[key] ?? key;
+}
+
+function formatListValue(values: unknown[]) {
+  const text = values
+    .map((value) => formatChangeValue("", value))
+    .filter((value) => value !== "-")
+    .join(", ");
+  return text || "-";
+}
+
+function formatResponseFields(value: Record<string, unknown>) {
+  const parts = Object.entries(value)
+    .map(([key, item]) => {
+      if (!Array.isArray(item) || item.length === 0) return null;
+      return `${formatChangeKey(key)}: ${formatListValue(item)}`;
+    })
+    .filter((item): item is string => !!item);
+  return parts.length ? parts.join(" / ") : "-";
+}
+
+function formatChangeValue(key: string, value: unknown): string {
+  if (value == null || value === "") return "-";
+  if (typeof value === "boolean") return value ? "필요" : "불필요";
+  if (typeof value === "number") return value.toLocaleString("ko-KR");
+
+  if (typeof value === "string") {
+    if (key === "impact") return IMPACT_VALUE_LABEL[value] ?? value;
+    if (key === "backward_compatibility") return COMPATIBILITY_VALUE_LABEL[value] ?? value;
+    if (key === "api_contract_changes") return CONTRACT_CHANGE_LABEL[value] ?? value;
+    return value;
+  }
+
+  if (Array.isArray(value)) {
+    if (key === "api_contract_changes") {
+      return value
+        .map((item) => (typeof item === "string" ? CONTRACT_CHANGE_LABEL[item] ?? item : formatChangeValue("", item)))
+        .join(", ") || "-";
+    }
+    return formatListValue(value);
+  }
+
+  if (isRecord(value)) {
+    if (key === "response_fields") return formatResponseFields(value);
+    return JSON.stringify(value);
+  }
+
+  return String(value);
+}
+
 // FR-066: 관리자 활동 로그 (날짜별 마크다운 뷰)
 export default async function AdminLogsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ date?: string }>;
+  searchParams: Promise<{ date?: string; kind?: string }>;
 }) {
-  const { date: dateFilter } = await searchParams;
+  const { date: dateFilter, kind } = await searchParams;
+  const kindFilter: LogKindFilter | undefined =
+    kind === "record-app" ? "record-app" : undefined;
 
-  let whereClause = {};
+  const whereClause: Prisma.admin_logsWhereInput = {};
   if (dateFilter) {
     // KST 날짜 → UTC 범위로 변환
     const kstStart = new Date(`${dateFilter}T00:00:00+09:00`);
     const kstEnd = new Date(`${dateFilter}T23:59:59+09:00`);
-    whereClause = { created_at: { gte: kstStart, lte: kstEnd } };
+    whereClause.created_at = { gte: kstStart, lte: kstEnd };
+  }
+  if (kindFilter === "record-app") {
+    whereClause.action = "record_app_impact_check";
   }
 
   const logs = await prisma.admin_logs.findMany({
@@ -97,7 +208,7 @@ export default async function AdminLogsPage({
         icon="list-checks"
         eyebrow="ADMIN / 시스템"
         title="활동 로그"
-        sub={`${dateFilter ? `${dateFilter} 로그` : "최근 200건"} / 총 ${logs.length}건`}
+        sub={`${kindFilter === "record-app" ? "기록앱 영향 판정" : dateFilter ? `${dateFilter} 로그` : "최근 200건"} / 총 ${logs.length}건`}
         actions={
           <Link href="/admin/settings" className="btn">
             {/* settings → lucide settings */}
@@ -108,13 +219,22 @@ export default async function AdminLogsPage({
       />
       {/* 날짜 필터 칩 — 다중 행이라 별도 영역 (AdminPageHeader actions slot 에 안 넣음) */}
       <div className="mb-6 flex flex-wrap items-center gap-2">
-        {dateFilter && (
+        {(dateFilter || kindFilter) && (
           <Link href="/admin/logs" className="btn btn--sm">전체 보기</Link>
+        )}
+        <Link
+          href={kindFilter === "record-app" ? buildLogsHref({ date: dateFilter }) : buildLogsHref({ date: dateFilter, kind: "record-app" })}
+          className={`btn btn--sm ${kindFilter === "record-app" ? "btn--primary" : ""}`}
+        >
+          기록앱 영향
+        </Link>
+        {dateFilter && (
+          <Link href={buildLogsHref({ kind: kindFilter })} className="btn btn--sm">날짜 해제</Link>
         )}
           {availableDates.slice(0, 7).map((d) => (
             <Link
               key={d}
-              href={`?date=${d}`}
+              href={buildLogsHref({ date: d, kind: kindFilter })}
               className={`btn btn--sm ${dateFilter === d ? "btn--primary" : ""}`}
             >
               {d.slice(5)}
@@ -213,12 +333,12 @@ export default async function AdminLogsPage({
                               <div className="mt-1 flex flex-wrap gap-3 font-mono text-xs">
                                 {Object.entries(changes).map(([k, v]) => (
                                   <span key={k}>
-                                    <span className="text-[var(--color-text-muted)]">{k}:</span>{" "}
+                                    <span className="text-[var(--color-text-muted)]">{formatChangeKey(k)}:</span>{" "}
                                     {prev?.[k] !== undefined && (
-                                      <span className="text-[var(--color-error)] line-through">{String(prev[k])}</span>
+                                      <span className="text-[var(--color-error)] line-through">{formatChangeValue(k, prev[k])}</span>
                                     )}
                                     {prev?.[k] !== undefined && " → "}
-                                    <span className="text-[var(--color-success)]">{String(v)}</span>
+                                    <span className="text-[var(--color-success)]">{formatChangeValue(k, v)}</span>
                                   </span>
                                 ))}
                               </div>

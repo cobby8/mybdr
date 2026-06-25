@@ -115,10 +115,10 @@ export function WizardConfirm({ draft }: WizardConfirmProps) {
         <Row label="주심" value={formatKRW(draft.fee_setting.main_fee)} />
         <Row label="부심" value={formatKRW(draft.fee_setting.sub_fee)} />
         <Row
-          label="경기원 - 기록"
+          label="경기원"
           value={formatKRW(draft.fee_setting.recorder_fee)}
         />
-        <Row label="경기원 - 계시" value={formatKRW(draft.fee_setting.timer_fee)} />
+        <Row label="경기원" value={formatKRW(draft.fee_setting.timer_fee)} />
       </section>
 
       {/* === Step 4: 심판 사전 등록 (옵션) === PR3 추가 */}

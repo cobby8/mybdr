@@ -105,7 +105,7 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
     // 2026-05-16 PR-Public-1: groupTeams 가 종별 필터링 가능하도록 category (division_code) 도 가져옴.
     //   (include 는 select 와 함께 못 쓰니 기존 include 유지 + tournamentTeam 자체 필드는 자동 포함됨 / category 도 자동 포함)
     prisma.tournamentTeam.findMany({
-      where: { tournamentId: id },
+      where: { tournamentId: id, status: "approved" },
       include: {
         // Phase 2C: 리그/조별 순위표 한 줄 표기용 name_en/name_primary 포함
         team: { select: { name: true, name_en: true, name_primary: true, logoUrl: true } },
@@ -113,6 +113,13 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
       orderBy: [{ wins: "desc" }, { losses: "asc" }],
     }),
   ]);
+
+  const approvedTournamentTeamIds = new Set(tournamentTeams.map((t) => t.id.toString()));
+  const isPublicTeamSlot = (teamId: bigint | null) =>
+    teamId === null || approvedTournamentTeamIds.has(teamId.toString());
+  const publicMatches = matches.filter(
+    (m) => isPublicTeamSlot(m.homeTeamId) && isPublicTeamSlot(m.awayTeamId),
+  );
 
   // 2026-05-16 PR-Public-1 — 종별 룰 fetch (라벨 / format / settings).
   //   admin /playoffs:50 동일 패턴. divisionRules 0건이면 단일 종별 운영 ('default' 폴백 X — 빈 배열 그대로 반환).
@@ -147,7 +154,9 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
             label: r.label,
             // 2026-05-17 — bundle 안에 pointsRule 박제 (클라이언트 컴포넌트가 그대로 사용).
             pointsRule,
-            standings: await getDivisionStandings(prisma, id, r.code, pointsRule),
+            standings: await getDivisionStandings(prisma, id, r.code, pointsRule, {
+              approvedOnly: true,
+            }),
           })),
         )
       : [];
@@ -168,7 +177,7 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
   }
 
   // 2026-05-02: live + in_progress 둘 다 라이브로 인식 (Flutter app 은 'live' 사용)
-  const liveMatchList = matches.filter((m) => m.status === "live" || m.status === "in_progress");
+  const liveMatchList = publicMatches.filter((m) => m.status === "live" || m.status === "in_progress");
   const liveMatchCount = liveMatchList.length;
   // LIVE 카드 클릭 → /live/[id] 이동용 — 첫 라이브 매치 정보 (단일 매치만)
   // 응답 가벼움 위해 첫 매치만 포함. 여러 라이브 시 클라이언트는 count 만 활용.
@@ -183,8 +192,8 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
 
   // 전체/완료 경기 수 (대시보드 진행률 카드용)
   // 2026-05-02 사용자 요청: 진행률 = (completed + live) / total — 라이브 경기도 진행 중으로 카운트
-  const totalMatchCount = matches.length;
-  const completedMatchCount = matches.filter((m) => m.status === "completed").length;
+  const totalMatchCount = publicMatches.length;
+  const completedMatchCount = publicMatches.filter((m) => m.status === "completed").length;
   const isAllCompleted = totalMatchCount > 0 && completedMatchCount === totalMatchCount;
 
   // 핫팀 계산: 경기 결과 기반 승률→득실차→다득점 1위 팀
@@ -213,7 +222,7 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
     };
   }
 
-  for (const m of matches) {
+  for (const m of publicMatches) {
     if (!m.homeTeamId || !m.awayTeamId) continue;
     if (m.status !== "completed" && m.status !== "live") continue;
     const hid = m.homeTeamId.toString();
@@ -275,7 +284,7 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
     reb: number;
     ast: number;
   } | null = null;
-  const completedSorted = matches
+  const completedSorted = publicMatches
     .filter((m) => m.status === "completed" && m.ended_at)
     .sort((a, b) => (b.ended_at?.getTime() ?? 0) - (a.ended_at?.getTime() ?? 0));
   const recentMatch = completedSorted[0];
@@ -370,7 +379,7 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
       }
     : null;
 
-  const bracketOnlyMatches = matches.filter(
+  const bracketOnlyMatches = publicMatches.filter(
     (m) => m.round_number != null && m.bracket_position != null
   );
 
@@ -466,7 +475,7 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
   // 풀리그 경기 일정 (전체 경기 시간순 정렬)
   // 토너먼트 트리와 달리 풀리그는 라운드 개념이 없으므로 시간순 리스트로 표시
   const leagueMatches = isLeague
-    ? matches
+    ? publicMatches
         .map((m) => {
           // 2026-05-15 PR-G5.9 — placeholder 매치 + 다종별 시각화용 필드 추가.
           //   settings.division_code / homeSlotLabel / awaySlotLabel → bracket 탭 카드에서

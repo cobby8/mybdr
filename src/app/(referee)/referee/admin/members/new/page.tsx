@@ -12,6 +12,7 @@ import { BirthDateInput } from "@/components/inputs/birth-date-input";
 // Toss 스킨(3B): Material Symbols → lucide Icon 키트
 import { Icon } from "@/components/admin-toss";
 import {
+  OFFICIAL_LEVEL_OPTIONS,
   OFFICIAL_ROLE_LABELS,
   type OfficialRoleType,
 } from "@/lib/referee/official-roles";
@@ -25,15 +26,6 @@ import {
  * 필수 입력: 이름, 전화번호
  * 선택 입력: 생년월일, 등급, 역할, 자격번호, 지역
  */
-
-// 등급 옵션
-const LEVEL_OPTIONS = [
-  { value: "", label: "선택 안 함" },
-  { value: "beginner", label: "초급" },
-  { value: "intermediate", label: "중급" },
-  { value: "advanced", label: "상급" },
-  { value: "international", label: "국제" },
-] as const;
 
 // 역할 옵션
 const ROLE_OPTIONS = [
@@ -340,7 +332,7 @@ export default function AdminMemberNewPage() {
                   borderRadius: 4,
                 }}
               >
-                {LEVEL_OPTIONS.map((opt) => (
+                {OFFICIAL_LEVEL_OPTIONS.map((opt) => (
                   <option key={opt.value} value={opt.value}>
                     {opt.label}
                   </option>

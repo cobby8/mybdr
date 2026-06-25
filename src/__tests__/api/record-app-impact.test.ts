@@ -1,9 +1,14 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
 const getWebSessionMock = vi.fn();
+const adminLogMock = vi.fn();
 
 vi.mock("@/lib/auth/web-session", () => ({
   getWebSession: () => getWebSessionMock(),
+}));
+
+vi.mock("@/lib/admin/log", () => ({
+  adminLog: (...args: unknown[]) => adminLogMock(...args),
 }));
 
 import { POST } from "@/app/api/web/admin/agents/record-app-impact/route";
@@ -27,6 +32,7 @@ async function postJson(body: unknown) {
 describe("POST /api/web/admin/agents/record-app-impact", () => {
   beforeEach(() => {
     getWebSessionMock.mockReset();
+    adminLogMock.mockReset();
     getWebSessionMock.mockResolvedValue({
       sub: "1",
       role: "super_admin",
@@ -45,6 +51,7 @@ describe("POST /api/web/admin/agents/record-app-impact", () => {
       error: "super_admin permission required",
       code: "FORBIDDEN",
     });
+    expect(adminLogMock).not.toHaveBeenCalled();
   });
 
   it("returns none for unrelated web UI changes", async () => {
@@ -63,6 +70,18 @@ describe("POST /api/web/admin/agents/record-app-impact", () => {
       checked_commit: "7676a1a",
       app_version: "0.1.10+12",
     });
+    expect(adminLogMock).toHaveBeenCalledWith(
+      "record_app_impact_check",
+      "agent",
+      expect.objectContaining({
+        targetType: "record_app",
+        severity: "info",
+        changesMade: expect.objectContaining({
+          impact: "none",
+          backward_compatibility: "maintained",
+        }),
+      }),
+    );
   });
 
   it("flags api/v1 field additions as needs_review", async () => {
@@ -95,6 +114,17 @@ describe("POST /api/web/admin/agents/record-app-impact", () => {
     expect(json.api_contract_changes).toEqual(["field_removal"]);
     expect(json.backward_compatibility).toBe("may_break");
     expect(json.user_decision_required).toBe(true);
+    expect(adminLogMock).toHaveBeenCalledWith(
+      "record_app_impact_check",
+      "agent",
+      expect.objectContaining({
+        severity: "warning",
+        changesMade: expect.objectContaining({
+          impact: "risk",
+          user_decision_required: true,
+        }),
+      }),
+    );
   });
 
   it("flags auth-related changes as risk", async () => {

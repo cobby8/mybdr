@@ -24,6 +24,11 @@ async function handler(req: NextRequest) {
       venue_name: true,
       venue_address: true,
       teams_count: true,
+      _count: {
+        select: {
+          tournamentTeams: { where: { status: "approved" } },
+        },
+      },
     },
   });
 
@@ -37,7 +42,7 @@ async function handler(req: NextRequest) {
     end_date: tournament.endDate,
     venue_name: tournament.venue_name,
     venue_address: tournament.venue_address,
-    team_count: tournament.teams_count,
+    team_count: tournament._count.tournamentTeams,
   });
 }
 

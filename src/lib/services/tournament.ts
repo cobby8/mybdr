@@ -77,7 +77,8 @@ export const MY_TOURNAMENT_SELECT = {
   //   matches_count(전체)는 위 denormalized 컬럼, 완료수는 필터 카운트로 산출.
   _count: {
     select: {
-      tournamentMatches: { where: { status: "completed" } },
+      tournamentTeams: { where: { status: "approved" } },
+      tournamentMatches: true,
     },
   },
 } as const;
@@ -227,7 +228,7 @@ type RawMyTournament = {
   apiToken: string | null;
   logo_url: string | null;
   tournament_series: { name: string } | null;
-  _count?: { tournamentMatches: number } | null;
+  _count?: { tournamentTeams: number; tournamentMatches: number } | null;
   settings: Prisma.JsonValue | null;
 };
 
@@ -266,9 +267,9 @@ function toMyTournamentItem(
     end_date: t.endDate?.toISOString() ?? null,
     venue_name: t.venue_name,
     venue_address: t.venue_address,
-    team_count: t.teams_count ?? 0,
-    match_count: t.matches_count ?? 0,
-    completed_match_count: t._count?.tournamentMatches ?? 0,
+    team_count: t._count?.tournamentTeams ?? 0,
+    match_count: t._count?.tournamentMatches ?? 0,
+    completed_match_count: 0,
     default_recording_mode: getTournamentDefaultMode({ settings: t.settings }),
     series_name: t.tournament_series?.name ?? null,
     role,
@@ -478,7 +479,25 @@ export async function getMyTournaments(
     }
   }
 
-  return Array.from(resultMap.values());
+  const items = Array.from(resultMap.values());
+  if (items.length === 0) return items;
+
+  const completedCounts = await prisma.tournamentMatch.groupBy({
+    by: ["tournamentId"],
+    where: {
+      tournamentId: { in: items.map((item) => item.id) },
+      status: "completed",
+    },
+    _count: { _all: true },
+  });
+  const completedCountByTournament = new Map(
+    completedCounts.map((row) => [row.tournamentId, row._count._all]),
+  );
+
+  return items.map((item) => ({
+    ...item,
+    completed_match_count: completedCountByTournament.get(item.id) ?? 0,
+  }));
 }
 
 /**

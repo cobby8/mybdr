@@ -56,7 +56,7 @@ PM은 기록앱 영향 조건이 있으면 `record-app-liaison`에게 다음 패
 | 단계 | 구현 |
 |---:|---|
 | 1 | 규칙 기반 `record-app-impact` API |
-| 2 | `AgentRun` 또는 유사 audit 테이블로 요청/응답 저장 |
+| 2 | 1차는 기존 `admin_logs`, 2차는 `AgentRun` 또는 유사 audit 테이블로 요청/응답 저장 |
 | 3 | AI Gateway 또는 Gemini를 선택적으로 연결 |
 | 4 | 관리자 화면에서 영향 보고 확인 |
 | 5 | 필요 시 cron/queue로 정기 계약 점검 |
@@ -72,7 +72,8 @@ PM은 기록앱 영향 조건이 있으면 `record-app-liaison`에게 다음 패
 | 출력 | 기록앱 영향 패킷 |
 | 1차 판정 | 규칙 기반, 비용 0, DB 변경 0 |
 | 2차 후보 | AI Gateway structured output |
-| 저장 후보 | `AgentRun` 유사 audit 테이블 |
+| 1차 저장 | `admin_logs`의 `record_app_impact_check` action |
+| 2차 저장 후보 | `AgentRun` 유사 audit 테이블 |
 
 ## 로컬 호출 도구
 

@@ -48,8 +48,8 @@ function toKstDateTimeLabel(d: Date): string {
 const ROLE_KO: Record<string, string> = {
   main: "주심",
   sub: "부심",
-  recorder: "경기원 - 기록",
-  timer: "경기원 - 계시",
+  recorder: "경기원",
+  timer: "경기원",
   referee: "심판",
   game_official: "경기원",
 };

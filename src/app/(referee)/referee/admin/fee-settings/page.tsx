@@ -7,7 +7,7 @@ import { Icon } from "@/components/admin-toss";
 /**
  * /referee/admin/fee-settings — 협회 배정비 단가표 설정 (사무국장 전용)
  *
- * 이유: 매번 배정 생성 시 금액을 입력하지 않아도 되도록, 협회별로 역할(주심/부심/경기원-기록/경기원-계시)
+ * 이유: 매번 배정 생성 시 금액을 입력하지 않아도 되도록, 협회별로 역할(주심/부심/경기원)
  *      기본 배정비를 설정. PUT 권한은 settlement_manage(사무국장)만.
  *
  * 동작:
@@ -32,8 +32,8 @@ type Setting = {
 const ROLE_INFO = [
   { key: "fee_main", label: "주심", icon: "flag" },
   { key: "fee_sub", label: "부심", icon: "users" },
-  { key: "fee_recorder", label: "경기원 - 기록", icon: "file-pen" },
-  { key: "fee_timer", label: "경기원 - 계시", icon: "timer" },
+  { key: "fee_recorder", label: "경기원", icon: "file-pen" },
+  { key: "fee_timer", label: "경기원", icon: "timer" },
 ] as const;
 
 const formatMoney = (n: number) => n.toLocaleString("ko-KR");
@@ -88,8 +88,8 @@ export default function AdminFeeSettingsPage() {
       const body = {
         fee_main: toInt(main, "주심"),
         fee_sub: toInt(sub, "부심"),
-        fee_recorder: toInt(recorder, "경기원 - 기록"),
-        fee_timer: toInt(timer, "경기원 - 계시"),
+        fee_recorder: toInt(recorder, "경기원"),
+        fee_timer: toInt(timer, "경기원"),
       };
 
       const res = await fetch("/api/web/referee-admin/fee-settings", {
