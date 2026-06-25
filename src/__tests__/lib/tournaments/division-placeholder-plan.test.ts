@@ -11,6 +11,7 @@ import {
   planLeagueAdvancementPlaceholders,
   planGroupStageRankingPlaceholders,
   planGroupStageKnockoutMatches,
+  planGroupStagePrelimMatches,
 } from "@/lib/tournaments/division-advancement";
 
 describe("planLeagueAdvancementPlaceholders — G5.3 (강남구 i3-U9 케이스)", () => {
@@ -143,6 +144,22 @@ describe("강남구협회장배 4 종별 운영 케이스 100% 재현 검증", (
 });
 
 describe("planGroupStageKnockoutMatches — 조별리그+토너먼트", () => {
+  it("3팀 1조 * 4조 = 조별리그 예선 12경기를 생성한다", () => {
+    const teams = ["A", "B", "C", "D"].flatMap((groupName, groupIndex) =>
+      [1, 2, 3].map((teamIndex) => ({
+        id: BigInt(groupIndex * 3 + teamIndex),
+        groupName,
+      })),
+    );
+    const specs = planGroupStagePrelimMatches(teams);
+    expect(specs).toHaveLength(12);
+    expect(specs.filter((spec) => spec.groupName === "A")).toHaveLength(3);
+    expect(specs.filter((spec) => spec.groupName === "B")).toHaveLength(3);
+    expect(specs.filter((spec) => spec.groupName === "C")).toHaveLength(3);
+    expect(specs.filter((spec) => spec.groupName === "D")).toHaveLength(3);
+    expect(specs.every((spec) => spec.roundName.endsWith("조 예선"))).toBe(true);
+  });
+
   it("2조 * 2팀 진출 = 4강 교차 시드와 결승 skeleton", () => {
     const specs = planGroupStageKnockoutMatches({ groupCount: 2, advancePerGroup: 2 });
     expect(specs).toHaveLength(3);
@@ -176,9 +193,9 @@ describe("planGroupStageKnockoutMatches — 조별리그+토너먼트", () => {
     expect(specs).toHaveLength(7);
     expect(specs.slice(0, 4).map((s) => `${s.homeSlot} / ${s.awaySlot}`)).toEqual([
       "A조 1위 / D조 2위",
-      "D조 1위 / A조 2위",
       "B조 1위 / C조 2위",
       "C조 1위 / B조 2위",
+      "D조 1위 / A조 2위",
     ]);
     expect(specs.map((s) => s.roundName)).toEqual([
       "8강",
@@ -189,6 +206,32 @@ describe("planGroupStageKnockoutMatches — 조별리그+토너먼트", () => {
       "준결승",
       "결승",
     ]);
+    expect(specs[0].nextKey).toBe("2:1");
+    expect(specs[1].nextKey).toBe("2:1");
+    expect(specs[2].nextKey).toBe("2:2");
+    expect(specs[3].nextKey).toBe("2:2");
+    expect(specs.slice(4, 6).map((s) => `${s.homeSlot} / ${s.awaySlot}`)).toEqual([
+      "8강 1경기 승자 / 8강 2경기 승자",
+      "8강 3경기 승자 / 8강 4경기 승자",
+    ]);
+  });
+
+  it("4조 * 2팀 진출 8강은 준결승에서 예선 같은 조끼리 다시 만나지 않는다", () => {
+    const specs = planGroupStageKnockoutMatches({ groupCount: 4, advancePerGroup: 2 });
+    const firstRoundGroups = specs.slice(0, 4).map((spec) => {
+      const home = spec.homeSlot.match(/^([A-Z])조/)?.[1];
+      const away = spec.awaySlot.match(/^([A-Z])조/)?.[1];
+      return new Set([home, away].filter(Boolean));
+    });
+
+    for (const [left, right] of [
+      [firstRoundGroups[0], firstRoundGroups[1]],
+      [firstRoundGroups[2], firstRoundGroups[3]],
+    ] as const) {
+      for (const group of left) {
+        expect(right.has(group)).toBe(false);
+      }
+    }
   });
 
   it("3조 * 2팀 진출 = 8강 트리에 부전승을 반영", () => {

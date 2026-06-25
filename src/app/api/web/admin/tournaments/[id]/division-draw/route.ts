@@ -14,6 +14,8 @@ const GROUP_LABELS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
 const BodySchema = z.object({
   divisionCode: z.string().trim().min(1).max(40),
   groupCount: z.number().int().min(1).max(16).optional(),
+  mode: z.enum(["random", "seeded"]).optional(),
+  seededTeamIds: z.array(z.string().regex(/^\d+$/)).optional(),
 });
 
 function readGroupCount(settings: unknown): number | null {
@@ -32,6 +34,54 @@ function shuffle<T>(values: T[]): T[] {
     [next[i], next[j]] = [next[j], next[i]];
   }
   return next;
+}
+
+function assignTeamsToGroups<T extends { id: bigint; seedNumber: number | null }>(
+  teams: T[],
+  groupCount: number,
+  mode: "random" | "seeded",
+  seededTeamIds: string[] = [],
+): Array<{ team: T; groupName: string; seedNumber: number }> {
+  const seededIdOrder = new Map(seededTeamIds.map((id, index) => [id, index]));
+  const seededTeams =
+    mode === "seeded"
+      ? [...teams]
+          .filter((team) => seededIdOrder.has(team.id.toString()) || team.seedNumber != null)
+          .sort((a, b) => {
+            const explicitA = seededIdOrder.get(a.id.toString());
+            const explicitB = seededIdOrder.get(b.id.toString());
+            if (explicitA != null || explicitB != null) {
+              return (explicitA ?? Number.MAX_SAFE_INTEGER) - (explicitB ?? Number.MAX_SAFE_INTEGER);
+            }
+            return (a.seedNumber ?? Number.MAX_SAFE_INTEGER) - (b.seedNumber ?? Number.MAX_SAFE_INTEGER);
+          })
+      : [];
+  const seededSet = new Set(seededTeams.map((team) => team.id.toString()));
+  const rest = shuffle(teams.filter((team) => !seededSet.has(team.id.toString())));
+  const buckets: T[][] = Array.from({ length: groupCount }, () => []);
+
+  seededTeams.forEach((team, index) => {
+    buckets[index % groupCount].push(team);
+  });
+  for (const team of rest) {
+    const targetIndex = buckets.reduce((best, bucket, index) => {
+      if (bucket.length < buckets[best].length) return index;
+      return best;
+    }, 0);
+    buckets[targetIndex].push(team);
+  }
+
+  const assignments: Array<{ team: T; groupName: string; seedNumber: number }> = [];
+  for (let groupIndex = 0; groupIndex < buckets.length; groupIndex++) {
+    for (const team of buckets[groupIndex]) {
+      assignments.push({
+        team,
+        groupName: GROUP_LABELS[groupIndex],
+        seedNumber: assignments.length + 1,
+      });
+    }
+  }
+  return assignments;
 }
 
 export async function POST(req: NextRequest, { params }: Ctx) {
@@ -64,7 +114,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
       category: rule.code,
     },
     orderBy: [{ seedNumber: "asc" }, { createdAt: "asc" }],
-    select: { id: true, team: { select: { name: true } } },
+    select: { id: true, seedNumber: true, team: { select: { name: true } } },
   });
 
   if (teams.length < 2) {
@@ -74,20 +124,25 @@ export async function POST(req: NextRequest, { params }: Ctx) {
   const desiredGroupCount =
     parsed.data.groupCount ?? readGroupCount(rule.settings) ?? Math.ceil(teams.length / 4);
   const groupCount = Math.min(Math.max(desiredGroupCount, 1), teams.length, GROUP_LABELS.length);
-  const shuffled = shuffle(teams);
+  const mode = parsed.data.mode ?? "random";
+  const assignments = assignTeamsToGroups(
+    teams,
+    groupCount,
+    mode,
+    parsed.data.seededTeamIds ?? [],
+  );
 
   const groups = Object.fromEntries(
     GROUP_LABELS.slice(0, groupCount).map((group) => [group, [] as string[]]),
   );
 
   await prisma.$transaction(
-    shuffled.map((team, index) => {
-      const groupName = GROUP_LABELS[index % groupCount];
+    assignments.map(({ team, groupName, seedNumber }) => {
       groups[groupName].push(team.team?.name ?? team.id.toString());
       return prisma.tournamentTeam.update({
         where: { id: team.id },
         data: {
-          seedNumber: index + 1,
+          seedNumber,
           groupName,
         },
       });
@@ -101,6 +156,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
       division_code: rule.code,
       team_count: teams.length,
       group_count: groupCount,
+      mode,
       groups,
     },
     severity: "info",
@@ -113,6 +169,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
     divisionLabel: rule.label,
     teamCount: teams.length,
     groupCount,
+    mode,
     groups,
   });
 }

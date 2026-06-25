@@ -199,7 +199,7 @@ export async function advanceDivisionPlaceholders(
   //       → 이름 asc tie-break → stale 매핑으로 매치 207 (13:30 김포훕스타 vs YNC A) 잘못 박제.
   //     - 이전 가드 (prelimCompleted >= 1) 가 partial completion 시 진입 허용 = 사고 원인.
   //
-  //   새 룰: 종별 예선 매치 (roundName "순위" 미포함) prelimTotal === prelimCompleted 시에만 진입.
+  //   새 룰: 종별 예선 매치 (roundName "순위" 미포함 + bracket 좌표 없음) prelimTotal === prelimCompleted 시에만 진입.
   //     - prelimTotal === 0 → group 매치 자체 없음 → skip (방어)
   //     - prelimCompleted < prelimTotal → partial → skip (사고 차단)
   //     - prelimCompleted === prelimTotal → 모든 group 매치 종료 → advancer 진입 안전
@@ -208,6 +208,8 @@ export async function advanceDivisionPlaceholders(
       where: {
         tournamentId,
         settings: { path: ["division_code"], equals: divisionCode },
+        round_number: null,
+        bracket_position: null,
         NOT: { roundName: { contains: "순위" } },
       },
     }),
@@ -216,6 +218,8 @@ export async function advanceDivisionPlaceholders(
         tournamentId,
         settings: { path: ["division_code"], equals: divisionCode },
         status: "completed",
+        round_number: null,
+        bracket_position: null,
         NOT: { roundName: { contains: "순위" } },
       },
     }),
@@ -571,6 +575,58 @@ function buildGroupStageQualifierSlots(opts: {
   return slots;
 }
 
+export type GroupStagePrelimTeamSeed = {
+  id: bigint;
+  groupName: string | null;
+};
+
+export type GroupStagePrelimMatchSpec = {
+  groupName: string;
+  homeTeamId: bigint;
+  awayTeamId: bigint;
+  matchIndex: number;
+  roundName: string;
+};
+
+export function planGroupStagePrelimMatches(
+  teams: GroupStagePrelimTeamSeed[],
+): GroupStagePrelimMatchSpec[] {
+  const byGroup = new Map<string, GroupStagePrelimTeamSeed[]>();
+  for (const team of teams) {
+    const groupName = team.groupName?.trim();
+    if (!groupName) continue;
+    const groupTeams = byGroup.get(groupName) ?? [];
+    groupTeams.push(team);
+    byGroup.set(groupName, groupTeams);
+  }
+
+  const specs: GroupStagePrelimMatchSpec[] = [];
+  let matchIndex = 0;
+  for (const [groupName, groupTeams] of [...byGroup.entries()].sort(([a], [b]) =>
+    a.localeCompare(b),
+  )) {
+    for (let i = 0; i < groupTeams.length; i++) {
+      for (let j = i + 1; j < groupTeams.length; j++) {
+        specs.push({
+          groupName,
+          homeTeamId: groupTeams[i].id,
+          awayTeamId: groupTeams[j].id,
+          matchIndex: matchIndex++,
+          roundName: `${groupName}조 예선`,
+        });
+      }
+    }
+  }
+  return specs;
+}
+
+function reorderDefaultEightTeamGroupKnockoutSlots(slots: Array<string | null>): Array<string | null> {
+  // 4개조 1·2위 진출 8강 기본형:
+  // 기존 1-2 / 3-4 묶음은 준결승에서 같은 예선 조 재대결 가능성이 있다.
+  // 2경기를 4경기 자리로 내리고 3·4경기를 한 칸씩 올려 1-3 / 4-2 묶음으로 고정한다.
+  return [slots[0], slots[1], slots[4], slots[5], slots[6], slots[7], slots[2], slots[3]];
+}
+
 export function planGroupStageKnockoutMatches(opts: {
   groupCount: number;
   advancePerGroup: number;
@@ -594,10 +650,14 @@ export function planGroupStageKnockoutMatches(opts: {
       leafSlots[leafIndex] = qualifierSlots[seed - 1] ?? null;
     }
   }
+  const orderedLeafSlots =
+    groupCount === 4 && advancePerGroup === 2 && bracketSize === 8
+      ? reorderDefaultEightTeamGroupKnockoutSlots(leafSlots)
+      : leafSlots;
 
   const specs: GroupStageKnockoutMatchSpec[] = [];
   let matchIndex = 0;
-  let sources = leafSlots.map((slot) => ({ slot, sourceKey: null as string | null }));
+  let sources = orderedLeafSlots.map((slot) => ({ slot, sourceKey: null as string | null }));
 
   for (let roundNumber = 1; roundNumber <= totalRounds; roundNumber++) {
     const roundName = knockoutRoundName(roundNumber, totalRounds);
@@ -950,15 +1010,91 @@ export async function generateGroupStageKnockoutMatches(
     };
   }
 
+  const teams = await prisma.tournamentTeam.findMany({
+    where: {
+      tournamentId,
+      status: "approved",
+      category: divisionCode,
+    },
+    orderBy: [{ groupName: "asc" }, { seedNumber: "asc" }, { createdAt: "asc" }],
+    select: { id: true, groupName: true },
+  });
+  if (teams.length < 2) {
+    return {
+      divisionCode,
+      generated: 0,
+      skipped: 0,
+      reason: "승인팀이 2팀 이상이어야 조별리그 예선 경기를 생성할 수 있습니다.",
+      matchIds: [],
+    };
+  }
+  const missingGroupCount = teams.filter((team) => !team.groupName).length;
+  if (missingGroupCount > 0) {
+    return {
+      divisionCode,
+      generated: 0,
+      skipped: 0,
+      reason: `조편성이 없는 승인팀 ${missingGroupCount}팀이 있습니다. 먼저 조편성을 완료하세요.`,
+      matchIds: [],
+    };
+  }
+  const actualGroupCount = new Set(teams.map((team) => team.groupName)).size;
+  if (actualGroupCount !== groupCount) {
+    return {
+      divisionCode,
+      generated: 0,
+      skipped: 0,
+      reason: `설정된 조 개수(${groupCount})와 실제 조편성(${actualGroupCount})이 다릅니다.`,
+      matchIds: [],
+    };
+  }
+  const prelimSpecs = planGroupStagePrelimMatches(teams);
+  if (prelimSpecs.length === 0) {
+    return {
+      divisionCode,
+      generated: 0,
+      skipped: 0,
+      reason: "조별리그 예선 경기 조합을 만들 수 없습니다.",
+      matchIds: [],
+    };
+  }
+
   const specByKey = new Map(specs.map((spec) => [spec.key, spec]));
   const idByKey = new Map<string, bigint>();
   const intervalMs = (opts.intervalMinutes ?? 30) * 60 * 1000;
   const matchIds: string[] = [];
 
+  for (const spec of prelimSpecs) {
+    const scheduledAt = opts.startScheduledAt
+      ? new Date(opts.startScheduledAt.getTime() + spec.matchIndex * intervalMs)
+      : null;
+    const created = await prisma.tournamentMatch.create({
+      data: {
+        tournamentId,
+        homeTeamId: spec.homeTeamId,
+        awayTeamId: spec.awayTeamId,
+        roundName: spec.roundName,
+        group_name: spec.groupName,
+        match_number: spec.matchIndex + 1,
+        venue_name: opts.venueName ?? null,
+        scheduledAt,
+        notes: `${spec.groupName}조 예선`,
+        settings: {
+          division_code: divisionCode,
+          stage: "prelim",
+          group_name: spec.groupName,
+        },
+        status: "scheduled",
+      },
+      select: { id: true },
+    });
+    matchIds.push(created.id.toString());
+  }
+
   for (const spec of [...specs].sort((a, b) => b.roundNumber - a.roundNumber || a.bracketPosition - b.bracketPosition)) {
     const scheduledAt =
       spec.roundNumber === 1 && opts.startScheduledAt
-        ? new Date(opts.startScheduledAt.getTime() + spec.matchIndex * intervalMs)
+        ? new Date(opts.startScheduledAt.getTime() + (prelimSpecs.length + spec.matchIndex) * intervalMs)
         : null;
     const nextSpec = spec.nextKey ? specByKey.get(spec.nextKey) : null;
     const nextMatchId = nextSpec ? idByKey.get(nextSpec.key) ?? null : null;
@@ -971,12 +1107,13 @@ export async function generateGroupStageKnockoutMatches(
         round_number: spec.roundNumber,
         bracket_level: spec.bracketLevel,
         bracket_position: spec.bracketPosition,
-        match_number: spec.matchIndex + 1,
+        match_number: prelimSpecs.length + spec.matchIndex + 1,
         venue_name: opts.venueName ?? null,
         scheduledAt,
         notes: spec.notes,
         settings: {
           division_code: divisionCode,
+          stage: "knockout",
           homeSlotLabel: spec.homeSlot,
           awaySlotLabel: spec.awaySlot,
         },
