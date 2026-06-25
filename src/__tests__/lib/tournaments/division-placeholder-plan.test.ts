@@ -10,6 +10,7 @@ import { describe, it, expect } from "vitest";
 import {
   planLeagueAdvancementPlaceholders,
   planGroupStageRankingPlaceholders,
+  planGroupStageKnockoutMatches,
 } from "@/lib/tournaments/division-advancement";
 
 describe("planLeagueAdvancementPlaceholders — G5.3 (강남구 i3-U9 케이스)", () => {
@@ -99,9 +100,17 @@ describe("planGroupStageRankingPlaceholders — G5.4 (강남구 i3-U11/U14/i3w-U
     expect(gsr).toEqual(la);
   });
 
-  it("groupCount > 2 → 후속 PR (현재 빈 결과)", () => {
-    // 본 PR 범위 = 2조만 / 후속 PR = N×N 동순위전 풀리그
-    expect(planGroupStageRankingPlaceholders({ groupSize: 3, groupCount: 4 })).toEqual([]);
+  it("4조 케이스 = 같은 순위끼리 모든 조 조합을 생성", () => {
+    const specs = planGroupStageRankingPlaceholders({ groupSize: 3, groupCount: 4 });
+    expect(specs).toHaveLength(18); // 3개 순위 * 4C2
+    expect(specs.slice(0, 6).map((s) => s.notes)).toEqual([
+      "A조 3위 vs B조 3위",
+      "A조 3위 vs C조 3위",
+      "A조 3위 vs D조 3위",
+      "B조 3위 vs C조 3위",
+      "B조 3위 vs D조 3위",
+      "C조 3위 vs D조 3위",
+    ]);
   });
 
   it("방어 — groupSize < 2 → 빈 결과", () => {
@@ -130,5 +139,59 @@ describe("강남구협회장배 4 종별 운영 케이스 100% 재현 검증", (
       "A조 2위 vs B조 2위",
       "A조 1위 vs B조 1위",
     ]);
+  });
+});
+
+describe("planGroupStageKnockoutMatches — 조별리그+토너먼트", () => {
+  it("2조 * 2팀 진출 = 4강 교차 시드와 결승 skeleton", () => {
+    const specs = planGroupStageKnockoutMatches({ groupCount: 2, advancePerGroup: 2 });
+    expect(specs).toHaveLength(3);
+    expect(specs[0]).toMatchObject({
+      roundName: "준결승",
+      roundNumber: 1,
+      bracketPosition: 1,
+      homeSlot: "A조 1위",
+      awaySlot: "B조 2위",
+      nextKey: "2:1",
+      nextSlot: "home",
+    });
+    expect(specs[1]).toMatchObject({
+      homeSlot: "B조 1위",
+      awaySlot: "A조 2위",
+      nextKey: "2:1",
+      nextSlot: "away",
+    });
+    expect(specs[2]).toMatchObject({
+      roundName: "결승",
+      roundNumber: 2,
+      bracketPosition: 1,
+      status: "pending",
+      nextKey: null,
+      nextSlot: null,
+    });
+  });
+
+  it("4조 * 2팀 진출 = 8강 4경기 + 준결승 2경기 + 결승 1경기", () => {
+    const specs = planGroupStageKnockoutMatches({ groupCount: 4, advancePerGroup: 2 });
+    expect(specs).toHaveLength(7);
+    expect(specs.slice(0, 4).map((s) => `${s.homeSlot} / ${s.awaySlot}`)).toEqual([
+      "A조 1위 / B조 2위",
+      "B조 1위 / A조 2위",
+      "C조 1위 / D조 2위",
+      "D조 1위 / C조 2위",
+    ]);
+    expect(specs.map((s) => s.roundName)).toEqual([
+      "8강",
+      "8강",
+      "8강",
+      "8강",
+      "준결승",
+      "준결승",
+      "결승",
+    ]);
+  });
+
+  it("총 진출 수가 2의 제곱이 아니면 빈 결과", () => {
+    expect(planGroupStageKnockoutMatches({ groupCount: 3, advancePerGroup: 2 })).toEqual([]);
   });
 });

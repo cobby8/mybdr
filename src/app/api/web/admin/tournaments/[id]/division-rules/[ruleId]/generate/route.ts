@@ -11,7 +11,7 @@
  *   - division_rule.format → 3 generator 분기:
  *     - league_advancement → generateLeagueAdvancementMatches
  *     - group_stage_with_ranking → generateGroupStageRankingMatches
- *     - group_stage_knockout → generateGroupStageKnockoutMatches (stub)
+ *     - group_stage_knockout → generateGroupStageKnockoutMatches
  *   - 그 외 format (single_elim/dual_tournament/swiss/round_robin/full_league*) = 400
  *     → 사유: 본 endpoint 는 종별 단위 책임 (대회 단위 = bracket POST 사용)
  *   - bracket_version 박제 = 대회 단위 (종별 generator 가 1 종별만 변경해도 +1 — 사용자 명확 인지)
@@ -134,7 +134,6 @@ export async function POST(req: NextRequest, { params }: Ctx) {
             genResult = await generateGroupStageRankingMatches(tx, tournamentId, rule.code);
             break;
           case "group_stage_knockout":
-            // stub — 후속 PR 진입 (현재 generated=0 / reason 안내 메시지 반환)
             genResult = await generateGroupStageKnockoutMatches(tx, tournamentId, rule.code);
             break;
           default:

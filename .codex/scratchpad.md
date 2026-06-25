@@ -1,5 +1,6 @@
 # Scratchpad
 
+- 2026-06-25 feat(tournament): 조별리그+토너먼트 본선 generator를 구현하고 조별리그+동순위 순위결정전을 3개 조 이상 조합까지 확장.
 - 2026-06-25 fix(tournament): 대회 포맷 표준을 6개(토너먼트/풀리그/듀얼토너먼트/조별리그+토너먼트/링크제/조별리그+동순위 순위결정전)로 정리하고 생성·관리·공개 라벨을 통일.
 - 2026-06-25 feat(customer-signals): added help contact intake, customer signal email reports, and report/suggestion trigger hooks.
 - 2026-06-25 feat(agents): added rule-based `record-app-impact` server API for `bdr_stat_v3` impact checks.

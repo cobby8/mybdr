@@ -8,11 +8,12 @@ Updated: 2026-06-25
 |---|---:|---|
 | architecture.md | 3 | Customer signal reporting |
 | conventions.md | 2 | 대회 포맷 표준 |
-| decisions.md | 4 | Customer signal email reporting |
+| decisions.md | 5 | Division bracket generation |
 | errors.md | 0 | - |
 | lessons.md | 0 | - |
 
 Recent work:
+- 2026-06-25 tournament: 조별리그+토너먼트 본선 generator와 3개 조 이상 동순위 순위결정전 생성을 구현.
 - 2026-06-25 tournament: 대회 포맷 표준을 6개로 정리하고 신규 생성/관리/공개 라벨과 요강 추출 기준을 통일.
 - 2026-06-25 customer-signals: `/help/contact` 접수 폼, `/api/web/customer-signals`, 공통 메일러, 기존 경기/코트 신고 트리거 메일 보고를 추가.
 - 2026-06-25 referee: KBA 심판/경기원 규정과 FIBA table officials 기준에 맞춰 기록원·계시원을 경기원 직군으로 통합.
