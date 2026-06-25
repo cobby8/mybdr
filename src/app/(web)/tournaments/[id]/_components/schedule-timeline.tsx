@@ -628,19 +628,21 @@ export function ScheduleTimeline({ matches, teams, selectedDate: selectedDatePro
                           </>
                         )}
                         {/* 2026-05-15 — 체육관 표시 (PR-G3). venue 박혀있을 때만. */}
-                        {match.venueName && (
+                        {(match.venueName || match.venueRouteUrl) && (
                           <>
                             <span className="text-xs" style={{ color: "var(--color-border)" }}>|</span>
-                            <span
-                              className="inline-flex items-center gap-0.5 text-xs"
-                              style={{ color: "var(--color-text-tertiary)" }}
-                              title={`체육관: ${match.venueName}`}
-                            >
-                              <span className="material-symbols-outlined" style={{ fontSize: 12 }}>
-                                location_on
+                            {match.venueName && (
+                              <span
+                                className="inline-flex items-center gap-0.5 text-xs"
+                                style={{ color: "var(--color-text-tertiary)" }}
+                                title={`체육관: ${match.venueName}`}
+                              >
+                                <span className="material-symbols-outlined" style={{ fontSize: 12 }}>
+                                  location_on
+                                </span>
+                                {match.venueName}
                               </span>
-                              {match.venueName}
-                            </span>
+                            )}
                             {match.venueRouteUrl && (
                               <a
                                 href={match.venueRouteUrl}

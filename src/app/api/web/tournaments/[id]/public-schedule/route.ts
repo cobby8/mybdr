@@ -124,14 +124,14 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
       division_code?: string;
     } | null;
 
-    const venueLinks = resolveVenueNavigation(
-      findVenueTarget(
-        tournament?.places,
-        m.venue_name,
-        tournament?.venue_name ?? null,
-        tournament?.venue_address ?? null,
-      ),
+    const venueTarget = findVenueTarget(
+      tournament?.places,
+      m.venue_name,
+      tournament?.venue_name ?? null,
+      tournament?.venue_address ?? null,
     );
+    const venueLinks = resolveVenueNavigation(venueTarget);
+    const venueDisplayName = textFrom(m.venue_name) ?? textFrom(venueTarget.name) ?? null;
 
     return {
       id: m.id.toString(),
@@ -169,7 +169,7 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
       //   division: 종별 코드 (예: "i2-U11"). null = 종별 미부여 (단일 종별 대회).
       //   venueName: 체육관 이름 (예: "수도공고"). null = 체육관 미부여.
       division: settings?.division_code ?? null,
-      venueName: m.venue_name,
+      venueName: venueDisplayName,
       venueMapUrl: venueLinks.mapUrl,
       venueRouteUrl: venueLinks.routeUrl,
     };
