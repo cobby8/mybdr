@@ -156,7 +156,7 @@ function FormGroupTitle({ title, flush = false }: { title: string; flush?: boole
   return (
     <div
       className={[
-        "col-span-full border-t pt-3 md:col-span-2 2xl:col-span-3",
+        "col-span-full border-t pt-3",
         flush ? "mt-0 border-t-0 pt-0" : "mt-1",
       ].join(" ")}
       style={{ borderColor: "var(--color-border)" }}
@@ -471,37 +471,41 @@ export function TournamentWorkspace({
         title="대회 정보"
         subtitle="기본 정보와 일정·장소를 함께 수정합니다."
       >
-        <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(280px,0.82fr)]">
+        <div className="grid gap-4">
           <div className="grid grid-cols-2 gap-3">
             <FormGroupTitle title="대회 정보" flush />
             <Field label="대회 이름" className="col-span-2">
               <input className="ts-input" value={form.name} onChange={(e) => patchForm("name", e.target.value)} />
             </Field>
-            <Field label="주최">
-              <input className="ts-input" value={form.organizer} onChange={(e) => patchForm("organizer", e.target.value)} />
-            </Field>
-            <Field label="주관">
-              <input className="ts-input" value={form.host} onChange={(e) => patchForm("host", e.target.value)} />
-            </Field>
-            <div className="col-span-2">
-              <SponsorEditor sponsors={form.sponsors} setSponsors={setSponsors} />
+          </div>
+          <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(280px,0.82fr)]">
+            <div className="grid grid-cols-2 content-start gap-3 self-start">
+              <Field label="주최">
+                <input className="ts-input" value={form.organizer} onChange={(e) => patchForm("organizer", e.target.value)} />
+              </Field>
+              <Field label="주관">
+                <input className="ts-input" value={form.host} onChange={(e) => patchForm("host", e.target.value)} />
+              </Field>
+              <div className="col-span-2">
+                <SponsorEditor sponsors={form.sponsors} setSponsors={setSponsors} />
+              </div>
+            </div>
+            <div id="schedule" className="scroll-mt-24">
+              <ScheduleVenue
+                embedded
+                dates={form.schedule_dates}
+                venues={form.places}
+                courts={courts}
+                syncDates={syncDates}
+                removeDate={removeDate}
+                addVenue={addVenue}
+                updateVenue={updateVenue}
+                removeVenue={removeVenue}
+                toggleDateCourt={toggleDateCourt}
+              />
             </div>
           </div>
-          <div id="schedule" className="scroll-mt-24">
-            <ScheduleVenue
-              embedded
-              dates={form.schedule_dates}
-              venues={form.places}
-              courts={courts}
-              syncDates={syncDates}
-              removeDate={removeDate}
-              addVenue={addVenue}
-              updateVenue={updateVenue}
-              removeVenue={removeVenue}
-              toggleDateCourt={toggleDateCourt}
-            />
-          </div>
-          <div className="xl:col-span-2">
+          <div>
             <FormGroupTitle title="소개" />
             <Field label="대회 소개">
               <textarea
