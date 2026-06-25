@@ -30,6 +30,9 @@ export type GameRules = TournamentGameRules;
 //   값 출처: game_rules.dart GameRules.defaults (유니폼만 의뢰 디폴트).
 export const GAME_SETTINGS_DEFAULTS: GameRules = GAME_RULE_DEFAULTS;
 
+const LIGHT_UNIFORM_COLOR = "#FFFFFF";
+const DARK_UNIFORM_COLOR = "#1A1E27";
+
 // ── 유니폼 16색 팔레트 (기록앱 showUniformPalette 큐레이션과 동일) ───────
 //   [이름, hex]. 도메인 저지색 → hex 직접 사용 = 기록앱 승인 예외.
 const UNIFORM_PALETTE: [string, string][] = [
@@ -264,6 +267,42 @@ function UniformCell({ team, hex, label, onClick }: { team: string; hex: string;
   );
 }
 
+function UniformRuleCell({ label, tone, hex }: { label: string; tone: "밝은색" | "어두운색"; hex: string }) {
+  return (
+    <div
+      style={{
+        flex: 1,
+        minWidth: 0,
+        display: "flex",
+        alignItems: "center",
+        gap: 10,
+        padding: "12px",
+        background: "var(--grey-50)",
+        border: "1px solid var(--border)",
+        borderRadius: 14,
+        fontFamily: "var(--ff)",
+      }}
+    >
+      <span
+        aria-hidden="true"
+        style={{
+          width: 30,
+          height: 30,
+          borderRadius: 9,
+          background: hex,
+          border: "2px solid var(--border-strong)",
+          flex: "0 0 auto",
+        }}
+      />
+      <span style={{ flex: 1, minWidth: 0 }}>
+        <span style={{ display: "block", fontSize: 11.5, fontWeight: 700, color: "var(--ink-mute)" }}>{label}</span>
+        <span style={{ display: "block", fontSize: 14, fontWeight: 800, color: "var(--ink)" }}>{tone}</span>
+        <span style={{ display: "block", fontSize: 11.5, color: "var(--ink-dim)" }}>유니폼 규칙</span>
+      </span>
+    </div>
+  );
+}
+
 // =====================================================================
 // 본체 (controlled) — props: { value: GameRules; onChange }
 // =====================================================================
@@ -285,8 +324,6 @@ export function CtGameSettings({
   const setMany = (patch: Partial<GameRules>) => onChange({ ...d, ...patch });
 
   // 어느 유니폼 셀을 편집 중인지 ("home" | "away" | null)
-  const [uniSide, setUniSide] = React.useState<"home" | "away" | null>(null);
-
   const activePreset = (p: GameRulePreset) =>
     d.quarterType === p.quarterType &&
     d.quarterMinutes === p.quarterMinutes &&
@@ -294,22 +331,45 @@ export function CtGameSettings({
     d.firstHalfTimeouts === p.firstHalfTimeouts &&
     d.secondHalfTimeouts === p.secondHalfTimeouts;
 
+  const homeColor = (d.homeColor || "").toUpperCase();
+  const awayColor = (d.awayColor || "").toUpperCase();
+  const isCanonicalUniform =
+    (homeColor === LIGHT_UNIFORM_COLOR && awayColor === DARK_UNIFORM_COLOR) ||
+    (homeColor === DARK_UNIFORM_COLOR && awayColor === LIGHT_UNIFORM_COLOR);
+  const isSwappedUniform = homeColor === DARK_UNIFORM_COLOR && awayColor === LIGHT_UNIFORM_COLOR;
+  const homeTone = isSwappedUniform ? "어두운색" : "밝은색";
+  const awayTone = isSwappedUniform ? "밝은색" : "어두운색";
+
+  React.useEffect(() => {
+    if (!isCanonicalUniform) {
+      setMany({ homeColor: LIGHT_UNIFORM_COLOR, awayColor: DARK_UNIFORM_COLOR });
+    }
+  }, [isCanonicalUniform]);
+
+  const swapUniformRule = () => {
+    setMany(
+      isSwappedUniform
+        ? { homeColor: LIGHT_UNIFORM_COLOR, awayColor: DARK_UNIFORM_COLOR }
+        : { homeColor: DARK_UNIFORM_COLOR, awayColor: LIGHT_UNIFORM_COLOR },
+    );
+  };
+
   return (
     <section className="ts-card ct-game-rules-card">
       <CardHead icon="sliders-horizontal" title="경기 설정" action={<Badge tone="primary">기록앱 정합</Badge>} />
 
       <div className="ct-rule-topgrid">
         <div>
-          {/* ── 유니폼 색상 ── */}
-          <Subhead icon="shirt" label="유니폼 색상" hint="홈 밝은색 · 원정 어두운색" />
+          {/* ── 유니폼 규칙 ── */}
+          <Subhead icon="shirt" label="유니폼 규칙" hint="홈 밝은색 · 원정 어두운색" />
           <div style={{ display: "flex", gap: 10 }}>
-            <UniformCell team={homeName} hex={d.homeColor} label="홈" onClick={() => setUniSide("home")} />
-            <UniformCell team={awayName} hex={d.awayColor} label="원정" onClick={() => setUniSide("away")} />
+            <UniformRuleCell label="홈" tone={homeTone} hex={isSwappedUniform ? DARK_UNIFORM_COLOR : LIGHT_UNIFORM_COLOR} />
+            <UniformRuleCell label="원정" tone={awayTone} hex={isSwappedUniform ? LIGHT_UNIFORM_COLOR : DARK_UNIFORM_COLOR} />
           </div>
           {/* 홈·원정 색 교체 */}
           <button
             type="button"
-            onClick={() => setMany({ homeColor: d.awayColor, awayColor: d.homeColor })}
+            onClick={swapUniformRule}
             style={{
               display: "inline-flex",
               alignItems: "center",
@@ -407,18 +467,6 @@ export function CtGameSettings({
         </div>
       </RuleDetails>
 
-      {/* 유니폼 색 선택 모달 (홈/어웨이 공용) */}
-      <UniformModal
-        open={uniSide !== null}
-        side={uniSide === "home" ? "홈" : "원정"}
-        current={uniSide === "home" ? d.homeColor : d.awayColor}
-        onClose={() => setUniSide(null)}
-        onPick={(hex) => {
-          if (uniSide === "home") set("homeColor", hex);
-          else if (uniSide === "away") set("awayColor", hex);
-          setUniSide(null);
-        }}
-      />
     </section>
   );
 }
