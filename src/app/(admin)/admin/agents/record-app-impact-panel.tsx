@@ -70,6 +70,31 @@ function linesToList(value: string) {
     .filter(Boolean);
 }
 
+function reportList(items: string[]) {
+  return items.length ? items.map((item) => `- ${item}`).join("\n") : "- 없음";
+}
+
+function buildPmReport(result: ImpactResponse) {
+  return [
+    "기록앱 영향 판정 보고",
+    "",
+    `- 기록앱 영향: ${IMPACT_LABEL[result.impact]}`,
+    `- API 계약 변경: ${result.api_contract_changes.map((item) => CONTRACT_LABEL[item]).join(", ")}`,
+    `- 하위 호환성: ${COMPATIBILITY_LABEL[result.backward_compatibility]}`,
+    `- 사용자 결정 필요: ${result.user_decision_required ? "예" : "아니오"}`,
+    `- 기준 기록앱: bdr_stat_v3 ${result.record_app.app_version} (${result.record_app.checked_commit})`,
+    "",
+    "판정 이유",
+    reportList(result.reasons),
+    "",
+    "기록앱 확인 요청",
+    reportList(result.record_app_check_requests),
+    "",
+    "서버 검증",
+    reportList(result.server_tests),
+  ].join("\n");
+}
+
 async function postImpact(payload: unknown) {
   const response = await fetch(API, {
     method: "POST",
@@ -149,6 +174,7 @@ export function RecordAppImpactPanel() {
   const [semanticChanges, setSemanticChanges] = React.useState("");
   const [result, setResult] = React.useState<ImpactResponse | null>(null);
   const [error, setError] = React.useState<string | null>(null);
+  const [copyMessage, setCopyMessage] = React.useState<string | null>(null);
   const [pending, startTransition] = React.useTransition();
 
   const hasInput =
@@ -164,6 +190,7 @@ export function RecordAppImpactPanel() {
 
   function analyze() {
     setError(null);
+    setCopyMessage(null);
     startTransition(async () => {
       try {
         // API는 snake/camel 둘 다 받지만, UI에서는 서버 응답 규칙에 맞춰 snake로 보낸다.
@@ -200,6 +227,7 @@ export function RecordAppImpactPanel() {
     setSemanticChanges("");
     setResult(null);
     setError(null);
+    setCopyMessage(null);
   }
 
   function clearForm() {
@@ -214,6 +242,17 @@ export function RecordAppImpactPanel() {
     setSemanticChanges("");
     setResult(null);
     setError(null);
+    setCopyMessage(null);
+  }
+
+  async function copyPmReport() {
+    if (!result) return;
+    try {
+      await navigator.clipboard.writeText(buildPmReport(result));
+      setCopyMessage("복사되었습니다.");
+    } catch {
+      setCopyMessage("복사에 실패했습니다.");
+    }
   }
 
   return (
@@ -386,6 +425,29 @@ export function RecordAppImpactPanel() {
               <ResultList title="기록앱 확인 요청" items={result.record_app_check_requests} />
               <ResultList title="서버 검증" items={result.server_tests} />
               <ResultList title="기록앱 테스트 후보" items={result.recommended_record_app_tests} />
+
+              <div
+                className="rounded border p-3"
+                style={{ borderColor: "var(--color-border-subtle)" }}
+              >
+                <div className="mb-2 flex items-center justify-between gap-3">
+                  <div className="text-sm font-semibold">PM 보고문</div>
+                  <Btn variant="secondary" size="sm" icon="copy" onClick={copyPmReport}>
+                    복사
+                  </Btn>
+                </div>
+                <pre
+                  className="whitespace-pre-wrap text-xs"
+                  style={{ color: "var(--color-text-muted)" }}
+                >
+                  {buildPmReport(result)}
+                </pre>
+                {copyMessage && (
+                  <div className="mt-2 text-xs" style={{ color: "var(--color-accent)" }}>
+                    {copyMessage}
+                  </div>
+                )}
+              </div>
             </div>
           ) : (
             <div className="ts-empty">
