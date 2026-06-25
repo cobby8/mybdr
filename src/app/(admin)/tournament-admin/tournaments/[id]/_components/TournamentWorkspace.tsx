@@ -39,10 +39,19 @@ type SetupFormState = {
   venue_name: string;
   venue_address: string;
   maxTeams: number;
+  team_size: number;
+  roster_min: number;
+  roster_max: number;
   entry_fee: number;
+  allow_waiting_list: boolean;
+  waiting_list_cap: number | null;
   auto_approve_teams: boolean;
   registration_start_at: string;
   registration_end_at: string;
+  bank_name: string;
+  bank_account: string;
+  bank_holder: string;
+  fee_notes: string;
   organizer: string;
   host: string;
   sponsors: SponsorDraft[];
@@ -51,7 +60,11 @@ type SetupFormState = {
   game_ball: string;
   game_method: string;
   game_rules: GameRules;
+  rules: string;
+  prize_info: string;
   description: string;
+  logo_url: string;
+  banner_url: string;
   places: Venue[];
   schedule_dates: DateRow[];
 };
@@ -150,6 +163,18 @@ function cleanSponsors(sponsors: SponsorDraft[]) {
   return sponsors
     .map((s) => ({ ...s, name: s.name.trim(), logoUrl: s.logoUrl.trim() }))
     .filter((s) => s.name);
+}
+
+function positiveInt(value: number | null | undefined, fallback: number) {
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed < 1) return fallback;
+  return parsed;
+}
+
+function nonNegativeNumber(value: number | null | undefined, fallback = 0) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed < 0) return fallback;
+  return parsed;
 }
 
 function FormGroupTitle({ title, flush = false }: { title: string; flush?: boolean }) {
@@ -344,6 +369,19 @@ export function TournamentWorkspace({
     const primaryVenue = places[0] ?? null;
     const venueName = primaryVenue ? primaryVenue.name : null;
     const venueAddress = primaryVenue ? primaryVenue.region || null : null;
+    const teamSize = positiveInt(form.team_size, 5);
+    const rosterMin = positiveInt(form.roster_min, 5);
+    const rosterMax = positiveInt(form.roster_max, 12);
+    const waitingListCap = form.allow_waiting_list
+      ? positiveInt(form.waiting_list_cap, 0) || null
+      : null;
+
+    if (rosterMin > rosterMax) {
+      setSaving(false);
+      setSaveState("error");
+      setMessage("최소 로스터 수는 최대 로스터 수보다 클 수 없습니다.");
+      return;
+    }
 
     const payload: Record<string, unknown> = {
       name: form.name.trim(),
@@ -353,10 +391,19 @@ export function TournamentWorkspace({
       venue_name: venueName,
       venue_address: venueAddress,
       maxTeams: Number(form.maxTeams) > 0 ? Number(form.maxTeams) : undefined,
-      entry_fee: Number(form.entry_fee) >= 0 ? Number(form.entry_fee) : 0,
+      team_size: teamSize,
+      roster_min: rosterMin,
+      roster_max: rosterMax,
+      entry_fee: nonNegativeNumber(form.entry_fee),
+      allow_waiting_list: form.allow_waiting_list,
+      waiting_list_cap: waitingListCap,
       auto_approve_teams: form.auto_approve_teams,
       registration_start_at: form.registration_start_at || null,
       registration_end_at: form.registration_end_at || null,
+      bank_name: form.bank_name.trim() || null,
+      bank_account: form.bank_account.trim() || null,
+      bank_holder: form.bank_holder.trim() || null,
+      fee_notes: form.fee_notes.trim() || null,
       organizer: form.organizer.trim() || null,
       host: form.host.trim() || null,
       sponsors: sponsors.map((s) => s.name).join(", "),
@@ -365,7 +412,11 @@ export function TournamentWorkspace({
       game_ball: form.game_ball.trim() || null,
       game_method: form.game_method.trim() || null,
       game_rules: form.game_rules,
+      rules: form.rules.trim() || null,
+      prize_info: form.prize_info.trim() || null,
       description: form.description.trim() || null,
+      logo_url: form.logo_url.trim() || null,
+      banner_url: form.banner_url.trim() || null,
       places,
       schedule_dates: scheduleDates,
       settings: { sponsor_logos: sponsorLogos },
@@ -518,6 +569,29 @@ export function TournamentWorkspace({
               />
             </Field>
           </div>
+          <div>
+            <FormGroupTitle title="대표 이미지" />
+            <div className="grid gap-3 md:grid-cols-[minmax(180px,0.42fr)_minmax(0,1fr)]">
+              <ImageUploader
+                value={form.logo_url}
+                onChange={(url) => patchForm("logo_url", url)}
+                bucket="tournament-images"
+                path={`tournaments/${tournamentId}/logo`}
+                label="대회 로고"
+                aspectRatio="1/1"
+                maxSizeMB={5}
+              />
+              <ImageUploader
+                value={form.banner_url}
+                onChange={(url) => patchForm("banner_url", url)}
+                bucket="tournament-images"
+                path={`tournaments/${tournamentId}/banner`}
+                label="포스터/배너"
+                aspectRatio="16/9"
+                maxSizeMB={5}
+              />
+            </div>
+          </div>
         </div>
       </WorkspaceSection>
 
@@ -539,6 +613,25 @@ export function TournamentWorkspace({
         </div>
         <div className="mb-3">
           <CtGameSettings value={form.game_rules} onChange={(next) => patchForm("game_rules", next)} />
+        </div>
+        <div className="mb-3 grid gap-3">
+          <FormGroupTitle title="운영 안내" flush />
+          <Field label="대회 규칙">
+            <textarea
+              className="ts-input min-h-24 resize-y"
+              value={form.rules}
+              onChange={(e) => patchForm("rules", e.target.value)}
+              placeholder="대회 규칙"
+            />
+          </Field>
+          <Field label="상금/시상 안내">
+            <textarea
+              className="ts-input min-h-20 resize-y"
+              value={form.prize_info}
+              onChange={(e) => patchForm("prize_info", e.target.value)}
+              placeholder="상금 또는 시상 안내"
+            />
+          </Field>
         </div>
         <PanelSummary
           stats={[
@@ -644,6 +737,34 @@ export function TournamentWorkspace({
               onChange={(e) => patchForm("registration_end_at", e.target.value)}
             />
           </Field>
+          <FormGroupTitle title="팀/로스터" />
+          <Field label="코트 내 인원">
+            <input
+              className="ts-input"
+              type="number"
+              min={1}
+              value={form.team_size}
+              onChange={(e) => patchForm("team_size", Number(e.target.value))}
+            />
+          </Field>
+          <Field label="최소 로스터">
+            <input
+              className="ts-input"
+              type="number"
+              min={1}
+              value={form.roster_min}
+              onChange={(e) => patchForm("roster_min", Number(e.target.value))}
+            />
+          </Field>
+          <Field label="최대 로스터">
+            <input
+              className="ts-input"
+              type="number"
+              min={1}
+              value={form.roster_max}
+              onChange={(e) => patchForm("roster_max", Number(e.target.value))}
+            />
+          </Field>
           <label className="flex min-h-[52px] items-center gap-3 rounded-[14px] bg-[var(--grey-50)] px-3 sm:col-span-2">
             <input
               type="checkbox"
@@ -652,6 +773,62 @@ export function TournamentWorkspace({
             />
             <span className="text-sm font-semibold text-[var(--ink)]">참가팀 자동 승인</span>
           </label>
+          <label className="flex min-h-[52px] items-center gap-3 rounded-[14px] bg-[var(--grey-50)] px-3 sm:col-span-2">
+            <input
+              type="checkbox"
+              checked={form.allow_waiting_list}
+              onChange={(e) => patchForm("allow_waiting_list", e.target.checked)}
+            />
+            <span className="text-sm font-semibold text-[var(--ink)]">대기 접수 허용</span>
+          </label>
+          {form.allow_waiting_list && (
+            <Field label="대기팀 상한" className="col-span-2 sm:col-span-1">
+              <input
+                className="ts-input"
+                type="number"
+                min={1}
+                value={form.waiting_list_cap ?? ""}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  patchForm("waiting_list_cap", value ? Number(value) : null);
+                }}
+                placeholder="제한 없음"
+              />
+            </Field>
+          )}
+          <FormGroupTitle title="입금 정보" />
+          <Field label="은행명">
+            <input
+              className="ts-input"
+              value={form.bank_name}
+              onChange={(e) => patchForm("bank_name", e.target.value)}
+              placeholder="은행명"
+            />
+          </Field>
+          <Field label="계좌번호">
+            <input
+              className="ts-input"
+              value={form.bank_account}
+              onChange={(e) => patchForm("bank_account", e.target.value)}
+              placeholder="계좌번호"
+            />
+          </Field>
+          <Field label="예금주">
+            <input
+              className="ts-input"
+              value={form.bank_holder}
+              onChange={(e) => patchForm("bank_holder", e.target.value)}
+              placeholder="예금주"
+            />
+          </Field>
+          <Field label="참가비 안내" className="col-span-2">
+            <textarea
+              className="ts-input min-h-20 resize-y"
+              value={form.fee_notes}
+              onChange={(e) => patchForm("fee_notes", e.target.value)}
+              placeholder="입금 및 환불 안내"
+            />
+          </Field>
         </div>
         <PanelSummary
           stats={[
