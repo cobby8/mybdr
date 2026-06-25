@@ -88,8 +88,8 @@ type ApiResponse = {
 const ROLE_LABEL: Record<string, string> = {
   main: "주심",
   sub: "부심",
-  recorder: "기록원",
-  timer: "타이머",
+  recorder: "경기원 - 기록",
+  timer: "경기원 - 계시",
 };
 
 // 상태 한글 매핑

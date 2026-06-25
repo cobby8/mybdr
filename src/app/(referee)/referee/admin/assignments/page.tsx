@@ -73,8 +73,8 @@ type MatchRow = {
 const ROLE_LABELS: Record<string, string> = {
   main: "주심",
   sub: "부심",
-  recorder: "기록원",
-  timer: "타이머",
+  recorder: "경기원 - 기록",
+  timer: "경기원 - 계시",
 };
 const STATUS_LABELS: Record<string, string> = {
   assigned: "배정",
@@ -570,7 +570,7 @@ export default function AssignmentsPage() {
                             borderRadius: 4,
                           }}
                         >
-                          주 {counts.main} / 부 {counts.sub} / 기 {counts.recorder} / 타{" "}
+                          주 {counts.main} / 부 {counts.sub} / 기록 {counts.recorder} / 계시{" "}
                           {counts.timer}
                         </div>
                         <button
@@ -838,8 +838,8 @@ export default function AssignmentsPage() {
             >
               <option value="main">주심</option>
               <option value="sub">부심</option>
-              <option value="recorder">기록원</option>
-              <option value="timer">타이머</option>
+              <option value="recorder">경기원 - 기록</option>
+              <option value="timer">경기원 - 계시</option>
             </select>
 
             {/* 메모 */}

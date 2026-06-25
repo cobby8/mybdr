@@ -24,7 +24,7 @@ import { Icon } from "@/components/admin-toss";
  *         AssociationAdmin row 없어도 진입 허용 (대시보드에서 sentinel 안내).
  *
  * 2026-05-15 PR3 — recorder_admin 우회 추가.
- *   이유: recorder_admin = 전역 기록원 관리자 (모든 대회 점수기록 + 기록원 배정 + /referee/admin 진입).
+ *   이유: recorder_admin = 전역 경기원/기록 관리자 (모든 대회 점수기록 + 경기원 배정 + /referee/admin 진입).
  *         super_admin 자동 흡수 (isRecorderAdmin 내부 OR) — recorder_admin 단일 분기로 둘 다 통과.
  *         Q2 결재 = 협회 12 permission 도 sentinel 자동 통과 (admin-guard.ts 동시 변경).
  */

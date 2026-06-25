@@ -38,7 +38,7 @@ const DOC_CONFIGS = [
     type: "certificate",
     icon: "award", // workspace_premium → award
     label: "자격증 사본",
-    description: "심판/기록원 자격증의 사본",
+    description: "심판/경기원 자격증의 사본",
   },
   {
     type: "id_card",

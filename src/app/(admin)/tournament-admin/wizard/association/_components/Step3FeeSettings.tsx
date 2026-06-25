@@ -46,15 +46,15 @@ const FEE_FIELDS: ReadonlyArray<{
   },
   {
     key: "recorder_fee",
-    label: "기록 배정비",
+    label: "경기원 - 기록 배정비",
     icon: "edit_note",
-    hint: "기록원 1인당 1경기 배정비 (원)",
+    hint: "경기원 기록 슬롯 1인당 1경기 배정비 (원)",
   },
   {
     key: "timer_fee",
-    label: "타이머 배정비",
+    label: "경기원 - 계시 배정비",
     icon: "timer",
-    hint: "타이머 1인당 1경기 배정비 (원)",
+    hint: "경기원 계시 슬롯 1인당 1경기 배정비 (원)",
   },
 ];
 
