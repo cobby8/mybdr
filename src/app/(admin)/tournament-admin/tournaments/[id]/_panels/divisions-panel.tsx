@@ -167,9 +167,67 @@ export default function DivisionsSetupPage() {
     });
   };
 
+  const getCurrentDivisionName = (category: string, divisionIndex: number) =>
+    currentCategories.find((item) => item.category === category)?.divisions[
+      divisionIndex
+    ]?.name ?? null;
+
+  const updateDivisionName = (
+    category: string,
+    divisionIndex: number,
+    value: string,
+  ) => {
+    const previousName = getCurrentDivisionName(category, divisionIndex);
+    setSyncResult(null);
+    setError(null);
+    setCurrentCategories((prev) =>
+      prev.map((item) =>
+        item.category === category
+          ? {
+              ...item,
+              divisions: item.divisions.map((current, index) =>
+                index === divisionIndex ? { ...current, name: value } : current,
+              ),
+            }
+          : item,
+      ),
+    );
+    if (previousName && previousName !== value) {
+      setDivSchedule((prev) =>
+        prev.map((entry) =>
+          entry.division === previousName ? { ...entry, division: value } : entry,
+        ),
+      );
+    }
+  };
+
+  const removeDivision = (category: string, divisionIndex: number) => {
+    const removedName = getCurrentDivisionName(category, divisionIndex);
+    if (!removedName) return;
+    if (!confirm(`"${removedName}" 디비전을 삭제할까요?`)) return;
+
+    setSyncResult(null);
+    setError(null);
+    setCurrentCategories((prev) =>
+      prev
+        .map((item) =>
+          item.category === category
+            ? {
+                ...item,
+                divisions: item.divisions.filter((_, index) => index !== divisionIndex),
+              }
+            : item,
+        )
+        .filter((item) => item.divisions.length > 0),
+    );
+    setDivSchedule((prev) =>
+      prev.filter((entry) => entry.division !== removedName),
+    );
+  };
+
   const updateDivisionNumber = (
     category: string,
-    division: string,
+    divisionIndex: number,
     key: "cap" | "fee",
     value: string,
   ) => {
@@ -179,8 +237,8 @@ export default function DivisionsSetupPage() {
         item.category === category
           ? {
               ...item,
-              divisions: item.divisions.map((current) =>
-                current.name === division
+              divisions: item.divisions.map((current, index) =>
+                index === divisionIndex
                   ? { ...current, [key]: numberValue }
                   : current,
               ),
@@ -217,28 +275,51 @@ export default function DivisionsSetupPage() {
   };
 
   const syncDivisions = async () => {
+    const normalizedCategories = currentCategories
+      .map((item) => ({
+        ...item,
+        divisions: item.divisions.map((division) => ({
+          ...division,
+          name: division.name.trim(),
+        })),
+      }))
+      .filter((item) => item.divisions.length > 0);
+    const divisionNames = normalizedCategories.flatMap((item) =>
+      item.divisions.map((division) => division.name),
+    );
+    if (divisionNames.some((name) => name.length === 0)) {
+      setError("디비전명을 입력해 주세요.");
+      return;
+    }
+    const duplicateNames = divisionNames.filter(
+      (name, index) => divisionNames.indexOf(name) !== index,
+    );
+    if (duplicateNames.length > 0) {
+      setError(`디비전명이 중복되었습니다: ${[...new Set(duplicateNames)].join(", ")}`);
+      return;
+    }
     const categories = Object.fromEntries(
-      currentCategories.map((item) => [
+      normalizedCategories.map((item) => [
         item.category,
         item.divisions.map((division) => division.name),
       ]),
     );
     const divCaps = Object.fromEntries(
-      currentCategories.flatMap((item) =>
+      normalizedCategories.flatMap((item) =>
         item.divisions
           .filter((division) => division.cap != null)
           .map((division) => [division.name, division.cap]),
       ),
     );
     const divFees = Object.fromEntries(
-      currentCategories.flatMap((item) =>
+      normalizedCategories.flatMap((item) =>
         item.divisions
           .filter((division) => division.fee != null)
           .map((division) => [division.name, division.fee]),
       ),
     );
     const selectedDivisionNames = new Set(
-      currentCategories.flatMap((item) =>
+      normalizedCategories.flatMap((item) =>
         item.divisions.map((division) => division.name),
       ),
     );
@@ -246,12 +327,12 @@ export default function DivisionsSetupPage() {
       divSchedule
         .filter(
           (entry) =>
-            selectedDivisionNames.has(entry.division) &&
+            selectedDivisionNames.has(entry.division.trim()) &&
             entry.date_id &&
             entry.court_id,
         )
         .map((entry) => [
-          entry.division,
+          entry.division.trim(),
           { dateId: entry.date_id, courtId: entry.court_id },
         ]),
     );
@@ -469,7 +550,7 @@ export default function DivisionsSetupPage() {
 
                 {selected && selected.divisions.length > 0 && (
                   <div className="mt-3 space-y-2">
-                    {selected.divisions.map((division) => {
+                    {selected.divisions.map((division, divisionIndex) => {
                       const schedule = getDivisionSchedule(division.name);
                       const selectedDate = scheduleDates.find(
                         (date) => date.id === schedule.dateId,
@@ -483,12 +564,23 @@ export default function DivisionsSetupPage() {
 
                       return (
                         <div
-                          key={division.name}
-                          className="grid gap-2 sm:grid-cols-2 xl:grid-cols-[minmax(92px,1fr)_88px_100px_minmax(128px,1.15fr)_minmax(136px,1.2fr)]"
+                          key={`${category.name}-${divisionIndex}`}
+                          className="grid gap-2 sm:grid-cols-2 xl:grid-cols-[minmax(112px,1fr)_88px_100px_minmax(128px,1.15fr)_minmax(136px,1.2fr)_44px]"
                         >
-                          <div className="flex min-h-[44px] items-center rounded-[12px] bg-[var(--grey-50)] px-3 text-sm font-semibold text-[var(--ink)]">
-                            {division.name}
-                          </div>
+                          <input
+                            type="text"
+                            value={division.name}
+                            onChange={(e) =>
+                              updateDivisionName(
+                                category.name,
+                                divisionIndex,
+                                e.target.value,
+                              )
+                            }
+                            className="ts-input min-h-[44px] font-semibold"
+                            aria-label={`${category.name} 디비전명`}
+                            placeholder="디비전명"
+                          />
                           <input
                             type="number"
                             min={0}
@@ -496,7 +588,7 @@ export default function DivisionsSetupPage() {
                             onChange={(e) =>
                               updateDivisionNumber(
                                 category.name,
-                                division.name,
+                                divisionIndex,
                                 "cap",
                                 e.target.value,
                               )
@@ -512,7 +604,7 @@ export default function DivisionsSetupPage() {
                             onChange={(e) =>
                               updateDivisionNumber(
                                 category.name,
-                                division.name,
+                                divisionIndex,
                                 "fee",
                                 e.target.value,
                               )
@@ -553,6 +645,15 @@ export default function DivisionsSetupPage() {
                               </option>
                             ))}
                           </select>
+                          <button
+                            type="button"
+                            onClick={() => removeDivision(category.name, divisionIndex)}
+                            className="ts-btn ts-btn--ghost min-h-[44px] px-0"
+                            aria-label={`${division.name || "디비전"} 삭제`}
+                            title="삭제"
+                          >
+                            <Icon name="trash-2" size={18} />
+                          </button>
                         </div>
                       );
                     })}

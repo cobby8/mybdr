@@ -18,6 +18,7 @@ import { Icon, Btn, Badge, Modal } from "@/components/admin-toss";
 import {
   GAME_RULE_DEFAULTS,
   GAME_RULE_PRESETS,
+  applyGameRuleClockMode,
   applyGameRulePreset,
   type GameRulePreset,
   type TournamentGameRules,
@@ -42,7 +43,7 @@ const UNIFORM_PALETTE: [string, string][] = [
   ["그레이", "#8A93A0"], ["마룬", "#7A1620"], ["틸", "#0E7C86"], ["골드", "#C9A227"],
 ];
 
-// 경기 방식 프리셋 (기록앱 _kPresets 와 동일).
+// 경기 시간 프리셋. 논스톱/올데드는 별도 운영 방식 축에서 조합한다.
 const GAME_PRESETS = GAME_RULE_PRESETS;
 
 // ── 휘도 유틸 (기록앱 1:1) ───────────────────────────────────────────────
@@ -326,10 +327,7 @@ export function CtGameSettings({
   // 어느 유니폼 셀을 편집 중인지 ("home" | "away" | null)
   const activePreset = (p: GameRulePreset) =>
     d.quarterType === p.quarterType &&
-    d.quarterMinutes === p.quarterMinutes &&
-    d.clockMode === p.clockMode &&
-    d.firstHalfTimeouts === p.firstHalfTimeouts &&
-    d.secondHalfTimeouts === p.secondHalfTimeouts;
+    d.quarterMinutes === p.quarterMinutes;
 
   const homeColor = (d.homeColor || "").toUpperCase();
   const awayColor = (d.awayColor || "").toUpperCase();
@@ -405,7 +403,7 @@ export function CtGameSettings({
 
         <div>
           {/* ── 경기 방식 ── */}
-          <Subhead icon="clock" label="경기 방식" hint="프리셋 또는 직접 조정" />
+          <Subhead icon="clock" label="경기 구성" hint="시간 · 쿼터" />
           {/* 프리셋 칩 */}
           <div className="ct-preset-grid">
             {GAME_PRESETS.map((p) => (
@@ -427,14 +425,60 @@ export function CtGameSettings({
         <SetRow
           name="운영 방식"
           hint="논스톱=계속 진행 · 올데드=시계 정지"
-          control={<SegSm options={["논스톱", "올데드"]} index={d.clockMode === "nonstop" ? 0 : 1} onSelect={(i) => onChange(applyGameRulePreset(d, { label: "", quarterType: d.quarterType, quarterMinutes: d.quarterMinutes, clockMode: i === 0 ? "nonstop" : "dead", firstHalfTimeouts: d.firstHalfTimeouts, secondHalfTimeouts: d.secondHalfTimeouts }))} />}
+          control={
+            <SegSm
+              options={["논스톱", "올데드"]}
+              index={d.clockMode === "nonstop" ? 0 : 1}
+              onSelect={(i) =>
+                onChange(applyGameRuleClockMode(d, i === 0 ? "nonstop" : "dead"))
+              }
+            />
+          }
         />
         <SetRow
           name="쿼터 수"
           hint="정규 쿼터 구성"
-          control={<SegSm options={["4쿼터", "전후반"]} index={d.quarterType === "HALF" ? 1 : 0} onSelect={(i) => onChange(applyGameRulePreset(d, { label: "", quarterType: i === 1 ? "HALF" : "4Q", quarterMinutes: d.quarterMinutes, clockMode: d.clockMode, firstHalfTimeouts: d.firstHalfTimeouts, secondHalfTimeouts: d.secondHalfTimeouts }))} />}
+          control={
+            <SegSm
+              options={["4쿼터", "전후반"]}
+              index={d.quarterType === "HALF" ? 1 : 0}
+              onSelect={(i) =>
+                onChange(
+                  applyGameRulePreset(d, {
+                    label: "",
+                    quarterType: i === 1 ? "HALF" : "4Q",
+                    quarterMinutes: d.quarterMinutes,
+                    firstHalfTimeouts: d.firstHalfTimeouts,
+                    secondHalfTimeouts: d.secondHalfTimeouts,
+                  }),
+                )
+              }
+            />
+          }
         />
-        <SetRow name="쿼터 시간" hint="분 / 쿼터" control={<Stepper value={d.quarterMinutes} unit="분" min={1} max={20} onChange={(v) => onChange(applyGameRulePreset(d, { label: "", quarterType: d.quarterType, quarterMinutes: v, clockMode: d.clockMode, firstHalfTimeouts: d.firstHalfTimeouts, secondHalfTimeouts: d.secondHalfTimeouts }))} />} />
+        <SetRow
+          name="쿼터 시간"
+          hint="분 / 쿼터"
+          control={
+            <Stepper
+              value={d.quarterMinutes}
+              unit="분"
+              min={1}
+              max={20}
+              onChange={(v) =>
+                onChange(
+                  applyGameRulePreset(d, {
+                    label: "",
+                    quarterType: d.quarterType,
+                    quarterMinutes: v,
+                    firstHalfTimeouts: d.firstHalfTimeouts,
+                    secondHalfTimeouts: d.secondHalfTimeouts,
+                  }),
+                )
+              }
+            />
+          }
+        />
         <SetRow name="연장 시간" hint="분 / 연장" control={<Stepper value={d.overtimeMinutes} unit="분" min={1} max={20} onChange={(v) => set("overtimeMinutes", v)} />} />
         <SetRow name="막판 득점 정지" hint="올데드에서만 적용" control={<Stepper value={d.lastScoreStopMin} unit="분" min={0} max={2} onChange={(v) => set("lastScoreStopMin", v)} />} />
         <SetRow name="샷클락" hint="24초 · 리바운드 14초" control={<SegSm options={["사용", "미사용"]} index={d.shotClockEnabled ? 0 : 1} onSelect={(i) => set("shotClockEnabled", i === 0)} />} />

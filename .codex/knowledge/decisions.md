@@ -1,5 +1,12 @@
 # Decision Log
 
+## 2026-06-26 Record App Game Rule Axes
+
+- Decision: admin game-rule presets represent only time/period structure, while `clockMode` is selected independently as `nonstop` or `dead`.
+- Reason: record-app operation combines "7분 4쿼터" style structure with "논스톱/올데드" clock behavior; mixing both into preset labels made the UI ambiguous.
+- Scope: shared `game-rules` helpers, tournament creation/admin game settings UI, and additive v1 response fields.
+- Guardrail: `toGameRulesResponse` now exposes `quarter_type` and `clock_mode` separately in addition to the full `game_rules` JSON.
+
 ## 2026-06-25 Division Bracket Generation
 
 - Decision: `group_stage_knockout` creates a real knockout skeleton from group-rank placeholders, and `group_stage_with_ranking` supports every same-rank group pairing for 3+ groups.

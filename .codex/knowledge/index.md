@@ -1,18 +1,20 @@
 # Knowledge Index
 
-- 2026-06-24 ranking: added community basketball ranking research keyword seed and Naver cafe/blog collection PoC.
+- 2026-06-26 record-app: separated game-rule time presets from nonstop/all-dead clock mode.
 
-Updated: 2026-06-25
+Updated: 2026-06-26
 
 | File | Entries | Recent |
 |---|---:|---|
 | architecture.md | 3 | Customer signal reporting |
 | conventions.md | 2 | 대회 포맷 표준 |
-| decisions.md | 5 | Division bracket generation |
-| errors.md | 1 | Tournament admin edit/delete persistence |
+| decisions.md | 6 | Record app game rule axes |
+| errors.md | 2 | Archived zip source included in typecheck |
 | lessons.md | 0 | - |
 
 Recent work:
+- 2026-06-26 tournament-admin: selected division rows now support inline rename/delete and validate empty/duplicate names before sync.
+- 2026-06-26 record-app: game-rule presets now cover time/period only, while `clock_mode` remains a separate v1 response field and admin control.
 - 2026-06-25 tournament-admin: fixed edit/delete persistence for venue fields, unused division rule deletion, and stale division schedule cleanup.
 - 2026-06-25 tournament: 조별리그+토너먼트에서 홀수/비 2의 제곱 진출팀을 부전승 포함 트리로 생성하도록 보강.
 - 2026-06-25 tournament: 조별리그+토너먼트 본선 generator와 3개 조 이상 동순위 순위결정전 생성을 구현.
