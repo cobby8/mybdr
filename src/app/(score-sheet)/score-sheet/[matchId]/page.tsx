@@ -272,6 +272,12 @@ export default async function ScoreSheetPage({ params }: PageProps) {
   // 2) 모드 가드 — paper 가 아니면 안내 화면
   const mode = getRecordingMode({ settings: match.settings });
   if (mode !== "paper") {
+    const title =
+      mode === "manual" ? "현재 수기 기록 모드입니다" : "현재 Flutter 기록앱으로 진행 중";
+    const description =
+      mode === "manual"
+        ? "이 매치는 BDR 전자 기록 시스템을 사용하지 않는 수기 기록 모드입니다. 종이 기록지로 입력하려면 운영자가 대회 관리 페이지에서 기록 모드를 전환해야 합니다."
+        : "이 매치는 Flutter 기록앱 모드입니다. 종이 기록지로 입력하려면 운영자가 대회 관리 페이지에서 기록 모드를 \"종이 기록지(웹)\"로 전환해야 합니다.";
     return (
       <main className="mx-auto w-full max-w-4xl px-4 py-12">
         <div
@@ -282,11 +288,9 @@ export default async function ScoreSheetPage({ params }: PageProps) {
             color: "var(--color-text-primary)",
           }}
         >
-          <p className="text-base font-semibold">현재 Flutter 기록앱으로 진행 중</p>
+          <p className="text-base font-semibold">{title}</p>
           <p className="mt-2 text-sm text-[var(--color-text-muted)]">
-            이 매치는 Flutter 기록앱 모드입니다. 종이 기록지로 입력하려면
-            운영자가 대회 관리 페이지에서 기록 모드를 &quot;종이 기록지(웹)&quot;로
-            전환해야 합니다.
+            {description}
           </p>
           <div className="mt-4 flex flex-col items-center gap-2 sm:flex-row sm:justify-center">
             <Link

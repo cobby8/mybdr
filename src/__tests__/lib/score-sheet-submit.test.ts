@@ -17,8 +17,10 @@ const TOURNAMENT_ID = "t-uuid-xyz";
 
 function buildAccessOk(opts: {
   paper: boolean;
+  mode?: "flutter" | "paper" | "manual";
   user?: { id: bigint; nickname: string | null };
 }) {
+  const recordingMode = opts.mode ?? (opts.paper ? "paper" : "flutter");
   return {
     user: opts.user ?? { id: BigInt(1), nickname: "관리자" },
     match: {
@@ -28,9 +30,7 @@ function buildAccessOk(opts: {
       awayTeamId: BigInt(22),
       winner_team_id: null,
       status: "in_progress",
-      settings: opts.paper
-        ? { recording_mode: "paper" }
-        : { recording_mode: "flutter" },
+      settings: { recording_mode: recordingMode },
       homeScore: 50,
       awayScore: 48,
       roundName: "결승",
@@ -128,6 +128,23 @@ describe("score-sheet BFF — mode 가드 (1B-2)", () => {
     expect(res.status).toBe(403);
     const body = await res.json();
     expect(body.code).toBe("RECORDING_MODE_FLUTTER");
+  });
+
+  it("mode=manual → 403 RECORDING_MODE_MANUAL", async () => {
+    setupRouteMocks({
+      access: buildAccessOk({ paper: false, mode: "manual" }),
+    });
+    const { POST } = await import(
+      "@/app/api/web/score-sheet/[matchId]/submit/route"
+    );
+    const req = makeRequest(VALID_BODY);
+    const res = await POST(req as unknown as Parameters<typeof POST>[0], {
+      params: Promise.resolve({ matchId: "700" }),
+    });
+    expect(res.status).toBe(403);
+    const body = await res.json();
+    expect(body.code).toBe("RECORDING_MODE_MANUAL");
+    expect(body.current_mode).toBe("manual");
   });
 });
 

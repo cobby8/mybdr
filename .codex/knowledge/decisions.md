@@ -1,5 +1,12 @@
 # Decision Log
 
+## 2026-06-26 Manual Recording Mode Contract
+
+- Decision: match-level `recording_mode="manual"` is a real mode, but it means BDR record-system input is disabled rather than another Flutter/score-sheet input path.
+- Reason: tournament admins can apply manual mode to matches, and treating it as Flutter fallback risks accidental app sync, auto quarter-score recomputation, and misleading admin stats.
+- Scope: shared recording-mode parser, admin match stats UI, Flutter batch sync guard, web score-sheet guard, quarter-score auto-sync, match-minute exclusion, and tests.
+- Guardrail: `manual` must be counted separately from `flutter` and `paper`; system input routes should return `RECORDING_MODE_MANUAL` or a manual-specific safe reason.
+
 ## 2026-06-26 Record App Game Rule Axes
 
 - Decision: admin game-rule presets represent only time/period structure, while `clockMode` is selected independently as `nonstop` or `dead`.

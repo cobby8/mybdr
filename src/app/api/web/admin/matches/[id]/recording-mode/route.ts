@@ -38,7 +38,7 @@ import { adminLog } from "@/lib/admin/log";
 // 본 라우트 입력 zod schema.
 // reason 은 권장 사항 (운영 history 추적용) — 선택. mode 만 필수.
 const PostBodySchema = z.object({
-  mode: z.enum(["flutter", "paper"]),
+  mode: z.enum(["flutter", "paper", "manual"]),
   reason: z.string().trim().max(200).optional(),
 });
 

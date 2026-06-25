@@ -198,6 +198,16 @@ describe("quarter-scores-sync — shouldAutoSyncQuarterScores (trigger / Q6~Q9)"
     expect(result).toBe(false);
   });
 
+  it("Q6-1: manual + completed 신규 전환 → false (BDR 기록 시스템 미사용)", () => {
+    const result = shouldAutoSyncQuarterScores({
+      recordingMode: "manual",
+      newStatus: "completed",
+      previousStatus: "in_progress",
+      pbpCount: 10,
+    });
+    expect(result).toBe(false);
+  });
+
   // Q7: Flutter + completed 신규 전환 + PBP 10건 = 정상 trigger 케이스
   it("Q7: Flutter + completed 신규 전환 + PBP 10건 → true (auto-sync 진입)", () => {
     const result = shouldAutoSyncQuarterScores({

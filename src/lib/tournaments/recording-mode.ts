@@ -7,13 +7,13 @@
  * 로 "매치별 mode 게이팅" 채택. 한 매치 = 한 mode만. 충돌 자체 차단.
  *
  * 저장 위치: `tournament_matches.settings` JSON 의 `recording_mode` 키.
- *   - 값: `"flutter"` | `"paper"` (그 외/누락 = `"flutter"` fallback)
+ *   - 값: `"flutter"` | `"paper"` | `"manual"` (그 외/누락 = `"flutter"` fallback)
  *   - 기본값 = `"flutter"` (운영 그대로 — 기존 매치 무영향)
  *   - schema 변경 0 (settings 컬럼은 이미 존재 — schema.prisma:659)
  *
  * 사용처:
- *   1. Flutter v1 sync / batch-sync / status 라우트 — `"paper"` 매치 server-side 차단
- *   2. (Phase 1-B) 웹 종이 기록지 BFF — `"flutter"` 매치 server-side 차단
+ *   1. Flutter v1 sync / batch-sync / status 라우트 — `"paper"`/`"manual"` 매치 server-side 차단
+ *   2. (Phase 1-B) 웹 종이 기록지 BFF — `"flutter"`/`"manual"` 매치 server-side 차단
  *   3. admin 토글 라우트 — 운영자가 mode 전환 (audit 박제)
  *
  * 응답 컨벤션: `apiError(403, "RECORDING_MODE_*")` — snake_case 자동 변환 (errors.md 2026-04-17 재발 5회 인지).
@@ -25,9 +25,8 @@ import { apiError } from "@/lib/api/response";
 import { prisma } from "@/lib/db/prisma";
 
 // 기록 방식 — Flutter 기록앱(풀스탯) / 웹 전자기록지(기본) / 수기(BDR 시스템 미사용)
-//   2026-06-22: "manual"(수기) 추가 — 대회 단위 전용. 수기 대회는 Flutter '내 대회' 목록에서
-//   제외(BDR 기록 시스템을 안 쓰는 대회). 매치 게이팅(getRecordingMode/assertRecordingMode)은
-//   여전히 flutter/paper 2분기만 사용(수기 대회는 시스템에 기록 매치가 없음).
+//   2026-06-26: 관리 화면이 수기 모드를 매치 일괄 적용할 수 있으므로 매치 settings 의
+//   recording_mode="manual" 도 실제 모드로 인식한다.
 export type RecordingMode = "flutter" | "paper" | "manual";
 
 // "paper"/"manual" 만 명시적으로 매칭 — 그 외 (null / undefined / "flutter" / 기타) 모두 fallback
@@ -40,13 +39,14 @@ const MANUAL_MODE: RecordingMode = "manual";
  * 매치의 기록 모드 추출.
  *
  * @param match `settings: Prisma.JsonValue | null` 을 가진 객체 (TournamentMatch row 또는 부분)
- * @returns `"flutter"` (기본) | `"paper"` — 명시적 "paper" 만 paper, 그 외 모두 flutter
+ * @returns `"flutter"` (기본) | `"paper"` | `"manual"` — 명시적 paper/manual 만 별도 모드
  *
  * fallback 사례 (전부 flutter):
  *   - settings = null → 운영 신규 매치 default
  *   - settings = {} → 운영 기존 매치 (Prisma default)
  *   - settings = { ...other_keys } → recording_mode 미설정
  *   - settings = { recording_mode: "flutter" } → 명시적 flutter
+ *   - settings = { recording_mode: "manual" } → 명시적 manual
  *   - settings = { recording_mode: "INVALID" } → 알 수 없는 값 fallback
  *   - settings 자체가 JSON 객체가 아닌 경우 (string / number / array) → fallback
  */
@@ -60,8 +60,9 @@ export function getRecordingMode(match: {
   }
   // Prisma.JsonValue 의 객체 case — recording_mode 키 직접 추출
   const value = (settings as Record<string, unknown>).recording_mode;
-  // "paper" 만 명시적 match — 그 외 (다른 string / null / undefined) 전부 fallback
-  return value === PAPER_MODE ? PAPER_MODE : FLUTTER_MODE;
+  if (value === PAPER_MODE) return PAPER_MODE;
+  if (value === MANUAL_MODE) return MANUAL_MODE;
+  return FLUTTER_MODE;
 }
 
 /**
@@ -76,12 +77,12 @@ export function getRecordingMode(match: {
  *
  * 응답 형식 (apiError 컨벤션):
  * ```json
- * { "error": "...", "code": "RECORDING_MODE_PAPER" | "RECORDING_MODE_FLUTTER",
+ * { "error": "...", "code": "RECORDING_MODE_PAPER" | "RECORDING_MODE_FLUTTER" | "RECORDING_MODE_MANUAL",
  *   "match_id": "123", "current_mode": "paper" }
  * ```
  *
  * @param match `{ id: bigint, settings: Prisma.JsonValue | null }` — id 는 에러 응답 박제용
- * @param expected `"flutter"` | `"paper"` — 호출 컨텍스트가 기대하는 모드
+ * @param expected `"flutter"` | `"paper"` — 호출 컨텍스트가 기대하는 시스템 입력 모드
  * @param context 에러 메시지용 사람 읽기 가능 표시 (예: "Flutter sync from app")
  * @returns 모드 불일치 시 NextResponse (403) / 일치 시 null
  */
@@ -93,6 +94,19 @@ export function assertRecordingMode(
   const current = getRecordingMode(match);
   // 일치 — 통과 (caller 가 정상 진행)
   if (current === expected) return null;
+
+  if (current === MANUAL_MODE) {
+    return apiError(
+      "이 매치는 수기 기록 모드입니다. BDR 기록앱과 전자기록지 입력을 사용하지 않습니다.",
+      403,
+      "RECORDING_MODE_MANUAL",
+      {
+        match_id: match.id.toString(),
+        current_mode: current,
+        context,
+      }
+    );
+  }
 
   // 불일치 — expected 별 사용자 카피 분기 (Flutter 측 / 웹 측 양면)
   if (current === PAPER_MODE) {
@@ -162,18 +176,20 @@ export function withRecordingMode(
  * 본 함수는 다음 4 값을 1회 호출로 반환:
  *   - total: 대회 전체 매치 수
  *   - paper: settings.recording_mode = "paper" 매치 수
- *   - flutter: 그 외 매치 수 (= total - paper, fallback "flutter" 포함)
+ *   - manual: settings.recording_mode = "manual" 매치 수
+ *   - flutter: 그 외 매치 수 (= total - paper - manual, fallback "flutter" 포함)
  *   - inProgress: status = "in_progress" 매치 수 ("scope=exclude_in_progress" 라디오 안내용)
  *
  * Prisma JSON path 쿼리는 DB 종속 — 본 함수는 단순 findMany + JS 분류 (매치 수 < 1000 기준 충분).
  *
  * @param tournamentId Tournament.id (uuid string)
- * @returns 매치 통계 (total / paper / flutter / inProgress)
+ * @returns 매치 통계 (total / paper / manual / flutter / inProgress)
  */
 export async function getTournamentMatchStats(tournamentId: string): Promise<{
   total: number;
   paper: number;
   flutter: number;
+  manual: number;
   inProgress: number;
 }> {
   // 한번에 매치 list — settings + status 만 SELECT (BigInt id 도 select 안 함 = 가장 가벼움)
@@ -183,10 +199,13 @@ export async function getTournamentMatchStats(tournamentId: string): Promise<{
   });
 
   let paper = 0;
+  let manual = 0;
   let inProgress = 0;
   for (const m of matches) {
     // 매치별 mode 추출 (getRecordingMode 재사용 — 단일 source)
-    if (getRecordingMode({ settings: m.settings }) === PAPER_MODE) paper++;
+    const mode = getRecordingMode({ settings: m.settings });
+    if (mode === PAPER_MODE) paper++;
+    if (mode === MANUAL_MODE) manual++;
     // status="in_progress" 카운트 (라이브 진행 중 매치 — bulk 시 신중 분기 안내용)
     if (m.status === "in_progress") inProgress++;
   }
@@ -194,7 +213,8 @@ export async function getTournamentMatchStats(tournamentId: string): Promise<{
   return {
     total: matches.length,
     paper,
-    flutter: matches.length - paper,
+    manual,
+    flutter: matches.length - paper - manual,
     inProgress,
   };
 }
@@ -203,13 +223,13 @@ export async function getTournamentMatchStats(tournamentId: string): Promise<{
  * 대회 단위 default 기록 모드 추출.
  *
  * 저장 위치: `tournament.settings.default_recording_mode`
- *   - 값: `"flutter"` | `"paper"` (그 외/누락 = `"flutter"` fallback)
+ *   - 값: `"flutter"` | `"paper"` | `"manual"` (그 외/누락 = `"flutter"` fallback)
  *   - 기본값 = `"flutter"` (운영 그대로 — 기존 대회 무영향)
  *
- * 매치별 settings.recording_mode 와 동일한 fallback 룰 — paper 만 명시적 match.
+ * 매치별 settings.recording_mode 와 동일한 fallback 룰 — paper/manual 만 명시적 match.
  *
  * @param tournament `{ settings: Prisma.JsonValue | null }` (Tournament row 또는 부분)
- * @returns `"flutter"` | `"paper"` — 명시적 "paper" 만 paper, 그 외 모두 flutter
+ * @returns `"flutter"` | `"paper"` | `"manual"` — 명시적 paper/manual 만 별도 모드, 그 외 모두 flutter
  */
 export function getTournamentDefaultMode(tournament: {
   settings: Prisma.JsonValue | null;

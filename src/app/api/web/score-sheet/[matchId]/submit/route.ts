@@ -10,7 +10,7 @@
  *
  * 단계:
  *   1. `requireScoreSheetAccess(matchId)` — 권한 가드 (recorder/organizer/admin/super) + match SELECT
- *   2. `getRecordingMode(match)` — paper 가 아니면 403 RECORDING_MODE_FLUTTER
+ *   2. `getRecordingMode(match)` — paper 가 아니면 403 RECORDING_MODE_FLUTTER/MANUAL
  *   3. body zod 검증 (422 시 apiError)
  *   4. running_score → PaperPBPInput[] 변환 → service play_by_plays 인자 (Phase 2 신규)
  *   5. `syncSingleMatch({ ..., existingMatch: match })` — service 호출 (SELECT 2→1 통합)
@@ -551,10 +551,13 @@ export async function POST(
   // 이유: 모드 가드는 status 와 무관 — 본 위치 보존 (Flutter 모드 매치는 종료 여부 무관 거부).
   const mode = getRecordingMode({ settings: match.settings });
   if (mode !== "paper") {
+    const isManual = mode === "manual";
     return apiError(
-      "이 매치는 Flutter 기록앱 모드입니다. 운영자가 모드를 전환해야 종이 기록지로 입력할 수 있습니다.",
+      isManual
+        ? "이 매치는 수기 기록 모드입니다. 운영자가 모드를 전환해야 종이 기록지로 입력할 수 있습니다."
+        : "이 매치는 Flutter 기록앱 모드입니다. 운영자가 모드를 전환해야 종이 기록지로 입력할 수 있습니다.",
       403,
-      "RECORDING_MODE_FLUTTER",
+      isManual ? "RECORDING_MODE_MANUAL" : "RECORDING_MODE_FLUTTER",
       { match_id: match.id.toString(), current_mode: mode }
     );
   }

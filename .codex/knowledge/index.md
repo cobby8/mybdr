@@ -1,5 +1,6 @@
 # Knowledge Index
 
+- 2026-06-26 tournament-admin: match-level manual recording mode is now a real non-record-system mode instead of Flutter fallback.
 - 2026-06-26 record-app: separated game-rule time presets from nonstop/all-dead clock mode.
 
 Updated: 2026-06-26
@@ -8,11 +9,12 @@ Updated: 2026-06-26
 |---|---:|---|
 | architecture.md | 3 | Customer signal reporting |
 | conventions.md | 2 | 대회 포맷 표준 |
-| decisions.md | 6 | Record app game rule axes |
-| errors.md | 2 | Archived zip source included in typecheck |
+| decisions.md | 7 | Manual recording mode contract |
+| errors.md | 3 | Manual recording mode fell back to Flutter |
 | lessons.md | 0 | - |
 
 Recent work:
+- 2026-06-26 tournament-admin: `game_time`/`game_method` are derived from canonical `game_rules`, and match-level manual recording mode is counted and blocked from Flutter/score-sheet system inputs.
 - 2026-06-26 tournament-admin: selected division rows now support inline rename/delete and validate empty/duplicate names before sync.
 - 2026-06-26 record-app: game-rule presets now cover time/period only, while `clock_mode` remains a separate v1 response field and admin control.
 - 2026-06-25 tournament-admin: fixed edit/delete persistence for venue fields, unused division rule deletion, and stale division schedule cleanup.

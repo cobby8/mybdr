@@ -52,8 +52,12 @@ async function handler(req: NextRequest, ctx: AuthContext, tournamentId: string)
         // 2026-05-11: Phase 1-A — paper 매치는 batch-sync 차단 (per-match).
         // 사유: batch 응답이 errors[] 로 매치별 reason 반환 가능 → catch 에서 분기 처리.
         // throw 후 외부 catch 가 safeReason 매핑 (line ~67) — 신규 reason 추가.
-        if (getRecordingMode(existing) === "paper") {
+        const recordingMode = getRecordingMode(existing);
+        if (recordingMode === "paper") {
           throw new Error("RECORDING_MODE_PAPER");
+        }
+        if (recordingMode === "manual") {
+          throw new Error("RECORDING_MODE_MANUAL");
         }
 
         // 2026-05-21 PR-3 F5 (errors.md [2026-05-20] 매치 124 OT2 사고 재발 방지):
@@ -154,6 +158,8 @@ async function handler(req: NextRequest, ctx: AuthContext, tournamentId: string)
         safeReason = "Match not found in tournament";
       } else if (errMsg === "RECORDING_MODE_PAPER") {
         safeReason = "이 매치는 종이 기록지 모드로 진행 중입니다.";
+      } else if (errMsg === "RECORDING_MODE_MANUAL") {
+        safeReason = "이 매치는 수기 기록 모드로 진행 중입니다.";
       } else if (errMsg === "FIBA_OT1_TIE_REQUIRES_OT2") {
         // 2026-05-21 PR-3 F5 — OT1 동점 + winner NULL completed 차단 (매치 124 재발 방지)
         safeReason =

@@ -49,6 +49,13 @@ describe("recording-mode — getRecordingMode (5 케이스)", () => {
     );
   });
 
+  it("settings = { recording_mode: 'manual' } → 'manual' (명시)", () => {
+    // 운영자가 수기 모드로 전환한 매치 — BDR 기록 시스템 입력 차단 대상
+    expect(getRecordingMode({ settings: { recording_mode: "manual" } })).toBe(
+      "manual"
+    );
+  });
+
   it("settings = { recording_mode: 'INVALID' } → 'flutter' (fallback)", () => {
     // 알 수 없는 값 = 안전을 위해 flutter (운영 그대로 — 의도하지 않은 차단 방지)
     expect(getRecordingMode({ settings: { recording_mode: "INVALID" } })).toBe(
@@ -105,6 +112,20 @@ describe("recording-mode — assertRecordingMode (2 케이스)", () => {
     expect(body.match_id).toBe("456");
   });
 
+  it("manual 매치 + expected='flutter' → 403 NextResponse (BDR 기록 시스템 입력 차단)", async () => {
+    const result = assertRecordingMode(
+      { id: BigInt(457), settings: { recording_mode: "manual" } },
+      "flutter",
+      "Flutter sync from app"
+    );
+    expect(result).not.toBeNull();
+    expect(result?.status).toBe(403);
+    const body = await result?.json();
+    expect(body.code).toBe("RECORDING_MODE_MANUAL");
+    expect(body.current_mode).toBe("manual");
+    expect(body.match_id).toBe("457");
+  });
+
   it("flutter 매치 + expected='paper' → 403 NextResponse (Phase 1-B 웹 BFF 시나리오)", async () => {
     // 웹 종이 기록지 BFF 가 flutter 매치 차단 — Phase 1-B 사전 검증
     const result = assertRecordingMode(
@@ -146,6 +167,12 @@ describe("recording-mode — withRecordingMode (settings 보존)", () => {
       recording_mode: "paper",
     });
   });
+
+  it("manual mode set → recording_mode='manual'", () => {
+    expect(withRecordingMode(null, "manual")).toEqual({
+      recording_mode: "manual",
+    });
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -164,6 +191,14 @@ describe("recording-mode — getTournamentDefaultMode (3 케이스)", () => {
         settings: { default_recording_mode: "paper" },
       })
     ).toBe("paper");
+  });
+
+  it("tournament.settings = { default_recording_mode: 'manual' } → 'manual'", () => {
+    expect(
+      getTournamentDefaultMode({
+        settings: { default_recording_mode: "manual" },
+      })
+    ).toBe("manual");
   });
 
   it("tournament.settings = { default_recording_mode: 'INVALID' } → 'flutter' fallback", () => {

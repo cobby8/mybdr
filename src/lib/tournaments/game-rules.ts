@@ -219,6 +219,19 @@ export function applyGameRuleClockMode(
   };
 }
 
+export function getGameRuleStructureLabel(rules: TournamentGameRules): string {
+  const periodLabel = rules.quarterType === "HALF" ? "전후반" : "4쿼터";
+  return `${rules.quarterMinutes}분 ${periodLabel}`;
+}
+
+export function getGameRuleClockModeLabel(clockMode: ClockModeCode): string {
+  return clockMode === "nonstop" ? "논스톱" : "올데드";
+}
+
+export function getGameRuleSummary(rules: TournamentGameRules): string {
+  return `${getGameRuleStructureLabel(rules)} · ${getGameRuleClockModeLabel(rules.clockMode)}`;
+}
+
 export function normalizeGameRules(input?: unknown): TournamentGameRules {
   const source = asRecord(input);
   const quarterType = normalizeQuarterType(source);

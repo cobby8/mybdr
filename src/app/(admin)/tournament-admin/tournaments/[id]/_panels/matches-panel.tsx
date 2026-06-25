@@ -11,6 +11,7 @@ type Props = {
     total: number;
     paper: number;
     flutter: number;
+    manual: number;
     inProgress: number;
   };
 };

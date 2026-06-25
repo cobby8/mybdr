@@ -13,7 +13,7 @@
  *
  * 방법 (어떻게):
  *   - computeQuarterScoresFromPbp(pbpInputs, homeTeamIdNum): PURE / DB I/O 0 / vitest 가능
- *   - shouldAutoSyncQuarterScores(input): paper skip / in_progress skip / 재진입 skip / Flutter completed 신규 전환만 true
+ *   - shouldAutoSyncQuarterScores(input): paper/manual skip / in_progress skip / 재진입 skip / Flutter completed 신규 전환만 true
  *
  * 회귀 보장 (Sprint 1 F3-α + F3-β + F5 + F2 와 호출 순서 자연 통합):
  *   - paper 매치 = DB.QS = SSOT (score-sheet BFF 박제 / LIVE API L933 패턴 답습)
@@ -105,18 +105,16 @@ export function computeQuarterScoresFromPbp(
   return result;
 }
 
-// 자동 갱신 trigger 판정 입력 — paper / Flutter 양면 보호 + status 전환 캡처.
+// 자동 갱신 trigger 판정 입력 — paper/manual / Flutter 양면 보호 + status 전환 캡처.
 //
 // 룰:
-//   - recordingMode = "paper" → 무조건 skip (DB.QS = SSOT 보존)
+//   - recordingMode = "paper" | "manual" → 무조건 skip (DB.QS = SSOT 보존)
 //   - newStatus !== "completed" → skip (in_progress / scheduled = 라이브 영향 0)
 //   - previousStatus === "completed" → skip (재진입 sync = QS 박제 흐름 보존 / 무한 덮어쓰기 방지)
 //   - pbpCount === 0 → skip (PBP 0 = 갱신 의미 0 = NULL/0 박제 회피)
 //   - 그 외 (Flutter + 신규 completed 전환 + PBP 1+) → true
 export type ShouldAutoSyncInput = {
-  // 2026-06-22: RecordingMode 3값화(manual 추가) 대응 — 매치 레벨 getRecordingMode 는
-  //   실제로 flutter/paper 만 반환(manual 은 대회 레벨 전용)하나, 타입 정합 위해 허용.
-  //   manual 은 paper 가 아니라 아래 분기에서 flutter 와 동일 취급(매치엔 안 들어옴).
+  // 2026-06-26: manual 은 BDR 기록 시스템 미사용 모드이므로 paper 와 같이 자동 QS 갱신에서 제외한다.
   recordingMode: "flutter" | "paper" | "manual";
   newStatus: string;
   previousStatus: string;
@@ -129,7 +127,7 @@ export type ShouldAutoSyncInput = {
  * 호출 위치: service `syncSingleMatch` 안 (tournamentMatch.update 직전).
  *
  * 보호 룰 (회귀 0 보장):
- *   1. paper 매치 = DB.QS = SSOT (score-sheet BFF 박제 / LIVE API L933 패턴)
+ *   1. paper/manual 매치 = DB.QS = SSOT (score-sheet BFF 박제 / LIVE API L933 패턴)
  *   2. in_progress / scheduled = 라이브 영향 0 (Flutter app 자동 sync 빈도 高)
  *   3. 이미 completed = 재진입 sync (수동 정정 / Flutter 재시도) 영향 0
  *   4. PBP 0건 = 갱신 source 부재 → input.quarter_scores fallback (regulation 매치 박제 흐름 보존)
@@ -138,8 +136,8 @@ export type ShouldAutoSyncInput = {
  * @returns true → computeQuarterScoresFromPbp 결과로 quarter_scores 박제 / false → input.quarter_scores 보존
  */
 export function shouldAutoSyncQuarterScores(input: ShouldAutoSyncInput): boolean {
-  // 1) paper 매치 = DB.QS SSOT 보존 (LIVE API L933 패턴)
-  if (input.recordingMode === "paper") return false;
+  // 1) paper/manual 매치 = DB.QS SSOT 보존 (LIVE API L933 패턴)
+  if (input.recordingMode === "paper" || input.recordingMode === "manual") return false;
   // 2) newStatus !== "completed" = 라이브/스케줄 매치 영향 0
   if (input.newStatus !== "completed") return false;
   // 3) previousStatus === "completed" = 재진입 sync skip

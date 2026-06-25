@@ -20,7 +20,7 @@ import { z } from "zod";
 
 // route.ts L42 와 동일한 schema (회귀 가드)
 const PostBodySchema = z.object({
-  mode: z.enum(["flutter", "paper"]),
+  mode: z.enum(["flutter", "paper", "manual"]),
   scope: z.enum(["all", "new_only", "exclude_in_progress"]),
   reason: z
     .string()
@@ -35,6 +35,15 @@ describe("recording-mode/bulk zod schema (5 케이스)", () => {
       mode: "paper",
       scope: "exclude_in_progress",
       reason: "결승 매치 종이 기록지 운영 결정",
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("manual mode 입력 → success", () => {
+    const result = PostBodySchema.safeParse({
+      mode: "manual",
+      scope: "exclude_in_progress",
+      reason: "외부 수기 기록 운영 결정",
     });
     expect(result.success).toBe(true);
   });
@@ -71,7 +80,7 @@ describe("recording-mode/bulk zod schema (5 케이스)", () => {
 
   it("mode 알 수 없는 값 → fail", () => {
     const result = PostBodySchema.safeParse({
-      mode: "video", // flutter/paper 만 허용
+      mode: "video", // flutter/paper/manual 만 허용
       scope: "all",
       reason: "테스트사유입니다",
     });

@@ -24,6 +24,7 @@ interface Props {
     total: number;
     paper: number;
     flutter: number;
+    manual: number;
     inProgress: number;
   };
 }
@@ -51,7 +52,7 @@ export function RecordingModeTriggerClient({ tournamentId, defaultMode, matchSta
           <p className="text-sm">
             대회 기본: <span className="font-semibold">{modeLabel}</span>{" "}
             <span style={{ color: "var(--color-text-muted)" }}>
-              · 총 {matchStats.total}건 (기록앱 {matchStats.flutter} / 전자기록지 {matchStats.paper}
+              · 총 {matchStats.total}건 (기록앱 {matchStats.flutter} / 전자기록지 {matchStats.paper} / 수기 {matchStats.manual}
               {matchStats.inProgress > 0 && ` / 진행중 ${matchStats.inProgress}`})
             </span>
           </p>

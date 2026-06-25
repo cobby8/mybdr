@@ -38,6 +38,7 @@ interface Props {
     total: number;
     paper: number;
     flutter: number;
+    manual: number;
     inProgress: number;
   };
 }
@@ -184,6 +185,7 @@ export function RecordingModeCard({
           <span>총 {matchStats.total}건</span>
           <span>기록앱 {matchStats.flutter}건</span>
           <span>전자기록지 {matchStats.paper}건</span>
+          <span>수기 {matchStats.manual}건</span>
           {matchStats.inProgress > 0 && (
             <span style={{ color: "var(--color-primary)" }}>
               진행중 {matchStats.inProgress}건

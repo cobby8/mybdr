@@ -207,13 +207,15 @@ export async function getMatchMinutesBySec(
     const pbps = pbpByMatch.get(matchKey) ?? [];
     if (pbps.length === 0) continue; // PBP 없음 — 출전시간 산출 불가 → 제외('–')
 
-    // 종이 매치 판별: recording_mode="paper" 또는 PBP max(game_clock)=0 (digital clock 부재)
+    // 종이/수기 매치 판별: recording_mode="paper"|"manual" 또는 PBP max(game_clock)=0 (digital clock 부재)
     //   기록실(excludePaper=true)만 제외. 라이브(false)는 추출 전 동작 보존 — PBP 추정 min 산출.
     if (excludePaper) {
-      const isPaper =
-        getRecordingMode({ settings: meta.settings }) === "paper" ||
+      const mode = getRecordingMode({ settings: meta.settings });
+      const isNonFlutter =
+        mode === "paper" ||
+        mode === "manual" ||
         Math.max(...pbps.map((p) => p.game_clock_seconds ?? 0)) === 0;
-      if (isPaper) continue; // 종이 매치 — 출전시간 부재 → 제외('–')
+      if (isNonFlutter) continue; // 종이/수기 매치 — 출전시간 부재 → 제외('–')
     }
 
     // qLen / numQuarters 추정 (라이브 route 와 동일)

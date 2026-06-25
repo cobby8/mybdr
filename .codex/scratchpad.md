@@ -1,16 +1,18 @@
 # Scratchpad
 
 ## Current Work
-- 2026-06-26 tournament admin: division edit/delete UX and record-app game rule option separation.
+- 2026-06-26 tournament admin: post-merge audit for game-rule duplication and recording-mode consistency.
 
 ## Progress
 | Area | Status | Note |
 |---|---|---|
-| Division admin UX | Done | Selected divisions now support inline rename/delete with empty/duplicate validation. |
-| Record app rules | Done | Time/period presets are separate from nonstop/all-dead clock mode. |
-| Verification | Done | `cmd /c npx vitest run src/__tests__/lib/tournaments/game-rules.test.ts` and `cmd /c npx tsc --noEmit` passed. |
+| Push/main merge | Done | Existing dev work and bdr_stat_v3 fix were pushed; mybdr dev was merged to main. |
+| Admin game rules | Done | `game_time`/`game_method` now derive from canonical `game_rules` instead of free text. |
+| Recording modes | Done | Match-level `manual` is counted, displayed, and blocked from Flutter/score-sheet system inputs. |
+| Verification | Done | Targeted Vitest suite and `cmd /c npx tsc --noEmit` passed. |
 
 ## Work Log
+- 2026-06-26: Pushed/merged prior fixes, then aligned tournament admin game-rule display and match-level manual recording-mode guards.
 - 2026-06-26: Added tournament division inline rename/delete controls and separated record-app time presets from clock mode.
 - 2026-06-25: Repaired customer signal contact/report flow copy and prepared operator email reporting verification.
 - 2026-06-25: Improved tournament admin PC/mobile UX with grouped registration/team/public controls, desktop sticky save, active mobile tabs, and larger image delete targets.

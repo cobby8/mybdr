@@ -5,6 +5,10 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, type ComponentType, type ReactNode } from "react";
 import type { RecordingMode } from "@/lib/tournaments/recording-mode";
 import type { SetupProgress } from "@/lib/tournaments/setup-status";
+import {
+  getGameRuleClockModeLabel,
+  getGameRuleStructureLabel,
+} from "@/lib/tournaments/game-rules";
 import { Icon } from "@/components/admin-toss";
 import { ImageUploader } from "@/components/shared/image-uploader";
 import { SetupChecklist } from "./SetupChecklist";
@@ -28,6 +32,7 @@ type MatchStats = {
   total: number;
   paper: number;
   flutter: number;
+  manual: number;
   inProgress: number;
 };
 
@@ -383,6 +388,8 @@ export function TournamentWorkspace({
       return;
     }
 
+    const gameRuleStructure = getGameRuleStructureLabel(form.game_rules);
+    const gameRuleClockMode = getGameRuleClockModeLabel(form.game_rules.clockMode);
     const payload: Record<string, unknown> = {
       name: form.name.trim(),
       status: form.status,
@@ -408,9 +415,9 @@ export function TournamentWorkspace({
       host: form.host.trim() || null,
       sponsors: sponsors.map((s) => s.name).join(", "),
       gender: form.gender.trim() || null,
-      game_time: form.game_time.trim() || null,
+      game_time: gameRuleStructure,
       game_ball: form.game_ball.trim() || null,
-      game_method: form.game_method.trim() || null,
+      game_method: gameRuleClockMode,
       game_rules: form.game_rules,
       rules: form.rules.trim() || null,
       prize_info: form.prize_info.trim() || null,
@@ -628,15 +635,11 @@ export function TournamentWorkspace({
         subtitle="경기 규칙과 기록을 관리합니다."
       >
         <div className="mb-3 grid grid-cols-2 gap-3 md:grid-cols-3">
-          <Field label="경기 시간">
-            <input className="ts-input" value={form.game_time} onChange={(e) => patchForm("game_time", e.target.value)} />
-          </Field>
+          <ReadOnlyMetric label="시간 구성" value={getGameRuleStructureLabel(form.game_rules)} />
           <Field label="사용구">
             <input className="ts-input" value={form.game_ball} onChange={(e) => patchForm("game_ball", e.target.value)} />
           </Field>
-          <Field label="경기 방식" className="col-span-2 md:col-span-1">
-            <input className="ts-input" value={form.game_method} onChange={(e) => patchForm("game_method", e.target.value)} />
-          </Field>
+          <ReadOnlyMetric label="운영 방식" value={getGameRuleClockModeLabel(form.game_rules.clockMode)} />
         </div>
         <div className="mb-3">
           <CtGameSettings value={form.game_rules} onChange={(next) => patchForm("game_rules", next)} />
@@ -666,6 +669,7 @@ export function TournamentWorkspace({
             ["기록 방식", RECORDING_MODE_LABEL[defaultRecordingMode]],
             ["기록앱", `${matchStats.flutter}`],
             ["종이", `${matchStats.paper}`],
+            ["수기", `${matchStats.manual}`],
             ["진행중", `${matchStats.inProgress}`],
           ]}
           panels={[
@@ -1116,6 +1120,23 @@ function Field({ label, children, className = "" }: { label: string; children: R
       </span>
       {children}
     </label>
+  );
+}
+
+function ReadOnlyMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="ts-field block">
+      <span className="ts-field__label">{label}</span>
+      <div
+        className="flex min-h-[44px] items-center rounded-[4px] border px-3 text-sm font-bold text-[var(--ink)]"
+        style={{
+          borderColor: "var(--color-border)",
+          backgroundColor: "var(--grey-50)",
+        }}
+      >
+        {value}
+      </div>
+    </div>
   );
 }
 
