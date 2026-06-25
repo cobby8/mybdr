@@ -1,6 +1,7 @@
 import { withWebAuth, type WebAuthContext } from "@/lib/auth/web-session";
 import { prisma } from "@/lib/db/prisma";
 import { apiSuccess, apiError } from "@/lib/api/response";
+import { usableSubscriptionWhere } from "@/lib/membership/entitlements";
 
 function generateSlug(name: string): string {
   const ascii = name
@@ -57,8 +58,7 @@ export const POST = withWebAuth(async (req: Request, ctx: WebAuthContext) => {
         where: {
           user_id: ctx.userId,
           feature_key: "tournament_create",
-          status: "active",
-          OR: [{ expires_at: null }, { expires_at: { gte: new Date() } }],
+          ...usableSubscriptionWhere(),
         },
       });
       if (!sub) {

@@ -11,9 +11,13 @@ import { NextRequest } from "next/server";
 import { withWebAuth, type WebAuthContext } from "@/lib/auth/web-session";
 import { prisma } from "@/lib/db/prisma";
 import { apiSuccess, apiError, notFound } from "@/lib/api/response";
+import {
+  syncUserMembershipFromSubscriptions,
+} from "@/lib/membership/entitlements";
 
 // GET: 내 구독 현황 목록
 export const GET = withWebAuth(async (req: Request, ctx: WebAuthContext) => {
+  const now = Date.now();
   // 본인 구독 전체 조회 (활성 + 취소 모두)
   const subscriptions = await prisma.user_subscriptions.findMany({
     where: { user_id: ctx.userId },
@@ -48,10 +52,11 @@ export const GET = withWebAuth(async (req: Request, ctx: WebAuthContext) => {
     expires_at: s.expires_at?.toISOString() ?? null,
     // 만료일이 미래이고 active면 이용 가능
     is_usable:
-      s.status === "active" ||
+      (s.status === "active" &&
+        (s.expires_at === null || s.expires_at.getTime() > now)) ||
       (s.status === "cancelled" &&
         s.expires_at != null &&
-        s.expires_at.getTime() > Date.now()),
+        s.expires_at.getTime() > now),
     created_at: s.created_at.toISOString(),
   }));
 
@@ -91,12 +96,18 @@ export const DELETE = withWebAuth(async (req: Request, ctx: WebAuthContext) => {
   }
 
   // 상태를 cancelled로 변경 (만료일까지는 이용 가능)
-  await prisma.user_subscriptions.update({
-    where: { id: subscriptionId },
-    data: {
-      status: "cancelled",
-      updated_at: new Date(),
-    },
+  await prisma.$transaction(async (tx) => {
+    await tx.user_subscriptions.update({
+      where: { id: subscriptionId },
+      data: {
+        status: "cancelled",
+        updated_at: new Date(),
+      },
+    });
+
+    await syncUserMembershipFromSubscriptions(ctx.userId, tx, {
+      allowDowngradeTrackedMembership: true,
+    });
   });
 
   return apiSuccess({

@@ -13,6 +13,7 @@ import { getAuthUser } from "@/lib/auth/get-auth-user";
 import { prisma } from "@/lib/db/prisma";
 import { WebLayoutInner } from "./_layout/web-layout-inner";
 import type { AppNavUser } from "@/components/bdr-v2/app-nav";
+import { determineRole } from "@/lib/auth/roles";
 
 // 2026-05-05 fix: force-dynamic — 로그인 직후 헤더 SSR 가 세션 미인지 (캐시) 문제 해결.
 //   본질: cookies() 사용 시 자동 dynamic 인식되지만 일부 케이스 (revalidatePath 후 SSR) 에서
@@ -73,7 +74,7 @@ export default async function WebLayout({ children }: { children: React.ReactNod
       const fallbackName = auth.session.email ? auth.session.email.split("@")[0] : "사용자";
       initialUser = {
         name: auth.user.nickname ?? auth.session.name ?? fallbackName,
-        role: auth.session.role ?? "user",
+        role: determineRole(auth.user),
         is_referee: !!referee,
       };
     } catch {
@@ -81,7 +82,7 @@ export default async function WebLayout({ children }: { children: React.ReactNod
       const fallbackName = auth.session.email ? auth.session.email.split("@")[0] : "사용자";
       initialUser = {
         name: auth.user.nickname ?? auth.session.name ?? fallbackName,
-        role: auth.session.role ?? "user",
+        role: determineRole(auth.user),
         is_referee: false,
       };
     }

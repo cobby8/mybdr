@@ -153,9 +153,26 @@ export const getAdminRoles = cache(
   ): Promise<AdminRoleSummary> => {
     // 1) JWT 기반 boolean 계산 — super/site/tournament_admin
     // 이유: AdminLayout 원본 로직과 정확히 동일 (정합성 보장).
-    const superAdmin = session?.role === "super_admin";
-    const siteAdmin = session?.admin_role === "site_admin";
-    const tournamentAdmin = session?.role === "tournament_admin";
+    const dbUser = prisma.user
+      ? await prisma.user
+          .findUnique({
+            where: { id: userId },
+            select: { membershipType: true, isAdmin: true, admin_role: true },
+          })
+          .catch(() => null)
+      : null;
+
+    // DB is the current source of truth; JWT remains a compatibility fallback.
+    const superAdmin =
+      dbUser?.isAdmin === true ||
+      dbUser?.admin_role === "super_admin" ||
+      session?.role === "super_admin" ||
+      session?.admin_role === "super_admin";
+    const siteAdmin =
+      dbUser?.admin_role === "site_admin" || session?.admin_role === "site_admin";
+    const tournamentAdmin =
+      (dbUser?.membershipType ?? 0) >= 3 ||
+      session?.role === "tournament_admin";
     // 2026-05-15 PR3 — recorder_admin (전역 기록원 관리자) 박제.
     //   isRecorderAdmin 은 isSuperAdmin 자동 흡수 → super_admin 보유자도 true 반환 (Q1 결재).
     //   UI 측 (RoleMatrixCard) 에서 super_admin 일 때는 "Super 자동" 표시 / 그 외 본인 권한 표시.

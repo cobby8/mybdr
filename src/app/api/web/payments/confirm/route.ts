@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { withWebAuth, type WebAuthContext } from "@/lib/auth/web-session";
 import { prisma } from "@/lib/db/prisma";
+import { syncUserMembershipFromSubscriptions } from "@/lib/membership/entitlements";
 
 export const GET = withWebAuth(async (req: Request, ctx: WebAuthContext) => {
   const { searchParams } = new URL(req.url);
@@ -93,6 +94,8 @@ export const GET = withWebAuth(async (req: Request, ctx: WebAuthContext) => {
           order_id: orderId,
         },
       });
+
+      await syncUserMembershipFromSubscriptions(ctx.userId, tx);
     });
   } catch (err) {
     console.error("[Subscription Create Error]", err);

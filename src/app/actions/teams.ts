@@ -55,9 +55,19 @@ export async function createTeamAction(_prevState: { error: string } | null, for
   let createdTeamId: bigint;
   try {
     const userId = BigInt(session.sub);
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { membershipType: true, isAdmin: true },
+    });
+    const mt = user?.membershipType ?? 0;
+    const isAdmin = user?.isAdmin ?? false;
+
+    if (!isAdmin && !canCreateTeam(mt)) {
+      return { error: "팀을 생성하려면 팀장 이상 계정이 필요합니다." };
+    }
 
     // 팀 한도 확인 (super_admin은 무제한)
-    if (session.role !== "super_admin") {
+    if (!isAdmin && session.role !== "super_admin") {
       const teamCount = await prisma.team.count({ where: { captainId: userId } });
       if (teamCount >= 5) {
         return { error: "팀은 최대 5개까지 생성할 수 있습니다." };

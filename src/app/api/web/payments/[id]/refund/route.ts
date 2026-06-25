@@ -13,6 +13,7 @@ import { NextRequest } from "next/server";
 import { withWebAuth, type WebAuthContext } from "@/lib/auth/web-session";
 import { prisma } from "@/lib/db/prisma";
 import { apiSuccess, apiError, notFound, forbidden } from "@/lib/api/response";
+import { syncUserMembershipFromSubscriptions } from "@/lib/membership/entitlements";
 
 // 환불 가능 기한: 결제 후 7일
 const REFUND_DEADLINE_MS = 7 * 24 * 60 * 60 * 1000;
@@ -113,10 +114,15 @@ export const POST = withWebAuth(
           },
           data: {
             status: "cancelled",
+            expires_at: now,
             updated_at: now,
           },
         });
       }
+
+      await syncUserMembershipFromSubscriptions(ctx.userId, tx, {
+        allowDowngradeTrackedMembership: true,
+      });
     });
 
     return apiSuccess({ message: "환불이 완료되었습니다." });

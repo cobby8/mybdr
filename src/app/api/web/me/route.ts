@@ -12,6 +12,7 @@ import {
 //   이유: referee 대시보드/사이드바/모바일 탭 UI 분기에서 "관리자 진입점" 노출 판정용.
 //         서버 단일 source — 클라이언트가 별도 API 호출 안 하도록 me 응답에 포함.
 import { isRecorderAdmin } from "@/lib/auth/is-recorder-admin";
+import { determineRole } from "@/lib/auth/roles";
 
 export const dynamic = "force-dynamic";
 
@@ -50,6 +51,7 @@ export async function GET() {
         //   isAdmin 도 같이 — super_admin 자동 흡수 일관 (DB isAdmin=true 이면 super_admin 처리).
         isAdmin: true,
         admin_role: true,
+        membershipType: true,
         // 맞춤 보기 토글 상태를 DB에서 직접 읽어옴 (디비전 존재 여부가 아닌 실제 저장값)
         prefer_filter_enabled: true,
         // 숨긴 메뉴 slug 배열 — 사이드/슬라이드 메뉴 필터링에 사용
@@ -185,7 +187,8 @@ export async function GET() {
     email: ctx.session.email,
     // DB nickname 우선, 없으면 JWT session.name 폴백 (2026-04-30 회귀 픽스 — 닉네임 변경 즉시 반영)
     name: user?.nickname ?? ctx.session.name,
-    role: ctx.session.role,
+    role: user ? determineRole(user) : ctx.session.role,
+    membership_type: user?.membershipType ?? null,
     profileImage: user?.profile_image_url || user?.profile_image || null,
     // DB에 저장된 실제 토글 상태값을 반환 (false면 OFF, true면 ON)
     prefer_filter_enabled: user?.prefer_filter_enabled ?? false,

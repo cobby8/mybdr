@@ -186,9 +186,8 @@ const USER_COLUMNS: Column<SerializedUser>[] = [
   },
   {
     key: "role",
-    // 2026-06-13 PR-PERM-DISPLAY — 2축 분리: 이 칼럼은 membershipType(구독 등급) 표시.
-    //   라벨만 "역할"→"구독 등급"으로 정정. render(getRoleInfo) 로직 무변경.
-    label: "구독 등급",
+    // 2026-06-25: 이 칼럼은 membershipType(회원 권한 등급) 표시.
+    label: "회원 등급",
     width: "120px",
     render: (u) => {
       // 시안 admin-stat-pill[data-tone] 박제
@@ -570,7 +569,7 @@ export function AdminUsersTable({
 
                     {/* 2026-05-05: Phase B 일부 — 구독/결제 (관리자 운영용) */}
                     <InfoSection title="구독" rows={[
-                      ["회원 등급", String(detail?.subscription.membershipType ?? u.membershipType)],
+                      ["회원 등급", getRoleInfo(detail?.subscription.membershipType ?? u.membershipType).label],
                       ["구독 상태", detail?.subscription.status ?? "-"],
                       ["구독 시작", fmtFull(detail?.subscription.startedAt ?? null)],
                       ["구독 만료", fmtFull(detail?.subscription.expiresAt ?? null)],

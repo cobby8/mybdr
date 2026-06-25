@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db/prisma";
 import { MEMBERSHIP_LABELS, type MembershipType } from "@/lib/auth/roles";
+import { getUserMembershipSnapshot } from "@/lib/membership/entitlements";
 import { Badge, DL, Panel, StatusBadge, type StatusMeta } from "@/components/admin/console-kit";
 import {
   DetailHead,
@@ -60,7 +61,7 @@ export default async function AdminUserDetailPage({
   const userId = parseBigIntId(id);
   if (!userId) notFound();
 
-  const [user, counts, seasonStats, gameApplications, payments] = await Promise.all([
+  const [user, counts, seasonStats, gameApplications, payments, membershipSnapshot] = await Promise.all([
     prisma.user.findUnique({
       where: { id: userId },
       select: {
@@ -148,6 +149,7 @@ export default async function AdminUserDetailPage({
         description: true,
       },
     }),
+    getUserMembershipSnapshot(userId),
   ]);
 
   if (!user) notFound();
@@ -253,9 +255,9 @@ export default async function AdminUserDetailPage({
               <DL
                 rows={[
                   ["등급", membershipLabel(user.membershipType)],
-                  ["상태", user.subscription_status ?? "-"],
-                  ["시작", formatDate(user.subscription_started_at)],
-                  ["만료", formatDate(user.subscription_expires_at)],
+                  ["상태", membershipSnapshot.subscriptionStatus],
+                  ["시작", formatDate(membershipSnapshot.subscriptionStartedAt)],
+                  ["만료", formatDate(membershipSnapshot.subscriptionExpiresAt)],
                   ["Provider", user.provider ?? "-"],
                 ]}
               />

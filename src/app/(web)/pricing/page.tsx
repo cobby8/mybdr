@@ -24,6 +24,7 @@ import type { Metadata } from "next";
 
 import { prisma } from "@/lib/db/prisma";
 import { getWebSession } from "@/lib/auth/web-session";
+import { usableSubscriptionWhere } from "@/lib/membership/entitlements";
 
 import { PricingContent, type PricingPlan } from "./_v2/pricing-content";
 
@@ -61,7 +62,10 @@ export default async function PricingPage() {
   if (session) {
     const subs = await prisma.user_subscriptions
       .findMany({
-        where: { user_id: BigInt(session.sub), status: "active" },
+        where: {
+          user_id: BigInt(session.sub),
+          ...usableSubscriptionWhere(),
+        },
         select: { plan_id: true },
       })
       .catch(() => []);

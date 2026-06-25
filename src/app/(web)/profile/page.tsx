@@ -38,6 +38,7 @@ import Link from "next/link";
 
 import { prisma } from "@/lib/db/prisma";
 import { getWebSession } from "@/lib/auth/web-session";
+import { usableSubscriptionWhere } from "@/lib/membership/entitlements";
 import { getPlayerStats } from "@/lib/services/user";
 import { getProfileLevelInfo } from "@/lib/profile/gamification";
 // 2026-05-05 Phase 2 PR8 — 휴면 만료 lazy 복구 hook (본인 시야 진입 시 자동 active)
@@ -104,6 +105,7 @@ export default async function ProfilePage() {
     recentPosts,
     recentApplications,
     userBadges,
+    usableSubscriptionCount,
   ] = await Promise.all([
     prisma.user
       .findUnique({
@@ -229,6 +231,14 @@ export default async function ProfilePage() {
         take: 4,
       })
       .catch(() => []),
+    prisma.user_subscriptions
+      .count({
+        where: {
+          user_id: userId,
+          ...usableSubscriptionWhere(now),
+        },
+      })
+      .catch(() => 0),
   ]);
 
   if (!user) {
@@ -266,7 +276,7 @@ export default async function ProfilePage() {
 
   // ---- Hero 데이터 변환 ----
   const level = getProfileLevelInfo(user.xp);
-  const isPro = user.subscription_status === "active";
+  const isPro = usableSubscriptionCount > 0;
   const isVerified = !!user.profile_completed;
   const evaluationRating = user.evaluation_rating != null ? Number(user.evaluation_rating) : null;
 
