@@ -31,6 +31,7 @@ const SIDEBAR_ICON: Record<string, string> = {
   settings: "settings",
   // A1 IA 재편 — 시스템 그룹 "알림" 항목 아이콘 (Material notifications → lucide bell)
   notifications: "bell",
+  bot: "bot",
   // Track B 종별 관리 — 그리드형 카테고리 뷰 아이콘
   grid_view: "layout-grid",
   add_circle: "circle-plus",
@@ -167,6 +168,7 @@ export const navStructure: AdminNavEntry[] = [
       { type: "item", href: "/admin/categories", label: "종별 관리", icon: "grid_view", roles: ["super_admin"] },
       // A1 — 알림(/admin/notifications) 명시 추가 (라우트 기존 존재·메뉴 누락분). 발송 = super_admin 전용.
       { type: "item", href: "/admin/notifications", label: "알림", icon: "notifications", roles: ["super_admin"] },
+      { type: "item", href: "/admin/agents", label: "에이전트", icon: "bot", roles: ["super_admin"] },
       { type: "item", href: "/admin/logs", label: "활동 로그", icon: "list_alt", roles: ["super_admin"] },
       { type: "item", href: "/admin/settings", label: "시스템 설정", icon: "settings", roles: ["super_admin"] },
     ],
