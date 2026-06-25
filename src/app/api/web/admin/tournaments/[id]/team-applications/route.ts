@@ -39,6 +39,7 @@ import { getWebSession } from "@/lib/auth/web-session";
 import { canManageTournament } from "@/lib/auth/tournament-permission";
 import { newApplyToken } from "@/lib/utils/apply-token";
 import { adminLog } from "@/lib/admin/log";
+import { normalizeNumberMap } from "@/lib/tournaments/division-rule-sync";
 
 // POST 입력 zod 스키마
 // - teamName: 1~50자 (한글/영문/숫자 자유)
@@ -100,7 +101,7 @@ export async function GET(req: NextRequest, { params }: Ctx) {
   const [tournament, divisionRules, teams] = await Promise.all([
     prisma.tournament.findUnique({
       where: { id: tournamentId },
-      select: { roster_min: true, roster_max: true },
+      select: { roster_min: true, roster_max: true, div_caps: true },
     }),
     // 2026-05-12 Phase 4-B — 종별 변경 드롭다운용 룰 목록
     prisma.tournamentDivisionRule.findMany({
@@ -163,11 +164,16 @@ export async function GET(req: NextRequest, { params }: Ctx) {
     };
   });
 
+  const divCaps = normalizeNumberMap(tournament?.div_caps);
+
   return apiSuccess({
     teams: rows,
     rosterMin: tournament?.roster_min ?? null,
     rosterMax: tournament?.roster_max ?? null,
-    divisionRules,
+    divisionRules: divisionRules.map((rule) => ({
+      ...rule,
+      cap: divCaps[rule.label] ?? divCaps[rule.code] ?? null,
+    })),
   });
 }
 

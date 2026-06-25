@@ -35,6 +35,7 @@ import {
 // 2026-06-22 F-2b — 디비전 일정(날짜/코트) 역참조 표시 헬퍼
 import {
   resolveDivisionSchedule,
+  allCourts,
   type ScheduleDateLite,
   type PlaceLite,
   type DivScheduleEntry,
@@ -189,6 +190,32 @@ export default function DivisionsSetupPage() {
     );
   };
 
+  const getDivisionSchedule = (division: string) => {
+    const entry = divSchedule.find((item) => item.division === division);
+    return {
+      dateId: entry?.date_id ?? "",
+      courtId: entry?.court_id ?? "",
+    };
+  };
+
+  const updateDivisionSchedule = (
+    division: string,
+    patch: Partial<Pick<DivScheduleEntry, "date_id" | "court_id">>,
+  ) => {
+    setSyncResult(null);
+    setDivSchedule((prev) => {
+      const existing = prev.find((item) => item.division === division);
+      const next = {
+        division,
+        date_id: patch.date_id !== undefined ? patch.date_id : existing?.date_id,
+        court_id: patch.court_id !== undefined ? patch.court_id : existing?.court_id,
+      };
+      const withoutCurrent = prev.filter((item) => item.division !== division);
+      if (!next.date_id && !next.court_id) return withoutCurrent;
+      return [...withoutCurrent, next];
+    });
+  };
+
   const syncDivisions = async () => {
     const categories = Object.fromEntries(
       currentCategories.map((item) => [
@@ -210,6 +237,24 @@ export default function DivisionsSetupPage() {
           .map((division) => [division.name, division.fee]),
       ),
     );
+    const selectedDivisionNames = new Set(
+      currentCategories.flatMap((item) =>
+        item.divisions.map((division) => division.name),
+      ),
+    );
+    const divScheduleMap = Object.fromEntries(
+      divSchedule
+        .filter(
+          (entry) =>
+            selectedDivisionNames.has(entry.division) &&
+            entry.date_id &&
+            entry.court_id,
+        )
+        .map((entry) => [
+          entry.division,
+          { dateId: entry.date_id, courtId: entry.court_id },
+        ]),
+    );
 
     setSyncing(true);
     setError(null);
@@ -220,7 +265,7 @@ export default function DivisionsSetupPage() {
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ categories, divCaps, divFees }),
+          body: JSON.stringify({ categories, divCaps, divFees, divSchedule: divScheduleMap }),
         },
       );
       const json = await res.json();
@@ -231,6 +276,11 @@ export default function DivisionsSetupPage() {
 
       setRules((json.rules ?? []) as DivisionRule[]);
       setCurrentCategories((json.current_categories ?? []) as CurrentCategory[]);
+      setDivSchedule(
+        Array.isArray(json.div_schedule)
+          ? (json.div_schedule as DivScheduleEntry[])
+          : [],
+      );
       const result = json.sync_result;
       setSyncResult(
         result
@@ -310,6 +360,8 @@ export default function DivisionsSetupPage() {
       setSavingId(null);
     }
   };
+
+  const courtOptions = allCourts(places);
 
   if (loading) {
     return (
@@ -417,47 +469,93 @@ export default function DivisionsSetupPage() {
 
                 {selected && selected.divisions.length > 0 && (
                   <div className="mt-3 space-y-2">
-                    {selected.divisions.map((division) => (
-                      <div
-                        key={division.name}
-                        className="grid gap-2 sm:grid-cols-[minmax(80px,1fr)_120px_120px]"
-                      >
-                        <div className="flex min-h-[48px] items-center rounded-[12px] bg-[var(--grey-50)] px-3 text-sm font-semibold text-[var(--ink)]">
-                          {division.name}
+                    {selected.divisions.map((division) => {
+                      const schedule = getDivisionSchedule(division.name);
+                      const selectedDate = scheduleDates.find(
+                        (date) => date.id === schedule.dateId,
+                      );
+                      const availableCourts =
+                        selectedDate?.court_ids?.length
+                          ? courtOptions.filter((court) =>
+                              selectedDate.court_ids?.includes(court.id),
+                            )
+                          : courtOptions;
+
+                      return (
+                        <div
+                          key={division.name}
+                          className="grid gap-2 sm:grid-cols-2 xl:grid-cols-[minmax(92px,1fr)_88px_100px_minmax(128px,1.15fr)_minmax(136px,1.2fr)]"
+                        >
+                          <div className="flex min-h-[44px] items-center rounded-[12px] bg-[var(--grey-50)] px-3 text-sm font-semibold text-[var(--ink)]">
+                            {division.name}
+                          </div>
+                          <input
+                            type="number"
+                            min={0}
+                            value={division.cap ?? ""}
+                            onChange={(e) =>
+                              updateDivisionNumber(
+                                category.name,
+                                division.name,
+                                "cap",
+                                e.target.value,
+                              )
+                            }
+                            className="ts-input min-h-[44px]"
+                            placeholder="정원"
+                          />
+                          <input
+                            type="number"
+                            min={0}
+                            step={1000}
+                            value={division.fee ?? ""}
+                            onChange={(e) =>
+                              updateDivisionNumber(
+                                category.name,
+                                division.name,
+                                "fee",
+                                e.target.value,
+                              )
+                            }
+                            className="ts-input min-h-[44px]"
+                            placeholder="참가비"
+                          />
+                          <select
+                            value={schedule.dateId}
+                            onChange={(e) =>
+                              updateDivisionSchedule(division.name, {
+                                date_id: e.target.value,
+                                court_id: "",
+                              })
+                            }
+                            className="ts-select min-h-[44px]"
+                          >
+                            <option value="">일정 선택</option>
+                            {scheduleDates.map((date) => (
+                              <option key={date.id} value={date.id}>
+                                {date.date}
+                              </option>
+                            ))}
+                          </select>
+                          <select
+                            value={schedule.courtId}
+                            onChange={(e) =>
+                              updateDivisionSchedule(division.name, {
+                                court_id: e.target.value,
+                              })
+                            }
+                            className="ts-select min-h-[44px]"
+                          >
+                            <option value="">체육관 선택</option>
+                            {availableCourts.map((court) => (
+                              <option key={court.id} value={court.id}>
+                                {court.full}
+                              </option>
+                            ))}
+                          </select>
                         </div>
-                        <input
-                          type="number"
-                          min={0}
-                          value={division.cap ?? ""}
-                          onChange={(e) =>
-                            updateDivisionNumber(
-                              category.name,
-                              division.name,
-                              "cap",
-                              e.target.value,
-                            )
-                          }
-                          className="ts-input"
-                          placeholder="정원"
-                        />
-                        <input
-                          type="number"
-                          min={0}
-                          step={1000}
-                          value={division.fee ?? ""}
-                          onChange={(e) =>
-                            updateDivisionNumber(
-                              category.name,
-                              division.name,
-                              "fee",
-                              e.target.value,
-                            )
-                          }
-                          className="ts-input"
-                          placeholder="참가비"
-                        />
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>

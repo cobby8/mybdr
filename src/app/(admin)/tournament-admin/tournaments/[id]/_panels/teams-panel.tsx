@@ -63,6 +63,12 @@ type TokenInfo = {
   updatedAt: string;
 };
 
+type DivisionRuleOption = {
+  code: string;
+  label: string;
+  cap: number | null;
+};
+
 /* ---------- 상수 ---------- */
 
 const STATUS_LABEL: Record<string, string> = {
@@ -110,7 +116,7 @@ export default function TournamentTeamsPage() {
     max: null,
   });
   // 2026-05-12 Phase 4-B — 종별 룰 목록 (드롭다운용)
-  const [divisionRules, setDivisionRules] = useState<Array<{ code: string; label: string }>>([]);
+  const [divisionRules, setDivisionRules] = useState<DivisionRuleOption[]>([]);
   // 모달 inline 편집 상태 (코치 / 종별 / import)
   const [editingManager, setEditingManager] = useState(false);
   const [managerForm, setManagerForm] = useState({ name: "", phone: "" });
@@ -202,7 +208,7 @@ export default function TournamentTeamsPage() {
           max: typeof json?.roster_max === "number" ? json.roster_max : null,
         });
         // Phase 4-B 종별 룰 (드롭다운용)
-        setDivisionRules((json?.division_rules ?? []) as Array<{ code: string; label: string }>);
+        setDivisionRules((json?.division_rules ?? []) as DivisionRuleOption[]);
       }
     } catch { /* ignore */ } finally {
       setLoading(false);
@@ -469,6 +475,25 @@ export default function TournamentTeamsPage() {
     self: teams.filter((tt) => tokenMap[tt.id]?.appliedVia === "self").length,
     null: teams.filter((tt) => !tokenMap[tt.id]?.appliedVia).length,
   };
+  const approvedTeams = teams.filter((tt) => tt.status === "approved");
+  const divisionReadiness = divisionRules.map((rule) => {
+    const approved = approvedTeams.filter(
+      (tt) => tokenMap[tt.id]?.category === rule.code,
+    ).length;
+    const total = teams.filter((tt) => tokenMap[tt.id]?.category === rule.code).length;
+    const overCapacity = rule.cap != null && approved > rule.cap;
+    return {
+      ...rule,
+      approved,
+      total,
+      overCapacity,
+      ready: approved >= 2 && !overCapacity,
+    };
+  });
+  const unassignedApprovedCount = approvedTeams.filter(
+    (tt) => !tokenMap[tt.id]?.category,
+  ).length;
+  const readyDivisionCount = divisionReadiness.filter((item) => item.ready).length;
 
   if (loading) return <PanelLoadingState label="참가팀 정보를 준비 중입니다." />;
 
@@ -521,6 +546,80 @@ export default function TournamentTeamsPage() {
       {/* 통계 탭 — status 분류 + 코치 미입력 (운영자 박제 + 코치 명단 0건)
           2026-05-12 — 탭 필터 pill 9999px ❌ + admin 빨강 본문 금지 룰 → rounded-[4px] + info(Navy) 활성 톤.
           count 뱃지 (rounded-full px-1.5 py-0.5) = 작은 정사각형 chip → 보존 (룰 10 예외) */}
+      {divisionRules.length > 0 && (
+        <section
+          className="mb-4 rounded-[18px] border bg-[var(--card)] p-3"
+          style={{ borderColor: "var(--color-border)" }}
+        >
+          <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
+              <h2 className="text-sm font-bold text-[var(--ink)]">종별 배정 현황</h2>
+              <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">
+                승인팀 기준 {readyDivisionCount}/{divisionRules.length}개 종별 대진 준비
+              </p>
+            </div>
+            <Link
+              href={`/tournament-admin/tournaments/${id}#bracket`}
+              className="ts-btn ts-btn--secondary ts-btn--sm"
+            >
+              대진추첨으로
+            </Link>
+          </div>
+          <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+            {divisionReadiness.map((item) => (
+              <div
+                key={item.code}
+                className="rounded-[14px] border bg-[var(--grey-50)] p-3"
+                style={{ borderColor: "var(--color-border)" }}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-bold text-[var(--ink)]">
+                      {item.label}
+                    </p>
+                    <p className="mt-1 text-xs text-[var(--color-text-muted)]">
+                      전체 {item.total}팀 · 승인 {item.approved}
+                      {item.cap != null ? ` / 정원 ${item.cap}` : ""}
+                    </p>
+                  </div>
+                  <span
+                    className="rounded-[8px] px-2 py-0.5 text-[10px] font-semibold"
+                    style={{
+                      background: item.overCapacity
+                        ? "color-mix(in srgb, var(--color-error) 14%, transparent)"
+                        : item.ready
+                          ? "color-mix(in srgb, var(--color-success) 14%, transparent)"
+                          : "var(--color-elevated)",
+                      color: item.overCapacity
+                        ? "var(--color-error)"
+                        : item.ready
+                          ? "var(--color-success)"
+                          : "var(--color-text-muted)",
+                    }}
+                  >
+                    {item.overCapacity ? "정원 초과" : item.ready ? "준비" : "대기"}
+                  </span>
+                </div>
+              </div>
+            ))}
+            {unassignedApprovedCount > 0 && (
+              <div
+                className="rounded-[14px] border p-3"
+                style={{
+                  borderColor: "var(--color-warning)",
+                  background: "color-mix(in srgb, var(--color-warning) 8%, transparent)",
+                }}
+              >
+                <p className="text-sm font-bold text-[var(--ink)]">종별 미배정</p>
+                <p className="mt-1 text-xs text-[var(--color-text-muted)]">
+                  승인팀 {unassignedApprovedCount}팀의 종별을 먼저 지정해야 합니다.
+                </p>
+              </div>
+            )}
+          </div>
+        </section>
+      )}
+
       <div className="mb-4 flex flex-wrap gap-2">
         {(["all", "pending", "approved", "rejected", "coach_pending"] as const).map((s) => (
           <button
