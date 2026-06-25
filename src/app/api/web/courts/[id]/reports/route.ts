@@ -12,6 +12,7 @@ import { apiSuccess, apiError } from "@/lib/api/response";
 import { REPORT_TYPE_KEYS } from "@/lib/constants/court";
 import { addXP } from "@/lib/services/gamification";
 import { XP_REWARDS } from "@/lib/constants/gamification";
+import { scheduleCustomerSignalReport } from "@/lib/customer-signals/report-mailer";
 
 type RouteCtx = { params: Promise<{ id: string }> };
 
@@ -77,7 +78,7 @@ export async function POST(
   // 코트 존재 확인
   const court = await prisma.court_infos.findUnique({
     where: { id: courtId },
-    select: { id: true },
+    select: { id: true, name: true, address: true },
   });
   if (!court) {
     return apiError("존재하지 않는 코트입니다", 404, "NOT_FOUND");
@@ -117,7 +118,7 @@ export async function POST(
       photos,
     },
     include: {
-      users: { select: { nickname: true } },
+      users: { select: { nickname: true, email: true } },
     },
   });
 
@@ -126,6 +127,28 @@ export async function POST(
 
   // 게이미피케이션: 제보 작성 XP 부여
   await addXP(userId, XP_REWARDS.report, "report");
+
+  scheduleCustomerSignalReport({
+    type: "court_report",
+    title: `코트 제보: ${court.name}`,
+    content: body.description?.trim() || `제보 유형: ${body.report_type}`,
+    reporter: {
+      id: userId.toString(),
+      name: report.users?.nickname,
+      email: report.users?.email,
+    },
+    sourceUrl: `/courts/${courtId.toString()}`,
+    adminUrl: "/admin/inbox",
+    metadata: {
+      court_id: courtId.toString(),
+      court_name: court.name,
+      court_address: court.address,
+      report_id: report.id.toString(),
+      report_type: report.report_type,
+      photos_count: photos.length,
+    },
+    createdAt: report.created_at,
+  });
 
   return apiSuccess(
     {

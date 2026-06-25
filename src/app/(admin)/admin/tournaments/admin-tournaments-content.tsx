@@ -76,10 +76,12 @@ const STATUS_META: Record<string, StatusMeta> = {
 };
 
 const FORMAT_LABEL: Record<string, string> = {
-  single_elimination: "토너먼트", double_elimination: "더블 엘리미네이션",
-  round_robin: "리그전", group_stage: "조별리그", group_stage_knockout: "조별리그+토너먼트",
+  single_elimination: "토너먼트", double_elimination: "더블 토너먼트",
+  round_robin: "풀리그", group_stage: "조별리그", group_stage_knockout: "조별리그+토너먼트",
   GROUP_STAGE_KNOCKOUT: "조별리그+토너먼트", dual_tournament: "듀얼토너먼트",
-  full_league_knockout: "풀리그+토너먼트", swiss: "스위스 라운드",
+  league_advancement: "링크제", group_stage_with_ranking: "조별리그+동순위 순위결정전",
+  full_league_knockout: "풀리그+토너먼트", swiss: "스위스 라운드", league: "풀리그",
+  "round_robin|single_elimination": "풀리그+토너먼트",
 };
 
 // 탭 라벨(useFilter 의 클라 탭 필터용)

@@ -84,24 +84,30 @@ function shortRoundLabel(roundName: string | null | undefined): string {
 
 // 토너먼트 포맷 → eyebrow 라벨
 function formatToEyebrow(format: string | null): string {
-  if (!format) return "BRACKET";
+  if (!format) return "대진표";
   const norm = format.toLowerCase().replace(/-/g, "_");
   switch (norm) {
     case "single_elimination":
-      return "BRACKET · SINGLE ELIMINATION";
-    case "double_elimination":
-      return "BRACKET · DOUBLE ELIMINATION";
+      return "대진표 · 토너먼트";
     case "dual_tournament":
-      return "BRACKET · DUAL TOURNAMENT";
+      return "대진표 · 듀얼토너먼트";
     case "round_robin":
     case "full_league":
-      return "BRACKET · ROUND ROBIN";
-    case "full_league_knockout":
-      return "BRACKET · LEAGUE + KNOCKOUT";
+      return "대진표 · 풀리그";
     case "group_stage_knockout":
-      return "BRACKET · GROUP + KNOCKOUT";
+      return "대진표 · 조별리그+토너먼트";
+    case "league_advancement":
+      return "대진표 · 링크제";
+    case "group_stage_with_ranking":
+      return "대진표 · 조별리그+동순위 순위결정전";
+    case "double_elimination":
+      return "대진표 · 더블 토너먼트";
+    case "full_league_knockout":
+      return "대진표 · 풀리그+토너먼트";
+    case "swiss":
+      return "대진표 · 스위스 라운드";
     default:
-      return `BRACKET · ${format.toUpperCase()}`;
+      return `대진표 · ${format}`;
   }
 }
 
@@ -120,18 +126,24 @@ function buildSubtitle(opts: {
     const norm = opts.format?.toLowerCase().replace(/-/g, "_") ?? "";
     switch (norm) {
       case "single_elimination":
-        return "싱글 엘리미네이션";
-      case "double_elimination":
-        return "더블 엘리미네이션";
+        return "토너먼트";
       case "dual_tournament":
         return "듀얼토너먼트";
       case "round_robin":
       case "full_league":
         return "풀리그";
-      case "full_league_knockout":
-        return "풀리그 + 토너먼트";
       case "group_stage_knockout":
-        return "조별 + 토너먼트";
+        return "조별리그+토너먼트";
+      case "league_advancement":
+        return "링크제";
+      case "group_stage_with_ranking":
+        return "조별리그+동순위 순위결정전";
+      case "double_elimination":
+        return "더블 토너먼트";
+      case "full_league_knockout":
+        return "풀리그+토너먼트";
+      case "swiss":
+        return "스위스 라운드";
       default:
         return null;
     }

@@ -359,13 +359,17 @@ export default function TournamentTeamsPage() {
     } catch { /* ignore */ }
   };
 
-  const autoDrawDivision = async (rule: DivisionRuleOption) => {
+  const autoDrawDivision = async (
+    rule: DivisionRuleOption,
+    mode: "random" | "seeded" = "random",
+  ) => {
     const ready = divisionReadiness.find((item) => item.code === rule.code);
     if (!ready || ready.approved < 2) {
       showToast("승인팀이 2팀 이상이어야 조편성을 할 수 있습니다.");
       return;
     }
-    if (!confirm(`${rule.label} 승인팀 ${ready.approved}팀을 자동 조편성하고 시드를 다시 배정할까요?`)) {
+    const modeLabel = mode === "seeded" ? "시드 반영" : "랜덤";
+    if (!confirm(`${rule.label} 승인팀 ${ready.approved}팀을 ${modeLabel} 방식으로 조편성할까요?`)) {
       return;
     }
     setDrawingDivision(rule.code);
@@ -373,7 +377,7 @@ export default function TournamentTeamsPage() {
       const res = await fetch(`/api/web/admin/tournaments/${id}/division-draw`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ divisionCode: rule.code }),
+        body: JSON.stringify({ divisionCode: rule.code, mode }),
       });
       const json = await res.json();
       if (!res.ok) {
@@ -631,14 +635,24 @@ export default function TournamentTeamsPage() {
                     {item.overCapacity ? "정원 초과" : item.ready ? "준비" : "대기"}
                   </span>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => autoDrawDivision(item)}
-                  disabled={drawingDivision === item.code || item.approved < 2}
-                  className="ts-btn ts-btn--secondary ts-btn--sm mt-3 w-full"
-                >
-                  {drawingDivision === item.code ? "조편성 중..." : "자동 조편성"}
-                </button>
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => autoDrawDivision(item, "random")}
+                    disabled={drawingDivision === item.code || item.approved < 2}
+                    className="ts-btn ts-btn--secondary ts-btn--sm w-full"
+                  >
+                    {drawingDivision === item.code ? "조편성 중..." : "랜덤"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => autoDrawDivision(item, "seeded")}
+                    disabled={drawingDivision === item.code || item.approved < 2}
+                    className="ts-btn ts-btn--secondary ts-btn--sm w-full"
+                  >
+                    시드 반영
+                  </button>
+                </div>
               </div>
             ))}
             {unassignedApprovedCount > 0 && (

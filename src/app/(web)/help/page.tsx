@@ -6,13 +6,13 @@
  * 이유: 신규 사용자가 FAQ·용어·정책을 한 화면에서 빠르게 훑어볼
  *      통합 허브. 시안(Dev/design/BDR-current/screens/Help.jsx +
  *      info-shared.jsx HELP_FAQ/GLOSSARY_MINI/HELP_POLICY)을 그대로
- *      박제. 검색(FAQ+용어 동시) + 탭 3종 + 1:1 문의 안내.
+ *      박제. 검색(FAQ+용어 동시) + 탭 3종 + 1:1 문의 진입.
  *
  * 박제 원칙 (CLAUDE.md):
  *  - API/Prisma/서비스 0 변경. 데이터는 시안 박제(상수). DB 없음.
  *  - /help/glossary 페이지 0 변경. "전체 용어 사전 보기 →" 링크로만 연결.
  *  - 정책 카드: terms / privacy 만 활성. 나머지 4종은 "준비 중" 비활성.
- *  - 1:1 문의: Inquiry 모델 미존재 → UI만 배치(mailto 안내).
+ *  - 1:1 문의: /help/contact 접수 폼으로 연결.
  *  - var(--*) 토큰만 / Material Symbols Outlined만 / lucide-react 금지.
  *  - .hlp-* 클래스는 globals.css 의 IU3 블록(시안 info-shared.css 이식) 사용.
  *
@@ -223,20 +223,19 @@ export default function HelpPage() {
           </div>
         )}
 
-        {/* 1:1 문의 — Inquiry 모델 미존재 → mailto 안내 (mock 미구현) */}
+        {/* 1:1 문의 — /help/contact 고객신호 접수 폼으로 연결 */}
         <div className="hlp-contact">
           <h3 className="hlp-contact__t">원하는 답을 찾지 못하셨나요?</h3>
           <p className="hlp-contact__d">운영팀이 평일 1~2일 내에 답변드립니다.</p>
-          {/* mailto: 제목 prefill — 추후 Inquiry 모델 도입 시 교체 */}
-          <a
-            href="mailto:bdrbasket@gmail.com?subject=%5BMyBDR%20%EB%AC%B8%EC%9D%98%5D%20"
+          <Link
+            href="/help/contact"
             className="btn btn--accent"
           >
             <span className="ico material-symbols-outlined" aria-hidden>
               mail
             </span>
             1:1 문의하기
-          </a>
+          </Link>
         </div>
       </div>
     </div>
