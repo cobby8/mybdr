@@ -13,6 +13,7 @@ Updated: 2026-06-25
 | lessons.md | 0 | - |
 
 Recent work:
+- 2026-06-25 agents: 상황별 운영 워크플로우 문서로 작은 수정/UI/DB/`api/v1`/배포/장애 대응 에이전트 호출 순서를 고정.
 - 2026-06-25 agents: BDR 운영 에이전트에 reviewer/release/ops/content/db 역할과 기록 앱 liaison 협업 게이트를 추가.
 - 2026-06-25 admin: 종별별 승인팀 자동 조편성 API와 참가팀 화면 버튼을 추가해 `groupName`/`seedNumber`를 대진 생성 전 준비할 수 있게 함.
 - 2026-06-25 admin: 대회 생성의 종별 일정/체육관 배정을 관리 저장 API와 정합시키고 참가팀 화면에 승인팀 기준 종별별 대진 준비 현황을 추가.
