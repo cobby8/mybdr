@@ -284,7 +284,7 @@ export default function DivisionsSetupPage() {
       const result = json.sync_result;
       setSyncResult(
         result
-          ? `저장 완료 · 신규 ${result.created ?? 0}건 · 갱신 ${result.updated ?? 0}건`
+          ? `저장 완료 · 신규 ${result.created ?? 0}건 · 갱신 ${result.updated ?? 0}건 · 삭제 ${result.deleted ?? 0}건`
           : "저장 완료",
       );
     } catch {
@@ -730,6 +730,7 @@ function GroupSettingsInputs(props: {
   onSave: (settings: Record<string, unknown>) => void;
 }) {
   const { format, settings, saving, onSave } = props;
+  const isDualTournament = format === "dual_tournament";
 
   // 기존 settings 의 group_size / group_count / ranking_format / advance_per_group 추출 (legacy 키 호환)
   const initialGroupSize =
@@ -746,28 +747,34 @@ function GroupSettingsInputs(props: {
 
   // 로컬 상태 (input 입력값) — 빈 문자열 허용 (사용자가 일시적으로 비울 수 있음)
   const [groupSize, setGroupSize] = useState<string>(
-    initialGroupSize != null ? String(initialGroupSize) : "",
+    initialGroupSize != null ? String(initialGroupSize) : isDualTournament ? "4" : "",
   );
   const [groupCount, setGroupCount] = useState<string>(
     initialGroupCount != null ? String(initialGroupCount) : "",
   );
   const [rankingFormat, setRankingFormat] = useState<string>(initialRankingFormat);
   const [advancePerGroup, setAdvancePerGroup] = useState<string>(
-    initialAdvancePerGroup != null ? String(initialAdvancePerGroup) : "",
+    initialAdvancePerGroup != null ? String(initialAdvancePerGroup) : isDualTournament ? "2" : "",
   );
 
   // 총 팀 수 계산 (group_size × group_count) — division-formats.ts 헬퍼 사용
   const totalTeams = calculateTotalTeams(
-    groupSize !== "" ? Number(groupSize) : null,
+    isDualTournament ? 4 : groupSize !== "" ? Number(groupSize) : null,
     groupCount !== "" ? Number(groupCount) : null,
   );
+  const effectiveAdvancePerGroup = isDualTournament
+    ? 2
+    : advancePerGroup !== ""
+      ? Number(advancePerGroup)
+      : ADVANCE_PER_GROUP_DEFAULT;
 
   // 저장 트리거 — 기존 settings + 신규 키 머지 (legacy linkage_pairs / advanceCount 보존)
   const handleSave = () => {
     const next: Record<string, unknown> = { ...(settings ?? {}) };
 
     // group_size / group_count: 빈 값이면 키 삭제
-    if (groupSize === "") delete next.group_size;
+    if (isDualTournament) next.group_size = 4;
+    else if (groupSize === "") delete next.group_size;
     else next.group_size = Number(groupSize);
 
     if (groupCount === "") delete next.group_count;
@@ -781,7 +788,8 @@ function GroupSettingsInputs(props: {
     // 2026-05-13 — advance_per_group: 조별리그→본선 enum (3개) 일 때만 박제
     // (group_stage_knockout / full_league_knockout / dual_tournament)
     if (shouldShowAdvancePerGroup(format)) {
-      if (advancePerGroup === "") delete next.advance_per_group;
+      if (isDualTournament) next.advance_per_group = 2;
+      else if (advancePerGroup === "") delete next.advance_per_group;
       else next.advance_per_group = Number(advancePerGroup);
     } else {
       // 노출 조건이 아닌 enum 으로 전환 시 기존 키 정리 (의미 없는 박제 잔존 방지)
@@ -794,14 +802,14 @@ function GroupSettingsInputs(props: {
   return (
     <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
       <label className="ts-field text-xs text-[var(--ink-mute)]">
-        조 크기 (팀)
+        {isDualTournament ? "조 크기 (고정)" : "조 크기 (팀)"}
         <input
           type="number"
           min={1}
           max={32}
           step={1}
-          value={groupSize}
-          disabled={saving}
+          value={isDualTournament ? "4" : groupSize}
+          disabled={saving || isDualTournament}
           onChange={(e) => setGroupSize(e.target.value)}
           onBlur={handleSave}
           className="ts-input mt-1"
@@ -860,14 +868,14 @@ function GroupSettingsInputs(props: {
           UI: group_size 가 max 상한 (조 크기 초과 진출 불가). default 2 = 생활체육 표준 1·2위 */}
       {shouldShowAdvancePerGroup(format) && (
         <label className="ts-field text-xs text-[var(--ink-mute)]">
-          조별 본선 진출 팀 수
+          {isDualTournament ? "조별 진출 팀 수 (고정)" : "조별 본선 진출 팀 수"}
           <input
             type="number"
             min={1}
-            max={groupSize !== "" ? Number(groupSize) : 32}
+            max={isDualTournament ? 4 : groupSize !== "" ? Number(groupSize) : 32}
             step={1}
-            value={advancePerGroup}
-            disabled={saving}
+            value={isDualTournament ? "2" : advancePerGroup}
+            disabled={saving || isDualTournament}
             onChange={(e) => setAdvancePerGroup(e.target.value)}
             onBlur={handleSave}
             className="ts-input mt-1"
@@ -884,8 +892,7 @@ function GroupSettingsInputs(props: {
           <>
             {" / "}
             총 본선 진출 ={" "}
-            {(advancePerGroup !== "" ? Number(advancePerGroup) : ADVANCE_PER_GROUP_DEFAULT) *
-              Number(groupCount)}
+            {effectiveAdvancePerGroup * Number(groupCount)}
             팀
           </>
         )}

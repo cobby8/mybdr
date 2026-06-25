@@ -129,8 +129,12 @@ export async function finalizeMatchCompletion(
     }),
   ]);
 
-  const isDual = tournament?.format === "dual_tournament";
   const settingsRaw = (matchRow?.settings ?? {}) as Record<string, unknown>;
+  const matchStage = typeof settingsRaw.stage === "string" ? settingsRaw.stage : null;
+  const isDual =
+    tournament?.format === "dual_tournament" ||
+    matchStage === "dual_group" ||
+    matchStage === "dual_knockout";
   const divisionCode =
     typeof settingsRaw.division_code === "string" ? settingsRaw.division_code : null;
   // caller 가 winnerTeamId 전달 안 했으면 DB 박제값 사용 (idempotent — 이미 service 가 박제 완료)
@@ -274,4 +278,3 @@ export async function finalizeMatchCompletion(
     steps,
   };
 }
-

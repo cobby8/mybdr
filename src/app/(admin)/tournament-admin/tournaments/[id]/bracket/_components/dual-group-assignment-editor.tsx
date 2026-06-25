@@ -183,11 +183,11 @@ export function DualGroupAssignmentEditor({
   }
 
   // 저장 — settings.bracket.groupAssignment + semifinalPairing PATCH
-  async function save() {
+  async function save(): Promise<boolean> {
     const v = validate();
     if (!v.ok) {
       setSaveError(v.error ?? "검증 실패");
-      return;
+      return false;
     }
     setSaving(true);
     setSaveError("");
@@ -225,8 +225,10 @@ export function DualGroupAssignmentEditor({
       }
       setSavedOnce(true);
       onSaved?.();
+      return true;
     } catch (e) {
       setSaveError(e instanceof Error ? e.message : "저장 중 오류");
+      return false;
     } finally {
       setSaving(false);
     }
@@ -239,11 +241,8 @@ export function DualGroupAssignmentEditor({
       setSaveError(v.error ?? "검증 실패");
       return;
     }
-    await save();
-    // save 가 setSaveError 했으면 중단
-    if (saveError) return;
-    // 약간의 시차 — settings PATCH 후 BE 가 settings 반영하도록 1 frame 양보
-    // (실제로는 PATCH response 받은 시점이면 DB committed 상태)
+    const saved = await save();
+    if (!saved) return;
     await onGenerate();
   }
 

@@ -37,6 +37,7 @@ import {
   generateGroupStageRankingMatches,
   generateGroupStageKnockoutMatches,
 } from "@/lib/tournaments/division-advancement";
+import { generateDivisionDualTournamentMatches } from "@/lib/tournaments/division-dual-generator";
 import { createBracketVersion, getBracketVersionStatus } from "@/lib/tournaments/bracket-version";
 import { adminLog } from "@/lib/admin/log";
 
@@ -44,6 +45,7 @@ type Ctx = { params: Promise<{ id: string; ruleId: string }> };
 
 // 본 endpoint 가 지원하는 format 화이트리스트 (대회 단위 format 은 bracket POST 사용)
 const SUPPORTED_FORMATS = new Set([
+  "dual_tournament",
   "league_advancement",
   "group_stage_with_ranking",
   "group_stage_knockout",
@@ -84,7 +86,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
   // 4) format 화이트리스트 검증 — 종별 단위 generator 지원 format 만 (그 외 = bracket POST)
   if (!rule.format || !SUPPORTED_FORMATS.has(rule.format)) {
     return apiError(
-      `종별 단위 generator 미지원 format=${rule.format ?? "null"}. 대회 단위 (single_elimination / dual_tournament / round_robin / swiss) 는 bracket 페이지의 "대진표 생성" 버튼을 사용하세요.`,
+      `종별 단위 대진 생성이 아직 지원되지 않는 방식입니다: format=${rule.format ?? "null"}.`,
       400,
     );
   }
@@ -135,6 +137,9 @@ export async function POST(req: NextRequest, { params }: Ctx) {
             break;
           case "group_stage_knockout":
             genResult = await generateGroupStageKnockoutMatches(tx, tournamentId, rule.code);
+            break;
+          case "dual_tournament":
+            genResult = await generateDivisionDualTournamentMatches(tx, tournamentId, rule.code);
             break;
           default:
             // 화이트리스트 통과한 이후라 이 분기는 도달 0 (방어적 분기)
