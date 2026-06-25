@@ -620,11 +620,76 @@ export function planGroupStagePrelimMatches(
   return specs;
 }
 
-function reorderDefaultEightTeamGroupKnockoutSlots(slots: Array<string | null>): Array<string | null> {
-  // 4개조 1·2위 진출 8강 기본형:
-  // 기존 1-2 / 3-4 묶음은 준결승에서 같은 예선 조 재대결 가능성이 있다.
-  // 2경기를 4경기 자리로 내리고 3·4경기를 한 칸씩 올려 1-3 / 4-2 묶음으로 고정한다.
-  return [slots[0], slots[1], slots[4], slots[5], slots[6], slots[7], slots[2], slots[3]];
+function arrangeHalfQualifierSlots(labels: string[], halfSize: number): Array<string | null> {
+  const pairCount = halfSize / 2;
+  const fullPairCount = Math.max(labels.length - pairCount, 0);
+  const byePairCount = pairCount - fullPairCount;
+  const leadingByePairs = Math.ceil(byePairCount / 2);
+  const result: Array<string | null> = [];
+  let cursor = 0;
+
+  for (let pairIndex = 0; pairIndex < pairCount; pairIndex++) {
+    const remainingPairs = pairCount - pairIndex;
+    const remainingLabels = labels.length - cursor;
+    const pairsNeedingTwoLabels = Math.max(remainingLabels - remainingPairs, 0);
+    const shouldFillPair = pairIndex >= leadingByePairs && pairsNeedingTwoLabels > 0;
+
+    result.push(labels[cursor++] ?? null);
+    result.push(shouldFillPair ? labels[cursor++] ?? null : null);
+  }
+
+  return result;
+}
+
+function buildMirroredTwoRankQualifierSlots(opts: {
+  groupCount: number;
+  bracketSize: number;
+}): Array<string | null> {
+  const { groupCount, bracketSize } = opts;
+  const halfSize = bracketSize / 2;
+  const mirroredPairs: Array<{ low: number; high: number }> = [];
+  for (let low = 1; low <= Math.floor(groupCount / 2); low++) {
+    mirroredPairs.push({ low, high: groupCount + 1 - low });
+  }
+
+  const topHalfLabels: string[] = [];
+  for (const pair of mirroredPairs) {
+    topHalfLabels.push(
+      buildSlotLabel({ kind: "group_rank", group: groupLabel(pair.low), rank: 1 }),
+      buildSlotLabel({ kind: "group_rank", group: groupLabel(pair.high), rank: 2 }),
+    );
+  }
+  if (groupCount % 2 === 1) {
+    topHalfLabels.push(
+      buildSlotLabel({
+        kind: "group_rank",
+        group: groupLabel(Math.ceil(groupCount / 2)),
+        rank: 1,
+      }),
+    );
+  }
+
+  const bottomHalfLabels: string[] = [];
+  if (groupCount % 2 === 1) {
+    bottomHalfLabels.push(
+      buildSlotLabel({
+        kind: "group_rank",
+        group: groupLabel(Math.ceil(groupCount / 2)),
+        rank: 2,
+      }),
+    );
+  }
+  for (const pair of [...mirroredPairs].reverse()) {
+    bottomHalfLabels.push(
+      buildSlotLabel({ kind: "group_rank", group: groupLabel(pair.high), rank: 1 }),
+      buildSlotLabel({ kind: "group_rank", group: groupLabel(pair.low), rank: 2 }),
+    );
+  }
+
+  return [
+    ...arrangeHalfQualifierSlots(topHalfLabels, halfSize),
+    ...arrangeHalfQualifierSlots(bottomHalfLabels, halfSize),
+  ];
 }
 
 export function planGroupStageKnockoutMatches(opts: {
@@ -642,18 +707,20 @@ export function planGroupStageKnockoutMatches(opts: {
   if (qualifierSlots.length < 2) return [];
 
   const totalRounds = Math.log2(bracketSize);
-  const bracketOrder = standardBracketSeedOrder(bracketSize);
-  const leafSlots: Array<string | null> = Array.from({ length: bracketSize }, () => null);
-  for (let seed = 1; seed <= bracketSize; seed++) {
-    const leafIndex = bracketOrder.indexOf(seed);
-    if (leafIndex >= 0) {
-      leafSlots[leafIndex] = qualifierSlots[seed - 1] ?? null;
-    }
-  }
   const orderedLeafSlots =
-    groupCount === 4 && advancePerGroup === 2 && bracketSize === 8
-      ? reorderDefaultEightTeamGroupKnockoutSlots(leafSlots)
-      : leafSlots;
+    advancePerGroup === 2
+      ? buildMirroredTwoRankQualifierSlots({ groupCount, bracketSize })
+      : (() => {
+          const bracketOrder = standardBracketSeedOrder(bracketSize);
+          const leafSlots: Array<string | null> = Array.from({ length: bracketSize }, () => null);
+          for (let seed = 1; seed <= bracketSize; seed++) {
+            const leafIndex = bracketOrder.indexOf(seed);
+            if (leafIndex >= 0) {
+              leafSlots[leafIndex] = qualifierSlots[seed - 1] ?? null;
+            }
+          }
+          return leafSlots;
+        })();
 
   const specs: GroupStageKnockoutMatchSpec[] = [];
   let matchIndex = 0;

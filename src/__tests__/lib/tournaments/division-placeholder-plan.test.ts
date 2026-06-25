@@ -144,6 +144,39 @@ describe("강남구협회장배 4 종별 운영 케이스 100% 재현 검증", (
 });
 
 describe("planGroupStageKnockoutMatches — 조별리그+토너먼트", () => {
+  function slotGroups(
+    slot: string,
+    winnerGroups: Map<string, Set<string>>,
+  ): Set<string> {
+    const groupRank = slot.match(/^([A-Z])조\s+\d+위$/);
+    if (groupRank) return new Set([groupRank[1]]);
+
+    const matchWinner = slot.match(/^(.+)\s+(\d+)경기 승자$/);
+    if (matchWinner) {
+      return winnerGroups.get(`${matchWinner[1]}:${matchWinner[2]}`) ?? new Set();
+    }
+
+    return new Set();
+  }
+
+  function expectSameGroupRematchOnlyInFinal(groupCount: number) {
+    const specs = planGroupStageKnockoutMatches({ groupCount, advancePerGroup: 2 });
+    const winnerGroups = new Map<string, Set<string>>();
+
+    for (const spec of specs) {
+      const homeGroups = slotGroups(spec.homeSlot, winnerGroups);
+      const awayGroups = slotGroups(spec.awaySlot, winnerGroups);
+      const sameGroups = [...homeGroups].filter((group) => awayGroups.has(group));
+      if (spec.roundName !== "결승") {
+        expect(sameGroups, `${groupCount}조 ${spec.roundName} ${spec.bracketPosition}경기`).toEqual([]);
+      }
+      winnerGroups.set(
+        `${spec.roundName}:${spec.bracketPosition}`,
+        new Set([...homeGroups, ...awayGroups]),
+      );
+    }
+  }
+
   it("3팀 1조 * 4조 = 조별리그 예선 12경기를 생성한다", () => {
     const teams = ["A", "B", "C", "D"].flatMap((groupName, groupIndex) =>
       [1, 2, 3].map((teamIndex) => ({
@@ -238,7 +271,7 @@ describe("planGroupStageKnockoutMatches — 조별리그+토너먼트", () => {
     const specs = planGroupStageKnockoutMatches({ groupCount: 3, advancePerGroup: 2 });
     expect(specs).toHaveLength(5);
     expect(specs.slice(0, 2).map((s) => `${s.homeSlot} / ${s.awaySlot}`)).toEqual([
-      "B조 2위 / C조 2위",
+      "C조 2위 / B조 1위",
       "C조 1위 / A조 2위",
     ]);
     expect(specs[2]).toMatchObject({
@@ -248,8 +281,14 @@ describe("planGroupStageKnockoutMatches — 조별리그+토너먼트", () => {
     });
     expect(specs[3]).toMatchObject({
       roundName: "준결승",
-      homeSlot: "B조 1위",
+      homeSlot: "B조 2위",
       awaySlot: "8강 4경기 승자",
     });
+  });
+
+  it("2~12조 * 2팀 진출은 같은 예선 조끼리 결승 전 다시 만나지 않는다", () => {
+    for (let groupCount = 2; groupCount <= 12; groupCount++) {
+      expectSameGroupRematchOnlyInFinal(groupCount);
+    }
   });
 });

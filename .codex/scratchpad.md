@@ -11,4 +11,5 @@
 | Verification | Done | `cmd /c npx tsc --noEmit` passed. |
 
 ## Work Log
+- 2026-06-25: Updated group-stage knockout seeding so 2-rank qualifiers from the same group cannot meet before the final for 2~12 groups.
 - 2026-06-25: Fixed tournament admin edit/delete persistence for venue, division rules, and stale div schedule refs.
