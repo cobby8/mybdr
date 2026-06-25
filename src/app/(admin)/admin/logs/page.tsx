@@ -3,6 +3,7 @@
 // - 날짜 필터 칩: 자체 rounded → .btn .btn--sm (활성은 .btn--primary)
 
 import { prisma } from "@/lib/db/prisma";
+import type { Prisma } from "@prisma/client";
 import Link from "next/link";
 // Phase 2A (Toss 전환) — Material Symbols → lucide(<Icon>) 키트
 import { Icon } from "@/components/admin-toss";
@@ -32,7 +33,10 @@ const ACTION_LABEL: Record<string, string> = {
   "tournament.status_change": "대회 상태 변경",
   "settings.cache_clear": "캐시 초기화",
   "settings.maintenance_toggle": "점검모드 변경",
+  record_app_impact_check: "기록앱 영향 판정",
 };
+
+type LogKindFilter = "record-app";
 
 function toKSTDate(date: Date): string {
   // YYYY-MM-DD (KST)
@@ -54,20 +58,33 @@ function toKSTFull(date: Date): string {
   return date.toLocaleString("ko-KR", { timeZone: "Asia/Seoul" });
 }
 
+function buildLogsHref(params: { date?: string; kind?: LogKindFilter }) {
+  const search = new URLSearchParams();
+  if (params.date) search.set("date", params.date);
+  if (params.kind) search.set("kind", params.kind);
+  const query = search.toString();
+  return query ? `/admin/logs?${query}` : "/admin/logs";
+}
+
 // FR-066: 관리자 활동 로그 (날짜별 마크다운 뷰)
 export default async function AdminLogsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ date?: string }>;
+  searchParams: Promise<{ date?: string; kind?: string }>;
 }) {
-  const { date: dateFilter } = await searchParams;
+  const { date: dateFilter, kind } = await searchParams;
+  const kindFilter: LogKindFilter | undefined =
+    kind === "record-app" ? "record-app" : undefined;
 
-  let whereClause = {};
+  const whereClause: Prisma.admin_logsWhereInput = {};
   if (dateFilter) {
     // KST 날짜 → UTC 범위로 변환
     const kstStart = new Date(`${dateFilter}T00:00:00+09:00`);
     const kstEnd = new Date(`${dateFilter}T23:59:59+09:00`);
-    whereClause = { created_at: { gte: kstStart, lte: kstEnd } };
+    whereClause.created_at = { gte: kstStart, lte: kstEnd };
+  }
+  if (kindFilter === "record-app") {
+    whereClause.action = "record_app_impact_check";
   }
 
   const logs = await prisma.admin_logs.findMany({
@@ -97,7 +114,7 @@ export default async function AdminLogsPage({
         icon="list-checks"
         eyebrow="ADMIN / 시스템"
         title="활동 로그"
-        sub={`${dateFilter ? `${dateFilter} 로그` : "최근 200건"} / 총 ${logs.length}건`}
+        sub={`${kindFilter === "record-app" ? "기록앱 영향 판정" : dateFilter ? `${dateFilter} 로그` : "최근 200건"} / 총 ${logs.length}건`}
         actions={
           <Link href="/admin/settings" className="btn">
             {/* settings → lucide settings */}
@@ -108,13 +125,22 @@ export default async function AdminLogsPage({
       />
       {/* 날짜 필터 칩 — 다중 행이라 별도 영역 (AdminPageHeader actions slot 에 안 넣음) */}
       <div className="mb-6 flex flex-wrap items-center gap-2">
-        {dateFilter && (
+        {(dateFilter || kindFilter) && (
           <Link href="/admin/logs" className="btn btn--sm">전체 보기</Link>
+        )}
+        <Link
+          href={kindFilter === "record-app" ? buildLogsHref({ date: dateFilter }) : buildLogsHref({ date: dateFilter, kind: "record-app" })}
+          className={`btn btn--sm ${kindFilter === "record-app" ? "btn--primary" : ""}`}
+        >
+          기록앱 영향
+        </Link>
+        {dateFilter && (
+          <Link href={buildLogsHref({ kind: kindFilter })} className="btn btn--sm">날짜 해제</Link>
         )}
           {availableDates.slice(0, 7).map((d) => (
             <Link
               key={d}
-              href={`?date=${d}`}
+              href={buildLogsHref({ date: d, kind: kindFilter })}
               className={`btn btn--sm ${dateFilter === d ? "btn--primary" : ""}`}
             >
               {d.slice(5)}
