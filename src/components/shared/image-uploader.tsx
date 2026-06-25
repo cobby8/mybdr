@@ -170,7 +170,8 @@ export function ImageUploader({
             <button
               type="button"
               onClick={handleRemove}
-              className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full bg-black/60 text-white transition-colors hover:bg-black/80"
+              className="absolute right-2 top-2 flex h-11 w-11 items-center justify-center rounded-full bg-black/60 text-white transition-colors hover:bg-black/80"
+              aria-label={`${label} 삭제`}
             >
               <span className="material-symbols-outlined text-lg">close</span>
             </button>
@@ -181,7 +182,7 @@ export function ImageUploader({
             <button
               type="button"
               onClick={handleClick}
-              className="absolute bottom-2 right-2 flex items-center gap-1 rounded-lg bg-black/60 px-3 py-1.5 text-xs text-white transition-colors hover:bg-black/80"
+              className="absolute bottom-2 right-2 flex min-h-[44px] items-center gap-1 rounded-lg bg-black/60 px-3 py-2 text-xs text-white transition-colors hover:bg-black/80"
             >
               <span className="material-symbols-outlined text-sm">swap_horiz</span>
               변경

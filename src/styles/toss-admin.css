@@ -615,7 +615,7 @@
 /* 후원사 로고 타일 */
 [data-skin="toss"] .ct-sptile { position: relative; width: 124px; }
 [data-skin="toss"] .ct-sptile__name { margin-top: 7px; font-size: 13px; font-weight: 600; color: var(--ink); text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-[data-skin="toss"] .ct-sptile__x { position: absolute; top: 6px; right: 6px; width: 22px; height: 22px; border: 0; border-radius: 7px; background: rgba(25,31,40,0.55); color: #fff; display: grid; place-items: center; cursor: pointer; z-index: 2; }
+[data-skin="toss"] .ct-sptile__x { position: absolute; top: 4px; right: 4px; width: 44px; height: 44px; border: 0; border-radius: 12px; background: rgba(25,31,40,0.55); color: #fff; display: grid; place-items: center; cursor: pointer; z-index: 2; }
 [data-skin="toss"] .ct-sptile__x:hover { background: var(--danger); }
 
 /* 이전 대회 불러오기 행 */
