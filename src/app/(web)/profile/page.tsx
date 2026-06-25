@@ -125,6 +125,7 @@ export default async function ProfilePage() {
           xp: true,
           subscription_status: true,
           profile_completed: true,
+          is_elite: true,
         },
       })
       .catch(() => null),
@@ -469,6 +470,7 @@ export default async function ProfilePage() {
             </div>
             <div className="mypage__id-badges">
               <span className="badge badge--red">L.{level?.level ?? 1}</span>
+              {user.is_elite && <span className="badge badge--red">선출</span>}
               {isPro && <span className="badge badge--soft">PRO 멤버</span>}
               {isVerified && <span className="badge badge--ok">✓ 본인인증</span>}
             </div>

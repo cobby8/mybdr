@@ -149,6 +149,7 @@ export default async function UserProfilePage({
           // select 1줄만 add (기존 12쿼리 무변경). 본인 preview 는 아래 분기에서 bypass.
           privacy_settings: true,
           xp: true,
+          is_elite: true,
           createdAt: true,
           last_login_at: true,
           teamMembers: {
@@ -906,6 +907,7 @@ export default async function UserProfilePage({
           evaluation_rating: evaluationRating,
           createdAt: user.createdAt?.toISOString() ?? null,
           lastLoginAt: user.last_login_at?.toISOString() ?? null,
+          isElite: user.is_elite === true,
           // 5/9 신규: 대표 jersey (Q3 = 노출). null 이면 미노출
           jerseyNumber: representativeJersey?.jerseyNumber ?? null,
         }}

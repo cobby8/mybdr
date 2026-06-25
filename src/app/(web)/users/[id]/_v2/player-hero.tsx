@@ -59,6 +59,7 @@ export interface PlayerHeroUser {
   createdAt: string | null;
   /** 마지막 로그인 (있으면) */
   lastLoginAt: string | null;
+  isElite: boolean;
   /** 5/9 신규 (Q3): 대표 jersey 번호 — TournamentTeamPlayer.jerseyNumber 최신 1건 */
   jerseyNumber: number | null;
 }
@@ -190,6 +191,20 @@ export function PlayerHero({
                 title={level.title}
               >
                 {level.emoji} L.{level.level}
+              </span>
+            )}
+            {user.isElite && (
+              <span
+                style={{
+                  background: "var(--color-primary)",
+                  color: "#fff",
+                  padding: "3px 8px",
+                  fontSize: 11,
+                  fontWeight: 700,
+                  borderRadius: 4,
+                }}
+              >
+                선출
               </span>
             )}
             {showRating && (

@@ -73,6 +73,7 @@ interface PlayerRow {
   // 2026-05-10 PlayerLink 마이그 — 박스스코어 선수명 → 공개프로필 라우팅 대상 User.id.
   // null = placeholder user (ttp.userId NULL) → PlayerLink 가 단순 span fallback.
   user_id: number | null;
+  is_elite?: boolean;
   min: number;
   min_seconds?: number;
   pts: number;
@@ -2134,7 +2135,14 @@ function BoxScoreTable({
                   >
                     {/* 2026-05-10 PlayerLink/TeamLink 2단계 — 라이브/scheduled 박스스코어 활성 선수 이름 → 공개프로필.
                         user_id null (placeholder ttp) → span fallback. truncate CSS 부모 td 처리. */}
-                    <PlayerLink userId={p.user_id} name={p.name} />
+                    <span className="inline-flex items-center gap-1">
+                      <PlayerLink userId={p.user_id} name={p.name} />
+                      {p.is_elite && (
+                        <span className="badge badge--red" style={{ fontSize: 9, padding: "1px 4px" }}>
+                          선출
+                        </span>
+                      )}
+                    </span>
                   </td>
                   {/* MIN — muted 색으로 살짝 약하게 (스탯만큼 강조 X) */}
                   <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-muted)" }}>
@@ -2203,7 +2211,14 @@ function BoxScoreTable({
                     style={{ color: "var(--color-text-muted)" }}
                   >
                     {/* 2026-05-10 PlayerLink/TeamLink 2단계 — DNP 행 이름 셀도 동일하게 link. */}
-                    <PlayerLink userId={p.user_id} name={p.name} />
+                    <span className="inline-flex items-center gap-1">
+                      <PlayerLink userId={p.user_id} name={p.name} />
+                      {p.is_elite && (
+                        <span className="badge badge--red" style={{ fontSize: 9, padding: "1px 4px" }}>
+                          선출
+                        </span>
+                      )}
+                    </span>
                   </td>
                   {/* 미출전 선수는 앱 통계 화면과 맞춰 MIN도 "-"로 표시 */}
                   <td

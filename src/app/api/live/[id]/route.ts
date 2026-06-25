@@ -117,7 +117,7 @@ export async function GET(
             team: { select: { id: true, name: true, primaryColor: true, logoUrl: true } },
             players: {
               // 2026-05-10 PlayerLink 마이그 — 응답에 user_id 포함을 위해 users.id select 추가.
-              include: { users: { select: { id: true, name: true, nickname: true } } },
+              include: { users: { select: { id: true, name: true, nickname: true, is_elite: true } } },
             },
           },
         },
@@ -126,7 +126,7 @@ export async function GET(
             // 2026-05-10 fix: team.id 추가 — TeamLink href 의 Team.id (/teams/[id] 404 회피).
             team: { select: { id: true, name: true, primaryColor: true, logoUrl: true } },
             players: {
-              include: { users: { select: { id: true, name: true, nickname: true } } },
+              include: { users: { select: { id: true, name: true, nickname: true, is_elite: true } } },
             },
           },
         },
@@ -136,7 +136,7 @@ export async function GET(
         playerStats: {
           include: {
             tournamentTeamPlayer: {
-              include: { users: { select: { id: true, name: true, nickname: true } } },
+              include: { users: { select: { id: true, name: true, nickname: true, is_elite: true } } },
             },
           },
           orderBy: { points: "desc" },
@@ -595,6 +595,7 @@ export async function GET(
           teamId: Number(p.tournamentTeamId),
           // 2026-05-10 PlayerLink 마이그 — User.id 노출 (placeholder user 시 null).
           userId: p.users?.id ? Number(p.users.id) : null,
+          isElite: p.is_elite === true || p.users?.is_elite === true,
           isStarter: p.isStarter ?? false,
         })),
         ...(match.awayTeam?.players ?? []).filter(filterRoster).map((p) => ({
@@ -604,6 +605,7 @@ export async function GET(
           name: getDisplayName(p.users, { player_name: p.player_name, jerseyNumber: p.jerseyNumber }, `#${p.jerseyNumber ?? "-"}`),
           teamId: Number(p.tournamentTeamId),
           userId: p.users?.id ? Number(p.users.id) : null,
+          isElite: p.is_elite === true || p.users?.is_elite === true,
           isStarter: p.isStarter ?? false,
         })),
       ];
@@ -616,6 +618,7 @@ export async function GET(
           name: p.name,
           teamId: p.teamId,
           user_id: p.userId,
+          is_elite: p.isElite,
           min: 0, min_seconds: 0, pts: 0, fgm: 0, fga: 0, tpm: 0, tpa: 0, ftm: 0, fta: 0,
           oreb: 0, dreb: 0, reb: 0, ast: 0, stl: 0, blk: 0, to: 0, fouls: 0, plus_minus: 0,
           isStarter: p.isStarter,
@@ -854,6 +857,7 @@ export async function GET(
           teamId: Number(player.tournamentTeamId),
           // 2026-05-10 PlayerLink 마이그 — User.id 노출 (placeholder user 시 null → span fallback)
           user_id: user?.id ? Number(user.id) : null,
+          is_elite: player.is_elite === true || user?.is_elite === true,
           min: Math.round(minSeconds / 60),
           min_seconds: minSeconds,
           // 2026-05-16: stat 없으면 0 fallback (라인업 박힘 + MatchPlayerStat 미생성 케이스).
@@ -1504,6 +1508,7 @@ interface PlayerRow {
   // 2026-05-10 PlayerLink 마이그 — 공개프로필(`/users/[id]`) 링크 대상 User.id.
   // null = ttp.userId 미부여 (placeholder user / player_name 만 존재) → PlayerLink 가 span fallback.
   user_id: number | null;
+  is_elite: boolean;
   min: number;
   min_seconds?: number;
   pts: number;
