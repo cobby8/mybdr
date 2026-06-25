@@ -25,7 +25,7 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
   }
 
   const teamsWithPlayers = await prisma.tournamentTeam.findMany({
-    where: { tournamentId: id },
+    where: { tournamentId: id, status: "approved" },
     include: {
       // 카드에 지역/로고/전적/모집중 표시를 위해 select 확장 (TeamCard 공통 스키마)
       team: {

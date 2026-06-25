@@ -72,9 +72,14 @@ export async function getDivisionStandings(
   tournamentId: string,
   divisionCode: string,
   pointsRule: "gnba" | "default" = "default",
+  options?: { approvedOnly?: boolean },
 ): Promise<DivisionStanding[]> {
   const teams = await prisma.tournamentTeam.findMany({
-    where: { tournamentId, category: divisionCode },
+    where: {
+      tournamentId,
+      category: divisionCode,
+      ...(options?.approvedOnly ? { status: "approved" } : {}),
+    },
     select: {
       id: true,
       groupName: true,

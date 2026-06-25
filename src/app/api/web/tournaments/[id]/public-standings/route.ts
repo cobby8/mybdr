@@ -36,7 +36,7 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
     }),
     // 2026-05-17 — win_points 컬럼 추가 SELECT (강남구 가산점 박제 / update-standings SET 값).
     prisma.tournamentTeam.findMany({
-      where: { tournamentId: id },
+      where: { tournamentId: id, status: "approved" },
       include: { team: { select: { name: true } } },
     }),
     prisma.tournamentMatch.findMany({
@@ -59,13 +59,25 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
     }),
   ]);
 
+  const approvedTournamentTeamIds = new Set(teams.map((t) => t.id.toString()));
+  const publicMatches = matches.filter((m) => {
+    const homeId = m.homeTeamId?.toString() ?? null;
+    const awayId = m.awayTeamId?.toString() ?? null;
+    return (
+      homeId !== null &&
+      awayId !== null &&
+      approvedTournamentTeamIds.has(homeId) &&
+      approvedTournamentTeamIds.has(awayId)
+    );
+  });
+
   // 2) 팀별 전적 집계 (tournament_teams.wins/losses 대신 경기 결과에서 직접 계산)
   const teamStats: Record<
     string,
     { wins: number; losses: number; draws: number; pointsFor: number; pointsAgainst: number }
   > = {};
 
-  for (const m of matches) {
+  for (const m of publicMatches) {
     if (!m.homeTeamId || !m.awayTeamId) continue;
     const homeId = m.homeTeamId.toString();
     const awayId = m.awayTeamId.toString();
