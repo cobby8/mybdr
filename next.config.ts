@@ -1,6 +1,19 @@
 import type { NextConfig } from "next";
 import withSerwistInit from "@serwist/next";
 
+const isDevelopment = process.env.NODE_ENV === "development";
+const scriptSrc = [
+  "script-src 'self' 'unsafe-inline'",
+  isDevelopment ? "'unsafe-eval'" : null,
+  "https://accounts.google.com",
+  "https://t1.daumcdn.net",
+  "http://t1.daumcdn.net",
+  "https://dapi.kakao.com",
+  "http://dapi.kakao.com",
+]
+  .filter(Boolean)
+  .join(" ");
+
 // CSP nonce는 middleware(proxy.ts)에서 생성 → x-nonce 헤더로 전달
 // 빌드 시점 정적 헤더용 fallback (nonce 없는 경로)
 const securityHeaders = [
@@ -43,7 +56,7 @@ const securityHeaders = [
     value: [
       "default-src 'self'",
       // TODO: middleware에서 nonce 생성 구현 후 'unsafe-inline' 제거
-      "script-src 'self' 'unsafe-inline' https://accounts.google.com https://t1.daumcdn.net http://t1.daumcdn.net https://dapi.kakao.com http://dapi.kakao.com",
+      scriptSrc,
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://t1.daumcdn.net http://t1.daumcdn.net https://cdn.jsdelivr.net",
       "img-src 'self' data: https: http:",
       "font-src 'self' data: https://fonts.gstatic.com https://cdn.jsdelivr.net",
