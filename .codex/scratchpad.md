@@ -1,5 +1,6 @@
 # Scratchpad
 
+- 2026-06-25 docs(agents): expanded BDR operations agents with release/ops/db/reviewer/content roles and record-app liaison workflow.
 - 2026-06-25 feat(ranking): added API-keyless manual seed review report generator.
 - 2026-06-24 feat(ranking): added candidate signal analysis fields for ranking research JSON.
 - 2026-06-24 feat(ranking): added Daum BDR cafe seeds and Tavily web-search adapter candidate.
