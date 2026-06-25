@@ -74,6 +74,18 @@ PM은 기록앱 영향 조건이 있으면 `record-app-liaison`에게 다음 패
 | 2차 후보 | AI Gateway structured output |
 | 저장 후보 | `AgentRun` 유사 audit 테이블 |
 
+## 로컬 호출 도구
+
+PM은 서버 변경 후 다음 스크립트로 기록앱 영향 패킷을 만들 수 있다.
+
+| 용도 | 명령 |
+|---|---|
+| 현재 git 변경 파일 기준 payload 생성 | `node scripts/record-app-impact.mjs --summary "작업 요약"` |
+| 응답 필드 삭제 위험 명시 | `node scripts/record-app-impact.mjs --summary "점수 필드 정리" --removed-field legacy_score` |
+| 로컬 서버 API 호출 | `node scripts/record-app-impact.mjs --summary "작업 요약" --post --cookie "<super_admin session cookie>"` |
+
+기본 실행은 네트워크 호출 없이 JSON payload만 출력한다. `--post`를 붙일 때만 `POST /api/web/admin/agents/record-app-impact`로 전송한다.
+
 ## 판단 규칙
 
 | 변경 | 기본 판정 |
