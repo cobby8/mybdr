@@ -14,7 +14,7 @@ import { OFFICIAL_ROLE_TYPES } from "@/lib/referee/official-roles";
 // 공통 enum
 // ─────────────────────────────────────────────────────────────
 
-// KBA 기준: 심판과 경기원(기록/계시/통계)을 1차 직군으로 분리한다.
+// KBA 기준: 1차 직군은 심판과 경기원으로만 분리한다.
 const refereeRoleEnum = z.enum(OFFICIAL_ROLE_TYPES);
 
 // level enum (심판 숙련도)

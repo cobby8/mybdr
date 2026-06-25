@@ -2774,7 +2774,7 @@ model Referee {
 
   license_number String?  @unique @db.VarChar // 심판 자격번호(유니크)
   level          String?  @db.VarChar // beginner/intermediate/advanced/international
-  role_type      String   @default("referee") @db.VarChar // referee/scorer/timer 등
+  role_type      String   @default("referee") @db.VarChar // referee/game_official
   region_sido    String?  @db.VarChar
   region_sigungu String?  @db.VarChar
   status         String   @default("active") @db.VarChar // active/inactive/pending_review
@@ -2829,7 +2829,7 @@ model Referee {
 model RefereeCertificate {
   id                   BigInt    @id @default(autoincrement())
   referee_id           BigInt
-  cert_type            String    @db.VarChar // referee/scorer/timer
+  cert_type            String    @db.VarChar // referee/game_official
   cert_grade           String    @db.VarChar // "1급", "2급", "3급", "국제" 등
   issuer               String    @db.VarChar // 발급 협회명 또는 code
   cert_number          String?   @db.VarChar // 교차검증 키 (없을 수 있음)
