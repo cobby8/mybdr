@@ -1,6 +1,7 @@
 import { type NextRequest } from "next/server";
 import { z } from "zod";
 import { apiError, apiSuccess, validationError } from "@/lib/api/response";
+import { adminLog } from "@/lib/admin/log";
 import { getWebSession } from "@/lib/auth/web-session";
 import { isSuperAdmin } from "@/lib/auth/is-super-admin";
 
@@ -92,7 +93,11 @@ export async function POST(req: NextRequest) {
   const parsed = requestSchema.safeParse(body);
   if (!parsed.success) return validationError(parsed.error.issues);
 
-  return apiSuccess(analyzeRecordAppImpact(normalizeRequest(parsed.data)));
+  const normalized = normalizeRequest(parsed.data);
+  const analysis = analyzeRecordAppImpact(normalized);
+  await logRecordAppImpact(normalized, analysis);
+
+  return apiSuccess(analysis);
 }
 
 function normalizeRequest(input: z.infer<typeof requestSchema>): NormalizedRequest {
@@ -252,6 +257,30 @@ function analyzeRecordAppImpact(input: NormalizedRequest) {
 
 function hasAny(value: string, needles: string[]) {
   return needles.some((needle) => value.includes(needle));
+}
+
+async function logRecordAppImpact(
+  input: NormalizedRequest,
+  result: ReturnType<typeof analyzeRecordAppImpact>,
+) {
+  await adminLog("record_app_impact_check", "agent", {
+    targetType: "record_app",
+    description: `record-app-impact ${result.impact}`,
+    changesMade: {
+      summary: input.summary,
+      diff_summary: input.diffSummary,
+      changed_files: input.changedFiles,
+      api_paths: input.apiPaths,
+      db_models: input.dbModels,
+      response_fields: input.responseFields,
+      impact: result.impact,
+      api_contract_changes: result.apiContractChanges,
+      backward_compatibility: result.backwardCompatibility,
+      user_decision_required: result.userDecisionRequired,
+      reasons: result.reasons,
+    },
+    severity: result.impact === "risk" ? "warning" : "info",
+  });
 }
 
 function escalate(current: ImpactLevel, next: ImpactLevel): ImpactLevel {
