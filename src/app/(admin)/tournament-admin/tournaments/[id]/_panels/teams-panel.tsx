@@ -359,6 +359,25 @@ export default function TournamentTeamsPage() {
     } catch { /* ignore */ }
   };
 
+  const updateGroup = async (teamId: string, groupName: string | null) => {
+    try {
+      const res = await fetch(`/api/web/tournaments/${id}/teams/${teamId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ groupName }),
+      });
+      if (!res.ok) {
+        const json = await res.json().catch(() => null);
+        showToast(json?.error ?? "조 변경 실패");
+        return;
+      }
+      showToast(groupName ? `${groupName}조로 변경되었습니다.` : "조 편성이 해제되었습니다.");
+      await load();
+    } catch {
+      showToast("네트워크 오류");
+    }
+  };
+
   const autoDrawDivision = async (
     rule: DivisionRuleOption,
     mode: "random" | "seeded" = "random",
@@ -827,6 +846,21 @@ export default function TournamentTeamsPage() {
                   )}
 
                   {/* 상태 뱃지 */}
+                  {tt.status === "approved" && (
+                    <label className="flex items-center gap-1 text-xs text-[var(--color-text-muted)]">
+                      <span>조</span>
+                      <input
+                        defaultValue={tt.groupName ?? ""}
+                        onBlur={(e) => {
+                          const next = e.target.value.trim().toUpperCase();
+                          if (next !== (tt.groupName ?? "")) updateGroup(tt.id, next || null);
+                        }}
+                        className="w-12 rounded-[8px] border-none bg-[var(--color-elevated)] px-2 py-1 text-center text-sm text-[var(--color-text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--color-accent)]/50"
+                        placeholder="-"
+                      />
+                    </label>
+                  )}
+
                   <span className={`rounded-[8px] px-3 py-1 text-xs font-medium ${STATUS_COLOR[tt.status] ?? ""}`}>
                     {STATUS_LABEL[tt.status] ?? tt.status}
                   </span>
@@ -1080,7 +1114,25 @@ export default function TournamentTeamsPage() {
                   </p>
                   {/* 조 · 시드 변경 — Phase 3-F 옵션 A 후속: 시드 input 추가 */}
                   <div className="mt-1 flex flex-wrap items-center gap-3 text-xs text-[var(--color-text-muted)]">
-                    {expandedTeam.groupName && <span>조 {expandedTeam.groupName}</span>}
+                    <label className="flex items-center gap-1 no-print">
+                      <span>조</span>
+                      <input
+                        defaultValue={expandedTeam.groupName ?? ""}
+                        onBlur={(e) => {
+                          const next = e.target.value.trim().toUpperCase();
+                          if (next !== (expandedTeam.groupName ?? "")) {
+                            updateGroup(expandedTeam.id, next || null);
+                          }
+                        }}
+                        className="w-12 rounded-[8px] border px-2 py-0.5 text-center text-xs focus:outline-none focus:ring-1"
+                        style={{
+                          borderColor: "var(--color-border)",
+                          background: "var(--color-card)",
+                          color: "var(--color-text-primary)",
+                        }}
+                        placeholder="-"
+                      />
+                    </label>
                     <label className="flex items-center gap-1 no-print">
                       <span>시드</span>
                       <input
