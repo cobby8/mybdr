@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState, type ComponentType, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ComponentType, type ReactNode } from "react";
 import type { RecordingMode } from "@/lib/tournaments/recording-mode";
 import type { SetupProgress } from "@/lib/tournaments/setup-status";
 import { Icon } from "@/components/admin-toss";
@@ -127,11 +127,11 @@ const MatchesPanel = dynamic(() => import("../_panels/matches-panel"), {
 });
 
 const SECTIONS: Array<{ id: SectionId; label: string }> = [
-  { id: "info", label: "대회 정보" },
-  { id: "schedule", label: "일정·장소" },
-  { id: "divisions", label: "종별·디비전" },
-  { id: "game", label: "경기 설정" },
-  { id: "publish", label: "게시 설정" },
+  { id: "info", label: "기본" },
+  { id: "schedule", label: "일정" },
+  { id: "divisions", label: "종별" },
+  { id: "game", label: "경기" },
+  { id: "publish", label: "접수·공개" },
 ];
 
 const LEGACY_SECTION_MAP: Record<string, SectionId> = {
@@ -459,6 +459,28 @@ export function TournamentWorkspace({
     );
   }
 
+  function renderDesktopSaveBar() {
+    return (
+      <div
+        className="sticky bottom-3 z-30 ml-auto hidden w-fit max-w-full rounded-[12px] border px-3 py-2 shadow-lg lg:flex lg:items-center lg:gap-3"
+        style={{
+          borderColor: "var(--color-border)",
+          backgroundColor: "color-mix(in srgb, var(--color-card) 94%, transparent)",
+        }}
+      >
+        <div className="min-w-[180px] text-right">
+          <p className="text-xs font-bold text-[var(--color-text-muted)]">저장 상태</p>
+          <p className="truncate text-sm font-black text-[var(--color-text-primary)]">
+            {saving ? "저장 중입니다" : dirty ? "변경사항이 있습니다" : saveState === "saved" ? "저장되었습니다" : message || "변경사항 없음"}
+          </p>
+        </div>
+        <button type="button" className="ts-btn ts-btn--primary ts-btn--sm min-w-[96px]" onClick={saveSetup} disabled={saving}>
+          {saving ? "저장 중" : "저장"}
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div data-skin="toss" className="ct-page ct-page--workspace space-y-3 pb-24 lg:pb-0">
       <section className="ts-card ts-card--tight ct-workspace-summary">
@@ -569,8 +591,13 @@ export function TournamentWorkspace({
               />
             </Field>
           </div>
-          <div>
-            <FormGroupTitle title="대표 이미지" />
+          <details
+            className="border-t pt-3"
+            style={{ borderColor: "var(--color-border)" }}
+          >
+            <summary className="min-h-[44px] cursor-pointer py-2 text-xs font-black uppercase tracking-[0.12em] text-[var(--color-text-muted)]">
+              대표 이미지 관리
+            </summary>
             <div className="grid gap-3 md:grid-cols-[minmax(180px,0.42fr)_minmax(0,1fr)]">
               <ImageUploader
                 value={form.logo_url}
@@ -591,7 +618,7 @@ export function TournamentWorkspace({
                 maxSizeMB={5}
               />
             </div>
-          </div>
+          </details>
         </div>
       </WorkspaceSection>
 
@@ -699,19 +726,47 @@ export function TournamentWorkspace({
 
       <WorkspaceSection
         id="publish"
-        title="게시 설정"
-        subtitle="접수와 공개 상태를 관리합니다."
+        title="접수·공개"
+        subtitle="참가 접수, 팀 기준, 공개 상태를 운영합니다."
       >
+        <PanelSummary
+          stats={[
+            ["참가팀", `${summary.teamCount}${summary.maxTeams ? ` / ${summary.maxTeams}` : ""}`],
+            ["승인", form.auto_approve_teams ? "자동" : "수동"],
+            ["대기접수", form.allow_waiting_list ? "허용" : "미허용"],
+            ["사이트", summary.siteConfigured ? "설정됨" : "미설정"],
+            ["공개", summary.sitePublished ? "공개 중" : "비공개"],
+            ["공개 가능", publishGate.ok ? "가능" : "대기"],
+          ]}
+          panels={[
+            ["teams", "참가팀 관리"],
+            ["site", "사이트 공개"],
+          ]}
+          openPanels={openPanels}
+          onToggle={togglePanel}
+        />
+        {siteUrl && (
+          <a
+            href={siteUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="ts-btn ts-btn--secondary ts-btn--sm mt-3"
+          >
+            공개 사이트 보기
+          </a>
+        )}
+        {openPanels.has("teams") && (
+          <PanelFrame>
+            <TeamsPanel />
+          </PanelFrame>
+        )}
+        {openPanels.has("site") && (
+          <PanelFrame>
+            <SitePanel />
+          </PanelFrame>
+        )}
         <div className="mb-3 grid grid-cols-2 gap-3">
-          <Field label="최대 팀 수">
-            <input
-              className="ts-input"
-              type="number"
-              min={1}
-              value={form.maxTeams}
-              onChange={(e) => patchForm("maxTeams", Number(e.target.value))}
-            />
-          </Field>
+          <FormGroupTitle title="접수·결제" flush />
           <Field label="참가비">
             <input
               className="ts-input"
@@ -737,8 +792,49 @@ export function TournamentWorkspace({
               onChange={(e) => patchForm("registration_end_at", e.target.value)}
             />
           </Field>
-          <FormGroupTitle title="팀/로스터" />
-          <Field label="코트 내 인원">
+          <Field label="은행명">
+            <input
+              className="ts-input"
+              value={form.bank_name}
+              onChange={(e) => patchForm("bank_name", e.target.value)}
+              placeholder="은행명"
+            />
+          </Field>
+          <Field label="계좌번호">
+            <input
+              className="ts-input"
+              value={form.bank_account}
+              onChange={(e) => patchForm("bank_account", e.target.value)}
+              placeholder="계좌번호"
+            />
+          </Field>
+          <Field label="예금주">
+            <input
+              className="ts-input"
+              value={form.bank_holder}
+              onChange={(e) => patchForm("bank_holder", e.target.value)}
+              placeholder="예금주"
+            />
+          </Field>
+          <Field label="참가비 안내" className="col-span-2">
+            <textarea
+              className="ts-input min-h-20 resize-y"
+              value={form.fee_notes}
+              onChange={(e) => patchForm("fee_notes", e.target.value)}
+              placeholder="입금 및 환불 안내"
+            />
+          </Field>
+          <FormGroupTitle title="팀 설정" />
+          <Field label="최대 팀 수">
+            <input
+              className="ts-input"
+              type="number"
+              min={1}
+              value={form.maxTeams}
+              onChange={(e) => patchForm("maxTeams", Number(e.target.value))}
+            />
+          </Field>
+          <Field label="경기 인원">
             <input
               className="ts-input"
               type="number"
@@ -747,7 +843,7 @@ export function TournamentWorkspace({
               onChange={(e) => patchForm("team_size", Number(e.target.value))}
             />
           </Field>
-          <Field label="최소 로스터">
+          <Field label="최소 선수">
             <input
               className="ts-input"
               type="number"
@@ -756,7 +852,7 @@ export function TournamentWorkspace({
               onChange={(e) => patchForm("roster_min", Number(e.target.value))}
             />
           </Field>
-          <Field label="최대 로스터">
+          <Field label="최대 선수">
             <input
               className="ts-input"
               type="number"
@@ -796,75 +892,7 @@ export function TournamentWorkspace({
               />
             </Field>
           )}
-          <FormGroupTitle title="입금 정보" />
-          <Field label="은행명">
-            <input
-              className="ts-input"
-              value={form.bank_name}
-              onChange={(e) => patchForm("bank_name", e.target.value)}
-              placeholder="은행명"
-            />
-          </Field>
-          <Field label="계좌번호">
-            <input
-              className="ts-input"
-              value={form.bank_account}
-              onChange={(e) => patchForm("bank_account", e.target.value)}
-              placeholder="계좌번호"
-            />
-          </Field>
-          <Field label="예금주">
-            <input
-              className="ts-input"
-              value={form.bank_holder}
-              onChange={(e) => patchForm("bank_holder", e.target.value)}
-              placeholder="예금주"
-            />
-          </Field>
-          <Field label="참가비 안내" className="col-span-2">
-            <textarea
-              className="ts-input min-h-20 resize-y"
-              value={form.fee_notes}
-              onChange={(e) => patchForm("fee_notes", e.target.value)}
-              placeholder="입금 및 환불 안내"
-            />
-          </Field>
         </div>
-        <PanelSummary
-          stats={[
-            ["참가팀", `${summary.teamCount}${summary.maxTeams ? ` / ${summary.maxTeams}` : ""}`],
-            ["승인 기준", form.auto_approve_teams ? "자동 승인" : "수동 승인"],
-            ["사이트", summary.siteConfigured ? "설정됨" : "미설정"],
-            ["공개", summary.sitePublished ? "공개 중" : "비공개"],
-            ["공개 가능", publishGate.ok ? "가능" : "대기"],
-          ]}
-          panels={[
-            ["teams", "참가팀"],
-            ["site", "사이트 공개"],
-          ]}
-          openPanels={openPanels}
-          onToggle={togglePanel}
-        />
-        {siteUrl && (
-          <a
-            href={siteUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="ts-btn ts-btn--secondary ts-btn--sm mt-3"
-          >
-            공개 사이트 보기
-          </a>
-        )}
-        {openPanels.has("teams") && (
-          <PanelFrame>
-            <TeamsPanel />
-          </PanelFrame>
-        )}
-        {openPanels.has("site") && (
-          <PanelFrame>
-            <SitePanel />
-          </PanelFrame>
-        )}
         <details className="mt-3 rounded-[14px] bg-[var(--grey-50)] p-3">
           <summary className="min-h-[40px] cursor-pointer py-1.5 text-sm font-bold text-[var(--ink)]">
             공개 체크리스트
@@ -881,6 +909,8 @@ export function TournamentWorkspace({
       </WorkspaceSection>
         </div>
       </div>
+
+      {renderDesktopSaveBar()}
 
       <div
         className="fixed inset-x-0 bottom-0 z-40 border-t p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] lg:hidden"
@@ -987,8 +1017,16 @@ function SectionNav({
   onMove: (id: SectionId) => void;
   compact?: boolean;
 }) {
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!compact) return;
+    const activeButton = rootRef.current?.querySelector<HTMLButtonElement>('[data-active="true"]');
+    activeButton?.scrollIntoView({ block: "nearest", inline: "center", behavior: "smooth" });
+  }, [active, compact]);
+
   return (
-    <div className={["ts-segment", compact ? "overflow-x-auto" : ""].join(" ")}>
+    <div ref={rootRef} className={["ts-segment", compact ? "overflow-x-auto" : ""].join(" ")}>
       {SECTIONS.map((section) => (
         <button
           key={section.id}
@@ -999,7 +1037,7 @@ function SectionNav({
           onClick={() => onMove(section.id)}
           className={[
             "ts-segment__btn whitespace-nowrap",
-            compact ? "min-w-[112px] shrink-0 text-xs" : "",
+            compact ? "min-w-[84px] shrink-0 text-xs" : "",
           ].join(" ")}
         >
           {section.label}
