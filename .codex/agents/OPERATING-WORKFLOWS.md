@@ -13,6 +13,19 @@
 | 릴리스 영향 | 커밋, push, PR, 배포 전 점검 | `release-manager` |
 | 운영 장애 | 배포 후 오류, API 장애, 기록 앱 현장 중단 가능성 | `ops-monitor`, `debugger` |
 
+## 기록 앱 기준 저장소
+
+| 항목 | 값 |
+|---|---|
+| 저장소 | `https://github.com/cobby8/bdr_stat_v3.git` |
+| 기준 브랜치 | `main` |
+| 2026-06-25 확인 커밋 | `7676a1a` |
+| 앱 버전 | `0.1.10+12` |
+| 주요 기술 | Flutter, Riverpod, Dio, flutter_secure_storage, Drift SQLite |
+| 서버 계약 | `/api/v1/**`, snake_case payload/response, JWT Bearer 인증 |
+
+기록 앱 영향 작업은 서버 repo만 보고 끝내지 않는다. `record-app-liaison`은 `bdr_stat_v3`의 API client, sync, event 기록, snapshot 생성 테스트까지 확인 대상으로 잡는다.
+
 ## 1. 작은 코드 수정
 
 | 단계 | 에이전트 | 역할 |
