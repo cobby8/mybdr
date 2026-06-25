@@ -61,10 +61,10 @@ export default function HelpContactPage() {
     <div className="page">
       <div className="page__inner" style={{ maxWidth: 760 }}>
         <header className="info-hero" style={{ paddingBottom: 4 }}>
-          <div className="eyebrow">도움말 · CONTACT</div>
+          <div className="eyebrow">HELP · CONTACT</div>
           <h1 className="info-hero__title">문의하기</h1>
           <p style={{ color: "var(--ink-mute)", fontSize: 14, lineHeight: 1.7, marginTop: 8 }}>
-            이용문의, 오류 신고, 수정 요청을 운영팀에 보낼 수 있습니다.
+            이용문의, 사이트 오류, 수정 요청을 운영팀에 바로 보낼 수 있습니다.
           </p>
         </header>
 
@@ -99,7 +99,7 @@ export default function HelpContactPage() {
                 className="input"
                 value={title}
                 onChange={(event) => setTitle(event.target.value)}
-                placeholder="요약을 입력해주세요"
+                placeholder="요약을 입력해 주세요"
                 minLength={2}
                 maxLength={120}
                 required
@@ -112,7 +112,7 @@ export default function HelpContactPage() {
                 className="input"
                 value={content}
                 onChange={(event) => setContent(event.target.value)}
-                placeholder="상황을 자세히 적어주세요"
+                placeholder="상황을 자세히 적어 주세요"
                 rows={7}
                 minLength={5}
                 maxLength={4000}
@@ -123,7 +123,7 @@ export default function HelpContactPage() {
 
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>
               <label style={{ display: "grid", gap: 6 }}>
-                <span style={{ fontSize: 12, fontWeight: 800, color: "var(--ink-soft)" }}>회신 이메일</span>
+                <span style={{ fontSize: 12, fontWeight: 800, color: "var(--ink-soft)" }}>답신 이메일</span>
                 <input
                   className="input"
                   type="email"
