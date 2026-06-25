@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { OFFICIAL_ROLE_TYPES } from "@/lib/referee/official-roles";
 
 /**
  * 심판(Referee) + 심판 자격증(RefereeCertificate) Zod 스키마.
@@ -13,8 +14,8 @@ import { z } from "zod";
 // 공통 enum
 // ─────────────────────────────────────────────────────────────
 
-// role_type / cert_type 공통 enum (referee/scorer/timer)
-const refereeRoleEnum = z.enum(["referee", "scorer", "timer"]);
+// KBA 기준: 심판과 경기원(기록/계시/통계)을 1차 직군으로 분리한다.
+const refereeRoleEnum = z.enum(OFFICIAL_ROLE_TYPES);
 
 // level enum (심판 숙련도)
 const refereeLevelEnum = z.enum([

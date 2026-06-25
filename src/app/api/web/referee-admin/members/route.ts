@@ -9,6 +9,7 @@ import { encryptResidentId, extractLast4 } from "@/lib/security/encryption";
 import { findMatchingUser, executeMatch } from "@/lib/services/referee-matching";
 // 헬스체크 봇의 쓰기 작업 차단 가드
 import { requireNotBot } from "@/lib/healthcheck/is-bot";
+import { OFFICIAL_ROLE_TYPES } from "@/lib/referee/official-roles";
 
 /**
  * POST /api/web/referee-admin/members
@@ -53,8 +54,8 @@ const preRegisterSchema = z.object({
     .enum(["beginner", "intermediate", "advanced", "international"])
     .optional()
     .nullable(),
-  // 선택: 역할 (기본 referee)
-  role_type: z.enum(["referee", "scorer", "timer"]).optional(),
+  // 선택: 직군 (기본 referee). 기록/계시는 경기원 직군의 배정 슬롯으로만 분리한다.
+  role_type: z.enum(OFFICIAL_ROLE_TYPES).optional(),
   // 선택: 자격번호
   license_number: z.string().trim().max(50).optional().nullable(),
   // 선택: 주민등록번호 (정산용, "000000-0000000" 형식)

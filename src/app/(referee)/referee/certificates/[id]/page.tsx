@@ -288,8 +288,7 @@ export default function CertificateDetailPage() {
               style={inputStyle()}
             >
               <option value="referee">referee</option>
-              <option value="scorer">scorer</option>
-              <option value="timer">timer</option>
+              <option value="game_official">game_official</option>
             </select>
           </Field>
           <Field label="등급">

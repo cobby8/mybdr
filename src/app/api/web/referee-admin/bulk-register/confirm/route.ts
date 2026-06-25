@@ -7,6 +7,7 @@ import { prisma } from "@/lib/db/prisma";
 import { z } from "zod";
 import { encryptResidentId, extractLast4 } from "@/lib/security/encryption";
 import { executeMatch } from "@/lib/services/referee-matching";
+import { OFFICIAL_ROLE_TYPES } from "@/lib/referee/official-roles";
 
 /**
  * /api/web/referee-admin/bulk-register/confirm
@@ -47,7 +48,7 @@ const rowSchema = z.object({
     .enum(["beginner", "intermediate", "advanced", "international"])
     .nullable()
     .optional(),
-  role_type: z.enum(["referee", "scorer", "timer"]),
+  role_type: z.enum(OFFICIAL_ROLE_TYPES),
   match_status: z.enum(["matched", "unmatched", "duplicated", "invalid"]),
   match_user_id: z.string().nullable().optional(),
   resident_id: z.string().trim().nullable().optional(),

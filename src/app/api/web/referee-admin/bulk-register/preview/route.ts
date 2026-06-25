@@ -5,6 +5,10 @@ import {
 } from "@/lib/auth/admin-guard";
 import { prisma } from "@/lib/db/prisma";
 import { readXlsxRows } from "@/lib/excel/read-xlsx-rows";
+import {
+  normalizeOfficialRoleType,
+  type OfficialRoleType,
+} from "@/lib/referee/official-roles";
 
 /**
  * /api/web/referee-admin/bulk-register/preview
@@ -63,20 +67,6 @@ const LEVEL_LABEL_MAP: Record<string, string> = {
   beginner: "beginner",
 };
 
-// 구분 라벨 → role_type 매핑
-const ROLE_LABEL_MAP: Record<string, "referee" | "scorer" | "timer"> = {
-  referee: "referee",
-  scorer: "scorer",
-  timer: "timer",
-  심판: "referee",
-  기록: "scorer",
-  기록원: "scorer",
-  계시: "timer",
-  계시원: "timer",
-  경기원: "scorer", // 경기원 → 기본 scorer로 매핑 (게임팀 전용)
-  game_official: "scorer",
-};
-
 type MatchStatus = "matched" | "unmatched" | "duplicated" | "invalid";
 
 type PreviewRow = {
@@ -88,7 +78,7 @@ type PreviewRow = {
   license_number: string | null;
   level: string | null; // 정규화된 코드
   level_raw: string | null; // 원본 입력값 (디버깅용)
-  role_type: "referee" | "scorer" | "timer";
+  role_type: OfficialRoleType;
   match_status: MatchStatus;
   match_user_id: string | null; // bigint → string (JSON 직렬화)
   match_user_name: string | null;
@@ -170,14 +160,13 @@ export async function POST(req: Request) {
       return apiError("파일 크기는 5MB 이하여야 합니다.", 400, "FILE_TOO_LARGE");
     }
 
-    // 기본 role_type: body의 값 (referee 또는 game_official → scorer)
+    // 기본 role_type: body의 값. scorer/timer 같은 옛 입력은 경기원으로 흡수한다.
     // 엑셀 "구분" 컬럼이 있으면 그 값이 우선
     if (!file.name.toLowerCase().endsWith(".xlsx")) {
       return apiError("xlsx 파일만 업로드 가능합니다.", 400, "INVALID_FILE_TYPE");
     }
 
-    const defaultRoleType: "referee" | "scorer" | "timer" =
-      ROLE_LABEL_MAP[defaultRoleTypeRaw.toLowerCase()] ?? "referee";
+    const defaultRoleType = normalizeOfficialRoleType(defaultRoleTypeRaw);
 
     // 4) xlsx 파싱
     const buffer = await file.arrayBuffer();
@@ -212,7 +201,7 @@ export async function POST(req: Request) {
       license_number: string | null;
       level: string | null;
       level_raw: string | null;
-      role_type: "referee" | "scorer" | "timer";
+      role_type: OfficialRoleType;
       resident_id: string | null;
       error: string | null;
     };
@@ -311,9 +300,7 @@ export async function POST(req: Request) {
       }
 
       // role_type 결정: "구분" 컬럼이 있으면 우선, 없으면 body default
-      const rowRole = roleRaw
-        ? ROLE_LABEL_MAP[roleRaw.toLowerCase()] ?? ROLE_LABEL_MAP[roleRaw]
-        : undefined;
+      const rowRole = roleRaw ? normalizeOfficialRoleType(roleRaw) : undefined;
       const roleType = rowRole ?? defaultRoleType;
 
       return {

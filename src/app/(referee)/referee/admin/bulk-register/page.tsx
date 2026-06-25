@@ -5,6 +5,10 @@ import Link from "next/link";
 import writeExcelFile from "write-excel-file/browser";
 // Toss 키트 Icon — Material Symbols 대체 (lucide 기반)
 import { Icon } from "@/components/admin-toss";
+import {
+  OFFICIAL_ROLE_LABELS,
+  type OfficialRoleType,
+} from "@/lib/referee/official-roles";
 
 /**
  * /referee/admin/bulk-register — Excel 일괄 사전 등록 (Client Component).
@@ -30,7 +34,7 @@ type PreviewRow = {
   license_number: string | null;
   level: string | null;
   level_raw: string | null;
-  role_type: "referee" | "scorer" | "timer";
+  role_type: OfficialRoleType;
   match_status: MatchStatus;
   match_user_id: string | null;
   match_user_name: string | null;
@@ -90,13 +94,6 @@ const LEVEL_LABEL: Record<string, string> = {
   international: "국제",
 };
 
-// role_type → 한글 라벨
-const ROLE_LABEL: Record<string, string> = {
-  referee: "심판",
-  scorer: "기록원",
-  timer: "계시원",
-};
-
 export default function AdminBulkRegisterPage() {
   // 단계: idle → previewing → previewed → confirming → confirmed
   const [step, setStep] = useState<
@@ -105,9 +102,7 @@ export default function AdminBulkRegisterPage() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [preview, setPreview] = useState<PreviewResponse | null>(null);
   const [confirmResult, setConfirmResult] = useState<ConfirmResponse | null>(null);
-  const [roleType, setRoleType] = useState<"referee" | "game_official">(
-    "referee"
-  );
+  const [roleType, setRoleType] = useState<OfficialRoleType>("referee");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // 템플릿 다운로드 — 클라이언트에서 xlsx 생성 (서버 경유 불필요)
@@ -123,7 +118,7 @@ export default function AdminBulkRegisterPage() {
         "2급",
         "심판",
       ],
-      ["김기록", "010-2222-3333", "1985-06-15", "", "", "1급", "기록원"],
+      ["김경기", "010-2222-3333", "1985-06-15", "", "", "1급", "경기원"],
     ];
     try {
       await writeExcelFile(template, { sheet: "심판명단" }).toFile(
@@ -341,7 +336,7 @@ export default function AdminBulkRegisterPage() {
                 checked={roleType === "game_official"}
                 onChange={() => setRoleType("game_official")}
               />
-              <span style={{ color: "var(--color-text-primary)" }}>경기원(기록/계시)</span>
+              <span style={{ color: "var(--color-text-primary)" }}>경기원</span>
             </label>
           </div>
 
@@ -489,7 +484,7 @@ export default function AdminBulkRegisterPage() {
                       className="px-3 py-2"
                       style={{ color: "var(--color-text-secondary)" }}
                     >
-                      {ROLE_LABEL[row.role_type] ?? row.role_type}
+                      {OFFICIAL_ROLE_LABELS[row.role_type] ?? row.role_type}
                     </td>
                     <td className="px-3 py-2">
                       <RowStatusBadge status={row.match_status} />
