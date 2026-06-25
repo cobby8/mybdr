@@ -7,6 +7,7 @@
 - 2026-06-24 feat(ranking): added community basketball ranking research keyword seed and Naver search collection PoC.
 
 ## Current Task
+- 2026-06-25 done: added division auto-draw API and admin button to assign approved teams into groups and seed order before bracket generation.
 - 2026-06-25 done: aligned tournament creation and admin division data by saving division date/court assignments, and added approved-team division readiness summary.
 - 2026-06-25 done: implemented Kakao-first tournament venue search, venue route links, public schedule directions, and match-day navigation reminders.
 - 2026-06-25 done: merged tournament admin workspace work into dev, fixed tests, and verified `tsc`, full test, and build before production merge.
@@ -24,6 +25,7 @@
 | 운영 머지 | 보류 | 최신 요청은 지도/길안내 구현, 푸시/머지 미요청 |
 
 ## 작업 로그
+- 2026-06-25 feat(admin): 참가팀 화면에서 종별별 승인팀 자동 조편성을 실행해 `groupName`과 `seedNumber`를 일괄 배정하는 API와 버튼 추가.
 - 2026-06-25 feat(admin): 대회 생성의 종별 일정/체육관 배정값을 관리 저장 API와 연결하고 참가팀 화면에 종별별 승인팀/정원/대진 준비 현황을 추가.
 - 2026-06-25 feat(tournament): 카카오 장소 검색과 경기장 길안내 링크/알림 흐름을 대회 생성·관리·공개 일정에 연결.
 - 2026-06-25 release: dev를 main에 머지하기 위해 원격 dev/main 동기화, rebase, 테스트와 빌드 재검증.

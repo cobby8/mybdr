@@ -96,6 +96,7 @@ export default function TournamentTeamsPage() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<string>("all");
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [drawingDivision, setDrawingDivision] = useState<string | null>(null);
 
   // 선수 관리 상태
   const [expandedTeamId, setExpandedTeamId] = useState<string | null>(null);
@@ -358,6 +359,36 @@ export default function TournamentTeamsPage() {
     } catch { /* ignore */ }
   };
 
+  const autoDrawDivision = async (rule: DivisionRuleOption) => {
+    const ready = divisionReadiness.find((item) => item.code === rule.code);
+    if (!ready || ready.approved < 2) {
+      showToast("승인팀이 2팀 이상이어야 조편성을 할 수 있습니다.");
+      return;
+    }
+    if (!confirm(`${rule.label} 승인팀 ${ready.approved}팀을 자동 조편성하고 시드를 다시 배정할까요?`)) {
+      return;
+    }
+    setDrawingDivision(rule.code);
+    try {
+      const res = await fetch(`/api/web/admin/tournaments/${id}/division-draw`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ divisionCode: rule.code }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        showToast(json.error ?? "조편성 실패");
+        return;
+      }
+      showToast(`${json.division_label ?? rule.label}: ${json.group_count ?? 0}개 조 편성 완료`);
+      await load();
+    } catch {
+      showToast("네트워크 오류");
+    } finally {
+      setDrawingDivision(null);
+    }
+  };
+
   /* --- 선수 목록 로드 --- */
   const loadPlayers = async (teamId: string) => {
     setPlayersLoading(true);
@@ -600,6 +631,14 @@ export default function TournamentTeamsPage() {
                     {item.overCapacity ? "정원 초과" : item.ready ? "준비" : "대기"}
                   </span>
                 </div>
+                <button
+                  type="button"
+                  onClick={() => autoDrawDivision(item)}
+                  disabled={drawingDivision === item.code || item.approved < 2}
+                  className="ts-btn ts-btn--secondary ts-btn--sm mt-3 w-full"
+                >
+                  {drawingDivision === item.code ? "조편성 중..." : "자동 조편성"}
+                </button>
               </div>
             ))}
             {unassignedApprovedCount > 0 && (
