@@ -9,10 +9,11 @@ Updated: 2026-06-25
 | architecture.md | 3 | Customer signal reporting |
 | conventions.md | 2 | 대회 포맷 표준 |
 | decisions.md | 5 | Division bracket generation |
-| errors.md | 0 | - |
+| errors.md | 1 | Tournament admin edit/delete persistence |
 | lessons.md | 0 | - |
 
 Recent work:
+- 2026-06-25 tournament-admin: fixed edit/delete persistence for venue fields, unused division rule deletion, and stale division schedule cleanup.
 - 2026-06-25 tournament: 조별리그+토너먼트에서 홀수/비 2의 제곱 진출팀을 부전승 포함 트리로 생성하도록 보강.
 - 2026-06-25 tournament: 조별리그+토너먼트 본선 generator와 3개 조 이상 동순위 순위결정전 생성을 구현.
 - 2026-06-25 tournament: 대회 포맷 표준을 6개로 정리하고 신규 생성/관리/공개 라벨과 요강 추출 기준을 통일.
