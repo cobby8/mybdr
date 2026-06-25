@@ -10,7 +10,7 @@ import type { NextRequest } from "next/server";
 /**
  * GET /api/web/referee-admin/fee-settings
  *   협회 배정비 단가표 조회. 모든 관리자 열람 가능.
- *   레코드가 없으면 하드코딩 기본값(주심 80k / 부심 60k / 기록 40k / 타이머 40k)을 반환.
+ *   레코드가 없으면 하드코딩 기본값(주심 80k / 부심 60k / 경기원-기록 40k / 경기원-계시 40k)을 반환.
  *
  * PUT /api/web/referee-admin/fee-settings
  *   단가표 생성/수정. 사무국장(settlement_manage)만.

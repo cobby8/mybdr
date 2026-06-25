@@ -1,5 +1,12 @@
 # Architecture Notes
 
+## 2026-06-25 Tournament Venue Navigation
+
+- `src/lib/maps/navigation-links.ts` is the shared Kakao map/directions URL helper.
+- `/api/web/place-search` searches Kakao Local first and keeps Google Places as a fallback.
+- Tournament venue data is stored in `Tournament.places` JSON with optional provider, placeId, lat, lng, mapUrl, and routeUrl fields.
+- `/api/cron/match-venue-reminders` sends match-day navigation notifications without DB schema changes by deduping through `notifications.notifiable_type/id`.
+
 ## 2026-06-24 Tournament Admin Single Workspace
 
 - `/tournament-admin/tournaments/[id]` is now the single workspace for operating an existing tournament.

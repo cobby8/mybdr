@@ -283,7 +283,14 @@ export function BoxScoreTable({
                   >
                     {/* 2026-05-10 PlayerLink/TeamLink 2단계 — 박스스코어 활성 선수 이름 셀 → 공개프로필.
                         user_id null (placeholder ttp) → 자동 span fallback. truncate CSS 부모 td 가 처리. */}
-                    <PlayerLink userId={p.user_id} name={p.name} />
+                    <span className="inline-flex items-center gap-1">
+                      <PlayerLink userId={p.user_id} name={p.name} />
+                      {p.is_elite && (
+                        <span className="badge badge--red" style={{ fontSize: 9, padding: "1px 4px" }}>
+                          선출
+                        </span>
+                      )}
+                    </span>
                   </td>
                   {/* 2026-05-17 사용자 결재 — paper 매치 = MIN 셀 hide */}
                   {!isPaperMatch && (
@@ -432,7 +439,14 @@ export function BoxScoreTable({
                     style={{ color: "var(--color-text-muted)" }}
                   >
                     {/* 2026-05-10 PlayerLink/TeamLink 2단계 — DNP 행 이름 셀도 동일하게 공개프로필 link. */}
-                    <PlayerLink userId={p.user_id} name={p.name} />
+                    <span className="inline-flex items-center gap-1">
+                      <PlayerLink userId={p.user_id} name={p.name} />
+                      {p.is_elite && (
+                        <span className="badge badge--red" style={{ fontSize: 9, padding: "1px 4px" }}>
+                          선출
+                        </span>
+                      )}
+                    </span>
                   </td>
                   {/* 미출전 행의 MIN 자리도 앱 통계 화면과 맞춰 "-"로 표시 */}
                   {!isPaperMatch && (

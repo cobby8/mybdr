@@ -4,7 +4,7 @@
  * Step4RefereeRegister — 협회 마법사 Step 4 (옵션) Referee 사전 등록 (Phase 6 PR3, 2026-05-15).
  *
  * 왜:
- *   - 협회가 심판/기록원/타이머를 사전 등록 — 매칭 후 user_id 채워지면 활성 심판.
+ *   - 협회가 심판/경기원을 사전 등록 — 매칭 후 user_id 채워지면 활성 심판.
  *   - 옵션 단계 (Q2 결재 = PR3 후속) — 빈 배열 허용 (skip 진행).
  *   - Q7 결재 = 자격번호 검증 0 (1차 미검증 박제, 운영자 책임 입력).
  *
@@ -72,7 +72,7 @@ export function Step4RefereeRegister({
       </h2>
 
       <p className="text-sm text-[var(--color-text-muted)]">
-        협회에 소속된 심판/기록원/타이머를 사전 등록합니다. 회원가입 후 매칭되면
+        협회에 소속된 심판/경기원을 사전 등록합니다. 회원가입 후 매칭되면
         자동 활성화됩니다. <strong>지금 등록하지 않아도 됩니다</strong> —
         나중에 협회 관리 페이지에서 추가할 수 있습니다.
       </p>

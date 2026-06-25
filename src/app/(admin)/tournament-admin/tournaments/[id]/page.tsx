@@ -61,6 +61,15 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value && typeof value === "object" && !Array.isArray(value));
 }
 
+function stringFrom(value: unknown): string | undefined {
+  return typeof value === "string" && value.trim() ? value.trim() : undefined;
+}
+
+function numberFrom(value: unknown): number | undefined {
+  const parsed = typeof value === "number" ? value : typeof value === "string" ? Number(value) : NaN;
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
+
 function normalizeSponsorDrafts(sponsors: string | null, settings: unknown) {
   const names = (sponsors ?? "")
     .split(",")
@@ -101,6 +110,7 @@ function normalizeVenueDrafts(places: unknown, venueName: string | null, venueAd
         ? rawCount
         : 1;
       const naming: Venue["naming"] = row.naming === "alpha" ? "alpha" : "num";
+      const provider = row.provider === "kakao" || row.provider === "google" ? row.provider : undefined;
       return [{
         id: typeof row.id === "string" ? row.id : `v_legacy_${index}`,
         name,
@@ -111,6 +121,14 @@ function normalizeVenueDrafts(places: unknown, venueName: string | null, venueAd
             : "",
         courtCount,
         naming,
+        provider,
+        placeId: stringFrom(row.placeId ?? row.place_id),
+        lat: numberFrom(row.lat),
+        lng: numberFrom(row.lng),
+        phone: stringFrom(row.phone),
+        category: stringFrom(row.category),
+        mapUrl: stringFrom(row.mapUrl ?? row.map_url),
+        routeUrl: stringFrom(row.routeUrl ?? row.route_url),
       }];
     });
 

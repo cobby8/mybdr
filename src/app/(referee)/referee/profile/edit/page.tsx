@@ -2,6 +2,10 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import {
+  OFFICIAL_ROLE_LABELS,
+  type OfficialRoleType,
+} from "@/lib/referee/official-roles";
 import Link from "next/link";
 
 /**
@@ -236,13 +240,13 @@ export default function RefereeProfileEditPage() {
         {/* 역할 (라디오) */}
         <Field label="역할">
           <div className="flex gap-2">
-            {(["referee", "scorer", "timer"] as const).map((opt) => {
+            {(["referee", "game_official"] as const).map((opt) => {
               const active = form.role_type === opt;
               return (
                 <button
                   type="button"
                   key={opt}
-                  onClick={() => updateField("role_type", opt)}
+                  onClick={() => updateField("role_type", opt satisfies OfficialRoleType)}
                   className="flex-1 px-3 py-2 text-xs font-bold uppercase tracking-wider"
                   style={{
                     backgroundColor: active
@@ -253,7 +257,7 @@ export default function RefereeProfileEditPage() {
                     borderRadius: 4,
                   }}
                 >
-                  {opt}
+                  {OFFICIAL_ROLE_LABELS[opt]}
                 </button>
               );
             })}

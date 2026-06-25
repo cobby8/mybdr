@@ -191,7 +191,7 @@ export default async function AdminDashboardPage() {
       href: "/referee/admin/assignments",
       icon: "calendar-check",
       label: "배정 관리",
-      description: "경기별 심판/기록원 배정 운영",
+      description: "경기별 심판/경기원 배정 운영",
     },
     {
       href: "/referee/admin/announcements",
@@ -221,7 +221,7 @@ export default async function AdminDashboardPage() {
       href: "/referee/admin/bulk-register",
       icon: "file-up",
       label: "일괄 등록",
-      description: "Excel 파일로 심판/기록원 명단 일괄 등록",
+      description: "Excel 파일로 심판/경기원 명단 일괄 등록",
     },
     {
       href: "/referee/admin/bulk-verify",

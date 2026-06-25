@@ -131,6 +131,7 @@ export default async function BasketballPage() {
           total_games_participated: true,
           profile_image_url: true,
           xp: true,
+          is_elite: true,
           createdAt: true,
           last_login_at: true,
           // ===== PU3 신규 — 농구 캐릭터 / 선호 정보 / 매너 (전부 실재 컬럼, 본인 한정) =====
@@ -1059,6 +1060,7 @@ export default async function BasketballPage() {
           district: user.district,
           bio: user.bio,
           gender: user.gender,
+          isElite: user.is_elite === true,
           evaluation_rating: evaluationRating,
           createdAt: user.createdAt?.toISOString() ?? null,
           lastLoginAt: user.last_login_at?.toISOString() ?? null,

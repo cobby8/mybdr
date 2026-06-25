@@ -168,11 +168,11 @@ function extractCertificateInfo(texts: string[]): {
   // 2) 유형: "심판" / "경기원" / "기록원" / "감독관" 키워드 검색
   const typeKeywords: Record<string, string> = {
     심판: "referee",
-    경기원: "scorer",
-    기록원: "scorer",
+    경기원: "game_official",
+    기록원: "game_official",
     감독관: "referee",
-    타이머: "timer",
-    기록: "scorer",
+    타이머: "game_official",
+    기록: "game_official",
   };
   for (const [keyword, type] of Object.entries(typeKeywords)) {
     if (fullText.includes(keyword)) {

@@ -3,8 +3,60 @@ import { prisma } from "@/lib/db/prisma";
 import { apiSuccess, apiError } from "@/lib/api/response";
 // 비공개 대회 노출 차단 가드 (SSR page.tsx와 동일 정책 — insider 외 404).
 import { blockIfPrivateTournament } from "@/lib/auth/private-tournament-guard";
+import {
+  normalizeCoordinate,
+  resolveVenueNavigation,
+  type VenueNavigationTarget,
+} from "@/lib/maps/navigation-links";
 
 type Ctx = { params: Promise<{ id: string }> };
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value && typeof value === "object" && !Array.isArray(value));
+}
+
+function textFrom(value: unknown): string | undefined {
+  return typeof value === "string" && value.trim() ? value.trim() : undefined;
+}
+
+function placeTargetFromJson(value: unknown): VenueNavigationTarget | null {
+  if (!isRecord(value)) return null;
+  const name = textFrom(value.name);
+  if (!name) return null;
+  return {
+    name,
+    address: textFrom(value.address) ?? textFrom(value.region),
+    lat: normalizeCoordinate(value.lat),
+    lng: normalizeCoordinate(value.lng),
+    mapUrl: textFrom(value.mapUrl) ?? textFrom(value.map_url),
+    routeUrl: textFrom(value.routeUrl) ?? textFrom(value.route_url),
+  };
+}
+
+function findVenueTarget(
+  places: unknown,
+  venueName: string | null,
+  fallbackVenueName: string | null,
+  fallbackVenueAddress: string | null,
+): VenueNavigationTarget {
+  const placeTargets = (Array.isArray(places) ? places : [])
+    .map(placeTargetFromJson)
+    .filter((place): place is VenueNavigationTarget => Boolean(place));
+  const normalizedVenueName = venueName?.trim();
+  const matched =
+    (normalizedVenueName
+      ? placeTargets.find((place) => {
+          const name = place.name?.trim();
+          return Boolean(name && (name === normalizedVenueName || normalizedVenueName.includes(name)));
+        })
+      : null) ?? placeTargets[0] ?? null;
+
+  return {
+    ...matched,
+    name: normalizedVenueName || matched?.name || fallbackVenueName || null,
+    address: matched?.address || fallbackVenueAddress || null,
+  };
+}
 
 /**
  * 대회 일정 탭 공개 API (인증 불필요)
@@ -26,7 +78,7 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
     return apiError("Tournament not found", 404);
   }
 
-  const [matches, teams] = await Promise.all([
+  const [matches, teams, tournament] = await Promise.all([
     // 일정 탭: 경기 목록
     prisma.tournamentMatch.findMany({
       where: { tournamentId: id },
@@ -49,6 +101,10 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
       },
       orderBy: { team: { name: "asc" } },
     }),
+    prisma.tournament.findUnique({
+      where: { id },
+      select: { places: true, venue_name: true, venue_address: true },
+    }),
   ]);
 
   // 직렬화 (page.tsx의 scheduleMatches/scheduleTeams 변환 로직과 동일)
@@ -67,6 +123,15 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
       awaySlotLabel?: string;
       division_code?: string;
     } | null;
+
+    const venueTarget = findVenueTarget(
+      tournament?.places,
+      m.venue_name,
+      tournament?.venue_name ?? null,
+      tournament?.venue_address ?? null,
+    );
+    const venueLinks = resolveVenueNavigation(venueTarget);
+    const venueDisplayName = textFrom(m.venue_name) ?? textFrom(venueTarget.name) ?? null;
 
     return {
       id: m.id.toString(),
@@ -104,7 +169,9 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
       //   division: 종별 코드 (예: "i2-U11"). null = 종별 미부여 (단일 종별 대회).
       //   venueName: 체육관 이름 (예: "수도공고"). null = 체육관 미부여.
       division: settings?.division_code ?? null,
-      venueName: m.venue_name,
+      venueName: venueDisplayName,
+      venueMapUrl: venueLinks.mapUrl,
+      venueRouteUrl: venueLinks.routeUrl,
     };
   });
 

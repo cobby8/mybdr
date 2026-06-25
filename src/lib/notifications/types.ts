@@ -47,6 +47,7 @@ export const NOTIFICATION_TYPES = {
   TOURNAMENT_JOIN_SUBMITTED: "tournament.join.submitted",     // 신청자: 대회 참가 신청 완료
   TOURNAMENT_JOIN_RECEIVED: "tournament.join.received",       // 주최자: 대회 참가 신청 접수
   TOURNAMENT_DDAY_REMINDER: "tournament.dday.reminder",       // 팀장: D-3/D-1 알림
+  MATCH_VENUE_REMINDER: "match.venue.reminder",               // 선수: 경기 당일 경기장 길안내
   TOURNAMENT_BRACKET_APPROVAL: "tournament.bracket.approval", // 슈퍼관리자: 브라켓 승인 요청
   TOURNAMENT_BRACKET_APPROVED: "tournament.bracket.approved", // 관리자: 브라켓 승인됨
 

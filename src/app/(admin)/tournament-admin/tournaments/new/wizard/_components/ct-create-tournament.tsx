@@ -24,7 +24,10 @@ import {
   ScheduleVenue,
   allCourts,
   ctUid,
+  serializeVenue,
+  venueFromDraft,
   type Venue,
+  type VenueDraft,
   type DateRow,
 } from "./ct-schedule-venue";
 // B-4 우측 컬럼 실폼 — B-3 에서 만든 controlled 컴포넌트 교체
@@ -76,7 +79,7 @@ export type CtDraftPayload = {
   sponsors: string;
   gameRules: Record<string, unknown>;
   // B-1 places 확장형
-  places: { id: string; name: string; region: string; courtCount: number; naming: "num" | "alpha" }[];
+  places: ReturnType<typeof serializeVenue>[];
   // B-1 scheduleDates 규격 [{id,date,court_ids:[]}]
   scheduleDates: { id: string; date: string; court_ids: string[] }[];
   // 종별·디비전 평면변환 — createTournament 가 받는 3개 Record (route.ts L147)
@@ -424,14 +427,14 @@ export function CtCreateTournament({
   const courts = allCourts(venues);
 
   // ── 장소 · 코트 ─────────────────────────────────────────────────────
-  const addVenue = (name: string, region: string) => {
-    const v = name.trim();
-    if (!v) return;
-    if (venues.some((x) => x.name === v)) {
+  const addVenue = (draft: VenueDraft) => {
+    const venue = venueFromDraft(draft);
+    if (!venue.name) return;
+    if (venues.some((x) => x.name === venue.name || (venue.placeId && x.placeId === venue.placeId))) {
       toast("이미 등록된 장소입니다");
       return;
     }
-    setVenues((p) => [...p, { id: ctUid("v"), name: v, region: region || "", courtCount: 1, naming: "num" }]);
+    setVenues((p) => [...p, venue]);
   };
   // 장소 변경/삭제 시 dates 의 무효 courtId 정리(시안 pruneCourts 1:1)
   const pruneCourts = (nextVenues: Venue[]) => {
@@ -513,7 +516,7 @@ export function CtCreateTournament({
   //       page.tsx 는 받은 payload 를 그대로 POST 한다(API/schema 확장 0).
   const publish = (pub: PublishInfo) => {
     // B-1 places 확장형 / scheduleDates 규격으로 변환
-    const places = venues.map((v) => ({ id: v.id, name: v.name, region: v.region, courtCount: v.courtCount, naming: v.naming }));
+    const places = venues.map(serializeVenue).filter((v) => v.name);
     const scheduleDates = dates.map((dt) => ({ id: dt.id, date: dt.date, court_ids: dt.courtIds }));
 
     // ── 종별·디비전 평면변환 ───────────────────────────────────────────

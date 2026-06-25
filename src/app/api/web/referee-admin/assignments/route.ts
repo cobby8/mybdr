@@ -39,7 +39,7 @@ const createSchema = z.object({
   tournament_match_id: z
     .union([z.number(), z.string()])
     .transform((v) => BigInt(v)),
-  // 역할: 주심/부심/기록원/타이머
+  // 역할: 주심/부심/경기원-기록/경기원-계시
   role: z.enum(["main", "sub", "recorder", "timer"]),
   memo: z.string().max(500).optional().nullable(),
   // 배정워크플로우 3차: 일자별 선정 풀 연결 (optional — 과도기 호환성).

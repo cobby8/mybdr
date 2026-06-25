@@ -11,6 +11,14 @@ const labelCls = "mb-1 block text-xs font-medium text-[var(--color-text-muted)]"
 export interface PlaceInfo {
   name: string;
   address: string;
+  provider?: "kakao" | "google";
+  placeId?: string;
+  lat?: number;
+  lng?: number;
+  phone?: string;
+  category?: string;
+  mapUrl?: string;
+  routeUrl?: string;
 }
 
 export interface ScheduleFormData {
@@ -43,7 +51,7 @@ export function ScheduleForm({ data, onChange }: Props) {
       const cityMatch = place.address.match(/^(?:대한민국\s+)?(서울|부산|대구|인천|광주|대전|울산|세종|경기|강원|충북|충남|전북|전남|경북|경남|제주)/);
       if (cityMatch) onChange("city", cityMatch[1]);
     }
-    const newPlaces = [...places, { name: place.name, address: place.address }];
+    const newPlaces = [...places, place];
     onChange("places", newPlaces);
     setSearchValue(""); // 검색창 초기화
   }
@@ -122,6 +130,28 @@ export function ScheduleForm({ data, onChange }: Props) {
                 <p className="text-sm font-medium truncate" style={{ color: "var(--color-text-primary)" }}>{place.name}</p>
                 <p className="text-xs truncate" style={{ color: "var(--color-text-muted)" }}>{place.address}</p>
               </div>
+              {place.mapUrl && (
+                <a
+                  href={place.mapUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs font-bold"
+                  style={{ color: "var(--color-primary)" }}
+                >
+                  지도
+                </a>
+              )}
+              {place.routeUrl && (
+                <a
+                  href={place.routeUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs font-bold"
+                  style={{ color: "var(--color-primary)" }}
+                >
+                  길안내
+                </a>
+              )}
               <button
                 type="button"
                 onClick={() => removePlace(i)}

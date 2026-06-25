@@ -11,6 +11,10 @@ import { PhoneInput } from "@/components/inputs/phone-input";
 import { BirthDateInput } from "@/components/inputs/birth-date-input";
 // Toss 스킨(3B): Material Symbols → lucide Icon 키트
 import { Icon } from "@/components/admin-toss";
+import {
+  OFFICIAL_ROLE_LABELS,
+  type OfficialRoleType,
+} from "@/lib/referee/official-roles";
 
 /**
  * /referee/admin/members/new — 심판 사전 등록 폼.
@@ -33,9 +37,8 @@ const LEVEL_OPTIONS = [
 
 // 역할 옵션
 const ROLE_OPTIONS = [
-  { value: "referee", label: "심판" },
-  { value: "scorer", label: "기록원" },
-  { value: "timer", label: "타이머" },
+  { value: "referee", label: OFFICIAL_ROLE_LABELS.referee },
+  { value: "game_official", label: OFFICIAL_ROLE_LABELS.game_official },
 ] as const;
 
 // 시도 목록
@@ -53,7 +56,7 @@ export default function AdminMemberNewPage() {
   const [residentId, setResidentId] = useState(""); // 주민번호 (정산용, 선택)
   const [birthDate, setBirthDate] = useState("");
   const [level, setLevel] = useState("");
-  const [roleType, setRoleType] = useState("referee");
+  const [roleType, setRoleType] = useState<OfficialRoleType>("referee");
   const [licenseNumber, setLicenseNumber] = useState("");
   const [regionSido, setRegionSido] = useState("");
   const [regionSigungu, setRegionSigungu] = useState("");
@@ -353,7 +356,7 @@ export default function AdminMemberNewPage() {
               </label>
               <select
                 value={roleType}
-                onChange={(e) => setRoleType(e.target.value)}
+                onChange={(e) => setRoleType(e.target.value as OfficialRoleType)}
                 className="w-full px-3 py-2 text-sm"
                 style={{
                   backgroundColor: "var(--color-surface)",

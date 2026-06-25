@@ -185,6 +185,8 @@ function ScheduleTabContent({ tournamentId }: { tournamentId: string }) {
     //   둘 다 옵셔널 (일반 대회 회귀 0).
     division: (m.division ?? m.division_code ?? null) as string | null,
     venueName: (m.venueName ?? m.venue_name ?? null) as string | null,
+    venueMapUrl: (m.venueMapUrl ?? m.venue_map_url ?? null) as string | null,
+    venueRouteUrl: (m.venueRouteUrl ?? m.venue_route_url ?? null) as string | null,
   }));
   const teams: ScheduleTeam[] = (data?.data?.teams ?? data?.teams ?? []).map((t: Record<string, unknown>) => ({
     id: String(t.id ?? ''),

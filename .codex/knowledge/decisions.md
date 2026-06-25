@@ -1,5 +1,12 @@
 # Decision Log
 
+## 2026-06-25 Map API for Tournament Venues
+
+- Decision: use Kakao Local/Maps/Navi links as the primary venue search and navigation path for Korean tournament operations.
+- Reason: Korean venue/place accuracy and direct Kakao route links are more relevant than global-first autocomplete for domestic basketball venues.
+- Scope: no DB schema change. Store provider/placeId/lat/lng/mapUrl/routeUrl inside `Tournament.places` JSON and expose them through admin/public schedule flows.
+- Deferred: TMAP can be added later for richer ETA/traffic estimates if the product needs server-side travel-time suggestions.
+
 ## 2026-06-24 Tournament Admin IA
 
 - Decision: existing tournament operation uses one page workspace instead of multiple nested admin routes.

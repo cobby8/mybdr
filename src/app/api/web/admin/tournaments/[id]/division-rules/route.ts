@@ -6,6 +6,7 @@
  */
 
 import { type NextRequest } from "next/server";
+import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { getWebSession } from "@/lib/auth/web-session";
 import { canManageTournament } from "@/lib/auth/tournament-permission";
@@ -56,6 +57,43 @@ function serializeMasterCategory(c: {
     ages: Array.isArray(c.ages) ? c.ages : [],
     sort_order: c.sortOrder,
   };
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === "object" && !Array.isArray(value);
+}
+
+function normalizeDivSchedule(
+  value: unknown,
+  categories: Record<string, string[]>,
+): Record<string, { dateId: string; courtId: string }> | undefined {
+  if (value === undefined) return undefined;
+  if (!isRecord(value)) return {};
+
+  const selectedDivisions = new Set(
+    Object.values(categories)
+      .flat()
+      .map((division) => division.trim())
+      .filter(Boolean),
+  );
+  const result: Record<string, { dateId: string; courtId: string }> = {};
+
+  for (const [rawDivision, rawEntry] of Object.entries(value)) {
+    const division = rawDivision.trim();
+    if (!division || !selectedDivisions.has(division) || !isRecord(rawEntry)) {
+      continue;
+    }
+
+    const rawDateId = rawEntry.dateId ?? rawEntry.date_id;
+    const rawCourtId = rawEntry.courtId ?? rawEntry.court_id;
+    const dateId = typeof rawDateId === "string" ? rawDateId.trim() : "";
+    const courtId = typeof rawCourtId === "string" ? rawCourtId.trim() : "";
+    if (dateId && courtId) {
+      result[division] = { dateId, courtId };
+    }
+  }
+
+  return result;
 }
 
 async function authorizeTournament(id: string) {
@@ -156,6 +194,10 @@ export async function POST(
   const categories = normalizeCategoryMap(body.categories);
   const divCaps = normalizeNumberMap(body.div_caps ?? body.divCaps);
   const divFees = normalizeNumberMap(body.div_fees ?? body.divFees);
+  const divSchedule = normalizeDivSchedule(
+    body.div_schedule ?? body.divSchedule,
+    categories,
+  );
 
   if (Object.keys(categories).length === 0) {
     return apiError("종별을 하나 이상 선택하세요", 400, "EMPTY_DIVISIONS");
@@ -164,7 +206,7 @@ export async function POST(
   const [tournament, existingRules] = await Promise.all([
     prisma.tournament.findUnique({
       where: { id },
-      select: { id: true, format: true, entry_fee: true },
+      select: { id: true, format: true, entry_fee: true, settings: true },
     }),
     prisma.tournamentDivisionRule.findMany({
       where: { tournamentId: id },
@@ -182,6 +224,17 @@ export async function POST(
   const existingByCode = new Map(existingRules.map((rule) => [rule.code, rule]));
   const createSeeds = seeds.filter((seed) => !existingByCode.has(seed.code));
   const updateSeeds = seeds.filter((seed) => existingByCode.has(seed.code));
+  const settingsObj =
+    tournament.settings && typeof tournament.settings === "object" && !Array.isArray(tournament.settings)
+      ? { ...(tournament.settings as Record<string, unknown>) }
+      : {};
+  if (divSchedule !== undefined) {
+    if (Object.keys(divSchedule).length > 0) {
+      settingsObj.div_schedule = divSchedule;
+    } else {
+      delete settingsObj.div_schedule;
+    }
+  }
 
   const updatedRules = await prisma.$transaction(async (tx) => {
     await tx.tournament.update({
@@ -190,6 +243,9 @@ export async function POST(
         categories,
         div_caps: divCaps,
         div_fees: divFees,
+        ...(divSchedule !== undefined
+          ? { settings: JSON.parse(JSON.stringify(settingsObj)) as Prisma.InputJsonValue }
+          : {}),
       },
     });
 

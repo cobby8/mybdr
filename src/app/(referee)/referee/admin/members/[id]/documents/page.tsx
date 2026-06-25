@@ -38,7 +38,7 @@ const DOC_CONFIGS = [
     type: "certificate",
     icon: "award", // workspace_premium → award
     label: "자격증 사본",
-    description: "심판/기록원 자격증의 사본",
+    description: "심판/경기원 자격증의 사본",
   },
   {
     type: "id_card",
@@ -819,8 +819,7 @@ function CertificateForm({
         onChange={(v) => onChange("cert_type", v)}
         options={[
           { value: "referee", label: "심판" },
-          { value: "scorer", label: "경기원/기록원" },
-          { value: "timer", label: "타이머" },
+          { value: "game_official", label: "경기원" },
         ]}
       />
       <FormSelect

@@ -70,6 +70,7 @@ export interface PlayerRowV2 {
   // 2026-05-10 PlayerLink 마이그 — 박스스코어 선수명 → 공개프로필(`/users/[id]`).
   // null = placeholder user (ttp.userId NULL) → 링크 비활성 (span fallback).
   user_id: number | null;
+  is_elite?: boolean;
   min: number;
   min_seconds?: number;
   pts: number;

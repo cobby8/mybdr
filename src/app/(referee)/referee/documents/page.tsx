@@ -718,8 +718,7 @@ function CertificateForm({
         onChange={(v) => onChange("cert_type", v)}
         options={[
           { value: "referee", label: "심판" },
-          { value: "scorer", label: "경기원/기록원" },
-          { value: "timer", label: "타이머" },
+          { value: "game_official", label: "경기원" },
         ]}
       />
       <FormSelect
