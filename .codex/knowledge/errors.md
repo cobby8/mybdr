@@ -1,5 +1,12 @@
 # Errors
 
+## 2026-06-26 Archived Zip Source Included in Typecheck
+
+- Symptom: `cmd /c npx tsc --noEmit` failed in `Dev/design/_zips/.../ct-game-settings.tsx` after changing the live `GameRulePreset` type.
+- Cause: `tsconfig.json` included `**/*.ts` and `**/*.tsx`, so archived design zip source copies were treated as active TypeScript source.
+- Fix: exclude `Dev/design/_zips` from `tsconfig.json` so typecheck targets the actual app code and intentional test sources.
+- Prevention: keep generated/archive source bundles outside TypeScript include scope, or add a narrow `exclude` when a design handoff stores source snapshots under the repo.
+
 ## 2026-06-25 Tournament Admin Edit/Delete Persistence
 
 - Symptom: Tournament admin users could remove venue/division values in the UI, but saved data appeared to remain or reappear.

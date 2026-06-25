@@ -27,7 +27,6 @@ export type GameRulePreset = {
   label: string;
   quarterType: QuarterTypeCode;
   quarterMinutes: number;
-  clockMode: ClockModeCode;
   firstHalfTimeouts: number;
   secondHalfTimeouts: number;
 };
@@ -55,14 +54,34 @@ export const GAME_RULE_DEFAULTS: TournamentGameRules = {
 };
 
 export const GAME_RULE_PRESETS: readonly GameRulePreset[] = [
-  { label: "7분 4쿼터 · 논스톱", quarterType: "4Q", quarterMinutes: 7, clockMode: "nonstop", firstHalfTimeouts: 1, secondHalfTimeouts: 2 },
-  { label: "7분 4쿼터 · 올데드", quarterType: "4Q", quarterMinutes: 7, clockMode: "dead", firstHalfTimeouts: 2, secondHalfTimeouts: 3 },
-  { label: "6분 4쿼터 · 논스톱", quarterType: "4Q", quarterMinutes: 6, clockMode: "nonstop", firstHalfTimeouts: 1, secondHalfTimeouts: 1 },
-  { label: "6분 4쿼터 · 올데드", quarterType: "4Q", quarterMinutes: 6, clockMode: "dead", firstHalfTimeouts: 1, secondHalfTimeouts: 2 },
-  { label: "10분 4쿼터 · 논스톱", quarterType: "4Q", quarterMinutes: 10, clockMode: "nonstop", firstHalfTimeouts: 2, secondHalfTimeouts: 3 },
-  { label: "10분 4쿼터 · 올데드", quarterType: "4Q", quarterMinutes: 10, clockMode: "dead", firstHalfTimeouts: 2, secondHalfTimeouts: 3 },
-  { label: "10분 전후반 · 논스톱", quarterType: "HALF", quarterMinutes: 10, clockMode: "nonstop", firstHalfTimeouts: 1, secondHalfTimeouts: 1 },
-  { label: "10분 전후반 · 올데드", quarterType: "HALF", quarterMinutes: 10, clockMode: "dead", firstHalfTimeouts: 1, secondHalfTimeouts: 2 },
+  {
+    label: "7분 4쿼터",
+    quarterType: "4Q",
+    quarterMinutes: 7,
+    firstHalfTimeouts: 1,
+    secondHalfTimeouts: 2,
+  },
+  {
+    label: "6분 4쿼터",
+    quarterType: "4Q",
+    quarterMinutes: 6,
+    firstHalfTimeouts: 1,
+    secondHalfTimeouts: 1,
+  },
+  {
+    label: "10분 4쿼터",
+    quarterType: "4Q",
+    quarterMinutes: 10,
+    firstHalfTimeouts: 2,
+    secondHalfTimeouts: 3,
+  },
+  {
+    label: "10분 전후반",
+    quarterType: "HALF",
+    quarterMinutes: 10,
+    firstHalfTimeouts: 1,
+    secondHalfTimeouts: 1,
+  },
 ] as const;
 
 function asRecord(value: unknown): Record<string, unknown> {
@@ -176,15 +195,26 @@ export function applyGameRulePreset(
   current: TournamentGameRules,
   preset: GameRulePreset,
 ): TournamentGameRules {
-  const interval = intervalPreset(preset.quarterType, preset.quarterMinutes, preset.clockMode);
+  const interval = intervalPreset(preset.quarterType, preset.quarterMinutes, current.clockMode);
   return {
     ...current,
     quarterType: preset.quarterType,
     quarterMinutes: preset.quarterMinutes,
     totalQuarters: preset.quarterType === "HALF" ? 2 : 4,
-    clockMode: preset.clockMode,
     firstHalfTimeouts: preset.firstHalfTimeouts,
     secondHalfTimeouts: preset.secondHalfTimeouts,
+    ...interval,
+  };
+}
+
+export function applyGameRuleClockMode(
+  current: TournamentGameRules,
+  clockMode: ClockModeCode,
+): TournamentGameRules {
+  const interval = intervalPreset(current.quarterType, current.quarterMinutes, clockMode);
+  return {
+    ...current,
+    clockMode,
     ...interval,
   };
 }
@@ -263,8 +293,10 @@ export function toGameRulesResponse(input?: unknown) {
   return {
     game_rules: rules,
     game_rules_json: JSON.stringify(rules),
+    quarter_type: rules.quarterType,
     quarter_minutes: rules.quarterMinutes,
     total_quarters: rules.totalQuarters,
+    clock_mode: rules.clockMode,
     first_half_timeouts: rules.firstHalfTimeouts,
     second_half_timeouts: rules.secondHalfTimeouts,
   };

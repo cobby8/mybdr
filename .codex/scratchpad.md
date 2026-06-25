@@ -1,15 +1,17 @@
 # Scratchpad
 
 ## Current Work
-- 2026-06-25 customer signal automation: connect help contact triggers to operator email reports.
+- 2026-06-26 tournament admin: division edit/delete UX and record-app game rule option separation.
 
 ## Progress
 | Area | Status | Note |
 |---|---|---|
-| Customer signal API | Done | Restored readable contact/report copy and kept mail report trigger. |
-| Verification | Done | `npx vitest run` customer-signal tests and `npx tsc --noEmit` passed. |
+| Division admin UX | Done | Selected divisions now support inline rename/delete with empty/duplicate validation. |
+| Record app rules | Done | Time/period presets are separate from nonstop/all-dead clock mode. |
+| Verification | Done | `cmd /c npx vitest run src/__tests__/lib/tournaments/game-rules.test.ts` and `cmd /c npx tsc --noEmit` passed. |
 
 ## Work Log
+- 2026-06-26: Added tournament division inline rename/delete controls and separated record-app time presets from clock mode.
 - 2026-06-25: Repaired customer signal contact/report flow copy and prepared operator email reporting verification.
 - 2026-06-25: Improved tournament admin PC/mobile UX with grouped registration/team/public controls, desktop sticky save, active mobile tabs, and larger image delete targets.
 - 2026-06-25: Added manual group assignment controls to tournament admin team cards using the existing team PATCH API.
