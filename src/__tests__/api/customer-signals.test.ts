@@ -47,7 +47,7 @@ import { POST } from "@/app/api/web/customer-signals/route";
 function makeRequest(body: unknown) {
   return new Request("http://localhost/api/web/customer-signals", {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", referer: "https://www.mybdr.kr/help/contact" },
     body: JSON.stringify(body),
   }) as Parameters<typeof POST>[0];
 }
@@ -98,6 +98,7 @@ describe("POST /api/web/customer-signals", () => {
         type: "site_error",
         priority: "urgent",
         contactEmail: "customer@example.com",
+        sourceUrl: "/pricing/fail",
       }),
     );
   });

@@ -1,15 +1,16 @@
 # Scratchpad
 
 ## Current Work
-- 2026-06-25 tournament admin UI/UX: improve PC/mobile setup management flow and save access.
+- 2026-06-25 customer signal automation: connect help contact triggers to operator email reports.
 
 ## Progress
 | Area | Status | Note |
 |---|---|---|
-| Admin setup UX | Done | Publish area split into action, registration/payment, and team-setting flows. |
-| Verification | Done | `cmd /c npx tsc --noEmit` and targeted vitest passed. |
+| Customer signal API | Done | Restored readable contact/report copy and kept mail report trigger. |
+| Verification | Done | `npx vitest run` customer-signal tests and `npx tsc --noEmit` passed. |
 
 ## Work Log
+- 2026-06-25: Repaired customer signal contact/report flow copy and prepared operator email reporting verification.
 - 2026-06-25: Improved tournament admin PC/mobile UX with grouped registration/team/public controls, desktop sticky save, active mobile tabs, and larger image delete targets.
 - 2026-06-25: Added manual group assignment controls to tournament admin team cards using the existing team PATCH API.
 - 2026-06-25: Restored tournament admin edit fields for bank info, roster/waiting list, rules/prize info, and logo/banner media.

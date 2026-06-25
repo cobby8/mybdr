@@ -72,6 +72,9 @@ const URGENT_KEYWORDS = [
   "오류",
   "에러",
   "안됨",
+  "장애",
+  "삭제",
+  "권한",
 ];
 
 export function inferCustomerSignalPriority(

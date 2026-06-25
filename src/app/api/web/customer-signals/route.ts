@@ -52,7 +52,7 @@ export async function POST(req: NextRequest) {
   const ip = getClientIp(req);
   const rateLimit = await checkRateLimit(`customer-signal:${ip}`, RATE_LIMITS.customerSignal);
   if (!rateLimit.allowed) {
-    return apiError("요청이 너무 많습니다. 잠시 후 다시 시도해주세요.", 429, "RATE_LIMITED");
+    return apiError("요청이 너무 많습니다. 잠시 후 다시 시도해 주세요.", 429, "RATE_LIMITED");
   }
 
   let raw: unknown;
@@ -70,6 +70,9 @@ export async function POST(req: NextRequest) {
   const userId = session ? BigInt(session.sub) : null;
   const now = new Date();
   const priority = inferCustomerSignalPriority(data.type, `${data.title}\n${data.content}`);
+  const deviceInfo = data.deviceInfo ?? req.headers.get("user-agent")?.slice(0, 500) ?? null;
+  const referer = req.headers.get("referer")?.slice(0, 500) ?? null;
+  const sourceUrl = data.pageUrl ?? referer;
 
   const user = userId
     ? await prisma.user
@@ -83,9 +86,10 @@ export async function POST(req: NextRequest) {
   const metadata = {
     signal_type: data.type,
     contact_email: data.contactEmail ?? null,
-    page_url: data.pageUrl ?? null,
+    page_url: sourceUrl,
     ip,
     source: "help_contact",
+    logged_in: !!userId,
   };
 
   const suggestion = userId
@@ -97,7 +101,7 @@ export async function POST(req: NextRequest) {
           category: CATEGORY_BY_TYPE[data.type],
           priority: PRIORITY_SCORE[priority],
           metadata: metadata as Prisma.InputJsonValue,
-          device_info: data.deviceInfo ?? req.headers.get("user-agent")?.slice(0, 500) ?? null,
+          device_info: deviceInfo,
           app_version: null,
           created_at: now,
           updated_at: now,
@@ -120,20 +124,20 @@ export async function POST(req: NextRequest) {
         }
       : undefined,
     contactEmail: data.contactEmail,
-    sourceUrl: data.pageUrl,
+    sourceUrl,
     adminUrl: suggestion ? "/admin/suggestions" : null,
     metadata: {
       ...metadata,
       stored: !!suggestion,
       suggestion_id: suggestion?.id.toString() ?? null,
-      device_info: data.deviceInfo ?? req.headers.get("user-agent")?.slice(0, 500) ?? null,
+      device_info: deviceInfo,
     },
     createdAt: now,
   });
 
   return apiSuccess(
     {
-      message: "접수되었습니다.",
+      message: "접수되었습니다. 운영자가 확인 후 필요한 경우 답변드릴게요.",
       stored: !!suggestion,
       suggestionId: suggestion?.id.toString() ?? null,
       emailReportQueued: true,
