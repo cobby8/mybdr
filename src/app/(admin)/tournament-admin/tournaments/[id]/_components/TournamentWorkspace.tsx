@@ -572,7 +572,7 @@ export function TournamentWorkspace({
       </WorkspaceSection>
 
         </div>
-        <div className="ct-col space-y-3 lg:sticky lg:top-3">
+        <div className="ct-col space-y-3">
       <WorkspaceSection id="divisions" title="종별·디비전" subtitle="종별과 대진을 관리합니다.">
         <PanelSummary
           stats={[
@@ -900,7 +900,7 @@ function Field({ label, children, className = "" }: { label: string; children: R
 
 function Metric({ label, value, tone = "mute" }: { label: string; value: string; tone?: StatusTone }) {
   return (
-    <div className="rounded-[14px] bg-[var(--grey-50)] px-3 py-2">
+    <div className="ct-metric rounded-[14px] bg-[var(--grey-50)] px-3 py-2">
       <p className="text-xs font-bold text-[var(--ink-mute)]">{label}</p>
       <p className="mt-0.5 text-sm font-black text-[var(--ink)]">
         {value}
@@ -922,13 +922,13 @@ function PanelSummary({
   onToggle: (id: PanelId) => void;
 }) {
   return (
-    <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-5">
+    <div className="ct-panel-summary">
+      <div className="ct-panel-stats">
         {stats.map(([label, value]) => (
           <Metric key={label} label={label} value={value} />
         ))}
       </div>
-      <div className="flex flex-wrap gap-2 lg:justify-end">
+      <div className="ct-panel-actions">
         {panels.map(([id, label]) => (
           <button
             key={id}
