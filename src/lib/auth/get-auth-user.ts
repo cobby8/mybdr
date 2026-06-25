@@ -25,6 +25,9 @@ export interface AuthUser {
     id: bigint;
     nickname: string | null;
     status: string | null;
+    membershipType: number;
+    isAdmin: boolean | null;
+    admin_role: string | null;
   };
 }
 
@@ -62,7 +65,14 @@ export const getAuthUser = cache(async (): Promise<AuthUser> => {
   try {
     user = await prisma.user.findUnique({
       where: { id: BigInt(session.sub) },
-      select: { id: true, nickname: true, status: true },
+      select: {
+        id: true,
+        nickname: true,
+        status: true,
+        membershipType: true,
+        isAdmin: true,
+        admin_role: true,
+      },
     });
   } catch {
     // DB 실패 = 인증 실패로 간주 (안전 우선). 가드는 비로그인 처리.

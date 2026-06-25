@@ -56,6 +56,7 @@ const FEATURE_KEY_OPTIONS = [
 ];
 
 const PROMO_TIERS = [
+  { membershipType: 1, label: "픽업호스트", price: "₩49,000/월" },
   { membershipType: 2, label: "팀장", price: "₩3,900/월" },
   { membershipType: 3, label: "대회관리자", price: "₩199,000/월" },
 ];

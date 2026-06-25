@@ -7,6 +7,7 @@
  */
 import { randomBytes } from "crypto";
 import { prisma } from "@/lib/db/prisma";
+import { usableSubscriptionWhere } from "@/lib/membership/entitlements";
 // Prisma namespace — Json 타입 호환용 InputJsonValue 캐스팅에 사용
 import type { Prisma } from "@prisma/client";
 // 대회 기록방식(풀스탯/전자기록지/수기) — my-tournaments 응답 default_recording_mode 산출용
@@ -643,8 +644,7 @@ export async function hasCreatePermission(userId: bigint): Promise<boolean> {
     where: {
       user_id: userId,
       feature_key: "tournament_create",
-      status: "active",
-      OR: [{ expires_at: null }, { expires_at: { gte: new Date() } }],
+      ...usableSubscriptionWhere(),
     },
   });
   return !!sub;

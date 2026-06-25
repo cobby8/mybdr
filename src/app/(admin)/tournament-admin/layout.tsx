@@ -40,17 +40,30 @@ export default async function TournamentAdminLayout({ children }: { children: Re
   }
   // 권한 부족: 에러 메시지 포함 로그인 페이지로 리다이렉트
   // 권한 부족 = 로그인 자체는 통과한 케이스 → redirect 쿼리 동봉 안 함 (다른 계정 로그인 권유).
-  if (session.role !== "tournament_admin" && session.role !== "super_admin") {
+  const userId = BigInt(session.sub);
+  const dbUser = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { membershipType: true, isAdmin: true, admin_role: true },
+  });
+  const isSuperAdmin =
+    dbUser?.isAdmin === true ||
+    dbUser?.admin_role === "super_admin" ||
+    session.role === "super_admin" ||
+    session.admin_role === "super_admin";
+  const isTournamentAdmin =
+    (dbUser?.membershipType ?? 0) >= 3 || session.role === "tournament_admin";
+
+  if (!isTournamentAdmin && !isSuperAdmin) {
     redirect("/login?error=no_permission");
   }
 
   // AdminSidebar 표시용 role 목록 — admin/layout.tsx 와 동일 패턴
   const roles: AdminRole[] = [];
-  const userId = BigInt(session.sub);
-
-  if (session.role === "super_admin") roles.push("super_admin");
-  if (session.admin_role === "site_admin") roles.push("site_admin");
-  if (session.role === "tournament_admin") roles.push("tournament_admin");
+  if (isSuperAdmin) roles.push("super_admin");
+  if (dbUser?.admin_role === "site_admin" || session.admin_role === "site_admin") {
+    roles.push("site_admin");
+  }
+  if (isTournamentAdmin) roles.push("tournament_admin");
 
   // partner_member / org_member 체크 (super_admin 외)
   if (!roles.includes("super_admin")) {

@@ -6,6 +6,7 @@ import { prisma } from "@/lib/db/prisma";
 import { getWebSession } from "@/lib/auth/web-session";
 import { adminLog } from "@/lib/admin/log";
 import { MAX_SUPER_ADMINS } from "@/lib/auth/roles";
+import { getUserMembershipSnapshot } from "@/lib/membership/entitlements";
 
 // 6.1C-5(PA1) 박제: session 을 반환하도록 변경 — 본인 자기 정지 가드에서 session.sub 재사용
 //   (기존 호출부는 반환값 무시 — 동작 무변경)
@@ -23,7 +24,7 @@ export async function updateUserRoleAction(formData: FormData): Promise<void> {
   const userId = formData.get("user_id") as string;
   const membershipType = parseInt(formData.get("membership_type") as string, 10);
 
-  if (!userId || isNaN(membershipType) || membershipType < 0 || membershipType > 4) return;
+  if (!userId || isNaN(membershipType) || membershipType < 0 || membershipType > 3) return;
 
   const prev = await prisma.user.findUnique({ where: { id: BigInt(userId) }, select: { membershipType: true, email: true } });
 
@@ -99,6 +100,8 @@ export async function endPromotionAction(formData: FormData): Promise<{ error?: 
       subscription_expires_at: null,
     },
     data: {
+      membershipType: 0,
+      subscription_status: "inactive",
       subscription_expires_at: new Date(),
     },
   });
@@ -340,7 +343,7 @@ export async function getUserDetailAction(userId: string): Promise<{
   await requireSuperAdmin();
   const id = BigInt(userId);
 
-  const [teams, tournaments, postsCount, lastPost, commentsCount, lastComment, user] =
+  const [teams, tournaments, postsCount, lastPost, commentsCount, lastComment, user, membershipSnapshot] =
     await Promise.all([
       // 1) 소속 팀 + 캡틴 여부
       prisma.teamMember.findMany({
@@ -405,6 +408,7 @@ export async function getUserDetailAction(userId: string): Promise<{
           subscription_expires_at: true,
         },
       }),
+      getUserMembershipSnapshot(id),
     ]);
 
   return {
@@ -436,9 +440,9 @@ export async function getUserDetailAction(userId: string): Promise<{
     },
     subscription: {
       membershipType: user?.membershipType ?? 0,
-      status: user?.subscription_status ?? null,
-      startedAt: user?.subscription_started_at?.toISOString() ?? null,
-      expiresAt: user?.subscription_expires_at?.toISOString() ?? null,
+      status: membershipSnapshot.subscriptionStatus,
+      startedAt: membershipSnapshot.subscriptionStartedAt?.toISOString() ?? null,
+      expiresAt: membershipSnapshot.subscriptionExpiresAt?.toISOString() ?? null,
     },
   };
 }

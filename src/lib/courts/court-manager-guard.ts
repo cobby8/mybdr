@@ -19,6 +19,7 @@
  * ============================================================ */
 
 import { prisma } from "@/lib/db/prisma";
+import { usableSubscriptionWhere } from "@/lib/membership/entitlements";
 
 export interface CourtManagerCheck {
   isManager: boolean;
@@ -52,11 +53,7 @@ export async function checkCourtManager(
     where: {
       user_id: userId,
       feature_key: "court_rental",
-      status: "active",
-      OR: [
-        { expires_at: null },
-        { expires_at: { gte: new Date() } },
-      ],
+      ...usableSubscriptionWhere(),
     },
     select: { id: true },
   });
