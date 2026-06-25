@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import React from "react";
 import { Badge, Btn, Icon } from "@/components/admin-toss";
 import { PageHead, Panel, StatRow } from "@/components/admin/console-kit";
@@ -222,6 +223,12 @@ export function RecordAppImpactPanel() {
         eyebrow="ADMIN / 에이전트"
         title="운영 에이전트"
         sub="서버 변경이 bdr_stat_v3 기록앱 계약에 미치는 영향을 점검합니다."
+        actions={
+          <Link href="/admin/logs?kind=record-app" className="btn">
+            <Icon name="list-checks" size={16} />
+            기록앱 로그
+          </Link>
+        }
       />
 
       <StatRow
@@ -354,6 +361,10 @@ export function RecordAppImpactPanel() {
                 <Badge tone={result.user_decision_required ? "danger" : "grey"}>
                   사용자 결정 {result.user_decision_required ? "필요" : "불필요"}
                 </Badge>
+                <Link href="/admin/logs?kind=record-app" className="btn btn--sm">
+                  <Icon name="list-checks" size={15} />
+                  로그 확인
+                </Link>
               </div>
 
               <div className="grid gap-3 text-sm">
