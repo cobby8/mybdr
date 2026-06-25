@@ -18,14 +18,11 @@
 
 export const ALLOWED_FORMATS = [
   "single_elimination",
-  "double_elimination",
   "round_robin",
   "dual_tournament",
   "group_stage_knockout",
-  "full_league_knockout",
-  "league_advancement", // i3-U9 링크제 (각조 동순위전 — settings.linkage_pairs 명시)
-  "group_stage_with_ranking", // ⭐ Phase 3.5-D — 조별리그 + 동순위 순위결정전 (자동 매칭)
-  "swiss",
+  "league_advancement",
+  "group_stage_with_ranking",
 ] as const;
 
 export type DivisionFormat = (typeof ALLOWED_FORMATS)[number];
@@ -40,14 +37,11 @@ export type DivisionFormat = (typeof ALLOWED_FORMATS)[number];
 // enum 값 자체는 DB 호환성 유지 (변경 X — 라벨만 한국화).
 export const FORMAT_LABEL: Record<DivisionFormat, string> = {
   single_elimination: "토너먼트", // single_elimination — 토너먼트(싱글)
-  double_elimination: "더블 토너먼트", // double_elimination — 더블 토너먼트
   round_robin: "풀리그", // round_robin — 풀리그
-  dual_tournament: "듀얼 토너먼트",
-  group_stage_knockout: "조별리그 + 토너먼트",
-  full_league_knockout: "풀리그 + 토너먼트",
-  league_advancement: "링크제 (각조 동순위전)",
-  group_stage_with_ranking: "조별리그 + 동순위 순위결정전",
-  swiss: "스위스 라운드",
+  dual_tournament: "듀얼토너먼트",
+  group_stage_knockout: "조별리그+토너먼트",
+  league_advancement: "링크제",
+  group_stage_with_ranking: "조별리그+동순위 순위결정전",
 };
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -62,7 +56,6 @@ const GROUP_SETTING_FORMATS = new Set<DivisionFormat>([
   "round_robin",
   "dual_tournament",
   "group_stage_knockout",
-  "full_league_knockout",
   "league_advancement",
   "group_stage_with_ranking",
 ]);
@@ -91,7 +84,6 @@ export function showRankingFormat(format: string | null | undefined): boolean {
  */
 const ADVANCE_PER_GROUP_FORMATS = new Set<DivisionFormat>([
   "group_stage_knockout",
-  "full_league_knockout",
   "dual_tournament",
 ]);
 

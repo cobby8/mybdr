@@ -45,10 +45,12 @@ const STEPS = [
 
 // 대회 방식 옵션 (4종만)
 const FORMAT_OPTIONS = [
-  { value: "group_stage_knockout", label: "조별리그+토너먼트" },
-  { value: "dual_tournament", label: "듀얼토너먼트" },
   { value: "single_elimination", label: "토너먼트" },
-  { value: "full_league_knockout", label: "풀리그+토너먼트" },
+  { value: "round_robin", label: "풀리그" },
+  { value: "dual_tournament", label: "듀얼토너먼트" },
+  { value: "group_stage_knockout", label: "조별리그+토너먼트" },
+  { value: "league_advancement", label: "링크제" },
+  { value: "group_stage_with_ranking", label: "조별리그+동순위 순위결정전" },
 ];
 
 // 성별 옵션 — BDR은 남성부/여성부만 운영 (혼성 없음)

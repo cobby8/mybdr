@@ -49,10 +49,17 @@ const STATUS_LABEL: Record<string, string> = {
 /* 대회 포맷 한글 매핑 */
 const FORMAT_LABEL: Record<string, string> = {
   single_elimination: "토너먼트",
-  round_robin: "리그",
-  group_stage: "그룹 스테이지",
-  double_elimination: "더블 엘리미네이션",
-  swiss: "스위스",
+  round_robin: "풀리그",
+  dual_tournament: "듀얼토너먼트",
+  group_stage_knockout: "조별리그+토너먼트",
+  league_advancement: "링크제",
+  group_stage_with_ranking: "조별리그+동순위 순위결정전",
+  group_stage: "조별리그",
+  double_elimination: "더블 토너먼트",
+  full_league_knockout: "풀리그+토너먼트",
+  swiss: "스위스 라운드",
+  league: "풀리그",
+  "round_robin|single_elimination": "풀리그+토너먼트",
 };
 
 /* 대회 상태별 그라디언트 색상 */

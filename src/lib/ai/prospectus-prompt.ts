@@ -70,12 +70,12 @@ schedule / team / registration / meta 4 그룹의 leaf 필드를 추출하세요
   - 실력: "일반부", "엘리트부", "동호인부"
 - 종별별 참가비 (feeKrw) + 정원 (cap) 박제. 단일 종별 = divisions 빈 배열 OK
 - 대회 방식 (format) 추측:
-  - "single_elimination" = 단일 토너먼트
-  - "double_elimination" = 더블 엘리미네이션
-  - "dual_tournament" = 듀얼 토너먼트 (조별 → 16팀 결승)
-  - "full_league_knockout" = 풀리그 + 토너먼트
-  - "group_stage_with_ranking" = 조별리그 + 순위결정전
-  - "league_advancement" = 풀리그
+  - "single_elimination" = 토너먼트
+  - "round_robin" = 풀리그
+  - "dual_tournament" = 듀얼토너먼트
+  - "group_stage_knockout" = 조별리그+토너먼트
+  - "league_advancement" = 링크제
+  - "group_stage_with_ranking" = 조별리그+동순위 순위결정전
   - 명확하지 않으면 null (추측 ❌)
 - 입금 정보 (bankName / bankAccount / bankHolder) — 없으면 모두 null
 

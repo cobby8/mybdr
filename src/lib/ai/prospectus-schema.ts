@@ -141,8 +141,8 @@ const MetaSchema = z.object({
   description_confidence: Confidence,
   description_source_excerpt: SourceExcerpt,
 
-  // 가능 값: "single_elimination" | "double_elimination" | "dual_tournament" |
-  //         "full_league_knockout" | "group_stage_with_ranking" | "league_advancement"
+  // 가능 값: "single_elimination" | "round_robin" | "dual_tournament" |
+  //         "group_stage_knockout" | "league_advancement" | "group_stage_with_ranking"
   // 명확하지 않으면 null (AI 추측 금지 — 보고서 §"developer 주의사항" §5)
   format: z.string().nullable().optional(),
   format_confidence: Confidence,

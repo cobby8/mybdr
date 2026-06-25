@@ -170,13 +170,19 @@ export function TournamentAbout({
 
   // 포맷 라벨 -- DB에 저장된 영어 포맷값을 한글로 변환
   const FORMAT_LABEL: Record<string, string> = {
-    single_elimination: "싱글 엘리미네이션",
-    double_elimination: "더블 엘리미네이션",
-    round_robin: "리그전",
-    hybrid: "혼합",
+    single_elimination: "토너먼트",
+    round_robin: "풀리그",
+    dual_tournament: "듀얼토너먼트",
     group_stage_knockout: "조별리그+토너먼트",
+    league_advancement: "링크제",
+    group_stage_with_ranking: "조별리그+동순위 순위결정전",
+    double_elimination: "더블 토너먼트",
+    hybrid: "혼합",
     GROUP_STAGE_KNOCKOUT: "조별리그+토너먼트",
+    full_league_knockout: "풀리그+토너먼트",
     swiss: "스위스 라운드",
+    league: "풀리그",
+    "round_robin|single_elimination": "풀리그+토너먼트",
   };
 
   return (

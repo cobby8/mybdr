@@ -78,8 +78,8 @@ interface CourtEventsProps {
 
 // 대회 형식 한글 매핑
 const FORMAT_LABELS: Record<string, string> = {
-  single_elimination: "싱글 엘리미네이션",
-  round_robin: "라운드 로빈",
+  single_elimination: "토너먼트",
+  round_robin: "풀리그",
 };
 
 // 상태 한글 매핑
@@ -336,7 +336,7 @@ function EventCreateForm({
             style={{ backgroundColor: "var(--color-surface-bright)", color: "var(--color-text-primary)", border: "1px solid var(--color-border-subtle)" }}
           >
             <option value="single_elimination">토너먼트</option>
-            <option value="round_robin">라운드 로빈</option>
+            <option value="round_robin">풀리그</option>
           </select>
         </div>
       </div>

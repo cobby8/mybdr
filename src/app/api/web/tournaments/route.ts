@@ -130,11 +130,12 @@ export async function GET(request: NextRequest) {
 }
 
 const FORMAT_MAP: Record<string, string> = {
-  "싱글 엘리미네이션": "single_elimination",
-  "라운드 로빈": "round_robin",
-  "그룹 스테이지": "group_stage",
-  "더블 엘리미네이션": "double_elimination",
-  "스위스": "swiss",
+  "토너먼트": "single_elimination",
+  "풀리그": "round_robin",
+  "듀얼토너먼트": "dual_tournament",
+  "조별리그+토너먼트": "group_stage_knockout",
+  "링크제": "league_advancement",
+  "조별리그+동순위 순위결정전": "group_stage_with_ranking",
 };
 
 export const POST = withWebAuth(async (req: Request, ctx: WebAuthContext) => {
