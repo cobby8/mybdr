@@ -96,6 +96,23 @@ function normalizeDivSchedule(
   return result;
 }
 
+function serializeDivSchedule(value: unknown): Array<{
+  division: string;
+  dateId?: unknown;
+  courtId?: unknown;
+}> {
+  if (!isRecord(value)) return [];
+
+  return Object.entries(value).map(([division, rawEntry]) => {
+    const entry = isRecord(rawEntry) ? rawEntry : {};
+    return {
+      division,
+      dateId: entry.dateId ?? entry.date_id,
+      courtId: entry.courtId ?? entry.court_id,
+    };
+  });
+}
+
 async function authorizeTournament(id: string) {
   const session = await getWebSession();
   if (!session) return { response: unauthorized() };
@@ -142,26 +159,6 @@ export async function GET(
       ? (tournament.settings as Record<string, unknown>)
       : {};
 
-  const rawDivSchedule = settingsObj.div_schedule;
-  const divScheduleList: Array<{
-    division: string;
-    dateId?: unknown;
-    courtId?: unknown;
-  }> =
-    rawDivSchedule && typeof rawDivSchedule === "object"
-      ? Object.entries(rawDivSchedule as Record<string, unknown>).map(
-          ([division, v]) => {
-            const entry =
-              v && typeof v === "object" ? (v as Record<string, unknown>) : {};
-            return {
-              division,
-              dateId: entry.dateId,
-              courtId: entry.courtId,
-            };
-          },
-        )
-      : [];
-
   return apiSuccess({
     rules: rules.map(serializeRule),
     allowed_formats: ALLOWED_FORMATS,
@@ -171,7 +168,7 @@ export async function GET(
       tournament.div_caps,
       tournament.div_fees,
     ),
-    div_schedule: divScheduleList,
+    div_schedule: serializeDivSchedule(settingsObj.div_schedule),
     schedule_dates: tournament.schedule_dates ?? [],
     places: tournament.places ?? [],
   });
@@ -224,16 +221,63 @@ export async function POST(
   const existingByCode = new Map(existingRules.map((rule) => [rule.code, rule]));
   const createSeeds = seeds.filter((seed) => !existingByCode.has(seed.code));
   const updateSeeds = seeds.filter((seed) => existingByCode.has(seed.code));
+  const seedCodes = new Set(seeds.map((seed) => seed.code));
+  const deleteRules = existingRules.filter((rule) => !seedCodes.has(rule.code));
+  const deleteCodes = deleteRules.map((rule) => rule.code);
+  if (deleteCodes.length > 0) {
+    const [teamRefs, playerRefs, matchRefs] = await Promise.all([
+      prisma.tournamentTeam.findMany({
+        where: { tournamentId: id, category: { in: deleteCodes } },
+        select: { category: true },
+        distinct: ["category"],
+      }),
+      prisma.tournamentTeamPlayer.findMany({
+        where: {
+          division_code: { in: deleteCodes },
+          tournamentTeam: { tournamentId: id },
+        },
+        select: { division_code: true },
+        distinct: ["division_code"],
+      }),
+      Promise.all(
+        deleteCodes.map(async (code) => {
+          const count = await prisma.tournamentMatch.count({
+            where: {
+              tournamentId: id,
+              settings: { path: ["division_code"], equals: code },
+            },
+          });
+          return count > 0 ? code : null;
+        }),
+      ),
+    ]);
+
+    const blockedCodes = new Set(
+      [
+        ...teamRefs.map((row) => row.category),
+        ...playerRefs.map((row) => row.division_code),
+        ...matchRefs,
+      ].filter((code): code is string => typeof code === "string" && code.length > 0),
+    );
+    if (blockedCodes.size > 0) {
+      return apiError(
+        `팀 또는 경기가 연결된 종별은 삭제할 수 없습니다: ${[...blockedCodes].join(", ")}`,
+        409,
+        "DIVISION_IN_USE",
+      );
+    }
+  }
+
   const settingsObj =
     tournament.settings && typeof tournament.settings === "object" && !Array.isArray(tournament.settings)
       ? { ...(tournament.settings as Record<string, unknown>) }
       : {};
-  if (divSchedule !== undefined) {
-    if (Object.keys(divSchedule).length > 0) {
-      settingsObj.div_schedule = divSchedule;
-    } else {
-      delete settingsObj.div_schedule;
-    }
+  const finalDivSchedule =
+    divSchedule ?? normalizeDivSchedule(settingsObj.div_schedule, categories) ?? {};
+  if (Object.keys(finalDivSchedule).length > 0) {
+    settingsObj.div_schedule = finalDivSchedule;
+  } else {
+    delete settingsObj.div_schedule;
   }
 
   const updatedRules = await prisma.$transaction(async (tx) => {
@@ -243,9 +287,7 @@ export async function POST(
         categories,
         div_caps: divCaps,
         div_fees: divFees,
-        ...(divSchedule !== undefined
-          ? { settings: JSON.parse(JSON.stringify(settingsObj)) as Prisma.InputJsonValue }
-          : {}),
+        settings: JSON.parse(JSON.stringify(settingsObj)) as Prisma.InputJsonValue,
       },
     });
 
@@ -274,6 +316,15 @@ export async function POST(
       });
     }
 
+    if (deleteRules.length > 0) {
+      await tx.tournamentDivisionRule.deleteMany({
+        where: {
+          tournamentId: id,
+          id: { in: deleteRules.map((rule) => rule.id) },
+        },
+      });
+    }
+
     return tx.tournamentDivisionRule.findMany({
       where: { tournamentId: id },
       orderBy: { sortOrder: "asc" },
@@ -283,10 +334,12 @@ export async function POST(
   return apiSuccess({
     rules: updatedRules.map(serializeRule),
     current_categories: toCategorySelectionItems(categories, divCaps, divFees),
+    div_schedule: serializeDivSchedule(settingsObj.div_schedule),
     sync_result: {
       created: createSeeds.length,
       updated: updateSeeds.length,
-      preserved: Math.max(existingRules.length - updateSeeds.length, 0),
+      deleted: deleteRules.length,
+      preserved: Math.max(existingRules.length - updateSeeds.length - deleteRules.length, 0),
     },
   });
 }

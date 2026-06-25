@@ -342,14 +342,16 @@ export function TournamentWorkspace({
       }))
       .filter((date) => date.date);
     const primaryVenue = places[0] ?? null;
+    const venueName = primaryVenue ? primaryVenue.name : null;
+    const venueAddress = primaryVenue ? primaryVenue.region || null : null;
 
     const payload: Record<string, unknown> = {
       name: form.name.trim(),
       status: form.status,
       startDate: form.startDate || null,
       endDate: form.endDate || null,
-      venue_name: (primaryVenue?.name ?? form.venue_name.trim()) || null,
-      venue_address: (primaryVenue?.region ?? form.venue_address.trim()) || null,
+      venue_name: venueName,
+      venue_address: venueAddress,
       maxTeams: Number(form.maxTeams) > 0 ? Number(form.maxTeams) : undefined,
       entry_fee: Number(form.entry_fee) >= 0 ? Number(form.entry_fee) : 0,
       auto_approve_teams: form.auto_approve_teams,

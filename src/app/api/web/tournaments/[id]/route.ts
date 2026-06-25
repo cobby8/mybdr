@@ -22,6 +22,99 @@ const SERIES_CHANGE_ALLOWED_STATUSES = new Set(["draft", "registration_open"]);
 
 type Ctx = { params: Promise<{ id: string }> };
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value && typeof value === "object" && !Array.isArray(value));
+}
+
+function textFrom(value: unknown): string | null {
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function positiveIntFrom(value: unknown): number {
+  const parsed = typeof value === "number" ? value : typeof value === "string" ? Number(value) : NaN;
+  return Number.isFinite(parsed) && parsed > 0 ? Math.trunc(parsed) : 1;
+}
+
+function buildCourtIds(places: unknown): Set<string> {
+  const courtIds = new Set<string>();
+  if (!Array.isArray(places)) return courtIds;
+
+  for (const place of places) {
+    if (!isRecord(place)) continue;
+    const venueId = textFrom(place.id);
+    if (!venueId) continue;
+
+    const courtCount = positiveIntFrom(place.courtCount ?? place.court_count);
+    for (let index = 0; index < courtCount; index += 1) {
+      courtIds.add(`${venueId}_c${index}`);
+    }
+  }
+
+  return courtIds;
+}
+
+function buildDateCourtMap(
+  places: unknown,
+  scheduleDates: unknown,
+): Map<string, Set<string>> {
+  const courtIds = buildCourtIds(places);
+  const dateCourtMap = new Map<string, Set<string>>();
+  if (!Array.isArray(scheduleDates)) return dateCourtMap;
+
+  for (const row of scheduleDates) {
+    if (!isRecord(row)) continue;
+    const dateId = textFrom(row.id);
+    if (!dateId) continue;
+
+    const rawCourtIds = row.court_ids ?? row.courtIds;
+    const assignedCourtIds = Array.isArray(rawCourtIds)
+      ? rawCourtIds.filter((courtId): courtId is string => typeof courtId === "string")
+      : [];
+    const allowedCourtIds =
+      assignedCourtIds.length > 0
+        ? assignedCourtIds.filter((courtId) => courtIds.has(courtId))
+        : [...courtIds];
+
+    dateCourtMap.set(dateId, new Set(allowedCourtIds));
+  }
+
+  return dateCourtMap;
+}
+
+function pruneDivScheduleSettings(
+  settings: Record<string, unknown>,
+  places: unknown,
+  scheduleDates: unknown,
+): Record<string, unknown> {
+  const rawDivSchedule = settings.div_schedule;
+  if (!isRecord(rawDivSchedule)) return settings;
+
+  const dateCourtMap = buildDateCourtMap(places, scheduleDates);
+  const nextDivSchedule: Record<string, { dateId: string; courtId: string }> = {};
+
+  for (const [rawDivision, rawEntry] of Object.entries(rawDivSchedule)) {
+    const division = rawDivision.trim();
+    if (!division || !isRecord(rawEntry)) continue;
+
+    const dateId = textFrom(rawEntry.dateId ?? rawEntry.date_id);
+    const courtId = textFrom(rawEntry.courtId ?? rawEntry.court_id);
+    if (!dateId || !courtId) continue;
+
+    const allowedCourtIds = dateCourtMap.get(dateId);
+    if (allowedCourtIds?.has(courtId)) {
+      nextDivSchedule[division] = { dateId, courtId };
+    }
+  }
+
+  if (Object.keys(nextDivSchedule).length > 0) {
+    return { ...settings, div_schedule: nextDivSchedule };
+  }
+
+  const nextSettings = { ...settings };
+  delete nextSettings.div_schedule;
+  return nextSettings;
+}
+
 // GET /api/web/tournaments/[id]
 export async function GET(_req: NextRequest, { params }: Ctx) {
   const { id } = await params;
@@ -122,12 +215,24 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
   if (data.banner_url !== undefined) updateData.banner_url = data.banner_url || null;
   if (data.court_bg_url !== undefined) updateData.court_bg_url = data.court_bg_url || null;
 
-  // settings JSON — 기존 settings와 머지하여 업데이트 (contact_phone 등)
-  if (data.settings !== undefined) {
-    const current = await prisma.tournament.findUnique({ where: { id }, select: { settings: true } });
-    const existing = (current?.settings as Record<string, unknown>) ?? {};
-    const incoming = data.settings as Record<string, unknown>;
-    updateData.settings = { ...existing, ...incoming };
+  // settings JSON — 기존 settings와 머지하고 삭제된 일정/코트 배정을 정리한다.
+  if (
+    data.settings !== undefined ||
+    data.places !== undefined ||
+    data.schedule_dates !== undefined
+  ) {
+    const current = await prisma.tournament.findUnique({
+      where: { id },
+      select: { settings: true, places: true, schedule_dates: true },
+    });
+    const existing = isRecord(current?.settings) ? current.settings : {};
+    const incoming = isRecord(data.settings) ? data.settings : {};
+    const mergedSettings = { ...existing, ...incoming };
+    updateData.settings = pruneDivScheduleSettings(
+      mergedSettings,
+      data.places !== undefined ? data.places : current?.places,
+      data.schedule_dates !== undefined ? data.schedule_dates : current?.schedule_dates,
+    );
   }
 
   // 2026-05-12 PR1 — series_id 분리 처리.
