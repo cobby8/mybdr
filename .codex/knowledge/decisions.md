@@ -5,7 +5,7 @@
 - Decision: `group_stage_knockout` creates a real knockout skeleton from group-rank placeholders, and `group_stage_with_ranking` supports every same-rank group pairing for 3+ groups.
 - Reason: the approved six tournament formats must be operable from admin controls without dummy data or stub generators.
 - Scope: division advancement planner/generator and unit tests only. No DB schema change or destructive data operation.
-- Guardrail: `group_stage_knockout` requires total qualifiers to be a power of two; unsupported sizes return a clear reason instead of creating partial brackets.
+- Guardrail: `group_stage_knockout` expands odd/non-power-of-two qualifier counts to the next power-of-two bracket and carries empty slots as byes instead of creating partial brackets.
 
 ## 2026-06-25 Customer Signal Email Reporting
 

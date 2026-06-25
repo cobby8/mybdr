@@ -175,10 +175,10 @@ describe("planGroupStageKnockoutMatches — 조별리그+토너먼트", () => {
     const specs = planGroupStageKnockoutMatches({ groupCount: 4, advancePerGroup: 2 });
     expect(specs).toHaveLength(7);
     expect(specs.slice(0, 4).map((s) => `${s.homeSlot} / ${s.awaySlot}`)).toEqual([
-      "A조 1위 / B조 2위",
-      "B조 1위 / A조 2위",
-      "C조 1위 / D조 2위",
-      "D조 1위 / C조 2위",
+      "A조 1위 / D조 2위",
+      "D조 1위 / A조 2위",
+      "B조 1위 / C조 2위",
+      "C조 1위 / B조 2위",
     ]);
     expect(specs.map((s) => s.roundName)).toEqual([
       "8강",
@@ -191,7 +191,22 @@ describe("planGroupStageKnockoutMatches — 조별리그+토너먼트", () => {
     ]);
   });
 
-  it("총 진출 수가 2의 제곱이 아니면 빈 결과", () => {
-    expect(planGroupStageKnockoutMatches({ groupCount: 3, advancePerGroup: 2 })).toEqual([]);
+  it("3조 * 2팀 진출 = 8강 트리에 부전승을 반영", () => {
+    const specs = planGroupStageKnockoutMatches({ groupCount: 3, advancePerGroup: 2 });
+    expect(specs).toHaveLength(5);
+    expect(specs.slice(0, 2).map((s) => `${s.homeSlot} / ${s.awaySlot}`)).toEqual([
+      "B조 2위 / C조 2위",
+      "C조 1위 / A조 2위",
+    ]);
+    expect(specs[2]).toMatchObject({
+      roundName: "준결승",
+      homeSlot: "A조 1위",
+      awaySlot: "8강 2경기 승자",
+    });
+    expect(specs[3]).toMatchObject({
+      roundName: "준결승",
+      homeSlot: "B조 1위",
+      awaySlot: "8강 4경기 승자",
+    });
   });
 });

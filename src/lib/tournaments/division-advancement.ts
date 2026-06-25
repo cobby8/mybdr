@@ -18,7 +18,7 @@
 
 import { Prisma, PrismaClient } from "@prisma/client";
 // 2026-05-15 PR-G5.1 — placeholder 박제 공통 헬퍼 (강남구 사고 영구 차단 단일 source).
-import { buildSlotLabel, buildPlaceholderNotes } from "./placeholder-helpers";
+import { buildSlotLabel, buildPlaceholderNotes, parseSlotLabel } from "./placeholder-helpers";
 
 const ADVANCEMENT_REGEX = /([A-Z])조\s*(\d+)위\s*vs\s*([A-Z])조\s*(\d+)위/;
 
@@ -266,6 +266,7 @@ export async function advanceDivisionPlaceholders(
       notes: true,
       homeTeamId: true,
       awayTeamId: true,
+      settings: true,
     },
   });
 
@@ -274,6 +275,55 @@ export async function advanceDivisionPlaceholders(
   const errors: AdvanceResult["errors"] = [];
 
   for (const m of placeholders) {
+    const slotSettings = (m.settings ?? {}) as Record<string, unknown>;
+    const homeSlotLabel = typeof slotSettings.homeSlotLabel === "string" ? slotSettings.homeSlotLabel : null;
+    const awaySlotLabel = typeof slotSettings.awaySlotLabel === "string" ? slotSettings.awaySlotLabel : null;
+
+    if (homeSlotLabel || awaySlotLabel) {
+      const updateData: { homeTeamId?: bigint; awayTeamId?: bigint } = {};
+      const missing: string[] = [];
+      let hasRankSlot = false;
+
+      const homeSlot = parseSlotLabel(homeSlotLabel);
+      if (m.homeTeamId === null && homeSlot?.kind === "group_rank") {
+        hasRankSlot = true;
+        const homeTtId = standingsMap[`${homeSlot.group}:${homeSlot.rank}`];
+        if (homeTtId) updateData.homeTeamId = homeTtId;
+        else missing.push(`${homeSlot.group}:${homeSlot.rank}`);
+      }
+
+      const awaySlot = parseSlotLabel(awaySlotLabel);
+      if (m.awayTeamId === null && awaySlot?.kind === "group_rank") {
+        hasRankSlot = true;
+        const awayTtId = standingsMap[`${awaySlot.group}:${awaySlot.rank}`];
+        if (awayTtId) updateData.awayTeamId = awayTtId;
+        else missing.push(`${awaySlot.group}:${awaySlot.rank}`);
+      }
+
+      if (missing.length > 0) {
+        errors.push({
+          matchId: m.id.toString(),
+          reason: `standings 매핑 실패 (${missing.join(", ")})`,
+        });
+        skipped++;
+        continue;
+      }
+
+      if (Object.keys(updateData).length > 0) {
+        await prisma.tournamentMatch.update({
+          where: { id: m.id },
+          data: updateData,
+        });
+        updated++;
+        continue;
+      }
+
+      if (hasRankSlot || homeSlot || awaySlot) {
+        skipped++;
+        continue;
+      }
+    }
+
     const parsed = parseAdvancement(m.notes);
     if (!parsed) {
       errors.push({ matchId: m.id.toString(), reason: "notes 파싱 실패 (A조 N위 vs B조 N위 형식 부재)" });
@@ -472,8 +522,8 @@ export interface GroupStageKnockoutMatchSpec {
   nextSlot: "home" | "away" | null;
 }
 
-function isPowerOfTwo(value: number): boolean {
-  return value > 0 && (value & (value - 1)) === 0;
+function nextPowerOfTwo(value: number): number {
+  return Math.pow(2, Math.ceil(Math.log2(value)));
 }
 
 function knockoutRoundName(roundNumber: number, totalRounds: number): string {
@@ -493,45 +543,32 @@ function groupLabel(index: number): string {
   return String.fromCharCode("A".charCodeAt(0) + index - 1);
 }
 
-function planGroupStageKnockoutFirstRoundSlots(opts: {
+function standardBracketSeedOrder(size: number): number[] {
+  if (size <= 1) return [1];
+  const previous = standardBracketSeedOrder(size / 2);
+  return previous.flatMap((seed) => [seed, size + 1 - seed]);
+}
+
+function buildGroupStageQualifierSlots(opts: {
   groupCount: number;
   advancePerGroup: number;
-}): Array<{ homeSlot: string; awaySlot: string }> {
-  const { groupCount, advancePerGroup } = opts;
+  rotateLowerRanks?: boolean;
+}): string[] {
+  const { groupCount, advancePerGroup, rotateLowerRanks = false } = opts;
   if (groupCount < 2 || advancePerGroup < 1) return [];
 
-  if (advancePerGroup === 1) {
-    const pairs: Array<{ homeSlot: string; awaySlot: string }> = [];
-    for (let left = 1, right = groupCount; left < right; left++, right--) {
-      pairs.push({
-        homeSlot: buildSlotLabel({ kind: "group_rank", group: groupLabel(left), rank: 1 }),
-        awaySlot: buildSlotLabel({ kind: "group_rank", group: groupLabel(right), rank: 1 }),
-      });
+  const slots: string[] = [];
+  for (let rank = 1; rank <= advancePerGroup; rank++) {
+    const groupOrder = Array.from({ length: groupCount }, (_, index) => index + 1);
+    if (rotateLowerRanks && rank > 1) {
+      const shift = (rank - 1) % groupCount;
+      groupOrder.push(...groupOrder.splice(0, shift));
     }
-    return pairs;
-  }
-
-  if (groupCount % 2 !== 0) return [];
-
-  const pairs: Array<{ homeSlot: string; awaySlot: string }> = [];
-  for (let group = 1; group <= groupCount; group += 2) {
-    const groupA = groupLabel(group);
-    const groupB = groupLabel(group + 1);
-    for (let rank = 1; rank <= Math.ceil(advancePerGroup / 2); rank++) {
-      const oppositeRank = advancePerGroup + 1 - rank;
-      pairs.push({
-        homeSlot: buildSlotLabel({ kind: "group_rank", group: groupA, rank }),
-        awaySlot: buildSlotLabel({ kind: "group_rank", group: groupB, rank: oppositeRank }),
-      });
-      if (rank !== oppositeRank) {
-        pairs.push({
-          homeSlot: buildSlotLabel({ kind: "group_rank", group: groupB, rank }),
-          awaySlot: buildSlotLabel({ kind: "group_rank", group: groupA, rank: oppositeRank }),
-        });
-      }
+    for (const group of groupOrder) {
+      slots.push(buildSlotLabel({ kind: "group_rank", group: groupLabel(group), rank }));
     }
   }
-  return pairs;
+  return slots;
 }
 
 export function planGroupStageKnockoutMatches(opts: {
@@ -539,50 +576,50 @@ export function planGroupStageKnockoutMatches(opts: {
   advancePerGroup: number;
 }): GroupStageKnockoutMatchSpec[] {
   const { groupCount, advancePerGroup } = opts;
-  const knockoutSize = groupCount * advancePerGroup;
-  if (!isPowerOfTwo(knockoutSize) || knockoutSize < 2) return [];
+  const qualifierCount = groupCount * advancePerGroup;
+  const bracketSize = nextPowerOfTwo(qualifierCount);
+  const qualifierSlots = buildGroupStageQualifierSlots({
+    groupCount,
+    advancePerGroup,
+    rotateLowerRanks: bracketSize !== qualifierCount,
+  });
+  if (qualifierSlots.length < 2) return [];
 
-  const totalRounds = Math.log2(knockoutSize);
-  const firstRoundPairs = planGroupStageKnockoutFirstRoundSlots({ groupCount, advancePerGroup });
-  if (firstRoundPairs.length !== knockoutSize / 2) return [];
+  const totalRounds = Math.log2(bracketSize);
+  const bracketOrder = standardBracketSeedOrder(bracketSize);
+  const leafSlots: Array<string | null> = Array.from({ length: bracketSize }, () => null);
+  for (let seed = 1; seed <= bracketSize; seed++) {
+    const leafIndex = bracketOrder.indexOf(seed);
+    if (leafIndex >= 0) {
+      leafSlots[leafIndex] = qualifierSlots[seed - 1] ?? null;
+    }
+  }
 
   const specs: GroupStageKnockoutMatchSpec[] = [];
   let matchIndex = 0;
+  let sources = leafSlots.map((slot) => ({ slot, sourceKey: null as string | null }));
+
   for (let roundNumber = 1; roundNumber <= totalRounds; roundNumber++) {
-    const matchCount = knockoutSize / Math.pow(2, roundNumber);
     const roundName = knockoutRoundName(roundNumber, totalRounds);
-    const prevRoundName = roundNumber > 1 ? knockoutRoundName(roundNumber - 1, totalRounds) : null;
-    for (let bracketPosition = 1; bracketPosition <= matchCount; bracketPosition++) {
+    const nextSources: Array<{ slot: string | null; sourceKey: string | null }> = [];
+    for (let i = 0; i < sources.length; i += 2) {
+      const bracketPosition = i / 2 + 1;
+      const home = sources[i];
+      const away = sources[i + 1];
+      if (!home?.slot && !away?.slot) {
+        nextSources.push({ slot: null, sourceKey: null });
+        continue;
+      }
+      if (home?.slot && !away?.slot) {
+        nextSources.push(home);
+        continue;
+      }
+      if (!home?.slot && away?.slot) {
+        nextSources.push(away);
+        continue;
+      }
+
       const key = `${roundNumber}:${bracketPosition}`;
-      const nextKey =
-        roundNumber < totalRounds
-          ? `${roundNumber + 1}:${Math.ceil(bracketPosition / 2)}`
-          : null;
-      const nextSlot =
-        roundNumber < totalRounds
-          ? bracketPosition % 2 === 1
-            ? "home"
-            : "away"
-          : null;
-
-      const firstRoundPair = firstRoundPairs[bracketPosition - 1];
-      const homeSlot =
-        roundNumber === 1
-          ? firstRoundPair.homeSlot
-          : buildSlotLabel({
-              kind: "match_winner",
-              roundName: prevRoundName!,
-              matchNumber: 2 * bracketPosition - 1,
-            });
-      const awaySlot =
-        roundNumber === 1
-          ? firstRoundPair.awaySlot
-          : buildSlotLabel({
-              kind: "match_winner",
-              roundName: prevRoundName!,
-              matchNumber: 2 * bracketPosition,
-            });
-
       specs.push({
         key,
         roundNumber,
@@ -590,14 +627,34 @@ export function planGroupStageKnockoutMatches(opts: {
         bracketLevel: roundNumber,
         roundName,
         matchIndex: matchIndex++,
-        homeSlot,
-        awaySlot,
-        notes: buildPlaceholderNotes(homeSlot, awaySlot),
+        homeSlot: home!.slot!,
+        awaySlot: away!.slot!,
+        notes: buildPlaceholderNotes(home!.slot!, away!.slot!),
         status: roundNumber === 1 ? "scheduled" : "pending",
-        nextKey,
-        nextSlot,
+        nextKey: null,
+        nextSlot: null,
+      });
+      nextSources.push({
+        slot: buildSlotLabel({ kind: "match_winner", roundName, matchNumber: bracketPosition }),
+        sourceKey: key,
       });
     }
+
+    for (let nextIndex = 0; nextIndex < nextSources.length; nextIndex++) {
+      const source = nextSources[nextIndex];
+      if (!source.sourceKey) continue;
+      const nextRoundSourceIndex = Math.floor(nextIndex / 2);
+      const nextRoundHasMatch =
+        roundNumber < totalRounds &&
+        Boolean(nextSources[nextRoundSourceIndex * 2]?.slot && nextSources[nextRoundSourceIndex * 2 + 1]?.slot);
+      if (!nextRoundHasMatch) continue;
+      const spec = specs.find((item) => item.key === source.sourceKey);
+      if (!spec) continue;
+      spec.nextKey = `${roundNumber + 1}:${nextRoundSourceIndex + 1}`;
+      spec.nextSlot = nextIndex % 2 === 0 ? "home" : "away";
+    }
+
+    sources = nextSources;
   }
   return specs;
 }
@@ -888,7 +945,7 @@ export async function generateGroupStageKnockoutMatches(
       divisionCode,
       generated: 0,
       skipped: 0,
-      reason: `지원 가능한 결선 규모가 아닙니다 (group_count=${groupCount}, advance_per_group=${advancePerGroup}, 총 진출=${groupCount * advancePerGroup}). 총 진출 수는 2/4/8/16처럼 2의 제곱이어야 합니다.`,
+      reason: `지원 가능한 결선 규모가 아닙니다 (group_count=${groupCount}, advance_per_group=${advancePerGroup}, 총 진출=${groupCount * advancePerGroup}). 최소 2팀 이상 진출해야 합니다.`,
       matchIds: [],
     };
   }
