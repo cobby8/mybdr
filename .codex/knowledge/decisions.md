@@ -1,5 +1,12 @@
 # Decision Log
 
+## 2026-06-25 Customer Signal Email Reporting
+
+- Decision: build customer inquiry/error/correction reporting without a DB migration by combining `suggestions` for logged-in form submissions with `CUSTOMER_SIGNAL_REPORT_TO` email reports for every accepted signal.
+- Reason: the owner needs immediate email visibility, while avoiding production DB schema risk during the first operational version.
+- Scope: `/help/contact`, `/api/web/customer-signals`, shared mailer, and existing game/court report trigger hooks.
+- Deferred: dedicated inquiry table, admin inbox filter for anonymous email-only signals, and non-email channels such as Slack/Kakao.
+
 ## 2026-06-25 Map API for Tournament Venues
 
 - Decision: use Kakao Local/Maps/Navi links as the primary venue search and navigation path for Korean tournament operations.

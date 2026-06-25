@@ -24,6 +24,7 @@ import {
 } from "@/lib/validation/game-report";
 import { canReportGame, canEditReport } from "@/lib/games/report-auth";
 import { recomputeFinalMvp } from "@/lib/games/mvp-aggregate";
+import { scheduleCustomerSignalReport } from "@/lib/customer-signals/report-mailer";
 
 type RouteCtx = { params: Promise<{ id: string }> };
 
@@ -36,7 +37,7 @@ async function resolveGameByUuid(uuid: string) {
   return prisma.games
     .findUnique({
       where: { uuid },
-      select: { id: true },
+      select: { id: true, title: true, venue_name: true, scheduled_at: true },
     })
     .catch(() => null);
 }
@@ -157,6 +158,46 @@ export async function POST(req: NextRequest, ctx: RouteCtx) {
     where: { id: createdReportId },
     include: { ratings: true },
   });
+
+  const flaggedRatings = data.ratings.filter(
+    (rating) => rating.is_noshow || rating.flags.length > 0,
+  );
+  if (flaggedRatings.length > 0) {
+    const reporter = await prisma.user
+      .findUnique({
+        where: { id: userId },
+        select: { nickname: true, email: true },
+      })
+      .catch(() => null);
+
+    scheduleCustomerSignalReport({
+      type: "game_report",
+      title: `경기 신고: ${game.title ?? uuid}`,
+      content: data.comment?.trim() || "경기 리포트에 신고 항목이 포함되었습니다.",
+      reporter: {
+        id: userId.toString(),
+        name: reporter?.nickname,
+        email: reporter?.email,
+      },
+      sourceUrl: `/games/${uuid}`,
+      adminUrl: "/admin/game-reports",
+      metadata: {
+        game_id: gameId.toString(),
+        game_uuid: uuid,
+        game_title: game.title,
+        venue_name: game.venue_name,
+        scheduled_at: game.scheduled_at.toISOString(),
+        report_id: createdReportId.toString(),
+        flagged_count: flaggedRatings.length,
+        flags: flaggedRatings.map((rating) => ({
+          rated_user_id: rating.rated_user_id,
+          flags: rating.flags,
+          is_noshow: rating.is_noshow,
+        })),
+      },
+      createdAt: created?.created_at,
+    });
+  }
 
   return apiSuccess({ report: serializeReport(created!) }, 201);
 }

@@ -1,5 +1,13 @@
 # Architecture Notes
 
+## 2026-06-25 Customer Signal Reporting
+
+- `src/lib/customer-signals/report-mailer.ts` is the shared formatter/sender for customer inquiry, site error, correction request, game report, court report, and court edit suggestion signals.
+- `/api/web/customer-signals` accepts help/contact form submissions, rate-limits by IP, stores logged-in submissions in `suggestions`, and queues owner email reporting through `after()`.
+- `/help/contact` is the first public intake UI. `/help` links to it instead of opening a `mailto:` URL.
+- Existing domain triggers also report by email: game reports with flags/no-show, court physical reports, and court edit suggestions.
+- No DB schema change. Logged-in general signals reuse `suggestions`; anonymous signals are email-only in this phase.
+
 ## 2026-06-25 Tournament Venue Navigation
 
 - `src/lib/maps/navigation-links.ts` is the shared Kakao map/directions URL helper.

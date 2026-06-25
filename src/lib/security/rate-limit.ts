@@ -21,6 +21,8 @@ export const RATE_LIMITS: Record<string, RateLimitConfig> = {
   // 2026-05-20: prospectus AI 분석 endpoint — 분당 5건 / 일 한도는 DB count (호출 측 별도 가드).
   // 사유: AI Gateway 비용 가드 — Claude Sonnet 4 호출 1건 ≈ $0.05~$0.15. 분당 5건 = 시간당 max $45 한도.
   aiAnalyze: { maxRequests: 5, windowMs: 60 * 1000 },
+  // 고객 문의/오류 신고 메일 트리거 — 공개 접수 가능하므로 메일 폭주 방지.
+  customerSignal: { maxRequests: 5, windowMs: 60 * 1000 },
 };
 
 export interface RateLimitResult {

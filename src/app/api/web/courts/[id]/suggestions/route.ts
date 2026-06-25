@@ -11,6 +11,7 @@ import { prisma } from "@/lib/db/prisma";
 import { getWebSession } from "@/lib/auth/web-session";
 import { apiSuccess, apiError } from "@/lib/api/response";
 import { EDITABLE_FIELD_KEYS, EDITABLE_FIELDS, type EditableFieldKey } from "@/lib/constants/court";
+import { scheduleCustomerSignalReport } from "@/lib/customer-signals/report-mailer";
 
 type RouteCtx = { params: Promise<{ id: string }> };
 
@@ -184,7 +185,28 @@ export async function POST(
   // 작성자 닉네임 조회 (create와 분리 — Prisma 타입 호환성)
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { nickname: true },
+    select: { nickname: true, email: true },
+  });
+
+  scheduleCustomerSignalReport({
+    type: "court_edit_suggestion",
+    title: `코트 수정 제안: ${court.name}`,
+    content: reason,
+    reporter: {
+      id: userId.toString(),
+      name: user?.nickname,
+      email: user?.email,
+    },
+    sourceUrl: `/courts/${courtId.toString()}`,
+    adminUrl: "/admin/inbox",
+    metadata: {
+      court_id: courtId.toString(),
+      court_name: court.name,
+      suggestion_id: suggestion.id.toString(),
+      changed_fields: Object.keys(validatedChanges),
+      changes: validatedChanges,
+    },
+    createdAt: suggestion.created_at,
   });
 
   return apiSuccess(

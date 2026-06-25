@@ -6,13 +6,17 @@ Updated: 2026-06-25
 
 | File | Entries | Recent |
 |---|---:|---|
-| architecture.md | 2 | Tournament venue navigation |
+| architecture.md | 3 | Customer signal reporting |
 | conventions.md | 1 | 운영 화면 데이터 배선 |
-| decisions.md | 3 | Map API for tournament venues |
+| decisions.md | 4 | Customer signal email reporting |
 | errors.md | 0 | - |
 | lessons.md | 0 | - |
 
 Recent work:
+- 2026-06-25 customer-signals: `/help/contact` 접수 폼, `/api/web/customer-signals`, 공통 메일러, 기존 경기/코트 신고 트리거 메일 보고를 추가.
+- 2026-06-25 referee: KBA 심판/경기원 규정과 FIBA table officials 기준에 맞춰 기록원·계시원을 경기원 직군으로 통합.
+- 2026-06-25 agents: `POST /api/web/admin/agents/record-app-impact` 규칙 기반 서버 API를 추가해 기록앱 영향 패킷을 반환.
+- 2026-06-25 agents: `bdr_stat_v3` repo를 기록앱 기준으로 고정하고 record-app liaison 소통/서버 영향 분석 MVP 방향을 문서화.
 - 2026-06-25 agents: 상황별 운영 워크플로우 문서로 작은 수정/UI/DB/`api/v1`/배포/장애 대응 에이전트 호출 순서를 고정.
 - 2026-06-25 agents: BDR 운영 에이전트에 reviewer/release/ops/content/db 역할과 기록 앱 liaison 협업 게이트를 추가.
 - 2026-06-25 admin: 종별별 승인팀 자동 조편성 API와 참가팀 화면 버튼을 추가해 `groupName`/`seedNumber`를 대진 생성 전 준비할 수 있게 함.
@@ -23,3 +27,6 @@ Recent work:
 - 2026-06-24 Security: PostCSS override로 Next 하위 취약 버전 제거, `npm audit` 0건 확인.
 - 2026-06-24 Security: 취약 `xlsx` 제거, `.xlsx` 전용 파서와 스플릿 생성기 교체, high/critical audit 0건 확인.
 - 2026-06-23 QA/STAGE: v2.40 기준 디자인 일관 QA 패키지와 STAGE E/F/G 실행 순서 정리.
+
+Recent membership work:
+- 2026-06-25 membership: `membershipType` is the global permission grade, while feature subscriptions now share a common usable-subscription check for payment, profile, site, and admin flows.
