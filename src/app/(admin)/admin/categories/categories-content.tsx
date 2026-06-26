@@ -93,7 +93,7 @@ function TagInput({
           </span>
         ))}
         {items.length === 0 && (
-          <span style={{ fontSize: 13, color: "var(--ink-dim)" }}>없음</span>
+          <span style={{ fontSize: 13, color: "var(--color-text-muted)" }}>없음</span>
         )}
       </div>
       <div style={{ display: "flex", gap: 8 }}>
@@ -218,7 +218,7 @@ function CategoryCard({
           style={{
             fontSize: 19,
             fontWeight: 800,
-            color: "var(--ink)",
+            color: "var(--color-text-primary)",
             border: 0,
             background: "transparent",
             outline: "none",
@@ -253,7 +253,7 @@ function CategoryCard({
               gap: 6,
               fontSize: 13,
               fontWeight: 700,
-              color: "var(--primary)",
+              color: "var(--color-accent)",
               marginBottom: 12,
             }}
           >
@@ -331,7 +331,7 @@ function CategoryCard({
           </>
         }
       >
-        <div style={{ fontSize: 14, color: "var(--ink-soft)", lineHeight: 1.6 }}>
+        <div style={{ fontSize: 14, color: "var(--color-text-muted)", lineHeight: 1.6 }}>
           기존 대회에는 영향이 없지만, 대회 생성기 프리셋에서 이 종별이
           사라집니다.
         </div>
@@ -403,10 +403,10 @@ export function CategoriesContent({ initial }: { initial: CategoryItem[] }) {
             display: "flex",
             alignItems: "center",
             gap: 10,
-            color: "var(--danger)",
+            color: "var(--color-error)",
           }}
         >
-          <Icon name="circle-x" size={18} color="var(--danger)" />
+          <Icon name="circle-x" size={18} color="var(--color-error)" />
           <span style={{ fontSize: 14 }}>{error}</span>
         </div>
       )}
@@ -453,20 +453,20 @@ export function CategoriesContent({ initial }: { initial: CategoryItem[] }) {
           display: "flex",
           alignItems: "center",
           gap: 12,
-          background: "var(--primary-weak)",
+          background: "var(--color-accent-weak)",
           border: 0,
         }}
       >
-        <Icon name="info" size={20} color="var(--primary)" />
+        <Icon name="info" size={20} color="var(--color-accent)" />
         <div
           style={{
             fontSize: 13.5,
-            color: "var(--ink-soft)",
+            color: "var(--color-text-muted)",
             lineHeight: 1.5,
           }}
         >
           이 종별 마스터는 운영 Supabase의{" "}
-          <b style={{ color: "var(--ink)" }}>admin_categories</b> 와
+          <b style={{ color: "var(--color-text-primary)" }}>admin_categories</b> 와
           연결됩니다. 현재 4종(일반부·유청소년·대학부·시니어)은 기존 데이터 복원
           시드입니다.
         </div>
