@@ -1,5 +1,12 @@
 # Errors
 
+## 2026-06-26 Local Browser QA Blocked by Supabase Pooler
+
+- Symptom: Local admin browser QA redirected to login or rendered Prisma initialization errors while opening `/admin/tournaments`, `/admin/users`, and `/admin/partners`.
+- Cause: The local dev server could not reach `aws-1-ap-northeast-2.pooler.supabase.com:6543`, so admin data queries and dev auto-login could not complete.
+- Fix: UI changes were validated with `cmd /c npx tsc --noEmit`, `git diff --check`, and residue scans; full browser QA should be rerun when DB connectivity is available.
+- Prevention: Before browser QA for admin pages, confirm the Supabase pooler is reachable or use a local/dev DB override with known seed data.
+
 ## 2026-06-26 Missing Primary Contrast Token
 
 - Symptom: Red primary buttons could render black text/icons when components used `var(--color-on-primary)`.

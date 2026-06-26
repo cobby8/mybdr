@@ -1,5 +1,6 @@
 # Knowledge Index
 
+- 2026-06-26 admin: v2.41 Toss package KPI rows use `ad-kpi-*` classes; browser QA needs DB pooler connectivity.
 - 2026-06-26 theme: `--color-on-primary` is defined as white so red primary buttons do not inherit black text.
 - 2026-06-26 live: box score now has a per-team `기본/고급` toggle, advanced-stat help, and game-wide PIE denominator wiring.
 - 2026-06-26 tournament-admin: match-level manual recording mode is now a real non-record-system mode instead of Flutter fallback.
@@ -12,10 +13,11 @@ Updated: 2026-06-26
 | architecture.md | 3 | Customer signal reporting |
 | conventions.md | 2 | 대회 포맷 표준 |
 | decisions.md | 7 | Manual recording mode contract |
-| errors.md | 5 | Missing primary contrast token |
+| errors.md | 6 | Local browser QA blocked by Supabase pooler |
 | lessons.md | 0 | - |
 
 Recent work:
+- 2026-06-26 admin: BDR v2.41 admin Toss package was reviewed and shared KPI rows were converted from v2.40 `au-stat` to v2.41 `ad-kpi-*`.
 - 2026-06-26 design: v2.41 admin Toss reverse-bake handoff was absorbed into `BDR-current`; admin/operation areas keep Toss as the official design system while public user surfaces keep BDR rules.
 - 2026-06-26 theme: added the missing `--color-on-primary` alias used by primary buttons.
 - 2026-06-26 live: box score tables now switch between basic and advanced stats, with one help popover per team table and PIE calculated against both teams.

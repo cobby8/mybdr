@@ -944,3 +944,73 @@
 @media (max-width: 860px) {
   [data-skin="toss"] .au-hide-sm { display: none !important; }
 }
+
+/* v2.41 admin package KPI cards */
+[data-skin="toss"] .ad-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 28px;
+}
+@media (max-width: 900px) {
+  [data-skin="toss"] .ad-kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 480px) {
+  [data-skin="toss"] .ad-kpi-grid { grid-template-columns: 1fr; }
+}
+[data-skin="toss"] .ad-kpi {
+  min-width: 0;
+  border: 1px solid color-mix(in srgb, #000 3%, transparent);
+  border-radius: 20px;
+  background: var(--card);
+  box-shadow: var(--sh-sm);
+  padding: 20px;
+}
+[data-skin="toss"] .ad-kpi__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+[data-skin="toss"] .ad-kpi__icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+}
+[data-skin="toss"] .ad-kpi__icon[data-tone="primary"] { background: var(--primary-weak); color: var(--primary); }
+[data-skin="toss"] .ad-kpi__icon[data-tone="ok"] { background: var(--ok-weak); color: var(--ok); }
+[data-skin="toss"] .ad-kpi__icon[data-tone="warn"] { background: var(--warn-weak); color: var(--warn); }
+[data-skin="toss"] .ad-kpi__icon[data-tone="danger"] { background: var(--danger-weak); color: var(--danger); }
+[data-skin="toss"] .ad-kpi__icon[data-tone="violet"] { background: #F3F0FE; color: #6D5AE6; }
+[data-skin="toss"] .ad-kpi__delta {
+  border-radius: 8px;
+  padding: 3px 8px;
+  font-family: var(--ff-mono);
+  font-size: 12.5px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+[data-skin="toss"] .ad-kpi__delta[data-dir="up"] { background: var(--ok-weak); color: var(--ok); }
+[data-skin="toss"] .ad-kpi__delta[data-dir="down"] { background: var(--danger-weak); color: var(--danger); }
+[data-skin="toss"] .ad-kpi__delta[data-dir="flat"] { background: var(--grey-100); color: var(--ink-mute); }
+[data-skin="toss"] .ad-kpi__val {
+  color: var(--ink);
+  font-size: 28px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+[data-skin="toss"] .ad-kpi__label {
+  margin-top: 4px;
+  color: var(--ink-mute);
+  font-size: 13.5px;
+  font-weight: 600;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
