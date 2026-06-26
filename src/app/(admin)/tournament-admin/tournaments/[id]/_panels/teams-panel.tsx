@@ -77,13 +77,6 @@ const STATUS_LABEL: Record<string, string> = {
   withdrawn: "취소",
 };
 
-const STATUS_COLOR: Record<string, string> = {
-  pending: "text-[var(--color-warning)] bg-[var(--color-warning)]/10",
-  approved: "text-[var(--color-game-team)] bg-[var(--color-game-team)]/10",
-  rejected: "text-[var(--color-error)] bg-[color-mix(in_srgb,var(--color-error)_10%,transparent)]",
-  withdrawn: "text-[var(--color-text-muted)] bg-[var(--color-elevated)]",
-};
-
 /* ---------- 선수 추가 폼 초기값 ---------- */
 const EMPTY_FORM = { player_name: "", phone: "", jersey_number: "", position: "" };
 
@@ -858,9 +851,7 @@ export default function TournamentTeamsPage() {
                     </label>
                   )}
 
-                  <span className={`rounded-[8px] px-3 py-1 text-xs font-medium ${STATUS_COLOR[tt.status] ?? ""}`}>
-                    {STATUS_LABEL[tt.status] ?? tt.status}
-                  </span>
+                  <StatusBadge status={tt.status} />
 
                   {/* 액션 버튼 */}
                   {tt.status === "pending" && (
@@ -1607,103 +1598,39 @@ function ImportPlayersModal({
 
 // 등록 경로 배지 — applied_via 값별 색상/라벨
 function ViaBadge({ appliedVia }: { appliedVia: string | null }) {
-  const map: Record<string, { label: string; bg: string; fg: string }> = {
-    admin: { label: "운영자", bg: "var(--color-elevated)", fg: "var(--color-text-secondary)" },
-    coach_token: { label: "코치", bg: "color-mix(in srgb, var(--color-info) 15%, transparent)", fg: "var(--color-info)" },
-    self: { label: "본인", bg: "color-mix(in srgb, var(--color-success) 15%, transparent)", fg: "var(--color-success)" },
+  const map: Record<string, string> = {
+    admin: "운영자",
+    coach_token: "코치",
+    self: "본인",
   };
-  if (!appliedVia || !map[appliedVia]) {
-    return (
-      <span
-        className="rounded-[8px] px-2 py-0.5 text-[10px] font-medium"
-        style={{ background: "var(--color-elevated)", color: "var(--color-text-muted)" }}
-      >
-        경로 미상
-      </span>
-    );
-  }
-  const cfg = map[appliedVia];
   return (
-    <span
-      className="rounded-[8px] px-2 py-0.5 text-[10px] font-medium"
-      style={{ background: cfg.bg, color: cfg.fg }}
-    >
-      {cfg.label}
+    <span className="tt-badge" data-kind={appliedVia && map[appliedVia] ? `via-${appliedVia}` : "via-unknown"}>
+      {appliedVia && map[appliedVia] ? map[appliedVia] : "경로 미상"}
     </span>
   );
 }
 
 // 상태 배지 — status 값별 색상/라벨
 function StatusBadge({ status }: { status: string }) {
-  const map: Record<string, { label: string; bg: string; fg: string }> = {
-    pending: {
-      label: "대기 중",
-      bg: "color-mix(in srgb, var(--color-warning) 15%, transparent)",
-      fg: "var(--color-warning)",
-    },
-    approved: {
-      label: "승인",
-      bg: "color-mix(in srgb, var(--color-success) 15%, transparent)",
-      fg: "var(--color-success)",
-    },
-    rejected: {
-      label: "거절",
-      bg: "color-mix(in srgb, var(--color-error) 15%, transparent)",
-      fg: "var(--color-error)",
-    },
-    waiting: {
-      label: "대기접수",
-      bg: "color-mix(in srgb, var(--color-info) 15%, transparent)",
-      fg: "var(--color-info)",
-    },
-  };
-  const cfg = map[status] ?? {
-    label: status,
-    bg: "var(--color-elevated)",
-    fg: "var(--color-text-muted)",
-  };
   return (
-    <span
-      className="rounded-[8px] px-2 py-0.5 text-[10px] font-medium"
-      style={{ background: cfg.bg, color: cfg.fg }}
-    >
-      {cfg.label}
+    <span className="tt-badge" data-status={status}>
+      {STATUS_LABEL[status] ?? (status === "waiting" ? "대기접수" : status)}
     </span>
   );
 }
 
 // 2026-05-11 Phase 3-F 옵션 A — 납부 상태 배지
 function PaymentBadge({ status }: { status: string | null }) {
-  const map: Record<string, { label: string; bg: string; fg: string }> = {
-    paid: {
-      label: "납부",
-      bg: "color-mix(in srgb, var(--color-success) 15%, transparent)",
-      fg: "var(--color-success)",
-    },
-    unpaid: {
-      label: "미납",
-      bg: "color-mix(in srgb, var(--color-warning) 15%, transparent)",
-      fg: "var(--color-warning)",
-    },
-    waived: {
-      label: "면제",
-      bg: "color-mix(in srgb, var(--color-info) 15%, transparent)",
-      fg: "var(--color-info)",
-    },
-    refunded: {
-      label: "환불",
-      bg: "var(--color-elevated)",
-      fg: "var(--color-text-muted)",
-    },
+  const map: Record<string, string> = {
+    paid: "납부",
+    unpaid: "미납",
+    waived: "면제",
+    refunded: "환불",
   };
   if (!status || !map[status]) return null;
-  const cfg = map[status];
   return (
-    <span
-      className="rounded-[8px] px-2 py-0.5 text-[10px] font-medium"
-      style={{ background: cfg.bg, color: cfg.fg }}
-    >
-      {cfg.label}
+    <span className="tt-badge" data-payment={status}>
+      {map[status]}
     </span>
   );
 }
@@ -1724,22 +1651,16 @@ function RosterProgressBadge({
   let color: string;
   if (min != null && count < min) {
     label = `${count} / ${min} 이상`;
-    color = "var(--color-warning)";
+    color = "warn";
   } else if (max != null && count > max) {
     label = `${count} / ${max} 초과`;
-    color = "var(--color-error)";
+    color = "danger";
   } else {
     label = `${count}${max ? ` / ${max}` : ""}`;
-    color = "var(--color-success)";
+    color = "ok";
   }
   return (
-    <span
-      className="rounded-[8px] px-2 py-0.5 text-[10px] font-medium"
-      style={{
-        background: `color-mix(in srgb, ${color} 12%, transparent)`,
-        color,
-      }}
-    >
+    <span className="tt-badge" data-tone={color}>
       {label}
     </span>
   );
@@ -1762,18 +1683,11 @@ function formatUpdatedAt(iso: string): string {
 // 등록 경로 통계 카드 — accent 톤 단일 (conventions.md "admin 빨간색 본문 금지" 준수)
 function ViaStatCard({ label, count, icon }: { label: string; count: number; icon: string }) {
   return (
-    <div
-      className="flex items-center gap-3 rounded-[16px] border p-3"
-      style={{ borderColor: "var(--border)", background: "var(--grey-50)" }}
-    >
-      <Icon name={icon} size={24} color="var(--color-accent)" />
+    <div className="tt-stat-card">
+      <Icon name={icon} size={24} />
       <div>
-        <p className="text-xs" style={{ color: "var(--color-text-muted)" }}>
-          {label}
-        </p>
-        <p className="text-lg font-bold" style={{ color: "var(--color-text-primary)" }}>
-          {count}
-        </p>
+        <p className="tt-stat-card__label">{label}</p>
+        <p className="tt-stat-card__value">{count}</p>
       </div>
     </div>
   );

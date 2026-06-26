@@ -2021,6 +2021,73 @@
   padding: 0;
 }
 
+/* Tournament teams panel */
+[data-skin="toss"] .tt-badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 8px;
+  background: var(--grey-100);
+  color: var(--ink-mute);
+  font-size: 10.5px;
+  font-weight: 800;
+  line-height: 1;
+  padding: 5px 8px;
+  white-space: nowrap;
+}
+[data-skin="toss"] .tt-badge[data-kind="via-admin"] {
+  background: var(--grey-100);
+  color: var(--ink-soft);
+}
+[data-skin="toss"] .tt-badge[data-kind="via-coach_token"],
+[data-skin="toss"] .tt-badge[data-status="waiting"],
+[data-skin="toss"] .tt-badge[data-payment="waived"] {
+  background: var(--primary-weak);
+  color: var(--primary);
+}
+[data-skin="toss"] .tt-badge[data-kind="via-self"],
+[data-skin="toss"] .tt-badge[data-status="approved"],
+[data-skin="toss"] .tt-badge[data-payment="paid"],
+[data-skin="toss"] .tt-badge[data-tone="ok"] {
+  background: var(--ok-weak);
+  color: var(--ok);
+}
+[data-skin="toss"] .tt-badge[data-status="pending"],
+[data-skin="toss"] .tt-badge[data-payment="unpaid"],
+[data-skin="toss"] .tt-badge[data-tone="warn"] {
+  background: var(--warn-weak);
+  color: var(--warn);
+}
+[data-skin="toss"] .tt-badge[data-status="rejected"],
+[data-skin="toss"] .tt-badge[data-tone="danger"] {
+  background: var(--danger-weak);
+  color: var(--danger);
+}
+[data-skin="toss"] .tt-stat-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--grey-50);
+  padding: 13px;
+}
+[data-skin="toss"] .tt-stat-card svg {
+  flex: 0 0 auto;
+  color: var(--primary);
+}
+[data-skin="toss"] .tt-stat-card__label {
+  color: var(--ink-mute);
+  font-size: 12px;
+  font-weight: 700;
+}
+[data-skin="toss"] .tt-stat-card__value {
+  color: var(--ink);
+  font-size: 18px;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+}
+
 @media (max-width: 560px) {
   [data-skin="toss"] .ta-bracket-versions,
   [data-skin="toss"] .ta-bracket-actions {
