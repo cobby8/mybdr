@@ -472,6 +472,14 @@
   vertical-align: middle;
 }
 
+[data-skin="toss"] .sc-table tbody tr[draggable="true"] {
+  cursor: grab;
+}
+
+[data-skin="toss"] .sc-table tbody tr.sc-dragging {
+  opacity: .45;
+}
+
 [data-skin="toss"] .sc-divtag {
   display: inline-flex;
   align-items: center;

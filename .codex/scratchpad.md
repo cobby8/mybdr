@@ -23,6 +23,7 @@
 
 ## Work Log
 - 2026-06-27: Rebuilt tournament operate schedule tab around the Toss v2.41 scheduler flow: date/court lanes, division durations, lane starts, auto placement, direct placement, lane timelines, and real scheduledAt/venue/court PATCH saves; TypeScript and production build passed.
+- 2026-06-27: Added drag reorder persistence to scheduled lane timelines so same-court match order changes recalculate and save start times; TypeScript and production build passed.
 - 2026-06-27: Wired tournament operate schedule court numbers end-to-end through match create/update APIs, service writes, and admin match edit UI; TypeScript and production build passed.
 - 2026-06-27: Tightened tournament operate bracket tab around the Toss v2.41 flow: single-division category fallback, generation summary, and generated matches grouped by prelim/dual/knockout stages; TypeScript and production build passed.
 - 2026-06-27: Rebuilt tournament operate teams panel around the Toss v2.41 flow so division status, single/bulk category moves, approval/payment, tokens, and player roster actions are first-screen operations; TypeScript and production build passed.

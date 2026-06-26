@@ -798,6 +798,7 @@ export default function MatchesClient() {
   const [scheduling, setScheduling] = useState(false);
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
   const [manualOpen, setManualOpen] = useState(false);
+  const [draggedScheduleMatchId, setDraggedScheduleMatchId] = useState<string | null>(null);
   const [toast, setToast] = useState("");
   const [error, setError] = useState("");
   // 2026-05-12 — 종별 필터 (강남구협회장배 다중 종별 운영)
@@ -1008,6 +1009,49 @@ export default function MatchesClient() {
       setError(e instanceof Error ? e.message : "일정 해제 실패");
     } finally {
       setScheduling(false);
+    }
+  };
+
+  const reorderScheduledGroup = async (
+    group: { laneLabel: string; matches: Match[] },
+    targetMatchId: string,
+  ) => {
+    if (!draggedScheduleMatchId || draggedScheduleMatchId === targetMatchId) return;
+    const fromIndex = group.matches.findIndex((match) => match.id === draggedScheduleMatchId);
+    const toIndex = group.matches.findIndex((match) => match.id === targetMatchId);
+    if (fromIndex < 0 || toIndex < 0) return;
+
+    const reordered = [...group.matches];
+    const [moved] = reordered.splice(fromIndex, 1);
+    reordered.splice(toIndex, 0, moved);
+
+    const first = group.matches[0];
+    const date = formatKstDate(first?.scheduledAt) ?? scheduleLanes[0]?.date;
+    const startTime = formatKstTime(first?.scheduledAt ?? null);
+    const venueName = first?.venue_name ?? null;
+    const courtNumber = first?.court_number ?? null;
+    if (!date || !venueName || !courtNumber || startTime === "미정") return;
+
+    setScheduling(true);
+    setError("");
+    try {
+      let cursor = startTime;
+      for (const match of reordered) {
+        await patchSchedule({
+          matchId: match.id,
+          scheduledAt: toKstIso(date, cursor),
+          venueName,
+          courtNumber,
+        });
+        cursor = addMinutesToTime(cursor, getDuration(match));
+      }
+      await load();
+      showToast("경기 순서 저장 완료");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "경기 순서 저장 실패");
+    } finally {
+      setScheduling(false);
+      setDraggedScheduleMatchId(null);
     }
   };
 
@@ -1290,7 +1334,18 @@ export default function MatchesClient() {
                   </thead>
                   <tbody>
                     {group.matches.map((match) => (
-                      <tr key={match.id} onClick={() => setSelectedMatch(match)}>
+                      <tr
+                        key={match.id}
+                        draggable
+                        onDragStart={() => setDraggedScheduleMatchId(match.id)}
+                        onDragOver={(e) => e.preventDefault()}
+                        onDrop={(e) => {
+                          e.preventDefault();
+                          reorderScheduledGroup(group, match.id);
+                        }}
+                        onClick={() => setSelectedMatch(match)}
+                        className={draggedScheduleMatchId === match.id ? "sc-dragging" : ""}
+                      >
                         <td className="amt-table__time">{formatKstTime(match.scheduledAt)}</td>
                         <td><span className="sc-divtag">{getMatchDivision(match) ?? "-"}</span></td>
                         <td><span className="sc-divtag" data-ko={matchStageLabel(match) === "본선"}><i>{matchStageLabel(match)}</i></span></td>
