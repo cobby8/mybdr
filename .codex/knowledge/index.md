@@ -1,5 +1,10 @@
 # Knowledge Index
 
+- 2026-06-26 admin: v2.42 parity inventory now treats `ct-panel-embed` as canonical and keeps the divisions panel visible by default in the Toss workspace; `ta-*` remains a migration cleanup target.
+- 2026-06-26 design: BDR v2 (40) is a v2.42 public-site wiring delta; it supersedes the v39 public-site fiction note and sets 44 teams / 27 matches / 4 divisions as the shared admin/public baseline.
+- 2026-06-26 design: v2.42 integrated Claude.ai request asks for admin Toss full-parity state screens, schedule/bracket/matches/teams/site function flows, cleanup manifest, and data contracts.
+- 2026-06-26 design: admin Toss v2.41 full parity audit defines canonical files, mixed CSS/component layers, cleanup candidates, and required schedule/bracket edge-case design requests.
+- 2026-06-26 admin: tournament operation workspace now auto-opens division/match/team panels by step/hash; division delete is selection-sync based and requires saving the changed selection.
 - 2026-06-26 admin: tournament detail page looked unchanged because the live route still used the legacy `ct-page--workspace`/`ct-grid--workspace` shell; it now uses v2.41 `tw-shell`/`tw-steps`/`tw-foot` and embedded panel headers were removed.
 - 2026-06-26 design: BDR v2 (39) only corrected v2.41 admin mock consistency; active handoff now uses 44 teams/27 matches, while public site 38-team fiction remains PM-decision gated.
 - 2026-06-26 admin: `Icon` supports common legacy Material names as lucide aliases; organization detail top/tab icons now use the Toss Icon wrapper.
@@ -32,6 +37,11 @@ Updated: 2026-06-26
 | lessons.md | 0 | - |
 
 Recent work:
+- 2026-06-26 admin: v2.42 parity inventory was added, workspace panel frames moved to canonical `ct-panel-embed`, and the divisions panel is forced visible while the divisions step is active.
+- 2026-06-26 design: BDR v2 (40) wiring delta was imported into BDR-current, active admin Toss data was corrected with `homeId/awayId`, and public site data-gating work was added to the remaining task list.
+- 2026-06-26 design: v2.42 integrated Claude.ai request was created for admin Toss full parity, including schedule/bracket/matches/teams/site state screens, cleanup manifest, and data contract outputs.
+- 2026-06-26 design: admin Toss v2.41 full parity audit was created to drive 100% screen matching, deletion sequencing, schedule/bracket function import, and additional Claude.ai design requests.
+- 2026-06-26 admin: duplicate tournament detail header was removed, division/match/team panels now auto-open by step/hash, and division selection/delete/save UI spacing was stabilized.
 - 2026-06-26 admin: tournament detail workspace was replaced with the v2.41 Toss shell/step/footer flow, schedule became its own step, and panel-level standalone headers/back links were removed.
 - 2026-06-26 design: BDR v2 (39) was checked as mock consistency rather than source wiring; active v2.41 admin handoff now documents 44-team/27-match baseline and leaves public site mock untouched pending PM decision.
 - 2026-06-26 admin: organization detail top actions/tab icons moved to the Toss Icon wrapper, with common Material icon names aliased to lucide components.

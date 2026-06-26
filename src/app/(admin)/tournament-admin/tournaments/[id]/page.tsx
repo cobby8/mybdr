@@ -1,11 +1,7 @@
-import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { prisma } from "@/lib/db/prisma";
 import { getWebSession } from "@/lib/auth/web-session";
-import {
-  TOURNAMENT_FORMAT_LABEL,
-  TOURNAMENT_STATUS_LABEL,
-} from "@/lib/constants/tournament-status";
+import { TOURNAMENT_STATUS_LABEL } from "@/lib/constants/tournament-status";
 import { calculateSetupProgress, canPublish } from "@/lib/tournaments/setup-status";
 import {
   getTournamentDefaultMode,
@@ -48,13 +44,6 @@ function toDateInput(value: Date | null): string {
 function toDateTimeInput(value: Date | null): string {
   if (!value) return "";
   return value.toISOString().slice(0, 16);
-}
-
-function getDateRange(startDate: Date | null, endDate: Date | null): string {
-  if (!startDate) return "일정 미설정";
-  const start = startDate.toLocaleDateString("ko-KR");
-  const end = endDate?.toLocaleDateString("ko-KR");
-  return end ? `${start} ~ ${end}` : start;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -237,57 +226,8 @@ export default async function TournamentAdminDetailPage({
   const matchStats = await getTournamentMatchStats(id);
   const defaultMode = getTournamentDefaultMode({ settings: tournament.settings });
   const gameRules = normalizeGameRules(tournament.game_rules);
-  const formatLabel =
-    TOURNAMENT_FORMAT_LABEL[tournament.format ?? ""] ?? tournament.format ?? "토너먼트";
-  const siteUrl = site?.subdomain ? `https://${site.subdomain}.mybdr.kr` : null;
-
   return (
-    <div data-skin="toss" className="space-y-4">
-      <header
-        className="rounded-[var(--radius-card)] border p-4"
-        style={{ borderColor: "var(--color-border)", backgroundColor: "var(--color-card)" }}
-      >
-        <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
-          <div className="min-w-0">
-            <div className="mb-2 flex flex-wrap items-center gap-2">
-              <span className="admin-stat-pill" data-tone={STATUS_TONE[status] ?? "mute"}>
-                {TOURNAMENT_STATUS_LABEL[status] ?? status}
-              </span>
-              <span className="admin-stat-pill" data-tone={site?.isPublished ? "ok" : "mute"}>
-                {site?.isPublished ? "공개 중" : site ? "비공개" : "사이트 미생성"}
-              </span>
-              <span className="admin-stat-pill" data-tone={publishGate.ok ? "ok" : "warn"}>
-                {publishGate.ok ? "공개 가능" : `필수 ${publishGate.missing.length}개 남음`}
-              </span>
-            </div>
-            <h1 className="mt-1 text-xl font-black leading-tight text-[var(--color-text-primary)] sm:text-2xl">
-              {tournament.name}
-            </h1>
-            <p className="mt-1 text-sm text-[var(--color-text-muted)]">
-              {getDateRange(tournament.startDate, tournament.endDate)} · {formatLabel}
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2 lg:justify-end">
-            {siteUrl && (
-              <a
-                href={siteUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="ts-btn ts-btn--secondary"
-              >
-                사이트로
-              </a>
-            )}
-            <Link
-              href="/tournament-admin/tournaments"
-              className="ts-btn ts-btn--secondary"
-            >
-              목록으로
-            </Link>
-          </div>
-        </div>
-      </header>
-
+    <div data-skin="toss">
       <TournamentWorkspace
         tournamentId={id}
         progress={progress}

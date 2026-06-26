@@ -143,8 +143,23 @@ const LEGACY_SECTION_MAP: Record<string, SectionId> = {
   setup: "info",
   teams: "publish",
   structure: "divisions",
+  bracket: "divisions",
   matches: "game",
   staff: "game",
+  recorders: "game",
+  admins: "game",
+  site: "publish",
+};
+
+const HASH_PANEL_MAP: Record<string, PanelId> = {
+  teams: "teams",
+  divisions: "divisions",
+  structure: "divisions",
+  bracket: "bracket",
+  matches: "matches",
+  recorders: "recorders",
+  admins: "admins",
+  site: "site",
 };
 
 const RECORDING_MODE_LABEL: Record<RecordingMode, string> = {
@@ -218,6 +233,11 @@ export function TournamentWorkspace({
   const siteUrl = summary.siteSubdomain ? `https://${summary.siteSubdomain}.mybdr.kr` : null;
   const courts = useMemo(() => allCourts(form.places), [form.places]);
   const dirty = useMemo(() => isFormDirty(form, lastSavedForm), [form, lastSavedForm]);
+  const visibleOpenPanels = useMemo(() => {
+    const next = new Set(openPanels);
+    if (active === "divisions") next.add("divisions");
+    return next;
+  }, [active, openPanels]);
   const urgentCount =
     publishGate.missing.length +
     (summary.teamCount === 0 ? 1 : 0) +
@@ -227,10 +247,37 @@ export function TournamentWorkspace({
   useEffect(() => {
     const rawHash = window.location.hash.replace("#", "");
     const hash = (LEGACY_SECTION_MAP[rawHash] ?? rawHash) as SectionId;
+    const panel = HASH_PANEL_MAP[rawHash];
+    if (panel) {
+      setOpenPanels((current) => {
+        const next = new Set(current);
+        next.add(panel);
+        return next;
+      });
+    }
     if (SECTIONS.some((section) => section.id === hash)) {
       moveTo(hash, "auto");
     }
   }, []);
+
+  useEffect(() => {
+    const defaultPanel: PanelId | null =
+      active === "divisions"
+        ? "divisions"
+        : active === "game"
+          ? "matches"
+          : active === "publish"
+            ? "teams"
+            : null;
+    if (!defaultPanel) return;
+
+    setOpenPanels((current) => {
+      if (current.has(defaultPanel)) return current;
+      const next = new Set(current);
+      next.add(defaultPanel);
+      return next;
+    });
+  }, [active]);
 
   function moveTo(id: SectionId, behavior: ScrollBehavior = "smooth") {
     setActive(id);
@@ -626,10 +673,10 @@ export function TournamentWorkspace({
             ["recorders", "기록원"],
             ["admins", "운영진"],
           ]}
-          openPanels={openPanels}
+          openPanels={visibleOpenPanels}
           onToggle={togglePanel}
         />
-        {openPanels.has("matches") && (
+        {visibleOpenPanels.has("matches") && (
           <PanelFrame>
             <MatchesPanel
               tournamentId={tournamentId}
@@ -638,12 +685,12 @@ export function TournamentWorkspace({
             />
           </PanelFrame>
         )}
-        {openPanels.has("recorders") && (
+        {visibleOpenPanels.has("recorders") && (
           <PanelFrame>
             <RecordersPanel />
           </PanelFrame>
         )}
-        {openPanels.has("admins") && (
+        {visibleOpenPanels.has("admins") && (
           <PanelFrame>
             <AdminsPanel />
           </PanelFrame>
@@ -662,15 +709,15 @@ export function TournamentWorkspace({
             ["divisions", "종별 운영 방식"],
             ["bracket", "대진 생성"],
           ]}
-          openPanels={openPanels}
+          openPanels={visibleOpenPanels}
           onToggle={togglePanel}
         />
-        {openPanels.has("divisions") && (
+        {visibleOpenPanels.has("divisions") && (
           <PanelFrame>
             <DivisionsPanel />
           </PanelFrame>
         )}
-        {openPanels.has("bracket") && (
+        {visibleOpenPanels.has("bracket") && (
           <PanelFrame>
             <BracketPanel />
           </PanelFrame>
@@ -695,7 +742,7 @@ export function TournamentWorkspace({
             ["teams", "참가팀 관리"],
             ["site", "사이트 공개"],
           ]}
-          openPanels={openPanels}
+          openPanels={visibleOpenPanels}
           onToggle={togglePanel}
         />
         {siteUrl && (
@@ -708,12 +755,12 @@ export function TournamentWorkspace({
             공개 사이트 보기
           </a>
         )}
-        {openPanels.has("teams") && (
+        {visibleOpenPanels.has("teams") && (
           <PanelFrame>
             <TeamsPanel />
           </PanelFrame>
         )}
-        {openPanels.has("site") && (
+        {visibleOpenPanels.has("site") && (
           <PanelFrame>
             <SitePanel />
           </PanelFrame>
@@ -1127,7 +1174,7 @@ function PanelSummary({
 }
 
 function PanelFrame({ children }: { children: ReactNode }) {
-  return <div className="ta-panel-embed mt-3">{children}</div>;
+  return <div className="ct-panel-embed">{children}</div>;
 }
 
 function PanelLoading() {

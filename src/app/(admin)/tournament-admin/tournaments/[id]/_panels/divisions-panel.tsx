@@ -443,6 +443,10 @@ export default function DivisionsSetupPage() {
   };
 
   const courtOptions = allCourts(places);
+  const selectedDivisionCount = currentCategories.reduce(
+    (sum, category) => sum + category.divisions.length,
+    0,
+  );
 
   if (loading) {
     return (
@@ -455,7 +459,7 @@ export default function DivisionsSetupPage() {
 
   return (
     // Track B-c — Toss 토큰 적용 루트 opt-in
-    <div data-skin="toss" className="space-y-4">
+    <div data-skin="toss" className="ta-divisions-panel space-y-4">
 
       {error && (
         <div
@@ -470,8 +474,8 @@ export default function DivisionsSetupPage() {
         </div>
       )}
 
-      <section className="rounded-[18px] bg-[var(--grey-50)] p-4">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <section className="ta-division-config">
+        <div className="ta-division-config__head">
           <div className="flex min-w-0 gap-3">
             <div className="ct-headicon">
               <Icon name="category" size={18} color="var(--primary)" />
@@ -485,14 +489,19 @@ export default function DivisionsSetupPage() {
               </p>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={syncDivisions}
-            disabled={syncing}
-            className="ts-btn ts-btn--primary ts-btn--sm"
-          >
-            {syncing ? "저장 중..." : "종별 저장"}
-          </button>
+          <div className="ta-division-savebox">
+            <span className="ct-pill" data-tone={selectedDivisionCount > 0 ? "info" : "warn"}>
+              선택 {selectedDivisionCount}개
+            </span>
+            <button
+              type="button"
+              onClick={syncDivisions}
+              disabled={syncing}
+              className="ts-btn ts-btn--primary ts-btn--sm"
+            >
+              {syncing ? "저장 중..." : "선택 변경 저장"}
+            </button>
+          </div>
         </div>
 
         {syncResult && (
@@ -508,7 +517,11 @@ export default function DivisionsSetupPage() {
           </div>
         )}
 
-        <div className="mt-4 grid gap-3 lg:grid-cols-2">
+        <p className="mt-3 text-xs font-semibold text-[var(--ink-mute)]">
+          종별 추가/삭제, 정원, 참가비, 일정·체육관 변경 후 선택 변경 저장을 눌러 반영합니다.
+        </p>
+
+        <div className="ta-division-category-grid">
           {masterCategories.map((category) => {
             const selected = currentCategories.find(
               (item) => item.category === category.name,
@@ -516,7 +529,7 @@ export default function DivisionsSetupPage() {
             return (
               <div
                 key={category.id}
-                className="rounded-[16px] border bg-[var(--card)] p-3"
+                className="ta-division-category"
                 style={{
                   borderColor: "var(--color-border)",
                 }}
@@ -549,7 +562,7 @@ export default function DivisionsSetupPage() {
                 </div>
 
                 {selected && selected.divisions.length > 0 && (
-                  <div className="mt-3 space-y-2">
+                  <div className="ta-division-editor">
                     {selected.divisions.map((division, divisionIndex) => {
                       const schedule = getDivisionSchedule(division.name);
                       const selectedDate = scheduleDates.find(
@@ -565,7 +578,7 @@ export default function DivisionsSetupPage() {
                       return (
                         <div
                           key={`${category.name}-${divisionIndex}`}
-                          className="grid gap-2 sm:grid-cols-2 xl:grid-cols-[minmax(112px,1fr)_88px_100px_minmax(128px,1.15fr)_minmax(136px,1.2fr)_44px]"
+                          className="ta-division-row"
                         >
                           <input
                             type="text"
@@ -648,11 +661,12 @@ export default function DivisionsSetupPage() {
                           <button
                             type="button"
                             onClick={() => removeDivision(category.name, divisionIndex)}
-                            className="ts-btn ts-btn--ghost min-h-[44px] px-0"
+                            className="ts-btn ts-btn--secondary ts-btn--sm ta-division-delete"
                             aria-label={`${division.name || "디비전"} 삭제`}
                             title="삭제"
                           >
                             <Icon name="trash-2" size={18} />
+                            삭제
                           </button>
                         </div>
                       );
@@ -682,10 +696,10 @@ export default function DivisionsSetupPage() {
             </div>
         </div>
       ) : (
-        <div className="grid gap-3 lg:grid-cols-2">
+        <div className="ta-division-rule-grid">
           {rules.map((r) => (
-            <article key={r.id} className="rounded-[18px] border bg-[var(--card)] p-4" style={{ borderColor: "var(--color-border)" }}>
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <article key={r.id} className="ta-division-rule-card">
+              <div className="ta-division-rule-card__head">
                 <div>
                   {/*
                     2026-05-28 PR-1C-12 박제 — 시안 adv-card__head (code 모노 칩 + 종별명).
@@ -737,7 +751,7 @@ export default function DivisionsSetupPage() {
                     );
                   })()}
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="ta-division-rule-card__actions">
                   <label className="text-xs text-[var(--color-text-muted)]">진행 방식:</label>
                   <select
                     value={r.format ?? ""}
@@ -773,7 +787,7 @@ export default function DivisionsSetupPage() {
               )}
 
               {/* 2026-05-12 Phase 3.5-C — 진출 매핑 수동 실행 */}
-              <div className="mt-2 flex items-center justify-between">
+              <div className="ta-division-rule-card__foot">
                 <p className="text-xs text-[var(--color-text-muted)]">
                   예선 순위 기준 순위전 자동 매핑
                 </p>
