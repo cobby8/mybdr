@@ -8,7 +8,7 @@
 //   ⚠ 이식 변경점 (왜):
 //   - 시안의 window.Stepper / window.SegSm 전역 노출 → 본 파일 내 named 컴포넌트로 이식.
 //   - 시안 jsx → TS strict 타입 부여. Icon/Modal/Btn 은 @/components/admin-toss 키트 사용.
-//   - VENUE_DB(경기장 자동완성)는 시안 mockup 데이터 그대로 유지(지도 API 연동은 후속).
+//   - 경기장 자동완성은 운영 /api/web/place-search 실연동. 결과가 없으면 직접 추가만 허용.
 //   - 제출(POST) 배선 없음 — 부모(ct-create-tournament)가 venues/dates state 를 소유하고
 //     본 컴포넌트는 콜백으로만 갱신. 실제 POST 변환은 B-4 에서.
 // =====================================================================
@@ -48,21 +48,6 @@ export type Court = {
   full: string;
   venueId: string;
 };
-
-// ── 경기장 검색 DB (코트 마스터 mockup · 지도 API 연결 예정) ───────────
-const VENUE_DB: { name: string; region: string }[] = [
-  { name: "장충체육관", region: "서울 중구" },
-  { name: "잠실학생체육관", region: "서울 송파구" },
-  { name: "올림픽공원 핸드볼경기장", region: "서울 송파구" },
-  { name: "목동 실내체육관", region: "서울 양천구" },
-  { name: "성동구민종합체육관", region: "서울 성동구" },
-  { name: "강남구민체육관", region: "서울 강남구" },
-  { name: "서초구민체육관", region: "서울 서초구" },
-  { name: "마포구민체육센터", region: "서울 마포구" },
-  { name: "안양실내체육관", region: "경기 안양시" },
-  { name: "수원실내체육관", region: "경기 수원시" },
-  { name: "인천삼산월드체육관", region: "인천 부평구" },
-];
 
 // ── 유틸 (시안 1:1) ───────────────────────────────────────────────────
 export const ctUid = (p: string) =>
@@ -211,13 +196,6 @@ function VenueSearch({
   const ql = q.trim().toLowerCase();
   const registeredNames = venues.map((v) => v.name.trim());
   const registeredPlaceIds = new Set(venues.map((v) => v.placeId).filter(Boolean));
-  const localResults = ql
-    ? VENUE_DB.filter(
-        (v) =>
-          !registeredNames.includes(v.name) &&
-          (v.name + " " + v.region).toLowerCase().includes(ql),
-      ).slice(0, 8)
-    : [];
   const filteredResults = results.filter(
     (v) => !registeredNames.includes(v.name.trim()) && !registeredPlaceIds.has(v.place_id),
   );
@@ -302,7 +280,7 @@ function VenueSearch({
           </button>
         )}
       </div>
-      {open && (loading || filteredResults.length > 0 || localResults.length > 0 || (ql && !exact)) && (
+      {open && (loading || filteredResults.length > 0 || (ql && !exact)) && (
         <div className="ct-vsearch__menu">
           {filteredResults.map((v) => (
             <button key={v.place_id} type="button" className="ct-vsearch__opt" onMouseDown={(e) => e.preventDefault()} onClick={() => pickPlace(v)}>
@@ -312,15 +290,6 @@ function VenueSearch({
                 <span style={{ fontSize: 12, color: "var(--ink-mute)" }}>{v.address || "주소 정보 없음"}</span>
               </span>
               {v.provider === "kakao" && <span className="ct-courttag">지도</span>}
-            </button>
-          ))}
-          {filteredResults.length === 0 && localResults.map((v) => (
-            <button key={v.name} type="button" className="ct-vsearch__opt" onMouseDown={(e) => e.preventDefault()} onClick={() => pick({ name: v.name, region: v.region })}>
-              <Icon name="map-pin" size={16} color="var(--primary)" />
-              <span style={{ flex: 1, minWidth: 0 }}>
-                <span style={{ display: "block", fontWeight: 600, fontSize: 14, color: "var(--ink)" }}>{v.name}</span>
-                <span style={{ fontSize: 12, color: "var(--ink-mute)" }}>{v.region}</span>
-              </span>
             </button>
           ))}
           {ql && !exact && (
