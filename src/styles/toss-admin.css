@@ -1636,6 +1636,92 @@
 [data-skin="toss"] .ta-version-chip__num {
   font-weight: 900;
 }
+[data-skin="toss"] .ta-round-edit {
+  margin-bottom: 24px;
+}
+[data-skin="toss"] .ta-panel-title {
+  margin-bottom: 12px;
+  color: var(--ink-mute);
+  font-size: 12.5px;
+  font-weight: 900;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+[data-skin="toss"] .ta-round-list {
+  display: grid;
+  gap: 12px;
+}
+[data-skin="toss"] .ta-round-card {
+  padding: 18px;
+}
+[data-skin="toss"] .ta-round-card[data-bye="true"] {
+  opacity: .62;
+}
+[data-skin="toss"] .ta-round-card__body {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) auto minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 12px;
+  min-width: 0;
+}
+[data-skin="toss"] .ta-round-number {
+  align-self: center;
+  color: var(--ink-mute);
+  font-family: var(--ff-mono);
+  font-size: 12.5px;
+  font-weight: 800;
+  text-align: center;
+  white-space: nowrap;
+}
+[data-skin="toss"] .ta-round-field {
+  min-width: 0;
+}
+[data-skin="toss"] .ta-round-label {
+  display: block;
+  margin-bottom: 7px;
+  color: var(--ink-mute);
+  font-size: 12.5px;
+  font-weight: 800;
+}
+[data-skin="toss"] .ta-round-select {
+  width: 100%;
+  min-height: 42px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--grey-100);
+  color: var(--ink);
+  cursor: pointer;
+  font-family: var(--ff);
+  font-size: 14px;
+  font-weight: 700;
+  padding: 10px 12px;
+}
+[data-skin="toss"] .ta-round-select:focus {
+  background: #fff;
+  box-shadow: 0 0 0 2px var(--primary);
+  outline: none;
+}
+[data-skin="toss"] .ta-round-select:disabled {
+  cursor: not-allowed;
+  opacity: .5;
+}
+[data-skin="toss"] .ta-round-vs {
+  align-self: center;
+  color: var(--ink-mute);
+  font-size: 12.5px;
+  font-weight: 900;
+  padding-bottom: 10px;
+}
+[data-skin="toss"] .ta-bye-badge {
+  align-self: center;
+  border-radius: 999px;
+  background: var(--grey-100);
+  color: var(--ink-mute);
+  font-size: 12px;
+  font-weight: 800;
+  padding: 6px 10px;
+  white-space: nowrap;
+}
 
 @media (max-width: 560px) {
   [data-skin="toss"] .ta-bracket-versions,
@@ -1647,5 +1733,17 @@
   [data-skin="toss"] .ta-version-confirm {
     justify-content: center;
     width: 100%;
+  }
+  [data-skin="toss"] .ta-round-card__body {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+  [data-skin="toss"] .ta-round-number,
+  [data-skin="toss"] .ta-round-vs,
+  [data-skin="toss"] .ta-bye-badge {
+    justify-self: start;
+  }
+  [data-skin="toss"] .ta-round-vs {
+    padding-bottom: 0;
   }
 }

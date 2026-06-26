@@ -340,26 +340,26 @@ export default function BracketAdminPage() {
 
       {/* 1라운드 팀 배치 편집 */}
       {round1Matches.length > 0 && (
-        <div className="mb-6">
-          <h2 className="mb-3 text-sm font-semibold text-[var(--color-text-muted)] uppercase tracking-wide">
+        <div className="ta-round-edit">
+          <h2 className="ta-panel-title">
             1라운드 팀 배치 편집
           </h2>
-          <div className="space-y-3">
+          <div className="ta-round-list">
             {round1Matches.map((match) => (
-              <div key={match.id} className={`ts-card ${match.status === "bye" ? "opacity-60" : ""}`}>
-                <div className="flex items-center gap-3">
-                  <span className="w-6 shrink-0 text-center text-xs text-[var(--color-text-muted)]">
+              <div key={match.id} className="ts-card ta-round-card" data-bye={match.status === "bye" ? "true" : "false"}>
+                <div className="ta-round-card__body">
+                  <span className="ta-round-number">
                     #{match.match_number ?? "-"}
                   </span>
 
                   {/* 홈팀 */}
-                  <div className="flex-1">
-                    <label className="mb-1 block text-xs text-[var(--color-text-muted)]">홈팀</label>
+                  <div className="ta-round-field">
+                    <label className="ta-round-label">홈팀</label>
                     <select
                       disabled={match.status === "bye" || savingMatch === match.id}
                       value={match.homeTeamId ?? ""}
                       onChange={(e) => updateMatchTeam(match.id, "homeTeamId", e.target.value || null)}
-                      className="w-full rounded-[10px] border-none bg-[var(--color-elevated)] px-3 py-2 text-sm text-[var(--color-text-primary)] disabled:opacity-50"
+                      className="ta-round-select"
                     >
                       <option value="">미정</option>
                       {data?.approvedTeams.map((t) => (
@@ -368,16 +368,16 @@ export default function BracketAdminPage() {
                     </select>
                   </div>
 
-                  <span className="mt-4 text-[var(--color-text-muted)]">vs</span>
+                  <span className="ta-round-vs">vs</span>
 
                   {/* 원정팀 */}
-                  <div className="flex-1">
-                    <label className="mb-1 block text-xs text-[var(--color-text-muted)]">원정팀</label>
+                  <div className="ta-round-field">
+                    <label className="ta-round-label">원정팀</label>
                     <select
                       disabled={match.status === "bye" || savingMatch === match.id}
                       value={match.awayTeamId ?? ""}
                       onChange={(e) => updateMatchTeam(match.id, "awayTeamId", e.target.value || null)}
-                      className="w-full rounded-[10px] border-none bg-[var(--color-elevated)] px-3 py-2 text-sm text-[var(--color-text-primary)] disabled:opacity-50"
+                      className="ta-round-select"
                     >
                       <option value="">미정</option>
                       {data?.approvedTeams.map((t) => (
@@ -387,7 +387,7 @@ export default function BracketAdminPage() {
                   </div>
 
                   {match.status === "bye" && (
-                    <span className="mt-4 rounded-full bg-[var(--color-elevated)] px-2 py-0.5 text-xs text-[var(--color-text-muted)]">
+                    <span className="ta-bye-badge">
                       부전승
                     </span>
                   )}

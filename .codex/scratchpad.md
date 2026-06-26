@@ -11,9 +11,10 @@
 | Admin game rules | Done | `game_time`/`game_method` now derive from canonical `game_rules` instead of free text. |
 | Recording modes | Done | Match-level `manual` is counted, displayed, and blocked from Flutter/score-sheet system inputs. |
 | Admin Toss handoff | Done | `BDR-current/_handoff-admin-toss-v2.41/` added; src unchanged. |
-| Admin Toss sweep | In Progress | v2(40) wiring delta is imported; B2 divisions panel is cleaned; B3 bracket top version/generate block now uses Toss-only local tokens. |
+| Admin Toss sweep | In Progress | v2(40) wiring delta is imported; B2 divisions panel is cleaned; B3 bracket top and round-1 edit blocks now use Toss-only local tokens. |
 
 ## Work Log
+- 2026-06-26: Converted the bracket panel round-1 team assignment editor to Toss grid/select/badge classes with stable mobile wrapping; TypeScript passed.
 - 2026-06-26: Cleaned the bracket panel top version/generate block to Toss-only classes and removed its local BDR token/radius residue; TypeScript passed.
 - 2026-06-26: Added selected division chips with direct delete controls, stabilized division row/grid sizing, and removed local BDR token/radius residue in the Toss divisions panel; TypeScript passed.
 - 2026-06-26: Added v2.42 admin/public parity inventory and started B1 by switching workspace panel frames to `ct-panel-embed` and keeping the divisions panel visible by default; TypeScript passed.
@@ -23,4 +24,3 @@
 - 2026-06-26: Removed duplicate tournament detail header, auto-opened division/match/team panels by step/hash, and clarified division delete/save UI; TypeScript passed.
 - 2026-06-26: Replaced tournament detail hybrid workspace with v2.41 Toss shell/steps/footer, split schedule into its own step, removed embedded panel headers, and documented the alignment audit; TypeScript passed.
 - 2026-06-26: Applied BDR v2 (39) admin mock data consistency update to active v2.41 handoff; src unchanged because operational pages already use DB/API wiring.
-- 2026-06-26: Added Material-to-lucide Icon aliases and converted organization detail top/tab icons to Toss Icon wrapper; TypeScript passed.

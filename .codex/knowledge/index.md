@@ -1,5 +1,6 @@
 # Knowledge Index
 
+- 2026-06-26 admin: bracket panel round-1 team assignment editor now uses Toss `ta-round-*` grid/select/badge classes for stable desktop/mobile layout.
 - 2026-06-26 admin: bracket panel top version/generate controls now use Toss-only `ta-version-*` classes instead of local BDR `--color-*`/`rounded-[4px]` styling.
 - 2026-06-26 admin: divisions panel selected categories now render as visible Toss chips with direct delete controls; local BDR radius/color residue was removed and row grids use shrink-safe columns.
 - 2026-06-26 admin: v2.42 parity inventory now treats `ct-panel-embed` as canonical and keeps the divisions panel visible by default in the Toss workspace; `ta-*` remains a migration cleanup target.
@@ -39,6 +40,7 @@ Updated: 2026-06-26
 | lessons.md | 0 | - |
 
 Recent work:
+- 2026-06-26 admin: bracket panel round-1 assignment rows were converted to Toss-only grid/select/badge styling while keeping `updateMatchTeam` behavior unchanged.
 - 2026-06-26 admin: bracket panel top version/generate block was converted to Toss-only local classes while preserving generation, regeneration, and activate-version handlers.
 - 2026-06-26 admin: selected division chips with direct delete controls were added, division grids were stabilized, and local `rounded-[4px]`/`--color-*` residue was removed from the divisions panel.
 - 2026-06-26 admin: v2.42 parity inventory was added, workspace panel frames moved to canonical `ct-panel-embed`, and the divisions panel is forced visible while the divisions step is active.
