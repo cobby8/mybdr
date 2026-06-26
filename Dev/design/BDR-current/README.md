@@ -1,15 +1,24 @@
 # BDR-current — 활성 시안 인덱스
 
-> 2026-06-23 갱신: v2.40 통합 Admin Console 원본을 `BDR-current/_handoff-admin-v2.40-unified/`에 흡수했습니다.
-> 이후 v2.40 콘솔 박제/검증 프롬프트는 `Dev/design/BDR v2.40/` 직접 참조 대신 이 활성 handoff를 기준으로 보세요.
+> 2026-06-26 갱신: v2.41 관리자 Toss 역박제본을 `BDR-current/_handoff-admin-toss-v2.41/`에 흡수했습니다.
+> 관리자/운영자 영역은 Toss 스타일을 공식 관리자 디자인 시스템으로 유지합니다. 사용자 공개 영역은 기존 BDR 13룰을 유지합니다.
 
 ## 최신 handoff
 
 | 경로 | 내용 | 상태 |
 |---|---|---|
+| `_handoff-admin-toss-v2.41/` | v2.41 대회 운영 워크스페이스 Toss 역박제본 + B1 QA lock 문서 | 2026-06-26 흡수 완료 |
 | `_handoff-admin-v2.40-unified/` | v2.40 통합 Admin Console 원본 (`_admin-unified`) | 2026-06-23 흡수 완료 |
 | `_handoff-admin-toss-P0/` | 관리자 Toss 전환 + 새 대회 생성폼 전달물 | 보존 |
 | `_handoff-matchmaking-M2-M5/` | 매칭 고도화 M2~M5 시안 전달물 | 보존 |
+
+## 관리자 디자인 시스템 결정 (2026-06-26)
+
+| 영역 | 디자인 기준 | 메모 |
+|---|---|---|
+| 관리자/운영자 (`/admin/*`, `/tournament-admin/*`) | Toss style | lucide, Toss blue, rounded-full, `ts-*`/`ct-*` 허용 |
+| 사용자 공개 (`(web)/*`, 대회 공개 사이트) | BDR 13룰 | AppNav frozen, 사용자 결정 §1~§8 유지 |
+| 경계 | 공개 결과물 = BDR / 설정 패널 UI = Toss | site panel은 Toss, 그 결과 사이트는 BDR |
 
 ---
 

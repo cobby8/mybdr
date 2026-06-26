@@ -1,7 +1,7 @@
 # Scratchpad
 
 ## Current Work
-- 2026-06-26 tournament admin list: restore the visible tournament creation entry point.
+- 2026-06-26 design sync: v2.41 admin Toss handoff absorbed into BDR-current.
 
 ## Progress
 | Area | Status | Note |
@@ -10,8 +10,10 @@
 | Admin game rules | Done | `game_time`/`game_method` now derive from canonical `game_rules` instead of free text. |
 | Recording modes | Done | Match-level `manual` is counted, displayed, and blocked from Flutter/score-sheet system inputs. |
 | Verification | Done | Targeted Vitest suite and `cmd /c npx tsc --noEmit` passed. |
+| Admin Toss handoff | Done | `BDR-current/_handoff-admin-toss-v2.41/` added; src unchanged. |
 
 ## Work Log
+- 2026-06-26: Absorbed v2.41 admin Toss reverse-bake handoff into `BDR-current`, preserving B1 QA lock docs; no src changes.
 - 2026-06-26: Restored the tournament creation CTA on the tournament admin list page and verified TypeScript.
 - 2026-06-26: Pushed/merged prior fixes, then aligned tournament admin game-rule display and match-level manual recording-mode guards.
 - 2026-06-26: Added tournament division inline rename/delete controls and separated record-app time presets from clock mode.
