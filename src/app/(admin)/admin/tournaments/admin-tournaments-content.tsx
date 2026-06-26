@@ -1,7 +1,7 @@
 "use client";
 
 // 2026-06-22 v2.40 Phase A3-1a — 통합 콘솔 키트(console-kit) 통일.
-//   변경: Toolbar(탭) + DataTable(행 요약 Drawer) 로 UI 교체.
+//   변경: Toolbar(탭) + DataTable(행 클릭 운영 워크스페이스 이동) 로 UI 교체.
 //   유지(0변경): 데이터 패칭(page.tsx 서버 ?q= + 서버 페이지네이션)·server action
 //     (updateStatusAction)·라우트 href·삭제 확인 모달(AdminDetailModal·기존 로직 이식)·
 //     권한(isSuperAdmin)·snake 접근자.
@@ -9,13 +9,12 @@
 //     - 검색은 page.tsx AdminPageHeader 의 서버 ?q= 폼이 담당 → Toolbar 는 탭만(검색칸 미노출).
 //       useFilter 는 "클라 탭 필터" 전용(서버 페이징과 충돌 금지·기존 activeTab 동작 보존).
 //     - StatRow(status 카운트)는 page.tsx 에서 클라 파생(SELECT 0)해 prop 으로 받음.
-//     - 행 클릭 → Drawer(가벼운 요약 + 핵심 액션). 삭제 확인 모달은 별도 AdminDetailModal 유지.
+//     - 행 클릭 → 운영 워크스페이스 직행. 삭제 확인 모달은 별도 AdminDetailModal 유지.
 //
 // (이전 이력)
 // 2026-05-04: (web) 디자인 시스템 통일 / 2026-05-11 Phase 2-C IA / 2026-05-15 Admin-4-A 박제.
 
 import { useState } from "react";
-import Link from "next/link";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import {
   AdminDetailModal,
@@ -24,8 +23,6 @@ import {
 import {
   Toolbar,
   DataTable,
-  Drawer,
-  DL,
   PrimaryCell,
   StatusBadge,
   useFilter,
@@ -75,15 +72,6 @@ const STATUS_META: Record<string, StatusMeta> = {
   completed: { tone: "grey", label: "종료" },
 };
 
-const FORMAT_LABEL: Record<string, string> = {
-  single_elimination: "토너먼트", double_elimination: "더블 토너먼트",
-  round_robin: "풀리그", group_stage: "조별리그", group_stage_knockout: "조별리그+토너먼트",
-  GROUP_STAGE_KNOCKOUT: "조별리그+토너먼트", dual_tournament: "듀얼토너먼트",
-  league_advancement: "링크제", group_stage_with_ranking: "조별리그+동순위 순위결정전",
-  full_league_knockout: "풀리그+토너먼트", swiss: "스위스 라운드", league: "풀리그",
-  "round_robin|single_elimination": "풀리그+토너먼트",
-};
-
 // 탭 라벨(useFilter 의 클라 탭 필터용)
 const TAB_LABEL: Record<string, string> = {
   draft: "준비중", registration: "접수중", in_progress: "진행중", completed: "종료",
@@ -120,7 +108,7 @@ interface Props {
 
 export function AdminTournamentsContent({
   tournaments,
-  updateStatusAction,
+  updateStatusAction: _updateStatusAction,
   toggleVisibilityAction: _toggleVisibilityAction,
   pagination,
   isSuperAdmin,
@@ -137,8 +125,6 @@ export function AdminTournamentsContent({
 
   // 클라 탭 필터(검색 X — 서버 ?q= 담당). tab="all" 이면 전체.
   const { tab, setTab, filtered } = useFilter<FilterRow>(rows, FILTER_FIELDS);
-
-  const [selected, setSelected] = useState<SerializedTournament | null>(null);
 
   // 삭제 확인 모달 상태(기존 로직 100% 보존).
   const [deleteTarget, setDeleteTarget] = useState<SerializedTournament | null>(null);
@@ -183,7 +169,6 @@ export function AdminTournamentsContent({
         return;
       }
       setDeleteTarget(null);
-      setSelected(null);
       setDeleting(false);
       router.refresh();
     } catch {
@@ -309,116 +294,6 @@ export function AdminTournamentsContent({
         }}
         emptyTitle="해당하는 대회가 없습니다."
       />
-
-      {/* 행 요약 Drawer — 가벼운 요약 + 핵심 액션(상세/운영 페이지·행정) */}
-      <Drawer
-        open={!!selected}
-        onClose={() => setSelected(null)}
-        title={selected?.name}
-        sub={
-          selected
-            ? `${selected.organizerName ?? selected.organizerEmail ?? "-"} 주최`
-            : ""
-        }
-        foot={
-          selected ? (
-            <div className="flex w-full flex-wrap gap-2">
-              <Link
-                href={`/admin/tournaments/${selected.id}`}
-                className="ts-btn ts-btn--primary"
-                style={{ flex: 1, textAlign: "center" }}
-              >
-                상세 페이지 열기
-              </Link>
-              <Link
-                href={`/tournament-admin/tournaments/${selected.id}`}
-                className="ts-btn ts-btn--secondary"
-                style={{ flex: 1, textAlign: "center" }}
-              >
-                운영 페이지
-              </Link>
-            </div>
-          ) : undefined
-        }
-      >
-        {selected && (
-          <>
-            <div style={{ marginBottom: 18 }}>
-              <StatusBadge map={STATUS_META} value={toTabKey(selected.status ?? "draft")} />
-            </div>
-            <DL
-              rows={[
-                ["공개 여부", selected.isPublic ? "공개" : "비공개"],
-                ["주최자", selected.organizerName ?? selected.organizerEmail ?? "-"],
-                ["형식", FORMAT_LABEL[selected.format ?? ""] ?? selected.format ?? "-"],
-                ["참가팀", `${selected.teamCount}팀`],
-                ["경기수", `${selected.matchCount}경기`],
-                ["시작일", fmtDate(selected.startDate)],
-                ["종료일", fmtDate(selected.endDate)],
-                ["생성일", fmtDate(selected.createdAt)],
-              ]}
-            />
-
-            {/* 행정 관리 — 기존 server action / 라우트 href 100% 보존 */}
-            <div
-              className="mt-4 rounded-[8px] border p-3"
-              style={{ borderColor: "var(--color-border)", background: "var(--color-elevated)" }}
-            >
-              <p
-                className="mb-2 text-xs font-semibold uppercase"
-                style={{ color: "var(--color-text-muted)", letterSpacing: "0.04em" }}
-              >
-                행정 관리
-              </p>
-              <div className="grid grid-cols-2 gap-2">
-                {/* 대회 승인 — draft → registration_open (server action) */}
-                {selected.status === "draft" ? (
-                  <form action={updateStatusAction}>
-                    <input type="hidden" name="tournament_id" value={selected.id} />
-                    <input type="hidden" name="status" value="registration_open" />
-                    <Btn type="submit" size="sm" variant="primary" block>
-                      대회 승인
-                    </Btn>
-                  </form>
-                ) : (
-                  <Btn type="button" size="sm" variant="ghost" disabled block>
-                    이미 승인됨
-                  </Btn>
-                )}
-                {/* 운영자 변경 — 별 페이지 */}
-                <Link
-                  href={`/admin/tournaments/${selected.id}/transfer-organizer`}
-                  className="ts-btn ts-btn--secondary ts-btn--sm"
-                  style={{ textAlign: "center" }}
-                >
-                  운영자 변경
-                </Link>
-                {/* 감사 로그 — 별 페이지 */}
-                <Link
-                  href={`/admin/tournaments/${selected.id}/audit-log`}
-                  className="ts-btn ts-btn--secondary ts-btn--sm"
-                  style={{ textAlign: "center" }}
-                >
-                  감사 로그
-                </Link>
-                {/* 대회 삭제 — 이름 확인 모달 open(기존 로직) */}
-                <Btn
-                  type="button"
-                  size="sm"
-                  variant="danger"
-                  onClick={() => openDeleteModal(selected)}
-                >
-                  대회 삭제
-                </Btn>
-              </div>
-              <p className="mt-2 text-xs" style={{ color: "var(--color-text-muted)" }}>
-                ※ 기본 삭제는 &quot;취소&quot; 처리(복구 가능)입니다.
-                {isSuperAdmin ? " 완전 삭제는 복구할 수 없습니다." : ""}
-              </p>
-            </div>
-          </>
-        )}
-      </Drawer>
 
       {/* 삭제 확인 모달 — 기존 AdminDetailModal + 로직 100% 보존(데이터/액션 0변경) */}
       {deleteTarget && (

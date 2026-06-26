@@ -45,6 +45,37 @@ type ResponsePayload = {
   version_number: number;
 };
 
+function readApiError(json: unknown, fallback: string): string {
+  if (!json || typeof json !== "object") return fallback;
+  const record = json as Record<string, unknown>;
+  const error = record.error;
+  if (typeof error === "string") return error;
+  if (Array.isArray(error)) {
+    const messages = error
+      .map((item) => {
+        if (typeof item === "string") return item;
+        if (item && typeof item === "object" && "message" in item) {
+          const message = (item as { message?: unknown }).message;
+          return typeof message === "string" ? message : null;
+        }
+        return null;
+      })
+      .filter((message): message is string => Boolean(message));
+    if (messages.length > 0) return messages.join("\n");
+  }
+  if (error && typeof error === "object" && "message" in error) {
+    const message = (error as { message?: unknown }).message;
+    if (typeof message === "string") return message;
+  }
+  if (typeof record.message === "string") return record.message;
+  return fallback;
+}
+
+function shouldOfferGroupRepair(result: ResponsePayload | null): boolean {
+  if (!result || result.generated > 0) return false;
+  return result.reason.includes("조편성") || result.reason.includes("group");
+}
+
 // 본 컴포넌트가 지원하는 format (그 외 = 버튼 미노출 권장 — 호출자 분기)
 const SUPPORTED_FORMATS = new Set([
   "single_elimination",
@@ -65,6 +96,7 @@ export function DivisionGenerateButton({
 }: Props) {
   // 호출 중 표시 (중복 클릭 방지)
   const [loading, setLoading] = useState(false);
+  const [repairing, setRepairing] = useState(false);
   // 결과 모달 데이터 (null = 모달 닫힘 / not null = 모달 표시)
   const [result, setResult] = useState<ResponsePayload | null>(null);
   // 네트워크 / 서버 오류 메시지 (null = 정상)
@@ -75,6 +107,22 @@ export function DivisionGenerateButton({
   // 사유: 대회 단위 (single_elim/dual/round_robin/swiss) 는 헤더 "재생성" 버튼으로 처리
   if (!divisionFormat || !SUPPORTED_FORMATS.has(divisionFormat)) {
     return null;
+  }
+
+  async function requestGenerate(clear: boolean): Promise<ResponsePayload> {
+    const res = await fetch(
+      `/api/web/admin/tournaments/${tournamentId}/division-rules/${ruleId}/generate`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ clear }),
+      },
+    );
+    const json = await res.json().catch(() => null);
+    if (!res.ok) {
+      throw new Error(readApiError(json, "종별 매치 생성 실패"));
+    }
+    return (json?.data ?? json) as ResponsePayload;
   }
 
   // ─────────────────────────────────────────────────────────────
@@ -109,7 +157,7 @@ export function DivisionGenerateButton({
       );
       const json = await res.json();
       if (!res.ok) {
-        setError(json.error ?? "종별 매치 생성 실패");
+        setError(readApiError(json, "종별 매치 생성 실패"));
         return;
       }
       // apiSuccess 응답 = { success: true, data: { ... } } 구조 (data 안에 snake_case payload)
@@ -131,8 +179,41 @@ export function DivisionGenerateButton({
     onSuccess?.();
   }
 
+  async function handleRepairGroupsAndRetry() {
+    const ok = await tossConfirm.confirm({
+      title: "조편성 재실행 후 대진 생성",
+      sub: `[${divisionCode}] 승인팀을 설정값에 맞게 다시 배정한 뒤 대진표 생성을 재시도합니다.`,
+      body: "현재 조 배정이 설정과 맞지 않아 대진 생성이 막힌 상태입니다. 기존 팀/선수/종별은 유지하고 조와 시드만 다시 정렬합니다.",
+      confirmLabel: "재배정 후 생성",
+      tone: "primary",
+    });
+    if (!ok) return;
+
+    setRepairing(true);
+    setLoading(true);
+    setError(null);
+    try {
+      const drawRes = await fetch(`/api/web/admin/tournaments/${tournamentId}/division-draw`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ divisionCode, mode: "seeded" }),
+      });
+      const drawJson = await drawRes.json().catch(() => null);
+      if (!drawRes.ok) {
+        throw new Error(readApiError(drawJson, "조편성 재실행 실패"));
+      }
+      setResult(await requestGenerate(hasMatches));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "조편성 재실행 중 오류가 발생했습니다.");
+    } finally {
+      setRepairing(false);
+      setLoading(false);
+    }
+  }
+
   // 톤 분기 — generated > 0 = success / generated 0 (skip 또는 stub) = warning
   const isSuccessTone = result != null && result.generated > 0;
+  const canRepairGroups = shouldOfferGroupRepair(result);
 
   return (
     <>
@@ -141,7 +222,7 @@ export function DivisionGenerateButton({
       <button
         type="button"
         onClick={handleClick}
-        disabled={loading}
+        disabled={loading || repairing}
         className="inline-flex items-center justify-center gap-1 rounded-[4px] px-3 py-1.5 text-xs font-semibold transition-colors disabled:opacity-50"
         style={{
           backgroundColor: "var(--color-info)",
@@ -256,14 +337,29 @@ export function DivisionGenerateButton({
             )}
 
             {/* 확인 버튼 — onSuccess() 호출 → bracket page load() refetch */}
-            <div className="mt-4 flex justify-end">
+            <div className="mt-4 flex flex-wrap justify-end gap-2">
+              {canRepairGroups && (
+                <button
+                  type="button"
+                  onClick={handleRepairGroupsAndRetry}
+                  disabled={repairing || loading}
+                  className="rounded-[4px] px-4 py-2 text-sm font-semibold disabled:opacity-50"
+                  style={{
+                    backgroundColor: "var(--color-info)",
+                    color: "#ffffff",
+                    minHeight: 44,
+                  }}
+                >
+                  {repairing ? "재배정 중..." : "조편성 재실행 후 생성"}
+                </button>
+              )}
               <button
                 type="button"
                 onClick={handleClose}
                 className="rounded-[4px] px-4 py-2 text-sm font-semibold"
                 style={{
-                  backgroundColor: "var(--color-info)",
-                  color: "#ffffff",
+                  backgroundColor: "var(--color-elevated)",
+                  color: "var(--color-text-primary)",
                   minHeight: 44,
                 }}
               >
