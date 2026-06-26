@@ -20,8 +20,10 @@
 | Admin Toss sweep | In Progress | Tournament teams and bracket panels were rebuilt around Toss operate flow; schedule/ops/site still need the same direct-replacement pass. |
 | Tournament operate bracket | Done | Bracket tab now has robust single-division category fallback plus Toss-style generation summary and stage-grouped generated match review. |
 | Tournament operate schedule | Done | Schedule tab now loads tournament dates/courts, supports division durations, lane start times, unscheduled/overwrite auto placement, direct placement, and lane timelines over real match PATCH saves. |
+| Admin tournament list | Done | `/admin/tournaments` was replaced with a clean Toss list, Korean copy restored, and row click routes directly to the operate workspace. |
 
 ## Work Log
+- 2026-06-27: Replaced `/admin/tournaments` with a clean Toss v2.41 tournament list, removed the legacy detail/delete drawer path from row interaction, verified Chrome local row-click routing to the operate workspace, and TypeScript passed.
 - 2026-06-27: Rebuilt tournament operate schedule tab around the Toss v2.41 scheduler flow: date/court lanes, division durations, lane starts, auto placement, direct placement, lane timelines, and real scheduledAt/venue/court PATCH saves; TypeScript and production build passed.
 - 2026-06-27: Added drag reorder persistence to scheduled lane timelines so same-court match order changes recalculate and save start times; TypeScript and production build passed.
 - 2026-06-27: Wired tournament operate schedule court numbers end-to-end through match create/update APIs, service writes, and admin match edit UI; TypeScript and production build passed.
@@ -33,6 +35,3 @@
 - 2026-06-27: Replaced the legacy tournament operate bracket tab with the Toss v2.41 flow: division config, slot-based seeded draw, group-slot rendering, preview tree, and division generation; TypeScript and production build passed.
 - 2026-06-26: Split tournament admin detail into a 6-menu Toss operate workspace at `/tournament-admin/tournaments/[id]` and a preserved edit/setup workspace at `/edit`; TypeScript and production build passed.
 - 2026-06-26: Fixed tournament division rule settings save clarity: removed blur-only saves, added explicit settings save state, and refreshed rule format/settings from the PATCH response; TypeScript and targeted division-format Vitest passed.
-- 2026-06-26: Fixed tournament bracket generation for live ops: bracket panel now exposes division-rule generation even at 0 matches, disables unsafe global generation when division rules exist, supports division single-elim/round-robin generation, and blocks mismatched group sizes before writes; TypeScript and targeted Vitest passed.
-- 2026-06-26: Fixed tournament team division operations for next-day live ops: single/bulk team category moves now sync team division and player division codes, team cards expose category selects, and delete blocks show linked counts; TypeScript passed.
-- 2026-06-26: Applied BDR v2 (41) admin Toss state pass: destructive confirms and prompt flows now use Toss modals, state helpers/skeletons are in `admin-toss`, and dev/main were pushed.

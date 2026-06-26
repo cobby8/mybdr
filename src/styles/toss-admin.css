@@ -1737,6 +1737,134 @@
   gap: 6px;
 }
 
+/* v2.41 admin tournament list */
+[data-skin="toss"] .adm-page {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+[data-skin="toss"] .adm-list-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+[data-skin="toss"] .adm-status-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+[data-skin="toss"] .adm-status-tabs__item {
+  align-items: center;
+  background: var(--grey-100);
+  border: 0;
+  border-radius: var(--radius-chip);
+  color: var(--ink-soft);
+  cursor: pointer;
+  display: inline-flex;
+  font-family: var(--ff);
+  font-size: 14px;
+  font-weight: 800;
+  gap: 7px;
+  min-height: 40px;
+  padding: 9px 14px;
+  transition: background .12s, color .12s, transform .12s;
+}
+[data-skin="toss"] .adm-status-tabs__item:hover {
+  background: var(--grey-200);
+  color: var(--ink);
+}
+[data-skin="toss"] .adm-status-tabs__item:active {
+  transform: scale(.98);
+}
+[data-skin="toss"] .adm-status-tabs__item[data-active="true"] {
+  background: var(--ink);
+  color: #fff;
+}
+[data-skin="toss"] .adm-status-tabs__count {
+  font-family: var(--ff-mono);
+  font-size: 12px;
+  opacity: .72;
+}
+[data-skin="toss"] .adm-list-meta {
+  align-items: center;
+  color: var(--ink-mute);
+  display: flex;
+  font-size: 13px;
+  font-weight: 700;
+  justify-content: space-between;
+  gap: 12px;
+}
+[data-skin="toss"] .adm-page-size {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  justify-content: flex-end;
+}
+[data-skin="toss"] .adm-tournament-cell {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+  min-width: 0;
+}
+[data-skin="toss"] .adm-tournament-cell__icon {
+  align-items: center;
+  background: var(--primary-weak);
+  border-radius: 12px;
+  color: var(--primary);
+  display: inline-flex;
+  flex: 0 0 38px;
+  height: 38px;
+  justify-content: center;
+  width: 38px;
+}
+[data-skin="toss"] .adm-tournament-cell__body {
+  display: grid;
+  min-width: 0;
+}
+[data-skin="toss"] .adm-tournament-cell strong {
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 800;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+[data-skin="toss"] .adm-tournament-cell small {
+  color: var(--ink-mute);
+  font-size: 12.5px;
+  font-weight: 700;
+  margin-top: 3px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+[data-skin="toss"] .adm-mono {
+  color: var(--ink-soft);
+  font-family: var(--ff-mono);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+@media (max-width: 720px) {
+  [data-skin="toss"] .adm-list-meta {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  [data-skin="toss"] .adm-page-size {
+    justify-content: flex-start;
+  }
+  [data-skin="toss"] .adm-status-tabs {
+    flex-wrap: nowrap;
+    margin: 0 -16px;
+    overflow-x: auto;
+    padding: 0 16px 2px;
+    -webkit-overflow-scrolling: touch;
+  }
+  [data-skin="toss"] .adm-status-tabs__item {
+    flex: 0 0 auto;
+  }
+}
+
 /* Tournament bracket panel */
 [data-skin="toss"] .ta-bracket-note {
   margin: 4px 0 0;

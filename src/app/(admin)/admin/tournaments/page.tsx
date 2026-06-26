@@ -1,9 +1,6 @@
+import Link from "next/link";
 import { prisma } from "@/lib/db/prisma";
 import { PageHead, StatRow } from "@/components/admin/console-kit";
-import { updateTournamentStatusAction } from "@/app/actions/admin-tournaments";
-import { toggleTournamentVisibilityAction } from "@/app/actions/admin-tournaments";
-import { getAuthUser } from "@/lib/auth/get-auth-user";
-import { isSuperAdmin } from "@/lib/auth/is-super-admin";
 import { AdminTournamentsContent } from "./admin-tournaments-content";
 
 export const dynamic = "force-dynamic";
@@ -31,6 +28,10 @@ const TO_TAB_KEY: Record<string, string> = {
   cancelled: "completed",
 };
 
+function toTabKey(status: string | null | undefined) {
+  return TO_TAB_KEY[status ?? "draft"] ?? "draft";
+}
+
 export default async function AdminTournamentsPage({
   searchParams,
 }: {
@@ -44,12 +45,13 @@ export default async function AdminTournamentsPage({
     ? parsedPageSize
     : DEFAULT_PAGE_SIZE;
   const skip = (page - 1) * pageSize;
+  const keyword = q?.trim();
 
-  const where = q
-    ? { name: { contains: q, mode: "insensitive" as const } }
+  const where = keyword
+    ? { name: { contains: keyword, mode: "insensitive" as const } }
     : undefined;
 
-  const [tournaments, totalCount] = await Promise.all([
+  const [tournaments, totalCount, statusGroups] = await Promise.all([
     prisma.tournament.findMany({
       where,
       orderBy: { createdAt: "desc" },
@@ -73,13 +75,29 @@ export default async function AdminTournamentsPage({
       },
     }),
     prisma.tournament.count({ where }),
+    prisma.tournament.groupBy({
+      by: ["status"],
+      where,
+      _count: { _all: true },
+    }),
   ]);
+
+  const statusCounts: Record<string, number> = {
+    draft: 0,
+    registration: 0,
+    in_progress: 0,
+    completed: 0,
+  };
+  for (const group of statusGroups) {
+    const key = toTabKey(group.status);
+    statusCounts[key] = (statusCounts[key] ?? 0) + group._count._all;
+  }
 
   const serialized = tournaments.map((t) => ({
     id: t.id.toString(),
     name: t.name,
     format: t.format,
-    status: t.status ?? "draft",
+    status: toTabKey(t.status),
     startDate: t.startDate?.toISOString() ?? null,
     endDate: t.endDate?.toISOString() ?? null,
     createdAt: t.createdAt.toISOString(),
@@ -90,45 +108,30 @@ export default async function AdminTournamentsPage({
     organizerEmail: t.users_tournaments_organizer_idTousers?.email ?? null,
   }));
 
-  const totalPages = Math.ceil(totalCount / pageSize);
-
-  const auth = await getAuthUser();
-  const isSuper =
-    auth.state === "active" ? isSuperAdmin(auth.session) : false;
-
-  const tabCounts: Record<string, number> = {
-    draft: 0,
-    registration: 0,
-    in_progress: 0,
-    completed: 0,
-  };
-  for (const t of serialized) {
-    const key = TO_TAB_KEY[t.status ?? "draft"] ?? "draft";
-    tabCounts[key] = (tabCounts[key] ?? 0) + 1;
-  }
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
 
   const statItems = [
-    { icon: "trophy", label: "전체", value: totalCount },
-    { icon: "file-pen", label: "준비중", value: tabCounts.draft },
-    { icon: "clipboard-list", label: "접수중", value: tabCounts.registration },
-    { icon: "play", label: "진행중", value: tabCounts.in_progress },
-    { icon: "flag", label: "종료", value: tabCounts.completed },
+    { icon: "trophy", label: "전체 대회", value: totalCount },
+    { icon: "file-pen", label: "준비중", value: statusCounts.draft, tone: "primary" as const },
+    { icon: "clipboard-list", label: "접수중", value: statusCounts.registration, tone: "warn" as const },
+    { icon: "play", label: "진행중", value: statusCounts.in_progress, tone: "ok" as const },
+    { icon: "flag", label: "종료", value: statusCounts.completed },
   ];
 
   return (
-    <div data-skin="toss">
+    <div data-skin="toss" className="adm-page">
       <PageHead
-        eyebrow="대회 관리자"
+        eyebrow="백오피스 · v2.41 Toss"
         icon="trophy"
         title="대회 목록"
-        sub={`등록된 대회 ${totalCount}개를 관리합니다.`}
+        sub={`${totalCount}개의 대회를 운영 워크스페이스 기준으로 관리합니다.`}
         actions={
-          <a
+          <Link
             href="/tournament-admin/tournaments/new/wizard"
             className="ts-btn ts-btn--primary"
           >
             새 대회 만들기
-          </a>
+          </Link>
         }
       />
 
@@ -136,7 +139,7 @@ export default async function AdminTournamentsPage({
         <div className="ad-search">
           <input
             name="q"
-            defaultValue={q ?? ""}
+            defaultValue={keyword ?? ""}
             placeholder="대회명 검색"
           />
         </div>
@@ -144,23 +147,18 @@ export default async function AdminTournamentsPage({
         <button type="submit" className="ts-btn ts-btn--secondary ts-btn--sm">
           검색
         </button>
-        {q && (
-          <a
-            href="/admin/tournaments"
-            className="ts-btn ts-btn--ghost ts-btn--sm"
-          >
+        {keyword && (
+          <Link href="/admin/tournaments" className="ts-btn ts-btn--ghost ts-btn--sm">
             초기화
-          </a>
+          </Link>
         )}
       </form>
 
       <StatRow items={statItems} />
+
       <AdminTournamentsContent
         tournaments={serialized}
-        updateStatusAction={updateTournamentStatusAction}
-        toggleVisibilityAction={toggleTournamentVisibilityAction}
         pagination={{ page, pageSize, totalPages, totalCount }}
-        isSuperAdmin={isSuper}
       />
     </div>
   );
