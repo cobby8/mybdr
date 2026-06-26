@@ -151,13 +151,13 @@ export default function AdminPartnersPage() {
         <span className="inline-flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
           {p.status === "pending" && (
             <>
-              <button onClick={() => handleStatusChange(p.id, "approved")} className="btn btn--sm">
+              <button onClick={() => handleStatusChange(p.id, "approved")} className="ts-btn ts-btn--secondary ts-btn--sm">
                 승인
               </button>
               <button
                 onClick={() => handleStatusChange(p.id, "rejected")}
-                className="btn btn--sm"
-                style={{ borderColor: "var(--danger)", color: "var(--danger)" }}
+                className="ts-btn ts-btn--secondary ts-btn--sm"
+                style={{ borderColor: "var(--color-error)", color: "var(--color-error)" }}
               >
                 반려
               </button>
@@ -166,14 +166,14 @@ export default function AdminPartnersPage() {
           {p.status === "approved" && (
             <button
               onClick={() => handleStatusChange(p.id, "suspended")}
-              className="btn btn--sm"
-              style={{ borderColor: "var(--danger)", color: "var(--danger)" }}
+              className="ts-btn ts-btn--secondary ts-btn--sm"
+              style={{ borderColor: "var(--color-error)", color: "var(--color-error)" }}
             >
               정지
             </button>
           )}
           {p.status === "suspended" && (
-            <button onClick={() => handleStatusChange(p.id, "approved")} className="btn btn--sm">
+            <button onClick={() => handleStatusChange(p.id, "approved")} className="ts-btn ts-btn--secondary ts-btn--sm">
               재승인
             </button>
           )}
@@ -196,7 +196,7 @@ export default function AdminPartnersPage() {
             <SiteOperatorBadge />
             <button
               onClick={() => setShowForm(!showForm)}
-              className="btn btn--primary"
+              className="ts-btn ts-btn--primary"
             >
               <Icon name="plus" size={16} />
               파트너 등록

@@ -17,12 +17,13 @@ import { notFound, redirect } from "next/navigation";
 import { prisma } from "@/lib/db/prisma";
 import { getWebSession } from "@/lib/auth/web-session";
 import { isSuperAdmin } from "@/lib/auth/is-super-admin";
-import { AdminPageHeader } from "@/components/admin/admin-page-header";
+import { PageHead } from "@/components/admin/console-kit";
+import { Icon } from "@/components/admin-toss";
 
 export const dynamic = "force-dynamic";
 
 // 2026-05-15 Admin-4-A 박제 (v2.14):
-// - h1 직접 → <AdminPageHeader> (eyebrow + breadcrumbs + actions) 시안 패턴
+// - h1 직접 → <PageHead> (eyebrow + actions) v2.41 Toss 패턴
 // - severity 뱃지 inline color → .admin-stat-pill[data-tone=...] (admin.css)
 // - 비즈 로직 (Prisma admin_logs / formatUser / enrichDescription) 100% 보존.
 //
@@ -121,23 +122,14 @@ export default async function TournamentAuditLogPage({
   };
 
   return (
-    <div>
-      {/* Admin-4-A 박제 — AdminPageHeader 시안 패턴 (eyebrow + breadcrumbs) */}
-      <AdminPageHeader
-        eyebrow={`ADMIN · 대회 관리 > ${tournament.name} > 감사 로그`}
+    <div data-skin="toss">
+      <PageHead
+        eyebrow={`대회 관리자 · ${tournament.name}`}
+        icon="history"
         title="감사 로그"
-        subtitle={`${tournament.name} · 최근 ${logs.length}건`}
-        breadcrumbs={[
-          { label: "ADMIN" },
-          { label: "대회 관리" },
-          { label: tournament.name },
-          { label: "감사 로그" },
-        ]}
+        sub={`${tournament.name} · 최근 ${logs.length}건`}
         actions={
-          <Link href="/admin/tournaments" className="btn btn--sm">
-            <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
-              arrow_back
-            </span>
+          <Link href="/admin/tournaments" className="ts-btn ts-btn--secondary ts-btn--sm">
             대회 관리
           </Link>
         }
@@ -145,14 +137,16 @@ export default async function TournamentAuditLogPage({
 
       {logs.length === 0 ? (
         <div
-          className="rounded-[4px] border p-12 text-center"
+          className="ts-card p-12 text-center"
           style={{
             borderColor: "var(--color-border)",
             background: "var(--color-elevated)",
             color: "var(--color-text-muted)",
           }}
         >
-          <span className="material-symbols-outlined text-4xl">history</span>
+          <span className="ts-empty__icon">
+            <Icon name="history" size={30} />
+          </span>
           <p className="mt-2 text-sm">감사 로그가 없습니다.</p>
           <p className="mt-1 text-xs">
             description 필드에 대회 UUID 가 박제된 admin_logs 만 표시됩니다.

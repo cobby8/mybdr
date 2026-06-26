@@ -2,13 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-
-/* ============================================================
- * 멤버 관리 — /tournament-admin/organizations/[orgId]/members
- *
- * 멤버 목록 + 이메일로 초대 + 멤버 제거 기능.
- * owner/admin만 초대/제거 가능.
- * ============================================================ */
+import { Icon } from "@/components/admin-toss";
 
 interface Member {
   id: string;
@@ -17,6 +11,18 @@ interface Member {
   email: string;
   profileImageUrl: string | null;
   role: string;
+}
+
+function roleLabel(role: string) {
+  if (role === "owner") return "소유자";
+  if (role === "admin") return "관리자";
+  return "멤버";
+}
+
+function roleTone(role: string) {
+  if (role === "owner") return "primary";
+  if (role === "admin") return "ok";
+  return "grey";
 }
 
 export default function OrganizationMembersPage() {
@@ -30,7 +36,6 @@ export default function OrganizationMembersPage() {
   const [inviting, setInviting] = useState(false);
   const [message, setMessage] = useState("");
 
-  // 멤버 목록 로드
   const loadMembers = () => {
     fetch(`/api/web/organizations/${orgId}/members`)
       .then((r) => r.json())
@@ -43,7 +48,7 @@ export default function OrganizationMembersPage() {
             email: m.email,
             profileImageUrl: m.profile_image_url,
             role: m.role,
-          }))
+          })),
         );
       })
       .catch(() => setMembers([]))
@@ -55,7 +60,6 @@ export default function OrganizationMembersPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orgId]);
 
-  // 멤버 초대
   const handleInvite = async () => {
     if (!inviteEmail.trim()) return;
     setInviting(true);
@@ -69,81 +73,72 @@ export default function OrganizationMembersPage() {
       });
       const data = await res.json();
       if (res.ok) {
-        setMessage(data.message || "초대 완료");
+        setMessage(data.message || "초대가 완료되었습니다.");
         setInviteEmail("");
-        loadMembers(); // 목록 새로고침
+        loadMembers();
       } else {
-        setMessage(data.error || "초대 실패");
+        setMessage(data.error || "초대에 실패했습니다.");
       }
     } catch {
-      setMessage("네트워크 오류");
+      setMessage("네트워크 오류가 발생했습니다.");
     } finally {
       setInviting(false);
     }
   };
 
-  // 멤버 제거
   const handleRemove = async (memberId: string, nickname: string | null) => {
-    if (!confirm(`${nickname || "이 멤버"}를 제거하시겠습니까?`)) return;
+    if (!confirm(`${nickname || "멤버"}를 제거하시겠습니까?`)) return;
 
     try {
-      const res = await fetch(
-        `/api/web/organizations/${orgId}/members/${memberId}`,
-        { method: "DELETE" }
-      );
+      const res = await fetch(`/api/web/organizations/${orgId}/members/${memberId}`, {
+        method: "DELETE",
+      });
       const data = await res.json();
       if (res.ok) {
-        // 목록에서 즉시 제거
         setMembers((prev) => prev.filter((m) => m.id !== memberId));
       } else {
-        setMessage(data.error || "제거 실패");
+        setMessage(data.error || "제거에 실패했습니다.");
       }
     } catch {
-      setMessage("네트워크 오류");
+      setMessage("네트워크 오류가 발생했습니다.");
     }
   };
 
-  // 역할 한국어 라벨
-  const roleLabel = (role: string) => {
-    if (role === "owner") return "소유자";
-    if (role === "admin") return "관리자";
-    return "멤버";
-  };
-
-  const roleColor = (role: string) => {
-    if (role === "owner") return "var(--color-primary)";
-    if (role === "admin") return "var(--color-info)";
-    return "var(--color-text-muted)";
-  };
-
   return (
-    <div data-skin="toss" className="mx-auto max-w-2xl">
-      <h1 className="mb-6 text-xl font-bold text-[var(--color-text-primary)]">
-        멤버 관리
-      </h1>
+    <div data-skin="toss" className="mx-auto max-w-3xl space-y-6">
+      <div className="ts-ph">
+        <div className="ts-ph__row">
+          <div style={{ minWidth: 0 }}>
+            <div className="ts-ph__eyebrow">
+              <Icon name="users" size={15} />
+              단체 관리
+            </div>
+            <div className="ts-ph__title">멤버 관리</div>
+            <div className="ts-ph__sub">단체 운영진과 멤버 권한을 관리합니다.</div>
+          </div>
+        </div>
+      </div>
 
-      {/* 메시지 */}
       {message && (
-        <div className="ts-card mb-4 text-sm text-[var(--color-text-primary)]">
-          {message}
+        <div className="ad-panel">
+          <div className="ad-statusline">
+            <span className="ad-dot" data-tone="ok" />
+            {message}
+          </div>
         </div>
       )}
 
-      {/* 초대 폼 */}
-      <section className="ts-card mb-6">
-        <h2 className="mb-3 text-sm font-medium text-[var(--color-text-primary)]">
-          <span className="material-symbols-outlined mr-1 text-base align-middle">
-            person_add
-          </span>
-          멤버 초대
-        </h2>
-        <div className="flex gap-2">
+      <section className="ad-panel">
+        <div className="ad-panel__head">
+          <div className="ad-panel__title">멤버 초대</div>
+        </div>
+        <div className="flex flex-col gap-2 sm:flex-row">
           <input
             type="email"
             value={inviteEmail}
             onChange={(e) => setInviteEmail(e.target.value)}
-            placeholder="이메일 주소"
-            className="flex-1 rounded border border-[var(--color-border)] bg-[var(--color-card)] px-3 py-2 text-sm text-[var(--color-text-primary)] outline-none focus:border-[var(--color-primary)]"
+            placeholder="email@example.com"
+            className="ts-input"
             onKeyDown={(e) => {
               if (e.nativeEvent.isComposing) return;
               if (e.key === "Enter") handleInvite();
@@ -152,95 +147,78 @@ export default function OrganizationMembersPage() {
           <select
             value={inviteRole}
             onChange={(e) => setInviteRole(e.target.value)}
-            className="rounded border border-[var(--color-border)] bg-[var(--color-card)] px-2 py-2 text-sm text-[var(--color-text-primary)]"
+            className="ts-select sm:max-w-[140px]"
           >
             <option value="member">멤버</option>
             <option value="admin">관리자</option>
           </select>
-          {/* 2026-05-12: admin 빨강 본문 금지 → btn--primary */}
-          <button type="button" onClick={handleInvite} disabled={inviting} className="ts-btn ts-btn--primary disabled:opacity-50">
-            {inviting ? "..." : "초대"}
+          <button
+            type="button"
+            onClick={handleInvite}
+            disabled={inviting}
+            className="ts-btn ts-btn--primary"
+          >
+            <Icon name="user-plus" size={17} />
+            {inviting ? "초대 중..." : "초대"}
           </button>
         </div>
       </section>
 
-      {/* 로딩 */}
       {loading && (
-        <div className="space-y-3">
+        <div className="ad-panel space-y-3">
           {[1, 2, 3].map((i) => (
-            <div
-              key={i}
-              className="h-16 animate-pulse rounded-lg bg-[var(--color-surface)]"
-            />
+            <div key={i} className="h-12 animate-pulse rounded-[14px] bg-[var(--grey-100)]" />
           ))}
         </div>
       )}
 
-      {/* 멤버 목록 */}
-      {!loading && (
-        <div className="space-y-2">
-          {members.map((m) => (
-            <div
-              key={m.id}
-              className="ts-card flex items-center justify-between"
-            >
-              <div className="flex items-center gap-3">
-                {/* 프로필 이미지 */}
-                {m.profileImageUrl ? (
-                  <img
-                    src={m.profileImageUrl}
-                    alt={m.nickname || ""}
-                    className="h-9 w-9 rounded-full object-cover"
-                  />
-                ) : (
-                  <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--color-border)] text-xs font-medium text-[var(--color-text-muted)]">
-                    {(m.nickname || m.email).charAt(0).toUpperCase()}
-                  </div>
-                )}
-                <div>
-                  <p className="text-sm font-medium text-[var(--color-text-primary)]">
-                    {m.nickname || "이름 없음"}
-                  </p>
-                  <p className="text-xs text-[var(--color-text-muted)]">
-                    {m.email}
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                {/* 역할 뱃지 */}
-                <span
-                  className="rounded-[10px] px-2 py-0.5 text-xs font-medium"
-                  style={{
-                    color: roleColor(m.role),
-                    backgroundColor: `color-mix(in srgb, ${roleColor(m.role)} 12%, transparent)`,
-                  }}
-                >
-                  {roleLabel(m.role)}
+      {!loading && members.length > 0 && (
+        <section className="ad-panel">
+          <div className="ad-panel__head">
+            <div className="ad-panel__title">멤버 목록</div>
+            <span className="ts-badge ts-badge--grey">{members.length}명</span>
+          </div>
+          <div className="ad-list">
+            {members.map((member) => (
+              <div key={member.id} className="ad-listrow">
+                <span className="ad-avatar-sm" style={{ background: "var(--primary)" }}>
+                  {member.profileImageUrl ? (
+                    <img src={member.profileImageUrl} alt="" className="h-full w-full rounded-[50%] object-cover" />
+                  ) : (
+                    (member.nickname || member.email).charAt(0).toUpperCase()
+                  )}
                 </span>
-                {/* owner는 제거 불가 */}
-                {/* hover 액션 = accent 강조 (빨강 본문 금지 — conventions.md 2026-05-11) */}
-                {m.role !== "owner" && (
+                <div className="ad-listrow__body">
+                  <div className="ad-listrow__t">{member.nickname || "이름 없음"}</div>
+                  <div className="ad-listrow__s">{member.email}</div>
+                </div>
+                <span className={`ts-badge ts-badge--${roleTone(member.role)}`}>
+                  {roleLabel(member.role)}
+                </span>
+                {member.role !== "owner" && (
                   <button
                     type="button"
-                    onClick={() => handleRemove(m.id, m.nickname)}
-                    className="text-[var(--color-text-muted)] hover:text-[var(--color-accent)]"
+                    onClick={() => handleRemove(member.id, member.nickname)}
+                    className="ad-iconbtn"
                     title="멤버 제거"
                   >
-                    <span className="material-symbols-outlined text-lg">
-                      close
-                    </span>
+                    <Icon name="x" size={16} />
                   </button>
                 )}
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        </section>
       )}
 
       {!loading && members.length === 0 && (
-        <p className="py-10 text-center text-sm text-[var(--color-text-muted)]">
-          멤버가 없습니다.
-        </p>
+        <div className="ts-empty">
+          <div className="ts-empty__icon">
+            <Icon name="users" size={30} />
+          </div>
+          <div className="ts-empty__title">멤버가 없습니다</div>
+          <div className="ts-empty__desc">이메일로 첫 멤버를 초대해 주세요.</div>
+        </div>
       )}
     </div>
   );

@@ -142,7 +142,7 @@ export default async function AdminUsersPage({
           { label: "유저 관리" },
         ]}
         actions={
-          <Link href="/admin/game-reports" className="btn btn--sm">
+          <Link href="/admin/game-reports" className="ts-btn ts-btn--secondary ts-btn--sm">
             <Icon name="flag" size={14} />
             신고 검토로
           </Link>

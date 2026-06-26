@@ -1,30 +1,26 @@
 # Scratchpad
 
 ## Current Work
-- 2026-06-26 admin Toss sweep: remaining tournament-admin and admin pages are being converted sequentially.
+- 2026-06-26 admin Toss v2.41 package implementation: shared admin blocks are being aligned with the package screen system one unit at a time.
 
 ## Progress
 | Area | Status | Note |
 |---|---|---|
 | Theme tokens | Done | Added `--color-on-primary` so red primary buttons render white text/icons. |
-| Live box score | Done | Per-team `기본/고급` toggle added beside team name; help icon added at each table header. |
-| Verification | Partial | Target TSX transpile and `git diff --check` passed; full `tsc` is blocked by stale `.next` validator route refs. |
-| Push/main merge | Done | Existing dev work and bdr_stat_v3 fix were pushed; mybdr dev was merged to main. |
+| Live box score | Done | Per-team basic/advanced toggle added beside team name; help icon added at each table header. |
 | Admin game rules | Done | `game_time`/`game_method` now derive from canonical `game_rules` instead of free text. |
 | Recording modes | Done | Match-level `manual` is counted, displayed, and blocked from Flutter/score-sheet system inputs. |
-| Verification | Done | Targeted Vitest suite and `cmd /c npx tsc --noEmit` passed. |
 | Admin Toss handoff | Done | `BDR-current/_handoff-admin-toss-v2.41/` added; src unchanged. |
-| Admin Toss sweep | In Progress | Tournament-admin pushed/merged; general admin pages now being token-normalized file by file. |
+| Admin Toss sweep | In Progress | v2.41 package reviewed; shared KPI, DataTable, PageHead, Toolbar blocks aligned; v39 data consistency note applied. |
 
 ## Work Log
-- 2026-06-26: Pushed tournament-admin Toss cleanup to dev and merged main; then token-normalized admin campaigns, games, and categories pages; TypeScript passed.
-- 2026-06-26: Replaced remaining tournament-admin rgba overlays/shadows with `color-mix` tokens; TypeScript and residue scans passed.
-- 2026-06-26: Converted site and teams panels to Toss buttons and tokenized site selection shadow; TypeScript passed.
-- 2026-06-26: Converted tournament creation wizard navigation and CTA buttons to Toss `ts-btn`; TypeScript passed.
-- 2026-06-26: Converted small tournament-admin CTA buttons and series error backgrounds to Toss tokens; TypeScript passed.
-- 2026-06-26: Completed series Toss cleanup for CTA buttons, copy/delete controls, and tokenized alert backgrounds; TypeScript passed.
-- 2026-06-26: Converted organization action modals to Toss buttons and tokenized selected-state backgrounds; TypeScript passed.
-- 2026-06-26: Converted organization detail page cards/buttons/chips to Toss wrappers; TypeScript passed.
-- 2026-06-26: Converted organization members page to Toss `ts-card`/`ts-btn` wrappers; TypeScript passed.
-- 2026-06-26: Converted tournament-admin organizations list to Toss `ts-card`/`ts-btn` wrappers; TypeScript passed.
-- 2026-06-26: Added live box score `기본/고급` toggle, advanced stats, and one help popover per team table.
+- 2026-06-26: Applied BDR v2 (39) admin mock data consistency update to active v2.41 handoff; src unchanged because operational pages already use DB/API wiring.
+- 2026-06-26: Added Material-to-lucide Icon aliases and converted organization detail top/tab icons to Toss Icon wrapper; TypeScript passed.
+- 2026-06-26: Rebuilt organization members page with v2.41 Toss PageHead, invite panel, list rows, badges, and Icon wrappers; TypeScript passed.
+- 2026-06-26: Rebuilt series hard-delete button/modal with v2.41 Toss Icon, danger button, modal, and input structures; TypeScript passed.
+- 2026-06-26: Rebuilt tournament-admin series creation wizard with v2.41 Toss PageHead, stepper, panels, inputs, and Icon wrappers; TypeScript passed.
+- 2026-06-26: Rebuilt tournament-admin organization creation form with v2.41 Toss PageHead, panel, inputs, selects, and Icon wrappers; TypeScript passed.
+- 2026-06-26: Rebuilt tournament-admin series detail with v2.41 PageHead, KPI cards, and ad-table editions list; TypeScript passed.
+- 2026-06-26: Rebuilt tournament-admin series list with v2.41 Toss PageHead and ad-table static server markup; TypeScript passed.
+- 2026-06-26: Rebuilt tournament-admin organizations list with v2.41 PageHead, ad-cardgrid, Empty, and lucide Icon wrappers; TypeScript passed.
+- 2026-06-26: Removed remaining tournament workspace legacy button classes in site panel/detail header; TypeScript and residue scans passed.

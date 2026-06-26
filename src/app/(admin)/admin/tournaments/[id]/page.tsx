@@ -221,10 +221,10 @@ export default async function AdminTournamentDetailPage({
         }
         actions={
           <>
-            <Link href={`/tournament-admin/tournaments/${id}`} className="btn btn--sm">
+            <Link href={`/tournament-admin/tournaments/${id}`} className="ts-btn ts-btn--primary ts-btn--sm">
               운영 페이지
             </Link>
-            <Link href={`/tournament-admin/tournaments/${id}#teams`} className="btn btn--sm">
+            <Link href={`/tournament-admin/tournaments/${id}#teams`} className="ts-btn ts-btn--secondary ts-btn--sm">
               참가팀 운영
             </Link>
           </>

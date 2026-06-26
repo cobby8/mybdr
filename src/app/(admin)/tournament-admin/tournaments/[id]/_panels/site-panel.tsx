@@ -687,7 +687,7 @@ function Step3({
           <button
             onClick={onSaveDraft}
             disabled={saving || !subdomain.trim()}
-            className="btn disabled:opacity-40"
+            className="ts-btn ts-btn--secondary disabled:opacity-40"
           >
             {saving ? "저장 중..." : "임시 저장"}
           </button>

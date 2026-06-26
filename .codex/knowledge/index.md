@@ -1,5 +1,20 @@
 # Knowledge Index
 
+- 2026-06-26 design: BDR v2 (39) only corrected v2.41 admin mock consistency; active handoff now uses 44 teams/27 matches, while public site 38-team fiction remains PM-decision gated.
+- 2026-06-26 admin: `Icon` supports common legacy Material names as lucide aliases; organization detail top/tab icons now use the Toss Icon wrapper.
+- 2026-06-26 admin: organization members page now uses v2.41 Toss `ts-ph`, `ad-panel`, `ad-listrow`, `ts-badge`, and lucide `Icon` wrappers.
+- 2026-06-26 admin: series hard-delete confirmation now uses v2.41 Toss `Icon`, `ts-modal`, `ts-input`, and `ts-btn--danger`.
+- 2026-06-26 admin: tournament-admin series creation wizard now uses v2.41 Toss `ts-ph`, `ts-steps`, `ad-panel`, form controls, and lucide `Icon` wrappers.
+- 2026-06-26 admin: tournament-admin organization creation form now uses v2.41 Toss `ts-ph`, `ad-panel`, `ts-input`, `ts-select`, and lucide `Icon` wrappers.
+- 2026-06-26 admin: tournament-admin series detail now uses v2.41 `ts-ph`, `ad-kpi-*`, and static `ad-table` edition rows.
+- 2026-06-26 admin: tournament-admin series list now uses v2.41 `ts-ph` and static `ad-tablescroll`/`ad-table` server markup.
+- 2026-06-26 admin: tournament-admin organizations list now uses v2.41 `ts-ph`, `ad-cardgrid`, `ad-card`, `Empty`, and lucide `Icon` wrappers.
+- 2026-06-26 admin: tournament workspace detail header and site panel remaining visible legacy buttons now use v2.41 `ts-btn` classes.
+- 2026-06-26 admin: v2.41 Toss package KPI rows use `ad-kpi-*` classes; browser QA needs DB pooler connectivity.
+- 2026-06-26 admin: shared DataTable wrappers use v2.41 `ad-tablescroll`/`ad-table` classes.
+- 2026-06-26 admin: shared PageHead/Toolbar use v2.41 `ts-ph` and `ad-toolbar` structures.
+- 2026-06-26 admin: `/admin/tournaments` top area uses v2.41 PageHead, search toolbar, and clean KPI labels.
+- 2026-06-26 admin: tournament detail, organizer management, and audit log pages use v2.41 Toss PageHead/buttons.
 - 2026-06-26 theme: `--color-on-primary` is defined as white so red primary buttons do not inherit black text.
 - 2026-06-26 live: box score now has a per-team `기본/고급` toggle, advanced-stat help, and game-wide PIE denominator wiring.
 - 2026-06-26 tournament-admin: match-level manual recording mode is now a real non-record-system mode instead of Flutter fallback.
@@ -12,10 +27,25 @@ Updated: 2026-06-26
 | architecture.md | 3 | Customer signal reporting |
 | conventions.md | 2 | 대회 포맷 표준 |
 | decisions.md | 7 | Manual recording mode contract |
-| errors.md | 5 | Missing primary contrast token |
+| errors.md | 7 | Prettier via npx blocked by registry/cache access |
 | lessons.md | 0 | - |
 
 Recent work:
+- 2026-06-26 design: BDR v2 (39) was checked as mock consistency rather than source wiring; active v2.41 admin handoff now documents 44-team/27-match baseline and leaves public site mock untouched pending PM decision.
+- 2026-06-26 admin: organization detail top actions/tab icons moved to the Toss Icon wrapper, with common Material icon names aliased to lucide components.
+- 2026-06-26 admin: organization members page was rebuilt on v2.41 Toss invite/list patterns while preserving member invite and delete API flows.
+- 2026-06-26 admin: series hard-delete button and confirmation modal were rebuilt on v2.41 Toss modal/danger-button patterns while preserving the DELETE API flow.
+- 2026-06-26 admin: tournament-admin series creation wizard was rebuilt on v2.41 Toss stepper/form structures while preserving organization fetch and `/api/web/series` payload.
+- 2026-06-26 admin: tournament-admin organization creation form was rebuilt on v2.41 Toss form controls while preserving `/api/web/organizations` payload fields.
+- 2026-06-26 admin: tournament-admin series detail was rebuilt on v2.41 Toss header/KPI/table structures while preserving permission and Prisma lookup logic.
+- 2026-06-26 admin: tournament-admin series list was rebuilt on v2.41 Toss PageHead/table markup without changing the Prisma query.
+- 2026-06-26 admin: tournament-admin organizations list was rebuilt on v2.41 Toss PageHead/cardgrid/Empty structures while preserving `/api/web/organizations` data mapping.
+- 2026-06-26 admin: tournament workspace detail header and site panel remaining visible legacy buttons were normalized to v2.41 Toss `ts-btn`.
+- 2026-06-26 admin: tournament detail auxiliary pages were cleaned of legacy `.btn`/Material Symbols header actions and aligned to Toss PageHead/buttons.
+- 2026-06-26 admin: `/admin/tournaments` top area now follows v2.41 Toss PageHead + ad-toolbar + KPI flow while preserving server search and pagination.
+- 2026-06-26 admin: shared PageHead and Toolbar were aligned with v2.41 `ts-ph`/`ad-toolbar` package structure.
+- 2026-06-26 admin: shared admin DataTable wrappers were aligned with v2.41 `ad-tablescroll`/`ad-table` package structure.
+- 2026-06-26 admin: BDR v2.41 admin Toss package was reviewed and shared KPI rows were converted from v2.40 `au-stat` to v2.41 `ad-kpi-*`.
 - 2026-06-26 design: v2.41 admin Toss reverse-bake handoff was absorbed into `BDR-current`; admin/operation areas keep Toss as the official design system while public user surfaces keep BDR rules.
 - 2026-06-26 theme: added the missing `--color-on-primary` alias used by primary buttons.
 - 2026-06-26 live: box score tables now switch between basic and advanced stats, with one help popover per team table and PIE calculated against both teams.

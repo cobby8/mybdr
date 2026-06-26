@@ -186,7 +186,7 @@ export default async function AdminUserDetailPage({
           </>
         }
         actions={
-          <Link href="/admin/game-reports" className="btn btn--sm">
+          <Link href="/admin/game-reports" className="ts-btn ts-btn--secondary ts-btn--sm">
             신고 검토
           </Link>
         }
