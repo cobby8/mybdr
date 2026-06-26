@@ -3,9 +3,9 @@
 // =====================================================================
 // ct-create-tournament.tsx — 새 대회 만들기 메인 폼 (2컬럼 단일 페이지 · Toss)
 //   박제 source: _deliver_CreateTournament/create-tournament.jsx
-//   범위(B-2): 셸(헤더·2컬럼·하단 고정 생성바) + 좌측 컬럼 완성 + 우측 stub(B-3).
+//   범위: 셸(헤더·2컬럼·하단 고정 생성바) + 대회 정보 + 일정·장소 + 종별·경기 설정.
 //     · 좌: 대회 정보(대회명·정규대회·주최·주관·후원사·포스터) + 일정·장소
-//     · 우: stub 카드 2개("B-3에서 구현 — 종별·디비전 / 경기 설정")
+//     · 우: 종별·디비전 / 경기 설정
 //
 //   ⚠ 가드 (왜):
 //   - 제출(POST) 배선은 B-4 로 보류. 본 컴포넌트는 "대회 생성" 클릭 시 좌측 필수값을
@@ -545,6 +545,8 @@ export function CtCreateTournament({
   myOrgs,
   onSeriesCreated,
   onCancel,
+  onOpenProspectus,
+  onOpenAssociationWizard,
   onSubmitDraft,
   saving = false,
   toast,
@@ -554,6 +556,8 @@ export function CtCreateTournament({
   myOrgs: { id: string; name: string }[];
   onSeriesCreated: (s: CreatedSeries) => void;
   onCancel: () => void;
+  onOpenProspectus: () => void;
+  onOpenAssociationWizard: () => void;
   // B-4: 게시 모달 확인 시 실제 POST 배선. payload 는 POST body 형태로 완성되어 전달됨.
   onSubmitDraft: (payload: CtDraftPayload) => void;
   // POST 진행 중 여부 — 게시 모달 버튼 스피너/잠금에 사용(page.tsx 가 제어)
@@ -808,10 +812,10 @@ export function CtCreateTournament({
           <Btn variant="secondary" size="sm" icon="copy" onClick={() => setLoadOpen(true)}>
             이전 대회 불러오기
           </Btn>
-          <Btn variant="secondary" size="sm" icon="file-text" onClick={() => toast("PDF 요강 채우기로 이동합니다")}>
+          <Btn variant="secondary" size="sm" icon="file-text" onClick={onOpenProspectus}>
             PDF로 채우기
           </Btn>
-          <Btn variant="secondary" size="sm" icon="wand-sparkles" onClick={() => toast("협회 대회 마법사 — super admin 전용")}>
+          <Btn variant="secondary" size="sm" icon="wand-sparkles" onClick={onOpenAssociationWizard}>
             협회 마법사
           </Btn>
         </div>

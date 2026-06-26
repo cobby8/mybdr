@@ -32,7 +32,7 @@ import { loadDraft } from "@/lib/tournaments/wizard-draft";
 //   비주얼만 교체(아이콘 1:1 매핑)·기능/단계/POST body/라우트 변경 0. data-skin="toss" 루트 opt-in.
 import { Icon } from "@/components/admin-toss";
 // 2026-06-21 Track B Phase4 B-2 — 새 대회 생성폼(2컬럼 단일폼). quick 탭 본문 전면교체.
-//   좌측(대회정보·일정장소) 완성 + 우측 stub(B-3) + 하단 고정 생성바. 제출 POST 배선은 B-4.
+//   대회정보·일정장소·종별·경기설정 + 하단 고정 생성바. 제출 POST 배선 포함.
 import { CtCreateTournament, type CtDraftPayload } from "./_components/ct-create-tournament";
 
 // --- 3단계 구성 (기존 8탭 → 3단계로 간소화) ---
@@ -442,6 +442,8 @@ function QuickCreateForm() {
               router.push("/tournament-admin/tournaments");
             }
           }}
+          onOpenProspectus={() => router.push("/tournament-admin/tournaments/new/wizard/prospectus")}
+          onOpenAssociationWizard={() => router.push("/tournament-admin/wizard/association")}
           onSubmitDraft={handleSubmitDraft}
           saving={loading}
           toast={showToast}
