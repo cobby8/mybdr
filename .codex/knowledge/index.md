@@ -1,5 +1,6 @@
 # Knowledge Index
 
+- 2026-06-26 admin: teams panel list surface now uses Toss `tt-*` classes for readiness cards, division group headers, team metadata, seed/group mini inputs, and visible badges.
 - 2026-06-26 admin: teams panel badge helpers now use Toss `tt-badge`/`tt-stat-card` classes for status, applied-via, payment, roster progress, and via stats.
 - 2026-06-26 admin: matches client table, mobile cards, ScoreModal, errors, and filter labels now use Toss-only `amt-*` classes; legacy BDR token scan is clean for the matches files.
 - 2026-06-26 admin: bracket panel full match lists and multi-division bracket filters/sections now reuse Toss match/section classes; `--color-*`/`rounded-[4px]`/`rounded-full` scan is clean for the panel.
@@ -44,6 +45,7 @@ Updated: 2026-06-26
 | lessons.md | 0 | - |
 
 Recent work:
+- 2026-06-26 admin: teams panel readiness cards, group headers, list metadata, seed/group mini inputs, and visible team list badges were normalized to Toss local classes.
 - 2026-06-26 admin: teams panel shared status/via/payment/roster badges and via-stat cards were converted from inline BDR tokens to Toss `tt-*` classes.
 - 2026-06-26 admin: matches table/mobile cards/ScoreModal were moved to Toss `amt-*` classes while keeping match generation, filters, score editing, and recording-mode save flows unchanged.
 - 2026-06-26 admin: bracket panel full match lists and multi-division filters/sections were normalized to Toss local classes, completing the panel-level token/radius cleanup scan.
