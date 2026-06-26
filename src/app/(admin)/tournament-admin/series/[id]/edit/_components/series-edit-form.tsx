@@ -15,7 +15,6 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
 
 interface OrganizationItem {
   id: string;
@@ -258,13 +257,13 @@ export function SeriesEditForm({
         </p>
       )}
 
-      <Button
+      <button
         type="submit"
         disabled={!name.trim() || !isDirty || loading}
-        className="w-full py-3"
+        className="ts-btn ts-btn--primary w-full py-3"
       >
         {loading ? "저장 중..." : isDirty ? "저장하기" : "변경 사항 없음"}
-      </Button>
+      </button>
     </form>
   );
 }

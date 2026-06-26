@@ -17,6 +17,7 @@
 | Tournament admin implementation | In Progress | Matches score modal now exposes the existing manual recording mode. |
 
 ## Work Log
+- 2026-06-26: Converted tournament-admin series add-edition/edit form wrappers and submit buttons to Toss `ts-card`/`ts-btn`; TypeScript passed.
 - 2026-06-26: Converted tournament-admin series detail edition rows and empty state from UI Card/Badge to Toss wrappers; TypeScript passed.
 - 2026-06-26: Converted tournament-admin series list from UI Card/Badge to Toss `ts-card`/chip/`ct-emptybox`; TypeScript passed.
 - 2026-06-26: Converted tournament-admin templates empty state from UI Card/Material span to Toss `ct-emptybox` + Icon; TypeScript passed.
