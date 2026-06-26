@@ -9,6 +9,7 @@ import { prisma } from "@/lib/db/prisma";
 import { Prisma } from "@prisma/client";
 import { AdminPageHeader } from "@/components/admin/admin-page-header";
 import { AdminStatCard } from "@/components/admin/admin-stat-card";
+import { LIVE_MATCH_STATUSES } from "@/lib/constants/match-status";
 
 export const dynamic = "force-dynamic";
 
@@ -36,7 +37,9 @@ export default async function AdminDashboard() {
     await Promise.all([
       prisma.user.count(),
       prisma.tournament.count(),
-      prisma.tournamentMatch.count({ where: { status: "live" } }),
+      prisma.tournamentMatch.count({
+        where: { status: { in: [...LIVE_MATCH_STATUSES] } },
+      }),
       prisma.team.count(),
       // 최근 관리자 활동 5건 조회 (logs/page.tsx 패턴 참조)
       prisma.admin_logs

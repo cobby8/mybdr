@@ -23,6 +23,7 @@ import { NextResponse } from "next/server";
 import type { Prisma } from "@prisma/client";
 import { apiError } from "@/lib/api/response";
 import { prisma } from "@/lib/db/prisma";
+import { isLiveMatchStatus } from "@/lib/constants/match-status";
 
 // 기록 방식 — Flutter 기록앱(풀스탯) / 웹 전자기록지(기본) / 수기(BDR 시스템 미사용)
 //   2026-06-26: 관리 화면이 수기 모드를 매치 일괄 적용할 수 있으므로 매치 settings 의
@@ -207,7 +208,7 @@ export async function getTournamentMatchStats(tournamentId: string): Promise<{
     if (mode === PAPER_MODE) paper++;
     if (mode === MANUAL_MODE) manual++;
     // status="in_progress" 카운트 (라이브 진행 중 매치 — bulk 시 신중 분기 안내용)
-    if (m.status === "in_progress") inProgress++;
+    if (isLiveMatchStatus(m.status)) inProgress++;
   }
 
   return {

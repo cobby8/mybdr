@@ -19,6 +19,7 @@ import { assertCompletedMatchFiba } from "@/lib/tournaments/fiba-rules";
 // 2026-05-16: recorder_admin 전역 흡수 (Flutter 기록앱 모든 대회 batch-sync 통과)
 import { isSuperAdmin } from "@/lib/auth/is-super-admin";
 import { isRecorderAdmin } from "@/lib/auth/is-recorder-admin";
+import { normalizeMatchStatusForApi } from "@/lib/constants/match-status";
 
 // FR-025: 매치 일괄 동기화
 async function handler(req: NextRequest, ctx: AuthContext, tournamentId: string) {
@@ -42,6 +43,7 @@ async function handler(req: NextRequest, ctx: AuthContext, tournamentId: string)
   const errors: { matchId: string; reason: string }[] = [];
 
   for (const match of result.data.matches) {
+    const incomingStatus = normalizeMatchStatusForApi(match.status);
     try {
       await prisma.$transaction(async (tx) => {
         const existing = await tx.tournamentMatch.findFirst({
@@ -80,7 +82,7 @@ async function handler(req: NextRequest, ctx: AuthContext, tournamentId: string)
         const fibaCheck = assertCompletedMatchFiba({
           homeScore: match.homeScore,
           awayScore: match.awayScore,
-          status: match.status,
+          status: incomingStatus,
           winnerTeamId: existing.winner_team_id,
           currentQuarter: estimatedQuarter,
           recordingMode: "flutter",
@@ -95,12 +97,12 @@ async function handler(req: NextRequest, ctx: AuthContext, tournamentId: string)
         //   ★ throw 금지 — 조용히 status 만 고정 후 점수/QS 는 그대로 박제 → synced++ 정상 카운트.
         //   정방향 · completed→completed 재sync 는 그대로 허용(회귀 0).
         const effectiveStatus =
-          existing.status === "completed" && match.status !== "completed"
+          existing.status === "completed" && incomingStatus !== "completed"
             ? "completed"
-            : match.status;
-        if (effectiveStatus !== match.status) {
+            : incomingStatus;
+        if (effectiveStatus !== incomingStatus) {
           console.warn(
-            `[sync-guard] match ${match.matchId} completed 역전 차단: ${existing.status}→${match.status} 무시, completed 유지`
+            `[sync-guard] match ${match.matchId} completed 역전 차단: ${existing.status}→${incomingStatus} 무시, completed 유지`
           );
         }
 
@@ -116,7 +118,7 @@ async function handler(req: NextRequest, ctx: AuthContext, tournamentId: string)
       });
 
       // 경기 시작 시 대회 상태 자동 전환 (fire-and-forget)
-      if (match.status === "in_progress") {
+      if (incomingStatus === "in_progress") {
         prisma.tournament.updateMany({
           where: { id: tournamentId, status: { in: ["draft", "registration_open", "registration_closed"] } },
           data: { status: "in_progress" },
@@ -129,7 +131,7 @@ async function handler(req: NextRequest, ctx: AuthContext, tournamentId: string)
       //   기존 누락 사고: divisionCode 있는 batch-sync 매치가 placeholder advancer 미호출 → 결선 매치 null 유지.
       //   안전성: fire-and-forget — batch 응답 자체는 매치 update 성공 시 synced++ (헬퍼 실패는 errors[] 미포함).
       //   waitUntil = Vercel 응답 종료 후 background 보장.
-      if (match.status === "completed") {
+      if (incomingStatus === "completed") {
         waitUntil(
           finalizeMatchCompletion(
             BigInt(match.matchId),

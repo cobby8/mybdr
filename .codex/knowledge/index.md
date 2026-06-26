@@ -16,8 +16,10 @@ Updated: 2026-06-26
 | lessons.md | 0 | - |
 
 Recent work:
+- 2026-06-26 design: v2.41 admin Toss reverse-bake handoff was absorbed into `BDR-current`; admin/operation areas keep Toss as the official design system while public user surfaces keep BDR rules.
 - 2026-06-26 theme: added the missing `--color-on-primary` alias used by primary buttons.
 - 2026-06-26 live: box score tables now switch between basic and advanced stats, with one help popover per team table and PIE calculated against both teams.
+- 2026-06-26 tournament-admin: target tournament panels/components no longer depend on shadcn `Card/Button`; wrappers use Toss `ts-*`/`ct-emptybox`.
 - 2026-06-26 tournament-admin: `game_time`/`game_method` are derived from canonical `game_rules`, and match-level manual recording mode is counted and blocked from Flutter/score-sheet system inputs.
 - 2026-06-26 tournament-admin: selected division rows now support inline rename/delete and validate empty/duplicate names before sync.
 - 2026-06-26 record-app: game-rule presets now cover time/period only, while `clock_mode` remains a separate v1 response field and admin control.

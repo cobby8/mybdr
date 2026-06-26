@@ -155,13 +155,13 @@ export function isSiteConfigured(r: ChecklistRelationInput): boolean {
   return r.hasTournamentSite;
 }
 
-/** 7. 기록 설정 — tournament.settings.default_recording_mode 박제 ("flutter" or "paper"). */
+/** 7. 기록 설정 — tournament.settings.default_recording_mode 박제 ("flutter" | "paper" | "manual"). */
 export function isRecordingModeConfigured(t: ChecklistTournamentInput): boolean {
   const s = t.settings;
   if (!s || typeof s !== "object" || Array.isArray(s)) return false;
   const value = (s as Record<string, unknown>).default_recording_mode;
-  // 명시적으로 "flutter" or "paper" 박제된 경우만 완료 (null/누락 = 미설정).
-  return value === "flutter" || value === "paper";
+  // 명시적으로 지원하는 기록 방식이 박제된 경우만 완료 (null/누락 = 미설정).
+  return value === "flutter" || value === "paper" || value === "manual";
 }
 
 /** 8. 대진표 생성 — matches 1건 이상. */
@@ -258,8 +258,14 @@ export function calculateSetupProgress(
       ? "사이트 공개 중"
       : "사이트 박제됨 (비공개)"
     : "사이트 미생성";
+  const recordingModeLabel = (() => {
+    const mode = (t.settings as Record<string, unknown> | null)?.default_recording_mode;
+    if (mode === "paper") return "전자기록지";
+    if (mode === "manual") return "수기";
+    return "기록앱";
+  })();
   const recordingSummary = recordingComplete
-    ? `기본 모드: ${(t.settings as Record<string, unknown>).default_recording_mode === "paper" ? "기록지" : "Flutter"}`
+    ? `기본 모드: ${recordingModeLabel}`
     : "기록 모드 미설정";
   const bracketSummary = bracketComplete
     ? `${r.matchesCount}경기 생성됨`

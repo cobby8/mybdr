@@ -13,16 +13,15 @@
  *   - 결과 모달 Card 표 (종별 / UPDATE / SKIP / 에러 4 col) → 에러 0 = success 톤 / 에러 ≥1 = warning 톤
  *   - "확인" 클릭 → onSuccess() → matches load() refetch
  *
- * 디자인 룰 (BDR 13):
+ * 디자인 룰 (admin Toss):
  *   - var(--color-info) Navy 톤 trigger 버튼 / rounded-[4px] / lucide "trending-up" (Track B-c)
- *   - 모달 = Card 패턴 / var(--color-success) 또는 var(--color-warning) 배너
+ *   - 모달 = Toss ts-card / var(--color-success) 또는 var(--color-warning) 배너
  *   - 모바일 44px+ 터치
  */
 
 "use client";
 
 import { useState } from "react";
-import { Card } from "@/components/ui/card";
 // Track B-c Toss 리스킨 — Material Symbols → lucide-react 키트(<Icon>)
 import { Icon } from "@/components/admin-toss";
 
@@ -129,7 +128,9 @@ export function AdvancePlayoffsButton({ tournamentId, onSuccess }: Props) {
       {/* 에러 모달 — 네트워크/서버 오류 (응답 검증 실패 케이스) */}
       {error && (
         <ResultModal onClose={() => setError(null)}>
-          <Card
+          <section
+            data-skin="toss"
+            className="ts-card"
             style={{
               backgroundColor: "color-mix(in srgb, var(--color-error) 10%, transparent)",
               borderColor: "var(--color-error)",
@@ -164,14 +165,16 @@ export function AdvancePlayoffsButton({ tournamentId, onSuccess }: Props) {
                 닫기
               </button>
             </div>
-          </Card>
+          </section>
         </ResultModal>
       )}
 
       {/* 결과 모달 — 종별 표 (UPDATE / SKIP / 에러 4 col) */}
       {result && (
         <ResultModal onClose={handleClose}>
-          <Card
+          <section
+            data-skin="toss"
+            className="ts-card"
             style={{
               // 에러 0 = success 톤 / 에러 ≥1 = warning 톤
               backgroundColor:
@@ -283,7 +286,7 @@ export function AdvancePlayoffsButton({ tournamentId, onSuccess }: Props) {
                 확인
               </button>
             </div>
-          </Card>
+          </section>
         </ResultModal>
       )}
     </>
@@ -291,7 +294,7 @@ export function AdvancePlayoffsButton({ tournamentId, onSuccess }: Props) {
 }
 
 // ─────────────────────────────────────────────────────────────
-// 모달 wrapper — backdrop + 가운데 정렬 (Card 컴포넌트 외 dependency 0)
+// 모달 wrapper — backdrop + 가운데 정렬
 // ─────────────────────────────────────────────────────────────
 function ResultModal({
   children,

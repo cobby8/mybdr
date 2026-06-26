@@ -6,13 +6,12 @@
  *   - 현재 종별 standings 시각화 = 0 (DB 만 존재 / 운영자가 매치 결과로 추정해야 함).
  *   - 본 컴포넌트 = playoffs hub 의 섹션 1 — getDivisionStandings 결과를 표로 렌더 (재사용 가능).
  *
- * 디자인 룰 (BDR 13):
- *   - 그룹별 카드 + 표 / rounded-[4px] / var(--color-*) 토큰만
+ * 디자인 룰 (admin Toss):
+ *   - Toss ts-card + 그룹별 표 / var(--color-*) 토큰만
  *   - 1위 = ok 톤 / 2위 = info 톤 강조 (운영자 시각 인지 보조)
  *   - 모바일 = 가로 스크롤 (overflow-x-auto)
  */
 
-import { Card } from "@/components/ui/card";
 import type { DivisionStanding } from "@/lib/tournaments/division-advancement";
 
 type Props = {
@@ -36,17 +35,17 @@ export function StandingsTable({ divisionLabel, standings }: Props) {
   // standings 0건 = 예선 매치 미진행 또는 종별 팀 0
   if (standings.length === 0) {
     return (
-      <Card>
+      <section data-skin="toss" className="ts-card">
         <p className="text-sm font-semibold text-[var(--color-text-primary)]">{divisionLabel}</p>
         <p className="mt-2 text-xs text-[var(--color-text-muted)]">
           예선 매치가 없거나 팀 등록 0건 — standings 산출 불가.
         </p>
-      </Card>
+      </section>
     );
   }
 
   return (
-    <Card>
+    <section data-skin="toss" className="ts-card">
       <div className="mb-3 flex items-center justify-between">
         <p className="text-sm font-semibold text-[var(--color-text-primary)]">{divisionLabel}</p>
         <span className="rounded-[4px] bg-[var(--color-elevated)] px-2 py-0.5 text-xs text-[var(--color-text-muted)]">
@@ -144,6 +143,6 @@ export function StandingsTable({ divisionLabel, standings }: Props) {
           );
         })}
       </div>
-    </Card>
+    </section>
   );
 }

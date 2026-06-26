@@ -5,6 +5,10 @@ import { checkRateLimit, RATE_LIMITS } from "@/lib/security/rate-limit";
 import { getClientIp } from "@/lib/security/get-client-ip";
 // Phase 3: scheduledAt 가드만 필요 (status는 이 API 고유 값을 유지)
 import { pastOrOngoingSchedule } from "@/lib/tournaments/official-match";
+import {
+  LIVE_MATCH_STATUSES,
+  normalizeMatchStatusForApi,
+} from "@/lib/constants/match-status";
 
 // 인증 없는 공개 엔드포인트 — 현재 진행 중인 경기 목록
 // NOTE: 모든 필드는 camelCase로 빌드 — apiSuccess()가 자동으로 snake_case 변환
@@ -24,7 +28,7 @@ export async function GET(req: NextRequest) {
         // Phase 3: status 기존 값 [live, in_progress] 유지.
         // scheduledAt 가드만 추가해 미래 테스트 데이터 / NULL 방어.
         ...pastOrOngoingSchedule(),
-        status: { in: ["live", "in_progress"] },
+        status: { in: [...LIVE_MATCH_STATUSES] },
         // 비공개 대회 경기 제외 — 비공개(false)만 빼고 null·true(공개)는 통과.
         //   목록은 단일 대회 헬퍼 부적합 → 관계 필터로 일괄 제외(null 안전).
         tournament: { is_public: { not: false } },
@@ -80,7 +84,7 @@ export async function GET(req: NextRequest) {
 
     const formatMatch = (m: typeof matches[number]) => ({
       id: Number(m.id),
-      status: m.status ?? "scheduled",
+      status: normalizeMatchStatusForApi(m.status),
       homeScore: m.homeScore ?? 0,
       awayScore: m.awayScore ?? 0,
       roundName: m.roundName,

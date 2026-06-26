@@ -46,6 +46,7 @@ import {
   shouldAutoSyncQuarterScores,
   type QuarterScoresJson,
 } from "@/lib/tournaments/quarter-scores-sync";
+import { normalizeMatchStatusForApi } from "@/lib/constants/match-status";
 
 // ============================================================================
 // 입력 타입 — zod parse 결과 type 과 동치 (caller 가 검증 후 전달)
@@ -435,6 +436,7 @@ export async function syncSingleMatch(
   // 기존 sync route line 153~178 동등.
   const { homeScore: correctedHomeScore, awayScore: correctedAwayScore } =
     correctScoresFromQuarters(match);
+  const incomingStatus = normalizeMatchStatusForApi(match.status);
   if (
     correctedHomeScore !== match.home_score ||
     correctedAwayScore !== match.away_score
@@ -449,7 +451,7 @@ export async function syncSingleMatch(
   // 5) winner_team_id 자동 결정 — 헬퍼 위임 (순수 함수, 테스트 가능)
   // 기존 sync route line 183~192 동등.
   const winnerTeamId = decideWinnerTeamId({
-    status: match.status,
+    status: incomingStatus,
     homeScore: correctedHomeScore,
     awayScore: correctedAwayScore,
     existingWinnerTeamId: existing.winner_team_id,
@@ -467,8 +469,8 @@ export async function syncSingleMatch(
   const recordingMode = getRecordingMode({ settings: existing.settings ?? null });
   const shouldSync = shouldAutoSyncQuarterScores({
     recordingMode,
-    newStatus: match.status,
-    previousStatus: existing.status ?? "scheduled",
+    newStatus: incomingStatus,
+    previousStatus: normalizeMatchStatusForApi(existing.status),
     pbpCount: play_by_plays?.length ?? 0,
   });
   let autoQuarterScores: QuarterScoresJson | undefined = undefined;
@@ -494,12 +496,12 @@ export async function syncSingleMatch(
   //   정방향(scheduled→...→completed) · completed→completed 재sync 는 그대로 허용(회귀 0).
   //   존스(L528) 알기자 trigger 는 match.status === "completed" 조건이라 역전 차단 시 발동 안 함(정상).
   const effectiveStatus =
-    existing.status === "completed" && match.status !== "completed"
+    existing.status === "completed" && incomingStatus !== "completed"
       ? "completed"
-      : match.status;
-  if (effectiveStatus !== match.status) {
+      : incomingStatus;
+  if (effectiveStatus !== incomingStatus) {
     console.warn(
-      `[sync-guard] match ${matchId} completed 역전 차단: ${existing.status}→${match.status} 무시, completed 유지`
+      `[sync-guard] match ${matchId} completed 역전 차단: ${existing.status}→${incomingStatus} 무시, completed 유지`
     );
   }
   await prisma.tournamentMatch.update({
@@ -531,7 +533,7 @@ export async function syncSingleMatch(
       //   기존 동작 보존: started_at 있으면 클라이언트 값 우선 / 다른 status 영향 0.
       started_at: match.started_at
         ? new Date(match.started_at)
-        : (match.status === "in_progress" && existing.started_at === null
+        : (incomingStatus === "in_progress" && existing.started_at === null
             ? new Date()
             : undefined),
       ended_at: match.ended_at ? new Date(match.ended_at) : undefined,
@@ -540,14 +542,14 @@ export async function syncSingleMatch(
 
   // 7) 알기자 자동 발행 — completed 신규 전환 시점만 trigger.
   // 기존 sync route line 224~226 동등.
-  if (existing.status !== "completed" && match.status === "completed") {
+  if (existing.status !== "completed" && incomingStatus === "completed") {
     waitUntil(triggerMatchBriefPublish(matchId));
   }
 
   // 8) 경기 리셋 감지: 헬퍼 위임 (순수 함수, 테스트 가능)
   // 기존 sync route line 230~239 동등.
   const isReset = isMatchReset({
-    status: match.status,
+    status: incomingStatus,
     playerStatsLength: player_stats?.length ?? 0,
     playByPlaysLength: play_by_plays?.length ?? 0,
   });
@@ -728,7 +730,7 @@ export async function syncSingleMatch(
   const warnings: string[] = [];
   let postProcessStatus: SyncPostProcessStatus = "skipped";
 
-  if (match.status === "completed") {
+  if (incomingStatus === "completed") {
     let finalizeResult: FinalizeMatchCompletionResult | null = null;
     try {
       finalizeResult = await finalizeMatchCompletion(

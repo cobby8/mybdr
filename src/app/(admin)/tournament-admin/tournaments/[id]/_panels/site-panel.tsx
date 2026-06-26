@@ -4,7 +4,6 @@ import { useState, useEffect, useCallback } from "react";
 import { useParams } from "next/navigation";
 import { PanelLoadingState } from "./panel-loading-state";
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
 // 2026-05-11: BDR 브랜드 hex hardcode 단일화
 import { BDR_PRIMARY_HEX } from "@/lib/constants/colors";
 
@@ -486,9 +485,9 @@ function Step1({
             취소
           </button>
         )}
-        <Button onClick={onNext} className="ml-auto">
+        <button type="button" onClick={onNext} className="ts-btn ts-btn--primary ml-auto">
           다음: 색상 선택 →
-        </Button>
+        </button>
       </div>
     </div>
   );
@@ -574,9 +573,9 @@ function Step2({
         <button onClick={onBack} className="text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]">
           ← 이전
         </button>
-        <Button onClick={onNext} disabled={saving}>
+        <button type="button" onClick={onNext} disabled={saving} className="ts-btn ts-btn--primary">
           {saving ? "저장 중..." : "다음: 주소 설정 →"}
-        </Button>
+        </button>
       </div>
     </div>
   );
@@ -692,13 +691,14 @@ function Step3({
           >
             {saving ? "저장 중..." : "임시 저장"}
           </button>
-          <Button
+          <button
+            type="button"
             onClick={onPublish}
             disabled={saving || !subdomain.trim()}
-            className="min-w-[120px]"
+            className="ts-btn ts-btn--primary min-w-[120px]"
           >
             {saving ? "처리 중..." : "🚀 공개하기"}
-          </Button>
+          </button>
         </div>
       </div>
 

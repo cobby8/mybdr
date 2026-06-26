@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db/prisma";
 // Phase 3: 공식 기록 가드 (status IN completed/live + scheduledAt <= NOW + NOT NULL)
 import { officialMatchWhere } from "@/lib/tournaments/official-match";
+import { isLiveMatchStatus } from "@/lib/constants/match-status";
 // 4단계 C — 행 전체 router.push (서버 컴포넌트라 클라 래퍼 분리) + 상대팀 TeamLink (nested anchor 회피)
 import { TeamLink } from "@/components/links/team-link";
 import { RecentTabRow } from "./recent-tab-row";
@@ -133,7 +134,7 @@ export async function RecentTabV2({ teamId }: Props) {
 
         // 결과 판정
         let resultNode: React.ReactNode;
-        if (m.status === "live") {
+        if (isLiveMatchStatus(m.status)) {
           resultNode = (
             <span className="badge badge--soft">LIVE</span>
           );

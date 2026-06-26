@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { Card } from "@/components/ui/card";
 // 2026-05-16 PR-Admin-1 — 단계간 CTA (페이지 footer "다음: 대진표 생성 →")
 import { NextStepCTA } from "../_components/NextStepCTA";
 // Track B-a Toss 리스킨 — Material Symbols → lucide-react 키트(<Icon>)
@@ -707,12 +706,12 @@ export default function TournamentTeamsPage() {
       </div>
 
       {filtered.length === 0 ? (
-        <Card className="py-12 text-center text-[var(--color-text-muted)]">
+        <div className="ct-emptybox py-12 text-center text-[var(--ink-mute)]">
           <div className="mb-2 flex justify-center">
             <Icon name="volleyball" size={36} />
           </div>
           {filter === "all" ? "참가 신청한 팀이 없습니다." : `${STATUS_LABEL[filter]} 상태의 팀이 없습니다.`}
-        </Card>
+        </div>
       ) : (
         // 2026-05-12 — 사용자 요청: 종별 그룹화 (i2-U11 / i3-U9 / i3w-U12 등 같은 종별 묶음)
         // 그룹 정렬 = 종 코드 알파벳 / 그룹 내 = 기존 filtered 순서 유지 (createdAt desc)
@@ -755,7 +754,7 @@ export default function TournamentTeamsPage() {
             const token = tokenMap[tt.id];
             const tokenAlive = !!token?.applyTokenUrl;
             return (
-            <Card key={tt.id}>
+            <div key={tt.id} className="ts-card">
               {/* 팀 정보 행 */}
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div
@@ -907,7 +906,7 @@ export default function TournamentTeamsPage() {
 
               {/* 2026-05-12 Phase 3-E 후속 — 인라인 펼침 dead code 청소 완료.
                   선수 명단은 모달 (페이지 끝 TeamDetailModal) 에서 렌더링됨. */}
-            </Card>
+            </div>
             );
           })}
                   </div>

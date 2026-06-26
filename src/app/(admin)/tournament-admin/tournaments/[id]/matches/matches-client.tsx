@@ -2,13 +2,13 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useParams, useSearchParams } from "next/navigation";
-import { Card } from "@/components/ui/card";
 // 2026-05-16 PR-Admin-3 — placeholder 매치 검증 배너 (강남구협회장배 사고 재발 방지)
 import { PlaceholderValidationBanner } from "../_components/PlaceholderValidationBanner";
 // 2026-05-16 PR-Admin-2 — 단일 순위전 진출 trigger (teams 페이지 헤더에서 이동 박제)
 import { AdvancePlayoffsButton } from "../_components/AdvancePlayoffsButton";
 // Track B-c Toss 리스킨 — Material Symbols → lucide-react 키트(<Icon>)
 import { Icon } from "@/components/admin-toss";
+import type { RecordingMode } from "@/lib/tournaments/recording-mode";
 // 2026-05-28 PR-1C-6 옵션 A — 매치 표 시각 박제 (시안 admin.css amt-table). 데이터/onClick 유지, 시각만.
 import "./matches-admin.css";
 
@@ -51,12 +51,14 @@ function getMatchDivision(m: Match): string | null {
 }
 
 // 2026-05-11: settings JSON 에서 recording_mode 추출 — 서버 헬퍼와 동일 fallback 룰.
-// "paper" 만 명시적 paper / 그 외 모두 "flutter" 로 간주.
+// "paper"/"manual" 만 명시적 모드 / 그 외 모두 "flutter" 로 간주.
 function readRecordingMode(
   settings: Match["settings"]
-): "flutter" | "paper" {
+): RecordingMode {
   if (!settings || typeof settings !== "object") return "flutter";
-  return settings.recording_mode === "paper" ? "paper" : "flutter";
+  if (settings.recording_mode === "paper") return "paper";
+  if (settings.recording_mode === "manual") return "manual";
+  return "flutter";
 }
 
 type TournamentTeam = {
@@ -82,6 +84,12 @@ const STATUS_COLOR: Record<string, string> = {
   completed: "text-[var(--color-success)]",
   cancelled: "text-[var(--color-error)]",
   bye: "text-[var(--color-text-muted)]",
+};
+
+const RECORDING_MODE_LABEL: Record<RecordingMode, string> = {
+  flutter: "기록앱",
+  paper: "전자기록지",
+  manual: "수기",
 };
 
 function formatMatchDate(value: string | null) {
@@ -117,10 +125,10 @@ function ScoreModal({
   const [venueName, setVenueName] = useState(match.venue_name ?? "");
   const [homeTeamId, setHomeTeamId] = useState(match.homeTeamId ?? "");
   const [awayTeamId, setAwayTeamId] = useState(match.awayTeamId ?? "");
-  // 2026-05-11: Phase 1-A 매치별 기록 모드 토글 (Flutter 기록앱 vs 웹 종이 기록지).
+  // 2026-05-11: Phase 1-A 매치별 기록 모드 토글.
   // 초기값 = 서버 settings.recording_mode (fallback "flutter").
   // 변경 시 save() 안에서 별도 endpoint /api/web/admin/matches/[id]/recording-mode 호출.
-  const [recordingMode, setRecordingMode] = useState<"flutter" | "paper">(
+  const [recordingMode, setRecordingMode] = useState<RecordingMode>(
     readRecordingMode(match.settings)
   );
   const [saving, setSaving] = useState(false);
@@ -167,7 +175,7 @@ function ScoreModal({
 
       // 모드 변경 시 사용자 confirm — 진행 중 매치 사고 방지
       if (modeChanged) {
-        const next = recordingMode === "paper" ? "전자기록지" : "기록앱";
+        const next = RECORDING_MODE_LABEL[recordingMode];
         if (
           !confirm(
             `이 매치 기록 모드를 [${next}] 로 전환합니다.\n진행 중 매치는 신중히 결정하세요.`
@@ -369,18 +377,19 @@ function ScoreModal({
         </div>
 
         {/* 2026-05-11: Phase 1-A — 매치별 기록 모드 토글.
-            Flutter 기록앱 (기본) ↔ 종이 기록지(웹). 한 매치 = 한 모드 (충돌 자체 차단). */}
+            기록앱/전자기록지/수기 중 한 매치 = 한 모드 (충돌 자체 차단). */}
         <div className="mb-3">
           <label className="ts-field__label">기록 방식</label>
           <select
             className="ts-select"
             value={recordingMode}
             onChange={(e) =>
-              setRecordingMode(e.target.value as "flutter" | "paper")
+              setRecordingMode(e.target.value as RecordingMode)
             }
           >
             <option value="flutter">기록앱</option>
             <option value="paper">전자기록지</option>
+            <option value="manual">수기</option>
           </select>
           {recordingMode === "paper" && (
             <>
@@ -399,6 +408,11 @@ function ScoreModal({
                 </a>
               )}
             </>
+          )}
+          {recordingMode === "manual" && (
+            <p className="mt-1 text-xs text-[var(--ink-mute)]">
+              수기 모드는 BDR 기록앱과 전자기록지를 사용하지 않는 운영 방식입니다.
+            </p>
           )}
         </div>
 
@@ -630,7 +644,7 @@ export default function MatchesClient() {
       )}
 
       {matches.length === 0 ? (
-        <Card className="py-16 text-center text-[var(--color-text-muted)]">
+        <div className="ct-emptybox py-16 text-center text-[var(--ink-mute)]">
           <div className="mb-3 flex justify-center">
             <Icon name="calendar-plus" size={36} />
           </div>
@@ -643,11 +657,11 @@ export default function MatchesClient() {
             </span>
             {" "}있습니다. 대진표를 생성하세요.
           </p>
-        </Card>
+        </div>
       ) : filteredMatches.length === 0 ? (
-        <Card className="py-12 text-center text-[var(--color-text-muted)]">
+        <div className="ct-emptybox py-12 text-center text-[var(--ink-mute)]">
           <p className="text-sm">선택한 종별({divisionFilter})에 매치가 없습니다.</p>
-        </Card>
+        </div>
       ) : (
         <div className="space-y-6">
           {rounds.map((roundKey) => {

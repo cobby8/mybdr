@@ -13,6 +13,7 @@ import { assertRecordingMode } from "@/lib/tournaments/recording-mode";
 //   Flutter app 이 /sync 미호출로 homeScore/awayScore=0 으로 남는 케이스 (매치 #132 패턴) 자동 박제.
 //   응답 schema 변경 ❌ / Flutter app 영향 0 — 백엔드 내부 안전망.
 import { applyScoreSafetyNet } from "@/lib/services/match-score-recompute";
+import { normalizeMatchStatusForApi } from "@/lib/constants/match-status";
 
 const statusSchema = z.object({
   // 2026-06-21: 태블릿 구버전 앱이 보내는 'live'를 enum 통과시키기 위해 추가.
@@ -46,7 +47,7 @@ export async function PATCH(
 
     // 태블릿 구버전 앱이 보내는 'live'는 내부 표준값 'in_progress'로 정규화
     // (새 DB 상태값 도입 없이 scheduled->in_progress 기존 허용 경로로 흡수)
-    const status = parsed.data.status === "live" ? "in_progress" : parsed.data.status;
+    const status = normalizeMatchStatusForApi(parsed.data.status);
 
     const match = await getMatchScore(matchId);
     if (!match) return apiError("경기를 찾을 수 없습니다.", 404);
@@ -66,7 +67,7 @@ export async function PATCH(
       if (modeGuard) return modeGuard;
     }
 
-    const current = match.status ?? "scheduled";
+    const current = normalizeMatchStatusForApi(match.status);
     const allowed = RECORDER_TRANSITIONS[current] ?? [];
     if (!allowed.includes(status)) {
       return apiError(`'${current}' 상태에서 '${status}'로 변경할 수 없습니다.`, 400);

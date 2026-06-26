@@ -10,6 +10,11 @@ import { getDisplayName } from "@/lib/utils/player-display-name";
 import { getDivisionStandings, type DivisionStanding } from "@/lib/tournaments/division-advancement";
 // 비공개 대회 노출 차단 가드 (SSR page.tsx와 동일 정책 — insider 외 404).
 import { blockIfPrivateTournament } from "@/lib/auth/private-tournament-guard";
+import {
+  isLiveMatchStatus,
+  isOfficialMatchStatus,
+  normalizeMatchStatusForApi,
+} from "@/lib/constants/match-status";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -177,7 +182,7 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
   }
 
   // 2026-05-02: live + in_progress 둘 다 라이브로 인식 (Flutter app 은 'live' 사용)
-  const liveMatchList = publicMatches.filter((m) => m.status === "live" || m.status === "in_progress");
+  const liveMatchList = publicMatches.filter((m) => isLiveMatchStatus(m.status));
   const liveMatchCount = liveMatchList.length;
   // LIVE 카드 클릭 → /live/[id] 이동용 — 첫 라이브 매치 정보 (단일 매치만)
   // 응답 가벼움 위해 첫 매치만 포함. 여러 라이브 시 클라이언트는 count 만 활용.
@@ -224,7 +229,7 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
 
   for (const m of publicMatches) {
     if (!m.homeTeamId || !m.awayTeamId) continue;
-    if (m.status !== "completed" && m.status !== "live") continue;
+    if (!isOfficialMatchStatus(m.status)) continue;
     const hid = m.homeTeamId.toString();
     const aid = m.awayTeamId.toString();
 
@@ -245,7 +250,7 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
     if (teamStats[hid]) { teamStats[hid].pointsFor += hs; teamStats[hid].pointsAgainst += as_; }
     if (teamStats[aid]) { teamStats[aid].pointsFor += as_; teamStats[aid].pointsAgainst += hs; }
 
-    if (m.status === "completed" || m.status === "live") {
+    if (isOfficialMatchStatus(m.status)) {
       if (hs > as_) {
         if (teamStats[hid]) teamStats[hid].wins++;
         if (teamStats[aid]) teamStats[aid].losses++;
@@ -495,7 +500,7 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
             awayTeamName: m.awayTeam?.team?.name ?? null,
             homeScore: m.homeScore,
             awayScore: m.awayScore,
-            status: m.status,
+            status: normalizeMatchStatusForApi(m.status),
             scheduledAt: m.scheduledAt?.toISOString() ?? null,
             courtNumber: m.court_number,
             roundName: m.roundName,

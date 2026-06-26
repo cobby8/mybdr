@@ -15,13 +15,14 @@
  */
 import { prisma } from "@/lib/db/prisma";
 import type { LiveChipItem } from "@/components/bdr-v2/live-chip-row";
+import { LIVE_MATCH_STATUSES } from "@/lib/constants/match-status";
 
 /* -- BG7: 진행 중 라이브 매치(대회 경기) 조회 → LiveChipItem[] 매핑 --
  * take: 8 — Hero/페이지 상단 띠라 과다 노출 방지 (5건+ 가로 스크롤). started_at desc = 최근 시작 우선.
  * (PR-2C-1 홈 page.tsx 의 로컬 prefetchLiveChips() 와 동일 로직 — 그대로 이전) */
 export async function getLiveChips(): Promise<LiveChipItem[]> {
   const matches = await prisma.tournamentMatch.findMany({
-    where: { status: { in: ["live", "in_progress"] } },
+    where: { status: { in: [...LIVE_MATCH_STATUSES] } },
     orderBy: { started_at: "desc" },
     take: 8,
     include: {

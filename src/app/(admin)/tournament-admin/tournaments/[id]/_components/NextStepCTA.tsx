@@ -7,8 +7,8 @@
  *   - 페이지 footer 단일 카드 CTA 박제로 자연스러운 흐름 회복.
  *   - matches → null = PR-Admin-2 단일 순위전 trigger 로 흡수 (별 CTA 없음).
  *
- * 디자인 룰 (BDR 13):
- *   - var(--color-info) Navy 톤 / rounded-[4px] / lucide "arrow-right" (Track B-c)
+ * 디자인 룰 (admin Toss):
+ *   - Toss ts-card wrapper / var(--color-info) Navy 톤 / lucide "arrow-right" (Track B-c)
  *   - 모바일 full-width / PC 우측 정렬 / 44px+ 터치 영역
  *
  * 사용:
@@ -21,7 +21,6 @@
 "use client";
 
 import Link from "next/link";
-import { Card } from "@/components/ui/card";
 // Track B-c Toss 리스킨 — Material Symbols → lucide-react 키트(<Icon>)
 import { Icon } from "@/components/admin-toss";
 
@@ -65,7 +64,7 @@ export function NextStepCTA({
   // 비활성 (선행 단계 미완성) — 회색 톤 + 안내 메시지
   if (disabled) {
     return (
-      <Card className="mt-6 bg-[var(--color-elevated)]">
+      <section data-skin="toss" className="ts-card mt-6 bg-[var(--color-elevated)]">
         <div className="flex flex-col items-stretch gap-2 sm:flex-row sm:items-center sm:justify-end">
           <button
             type="button"
@@ -87,13 +86,13 @@ export function NextStepCTA({
             </p>
           )}
         </div>
-      </Card>
+      </section>
     );
   }
 
   // 활성 — BDR Navy (var(--color-info)) 톤 / arrow_forward 아이콘
   return (
-    <Card className="mt-6">
+    <section data-skin="toss" className="ts-card mt-6">
       <div className="flex flex-col items-stretch gap-2 sm:flex-row sm:items-center sm:justify-end">
         <Link
           href={href}
@@ -109,6 +108,6 @@ export function NextStepCTA({
           <Icon name="arrow-right" size={18} className="align-middle" />
         </Link>
       </div>
-    </Card>
+    </section>
   );
 }

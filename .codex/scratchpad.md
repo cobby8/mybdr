@@ -1,7 +1,7 @@
 # Scratchpad
 
 ## Current Work
-- 2026-06-26 live box score: fix primary button contrast token.
+- 2026-06-26 merge: admin Toss implementation + live/theme remote updates are being integrated to main.
 
 ## Progress
 | Area | Status | Note |
@@ -13,10 +13,15 @@
 | Admin game rules | Done | `game_time`/`game_method` now derive from canonical `game_rules` instead of free text. |
 | Recording modes | Done | Match-level `manual` is counted, displayed, and blocked from Flutter/score-sheet system inputs. |
 | Verification | Done | Targeted Vitest suite and `cmd /c npx tsc --noEmit` passed. |
+| Admin Toss handoff | Done | `BDR-current/_handoff-admin-toss-v2.41/` added; src unchanged. |
+| Tournament admin implementation | In Progress | Matches score modal now exposes the existing manual recording mode. |
 
 ## Work Log
+- 2026-06-26: Converted all remaining tournament-admin `Card/Button` wrappers in target panels/components to Toss `ts-*` wrappers; TypeScript passed.
 - 2026-06-26: Defined `--color-on-primary` to fix black text/icons on red primary buttons.
 - 2026-06-26: Added live box score `기본/고급` toggle, advanced stats, and one help popover per team table.
+- 2026-06-26: Updated setup progress and match edit modal to treat `manual` as a real recording mode; targeted Vitest and TypeScript passed.
+- 2026-06-26: Absorbed v2.41 admin Toss reverse-bake handoff into `BDR-current`, preserving B1 QA lock docs; no src changes.
 - 2026-06-26: Restored the tournament creation CTA on the tournament admin list page and verified TypeScript.
 - 2026-06-26: Pushed/merged prior fixes, then aligned tournament admin game-rule display and match-level manual recording-mode guards.
 - 2026-06-26: Added tournament division inline rename/delete controls and separated record-app time presets from clock mode.
