@@ -1,5 +1,6 @@
 # Knowledge Index
 
+- 2026-06-26 admin: tournament workspace detail header and site panel remaining visible legacy buttons now use v2.41 `ts-btn` classes.
 - 2026-06-26 admin: v2.41 Toss package KPI rows use `ad-kpi-*` classes; browser QA needs DB pooler connectivity.
 - 2026-06-26 admin: shared DataTable wrappers use v2.41 `ad-tablescroll`/`ad-table` classes.
 - 2026-06-26 admin: shared PageHead/Toolbar use v2.41 `ts-ph` and `ad-toolbar` structures.
@@ -21,6 +22,7 @@ Updated: 2026-06-26
 | lessons.md | 0 | - |
 
 Recent work:
+- 2026-06-26 admin: tournament workspace detail header and site panel remaining visible legacy buttons were normalized to v2.41 Toss `ts-btn`.
 - 2026-06-26 admin: tournament detail auxiliary pages were cleaned of legacy `.btn`/Material Symbols header actions and aligned to Toss PageHead/buttons.
 - 2026-06-26 admin: `/admin/tournaments` top area now follows v2.41 Toss PageHead + ad-toolbar + KPI flow while preserving server search and pagination.
 - 2026-06-26 admin: shared PageHead and Toolbar were aligned with v2.41 `ts-ph`/`ad-toolbar` package structure.

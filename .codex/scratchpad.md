@@ -14,6 +14,7 @@
 | Admin Toss sweep | In Progress | v2.41 package reviewed; shared KPI, DataTable, PageHead, and Toolbar blocks now use package structures. |
 
 ## Work Log
+- 2026-06-26: Removed remaining tournament workspace legacy button classes in site panel/detail header; TypeScript and residue scans passed.
 - 2026-06-26: Aligned tournament detail, organizer management, and audit log pages with v2.41 Toss buttons/PageHead; TypeScript and residue scans passed.
 - 2026-06-26: Rebuilt `/admin/tournaments` top area with v2.41 PageHead, ad-toolbar search, and clean KPI copy; TypeScript and diff checks passed.
 - 2026-06-26: Converted shared admin PageHead/Toolbar to v2.41 `ts-ph` and `ad-toolbar` structures; TypeScript and diff checks passed.
@@ -23,4 +24,3 @@
 - 2026-06-26: Replaced remaining tournament-admin rgba overlays/shadows with `color-mix` tokens; TypeScript and residue scans passed.
 - 2026-06-26: Converted site and teams panels to Toss buttons and tokenized site selection shadow; TypeScript passed.
 - 2026-06-26: Converted tournament creation wizard navigation and CTA buttons to Toss `ts-btn`; TypeScript passed.
-- 2026-06-26: Converted small tournament-admin CTA buttons and series error backgrounds to Toss tokens; TypeScript passed.

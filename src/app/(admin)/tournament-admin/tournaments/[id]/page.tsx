@@ -273,24 +273,14 @@ export default async function TournamentAdminDetailPage({
                 href={siteUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex min-h-[44px] items-center gap-1.5 rounded-[4px] border px-3 py-2 text-sm font-semibold"
-                style={{
-                  borderColor: "var(--color-border)",
-                  color: "var(--color-text-primary)",
-                  backgroundColor: "var(--color-card)",
-                }}
+                className="ts-btn ts-btn--secondary"
               >
                 사이트로
               </a>
             )}
             <Link
               href="/tournament-admin/tournaments"
-              className="inline-flex min-h-[44px] items-center gap-1.5 rounded-[4px] border px-3 py-2 text-sm font-semibold"
-              style={{
-                borderColor: "var(--color-border)",
-                color: "var(--color-text-primary)",
-                backgroundColor: "var(--color-card)",
-              }}
+              className="ts-btn ts-btn--secondary"
             >
               목록으로
             </Link>
