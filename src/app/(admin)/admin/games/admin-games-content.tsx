@@ -184,13 +184,13 @@ export function AdminGamesContent({ games, updateStatusAction, pagination }: Pro
         r.pendingCount > 0 ? (
           <span
             className="inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs font-bold"
-            style={{ background: "var(--primary-weak)", color: "var(--primary)" }}
+            style={{ background: "var(--color-accent-weak)", color: "var(--color-accent)" }}
           >
             <Icon name="user-plus" size={14} />
             {r.pendingCount}
           </span>
         ) : (
-          <span style={{ color: "var(--ink-mute)" }}>—</span>
+          <span style={{ color: "var(--color-text-muted)" }}>—</span>
         ),
     },
     {
@@ -199,7 +199,7 @@ export function AdminGamesContent({ games, updateStatusAction, pagination }: Pro
       width: "110px",
       hideSm: true,
       render: (r) => (
-        <span style={{ color: "var(--ink-mute)" }}>{fmtDate(r.scheduledAt)}</span>
+        <span style={{ color: "var(--color-text-muted)" }}>{fmtDate(r.scheduledAt)}</span>
       ),
     },
     {
@@ -217,15 +217,15 @@ export function AdminGamesContent({ games, updateStatusAction, pagination }: Pro
       {totalPending > 0 && (
         <div
           className="mb-3 flex items-center justify-between gap-3 rounded-md px-4 py-3"
-          style={{ background: "var(--primary-weak)", border: "1px solid var(--border)" }}
+          style={{ background: "var(--color-accent-weak)", border: "1px solid var(--color-border)" }}
         >
           <div className="flex items-center gap-3">
-            <Icon name="bell-ring" size={24} color="var(--primary)" />
+            <Icon name="bell-ring" size={24} color="var(--color-accent)" />
             <div>
-              <p className="text-sm font-bold" style={{ color: "var(--ink)" }}>
+              <p className="text-sm font-bold" style={{ color: "var(--color-text-primary)" }}>
                 신청 대기 {totalPending}건 — 호스트 승인 필요
               </p>
-              <p className="text-xs" style={{ color: "var(--ink-mute)" }}>
+              <p className="text-xs" style={{ color: "var(--color-text-muted)" }}>
                 현재 페이지 기준 / 행 클릭 시 경기별 신청 현황 확인
               </p>
             </div>
@@ -238,11 +238,11 @@ export function AdminGamesContent({ games, updateStatusAction, pagination }: Pro
 
       {/* 페이지 크기 선택(기존 동작 보존) */}
       <div className="mb-2 flex items-center justify-between">
-        <span className="text-sm" style={{ color: "var(--ink-mute)" }}>
+        <span className="text-sm" style={{ color: "var(--color-text-muted)" }}>
           {totalCount > 0 ? `${rangeStart}–${rangeEnd} / ${totalCount}개` : "0개"}
         </span>
         <div className="flex items-center gap-1">
-          <span className="text-xs" style={{ color: "var(--ink-mute)" }}>페이지당</span>
+          <span className="text-xs" style={{ color: "var(--color-text-muted)" }}>페이지당</span>
           {PAGE_SIZE_OPTIONS.map((size) => (
             <Btn
               key={size}
@@ -283,7 +283,7 @@ export function AdminGamesContent({ games, updateStatusAction, pagination }: Pro
             <div className="flex w-full items-center gap-2">
               <Link
                 href={`/admin/games/${selected.id}`}
-                className="btn btn--sm flex-1 justify-center"
+                className="ts-btn ts-btn--secondary ts-btn--sm flex-1 justify-center"
               >
                 상세 페이지 열기
               </Link>
@@ -333,13 +333,13 @@ export function AdminGamesContent({ games, updateStatusAction, pagination }: Pro
             <div className="mt-4">
               <p
                 className="mb-1.5 flex items-center gap-1.5 text-[11px] font-black uppercase tracking-widest pr-1"
-                style={{ color: "var(--ink-mute)" }}
+                style={{ color: "var(--color-text-muted)" }}
               >
                 신청 현황
                 {selected.pendingCount > 0 && (
                   <span
                     className="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-bold normal-case tracking-normal"
-                    style={{ background: "var(--primary-weak)", color: "var(--primary)" }}
+                    style={{ background: "var(--color-accent-weak)", color: "var(--color-accent)" }}
                   >
                     대기 {selected.pendingCount}
                   </span>
@@ -348,29 +348,29 @@ export function AdminGamesContent({ games, updateStatusAction, pagination }: Pro
               {selected.applications.length === 0 ? (
                 <div
                   className="rounded-md border px-4 py-3 text-sm"
-                  style={{ borderColor: "var(--border)", color: "var(--ink-mute)" }}
+                  style={{ borderColor: "var(--color-border)", color: "var(--color-text-muted)" }}
                 >
                   신청 내역이 없습니다.
                 </div>
               ) : (
-                <div className="overflow-hidden rounded-md border" style={{ borderColor: "var(--border)" }}>
+                <div className="overflow-hidden rounded-md border" style={{ borderColor: "var(--color-border)" }}>
                   {selected.applications.map((a, i) => (
                     <div
                       key={a.id}
                       className="flex items-center gap-2 px-4 py-2"
-                      style={i > 0 ? { borderTop: "1px solid var(--border)" } : undefined}
+                      style={i > 0 ? { borderTop: "1px solid var(--color-border)" } : undefined}
                     >
-                      <Icon name={a.isGuest ? "user-plus" : "user"} size={18} color="var(--ink-mute)" />
+                      <Icon name={a.isGuest ? "user-plus" : "user"} size={18} color="var(--color-text-muted)" />
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-medium" style={{ color: "var(--ink)" }}>
+                        <p className="truncate text-sm font-medium" style={{ color: "var(--color-text-primary)" }}>
                           {a.applicantName}
                           {a.isGuest && (
-                            <span className="ml-1.5 text-[10px] font-normal" style={{ color: "var(--ink-mute)" }}>
+                            <span className="ml-1.5 text-[10px] font-normal" style={{ color: "var(--color-text-muted)" }}>
                               게스트
                             </span>
                           )}
                         </p>
-                        <p className="text-[11px]" style={{ color: "var(--ink-mute)" }}>
+                        <p className="text-[11px]" style={{ color: "var(--color-text-muted)" }}>
                           신청 {fmtDateTime(a.createdAt)}
                           {a.status === 1 && a.approvedAt && ` · 승인 ${fmtDateTime(a.approvedAt)}`}
                           {a.status === 2 && a.rejectedAt && ` · 거절 ${fmtDateTime(a.rejectedAt)}`}
@@ -392,7 +392,7 @@ export function AdminGamesContent({ games, updateStatusAction, pagination }: Pro
                 </div>
               )}
               {/* 승인/거절은 호스트 권한 — admin 화면은 조회 전용 */}
-              <p className="mt-1.5 text-[11px]" style={{ color: "var(--ink-mute)" }}>
+              <p className="mt-1.5 text-[11px]" style={{ color: "var(--color-text-muted)" }}>
                 신청 승인·거절은 경기 호스트가 처리합니다 (조회 전용).
               </p>
             </div>
