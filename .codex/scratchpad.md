@@ -1,11 +1,12 @@
 # Scratchpad
 
 ## Current Work
-- 2026-06-26 live box score: add basic/advanced stats toggle and advanced-stat help.
+- 2026-06-26 live box score: fix primary button contrast token.
 
 ## Progress
 | Area | Status | Note |
 |---|---|---|
+| Theme tokens | Done | Added `--color-on-primary` so red primary buttons render white text/icons. |
 | Live box score | Done | Per-team `기본/고급` toggle added beside team name; help icon added at each table header. |
 | Verification | Partial | Target TSX transpile and `git diff --check` passed; full `tsc` is blocked by stale `.next` validator route refs. |
 | Push/main merge | Done | Existing dev work and bdr_stat_v3 fix were pushed; mybdr dev was merged to main. |
@@ -14,6 +15,7 @@
 | Verification | Done | Targeted Vitest suite and `cmd /c npx tsc --noEmit` passed. |
 
 ## Work Log
+- 2026-06-26: Defined `--color-on-primary` to fix black text/icons on red primary buttons.
 - 2026-06-26: Added live box score `기본/고급` toggle, advanced stats, and one help popover per team table.
 - 2026-06-26: Restored the tournament creation CTA on the tournament admin list page and verified TypeScript.
 - 2026-06-26: Pushed/merged prior fixes, then aligned tournament admin game-rule display and match-level manual recording-mode guards.
