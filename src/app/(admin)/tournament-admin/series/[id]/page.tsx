@@ -1,8 +1,6 @@
 import { prisma } from "@/lib/db/prisma";
 import { getWebSession } from "@/lib/auth/web-session";
 import { redirect, notFound } from "next/navigation";
-import { Badge } from "@/components/ui/badge";
-import { Card } from "@/components/ui/card";
 import Link from "next/link";
 import { CopyLinkButton } from "./_components/copy-link-button";
 import { DeleteSeriesButton } from "./_components/delete-series-button";
@@ -188,10 +186,10 @@ export default async function SeriesDashboardPage({
           {series.tournaments.map((t) => {
             const info = STATUS_INFO[t.status ?? "draft"] ?? { label: t.status, variant: "default" as const };
             const location = [t.city, t.venue_name].filter(Boolean).join(" ");
-            // 2026-05-12 — Link>Card cascade + 회차 번호 원형 빨강 → info(Navy) 톤다운
+            // 2026-06-26 — Link + ts-card cascade 방지 + 회차 번호 info(Navy) 톤 유지
             return (
               <Link key={t.id} href={`/tournament-admin/tournaments/${t.id}`} className="block text-[var(--color-text-primary)]">
-                <Card className="flex items-center justify-between hover:bg-[var(--color-elevated)] transition-colors cursor-pointer">
+                <div className="ts-card flex cursor-pointer items-center justify-between transition-colors hover:bg-[var(--color-elevated)]">
                   <div className="flex items-center gap-3">
                     <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-[var(--color-info)] text-sm font-bold text-white">
                       {t.edition_number}
@@ -207,15 +205,17 @@ export default async function SeriesDashboardPage({
                       </p>
                     </div>
                   </div>
-                  <Badge variant={info.variant}>{info.label}</Badge>
-                </Card>
+                  <span className="rounded-[8px] bg-[var(--color-elevated)] px-2 py-0.5 text-xs font-medium text-[var(--color-text-secondary)]">
+                    {info.label}
+                  </span>
+                </div>
               </Link>
             );
           })}
         </div>
       ) : (
-        <Card className="py-12 text-center text-[var(--color-text-muted)]">
-          <div className="mb-3 text-3xl">🏆</div>
+        <div className="ct-emptybox py-12 text-center text-[var(--ink-mute)]">
+          <div className="mb-3 text-lg font-semibold">회차 없음</div>
           <p className="mb-4 text-sm">아직 회차가 없습니다.</p>
           {/* 2026-05-12 — pill 9999px ❌ + admin 빨강 본문 금지 룰 (CLAUDE.md §디자인 13 룰 §10/§11):
               `rounded-full bg-[var(--color-accent)]` (빨강 pill) → `btn btn--primary` 표준 클래스.
@@ -226,7 +226,7 @@ export default async function SeriesDashboardPage({
           >
             첫 번째 회차 추가하기
           </Link>
-        </Card>
+        </div>
       )}
 
       {/* 모바일 하단 고정 버튼 */}
