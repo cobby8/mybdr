@@ -76,16 +76,6 @@ const STATUS_LABEL: Record<string, string> = {
   bye: "부전승",
 };
 
-// 경기 상태별 텍스트 색상 - semantic CSS 변수 사용
-const STATUS_COLOR: Record<string, string> = {
-  pending: "text-[var(--color-text-muted)]",
-  scheduled: "text-[var(--color-info)]",
-  in_progress: "text-[var(--color-warning)]",
-  completed: "text-[var(--color-success)]",
-  cancelled: "text-[var(--color-error)]",
-  bye: "text-[var(--color-text-muted)]",
-};
-
 const RECORDING_MODE_LABEL: Record<RecordingMode, string> = {
   flutter: "기록앱",
   paper: "전자기록지",
@@ -244,13 +234,11 @@ function ScoreModal({
   return (
     <div
       data-skin="toss"
-      className="fixed inset-0 z-50 flex items-center justify-center p-3 no-print sm:p-4"
-      style={{ background: "color-mix(in srgb, #000 45%, transparent)" }}
+      className="amt-modal-overlay no-print"
       onClick={onClose}
     >
       <div
-        className="relative max-h-[calc(100vh-32px)] w-full max-w-2xl overflow-y-auto rounded-[24px] border bg-[var(--card)] p-4 shadow-[var(--sh-lg)] sm:p-6"
-        style={{ borderColor: "var(--border)" }}
+        className="amt-modal"
         onClick={(e) => e.stopPropagation()}
       >
         <button type="button" onClick={onClose} className="ct-iconbtn absolute right-3 top-3" aria-label="닫기">
@@ -261,9 +249,8 @@ function ScoreModal({
         </h3>
         <p className="mb-4 text-sm text-[var(--ink-mute)]">{formatMatchTeams(match)}</p>
 
-        {/* [2026-04-22] 하드코딩 색상 → --color-* 토큰화 */}
         {error && (
-          <p className="mb-3 text-sm" style={{ color: "var(--color-error)" }}>
+          <p className="amt-error">
             {error}
           </p>
         )}
@@ -307,7 +294,7 @@ function ScoreModal({
             onChange={(e) => setHomeScore(Number(e.target.value))}
             className="ts-input text-center text-xl font-bold sm:text-2xl"
           />
-          <div className="text-center text-sm text-[var(--color-text-muted)]">:</div>
+          <div className="amt-score-sep">:</div>
           <input
             type="number"
             min={0}
@@ -393,7 +380,7 @@ function ScoreModal({
           </select>
           {recordingMode === "paper" && (
             <>
-              <p className="mt-1 text-xs" style={{ color: "var(--color-warning)" }}>
+              <p className="amt-hint" data-tone="warn">
                 전자기록지 사용 중에는 기록앱 점수 입력이 차단됩니다.
               </p>
               {/* 2026-05-11: Phase 1-B-2 — paper 모드 매치는 종이 기록지 입력 페이지로 이동 */}
@@ -410,7 +397,7 @@ function ScoreModal({
             </>
           )}
           {recordingMode === "manual" && (
-            <p className="mt-1 text-xs text-[var(--ink-mute)]">
+            <p className="amt-hint">
               수기 모드는 BDR 기록앱과 전자기록지를 사용하지 않는 운영 방식입니다.
             </p>
           )}
@@ -420,8 +407,6 @@ function ScoreModal({
           <button type="button" onClick={onClose} className="ts-btn ts-btn--secondary ts-btn--block sm:flex-1">
             취소
           </button>
-          {/* [2026-04-22] 하드코딩 색상 → --color-* 토큰화 (Tailwind arbitrary + color-mix, hover 10→20%) */}
-          {/* 2026-05-12 — pill 9999px ❌ → rounded-[4px]. 위험 액션 = error 톤 보존 */}
           <button
             onClick={del}
             className="ts-btn ts-btn--danger sm:flex-1"
@@ -523,7 +508,7 @@ export default function MatchesClient() {
       );
 
   if (loading)
-    return <div className="flex h-40 items-center justify-center text-[var(--color-text-muted)]">불러오는 중...</div>;
+    return <div data-skin="toss" className="amt-loading">불러오는 중...</div>;
 
   return (
     <div data-skin="toss" className="space-y-4">
@@ -565,15 +550,8 @@ export default function MatchesClient() {
         </div>
       </div>
 
-      {/* [2026-04-22] 하드코딩 색상 → --color-* 토큰화 */}
       {error && (
-        <div
-          className="mb-4 rounded-[12px] px-4 py-3 text-sm"
-          style={{
-            backgroundColor: "color-mix(in srgb, var(--color-error) 10%, transparent)",
-            color: "var(--color-error)",
-          }}
-        >
+        <div className="amt-errorbox">
           {error}
         </div>
       )}
@@ -586,7 +564,7 @@ export default function MatchesClient() {
       {/* 2026-05-12 — 종별 필터 (강남구협회장배 다중 종별 운영). 종별 2개 이상일 때만 표시. */}
       {hasDivisions && (
         <div className="mb-4 flex flex-wrap items-center gap-2">
-          <span className="text-xs text-[var(--color-text-muted)]">종별:</span>
+          <span className="amt-filter-label">종별:</span>
           <button
             type="button"
             onClick={() => setDivisionFilter(null)}
@@ -615,7 +593,7 @@ export default function MatchesClient() {
       {/* 2026-05-15 — 체육관 필터 (PR-G2 / 강남구협회장배 2 체육관). venue 2개 이상일 때만 표시. */}
       {hasVenues && (
         <div className="mb-4 flex flex-wrap items-center gap-2">
-          <span className="text-xs text-[var(--color-text-muted)]">체육관:</span>
+          <span className="amt-filter-label">체육관:</span>
           <button
             type="button"
             onClick={() => setVenueFilter(null)}
@@ -652,7 +630,7 @@ export default function MatchesClient() {
           <p className="text-sm">
             승인된 팀이{" "}
             {/* 본문 정보 강조 = text-primary + font-semibold (빨강 본문 금지) */}
-            <span className="text-[var(--color-text-primary)] font-semibold">
+            <span className="amt-count-strong">
               {teams.filter((t) => t.status === "approved").length}팀
             </span>
             {" "}있습니다. 대진표를 생성하세요.
@@ -675,7 +653,7 @@ export default function MatchesClient() {
 
             return (
               <div key={String(roundKey ?? "none")}>
-                <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
+                <h2 className="ta-panel-title">
                   {roundLabel}
                 </h2>
                 <div className="space-y-2 md:hidden">
@@ -684,25 +662,24 @@ export default function MatchesClient() {
                       key={match.id}
                       type="button"
                       onClick={() => setSelectedMatch(match)}
-                      className="w-full rounded-[16px] border bg-[var(--card)] p-4 text-left shadow-[var(--sh-sm)]"
-                      style={{ borderColor: "var(--border)" }}
+                      className="amt-mobile-card"
                     >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <p className="font-bold text-[var(--ink)]">{formatMatchTeams(match)}</p>
-                          <p className="mt-1 text-xs text-[var(--ink-mute)]">
+                      <div className="amt-mobile-card__head">
+                        <div className="amt-mobile-card__main">
+                          <p className="amt-mobile-card__teams">{formatMatchTeams(match)}</p>
+                          <p className="amt-mobile-card__meta">
                             {formatMatchDate(match.scheduledAt)} · {match.venue_name ?? "코트 미정"} · {getMatchDivision(match) ?? "종별 미정"}
                           </p>
                         </div>
-                        <span className={`shrink-0 text-xs font-semibold ${STATUS_COLOR[match.status] ?? "text-[var(--color-text-muted)]"}`}>
+                        <span className="amt-status" data-status={match.status}>
                           {STATUS_LABEL[match.status] ?? match.status}
                         </span>
                       </div>
-                      <div className="mt-3 flex items-center justify-between">
-                        <span className="font-mono text-lg font-black text-[var(--ink)]">
+                      <div className="amt-mobile-card__foot">
+                        <span className="amt-mobile-card__score">
                           {match.homeScore} : {match.awayScore}
                         </span>
-                        <span className="text-xs font-semibold text-[var(--ink-mute)]">
+                        <span className="amt-mobile-card__no">
                           #{match.match_number ?? "-"}
                         </span>
                       </div>
@@ -753,11 +730,11 @@ export default function MatchesClient() {
                             </td>
                             <td>
                               <span className="amt-table__teams">
-                                <b className={match.winner_team_id === match.homeTeamId && match.homeTeamId ? "text-[var(--color-success)]" : ""}>
+                                <b className="amt-team" data-winner={match.winner_team_id === match.homeTeamId && match.homeTeamId ? "true" : "false"}>
                                   {match.homeTeam?.team.name ?? "미정"}
                                 </b>
                                 <span className="vs">대</span>
-                                <b className={match.winner_team_id === match.awayTeamId && match.awayTeamId ? "text-[var(--color-success)]" : ""}>
+                                <b className="amt-team" data-winner={match.winner_team_id === match.awayTeamId && match.awayTeamId ? "true" : "false"}>
                                   {match.awayTeam?.team.name ?? "미정"}
                                 </b>
                               </span>
@@ -768,7 +745,7 @@ export default function MatchesClient() {
                               </span>
                             </td>
                             <td>
-                              <span className={`text-xs font-semibold ${STATUS_COLOR[match.status] ?? "text-[var(--color-text-muted)]"}`}>
+                              <span className="amt-status" data-status={match.status}>
                                 {STATUS_LABEL[match.status] ?? match.status}
                               </span>
                             </td>

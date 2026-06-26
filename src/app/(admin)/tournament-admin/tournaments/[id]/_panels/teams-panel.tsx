@@ -77,13 +77,6 @@ const STATUS_LABEL: Record<string, string> = {
   withdrawn: "취소",
 };
 
-const STATUS_COLOR: Record<string, string> = {
-  pending: "text-[var(--color-warning)] bg-[var(--color-warning)]/10",
-  approved: "text-[var(--color-game-team)] bg-[var(--color-game-team)]/10",
-  rejected: "text-[var(--color-error)] bg-[color-mix(in_srgb,var(--color-error)_10%,transparent)]",
-  withdrawn: "text-[var(--color-text-muted)] bg-[var(--color-elevated)]",
-};
-
 /* ---------- 선수 추가 폼 초기값 ---------- */
 const EMPTY_FORM = { player_name: "", phone: "", jersey_number: "", position: "" };
 
@@ -555,7 +548,7 @@ export default function TournamentTeamsPage() {
       <div className="ts-card ts-card--flat mb-4 flex flex-wrap items-center justify-between gap-3">
         <div>
           {/* Phase 2-C 안내 — 코치 토큰 URL 공유 시 비로그인으로 명단 입력 가능 */}
-          <p className="mt-1 text-xs text-[var(--color-text-muted)]">
+          <p className="tt-note">
             코치에게 토큰 URL을 공유하면 비로그인으로 명단 입력 가능합니다.
           </p>
         </div>
@@ -594,18 +587,13 @@ export default function TournamentTeamsPage() {
         <ViaStatCard label="경로 미상" count={viaStats.null} icon="circle-help" />
       </div>
 
-      {/* 통계 탭 — status 분류 + 코치 미입력 (운영자 박제 + 코치 명단 0건)
-          2026-05-12 — 탭 필터 pill 9999px ❌ + admin 빨강 본문 금지 룰 → rounded-[4px] + info(Navy) 활성 톤.
-          count 뱃지 (rounded-full px-1.5 py-0.5) = 작은 정사각형 chip → 보존 (룰 10 예외) */}
+      {/* 통계 탭 — status 분류 + 코치 미입력 (운영자 박제 + 코치 명단 0건) */}
       {divisionRules.length > 0 && (
-        <section
-          className="mb-4 rounded-[18px] border bg-[var(--card)] p-3"
-          style={{ borderColor: "var(--color-border)" }}
-        >
+        <section className="tt-readiness">
           <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div className="min-w-0">
               <h2 className="text-sm font-bold text-[var(--ink)]">종별 배정 현황</h2>
-              <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">
+              <p className="tt-note">
                 승인팀 기준 {readyDivisionCount}/{divisionRules.length}개 종별 대진 준비
               </p>
             </div>
@@ -618,36 +606,18 @@ export default function TournamentTeamsPage() {
           </div>
           <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
             {divisionReadiness.map((item) => (
-              <div
-                key={item.code}
-                className="rounded-[14px] border bg-[var(--grey-50)] p-3"
-                style={{ borderColor: "var(--color-border)" }}
-              >
+              <div key={item.code} className="tt-readiness-card">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <p className="truncate text-sm font-bold text-[var(--ink)]">
                       {item.label}
                     </p>
-                    <p className="mt-1 text-xs text-[var(--color-text-muted)]">
+                    <p className="tt-note">
                       전체 {item.total}팀 · 승인 {item.approved}
                       {item.cap != null ? ` / 정원 ${item.cap}` : ""}
                     </p>
                   </div>
-                  <span
-                    className="rounded-[8px] px-2 py-0.5 text-[10px] font-semibold"
-                    style={{
-                      background: item.overCapacity
-                        ? "color-mix(in srgb, var(--color-error) 14%, transparent)"
-                        : item.ready
-                          ? "color-mix(in srgb, var(--color-success) 14%, transparent)"
-                          : "var(--color-elevated)",
-                      color: item.overCapacity
-                        ? "var(--color-error)"
-                        : item.ready
-                          ? "var(--color-success)"
-                          : "var(--color-text-muted)",
-                    }}
-                  >
+                  <span className="tt-badge" data-tone={item.overCapacity ? "danger" : item.ready ? "ok" : "mute"}>
                     {item.overCapacity ? "정원 초과" : item.ready ? "준비" : "대기"}
                   </span>
                 </div>
@@ -672,15 +642,9 @@ export default function TournamentTeamsPage() {
               </div>
             ))}
             {unassignedApprovedCount > 0 && (
-              <div
-                className="rounded-[14px] border p-3"
-                style={{
-                  borderColor: "var(--color-warning)",
-                  background: "color-mix(in srgb, var(--color-warning) 8%, transparent)",
-                }}
-              >
+              <div className="tt-readiness-card tt-readiness-card--warn">
                 <p className="text-sm font-bold text-[var(--ink)]">종별 미배정</p>
-                <p className="mt-1 text-xs text-[var(--color-text-muted)]">
+                <p className="tt-note">
                   승인팀 {unassignedApprovedCount}팀의 종별을 먼저 지정해야 합니다.
                 </p>
               </div>
@@ -731,20 +695,14 @@ export default function TournamentTeamsPage() {
               {sortedKeys.map((cat) => (
                 <section key={cat}>
                   {/* 종별 헤더 — accent 톤 작은 헤더 */}
-                  <div className="mb-2 flex items-center gap-2 px-1">
-                    <h3
-                      className="text-sm font-bold uppercase tracking-wide"
-                      style={{ color: "var(--color-accent)", letterSpacing: "0.04em" }}
-                    >
+                  <div className="tt-group-head">
+                    <h3 className="tt-group-head__title">
                       {cat}
                     </h3>
-                    <span className="text-xs" style={{ color: "var(--color-text-muted)" }}>
+                    <span className="tt-group-head__count">
                       ({groups[cat].length}팀)
                     </span>
-                    <div
-                      className="flex-1 border-t"
-                      style={{ borderColor: "var(--color-border)" }}
-                    />
+                    <div className="tt-group-head__line" />
                   </div>
                   <div className="space-y-2">
                     {groups[cat].map((tt) => {
@@ -761,8 +719,8 @@ export default function TournamentTeamsPage() {
                 >
                   {/* 팀 색상 아이콘 — 정사각형(W=H) 원형은 룰 10에 따라 9999px 회피 → 50% */}
                   <div
-                    className="h-10 w-10 rounded-[50%]"
-                    style={{ backgroundColor: tt.team.primaryColor ?? "var(--color-primary)" }}
+                    className="tt-team-avatar"
+                    style={{ backgroundColor: tt.team.primaryColor ?? "var(--primary)" }}
                   />
                   <div>
                     {/* 팀명 + 배지 (Phase 3-D 권장 1 — applied_via 배지) */}
@@ -771,18 +729,18 @@ export default function TournamentTeamsPage() {
                       <ViaBadge appliedVia={token?.appliedVia ?? null} />
                       <StatusBadge status={tt.status} />
                       {token?.waitingNumber && (
-                        <span className="rounded-[8px] bg-[var(--color-warning)]/15 px-2 py-0.5 text-xs font-medium text-[var(--color-warning)]">
+                        <span className="tt-badge" data-tone="warn">
                           대기 {token.waitingNumber}번
                         </span>
                       )}
                       {isCoachPending(tt) && (
-                        <span className="rounded-[8px] bg-[var(--color-info)]/15 px-2 py-0.5 text-xs font-medium text-[var(--color-info)]">
+                        <span className="tt-badge" data-tone="info">
                           코치 입력 대기
                         </span>
                       )}
                     </div>
                     {/* 메타 정보 — 선수수 / 신청 시각 (applied_at 우선, fallback createdAt) / 코치 / 신청자 */}
-                    <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">
+                    <p className="tt-team-meta">
                       선수 {tt.players.length}명 &middot;{" "}
                       {token?.appliedAt
                         ? `${new Date(token.appliedAt).toLocaleDateString("ko-KR")} 신청`
@@ -797,7 +755,7 @@ export default function TournamentTeamsPage() {
                   <Icon
                     name={expandedTeamId === tt.id ? "chevron-up" : "chevron-down"}
                     size={18}
-                    color="var(--color-text-muted)"
+                    className="tt-expand-icon"
                   />
                 </div>
 
@@ -823,12 +781,12 @@ export default function TournamentTeamsPage() {
                       {tokenAlive ? "링크 복사" : "만료"}
                     </button>
                   ) : (
-                    <span className="text-xs text-[var(--color-text-muted)]" title="토큰 미발급">—</span>
+                    <span className="tt-muted" title="토큰 미발급">—</span>
                   )}
                   {/* 시드 배정 */}
                   {tt.status === "approved" && (
                     <div className="flex items-center gap-1">
-                      <label className="text-xs text-[var(--color-text-muted)]">시드</label>
+                      <label className="tt-inline-label">시드</label>
                       <input
                         type="number"
                         min={1}
@@ -836,7 +794,7 @@ export default function TournamentTeamsPage() {
                         onBlur={(e) =>
                           updateSeed(tt.id, e.target.value ? Number(e.target.value) : null)
                         }
-                        className="w-16 rounded-[8px] border-none bg-[var(--color-elevated)] px-2 py-1 text-center text-sm text-[var(--color-text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--color-accent)]/50"
+                        className="tt-mini-input"
                         placeholder="-"
                       />
                     </div>
@@ -844,7 +802,7 @@ export default function TournamentTeamsPage() {
 
                   {/* 상태 뱃지 */}
                   {tt.status === "approved" && (
-                    <label className="flex items-center gap-1 text-xs text-[var(--color-text-muted)]">
+                    <label className="tt-inline-label flex items-center gap-1">
                       <span>조</span>
                       <input
                         defaultValue={tt.groupName ?? ""}
@@ -852,15 +810,13 @@ export default function TournamentTeamsPage() {
                           const next = e.target.value.trim().toUpperCase();
                           if (next !== (tt.groupName ?? "")) updateGroup(tt.id, next || null);
                         }}
-                        className="w-12 rounded-[8px] border-none bg-[var(--color-elevated)] px-2 py-1 text-center text-sm text-[var(--color-text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--color-accent)]/50"
+                        className="tt-mini-input tt-mini-input--narrow"
                         placeholder="-"
                       />
                     </label>
                   )}
 
-                  <span className={`rounded-[8px] px-3 py-1 text-xs font-medium ${STATUS_COLOR[tt.status] ?? ""}`}>
-                    {STATUS_LABEL[tt.status] ?? tt.status}
-                  </span>
+                  <StatusBadge status={tt.status} />
 
                   {/* 액션 버튼 */}
                   {tt.status === "pending" && (
@@ -950,14 +906,12 @@ export default function TournamentTeamsPage() {
           <div
             role="dialog"
             aria-modal="true"
-            className="fixed inset-0 z-40 flex items-start justify-center overflow-y-auto p-3 no-print sm:p-4"
-            style={{ background: "color-mix(in srgb, #000 50%, transparent)" }}
+            className="tt-modal-overlay no-print"
             onClick={() => { setExpandedTeamId(null); setPlayers([]); setShowAddForm(false); }}
           >
             <div
               id="team-detail-printable"
-              className="relative my-3 w-full max-w-3xl rounded-[24px] border bg-[var(--card)] p-4 shadow-[var(--sh-lg)] sm:my-4 sm:p-6"
-              style={{ borderColor: "var(--border)" }}
+              className="tt-detail-modal"
               onClick={(e) => e.stopPropagation()}
             >
               {/* 2026-05-12 — 닫기 X 버튼 우상단 절대 위치 (모달 표준 패턴) */}
@@ -981,13 +935,7 @@ export default function TournamentTeamsPage() {
                       <select
                         value={token?.category ?? ""}
                         onChange={(e) => changeCategory(expandedTeam.id, e.target.value)}
-                        className="rounded-[8px] px-2 py-0.5 text-[10px] font-semibold no-print"
-                        style={{
-                          background: "color-mix(in srgb, var(--color-accent) 15%, transparent)",
-                          color: "var(--color-accent)",
-                          letterSpacing: "0.04em",
-                          border: "1px solid color-mix(in srgb, var(--color-accent) 30%, transparent)",
-                        }}
+                        className="tt-category-select no-print"
                         title="종별 변경"
                       >
                         <option value="" disabled>종별 선택</option>
@@ -997,14 +945,7 @@ export default function TournamentTeamsPage() {
                       </select>
                     ) : (
                       token?.category && (
-                        <span
-                          className="rounded-[8px] px-2 py-0.5 text-[10px] font-semibold"
-                          style={{
-                            background: "color-mix(in srgb, var(--color-accent) 15%, transparent)",
-                            color: "var(--color-accent)",
-                            letterSpacing: "0.04em",
-                          }}
-                        >
+                        <span className="tt-category-chip">
                           {token.category}
                         </span>
                       )
@@ -1018,12 +959,7 @@ export default function TournamentTeamsPage() {
                       value={token?.paymentStatus ?? "unpaid"}
                       onChange={(e) => updatePayment(expandedTeam.id, e.target.value)}
                       disabled={actionLoading === expandedTeam.id}
-                      className="no-print rounded-[8px] border px-2 py-0.5 text-[10px] font-semibold"
-                      style={{
-                        borderColor: "var(--color-border)",
-                        background: "var(--color-card)",
-                        color: "var(--color-text-secondary)",
-                      }}
+                      className="tt-select-sm no-print"
                       title="납부 상태 변경 (납부 선택 시 자동 승인)"
                     >
                       <option value="unpaid">미납</option>
@@ -1031,12 +967,12 @@ export default function TournamentTeamsPage() {
                       <option value="refunded">환불</option>
                     </select>
                     {token?.waitingNumber && (
-                      <span className="rounded-[8px] bg-[var(--color-warning)]/15 px-2 py-0.5 text-xs font-medium text-[var(--color-warning)]">
+                      <span className="tt-badge" data-tone="warn">
                         대기 {token.waitingNumber}번
                       </span>
                     )}
                   </div>
-                  <p className="mt-1 text-xs text-[var(--color-text-muted)]">
+                  <p className="tt-team-meta">
                     {token?.appliedAt
                       ? `${new Date(token.appliedAt).toLocaleDateString("ko-KR")} 신청`
                       : `${new Date(expandedTeam.createdAt).toLocaleDateString("ko-KR")} 등록`}
@@ -1048,44 +984,40 @@ export default function TournamentTeamsPage() {
                           value={managerForm.name}
                           onChange={(e) => setManagerForm({ ...managerForm, name: e.target.value })}
                           placeholder="코치 이름"
-                          className="w-24 rounded-[8px] border px-2 py-0.5 text-xs"
-                          style={{ borderColor: "var(--color-border)", background: "var(--color-card)" }}
+                          className="tt-inline-input tt-inline-input--name"
                         />
                         <input
                           type="tel"
                           value={managerForm.phone}
                           onChange={(e) => setManagerForm({ ...managerForm, phone: e.target.value })}
                           placeholder="010-XXXX-XXXX"
-                          className="w-32 rounded-[8px] border px-2 py-0.5 text-xs"
-                          style={{ borderColor: "var(--color-border)", background: "var(--color-card)" }}
+                          className="tt-inline-input tt-inline-input--phone"
                         />
                         <button
                           type="button"
                           onClick={() => saveManager(expandedTeam.id)}
-                          className="rounded-[8px] px-2 py-0.5 text-[10px] font-medium text-white"
-                          style={{ background: "var(--color-success)" }}
+                          className="tt-mini-action"
+                          data-tone="ok"
                         >
                           저장
                         </button>
                         <button
                           type="button"
                           onClick={() => setEditingManager(false)}
-                          className="rounded-[8px] px-2 py-0.5 text-[10px]"
-                          style={{ color: "var(--color-text-muted)" }}
+                          className="tt-mini-action"
                         >
                           취소
                         </button>
                       </span>
                     ) : (
                       <>
-                        {token?.managerName ?? <span style={{ color: "var(--color-text-muted)" }}>(미입력)</span>}
+                        {token?.managerName ?? <span className="tt-muted">(미입력)</span>}
                         {token?.managerPhone && (
                           <>
                             {" ("}
                             <a
                               href={`tel:${token.managerPhone.replace(/[^0-9+]/g, "")}`}
-                              className="underline decoration-dotted underline-offset-2 hover:text-[var(--color-info)]"
-                              style={{ color: "var(--color-info)" }}
+                              className="tt-link"
                               onClick={(e) => e.stopPropagation()}
                             >
                               {token.managerPhone}
@@ -1099,9 +1031,8 @@ export default function TournamentTeamsPage() {
                             setEditingManager(true);
                             setManagerForm({ name: token?.managerName ?? "", phone: token?.managerPhone ?? "" });
                           }}
-                          className="ml-1 inline-flex no-print"
+                          className="tt-icon-link no-print"
                           title="코치 정보 편집"
-                          style={{ color: "var(--color-text-muted)" }}
                         >
                           <Icon name="pencil" size={12} />
                         </button>
@@ -1110,8 +1041,8 @@ export default function TournamentTeamsPage() {
                     {token?.registeredBy?.nickname && <> · 신청자 {token.registeredBy.nickname}</>}
                   </p>
                   {/* 조 · 시드 변경 — Phase 3-F 옵션 A 후속: 시드 input 추가 */}
-                  <div className="mt-1 flex flex-wrap items-center gap-3 text-xs text-[var(--color-text-muted)]">
-                    <label className="flex items-center gap-1 no-print">
+                  <div className="tt-meta-row">
+                    <label className="tt-inline-label flex items-center gap-1 no-print">
                       <span>조</span>
                       <input
                         defaultValue={expandedTeam.groupName ?? ""}
@@ -1121,16 +1052,11 @@ export default function TournamentTeamsPage() {
                             updateGroup(expandedTeam.id, next || null);
                           }
                         }}
-                        className="w-12 rounded-[8px] border px-2 py-0.5 text-center text-xs focus:outline-none focus:ring-1"
-                        style={{
-                          borderColor: "var(--color-border)",
-                          background: "var(--color-card)",
-                          color: "var(--color-text-primary)",
-                        }}
+                        className="tt-mini-input tt-mini-input--narrow"
                         placeholder="-"
                       />
                     </label>
-                    <label className="flex items-center gap-1 no-print">
+                    <label className="tt-inline-label flex items-center gap-1 no-print">
                       <span>시드</span>
                       <input
                         type="number"
@@ -1141,17 +1067,12 @@ export default function TournamentTeamsPage() {
                           const v = e.target.value ? Number(e.target.value) : null;
                           if (v !== (expandedTeam.seedNumber ?? null)) updateSeed(expandedTeam.id, v);
                         }}
-                        className="w-14 rounded-[8px] border px-2 py-0.5 text-xs focus:outline-none focus:ring-1"
-                        style={{
-                          borderColor: "var(--color-border)",
-                          background: "var(--color-card)",
-                          color: "var(--color-text-primary)",
-                        }}
+                        className="tt-mini-input"
                       />
                     </label>
                   </div>
                   {/* 5. 토큰 만료일 + 마지막 갱신 시각 + Phase 4-B 재발급 버튼 */}
-                  <div className="mt-0.5 flex flex-wrap items-center gap-3 text-[10px]" style={{ color: "var(--color-text-muted)" }}>
+                  <div className="tt-meta-row tt-meta-row--small">
                     {token?.applyTokenExpiresAt && (
                       <span>
                         토큰 만료: {new Date(token.applyTokenExpiresAt).toLocaleDateString("ko-KR")}
@@ -1160,8 +1081,7 @@ export default function TournamentTeamsPage() {
                     <button
                       type="button"
                       onClick={() => reissueToken(expandedTeam.id)}
-                      className="no-print inline-flex items-center gap-0.5 underline decoration-dotted underline-offset-2"
-                      style={{ color: "var(--color-info)" }}
+                      className="tt-link no-print inline-flex items-center gap-0.5"
                       title="토큰 재발급"
                     >
                       <Icon name="refresh-cw" size={12} />
@@ -1194,8 +1114,7 @@ export default function TournamentTeamsPage() {
                         type="button"
                         onClick={() => updateStatus(expandedTeam.id, "approved")}
                         disabled={actionLoading === expandedTeam.id}
-                        className="ts-btn ts-btn--secondary ts-btn--sm"
-                        style={{ background: "var(--color-success)", color: "white", borderColor: "var(--color-success)" }}
+                        className="ts-btn ts-btn--primary ts-btn--sm"
                       >
                         승인
                       </button>
@@ -1203,8 +1122,7 @@ export default function TournamentTeamsPage() {
                         type="button"
                         onClick={() => updateStatus(expandedTeam.id, "rejected")}
                         disabled={actionLoading === expandedTeam.id}
-                        className="ts-btn ts-btn--secondary ts-btn--sm"
-                        style={{ background: "var(--color-error)", color: "white", borderColor: "var(--color-error)" }}
+                        className="ts-btn ts-btn--danger ts-btn--sm"
                       >
                         거절
                       </button>
@@ -1215,8 +1133,7 @@ export default function TournamentTeamsPage() {
                       type="button"
                       onClick={() => updateStatus(expandedTeam.id, "rejected")}
                       disabled={actionLoading === expandedTeam.id}
-                      className="ts-btn ts-btn--secondary ts-btn--sm"
-                      style={{ color: "var(--color-error)", borderColor: "var(--color-error)" }}
+                      className="ts-btn ts-btn--danger ts-btn--sm"
                     >
                       거절로 변경
                     </button>
@@ -1226,8 +1143,7 @@ export default function TournamentTeamsPage() {
                       type="button"
                       onClick={() => updateStatus(expandedTeam.id, "approved")}
                       disabled={actionLoading === expandedTeam.id}
-                      className="ts-btn ts-btn--secondary ts-btn--sm"
-                      style={{ color: "var(--color-success)", borderColor: "var(--color-success)" }}
+                      className="ts-btn ts-btn--primary ts-btn--sm"
                     >
                       승인으로 변경
                     </button>
@@ -1329,23 +1245,23 @@ export default function TournamentTeamsPage() {
 
               {/* 선수 명단 테이블 */}
               {playersLoading ? (
-                <p className="py-4 text-center text-sm text-[var(--color-text-muted)]">불러오는 중...</p>
+                <p className="tt-empty-line">불러오는 중...</p>
               ) : players.length === 0 ? (
-                <p className="py-8 text-center text-sm text-[var(--color-text-muted)]">등록된 선수가 없습니다.</p>
+                <p className="tt-empty-line tt-empty-line--tall">등록된 선수가 없습니다.</p>
               ) : (
                 <>
                 <div className="space-y-2 sm:hidden">
                   {players.map((p) => (
-                    <div key={p.id} className="rounded-[16px] bg-[var(--grey-50)] p-3">
+                    <div key={p.id} className="tt-player-card">
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
                           <p className="font-semibold text-[var(--ink)]">
                             {p.jersey_number ? `${p.jersey_number}번 · ` : ""}{p.player_name ?? "-"}
                           </p>
-                          <p className="mt-1 text-xs text-[var(--ink-mute)]">
+                          <p className="tt-team-meta">
                             {(p as { birth_date?: string }).birth_date ?? "-"} · {(p as { school_name?: string }).school_name ?? "-"}
                           </p>
-                          <p className="mt-1 text-xs text-[var(--ink-mute)]">
+                          <p className="tt-team-meta">
                             보호자 {(p as { parent_name?: string }).parent_name ?? "-"} · {(p as { parent_phone?: string }).parent_phone ?? p.phone ?? "-"}
                           </p>
                         </div>
@@ -1361,32 +1277,32 @@ export default function TournamentTeamsPage() {
                   ))}
                 </div>
                 <div className="hidden overflow-x-auto sm:block">
-                  <table className="w-full text-sm">
+                  <table className="tt-player-table">
                     <thead>
-                      <tr className="border-b border-[var(--color-border)] text-left text-xs text-[var(--color-text-muted)]">
-                        <th className="pb-2 pr-3">#</th>
-                        <th className="pb-2 pr-3">이름</th>
-                        <th className="pb-2 pr-3">생년월일</th>
-                        <th className="pb-2 pr-3">학교</th>
-                        <th className="pb-2 pr-3">포지션</th>
-                        <th className="pb-2 pr-3">학부모</th>
-                        <th className="pb-2 pr-3 no-print">연락처</th>
-                        <th className="pb-2 no-print" />
+                      <tr>
+                        <th>#</th>
+                        <th>이름</th>
+                        <th>생년월일</th>
+                        <th>학교</th>
+                        <th>포지션</th>
+                        <th>학부모</th>
+                        <th className="no-print">연락처</th>
+                        <th className="no-print" />
                       </tr>
                     </thead>
                     <tbody>
                       {players.map((p) => (
-                        <tr key={p.id} className="border-b border-[var(--color-border)]/50">
-                          <td className="py-2 pr-3 text-[var(--color-text-muted)]">{p.jersey_number ?? "-"}</td>
-                          <td className="py-2 pr-3 font-medium">{p.player_name ?? "-"}</td>
-                          <td className="py-2 pr-3 text-[var(--color-text-muted)]">{(p as { birth_date?: string }).birth_date ?? "-"}</td>
-                          <td className="py-2 pr-3 text-[var(--color-text-muted)]">{(p as { school_name?: string }).school_name ?? "-"}</td>
-                          <td className="py-2 pr-3 text-[var(--color-text-muted)]">{p.position ?? "-"}</td>
-                          <td className="py-2 pr-3 text-[var(--color-text-muted)]">{(p as { parent_name?: string }).parent_name ?? "-"}</td>
-                          <td className="py-2 pr-3 text-[var(--color-text-muted)] no-print">
+                        <tr key={p.id}>
+                          <td className="tt-player-muted">{p.jersey_number ?? "-"}</td>
+                          <td className="tt-player-name">{p.player_name ?? "-"}</td>
+                          <td className="tt-player-muted">{(p as { birth_date?: string }).birth_date ?? "-"}</td>
+                          <td className="tt-player-muted">{(p as { school_name?: string }).school_name ?? "-"}</td>
+                          <td className="tt-player-muted">{p.position ?? "-"}</td>
+                          <td className="tt-player-muted">{(p as { parent_name?: string }).parent_name ?? "-"}</td>
+                          <td className="tt-player-muted no-print">
                             {(p as { parent_phone?: string }).parent_phone ?? p.phone ?? "-"}
                           </td>
-                          <td className="py-2 text-right no-print">
+                          <td className="tt-player-action no-print">
                             <button
                               onClick={() => handleDeletePlayer(p.id)}
                               className="ct-iconbtn"
@@ -1404,7 +1320,7 @@ export default function TournamentTeamsPage() {
               )}
 
               {/* 프린트 푸터 — 프린트 시에만 표시 */}
-              <p className="mt-4 hidden text-xs text-[var(--color-text-muted)] print-only">
+              <p className="tt-print-note print-only">
                 ※ 본 명단은 운영자 어드민 (mybdr.kr) 에서 출력되었습니다. 출력일: {new Date().toLocaleDateString("ko-KR")}
               </p>
             </div>
@@ -1535,13 +1451,11 @@ function ImportPlayersModal({
     <div
       role="dialog"
       aria-modal="true"
-      className="fixed inset-0 z-50 flex items-center justify-center p-3 no-print sm:p-4"
-      style={{ background: "color-mix(in srgb, #000 60%, transparent)" }}
+      className="tt-modal-overlay no-print"
       onClick={onClose}
     >
       <div
-        className="relative w-full max-w-2xl rounded-[24px] border bg-[var(--card)] p-4 shadow-[var(--sh-lg)] sm:p-6"
-        style={{ borderColor: "var(--border)" }}
+        className="tt-import-modal"
         onClick={(e) => e.stopPropagation()}
       >
         <button
@@ -1553,7 +1467,7 @@ function ImportPlayersModal({
           <Icon name="x" size={20} />
         </button>
         <h2 className="mb-4 text-lg font-bold">선수 일괄 입력</h2>
-        <p className="mb-3 text-xs" style={{ color: "var(--ink-mute)" }}>
+        <p className="tt-note mb-3">
           한 줄에 한 명씩 입력합니다. 순서: 이름/생년월일/등번호/포지션/학교명/보호자/연락처
         </p>
         <textarea
@@ -1574,12 +1488,12 @@ function ImportPlayersModal({
           </label>
         </div>
         {parseError && (
-          <p className="mt-3 whitespace-pre-line text-xs" style={{ color: "var(--color-warning)" }}>
+          <p className="tt-form-message" data-tone="warn">
             {parseError}
           </p>
         )}
         {error && (
-          <p className="mt-3 whitespace-pre-line text-sm" style={{ color: "var(--color-error)" }}>
+          <p className="tt-form-message" data-tone="danger">
             {error}
           </p>
         )}
@@ -1607,103 +1521,39 @@ function ImportPlayersModal({
 
 // 등록 경로 배지 — applied_via 값별 색상/라벨
 function ViaBadge({ appliedVia }: { appliedVia: string | null }) {
-  const map: Record<string, { label: string; bg: string; fg: string }> = {
-    admin: { label: "운영자", bg: "var(--color-elevated)", fg: "var(--color-text-secondary)" },
-    coach_token: { label: "코치", bg: "color-mix(in srgb, var(--color-info) 15%, transparent)", fg: "var(--color-info)" },
-    self: { label: "본인", bg: "color-mix(in srgb, var(--color-success) 15%, transparent)", fg: "var(--color-success)" },
+  const map: Record<string, string> = {
+    admin: "운영자",
+    coach_token: "코치",
+    self: "본인",
   };
-  if (!appliedVia || !map[appliedVia]) {
-    return (
-      <span
-        className="rounded-[8px] px-2 py-0.5 text-[10px] font-medium"
-        style={{ background: "var(--color-elevated)", color: "var(--color-text-muted)" }}
-      >
-        경로 미상
-      </span>
-    );
-  }
-  const cfg = map[appliedVia];
   return (
-    <span
-      className="rounded-[8px] px-2 py-0.5 text-[10px] font-medium"
-      style={{ background: cfg.bg, color: cfg.fg }}
-    >
-      {cfg.label}
+    <span className="tt-badge" data-kind={appliedVia && map[appliedVia] ? `via-${appliedVia}` : "via-unknown"}>
+      {appliedVia && map[appliedVia] ? map[appliedVia] : "경로 미상"}
     </span>
   );
 }
 
 // 상태 배지 — status 값별 색상/라벨
 function StatusBadge({ status }: { status: string }) {
-  const map: Record<string, { label: string; bg: string; fg: string }> = {
-    pending: {
-      label: "대기 중",
-      bg: "color-mix(in srgb, var(--color-warning) 15%, transparent)",
-      fg: "var(--color-warning)",
-    },
-    approved: {
-      label: "승인",
-      bg: "color-mix(in srgb, var(--color-success) 15%, transparent)",
-      fg: "var(--color-success)",
-    },
-    rejected: {
-      label: "거절",
-      bg: "color-mix(in srgb, var(--color-error) 15%, transparent)",
-      fg: "var(--color-error)",
-    },
-    waiting: {
-      label: "대기접수",
-      bg: "color-mix(in srgb, var(--color-info) 15%, transparent)",
-      fg: "var(--color-info)",
-    },
-  };
-  const cfg = map[status] ?? {
-    label: status,
-    bg: "var(--color-elevated)",
-    fg: "var(--color-text-muted)",
-  };
   return (
-    <span
-      className="rounded-[8px] px-2 py-0.5 text-[10px] font-medium"
-      style={{ background: cfg.bg, color: cfg.fg }}
-    >
-      {cfg.label}
+    <span className="tt-badge" data-status={status}>
+      {STATUS_LABEL[status] ?? (status === "waiting" ? "대기접수" : status)}
     </span>
   );
 }
 
 // 2026-05-11 Phase 3-F 옵션 A — 납부 상태 배지
 function PaymentBadge({ status }: { status: string | null }) {
-  const map: Record<string, { label: string; bg: string; fg: string }> = {
-    paid: {
-      label: "납부",
-      bg: "color-mix(in srgb, var(--color-success) 15%, transparent)",
-      fg: "var(--color-success)",
-    },
-    unpaid: {
-      label: "미납",
-      bg: "color-mix(in srgb, var(--color-warning) 15%, transparent)",
-      fg: "var(--color-warning)",
-    },
-    waived: {
-      label: "면제",
-      bg: "color-mix(in srgb, var(--color-info) 15%, transparent)",
-      fg: "var(--color-info)",
-    },
-    refunded: {
-      label: "환불",
-      bg: "var(--color-elevated)",
-      fg: "var(--color-text-muted)",
-    },
+  const map: Record<string, string> = {
+    paid: "납부",
+    unpaid: "미납",
+    waived: "면제",
+    refunded: "환불",
   };
   if (!status || !map[status]) return null;
-  const cfg = map[status];
   return (
-    <span
-      className="rounded-[8px] px-2 py-0.5 text-[10px] font-medium"
-      style={{ background: cfg.bg, color: cfg.fg }}
-    >
-      {cfg.label}
+    <span className="tt-badge" data-payment={status}>
+      {map[status]}
     </span>
   );
 }
@@ -1724,22 +1574,16 @@ function RosterProgressBadge({
   let color: string;
   if (min != null && count < min) {
     label = `${count} / ${min} 이상`;
-    color = "var(--color-warning)";
+    color = "warn";
   } else if (max != null && count > max) {
     label = `${count} / ${max} 초과`;
-    color = "var(--color-error)";
+    color = "danger";
   } else {
     label = `${count}${max ? ` / ${max}` : ""}`;
-    color = "var(--color-success)";
+    color = "ok";
   }
   return (
-    <span
-      className="rounded-[8px] px-2 py-0.5 text-[10px] font-medium"
-      style={{
-        background: `color-mix(in srgb, ${color} 12%, transparent)`,
-        color,
-      }}
-    >
+    <span className="tt-badge" data-tone={color}>
       {label}
     </span>
   );
@@ -1762,18 +1606,11 @@ function formatUpdatedAt(iso: string): string {
 // 등록 경로 통계 카드 — accent 톤 단일 (conventions.md "admin 빨간색 본문 금지" 준수)
 function ViaStatCard({ label, count, icon }: { label: string; count: number; icon: string }) {
   return (
-    <div
-      className="flex items-center gap-3 rounded-[16px] border p-3"
-      style={{ borderColor: "var(--border)", background: "var(--grey-50)" }}
-    >
-      <Icon name={icon} size={24} color="var(--color-accent)" />
+    <div className="tt-stat-card">
+      <Icon name={icon} size={24} />
       <div>
-        <p className="text-xs" style={{ color: "var(--color-text-muted)" }}>
-          {label}
-        </p>
-        <p className="text-lg font-bold" style={{ color: "var(--color-text-primary)" }}>
-          {count}
-        </p>
+        <p className="tt-stat-card__label">{label}</p>
+        <p className="tt-stat-card__value">{count}</p>
       </div>
     </div>
   );

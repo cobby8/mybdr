@@ -1,5 +1,16 @@
 # Knowledge Index
 
+- 2026-06-26 admin: recorders/admins panels now share Toss `tp-*` list/message/avatar/role classes; both panels scan clean for legacy BDR token residue.
+- 2026-06-26 admin: teams panel player table and bulk-import modal now use Toss `tt-*` classes; the remaining style scan hit is only real team `primaryColor` data binding.
+- 2026-06-26 admin: teams detail modal shell/header/category/payment/manager controls now use Toss `tt-*` classes while preserving edit, token, print, and status actions.
+- 2026-06-26 admin: teams panel list surface now uses Toss `tt-*` classes for readiness cards, division group headers, team metadata, seed/group mini inputs, and visible badges.
+- 2026-06-26 admin: teams panel badge helpers now use Toss `tt-badge`/`tt-stat-card` classes for status, applied-via, payment, roster progress, and via stats.
+- 2026-06-26 admin: matches client table, mobile cards, ScoreModal, errors, and filter labels now use Toss-only `amt-*` classes; legacy BDR token scan is clean for the matches files.
+- 2026-06-26 admin: bracket panel full match lists and multi-division bracket filters/sections now reuse Toss match/section classes; `--color-*`/`rounded-[4px]`/`rounded-full` scan is clean for the panel.
+- 2026-06-26 admin: dual bracket sections and match cards now use Toss `ta-dual-*`/`ta-match-*` classes while preserving collapse and score/status display behavior.
+- 2026-06-26 admin: bracket panel round-1 team assignment editor now uses Toss `ta-round-*` grid/select/badge classes for stable desktop/mobile layout.
+- 2026-06-26 admin: bracket panel top version/generate controls now use Toss-only `ta-version-*` classes instead of local BDR `--color-*`/`rounded-[4px]` styling.
+- 2026-06-26 admin: divisions panel selected categories now render as visible Toss chips with direct delete controls; local BDR radius/color residue was removed and row grids use shrink-safe columns.
 - 2026-06-26 admin: v2.42 parity inventory now treats `ct-panel-embed` as canonical and keeps the divisions panel visible by default in the Toss workspace; `ta-*` remains a migration cleanup target.
 - 2026-06-26 design: BDR v2 (40) is a v2.42 public-site wiring delta; it supersedes the v39 public-site fiction note and sets 44 teams / 27 matches / 4 divisions as the shared admin/public baseline.
 - 2026-06-26 design: v2.42 integrated Claude.ai request asks for admin Toss full-parity state screens, schedule/bracket/matches/teams/site function flows, cleanup manifest, and data contracts.
@@ -37,6 +48,17 @@ Updated: 2026-06-26
 | lessons.md | 0 | - |
 
 Recent work:
+- 2026-06-26 admin: recorders/admins panel list rows, messages, avatars, role badges, and danger actions were normalized to shared Toss `tp-*` classes.
+- 2026-06-26 admin: teams player table and bulk-import modal were normalized to Toss local classes, leaving only intentional team brand-color data binding in the panel scan.
+- 2026-06-26 admin: teams detail modal frame/header controls were normalized to Toss classes, including category/payment selects, manager inline edit controls, and status action buttons.
+- 2026-06-26 admin: teams panel readiness cards, group headers, list metadata, seed/group mini inputs, and visible team list badges were normalized to Toss local classes.
+- 2026-06-26 admin: teams panel shared status/via/payment/roster badges and via-stat cards were converted from inline BDR tokens to Toss `tt-*` classes.
+- 2026-06-26 admin: matches table/mobile cards/ScoreModal were moved to Toss `amt-*` classes while keeping match generation, filters, score editing, and recording-mode save flows unchanged.
+- 2026-06-26 admin: bracket panel full match lists and multi-division filters/sections were normalized to Toss local classes, completing the panel-level token/radius cleanup scan.
+- 2026-06-26 admin: dual bracket section headers, grouped match cards, status chips, and team score rows were moved to Toss-only local classes.
+- 2026-06-26 admin: bracket panel round-1 assignment rows were converted to Toss-only grid/select/badge styling while keeping `updateMatchTeam` behavior unchanged.
+- 2026-06-26 admin: bracket panel top version/generate block was converted to Toss-only local classes while preserving generation, regeneration, and activate-version handlers.
+- 2026-06-26 admin: selected division chips with direct delete controls were added, division grids were stabilized, and local `rounded-[4px]`/`--color-*` residue was removed from the divisions panel.
 - 2026-06-26 admin: v2.42 parity inventory was added, workspace panel frames moved to canonical `ct-panel-embed`, and the divisions panel is forced visible while the divisions step is active.
 - 2026-06-26 design: BDR v2 (40) wiring delta was imported into BDR-current, active admin Toss data was corrected with `homeId/awayId`, and public site data-gating work was added to the remaining task list.
 - 2026-06-26 design: v2.42 integrated Claude.ai request was created for admin Toss full parity, including schedule/bracket/matches/teams/site state screens, cleanup manifest, and data contract outputs.

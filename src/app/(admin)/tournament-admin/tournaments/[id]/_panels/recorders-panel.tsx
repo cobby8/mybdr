@@ -202,8 +202,8 @@ export default function TournamentRecordersPage() {
     <div data-skin="toss" className="space-y-6">
       {/* 기록원 추가 */}
       <section className="ts-card space-y-3 p-4">
-        <h2 className="font-semibold text-[var(--color-text-primary)]">기록원 추가</h2>
-        <p className="text-sm text-[var(--color-text-muted)]">
+        <h2 className="tp-title">기록원 추가</h2>
+        <p className="tp-desc">
           mybdr 가입 회원의 이메일로 기록원을 지정합니다. 기록원은 bdr_stat 앱으로 경기를 실시간 기록할 수 있습니다.
         </p>
         <div className="flex gap-2">
@@ -222,26 +222,26 @@ export default function TournamentRecordersPage() {
             {adding ? "추가 중..." : "추가"}
           </button>
         </div>
-        {error && <p className="text-sm text-[var(--color-error)]">{error}</p>}
-        {success && <p className="text-sm text-[var(--color-success)]">{success}</p>}
+        {error && <p className="tp-message" data-tone="danger">{error}</p>}
+        {success && <p className="tp-message" data-tone="ok">{success}</p>}
       </section>
 
       {/* 기록원 목록 */}
       <section className="ts-card space-y-3 p-4">
-        <h2 className="font-semibold text-[var(--color-text-primary)]">
+        <h2 className="tp-title">
           현재 기록원 {activeRecorders.length > 0 && `(${activeRecorders.length}명)`}
         </h2>
 
         {loading ? (
-          <p className="text-sm text-[var(--color-text-muted)]">불러오는 중...</p>
+          <p className="tp-desc">불러오는 중...</p>
         ) : activeRecorders.length === 0 ? (
-          <p className="text-sm text-[var(--color-text-muted)]">등록된 기록원이 없습니다.</p>
+          <p className="tp-desc">등록된 기록원이 없습니다.</p>
         ) : (
           <ul className="space-y-2">
             {activeRecorders.map((r) => (
               <li
                 key={r.id}
-                className="flex items-center justify-between p-3 bg-[var(--color-elevated)] rounded-lg"
+                className="tp-list-row"
               >
                 <div className="flex items-center gap-3">
                   {r.recorder.profile_image_url ? (
@@ -250,20 +250,19 @@ export default function TournamentRecordersPage() {
                       alt=""
                       width={32}
                       height={32}
-                      className="w-8 h-8 rounded-full object-cover"
+                      className="tp-avatar"
                       unoptimized /* 외부 프로필 이미지 URL — 도메인이 다양 */
                     />
                   ) : (
-                    /* 2026-05-12 — admin 빨강 본문 금지 → info(Navy) 토큰 */
-                    <div className="w-8 h-8 rounded-full bg-[var(--color-info)]/10 flex items-center justify-center text-[var(--color-info)] text-xs font-bold">
+                    <div className="tp-avatar tp-avatar--fallback">
                       {(r.recorder.nickname ?? r.recorder.email)[0].toUpperCase()}
                     </div>
                   )}
                   <div>
-                    <p className="text-sm font-medium text-[var(--color-text-primary)]">
+                    <p className="tp-list-name">
                       {r.recorder.nickname ?? r.recorder.email}
                     </p>
-                    <p className="text-xs text-[var(--color-text-muted)]">{r.recorder.email}</p>
+                    <p className="tp-list-meta">{r.recorder.email}</p>
                   </div>
                 </div>
                 <button
@@ -273,7 +272,7 @@ export default function TournamentRecordersPage() {
                       r.recorder.nickname ?? r.recorder.email
                     )
                   }
-                  className="text-xs text-[var(--color-error)] hover:text-[var(--color-error)] px-2 py-1 rounded hover:bg-[var(--color-error)]/10"
+                  className="tp-danger-link"
                 >
                   제거
                 </button>
@@ -287,7 +286,7 @@ export default function TournamentRecordersPage() {
           위 "기록원 풀"에 등록된 인원을 개별 경기에 배정한다. */}
       <section className="ts-card space-y-3 p-4">
         <div className="flex items-center justify-between gap-2">
-          <h2 className="font-semibold text-[var(--color-text-primary)]">경기별 기록자 배정</h2>
+          <h2 className="tp-title">경기별 기록자 배정</h2>
           {/* 자동 배정 — 미배정 경기에 풀 라운드로빈 */}
           <button
             type="button"
@@ -298,21 +297,21 @@ export default function TournamentRecordersPage() {
             {autoAssigning ? "배정 중..." : "자동 배정"}
           </button>
         </div>
-        <p className="text-sm text-[var(--color-text-muted)]">
+        <p className="tp-desc">
           위 풀에 등록된 기록원을 각 경기에 지정합니다.
           {unassignedCount > 0 && ` 미배정 ${unassignedCount}경기.`}
         </p>
 
-        {matchError && <p className="text-sm text-[var(--color-error)]">{matchError}</p>}
+        {matchError && <p className="tp-message" data-tone="danger">{matchError}</p>}
 
         {matchesLoading ? (
-          <p className="text-sm text-[var(--color-text-muted)]">불러오는 중...</p>
+          <p className="tp-desc">불러오는 중...</p>
         ) : matches.length === 0 ? (
-          <p className="text-sm text-[var(--color-text-muted)]">
+          <p className="tp-desc">
             등록된 경기가 없습니다. 대진표를 먼저 생성하세요.
           </p>
         ) : activeRecorders.length === 0 ? (
-          <p className="text-sm text-[var(--color-text-muted)]">
+          <p className="tp-desc">
             먼저 기록원 풀에 인원을 추가하면 경기별 배정을 할 수 있습니다.
           </p>
         ) : (
@@ -326,18 +325,18 @@ export default function TournamentRecordersPage() {
               return (
                 <li
                   key={m.id}
-                  className="flex flex-col gap-2 p-3 bg-[var(--color-elevated)] rounded-lg sm:flex-row sm:items-center sm:justify-between"
+                  className="tp-match-row"
                 >
                   <div className="min-w-0">
-                    <p className="text-sm font-medium text-[var(--color-text-primary)] truncate">
+                    <p className="tp-list-name truncate">
                       {roundLabel}
                       {m.match_number != null && ` · #${m.match_number}`}
                     </p>
-                    <p className="text-xs text-[var(--color-text-muted)] truncate">{vsLabel}</p>
+                    <p className="tp-list-meta truncate">{vsLabel}</p>
                     {/* 현재 배정 상태 라벨 */}
-                    <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
+                    <p className="tp-list-meta">
                       배정:{" "}
-                      <span className={recorderId ? "text-[var(--color-info)]" : ""}>
+                      <span className={recorderId ? "tp-assigned" : ""}>
                         {recorderNameById(recorderId)}
                       </span>
                     </p>

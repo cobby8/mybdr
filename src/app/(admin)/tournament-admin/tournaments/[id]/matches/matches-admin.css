@@ -1,118 +1,307 @@
-/* ==========================================================
-   PR-1C-6 옵션 A — Matches 표 시각 박제 (시안 admin.css C1 amt-table)
-   - source: Dev/design/BDR-current/admin.css L933~960 + 모바일 분기 L1406~1408
-   - 토큰 대체: 시안 --r-md → 운영 --radius-card / --r-xs → 4px
-   - 나머지 토큰(--bg-elev, --bg-alt, --border, --ink 계열, --ff-mono, --cafe-blue 계열)은
-     운영 globals.css 에 모두 정의됨 → 그대로 사용
-   - amt-mode (기록 모드 카드) 는 박제 안 함 — 운영 기록 모드 모달(ScoreModal) 보존
-   - vban (검증 배너 3-tone) 박제 안 함 — mock 금지
-   ========================================================== */
+/* Matches table and mobile cards for the Toss admin workspace. */
 
-/* 표 wrap — 카드형 컨테이너 (둥근 모서리 + 보더 + overflow 숨김) */
-.amt-table-wrap {
-  background: var(--bg-elev);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-card); /* 시안 --r-md 대체 */
-  overflow: hidden;
+[data-skin="toss"] .amt-count-strong {
+  color: var(--ink);
+  font-weight: 800;
 }
 
-/* 표 본체 — 셀 보더 합쳐서 깔끔한 라인 */
-.amt-table {
+[data-skin="toss"] .amt-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 160px;
+  color: var(--ink-mute);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+[data-skin="toss"] .amt-errorbox,
+[data-skin="toss"] .amt-error {
+  color: var(--danger);
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.5;
+}
+
+[data-skin="toss"] .amt-errorbox {
+  margin-bottom: 16px;
+  border-radius: 14px;
+  background: var(--danger-weak);
+  padding: 13px 16px;
+}
+
+[data-skin="toss"] .amt-error {
+  margin-bottom: 12px;
+}
+
+[data-skin="toss"] .amt-filter-label {
+  color: var(--ink-mute);
+  font-size: 12.5px;
+  font-weight: 800;
+}
+
+[data-skin="toss"] .amt-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, .45);
+  padding: 12px;
+}
+
+[data-skin="toss"] .amt-modal {
+  position: relative;
+  width: 100%;
+  max-width: 672px;
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  background: var(--card);
+  box-shadow: var(--sh-lg);
+  padding: 24px;
+}
+
+[data-skin="toss"] .amt-score-sep {
+  color: var(--ink-mute);
+  font-size: 14px;
+  font-weight: 900;
+  text-align: center;
+}
+
+[data-skin="toss"] .amt-hint {
+  margin-top: 6px;
+  color: var(--ink-mute);
+  font-size: 12.5px;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+[data-skin="toss"] .amt-hint[data-tone="warn"] {
+  color: var(--warn);
+}
+
+[data-skin="toss"] .amt-table-wrap {
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  background: var(--card);
+  box-shadow: var(--sh-sm);
+}
+
+[data-skin="toss"] .amt-table {
   width: 100%;
   border-collapse: collapse;
   font-size: 13px;
 }
 
-/* 헤더 행 — 모노 폰트 + 대문자 + 자간 (시안 thead 스타일) */
-.amt-table thead th {
-  text-align: left;
-  padding: 12px 14px;
+[data-skin="toss"] .amt-table thead th {
+  padding: 13px 14px;
+  border-bottom: 1px solid var(--border);
+  background: var(--grey-50);
+  color: var(--ink-mute);
   font-family: var(--ff-mono);
   font-size: 10.5px;
-  font-weight: 800;
-  color: var(--ink-dim);
-  letter-spacing: 0.08em;
+  font-weight: 900;
+  letter-spacing: .08em;
+  text-align: left;
   text-transform: uppercase;
-  background: var(--bg-alt);
-  border-bottom: 1px solid var(--border);
   white-space: nowrap;
 }
 
-/* 본문 셀 — 행 구분선 + 수직 중앙 정렬 */
-.amt-table tbody td {
-  padding: 12px 14px;
+[data-skin="toss"] .amt-table tbody td {
   border-bottom: 1px solid var(--border);
+  color: var(--ink);
+  padding: 13px 14px;
   vertical-align: middle;
 }
 
-/* 행 hover — 운영 클릭(모달 오픈) 가능 표시 */
-.amt-table tbody tr:hover {
-  background: var(--bg-alt);
+[data-skin="toss"] .amt-table tbody tr {
+  transition: background .12s;
 }
 
-/* 대진 — 팀명 굵게 + 가운데 'vs' 구분자 */
-.amt-table__teams {
-  font-weight: 700;
-}
-.amt-table__teams b {
-  color: var(--ink);
-}
-.amt-table__teams .vs {
-  color: var(--ink-dim);
-  font-family: var(--ff-mono);
-  font-size: 10.5px;
-  margin: 0 6px;
-  font-weight: 700;
+[data-skin="toss"] .amt-table tbody tr:hover {
+  background: var(--grey-50);
 }
 
-/* 스코어 — 모노 폰트 + tabular-nums (숫자 폭 정렬) */
-.amt-table__score {
-  font-family: var(--ff-mono);
+[data-skin="toss"] .amt-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+[data-skin="toss"] .amt-table__teams {
+  display: inline-flex;
+  max-width: 360px;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
   font-weight: 800;
-  font-size: 15px;
-  color: var(--ink);
-  font-feature-settings: "tnum";
-}
-/* 스코어 placeholder (— : —) — 점수 미입력 매치 */
-.amt-table__score--ph {
-  color: var(--ink-dim);
-  font-weight: 600;
-  font-size: 13px;
 }
 
-/* 코트(체육관) — cafe-blue soft 칩 */
-.amt-table__court {
-  font-family: var(--ff-mono);
-  font-size: 11.5px;
-  font-weight: 700;
-  color: var(--cafe-blue-deep);
-  background: var(--cafe-blue-soft);
-  padding: 2px 7px;
-  border-radius: 4px; /* 시안 --r-xs 대체 */
+[data-skin="toss"] .amt-team {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--ink);
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-/* 시간 — 모노 폰트 메타 */
-.amt-table__time {
+[data-skin="toss"] .amt-team[data-winner="true"] {
+  color: var(--ok);
+  font-weight: 900;
+}
+
+[data-skin="toss"] .amt-table__teams .vs {
+  flex: 0 0 auto;
+  color: var(--ink-dim);
+  font-family: var(--ff-mono);
+  font-size: 10.5px;
+  font-weight: 800;
+}
+
+[data-skin="toss"] .amt-table__score {
+  color: var(--ink);
+  font-family: var(--ff-mono);
+  font-feature-settings: "tnum";
+  font-size: 15px;
+  font-weight: 900;
+}
+
+[data-skin="toss"] .amt-table__score--ph {
+  color: var(--ink-dim);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+[data-skin="toss"] .amt-table__court {
+  display: inline-flex;
+  max-width: 180px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--primary-weak);
+  color: var(--primary);
+  font-family: var(--ff-mono);
+  font-size: 11.5px;
+  font-weight: 800;
+  padding: 4px 8px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+[data-skin="toss"] .amt-table__time {
+  color: var(--ink-soft);
   font-family: var(--ff-mono);
   font-size: 12px;
-  color: var(--ink-soft);
-  font-weight: 600;
+  font-weight: 800;
 }
 
-/* 종별 코드 — 흐린 메타 */
-.amt-table__div {
-  font-size: 11.5px;
+[data-skin="toss"] .amt-table__div {
   color: var(--ink-mute);
-  font-weight: 600;
+  font-size: 11.5px;
+  font-weight: 700;
 }
 
-/* 모바일 — 가로 스크롤 (시안 admin.css L1406~1408 박제) */
+[data-skin="toss"] .amt-status {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  background: var(--grey-100);
+  color: var(--ink-mute);
+  font-size: 11.5px;
+  font-weight: 900;
+  line-height: 1;
+  padding: 6px 9px;
+  white-space: nowrap;
+}
+
+[data-skin="toss"] .amt-status[data-status="scheduled"] {
+  background: var(--primary-weak);
+  color: var(--primary);
+}
+
+[data-skin="toss"] .amt-status[data-status="in_progress"] {
+  background: var(--warn-weak);
+  color: var(--warn);
+}
+
+[data-skin="toss"] .amt-status[data-status="completed"] {
+  background: var(--ok-weak);
+  color: var(--ok);
+}
+
+[data-skin="toss"] .amt-status[data-status="cancelled"] {
+  background: var(--danger-weak);
+  color: var(--danger);
+}
+
+[data-skin="toss"] .amt-mobile-card {
+  display: block;
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--card);
+  box-shadow: var(--sh-sm);
+  color: var(--ink);
+  cursor: pointer;
+  font-family: var(--ff);
+  padding: 16px;
+  text-align: left;
+}
+
+[data-skin="toss"] .amt-mobile-card__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+[data-skin="toss"] .amt-mobile-card__main {
+  min-width: 0;
+}
+
+[data-skin="toss"] .amt-mobile-card__teams {
+  color: var(--ink);
+  font-weight: 900;
+}
+
+[data-skin="toss"] .amt-mobile-card__meta {
+  margin-top: 5px;
+  color: var(--ink-mute);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+[data-skin="toss"] .amt-mobile-card__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+[data-skin="toss"] .amt-mobile-card__score {
+  color: var(--ink);
+  font-family: var(--ff-mono);
+  font-size: 18px;
+  font-weight: 900;
+}
+
+[data-skin="toss"] .amt-mobile-card__no {
+  color: var(--ink-mute);
+  font-size: 12px;
+  font-weight: 800;
+}
+
 @media (max-width: 768px) {
-  .amt-table-wrap {
+  [data-skin="toss"] .amt-modal {
+    padding: 16px;
+  }
+  [data-skin="toss"] .amt-table-wrap {
     overflow-x: auto;
   }
-  .amt-table {
+  [data-skin="toss"] .amt-table {
     min-width: 600px;
   }
 }

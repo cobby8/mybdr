@@ -447,12 +447,19 @@ export default function DivisionsSetupPage() {
     (sum, category) => sum + category.divisions.length,
     0,
   );
+  const selectedDivisions = currentCategories.flatMap((category) =>
+    category.divisions.map((division, divisionIndex) => ({
+      category: category.category,
+      division,
+      divisionIndex,
+    })),
+  );
 
   if (loading) {
     return (
       <div data-skin="toss" className="space-y-4">
-        <div className="h-8 w-48 animate-pulse rounded bg-[var(--color-surface)]" />
-        <div className="h-32 animate-pulse rounded-lg bg-[var(--color-surface)]" />
+        <div className="h-8 w-48 animate-pulse rounded-[12px] bg-[var(--grey-100)]" />
+        <div className="h-32 animate-pulse rounded-[18px] bg-[var(--grey-100)]" />
       </div>
     );
   }
@@ -462,14 +469,7 @@ export default function DivisionsSetupPage() {
     <div data-skin="toss" className="ta-divisions-panel space-y-4">
 
       {error && (
-        <div
-          className="rounded-[4px] border p-3 text-sm"
-          style={{
-            borderColor: "var(--color-error)",
-            background: "color-mix(in srgb, var(--color-error) 8%, transparent)",
-            color: "var(--color-error)",
-          }}
-        >
+        <div className="ta-division-alert" data-tone="danger">
           {error}
         </div>
       )}
@@ -505,14 +505,7 @@ export default function DivisionsSetupPage() {
         </div>
 
         {syncResult && (
-          <div
-            className="mt-3 rounded-[4px] border px-3 py-2 text-sm"
-            style={{
-              borderColor: "var(--color-success)",
-              background: "color-mix(in srgb, var(--color-success) 8%, transparent)",
-              color: "var(--color-success)",
-            }}
-          >
+          <div className="ta-division-alert mt-3" data-tone="ok">
             {syncResult}
           </div>
         )}
@@ -520,6 +513,29 @@ export default function DivisionsSetupPage() {
         <p className="mt-3 text-xs font-semibold text-[var(--ink-mute)]">
           종별 추가/삭제, 정원, 참가비, 일정·체육관 변경 후 선택 변경 저장을 눌러 반영합니다.
         </p>
+
+        {selectedDivisions.length > 0 && (
+          <div className="ta-selected-divisions" aria-label="선택된 종별">
+            {selectedDivisions.map(({ category, division, divisionIndex }) => (
+              <div
+                key={`${category}-${divisionIndex}-${division.name}`}
+                className="ta-selected-division"
+              >
+                <span className="ta-selected-division__meta">{category}</span>
+                <span className="ta-selected-division__name">{division.name || "이름 없음"}</span>
+                <button
+                  type="button"
+                  onClick={() => removeDivision(category, divisionIndex)}
+                  className="ct-iconbtn"
+                  aria-label={`${division.name || "디비전"} 삭제`}
+                  title="삭제"
+                >
+                  <Icon name="x" size={15} />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
 
         <div className="ta-division-category-grid">
           {masterCategories.map((category) => {
@@ -530,9 +546,6 @@ export default function DivisionsSetupPage() {
               <div
                 key={category.id}
                 className="ta-division-category"
-                style={{
-                  borderColor: "var(--color-border)",
-                }}
               >
                 <div className="flex items-center justify-between gap-3">
                   <h3 className="font-semibold text-[var(--ink)]">
@@ -687,7 +700,7 @@ export default function DivisionsSetupPage() {
         */
         <div className="ct-emptybox ct-emptybox--tall">
             {/* Material category → lucide layout-grid */}
-            <Icon name="layout-grid" size={48} color="var(--color-text-muted)" />
+            <Icon name="layout-grid" size={48} color="var(--ink-dim)" />
             <div className="text-base font-bold text-[var(--ink)]">
               저장된 종별이 없습니다
             </div>
@@ -704,21 +717,14 @@ export default function DivisionsSetupPage() {
                   {/*
                     2026-05-28 PR-1C-12 박제 — 시안 adv-card__head (code 모노 칩 + 종별명).
                     사유: 운영 평면 "code (label)" → 시안의 code 모노 칩(blue-soft 배경) + 라벨로 시각 강화.
-                    --color-info 8% 틴트 = 시안 adv-card__name 의 cafe-blue-soft 칩을 운영 토큰으로 치환.
                   */}
                   <p className="flex items-center gap-2 font-semibold text-[var(--ink)]">
-                    <span
-                      className="rounded-[4px] px-1.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wide"
-                      style={{
-                        color: "var(--color-info)",
-                        background: "color-mix(in srgb, var(--color-info) 12%, transparent)",
-                      }}
-                    >
+                    <span className="ta-rule-code">
                       {r.code}
                     </span>
                     {r.label}
                   </p>
-                  <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">
+                  <p className="mt-0.5 text-xs text-[var(--ink-mute)]">
                     {/* 2026-05-12 룰 변경: 어린 학년 자유 참가 — gradeMax 이하 표시 */}
                     {r.grade_max != null ? `${r.grade_max}학년 이하` : "학년 제한 없음"} · 참가비 {r.fee_krw.toLocaleString()}원
                   </p>
@@ -737,13 +743,11 @@ export default function DivisionsSetupPage() {
                     );
                     return (
                       <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-                        <span className="inline-flex items-center gap-1 rounded-[4px] border px-1.5 py-0.5 text-[11px] font-medium text-[var(--color-text-muted)]"
-                          style={{ borderColor: "var(--color-border)", background: "var(--color-elevated)" }}>
+                        <span className="ta-rule-meta">
                           <Icon name="calendar" size={12} />
                           {dateLabel ?? "–"}
                         </span>
-                        <span className="inline-flex items-center gap-1 rounded-[4px] border px-1.5 py-0.5 text-[11px] font-medium text-[var(--color-text-muted)]"
-                          style={{ borderColor: "var(--color-border)", background: "var(--color-elevated)" }}>
+                        <span className="ta-rule-meta">
                           <Icon name="map-pin" size={12} />
                           {courtLabel ?? "–"}
                         </span>
@@ -752,7 +756,7 @@ export default function DivisionsSetupPage() {
                   })()}
                 </div>
                 <div className="ta-division-rule-card__actions">
-                  <label className="text-xs text-[var(--color-text-muted)]">진행 방식:</label>
+                  <label className="text-xs text-[var(--ink-mute)]">진행 방식:</label>
                   <select
                     value={r.format ?? ""}
                     disabled={savingId === r.id}
@@ -770,7 +774,7 @@ export default function DivisionsSetupPage() {
                     ))}
                   </select>
                   {savingId === r.id && (
-                    <span className="text-xs text-[var(--color-text-muted)]">저장 중...</span>
+                    <span className="text-xs text-[var(--ink-mute)]">저장 중...</span>
                   )}
                 </div>
               </div>
@@ -788,7 +792,7 @@ export default function DivisionsSetupPage() {
 
               {/* 2026-05-12 Phase 3.5-C — 진출 매핑 수동 실행 */}
               <div className="ta-division-rule-card__foot">
-                <p className="text-xs text-[var(--color-text-muted)]">
+                <p className="text-xs text-[var(--ink-mute)]">
                   예선 순위 기준 순위전 자동 매핑
                 </p>
                 <button
@@ -803,14 +807,7 @@ export default function DivisionsSetupPage() {
 
               {/* 매핑 결과 — 해당 종별만 표시 */}
               {advanceResult && advanceResult.code === r.code && (
-                <div
-                  className="mt-2 rounded-[4px] border p-2 text-xs"
-                  style={{
-                    borderColor: "var(--color-success)",
-                    background: "color-mix(in srgb, var(--color-success) 8%, transparent)",
-                    color: "var(--color-success)",
-                  }}
-                >
+                <div className="ta-division-alert mt-2" data-tone="ok">
                   매핑 완료 · 갱신 {advanceResult.updated}건 · 제외 {advanceResult.skipped}건
                 </div>
               )}
@@ -999,7 +996,7 @@ function GroupSettingsInputs(props: {
         </label>
       )}
       {/* 총 팀 수 + 총 본선 진출 팀 수 안내 — 모든 컬럼 가로 펼침 */}
-      <p className="col-span-2 text-xs text-[var(--color-text-muted)] sm:col-span-3">
+      <p className="col-span-2 text-xs text-[var(--ink-mute)] sm:col-span-3">
         {totalTeams != null
           ? `총 ${totalTeams}팀 (${groupSize} × ${groupCount})`
           : "조 크기 × 조 개수 = 총 팀 수"}
