@@ -217,7 +217,7 @@ export default function SeriesActionsMenu({
                 type="button"
                 disabled={detaching}
                 onClick={handleConfirmDetach}
-                className="btn btn--primary flex-1 disabled:opacity-50"
+                className="ts-btn ts-btn--primary flex-1 disabled:opacity-50"
               >
                 {detaching ? "처리 중..." : "분리"}
               </button>
