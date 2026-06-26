@@ -1077,3 +1077,58 @@
   background: var(--grey-200);
   color: var(--ink);
 }
+
+/* v2.41 admin package page head and toolbar */
+[data-skin="toss"] .ts-ph__eyebrow {
+  align-items: center;
+  display: flex;
+  gap: 7px;
+}
+[data-skin="toss"] .ts-ph__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+[data-skin="toss"] .ad-toolbar {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+[data-skin="toss"] .ad-toolbar__spacer {
+  flex: 1 1 auto;
+}
+[data-skin="toss"] .ad-search {
+  flex: 1 1 280px;
+  min-width: 0;
+  position: relative;
+}
+[data-skin="toss"] .ad-search .licon {
+  color: var(--ink-dim);
+  left: 14px;
+  pointer-events: none;
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+}
+[data-skin="toss"] .ad-search input {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--card);
+  color: var(--ink);
+  font-family: var(--ff);
+  font-size: 16px;
+  padding: 12px 14px 12px 42px;
+}
+[data-skin="toss"] .ad-search input:focus {
+  border-color: transparent;
+  box-shadow: 0 0 0 2px var(--primary);
+  outline: none;
+}
+[data-skin="toss"] .ad-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}

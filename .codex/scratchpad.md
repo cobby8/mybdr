@@ -11,9 +11,10 @@
 | Admin game rules | Done | `game_time`/`game_method` now derive from canonical `game_rules` instead of free text. |
 | Recording modes | Done | Match-level `manual` is counted, displayed, and blocked from Flutter/score-sheet system inputs. |
 | Admin Toss handoff | Done | `BDR-current/_handoff-admin-toss-v2.41/` added; src unchanged. |
-| Admin Toss sweep | In Progress | v2.41 package reviewed; shared KPI blocks and DataTable wrappers now use package `ad-*` structure. |
+| Admin Toss sweep | In Progress | v2.41 package reviewed; shared KPI, DataTable, PageHead, and Toolbar blocks now use package structures. |
 
 ## Work Log
+- 2026-06-26: Converted shared admin PageHead/Toolbar to v2.41 `ts-ph` and `ad-toolbar` structures; TypeScript and diff checks passed.
 - 2026-06-26: Converted shared admin DataTable wrappers to v2.41 `ad-tablescroll`/`ad-table`; TypeScript and diff checks passed.
 - 2026-06-26: Reviewed BDR v2.41 admin Toss package and converted shared admin KPI rows to package `ad-kpi-*`; TypeScript and residue scans passed, browser QA blocked by DB pooler access.
 - 2026-06-26: Pushed tournament-admin Toss cleanup to dev and merged main; then token-normalized admin campaigns, games, and categories pages; TypeScript passed.
@@ -23,4 +24,3 @@
 - 2026-06-26: Converted small tournament-admin CTA buttons and series error backgrounds to Toss tokens; TypeScript passed.
 - 2026-06-26: Completed series Toss cleanup for CTA buttons, copy/delete controls, and tokenized alert backgrounds; TypeScript passed.
 - 2026-06-26: Converted organization action modals to Toss buttons and tokenized selected-state backgrounds; TypeScript passed.
-- 2026-06-26: Converted organization detail page cards/buttons/chips to Toss wrappers; TypeScript passed.
