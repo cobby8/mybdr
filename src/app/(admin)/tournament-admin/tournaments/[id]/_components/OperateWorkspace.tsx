@@ -71,6 +71,8 @@ const HASH_MENU_MAP: Record<string, MenuId> = {
   settlement: "settle",
 };
 
+const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
+
 function menuFromHash(): MenuId | null {
   if (typeof window === "undefined") return null;
   const raw = window.location.hash.replace("#", "");
@@ -86,10 +88,10 @@ function formatDate(value: string) {
 
 function getDday(startDate: string) {
   if (!startDate) return "D- ?";
-  const now = new Date();
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const nowKst = new Date(Date.now() + KST_OFFSET_MS);
+  const today = Date.UTC(nowKst.getUTCFullYear(), nowKst.getUTCMonth(), nowKst.getUTCDate());
   const [year, month, day] = startDate.split("-").map(Number);
-  const target = new Date(year, month - 1, day).getTime();
+  const target = Date.UTC(year, month - 1, day);
   const diff = Math.round((target - today) / 86400000);
   if (diff === 0) return "D-Day";
   return diff > 0 ? `D- ${diff}` : `D+ ${Math.abs(diff)}`;

@@ -25,6 +25,7 @@
 | Tournament admin standalone shell | Done | `/tournament-admin/*` now uses the v2.41/v2.42 standalone Toss workspace layout without the legacy global admin sidebar. |
 
 ## Work Log
+- 2026-06-27: Fixed production-only D-day text hydration mismatch by calculating operate workspace D-day against a deterministic KST day boundary; TypeScript passed.
 - 2026-06-27: Fixed tournament operate hash hydration by deferring hash sync to mount, and aligned bracket seeded slots/dual advance controls with the Toss flow; local Chrome verified `#bracket` loads without console errors; TypeScript passed.
 - 2026-06-27: Replaced remaining Material ligature icons on `/tournament-admin/tournaments` with admin Toss lucide `Icon` components; local Chrome verified no ligature text or legacy sidebar residue; TypeScript passed.
 - 2026-06-27: Removed the legacy global admin sidebar from `/tournament-admin/*`, kept auth/permission guards, and verified list/detail pages render as standalone Toss workspaces at 1240px without `light_mode` sidebar residue; TypeScript passed.
@@ -34,4 +35,3 @@
 - 2026-06-27: Added drag reorder persistence to scheduled lane timelines so same-court match order changes recalculate and save start times; TypeScript and production build passed.
 - 2026-06-27: Wired tournament operate schedule court numbers end-to-end through match create/update APIs, service writes, and admin match edit UI; TypeScript and production build passed.
 - 2026-06-27: Tightened tournament operate bracket tab around the Toss v2.41 flow: single-division category fallback, generation summary, and generated matches grouped by prelim/dual/knockout stages; TypeScript and production build passed.
-- 2026-06-27: Rebuilt tournament operate teams panel around the Toss v2.41 flow so division status, single/bulk category moves, approval/payment, tokens, and player roster actions are first-screen operations; TypeScript and production build passed.
