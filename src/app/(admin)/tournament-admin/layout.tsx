@@ -2,21 +2,11 @@ import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { getWebSession } from "@/lib/auth/web-session";
 import { prisma } from "@/lib/db/prisma";
-import { AdminSidebar } from "@/components/admin/sidebar";
-import { AdminMobileNav } from "@/components/admin/mobile-admin-nav";
 // 2026-05-12 로그인 redirect 통합 — 비로그인 → 로그인 페이지 후 원래 tournament-admin 페이지 복귀
 import { buildLoginRedirect } from "@/lib/auth/redirect";
 // 2026-05-12 hotfix — CopyLinkButton 등 client component 가 useToast 호출 → (admin) 영역에 ToastProvider 부재로 throw.
 // (web)/(score-sheet) layout 과 동일 패턴으로 ToastProvider mount.
 import { ToastProvider } from "@/contexts/toast-context";
-
-// AdminSidebar/AdminMobileNav role 타입 (admin/layout.tsx 와 동일)
-type AdminRole =
-  | "super_admin"
-  | "site_admin"
-  | "tournament_admin"
-  | "partner_member"
-  | "org_member";
 
 /**
  * 대회 관리 레이아웃 — 서버 컴포넌트로 권한 검증 수행.
@@ -26,7 +16,8 @@ type AdminRole =
  * role: tournament_admin 또는 super_admin 만 접근 가능 (admin/layout.tsx 와 동일 권한 체크).
  * 미로그인 또는 권한 부족 시 홈으로 리다이렉트.
  *
- * UI: admin sidebar (lg+) + AdminMobileNav (모바일).
+ * UI: v2.41/v2.42 Toss standalone workspace. 운영/생성/수정 시안은 전역 관리자
+ * sidebar 없이 full-width 로 동작하므로 이 레이아웃은 인증/권한 wrapper 만 담당한다.
  */
 export default async function TournamentAdminLayout({ children }: { children: React.ReactNode }) {
   const session = await getWebSession();
@@ -57,45 +48,11 @@ export default async function TournamentAdminLayout({ children }: { children: Re
     redirect("/login?error=no_permission");
   }
 
-  // AdminSidebar 표시용 role 목록 — admin/layout.tsx 와 동일 패턴
-  const roles: AdminRole[] = [];
-  if (isSuperAdmin) roles.push("super_admin");
-  if (dbUser?.admin_role === "site_admin" || session.admin_role === "site_admin") {
-    roles.push("site_admin");
-  }
-  if (isTournamentAdmin) roles.push("tournament_admin");
-
-  // partner_member / org_member 체크 (super_admin 외)
-  if (!roles.includes("super_admin")) {
-    const [partnerMembership, orgMembership] = await Promise.all([
-      prisma.partner_members.findFirst({
-        where: { user_id: userId, is_active: true },
-        select: { id: true },
-      }),
-      prisma.organization_members.findFirst({
-        where: { user_id: userId, is_active: true },
-        select: { id: true },
-      }),
-    ]);
-    if (partnerMembership) roles.push("partner_member");
-    if (orgMembership) roles.push("org_member");
-  }
-
   return (
     <ToastProvider>
-      <div className="min-h-screen bg-[var(--color-background)]">
-        {/* 데스크톱 사이드바 (lg+) — admin/layout.tsx 와 동일 패턴 */}
-        <div className="hidden lg:block">
-          <AdminSidebar roles={roles} />
-        </div>
-        {/* 모바일 햄버거 + 드로어 (lg 미만) */}
-        <div className="lg:hidden">
-          <AdminMobileNav roles={roles} scope="tournament" />
-        </div>
-        <main className="lg:ml-64">
-          <div className="mx-auto max-w-[1600px] p-6 pt-16 lg:pt-6">
-            {children}
-          </div>
+      <div data-skin="toss" className="min-h-screen">
+        <main>
+          {children}
         </main>
       </div>
     </ToastProvider>

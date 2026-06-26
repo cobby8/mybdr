@@ -61,7 +61,7 @@ export default async function TournamentAdminTournamentsPage() {
   const headerLabel = isSuper ? "전체 대회" : "내 대회";
 
   return (
-    <div>
+    <div data-skin="toss" className="tw-shell">
       {/* AdminPageHeader 보존 — 목록 화면의 단일 생성 CTA 만 노출 */}
       <AdminPageHeader
         eyebrow={`ADMIN · 대회 운영${isSuper ? " · SUPER" : ""}`}
