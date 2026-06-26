@@ -137,14 +137,6 @@ const FORMAT_LABEL: Record<string, string> = {
   group_stage_with_ranking: "조별리그+동순위전",
 };
 
-const STATUS_LABEL: Record<string, string> = {
-  scheduled: "예정",
-  in_progress: "진행중",
-  completed: "종료",
-  bye: "부전승",
-  cancelled: "취소",
-};
-
 function normalizeTeamInfo(team: RawTeamInfo | null | undefined): TeamInfo | null {
   if (!team) return null;
   return {
@@ -236,15 +228,6 @@ function teamsForDivisionRule(teams: ApprovedTeam[], rule: DivisionRule, allRule
 
 function matchesForRule(matches: Match[], code: string) {
   return matches.filter((match) => divisionCodeOf(match) === code);
-}
-
-function stageOf(match: Match) {
-  const stage = match.settings?.stage;
-  if (stage) return stage;
-  if (match.group_name && !match.round_number) return "prelim";
-  if (match.group_name && match.round_number != null && match.bracket_position != null) return "dual_group";
-  if (match.round_number != null && match.bracket_position != null) return "knockout";
-  return "other";
 }
 
 function buildSlots(config: RuleConfig, teamCount: number) {
@@ -368,24 +351,6 @@ function formatSummary(config: RuleConfig, teamCount: number, leaves: string[], 
     totalGames: groupGames + knockoutGames,
     ready: config.format === "single_elimination" || hasGroups,
   };
-}
-
-function formatSchedule(match: Match) {
-  const iso = match.scheduledAt ?? match.scheduled_at;
-  if (!iso) return "일정 미정";
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return "일정 미정";
-  const pad = (value: number) => String(value).padStart(2, "0");
-  return `${date.getFullYear()}.${pad(date.getMonth() + 1)}.${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
-}
-
-function formatVenue(match: Match) {
-  if (!match.venue_name && !match.court_number) return "장소 미정";
-  return [match.venue_name, match.court_number ? `${match.court_number}코트` : null].filter(Boolean).join(" · ");
-}
-
-function slotLabel(team: TeamInfo | null, fallback?: string | null) {
-  return team?.team.name ?? fallback ?? "미정";
 }
 
 function shuffle<T>(items: T[]) {
@@ -1141,155 +1106,4 @@ function dualRows(group: string, groupSize: number) {
 function nameBySlot(slot: string, teams: ApprovedTeam[]) {
   const team = teams.find((item) => slotForTeam(item) === slot);
   return team?.team.name ?? slot;
-}
-
-function groupTitle(group: string) {
-  if (group === "미지정") return group;
-  return group.endsWith("조") ? group : `${group}조`;
-}
-
-function GeneratedMatches({ matches, config }: { matches: Match[]; config: RuleConfig }) {
-  const prelim = matches.filter((match) => ["prelim", "round_robin"].includes(stageOf(match)));
-  const dualGroup = matches.filter((match) => stageOf(match) === "dual_group");
-  const knockout = matches.filter((match) => ["knockout", "dual_knockout", "single_elimination"].includes(stageOf(match)));
-  const other = matches.filter((match) => {
-    const stage = stageOf(match);
-    return !["prelim", "round_robin", "dual_group", "knockout", "dual_knockout", "single_elimination"].includes(stage);
-  });
-  const completed = matches.filter((match) => match.status === "completed").length;
-
-  return (
-    <div className="bk-generated">
-      <div className="bk-generated__head">
-        <div>
-          <h5>일정에 반영된 대진표</h5>
-          <p>생성된 경기표를 단계별로 확인합니다. 시간·코트 배정은 일정 탭에서 이어서 조정합니다.</p>
-        </div>
-        <div className="bk-generated__stats">
-          <span className="ct-pill" data-tone="ok">전체 {matches.length}경기</span>
-          {prelim.length > 0 && <span className="ct-pill" data-tone="mute">예선 {prelim.length}</span>}
-          {dualGroup.length > 0 && <span className="ct-pill" data-tone="mute">조별 더블 {dualGroup.length}</span>}
-          {knockout.length > 0 && <span className="ct-pill" data-tone="mute">본선 {knockout.length}</span>}
-          <span className="ct-pill" data-tone={completed > 0 ? "ok" : "warn"}>완료 {completed}</span>
-        </div>
-      </div>
-
-      {dualGroup.length > 0 && (
-        <GeneratedSection
-          title="조별 더블 엘리미네이션"
-          desc="1·2경기 → 승자전/패자전 → 조 최종전 순서입니다."
-          matches={dualGroup}
-          groupBy="group"
-        />
-      )}
-      {prelim.length > 0 && config.format !== "dual_tournament" && (
-        <GeneratedSection
-          title={config.format === "round_robin" ? "리그 경기" : "조별 예선"}
-          desc="같은 조 안에서 생성된 예선 경기입니다."
-          matches={prelim}
-          groupBy="group"
-        />
-      )}
-      {knockout.length > 0 && (
-        <GeneratedSection
-          title="본선 토너먼트"
-          desc="순위 결과 또는 승자 흐름에 따라 다음 경기 슬롯으로 연결됩니다."
-          matches={knockout}
-          groupBy="round"
-        />
-      )}
-      {other.length > 0 && (
-        <GeneratedSection title="기타 경기" desc="단계 정보가 없는 기존 경기입니다." matches={other} groupBy="round" />
-      )}
-    </div>
-  );
-}
-
-function GeneratedSection({
-  title,
-  desc,
-  matches,
-  groupBy,
-}: {
-  title: string;
-  desc: string;
-  matches: Match[];
-  groupBy: "group" | "round";
-}) {
-  const groups = Array.from(
-    matches.reduce<Map<string, Match[]>>((map, match) => {
-      const key = groupBy === "group"
-        ? match.group_name ?? match.settings?.group_name ?? "미지정"
-        : match.roundName ?? (match.round_number ? `${match.round_number}라운드` : "기타");
-      if (!map.has(key)) map.set(key, []);
-      map.get(key)!.push(match);
-      return map;
-    }, new Map()),
-  ).sort(([a], [b]) => a.localeCompare(b, "ko-KR", { numeric: true }));
-
-  return (
-    <div className="bk-generated__section">
-      <div className="bk-section-row">
-        <div>
-          <h5 className="bk-generated__title">{title}</h5>
-          <p className="ct-section__sub">{desc}</p>
-        </div>
-        <span className="ct-pill" data-tone="mute">{matches.length}경기</span>
-      </div>
-      <div className="ta-match-sections">
-        {groups.map(([group, groupMatches]) => (
-          <div key={group} className="ta-round-group">
-            <p className="ta-round-group__title">{groupBy === "group" ? groupTitle(group) : group} ({groupMatches.length})</p>
-            <div className="ta-match-list">
-              {groupMatches.map((match) => <MatchCard key={match.id} match={match} />)}
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function MatchCard({ match }: { match: Match }) {
-  const homeFallback = match.settings?.homeSlotLabel ?? match.settings?.home_slot_label;
-  const awayFallback = match.settings?.awaySlotLabel ?? match.settings?.away_slot_label;
-  const homeLabel = slotLabel(match.homeTeam, homeFallback);
-  const awayLabel = slotLabel(match.awayTeam, awayFallback);
-  const completed = match.status === "completed";
-  const homeWon = completed && match.homeScore > match.awayScore;
-  const awayWon = completed && match.awayScore > match.homeScore;
-
-  return (
-    <div className="ta-match-card">
-      <div className="ta-match-meta">
-        <div className="ta-match-meta__main">
-          <span className="ta-match-no">#{match.match_number ?? "-"}</span>
-          <span className="ta-match-round">{match.roundName ?? (match.round_number ? `${match.round_number}라운드` : "라운드 미정")}</span>
-        </div>
-        <span className="ta-match-status" data-status={completed ? "completed" : match.status}>
-          {STATUS_LABEL[match.status] ?? match.status}
-        </span>
-      </div>
-      <div className="ta-match-info">
-        <span>{formatSchedule(match)}</span>
-        <span>·</span>
-        <span>{formatVenue(match)}</span>
-      </div>
-      <div className="ta-match-teams">
-        <div className="ta-match-side">
-          <span className="ta-match-team" data-undecided={match.homeTeam == null ? "true" : "false"} data-won={homeWon ? "true" : "false"} title={homeLabel}>
-            {homeLabel}
-          </span>
-          <span className="ta-match-score" data-won={homeWon ? "true" : "false"}>{completed ? match.homeScore : "-"}</span>
-        </div>
-        <span className="ta-match-vs">vs</span>
-        <div className="ta-match-side">
-          <span className="ta-match-score" data-won={awayWon ? "true" : "false"}>{completed ? match.awayScore : "-"}</span>
-          <span className="ta-match-team" data-undecided={match.awayTeam == null ? "true" : "false"} data-won={awayWon ? "true" : "false"} title={awayLabel}>
-            {awayLabel}
-          </span>
-        </div>
-      </div>
-    </div>
-  );
 }
