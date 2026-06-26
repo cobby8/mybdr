@@ -388,6 +388,15 @@ function slotLabel(team: TeamInfo | null, fallback?: string | null) {
   return team?.team.name ?? fallback ?? "미정";
 }
 
+function shuffle<T>(items: T[]) {
+  const next = [...items];
+  for (let index = next.length - 1; index > 0; index--) {
+    const swapIndex = Math.floor(Math.random() * (index + 1));
+    [next[index], next[swapIndex]] = [next[swapIndex], next[index]];
+  }
+  return next;
+}
+
 function readApiError(json: unknown, fallback: string) {
   if (!json || typeof json !== "object") return fallback;
   const record = json as Record<string, unknown>;
@@ -411,6 +420,7 @@ export default function BracketPanel(_props: { showNextStepCTA?: boolean } = {})
   const [configs, setConfigs] = useState<Record<string, RuleConfig>>({});
   const [phaseByCode, setPhaseByCode] = useState<Record<string, DrawPhase>>({});
   const [seedByCode, setSeedByCode] = useState<Record<string, Record<string, string>>>({});
+  const [assignmentByCode, setAssignmentByCode] = useState<Record<string, Record<string, string>>>({});
   const [leavesByCode, setLeavesByCode] = useState<Record<string, string[]>>({});
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [busy, setBusy] = useState<BusyKind>(null);
@@ -478,13 +488,15 @@ export default function BracketPanel(_props: { showNextStepCTA?: boolean } = {})
   const serverConfig = ruleConfig(currentRule);
   const configDirty = JSON.stringify(currentConfig) !== JSON.stringify(serverConfig);
   const selectedSeeds = seedByCode[currentRule.code] ?? {};
+  const selectedAssignment = assignmentByCode[currentRule.code] ?? {};
+  const groupBased = usesGroups(currentConfig.format);
   const hasGroups = approvedTeams.some((team) => team.groupName);
-  const phase = phaseByCode[currentRule.code] ?? (hasGroups ? "drawn" : "config");
+  const hasGeneratedMatches = generatedMatches.length > 0;
+  const phase = phaseByCode[currentRule.code] ?? (hasGeneratedMatches || hasGroups ? "drawn" : "config");
   const leaves = leavesByCode[currentRule.code] ?? buildKnockoutLeaves(currentConfig, approvedTeams.length);
   const rounds = nextRoundsFromLeaves(leaves);
   const summary = formatSummary(currentConfig, approvedTeams.length, leaves, hasGroups);
   const groupedTeams = groupTeams(approvedTeams, currentConfig);
-  const hasGeneratedMatches = generatedMatches.length > 0;
 
   function patchConfig(patch: Partial<RuleConfig>) {
     setConfigs((prev) => ({
@@ -509,6 +521,37 @@ export default function BracketPanel(_props: { showNextStepCTA?: boolean } = {})
       else delete current[slot];
       return { ...prev, [currentRule.code]: current };
     });
+  }
+
+  function assignLocalDraw(mode: "random" | "seeded") {
+    const slots = buildSlots(currentConfig, approvedTeams.length);
+    const nextAssignment: Record<string, string> = {};
+    const fixedTeamIds = new Set<string>();
+
+    if (mode === "seeded") {
+      for (const [slot, teamId] of Object.entries(selectedSeeds)) {
+        const team = approvedTeams.find((item) => item.id === teamId);
+        if (!team) continue;
+        nextAssignment[slot] = team.team.name;
+        fixedTeamIds.add(team.id);
+      }
+    }
+
+    const pool = shuffle(approvedTeams.filter((team) => !fixedTeamIds.has(team.id)));
+    let poolIndex = 0;
+    for (const slot of slots) {
+      if (nextAssignment[slot]) continue;
+      const team = pool[poolIndex++];
+      nextAssignment[slot] = team?.team.name ?? "부전승";
+    }
+
+    setAssignmentByCode((prev) => ({ ...prev, [currentRule.code]: nextAssignment }));
+    setLeavesByCode((prev) => ({
+      ...prev,
+      [currentRule.code]: buildKnockoutLeaves(currentConfig, approvedTeams.length),
+    }));
+    setPhase("drawn");
+    setNotice(mode === "seeded" ? "시드 반영 후 나머지 팀을 랜덤 배정했습니다." : "완전 랜덤 추첨을 완료했습니다.");
   }
 
   async function saveSettings(options: { quiet?: boolean } = {}) {
@@ -544,6 +587,11 @@ export default function BracketPanel(_props: { showNextStepCTA?: boolean } = {})
     if (configDirty) {
       const saved = await saveSettings({ quiet: true });
       if (!saved) return;
+    }
+
+    if (!usesGroups(currentConfig.format)) {
+      assignLocalDraw(mode);
+      return;
     }
 
     setBusy(mode);
@@ -631,6 +679,7 @@ export default function BracketPanel(_props: { showNextStepCTA?: boolean } = {})
   function resetLocalDraw() {
     setPhase("config");
     setSeedByCode((prev) => ({ ...prev, [currentRule.code]: {} }));
+    setAssignmentByCode((prev) => ({ ...prev, [currentRule.code]: {} }));
     setLeavesByCode((prev) => {
       const next = { ...prev };
       delete next[currentRule.code];
@@ -668,15 +717,6 @@ export default function BracketPanel(_props: { showNextStepCTA?: boolean } = {})
           setNotice("");
           setDragIndex(null);
         }}
-      />
-
-      <GenerationSummary
-        rule={currentRule}
-        config={currentConfig}
-        teamCount={approvedTeams.length}
-        matchCount={generatedMatches.length}
-        summary={summary}
-        hasGroups={hasGroups}
       />
 
       <section className="ts-card ts-card--flat bk-config">
@@ -749,48 +789,93 @@ export default function BracketPanel(_props: { showNextStepCTA?: boolean } = {})
         </div>
       </section>
 
-      <section className="ts-card ts-card--flat bk-drawbar">
-        <div>
-          <p className="bk-subtitle">조편성</p>
-          <p className="ct-section__sub">
-            {phase === "seeding"
-              ? "시드 팀을 조·슬롯에 배정한 뒤 나머지를 랜덤 추첨하세요."
-              : phase === "drawn"
-                ? "추첨 완료. 대회 방식에 맞춰 트리와 경기표를 생성할 수 있습니다."
-                : "완전 랜덤 또는 시드 배정 후 랜덤으로 추첨하세요."}
-          </p>
-        </div>
-        <div className="bk-actions">
-          <button type="button" className="ts-btn ts-btn--secondary ts-btn--sm" disabled={busy != null || !configDirty} onClick={() => saveSettings()}>
-            {busy === "settings" ? "저장 중..." : "설정 저장"}
-          </button>
-          {phase === "drawn" && (
-            <button type="button" className="ts-btn ts-btn--secondary ts-btn--sm" disabled={busy != null} onClick={resetLocalDraw}>
-              초기화
+      {groupBased ? (
+        <section className="ts-card ts-card--flat bk-drawbar">
+          <div>
+            <p className="bk-subtitle">조편성</p>
+            <p className="ct-section__sub">
+              {phase === "seeding"
+                ? "시드 팀을 조·슬롯에 배정한 뒤 나머지를 랜덤 추첨하세요."
+                : phase === "drawn"
+                  ? "추첨 완료. 대회 방식에 맞춰 트리와 경기표를 생성할 수 있습니다."
+                  : "완전 랜덤 또는 시드 배정 후 랜덤으로 추첨하세요."}
+            </p>
+          </div>
+          <div className="bk-actions">
+            <button type="button" className="ts-btn ts-btn--secondary ts-btn--sm" disabled={busy != null || !configDirty} onClick={() => saveSettings()}>
+              {busy === "settings" ? "저장 중..." : "설정 저장"}
             </button>
-          )}
-          {phase !== "seeding" && (
-            <button type="button" className="ts-btn ts-btn--secondary ts-btn--sm" disabled={busy != null || approvedTeams.length < 2} onClick={() => draw("random")}>
-              {busy === "random" ? "추첨 중..." : "완전 랜덤 추첨"}
+            {phase === "drawn" && (
+              <button type="button" className="ts-btn ts-btn--secondary ts-btn--sm" disabled={busy != null} onClick={resetLocalDraw}>
+                초기화
+              </button>
+            )}
+            {phase !== "seeding" && (
+              <button type="button" className="ts-btn ts-btn--secondary ts-btn--sm" disabled={busy != null || approvedTeams.length < 2} onClick={() => draw("random")}>
+                {busy === "random" ? "추첨 중..." : "완전 랜덤 추첨"}
+              </button>
+            )}
+            {phase !== "seeding" && (
+              <button type="button" className="ts-btn ts-btn--primary ts-btn--sm" disabled={busy != null || approvedTeams.length < 2} onClick={() => setPhase("seeding")}>
+                시드 배정
+              </button>
+            )}
+            {phase === "seeding" && (
+              <button type="button" className="ts-btn ts-btn--secondary ts-btn--sm" disabled={busy != null} onClick={() => setPhase("config")}>
+                시드 취소
+              </button>
+            )}
+            {phase === "seeding" && (
+              <button type="button" className="ts-btn ts-btn--primary ts-btn--sm" disabled={busy != null} onClick={() => draw("seeded")}>
+                {busy === "seeded" ? "추첨 중..." : "시드 완료 → 랜덤 추첨"}
+              </button>
+            )}
+          </div>
+        </section>
+      ) : (
+        <section className="ts-card ts-card--flat bk-drawbar">
+          <div>
+            <p className="bk-subtitle">조편성</p>
+            <p className="ct-section__sub">
+              {phase === "seeding"
+                ? "시드 팀을 토너먼트 슬롯에 배정한 뒤 나머지를 랜덤 추첨하세요."
+                : phase === "drawn"
+                  ? "추첨 완료. 토너먼트 트리를 드래그로 수정할 수 있습니다."
+                  : "단일 토너먼트는 조 없이 완전 랜덤 또는 시드 배정 후 랜덤으로 추첨하세요."}
+            </p>
+          </div>
+          <div className="bk-actions">
+            <button type="button" className="ts-btn ts-btn--secondary ts-btn--sm" disabled={busy != null || !configDirty} onClick={() => saveSettings()}>
+              {busy === "settings" ? "저장 중..." : "설정 저장"}
             </button>
-          )}
-          {phase !== "seeding" && (
-            <button type="button" className="ts-btn ts-btn--primary ts-btn--sm" disabled={busy != null || approvedTeams.length < 2} onClick={() => setPhase("seeding")}>
-              시드 배정
-            </button>
-          )}
-          {phase === "seeding" && (
-            <button type="button" className="ts-btn ts-btn--secondary ts-btn--sm" disabled={busy != null} onClick={() => setPhase("config")}>
-              시드 취소
-            </button>
-          )}
-          {phase === "seeding" && (
-            <button type="button" className="ts-btn ts-btn--primary ts-btn--sm" disabled={busy != null} onClick={() => draw("seeded")}>
-              {busy === "seeded" ? "추첨 중..." : "시드 완료 → 랜덤 추첨"}
-            </button>
-          )}
-        </div>
-      </section>
+            {phase === "drawn" && (
+              <button type="button" className="ts-btn ts-btn--secondary ts-btn--sm" disabled={busy != null} onClick={resetLocalDraw}>
+                초기화
+              </button>
+            )}
+            {phase !== "seeding" && (
+              <button type="button" className="ts-btn ts-btn--secondary ts-btn--sm" disabled={busy != null || approvedTeams.length < 2} onClick={() => draw("random")}>
+                완전 랜덤 추첨
+              </button>
+            )}
+            {phase !== "seeding" && (
+              <button type="button" className="ts-btn ts-btn--primary ts-btn--sm" disabled={busy != null || approvedTeams.length < 2} onClick={() => setPhase("seeding")}>
+                시드 배정
+              </button>
+            )}
+            {phase === "seeding" && (
+              <button type="button" className="ts-btn ts-btn--secondary ts-btn--sm" disabled={busy != null} onClick={() => setPhase("config")}>
+                시드 취소
+              </button>
+            )}
+            {phase === "seeding" && (
+              <button type="button" className="ts-btn ts-btn--primary ts-btn--sm" disabled={busy != null} onClick={() => draw("seeded")}>
+                시드 완료 → 랜덤 추첨
+              </button>
+            )}
+          </div>
+        </section>
+      )}
 
       {phase === "seeding" && (
         <SeedAssignment
@@ -801,12 +886,14 @@ export default function BracketPanel(_props: { showNextStepCTA?: boolean } = {})
         />
       )}
 
-      <GroupAssignment
-        config={currentConfig}
-        teams={approvedTeams}
-        groups={groupedTeams}
-        hasGroups={hasGroups}
-      />
+      {groupBased && (
+        <GroupAssignment
+          config={currentConfig}
+          teams={approvedTeams}
+          groups={groupedTeams}
+          hasGroups={hasGroups}
+        />
+      )}
 
       {phase === "drawn" && currentConfig.format === "dual_tournament" && (
         <DualPreview config={currentConfig} groups={groupedTeams} />
@@ -816,48 +903,50 @@ export default function BracketPanel(_props: { showNextStepCTA?: boolean } = {})
         <div className="bk-section-row">
           <div>
             <h4 className="bk-subh">토너먼트 트리</h4>
-            <p className="ct-section__sub">조편성 결과와 대회 방식에 맞춰 생성될 본선 흐름입니다.</p>
+            <p className="ct-section__sub">조편성 결과와 대회 방식에 맞춰 생성될 본선 흐름입니다. 첫 라운드는 드래그해 교체할 수 있습니다.</p>
           </div>
           <button type="button" className="ts-btn ts-btn--primary ts-btn--sm" disabled={busy != null || approvedTeams.length < 2} onClick={generateMatches}>
             {busy === "generate" ? "반영 중..." : hasGeneratedMatches ? "일정에 다시 반영" : "일정에 반영"}
           </button>
         </div>
-        {hasGeneratedMatches ? (
-          <GeneratedMatches matches={generatedMatches} config={currentConfig} />
-        ) : rounds.length > 0 ? (
+        {rounds.length > 0 ? (
           <div className="bk-tree">
             {rounds.map((round, roundIndex) => (
               <div key={round.name} className="bk-round">
                 <div className="bk-round__name">{round.name}</div>
-                {round.pairs.map(([home, away], pairIndex) => {
-                  const firstRound = roundIndex === 0;
-                  const homeIndex = pairIndex * 2;
-                  const awayIndex = pairIndex * 2 + 1;
-                  return (
-                    <div key={`${round.name}-${pairIndex}`} className="bk-match">
-                      <div
-                        className={firstRound ? "bk-seedrow bk-seedrow--drag" : "bk-seedrow"}
-                        draggable={firstRound}
-                        onDragStart={() => firstRound && setDragIndex(homeIndex)}
-                        onDragOver={(event) => firstRound && event.preventDefault()}
-                        onDrop={() => firstRound && swapLeaf(homeIndex)}
-                      >
-                        {firstRound && <Icon name="grip-vertical" size={13} color="var(--ink-dim)" />}
-                        <span>{home}</span>
+                <div className="bk-round__body">
+                  {round.pairs.map(([home, away], pairIndex) => {
+                    const firstRound = roundIndex === 0;
+                    const homeIndex = pairIndex * 2;
+                    const awayIndex = pairIndex * 2 + 1;
+                    return (
+                      <div key={`${round.name}-${pairIndex}`} className="bk-cell">
+                        <div className="bk-match">
+                          <div
+                            className={firstRound ? "bk-seedrow bk-seedrow--drag" : "bk-seedrow"}
+                            draggable={firstRound}
+                            onDragStart={() => firstRound && setDragIndex(homeIndex)}
+                            onDragOver={(event) => firstRound && event.preventDefault()}
+                            onDrop={() => firstRound && swapLeaf(homeIndex)}
+                          >
+                            {firstRound && <Icon name="grip-vertical" size={13} color="var(--ink-dim)" />}
+                            <span>{firstRound ? selectedAssignment[home] ?? home : home}</span>
+                          </div>
+                          <div
+                            className={firstRound ? "bk-seedrow bk-seedrow--drag" : "bk-seedrow"}
+                            draggable={firstRound}
+                            onDragStart={() => firstRound && setDragIndex(awayIndex)}
+                            onDragOver={(event) => firstRound && event.preventDefault()}
+                            onDrop={() => firstRound && swapLeaf(awayIndex)}
+                          >
+                            {firstRound && <Icon name="grip-vertical" size={13} color="var(--ink-dim)" />}
+                            <span>{firstRound ? selectedAssignment[away] ?? away : away}</span>
+                          </div>
+                        </div>
                       </div>
-                      <div
-                        className={firstRound ? "bk-seedrow bk-seedrow--drag" : "bk-seedrow"}
-                        draggable={firstRound}
-                        onDragStart={() => firstRound && setDragIndex(awayIndex)}
-                        onDragOver={(event) => firstRound && event.preventDefault()}
-                        onDrop={() => firstRound && swapLeaf(awayIndex)}
-                      >
-                        {firstRound && <Icon name="grip-vertical" size={13} color="var(--ink-dim)" />}
-                        <span>{away}</span>
-                      </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
               </div>
             ))}
           </div>
@@ -870,53 +959,6 @@ export default function BracketPanel(_props: { showNextStepCTA?: boolean } = {})
         )}
       </section>
     </div>
-  );
-}
-
-function GenerationSummary({
-  rule,
-  config,
-  teamCount,
-  matchCount,
-  summary,
-  hasGroups,
-}: {
-  rule: DivisionRule;
-  config: RuleConfig;
-  teamCount: number;
-  matchCount: number;
-  summary: ReturnType<typeof formatSummary>;
-  hasGroups: boolean;
-}) {
-  const needsDraw = config.format !== "single_elimination" && !hasGroups;
-  const statusText = matchCount > 0 ? "일정 반영됨" : needsDraw ? "조편성 필요" : "생성 가능";
-  const tone = matchCount > 0 ? "ok" : needsDraw ? "warn" : "info";
-
-  return (
-    <section className="bk-overview">
-      <div className="bk-overview__main">
-        <span className="ct-headicon"><Icon name="git-merge" size={18} /></span>
-        <div>
-          <h3>{rule.label ?? rule.code}</h3>
-          <p>
-            {FORMAT_LABEL[config.format] ?? config.format}
-            {" · "}
-            참가 {teamCount}팀
-            {config.format !== "single_elimination" && ` · ${config.group_count}조 × ${config.group_size}팀`}
-          </p>
-        </div>
-      </div>
-      <div className="bk-overview__metrics">
-        <span className="ct-pill" data-tone={tone}>{statusText}</span>
-        <span className="ct-pill" data-tone="mute">슬롯 {summary.slots}</span>
-        {summary.qualifiers > 0 && <span className="ct-pill" data-tone="info">본선 {summary.qualifiers}팀</span>}
-        {summary.groupGames > 0 && <span className="ct-pill" data-tone="mute">예선 {summary.groupGames}경기</span>}
-        {summary.knockoutGames > 0 && <span className="ct-pill" data-tone="mute">본선 {summary.knockoutGames}경기</span>}
-        {matchCount > 0
-          ? <span className="ct-pill" data-tone="ok">생성 {matchCount}경기</span>
-          : <span className="ct-pill" data-tone="warn">예상 {summary.totalGames}경기</span>}
-      </div>
-    </section>
   );
 }
 

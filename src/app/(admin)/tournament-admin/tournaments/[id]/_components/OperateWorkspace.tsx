@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState, type ComponentType, type ReactNode } from "react";
 import { Icon } from "@/components/admin-toss";
 import type { RecordingMode } from "@/lib/tournaments/recording-mode";
-import type { MatchStats, StatusTone, TournamentWorkspaceProps } from "./TournamentWorkspace";
+import type { MatchStats, TournamentWorkspaceProps } from "./TournamentWorkspace";
 
 type MenuId = "teams" | "bracket" | "schedule" | "ops" | "site" | "settle";
 
@@ -102,8 +102,6 @@ function numberText(value: number | null | undefined, fallback = "0") {
 
 export function OperateWorkspace({
   tournamentId,
-  progress,
-  publishGate,
   matchStats,
   defaultRecordingMode,
   setup,
@@ -159,15 +157,6 @@ export function OperateWorkspace({
             </Link>
           </div>
         </div>
-      </div>
-
-      <div className="operate-summary">
-        <OperateMetric label="참가팀" value={`${numberText(summary.teamCount)}${summary.maxTeams ? ` / ${summary.maxTeams}` : ""}`} tone="info" />
-        <OperateMetric label="종별" value={`${numberText(summary.divisionCount)}개`} tone="info" />
-        <OperateMetric label="경기" value={`${numberText(summary.matchCount)}경기`} tone={summary.matchCount > 0 ? "ok" : "warn"} />
-        <OperateMetric label="공개" value={summary.sitePublished ? "공개 중" : summary.siteConfigured ? "사이트 준비" : "사이트 필요"} tone={summary.sitePublished ? "ok" : "warn"} />
-        <OperateMetric label="필수 확인" value={publishGate.ok ? "완료" : `${publishGate.missing.length}개 남음`} tone={publishGate.ok ? "ok" : "warn"} />
-        <OperateMetric label="셋업" value={`${progress.completed}/${progress.total}`} tone={publishGate.ok ? "ok" : "info"} />
       </div>
 
       <div className="op-menu" role="tablist" aria-label="대회 운영 메뉴">
@@ -285,23 +274,6 @@ function SettlementPanel() {
           심판 정산 관리
         </Link>
       </div>
-    </div>
-  );
-}
-
-function OperateMetric({
-  label,
-  value,
-  tone = "mute",
-}: {
-  label: string;
-  value: string;
-  tone?: StatusTone;
-}) {
-  return (
-    <div className="operate-metric" data-tone={tone}>
-      <span className="operate-metric__label">{label}</span>
-      <span className="operate-metric__value">{value}</span>
     </div>
   );
 }
