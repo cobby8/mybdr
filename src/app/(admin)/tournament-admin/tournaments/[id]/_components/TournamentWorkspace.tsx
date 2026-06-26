@@ -143,8 +143,23 @@ const LEGACY_SECTION_MAP: Record<string, SectionId> = {
   setup: "info",
   teams: "publish",
   structure: "divisions",
+  bracket: "divisions",
   matches: "game",
   staff: "game",
+  recorders: "game",
+  admins: "game",
+  site: "publish",
+};
+
+const HASH_PANEL_MAP: Record<string, PanelId> = {
+  teams: "teams",
+  divisions: "divisions",
+  structure: "divisions",
+  bracket: "bracket",
+  matches: "matches",
+  recorders: "recorders",
+  admins: "admins",
+  site: "site",
 };
 
 const RECORDING_MODE_LABEL: Record<RecordingMode, string> = {
@@ -227,10 +242,37 @@ export function TournamentWorkspace({
   useEffect(() => {
     const rawHash = window.location.hash.replace("#", "");
     const hash = (LEGACY_SECTION_MAP[rawHash] ?? rawHash) as SectionId;
+    const panel = HASH_PANEL_MAP[rawHash];
+    if (panel) {
+      setOpenPanels((current) => {
+        const next = new Set(current);
+        next.add(panel);
+        return next;
+      });
+    }
     if (SECTIONS.some((section) => section.id === hash)) {
       moveTo(hash, "auto");
     }
   }, []);
+
+  useEffect(() => {
+    const defaultPanel: PanelId | null =
+      active === "divisions"
+        ? "divisions"
+        : active === "game"
+          ? "matches"
+          : active === "publish"
+            ? "teams"
+            : null;
+    if (!defaultPanel) return;
+
+    setOpenPanels((current) => {
+      if (current.has(defaultPanel)) return current;
+      const next = new Set(current);
+      next.add(defaultPanel);
+      return next;
+    });
+  }, [active]);
 
   function moveTo(id: SectionId, behavior: ScrollBehavior = "smooth") {
     setActive(id);
