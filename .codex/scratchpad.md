@@ -26,6 +26,7 @@
 | Admin Toss cleanup | In Progress | Admin scope now scans clean for `ta-*`, `au-*`, `material-symbols-outlined`, and `components/ui`; remaining work is broader `admin-*` class parity and full 9-screen replacement. |
 
 ## Work Log
+- 2026-06-27: Replaced shared AdminPageHeader markup with canonical Toss `ts-ph` structure while preserving props/search/actions; TypeScript, `admin-pageheader` scan, and local Chrome `/admin/tournaments`/`/tournament-admin/tournaments` passed.
 - 2026-06-27: Removed admin-scope Material Symbols and `components/ui` dependencies by routing icons/skeleton/buttons through admin Toss lucide kit; `rg` cleanup scan, TypeScript, diff check, and local Chrome `/admin/tournaments`/operate workspace passed.
 - 2026-06-27: Replaced admin backoffice `au-*` residue with `ad-*`, added a lucide-based AdminThemeSwitch, and removed global sidebar/user-menu/logout ligature text; TypeScript and local Chrome `/admin/tournaments` passed.
 - 2026-06-27: Removed active `ta-*` class usage from tournament operate divisions/bracket/matches surfaces by moving them to `ct-*`/`bk-*`/`amt-*`; `rg ta-*`, TypeScript, diff check, and local Chrome for `#divisions`/`#bracket` passed.
@@ -35,4 +36,3 @@
 - 2026-06-27: Removed the legacy global admin sidebar from `/tournament-admin/*`, kept auth/permission guards, and verified list/detail pages render as standalone Toss workspaces at 1240px without `light_mode` sidebar residue; TypeScript passed.
 - 2026-06-27: Stabilized tournament teams category rendering by preserving raw DB category values while displaying/grouping by active division rules; local Chrome verified 8 teams show `남성 일반부` with no `?? ???`; TypeScript passed.
 - 2026-06-27: Replaced `/admin/tournaments` with a clean Toss v2.41 tournament list, removed the legacy detail/delete drawer path from row interaction, verified Chrome local row-click routing to the operate workspace, and TypeScript passed.
-- 2026-06-27: Rebuilt tournament operate schedule tab around the Toss v2.41 scheduler flow: date/court lanes, division durations, lane starts, auto placement, direct placement, lane timelines, and real scheduledAt/venue/court PATCH saves; TypeScript and production build passed.
