@@ -114,7 +114,7 @@ export function AdminSuggestionsContent({
       width: "120px",
       hideSm: true,
       render: (r) => (
-        <span style={{ color: "var(--ink-mute)" }}>
+        <span style={{ color: "var(--color-text-muted)" }}>
           {r.authorName ?? r.authorEmail ?? "-"}
         </span>
       ),
@@ -132,7 +132,7 @@ export function AdminSuggestionsContent({
       width: "100px",
       hideSm: true,
       render: (r) => (
-        <span style={{ color: "var(--ink-mute)" }}>{fmtDate(r.createdAt)}</span>
+        <span style={{ color: "var(--color-text-muted)" }}>{fmtDate(r.createdAt)}</span>
       ),
     },
   ];
@@ -174,9 +174,9 @@ export function AdminSuggestionsContent({
                 required
                 className="flex-1 rounded-[4px] border px-3 py-2 text-sm outline-none"
                 style={{
-                  borderColor: "var(--border)",
-                  background: "var(--card)",
-                  color: "var(--ink)",
+                  borderColor: "var(--color-border)",
+                  background: "var(--color-card)",
+                  color: "var(--color-text-primary)",
                 }}
               >
                 <option value="" disabled>
@@ -211,16 +211,16 @@ export function AdminSuggestionsContent({
             <div style={{ marginTop: 18 }}>
               <div
                 className="mb-1.5 text-xs font-bold uppercase tracking-wider"
-                style={{ color: "var(--ink-mute)" }}
+                style={{ color: "var(--color-text-muted)" }}
               >
                 내용
               </div>
               <div
                 className="rounded-[6px] border p-4 text-sm leading-relaxed"
-                style={{ borderColor: "var(--border)", color: "var(--ink)" }}
+                style={{ borderColor: "var(--color-border)", color: "var(--color-text-primary)" }}
               >
                 {selected.content || (
-                  <span style={{ color: "var(--ink-mute)" }}>내용 없음</span>
+                  <span style={{ color: "var(--color-text-muted)" }}>내용 없음</span>
                 )}
               </div>
             </div>
