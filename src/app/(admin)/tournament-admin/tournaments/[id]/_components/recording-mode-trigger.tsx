@@ -74,7 +74,7 @@ export function RecordingModeTriggerClient({ tournamentId, defaultMode, matchSta
           role="dialog"
           aria-modal="true"
           className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-3 sm:p-4"
-          style={{ background: "rgba(0,0,0,0.5)" }}
+          style={{ background: "color-mix(in srgb, #000 50%, transparent)" }}
           onClick={() => setOpen(false)}
         >
           <div

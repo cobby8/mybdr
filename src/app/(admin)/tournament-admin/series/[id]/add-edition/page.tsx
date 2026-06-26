@@ -97,7 +97,7 @@ export default function AddEditionPage() {
           </div>
 
           {error && (
-            <p className="rounded-[12px] bg-[rgba(239,68,68,0.1)] px-4 py-3 text-sm text-[var(--color-error)]">
+            <p className="rounded-[12px] bg-[color-mix(in_srgb,var(--color-error)_10%,transparent)] px-4 py-3 text-sm text-[var(--color-error)]">
               {error}
             </p>
           )}

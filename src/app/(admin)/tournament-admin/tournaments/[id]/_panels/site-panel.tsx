@@ -247,7 +247,7 @@ export default function TournamentSitePage() {
                 href={`https://${site.subdomain}.mybdr.kr`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="btn btn--sm"
+                className="ts-btn ts-btn--secondary ts-btn--sm"
               >
                 방문하기 ↗
               </a>
@@ -460,7 +460,7 @@ function Step1({
             onClick={() => onChange(tpl.slug)}
             className={`rounded-md border-2 p-4 text-left transition-all ${
               selected === tpl.slug
-                ? "border-[var(--color-accent)] shadow-[0_0_0_4px_rgba(0,102,255,0.1)]"
+                ? "border-[var(--color-accent)] shadow-[0_0_0_4px_color-mix(in_srgb,var(--color-accent)_10%,transparent)]"
                 : "border-[var(--color-border)] hover:border-[var(--color-text-muted)]"
             }`}
           >

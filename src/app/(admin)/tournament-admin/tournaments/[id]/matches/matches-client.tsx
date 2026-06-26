@@ -245,7 +245,7 @@ function ScoreModal({
     <div
       data-skin="toss"
       className="fixed inset-0 z-50 flex items-center justify-center p-3 no-print sm:p-4"
-      style={{ background: "rgba(0,0,0,0.45)" }}
+      style={{ background: "color-mix(in srgb, #000 45%, transparent)" }}
       onClick={onClose}
     >
       <div

@@ -73,7 +73,7 @@ export function DeleteSeriesButton({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="btn btn--sm inline-flex items-center gap-1"
+        className="ts-btn ts-btn--secondary ts-btn--sm inline-flex items-center gap-1"
         style={{ borderColor: "var(--color-error)", color: "var(--color-error)" }}
         aria-label="시리즈 영구 삭제"
       >
@@ -118,7 +118,7 @@ export function DeleteSeriesButton({
                 <p
                   className="rounded-[12px] p-3 text-xs"
                   style={{
-                    background: "rgba(239,68,68,0.08)",
+                    background: "color-mix(in srgb, var(--color-error) 8%, transparent)",
                     color: "var(--color-text-primary)",
                   }}
                 >
@@ -159,7 +159,7 @@ export function DeleteSeriesButton({
                   setConfirmText("");
                 }}
                 disabled={loading}
-                className="btn btn--sm flex-1"
+                className="ts-btn ts-btn--secondary ts-btn--sm flex-1"
               >
                 취소
               </button>
@@ -167,11 +167,11 @@ export function DeleteSeriesButton({
                 type="button"
                 onClick={handleDelete}
                 disabled={!canConfirm}
-                className="btn btn--sm flex-1"
+                className="ts-btn ts-btn--secondary ts-btn--sm flex-1"
                 style={{
                   background: canConfirm ? "var(--color-error)" : undefined,
                   borderColor: canConfirm ? "var(--color-error)" : undefined,
-                  color: canConfirm ? "#fff" : undefined,
+                  color: canConfirm ? "var(--color-on-primary)" : undefined,
                 }}
               >
                 {loading ? "삭제 중..." : "영구 삭제"}

@@ -83,7 +83,7 @@ export function SetupHubMobileSticky({
         backgroundColor: "var(--color-elevated)",
         borderColor: "var(--color-border)",
         // 시안 box-shadow 0 -4px 12px — 토큰 부재 → rgba 음영(검정 알파, 색상 아닌 그림자)
-        boxShadow: "0 -4px 12px rgba(0,0,0,0.18)",
+        boxShadow: "0 -4px 12px color-mix(in srgb, #000 18%, transparent)",
       }}
     >
       <div className="min-w-0">

@@ -198,7 +198,7 @@ export default function ProspectusAnalyzePage() {
         <h1 className="text-xl font-bold text-[var(--color-text-primary)]">
           권한이 필요합니다
         </h1>
-        <Link href="/tournaments" className="btn btn--primary mt-2">
+        <Link href="/tournaments" className="ts-btn ts-btn--primary mt-2">
           대회 목록으로 돌아가기
         </Link>
       </div>

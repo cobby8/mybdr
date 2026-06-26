@@ -67,7 +67,7 @@ export function WizardShell({
             {/* 일반 대회 마법사로 이동 — Link (페이지 전환) */}
             <Link
               href="/tournament-admin/tournaments/new/wizard"
-              className="btn btn--sm"
+              className="ts-btn ts-btn--secondary ts-btn--sm"
             >
               일반 대회 마법사로
             </Link>
@@ -79,7 +79,7 @@ export function WizardShell({
                   router.push("/admin");
                 }
               }}
-              className="btn btn--sm"
+              className="ts-btn ts-btn--secondary ts-btn--sm"
               aria-label="작성 종료"
             >
               <span

@@ -29,7 +29,7 @@ export default async function SeriesListPage() {
         {/* 2026-05-12 — pill 빨강 ❌ (admin 빨강 본문 금지) → btn btn--primary 표준 (Navy/Red 자동 분기) */}
         <Link
           href="/tournament-admin/series/new"
-          className="btn btn--primary"
+          className="ts-btn ts-btn--primary"
         >
           새 시리즈 만들기
         </Link>
@@ -77,7 +77,7 @@ export default async function SeriesListPage() {
           {/* 2026-05-12 — pill 빨강 ❌ → btn btn--primary 표준 */}
           <Link
             href="/tournament-admin/series/new"
-            className="btn btn--primary"
+            className="ts-btn ts-btn--primary"
           >
             첫 시리즈 만들기
           </Link>

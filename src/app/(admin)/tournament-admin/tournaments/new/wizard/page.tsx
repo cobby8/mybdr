@@ -316,7 +316,7 @@ function QuickCreateForm() {
           <br />
           운영자에게 문의해주세요.
         </p>
-        <Link href="/tournaments" className="btn btn--primary mt-2">
+        <Link href="/tournaments" className="ts-btn ts-btn--primary mt-2">
           대회 목록으로 돌아가기
         </Link>
       </div>
@@ -477,7 +477,7 @@ function QuickCreateForm() {
             {/* 2026-05-20 Phase 3 — 요강 AI 분석 진입점 (별도 라우트 / 시그니처 변경 0). */}
             <Link
               href="/tournament-admin/tournaments/new/wizard/prospectus"
-              className="btn btn--sm"
+              className="ts-btn ts-btn--secondary ts-btn--sm"
               aria-label="요강 AI 분석"
             >
               <Icon name="file-up" size={16} />
@@ -490,7 +490,7 @@ function QuickCreateForm() {
                   router.push("/tournament-admin/tournaments");
                 }
               }}
-              className="btn btn--sm"
+              className="ts-btn ts-btn--secondary ts-btn--sm"
               aria-label="작성 종료"
             >
               <Icon name="x" size={16} />
@@ -568,7 +568,7 @@ function QuickCreateForm() {
             <button
               type="button"
               onClick={() => setDraftDismissed(true)}
-              className="btn btn--sm"
+              className="ts-btn ts-btn--secondary ts-btn--sm"
             >
               새로 시작
             </button>
@@ -579,7 +579,7 @@ function QuickCreateForm() {
                 setSubtab("quick");
                 setDraftDismissed(true);
               }}
-              className="btn btn--sm btn--primary inline-flex items-center gap-1"
+              className="ts-btn ts-btn--primary ts-btn--sm inline-flex items-center gap-1"
             >
               <Icon name="arrow-right" size={16} />
               이어하기
@@ -643,7 +643,7 @@ function QuickCreateForm() {
               else if (subtab === "prospectus") router.push("/tournament-admin/tournaments/new/wizard/prospectus");
               else if (subtab === "association") router.push("/tournament-admin/wizard/association");
             }}
-            className="btn btn--primary inline-flex items-center gap-1"
+            className="ts-btn ts-btn--primary inline-flex items-center gap-1"
           >
             <Icon name="arrow-right" size={16} />
             이 방식으로 전환
@@ -984,7 +984,7 @@ function LegacyWizardForm() {
           운영자에게 문의해주세요.
         </p>
         {/* 2026-05-12: admin 빨강 본문 금지 → btn--primary */}
-        <Link href="/tournaments" className="btn btn--primary mt-2">
+        <Link href="/tournaments" className="ts-btn ts-btn--primary mt-2">
           대회 목록으로 돌아가기
         </Link>
       </div>
@@ -1734,7 +1734,7 @@ function LegacyWizardForm() {
           <button
             onClick={handleCreate}
             disabled={loading}
-            className="btn btn--primary w-full disabled:opacity-50"
+            className="ts-btn ts-btn--primary w-full disabled:opacity-50"
           >
             {loading ? "생성 중..." : "대회 생성하기"}
           </button>
@@ -1755,7 +1755,7 @@ function LegacyWizardForm() {
             이전
           </button>
           {/* 2026-05-12: admin 빨강 본문 금지 → btn--primary */}
-          <button onClick={goNext} className="btn btn--primary">
+          <button type="button" onClick={goNext} className="ts-btn ts-btn--primary">
             다음
           </button>
         </div>

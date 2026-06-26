@@ -567,7 +567,7 @@ export default function TournamentTeamsPage() {
             type="button"
             onClick={() => downloadTokenCsv(teams, tokenMap)}
             disabled={!aliveTokenCount(tokenMap)}
-            className="btn btn--sm"
+            className="ts-btn ts-btn--secondary ts-btn--sm"
             title="모든 팀의 명단 입력 링크를 파일로 받기"
           >
             <Icon name="download" size={16} className="align-middle mr-1" />
@@ -577,7 +577,7 @@ export default function TournamentTeamsPage() {
             type="button"
             onClick={() => copyAllTokenMessages(teams, tokenMap, showToast)}
             disabled={!aliveTokenCount(tokenMap)}
-            className="btn btn--primary btn--sm"
+            className="ts-btn ts-btn--primary ts-btn--sm"
             title="카톡 발송용 안내문 일괄 복사"
           >
             <Icon name="message-circle" size={16} className="align-middle mr-1" />
@@ -953,7 +953,7 @@ export default function TournamentTeamsPage() {
             role="dialog"
             aria-modal="true"
             className="fixed inset-0 z-40 flex items-start justify-center overflow-y-auto p-3 no-print sm:p-4"
-            style={{ background: "rgba(0,0,0,0.5)" }}
+            style={{ background: "color-mix(in srgb, #000 50%, transparent)" }}
             onClick={() => { setExpandedTeamId(null); setPlayers([]); setShowAddForm(false); }}
           >
             <div
@@ -1182,7 +1182,7 @@ export default function TournamentTeamsPage() {
                     <button
                       type="button"
                       onClick={() => copyTokenUrl(token.applyTokenUrl)}
-                      className="btn btn--sm"
+                      className="ts-btn ts-btn--secondary ts-btn--sm"
                       title={`토큰 만료: ${token.applyTokenExpiresAt ? new Date(token.applyTokenExpiresAt).toLocaleDateString("ko-KR") : "-"}`}
                     >
                       <Icon name="copy" size={16} className="align-middle mr-1" />
@@ -1196,7 +1196,7 @@ export default function TournamentTeamsPage() {
                         type="button"
                         onClick={() => updateStatus(expandedTeam.id, "approved")}
                         disabled={actionLoading === expandedTeam.id}
-                        className="btn btn--sm"
+                        className="ts-btn ts-btn--secondary ts-btn--sm"
                         style={{ background: "var(--color-success)", color: "white", borderColor: "var(--color-success)" }}
                       >
                         승인
@@ -1205,7 +1205,7 @@ export default function TournamentTeamsPage() {
                         type="button"
                         onClick={() => updateStatus(expandedTeam.id, "rejected")}
                         disabled={actionLoading === expandedTeam.id}
-                        className="btn btn--sm"
+                        className="ts-btn ts-btn--secondary ts-btn--sm"
                         style={{ background: "var(--color-error)", color: "white", borderColor: "var(--color-error)" }}
                       >
                         거절
@@ -1217,7 +1217,7 @@ export default function TournamentTeamsPage() {
                       type="button"
                       onClick={() => updateStatus(expandedTeam.id, "rejected")}
                       disabled={actionLoading === expandedTeam.id}
-                      className="btn btn--sm"
+                      className="ts-btn ts-btn--secondary ts-btn--sm"
                       style={{ color: "var(--color-error)", borderColor: "var(--color-error)" }}
                     >
                       거절로 변경
@@ -1228,7 +1228,7 @@ export default function TournamentTeamsPage() {
                       type="button"
                       onClick={() => updateStatus(expandedTeam.id, "approved")}
                       disabled={actionLoading === expandedTeam.id}
-                      className="btn btn--sm"
+                      className="ts-btn ts-btn--secondary ts-btn--sm"
                       style={{ color: "var(--color-success)", borderColor: "var(--color-success)" }}
                     >
                       승인으로 변경
@@ -1237,7 +1237,7 @@ export default function TournamentTeamsPage() {
                   <button
                     type="button"
                     onClick={() => window.print()}
-                    className="btn btn--sm"
+                    className="ts-btn ts-btn--secondary ts-btn--sm"
                     title="선수 명단 프린트"
                   >
                     <Icon name="printer" size={16} className="align-middle mr-1" />
@@ -1261,7 +1261,7 @@ export default function TournamentTeamsPage() {
                   <button
                     type="button"
                     onClick={() => setShowImportModal(true)}
-                    className="btn btn--sm"
+                    className="ts-btn ts-btn--secondary ts-btn--sm"
                     title="카톡 명단 텍스트 일괄 입력"
                   >
                     <Icon name="clipboard-paste" size={16} className="align-middle mr-1" />
@@ -1270,7 +1270,7 @@ export default function TournamentTeamsPage() {
                   <button
                     type="button"
                     onClick={() => setShowAddForm(!showAddForm)}
-                    className="btn btn--primary btn--sm"
+                    className="ts-btn ts-btn--primary ts-btn--sm"
                   >
                     <Icon name="user-plus" size={16} className="align-middle mr-1" />
                     선수 추가
@@ -1314,14 +1314,14 @@ export default function TournamentTeamsPage() {
                   <div className="mt-3 flex justify-end gap-2">
                     <button
                       onClick={() => { setShowAddForm(false); setAddForm(EMPTY_FORM); }}
-                      className="btn btn--sm"
+                      className="ts-btn ts-btn--secondary ts-btn--sm"
                     >
                       취소
                     </button>
                     <button
                       onClick={handleAddPlayer}
                       disabled={addLoading || !addForm.player_name.trim()}
-                      className="btn btn--primary btn--sm"
+                      className="ts-btn ts-btn--primary ts-btn--sm"
                     >
                       {addLoading ? "추가 중..." : "추가"}
                     </button>
@@ -1538,7 +1538,7 @@ function ImportPlayersModal({
       role="dialog"
       aria-modal="true"
       className="fixed inset-0 z-50 flex items-center justify-center p-3 no-print sm:p-4"
-      style={{ background: "rgba(0,0,0,0.6)" }}
+      style={{ background: "color-mix(in srgb, #000 60%, transparent)" }}
       onClick={onClose}
     >
       <div
@@ -1586,10 +1586,10 @@ function ImportPlayersModal({
           </p>
         )}
         <div className="mt-4 flex justify-end gap-2">
-          <button type="button" onClick={onClose} disabled={submitting} className="btn btn--sm">
+          <button type="button" onClick={onClose} disabled={submitting} className="ts-btn ts-btn--secondary ts-btn--sm">
             취소
           </button>
-          <button type="button" onClick={submit} disabled={submitting || !text.trim()} className="btn btn--primary btn--sm">
+          <button type="button" onClick={submit} disabled={submitting || !text.trim()} className="ts-btn ts-btn--primary ts-btn--sm">
             {submitting ? "처리 중..." : "일괄 입력 실행"}
           </button>
         </div>

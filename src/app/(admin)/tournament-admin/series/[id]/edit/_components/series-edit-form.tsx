@@ -216,7 +216,7 @@ export function SeriesEditForm({
           <p
             className="mt-1.5 rounded-[12px] p-2 text-xs"
             style={{
-              background: "rgba(0,121,185,0.08)",
+              background: "color-mix(in srgb, var(--color-info) 8%, transparent)",
               color: "var(--color-text-primary)",
             }}
           >
@@ -249,7 +249,7 @@ export function SeriesEditForm({
         <p
           className="rounded-[12px] px-4 py-3 text-sm"
           style={{
-            background: "rgba(239,68,68,0.1)",
+            background: "color-mix(in srgb, var(--color-error) 10%, transparent)",
             color: "var(--color-error)",
           }}
         >
