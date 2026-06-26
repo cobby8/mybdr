@@ -1,7 +1,7 @@
 # Scratchpad
 
 ## Current Work
-- 2026-06-26 merge: admin Toss implementation + live/theme remote updates are being integrated to main.
+- 2026-06-26 admin Toss sweep: remaining tournament-admin and admin pages are being converted sequentially.
 
 ## Progress
 | Area | Status | Note |
@@ -17,6 +17,7 @@
 | Tournament admin implementation | In Progress | Matches score modal now exposes the existing manual recording mode. |
 
 ## Work Log
+- 2026-06-26: Converted tournament-admin templates empty state from UI Card/Material span to Toss `ct-emptybox` + Icon; TypeScript passed.
 - 2026-06-26: Converted all remaining tournament-admin `Card/Button` wrappers in target panels/components to Toss `ts-*` wrappers; TypeScript passed.
 - 2026-06-26: Defined `--color-on-primary` to fix black text/icons on red primary buttons.
 - 2026-06-26: Added live box score `기본/고급` toggle, advanced stats, and one help popover per team table.
