@@ -17,6 +17,7 @@
 | Tournament admin implementation | In Progress | Matches score modal now exposes the existing manual recording mode. |
 
 ## Work Log
+- 2026-06-26: Converted tournament creation wizard navigation and CTA buttons to Toss `ts-btn`; TypeScript passed.
 - 2026-06-26: Converted small tournament-admin CTA buttons and series error backgrounds to Toss tokens; TypeScript passed.
 - 2026-06-26: Completed series Toss cleanup for CTA buttons, copy/delete controls, and tokenized alert backgrounds; TypeScript passed.
 - 2026-06-26: Converted organization action modals to Toss buttons and tokenized selected-state backgrounds; TypeScript passed.
@@ -24,6 +25,5 @@
 - 2026-06-26: Converted organization members page to Toss `ts-card`/`ts-btn` wrappers; TypeScript passed.
 - 2026-06-26: Converted tournament-admin organizations list to Toss `ts-card`/`ts-btn` wrappers; TypeScript passed.
 - 2026-06-26: Converted tournament-admin playoffs client from UI Card to Toss `ts-card`; TypeScript passed.
-- 2026-06-26: Converted dual group assignment editor from UI Card/Button to Toss `ts-card`/`ts-btn`; TypeScript passed.
 - 2026-06-26: Converted tournament-admin series add-edition/edit form wrappers and submit buttons to Toss `ts-card`/`ts-btn`; TypeScript passed.
 - 2026-06-26: Added live box score `기본/고급` toggle, advanced stats, and one help popover per team table.
