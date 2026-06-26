@@ -14,6 +14,7 @@
 | Tournament admin implementation | In Progress | Matches score modal now exposes the existing manual recording mode. |
 
 ## Work Log
+- 2026-06-26: Converted `teams-panel` empty state and team row cards to Toss wrappers; TypeScript passed.
 - 2026-06-26: Converted `AdvancePlayoffsButton` result/error modals to Toss `ts-card` sections; TypeScript passed.
 - 2026-06-26: Converted `DivisionGenerateButton` result/error modals to Toss `ts-card` sections; TypeScript passed.
 - 2026-06-26: Converted `StandingsTable` empty/normal wrappers to Toss `ts-card` sections; TypeScript passed.
