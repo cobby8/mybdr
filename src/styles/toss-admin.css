@@ -1014,3 +1014,66 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* v2.41 admin package table wrapper */
+[data-skin="toss"] .ad-table {
+  margin-bottom: 4px;
+}
+[data-skin="toss"] .ad-tablescroll {
+  margin-bottom: 4px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border-radius: 20px;
+}
+[data-skin="toss"] .ad-tablescroll .ts-table {
+  margin-bottom: 0;
+  min-width: 700px;
+}
+[data-skin="toss"] .ad-table .ts-trow {
+  cursor: default;
+  transition: background .12s;
+}
+[data-skin="toss"] .ad-cell-strong {
+  color: var(--ink);
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+[data-skin="toss"] .ad-cell-sub {
+  margin-top: 2px;
+  color: var(--ink-mute);
+  font-size: 12.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+[data-skin="toss"] .ad-cell-mono {
+  color: var(--ink-soft);
+  font-family: var(--ff-mono);
+  font-size: 13px;
+  font-weight: 700;
+}
+[data-skin="toss"] .ad-cell-muted {
+  color: var(--ink-mute);
+  font-size: 13.5px;
+}
+[data-skin="toss"] .ad-rowact {
+  display: inline-flex;
+  gap: 4px;
+}
+[data-skin="toss"] .ad-iconbtn {
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 9px;
+  background: var(--grey-100);
+  color: var(--ink-soft);
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+}
+[data-skin="toss"] .ad-iconbtn:hover {
+  background: var(--grey-200);
+  color: var(--ink);
+}

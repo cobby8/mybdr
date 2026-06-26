@@ -1,5 +1,12 @@
 # Errors
 
+## 2026-06-26 Prettier via npx Blocked by Registry/Cache Access
+
+- Symptom: `cmd /c npx prettier --write ...` hung without output and then failed with `npm ERR! EACCES` while trying to request `https://registry.npmjs.org/prettier`.
+- Cause: `prettier` was not available locally, so `npx` attempted a network/cache operation that is not permitted in the current environment.
+- Fix: Skipped formatter and validated the focused TSX/CSS changes with `cmd /c npx tsc --noEmit` and `git diff --check`.
+- Prevention: Prefer an already-installed formatter script from `package.json`; if none exists, do not use bare `npx prettier` without confirming package availability/network access.
+
 ## 2026-06-26 Local Browser QA Blocked by Supabase Pooler
 
 - Symptom: Local admin browser QA redirected to login or rendered Prisma initialization errors while opening `/admin/tournaments`, `/admin/users`, and `/admin/partners`.

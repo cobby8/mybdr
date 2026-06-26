@@ -318,7 +318,8 @@ export function DataTable<T>({
 
   if (state === "loading") {
     return (
-      <div className="ts-table">
+      <div className="ad-tablescroll">
+      <div className="ts-table ad-table">
         <div
           style={{
             padding: 60,
@@ -329,12 +330,14 @@ export function DataTable<T>({
           불러오는 중…
         </div>
       </div>
+      </div>
     );
   }
 
   if (state === "empty" || rows.length === 0) {
     return (
-      <div className="ts-table">
+      <div className="ad-tablescroll">
+      <div className="ts-table ad-table">
         <div className="ts-empty">
           <div className="ts-empty__icon">
             <Icon name="inbox" size={28} />
@@ -352,6 +355,7 @@ export function DataTable<T>({
           )}
         </div>
       </div>
+      </div>
     );
   }
 
@@ -360,7 +364,8 @@ export function DataTable<T>({
     : 1;
 
   return (
-    <div className="ts-table">
+    <div className="ad-tablescroll">
+    <div className="ts-table ad-table">
       <div className="ts-thead" style={{ gridTemplateColumns: gridCols }}>
         {selectable && (
           <span>
@@ -491,6 +496,7 @@ export function DataTable<T>({
           </Btn>
         </div>
       )}
+    </div>
     </div>
   );
 }
