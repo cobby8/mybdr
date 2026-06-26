@@ -2,6 +2,10 @@ import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db/prisma";
 import { Card } from "@/components/ui/card";
+import {
+  derivePublicVisibility,
+  exposesPublicSection,
+} from "@/lib/tournaments/public-visibility";
 
 export const revalidate = 60;
 
@@ -12,18 +16,42 @@ export default async function SiteResultsPage() {
 
   const site = await prisma.tournamentSite.findUnique({
     where: { subdomain },
-    select: { tournamentId: true, isPublished: true },
+    select: { tournamentId: true, isPublished: true, tournament: { select: { status: true } } },
   });
   if (!site || !site.isPublished) return notFound();
 
-  const completed = await prisma.tournamentMatch.findMany({
-    where: { tournamentId: site.tournamentId, status: "completed" },
-    orderBy: [{ scheduledAt: "desc" }],
-    include: {
-      homeTeam: { include: { team: { select: { name: true, primaryColor: true } } } },
-      awayTeam: { include: { team: { select: { name: true, primaryColor: true } } } },
-    },
+  const [completed, approvedTeamCount, matchStatusCounts] = await Promise.all([
+    prisma.tournamentMatch.findMany({
+      where: { tournamentId: site.tournamentId, status: "completed" },
+      orderBy: [{ scheduledAt: "desc" }],
+      include: {
+        homeTeam: { include: { team: { select: { name: true, primaryColor: true } } } },
+        awayTeam: { include: { team: { select: { name: true, primaryColor: true } } } },
+      },
+    }),
+    prisma.tournamentTeam.count({
+      where: { tournamentId: site.tournamentId, status: "approved" },
+    }),
+    prisma.tournamentMatch.groupBy({
+      by: ["status"],
+      where: { tournamentId: site.tournamentId },
+      _count: { _all: true },
+    }),
+  ]);
+  const totalMatchCount = matchStatusCounts.reduce((sum, row) => sum + row._count._all, 0);
+  const liveMatchCount = matchStatusCounts
+    .filter((row) => row.status === "in_progress" || row.status === "live")
+    .reduce((sum, row) => sum + row._count._all, 0);
+  const visibility = derivePublicVisibility({
+    sitePublished: site.isPublished,
+    status: site.tournament.status,
+    approvedTeamCount,
+    matchCount: totalMatchCount,
+    scheduledMatchCount: totalMatchCount,
+    completedMatchCount: completed.length,
+    liveMatchCount,
   });
+  if (!exposesPublicSection(visibility, "results")) return notFound();
 
   // 라운드별 그룹
   const rounds = Array.from(new Set(completed.map((m) => m.round_number ?? 0))).sort(

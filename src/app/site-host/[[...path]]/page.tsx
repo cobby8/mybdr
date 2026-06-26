@@ -2,11 +2,24 @@ import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db/prisma";
 import { ClassicTemplate } from "@/components/site-templates/classic";
+import {
+  derivePublicVisibility,
+  exposesPublicSection,
+  preparesPublicSection,
+  type PublicSection,
+} from "@/lib/tournaments/public-visibility";
 
 type Props = { params: Promise<{ path?: string[] }> };
 
 const DARK_SLUGS = new Set(["the-process", "street-ball", "corporate-league"]);
 const MINIMAL_SLUGS = new Set(["minimal-white"]);
+const PAGE_SECTION: Record<string, PublicSection> = {
+  home: "overview",
+  teams: "teams",
+  schedule: "schedule",
+  results: "results",
+  registration: "registration",
+};
 
 export default async function SitePage({ params }: Props) {
   const { path } = await params;
@@ -71,14 +84,37 @@ export default async function SitePage({ params }: Props) {
     : DARK_SLUGS.has(slug)
     ? "dark"
     : "classic";
+  const visibility = derivePublicVisibility({
+    sitePublished: site.isPublished,
+    status: site.tournament.status,
+    approvedTeamCount: teams.length,
+    matchCount: matches.length,
+    scheduledMatchCount: matches.filter((m) => m.scheduledAt != null).length,
+    bracketMatchCount: matches.filter((m) => m.round_number != null && m.bracket_position != null).length,
+    completedMatchCount: matches.filter((m) => m.status === "completed").length,
+    liveMatchCount: matches.filter((m) => m.status === "in_progress" || m.status === "live").length,
+  });
+  const requestedSection = PAGE_SECTION[currentPage] ?? "overview";
+  if (
+    !exposesPublicSection(visibility, requestedSection) &&
+    !preparesPublicSection(visibility, requestedSection)
+  ) {
+    return notFound();
+  }
+  const visibleTeams = exposesPublicSection(visibility, "teams") ? teams : [];
+  const visibleMatches = matches.filter((m) => {
+    if (m.status === "completed") return exposesPublicSection(visibility, "results");
+    return exposesPublicSection(visibility, "schedule");
+  });
 
   return (
     <ClassicTemplate
       site={site}
-      teams={teams}
-      matches={matches}
+      teams={visibleTeams}
+      matches={visibleMatches}
       currentPage={currentPage}
       templateType={templateType}
+      visibility={visibility}
     />
   );
 }

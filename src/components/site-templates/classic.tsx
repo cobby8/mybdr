@@ -2,6 +2,10 @@ import Link from "next/link";
 import Image from "next/image";
 import type { Prisma } from "@prisma/client";
 import { TOURNAMENT_STATUS_LABEL, TOURNAMENT_FORMAT_LABEL, effectiveTournamentStatus } from "@/lib/constants/tournament-status";
+import type {
+  PublicSection,
+  PublicVisibilityResult,
+} from "@/lib/tournaments/public-visibility";
 
 // ─── 타입 ───────────────────────────────────────────────────────────────────
 
@@ -59,6 +63,7 @@ export type ClassicTemplateProps = {
   matches: MatchEntry[];
   currentPage: string;
   templateType: "classic" | "dark" | "minimal";
+  visibility: PublicVisibilityResult;
 };
 
 // ─── 헬퍼 ───────────────────────────────────────────────────────────────────
@@ -517,6 +522,21 @@ function ResultsPage({
   );
 }
 
+function SectionPlaceholder({
+  title,
+  description,
+}: {
+  title: string;
+  description: string;
+}) {
+  return (
+    <div className="rounded-md border border-[var(--color-border)] bg-[var(--color-card)] px-6 py-16 text-center shadow-sm">
+      <p className="text-lg font-bold text-[var(--color-text-primary)]">{title}</p>
+      <p className="mt-2 text-sm text-[var(--color-text-muted)]">{description}</p>
+    </div>
+  );
+}
+
 // ─── 참가신청 페이지 ─────────────────────────────────────────────────────────
 
 function RegistrationPage({
@@ -618,12 +638,17 @@ function RegistrationPage({
 // ─── 메인 템플릿 ─────────────────────────────────────────────────────────────
 
 const NAV_LINKS = [
-  { href: "/", label: "홈", page: "home" },
-  { href: "/teams", label: "팀", page: "teams" },
-  { href: "/schedule", label: "일정", page: "schedule" },
-  { href: "/results", label: "결과", page: "results" },
-  { href: "/registration", label: "참가신청", page: "registration" },
-];
+  { href: "/", label: "홈", page: "home", section: "overview" },
+  { href: "/teams", label: "팀", page: "teams", section: "teams" },
+  { href: "/schedule", label: "일정", page: "schedule", section: "schedule" },
+  { href: "/results", label: "결과", page: "results", section: "results" },
+  { href: "/registration", label: "참가신청", page: "registration", section: "registration" },
+] satisfies Array<{
+  href: string;
+  label: string;
+  page: string;
+  section: PublicSection;
+}>;
 
 export function ClassicTemplate({
   site,
@@ -631,6 +656,7 @@ export function ClassicTemplate({
   matches,
   currentPage,
   templateType,
+  visibility,
 }: ClassicTemplateProps) {
   const primary = site.primaryColor ?? "#1B3C87";
   const secondary = site.secondaryColor ?? "#E76F51";
@@ -645,6 +671,9 @@ export function ClassicTemplate({
   const textPrimary = isDark ? "#F1F5F9" : "var(--color-text-primary)";
   const textSecondary = isDark ? "#94A3B8" : "var(--color-text-muted)";
   const borderColor = isDark ? "#1E293B" : "var(--color-border)";
+  const visibleNavLinks = NAV_LINKS.filter(
+    (link) => visibility.sections[link.section] !== "hide",
+  );
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: bgBase }}>
@@ -664,7 +693,7 @@ export function ClassicTemplate({
 
           {/* Desktop nav */}
           <nav className="hidden gap-1 md:flex">
-            {NAV_LINKS.map((link) => (
+            {visibleNavLinks.map((link) => (
               <Link
                 key={link.page}
                 href={link.href}
@@ -681,7 +710,7 @@ export function ClassicTemplate({
 
           {/* Mobile nav */}
           <nav className="flex gap-4 md:hidden">
-            {NAV_LINKS.slice(0, 4).map((link) => (
+            {visibleNavLinks.slice(0, 4).map((link) => (
               <Link
                 key={link.page}
                 href={link.href}
@@ -741,6 +770,11 @@ export function ClassicTemplate({
       <main className="mx-auto max-w-5xl px-4 py-10">
         {currentPage === "teams" ? (
           <TeamsPage teams={teams} primary={primary} />
+        ) : currentPage === "schedule" && visibility.sections.schedule === "prep" ? (
+          <SectionPlaceholder
+            title="일정 준비 중"
+            description="운영자가 경기 일정과 코트를 확정하면 이곳에 공개됩니다."
+          />
         ) : currentPage === "schedule" ? (
           <SchedulePage matches={matches} primary={primary} />
         ) : currentPage === "results" ? (

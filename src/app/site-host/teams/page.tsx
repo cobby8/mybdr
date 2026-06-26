@@ -4,6 +4,10 @@ import { prisma } from "@/lib/db/prisma";
 import { Card } from "@/components/ui/card";
 import { getDisplayName } from "@/lib/utils/player-display-name";
 import { USER_DISPLAY_SELECT } from "@/lib/db/select-presets";
+import {
+  derivePublicVisibility,
+  exposesPublicSection,
+} from "@/lib/tournaments/public-visibility";
 
 export const revalidate = 300;
 
@@ -14,7 +18,7 @@ export default async function SiteTeamsPage() {
 
   const site = await prisma.tournamentSite.findUnique({
     where: { subdomain },
-    select: { tournamentId: true, isPublished: true },
+    select: { tournamentId: true, isPublished: true, tournament: { select: { status: true } } },
   });
   if (!site || !site.isPublished) return notFound();
 
@@ -26,6 +30,12 @@ export default async function SiteTeamsPage() {
     },
     orderBy: [{ wins: "desc" }, { losses: "asc" }],
   });
+  const visibility = derivePublicVisibility({
+    sitePublished: site.isPublished,
+    status: site.tournament.status,
+    approvedTeamCount: teams.length,
+  });
+  if (!exposesPublicSection(visibility, "teams")) return notFound();
 
   return (
     <div>

@@ -15,6 +15,10 @@ import {
   isOfficialMatchStatus,
   normalizeMatchStatusForApi,
 } from "@/lib/constants/match-status";
+import {
+  derivePublicVisibility,
+  exposesPublicSection,
+} from "@/lib/tournaments/public-visibility";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -126,6 +130,50 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
     (m) => isPublicTeamSlot(m.homeTeamId) && isPublicTeamSlot(m.awayTeamId),
   );
 
+  const bracketMatchCount = publicMatches.filter(
+    (m) => m.round_number != null && m.bracket_position != null,
+  ).length;
+  const tournamentSettingsRaw = (tournament.settings ?? {}) as Record<string, unknown>;
+  const pointsRule: "gnba" | "default" =
+    tournamentSettingsRaw.points_rule === "gnba" ? "gnba" : "default";
+  const visibility = derivePublicVisibility({
+    status: tournament.status,
+    approvedTeamCount: tournamentTeams.length,
+    matchCount: publicMatches.length,
+    scheduledMatchCount: publicMatches.filter((m) => m.scheduledAt != null).length,
+    bracketMatchCount,
+    completedMatchCount: publicMatches.filter((m) => m.status === "completed").length,
+    liveMatchCount: publicMatches.filter((m) => isLiveMatchStatus(m.status)).length,
+  });
+
+  if (!exposesPublicSection(visibility, "bracket")) {
+    return apiSuccess({
+      tournamentName: tournament.name,
+      totalTeams: tournamentTeams.length,
+      liveMatchCount: 0,
+      liveMatchPreview: null,
+      finalsDate: null,
+      totalMatches: 0,
+      completedMatches: 0,
+      isAllCompleted: false,
+      hotTeam: null,
+      recentMvp: null,
+      groupTeams: [],
+      rounds: [],
+      venueName: tournament.venue_name,
+      city: tournament.city,
+      entryFee: tournament.entry_fee ? Number(tournament.entry_fee) : null,
+      format: tournament.format,
+      tournamentStatus: tournament.status,
+      leagueTeams: [],
+      leagueMatches: [],
+      divisionRules: [],
+      divisionStandings: [],
+      pointsRule,
+      visibility,
+    });
+  }
+
   // 2026-05-16 PR-Public-1 — 종별 룰 fetch (라벨 / format / settings).
   //   admin /playoffs:50 동일 패턴. divisionRules 0건이면 단일 종별 운영 ('default' 폴백 X — 빈 배열 그대로 반환).
   //   클라이언트가 divisionRules.length 로 종별 view 분기 결정.
@@ -137,10 +185,6 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
 
   // 2026-05-17 강남구 승점 룰 — tournament.settings.points_rule 추출 (P 컬럼 + 정렬 분기).
   //   먼저 추출해서 종별 standings 산출 시 pointsRule 인자로 전달 (server-side 정렬 단일 source).
-  const tournamentSettingsRaw = (tournament.settings ?? {}) as Record<string, unknown>;
-  const pointsRule: "gnba" | "default" =
-    tournamentSettingsRaw.points_rule === "gnba" ? "gnba" : "default";
-
   // 2026-05-16 PR-Public-1 — 종별별 standings 병렬 산출 (Promise.all / N+1 회피).
   //   admin /playoffs:77 동일 패턴. divisionRules 0건 = 빈 배열 (회귀 0).
   //   각 종별 standings = DivisionStanding[] (groupName 별 정렬 + groupRank 부여 / division-advancement.ts:54).
@@ -551,5 +595,6 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
     //   "gnba" 박제 = LeagueStandings/GroupStandings 가 P 컬럼 렌더링.
     //   "default" = P 컬럼 hide (회귀 0).
     pointsRule,
+    visibility,
   });
 }

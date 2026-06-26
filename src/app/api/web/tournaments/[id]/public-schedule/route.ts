@@ -8,6 +8,10 @@ import {
   resolveVenueNavigation,
   type VenueNavigationTarget,
 } from "@/lib/maps/navigation-links";
+import {
+  derivePublicVisibility,
+  exposesPublicSection,
+} from "@/lib/tournaments/public-visibility";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -103,9 +107,22 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
     }),
     prisma.tournament.findUnique({
       where: { id },
-      select: { places: true, venue_name: true, venue_address: true },
+      select: { places: true, venue_name: true, venue_address: true, status: true },
     }),
   ]);
+
+  const visibility = derivePublicVisibility({
+    status: tournament?.status,
+    approvedTeamCount: teams.length,
+    matchCount: matches.length,
+    scheduledMatchCount: matches.filter((m) => m.scheduledAt != null).length,
+    completedMatchCount: matches.filter((m) => m.status === "completed").length,
+    liveMatchCount: matches.filter((m) => m.status === "in_progress" || m.status === "live").length,
+  });
+
+  if (!exposesPublicSection(visibility, "schedule")) {
+    return apiSuccess({ matches: [], teams: [], visibility });
+  }
 
   // 직렬화 (page.tsx의 scheduleMatches/scheduleTeams 변환 로직과 동일)
   const serializedMatches = matches.map((m) => {
@@ -183,5 +200,5 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
     namePrimary: t.team.name_primary,
   }));
 
-  return apiSuccess({ matches: serializedMatches, teams: serializedTeams });
+  return apiSuccess({ matches: serializedMatches, teams: serializedTeams, visibility });
 }

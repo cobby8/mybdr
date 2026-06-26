@@ -3,6 +3,11 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db/prisma";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import {
+  derivePublicVisibility,
+  exposesPublicSection,
+  preparesPublicSection,
+} from "@/lib/tournaments/public-visibility";
 
 export const revalidate = 60;
 
@@ -22,18 +27,44 @@ export default async function SiteSchedulePage() {
 
   const site = await prisma.tournamentSite.findUnique({
     where: { subdomain },
-    select: { tournamentId: true, isPublished: true },
+    select: { tournamentId: true, isPublished: true, tournament: { select: { status: true } } },
   });
   if (!site || !site.isPublished) return notFound();
 
-  const matches = await prisma.tournamentMatch.findMany({
-    where: { tournamentId: site.tournamentId },
-    orderBy: [{ scheduledAt: "asc" }, { round_number: "asc" }, { bracket_position: "asc" }],
-    include: {
-      homeTeam: { include: { team: { select: { name: true, primaryColor: true } } } },
-      awayTeam: { include: { team: { select: { name: true, primaryColor: true } } } },
-    },
+  const [matches, approvedTeamCount] = await Promise.all([
+    prisma.tournamentMatch.findMany({
+      where: { tournamentId: site.tournamentId },
+      orderBy: [{ scheduledAt: "asc" }, { round_number: "asc" }, { bracket_position: "asc" }],
+      include: {
+        homeTeam: { include: { team: { select: { name: true, primaryColor: true } } } },
+        awayTeam: { include: { team: { select: { name: true, primaryColor: true } } } },
+      },
+    }),
+    prisma.tournamentTeam.count({
+      where: { tournamentId: site.tournamentId, status: "approved" },
+    }),
+  ]);
+  const visibility = derivePublicVisibility({
+    sitePublished: site.isPublished,
+    status: site.tournament.status,
+    approvedTeamCount,
+    matchCount: matches.length,
+    scheduledMatchCount: matches.filter((m) => m.scheduledAt != null).length,
+    completedMatchCount: matches.filter((m) => m.status === "completed").length,
+    liveMatchCount: matches.filter((m) => m.status === "in_progress" || m.status === "live").length,
   });
+  if (!exposesPublicSection(visibility, "schedule")) {
+    if (!preparesPublicSection(visibility, "schedule")) return notFound();
+    return (
+      <div>
+        <h2 className="mb-6 text-xl font-bold sm:text-2xl">경기 일정</h2>
+        <Card className="py-12 text-center text-[var(--color-text-muted)]">
+          <div className="mb-2 text-3xl">📅</div>
+          운영자가 경기 일정과 코트를 확정하면 이곳에 공개됩니다.
+        </Card>
+      </div>
+    );
+  }
 
   // 날짜별 그룹핑
   const grouped = matches.reduce<Record<string, typeof matches>>((acc, m) => {

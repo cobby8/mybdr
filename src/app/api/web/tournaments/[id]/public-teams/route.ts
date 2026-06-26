@@ -3,6 +3,10 @@ import { prisma } from "@/lib/db/prisma";
 import { apiSuccess, apiError } from "@/lib/api/response";
 // 비공개 대회 노출 차단 가드 (SSR page.tsx와 동일 정책 — insider 외 404).
 import { blockIfPrivateTournament } from "@/lib/auth/private-tournament-guard";
+import {
+  derivePublicVisibility,
+  exposesPublicSection,
+} from "@/lib/tournaments/public-visibility";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -24,40 +28,55 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
     return apiError("Tournament not found", 404);
   }
 
-  const teamsWithPlayers = await prisma.tournamentTeam.findMany({
-    where: { tournamentId: id, status: "approved" },
-    include: {
-      // 카드에 지역/로고/전적/모집중 표시를 위해 select 확장 (TeamCard 공통 스키마)
-      team: {
-        select: {
-          name: true,
-          // Phase 2A-2: 영문명/대표언어 — 참가팀 카드도 Phase 2C에서 언어 스위칭 적용 가능하게 필드 내려줌
-          name_en: true,
-          name_primary: true,
-          primaryColor: true,
-          secondaryColor: true,
-          logoUrl: true,
-          city: true,
-          district: true,
-          wins: true,
-          losses: true,
-          accepting_members: true,
-          tournaments_count: true,
-          // TeamCardV2 가 창단 연도 표시에 사용 (B-1 디자인 일치, 2026-04-29)
-          createdAt: true,
+  const [tournament, teamsWithPlayers] = await Promise.all([
+    prisma.tournament.findUnique({
+      where: { id },
+      select: { status: true },
+    }),
+    prisma.tournamentTeam.findMany({
+      where: { tournamentId: id, status: "approved" },
+      include: {
+        // 카드에 지역/로고/전적/모집중 표시를 위해 select 확장 (TeamCard 공통 스키마)
+        team: {
+          select: {
+            name: true,
+            // Phase 2A-2: 영문명/대표언어 — 참가팀 카드도 Phase 2C에서 언어 스위칭 적용 가능하게 필드 내려줌
+            name_en: true,
+            name_primary: true,
+            primaryColor: true,
+            secondaryColor: true,
+            logoUrl: true,
+            city: true,
+            district: true,
+            wins: true,
+            losses: true,
+            accepting_members: true,
+            tournaments_count: true,
+            // TeamCardV2 가 창단 연도 표시에 사용 (B-1 디자인 일치, 2026-04-29)
+            createdAt: true,
+          },
+        },
+        players: {
+          select: {
+            id: true,
+            userId: true, // 선수 프로필 링크용
+            jerseyNumber: true,
+            position: true,
+            users: { select: { nickname: true } },
+          },
         },
       },
-      players: {
-        select: {
-          id: true,
-          userId: true, // 선수 프로필 링크용
-          jerseyNumber: true,
-          position: true,
-          users: { select: { nickname: true } },
-        },
-      },
-    },
+    }),
+  ]);
+
+  const visibility = derivePublicVisibility({
+    status: tournament?.status,
+    approvedTeamCount: teamsWithPlayers.length,
   });
+
+  if (!exposesPublicSection(visibility, "teams")) {
+    return apiSuccess({ teams: [], visibility });
+  }
 
   // BigInt -> string 직렬화
   const serialized = teamsWithPlayers.map((t) => ({
@@ -92,5 +111,5 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
     })),
   }));
 
-  return apiSuccess({ teams: serialized });
+  return apiSuccess({ teams: serialized, visibility });
 }

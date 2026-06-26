@@ -9,6 +9,10 @@ import {
 } from "@/lib/constants/match-status";
 // 비공개 대회 노출 차단 가드 (SSR page.tsx와 동일 정책 — insider 외 404).
 import { blockIfPrivateTournament } from "@/lib/auth/private-tournament-guard";
+import {
+  derivePublicVisibility,
+  exposesPublicSection,
+} from "@/lib/tournaments/public-visibility";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -62,6 +66,23 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
       },
     }),
   ]);
+
+  const visibility = derivePublicVisibility({
+    status: tournament?.status,
+    approvedTeamCount: teams.length,
+    matchCount: matches.length,
+    completedMatchCount: matches.filter((m) => m.status === "completed").length,
+    liveMatchCount: matches.filter((m) => m.status === "in_progress" || m.status === "live").length,
+  });
+
+  if (!exposesPublicSection(visibility, "results")) {
+    return apiSuccess({
+      teams: [],
+      tournamentStatus: tournament?.status ?? "draft",
+      pointsRule: "default",
+      visibility,
+    });
+  }
 
   const approvedTournamentTeamIds = new Set(teams.map((t) => t.id.toString()));
   const publicMatches = matches.filter((m) => {
@@ -178,5 +199,6 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
     teams: serialized,
     tournamentStatus: tournament?.status ?? "draft",
     pointsRule,
+    visibility,
   });
 }
