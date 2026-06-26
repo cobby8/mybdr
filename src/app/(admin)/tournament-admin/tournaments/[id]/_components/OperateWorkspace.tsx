@@ -18,6 +18,7 @@ type MatchesPanelProps = {
   matchStats: MatchStats;
 };
 type SettlementPanelProps = { tournamentId: string };
+type OpsPanelProps = MatchesPanelProps;
 
 const TeamsPanel = dynamic(() => import("../_panels/teams-panel"), {
   ssr: false,
@@ -31,14 +32,6 @@ const MatchesPanel = dynamic(() => import("../_panels/matches-panel"), {
   ssr: false,
   loading: () => <PanelLoading />,
 }) as ComponentType<MatchesPanelProps>;
-const RecordersPanel = dynamic(() => import("../_panels/recorders-panel"), {
-  ssr: false,
-  loading: () => <PanelLoading />,
-}) as PanelComponent;
-const AdminsPanel = dynamic(() => import("../_panels/admins-panel"), {
-  ssr: false,
-  loading: () => <PanelLoading />,
-}) as PanelComponent;
 const SitePanel = dynamic(() => import("../_panels/site-panel"), {
   ssr: false,
   loading: () => <PanelLoading />,
@@ -47,6 +40,10 @@ const SettlementPanel = dynamic(() => import("../_panels/settlement-panel"), {
   ssr: false,
   loading: () => <PanelLoading />,
 }) as ComponentType<SettlementPanelProps>;
+const OpsPanel = dynamic(() => import("../_panels/ops-panel"), {
+  ssr: false,
+  loading: () => <PanelLoading />,
+}) as ComponentType<OpsPanelProps>;
 
 const MENUS: Array<{ id: MenuId; label: string; icon: string; desc: string }> = [
   { id: "teams", label: "참가팀", icon: "users", desc: "종별 참가 신청과 참가비 현황을 관리합니다." },
@@ -233,39 +230,20 @@ function OperateBody({
     );
   }
   if (menu === "ops") {
-    return <OpsPanel />;
+    return (
+      <PanelFrame>
+        <OpsPanel
+          tournamentId={tournamentId}
+          defaultMode={defaultRecordingMode}
+          matchStats={matchStats}
+        />
+      </PanelFrame>
+    );
   }
   if (menu === "site") {
     return <PanelFrame><SitePanel /></PanelFrame>;
   }
   return <PanelFrame><SettlementPanel tournamentId={tournamentId} /></PanelFrame>;
-}
-
-function OpsPanel() {
-  return (
-    <div className="operate-stack">
-      <div className="ts-card ts-card--flat">
-        <div className="ct-section__head">
-          <span className="ct-headicon"><Icon name="shield" size={18} /></span>
-          <div>
-            <h3 className="ct-section__title">운영진</h3>
-            <p className="ct-section__sub">대회 운영 권한을 가진 관리자를 추가하거나 제거합니다.</p>
-          </div>
-        </div>
-        <PanelFrame><AdminsPanel /></PanelFrame>
-      </div>
-      <div className="ts-card ts-card--flat">
-        <div className="ct-section__head">
-          <span className="ct-headicon"><Icon name="pencil" size={18} /></span>
-          <div>
-            <h3 className="ct-section__title">기록원</h3>
-            <p className="ct-section__sub">경기별 기록 담당자를 배정합니다.</p>
-          </div>
-        </div>
-        <PanelFrame><RecordersPanel /></PanelFrame>
-      </div>
-    </div>
-  );
 }
 
 function PanelFrame({ children }: { children: ReactNode }) {
