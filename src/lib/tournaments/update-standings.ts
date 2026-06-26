@@ -69,6 +69,7 @@ export async function advanceWinner(matchId: bigint): Promise<void> {
     select: {
       id: true,
       next_match_id: true,
+      next_match_slot: true,
       winner_team_id: true,
       homeTeamId: true,
       awayTeamId: true,
@@ -80,14 +81,20 @@ export async function advanceWinner(matchId: bigint): Promise<void> {
 
   if (!match?.next_match_id || !match.winner_team_id) return;
 
+  if (match.next_match_slot !== "home" && match.next_match_slot !== "away") {
+    throw new Error(
+      `advanceWinner: next_match_slot is required when next_match_id is set (matchId=${matchId})`,
+    );
+  }
+
   const nextMatch = await prisma.tournamentMatch.findUnique({
     where: { id: match.next_match_id },
-    select: { homeTeamId: true, awayTeamId: true },
+    select: { id: true },
   });
   if (!nextMatch) return;
 
-  // 빈 슬롯에 승자 배치 (home 먼저, 이미 채워졌으면 away)
-  const slot = nextMatch.homeTeamId === null ? "homeTeamId" : "awayTeamId";
+  // The source match must provide next_match_slot; missing slot is an error above.
+  const slot = match.next_match_slot === "home" ? "homeTeamId" : "awayTeamId";
 
   await prisma.tournamentMatch.update({
     where: { id: match.next_match_id },
