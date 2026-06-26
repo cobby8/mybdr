@@ -423,6 +423,7 @@ export default function DivisionsSetupPage() {
   ) => {
     setSavingId(ruleId);
     setError(null);
+    setSyncResult(null);
     try {
       const res = await fetch(
         `/api/web/admin/tournaments/${tournamentId}/division-rules/${ruleId}`,
@@ -443,12 +444,13 @@ export default function DivisionsSetupPage() {
           r.id === ruleId
             ? {
                 ...r,
-                format: patch.format ?? r.format,
-                settings: patch.settings ?? r.settings,
+                format: json.format ?? r.format,
+                settings: json.settings ?? r.settings,
               }
             : r
         )
       );
+      setSyncResult("운영방식 설정 저장 완료");
     } catch {
       setError("네트워크 오류");
     } finally {
@@ -854,7 +856,7 @@ function GroupSettingsInputs(props: {
   format: string | null;
   settings: Record<string, unknown> | null;
   saving: boolean;
-  onSave: (settings: Record<string, unknown>) => void;
+  onSave: (settings: Record<string, unknown>) => void | Promise<void>;
 }) {
   const { format, settings, saving, onSave } = props;
   const isDualTournament = format === "dual_tournament";
@@ -885,6 +887,40 @@ function GroupSettingsInputs(props: {
   );
 
   // 총 팀 수 계산 (group_size × group_count) — division-formats.ts 헬퍼 사용
+  useEffect(() => {
+    setGroupSize(initialGroupSize != null ? String(initialGroupSize) : isDualTournament ? "4" : "");
+    setGroupCount(initialGroupCount != null ? String(initialGroupCount) : "");
+    setRankingFormat(initialRankingFormat);
+    setAdvancePerGroup(
+      initialAdvancePerGroup != null ? String(initialAdvancePerGroup) : isDualTournament ? "2" : "",
+    );
+  }, [
+    format,
+    isDualTournament,
+    initialGroupSize,
+    initialGroupCount,
+    initialRankingFormat,
+    initialAdvancePerGroup,
+  ]);
+
+  const savedGroupSize = isDualTournament
+    ? "4"
+    : initialGroupSize != null
+      ? String(initialGroupSize)
+      : "";
+  const savedGroupCount = initialGroupCount != null ? String(initialGroupCount) : "";
+  const savedRankingFormat = initialRankingFormat;
+  const savedAdvancePerGroup = isDualTournament
+    ? "2"
+    : initialAdvancePerGroup != null
+      ? String(initialAdvancePerGroup)
+      : "";
+  const hasPendingSettings =
+    groupSize !== savedGroupSize ||
+    groupCount !== savedGroupCount ||
+    (showRankingFormat(format) && rankingFormat !== savedRankingFormat) ||
+    (shouldShowAdvancePerGroup(format) && advancePerGroup !== savedAdvancePerGroup);
+
   const totalTeams = calculateTotalTeams(
     isDualTournament ? 4 : groupSize !== "" ? Number(groupSize) : null,
     groupCount !== "" ? Number(groupCount) : null,
@@ -896,7 +932,9 @@ function GroupSettingsInputs(props: {
       : ADVANCE_PER_GROUP_DEFAULT;
 
   // 저장 트리거 — 기존 settings + 신규 키 머지 (legacy linkage_pairs / advanceCount 보존)
-  const handleSave = () => {
+  const handleSave = async () => {
+    if (saving) return;
+
     const next: Record<string, unknown> = { ...(settings ?? {}) };
 
     // group_size / group_count: 빈 값이면 키 삭제
@@ -923,7 +961,7 @@ function GroupSettingsInputs(props: {
       delete next.advance_per_group;
     }
 
-    onSave(next);
+    await onSave(next);
   };
 
   return (
@@ -938,7 +976,6 @@ function GroupSettingsInputs(props: {
           value={isDualTournament ? "4" : groupSize}
           disabled={saving || isDualTournament}
           onChange={(e) => setGroupSize(e.target.value)}
-          onBlur={handleSave}
           className="ts-input mt-1"
           placeholder="4"
         />
@@ -953,7 +990,6 @@ function GroupSettingsInputs(props: {
           value={groupCount}
           disabled={saving}
           onChange={(e) => setGroupCount(e.target.value)}
-          onBlur={handleSave}
           className="ts-input mt-1"
           placeholder="4"
         />
@@ -980,7 +1016,6 @@ function GroupSettingsInputs(props: {
               value={rankingFormat}
               disabled={saving}
               onChange={(e) => setRankingFormat(e.target.value)}
-              onBlur={handleSave}
               className="ts-select mt-1"
             >
               {/* 2026-05-13 라벨 한국식 통일 — "싱글 엘리미네이션" → "토너먼트" */}
@@ -1004,7 +1039,6 @@ function GroupSettingsInputs(props: {
             value={isDualTournament ? "2" : advancePerGroup}
             disabled={saving || isDualTournament}
             onChange={(e) => setAdvancePerGroup(e.target.value)}
-            onBlur={handleSave}
             className="ts-input mt-1"
             placeholder={`${ADVANCE_PER_GROUP_DEFAULT}`}
           />
@@ -1024,6 +1058,21 @@ function GroupSettingsInputs(props: {
           </>
         )}
       </p>
+      <div className="col-span-2 flex flex-wrap items-center justify-between gap-2 sm:col-span-3">
+        <span className="text-xs text-[var(--ink-mute)]">
+          {hasPendingSettings
+            ? "운영방식 설정 변경사항이 있습니다."
+            : "운영방식 설정이 저장되어 있습니다."}
+        </span>
+        <button
+          type="button"
+          onClick={() => void handleSave()}
+          disabled={saving || !hasPendingSettings}
+          className="ts-btn ts-btn--secondary ts-btn--sm"
+        >
+          {saving ? "저장 중..." : hasPendingSettings ? "운영방식 설정 저장" : "설정 저장됨"}
+        </button>
+      </div>
     </div>
   );
 }

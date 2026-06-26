@@ -1,5 +1,12 @@
 # Errors
 
+## 2026-06-26 Division Rule Settings Save Looked Unreliable
+
+- Symptom: Tournament division settings appeared not to save reliably after editing group size/count, ranking format, or advance-per-group values.
+- Cause: `GroupSettingsInputs` saved only on field blur, while the visible bottom save button belonged to the broader workspace form and did not save division rule settings. Fast clicks to bracket generation or next step could race the blur PATCH, and local state reflected the optimistic patch rather than the server response.
+- Fix: Removed blur-only saves, added an explicit "운영방식 설정 저장" control with pending/saved copy, awaited the rule PATCH, and refreshed local rule format/settings from the API response.
+- Prevention: For operation-critical nested settings, avoid hidden blur persistence; expose a local save affordance and update UI from the confirmed server payload.
+
 ## 2026-06-26 Prettier via npx Blocked by Registry/Cache Access
 
 - Symptom: `cmd /c npx prettier --write ...` hung without output and then failed with `npm ERR! EACCES` while trying to request `https://registry.npmjs.org/prettier`.
