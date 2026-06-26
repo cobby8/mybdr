@@ -565,14 +565,14 @@ function DualBracketSections({
   }));
 
   return (
-    <div className="space-y-4">
-      <div className="mb-3 flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-[var(--color-text-muted)] uppercase tracking-wide">
+    <div className="ta-dual-sections">
+      <div className="ta-section-head">
+        <h2 className="ta-panel-title">
           듀얼토너먼트 ({matches.length}경기)
         </h2>
         <Link
           href={`/tournament-admin/tournaments/${tournamentId}#matches`}
-          className="text-xs text-[var(--color-info)] hover:underline"
+          className="ta-panel-link"
         >
           경기 관리로 이동 →
         </Link>
@@ -583,37 +583,37 @@ function DualBracketSections({
         const count = stage.matches.length;
 
         return (
-          <section key={stage.key} className="ts-card !p-0 overflow-hidden">
+          <section key={stage.key} className="ts-card ta-dual-stage">
             {/* 섹션 헤더 — 클릭 시 토글 */}
             <button
               type="button"
               onClick={() => toggle(stage.key)}
-              className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-[var(--color-elevated)] transition-colors"
+              className="ta-dual-stage__toggle"
             >
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-bold text-[var(--color-text-primary)]">
+              <div className="ta-dual-stage__title">
+                <span>
                   {stage.label}
                 </span>
-                <span className="rounded-full bg-[var(--color-elevated)] px-2 py-0.5 text-xs text-[var(--color-text-muted)]">
+                <span className="ta-dual-stage__count">
                   {count}경기
                 </span>
               </div>
-              <span className="text-xs text-[var(--color-text-muted)]">
+              <span className="ta-dual-stage__state">
                 {isCollapsed ? "펼치기 ▼" : "접기 ▲"}
               </span>
             </button>
 
             {/* 섹션 본문 */}
             {!isCollapsed && (
-              <div className="border-t border-[var(--color-border-subtle)] p-3">
+              <div className="ta-dual-stage__body">
                 {stage.groupByGroup ? (
                   // Stage 1: A/B/C/D 4조 추가 그룹핑
                   <DualGroupedMatches matches={stage.matches} />
                 ) : (
                   // Stage 2~5: 단순 리스트
-                  <div className="space-y-2">
+                  <div className="ta-match-list">
                     {stage.matches.length === 0 ? (
-                      <p className="py-4 text-center text-xs text-[var(--color-text-muted)]">
+                      <p className="ta-stage-empty">
                         해당 단계 경기가 없습니다.
                       </p>
                     ) : (
@@ -637,7 +637,7 @@ function DualGroupedMatches({ matches }: { matches: Match[] }) {
   const groupKeys = ["A", "B", "C", "D"] as const;
 
   return (
-    <div className="space-y-3">
+    <div className="ta-dual-group-list">
       {groupKeys.map((g) => {
         const groupMatches = matches
           .filter((m) => m.group_name === g)
@@ -651,11 +651,11 @@ function DualGroupedMatches({ matches }: { matches: Match[] }) {
         if (groupMatches.length === 0) return null;
 
         return (
-          <div key={g} className="rounded-[8px] bg-[var(--color-surface)] p-3">
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--color-text-secondary)]">
+          <div key={g} className="ta-dual-group">
+            <p className="ta-dual-group__title">
               {g}조 ({groupMatches.length}경기)
             </p>
-            <div className="space-y-2">
+            <div className="ta-match-list">
               {groupMatches.map((m) => <DualMatchCard key={m.id} match={m} />)}
             </div>
           </div>
@@ -682,81 +682,66 @@ function DualMatchCard({ match }: { match: Match }) {
   const awayWon = completed && match.awayScore > match.homeScore;
 
   return (
-    <div className="rounded-[8px] bg-[var(--color-elevated)] p-3">
+    <div className="ta-match-card">
       {/* 상단 메타 — 매치번호 / 라운드명 / 상태 */}
-      <div className="mb-2 flex items-center justify-between gap-2 text-xs">
-        <div className="flex items-center gap-2">
-          <span className="font-mono text-[var(--color-text-muted)]">
+      <div className="ta-match-meta">
+        <div className="ta-match-meta__main">
+          <span className="ta-match-no">
             #{match.match_number ?? "-"}
           </span>
-          <span className="font-medium text-[var(--color-text-secondary)]">
+          <span className="ta-match-round">
             {match.roundName ?? (match.round_number != null ? `라운드 ${match.round_number}` : "라운드 미정")}
           </span>
         </div>
         <span
-          className={`rounded-full px-2 py-0.5 ${
-            completed
-              ? "bg-[color-mix(in_srgb,var(--color-success)_10%,transparent)] text-[var(--color-success)]"
-              : match.status === "in_progress"
-                ? "bg-[color-mix(in_srgb,var(--color-info)_10%,transparent)] text-[var(--color-info)]"
-                : "bg-[var(--color-surface)] text-[var(--color-text-muted)]"
-          }`}
+          className="ta-match-status"
+          data-status={completed ? "completed" : match.status}
         >
           {STATUS_LABEL[match.status] ?? match.status}
         </span>
       </div>
 
       {/* 일정 / 장소 — 모바일에서도 한 줄 유지 (작게) */}
-      <div className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px] text-[var(--color-text-muted)]">
+      <div className="ta-match-info">
         <span>{formatSchedule(match)}</span>
         <span>·</span>
         <span>{formatVenue(match)}</span>
       </div>
 
       {/* 팀 + 점수 */}
-      <div className="flex items-center gap-2">
+      <div className="ta-match-teams">
         {/* HOME */}
-        <div className="flex flex-1 items-center gap-2 min-w-0">
+        <div className="ta-match-side">
           <span
-            className={`flex-1 truncate text-sm ${
-              isHomeUndecided
-                ? "italic text-[var(--color-text-muted)]"
-                : homeWon
-                  ? "font-bold text-[var(--color-text-primary)]"
-                  : "font-medium text-[var(--color-text-primary)]"
-            }`}
+            className="ta-match-team"
+            data-undecided={isHomeUndecided ? "true" : "false"}
+            data-won={homeWon ? "true" : "false"}
             title={homeLabel}
           >
             {homeLabel}
           </span>
           <span
-            className={`min-w-[28px] text-right text-sm tabular-nums ${
-              homeWon ? "font-bold text-[var(--color-text-primary)]" : "text-[var(--color-text-secondary)]"
-            }`}
+            className="ta-match-score"
+            data-won={homeWon ? "true" : "false"}
           >
             {completed ? match.homeScore : "-"}
           </span>
         </div>
 
-        <span className="text-xs text-[var(--color-text-muted)]">vs</span>
+        <span className="ta-match-vs">vs</span>
 
         {/* AWAY */}
-        <div className="flex flex-1 items-center gap-2 min-w-0">
+        <div className="ta-match-side">
           <span
-            className={`min-w-[28px] text-sm tabular-nums ${
-              awayWon ? "font-bold text-[var(--color-text-primary)]" : "text-[var(--color-text-secondary)]"
-            }`}
+            className="ta-match-score"
+            data-won={awayWon ? "true" : "false"}
           >
             {completed ? match.awayScore : "-"}
           </span>
           <span
-            className={`flex-1 truncate text-sm ${
-              isAwayUndecided
-                ? "italic text-[var(--color-text-muted)]"
-                : awayWon
-                  ? "font-bold text-[var(--color-text-primary)]"
-                  : "font-medium text-[var(--color-text-primary)]"
-            }`}
+            className="ta-match-team"
+            data-undecided={isAwayUndecided ? "true" : "false"}
+            data-won={awayWon ? "true" : "false"}
             title={awayLabel}
           >
             {awayLabel}
