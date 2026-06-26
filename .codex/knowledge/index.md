@@ -1,6 +1,6 @@
 # Knowledge Index
 
-- 2026-06-26 admin: divisions panel selected categories now render as visible Toss chips with direct delete controls; division row grids use shrink-safe columns to avoid card overflow.
+- 2026-06-26 admin: divisions panel selected categories now render as visible Toss chips with direct delete controls; local BDR radius/color residue was removed and row grids use shrink-safe columns.
 - 2026-06-26 admin: v2.42 parity inventory now treats `ct-panel-embed` as canonical and keeps the divisions panel visible by default in the Toss workspace; `ta-*` remains a migration cleanup target.
 - 2026-06-26 design: BDR v2 (40) is a v2.42 public-site wiring delta; it supersedes the v39 public-site fiction note and sets 44 teams / 27 matches / 4 divisions as the shared admin/public baseline.
 - 2026-06-26 design: v2.42 integrated Claude.ai request asks for admin Toss full-parity state screens, schedule/bracket/matches/teams/site function flows, cleanup manifest, and data contracts.
@@ -38,7 +38,7 @@ Updated: 2026-06-26
 | lessons.md | 0 | - |
 
 Recent work:
-- 2026-06-26 admin: selected division chips with direct delete controls were added and division row/category grids were stabilized to reduce Toss workspace overflow.
+- 2026-06-26 admin: selected division chips with direct delete controls were added, division grids were stabilized, and local `rounded-[4px]`/`--color-*` residue was removed from the divisions panel.
 - 2026-06-26 admin: v2.42 parity inventory was added, workspace panel frames moved to canonical `ct-panel-embed`, and the divisions panel is forced visible while the divisions step is active.
 - 2026-06-26 design: BDR v2 (40) wiring delta was imported into BDR-current, active admin Toss data was corrected with `homeId/awayId`, and public site data-gating work was added to the remaining task list.
 - 2026-06-26 design: v2.42 integrated Claude.ai request was created for admin Toss full parity, including schedule/bracket/matches/teams/site state screens, cleanup manifest, and data contract outputs.

@@ -11,10 +11,10 @@
 | Admin game rules | Done | `game_time`/`game_method` now derive from canonical `game_rules` instead of free text. |
 | Recording modes | Done | Match-level `manual` is counted, displayed, and blocked from Flutter/score-sheet system inputs. |
 | Admin Toss handoff | Done | `BDR-current/_handoff-admin-toss-v2.41/` added; src unchanged. |
-| Admin Toss sweep | In Progress | v2(40) wiring delta is imported; B2 divisions panel now exposes selected divisions with direct delete controls and stabilized row grids. |
+| Admin Toss sweep | In Progress | v2(40) wiring delta is imported; B2 divisions panel now exposes selected divisions, direct delete controls, stable row grids, and Toss-only local tokens. |
 
 ## Work Log
-- 2026-06-26: Added selected division chips with direct delete controls and stabilized division row/grid sizing in the Toss divisions panel; TypeScript passed.
+- 2026-06-26: Added selected division chips with direct delete controls, stabilized division row/grid sizing, and removed local BDR token/radius residue in the Toss divisions panel; TypeScript passed.
 - 2026-06-26: Added v2.42 admin/public parity inventory and started B1 by switching workspace panel frames to `ct-panel-embed` and keeping the divisions panel visible by default; TypeScript passed.
 - 2026-06-26: Reviewed BDR v2 (40) wiring delta, imported it into BDR-current, corrected active handoff data, and updated remaining work around public site data gates.
 - 2026-06-26: Created integrated Claude.ai request for v2.42 admin Toss parity, including schedule/bracket/matches/teams/site state screens and cleanup manifest requirements.
