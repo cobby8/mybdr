@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db/prisma";
 import { Prisma } from "@prisma/client";
 // Phase 4 — 매치 코드 v4 자동 부여 (호출자 영향 0 / NULL 안전)
 import { applyMatchCodeFields } from "@/lib/tournaments/match-code";
+import { OFFICIAL_MATCH_STATUSES } from "@/lib/constants/match-status";
 
 // 팀별 순위 결과 타입
 // rank는 1부터 시작 (1위, 2위, ...)
@@ -116,7 +117,7 @@ export async function calculateLeagueRanking(tournamentId: string): Promise<Rank
       where: {
         tournamentId,
         round_number: null, // 리그 경기만 (토너먼트 경기는 round_number 부여됨)
-        status: { in: ["completed", "live"] },
+        status: { in: [...OFFICIAL_MATCH_STATUSES] },
         homeTeamId: { not: null },
         awayTeamId: { not: null },
       },

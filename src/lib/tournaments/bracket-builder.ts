@@ -3,6 +3,8 @@
 
 // ── 타입 정의 ─────────────────────────────────────────
 
+import { normalizeMatchStatusForApi } from "@/lib/constants/match-status";
+
 export type MatchStatus =
   | "pending"
   | "scheduled"
@@ -174,7 +176,7 @@ function toBracketMatch(m: DbMatch): BracketMatch {
     matchNumber: m.match_number,
     // Phase 5 — DB match_code 매핑 (NULL 안전)
     matchCode: m.match_code ?? null,
-    status: (m.status as MatchStatus) ?? "scheduled",
+    status: normalizeMatchStatusForApi(m.status) as MatchStatus,
     homeTeam: toTeamSlot(m.homeTeam),
     awayTeam: toTeamSlot(m.awayTeam),
     homeScore: m.homeScore ?? 0,

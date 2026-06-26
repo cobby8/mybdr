@@ -3,6 +3,10 @@ import { prisma } from "@/lib/db/prisma";
 import { apiSuccess, apiError } from "@/lib/api/response";
 // Phase 3: scheduledAt 가드만 사용 (status는 [completed, in_progress, live] 유지해야 함)
 import { pastOrOngoingSchedule } from "@/lib/tournaments/official-match";
+import {
+  OFFICIAL_MATCH_STATUSES,
+  isOfficialMatchStatus,
+} from "@/lib/constants/match-status";
 // 비공개 대회 노출 차단 가드 (SSR page.tsx와 동일 정책 — insider 외 404).
 import { blockIfPrivateTournament } from "@/lib/auth/private-tournament-guard";
 
@@ -45,7 +49,7 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
         // Phase 3: status는 기존 [completed, in_progress, live] 유지.
         // scheduledAt 가드만 추가해 미래 테스트 데이터 / NULL 날짜 제외.
         ...pastOrOngoingSchedule(),
-        status: { in: ["completed", "in_progress", "live"] }, // 완료 + 진행중 + 라이브
+        status: { in: [...OFFICIAL_MATCH_STATUSES] }, // 완료 + 진행중 + legacy 라이브
         homeTeamId: { not: null },
         awayTeamId: { not: null },
       },
@@ -97,7 +101,7 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
     teamStats[awayId].pointsAgainst += hs;
 
     // 승패는 완료/라이브 경기에서 집계 (스코어가 확정된 경기)
-    if (m.status === "completed" || m.status === "live") {
+    if (isOfficialMatchStatus(m.status)) {
       if (hs > as_) {
         teamStats[homeId].wins++;
         teamStats[awayId].losses++;

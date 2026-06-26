@@ -13,6 +13,7 @@
  *   - scheduledAt IS NOT NULL      → 날짜 없는 더미/초안 제외
  */
 import type { Prisma } from "@prisma/client";
+import { OFFICIAL_MATCH_STATUSES } from "@/lib/constants/match-status";
 
 /**
  * 공식 기록으로 취급할 TournamentMatch 조건.
@@ -27,7 +28,7 @@ export function officialMatchWhere(
 ): Prisma.TournamentMatchWhereInput {
   return {
     ...extra,
-    status: { in: ["completed", "live"] },
+    status: { in: [...OFFICIAL_MATCH_STATUSES] },
     scheduledAt: { lte: new Date(), not: null },
   };
 }
@@ -45,7 +46,7 @@ export function officialMatchWhere(
  */
 export function officialMatchNestedFilter(): Prisma.TournamentMatchWhereInput {
   return {
-    status: { in: ["completed", "live"] },
+    status: { in: [...OFFICIAL_MATCH_STATUSES] },
     scheduledAt: { lte: new Date(), not: null },
   };
 }
@@ -77,7 +78,7 @@ export function pastOrOngoingSchedule(): {
  * tm = tournament_matches 테이블의 alias 기준. 다른 alias면 교체 필요.
  */
 export const OFFICIAL_MATCH_SQL_CONDITION = `
-  tm.status IN ('completed', 'live')
+  tm.status IN ('completed', 'in_progress', 'live')
   AND tm.scheduled_at <= NOW()
   AND tm.scheduled_at IS NOT NULL
 `;

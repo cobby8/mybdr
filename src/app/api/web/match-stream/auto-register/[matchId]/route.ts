@@ -34,6 +34,10 @@ import {
   SCORE_THRESHOLD_AUTO,
 } from "@/lib/youtube/score-match";
 import { checkRateLimit } from "@/lib/security/rate-limit";
+import {
+  isLiveMatchStatus,
+  normalizeMatchStatusForApi,
+} from "@/lib/constants/match-status";
 
 type Ctx = { params: Promise<{ matchId: string }> };
 
@@ -134,6 +138,10 @@ export async function POST(req: NextRequest, routeCtx: Ctx) {
   }
 
   // 4) 이미 등록된 영상 — early return (재등록 X / 운영자 수동 등록과 충돌 0)
+  const matchStatus = match.status
+    ? normalizeMatchStatusForApi(match.status)
+    : null;
+
   if (match.youtube_video_id) {
     return apiSuccess({
       registered: false,
@@ -144,7 +152,7 @@ export async function POST(req: NextRequest, routeCtx: Ctx) {
 
   // 5) status 가드 — Q10 결재: scheduled / ready / in_progress 만 트리거
   // (completed / cancelled / null = 라이브 페이지 자동 트리거 의미 0)
-  if (!match.status || !ALLOWED_STATUSES.has(match.status)) {
+  if (!matchStatus || !ALLOWED_STATUSES.has(matchStatus)) {
     return apiSuccess({
       registered: false,
       reason: "match_not_live",
@@ -159,7 +167,7 @@ export async function POST(req: NextRequest, routeCtx: Ctx) {
   //   사유: 운영자가 매치 시작 했는데 started_at 박제 path 누락 (다른 path 사용) → ref=scheduledAt →
   //         실제 시작이 예정보다 늦으면 자동으로 윈도우 밖 → 폴링 종료 → 영상 등록 실패.
   //   룰: 진행 중인 매치 = 시간 무관 폴링 유지 (라이브 영상 등록 기회 보장).
-  if (match.status !== "in_progress") {
+  if (!isLiveMatchStatus(match.status)) {
     const ref = match.started_at ?? match.scheduledAt;
     if (!ref) {
       return apiSuccess({ registered: false, reason: "out_of_window", window_minutes: 10 });

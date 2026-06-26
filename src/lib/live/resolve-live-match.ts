@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db/prisma";
 import { parseBigIntParam } from "@/lib/utils/parse-bigint";
 import type { CourtKeyParts } from "@/lib/live/court-key";
+import { LIVE_MATCH_STATUSES } from "@/lib/constants/match-status";
 
 export interface ResolvedLiveMatch {
   matchId: bigint;
@@ -60,7 +61,7 @@ export async function resolveLiveMatch(
   const matches = await prisma.tournamentMatch.findMany({
     where: {
       tournamentId: parts.tournamentId,
-      status: "in_progress",
+      status: { in: [...LIVE_MATCH_STATUSES] },
       scheduledAt: { gte: start, lt: end },
       ...courtFilter,
     },
