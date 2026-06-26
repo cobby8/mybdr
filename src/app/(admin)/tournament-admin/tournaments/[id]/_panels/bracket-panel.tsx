@@ -233,17 +233,7 @@ export default function BracketAdminPage() {
   return (
     // Track B-c — Toss 토큰 적용 루트 opt-in (하위 섹션·모달 DOM 상속)
     <div data-skin="toss">
-      {/* 헤더 */}
-      <div className="mb-6">
-        <Link
-          href={`/tournament-admin/tournaments/${id}`}
-          className="text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
-        >
-          ← 대회 관리
-        </Link>
-        <h1 className="mt-1 text-xl font-bold sm:text-2xl">
-          {isLeague ? "풀리그 경기 생성" : "대진표 생성"}
-        </h1>
+      <div className="mb-4">
         {isLeague && approvedCount >= 2 && !hasMatches && (
           <p className="mt-1 text-sm text-[var(--color-text-muted)]">
             승인된 {approvedCount}팀 기준 총 {expectedLeagueMatches}경기가 생성됩니다.

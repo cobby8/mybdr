@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useParams } from "next/navigation";
-import Link from "next/link";
 import Image from "next/image";
 
 // 2026-06-13 HOTFIX: GET 응답은 apiSuccess→convertKeysToSnakeCase 거쳐 snake_case.
@@ -200,18 +199,7 @@ export default function TournamentRecordersPage() {
 
   return (
     // Track B-c — Toss 토큰 적용 루트 opt-in
-    <div data-skin="toss" className="max-w-2xl mx-auto p-6 space-y-6">
-      {/* 헤더 */}
-      <div className="flex items-center gap-3">
-        <Link
-          href={`/tournament-admin/tournaments/${id}`}
-          className="text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
-        >
-          ← 대회 관리
-        </Link>
-        <h1 className="text-xl font-bold">기록원 관리</h1>
-      </div>
-
+    <div data-skin="toss" className="space-y-6">
       {/* 기록원 추가 */}
       <section className="ts-card space-y-3 p-4">
         <h2 className="font-semibold text-[var(--color-text-primary)]">기록원 추가</h2>

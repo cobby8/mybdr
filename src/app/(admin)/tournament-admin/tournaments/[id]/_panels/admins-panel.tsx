@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useParams } from "next/navigation";
 import { PanelLoadingState } from "./panel-loading-state";
-import Link from "next/link";
 import { Icon } from "@/components/admin-toss";
 
 type Admin = {
@@ -83,11 +82,6 @@ export default function TournamentAdminsPage() {
   return (
     // Track B-c — Toss 토큰 적용 루트 opt-in
     <div data-skin="toss">
-      <div className="mb-6">
-        <Link href={`/tournament-admin/tournaments/${id}`} className="text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]">← 대회 관리</Link>
-        <h1 className="mt-1 text-xl font-bold sm:text-2xl">관리자 관리</h1>
-      </div>
-
       {/* 추가 폼 */}
       <section className="ts-card mb-6">
         <h2 className="mb-4 text-base font-semibold">관리자 추가</h2>
