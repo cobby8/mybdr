@@ -45,6 +45,7 @@ type DivisionRuleOption = {
 
 type TeamView = TeamRow & {
   token: TokenInfo | null;
+  rawCategory: string | null;
   category: string | null;
   paymentStatus: PaymentStatus | null;
   managerName: string | null;
@@ -122,9 +123,28 @@ function formatDate(value: string | null | undefined) {
   return date.toLocaleDateString("ko-KR");
 }
 
+function cleanCategoryCode(code: string | null | undefined) {
+  const value = code?.trim() ?? "";
+  if (!value) return null;
+  if (/^\?+(\s+\?+)*$/.test(value)) return null;
+  return value;
+}
+
+function knownCategoryCode(code: string | null | undefined, rules: DivisionRuleOption[]) {
+  const value = cleanCategoryCode(code);
+  if (!value) return null;
+  return rules.some((rule) => rule.code === value) ? value : null;
+}
+
+function effectiveCategoryCode(code: string | null | undefined, rules: DivisionRuleOption[]) {
+  const known = knownCategoryCode(code, rules);
+  if (known) return known;
+  return rules.length === 1 ? rules[0]?.code ?? null : null;
+}
+
 function categoryLabel(code: string | null, rules: DivisionRuleOption[]) {
-  if (!code) return "종별 미지정";
-  return rules.find((rule) => rule.code === code)?.label ?? code;
+  if (!code) return "종별 미확인";
+  return rules.find((rule) => rule.code === code)?.label ?? "종별 미확인";
 }
 
 function categorySortKey(code: string | null) {
@@ -230,17 +250,19 @@ export default function TournamentTeamsPanel() {
   const viewTeams = useMemo<TeamView[]>(() => {
     return teams.map((team) => {
       const token = tokenMap[team.id] ?? null;
+      const rawCategory = token?.category ?? null;
       return {
         ...team,
         token,
-        category: token?.category ?? null,
+        rawCategory,
+        category: effectiveCategoryCode(rawCategory, divisionRules),
         paymentStatus: token?.paymentStatus ?? null,
         managerName: token?.managerName ?? null,
         managerPhone: token?.managerPhone ?? null,
         tokenAlive: Boolean(token?.applyTokenUrl),
       };
     });
-  }, [teams, tokenMap]);
+  }, [divisionRules, teams, tokenMap]);
 
   const counts = useMemo(() => {
     return {
@@ -624,6 +646,10 @@ ${team.token?.applyTokenUrl}
             const moveOptions = divisionRules.filter((rule) => rule.code !== category);
             const groupKey = category ?? "__unassigned";
             const selectedTarget = bulkMoveTarget[groupKey] ?? moveOptions[0]?.code ?? "";
+            const rawCategories = Array.from(
+              new Set(rows.map((team) => cleanCategoryCode(team.rawCategory)).filter(Boolean)),
+            );
+            const bulkSourceCategory = category ?? (rawCategories.length === 1 ? rawCategories[0] ?? null : null);
             return (
               <section key={groupKey} className="space-y-2">
                 <div className="flex flex-wrap items-center gap-2">
@@ -657,7 +683,7 @@ ${team.token?.applyTokenUrl}
                         size="sm"
                         icon="move-right"
                         disabled={!selectedTarget || bulkMovingCategory === groupKey}
-                        onClick={() => bulkChangeCategory(category, selectedTarget, rows.length)}
+                        onClick={() => bulkChangeCategory(bulkSourceCategory, selectedTarget, rows.length)}
                       >
                         일괄 이동
                       </Btn>

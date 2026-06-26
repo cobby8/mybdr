@@ -21,8 +21,10 @@
 | Tournament operate bracket | Done | Bracket tab now has robust single-division category fallback plus Toss-style generation summary and stage-grouped generated match review. |
 | Tournament operate schedule | Done | Schedule tab now loads tournament dates/courts, supports division durations, lane start times, unscheduled/overwrite auto placement, direct placement, and lane timelines over real match PATCH saves. |
 | Admin tournament list | Done | `/admin/tournaments` was replaced with a clean Toss list, Korean copy restored, and row click routes directly to the operate workspace. |
+| Tournament teams category display | Done | Teams panel now preserves raw category values but renders/groups by the active division rule, preventing corrupted legacy labels from appearing in live ops. |
 
 ## Work Log
+- 2026-06-27: Stabilized tournament teams category rendering by preserving raw DB category values while displaying/grouping by active division rules; local Chrome verified 8 teams show `남성 일반부` with no `?? ???`; TypeScript passed.
 - 2026-06-27: Replaced `/admin/tournaments` with a clean Toss v2.41 tournament list, removed the legacy detail/delete drawer path from row interaction, verified Chrome local row-click routing to the operate workspace, and TypeScript passed.
 - 2026-06-27: Rebuilt tournament operate schedule tab around the Toss v2.41 scheduler flow: date/court lanes, division durations, lane starts, auto placement, direct placement, lane timelines, and real scheduledAt/venue/court PATCH saves; TypeScript and production build passed.
 - 2026-06-27: Added drag reorder persistence to scheduled lane timelines so same-court match order changes recalculate and save start times; TypeScript and production build passed.
@@ -33,5 +35,3 @@
 - 2026-06-27: Set Gangnam Association Cup D5 tournament and all 13 matches to `recording_mode=paper`, renamed user-facing score-sheet copy to "전자기록지", and kept internal `paper`/`[종이 기록]` data keys for compatibility; TypeScript passed.
 - 2026-06-27: Fixed single-division bracket data fallback for corrupted team category values so the operate bracket tab recognizes approved teams and normalizes categories on draw/generate; TypeScript and production build passed.
 - 2026-06-27: Replaced the legacy tournament operate bracket tab with the Toss v2.41 flow: division config, slot-based seeded draw, group-slot rendering, preview tree, and division generation; TypeScript and production build passed.
-- 2026-06-26: Split tournament admin detail into a 6-menu Toss operate workspace at `/tournament-admin/tournaments/[id]` and a preserved edit/setup workspace at `/edit`; TypeScript and production build passed.
-- 2026-06-26: Fixed tournament division rule settings save clarity: removed blur-only saves, added explicit settings save state, and refreshed rule format/settings from the PATCH response; TypeScript and targeted division-format Vitest passed.
