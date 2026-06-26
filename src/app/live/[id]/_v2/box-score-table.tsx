@@ -18,6 +18,41 @@ const ZEBRA_BG = "color-mix(in srgb, var(--color-card), #7f7f7f 6%)";
 const TOTAL_ROW_BG = "color-mix(in srgb, var(--color-card), #7f7f7f 10%)";
 const ROW_EVEN_BG = "var(--color-card)";
 
+type BoxScoreViewMode = "basic" | "advanced";
+
+type StatLine = {
+  min: number;
+  min_seconds?: number;
+  pts: number;
+  fgm: number;
+  fga: number;
+  tpm: number;
+  tpa: number;
+  ftm: number;
+  fta: number;
+  oreb: number;
+  dreb: number;
+  reb: number;
+  ast: number;
+  stl: number;
+  blk: number;
+  to: number;
+  fouls: number;
+  plus_minus?: number;
+};
+
+const ADVANCED_HELP = [
+  ["eFG%", "3점슛의 추가 가치를 반영한 야투 효율입니다."],
+  ["TS%", "야투와 자유투를 함께 반영한 득점 효율입니다."],
+  ["USG%", "팀 공격에서 해당 선수가 마무리에 관여한 비율입니다."],
+  ["TOV%", "공격 기회 대비 턴오버 비율입니다."],
+  ["3PAr", "야투 시도 중 3점 시도 비율입니다."],
+  ["FTr", "야투 시도 대비 자유투 시도 비율입니다."],
+  ["AST/TO", "턴오버 1개당 어시스트 비율입니다."],
+  ["PIE", "경기 전체 기여도 중 해당 선수가 차지한 비율입니다."],
+  ["+/-", "해당 선수가 뛰는 동안의 팀 득실 차이입니다."],
+] as const;
+
 // 게임 클럭 포맷 — 초 → "M:SS" (옛 page.tsx L165-169)
 function formatGameClock(seconds: number): string {
   const total = Math.round(seconds);
@@ -26,10 +61,100 @@ function formatGameClock(seconds: number): string {
   return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
+function secondsOf(p: StatLine): number {
+  return p.min_seconds ?? p.min * 60;
+}
+
+function pctValue(numerator: number, denominator: number): number | null {
+  return denominator > 0 ? (numerator / denominator) * 100 : null;
+}
+
+function formatPct(value: number | null): string {
+  if (value == null || !Number.isFinite(value)) return "-";
+  return `${Math.round(value)}%`;
+}
+
+function formatPlusMinus(value: number | undefined): string {
+  if (value == null) return "-";
+  return value > 0 ? `+${value}` : String(value);
+}
+
+function formatAstTo(ast: number, turnovers: number): string {
+  if (turnovers === 0) return ast > 0 ? "∞" : "-";
+  return (ast / turnovers).toFixed(1);
+}
+
+function possessionLike(p: StatLine): number {
+  return p.fga + 0.44 * p.fta + p.to;
+}
+
+function pieBase(p: StatLine): number {
+  return (
+    p.pts +
+    p.fgm +
+    p.ftm -
+    p.fga -
+    p.fta +
+    p.dreb +
+    0.5 * p.oreb +
+    p.ast +
+    p.stl +
+    0.5 * p.blk -
+    p.fouls -
+    p.to
+  );
+}
+
+function sumStatLines(players: StatLine[]): StatLine {
+  return players.reduce(
+    (acc, p) => ({
+      min: acc.min + p.min,
+      min_seconds: (acc.min_seconds ?? 0) + secondsOf(p),
+      pts: acc.pts + p.pts,
+      fgm: acc.fgm + p.fgm,
+      fga: acc.fga + p.fga,
+      tpm: acc.tpm + p.tpm,
+      tpa: acc.tpa + p.tpa,
+      ftm: acc.ftm + p.ftm,
+      fta: acc.fta + p.fta,
+      oreb: acc.oreb + p.oreb,
+      dreb: acc.dreb + p.dreb,
+      reb: acc.reb + p.reb,
+      ast: acc.ast + p.ast,
+      stl: acc.stl + p.stl,
+      blk: acc.blk + p.blk,
+      to: acc.to + p.to,
+      fouls: acc.fouls + p.fouls,
+      plus_minus: (acc.plus_minus ?? 0) + (p.plus_minus ?? 0),
+    }),
+    {
+      min: 0,
+      min_seconds: 0,
+      pts: 0,
+      fgm: 0,
+      fga: 0,
+      tpm: 0,
+      tpa: 0,
+      ftm: 0,
+      fta: 0,
+      oreb: 0,
+      dreb: 0,
+      reb: 0,
+      ast: 0,
+      stl: 0,
+      blk: 0,
+      to: 0,
+      fouls: 0,
+      plus_minus: 0,
+    },
+  );
+}
+
 export function BoxScoreTable({
   teamName,
   color,
   players,
+  allPlayers,
   hasOT = false,
   otCount = 0,
   hasQuarterEventDetail = true,
@@ -38,6 +163,7 @@ export function BoxScoreTable({
   teamName: string;
   color: string;
   players: PlayerRowV2[];
+  allPlayers?: PlayerRowV2[];
   // 2026-05-20 OT2+ 분리 — hasOT 는 deprecated (otCount > 0 이면 자동 true / backward-compat).
   //   otCount = OT 진행 회수 (0 = 없음 / 1 = OT1만 / 2 = OT1+OT2 / N+).
   hasOT?: boolean;
@@ -51,6 +177,8 @@ export function BoxScoreTable({
   // 쿼터 필터 state — "all" | "1" ~ "5"
   // 이유: 사용자가 특정 쿼터만 집중해서 보고 싶을 때 활용. "all"은 전체 합계(기본값).
   const [quarterFilter, setQuarterFilter] = useState<string>("all");
+  const [viewMode, setViewMode] = useState<BoxScoreViewMode>("basic");
+  const [helpOpen, setHelpOpen] = useState(false);
 
   if (!players || players.length === 0) return null;
 
@@ -112,6 +240,7 @@ export function BoxScoreTable({
   // DNP 분리 + 활성 선수 정렬 (스타팅 우선 → 백넘버 오름차순)
   const activePlayers = players.filter((p) => !p.dnp).map(applyQuarterFilter);
   const dnpPlayers = players.filter((p) => p.dnp);
+  const allActivePlayers = (allPlayers ?? players).filter((p) => !p.dnp).map(applyQuarterFilter);
   const sortByStarterJersey = (a: PlayerRowV2, b: PlayerRowV2) => {
     const aS = a.is_starter ? 1 : 0;
     const bS = b.is_starter ? 1 : 0;
@@ -122,10 +251,68 @@ export function BoxScoreTable({
   };
   const sorted = [...activePlayers].sort(sortByStarterJersey);
   dnpPlayers.sort(sortByStarterJersey);
+  const teamTotal = sumStatLines(activePlayers);
+  const gamePieTotal = allActivePlayers.reduce((sum, p) => sum + pieBase(p), 0);
+  const advancedUnavailable = showPlaceholder || isPaperMatch;
+  const isAdvanced = viewMode === "advanced";
 
   // 슈팅 확률 헬퍼 — 시도 0 이면 0%
   const pct = (made: number, attempted: number) =>
     attempted > 0 ? Math.round((made / attempted) * 100) : 0;
+
+  const advancedStats = (p: StatLine, totalRow = false) => {
+    const playerSeconds = secondsOf(p);
+    const teamPossessions = possessionLike(teamTotal);
+    const playerPossessions = possessionLike(p);
+    const teamElapsedSeconds = (teamTotal.min_seconds ?? 0) / 5;
+    const usg =
+      totalRow || playerSeconds <= 0 || teamPossessions <= 0
+        ? null
+        : (playerPossessions * teamElapsedSeconds * 100) / (playerSeconds * teamPossessions);
+
+    return {
+      efg: pctValue(p.fgm + 0.5 * p.tpm, p.fga),
+      ts: pctValue(p.pts, 2 * (p.fga + 0.44 * p.fta)),
+      usg,
+      tov: pctValue(p.to, playerPossessions),
+      threePar: pctValue(p.tpa, p.fga),
+      ftr: pctValue(p.fta, p.fga),
+      astTo: formatAstTo(p.ast, p.to),
+      pie: pctValue(pieBase(p), gamePieTotal),
+      plusMinus: formatPlusMinus(p.plus_minus),
+    };
+  };
+
+  const advancedDashCount = isPaperMatch ? 8 : 9;
+
+  const renderAdvancedCells = (p: StatLine, totalRow = false) => {
+    const a = advancedStats(p, totalRow);
+    const colorValue = totalRow ? "var(--color-text-primary)" : "var(--color-text-secondary)";
+    const value = (text: string, emphasis = false) => (
+      <td
+        className={`py-2 px-1 text-center ${emphasis ? "font-semibold" : ""}`}
+        style={{ color: colorValue }}
+      >
+        {advancedUnavailable ? "-" : text}
+      </td>
+    );
+
+    return (
+      <>
+        {!isPaperMatch &&
+          value(totalRow ? "-" : formatGameClock(secondsOf(p)), false)}
+        {value(formatPct(a.efg))}
+        {value(formatPct(a.ts))}
+        {value(formatPct(a.usg), !totalRow)}
+        {value(formatPct(a.tov))}
+        {value(formatPct(a.threePar))}
+        {value(formatPct(a.ftr))}
+        {value(a.astTo)}
+        {value(formatPct(a.pie), true)}
+        {!isPaperMatch && value(totalRow ? "-" : a.plusMinus)}
+      </>
+    );
+  };
 
   // PTS 셀 좌측 팀색 띠 (3px) — NBA.com 스타일.
   // 이유: 라이트 모드에서 흰색에 가까운 팀 컬러가 안 보이는 문제 해결.
@@ -152,6 +339,36 @@ export function BoxScoreTable({
         <span className="text-lg font-semibold" style={{ color: "var(--color-text-primary)" }}>
           {teamName}
         </span>
+        <div
+          className="flex items-center gap-1 rounded p-0.5"
+          style={{
+            backgroundColor: "var(--color-surface)",
+            border: "1px solid var(--color-border)",
+          }}
+        >
+          {[
+            { key: "basic", label: "기본" },
+            { key: "advanced", label: "고급" },
+          ].map(({ key, label }) => {
+            const active = viewMode === key;
+            return (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setViewMode(key as BoxScoreViewMode)}
+                className="px-2 py-1 text-xs rounded transition-colors"
+                style={{
+                  backgroundColor: active ? "var(--color-primary)" : "transparent",
+                  color: active ? "var(--color-on-primary)" : "var(--color-text-muted)",
+                  border: "1px solid transparent",
+                  fontWeight: active ? 700 : 500,
+                }}
+              >
+                {label}
+              </button>
+            );
+          })}
+        </div>
         {/* 쿼터 필터 버튼 그룹 — 전체/1Q/2Q/3Q/4Q/OT(있을 때만) */}
         <div className="ml-auto flex items-center gap-1 print:hidden">
           {[
@@ -177,7 +394,10 @@ export function BoxScoreTable({
               style={{
                 backgroundColor:
                   quarterFilter === key ? "var(--color-primary)" : "var(--color-surface)",
-                color: quarterFilter === key ? "#ffffff" : "var(--color-text-muted)",
+                color:
+                  quarterFilter === key
+                    ? "var(--color-on-primary)"
+                    : "var(--color-text-muted)",
                 border: `1px solid ${
                   quarterFilter === key ? "var(--color-primary)" : "var(--color-border)"
                 }`,
@@ -186,6 +406,57 @@ export function BoxScoreTable({
               {label}
             </button>
           ))}
+        </div>
+        <div className="relative">
+          <button
+            type="button"
+            aria-label="고급 스탯 도움말"
+            aria-expanded={helpOpen}
+            onClick={() => setHelpOpen((v) => !v)}
+            className="inline-flex items-center justify-center rounded transition-colors"
+            style={{
+              width: 28,
+              height: 28,
+              backgroundColor: helpOpen ? "var(--color-primary)" : "var(--color-surface)",
+              color: helpOpen ? "var(--color-on-primary)" : "var(--color-text-muted)",
+              border: `1px solid ${helpOpen ? "var(--color-primary)" : "var(--color-border)"}`,
+              fontWeight: 800,
+            }}
+          >
+            <span className="material-symbols-outlined text-base" aria-hidden="true">
+              help
+            </span>
+          </button>
+          {helpOpen && (
+            <div
+              className="absolute right-0 top-8 z-30 w-80 rounded-md p-3 text-xs shadow-xl"
+              style={{
+                backgroundColor: "var(--color-card)",
+                border: "1px solid var(--color-border)",
+                color: "var(--color-text-secondary)",
+              }}
+            >
+              <div
+                className="mb-2 font-semibold"
+                style={{ color: "var(--color-text-primary)" }}
+              >
+                고급 스탯 도움말
+              </div>
+              <div className="space-y-1.5">
+                {ADVANCED_HELP.map(([label, text]) => (
+                  <div key={label} className="grid grid-cols-[52px_1fr] gap-2">
+                    <span
+                      className="font-semibold"
+                      style={{ color: "var(--color-text-primary)" }}
+                    >
+                      {label}
+                    </span>
+                    <span>{text}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -229,35 +500,61 @@ export function BoxScoreTable({
                 >
                   이름
                 </th>
-                {/* 2026-05-17 사용자 결재 — paper 매치 = MIN 추가 hide (시간 추적 칸 없음) */}
-                {!isPaperMatch && <th className="py-2 px-0.5 text-center font-normal">MIN</th>}
-                <th
-                  className="py-2 px-0.5 text-center font-semibold"
-                  style={{ color: "var(--color-text-primary)" }}
-                >
-                  PTS
-                </th>
-                {/* 2026-05-13 FIBA Phase 21: 종이 매치 (isPaperMatch=true) 시 슈팅 6 컬럼 hide */}
-                {!isPaperMatch && (
+                {isAdvanced ? (
                   <>
-                    <th className="py-2 px-0.5 text-center font-normal">FG</th>
-                    <th className="py-2 px-0.5 text-center font-normal">FG%</th>
-                    <th className="py-2 px-0.5 text-center font-normal">3P</th>
-                    <th className="py-2 px-0.5 text-center font-normal">3P%</th>
-                    <th className="py-2 px-0.5 text-center font-normal">FT</th>
-                    <th className="py-2 px-0.5 text-center font-normal">FT%</th>
+                    {!isPaperMatch && (
+                      <th className="py-2 px-1 text-center font-normal">MIN</th>
+                    )}
+                    <th className="py-2 px-1 text-center font-normal">eFG%</th>
+                    <th className="py-2 px-1 text-center font-normal">TS%</th>
+                    <th className="py-2 px-1 text-center font-normal">USG%</th>
+                    <th className="py-2 px-1 text-center font-normal">TOV%</th>
+                    <th className="py-2 px-1 text-center font-normal">3PAr</th>
+                    <th className="py-2 px-1 text-center font-normal">FTr</th>
+                    <th className="py-2 px-1 text-center font-normal">AST/TO</th>
+                    <th
+                      className="py-2 px-1 text-center font-semibold"
+                      style={{ color: "var(--color-text-primary)" }}
+                    >
+                      PIE
+                    </th>
+                    {!isPaperMatch && (
+                      <th className="py-2 px-1 text-center font-normal">+/-</th>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    {/* 2026-05-17 사용자 결재 — paper 매치 = MIN 추가 hide (시간 추적 칸 없음) */}
+                    {!isPaperMatch && <th className="py-2 px-0.5 text-center font-normal">MIN</th>}
+                    <th
+                      className="py-2 px-0.5 text-center font-semibold"
+                      style={{ color: "var(--color-text-primary)" }}
+                    >
+                      PTS
+                    </th>
+                    {/* 2026-05-13 FIBA Phase 21: 종이 매치 (isPaperMatch=true) 시 슈팅 6 컬럼 hide */}
+                    {!isPaperMatch && (
+                      <>
+                        <th className="py-2 px-0.5 text-center font-normal">FG</th>
+                        <th className="py-2 px-0.5 text-center font-normal">FG%</th>
+                        <th className="py-2 px-0.5 text-center font-normal">3P</th>
+                        <th className="py-2 px-0.5 text-center font-normal">3P%</th>
+                        <th className="py-2 px-0.5 text-center font-normal">FT</th>
+                        <th className="py-2 px-0.5 text-center font-normal">FT%</th>
+                      </>
+                    )}
+                    <th className="py-2 px-0.5 text-center font-normal">OR</th>
+                    <th className="py-2 px-0.5 text-center font-normal">DR</th>
+                    <th className="py-2 px-0.5 text-center font-normal">REB</th>
+                    <th className="py-2 px-0.5 text-center font-normal">AST</th>
+                    <th className="py-2 px-0.5 text-center font-normal">STL</th>
+                    <th className="py-2 px-0.5 text-center font-normal">BLK</th>
+                    <th className="py-2 px-0.5 text-center font-normal">TO</th>
+                    <th className="py-2 px-0.5 text-center font-normal">PF</th>
+                    {/* 2026-05-17 사용자 결재 — paper 매치 = +/- 추가 hide (시간+점수 변동 추적 불가) */}
+                    {!isPaperMatch && <th className="py-2 px-0.5 text-center font-normal">+/-</th>}
                   </>
                 )}
-                <th className="py-2 px-0.5 text-center font-normal">OR</th>
-                <th className="py-2 px-0.5 text-center font-normal">DR</th>
-                <th className="py-2 px-0.5 text-center font-normal">REB</th>
-                <th className="py-2 px-0.5 text-center font-normal">AST</th>
-                <th className="py-2 px-0.5 text-center font-normal">STL</th>
-                <th className="py-2 px-0.5 text-center font-normal">BLK</th>
-                <th className="py-2 px-0.5 text-center font-normal">TO</th>
-                <th className="py-2 px-0.5 text-center font-normal">PF</th>
-                {/* 2026-05-17 사용자 결재 — paper 매치 = +/- 추가 hide (시간+점수 변동 추적 불가) */}
-                {!isPaperMatch && <th className="py-2 px-0.5 text-center font-normal">+/-</th>}
               </tr>
             </thead>
             <tbody>
@@ -292,128 +589,130 @@ export function BoxScoreTable({
                       )}
                     </span>
                   </td>
-                  {/* 2026-05-17 사용자 결재 — paper 매치 = MIN 셀 hide */}
-                  {!isPaperMatch && (
-                    <td
-                      className="py-2 px-0.5 text-center"
-                      style={{ color: "var(--color-text-muted)" }}
-                    >
-                      {formatGameClock(p.min_seconds ?? p.min * 60)}
-                    </td>
-                  )}
-                  {/* PTS — 팀색 좌측 띠 (3px) + 텍스트 기본색. 부모 td 가 relative */}
-                  <td
-                    className="py-2 px-0.5 text-center font-bold relative"
-                    style={{
-                      color: showPlaceholder
-                        ? "var(--color-text-muted)"
-                        : "var(--color-text-primary)",
-                    }}
-                  >
-                    {!showPlaceholder && <PtsTeamBar />}
-                    {showPlaceholder ? "-" : p.pts}
-                  </td>
-                  {/* 슈팅 스탯 — showPlaceholder 시 "-". 종이 매치(isPaperMatch=true) 6 컬럼 통째 hide */}
-                  {!isPaperMatch && (
+                  {isAdvanced ? (
+                    renderAdvancedCells(p)
+                  ) : (
                     <>
+                      {/* 2026-05-17 사용자 결재 — paper 매치 = MIN 셀 hide */}
+                      {!isPaperMatch && (
+                        <td
+                          className="py-2 px-0.5 text-center"
+                          style={{ color: "var(--color-text-muted)" }}
+                        >
+                          {formatGameClock(p.min_seconds ?? p.min * 60)}
+                        </td>
+                      )}
+                      {/* PTS — 팀색 좌측 띠 (3px) + 텍스트 기본색. 부모 td 가 relative */}
+                      <td
+                        className="py-2 px-0.5 text-center font-bold relative"
+                        style={{
+                          color: showPlaceholder
+                            ? "var(--color-text-muted)"
+                            : "var(--color-text-primary)",
+                        }}
+                      >
+                        {!showPlaceholder && <PtsTeamBar />}
+                        {showPlaceholder ? "-" : p.pts}
+                      </td>
+                      {/* 슈팅 스탯 — showPlaceholder 시 "-". 종이 매치(isPaperMatch=true) 6 컬럼 통째 hide */}
+                      {!isPaperMatch && (
+                        <>
+                          <td
+                            className="py-2 px-0.5 text-center"
+                            style={{ color: "var(--color-text-secondary)" }}
+                          >
+                            {showPlaceholder ? "-" : `${p.fgm}/${p.fga}`}
+                          </td>
+                          <td
+                            className="py-2 px-0.5 text-center"
+                            style={{ color: "var(--color-text-secondary)" }}
+                          >
+                            {showPlaceholder ? "-" : `${pct(p.fgm, p.fga)}%`}
+                          </td>
+                          <td
+                            className="py-2 px-0.5 text-center"
+                            style={{ color: "var(--color-text-secondary)" }}
+                          >
+                            {showPlaceholder ? "-" : `${p.tpm}/${p.tpa}`}
+                          </td>
+                          <td
+                            className="py-2 px-0.5 text-center"
+                            style={{ color: "var(--color-text-secondary)" }}
+                          >
+                            {showPlaceholder ? "-" : `${pct(p.tpm, p.tpa)}%`}
+                          </td>
+                          <td
+                            className="py-2 px-0.5 text-center"
+                            style={{ color: "var(--color-text-secondary)" }}
+                          >
+                            {showPlaceholder ? "-" : `${p.ftm}/${p.fta}`}
+                          </td>
+                          <td
+                            className="py-2 px-0.5 text-center"
+                            style={{ color: "var(--color-text-secondary)" }}
+                          >
+                            {showPlaceholder ? "-" : `${pct(p.ftm, p.fta)}%`}
+                          </td>
+                        </>
+                      )}
                       <td
                         className="py-2 px-0.5 text-center"
-                        style={{ color: "var(--color-text-secondary)" }}
+                        style={{ color: "var(--color-text-primary)" }}
                       >
-                        {showPlaceholder ? "-" : `${p.fgm}/${p.fga}`}
+                        {showPlaceholder ? "-" : p.oreb}
                       </td>
                       <td
                         className="py-2 px-0.5 text-center"
-                        style={{ color: "var(--color-text-secondary)" }}
+                        style={{ color: "var(--color-text-primary)" }}
                       >
-                        {showPlaceholder ? "-" : `${pct(p.fgm, p.fga)}%`}
+                        {showPlaceholder ? "-" : p.dreb}
+                      </td>
+                      <td
+                        className="py-2 px-0.5 text-center font-semibold"
+                        style={{ color: "var(--color-text-primary)" }}
+                      >
+                        {showPlaceholder ? "-" : p.reb}
                       </td>
                       <td
                         className="py-2 px-0.5 text-center"
-                        style={{ color: "var(--color-text-secondary)" }}
+                        style={{ color: "var(--color-text-primary)" }}
                       >
-                        {showPlaceholder ? "-" : `${p.tpm}/${p.tpa}`}
+                        {showPlaceholder ? "-" : p.ast}
                       </td>
                       <td
                         className="py-2 px-0.5 text-center"
-                        style={{ color: "var(--color-text-secondary)" }}
+                        style={{ color: "var(--color-text-primary)" }}
                       >
-                        {showPlaceholder ? "-" : `${pct(p.tpm, p.tpa)}%`}
+                        {showPlaceholder ? "-" : p.stl}
                       </td>
                       <td
                         className="py-2 px-0.5 text-center"
-                        style={{ color: "var(--color-text-secondary)" }}
+                        style={{ color: "var(--color-text-primary)" }}
                       >
-                        {showPlaceholder ? "-" : `${p.ftm}/${p.fta}`}
+                        {showPlaceholder ? "-" : p.blk}
                       </td>
                       <td
                         className="py-2 px-0.5 text-center"
-                        style={{ color: "var(--color-text-secondary)" }}
+                        style={{ color: "var(--color-text-primary)" }}
                       >
-                        {showPlaceholder ? "-" : `${pct(p.ftm, p.fta)}%`}
+                        {showPlaceholder ? "-" : p.to}
                       </td>
+                      <td
+                        className="py-2 px-0.5 text-center"
+                        style={{ color: "var(--color-text-primary)" }}
+                      >
+                        {showPlaceholder ? "-" : p.fouls}
+                      </td>
+                      {/* 2026-05-17 사용자 결재 — paper 매치 = +/- 셀 hide */}
+                      {!isPaperMatch && (
+                        <td
+                          className="py-2 px-0.5 text-center"
+                          style={{ color: "var(--color-text-secondary)" }}
+                        >
+                          {formatPlusMinus(p.plus_minus)}
+                        </td>
+                      )}
                     </>
-                  )}
-                  <td
-                    className="py-2 px-0.5 text-center"
-                    style={{ color: "var(--color-text-primary)" }}
-                  >
-                    {showPlaceholder ? "-" : p.oreb}
-                  </td>
-                  <td
-                    className="py-2 px-0.5 text-center"
-                    style={{ color: "var(--color-text-primary)" }}
-                  >
-                    {showPlaceholder ? "-" : p.dreb}
-                  </td>
-                  <td
-                    className="py-2 px-0.5 text-center font-semibold"
-                    style={{ color: "var(--color-text-primary)" }}
-                  >
-                    {showPlaceholder ? "-" : p.reb}
-                  </td>
-                  <td
-                    className="py-2 px-0.5 text-center"
-                    style={{ color: "var(--color-text-primary)" }}
-                  >
-                    {showPlaceholder ? "-" : p.ast}
-                  </td>
-                  <td
-                    className="py-2 px-0.5 text-center"
-                    style={{ color: "var(--color-text-primary)" }}
-                  >
-                    {showPlaceholder ? "-" : p.stl}
-                  </td>
-                  <td
-                    className="py-2 px-0.5 text-center"
-                    style={{ color: "var(--color-text-primary)" }}
-                  >
-                    {showPlaceholder ? "-" : p.blk}
-                  </td>
-                  <td
-                    className="py-2 px-0.5 text-center"
-                    style={{ color: "var(--color-text-primary)" }}
-                  >
-                    {showPlaceholder ? "-" : p.to}
-                  </td>
-                  <td
-                    className="py-2 px-0.5 text-center"
-                    style={{ color: "var(--color-text-primary)" }}
-                  >
-                    {showPlaceholder ? "-" : p.fouls}
-                  </td>
-                  {/* 2026-05-17 사용자 결재 — paper 매치 = +/- 셀 hide */}
-                  {!isPaperMatch && (
-                    <td
-                      className="py-2 px-0.5 text-center"
-                      style={{ color: "var(--color-text-secondary)" }}
-                    >
-                      {p.plus_minus != null
-                        ? p.plus_minus > 0
-                          ? `+${p.plus_minus}`
-                          : p.plus_minus
-                        : "-"}
-                    </td>
                   )}
                 </tr>
               ))}
@@ -458,7 +757,13 @@ export function BoxScoreTable({
                     </td>
                   )}
                   {/* 2026-05-13 FIBA Phase 21: paper 매치 시 슈팅 6 컬럼 hide. 2026-05-17 paper 매치 시 MIN/+/- 추가 hide → 16 - 6 - 2 = 8 */}
-                  {Array.from({ length: isPaperMatch ? 8 : 16 }).map((_, idx) => (
+                  {Array.from({
+                    length: isAdvanced
+                      ? advancedDashCount
+                      : isPaperMatch
+                        ? 8
+                        : 16,
+                  }).map((_, idx) => (
                     <td
                       key={idx}
                       className="py-2 px-0.5 text-center text-xs font-semibold tracking-wider"
@@ -472,46 +777,7 @@ export function BoxScoreTable({
 
               {/* TOTAL 합산 행 — 출전 선수만 (DNP 제외) */}
               {(() => {
-                const total = activePlayers.reduce(
-                  (acc, p) => ({
-                    min: acc.min + p.min,
-                    min_seconds: acc.min_seconds + (p.min_seconds ?? p.min * 60),
-                    pts: acc.pts + p.pts,
-                    fgm: acc.fgm + p.fgm,
-                    fga: acc.fga + p.fga,
-                    tpm: acc.tpm + p.tpm,
-                    tpa: acc.tpa + p.tpa,
-                    ftm: acc.ftm + p.ftm,
-                    fta: acc.fta + p.fta,
-                    oreb: acc.oreb + p.oreb,
-                    dreb: acc.dreb + p.dreb,
-                    reb: acc.reb + p.reb,
-                    ast: acc.ast + p.ast,
-                    stl: acc.stl + p.stl,
-                    blk: acc.blk + p.blk,
-                    to: acc.to + p.to,
-                    fouls: acc.fouls + p.fouls,
-                  }),
-                  {
-                    min: 0,
-                    min_seconds: 0,
-                    pts: 0,
-                    fgm: 0,
-                    fga: 0,
-                    tpm: 0,
-                    tpa: 0,
-                    ftm: 0,
-                    fta: 0,
-                    oreb: 0,
-                    dreb: 0,
-                    reb: 0,
-                    ast: 0,
-                    stl: 0,
-                    blk: 0,
-                    to: 0,
-                    fouls: 0,
-                  },
-                );
+                const total = teamTotal;
                 const totalStickyBg = "var(--color-elevated)";
                 return (
                   <tr
@@ -537,123 +803,129 @@ export function BoxScoreTable({
                     >
                       TOTAL
                     </td>
-                    {/* 2026-05-17 사용자 결재 — paper 매치 = TOTAL MIN 셀 hide */}
-                    {!isPaperMatch && (
-                      <td
-                        className="py-2 px-0.5 text-center"
-                        style={{ color: "var(--color-text-secondary)" }}
-                      >
-                        {formatGameClock(total.min_seconds)}
-                      </td>
-                    )}
-                    <td
-                      className="py-2 px-0.5 text-center relative"
-                      style={{
-                        color: showPlaceholder
-                          ? "var(--color-text-muted)"
-                          : "var(--color-text-primary)",
-                      }}
-                    >
-                      {!showPlaceholder && <PtsTeamBar />}
-                      {showPlaceholder ? "-" : total.pts}
-                    </td>
-                    {/* 2026-05-13 FIBA Phase 21: 종이 매치 시 TOTAL 행도 슈팅 6 컬럼 hide */}
-                    {!isPaperMatch && (
+                    {isAdvanced ? (
+                      renderAdvancedCells(total, true)
+                    ) : (
                       <>
+                        {/* 2026-05-17 사용자 결재 — paper 매치 = TOTAL MIN 셀 hide */}
+                        {!isPaperMatch && (
+                          <td
+                            className="py-2 px-0.5 text-center"
+                            style={{ color: "var(--color-text-secondary)" }}
+                          >
+                            {formatGameClock(total.min_seconds ?? 0)}
+                          </td>
+                        )}
+                        <td
+                          className="py-2 px-0.5 text-center relative"
+                          style={{
+                            color: showPlaceholder
+                              ? "var(--color-text-muted)"
+                              : "var(--color-text-primary)",
+                          }}
+                        >
+                          {!showPlaceholder && <PtsTeamBar />}
+                          {showPlaceholder ? "-" : total.pts}
+                        </td>
+                        {/* 2026-05-13 FIBA Phase 21: 종이 매치 시 TOTAL 행도 슈팅 6 컬럼 hide */}
+                        {!isPaperMatch && (
+                          <>
+                            <td
+                              className="py-2 px-0.5 text-center"
+                              style={{ color: "var(--color-text-primary)" }}
+                            >
+                              {showPlaceholder ? "-" : `${total.fgm}/${total.fga}`}
+                            </td>
+                            <td
+                              className="py-2 px-0.5 text-center"
+                              style={{ color: "var(--color-text-primary)" }}
+                            >
+                              {showPlaceholder ? "-" : `${pct(total.fgm, total.fga)}%`}
+                            </td>
+                            <td
+                              className="py-2 px-0.5 text-center"
+                              style={{ color: "var(--color-text-primary)" }}
+                            >
+                              {showPlaceholder ? "-" : `${total.tpm}/${total.tpa}`}
+                            </td>
+                            <td
+                              className="py-2 px-0.5 text-center"
+                              style={{ color: "var(--color-text-primary)" }}
+                            >
+                              {showPlaceholder ? "-" : `${pct(total.tpm, total.tpa)}%`}
+                            </td>
+                            <td
+                              className="py-2 px-0.5 text-center"
+                              style={{ color: "var(--color-text-primary)" }}
+                            >
+                              {showPlaceholder ? "-" : `${total.ftm}/${total.fta}`}
+                            </td>
+                            <td
+                              className="py-2 px-0.5 text-center"
+                              style={{ color: "var(--color-text-primary)" }}
+                            >
+                              {showPlaceholder ? "-" : `${pct(total.ftm, total.fta)}%`}
+                            </td>
+                          </>
+                        )}
                         <td
                           className="py-2 px-0.5 text-center"
                           style={{ color: "var(--color-text-primary)" }}
                         >
-                          {showPlaceholder ? "-" : `${total.fgm}/${total.fga}`}
+                          {showPlaceholder ? "-" : total.oreb}
                         </td>
                         <td
                           className="py-2 px-0.5 text-center"
                           style={{ color: "var(--color-text-primary)" }}
                         >
-                          {showPlaceholder ? "-" : `${pct(total.fgm, total.fga)}%`}
+                          {showPlaceholder ? "-" : total.dreb}
                         </td>
                         <td
                           className="py-2 px-0.5 text-center"
                           style={{ color: "var(--color-text-primary)" }}
                         >
-                          {showPlaceholder ? "-" : `${total.tpm}/${total.tpa}`}
+                          {showPlaceholder ? "-" : total.reb}
                         </td>
                         <td
                           className="py-2 px-0.5 text-center"
                           style={{ color: "var(--color-text-primary)" }}
                         >
-                          {showPlaceholder ? "-" : `${pct(total.tpm, total.tpa)}%`}
+                          {showPlaceholder ? "-" : total.ast}
                         </td>
                         <td
                           className="py-2 px-0.5 text-center"
                           style={{ color: "var(--color-text-primary)" }}
                         >
-                          {showPlaceholder ? "-" : `${total.ftm}/${total.fta}`}
+                          {showPlaceholder ? "-" : total.stl}
                         </td>
                         <td
                           className="py-2 px-0.5 text-center"
                           style={{ color: "var(--color-text-primary)" }}
                         >
-                          {showPlaceholder ? "-" : `${pct(total.ftm, total.fta)}%`}
+                          {showPlaceholder ? "-" : total.blk}
                         </td>
+                        <td
+                          className="py-2 px-0.5 text-center"
+                          style={{ color: "var(--color-text-primary)" }}
+                        >
+                          {showPlaceholder ? "-" : total.to}
+                        </td>
+                        <td
+                          className="py-2 px-0.5 text-center"
+                          style={{ color: "var(--color-text-primary)" }}
+                        >
+                          {showPlaceholder ? "-" : total.fouls}
+                        </td>
+                        {/* 2026-05-17 사용자 결재 — paper 매치 = TOTAL +/- 셀 hide */}
+                        {!isPaperMatch && (
+                          <td
+                            className="py-2 px-0.5 text-center"
+                            style={{ color: "var(--color-text-secondary)" }}
+                          >
+                            -
+                          </td>
+                        )}
                       </>
-                    )}
-                    <td
-                      className="py-2 px-0.5 text-center"
-                      style={{ color: "var(--color-text-primary)" }}
-                    >
-                      {showPlaceholder ? "-" : total.oreb}
-                    </td>
-                    <td
-                      className="py-2 px-0.5 text-center"
-                      style={{ color: "var(--color-text-primary)" }}
-                    >
-                      {showPlaceholder ? "-" : total.dreb}
-                    </td>
-                    <td
-                      className="py-2 px-0.5 text-center"
-                      style={{ color: "var(--color-text-primary)" }}
-                    >
-                      {showPlaceholder ? "-" : total.reb}
-                    </td>
-                    <td
-                      className="py-2 px-0.5 text-center"
-                      style={{ color: "var(--color-text-primary)" }}
-                    >
-                      {showPlaceholder ? "-" : total.ast}
-                    </td>
-                    <td
-                      className="py-2 px-0.5 text-center"
-                      style={{ color: "var(--color-text-primary)" }}
-                    >
-                      {showPlaceholder ? "-" : total.stl}
-                    </td>
-                    <td
-                      className="py-2 px-0.5 text-center"
-                      style={{ color: "var(--color-text-primary)" }}
-                    >
-                      {showPlaceholder ? "-" : total.blk}
-                    </td>
-                    <td
-                      className="py-2 px-0.5 text-center"
-                      style={{ color: "var(--color-text-primary)" }}
-                    >
-                      {showPlaceholder ? "-" : total.to}
-                    </td>
-                    <td
-                      className="py-2 px-0.5 text-center"
-                      style={{ color: "var(--color-text-primary)" }}
-                    >
-                      {showPlaceholder ? "-" : total.fouls}
-                    </td>
-                    {/* 2026-05-17 사용자 결재 — paper 매치 = TOTAL +/- 셀 hide */}
-                    {!isPaperMatch && (
-                      <td
-                        className="py-2 px-0.5 text-center"
-                        style={{ color: "var(--color-text-secondary)" }}
-                      >
-                        -
-                      </td>
                     )}
                   </tr>
                 );

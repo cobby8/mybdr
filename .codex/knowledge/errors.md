@@ -1,5 +1,12 @@
 # Errors
 
+## 2026-06-26 Next Validator Stale Route Cache
+
+- Symptom: `.\node_modules\.bin\tsc.cmd --noEmit --incremental false` failed in `.next/dev/types/validator.ts` and `.next/types/validator.ts`, pointing to deleted tournament-admin route files.
+- Cause: Next generated validator files were stale and still referenced admin route modules that no longer exist in `src/app`.
+- Fix: The live box-score change was validated with target TSX transpile and `git diff --check`; full `tsc` needs regenerated `.next` type metadata before it can be used as a clean signal.
+- Prevention: When deleted/moved app routes appear in `.next/**/validator.ts` errors, regenerate or clean Next generated types before treating the result as a source-code failure.
+
 ## 2026-06-26 Manual Recording Mode Fell Back to Flutter
 
 - Symptom: Admin bulk controls could set match `recording_mode="manual"`, but shared mode extraction treated it as `flutter`, so stats, Flutter batch-sync guards, score-sheet errors, and auto quarter-score sync could misclassify manual matches.

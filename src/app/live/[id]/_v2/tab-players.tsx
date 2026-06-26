@@ -23,6 +23,7 @@ export function TabPlayers({ match }: { match: MatchDataV2 }) {
   // 종이 기록지 = miss/FG attempted 미박제 → 시도수=성공수=항상 100% → 가짜 정확도 시각 노이즈 차단.
   // null/undefined (레거시 API 또는 미반영) = false 안전 fallback (Flutter 매치 19 컬럼 그대로).
   const isPaperMatch = match.recording_mode === "paper";
+  const allPlayers = [...match.home_players, ...match.away_players];
 
   return (
     <div className="flex flex-col gap-4">
@@ -31,6 +32,7 @@ export function TabPlayers({ match }: { match: MatchDataV2 }) {
         teamName={match.home_team.name}
         color={match.home_team.color}
         players={match.home_players}
+        allPlayers={allPlayers}
         hasOT={hasOT}
         otCount={otCount}
         hasQuarterEventDetail={match.has_quarter_event_detail}
@@ -41,6 +43,7 @@ export function TabPlayers({ match }: { match: MatchDataV2 }) {
         teamName={match.away_team.name}
         color={match.away_team.color}
         players={match.away_players}
+        allPlayers={allPlayers}
         hasOT={hasOT}
         otCount={otCount}
         hasQuarterEventDetail={match.has_quarter_event_detail}
