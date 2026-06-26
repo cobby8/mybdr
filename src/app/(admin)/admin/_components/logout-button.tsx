@@ -26,6 +26,7 @@
  */
 
 import { useState } from "react";
+import { Icon } from "@/components/admin-toss";
 
 export interface LogoutButtonProps {
   // 버튼 스타일 variant — 드롭다운 항목 / 드로어 카드 / 단독 버튼
@@ -84,10 +85,7 @@ export function LogoutButton({
       className={className}
       style={{ color: "var(--color-text-primary)" }}
     >
-      {/* Material Symbols Outlined — lucide-react 금지 (디자인 룰) */}
-      <span className="material-symbols-outlined" style={{ fontSize: 18 }}>
-        logout
-      </span>
+      <Icon name="log-out" size={18} />
       <span>{loading ? "로그아웃 중..." : "로그아웃"}</span>
     </button>
   );

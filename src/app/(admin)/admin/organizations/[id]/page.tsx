@@ -173,8 +173,8 @@ export default async function AdminOrganizationDetailPage({
       <DetailTabs tabs={tabs} active={activeTab} />
 
       {activeTab === "overview" && (
-        <div className="au-dgrid">
-          <div className="au-dstack">
+        <div className="ad-dgrid">
+          <div className="ad-dstack">
             <Panel title="단체 정보">
               <DL
                 rows={[
@@ -206,7 +206,7 @@ export default async function AdminOrganizationDetailPage({
             </Panel>
           </div>
 
-          <div className="au-dstack">
+          <div className="ad-dstack">
             <Panel title="소유자">
               <DL
                 rows={[
@@ -239,7 +239,7 @@ export default async function AdminOrganizationDetailPage({
           {org.members.length === 0 ? (
             <EmptyDetail title="멤버가 없습니다." />
           ) : (
-            <table className="au-sub">
+            <table className="ad-sub">
               <thead>
                 <tr>
                   <th>멤버</th>
@@ -251,7 +251,7 @@ export default async function AdminOrganizationDetailPage({
               <tbody>
                 {org.members.map((member) => (
                   <tr key={String(member.id)}>
-                    <td className="au-sub__name" style={{ paddingLeft: 20 }}>
+                    <td className="ad-sub__name" style={{ paddingLeft: 20 }}>
                       <Link href={`/admin/users/${member.user.id}`}>{displayUser(member.user)}</Link>
                       <span>{member.user.email}</span>
                     </td>
@@ -273,7 +273,7 @@ export default async function AdminOrganizationDetailPage({
           {org.series.length === 0 ? (
             <EmptyDetail title="시리즈가 없습니다." desc="운영 페이지에서 새 시리즈를 만들 수 있습니다." />
           ) : (
-            <table className="au-sub">
+            <table className="ad-sub">
               <thead>
                 <tr>
                   <th>시리즈</th>
@@ -285,7 +285,7 @@ export default async function AdminOrganizationDetailPage({
               <tbody>
                 {org.series.map((series) => (
                   <tr key={String(series.id)}>
-                    <td className="au-sub__name" style={{ paddingLeft: 20 }}>
+                    <td className="ad-sub__name" style={{ paddingLeft: 20 }}>
                       <Link href={`/tournament-admin/series/${series.id}`}>{series.name}</Link>
                       <span>{series.slug}</span>
                     </td>
@@ -305,7 +305,7 @@ export default async function AdminOrganizationDetailPage({
           {editions.length === 0 ? (
             <EmptyDetail title="회차가 없습니다." desc="시리즈에 연결된 대회가 아직 없습니다." />
           ) : (
-            <table className="au-sub">
+            <table className="ad-sub">
               <thead>
                 <tr>
                   <th>대회</th>
@@ -317,7 +317,7 @@ export default async function AdminOrganizationDetailPage({
               <tbody>
                 {editions.map((edition) => (
                   <tr key={edition.id}>
-                    <td className="au-sub__name" style={{ paddingLeft: 20 }}>
+                    <td className="ad-sub__name" style={{ paddingLeft: 20 }}>
                       <Link href={`/admin/tournaments/${edition.id}`}>{edition.name}</Link>
                       <span>
                         {edition.seriesName}

@@ -199,7 +199,7 @@ export type Column<T> = {
   width?: number | string;
   align?: "left" | "center" | "right";
   sortable?: boolean;
-  // v2.40 A2: 모바일(≤860px)에서 숨길 비핵심 컬럼. toss-admin.css .au-hide-sm 와 매핑.
+  // v2.40 A2: 모바일(≤860px)에서 숨길 비핵심 컬럼. toss-admin.css .ad-hide-sm 와 매핑.
   hideSm?: boolean;
   render?: (row: T) => React.ReactNode;
 };
@@ -393,8 +393,8 @@ export function DataTable<T>({
         {columns.map((c) => (
           <span
             key={c.key}
-            // hideSm 컬럼은 모바일에서 숨김(.au-hide-sm). 기존 컬럼은 클래스 없음.
-            className={c.hideSm ? "au-hide-sm" : undefined}
+            // hideSm 컬럼은 모바일에서 숨김(.ad-hide-sm). 기존 컬럼은 클래스 없음.
+            className={c.hideSm ? "ad-hide-sm" : undefined}
             style={{ textAlign: c.align || "left" }}
           >
             <SortHead
@@ -443,8 +443,8 @@ export function DataTable<T>({
           {columns.map((c) => (
             <span
               key={c.key}
-              // hideSm 컬럼은 모바일에서 숨김(.au-hide-sm). 기존 컬럼은 클래스 없음.
-              className={c.hideSm ? "au-hide-sm" : undefined}
+              // hideSm 컬럼은 모바일에서 숨김(.ad-hide-sm). 기존 컬럼은 클래스 없음.
+              className={c.hideSm ? "ad-hide-sm" : undefined}
               style={{
                 textAlign: c.align || "left",
                 minWidth: 0,

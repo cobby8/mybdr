@@ -1,6 +1,6 @@
 // =====================================================================
 // panel.tsx — 카드 래퍼 (v2.40 A2 박제)
-//   박제 source: Dev/design/BDR v2.40/_admin-unified/au-kit.jsx (Panel)
+//   박제 source: Dev/design/BDR v2.40/_admin-unified/ad-kit.jsx (Panel)
 //   .ts-card 위에 제목/보조/우측슬롯 헤더를 얹는 얇은 래퍼.
 //
 //   서버 컴포넌트 — 순수 표시. 시안의 pad(기본 24px)/right 슬롯 동일 지원.
@@ -38,11 +38,11 @@ export function Panel({
             marginBottom: sub ? 4 : 16,
           }}
         >
-          {title && <div className="au-card-title">{title}</div>}
+          {title && <div className="ad-card-title">{title}</div>}
           {right}
         </div>
       )}
-      {sub && <div className="au-card-sub">{sub}</div>}
+      {sub && <div className="ad-card-sub">{sub}</div>}
       {children}
     </div>
   );

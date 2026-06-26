@@ -204,8 +204,8 @@ export default async function AdminUserDetailPage({
       <DetailTabs tabs={tabs} active={activeTab} />
 
       {activeTab === "overview" && (
-        <div className="au-dgrid">
-          <div className="au-dstack">
+        <div className="ad-dgrid">
+          <div className="ad-dstack">
             <Panel title="회원 정보">
               <DL
                 rows={[
@@ -226,20 +226,20 @@ export default async function AdminUserDetailPage({
               {user.teamMembers.length === 0 ? (
                 <EmptyDetail title="소속 팀이 없습니다." />
               ) : (
-                <div className="au-feed">
+                <div className="ad-feed">
                   {user.teamMembers.map((member) => (
-                    <div className="au-feed__row" key={member.id.toString()}>
-                      <span className="au-feed__dot" />
-                      <div className="au-feed__body">
-                        <div className="au-feed__title">
+                    <div className="ad-feed__row" key={member.id.toString()}>
+                      <span className="ad-feed__dot" />
+                      <div className="ad-feed__body">
+                        <div className="ad-feed__title">
                           <Link href={`/admin/teams/${member.teamId.toString()}`}>{member.team.name}</Link>
                         </div>
-                        <div className="au-feed__desc">
+                        <div className="ad-feed__desc">
                           {[member.role, member.position, member.jerseyNumber != null ? `#${member.jerseyNumber}` : null]
                             .filter(Boolean)
                             .join(" / ") || "멤버"}
                         </div>
-                        <div className="au-feed__meta">
+                        <div className="ad-feed__meta">
                           {member.status ?? "-"} / {formatDate(member.joined_at)}
                         </div>
                       </div>
@@ -250,7 +250,7 @@ export default async function AdminUserDetailPage({
             </Panel>
           </div>
 
-          <div className="au-dstack">
+          <div className="ad-dstack">
             <Panel title="구독">
               <DL
                 rows={[
@@ -289,7 +289,7 @@ export default async function AdminUserDetailPage({
           {gameApplications.length === 0 ? (
             <EmptyDetail title="경기 신청 기록이 없습니다." />
           ) : (
-            <table className="au-sub">
+            <table className="ad-sub">
               <thead>
                 <tr>
                   <th style={{ paddingLeft: 20 }}>경기</th>
@@ -301,7 +301,7 @@ export default async function AdminUserDetailPage({
               <tbody>
                 {gameApplications.map((application) => (
                   <tr key={application.id.toString()}>
-                    <td className="au-sub__name" style={{ paddingLeft: 20 }}>
+                    <td className="ad-sub__name" style={{ paddingLeft: 20 }}>
                       <Link href={`/admin/games/${application.game_id.toString()}`}>
                         {application.games.title ?? "(제목 없음)"}
                       </Link>
@@ -324,7 +324,7 @@ export default async function AdminUserDetailPage({
           {payments.length === 0 ? (
             <EmptyDetail title="결제 기록이 없습니다." />
           ) : (
-            <table className="au-sub">
+            <table className="ad-sub">
               <thead>
                 <tr>
                   <th style={{ paddingLeft: 20 }}>결제</th>
@@ -337,7 +337,7 @@ export default async function AdminUserDetailPage({
               <tbody>
                 {payments.map((payment) => (
                   <tr key={payment.id.toString()}>
-                    <td className="au-sub__name" style={{ paddingLeft: 20 }}>
+                    <td className="ad-sub__name" style={{ paddingLeft: 20 }}>
                       {payment.description ?? payment.payment_code}
                     </td>
                     <td>{payment.payable_type}</td>
@@ -358,9 +358,9 @@ export default async function AdminUserDetailPage({
 
       {seasonStats.length > 0 && (
         <Panel title="시즌 누적" sub="최근 시즌 집계" style={{ marginTop: 16 }}>
-          <div className="au-chips">
+          <div className="ad-chips">
             {seasonStats.map((stat) => (
-              <span className="au-chips__item" key={stat.id.toString()}>
+              <span className="ad-chips__item" key={stat.id.toString()}>
                 {stat.season_label ?? `${stat.season_year} 시즌`} / {stat.games_played}경기 / {stat.wins}승
               </span>
             ))}

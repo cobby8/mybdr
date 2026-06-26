@@ -4,7 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 // 2026-05-02 (Admin-Web 시각 통합 v2 Phase 3) — admin 영역에서도 라이트/다크 토글 가능하도록 (web)와 같은 ThemeSwitch 마운트
-import { ThemeSwitch } from "@/components/bdr-v2/theme-switch";
+import { AdminThemeSwitch } from "@/components/admin/admin-theme-switch";
 // Phase 1 (Toss 전환) — Material Symbols → lucide-react. kit Icon 경유(kebab name).
 import { Icon } from "@/components/admin-toss";
 
@@ -312,7 +312,7 @@ export function AdminSidebar({ roles }: AdminSidebarProps) {
       <div className="mt-3 border-t border-[var(--color-border)] pt-3 shrink-0">
         {/* 테마 토글 — (web) AppNav 와 동일 컴포넌트 (라이트/다크 듀얼 라벨, theme-preference localStorage 키) */}
         <div className="px-3 pb-2">
-          <ThemeSwitch />
+          <AdminThemeSwitch />
         </div>
         {/* 마이페이지 — 사용자 결재 §7 (사이트로 돌아가기 위 / 가장 자연) */}
         <Link

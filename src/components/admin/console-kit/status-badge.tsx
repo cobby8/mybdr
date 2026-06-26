@@ -1,6 +1,6 @@
 // =====================================================================
 // status-badge.tsx — 상태값 → Badge 매핑 (v2.40 A2 박제)
-//   박제 source: Dev/design/BDR v2.40/_admin-unified/au-kit.jsx (StatusBadge)
+//   박제 source: Dev/design/BDR v2.40/_admin-unified/ad-kit.jsx (StatusBadge)
 //   상태 코드(value)를 map 으로 룩업해 적절한 톤/라벨의 Badge 렌더.
 //   예: map={{ paid:{tone:"ok",label:"입금완료"}, unpaid:{tone:"grey",label:"미입금"} }}
 //

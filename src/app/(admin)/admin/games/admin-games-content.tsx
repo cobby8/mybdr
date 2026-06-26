@@ -162,7 +162,7 @@ export function AdminGamesContent({ games, updateStatusAction, pagination }: Pro
   // 현재 페이지 내 전체 대기(status=0) 신청 합계 (기존 totalPending 배너)
   const totalPending = games.reduce((s, g) => s + g.pendingCount, 0);
 
-  // DataTable 컬럼 — 시안 au-screens AuGames 패턴(데이터/문구 유지).
+  // DataTable 컬럼 — 시안 ad-screens AuGames 패턴(데이터/문구 유지).
   const columns: Column<FilterRow>[] = [
     {
       key: "title",

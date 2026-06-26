@@ -1,6 +1,6 @@
 // =====================================================================
 // console-kit/index.ts — v2.40 통합 Admin Console 키트 배럴 (A2)
-//   박제 source: Dev/design/BDR v2.40/_admin-unified/au-kit.jsx
+//   박제 source: Dev/design/BDR v2.40/_admin-unified/ad-kit.jsx
 //   사용: import { PageHead, StatRow, Toolbar, DataTable } from "@/components/admin/console-kit";
 //
 //   구성:
@@ -8,7 +8,7 @@
 //             + Toolbar·Drawer·useFilter('use client')
 //   - 재사용 3: DataTable·Badge·StatCard 는 @/components/admin-toss 에서 re-export
 //     (신규 박제 금지 — 기존 키트가 정렬·페이지네이션까지 더 강력. A0 메모 §2-1)
-//   CSS(.au-*/.ts-*) 는 src/styles/toss-admin.css([data-skin="toss"]) 제공.
+//   CSS(.ad-*/.ts-*) 는 src/styles/toss-admin.css([data-skin="toss"]) 제공.
 // =====================================================================
 
 // ── 신규 키트(서버 컴포넌트) ─────────────────────────────────────────

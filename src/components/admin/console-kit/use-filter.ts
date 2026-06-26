@@ -2,7 +2,7 @@
 
 // =====================================================================
 // use-filter.ts — 검색어 + 상태 탭 필터 훅 (v2.40 A2 박제)
-//   박제 source: Dev/design/BDR v2.40/_admin-unified/au-kit.jsx (useFilter)
+//   박제 source: Dev/design/BDR v2.40/_admin-unified/ad-kit.jsx (useFilter)
 //   rows 를 q(검색어)·tab(상태)로 클라이언트 필터링.
 //   - tab === "all" 이면 상태 필터 통과(전체).
 //   - q 가 있으면 fields 중 하나라도 부분일치(대소문자 무시).

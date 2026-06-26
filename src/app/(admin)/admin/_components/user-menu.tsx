@@ -10,7 +10,7 @@
  *   - 마이페이지 + 사이트로 돌아가기 + 로그아웃 3개를 1 클릭으로 노출.
  *
  * 어떻게:
- *   1. 트리거: 아바타(이니셜) + 닉네임 + expand_more 아이콘 → 클릭 시 드롭다운.
+ *   1. 트리거: 아바타(이니셜) + 닉네임 + chevron-down 아이콘 → 클릭 시 드롭다운.
  *   2. 드롭다운: 우측 정렬 (right-0) / Z-index 50 (햄버거 30 보다 위).
  *   3. 외부 클릭 닫기: document.mousedown listener + ref.contains() 체크.
  *   4. ESC 키 닫기 (접근성).
@@ -25,6 +25,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { LogoutButton } from "./logout-button";
+import { Icon } from "@/components/admin-toss";
 
 export interface UserMenuProps {
   nickname: string | null;
@@ -94,12 +95,7 @@ export function UserMenu({ nickname, email }: UserMenuProps) {
         <span className="hidden md:inline max-w-[120px] truncate">
           {displayName}
         </span>
-        <span
-          className="material-symbols-outlined"
-          style={{ fontSize: 18, color: "var(--color-text-secondary)" }}
-        >
-          expand_more
-        </span>
+        <Icon name="chevron-down" size={18} color="var(--color-text-secondary)" />
       </button>
 
       {/* 드롭다운 메뉴 — 우측 정렬, 외부 클릭 시 닫힘 */}
@@ -130,12 +126,7 @@ export function UserMenu({ nickname, email }: UserMenuProps) {
             className="flex w-full items-center gap-2 px-4 py-2 text-sm transition-colors hover:bg-[var(--color-elevated)]"
             style={{ color: "var(--color-text-primary)" }}
           >
-            <span
-              className="material-symbols-outlined"
-              style={{ fontSize: 18 }}
-            >
-              account_circle
-            </span>
+            <Icon name="circle-user" size={18} />
             <span>마이페이지</span>
           </Link>
           <Link
@@ -145,12 +136,7 @@ export function UserMenu({ nickname, email }: UserMenuProps) {
             className="flex w-full items-center gap-2 px-4 py-2 text-sm transition-colors hover:bg-[var(--color-elevated)]"
             style={{ color: "var(--color-text-primary)" }}
           >
-            <span
-              className="material-symbols-outlined"
-              style={{ fontSize: 18 }}
-            >
-              arrow_back
-            </span>
+            <Icon name="arrow-left" size={18} />
             <span>사이트로 돌아가기</span>
           </Link>
           {/* 로그아웃 구분선 */}

@@ -64,12 +64,12 @@ export function Toolbar({
             <button
               key={t.id}
               type="button"
-              className="au-tab"
+              className="ad-tab"
               data-active={active === t.id ? "true" : "false"}
               onClick={() => onTab?.(t.id)}
             >
               {t.label}
-              {t.n != null && <span className="au-tab__n">{t.n}</span>}
+              {t.n != null && <span className="ad-tab__n">{t.n}</span>}
             </button>
           ))}
         </div>

@@ -162,8 +162,8 @@ export default async function AdminTeamDetailPage({
       <DetailTabs tabs={tabs} active={activeTab} />
 
       {activeTab === "overview" && (
-        <div className="au-dgrid">
-          <div className="au-dstack">
+        <div className="ad-dgrid">
+          <div className="ad-dstack">
             <Panel title="팀 정보">
               <DL
                 rows={[
@@ -184,7 +184,7 @@ export default async function AdminTeamDetailPage({
             </Panel>
           </div>
 
-          <div className="au-dstack">
+          <div className="ad-dstack">
             <Panel title="운영자">
               <DL
                 rows={[
@@ -217,7 +217,7 @@ export default async function AdminTeamDetailPage({
           {team.teamMembers.length === 0 ? (
             <EmptyDetail title="등록된 로스터가 없습니다." />
           ) : (
-            <table className="au-sub">
+            <table className="ad-sub">
               <thead>
                 <tr>
                   <th style={{ paddingLeft: 20 }}>선수</th>
@@ -230,7 +230,7 @@ export default async function AdminTeamDetailPage({
               <tbody>
                 {team.teamMembers.map((member) => (
                   <tr key={member.id.toString()}>
-                    <td className="au-sub__name" style={{ paddingLeft: 20 }}>
+                    <td className="ad-sub__name" style={{ paddingLeft: 20 }}>
                       <Link href={`/admin/users/${member.userId.toString()}`}>{displayUser(member.user)}</Link>
                     </td>
                     <td>{member.role ?? "-"}</td>
@@ -252,7 +252,7 @@ export default async function AdminTeamDetailPage({
           {team.tournamentTeams.length === 0 ? (
             <EmptyDetail title="대회 참가 이력이 없습니다." />
           ) : (
-            <table className="au-sub">
+            <table className="ad-sub">
               <thead>
                 <tr>
                   <th style={{ paddingLeft: 20 }}>대회</th>
@@ -266,7 +266,7 @@ export default async function AdminTeamDetailPage({
               <tbody>
                 {team.tournamentTeams.map((entry) => (
                   <tr key={entry.id.toString()}>
-                    <td className="au-sub__name" style={{ paddingLeft: 20 }}>
+                    <td className="ad-sub__name" style={{ paddingLeft: 20 }}>
                       <Link href={`/tournament-admin/tournaments/${entry.tournamentId}`}>{entry.tournament.name}</Link>
                       <div style={{ color: "var(--ink-mute)", fontSize: 12 }}>{formatDate(entry.tournament.startDate)}</div>
                     </td>

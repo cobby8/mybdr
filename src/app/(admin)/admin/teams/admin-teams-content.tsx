@@ -83,7 +83,7 @@ export function AdminTeamsContent({ teams, updateStatusAction }: Props) {
 
   const fmtDate = (iso: string) => new Date(iso).toLocaleDateString("ko-KR");
 
-  // DataTable 컬럼 — 시안 au-screens AuTeams 패턴(데이터/문구 유지).
+  // DataTable 컬럼 — 시안 ad-screens AuTeams 패턴(데이터/문구 유지).
   const columns: Column<FilterRow>[] = [
     {
       key: "name",

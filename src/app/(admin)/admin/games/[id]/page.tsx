@@ -134,8 +134,8 @@ export default async function AdminGameDetailPage({
       <DetailTabs tabs={tabs} active={activeTab} />
 
       {activeTab === "overview" && (
-        <div className="au-dgrid">
-          <div className="au-dstack">
+        <div className="ad-dgrid">
+          <div className="ad-dstack">
             <Panel title="경기 정보">
               <DL
                 rows={[
@@ -160,7 +160,7 @@ export default async function AdminGameDetailPage({
             </Panel>
           </div>
 
-          <div className="au-dstack">
+          <div className="ad-dstack">
             <Panel title="운영 메타">
               <DL
                 rows={[
@@ -188,7 +188,7 @@ export default async function AdminGameDetailPage({
           {game.game_applications.length === 0 ? (
             <EmptyDetail title="참가 신청 기록이 없습니다." />
           ) : (
-            <table className="au-sub">
+            <table className="ad-sub">
               <thead>
                 <tr>
                   <th style={{ paddingLeft: 20 }}>참가자</th>
@@ -202,7 +202,7 @@ export default async function AdminGameDetailPage({
               <tbody>
                 {game.game_applications.map((application) => (
                   <tr key={application.id.toString()}>
-                    <td className="au-sub__name" style={{ paddingLeft: 20 }}>
+                    <td className="ad-sub__name" style={{ paddingLeft: 20 }}>
                       <Link href={`/admin/users/${application.user_id.toString()}`}>
                         {displayUser(application.users)}
                       </Link>
@@ -227,7 +227,7 @@ export default async function AdminGameDetailPage({
           {game.game_reports.length === 0 ? (
             <EmptyDetail title="경기 리포트가 없습니다." />
           ) : (
-            <table className="au-sub">
+            <table className="ad-sub">
               <thead>
                 <tr>
                   <th style={{ paddingLeft: 20 }}>작성자</th>
@@ -241,7 +241,7 @@ export default async function AdminGameDetailPage({
               <tbody>
                 {game.game_reports.map((report) => (
                   <tr key={report.id.toString()}>
-                    <td className="au-sub__name" style={{ paddingLeft: 20 }}>
+                    <td className="ad-sub__name" style={{ paddingLeft: 20 }}>
                       <Link href={`/admin/users/${report.reporter_user_id.toString()}`}>
                         {displayUser(report.reporter)}
                       </Link>

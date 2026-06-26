@@ -451,14 +451,14 @@ export function ComposeContent({
               </button>
             </div>
             <div className="bl-modal__body">
-              <div className="au-summary" style={{ marginBottom: 14 }}>
-                <div className="au-summary__row">
-                  <span className="au-summary__l">카테고리</span>
-                  <span className="au-summary__v">{catMeta.label}</span>
+              <div className="ad-summary" style={{ marginBottom: 14 }}>
+                <div className="ad-summary__row">
+                  <span className="ad-summary__l">카테고리</span>
+                  <span className="ad-summary__v">{catMeta.label}</span>
                 </div>
-                <div className="au-summary__row">
-                  <span className="au-summary__l">제목</span>
-                  <span className="au-summary__v">{title || "—"}</span>
+                <div className="ad-summary__row">
+                  <span className="ad-summary__l">제목</span>
+                  <span className="ad-summary__v">{title || "—"}</span>
                 </div>
               </div>
               {/* ★ 알림 체크박스 — UI 만 존재, 실제 발송 미연동 (후속 연동 예정) */}

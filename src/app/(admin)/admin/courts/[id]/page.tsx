@@ -148,8 +148,8 @@ export default async function AdminCourtDetailPage({
       <DetailTabs tabs={tabs} active={activeTab} />
 
       {activeTab === "overview" && (
-        <div className="au-dgrid">
-          <div className="au-dstack">
+        <div className="ad-dgrid">
+          <div className="ad-dstack">
             <Panel title="코트 정보">
               <DL
                 rows={[
@@ -169,15 +169,15 @@ export default async function AdminCourtDetailPage({
               {facilityLabels.length === 0 && formatJsonValue(court.facilities) === "-" ? (
                 <EmptyDetail title="등록된 편의시설 정보가 없습니다." />
               ) : (
-                <div className="au-chips">
+                <div className="ad-chips">
                   {facilityLabels.map((label) => (
-                    <span className="au-chips__item" key={String(label)}>
+                    <span className="ad-chips__item" key={String(label)}>
                       {label}
                     </span>
                   ))}
                   {Array.isArray(court.facilities) &&
                     court.facilities.map((item) => (
-                      <span className="au-chips__item" key={String(item)}>
+                      <span className="ad-chips__item" key={String(item)}>
                         {String(item)}
                       </span>
                     ))}
@@ -186,7 +186,7 @@ export default async function AdminCourtDetailPage({
             </Panel>
           </div>
 
-          <div className="au-dstack">
+          <div className="ad-dstack">
             <Panel title="등록/관리">
               <DL
                 rows={[
@@ -220,7 +220,7 @@ export default async function AdminCourtDetailPage({
           {court.court_bookings.length === 0 ? (
             <EmptyDetail title="예약 기록이 없습니다." />
           ) : (
-            <table className="au-sub">
+            <table className="ad-sub">
               <thead>
                 <tr>
                   <th style={{ paddingLeft: 20 }}>예약자</th>
@@ -234,7 +234,7 @@ export default async function AdminCourtDetailPage({
               <tbody>
                 {court.court_bookings.map((booking) => (
                   <tr key={booking.id.toString()}>
-                    <td className="au-sub__name" style={{ paddingLeft: 20 }}>
+                    <td className="ad-sub__name" style={{ paddingLeft: 20 }}>
                       <Link href={`/admin/users/${booking.user_id.toString()}`}>{displayUser(booking.user)}</Link>
                     </td>
                     <td>{formatDateTime(booking.start_at)}</td>
@@ -257,7 +257,7 @@ export default async function AdminCourtDetailPage({
           {court.court_reports.length === 0 ? (
             <EmptyDetail title="신고 기록이 없습니다." />
           ) : (
-            <table className="au-sub">
+            <table className="ad-sub">
               <thead>
                 <tr>
                   <th style={{ paddingLeft: 20 }}>신고자</th>
@@ -270,7 +270,7 @@ export default async function AdminCourtDetailPage({
               <tbody>
                 {court.court_reports.map((report) => (
                   <tr key={report.id.toString()}>
-                    <td className="au-sub__name" style={{ paddingLeft: 20 }}>
+                    <td className="ad-sub__name" style={{ paddingLeft: 20 }}>
                       <Link href={`/admin/users/${report.user_id.toString()}`}>{displayUser(report.users)}</Link>
                     </td>
                     <td>{report.report_type}</td>

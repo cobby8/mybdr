@@ -105,26 +105,26 @@ export function DetailHead({
 }: DetailHeadProps) {
   return (
     <div>
-      <Link className="au-back" href={backHref}>
+      <Link className="ad-back" href={backHref}>
         <Icon name="arrow-left" size={16} />
         {backLabel}
       </Link>
-      <div className="au-dhead">
+      <div className="ad-dhead">
         {avatar && (
-          <div className={`au-dhead__avatar${avatarGrey ? " au-dhead__avatar--grey" : ""}`}>
+          <div className={`ad-dhead__avatar${avatarGrey ? " ad-dhead__avatar--grey" : ""}`}>
             {avatar}
           </div>
         )}
-        <div className="au-dhead__main">
-          <div className="au-dhead__eyebrow">
+        <div className="ad-dhead__main">
+          <div className="ad-dhead__eyebrow">
             {eyebrowIcon && <Icon name={eyebrowIcon} size={14} />}
             {eyebrow}
           </div>
-          <div className="au-dhead__title">{title}</div>
-          {sub && <div className="au-dhead__sub">{sub}</div>}
-          {badges && <div className="au-dhead__badges">{badges}</div>}
+          <div className="ad-dhead__title">{title}</div>
+          {sub && <div className="ad-dhead__sub">{sub}</div>}
+          {badges && <div className="ad-dhead__badges">{badges}</div>}
         </div>
-        {actions && <div className="au-dhead__actions">{actions}</div>}
+        {actions && <div className="ad-dhead__actions">{actions}</div>}
       </div>
     </div>
   );
@@ -133,13 +133,13 @@ export function DetailHead({
 export function MiniStat({ items }: { items: MiniStatItem[] }) {
   return (
     <div
-      className="au-ministat"
+      className="ad-ministat"
       style={{ gridTemplateColumns: `repeat(${Math.max(items.length, 1)}, minmax(0, 1fr))` }}
     >
       {items.map((item) => (
-        <div className="au-ministat__cell" key={item.label}>
-          <div className="au-ministat__v">{item.value}</div>
-          <div className="au-ministat__l">{item.label}</div>
+        <div className="ad-ministat__cell" key={item.label}>
+          <div className="ad-ministat__v">{item.value}</div>
+          <div className="ad-ministat__l">{item.label}</div>
         </div>
       ))}
     </div>
@@ -148,17 +148,17 @@ export function MiniStat({ items }: { items: MiniStatItem[] }) {
 
 export function DetailTabs({ tabs, active }: { tabs: DetailTab[]; active: string }) {
   return (
-    <nav className="au-dtabs" aria-label="상세 탭">
+    <nav className="ad-dtabs" aria-label="상세 탭">
       {tabs.map((tab) => (
         <Link
           key={tab.id}
-          className="au-dtab"
+          className="ad-dtab"
           data-active={tab.id === active ? "true" : "false"}
           href={tab.href}
         >
           {tab.icon && <Icon name={tab.icon} size={16} />}
           {tab.label}
-          {tab.count != null && <span className="au-dtab__n">{tab.count}</span>}
+          {tab.count != null && <span className="ad-dtab__n">{tab.count}</span>}
         </Link>
       ))}
     </nav>
@@ -167,10 +167,10 @@ export function DetailTabs({ tabs, active }: { tabs: DetailTab[]; active: string
 
 export function EmptyDetail({ title, desc }: { title: string; desc?: string }) {
   return (
-    <div className="au-empty-detail">
+    <div className="ad-empty-detail">
       <Icon name="inbox" size={32} />
-      <div className="au-empty-detail__title">{title}</div>
-      {desc && <div className="au-empty-detail__desc">{desc}</div>}
+      <div className="ad-empty-detail__title">{title}</div>
+      {desc && <div className="ad-empty-detail__desc">{desc}</div>}
     </div>
   );
 }

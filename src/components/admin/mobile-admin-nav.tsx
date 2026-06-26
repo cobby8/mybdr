@@ -33,7 +33,7 @@ import {
 // Phase 1 (Toss 전환) — Material Symbols → lucide-react (kit Icon, kebab name)
 import { Icon } from "@/components/admin-toss";
 // 2026-05-02 (Admin-Web 시각 통합 v2 Phase 3) — 모바일 admin 드로어에서도 테마 토글 가능
-import { ThemeSwitch } from "@/components/bdr-v2/theme-switch";
+import { AdminThemeSwitch } from "@/components/admin/admin-theme-switch";
 // 2026-05-11 admin 마이페이지 Phase 1 — 드로어 상단 사용자 카드 + 로그아웃 통합
 import { LogoutButton } from "@/app/(admin)/admin/_components/logout-button";
 
@@ -249,7 +249,7 @@ export function AdminMobileNav({ roles, scope = "default", user }: Props) {
         {/* 하단: 테마 토글 + 마이페이지 + 사이트로 + 로그아웃 — 시안 .admin-mobile-drawer__foot */}
         <div className="admin-mobile-drawer__foot">
           <div style={{ padding: "4px 6px 6px", display: "flex", justifyContent: "center" }}>
-            <ThemeSwitch />
+            <AdminThemeSwitch />
           </div>
           {user && (
             <Link

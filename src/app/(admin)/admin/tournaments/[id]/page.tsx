@@ -243,8 +243,8 @@ export default async function AdminTournamentDetailPage({
       <DetailTabs tabs={tabs} active={activeTab} />
 
       {activeTab === "overview" && (
-        <div className="au-dgrid">
-          <div className="au-dstack">
+        <div className="ad-dgrid">
+          <div className="ad-dstack">
             <Panel title="대회 정보">
               <DL
                 rows={[
@@ -275,7 +275,7 @@ export default async function AdminTournamentDetailPage({
             </Panel>
           </div>
 
-          <div className="au-dstack">
+          <div className="ad-dstack">
             <Panel title="주최 / 위계">
               <DL
                 rows={[
@@ -324,7 +324,7 @@ export default async function AdminTournamentDetailPage({
           {tournament.tournamentTeams.length === 0 ? (
             <EmptyDetail title="참가팀이 없습니다." />
           ) : (
-            <table className="au-sub">
+            <table className="ad-sub">
               <thead>
                 <tr>
                   <th>팀</th>
@@ -340,7 +340,7 @@ export default async function AdminTournamentDetailPage({
                   const fee = resolveTeamFee(tournament.div_fees, team.division, tournament.entry_fee);
                   return (
                     <tr key={String(team.id)}>
-                      <td className="au-sub__name" style={{ paddingLeft: 20 }}>
+                      <td className="ad-sub__name" style={{ paddingLeft: 20 }}>
                         <Link href={`/admin/teams/${team.team.id}`}>{team.team.name}</Link>
                         <span>{[team.team.city, team.team.district].filter(Boolean).join(" ") || "지역 미설정"}</span>
                       </td>
@@ -370,7 +370,7 @@ export default async function AdminTournamentDetailPage({
           {tournament.tournamentMatches.length === 0 ? (
             <EmptyDetail title="생성된 경기가 없습니다." desc="대진 생성은 대회 운영 페이지에서 진행합니다." />
           ) : (
-            <table className="au-sub">
+            <table className="ad-sub">
               <thead>
                 <tr>
                   <th>경기</th>
@@ -384,7 +384,7 @@ export default async function AdminTournamentDetailPage({
               <tbody>
                 {tournament.tournamentMatches.map((match) => (
                   <tr key={String(match.id)}>
-                    <td className="au-sub__name" style={{ paddingLeft: 20 }}>
+                    <td className="ad-sub__name" style={{ paddingLeft: 20 }}>
                       <Link href={`/live/${match.id}`}>{matchTitle(match)}</Link>
                       <span>
                         {[match.group_name, match.court_number].filter(Boolean).join(" / ") || "배정 정보 없음"}
@@ -408,7 +408,7 @@ export default async function AdminTournamentDetailPage({
       )}
 
       {activeTab === "settlement" && (
-        <div className="au-dstack">
+        <div className="ad-dstack">
           <Panel title="정산 요약">
             <DL
               rows={[
@@ -428,7 +428,7 @@ export default async function AdminTournamentDetailPage({
             {revenueRows.length === 0 ? (
               <EmptyDetail title="참가팀이 없습니다." />
             ) : (
-              <table className="au-sub">
+              <table className="ad-sub">
                 <thead>
                   <tr>
                     <th>팀</th>
@@ -440,7 +440,7 @@ export default async function AdminTournamentDetailPage({
                 <tbody>
                   {revenueRows.map((row) => (
                     <tr key={String(row.id)}>
-                      <td className="au-sub__name" style={{ paddingLeft: 20 }}>
+                      <td className="ad-sub__name" style={{ paddingLeft: 20 }}>
                         {row.teamName}
                       </td>
                       <td>{row.division ?? "-"}</td>
@@ -459,7 +459,7 @@ export default async function AdminTournamentDetailPage({
             {refereeAssignments.length === 0 ? (
               <EmptyDetail title="심판 정산 데이터가 없습니다." desc="RefereeSettlement 기준 실측 금액만 반영합니다." />
             ) : (
-              <table className="au-sub">
+              <table className="ad-sub">
                 <thead>
                   <tr>
                     <th>심판</th>
@@ -479,7 +479,7 @@ export default async function AdminTournamentDetailPage({
                       displayUser(assignment.referee.user);
                     return (
                       <tr key={String(assignment.id)}>
-                        <td className="au-sub__name" style={{ paddingLeft: 20 }}>
+                        <td className="ad-sub__name" style={{ paddingLeft: 20 }}>
                           {refereeName}
                           <span>Referee #{String(assignment.referee.id)}</span>
                         </td>

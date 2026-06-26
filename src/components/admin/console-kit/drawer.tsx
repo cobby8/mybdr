@@ -2,7 +2,7 @@
 
 // =====================================================================
 // drawer.tsx — 우측 슬라이드 상세 드로어 (v2.40 A2 박제)
-//   박제 source: Dev/design/BDR v2.40/_admin-unified/au-kit.jsx (Drawer)
+//   박제 source: Dev/design/BDR v2.40/_admin-unified/ad-kit.jsx (Drawer)
 //   목록 행 클릭 시 우측에서 미끄러져 들어오는 요약 패널(A3 진입점).
 //   풀 상세는 별도 라우트(A4) — Drawer 는 가벼운 요약 + 핵심 액션.
 //
@@ -44,15 +44,15 @@ export function Drawer({
   return (
     <>
       {/* 오버레이 클릭 → 닫기 */}
-      <div className="au-drawer-overlay" onClick={onClose} />
-      <aside className="au-drawer" role="dialog" aria-modal="true">
-        <div className="au-drawer__head">
+      <div className="ad-drawer-overlay" onClick={onClose} />
+      <aside className="ad-drawer" role="dialog" aria-modal="true">
+        <div className="ad-drawer__head">
           <div style={{ minWidth: 0 }}>
-            <div className="au-drawer__title">{title}</div>
-            {sub && <div className="au-drawer__sub">{sub}</div>}
+            <div className="ad-drawer__title">{title}</div>
+            {sub && <div className="ad-drawer__sub">{sub}</div>}
           </div>
           <button
-            className="au-drawer__x"
+            className="ad-drawer__x"
             onClick={onClose}
             type="button"
             aria-label="닫기"
@@ -60,8 +60,8 @@ export function Drawer({
             <Icon name="x" size={18} />
           </button>
         </div>
-        <div className="au-drawer__body">{children}</div>
-        {foot && <div className="au-drawer__foot">{foot}</div>}
+        <div className="ad-drawer__body">{children}</div>
+        {foot && <div className="ad-drawer__foot">{foot}</div>}
       </aside>
     </>
   );
