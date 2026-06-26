@@ -7,7 +7,7 @@ import { PlaceholderValidationBanner } from "../_components/PlaceholderValidatio
 // 2026-05-16 PR-Admin-2 — 단일 순위전 진출 trigger (teams 페이지 헤더에서 이동 박제)
 import { AdvancePlayoffsButton } from "../_components/AdvancePlayoffsButton";
 // Track B-c Toss 리스킨 — Material Symbols → lucide-react 키트(<Icon>)
-import { Icon, useTossConfirm } from "@/components/admin-toss";
+import { Icon, useTossConfirm, useTossPrompt } from "@/components/admin-toss";
 import type { RecordingMode } from "@/lib/tournaments/recording-mode";
 // 2026-05-28 PR-1C-6 옵션 A — 매치 표 시각 박제 (시안 admin.css amt-table). 데이터/onClick 유지, 시각만.
 import "./matches-admin.css";
@@ -125,6 +125,7 @@ function ScoreModal({
   const [error, setError] = useState("");
   const { id } = useParams<{ id: string }>();
   const tossConfirm = useTossConfirm();
+  const tossPrompt = useTossPrompt();
 
   const approvedTeams = teams.filter((t) => t.status === "approved");
 
@@ -196,10 +197,13 @@ function ScoreModal({
 
       // 2) 모드 변경 — 별도 endpoint (POST recording-mode)
       if (modeChanged) {
-        const reason = window.prompt(
-          "모드 전환 사유 (선택 — 운영 history 박제)",
-          ""
-        );
+        const reason = await tossPrompt.prompt({
+          title: "모드 전환 사유",
+          sub: "운영 history에 남길 사유를 입력할 수 있습니다.",
+          label: "사유",
+          placeholder: "선택 입력",
+          confirmLabel: "저장 계속",
+        });
         const modeRes = await fetch(
           `/api/web/admin/matches/${match.id}/recording-mode`,
           {
@@ -249,6 +253,7 @@ function ScoreModal({
       onClick={onClose}
     >
       {tossConfirm.dialog}
+      {tossPrompt.dialog}
       <div
         className="amt-modal"
         onClick={(e) => e.stopPropagation()}

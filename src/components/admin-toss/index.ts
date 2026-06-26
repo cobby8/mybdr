@@ -20,6 +20,7 @@ export {
   PermState,
   Modal,
   useTossConfirm,
+  useTossPrompt,
 } from "./kit";
 export type {
   IconProps,
@@ -39,6 +40,7 @@ export type {
   ModalProps,
   TossConfirmOptions,
   TossConfirmTone,
+  TossPromptOptions,
 } from "./kit";
 
 // 콘솔 키트 (StatusTabs · FilterBar · DataTable · DetailModal · StatCard 등)

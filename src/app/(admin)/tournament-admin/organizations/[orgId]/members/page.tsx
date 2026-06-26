@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import { Icon } from "@/components/admin-toss";
+import { Icon, useTossConfirm } from "@/components/admin-toss";
 
 interface Member {
   id: string;
@@ -35,6 +35,7 @@ export default function OrganizationMembersPage() {
   const [inviteRole, setInviteRole] = useState("member");
   const [inviting, setInviting] = useState(false);
   const [message, setMessage] = useState("");
+  const tossConfirm = useTossConfirm();
 
   const loadMembers = () => {
     fetch(`/api/web/organizations/${orgId}/members`)
@@ -87,7 +88,14 @@ export default function OrganizationMembersPage() {
   };
 
   const handleRemove = async (memberId: string, nickname: string | null) => {
-    if (!confirm(`${nickname || "멤버"}를 제거하시겠습니까?`)) return;
+    const ok = await tossConfirm.confirm({
+      title: "멤버 제거",
+      sub: `${nickname || "멤버"}를 단체에서 제거합니다.`,
+      body: "제거된 사용자는 이 단체의 운영 권한을 더 이상 사용할 수 없습니다.",
+      confirmLabel: "제거",
+      tone: "danger",
+    });
+    if (!ok) return;
 
     try {
       const res = await fetch(`/api/web/organizations/${orgId}/members/${memberId}`, {
@@ -106,6 +114,7 @@ export default function OrganizationMembersPage() {
 
   return (
     <div data-skin="toss" className="mx-auto max-w-3xl space-y-6">
+      {tossConfirm.dialog}
       <div className="ts-ph">
         <div className="ts-ph__row">
           <div style={{ minWidth: 0 }}>

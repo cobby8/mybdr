@@ -500,3 +500,94 @@ export function useTossConfirm() {
 
   return { confirm, dialog };
 }
+
+// ── TossPrompt ───────────────────────────────────────────────────────
+export type TossPromptOptions = {
+  title: React.ReactNode;
+  sub?: React.ReactNode;
+  label?: React.ReactNode;
+  placeholder?: string;
+  initialValue?: string;
+  confirmLabel?: React.ReactNode;
+  cancelLabel?: React.ReactNode;
+  maxWidth?: number;
+};
+
+export function useTossPrompt() {
+  const [state, setState] = React.useState<TossPromptOptions | null>(null);
+  const [value, setValue] = React.useState("");
+  const resolverRef = React.useRef<((value: string | null) => void) | null>(null);
+
+  const close = React.useCallback(
+    (confirmed: boolean) => {
+      resolverRef.current?.(confirmed ? value.trim() : null);
+      resolverRef.current = null;
+      setState(null);
+      setValue("");
+    },
+    [value],
+  );
+
+  const prompt = React.useCallback((options: TossPromptOptions) => {
+    resolverRef.current?.(null);
+    return new Promise<string | null>((resolve) => {
+      resolverRef.current = resolve;
+      setValue(options.initialValue ?? "");
+      setState(options);
+    });
+  }, []);
+
+  React.useEffect(() => {
+    return () => {
+      resolverRef.current?.(null);
+      resolverRef.current = null;
+    };
+  }, []);
+
+  const dialog = state ? (
+    <Modal
+      open
+      onClose={() => close(false)}
+      title={state.title}
+      sub={state.sub}
+      maxWidth={state.maxWidth ?? 480}
+      foot={
+        <div
+          style={{
+            display: "flex",
+            gap: 8,
+            justifyContent: "flex-end",
+            width: "100%",
+          }}
+        >
+          <Btn variant="secondary" onClick={() => close(false)}>
+            {state.cancelLabel ?? "취소"}
+          </Btn>
+          <Btn variant="primary" onClick={() => close(true)}>
+            {state.confirmLabel ?? "확인"}
+          </Btn>
+        </div>
+      }
+    >
+      <label className="ts-field">
+        <span className="ts-field__label">{state.label ?? "내용"}</span>
+        <input
+          autoFocus
+          className="ts-input"
+          value={value}
+          placeholder={state.placeholder}
+          onChange={(e) => setValue(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.nativeEvent.isComposing) return;
+            if (e.key === "Enter") {
+              e.preventDefault();
+              close(true);
+            }
+          }}
+        />
+      </label>
+    </Modal>
+  ) : null;
+
+  return { prompt, dialog };
+}
