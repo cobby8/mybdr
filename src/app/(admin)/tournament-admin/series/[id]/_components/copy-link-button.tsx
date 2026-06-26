@@ -17,8 +17,9 @@ export function CopyLinkButton({ slug }: { slug: string }) {
 
   return (
     <button
+      type="button"
       onClick={handleCopy}
-      className="btn btn--sm flex-shrink-0"
+      className="ts-btn ts-btn--secondary ts-btn--sm flex-shrink-0"
     >
       링크 복사
     </button>

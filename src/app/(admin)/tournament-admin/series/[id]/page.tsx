@@ -143,7 +143,7 @@ export default async function SeriesDashboardPage({
           {canEdit && (
             <Link
               href={`/tournament-admin/series/${id}/edit`}
-              className="btn btn--sm inline-flex items-center gap-1"
+              className="ts-btn ts-btn--secondary ts-btn--sm inline-flex items-center gap-1"
               aria-label="시리즈 편집"
             >
               <span className="material-symbols-outlined text-base">edit</span>
@@ -222,7 +222,7 @@ export default async function SeriesDashboardPage({
               .btn--primary = 라이트 navy / 다크 BDR Red 자동 분기. text 흰색 명시 (:visited 보라 회피). */}
           <Link
             href={`/tournament-admin/series/${id}/add-edition`}
-            className="btn btn--primary"
+            className="ts-btn ts-btn--primary"
           >
             첫 번째 회차 추가하기
           </Link>
@@ -235,7 +235,7 @@ export default async function SeriesDashboardPage({
           {/* 모바일 하단 고정 FAB — pill 9999px ❌. shadow 보존, btn--primary 클래스 + 4px 라운딩 */}
           <Link
             href={`/tournament-admin/series/${id}/add-edition`}
-            className="btn btn--primary shadow-lg"
+            className="ts-btn ts-btn--primary shadow-lg"
           >
             <span className="text-lg">+</span>
             {nextEdition}회 추가
