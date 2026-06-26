@@ -1,7 +1,7 @@
 # Scratchpad
 
 ## Current Work
-- 2026-06-26 tournament admin: post-merge audit for game-rule duplication and recording-mode consistency.
+- 2026-06-26 tournament admin list: restore the visible tournament creation entry point.
 
 ## Progress
 | Area | Status | Note |
@@ -12,6 +12,7 @@
 | Verification | Done | Targeted Vitest suite and `cmd /c npx tsc --noEmit` passed. |
 
 ## Work Log
+- 2026-06-26: Restored the tournament creation CTA on the tournament admin list page and verified TypeScript.
 - 2026-06-26: Pushed/merged prior fixes, then aligned tournament admin game-rule display and match-level manual recording-mode guards.
 - 2026-06-26: Added tournament division inline rename/delete controls and separated record-app time presets from clock mode.
 - 2026-06-25: Repaired customer signal contact/report flow copy and prepared operator email reporting verification.

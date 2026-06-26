@@ -8,6 +8,7 @@ import {
   AdminTournamentList,
   type AdminTournamentRow,
 } from "./_components/admin-tournament-list";
+import { AdminEntryCta } from "./_components/admin-entry-cta";
 
 export const dynamic = "force-dynamic";
 
@@ -83,6 +84,8 @@ export default async function TournamentAdminTournamentsPage() {
       />
 
       {/* PR-1C-7: 상태 탭 + 검색 + 카드 list (클라이언트 필터 / 새 fetch ❌) */}
+      <AdminEntryCta isSuperAdmin={isSuper} />
+
       <AdminTournamentList rows={rows} />
     </div>
   );
