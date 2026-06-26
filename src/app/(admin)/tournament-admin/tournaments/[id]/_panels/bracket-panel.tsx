@@ -100,6 +100,8 @@ type BracketData = {
   divisionRules: DivisionRule[];
 };
 
+const EMPTY_DIVISION_RULES: DivisionRule[] = [];
+
 type RawBracketData = {
   matches?: RawMatch[];
   approvedTeams?: RawApprovedTeam[];
@@ -407,7 +409,7 @@ export default function BracketPanel(_props: { showNextStepCTA?: boolean } = {})
 
   useEffect(() => { load(); }, [load]);
 
-  const rules = data?.divisionRules ?? [];
+  const rules = data?.divisionRules ?? EMPTY_DIVISION_RULES;
 
   useEffect(() => {
     if (rules.length > 0 && (!activeCode || !rules.some((rule) => rule.code === activeCode))) {
@@ -416,12 +418,17 @@ export default function BracketPanel(_props: { showNextStepCTA?: boolean } = {})
   }, [activeCode, rules]);
 
   useEffect(() => {
+    if (rules.length === 0) return;
     setConfigs((prev) => {
+      let changed = false;
       const next = { ...prev };
       for (const rule of rules) {
-        if (!next[rule.code]) next[rule.code] = ruleConfig(rule);
+        if (!next[rule.code]) {
+          next[rule.code] = ruleConfig(rule);
+          changed = true;
+        }
       }
-      return next;
+      return changed ? next : prev;
     });
   }, [rules]);
 
