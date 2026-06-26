@@ -107,7 +107,7 @@ export function OperateWorkspace({
   setup,
   summary,
 }: TournamentWorkspaceProps) {
-  const [menu, setMenu] = useState<MenuId>("teams");
+  const [menu, setMenu] = useState<MenuId>(() => menuFromHash() ?? "teams");
   const current = useMemo(() => MENUS.find((item) => item.id === menu) ?? MENUS[0], [menu]);
   const dateRange = setup.endDate && setup.endDate !== setup.startDate
     ? `${formatDate(setup.startDate)} ~ ${formatDate(setup.endDate)}`
@@ -116,7 +116,7 @@ export function OperateWorkspace({
   useEffect(() => {
     const sync = () => {
       const next = menuFromHash();
-      if (next) setMenu(next);
+      if (next) setMenu((currentMenu) => (currentMenu === next ? currentMenu : next));
     };
     sync();
     window.addEventListener("hashchange", sync);

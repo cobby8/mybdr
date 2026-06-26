@@ -774,12 +774,12 @@ export default function BracketPanel(_props: { showNextStepCTA?: boolean } = {})
             </p>
           </div>
           <div className="bk-actions">
-            <button type="button" className="ts-btn ts-btn--secondary ts-btn--sm" disabled={busy != null || !configDirty} onClick={() => saveSettings()}>
-              {busy === "settings" ? "저장 중..." : "설정 저장"}
+            <button type="button" className="ts-btn ts-btn--secondary ts-btn--sm" disabled={busy != null} onClick={resetLocalDraw}>
+              초기화
             </button>
-            {phase === "drawn" && (
-              <button type="button" className="ts-btn ts-btn--secondary ts-btn--sm" disabled={busy != null} onClick={resetLocalDraw}>
-                초기화
+            {configDirty && (
+              <button type="button" className="ts-btn ts-btn--secondary ts-btn--sm" disabled={busy != null} onClick={() => saveSettings()}>
+                {busy === "settings" ? "저장 중..." : "설정 저장"}
               </button>
             )}
             {phase !== "seeding" && (
@@ -817,12 +817,12 @@ export default function BracketPanel(_props: { showNextStepCTA?: boolean } = {})
             </p>
           </div>
           <div className="bk-actions">
-            <button type="button" className="ts-btn ts-btn--secondary ts-btn--sm" disabled={busy != null || !configDirty} onClick={() => saveSettings()}>
-              {busy === "settings" ? "저장 중..." : "설정 저장"}
+            <button type="button" className="ts-btn ts-btn--secondary ts-btn--sm" disabled={busy != null} onClick={resetLocalDraw}>
+              초기화
             </button>
-            {phase === "drawn" && (
-              <button type="button" className="ts-btn ts-btn--secondary ts-btn--sm" disabled={busy != null} onClick={resetLocalDraw}>
-                초기화
+            {configDirty && (
+              <button type="button" className="ts-btn ts-btn--secondary ts-btn--sm" disabled={busy != null} onClick={() => saveSettings()}>
+                {busy === "settings" ? "저장 중..." : "설정 저장"}
               </button>
             )}
             {phase !== "seeding" && (
