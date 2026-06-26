@@ -16,11 +16,11 @@ import { notFound, redirect } from "next/navigation";
 import { prisma } from "@/lib/db/prisma";
 import { getWebSession } from "@/lib/auth/web-session";
 import { isSuperAdmin } from "@/lib/auth/is-super-admin";
-import { AdminPageHeader } from "@/components/admin/admin-page-header";
+import { PageHead } from "@/components/admin/console-kit";
 import { TransferOrganizerForm } from "./transfer-organizer-form";
 
 // 2026-05-15 Admin-4-A 박제 (v2.14):
-// - h1 직접 → <AdminPageHeader> (eyebrow + breadcrumbs + actions) 시안 패턴
+// - h1 직접 → <PageHead> (eyebrow + actions) v2.41 Toss 패턴
 // - 현 주최자 / 위임 운영자 카드 = "읽기 전용" admin-stat-pill 보조
 // - 비즈 로직 (Prisma tournament / TournamentAdminMember 조회) 100% 보존
 // - TransferOrganizerForm 자체는 미박제 — 이미 신 토큰 (--color-*) 사용 중
@@ -75,27 +75,18 @@ export default async function OrganizerManagementPage({
     : null;
 
   return (
-    <div>
-      {/* Admin-4-A 박제 — AdminPageHeader 시안 패턴 (eyebrow + breadcrumbs) */}
-      <AdminPageHeader
-        eyebrow={`ADMIN · 대회 관리 > ${tournament.name} > 운영자 관리`}
+    <div data-skin="toss">
+      <PageHead
+        eyebrow={`대회 관리자 · ${tournament.name}`}
+        icon="user-cog"
         title="운영자 관리"
-        subtitle={
+        sub={
           orgInfo
             ? `${tournament.name} · 소속 단체 ${orgInfo.name}`
             : tournament.name
         }
-        breadcrumbs={[
-          { label: "ADMIN" },
-          { label: "대회 관리" },
-          { label: tournament.name },
-          { label: "운영자 관리" },
-        ]}
         actions={
-          <Link href="/admin/tournaments" className="btn btn--sm">
-            <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
-              arrow_back
-            </span>
+          <Link href="/admin/tournaments" className="ts-btn ts-btn--secondary ts-btn--sm">
             대회 관리
           </Link>
         }
@@ -103,7 +94,7 @@ export default async function OrganizerManagementPage({
 
       {/* 현 주최자 카드 */}
       <div
-        className="mb-4 rounded-[4px] border p-4"
+        className="ts-card ts-card--tight mb-4"
         style={{ borderColor: "var(--color-border)", background: "var(--color-elevated)" }}
       >
         <p
@@ -130,7 +121,7 @@ export default async function OrganizerManagementPage({
 
       {/* 위임 운영자 (TAM) 목록 */}
       <div
-        className="mb-6 rounded-[4px] border p-4"
+        className="ts-card ts-card--tight mb-6"
         style={{ borderColor: "var(--color-border)", background: "var(--color-elevated)" }}
       >
         <p
@@ -148,7 +139,7 @@ export default async function OrganizerManagementPage({
             {tamList.map((t) => (
               <li
                 key={t.id.toString()}
-                className="flex flex-wrap items-center justify-between gap-2 rounded-[4px] border p-2"
+                className="flex flex-wrap items-center justify-between gap-2 rounded-[12px] border p-2"
                 style={{ borderColor: "var(--color-border)" }}
               >
                 <div className="text-sm">
