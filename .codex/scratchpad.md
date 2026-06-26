@@ -8,6 +8,7 @@
 |---|---|---|
 | Tournament division rule settings | Done | Division operation settings now save through an explicit settings button and refresh local state from the server response. |
 | Tournament bracket generation | Done | Division-rule generation is now the primary path, global generation is disabled when division rules exist, and invalid group sizes are blocked before writes. |
+| Tournament progression | Done | Single-elim winner advancement now requires explicit `next_match_slot`; first-empty-slot fallback is removed. |
 | Tournament division ops | Done | Team category moves now sync team division/player division codes and expose single/bulk move controls. |
 | Tournament operate workspace | Done | `/tournament-admin/tournaments/[id]` now opens the 6-menu Toss operate workspace; `/edit` keeps the setup/edit workspace. |
 | Theme tokens | Done | Added `--color-on-primary` so red primary buttons render white text/icons. |
@@ -20,6 +21,7 @@
 | Tournament operate bracket | Done | Legacy bracket tab was replaced with the Toss operate flow: division config, seeded/random draw, group slots, and division generation. |
 
 ## Work Log
+- 2026-06-27: Removed first-empty-slot fallback from single-elim winner advancement; winners now require and use explicit `next_match_slot`, with targeted Vitest and TypeScript passing.
 - 2026-06-27: Set Gangnam Association Cup D5 tournament and all 13 matches to `recording_mode=paper`, renamed user-facing score-sheet copy to "전자기록지", and kept internal `paper`/`[종이 기록]` data keys for compatibility; TypeScript passed.
 - 2026-06-27: Fixed single-division bracket data fallback for corrupted team category values so the operate bracket tab recognizes approved teams and normalizes categories on draw/generate; TypeScript and production build passed.
 - 2026-06-27: Replaced the legacy tournament operate bracket tab with the Toss v2.41 flow: division config, slot-based seeded draw, group-slot rendering, preview tree, and division generation; TypeScript and production build passed.
