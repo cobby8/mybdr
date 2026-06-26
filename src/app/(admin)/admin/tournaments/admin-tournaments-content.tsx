@@ -258,7 +258,7 @@ export function AdminTournamentsContent({
       width: "110px",
       hideSm: true,
       render: (r) => (
-        <span style={{ color: "var(--ink-mute)" }}>{fmtDate(r.createdAt)}</span>
+        <span style={{ color: "var(--color-text-muted)" }}>{fmtDate(r.createdAt)}</span>
       ),
     },
     {
@@ -277,11 +277,11 @@ export function AdminTournamentsContent({
 
       {/* 리스트 헤더: 표시 개수 + 페이지 크기 선택(기존 동작 보존) */}
       <div className="mb-2 flex items-center justify-between">
-        <span className="text-sm" style={{ color: "var(--ink-mute)" }}>
+        <span className="text-sm" style={{ color: "var(--color-text-muted)" }}>
           {totalCount > 0 ? `${rangeStart}–${rangeEnd} / ${totalCount}개` : "0개"}
         </span>
         <div className="flex items-center gap-1">
-          <span className="text-xs" style={{ color: "var(--ink-mute)" }}>페이지당</span>
+          <span className="text-xs" style={{ color: "var(--color-text-muted)" }}>페이지당</span>
           {PAGE_SIZE_OPTIONS.map((size) => (
             <Btn
               key={size}
@@ -362,11 +362,11 @@ export function AdminTournamentsContent({
             {/* 행정 관리 — 기존 server action / 라우트 href 100% 보존 */}
             <div
               className="mt-4 rounded-[8px] border p-3"
-              style={{ borderColor: "var(--border)", background: "var(--grey-50)" }}
+              style={{ borderColor: "var(--color-border)", background: "var(--color-elevated)" }}
             >
               <p
                 className="mb-2 text-xs font-semibold uppercase"
-                style={{ color: "var(--ink-mute)", letterSpacing: "0.04em" }}
+                style={{ color: "var(--color-text-muted)", letterSpacing: "0.04em" }}
               >
                 행정 관리
               </p>
@@ -411,7 +411,7 @@ export function AdminTournamentsContent({
                   대회 삭제
                 </Btn>
               </div>
-              <p className="mt-2 text-xs" style={{ color: "var(--ink-mute)" }}>
+              <p className="mt-2 text-xs" style={{ color: "var(--color-text-muted)" }}>
                 ※ 기본 삭제는 &quot;취소&quot; 처리(복구 가능)입니다.
                 {isSuperAdmin ? " 완전 삭제는 복구할 수 없습니다." : ""}
               </p>
@@ -432,7 +432,7 @@ export function AdminTournamentsContent({
                 type="button"
                 onClick={closeDeleteModal}
                 disabled={deleting}
-                className="btn btn--sm flex-1 disabled:opacity-50"
+                className="ts-btn ts-btn--secondary ts-btn--sm flex-1 disabled:opacity-50"
               >
                 취소
               </button>
@@ -440,7 +440,7 @@ export function AdminTournamentsContent({
                 type="button"
                 onClick={handleDelete}
                 disabled={deleting || confirmName.trim() !== deleteTarget.name}
-                className="btn btn--sm flex-1 disabled:pointer-events-none disabled:opacity-40"
+                className="ts-btn ts-btn--danger ts-btn--sm flex-1 disabled:pointer-events-none disabled:opacity-40"
                 style={{
                   background: "var(--color-error)",
                   color: "#fff",
