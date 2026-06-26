@@ -82,7 +82,11 @@ const EMPTY_FORM = { player_name: "", phone: "", jersey_number: "", position: ""
 
 /* ---------- 메인 컴포넌트 ---------- */
 
-export default function TournamentTeamsPage() {
+export default function TournamentTeamsPage({
+  showNextStepCTA = true,
+}: {
+  showNextStepCTA?: boolean;
+} = {}) {
   const { id } = useParams<{ id: string }>();
   const [teams, setTeams] = useState<TournamentTeam[]>([]);
   const [loading, setLoading] = useState(true);
@@ -1500,7 +1504,7 @@ export default function TournamentTeamsPage() {
       `}</style>
 
       {/* 2026-05-16 PR-Admin-1 — 단계간 CTA (admin-flow-audit §3 단계 4 단절 해소) */}
-      <NextStepCTA tournamentId={id} currentStep="teams" />
+      {showNextStepCTA && <NextStepCTA tournamentId={id} currentStep="teams" />}
     </div>
   );
 }

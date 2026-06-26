@@ -300,7 +300,7 @@ export function AdminTournamentsContent({
         columns={columns}
         rows={filtered}
         keyField="id"
-        onRowClick={(r) => setSelected(r)}
+        onRowClick={(r) => router.push(`/tournament-admin/tournaments/${r.id}`)}
         pagination={{
           page,
           perPage: pageSize,

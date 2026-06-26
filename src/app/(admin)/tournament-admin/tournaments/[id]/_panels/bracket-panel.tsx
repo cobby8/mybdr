@@ -16,6 +16,10 @@ import { DivisionGenerateButton } from "../_components/DivisionGenerateButton";
 const MAX_FREE_VERSIONS = 3;
 
 type TeamInfo = { id: string; team: { name: string; primaryColor: string | null } };
+type RawTeamInfo = {
+  id: string;
+  team: { name: string; primaryColor?: string | null; primary_color?: string | null };
+};
 
 type Match = {
   id: string;
@@ -49,6 +53,12 @@ type Match = {
 };
 
 type ApprovedTeam = { id: string; seedNumber: number | null; team: { name: string } };
+type RawApprovedTeam = {
+  id: string;
+  seedNumber?: number | null;
+  seed_number?: number | null;
+  team: { name: string };
+};
 
 type BracketVersion = {
   id: string;
@@ -87,6 +97,93 @@ type BracketData = {
     settings?: Record<string, unknown> | null;
   }>;
 };
+
+type RawMatch = Omit<
+  Partial<Match>,
+  "homeTeam" | "awayTeam" | "homeTeamId" | "awayTeamId" | "homeScore" | "awayScore" | "roundName"
+> & {
+  id: string;
+  roundName?: string | null;
+  round_name?: string | null;
+  homeTeamId?: string | null;
+  home_team_id?: string | null;
+  awayTeamId?: string | null;
+  away_team_id?: string | null;
+  homeScore?: number | null;
+  home_score?: number | null;
+  awayScore?: number | null;
+  away_score?: number | null;
+  homeTeam?: RawTeamInfo | null;
+  home_team?: RawTeamInfo | null;
+  awayTeam?: RawTeamInfo | null;
+  away_team?: RawTeamInfo | null;
+};
+
+type RawBracketData = Partial<Omit<BracketData, "matches" | "approvedTeams" | "divisionRules">> & {
+  can_create?: boolean;
+  needs_approval?: boolean;
+  current_version?: number;
+  active_version?: number | null;
+  matches?: RawMatch[];
+  approved_teams?: RawApprovedTeam[];
+  approvedTeams?: RawApprovedTeam[];
+  division_rules?: BracketData["divisionRules"];
+  divisionRules?: BracketData["divisionRules"];
+};
+
+function normalizeTeamInfo(team: RawTeamInfo | null | undefined): TeamInfo | null {
+  if (!team) return null;
+  return {
+    id: team.id,
+    team: {
+      name: team.team.name,
+      primaryColor: team.team.primaryColor ?? team.team.primary_color ?? null,
+    },
+  };
+}
+
+function normalizeMatch(match: RawMatch): Match {
+  return {
+    id: match.id,
+    roundName: match.roundName ?? match.round_name ?? null,
+    round_number: match.round_number ?? null,
+    bracket_position: match.bracket_position ?? null,
+    match_number: match.match_number ?? null,
+    status: match.status ?? "scheduled",
+    homeTeamId: match.homeTeamId ?? match.home_team_id ?? null,
+    awayTeamId: match.awayTeamId ?? match.away_team_id ?? null,
+    homeScore: match.homeScore ?? match.home_score ?? 0,
+    awayScore: match.awayScore ?? match.away_score ?? 0,
+    homeTeam: normalizeTeamInfo(match.homeTeam ?? match.home_team),
+    awayTeam: normalizeTeamInfo(match.awayTeam ?? match.away_team),
+    group_name: match.group_name ?? null,
+    settings: match.settings ?? null,
+    scheduledAt: match.scheduledAt ?? match.scheduled_at ?? null,
+    scheduled_at: match.scheduled_at ?? match.scheduledAt ?? null,
+    venue_name: match.venue_name ?? null,
+    court_number: match.court_number ?? null,
+  };
+}
+
+function normalizeBracketData(raw: RawBracketData): BracketData {
+  const approvedTeams = raw.approvedTeams ?? raw.approved_teams ?? [];
+  return {
+    canCreate: raw.canCreate ?? raw.can_create ?? false,
+    needsApproval: raw.needsApproval ?? raw.needs_approval ?? false,
+    currentVersion: raw.currentVersion ?? raw.current_version ?? 0,
+    activeVersion: raw.activeVersion ?? raw.active_version ?? null,
+    versions: raw.versions ?? [],
+    matches: (raw.matches ?? []).map(normalizeMatch),
+    approvedTeams: approvedTeams.map((team) => ({
+      id: team.id,
+      seedNumber: team.seedNumber ?? team.seed_number ?? null,
+      team: team.team,
+    })),
+    format: raw.format ?? null,
+    settings: raw.settings ?? null,
+    divisionRules: raw.divisionRules ?? raw.division_rules ?? [],
+  };
+}
 
 // 풀리그 계열 포맷 판별 — UI 분기용
 function isLeagueFormat(fmt: string | null | undefined): boolean {
@@ -246,7 +343,11 @@ function DivisionGenerationSections({
   );
 }
 
-export default function BracketAdminPage() {
+export default function BracketAdminPage({
+  showNextStepCTA = true,
+}: {
+  showNextStepCTA?: boolean;
+} = {}) {
   const { id } = useParams<{ id: string }>();
   const [data, setData] = useState<BracketData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -259,7 +360,7 @@ export default function BracketAdminPage() {
   const load = useCallback(async () => {
     try {
       const res = await fetch(`/api/web/tournaments/${id}/bracket`);
-      if (res.ok) setData(await res.json());
+      if (res.ok) setData(normalizeBracketData(await res.json()));
     } catch { /* ignore */ } finally {
       setLoading(false);
     }
@@ -629,7 +730,7 @@ export default function BracketAdminPage() {
       )}
 
       {/* 2026-05-16 PR-Admin-1 — 단계간 CTA (admin-flow-audit §3 단계 7 단절 해소) */}
-      <NextStepCTA tournamentId={id} currentStep="bracket" />
+      {showNextStepCTA && <NextStepCTA tournamentId={id} currentStep="bracket" />}
     </div>
   );
 }
