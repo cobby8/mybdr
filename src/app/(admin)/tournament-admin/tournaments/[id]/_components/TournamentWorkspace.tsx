@@ -706,17 +706,14 @@ export function TournamentWorkspace({
             ["대진 경기", `${summary.matchCount}`],
           ]}
           panels={[
-            ["divisions", "종별 운영 방식"],
             ["bracket", "대진 생성"],
           ]}
           openPanels={visibleOpenPanels}
           onToggle={togglePanel}
         />
-        {visibleOpenPanels.has("divisions") && (
-          <PanelFrame>
-            <DivisionsPanel />
-          </PanelFrame>
-        )}
+        <PanelFrame>
+          <DivisionsPanel />
+        </PanelFrame>
         {visibleOpenPanels.has("bracket") && (
           <PanelFrame>
             <BracketPanel />

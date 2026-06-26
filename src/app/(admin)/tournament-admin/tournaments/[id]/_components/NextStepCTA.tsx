@@ -58,7 +58,7 @@ export function NextStepCTA({
   const next = NEXT_STEP_MAP[currentStep];
   if (!next) return null;
 
-  const hash = next.next === "teams" ? "teams" : next.next === "bracket" ? "structure" : "matches";
+  const hash = next.next === "teams" ? "teams" : next.next === "bracket" ? "bracket" : "matches";
   const href = `/tournament-admin/tournaments/${tournamentId}#${hash}`;
 
   // 비활성 (선행 단계 미완성) — 회색 톤 + 안내 메시지
