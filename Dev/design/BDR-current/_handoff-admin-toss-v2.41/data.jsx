@@ -19,7 +19,7 @@ window.WS = {
   tournament: { id: "tn-2026-summer-4", name: "BDR 서머 오픈 #4", dDay: 31 },
 
   summary: {
-    teamCount: 38, maxTeams: 44, divisionCount: 4, matchCount: 27,
+    teamCount: 44, maxTeams: 44, divisionCount: 4, matchCount: 27,
     statusLabel: "진행중", statusTone: "ok",
     siteConfigured: true, sitePublished: false, siteSubdomain: "bdr-summer-4",
     progressCompleted: 6, progressTotal: 8, missingCount: 2,

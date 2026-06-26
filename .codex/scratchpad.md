@@ -11,9 +11,10 @@
 | Admin game rules | Done | `game_time`/`game_method` now derive from canonical `game_rules` instead of free text. |
 | Recording modes | Done | Match-level `manual` is counted, displayed, and blocked from Flutter/score-sheet system inputs. |
 | Admin Toss handoff | Done | `BDR-current/_handoff-admin-toss-v2.41/` added; src unchanged. |
-| Admin Toss sweep | In Progress | v2.41 package reviewed; shared KPI, DataTable, PageHead, and Toolbar blocks now use package structures. |
+| Admin Toss sweep | In Progress | v2.41 package reviewed; shared KPI, DataTable, PageHead, Toolbar blocks aligned; v39 data consistency note applied. |
 
 ## Work Log
+- 2026-06-26: Applied BDR v2 (39) admin mock data consistency update to active v2.41 handoff; src unchanged because operational pages already use DB/API wiring.
 - 2026-06-26: Added Material-to-lucide Icon aliases and converted organization detail top/tab icons to Toss Icon wrapper; TypeScript passed.
 - 2026-06-26: Rebuilt organization members page with v2.41 Toss PageHead, invite panel, list rows, badges, and Icon wrappers; TypeScript passed.
 - 2026-06-26: Rebuilt series hard-delete button/modal with v2.41 Toss Icon, danger button, modal, and input structures; TypeScript passed.
@@ -23,4 +24,3 @@
 - 2026-06-26: Rebuilt tournament-admin series list with v2.41 Toss PageHead and ad-table static server markup; TypeScript passed.
 - 2026-06-26: Rebuilt tournament-admin organizations list with v2.41 PageHead, ad-cardgrid, Empty, and lucide Icon wrappers; TypeScript passed.
 - 2026-06-26: Removed remaining tournament workspace legacy button classes in site panel/detail header; TypeScript and residue scans passed.
-- 2026-06-26: Reviewed BDR v2.41 admin Toss package and converted shared admin KPI rows to package `ad-kpi-*`; TypeScript and residue scans passed, browser QA blocked by DB pooler access.
