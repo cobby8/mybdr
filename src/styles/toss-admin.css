@@ -2262,6 +2262,78 @@
 [data-skin="toss"] .tt-meta-row--small {
   font-size: 10.5px;
 }
+[data-skin="toss"] .tt-empty-line {
+  color: var(--ink-mute);
+  font-size: 14px;
+  font-weight: 700;
+  padding: 16px 0;
+  text-align: center;
+}
+[data-skin="toss"] .tt-empty-line--tall {
+  padding: 32px 0;
+}
+[data-skin="toss"] .tt-player-card {
+  border-radius: 16px;
+  background: var(--grey-50);
+  padding: 13px;
+}
+[data-skin="toss"] .tt-player-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+[data-skin="toss"] .tt-player-table th {
+  border-bottom: 1px solid var(--border);
+  color: var(--ink-mute);
+  font-size: 12px;
+  font-weight: 800;
+  padding: 0 12px 9px 0;
+  text-align: left;
+}
+[data-skin="toss"] .tt-player-table td {
+  border-bottom: 1px solid var(--border);
+  padding: 10px 12px 10px 0;
+}
+[data-skin="toss"] .tt-player-name {
+  color: var(--ink);
+  font-weight: 800;
+}
+[data-skin="toss"] .tt-player-muted {
+  color: var(--ink-mute);
+  font-weight: 700;
+}
+[data-skin="toss"] .tt-player-action {
+  text-align: right;
+}
+[data-skin="toss"] .tt-print-note {
+  display: none;
+  margin-top: 16px;
+  color: var(--ink-mute);
+  font-size: 12px;
+}
+[data-skin="toss"] .tt-import-modal {
+  position: relative;
+  width: 100%;
+  max-width: 672px;
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  background: var(--card);
+  box-shadow: var(--sh-lg);
+  padding: 24px;
+}
+[data-skin="toss"] .tt-form-message {
+  margin-top: 12px;
+  white-space: pre-line;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.5;
+}
+[data-skin="toss"] .tt-form-message[data-tone="warn"] {
+  color: var(--warn);
+}
+[data-skin="toss"] .tt-form-message[data-tone="danger"] {
+  color: var(--danger);
+}
 
 @media (max-width: 560px) {
   [data-skin="toss"] .ta-bracket-versions,

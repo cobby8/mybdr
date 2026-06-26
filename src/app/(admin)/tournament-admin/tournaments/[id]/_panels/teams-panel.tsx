@@ -587,9 +587,7 @@ export default function TournamentTeamsPage() {
         <ViaStatCard label="경로 미상" count={viaStats.null} icon="circle-help" />
       </div>
 
-      {/* 통계 탭 — status 분류 + 코치 미입력 (운영자 박제 + 코치 명단 0건)
-          2026-05-12 — 탭 필터 pill 9999px ❌ + admin 빨강 본문 금지 룰 → rounded-[4px] + info(Navy) 활성 톤.
-          count 뱃지 (rounded-full px-1.5 py-0.5) = 작은 정사각형 chip → 보존 (룰 10 예외) */}
+      {/* 통계 탭 — status 분류 + 코치 미입력 (운영자 박제 + 코치 명단 0건) */}
       {divisionRules.length > 0 && (
         <section className="tt-readiness">
           <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -1247,23 +1245,23 @@ export default function TournamentTeamsPage() {
 
               {/* 선수 명단 테이블 */}
               {playersLoading ? (
-                <p className="py-4 text-center text-sm text-[var(--color-text-muted)]">불러오는 중...</p>
+                <p className="tt-empty-line">불러오는 중...</p>
               ) : players.length === 0 ? (
-                <p className="py-8 text-center text-sm text-[var(--color-text-muted)]">등록된 선수가 없습니다.</p>
+                <p className="tt-empty-line tt-empty-line--tall">등록된 선수가 없습니다.</p>
               ) : (
                 <>
                 <div className="space-y-2 sm:hidden">
                   {players.map((p) => (
-                    <div key={p.id} className="rounded-[16px] bg-[var(--grey-50)] p-3">
+                    <div key={p.id} className="tt-player-card">
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
                           <p className="font-semibold text-[var(--ink)]">
                             {p.jersey_number ? `${p.jersey_number}번 · ` : ""}{p.player_name ?? "-"}
                           </p>
-                          <p className="mt-1 text-xs text-[var(--ink-mute)]">
+                          <p className="tt-team-meta">
                             {(p as { birth_date?: string }).birth_date ?? "-"} · {(p as { school_name?: string }).school_name ?? "-"}
                           </p>
-                          <p className="mt-1 text-xs text-[var(--ink-mute)]">
+                          <p className="tt-team-meta">
                             보호자 {(p as { parent_name?: string }).parent_name ?? "-"} · {(p as { parent_phone?: string }).parent_phone ?? p.phone ?? "-"}
                           </p>
                         </div>
@@ -1279,32 +1277,32 @@ export default function TournamentTeamsPage() {
                   ))}
                 </div>
                 <div className="hidden overflow-x-auto sm:block">
-                  <table className="w-full text-sm">
+                  <table className="tt-player-table">
                     <thead>
-                      <tr className="border-b border-[var(--color-border)] text-left text-xs text-[var(--color-text-muted)]">
-                        <th className="pb-2 pr-3">#</th>
-                        <th className="pb-2 pr-3">이름</th>
-                        <th className="pb-2 pr-3">생년월일</th>
-                        <th className="pb-2 pr-3">학교</th>
-                        <th className="pb-2 pr-3">포지션</th>
-                        <th className="pb-2 pr-3">학부모</th>
-                        <th className="pb-2 pr-3 no-print">연락처</th>
-                        <th className="pb-2 no-print" />
+                      <tr>
+                        <th>#</th>
+                        <th>이름</th>
+                        <th>생년월일</th>
+                        <th>학교</th>
+                        <th>포지션</th>
+                        <th>학부모</th>
+                        <th className="no-print">연락처</th>
+                        <th className="no-print" />
                       </tr>
                     </thead>
                     <tbody>
                       {players.map((p) => (
-                        <tr key={p.id} className="border-b border-[var(--color-border)]/50">
-                          <td className="py-2 pr-3 text-[var(--color-text-muted)]">{p.jersey_number ?? "-"}</td>
-                          <td className="py-2 pr-3 font-medium">{p.player_name ?? "-"}</td>
-                          <td className="py-2 pr-3 text-[var(--color-text-muted)]">{(p as { birth_date?: string }).birth_date ?? "-"}</td>
-                          <td className="py-2 pr-3 text-[var(--color-text-muted)]">{(p as { school_name?: string }).school_name ?? "-"}</td>
-                          <td className="py-2 pr-3 text-[var(--color-text-muted)]">{p.position ?? "-"}</td>
-                          <td className="py-2 pr-3 text-[var(--color-text-muted)]">{(p as { parent_name?: string }).parent_name ?? "-"}</td>
-                          <td className="py-2 pr-3 text-[var(--color-text-muted)] no-print">
+                        <tr key={p.id}>
+                          <td className="tt-player-muted">{p.jersey_number ?? "-"}</td>
+                          <td className="tt-player-name">{p.player_name ?? "-"}</td>
+                          <td className="tt-player-muted">{(p as { birth_date?: string }).birth_date ?? "-"}</td>
+                          <td className="tt-player-muted">{(p as { school_name?: string }).school_name ?? "-"}</td>
+                          <td className="tt-player-muted">{p.position ?? "-"}</td>
+                          <td className="tt-player-muted">{(p as { parent_name?: string }).parent_name ?? "-"}</td>
+                          <td className="tt-player-muted no-print">
                             {(p as { parent_phone?: string }).parent_phone ?? p.phone ?? "-"}
                           </td>
-                          <td className="py-2 text-right no-print">
+                          <td className="tt-player-action no-print">
                             <button
                               onClick={() => handleDeletePlayer(p.id)}
                               className="ct-iconbtn"
@@ -1322,7 +1320,7 @@ export default function TournamentTeamsPage() {
               )}
 
               {/* 프린트 푸터 — 프린트 시에만 표시 */}
-              <p className="mt-4 hidden text-xs text-[var(--color-text-muted)] print-only">
+              <p className="tt-print-note print-only">
                 ※ 본 명단은 운영자 어드민 (mybdr.kr) 에서 출력되었습니다. 출력일: {new Date().toLocaleDateString("ko-KR")}
               </p>
             </div>
@@ -1453,13 +1451,11 @@ function ImportPlayersModal({
     <div
       role="dialog"
       aria-modal="true"
-      className="fixed inset-0 z-50 flex items-center justify-center p-3 no-print sm:p-4"
-      style={{ background: "color-mix(in srgb, #000 60%, transparent)" }}
+      className="tt-modal-overlay no-print"
       onClick={onClose}
     >
       <div
-        className="relative w-full max-w-2xl rounded-[24px] border bg-[var(--card)] p-4 shadow-[var(--sh-lg)] sm:p-6"
-        style={{ borderColor: "var(--border)" }}
+        className="tt-import-modal"
         onClick={(e) => e.stopPropagation()}
       >
         <button
@@ -1471,7 +1467,7 @@ function ImportPlayersModal({
           <Icon name="x" size={20} />
         </button>
         <h2 className="mb-4 text-lg font-bold">선수 일괄 입력</h2>
-        <p className="mb-3 text-xs" style={{ color: "var(--ink-mute)" }}>
+        <p className="tt-note mb-3">
           한 줄에 한 명씩 입력합니다. 순서: 이름/생년월일/등번호/포지션/학교명/보호자/연락처
         </p>
         <textarea
@@ -1492,12 +1488,12 @@ function ImportPlayersModal({
           </label>
         </div>
         {parseError && (
-          <p className="mt-3 whitespace-pre-line text-xs" style={{ color: "var(--color-warning)" }}>
+          <p className="tt-form-message" data-tone="warn">
             {parseError}
           </p>
         )}
         {error && (
-          <p className="mt-3 whitespace-pre-line text-sm" style={{ color: "var(--color-error)" }}>
+          <p className="tt-form-message" data-tone="danger">
             {error}
           </p>
         )}

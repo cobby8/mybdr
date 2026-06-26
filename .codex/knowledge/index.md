@@ -1,5 +1,6 @@
 # Knowledge Index
 
+- 2026-06-26 admin: teams panel player table and bulk-import modal now use Toss `tt-*` classes; the remaining style scan hit is only real team `primaryColor` data binding.
 - 2026-06-26 admin: teams detail modal shell/header/category/payment/manager controls now use Toss `tt-*` classes while preserving edit, token, print, and status actions.
 - 2026-06-26 admin: teams panel list surface now uses Toss `tt-*` classes for readiness cards, division group headers, team metadata, seed/group mini inputs, and visible badges.
 - 2026-06-26 admin: teams panel badge helpers now use Toss `tt-badge`/`tt-stat-card` classes for status, applied-via, payment, roster progress, and via stats.
@@ -46,6 +47,7 @@ Updated: 2026-06-26
 | lessons.md | 0 | - |
 
 Recent work:
+- 2026-06-26 admin: teams player table and bulk-import modal were normalized to Toss local classes, leaving only intentional team brand-color data binding in the panel scan.
 - 2026-06-26 admin: teams detail modal frame/header controls were normalized to Toss classes, including category/payment selects, manager inline edit controls, and status action buttons.
 - 2026-06-26 admin: teams panel readiness cards, group headers, list metadata, seed/group mini inputs, and visible team list badges were normalized to Toss local classes.
 - 2026-06-26 admin: teams panel shared status/via/payment/roster badges and via-stat cards were converted from inline BDR tokens to Toss `tt-*` classes.
