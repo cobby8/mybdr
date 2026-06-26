@@ -35,7 +35,6 @@
 //        Banner / Advance = 모든 탭 상단 항상 노출 (시안 의도 = 진입 즉시 사고 인지 + trigger).
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Card } from "@/components/ui/card";
 import type { DivisionStanding } from "@/lib/tournaments/division-advancement";
 import { AdvancePlayoffsButton } from "../_components/AdvancePlayoffsButton";
 import { PlaceholderValidationBanner } from "../_components/PlaceholderValidationBanner";
@@ -250,7 +249,7 @@ export function PlayoffsClient({ tournamentId, divisionStandings, matches }: Pro
   }, new Map());
 
   return (
-    <div className="space-y-6">
+    <div data-skin="toss" className="space-y-6">
       {/* ─────────────────────────────────────────────────────────────
           2026-05-16 Track A — 종별 탭 (옵션 A 인라인 / matches-client 패턴 재사용)
           이유: 강남구 6 종별 박제 시 5 섹션 × 6 종별 = 세로 약 6240px (운영 불가능).
@@ -373,7 +372,7 @@ export function PlayoffsClient({ tournamentId, divisionStandings, matches }: Pro
               이유: 시안 = 순위표 하단 진출 버튼. 운영 흐름 = 단계 10 trigger.
               AdvancePlayoffsButton 기존 컴포넌트 재사용 (위치·로직 0 변경).
              ───────────────────────────────────────────────────────── */}
-          <Card>
+          <section className="ts-card">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div className="flex-1">
                 <p className="text-sm font-semibold text-[var(--color-text-primary)]">
@@ -395,7 +394,7 @@ export function PlayoffsClient({ tournamentId, divisionStandings, matches }: Pro
                 onSuccess={() => router.refresh()}
               />
             </div>
-          </Card>
+          </section>
         </div>
       )}
 
@@ -413,12 +412,12 @@ export function PlayoffsClient({ tournamentId, divisionStandings, matches }: Pro
               순위전 매치 ({rankingMatches.length}경기)
             </h2>
             {rankingMatches.length === 0 ? (
-              <Card className="py-8 text-center text-[var(--color-text-muted)]">
+              <div className="ts-card py-8 text-center text-[var(--color-text-muted)]">
                 <p className="text-sm">순위전 매치가 없습니다.</p>
                 <p className="mt-1 text-xs">
                   종별 generator 가 순위전 placeholder 를 박제했는지 확인 (대진표 페이지).
                 </p>
-              </Card>
+              </div>
             ) : (
               <div className="space-y-3">
                 {Array.from(rankingByDivision.entries())
@@ -453,12 +452,12 @@ export function PlayoffsClient({ tournamentId, divisionStandings, matches }: Pro
               결승전 & 우승팀 ({finalMatches.length}종별 결승)
             </h2>
             {finalMatches.length === 0 ? (
-              <Card className="py-8 text-center text-[var(--color-text-muted)]">
+              <div className="ts-card py-8 text-center text-[var(--color-text-muted)]">
                 <p className="text-sm">결승 매치가 없습니다.</p>
                 <p className="mt-1 text-xs">
                   종별 generator 가 결승 매치를 박제했는지 확인 (대진표 페이지).
                 </p>
-              </Card>
+              </div>
             ) : (
               <div className="grid gap-3 lg:grid-cols-2">
                 {Array.from(finalByDivision.entries())
@@ -487,7 +486,7 @@ export function PlayoffsClient({ tournamentId, divisionStandings, matches }: Pro
           ═══════════════════════════════════════════════════════════════ */}
       {section === "result" && (
         <div className="apl-section">
-          <Card>
+          <section className="ts-card">
             <div className="flex items-start gap-3">
               {/* Material emoji_events → lucide trophy */}
               <Icon
@@ -517,7 +516,7 @@ export function PlayoffsClient({ tournamentId, divisionStandings, matches }: Pro
                 </p>
               </div>
             </div>
-          </Card>
+          </section>
         </div>
       )}
     </div>
@@ -548,7 +547,7 @@ function DivisionMatchGroup({
   );
 
   return (
-    <Card>
+    <section className="ts-card">
       <div className="mb-3 flex items-center justify-between">
         <p className="text-sm font-semibold text-[var(--color-text-primary)]">{divisionLabel}</p>
         <span className="rounded-[4px] bg-[var(--color-elevated)] px-2 py-0.5 text-xs text-[var(--color-text-muted)]">
@@ -569,7 +568,7 @@ function DivisionMatchGroup({
           </div>
         ))}
       </div>
-    </Card>
+    </section>
   );
 }
 
@@ -699,7 +698,7 @@ function FinalCard({
   }
 
   return (
-    <Card>
+    <section className="ts-card">
       <div className="mb-3 flex items-center justify-between">
         <p className="text-sm font-semibold text-[var(--color-text-primary)]">{divisionLabel}</p>
         <span className="rounded-[4px] bg-[var(--color-elevated)] px-2 py-0.5 text-xs text-[var(--color-text-muted)]">
@@ -735,6 +734,6 @@ function FinalCard({
           <PlayoffMatchRow key={m.id} match={m} />
         ))}
       </div>
-    </Card>
+    </section>
   );
 }
