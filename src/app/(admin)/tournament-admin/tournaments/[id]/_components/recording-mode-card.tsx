@@ -17,13 +17,12 @@
  *
  * 디자인 룰:
  *   - var(--color-*) 토큰만 (CLAUDE.md §디자인 핵심)
- *   - Material Symbols Outlined (lucide-react ❌)
- *   - 모바일/PC 동일 — Card 컴포넌트 + 토글 + 라디오
+ *   - 관리자 Toss 키트: Icon wrapper + ts-* 클래스
+ *   - 모바일/PC 동일 — ts-card + 토글 + 라디오
  */
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Card } from "@/components/ui/card";
 // Track B-c Toss 리스킨 — Material Symbols → lucide-react 키트(<Icon>)
 import { Icon } from "@/components/admin-toss";
 
@@ -161,7 +160,7 @@ export function RecordingModeCard({
   };
 
   return (
-    <Card className="mb-6">
+    <section data-skin="toss" className="ts-card mb-6">
       {/* 헤더 — 아이콘 + 타이틀 */}
       <div className="mb-3 flex items-center gap-2">
         {/* Material tune → lucide sliders-horizontal */}
@@ -357,7 +356,7 @@ export function RecordingModeCard({
           matchStats={matchStats}
         />
       )}
-    </Card>
+    </section>
   );
 }
 
