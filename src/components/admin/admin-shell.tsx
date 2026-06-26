@@ -1,5 +1,3 @@
-"use client";
-
 /* ============================================================
  * AdminShell — admin 영역 wrapper (Admin-1 Phase · 2026-05-15)
  *
@@ -25,7 +23,7 @@
  * 보존 — Admin-2 진입 시 본 Shell 안에서 호출되도록 layout 측 갱신).
  * ============================================================ */
 
-import { useState, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import { AdminSidebar, type AdminRole } from "./sidebar";
 import { AdminMobileNav } from "./mobile-admin-nav";
 import { AdminPageHeader } from "./admin-page-header";
@@ -68,8 +66,6 @@ export function AdminShell({
   hideHeader = false,
   children,
 }: AdminShellProps) {
-  // 모바일 드로어 open 상태 — 본 Shell 안에서 관리 (시안 박제 그대로)
-  const [_mobileOpen, _setMobileOpen] = useState(false);
   const hidden = sidebarVariant === "hidden";
 
   return (
