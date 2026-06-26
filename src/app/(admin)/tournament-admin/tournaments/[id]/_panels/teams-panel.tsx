@@ -89,6 +89,8 @@ export default function TournamentTeamsPage() {
   const [filter, setFilter] = useState<string>("all");
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [drawingDivision, setDrawingDivision] = useState<string | null>(null);
+  const [bulkMovingCategory, setBulkMovingCategory] = useState<string | null>(null);
+  const [bulkMoveTarget, setBulkMoveTarget] = useState<Record<string, string>>({});
 
   // 선수 관리 상태
   const [expandedTeamId, setExpandedTeamId] = useState<string | null>(null);
@@ -341,6 +343,7 @@ export default function TournamentTeamsPage() {
       tone: "danger",
     });
     if (!ok) return;
+    setActionLoading(ttId);
     try {
       const res = await fetch(`/api/web/admin/tournaments/${id}/teams/${ttId}/category`, {
         method: "PATCH",
@@ -349,9 +352,55 @@ export default function TournamentTeamsPage() {
       });
       const json = await res.json();
       if (!res.ok) return showToast(json.error ?? "변경 실패");
-      showToast(json.changed ? `종별: ${json.previous ?? "(없음)"} → ${json.current}` : "변경 사항 없음");
+      showToast(
+        json.changed
+          ? `종별: ${json.previous ?? "(없음)"} → ${json.current} · 선수 ${json.player_count ?? 0}명 반영`
+          : "변경 사항 없음",
+      );
       await load();
-    } catch { showToast("네트워크 오류"); }
+    } catch {
+      showToast("네트워크 오류");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  // 종별 그룹 일괄 이동
+  const bulkChangeCategory = async (
+    fromCategory: string | null,
+    targetCategory: string,
+    teamCount: number,
+  ) => {
+    if (!targetCategory) return;
+    const fromLabel = fromCategory ?? "종별 미지정";
+    const ok = await tossConfirm.confirm({
+      title: "종별 일괄 이동",
+      sub: `${fromLabel} ${teamCount}팀을 "${targetCategory}" 로 이동합니다.`,
+      body: "팀의 신청 종별, 대회 디비전 값, 선수 division_code가 함께 변경됩니다. 이동 후 대진·조편성을 다시 확인해 주세요.",
+      confirmLabel: "일괄 이동",
+      tone: "danger",
+    });
+    if (!ok) return;
+    setBulkMovingCategory(fromLabel);
+    try {
+      const res = await fetch(`/api/web/admin/tournaments/${id}/teams/category`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fromCategory, category: targetCategory }),
+      });
+      const json = await res.json();
+      if (!res.ok) return showToast(json.error ?? "일괄 이동 실패");
+      showToast(
+        json.changed
+          ? `${json.previous ?? "종별 미지정"} → ${json.current} · ${json.team_count ?? 0}팀 / 선수 ${json.player_count ?? 0}명 반영`
+          : "이동할 팀이 없습니다.",
+      );
+      await load();
+    } catch {
+      showToast("네트워크 오류");
+    } finally {
+      setBulkMovingCategory(null);
+    }
   };
 
   /* --- 시드 배정 --- */
@@ -719,7 +768,16 @@ export default function TournamentTeamsPage() {
           });
           return (
             <div className="space-y-6">
-              {sortedKeys.map((cat) => (
+              {sortedKeys.map((cat) => {
+                const fromCategory = cat === "기타" ? null : cat;
+                const bulkActionKey = fromCategory ?? "종별 미지정";
+                const moveOptions = divisionRules.filter(
+                  (rule) => rule.code !== fromCategory,
+                );
+                const selectedBulkTarget =
+                  bulkMoveTarget[cat] ?? moveOptions[0]?.code ?? "";
+
+                return (
                 <section key={cat}>
                   {/* 종별 헤더 — accent 톤 작은 헤더 */}
                   <div className="tt-group-head">
@@ -729,6 +787,46 @@ export default function TournamentTeamsPage() {
                     <span className="tt-group-head__count">
                       ({groups[cat].length}팀)
                     </span>
+                    {moveOptions.length > 0 && (
+                      <div className="ml-auto flex flex-wrap items-center gap-2 no-print">
+                        <select
+                          value={selectedBulkTarget}
+                          onChange={(e) =>
+                            setBulkMoveTarget((prev) => ({
+                              ...prev,
+                              [cat]: e.target.value,
+                            }))
+                          }
+                          className="tt-category-select"
+                          aria-label={`${cat} 그룹 이동 대상 종별`}
+                        >
+                          {moveOptions.map((rule) => (
+                            <option key={rule.code} value={rule.code}>
+                              {rule.label}
+                            </option>
+                          ))}
+                        </select>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            bulkChangeCategory(
+                              fromCategory,
+                              selectedBulkTarget,
+                              groups[cat].length,
+                            )
+                          }
+                          disabled={
+                            !selectedBulkTarget ||
+                            bulkMovingCategory === bulkActionKey
+                          }
+                          className="ts-btn ts-btn--secondary ts-btn--sm"
+                        >
+                          {bulkMovingCategory === bulkActionKey
+                            ? "이동 중..."
+                            : "그룹 일괄 이동"}
+                        </button>
+                      </div>
+                    )}
                     <div className="tt-group-head__line" />
                   </div>
                   <div className="space-y-2">
@@ -787,6 +885,34 @@ export default function TournamentTeamsPage() {
                 </div>
 
                 <div className="flex w-full flex-wrap items-center justify-start gap-2 sm:w-auto sm:justify-end">
+                  {divisionRules.length > 0 && (
+                    <label
+                      className="flex items-center gap-1 no-print"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <span className="tt-inline-label">신청 종별</span>
+                      <select
+                        value={token?.category ?? ""}
+                        onChange={(e) => changeCategory(tt.id, e.target.value)}
+                        disabled={actionLoading === tt.id}
+                        className="tt-category-select"
+                        title="신청 종별 변경"
+                      >
+                        <option value="" disabled>
+                          종별 선택
+                        </option>
+                        {token?.category &&
+                          !divisionRules.some((rule) => rule.code === token.category) && (
+                            <option value={token.category}>{token.category}</option>
+                          )}
+                        {divisionRules.map((d) => (
+                          <option key={d.code} value={d.code}>
+                            {d.label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  )}
                   {/* Phase 2-C — 토큰 URL 복사 버튼 */}
                   {/* 토큰 자체가 발급된 적이 없는 팀(직접 등록 등) = "-" / 만료 = "만료" 표시 */}
                   {token ? (
@@ -892,7 +1018,8 @@ export default function TournamentTeamsPage() {
           })}
                   </div>
                 </section>
-              ))}
+                );
+              })}
             </div>
           );
         })()
@@ -962,10 +1089,15 @@ export default function TournamentTeamsPage() {
                       <select
                         value={token?.category ?? ""}
                         onChange={(e) => changeCategory(expandedTeam.id, e.target.value)}
+                        disabled={actionLoading === expandedTeam.id}
                         className="tt-category-select no-print"
                         title="종별 변경"
                       >
                         <option value="" disabled>종별 선택</option>
+                        {token?.category &&
+                          !divisionRules.some((rule) => rule.code === token.category) && (
+                            <option value={token.category}>{token.category}</option>
+                          )}
                         {divisionRules.map((d) => (
                           <option key={d.code} value={d.code}>{d.label}</option>
                         ))}

@@ -21,7 +21,7 @@ import { adminLog } from "@/lib/admin/log";
 type Ctx = { params: Promise<{ id: string; ttId: string }> };
 
 const BodySchema = z.object({
-  category: z.string().trim().min(1).max(20),
+  category: z.string().trim().min(1).max(40),
 });
 
 export async function PATCH(req: NextRequest, { params }: Ctx) {
@@ -65,10 +65,13 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
   const previous = tt.category;
 
   // 트랜잭션 — TournamentTeam + TournamentTeamPlayer division_code 동시 sync
-  await prisma.$transaction([
+  const [, playerUpdate] = await prisma.$transaction([
     prisma.tournamentTeam.update({
       where: { id: tt.id },
-      data: { category },
+      data: {
+        category,
+        division: category,
+      },
     }),
     prisma.tournamentTeamPlayer.updateMany({
       where: { tournamentTeamId: tt.id },
@@ -83,5 +86,11 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
     severity: "warning",
   });
 
-  return apiSuccess({ ok: true, changed: true, previous, current: category });
+  return apiSuccess({
+    ok: true,
+    changed: true,
+    previous,
+    current: category,
+    playerCount: playerUpdate.count,
+  });
 }

@@ -226,18 +226,18 @@ export async function POST(
   const deleteCodes = deleteRules.map((rule) => rule.code);
   if (deleteCodes.length > 0) {
     const [teamRefs, playerRefs, matchRefs] = await Promise.all([
-      prisma.tournamentTeam.findMany({
+      prisma.tournamentTeam.groupBy({
+        by: ["category"],
         where: { tournamentId: id, category: { in: deleteCodes } },
-        select: { category: true },
-        distinct: ["category"],
+        _count: { _all: true },
       }),
-      prisma.tournamentTeamPlayer.findMany({
+      prisma.tournamentTeamPlayer.groupBy({
+        by: ["division_code"],
         where: {
           division_code: { in: deleteCodes },
           tournamentTeam: { tournamentId: id },
         },
-        select: { division_code: true },
-        distinct: ["division_code"],
+        _count: { _all: true },
       }),
       Promise.all(
         deleteCodes.map(async (code) => {
@@ -247,21 +247,39 @@ export async function POST(
               settings: { path: ["division_code"], equals: code },
             },
           });
-          return count > 0 ? code : null;
+          return count > 0 ? { code, count } : null;
         }),
       ),
     ]);
 
-    const blockedCodes = new Set(
-      [
-        ...teamRefs.map((row) => row.category),
-        ...playerRefs.map((row) => row.division_code),
-        ...matchRefs,
-      ].filter((code): code is string => typeof code === "string" && code.length > 0),
+    const teamCountByCode = new Map(
+      teamRefs
+        .filter((row) => typeof row.category === "string")
+        .map((row) => [row.category as string, row._count._all]),
     );
-    if (blockedCodes.size > 0) {
+    const playerCountByCode = new Map(
+      playerRefs
+        .filter((row) => typeof row.division_code === "string")
+        .map((row) => [row.division_code as string, row._count._all]),
+    );
+    const matchCountByCode = new Map(
+      matchRefs
+        .filter((row): row is { code: string; count: number } => !!row)
+        .map((row) => [row.code, row.count]),
+    );
+    const blockedSummaries = deleteCodes
+      .map((code) => {
+        const details = [
+          teamCountByCode.has(code) ? `팀 ${teamCountByCode.get(code)}팀` : null,
+          playerCountByCode.has(code) ? `선수 ${playerCountByCode.get(code)}명` : null,
+          matchCountByCode.has(code) ? `경기 ${matchCountByCode.get(code)}경기` : null,
+        ].filter(Boolean);
+        return details.length > 0 ? `${code}(${details.join(", ")})` : null;
+      })
+      .filter((summary): summary is string => !!summary);
+    if (blockedSummaries.length > 0) {
       return apiError(
-        `팀 또는 경기가 연결된 종별은 삭제할 수 없습니다: ${[...blockedCodes].join(", ")}`,
+        `연결된 참가팀·선수·경기가 있어 삭제할 수 없습니다. 참가팀 탭에서 신청 종별을 먼저 이동하세요: ${blockedSummaries.join(", ")}`,
         409,
         "DIVISION_IN_USE",
       );

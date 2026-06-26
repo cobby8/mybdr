@@ -6,6 +6,7 @@
 ## Progress
 | Area | Status | Note |
 |---|---|---|
+| Tournament division ops | Done | Team category moves now sync team division/player division codes and expose single/bulk move controls. |
 | Theme tokens | Done | Added `--color-on-primary` so red primary buttons render white text/icons. |
 | Live box score | Done | Per-team basic/advanced toggle added beside team name; help icon added at each table header. |
 | Admin game rules | Done | `game_time`/`game_method` now derive from canonical `game_rules` instead of free text. |
@@ -14,6 +15,7 @@
 | Admin Toss sweep | In Progress | v2(41) state/cleanup pass added Toss confirm/prompt modals and first loading/empty helpers; dev/main are synced. |
 
 ## Work Log
+- 2026-06-26: Fixed tournament team division operations for next-day live ops: single/bulk team category moves now sync team division and player division codes, team cards expose category selects, and delete blocks show linked counts; TypeScript passed.
 - 2026-06-26: Applied BDR v2 (41) admin Toss state pass: destructive confirms and prompt flows now use Toss modals, state helpers/skeletons are in `admin-toss`, and dev/main were pushed.
 - 2026-06-26: Wired previous tournament import to real DB/API, removed venue mock fallback, linked wizard PDF/association actions, and replaced teams panel player error alerts with Toss toast; TypeScript passed and dev/main were pushed.
 - 2026-06-26: Cleaned recorders/admins panels to shared Toss `tp-*` list/message/avatar classes; scans are clean and TypeScript passed.

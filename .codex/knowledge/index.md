@@ -1,5 +1,6 @@
 # Knowledge Index
 
+- 2026-06-26 admin: tournament team category moves now sync `TournamentTeam.category`, `TournamentTeam.division`, and player `division_code`; teams panel exposes single-team and group bulk move controls for live operations.
 - 2026-06-26 admin: BDR v2 (41) state cleanup added shared Toss `useTossConfirm`/`useTossPrompt`, removing browser confirm/prompt/alert from `tournament-admin` paths.
 - 2026-06-26 admin: Toss `Skel`/`SkelTable`/`ErrState`/`PermState` helpers and `st-*` CSS were added; panel loading and admins/recorders empty states now use the v2.42 state pattern.
 - 2026-06-26 admin: new tournament wizard previous-import now reads real manageable tournaments, venue search no longer falls back to hardcoded mock venues, PDF/association actions navigate to real routes, and teams player errors use Toss toast.
@@ -51,6 +52,7 @@ Updated: 2026-06-26
 | lessons.md | 0 | - |
 
 Recent work:
+- 2026-06-26 admin: tournament team division operations were fixed for live use with single/bulk category move controls, team/player division sync, and clearer division delete blocking messages.
 - 2026-06-26 admin: BDR v2 (41) state/cleanup pass replaced destructive browser confirms and prompt flows with Toss modals, added Toss state helpers/skeleton CSS, and pushed dev/main.
 - 2026-06-26 admin: new tournament wizard previous import, venue search, PDF/association actions, and teams player error feedback were wired to real APIs/routes/Toss toast and pushed through dev/main.
 - 2026-06-26 admin: recorders/admins panel list rows, messages, avatars, role badges, and danger actions were normalized to shared Toss `tp-*` classes.
