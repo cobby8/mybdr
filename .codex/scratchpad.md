@@ -25,6 +25,7 @@
 | Tournament admin standalone shell | Done | `/tournament-admin/*` now uses the v2.41/v2.42 standalone Toss workspace layout without the legacy global admin sidebar. |
 
 ## Work Log
+- 2026-06-27: Replaced remaining Material ligature icons on `/tournament-admin/tournaments` with admin Toss lucide `Icon` components; local Chrome verified no ligature text or legacy sidebar residue; TypeScript passed.
 - 2026-06-27: Removed the legacy global admin sidebar from `/tournament-admin/*`, kept auth/permission guards, and verified list/detail pages render as standalone Toss workspaces at 1240px without `light_mode` sidebar residue; TypeScript passed.
 - 2026-06-27: Stabilized tournament teams category rendering by preserving raw DB category values while displaying/grouping by active division rules; local Chrome verified 8 teams show `남성 일반부` with no `?? ???`; TypeScript passed.
 - 2026-06-27: Replaced `/admin/tournaments` with a clean Toss v2.41 tournament list, removed the legacy detail/delete drawer path from row interaction, verified Chrome local row-click routing to the operate workspace, and TypeScript passed.
@@ -34,5 +35,3 @@
 - 2026-06-27: Tightened tournament operate bracket tab around the Toss v2.41 flow: single-division category fallback, generation summary, and generated matches grouped by prelim/dual/knockout stages; TypeScript and production build passed.
 - 2026-06-27: Rebuilt tournament operate teams panel around the Toss v2.41 flow so division status, single/bulk category moves, approval/payment, tokens, and player roster actions are first-screen operations; TypeScript and production build passed.
 - 2026-06-27: Removed first-empty-slot fallback from single-elim winner advancement; winners now require and use explicit `next_match_slot`, with targeted Vitest and TypeScript passing.
-- 2026-06-27: Set Gangnam Association Cup D5 tournament and all 13 matches to `recording_mode=paper`, renamed user-facing score-sheet copy to "전자기록지", and kept internal `paper`/`[종이 기록]` data keys for compatibility; TypeScript passed.
-- 2026-06-27: Fixed single-division bracket data fallback for corrupted team category values so the operate bracket tab recognizes approved teams and normalizes categories on draw/generate; TypeScript and production build passed.

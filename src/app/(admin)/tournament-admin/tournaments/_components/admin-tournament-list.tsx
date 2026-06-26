@@ -6,6 +6,7 @@ import {
   TOURNAMENT_STATUS_LABEL,
   TOURNAMENT_FORMAT_LABEL,
 } from "@/lib/constants/tournament-status";
+import { Icon } from "@/components/admin-toss";
 
 /* ============================================================
  * AdminTournamentList — A1 (PR-1C-7 박제 2026-05-28)
@@ -138,7 +139,7 @@ export function AdminTournamentList({ rows }: { rows: AdminTournamentRow[] }) {
         <div style={{ flex: 1 }} />
         {/* 검색 — 대회명 (시안은 시리즈도 검색하나 운영 fetch 미포함 → 이름만) */}
         <div className="atm-toolbar__search" style={{ marginLeft: "auto" }}>
-          <span className="ico material-symbols-outlined">search</span>
+          <Icon name="search" size={18} className="ico" />
           <input
             placeholder="대회명 검색"
             value={q}
@@ -194,7 +195,7 @@ export function AdminTournamentList({ rows }: { rows: AdminTournamentRow[] }) {
                 )}
               </div>
               <span className="aen-row__cta">
-                <span className="ico material-symbols-outlined">chevron_right</span>
+                <Icon name="chevron-right" size={20} className="ico" />
               </span>
             </Link>
           );
@@ -202,7 +203,9 @@ export function AdminTournamentList({ rows }: { rows: AdminTournamentRow[] }) {
         {/* 검색/필터 결과 0건 — adv-empty */}
         {filtered.length === 0 && (
           <div className="adv-empty">
-            <span className="adv-empty__icon ico material-symbols-outlined">inbox</span>
+            <span className="adv-empty__icon ico">
+              <Icon name="inbox" size={38} />
+            </span>
             <div className="adv-empty__h">조건에 맞는 대회가 없어요</div>
             <div className="adv-empty__sub">
               {grouped.length === 0

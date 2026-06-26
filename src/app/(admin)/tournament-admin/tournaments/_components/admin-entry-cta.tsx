@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { Icon } from "@/components/admin-toss";
 
 /* ============================================================
  * AdminEntryCta — A1 (PR-1C-7 박제 2026-05-28)
@@ -28,7 +29,7 @@ import Link from "next/link";
 interface EntryOption {
   key: string;
   name: string;
-  icon: string; // Material Symbols Outlined
+  icon: string;
   time: string;
   case: string;
   sub: string;
@@ -41,7 +42,7 @@ const ENTRY_OPTIONS: EntryOption[] = [
   {
     key: "quick",
     name: "Quick · 빠르게 시작",
-    icon: "flash_on",
+    icon: "zap",
     time: "1분",
     case: "이전 대회 비슷하게",
     sub: "이름·시작일만 입력. 셋업은 hub 에서 차근차근.",
@@ -52,7 +53,7 @@ const ENTRY_OPTIONS: EntryOption[] = [
   {
     key: "legacy",
     name: "단계별 설정",
-    icon: "list_alt",
+    icon: "list",
     time: "5분",
     case: "처음부터 꼼꼼히",
     sub: "3-step 마법사 — 대회정보 / 참가설정 / 확인.",
@@ -62,7 +63,7 @@ const ENTRY_OPTIONS: EntryOption[] = [
   {
     key: "prospectus",
     name: "PDF 요강",
-    icon: "description",
+    icon: "file-text",
     time: "3분",
     case: "협회 요강 PDF 가 있을 때",
     sub: "PDF 업로드 → AI 가 종별·신청정책 자동 추출.",
@@ -72,7 +73,7 @@ const ENTRY_OPTIONS: EntryOption[] = [
   {
     key: "association",
     name: "협회 대회",
-    icon: "workspace_premium",
+    icon: "award",
     time: "7분",
     case: "협회 등록 + 종별 위임",
     sub: "협회 단체 등록 + 시리즈 + 권한 위임 4-step.",
@@ -97,17 +98,15 @@ export function AdminEntryCta({ isSuperAdmin = false }: { isSuperAdmin?: boolean
             이전 대회 빠르게 복제 · 처음부터 꼼꼼히 · PDF 요강에서 자동 · 협회 등록.
           </p>
         </div>
-        {/* 펼침 토글 — panelOpen 따라 expand_more/less 아이콘 전환 */}
+        {/* 펼침 토글 — panelOpen 따라 lucide chevron 아이콘 전환 */}
         <button
           type="button"
           className="aen-hero__cta"
           onClick={() => setPanelOpen((v) => !v)}
         >
-          <span className="ico material-symbols-outlined">add_circle</span>
+          <Icon name="circle-plus" size={18} className="ico" />
           새 대회 만들기
-          <span className="ico material-symbols-outlined">
-            {panelOpen ? "expand_less" : "expand_more"}
-          </span>
+          <Icon name={panelOpen ? "chevron-up" : "chevron-down"} size={18} className="ico" />
         </button>
       </div>
 
@@ -122,7 +121,7 @@ export function AdminEntryCta({ isSuperAdmin = false }: { isSuperAdmin?: boolean
               onClick={() => setPanelOpen(false)}
               aria-label="닫기"
             >
-              <span className="ico material-symbols-outlined">close</span>
+              <Icon name="x" size={18} className="ico" />
             </button>
           </div>
           <div className="aen-grid">
@@ -138,15 +137,15 @@ export function AdminEntryCta({ isSuperAdmin = false }: { isSuperAdmin?: boolean
                 <Link key={o.key} href={o.href} className={cls}>
                   {o.rec && <span className="aen-opt__rec-chip">추천</span>}
                   <div className="aen-opt__head">
-                    <span className="aen-opt__icon ico material-symbols-outlined">
-                      {o.icon}
+                    <span className="aen-opt__icon ico">
+                      <Icon name={o.icon} size={22} />
                     </span>
                     <h4 className="aen-opt__name">{o.name}</h4>
                   </div>
                   <p className="aen-opt__sub">{o.sub}</p>
                   <div className="aen-opt__meta">
                     <span className="aen-opt__time">
-                      <span className="ico material-symbols-outlined">schedule</span>
+                      <Icon name="clock" size={13} className="ico" />
                       예상 {o.time}
                     </span>
                     <span className="aen-opt__case">{o.case}</span>
