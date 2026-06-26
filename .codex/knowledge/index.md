@@ -1,5 +1,7 @@
 # Knowledge Index
 
+- 2026-06-27 admin: `AdminMobileNav` now renders Toss `ad-mobile-*` and `ad-side-*` drawer classes while preserving ESC close, route close, body scroll lock, and role-filtered links.
+
 - 2026-06-27 admin: shared `AdminShell` now uses Toss `ad-shell`/`ad-main`/`ad-topbar`/`ad-main__inner` wrappers with scoped Toss CSS; local Chrome confirmed `/admin/tournaments` has no old shell DOM classes.
 
 - 2026-06-27 admin: shared `AdminPageHeader` now renders the Toss `ts-ph` structure while preserving existing props, search form, actions, and breadcrumbs.
@@ -66,6 +68,7 @@ Updated: 2026-06-27
 | lessons.md | 0 | - |
 
 Recent work:
+- 2026-06-27 admin: mobile admin navigation was rebuilt on Toss `ad-mobile-*`/`ad-side-*` classes; TypeScript, cleanup scan, diff check, and local Chrome `/admin/tournaments` DOM check passed.
 - 2026-06-27 admin: shared `AdminShell` was moved from old shell wrapper classes to Toss `ad-*` shell wrappers; TypeScript, diff check, local Chrome `/admin/tournaments`, and operate workspace DOM checks passed.
 - 2026-06-27 admin: shared `AdminPageHeader` was rebuilt on canonical Toss `ts-ph` markup without changing callers; local Chrome confirmed `/admin/tournaments` and `/tournament-admin/tournaments` render with no `admin-pageheader` DOM residue.
 - 2026-06-27 admin: admin-scope Material Symbols and `components/ui` dependencies were removed; icons now route through admin Toss lucide aliases, loading skeletons use Toss `st-skel`, and local Chrome verified `/admin/tournaments` plus operate workspace with no `material-symbols-outlined`/`au-*`/`ta-*` DOM residue.

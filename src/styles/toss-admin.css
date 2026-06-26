@@ -1388,6 +1388,180 @@
   [data-skin="toss"] .ad-main button { font-size: 16px; }
 }
 
+/* ── 모바일 관리자 드로어 ─────────────────────────────────── */
+[data-skin="toss"].ad-mobile-toggle {
+  display: none;
+  position: fixed;
+  top: 12px;
+  left: 12px;
+  z-index: 50;
+  width: 44px;
+  height: 44px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-btn);
+  background: var(--card);
+  color: var(--ink);
+  box-shadow: var(--sh-xs);
+  cursor: pointer;
+}
+[data-skin="toss"].ad-mobile-toggle:hover { background: var(--grey-50); }
+
+[data-skin="toss"].ad-mobile-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: rgba(25, 31, 40, 0.42);
+  animation: tsfade .15s ease;
+}
+[data-skin="toss"].ad-mobile-overlay[data-open="true"] { display: block; }
+
+[data-skin="toss"].ad-mobile-drawer {
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  z-index: 70;
+  width: min(360px, 88vw);
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--border);
+  background: var(--card);
+  box-shadow: var(--sh-lg);
+  transform: translateX(-100%);
+  transition: transform .22s cubic-bezier(.2,.8,.2,1);
+}
+[data-skin="toss"].ad-mobile-drawer[data-open="true"] { transform: translateX(0); }
+
+[data-skin="toss"] .ad-mobile-drawer__head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  border-bottom: 1px solid var(--border);
+}
+[data-skin="toss"] .ad-mobile-drawer__avatar {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: var(--primary);
+  color: var(--primary-fg);
+  font-family: var(--ff-mono);
+  font-weight: 800;
+}
+[data-skin="toss"] .ad-mobile-drawer__identity { flex: 1; min-width: 0; }
+[data-skin="toss"] .ad-mobile-drawer__name {
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 14.5px;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+[data-skin="toss"] .ad-mobile-drawer__email {
+  overflow: hidden;
+  color: var(--ink-mute);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+[data-skin="toss"] .ad-mobile-drawer__brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+  text-decoration: none;
+}
+[data-skin="toss"] .ad-side-logo-badge {
+  border-radius: 7px;
+  background: var(--primary);
+  color: var(--primary-fg);
+  padding: 3px 7px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .06em;
+}
+[data-skin="toss"] .ad-mobile-close {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  border: 0;
+  border-radius: 10px;
+  background: var(--grey-100);
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+[data-skin="toss"] .ad-mobile-close:hover {
+  background: var(--grey-200);
+  color: var(--ink);
+}
+[data-skin="toss"] .ad-mobile-drawer__body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+}
+[data-skin="toss"] .ad-side-group { margin-bottom: 12px; }
+[data-skin="toss"] .ad-side-title {
+  padding: 9px 12px 5px;
+  color: var(--ink-dim);
+  font-size: 11px;
+  font-weight: 800;
+}
+[data-skin="toss"] .ad-side-link,
+[data-skin="toss"] .ad-side-foot-link {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  border: 0;
+  border-radius: 14px;
+  background: transparent;
+  color: var(--ink-soft);
+  font-family: var(--ff);
+  font-size: 14px;
+  font-weight: 700;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+[data-skin="toss"] .ad-side-link { padding: 8px 12px; }
+[data-skin="toss"] .ad-side-link[data-child="true"] { padding-left: 38px; font-size: 13.5px; }
+[data-skin="toss"] .ad-side-link:hover,
+[data-skin="toss"] .ad-side-foot-link:hover {
+  background: var(--grey-50);
+  color: var(--ink);
+}
+[data-skin="toss"] .ad-side-link[data-active="true"] {
+  background: var(--primary-weak);
+  color: var(--primary);
+}
+[data-skin="toss"] .ad-mobile-drawer__foot {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px 14px;
+  border-top: 1px solid var(--border);
+}
+[data-skin="toss"] .ad-mobile-drawer__theme {
+  display: flex;
+  justify-content: center;
+  padding: 4px 6px 6px;
+}
+[data-skin="toss"] .ad-side-foot-link { padding: 8px 10px; }
+
+@media (max-width: 1024px) {
+  [data-skin="toss"].ad-mobile-toggle { display: inline-flex; }
+}
+
 /* ── 통합 페이지 헤더 (PageHead) ──────────────────────────── */
 [data-skin="toss"] .ad-head { margin-bottom: 24px; }
 [data-skin="toss"] .ad-head__row { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
