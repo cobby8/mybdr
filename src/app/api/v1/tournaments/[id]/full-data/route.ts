@@ -12,6 +12,7 @@ import { isSuperAdmin } from "@/lib/auth/is-super-admin";
 import { isRecorderAdmin } from "@/lib/auth/is-recorder-admin";
 import { toGameRulesResponse } from "@/lib/tournaments/game-rules";
 import { getRecordingMode, getTournamentDefaultMode } from "@/lib/tournaments/recording-mode";
+import { normalizeMatchStatusForApi } from "@/lib/constants/match-status";
 
 // FR-024: 토너먼트 전체 데이터 다운로드 (Flutter 오프라인 동기화)
 // 이 라우트는 Flutter와의 호환성을 위해 명시적 snake_case 사용
@@ -131,7 +132,7 @@ async function handler(
       scheduled_at: m.scheduledAt?.toISOString() ?? null,
       started_at: m.started_at?.toISOString() ?? null,
       ended_at: m.ended_at?.toISOString() ?? null,
-      status: m.status,
+      status: normalizeMatchStatusForApi(m.status),
       home_score: m.homeScore,
       away_score: m.awayScore,
       winner_team_id: m.winner_team_id ? Number(m.winner_team_id) : null,

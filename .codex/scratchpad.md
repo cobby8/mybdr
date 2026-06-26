@@ -1,11 +1,14 @@
 # Scratchpad
 
 ## Current Work
-- 2026-06-26 tournament-admin: v2.41 admin Toss/function-lock implementation is in progress.
+- 2026-06-26 merge: admin Toss implementation + live/theme remote updates are being integrated to main.
 
 ## Progress
 | Area | Status | Note |
 |---|---|---|
+| Theme tokens | Done | Added `--color-on-primary` so red primary buttons render white text/icons. |
+| Live box score | Done | Per-team `기본/고급` toggle added beside team name; help icon added at each table header. |
+| Verification | Partial | Target TSX transpile and `git diff --check` passed; full `tsc` is blocked by stale `.next` validator route refs. |
 | Push/main merge | Done | Existing dev work and bdr_stat_v3 fix were pushed; mybdr dev was merged to main. |
 | Admin game rules | Done | `game_time`/`game_method` now derive from canonical `game_rules` instead of free text. |
 | Recording modes | Done | Match-level `manual` is counted, displayed, and blocked from Flutter/score-sheet system inputs. |
@@ -14,20 +17,10 @@
 | Tournament admin implementation | In Progress | Matches score modal now exposes the existing manual recording mode. |
 
 ## Work Log
-- 2026-06-26: Converted remaining `bracket-panel` Card/Button wrappers to Toss `ts-card`/`ts-btn`/`ct-emptybox`; TypeScript passed.
-- 2026-06-26: Converted `teams-panel` empty state and team row cards to Toss wrappers; TypeScript passed.
-- 2026-06-26: Converted `AdvancePlayoffsButton` result/error modals to Toss `ts-card` sections; TypeScript passed.
-- 2026-06-26: Converted `DivisionGenerateButton` result/error modals to Toss `ts-card` sections; TypeScript passed.
-- 2026-06-26: Converted `StandingsTable` empty/normal wrappers to Toss `ts-card` sections; TypeScript passed.
-- 2026-06-26: Converted `PlaceholderValidationBanner` to a Toss `ts-card` warning section and removed stale BDR/icon wording; TypeScript passed.
-- 2026-06-26: Converted `NextStepCTA` to Toss `ts-card` wrappers and updated stale admin design wording; TypeScript passed.
-- 2026-06-26: Removed the site panel shadcn Button dependency in favor of Toss `ts-btn` controls; TypeScript passed.
-- 2026-06-26: Replaced the recording mode card wrapper with Toss `ts-card` and removed stale Material Symbols/Card wording; TypeScript passed.
-- 2026-06-26: Converted the recorders panel add/list/assignment wrappers from UI Card/Button to Toss `ts-*` sections; TypeScript passed.
-- 2026-06-26: Converted the tournament admins panel from UI Card/Button wrappers to Toss `ts-*`/`ct-emptybox` classes; TypeScript passed.
-- 2026-06-26: Replaced the matches panel empty states with Toss `ct-emptybox` wrappers and removed its UI Card dependency; TypeScript passed.
-- 2026-06-26: Updated setup progress to treat `manual` as a configured recording mode; targeted Vitest and TypeScript passed.
-- 2026-06-26: Aligned the tournament admin match edit modal with the existing `manual` recording-mode contract; TypeScript passed.
+- 2026-06-26: Converted all remaining tournament-admin `Card/Button` wrappers in target panels/components to Toss `ts-*` wrappers; TypeScript passed.
+- 2026-06-26: Defined `--color-on-primary` to fix black text/icons on red primary buttons.
+- 2026-06-26: Added live box score `기본/고급` toggle, advanced stats, and one help popover per team table.
+- 2026-06-26: Updated setup progress and match edit modal to treat `manual` as a real recording mode; targeted Vitest and TypeScript passed.
 - 2026-06-26: Absorbed v2.41 admin Toss reverse-bake handoff into `BDR-current`, preserving B1 QA lock docs; no src changes.
 - 2026-06-26: Restored the tournament creation CTA on the tournament admin list page and verified TypeScript.
 - 2026-06-26: Pushed/merged prior fixes, then aligned tournament admin game-rule display and match-level manual recording-mode guards.
@@ -37,4 +30,3 @@
 - 2026-06-25: Added manual group assignment controls to tournament admin team cards using the existing team PATCH API.
 - 2026-06-25: Restored tournament admin edit fields for bank info, roster/waiting list, rules/prize info, and logo/banner media.
 - 2026-06-25: Updated group-stage knockout seeding so 2-rank qualifiers from the same group cannot meet before the final for 2~12 groups.
-- 2026-06-25: Fixed tournament admin edit/delete persistence for venue, division rules, and stale div schedule refs.

@@ -4,6 +4,7 @@ import { requireRecorder } from "@/lib/auth/require-recorder";
 import { apiSuccess, apiError } from "@/lib/api/response";
 import { updateScoreForEvent } from "@/lib/tournaments/score-updater";
 import { listMatchEvents, createMatchEvent, getMatchScore } from "@/lib/services/match";
+import { isLiveMatchStatus } from "@/lib/constants/match-status";
 
 // Flutter 클라이언트는 snake_case로 전송
 const eventSchema = z.object({
@@ -63,7 +64,7 @@ export async function POST(
 
     const match = await getMatchScore(matchId);
     if (!match) return apiError("경기를 찾을 수 없습니다.", 404);
-    if (match.status !== "in_progress") {
+    if (!isLiveMatchStatus(match.status)) {
       return apiError("진행 중인 경기에만 이벤트를 기록할 수 있습니다.", 400);
     }
 

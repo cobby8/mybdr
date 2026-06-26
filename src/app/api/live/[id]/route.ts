@@ -18,6 +18,10 @@ import { computeScoreFromPbp } from "@/lib/tournaments/score-from-pbp";
 // 2026-05-13 FIBA Phase 21: 종이 매치(`settings.recording_mode = "paper"`) 박스스코어 슈팅 6 컬럼 (FG/FG%/3P/3P%/FT/FT%) 클라이언트 hide 게이팅.
 // 종이 기록 = miss/시도 미박제 → 시도=성공=100% → 가짜 정확도 시각 노이즈 차단. 응답에 recording_mode 노출 (snake_case 변환됨).
 import { getRecordingMode } from "@/lib/tournaments/recording-mode";
+import {
+  isLiveMatchStatus,
+  normalizeMatchStatusForApi,
+} from "@/lib/constants/match-status";
 // 비공개 대회 노출 차단 가드 (SSR page.tsx / public-* API와 동일 정책 — insider 외 차단).
 //   원격 보안수정(55db5c00)이 신설한 공용 헬퍼 재사용 — 라이브 박스스코어/PBP 잔여 구멍 봉쇄.
 import { blockIfPrivateTournament } from "@/lib/auth/private-tournament-guard";
@@ -147,6 +151,7 @@ export async function GET(
     if (!match) {
       return apiError("Match not found", 404);
     }
+    const matchStatus = normalizeMatchStatusForApi(match.status);
 
     // 비공개 대회 가드: 관계자(insider) 외에는 존재 숨김.
     //   라이브 박스스코어(선수별 기록 전체)+PBP 노출 전에 early return — 가장 심각한 잔여 구멍 봉쇄.
@@ -239,7 +244,12 @@ export async function GET(
       // 라이브(진행중) 매치들의 current_quarter 일괄 도출 — PBP 최신 quarter group by
       // 부하 가드: 같은 날 라이브 매치는 보통 1~3건. PBP groupBy 1회로 일괄 처리.
       const liveMatchIds = sameDayMatches
-        .filter((m) => m.started_at !== null && m.ended_at === null)
+        .filter(
+          (m) =>
+            m.status !== "completed" &&
+            (isLiveMatchStatus(m.status) ||
+              (m.started_at !== null && m.ended_at === null))
+        )
         .map((m) => m.id);
 
       const quarterMap = new Map<bigint, number>();
@@ -260,17 +270,19 @@ export async function GET(
         // 2026-05-17 fix — status 우선 판정 (ended_at 박제 누락 path 방어).
         //   사고: score-sheet submit / Flutter sync 가 status='completed' 박제하면서 ended_at NULL → 화면에 잘못된 LIVE 표시.
         //   룰: status='completed' = 무조건 isCompleted 우선 / 'in_progress' = isLive / 그 외 = 예정.
-        const isCompleted = m.status === "completed" || m.ended_at !== null;
+        const status = normalizeMatchStatusForApi(m.status);
+        const isCompleted = status === "completed" || m.ended_at !== null;
         const isLive =
           !isCompleted &&
-          (m.status === "in_progress" || (m.started_at !== null && m.ended_at === null));
+          (isLiveMatchStatus(m.status) ||
+            (m.started_at !== null && m.ended_at === null));
         // 2026-05-17 — period_format 표시 분기 (halves vs quarters)
         const settings = (m.settings ?? {}) as { period_format?: string };
         const periodFormat = typeof settings.period_format === "string" ? settings.period_format : null;
         return {
           id: Number(m.id),
           scheduled_at: m.scheduledAt?.toISOString() ?? null,
-          status: m.status ?? null,
+          status,
           period_format: periodFormat,
           // 라이브 매치만 current_quarter 노출. 종료/예정 매치는 null.
           current_quarter: isLive ? quarterMap.get(m.id) ?? null : null,
@@ -461,7 +473,7 @@ export async function GET(
         [
           String(matchId),
           {
-            status: match.status ?? null,
+            status: matchStatus,
             settings: match.settings ?? null,
             homeTtpIds: (match.homeTeam?.players ?? []).map((p) => p.id),
             awayTtpIds: (match.awayTeam?.players ?? []).map((p) => p.id),
@@ -1401,7 +1413,7 @@ export async function GET(
         // 2026-05-05 PR4: 라이브 페이지 운영자 모달 (W1 임시 번호) 가 사용 — admin-check + jersey-override API 호출용.
         // tournament.id 는 String @db.Uuid (TournamentMatch.tournamentId 와 동일).
         tournamentId: match.tournamentId,
-        status: match.status ?? "scheduled",
+        status: matchStatus,
         homeScore: finalHomeScore,
         awayScore: finalAwayScore,
         roundName: match.roundName,
