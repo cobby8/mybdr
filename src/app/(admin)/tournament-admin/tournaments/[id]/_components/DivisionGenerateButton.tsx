@@ -12,16 +12,15 @@
  *   - 응답 (apiSuccess snake_case): { division_code, format, generated, skipped, deleted, reason, match_ids, version_number }
  *   - 결과 모달 = AdvancePlayoffsButton 패턴 재사용 (Card + 결과 표 + success/warning 톤)
  *
- * 디자인 룰 (BDR 13):
+ * 디자인 룰 (admin Toss):
  *   - var(--color-info) Navy 톤 trigger 버튼 / rounded-[4px] / lucide "refresh-cw" (Track B-c)
- *   - 모달 = Card 패턴 / var(--color-success) (생성 성공) 또는 var(--color-warning) (skip/stub) 배너
+ *   - 모달 = Toss ts-card / var(--color-success) (생성 성공) 또는 var(--color-warning) (skip/stub) 배너
  *   - 모바일 44px+ 터치
  */
 
 "use client";
 
 import { useState } from "react";
-import { Card } from "@/components/ui/card";
 // Track B-c Toss 리스킨 — Material Symbols → lucide-react 키트(<Icon>)
 import { Icon } from "@/components/admin-toss";
 
@@ -156,7 +155,9 @@ export function DivisionGenerateButton({
       {/* 에러 모달 — 네트워크/서버 오류 */}
       {error && (
         <ResultModal onClose={() => setError(null)}>
-          <Card
+          <section
+            data-skin="toss"
+            className="ts-card"
             style={{
               backgroundColor: "color-mix(in srgb, var(--color-error) 10%, transparent)",
               borderColor: "var(--color-error)",
@@ -193,14 +194,16 @@ export function DivisionGenerateButton({
                 닫기
               </button>
             </div>
-          </Card>
+          </section>
         </ResultModal>
       )}
 
       {/* 결과 모달 — 생성/스킵/삭제 카운트 표시 */}
       {result && (
         <ResultModal onClose={handleClose}>
-          <Card
+          <section
+            data-skin="toss"
+            className="ts-card"
             style={{
               backgroundColor: isSuccessTone
                 ? "color-mix(in srgb, var(--color-success) 10%, transparent)"
@@ -260,7 +263,7 @@ export function DivisionGenerateButton({
                 확인
               </button>
             </div>
-          </Card>
+          </section>
         </ResultModal>
       )}
     </>
