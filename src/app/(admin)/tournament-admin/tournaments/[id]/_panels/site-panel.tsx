@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useParams } from "next/navigation";
 import { PanelLoadingState } from "./panel-loading-state";
 import Link from "next/link";
+import { Icon } from "@/components/admin-toss";
 // 2026-05-11: BDR 브랜드 hex hardcode 단일화
 import { BDR_PRIMARY_HEX } from "@/lib/constants/colors";
 
@@ -84,34 +85,34 @@ function TemplateMockup({
 
   return (
     <div
-      className="overflow-hidden rounded-md border-2 border-transparent"
+      className="tsite-mockup"
       style={{ backgroundColor: template.bg, height: 120 }}
     >
       {/* 네비 */}
       <div
-        className="flex h-7 items-center gap-1 px-2"
+        className="tsite-mockup__nav"
         style={{ backgroundColor: nav }}
       >
-        <div className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: navTextColor, opacity: 0.5 }} />
-        <div className="h-1.5 w-8 rounded-full" style={{ backgroundColor: navTextColor, opacity: 0.8 }} />
-        <div className="ml-auto flex gap-1">
+        <div className="tsite-mockup__dot" style={{ backgroundColor: navTextColor, opacity: 0.5 }} />
+        <div className="tsite-mockup__bar tsite-mockup__bar--nav" style={{ backgroundColor: navTextColor, opacity: 0.8 }} />
+        <div className="tsite-mockup__links">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="h-1.5 w-4 rounded-full" style={{ backgroundColor: navTextColor, opacity: 0.5 }} />
+            <div key={i} className="tsite-mockup__bar tsite-mockup__bar--link" style={{ backgroundColor: navTextColor, opacity: 0.5 }} />
           ))}
         </div>
       </div>
       {/* 히어로 */}
-      <div className="mx-2 mt-2 h-5 rounded-lg" style={{ backgroundColor: accentColor, opacity: 0.15 }}>
-        <div className="flex h-full items-center justify-center">
-          <div className="h-1.5 w-16 rounded-full" style={{ backgroundColor: accentColor, opacity: 0.7 }} />
+      <div className="tsite-mockup__hero" style={{ backgroundColor: accentColor, opacity: 0.15 }}>
+        <div className="tsite-mockup__hero-inner">
+          <div className="tsite-mockup__bar tsite-mockup__bar--hero" style={{ backgroundColor: accentColor, opacity: 0.7 }} />
         </div>
       </div>
       {/* 콘텐츠 행 */}
-      <div className="mx-2 mt-2 space-y-1.5">
+      <div className="tsite-mockup__body">
         {[0.8, 0.5, 0.3].map((op, i) => (
           <div
             key={i}
-            className="h-2 rounded-full"
+            className="tsite-mockup__bar tsite-mockup__bar--content"
             style={{ backgroundColor: template.cardBg, opacity: op, width: `${[80, 60, 45][i]}%` }}
           />
         ))}
@@ -226,15 +227,15 @@ export default function TournamentSitePage() {
     return (
       <div data-skin="toss">
         {/* 발행 중 상태 카드 */}
-        <div className="mb-6 rounded-md border border-[var(--color-success)]/30 bg-[var(--color-success)]/5 p-6">
-          <div className="flex items-center justify-between">
+        <div className="tsite-published-card">
+          <div className="tsite-published-card__inner">
             <div>
-              <p className="text-sm font-medium text-[var(--color-success)]">● 사이트 공개 중</p>
-              <p className="mt-0.5 font-mono text-lg font-semibold text-[var(--color-text-primary)]">
+              <p className="tsite-state-label" data-tone="ok">● 사이트 공개 중</p>
+              <p className="tsite-url">
                 {site.subdomain}.mybdr.kr
               </p>
             </div>
-            <div className="flex gap-2">
+            <div className="tsite-published-card__actions">
               {/* 2026-05-12 — pill 9999px ❌ → btn 클래스 (4px 라운딩 표준) */}
               <a
                 href={`https://${site.subdomain}.mybdr.kr`}
@@ -242,12 +243,13 @@ export default function TournamentSitePage() {
                 rel="noopener noreferrer"
                 className="ts-btn ts-btn--secondary ts-btn--sm"
               >
-                방문하기 ↗
+                <Icon name="external-link" size={14} />
+                방문하기
               </a>
               <button
                 onClick={() => togglePublish(false)}
                 disabled={publishing}
-                className="rounded-[4px] border border-[var(--color-error)]/30 px-4 py-2 text-sm text-[var(--color-error)] hover:bg-[var(--color-error)]/5 disabled:opacity-50"
+                className="ts-btn ts-btn--danger ts-btn--sm"
               >
                 {publishing ? "처리 중..." : "비공개 전환"}
               </button>
@@ -255,49 +257,43 @@ export default function TournamentSitePage() {
           </div>
         </div>
 
-        {/* [2026-04-22] 하드코딩 색상 → --color-* 토큰화 */}
+        {/* Toss error message */}
         {error && (
-          <div
-            className="mb-4 rounded-md px-4 py-3 text-sm"
-            style={{
-              backgroundColor: "color-mix(in srgb, var(--color-error) 10%, transparent)",
-              color: "var(--color-error)",
-            }}
-          >
+          <div className="tsite-message" data-tone="danger">
             {error}
           </div>
         )}
 
         {/* 수정 버튼들 */}
-        <div className="grid gap-3 md:grid-cols-3">
+        <div className="tsite-action-grid">
           <button
             onClick={() => setStep(1)}
-            className="rounded-md border border-[var(--color-border)] bg-white p-5 text-left shadow-sm transition-shadow hover:shadow-md"
+            className="tsite-action-card"
           >
-            <p className="text-2xl mb-2">🎨</p>
-            <p className="font-semibold text-[var(--color-text-primary)]">템플릿 변경</p>
-            <p className="mt-0.5 text-sm text-[var(--color-text-muted)]">
+            <span className="tsite-action-card__icon"><Icon name="layout-template" size={18} /></span>
+            <p className="tsite-action-card__title">템플릿 변경</p>
+            <p className="tsite-action-card__meta">
               {TEMPLATES.find((t) => t.slug === selectedTemplate)?.name ?? "Classic"}
             </p>
           </button>
           <button
             onClick={() => setStep(2)}
-            className="rounded-md border border-[var(--color-border)] bg-white p-5 text-left shadow-sm transition-shadow hover:shadow-md"
+            className="tsite-action-card"
           >
             <div
-              className="mb-2 h-8 w-8 rounded-full border-2 border-white shadow"
+              className="tsite-color-dot tsite-color-dot--large"
               style={{ backgroundColor: selectedColor }}
             />
-            <p className="font-semibold text-[var(--color-text-primary)]">색상 변경</p>
-            <p className="mt-0.5 font-mono text-sm text-[var(--color-text-muted)]">{selectedColor}</p>
+            <p className="tsite-action-card__title">색상 변경</p>
+            <p className="tsite-action-card__meta tsite-mono">{selectedColor}</p>
           </button>
           <Link
             href={`/tournament-admin/tournaments/${id}#publish`}
-            className="rounded-md border border-[var(--color-border)] bg-white p-5 text-left shadow-sm transition-shadow hover:shadow-md"
+            className="tsite-action-card"
           >
-            <p className="text-2xl mb-2">📄</p>
-            <p className="font-semibold text-[var(--color-text-primary)]">공지 페이지</p>
-            <p className="mt-0.5 text-sm text-[var(--color-text-muted)]">공지사항 작성</p>
+            <span className="tsite-action-card__icon"><Icon name="file-text" size={18} /></span>
+            <p className="tsite-action-card__title">공지 페이지</p>
+            <p className="tsite-action-card__meta">공지사항 작성</p>
           </Link>
         </div>
 
@@ -329,47 +325,35 @@ export default function TournamentSitePage() {
   return (
     // Track B-c — Toss 토큰 적용 루트 opt-in
     <div data-skin="toss">
-      <p className="mb-6 text-sm text-[var(--color-text-muted)]">
+      <p className="tsite-wizard-copy">
         3단계로 대회 전용 웹사이트를 만들어보세요
       </p>
 
       {/* 진행 표시 */}
-      <div className="mb-8 flex items-center gap-2">
+      <div className="tsite-steps">
         {[1, 2, 3].map((s) => (
-          <div key={s} className="flex items-center gap-2">
+          <div key={s} className="tsite-step">
             <div
               // 2026-05-12 — admin 빨강 본문 금지 (step indicator) → info(Navy)
-              className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold transition-colors ${
-                step === s
-                  ? "bg-[var(--color-info)] text-white"
-                  : step > s
-                  ? "bg-[var(--color-success)] text-white"
-                  : "bg-[var(--color-border)] text-[var(--color-text-muted)]"
-              }`}
+              className="tsite-step__dot"
+              data-state={step === s ? "active" : step > s ? "done" : "todo"}
             >
-              {step > s ? "✓" : s}
+              {step > s ? <Icon name="check" size={15} /> : s}
             </div>
             <span
-              className={`text-sm font-medium ${
-                step === s ? "text-[var(--color-text-primary)]" : "text-[var(--color-text-muted)]"
-              }`}
+              className="tsite-step__label"
+              data-current={step === s ? "true" : "false"}
             >
               {["템플릿", "색상", "발행"][s - 1]}
             </span>
-            {s < 3 && <div className="h-px w-8 bg-[var(--color-border)]" />}
+            {s < 3 && <div className="tsite-step__line" />}
           </div>
         ))}
       </div>
 
-      {/* [2026-04-22] 하드코딩 색상 → --color-* 토큰화 */}
+      {/* Toss error message */}
       {error && (
-        <div
-          className="mb-4 rounded-md px-4 py-3 text-sm"
-          style={{
-            backgroundColor: "color-mix(in srgb, var(--color-error) 10%, transparent)",
-            color: "var(--color-error)",
-          }}
-        >
+        <div className="tsite-message" data-tone="danger">
           {error}
         </div>
       )}
@@ -433,45 +417,42 @@ function Step1({
   onCancel?: () => void;
 }) {
   return (
-    <div>
-      <h2 className="mb-2 text-lg font-bold text-[var(--color-text-primary)]">템플릿 선택</h2>
-      <p className="mb-6 text-sm text-[var(--color-text-muted)]">
+    <div className="tsite-step-panel">
+      <h2 className="tsite-step-title">템플릿 선택</h2>
+      <p className="tsite-step-desc">
         대회 사이트의 전체 스타일을 선택하세요. 언제든지 변경할 수 있습니다.
       </p>
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="tsite-template-grid">
         {TEMPLATES.map((tpl) => (
           <button
             key={tpl.slug}
             onClick={() => onChange(tpl.slug)}
-            className={`rounded-md border-2 p-4 text-left transition-all ${
-              selected === tpl.slug
-                ? "border-[var(--color-accent)] shadow-[0_0_0_4px_color-mix(in_srgb,var(--color-accent)_10%,transparent)]"
-                : "border-[var(--color-border)] hover:border-[var(--color-text-muted)]"
-            }`}
+            className="tsite-template-card"
+            data-active={selected === tpl.slug ? "true" : "false"}
           >
             <TemplateMockup template={tpl} accentColor={accentColor} />
-            <div className="mt-3">
-              <div className="flex items-center justify-between">
-                <p className="font-semibold text-[var(--color-text-primary)]">{tpl.name}</p>
+            <div className="tsite-template-card__body">
+              <div className="tsite-template-card__head">
+                <p className="tsite-template-card__name">{tpl.name}</p>
                 {selected === tpl.slug && (
                   /* 2026-05-12 — 선택됨 ✓ = 긍정 결과 → success(Green) (룰 11 — 승자/긍정 = success) */
-                  <span className="text-xs font-medium text-[var(--color-success)]">선택됨 ✓</span>
+                  <span className="tsite-selected-badge"><Icon name="check" size={12} />선택됨</span>
                 )}
               </div>
-              <p className="mt-0.5 text-sm text-[var(--color-text-muted)]">{tpl.desc}</p>
+              <p className="tsite-template-card__desc">{tpl.desc}</p>
             </div>
           </button>
         ))}
       </div>
 
-      <div className="mt-8 flex justify-between">
+      <div className="tsite-step-actions">
         {onCancel && (
-          <button onClick={onCancel} className="text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]">
+          <button onClick={onCancel} className="tsite-text-button">
             취소
           </button>
         )}
-        <button type="button" onClick={onNext} className="ts-btn ts-btn--primary ml-auto">
+        <button type="button" onClick={onNext} className="ts-btn ts-btn--primary tsite-next-button">
           다음: 색상 선택 →
         </button>
       </div>
@@ -495,35 +476,30 @@ function Step2({
   saving: boolean;
 }) {
   return (
-    <div>
-      <h2 className="mb-2 text-lg font-bold text-[var(--color-text-primary)]">대표 색상 선택</h2>
-      <p className="mb-6 text-sm text-[var(--color-text-muted)]">
+    <div className="tsite-step-panel">
+      <h2 className="tsite-step-title">대표 색상 선택</h2>
+      <p className="tsite-step-desc">
         사이트 네비게이션과 강조 색상으로 사용됩니다.
       </p>
 
       {/* 색상 팔레트 */}
-      <div className="flex flex-wrap gap-4">
+      <div className="tsite-color-grid">
         {COLOR_PRESETS.map((c) => (
           <button
             key={c.hex}
             onClick={() => onChange(c.hex)}
             title={c.name}
-            className={`group relative flex flex-col items-center gap-2 ${
-              selected === c.hex ? "" : "opacity-80 hover:opacity-100"
-            }`}
+            className="tsite-color-option"
+            data-selected={selected === c.hex ? "true" : "false"}
           >
             <div
-              className={`h-14 w-14 rounded-full shadow-md transition-transform ${
-                selected === c.hex
-                  ? "scale-110 ring-4 ring-[var(--color-accent)]/30 ring-offset-2"
-                  : "hover:scale-105"
-              }`}
+              className="tsite-color-swatch"
               style={{ backgroundColor: c.hex }}
             />
-            <span className="text-xs text-[var(--color-text-muted)]">{c.name}</span>
+            <span className="tsite-color-label">{c.name}</span>
             {selected === c.hex && (
-              <div className="absolute inset-0 flex items-center justify-center">
-                <span className="text-lg text-white drop-shadow">✓</span>
+              <div className="tsite-color-check">
+                <Icon name="check" size={18} />
               </div>
             )}
           </button>
@@ -531,32 +507,32 @@ function Step2({
       </div>
 
       {/* 미리보기 */}
-      <div className="mt-8 rounded-md border border-[var(--color-border)] p-4">
-        <p className="mb-3 text-xs font-medium text-[var(--color-text-muted)]">미리보기</p>
-        <div className="overflow-hidden rounded-md" style={{ height: 64 }}>
+      <div className="tsite-preview-box">
+        <p className="tsite-preview-label">미리보기</p>
+        <div className="tsite-color-preview">
           <div
-            className="flex h-10 items-center gap-2 px-4"
+            className="tsite-color-preview__nav"
             style={{ backgroundColor: selected }}
           >
-            <div className="h-5 w-5 rounded-full bg-white/20" />
-            <div className="h-2 w-20 rounded-full bg-white/80" />
-            <div className="ml-auto flex gap-2">
+            <div className="tsite-color-preview__mark" />
+            <div className="tsite-color-preview__bar" />
+            <div className="tsite-color-preview__links">
               {["홈", "팀", "일정", "결과"].map((l) => (
-                <span key={l} className="text-xs text-white/80">{l}</span>
+                <span key={l}>{l}</span>
               ))}
             </div>
           </div>
           <div
-            className="flex items-center justify-center"
+            className="tsite-color-preview__body"
             style={{ height: 24, backgroundColor: `${selected}15` }}
           >
-            <div className="h-1.5 w-24 rounded-full" style={{ backgroundColor: selected, opacity: 0.5 }} />
+            <div className="tsite-color-preview__body-bar" style={{ backgroundColor: selected, opacity: 0.5 }} />
           </div>
         </div>
       </div>
 
-      <div className="mt-8 flex justify-between">
-        <button onClick={onBack} className="text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]">
+      <div className="tsite-step-actions">
+        <button onClick={onBack} className="tsite-text-button">
           ← 이전
         </button>
         <button type="button" onClick={onNext} disabled={saving} className="ts-btn ts-btn--primary">
@@ -595,26 +571,26 @@ function Step3({
   const tplName = TEMPLATES.find((t) => t.slug === selectedTemplate)?.name ?? "Classic";
 
   return (
-    <div>
-      <h2 className="mb-2 text-lg font-bold text-[var(--color-text-primary)]">주소 설정 및 발행</h2>
-      <p className="mb-6 text-sm text-[var(--color-text-muted)]">
+    <div className="tsite-step-panel">
+      <h2 className="tsite-step-title">주소 설정 및 발행</h2>
+      <p className="tsite-step-desc">
         대회 사이트 URL을 설정하고 바로 공개하거나 임시 저장할 수 있습니다.
       </p>
 
       {/* 요약 */}
-      <div className="mb-6 grid gap-3 rounded-md bg-[var(--color-surface)] p-4 md:grid-cols-2">
+      <div className="tsite-summary-grid">
         <div>
-          <p className="text-xs text-[var(--color-text-muted)]">선택한 템플릿</p>
-          <p className="mt-1 font-semibold text-[var(--color-text-primary)]">{tplName}</p>
+          <p className="tsite-summary-label">선택한 템플릿</p>
+          <p className="tsite-summary-value">{tplName}</p>
         </div>
         <div>
-          <p className="text-xs text-[var(--color-text-muted)]">대표 색상</p>
-          <div className="mt-1 flex items-center gap-2">
+          <p className="tsite-summary-label">대표 색상</p>
+          <div className="tsite-summary-color">
             <div
-              className="h-5 w-5 rounded-full border border-white shadow-sm"
+              className="tsite-color-dot"
               style={{ backgroundColor: selectedColor }}
             />
-            <span className="font-mono text-sm font-semibold text-[var(--color-text-primary)]">
+            <span className="tsite-summary-value tsite-mono">
               {selectedColor}
             </span>
           </div>
@@ -622,13 +598,13 @@ function Step3({
       </div>
 
       {/* URL 설정 */}
-      <div className="mb-6">
-        <label className="mb-2 block text-sm font-medium text-[var(--color-text-primary)]">
-          사이트 주소 <span className="text-[var(--color-error)]">*</span>
+      <div className="tsite-field">
+        <label className="ts-field__label">
+          사이트 주소 <span className="tsite-required">*</span>
         </label>
-        <div className="flex items-center gap-2">
+        <div className="tsite-url-field">
           <input
-            className="flex-1 rounded-md border-none bg-[var(--color-border)] px-4 py-3 text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/50"
+            className="ts-input tsite-url-input"
             value={subdomain}
             onChange={(e) =>
               onChange(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))
@@ -636,44 +612,38 @@ function Step3({
             placeholder="my-tournament"
             autoFocus
           />
-          <span className="whitespace-nowrap text-sm font-medium text-[var(--color-text-muted)]">
+          <span className="tsite-url-suffix">
             .mybdr.kr
           </span>
         </div>
         {subdomain && (
-          <p className="mt-2 text-sm text-[var(--color-text-muted)]">
-            https://<span className="text-[var(--color-info)]">{subdomain}</span>.mybdr.kr
+          <p className="tsite-url-preview">
+            https://<span>{subdomain}</span>.mybdr.kr
           </p>
         )}
       </div>
 
-      {/* [2026-04-22] 하드코딩 색상 → --color-* 토큰화 */}
+      {/* Toss error message */}
       {error && (
-        <div
-          className="mb-4 rounded-md px-4 py-3 text-sm"
-          style={{
-            backgroundColor: "color-mix(in srgb, var(--color-error) 10%, transparent)",
-            color: "var(--color-error)",
-          }}
-        >
+        <div className="tsite-message" data-tone="danger">
           {error}
         </div>
       )}
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:justify-between">
+      <div className="tsite-step-actions">
         <button
           onClick={onBack}
-          className="text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
+          className="tsite-text-button"
           disabled={saving}
         >
           ← 이전
         </button>
-        <div className="flex gap-3">
+        <div className="tsite-action-row">
           {/* 2026-05-12 — pill 9999px ❌ → btn 클래스 (4px 라운딩 표준) */}
           <button
             onClick={onSaveDraft}
             disabled={saving || !subdomain.trim()}
-            className="ts-btn ts-btn--secondary disabled:opacity-40"
+            className="ts-btn ts-btn--secondary"
           >
             {saving ? "저장 중..." : "임시 저장"}
           </button>
@@ -681,14 +651,14 @@ function Step3({
             type="button"
             onClick={onPublish}
             disabled={saving || !subdomain.trim()}
-            className="ts-btn ts-btn--primary min-w-[120px]"
+            className="ts-btn ts-btn--primary tsite-publish-button"
           >
             {saving ? "처리 중..." : "🚀 공개하기"}
           </button>
         </div>
       </div>
 
-      <p className="mt-4 text-center text-xs text-[var(--color-text-muted)]">
+      <p className="tsite-footnote">
         공개 후에도 언제든지 설정을 변경하거나 비공개로 전환할 수 있습니다
       </p>
     </div>
