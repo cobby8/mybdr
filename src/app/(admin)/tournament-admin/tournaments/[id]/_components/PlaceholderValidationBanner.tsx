@@ -9,15 +9,14 @@
  *
  * 검출 로직 = `detectInvalidPlaceholderMatches` (placeholder-helpers.ts) 단일 source.
  *
- * 디자인 룰 (BDR 13):
- *   - var(--color-warning) 톤 (오류 아니라 경고 — 운영 진행은 가능 / 수동 조치 권장)
- *   - rounded-[4px] / lucide "triangle-alert" (Track B-c) / 모바일 풀너비
+ * 디자인 룰 (admin Toss):
+ *   - Toss ts-card wrapper + var(--color-warning) 톤
+ *   - lucide "triangle-alert" (Track B-c) / 모바일 풀너비
  */
 
 "use client";
 
 import { useState } from "react";
-import { Card } from "@/components/ui/card";
 import { detectInvalidPlaceholderMatches } from "@/lib/tournaments/placeholder-helpers";
 // Track B-c Toss 리스킨 — Material Symbols → lucide-react 키트(<Icon>)
 import { Icon } from "@/components/admin-toss";
@@ -65,8 +64,9 @@ export function PlaceholderValidationBanner({ matches, applyFilter = false }: Pr
   });
 
   return (
-    <Card
-      className="mb-4"
+    <section
+      data-skin="toss"
+      className="ts-card mb-4"
       style={{
         // 경고 톤 — 배경 alpha 10% + 좌측 보더 강조
         backgroundColor: "color-mix(in srgb, var(--color-warning) 10%, transparent)",
@@ -87,7 +87,7 @@ export function PlaceholderValidationBanner({ matches, applyFilter = false }: Pr
           <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <p className="font-semibold" style={{ color: "var(--color-warning)" }}>
-                ⚠️ 순위결정전 {violations.length}건이 placeholder 형식이 아닙니다.
+                순위결정전 {violations.length}건이 placeholder 형식이 아닙니다.
               </p>
               <p className="mt-1 text-xs text-[var(--color-text-muted)]">
                 강남구협회장배 사고 (2026-05-15) 재발 방지 검증.
@@ -169,6 +169,6 @@ export function PlaceholderValidationBanner({ matches, applyFilter = false }: Pr
           )}
         </div>
       </div>
-    </Card>
+    </section>
   );
 }
