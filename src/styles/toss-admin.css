@@ -1489,3 +1489,163 @@
   flex-wrap: wrap;
   gap: 6px;
 }
+
+/* Tournament bracket panel */
+[data-skin="toss"] .ta-bracket-note {
+  margin: 4px 0 0;
+  color: var(--ink-mute);
+  font-size: 13.5px;
+  font-weight: 600;
+  line-height: 1.55;
+}
+[data-skin="toss"] .ta-bracket-note__sub {
+  color: var(--ink-soft);
+}
+[data-skin="toss"] .ta-bracket-alert {
+  margin-bottom: 16px;
+  border-radius: 14px;
+  padding: 13px 16px;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.5;
+}
+[data-skin="toss"] .ta-bracket-alert[data-tone="danger"] {
+  background: var(--danger-weak);
+  color: var(--danger);
+}
+[data-skin="toss"] .ta-bracket-card {
+  margin-bottom: 24px;
+}
+[data-skin="toss"] .ta-bracket-versions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+[data-skin="toss"] .ta-bracket-usage {
+  min-width: 0;
+}
+[data-skin="toss"] .ta-bracket-usage__label {
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 800;
+}
+[data-skin="toss"] .ta-version-dots {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 9px;
+}
+[data-skin="toss"] .ta-version-dot {
+  width: 32px;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--grey-200);
+}
+[data-skin="toss"] .ta-version-dot[data-on="true"] {
+  background: var(--primary);
+}
+[data-skin="toss"] .ta-version-usage {
+  margin-left: 7px;
+  color: var(--ink-mute);
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+[data-skin="toss"] .ta-version-limit {
+  margin-top: 7px;
+  color: var(--danger);
+  font-size: 12.5px;
+  font-weight: 700;
+}
+[data-skin="toss"] .ta-bracket-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+[data-skin="toss"] .ta-version-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 32px;
+  border-radius: 999px;
+  background: var(--ok-weak);
+  color: var(--ok);
+  padding: 6px 12px;
+  font-size: 12.5px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+[data-skin="toss"] .ta-version-confirm {
+  border: 0;
+  border-radius: 12px;
+  background: var(--primary-weak);
+  color: var(--primary);
+  cursor: pointer;
+  font-family: var(--ff);
+  font-size: 13px;
+  font-weight: 800;
+  min-height: 36px;
+  padding: 9px 13px;
+  transition: background .12s, transform .12s;
+}
+[data-skin="toss"] .ta-version-confirm:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--primary) 14%, #fff);
+}
+[data-skin="toss"] .ta-version-confirm:active:not(:disabled) {
+  transform: scale(0.98);
+}
+[data-skin="toss"] .ta-version-confirm:disabled {
+  cursor: not-allowed;
+  opacity: .45;
+}
+[data-skin="toss"] .ta-version-history {
+  margin-top: 16px;
+  border-top: 1px solid var(--border);
+  padding-top: 16px;
+}
+[data-skin="toss"] .ta-version-history__title {
+  margin-bottom: 9px;
+  color: var(--ink-mute);
+  font-size: 12.5px;
+  font-weight: 800;
+}
+[data-skin="toss"] .ta-version-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+[data-skin="toss"] .ta-version-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 999px;
+  background: var(--grey-100);
+  color: var(--ink-mute);
+  padding: 6px 12px;
+  font-size: 12.5px;
+  font-weight: 700;
+}
+[data-skin="toss"] .ta-version-chip[data-active="true"] {
+  background: var(--ok-weak);
+  color: var(--ok);
+}
+[data-skin="toss"] .ta-version-chip__num {
+  font-weight: 900;
+}
+
+@media (max-width: 560px) {
+  [data-skin="toss"] .ta-bracket-versions,
+  [data-skin="toss"] .ta-bracket-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  [data-skin="toss"] .ta-bracket-actions .ts-btn,
+  [data-skin="toss"] .ta-version-confirm {
+    justify-content: center;
+    width: 100%;
+  }
+}

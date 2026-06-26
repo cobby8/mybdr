@@ -235,13 +235,13 @@ export default function BracketAdminPage() {
     <div data-skin="toss">
       <div className="mb-4">
         {isLeague && approvedCount >= 2 && !hasMatches && (
-          <p className="mt-1 text-sm text-[var(--color-text-muted)]">
+          <p className="ta-bracket-note">
             승인된 {approvedCount}팀 기준 총 {expectedLeagueMatches}경기가 생성됩니다.
             {/* Phase 2C: full_league_knockout이면 토너먼트 뼈대도 함께 생성됨을 안내 */}
             {data?.format === "full_league_knockout" && (
               <>
                 {" "}
-                <span className="text-[var(--color-text-secondary)]">
+                <span className="ta-bracket-note__sub">
                   풀리그 경기와 토너먼트 뼈대가 함께 생성됩니다. (토너먼트 슬롯은 리그 완료 후 자동 채워집니다)
                 </span>
               </>
@@ -250,57 +250,47 @@ export default function BracketAdminPage() {
         )}
       </div>
 
-      {/* [2026-04-22] 하드코딩 색상 → --color-* 토큰화 */}
       {error && (
-        <div
-          className="mb-4 rounded-[12px] px-4 py-3 text-sm"
-          style={{
-            backgroundColor: "color-mix(in srgb, var(--color-error) 10%, transparent)",
-            color: "var(--color-error)",
-          }}
-        >
+        <div className="ta-bracket-alert" data-tone="danger">
           {error}
         </div>
       )}
 
       {/* 버전 현황 */}
-      <section className="ts-card mb-6">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <p className="text-sm font-medium text-[var(--color-text-primary)]">생성 횟수</p>
-            <div className="mt-2 flex items-center gap-1">
+      <section className="ts-card ta-bracket-card">
+        <div className="ta-bracket-versions">
+          <div className="ta-bracket-usage">
+            <p className="ta-bracket-usage__label">생성 횟수</p>
+            <div className="ta-version-dots">
               {Array.from({ length: versionLimit }).map((_, i) => (
                 <div
                   key={i}
-                  // 2026-05-12 — admin 빨강 본문 금지 (버전 사용량 dot) → info(Navy)
-                  className={`h-3 w-8 rounded-full ${
-                    i < versionUsed ? "bg-[var(--color-info)]" : "bg-[var(--color-border)]"
-                  }`}
+                  className="ta-version-dot"
+                  data-on={i < versionUsed ? "true" : "false"}
                 />
               ))}
-              <span className="ml-2 text-sm text-[var(--color-text-muted)]">
+              <span className="ta-version-usage">
                 {versionUsed}/{versionLimit} 사용
               </span>
             </div>
             {!canGenerate && (
-              <p className="mt-1 text-xs text-[var(--color-error)]">
+              <p className="ta-version-limit">
                 슈퍼관리자 승인 후 추가 생성 가능합니다.
               </p>
             )}
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="ta-bracket-actions">
             {isActivated && (
-              <span className="rounded-full bg-[color-mix(in_srgb,var(--color-success)_10%,transparent)] px-3 py-1 text-xs font-medium text-[var(--color-success)]">
+              <span className="ta-version-status">
                 ✓ 확정됨 (v{data?.activeVersion})
               </span>
             )}
-            {/* 2026-05-12 — pill 9999px ❌ + admin 빨강 본문 금지 룰 → rounded-[4px] + info(Navy) 토큰 */}
             {hasMatches && (
               <button
                 onClick={activate}
                 disabled={activating || isActivated}
-                className="rounded-[4px] bg-[color-mix(in_srgb,var(--color-info)_8%,transparent)] px-4 py-2 text-sm font-medium text-[var(--color-info)] hover:bg-[color-mix(in_srgb,var(--color-info)_15%,transparent)] disabled:opacity-50"
+                className="ta-version-confirm"
               >
                 {activating ? "처리 중..." : "최신 버전 확정"}
               </button>
@@ -329,19 +319,16 @@ export default function BracketAdminPage() {
 
         {/* 버전 히스토리 */}
         {(data?.versions.length ?? 0) > 0 && (
-          <div className="mt-4 border-t border-[var(--color-border-subtle)] pt-4">
-            <p className="mb-2 text-xs font-medium text-[var(--color-text-muted)]">버전 히스토리</p>
-            <div className="flex flex-wrap gap-2">
+          <div className="ta-version-history">
+            <p className="ta-version-history__title">버전 히스토리</p>
+            <div className="ta-version-chips">
               {data?.versions.map((v) => (
                 <div
                   key={v.id}
-                  className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-xs ${
-                    v.is_active
-                      ? "bg-[color-mix(in_srgb,var(--color-success)_10%,transparent)] text-[var(--color-success)]"
-                      : "bg-[var(--color-elevated)] text-[var(--color-text-muted)]"
-                  }`}
+                  className="ta-version-chip"
+                  data-active={v.is_active ? "true" : "false"}
                 >
-                  <span className="font-medium">v{v.version_number}</span>
+                  <span className="ta-version-chip__num">v{v.version_number}</span>
                   <span>{new Date(v.created_at).toLocaleDateString("ko-KR")}</span>
                   {v.is_active && <span>✓</span>}
                 </div>
