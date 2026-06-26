@@ -212,6 +212,10 @@ function usesAdvance(format: string) {
   return format === "group_stage_knockout" || format === "dual_tournament";
 }
 
+function canEditAdvancePerGroup(format: string) {
+  return format === "group_stage_knockout";
+}
+
 function divisionCodeOf(match: Match) {
   return match.settings?.division_code ?? null;
 }
@@ -732,14 +736,14 @@ export default function BracketPanel(_props: { showNextStepCTA?: boolean } = {})
               onChange={(event) => patchConfig({ group_size: Math.max(2, Number(event.target.value) || 2) })}
             />
           </label>
-          <label className="ts-field" data-disabled={!usesAdvance(currentConfig.format)}>
+          <label className="ts-field" data-disabled={!canEditAdvancePerGroup(currentConfig.format)}>
             <span className="ts-field__label">본선 진출(조별)</span>
             <input
               className="ts-input"
               type="number"
               min={1}
               max={currentConfig.group_size}
-              disabled={!usesAdvance(currentConfig.format)}
+              disabled={!canEditAdvancePerGroup(currentConfig.format)}
               value={currentConfig.format === "dual_tournament" ? 2 : currentConfig.advance_per_group}
               onChange={(event) => patchConfig({ advance_per_group: Math.max(1, Number(event.target.value) || 1) })}
             />
@@ -979,15 +983,22 @@ function SeedAssignment({
   selectedSeeds: Record<string, string>;
   onChange: (slot: string, teamId: string) => void;
 }) {
+  const slots = buildSlots(config, teams.length);
+  const groups = usesGroups(config.format)
+    ? GROUP_LABELS.slice(0, Math.max(config.group_count, 1)).map((group) => ({
+        group,
+        slots: slots.filter((slot) => slot.startsWith(group)),
+      }))
+    : [{ group: "토너먼트", slots }];
+
   return (
     <section className="ts-card ts-card--flat">
       <h4 className="bk-subh">시드 슬롯 — 클릭해 팀 배정</h4>
       <div className="bk-groups">
-        {GROUP_LABELS.slice(0, Math.max(config.group_count, 1)).map((group) => (
+        {groups.map(({ group, slots: groupSlots }) => (
           <div key={group} className="bk-group">
-            <div className="bk-group__name">{config.format === "single_elimination" ? "토너먼트" : `${group}조`}</div>
-            {Array.from({ length: config.group_size }).map((_, index) => {
-              const slot = `${group}${index + 1}`;
+            <div className="bk-group__name">{usesGroups(config.format) ? `${group}조` : group}</div>
+            {groupSlots.map((slot) => {
               const usedByOther = new Set(
                 Object.entries(selectedSeeds)
                   .filter(([otherSlot]) => otherSlot !== slot)
