@@ -46,7 +46,7 @@ const SitePanel = dynamic(() => import("../_panels/site-panel"), {
 const MENUS: Array<{ id: MenuId; label: string; icon: string; desc: string }> = [
   { id: "teams", label: "참가팀", icon: "users", desc: "종별 참가 신청과 참가비 현황을 관리합니다." },
   { id: "bracket", label: "대진표", icon: "git-merge", desc: "종별 운영 방식에 맞춰 대진표를 생성합니다." },
-  { id: "schedule", label: "일정", icon: "calendar-clock", desc: "생성된 경기의 일정과 기록 방식을 관리합니다." },
+  { id: "schedule", label: "일정", icon: "calendar-clock", desc: "대진표 기반 일정을 관리합니다." },
   { id: "ops", label: "운영관리", icon: "shield-check", desc: "운영진, 기록원, 경기 운영 역할을 관리합니다." },
   { id: "site", label: "사이트", icon: "globe", desc: "공개 대회 사이트를 설정하고 발행합니다." },
   { id: "settle", label: "정산", icon: "wallet", desc: "대회 정산 연결 상태를 확인합니다." },

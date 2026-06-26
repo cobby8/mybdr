@@ -669,3 +669,212 @@
     min-width: 600px;
   }
 }
+
+[data-skin="toss"] .op-schedule-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  margin-top: 18px;
+}
+
+[data-skin="toss"] .op-schedule-panel__check,
+[data-skin="toss"] .op-schedule-modal__check {
+  align-items: center;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+[data-skin="toss"] .op-schedule-panel__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+[data-skin="toss"] .op-schedule-panel__compact-empty {
+  min-height: 118px;
+  padding: 22px;
+}
+
+[data-skin="toss"] .op-schedule-panel__compact-empty b {
+  color: var(--ink);
+}
+
+[data-skin="toss"] .op-schedule-panel__lanes {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+[data-skin="toss"] .op-schedule-modal__summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+[data-skin="toss"] .op-schedule-modal__summary > div {
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--grey-50);
+  padding: 14px;
+}
+
+[data-skin="toss"] .op-schedule-modal__summary b {
+  display: block;
+  color: var(--ink);
+  font-family: var(--ff-mono);
+  font-size: 21px;
+  font-weight: 900;
+  letter-spacing: 0;
+}
+
+[data-skin="toss"] .op-schedule-modal__summary span {
+  display: block;
+  margin-top: 3px;
+  color: var(--ink-mute);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+[data-skin="toss"] .op-schedule-modal__lanes {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 10px;
+  margin-top: 14px;
+}
+
+[data-skin="toss"] .op-schedule-modal__lane {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--card);
+  padding: 12px;
+}
+
+[data-skin="toss"] .op-schedule-modal__lane b,
+[data-skin="toss"] .op-manual__preview b {
+  display: block;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 900;
+}
+
+[data-skin="toss"] .op-schedule-modal__lane span:not(.sc-lane-court),
+[data-skin="toss"] .op-manual__preview span:not(.sc-lane-court) {
+  display: block;
+  margin-top: 3px;
+  color: var(--ink-mute);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+[data-skin="toss"] .op-manual {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(280px, .85fr);
+  gap: 16px;
+}
+
+[data-skin="toss"] .op-manual__pool,
+[data-skin="toss"] .op-manual__settings {
+  min-width: 0;
+}
+
+[data-skin="toss"] .op-manual__pool h4 {
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 900;
+  margin: 0 0 10px;
+}
+
+[data-skin="toss"] .op-manual__list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 430px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+[data-skin="toss"] .op-manual__match {
+  display: grid;
+  width: 100%;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  border: 1.5px solid var(--border);
+  border-radius: 16px;
+  background: var(--card);
+  color: var(--ink);
+  cursor: pointer;
+  font-family: var(--ff);
+  padding: 12px;
+  text-align: left;
+}
+
+[data-skin="toss"] .op-manual__match[data-on="true"] {
+  border-color: var(--primary);
+  background: var(--primary-weak);
+}
+
+[data-skin="toss"] .op-manual__match b {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 900;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+[data-skin="toss"] .op-manual__match > span:last-child {
+  color: var(--ink-mute);
+  font-family: var(--ff-mono);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+[data-skin="toss"] .op-manual__settings {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  background: var(--grey-50);
+  padding: 14px;
+}
+
+[data-skin="toss"] .op-manual__preview {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+}
+
+[data-skin="toss"] .ts-toast[data-tone="danger"] {
+  border-color: var(--danger-weak);
+  color: var(--danger);
+}
+
+@media (max-width: 720px) {
+  [data-skin="toss"] .op-schedule-panel__actions {
+    justify-content: stretch;
+  }
+
+  [data-skin="toss"] .op-schedule-panel__actions .ts-btn {
+    flex: 1 1 0;
+  }
+
+  [data-skin="toss"] .op-schedule-modal__summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  [data-skin="toss"] .op-manual {
+    grid-template-columns: 1fr;
+  }
+}
