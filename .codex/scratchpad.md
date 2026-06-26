@@ -19,8 +19,10 @@
 | Admin Toss handoff | Done | `BDR-current/_handoff-admin-toss-v2.41/` added; src unchanged. |
 | Admin Toss sweep | In Progress | Tournament teams and bracket panels were rebuilt around Toss operate flow; schedule/ops/site still need the same direct-replacement pass. |
 | Tournament operate bracket | Done | Bracket tab now has robust single-division category fallback plus Toss-style generation summary and stage-grouped generated match review. |
+| Tournament operate schedule | In Progress | Match schedule edits now persist court numbers through API/service/UI; full v2.41 auto/manual scheduler is the next replacement pass. |
 
 ## Work Log
+- 2026-06-27: Wired tournament operate schedule court numbers end-to-end through match create/update APIs, service writes, and admin match edit UI; TypeScript and production build passed.
 - 2026-06-27: Tightened tournament operate bracket tab around the Toss v2.41 flow: single-division category fallback, generation summary, and generated matches grouped by prelim/dual/knockout stages; TypeScript and production build passed.
 - 2026-06-27: Rebuilt tournament operate teams panel around the Toss v2.41 flow so division status, single/bulk category moves, approval/payment, tokens, and player roster actions are first-screen operations; TypeScript and production build passed.
 - 2026-06-27: Removed first-empty-slot fallback from single-elim winner advancement; winners now require and use explicit `next_match_slot`, with targeted Vitest and TypeScript passing.

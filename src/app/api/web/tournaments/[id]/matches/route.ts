@@ -73,7 +73,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
     return apiError("잘못된 요청입니다.", 400);
   }
 
-  const { homeTeamId, awayTeamId, roundName, round_number, scheduledAt, venue_name } =
+  const { homeTeamId, awayTeamId, roundName, round_number, scheduledAt, venue_name, court_number } =
     body as Record<string, string | null | undefined>;
 
   // TC-NEW-010: BigInt 변환 실패 방지
@@ -94,6 +94,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
     roundNumber: round_number ? Number(round_number) : null,
     scheduledAt: scheduledAt ? new Date(scheduledAt) : null,
     venueName: venue_name ?? null,
+    courtNumber: court_number ?? null,
   });
 
   return apiSuccess(match);

@@ -25,6 +25,7 @@ type Match = {
   match_number: number | null;
   scheduledAt: string | null;
   venue_name: string | null;
+  court_number: string | null;
   homeTeamId: string | null;
   awayTeamId: string | null;
   homeScore: number;
@@ -94,6 +95,11 @@ function formatMatchTeams(match: Match) {
   return `${match.homeTeam?.team.name ?? "미정"} 대 ${match.awayTeam?.team.name ?? "미정"}`;
 }
 
+function formatMatchVenue(match: Match) {
+  if (!match.venue_name && !match.court_number) return "코트 미정";
+  return [match.venue_name, match.court_number ? `${match.court_number}코트` : null].filter(Boolean).join(" · ");
+}
+
 function ScoreModal({
   match,
   teams,
@@ -113,6 +119,7 @@ function ScoreModal({
     match.scheduledAt ? new Date(match.scheduledAt).toISOString().slice(0, 16) : ""
   );
   const [venueName, setVenueName] = useState(match.venue_name ?? "");
+  const [courtNumber, setCourtNumber] = useState(match.court_number ?? "");
   const [homeTeamId, setHomeTeamId] = useState(match.homeTeamId ?? "");
   const [awayTeamId, setAwayTeamId] = useState(match.awayTeamId ?? "");
   // 2026-05-11: Phase 1-A 매치별 기록 모드 토글.
@@ -143,6 +150,7 @@ function ScoreModal({
         ? new Date(match.scheduledAt).toISOString().slice(0, 16)
         : "";
       const initialVenueName = match.venue_name ?? "";
+      const initialCourtNumber = match.court_number ?? "";
 
       const body: Record<string, unknown> = {};
       if (homeScore !== match.homeScore) body.homeScore = homeScore;
@@ -151,6 +159,7 @@ function ScoreModal({
       if (winnerId !== initialWinnerId) body.winner_team_id = winnerId || null;
       if (scheduledAt !== initialScheduledAt) body.scheduledAt = scheduledAt || null;
       if (venueName !== initialVenueName) body.venue_name = venueName || null;
+      if (courtNumber !== initialCourtNumber) body.court_number = courtNumber || null;
       if (homeTeamId !== initialHomeTeamId) body.homeTeamId = homeTeamId || null;
       if (awayTeamId !== initialAwayTeamId) body.awayTeamId = awayTeamId || null;
 
@@ -359,7 +368,7 @@ function ScoreModal({
         </div>
 
         {/* 일정 */}
-        <div className="mb-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div className="mb-3 grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_140px]">
           <div>
             <label className="ts-field__label">경기 일시</label>
             <input
@@ -375,6 +384,15 @@ function ScoreModal({
               value={venueName}
               onChange={(e) => setVenueName(e.target.value)}
               placeholder="경기장명"
+              className="ts-input"
+            />
+          </div>
+          <div>
+            <label className="ts-field__label">코트</label>
+            <input
+              value={courtNumber}
+              onChange={(e) => setCourtNumber(e.target.value)}
+              placeholder="1"
               className="ts-input"
             />
           </div>
@@ -696,7 +714,7 @@ export default function MatchesClient() {
                         <div className="amt-mobile-card__main">
                           <p className="amt-mobile-card__teams">{formatMatchTeams(match)}</p>
                           <p className="amt-mobile-card__meta">
-                            {formatMatchDate(match.scheduledAt)} · {match.venue_name ?? "코트 미정"} · {getMatchDivision(match) ?? "종별 미정"}
+                            {formatMatchDate(match.scheduledAt)} · {formatMatchVenue(match)} · {getMatchDivision(match) ?? "종별 미정"}
                           </p>
                         </div>
                         <span className="amt-status" data-status={match.status}>
@@ -745,8 +763,8 @@ export default function MatchesClient() {
                               )}
                             </td>
                             <td>
-                              {match.venue_name ? (
-                                <span className="amt-table__court">{match.venue_name}</span>
+                              {match.venue_name || match.court_number ? (
+                                <span className="amt-table__court">{formatMatchVenue(match)}</span>
                               ) : (
                                 <span className="amt-table__div">-</span>
                               )}

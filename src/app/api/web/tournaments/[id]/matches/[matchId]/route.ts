@@ -46,7 +46,7 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
 
   const {
     homeScore, awayScore, status, winner_team_id,
-    scheduledAt, venue_name, roundName, notes,
+    scheduledAt, venue_name, court_number, roundName, notes,
     homeTeamId, awayTeamId,
   } = body as Record<string, string | number | null | undefined>;
 
@@ -199,6 +199,7 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
         scheduledAt: scheduledAt ? new Date(String(scheduledAt)) : null,
       }),
       ...(venue_name !== undefined && { venueName: venue_name ? String(venue_name) : null }),
+      ...(court_number !== undefined && { courtNumber: court_number ? String(court_number) : null }),
       ...(roundName !== undefined && { roundName: roundName ? String(roundName) : null }),
       ...(notes !== undefined && { notes: notes ? String(notes) : null }),
       ...(homeTeamId !== undefined && {

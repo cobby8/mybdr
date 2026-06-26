@@ -57,6 +57,7 @@ export interface CreateMatchInput {
   roundNumber?: number | null;
   scheduledAt?: Date | null;
   venueName?: string | null;
+  courtNumber?: string | null;
 }
 
 export interface UpdateMatchInput {
@@ -66,6 +67,7 @@ export interface UpdateMatchInput {
   winnerTeamId?: bigint | null;
   scheduledAt?: Date | null;
   venueName?: string | null;
+  courtNumber?: string | null;
   roundName?: string | null;
   notes?: string | null;
   homeTeamId?: bigint | null;
@@ -110,6 +112,7 @@ export async function createMatch(input: CreateMatchInput) {
         round_number: input.roundNumber ?? null,
         scheduledAt: input.scheduledAt ?? null,
         venue_name: input.venueName ?? null,
+        court_number: input.courtNumber ?? null,
         status: "scheduled",
       },
     });
@@ -160,6 +163,7 @@ export async function updateMatch(
           scheduledAt: input.scheduledAt,
         }),
         ...(input.venueName !== undefined && { venue_name: input.venueName }),
+        ...(input.courtNumber !== undefined && { court_number: input.courtNumber }),
         ...(input.roundName !== undefined && { roundName: input.roundName }),
         ...(input.notes !== undefined && { notes: input.notes }),
         ...(input.homeTeamId !== undefined && { homeTeamId: input.homeTeamId }),
