@@ -1,7 +1,7 @@
 # Scratchpad
 
 ## Current Work
-- 2026-06-26 design sync: v2.41 admin Toss handoff absorbed into BDR-current.
+- 2026-06-26 tournament-admin: v2.41 admin Toss/function-lock implementation is in progress.
 
 ## Progress
 | Area | Status | Note |
@@ -11,8 +11,10 @@
 | Recording modes | Done | Match-level `manual` is counted, displayed, and blocked from Flutter/score-sheet system inputs. |
 | Verification | Done | Targeted Vitest suite and `cmd /c npx tsc --noEmit` passed. |
 | Admin Toss handoff | Done | `BDR-current/_handoff-admin-toss-v2.41/` added; src unchanged. |
+| Tournament admin implementation | In Progress | Matches score modal now exposes the existing manual recording mode. |
 
 ## Work Log
+- 2026-06-26: Aligned the tournament admin match edit modal with the existing `manual` recording-mode contract; TypeScript passed.
 - 2026-06-26: Absorbed v2.41 admin Toss reverse-bake handoff into `BDR-current`, preserving B1 QA lock docs; no src changes.
 - 2026-06-26: Restored the tournament creation CTA on the tournament admin list page and verified TypeScript.
 - 2026-06-26: Pushed/merged prior fixes, then aligned tournament admin game-rule display and match-level manual recording-mode guards.
