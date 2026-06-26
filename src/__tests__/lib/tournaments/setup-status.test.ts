@@ -238,6 +238,14 @@ describe("setup-status — isRecordingModeConfigured", () => {
     ).toBe(true);
   });
 
+  it("settings.default_recording_mode=manual 면 true", () => {
+    expect(
+      isRecordingModeConfigured(
+        buildFullTournament({ settings: { default_recording_mode: "manual" } })
+      )
+    ).toBe(true);
+  });
+
   it("settings null 이면 false", () => {
     expect(isRecordingModeConfigured(buildFullTournament({ settings: null }))).toBe(
       false
@@ -380,6 +388,17 @@ describe("setup-status — calculateSetupProgress 종합 (PR-Admin-5: 8→7 통�
     for (const item of p.items) {
       expect(item.link).toContain(tid);
     }
+  });
+
+  it("기록 설정 카드가 manual 기본 모드를 수기로 요약", () => {
+    const p = calculateSetupProgress(
+      tid,
+      buildFullTournament({ settings: { default_recording_mode: "manual" } }),
+      buildFullRelation()
+    );
+    const recording = p.items.find((i) => i.key === "recording");
+    expect(recording?.status).toBe("complete");
+    expect(recording?.summary).toBe("기본 모드: 수기");
   });
 
   // 2026-05-13 UI-1.5 회귀 가드 — 신청 정책(4번) 카드는 wizard 의 RegistrationSettingsForm 영역(Step 2)
