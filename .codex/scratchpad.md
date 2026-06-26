@@ -14,6 +14,7 @@
 | Tournament admin implementation | In Progress | Matches score modal now exposes the existing manual recording mode. |
 
 ## Work Log
+- 2026-06-26: Converted `NextStepCTA` to Toss `ts-card` wrappers and updated stale admin design wording; TypeScript passed.
 - 2026-06-26: Removed the site panel shadcn Button dependency in favor of Toss `ts-btn` controls; TypeScript passed.
 - 2026-06-26: Replaced the recording mode card wrapper with Toss `ts-card` and removed stale Material Symbols/Card wording; TypeScript passed.
 - 2026-06-26: Converted the recorders panel add/list/assignment wrappers from UI Card/Button to Toss `ts-*` sections; TypeScript passed.
