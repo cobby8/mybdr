@@ -14,9 +14,10 @@
 | Recording modes | Done | Match-level `manual` is counted, displayed, and blocked from Flutter/score-sheet system inputs. |
 | Verification | Done | Targeted Vitest suite and `cmd /c npx tsc --noEmit` passed. |
 | Admin Toss handoff | Done | `BDR-current/_handoff-admin-toss-v2.41/` added; src unchanged. |
-| Tournament admin implementation | In Progress | Matches score modal now exposes the existing manual recording mode. |
+| Admin Toss sweep | In Progress | Tournament-admin pushed/merged; general admin pages now being token-normalized file by file. |
 
 ## Work Log
+- 2026-06-26: Pushed tournament-admin Toss cleanup to dev and merged main; then token-normalized admin campaigns, games, and categories pages; TypeScript passed.
 - 2026-06-26: Replaced remaining tournament-admin rgba overlays/shadows with `color-mix` tokens; TypeScript and residue scans passed.
 - 2026-06-26: Converted site and teams panels to Toss buttons and tokenized site selection shadow; TypeScript passed.
 - 2026-06-26: Converted tournament creation wizard navigation and CTA buttons to Toss `ts-btn`; TypeScript passed.
