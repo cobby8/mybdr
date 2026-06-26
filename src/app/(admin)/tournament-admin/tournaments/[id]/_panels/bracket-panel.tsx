@@ -35,6 +35,9 @@ type Match = {
     home_slot_label?: string | null;
     away_slot_label?: string | null;
     division_code?: string | null;
+    division_tier?: string | null;
+    group_name?: string | null;
+    stage?: string | null;
   } | null;
   scheduledAt?: string | null;
   scheduled_at?: string | null;
@@ -219,12 +222,29 @@ function divisionCodeOf(match: Match) {
   return match.settings?.division_code ?? null;
 }
 
-function teamsForRule(teams: ApprovedTeam[], code: string) {
-  return teams.filter((team) => team.category === code);
+function teamsForDivisionRule(teams: ApprovedTeam[], rule: DivisionRule, allRules: DivisionRule[]) {
+  const exact = teams.filter((team) => team.category === rule.code);
+  if (exact.length > 0) return exact;
+
+  const byLabel = teams.filter((team) => rule.label && team.category === rule.label);
+  if (byLabel.length > 0) return byLabel;
+
+  if (allRules.length === 1) return teams;
+
+  return exact;
 }
 
 function matchesForRule(matches: Match[], code: string) {
   return matches.filter((match) => divisionCodeOf(match) === code);
+}
+
+function stageOf(match: Match) {
+  const stage = match.settings?.stage;
+  if (stage) return stage;
+  if (match.group_name && !match.round_number) return "prelim";
+  if (match.group_name && match.round_number != null && match.bracket_position != null) return "dual_group";
+  if (match.round_number != null && match.bracket_position != null) return "knockout";
+  return "other";
 }
 
 function buildSlots(config: RuleConfig, teamCount: number) {
@@ -318,6 +338,38 @@ function nextRoundsFromLeaves(leaves: string[]) {
   return rounds;
 }
 
+function countPairs(rounds: Array<{ pairs: Array<[string, string]> }>) {
+  return rounds.reduce((sum, round) => sum + round.pairs.length, 0);
+}
+
+function expectedGroupGameCount(config: RuleConfig) {
+  if (config.format === "single_elimination") return 0;
+  if (config.format === "dual_tournament") return config.group_count * 5;
+  return config.group_count * roundRobinCount(config.group_size);
+}
+
+function formatSummary(config: RuleConfig, teamCount: number, leaves: string[], hasGroups: boolean) {
+  const groupGames = expectedGroupGameCount(config);
+  const knockoutGames = countPairs(nextRoundsFromLeaves(leaves));
+  const slots = config.format === "single_elimination"
+    ? Math.max(2, leaves.length)
+    : config.group_count * config.group_size;
+  const qualifiers = config.format === "single_elimination"
+    ? teamCount
+    : config.format === "round_robin"
+      ? 0
+      : config.group_count * (config.format === "dual_tournament" ? 2 : config.advance_per_group);
+
+  return {
+    slots,
+    qualifiers,
+    groupGames,
+    knockoutGames,
+    totalGames: groupGames + knockoutGames,
+    ready: config.format === "single_elimination" || hasGroups,
+  };
+}
+
 function formatSchedule(match: Match) {
   const iso = match.scheduledAt ?? match.scheduled_at;
   if (!iso) return "일정 미정";
@@ -401,7 +453,7 @@ export default function BracketPanel(_props: { showNextStepCTA?: boolean } = {})
   const activeRule = rules.find((rule) => rule.code === activeCode) ?? rules[0] ?? null;
   const selectedConfig = activeRule ? configs[activeRule.code] ?? ruleConfig(activeRule) : null;
   const approvedTeams = useMemo(
-    () => activeRule && data ? teamsForRule(data.approvedTeams, activeRule.code) : [],
+    () => activeRule && data ? teamsForDivisionRule(data.approvedTeams, activeRule, rules) : [],
     [activeRule, data],
   );
   const generatedMatches = useMemo(
@@ -425,12 +477,12 @@ export default function BracketPanel(_props: { showNextStepCTA?: boolean } = {})
   const currentConfig = selectedConfig;
   const serverConfig = ruleConfig(currentRule);
   const configDirty = JSON.stringify(currentConfig) !== JSON.stringify(serverConfig);
-  const slots = buildSlots(currentConfig, approvedTeams.length);
   const selectedSeeds = seedByCode[currentRule.code] ?? {};
   const hasGroups = approvedTeams.some((team) => team.groupName);
   const phase = phaseByCode[currentRule.code] ?? (hasGroups ? "drawn" : "config");
   const leaves = leavesByCode[currentRule.code] ?? buildKnockoutLeaves(currentConfig, approvedTeams.length);
   const rounds = nextRoundsFromLeaves(leaves);
+  const summary = formatSummary(currentConfig, approvedTeams.length, leaves, hasGroups);
   const groupedTeams = groupTeams(approvedTeams, currentConfig);
   const hasGeneratedMatches = generatedMatches.length > 0;
 
@@ -618,6 +670,15 @@ export default function BracketPanel(_props: { showNextStepCTA?: boolean } = {})
         }}
       />
 
+      <GenerationSummary
+        rule={currentRule}
+        config={currentConfig}
+        teamCount={approvedTeams.length}
+        matchCount={generatedMatches.length}
+        summary={summary}
+        hasGroups={hasGroups}
+      />
+
       <section className="ts-card ts-card--flat bk-config">
         <div className="ct-section__head">
           <span className="ct-headicon"><Icon name="settings-2" size={18} /></span>
@@ -675,12 +736,14 @@ export default function BracketPanel(_props: { showNextStepCTA?: boolean } = {})
         <div className="bk-badges">
           <span className="ct-pill" data-tone="mute">{FORMAT_LABEL[currentConfig.format] ?? currentConfig.format}</span>
           <span className="ct-pill" data-tone="info">참가 {approvedTeams.length}팀</span>
-          <span className="ct-pill" data-tone="mute">슬롯 {slots.length}</span>
+          <span className="ct-pill" data-tone="mute">슬롯 {summary.slots}</span>
           {usesAdvance(currentConfig.format) && (
             <span className="ct-pill" data-tone="ok">
-              본선 진출 {currentConfig.group_count * (currentConfig.format === "dual_tournament" ? 2 : currentConfig.advance_per_group)}팀
+              본선 진출 {summary.qualifiers}팀
             </span>
           )}
+          {summary.groupGames > 0 && <span className="ct-pill" data-tone="mute">예선 {summary.groupGames}경기</span>}
+          {summary.knockoutGames > 0 && <span className="ct-pill" data-tone="mute">본선 {summary.knockoutGames}경기</span>}
           {configDirty && <span className="ct-pill" data-tone="warn">저장 필요</span>}
           {hasGeneratedMatches && <span className="ct-pill" data-tone="ok">일정 반영됨 {generatedMatches.length}경기</span>}
         </div>
@@ -760,7 +823,7 @@ export default function BracketPanel(_props: { showNextStepCTA?: boolean } = {})
           </button>
         </div>
         {hasGeneratedMatches ? (
-          <GeneratedMatches matches={generatedMatches} />
+          <GeneratedMatches matches={generatedMatches} config={currentConfig} />
         ) : rounds.length > 0 ? (
           <div className="bk-tree">
             {rounds.map((round, roundIndex) => (
@@ -807,6 +870,53 @@ export default function BracketPanel(_props: { showNextStepCTA?: boolean } = {})
         )}
       </section>
     </div>
+  );
+}
+
+function GenerationSummary({
+  rule,
+  config,
+  teamCount,
+  matchCount,
+  summary,
+  hasGroups,
+}: {
+  rule: DivisionRule;
+  config: RuleConfig;
+  teamCount: number;
+  matchCount: number;
+  summary: ReturnType<typeof formatSummary>;
+  hasGroups: boolean;
+}) {
+  const needsDraw = config.format !== "single_elimination" && !hasGroups;
+  const statusText = matchCount > 0 ? "일정 반영됨" : needsDraw ? "조편성 필요" : "생성 가능";
+  const tone = matchCount > 0 ? "ok" : needsDraw ? "warn" : "info";
+
+  return (
+    <section className="bk-overview">
+      <div className="bk-overview__main">
+        <span className="ct-headicon"><Icon name="git-merge" size={18} /></span>
+        <div>
+          <h3>{rule.label ?? rule.code}</h3>
+          <p>
+            {FORMAT_LABEL[config.format] ?? config.format}
+            {" · "}
+            참가 {teamCount}팀
+            {config.format !== "single_elimination" && ` · ${config.group_count}조 × ${config.group_size}팀`}
+          </p>
+        </div>
+      </div>
+      <div className="bk-overview__metrics">
+        <span className="ct-pill" data-tone={tone}>{statusText}</span>
+        <span className="ct-pill" data-tone="mute">슬롯 {summary.slots}</span>
+        {summary.qualifiers > 0 && <span className="ct-pill" data-tone="info">본선 {summary.qualifiers}팀</span>}
+        {summary.groupGames > 0 && <span className="ct-pill" data-tone="mute">예선 {summary.groupGames}경기</span>}
+        {summary.knockoutGames > 0 && <span className="ct-pill" data-tone="mute">본선 {summary.knockoutGames}경기</span>}
+        {matchCount > 0
+          ? <span className="ct-pill" data-tone="ok">생성 {matchCount}경기</span>
+          : <span className="ct-pill" data-tone="warn">예상 {summary.totalGames}경기</span>}
+      </div>
+    </section>
   );
 }
 
@@ -991,10 +1101,84 @@ function nameBySlot(slot: string, teams: ApprovedTeam[]) {
   return team?.team.name ?? slot;
 }
 
-function GeneratedMatches({ matches }: { matches: Match[] }) {
-  const rounds = Array.from(
+function groupTitle(group: string) {
+  if (group === "미지정") return group;
+  return group.endsWith("조") ? group : `${group}조`;
+}
+
+function GeneratedMatches({ matches, config }: { matches: Match[]; config: RuleConfig }) {
+  const prelim = matches.filter((match) => ["prelim", "round_robin"].includes(stageOf(match)));
+  const dualGroup = matches.filter((match) => stageOf(match) === "dual_group");
+  const knockout = matches.filter((match) => ["knockout", "dual_knockout", "single_elimination"].includes(stageOf(match)));
+  const other = matches.filter((match) => {
+    const stage = stageOf(match);
+    return !["prelim", "round_robin", "dual_group", "knockout", "dual_knockout", "single_elimination"].includes(stage);
+  });
+  const completed = matches.filter((match) => match.status === "completed").length;
+
+  return (
+    <div className="bk-generated">
+      <div className="bk-generated__head">
+        <div>
+          <h5>일정에 반영된 대진표</h5>
+          <p>생성된 경기표를 단계별로 확인합니다. 시간·코트 배정은 일정 탭에서 이어서 조정합니다.</p>
+        </div>
+        <div className="bk-generated__stats">
+          <span className="ct-pill" data-tone="ok">전체 {matches.length}경기</span>
+          {prelim.length > 0 && <span className="ct-pill" data-tone="mute">예선 {prelim.length}</span>}
+          {dualGroup.length > 0 && <span className="ct-pill" data-tone="mute">조별 더블 {dualGroup.length}</span>}
+          {knockout.length > 0 && <span className="ct-pill" data-tone="mute">본선 {knockout.length}</span>}
+          <span className="ct-pill" data-tone={completed > 0 ? "ok" : "warn"}>완료 {completed}</span>
+        </div>
+      </div>
+
+      {dualGroup.length > 0 && (
+        <GeneratedSection
+          title="조별 더블 엘리미네이션"
+          desc="1·2경기 → 승자전/패자전 → 조 최종전 순서입니다."
+          matches={dualGroup}
+          groupBy="group"
+        />
+      )}
+      {prelim.length > 0 && config.format !== "dual_tournament" && (
+        <GeneratedSection
+          title={config.format === "round_robin" ? "리그 경기" : "조별 예선"}
+          desc="같은 조 안에서 생성된 예선 경기입니다."
+          matches={prelim}
+          groupBy="group"
+        />
+      )}
+      {knockout.length > 0 && (
+        <GeneratedSection
+          title="본선 토너먼트"
+          desc="순위 결과 또는 승자 흐름에 따라 다음 경기 슬롯으로 연결됩니다."
+          matches={knockout}
+          groupBy="round"
+        />
+      )}
+      {other.length > 0 && (
+        <GeneratedSection title="기타 경기" desc="단계 정보가 없는 기존 경기입니다." matches={other} groupBy="round" />
+      )}
+    </div>
+  );
+}
+
+function GeneratedSection({
+  title,
+  desc,
+  matches,
+  groupBy,
+}: {
+  title: string;
+  desc: string;
+  matches: Match[];
+  groupBy: "group" | "round";
+}) {
+  const groups = Array.from(
     matches.reduce<Map<string, Match[]>>((map, match) => {
-      const key = match.roundName ?? (match.round_number ? `${match.round_number}라운드` : "기타");
+      const key = groupBy === "group"
+        ? match.group_name ?? match.settings?.group_name ?? "미지정"
+        : match.roundName ?? (match.round_number ? `${match.round_number}라운드` : "기타");
       if (!map.has(key)) map.set(key, []);
       map.get(key)!.push(match);
       return map;
@@ -1002,15 +1186,24 @@ function GeneratedMatches({ matches }: { matches: Match[] }) {
   ).sort(([a], [b]) => a.localeCompare(b, "ko-KR", { numeric: true }));
 
   return (
-    <div className="ta-match-sections">
-      {rounds.map(([round, roundMatches]) => (
-        <div key={round} className="ta-round-group">
-          <p className="ta-round-group__title">{round} ({roundMatches.length})</p>
-          <div className="ta-match-list">
-            {roundMatches.map((match) => <MatchCard key={match.id} match={match} />)}
-          </div>
+    <div className="bk-generated__section">
+      <div className="bk-section-row">
+        <div>
+          <h5 className="bk-generated__title">{title}</h5>
+          <p className="ct-section__sub">{desc}</p>
         </div>
-      ))}
+        <span className="ct-pill" data-tone="mute">{matches.length}경기</span>
+      </div>
+      <div className="ta-match-sections">
+        {groups.map(([group, groupMatches]) => (
+          <div key={group} className="ta-round-group">
+            <p className="ta-round-group__title">{groupBy === "group" ? groupTitle(group) : group} ({groupMatches.length})</p>
+            <div className="ta-match-list">
+              {groupMatches.map((match) => <MatchCard key={match.id} match={match} />)}
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

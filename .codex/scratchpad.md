@@ -1,7 +1,7 @@
 # Scratchpad
 
 ## Current Work
-- 2026-06-27 live tournament setup: Gangnam D5 tournament is configured for electronic score-sheet recording mode, with public/admin copy using "전자기록지".
+- 2026-06-27 admin Toss sweep: tournament operate bracket and teams tabs are being rebuilt as direct Toss v2.41 implementations over the current DB/API.
 
 ## Progress
 | Area | Status | Note |
@@ -17,10 +17,11 @@
 | Recording modes | Done | Match-level `manual` is counted, displayed, and blocked from Flutter/score-sheet system inputs. |
 | Recording copy | Done | User-facing "종이 기록지" copy has been renamed to "전자기록지" while internal `paper` mode/data keys are preserved. |
 | Admin Toss handoff | Done | `BDR-current/_handoff-admin-toss-v2.41/` added; src unchanged. |
-| Admin Toss sweep | In Progress | Tournament teams panel was rebuilt around Toss operate flow; remaining panels still need the same direct-replacement pass. |
-| Tournament operate bracket | Done | Legacy bracket tab was replaced with the Toss operate flow: division config, seeded/random draw, group slots, and division generation. |
+| Admin Toss sweep | In Progress | Tournament teams and bracket panels were rebuilt around Toss operate flow; schedule/ops/site still need the same direct-replacement pass. |
+| Tournament operate bracket | Done | Bracket tab now has robust single-division category fallback plus Toss-style generation summary and stage-grouped generated match review. |
 
 ## Work Log
+- 2026-06-27: Tightened tournament operate bracket tab around the Toss v2.41 flow: single-division category fallback, generation summary, and generated matches grouped by prelim/dual/knockout stages; TypeScript and production build passed.
 - 2026-06-27: Rebuilt tournament operate teams panel around the Toss v2.41 flow so division status, single/bulk category moves, approval/payment, tokens, and player roster actions are first-screen operations; TypeScript and production build passed.
 - 2026-06-27: Removed first-empty-slot fallback from single-elim winner advancement; winners now require and use explicit `next_match_slot`, with targeted Vitest and TypeScript passing.
 - 2026-06-27: Set Gangnam Association Cup D5 tournament and all 13 matches to `recording_mode=paper`, renamed user-facing score-sheet copy to "전자기록지", and kept internal `paper`/`[종이 기록]` data keys for compatibility; TypeScript passed.
@@ -31,4 +32,3 @@
 - 2026-06-26: Fixed tournament bracket generation for live ops: bracket panel now exposes division-rule generation even at 0 matches, disables unsafe global generation when division rules exist, supports division single-elim/round-robin generation, and blocks mismatched group sizes before writes; TypeScript and targeted Vitest passed.
 - 2026-06-26: Fixed tournament team division operations for next-day live ops: single/bulk team category moves now sync team division and player division codes, team cards expose category selects, and delete blocks show linked counts; TypeScript passed.
 - 2026-06-26: Applied BDR v2 (41) admin Toss state pass: destructive confirms and prompt flows now use Toss modals, state helpers/skeletons are in `admin-toss`, and dev/main were pushed.
-- 2026-06-26: Wired previous tournament import to real DB/API, removed venue mock fallback, linked wizard PDF/association actions, and replaced teams panel player error alerts with Toss toast; TypeScript passed and dev/main were pushed.
