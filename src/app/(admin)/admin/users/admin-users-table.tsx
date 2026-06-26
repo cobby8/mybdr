@@ -400,7 +400,7 @@ export function AdminUsersTable({
           <button
             onClick={handleLoadMore}
             disabled={loadingMore}
-            className="btn btn--sm disabled:opacity-50"
+            className="ts-btn ts-btn--secondary ts-btn--sm disabled:opacity-50"
           >
             {loadingMore ? "불러오는 중..." : `더보기 (+${Math.min(50, totalCount - users.length)}명)`}
           </button>
@@ -448,7 +448,7 @@ export function AdminUsersTable({
                   {u.provider && <span className="rounded-full bg-white/15 px-2 py-0.5 text-xs text-white/80">{u.provider}</span>}
                   <Link
                     href={`/admin/users/${u.id}`}
-                    className="btn btn--sm"
+                    className="ts-btn ts-btn--secondary ts-btn--sm"
                     style={{
                       background: "var(--color-card)",
                       color: "var(--color-text-primary)",
@@ -616,7 +616,7 @@ export function AdminUsersTable({
                           <option value={2}>팀장</option>
                           <option value={3}>대회관리자</option>
                         </select>
-                        <button type="submit" className="btn btn--primary btn--sm">변경</button>
+                        <button type="submit" className="ts-btn ts-btn--primary ts-btn--sm">변경</button>
                       </form>
                     </div>
 
@@ -644,7 +644,7 @@ export function AdminUsersTable({
                       {/* (web) .btn 패턴 — 해제는 위험 톤 inline */}
                       <button onClick={() => runAction(toggleUserAdminAction, { user_id: u.id, make_admin: u.isAdmin ? "false" : "true" })}
                         disabled={pending}
-                        className="btn btn--sm disabled:opacity-50"
+                        className="ts-btn ts-btn--secondary ts-btn--sm disabled:opacity-50"
                         style={u.isAdmin ? { background: "var(--color-error)", color: "#fff", borderColor: "var(--color-error)" } : undefined}>
                         {u.isAdmin ? "해제" : "지정"}
                       </button>
@@ -658,7 +658,7 @@ export function AdminUsersTable({
                       </div>
                       <button onClick={() => runAction(updateUserStatusAction, { user_id: u.id, status: u.status === "active" ? "suspended" : "active" })}
                         disabled={pending}
-                        className="btn btn--sm disabled:opacity-50"
+                        className="ts-btn ts-btn--secondary ts-btn--sm disabled:opacity-50"
                         style={
                           u.status === "active"
                             ? { borderColor: "var(--color-warning)", color: "var(--color-warning)" }
@@ -682,10 +682,10 @@ export function AdminUsersTable({
                               {confirm === "delete" ? "DB에서 완전히 삭제합니다." : "개인정보를 삭제하고 탈퇴 처리합니다."}
                             </span>
                             <div className="flex gap-1.5 ml-auto">
-                              <button onClick={() => setConfirm(null)} className="btn btn--sm">취소</button>
+                              <button onClick={() => setConfirm(null)} className="ts-btn ts-btn--secondary ts-btn--sm">취소</button>
                               <button onClick={() => runAction(confirm === "delete" ? deleteAction : forceWithdrawAction, { user_id: u.id })}
                                 disabled={pending}
-                                className="btn btn--sm disabled:opacity-50"
+                                className="ts-btn ts-btn--secondary ts-btn--sm disabled:opacity-50"
                                 style={{ background: "var(--color-error)", color: "#fff", borderColor: "var(--color-error)" }}>
                                 {pending ? "처리 중..." : "확인"}
                               </button>
@@ -695,13 +695,13 @@ export function AdminUsersTable({
                           <div className="flex items-center gap-2">
                             {u.status !== "withdrawn" && (
                               <button onClick={() => setConfirm("withdraw")}
-                                className="btn btn--sm"
+                                className="ts-btn ts-btn--secondary ts-btn--sm"
                                 style={{ borderColor: "var(--color-warning)", color: "var(--color-warning)" }}>
                                 강제탈퇴
                               </button>
                             )}
                             <button onClick={() => setConfirm("delete")}
-                              className="btn btn--sm"
+                              className="ts-btn ts-btn--secondary ts-btn--sm"
                               style={{ borderColor: "var(--color-error)", color: "var(--color-error)" }}>
                               완전 삭제
                             </button>
@@ -1057,7 +1057,7 @@ function ProfileEditForm({
         <button
           type="submit"
           disabled={pending}
-          className="btn btn--sm disabled:opacity-50"
+          className="ts-btn ts-btn--secondary ts-btn--sm disabled:opacity-50"
           style={{
             background: "var(--color-warning)",
             color: "#fff",

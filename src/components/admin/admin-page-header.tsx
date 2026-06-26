@@ -61,7 +61,7 @@ export function AdminPageHeader({
                     {b.label}
                   </a>
                 ) : (
-                  <span style={{ color: "var(--ink)" }}>{b.label}</span>
+                  <span style={{ color: "var(--color-text-primary)" }}>{b.label}</span>
                 )}
               </span>
             ))}
@@ -84,7 +84,7 @@ export function AdminPageHeader({
                 className="input flex-1 sm:flex-initial"
                 style={{ minWidth: 0 }}
               />
-              <button type="submit" className="btn btn--primary btn--sm shrink-0">
+              <button type="submit" className="ts-btn ts-btn--primary ts-btn--sm shrink-0">
                 검색
               </button>
             </form>

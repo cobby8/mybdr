@@ -1,5 +1,7 @@
 "use client";
 
+import { Icon } from "@/components/admin-toss";
+
 /* ============================================================
  * AdminEmptyState — 빈 상태 카드 (Admin-1 Phase · 2026-05-15)
  *
@@ -38,16 +40,14 @@ export function AdminEmptyState({
     // admin-empty 클래스 — admin.css 박제 (다크모드 border-strong 자동)
     <div className="admin-empty">
       <div className="admin-empty__icon">
-        <span className="material-symbols-outlined" aria-hidden="true">
-          {icon}
-        </span>
+        <Icon name={icon} size={28} />
       </div>
       <h3 className="admin-empty__title">{title}</h3>
       {description && <p className="admin-empty__desc">{description}</p>}
       {/* CTA — label + onCta 둘 다 있을 때만 노출 (시안 박제) */}
       {ctaLabel && onCta && (
         <div className="admin-empty__cta">
-          <button type="button" className="btn btn--primary" onClick={onCta}>
+          <button type="button" className="ts-btn ts-btn--primary" onClick={onCta}>
             {ctaLabel}
           </button>
         </div>

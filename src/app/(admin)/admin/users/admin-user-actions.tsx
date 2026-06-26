@@ -35,7 +35,7 @@ export function AdminUserActions({ userId, nickname, isWithdrawn, forceWithdrawA
         <button
           onClick={() => handleAction(isDelete ? deleteAction : forceWithdrawAction)}
           disabled={pending}
-          className="btn btn--sm disabled:opacity-50"
+          className="ts-btn ts-btn--secondary ts-btn--sm disabled:opacity-50"
           style={{ background: "var(--color-error)", color: "#fff", borderColor: "var(--color-error)" }}
         >
           {pending ? "..." : "확인"}
@@ -43,7 +43,7 @@ export function AdminUserActions({ userId, nickname, isWithdrawn, forceWithdrawA
         <button
           onClick={() => setConfirm(null)}
           disabled={pending}
-          className="btn btn--sm"
+          className="ts-btn ts-btn--secondary ts-btn--sm"
         >
           취소
         </button>
@@ -56,7 +56,7 @@ export function AdminUserActions({ userId, nickname, isWithdrawn, forceWithdrawA
       {!isWithdrawn && (
         <button
           onClick={() => setConfirm("withdraw")}
-          className="btn btn--sm"
+          className="ts-btn ts-btn--secondary ts-btn--sm"
           style={{ borderColor: "var(--color-warning)", color: "var(--color-warning)" }}
         >
           강제탈퇴
@@ -64,7 +64,7 @@ export function AdminUserActions({ userId, nickname, isWithdrawn, forceWithdrawA
       )}
       <button
         onClick={() => setConfirm("delete")}
-        className="btn btn--sm"
+        className="ts-btn ts-btn--secondary ts-btn--sm"
         style={{ borderColor: "var(--color-error)", color: "var(--color-error)" }}
       >
         삭제
