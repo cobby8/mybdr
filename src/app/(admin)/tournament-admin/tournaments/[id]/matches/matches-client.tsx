@@ -7,7 +7,7 @@ import { PlaceholderValidationBanner } from "../_components/PlaceholderValidatio
 // 2026-05-16 PR-Admin-2 — 단일 순위전 진출 trigger (teams 페이지 헤더에서 이동 박제)
 import { AdvancePlayoffsButton } from "../_components/AdvancePlayoffsButton";
 // Track B-c Toss 리스킨 — Material Symbols → lucide-react 키트(<Icon>)
-import { Icon } from "@/components/admin-toss";
+import { Icon, useTossConfirm } from "@/components/admin-toss";
 import type { RecordingMode } from "@/lib/tournaments/recording-mode";
 // 2026-05-28 PR-1C-6 옵션 A — 매치 표 시각 박제 (시안 admin.css amt-table). 데이터/onClick 유지, 시각만.
 import "./matches-admin.css";
@@ -124,6 +124,7 @@ function ScoreModal({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const { id } = useParams<{ id: string }>();
+  const tossConfirm = useTossConfirm();
 
   const approvedTeams = teams.filter((t) => t.status === "approved");
 
@@ -166,11 +167,14 @@ function ScoreModal({
       // 모드 변경 시 사용자 confirm — 진행 중 매치 사고 방지
       if (modeChanged) {
         const next = RECORDING_MODE_LABEL[recordingMode];
-        if (
-          !confirm(
-            `이 매치 기록 모드를 [${next}] 로 전환합니다.\n진행 중 매치는 신중히 결정하세요.`
-          )
-        ) {
+        const ok = await tossConfirm.confirm({
+          title: "기록 방식 변경",
+          sub: `이 매치 기록 모드를 [${next}] 로 전환합니다.`,
+          body: "진행 중인 경기는 기록 충돌이 생길 수 있으니 현재 기록 상태를 먼저 확인해 주세요.",
+          confirmLabel: "전환",
+          tone: "danger",
+        });
+        if (!ok) {
           // 사용자 취소 — 토글 원복
           setRecordingMode(initialMode);
           return;
@@ -223,7 +227,14 @@ function ScoreModal({
   };
 
   const del = async () => {
-    if (!confirm("이 경기를 삭제하시겠습니까?")) return;
+    const ok = await tossConfirm.confirm({
+      title: "경기 삭제",
+      sub: formatMatchTeams(match),
+      body: "이 경기의 일정, 점수, 기록 방식 설정이 삭제됩니다.",
+      confirmLabel: "삭제",
+      tone: "danger",
+    });
+    if (!ok) return;
     try {
       await fetch(`/api/web/tournaments/${id}/matches/${match.id}`, { method: "DELETE" });
       onSaved();
@@ -237,6 +248,7 @@ function ScoreModal({
       className="amt-modal-overlay no-print"
       onClick={onClose}
     >
+      {tossConfirm.dialog}
       <div
         className="amt-modal"
         onClick={(e) => e.stopPropagation()}
@@ -440,6 +452,7 @@ export default function MatchesClient() {
   const [venueFilter, setVenueFilter] = useState<string | null>(
     searchParams?.get("venue") ?? null
   );
+  const tossConfirm = useTossConfirm();
 
   const load = useCallback(async () => {
     try {
@@ -457,7 +470,16 @@ export default function MatchesClient() {
   useEffect(() => { load(); }, [load]);
 
   const generateBracket = async (clear = false) => {
-    if (clear && !confirm("기존 경기를 모두 삭제하고 다시 생성하시겠습니까?")) return;
+    if (clear) {
+      const ok = await tossConfirm.confirm({
+        title: "경기 전체 재생성",
+        sub: "기존 경기를 모두 삭제하고 다시 생성합니다.",
+        body: "일정, 점수, 기록 방식 설정이 영향을 받을 수 있습니다. 필요한 경우 종별 단위 재생성을 먼저 검토해 주세요.",
+        confirmLabel: "재생성",
+        tone: "danger",
+      });
+      if (!ok) return;
+    }
     setGenerating(true);
     setError("");
     try {
@@ -512,6 +534,7 @@ export default function MatchesClient() {
 
   return (
     <div data-skin="toss" className="space-y-4">
+      {tossConfirm.dialog}
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h3 className="text-base font-bold text-[var(--ink)]">경기 운영</h3>

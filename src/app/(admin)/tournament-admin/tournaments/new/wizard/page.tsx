@@ -30,7 +30,7 @@ import { AdminPageHeader } from "@/components/admin/admin-page-header";
 import { loadDraft } from "@/lib/tournaments/wizard-draft";
 // 2026-06-21 Track B B-b Toss 리스킨 — Material Symbols → lucide <Icon> 키트.
 //   비주얼만 교체(아이콘 1:1 매핑)·기능/단계/POST body/라우트 변경 0. data-skin="toss" 루트 opt-in.
-import { Icon } from "@/components/admin-toss";
+import { Icon, useTossConfirm } from "@/components/admin-toss";
 // 2026-06-21 Track B Phase4 B-2 — 새 대회 생성폼(2컬럼 단일폼). quick 탭 본문 전면교체.
 //   대회정보·일정장소·종별·경기설정 + 하단 고정 생성바. 제출 POST 배선 포함.
 import { CtCreateTournament, type CtDraftPayload } from "./_components/ct-create-tournament";
@@ -167,6 +167,7 @@ function QuickCreateForm() {
   const [startDate, setStartDate] = useState("");
   // 2026-06-21 B-2 — 새 대회 생성폼 토스트(시안 toast 콜백 대체). 2.4초 후 자동 사라짐.
   const [toastMsg, setToastMsg] = useState<string | null>(null);
+  const tossConfirm = useTossConfirm();
   const showToast = useCallback((msg: string) => {
     setToastMsg(msg);
     window.setTimeout(() => setToastMsg(null), 2400);
@@ -294,6 +295,19 @@ function QuickCreateForm() {
     setSeriesOptions((prev) => [created, ...prev]);
     setSeriesId(created.id);
     setShowSeriesForm(false);
+  }
+
+  async function cancelWizard() {
+    const ok = await tossConfirm.confirm({
+      title: "작성 종료",
+      sub: "진행 중인 대회 작성을 종료합니다.",
+      body: "아직 생성하지 않은 입력값은 저장되지 않습니다.",
+      confirmLabel: "종료",
+      tone: "danger",
+    });
+    if (ok) {
+      router.push("/tournament-admin/tournaments");
+    }
   }
 
   // 로딩 / 미인증 상태
@@ -432,16 +446,13 @@ function QuickCreateForm() {
     };
     return (
       <div data-skin="toss">
+        {tossConfirm.dialog}
         <CtCreateTournament
           seriesOptions={seriesOptions}
           seriesLoaded={seriesLoaded}
           myOrgs={myOrgs}
           onSeriesCreated={handleSeriesCreated}
-          onCancel={() => {
-            if (confirm("진행 중인 작성을 종료하시겠습니까?")) {
-              router.push("/tournament-admin/tournaments");
-            }
-          }}
+          onCancel={cancelWizard}
           onOpenProspectus={() => router.push("/tournament-admin/tournaments/new/wizard/prospectus")}
           onOpenAssociationWizard={() => router.push("/tournament-admin/wizard/association")}
           onSubmitDraft={handleSubmitDraft}
@@ -461,6 +472,7 @@ function QuickCreateForm() {
   return (
     // 2026-06-21 Toss B-b: 위저드(Quick) 루트에 data-skin="toss" opt-in(공유셸 미부착·Phase2 패턴).
     <div data-skin="toss" className="mx-auto max-w-2xl">
+      {tossConfirm.dialog}
       {/* === 헤더: 시안 v2.14 AdminTournamentWizard1Step 패턴 박제 (Admin-7-B Sub-B3) ===
           이유: Sub-B1 (SetupHub) / Sub-B2 (EditWizard) 와 시각 일관성 박제 — AdminPageHeader 공통 컴포넌트.
                 Admin-3 `d98ff79` 박제 시각 자산 (eyebrow Navy + × 종료 confirm 1회) 100% 동등 이전.
@@ -488,11 +500,7 @@ function QuickCreateForm() {
             </Link>
             <button
               type="button"
-              onClick={() => {
-                if (confirm("진행 중인 작성을 종료하시겠습니까?")) {
-                  router.push("/tournament-admin/tournaments");
-                }
-              }}
+              onClick={cancelWizard}
               className="ts-btn ts-btn--secondary ts-btn--sm"
               aria-label="작성 종료"
             >

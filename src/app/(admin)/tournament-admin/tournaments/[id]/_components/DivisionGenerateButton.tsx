@@ -8,7 +8,7 @@
  *
  * 핵심 로직:
  *   - POST /api/web/admin/tournaments/[id]/division-rules/[ruleId]/generate
- *   - body { clear?: boolean } — 본 종별 매치 존재 시 confirm() 후 clear=true 전송
+ *   - body { clear?: boolean } — 본 종별 매치 존재 시 Toss 확인 모달 후 clear=true 전송
  *   - 응답 (apiSuccess snake_case): { division_code, format, generated, skipped, deleted, reason, match_ids, version_number }
  *   - 결과 모달 = AdvancePlayoffsButton 패턴 재사용 (Card + 결과 표 + success/warning 톤)
  *
@@ -22,7 +22,7 @@
 
 import { useState } from "react";
 // Track B-c Toss 리스킨 — Material Symbols → lucide-react 키트(<Icon>)
-import { Icon } from "@/components/admin-toss";
+import { Icon, useTossConfirm } from "@/components/admin-toss";
 
 type Props = {
   tournamentId: string;
@@ -67,6 +67,7 @@ export function DivisionGenerateButton({
   const [result, setResult] = useState<ResponsePayload | null>(null);
   // 네트워크 / 서버 오류 메시지 (null = 정상)
   const [error, setError] = useState<string | null>(null);
+  const tossConfirm = useTossConfirm();
 
   // 종별 단위 generator 미지원 format 은 버튼 자체 비노출
   // 사유: 대회 단위 (single_elim/dual/round_robin/swiss) 는 헤더 "재생성" 버튼으로 처리
@@ -75,19 +76,22 @@ export function DivisionGenerateButton({
   }
 
   // ─────────────────────────────────────────────────────────────
-  // 클릭 핸들러 — confirm() → POST → 결과 모달
+  // 클릭 핸들러 — Toss confirm → POST → 결과 모달
   // ─────────────────────────────────────────────────────────────
   async function handleClick() {
     // confirm 메시지: 매치 존재 여부에 따라 분기
     // - 매치 존재 → "기존 N건 삭제 후 재생성" 경고 + clear=true
     // - 매치 0건 → "첫 생성" 안내 + clear=false (idempotent)
-    const confirmMsg = hasMatches
-      ? `[${divisionCode}] 종별의 기존 매치를 삭제하고 재생성합니다.\n\n다른 종별 매치는 그대로 보존됩니다.\n계속하시겠습니까?`
-      : `[${divisionCode}] 종별 매치를 자동 생성합니다.\n\n계속하시겠습니까?`;
-
-    if (!confirm(confirmMsg)) {
-      return;
-    }
+    const ok = await tossConfirm.confirm({
+      title: hasMatches ? "종별 매치 재생성" : "종별 매치 생성",
+      sub: `[${divisionCode}] 종별 매치를 ${hasMatches ? "삭제 후 재생성" : "자동 생성"}합니다.`,
+      body: hasMatches
+        ? "다른 종별 매치는 그대로 보존됩니다. 이 종별의 기존 매치만 삭제 후 다시 생성합니다."
+        : "현재 종별 운영 방식에 맞춰 매치를 자동 생성합니다.",
+      confirmLabel: hasMatches ? "재생성" : "생성",
+      tone: hasMatches ? "danger" : "primary",
+    });
+    if (!ok) return;
 
     setLoading(true);
     setError(null);
@@ -130,6 +134,7 @@ export function DivisionGenerateButton({
 
   return (
     <>
+      {tossConfirm.dialog}
       {/* trigger 버튼 — 종별 헤더 우측 박제 (BDR Navy 톤 / 작은 사이즈) */}
       <button
         type="button"

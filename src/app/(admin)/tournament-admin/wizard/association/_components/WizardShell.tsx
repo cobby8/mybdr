@@ -17,6 +17,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import { AdminPageHeader } from "@/components/admin/admin-page-header";
+import { useTossConfirm } from "@/components/admin-toss";
 import { ASSOCIATION_WIZARD_STEPS } from "@/lib/tournaments/association-wizard-constants";
 
 export interface WizardShellProps {
@@ -49,9 +50,24 @@ export function WizardShell({
   const isFirstStep = currentStep === 1;
   // Admin-9 박제 (2026-05-16) — 종료 버튼 confirm 후 /admin 으로 라우팅.
   const router = useRouter();
+  const tossConfirm = useTossConfirm();
+
+  async function cancelWizard() {
+    const ok = await tossConfirm.confirm({
+      title: "작성 종료",
+      sub: "진행 중인 협회 작성을 종료합니다.",
+      body: "아직 생성하지 않은 입력값은 저장되지 않습니다.",
+      confirmLabel: "종료",
+      tone: "danger",
+    });
+    if (ok) {
+      router.push("/admin");
+    }
+  }
 
   return (
-    <div className="mx-auto max-w-3xl">
+    <div data-skin="toss" className="mx-auto max-w-3xl">
+      {tossConfirm.dialog}
       {/* === 헤더 — Admin-9 박제: AdminPageHeader (eyebrow + breadcrumbs + actions) === */}
       <AdminPageHeader
         eyebrow="협회 마법사 · 진행 중"
@@ -74,11 +90,7 @@ export function WizardShell({
             {/* 종료 버튼 — confirm 후 /admin 으로 라우팅 (작성 중단) */}
             <button
               type="button"
-              onClick={() => {
-                if (confirm("진행 중인 작성을 종료하시겠습니까?")) {
-                  router.push("/admin");
-                }
-              }}
+              onClick={cancelWizard}
               className="ts-btn ts-btn--secondary ts-btn--sm"
               aria-label="작성 종료"
             >

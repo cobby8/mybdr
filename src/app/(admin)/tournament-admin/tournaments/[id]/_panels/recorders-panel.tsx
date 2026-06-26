@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useParams } from "next/navigation";
 import Image from "next/image";
+import { useTossConfirm } from "@/components/admin-toss";
 
 // 2026-06-13 HOTFIX: GET 응답은 apiSuccess→convertKeysToSnakeCase 거쳐 snake_case.
 //   camelCase(recorderId/isActive/createdAt)로 읽으면 전 행 undefined → 빈 목록 버그.
@@ -59,6 +60,7 @@ export default function TournamentRecordersPage() {
   const [assigningId, setAssigningId] = useState<string | null>(null);
   const [autoAssigning, setAutoAssigning] = useState(false);
   const [matchError, setMatchError] = useState("");
+  const tossConfirm = useTossConfirm();
 
   const load = useCallback(async () => {
     try {
@@ -106,7 +108,14 @@ export default function TournamentRecordersPage() {
   };
 
   const removeRecorder = async (recorderId: string, name: string) => {
-    if (!confirm(`${name} 님의 기록원 권한을 제거하시겠습니까?`)) return;
+    const ok = await tossConfirm.confirm({
+      title: "기록원 권한 제거",
+      sub: `${name} 님의 기록원 권한이 제거됩니다.`,
+      body: "배정된 경기의 기록 담당자도 함께 확인해 주세요.",
+      confirmLabel: "제거",
+      tone: "danger",
+    });
+    if (!ok) return;
     try {
       await fetch(`/api/web/tournaments/${id}/recorders`, {
         method: "DELETE",
@@ -165,7 +174,13 @@ export default function TournamentRecordersPage() {
       setMatchError("먼저 기록원 풀에 인원을 추가하세요.");
       return;
     }
-    if (!confirm("미배정 경기에 기록원 풀을 순환 배정합니다. 진행할까요?")) return;
+    const ok = await tossConfirm.confirm({
+      title: "기록원 자동 배정",
+      sub: `미배정 경기 ${unassignedCount}개에 기록원을 순환 배정합니다.`,
+      body: "이미 배정된 경기는 유지되고, 비어 있는 경기만 채워집니다.",
+      confirmLabel: "자동 배정",
+    });
+    if (!ok) return;
     setAutoAssigning(true);
     setMatchError("");
     try {
@@ -200,6 +215,7 @@ export default function TournamentRecordersPage() {
   return (
     // Track B-c — Toss 토큰 적용 루트 opt-in
     <div data-skin="toss" className="space-y-6">
+      {tossConfirm.dialog}
       {/* 기록원 추가 */}
       <section className="ts-card space-y-3 p-4">
         <h2 className="tp-title">기록원 추가</h2>

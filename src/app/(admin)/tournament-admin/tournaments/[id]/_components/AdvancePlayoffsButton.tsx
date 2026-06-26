@@ -23,7 +23,7 @@
 
 import { useState } from "react";
 // Track B-c Toss 리스킨 — Material Symbols → lucide-react 키트(<Icon>)
-import { Icon } from "@/components/admin-toss";
+import { Icon, useTossConfirm } from "@/components/admin-toss";
 
 type Props = {
   tournamentId: string;
@@ -55,19 +55,19 @@ export function AdvancePlayoffsButton({ tournamentId, onSuccess }: Props) {
   const [result, setResult] = useState<ResponsePayload | null>(null);
   // 네트워크 / 서버 오류 메시지 (null = 정상)
   const [error, setError] = useState<string | null>(null);
+  const tossConfirm = useTossConfirm();
 
   // ─────────────────────────────────────────────────────────────
-  // 클릭 핸들러 — confirm() 다이얼로그 → POST 호출 → 결과 모달
+  // 클릭 핸들러 — Toss confirm → POST 호출 → 결과 모달
   // ─────────────────────────────────────────────────────────────
   async function handleClick() {
-    // confirm 다이얼로그 — 운영자 의도 재확인 (idempotent 안내 포함)
-    if (
-      !confirm(
-        "모든 종별 순위전 placeholder 매치를 standings 기반으로 자동 채우시겠습니까?\n\n조별 예선 종료 후 사용하세요.\n재호출 시 이미 채워진 슬롯은 보호됩니다.",
-      )
-    ) {
-      return;
-    }
+    const ok = await tossConfirm.confirm({
+      title: "순위전 자동 채우기",
+      sub: "모든 종별 순위전 placeholder 매치를 standings 기반으로 채웁니다.",
+      body: "조별 예선 종료 후 사용하세요. 재호출 시 이미 채워진 슬롯은 보호됩니다.",
+      confirmLabel: "자동 채우기",
+    });
+    if (!ok) return;
 
     setLoading(true);
     setError(null);
@@ -107,6 +107,7 @@ export function AdvancePlayoffsButton({ tournamentId, onSuccess }: Props) {
 
   return (
     <>
+      {tossConfirm.dialog}
       {/* trigger 버튼 — matches 헤더 우측 박제 (BDR Navy 톤) */}
       <button
         type="button"

@@ -275,6 +275,7 @@ export function Modal({
     <div
       className="ts-modal-overlay"
       onClick={(e) => {
+        e.stopPropagation();
         if (e.target === e.currentTarget) onClose();
       }}
     >
@@ -313,4 +314,83 @@ export function Modal({
       </div>
     </div>
   );
+}
+
+// ── TossConfirm ──────────────────────────────────────────────────────
+export type TossConfirmTone = "primary" | "danger";
+
+export type TossConfirmOptions = {
+  title: React.ReactNode;
+  sub?: React.ReactNode;
+  body?: React.ReactNode;
+  confirmLabel?: React.ReactNode;
+  cancelLabel?: React.ReactNode;
+  tone?: TossConfirmTone;
+  maxWidth?: number;
+};
+
+export function useTossConfirm() {
+  const [state, setState] = React.useState<TossConfirmOptions | null>(null);
+  const resolverRef = React.useRef<((confirmed: boolean) => void) | null>(null);
+
+  const close = React.useCallback((confirmed: boolean) => {
+    resolverRef.current?.(confirmed);
+    resolverRef.current = null;
+    setState(null);
+  }, []);
+
+  const confirm = React.useCallback((options: TossConfirmOptions) => {
+    resolverRef.current?.(false);
+    return new Promise<boolean>((resolve) => {
+      resolverRef.current = resolve;
+      setState(options);
+    });
+  }, []);
+
+  React.useEffect(() => {
+    return () => {
+      resolverRef.current?.(false);
+      resolverRef.current = null;
+    };
+  }, []);
+
+  const dialog = state ? (
+    <Modal
+      open
+      onClose={() => close(false)}
+      title={state.title}
+      sub={state.sub}
+      maxWidth={state.maxWidth ?? 480}
+      foot={
+        <div
+          style={{
+            display: "flex",
+            gap: 8,
+            justifyContent: "flex-end",
+            width: "100%",
+          }}
+        >
+          <Btn variant="secondary" onClick={() => close(false)}>
+            {state.cancelLabel ?? "취소"}
+          </Btn>
+          <Btn
+            variant={state.tone === "danger" ? "danger" : "primary"}
+            onClick={() => close(true)}
+          >
+            {state.confirmLabel ?? "확인"}
+          </Btn>
+        </div>
+      }
+    >
+      {typeof state.body === "string" ? (
+        <p style={{ color: "var(--ink-soft)", lineHeight: 1.65, margin: 0 }}>
+          {state.body}
+        </p>
+      ) : (
+        state.body
+      )}
+    </Modal>
+  ) : null;
+
+  return { confirm, dialog };
 }

@@ -22,7 +22,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useParams } from "next/navigation";
 // Track B-c Toss 리스킨 — Material Symbols → lucide-react 키트(<Icon>)
-import { Icon } from "@/components/admin-toss";
+import { Icon, useTossConfirm } from "@/components/admin-toss";
 // 2026-05-12 Phase 3.5-D — division format / settings 헬퍼 (lib 분리 → vitest 단위 검증 가능)
 import {
   FORMAT_LABEL,
@@ -98,6 +98,7 @@ export default function DivisionsSetupPage() {
     updated: number;
     skipped: number;
   } | null>(null);
+  const tossConfirm = useTossConfirm();
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -201,10 +202,17 @@ export default function DivisionsSetupPage() {
     }
   };
 
-  const removeDivision = (category: string, divisionIndex: number) => {
+  const removeDivision = async (category: string, divisionIndex: number) => {
     const removedName = getCurrentDivisionName(category, divisionIndex);
     if (!removedName) return;
-    if (!confirm(`"${removedName}" 디비전을 삭제할까요?`)) return;
+    const ok = await tossConfirm.confirm({
+      title: "종별 삭제",
+      sub: `"${removedName}" 디비전을 삭제합니다.`,
+      body: "저장 전 화면에서만 제거되며, 저장하면 대회 종별 구성에 반영됩니다.",
+      confirmLabel: "삭제",
+      tone: "danger",
+    });
+    if (!ok) return;
 
     setSyncResult(null);
     setError(null);
@@ -377,7 +385,13 @@ export default function DivisionsSetupPage() {
 
   // 2026-05-12 Phase 3.5-C — 종별 진출 매핑 수동 실행
   const advanceDivision = async (ruleId: string, code: string) => {
-    if (!confirm(`"${code}" 종별 진출 매핑을 실행하시겠어요?\n\n예선 순위를 기준으로 순위전 경기를 자동으로 채웁니다.`)) return;
+    const ok = await tossConfirm.confirm({
+      title: "진출 매핑 실행",
+      sub: `"${code}" 종별 순위전 매치를 자동으로 채웁니다.`,
+      body: "예선 순위를 기준으로 순위전 경기 슬롯을 매핑합니다. 이미 채워진 슬롯은 서버 규칙에 따라 보호됩니다.",
+      confirmLabel: "매핑 실행",
+    });
+    if (!ok) return;
     setAdvancingId(ruleId);
     setAdvanceResult(null);
     setError(null);
@@ -467,6 +481,7 @@ export default function DivisionsSetupPage() {
   return (
     // Track B-c — Toss 토큰 적용 루트 opt-in
     <div data-skin="toss" className="ta-divisions-panel space-y-4">
+      {tossConfirm.dialog}
 
       {error && (
         <div className="ta-division-alert" data-tone="danger">

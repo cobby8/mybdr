@@ -6,7 +6,7 @@ import Link from "next/link";
 // 2026-05-16 PR-Admin-1 — 단계간 CTA (페이지 footer "다음: 대진표 생성 →")
 import { NextStepCTA } from "../_components/NextStepCTA";
 // Track B-a Toss 리스킨 — Material Symbols → lucide-react 키트(<Icon>)
-import { Icon } from "@/components/admin-toss";
+import { Icon, useTossConfirm } from "@/components/admin-toss";
 import { PanelLoadingState } from "./panel-loading-state";
 
 /* ---------- 타입 ---------- */
@@ -114,6 +114,7 @@ export default function TournamentTeamsPage() {
   const [editingManager, setEditingManager] = useState(false);
   const [managerForm, setManagerForm] = useState({ name: "", phone: "" });
   const [showImportModal, setShowImportModal] = useState(false);
+  const tossConfirm = useTossConfirm();
 
   // 토스트 자동 사라짐 (3초)
   const showToast = useCallback((msg: string) => {
@@ -285,7 +286,14 @@ export default function TournamentTeamsPage() {
 
   // 토큰 재발급
   const reissueToken = async (ttId: string) => {
-    if (!confirm("토큰을 재발급하시겠습니까?\n기존 토큰 URL은 무효화됩니다.")) return;
+    const ok = await tossConfirm.confirm({
+      title: "토큰 재발급",
+      sub: "기존 참가 신청 토큰 URL은 즉시 무효화됩니다.",
+      body: "새 토큰 링크가 발급되며, 가능하면 새 링크를 바로 공유해 주세요.",
+      confirmLabel: "재발급",
+      tone: "danger",
+    });
+    if (!ok) return;
     try {
       const res = await fetch(`/api/web/admin/tournaments/${id}/teams/${ttId}/reissue-token`, {
         method: "POST",
@@ -325,7 +333,14 @@ export default function TournamentTeamsPage() {
   // 종별 변경
   const changeCategory = async (ttId: string, category: string) => {
     if (!category) return;
-    if (!confirm(`종별을 "${category}" 로 변경하시겠습니까?\n선수 명단의 division_code 도 일괄 변경됩니다.`)) return;
+    const ok = await tossConfirm.confirm({
+      title: "팀 종별 변경",
+      sub: `종별을 "${category}" 로 변경합니다.`,
+      body: "선수 명단의 division_code도 함께 변경됩니다. 이미 생성된 대진이 있다면 이후 대진 상태를 다시 확인해 주세요.",
+      confirmLabel: "변경",
+      tone: "danger",
+    });
+    if (!ok) return;
     try {
       const res = await fetch(`/api/web/admin/tournaments/${id}/teams/${ttId}/category`, {
         method: "PATCH",
@@ -380,9 +395,13 @@ export default function TournamentTeamsPage() {
       return;
     }
     const modeLabel = mode === "seeded" ? "시드 반영" : "랜덤";
-    if (!confirm(`${rule.label} 승인팀 ${ready.approved}팀을 ${modeLabel} 방식으로 조편성할까요?`)) {
-      return;
-    }
+    const ok = await tossConfirm.confirm({
+      title: "종별 조편성",
+      sub: `${rule.label} 승인팀 ${ready.approved}팀을 ${modeLabel} 방식으로 배정합니다.`,
+      body: "기존 조 정보가 있는 팀은 새 배정 결과로 변경될 수 있습니다.",
+      confirmLabel: "조편성 실행",
+    });
+    if (!ok) return;
     setDrawingDivision(rule.code);
     try {
       const res = await fetch(`/api/web/admin/tournaments/${id}/division-draw`, {
@@ -478,7 +497,14 @@ export default function TournamentTeamsPage() {
   /* --- 선수 삭제 --- */
   const handleDeletePlayer = async (playerId: string) => {
     if (!expandedTeamId) return;
-    if (!confirm("이 선수를 삭제하시겠습니까?")) return;
+    const ok = await tossConfirm.confirm({
+      title: "선수 삭제",
+      sub: "이 팀의 선수 명단에서 해당 선수를 삭제합니다.",
+      body: "삭제 후 팀 선수 수와 참가 조건을 다시 확인해 주세요.",
+      confirmLabel: "삭제",
+      tone: "danger",
+    });
+    if (!ok) return;
 
     try {
       const res = await fetch(
@@ -545,6 +571,7 @@ export default function TournamentTeamsPage() {
 
   return (
     <div data-skin="toss">
+      {tossConfirm.dialog}
       <div className="ts-card ts-card--flat mb-4 flex flex-wrap items-center justify-between gap-3">
         <div>
           {/* Phase 2-C 안내 — 코치 토큰 URL 공유 시 비로그인으로 명단 입력 가능 */}

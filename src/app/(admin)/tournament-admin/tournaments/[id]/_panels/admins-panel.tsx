@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useParams } from "next/navigation";
 import { PanelLoadingState } from "./panel-loading-state";
-import { Icon } from "@/components/admin-toss";
+import { Icon, useTossConfirm } from "@/components/admin-toss";
 
 type Admin = {
   id: string;
@@ -34,6 +34,7 @@ export default function TournamentAdminsPage() {
   const [adding, setAdding] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const tossConfirm = useTossConfirm();
 
   const load = useCallback(async () => {
     try {
@@ -70,7 +71,14 @@ export default function TournamentAdminsPage() {
   };
 
   const removeAdmin = async (adminId: string, name: string) => {
-    if (!confirm(`${name} 님의 관리자 권한을 제거하시겠습니까?`)) return;
+    const ok = await tossConfirm.confirm({
+      title: "관리자 권한 제거",
+      sub: `${name} 님의 대회 관리자 권한이 제거됩니다.`,
+      body: "이 사용자는 더 이상 이 대회를 관리할 수 없습니다.",
+      confirmLabel: "제거",
+      tone: "danger",
+    });
+    if (!ok) return;
     try {
       await fetch(`/api/web/tournaments/${id}/admins/${adminId}`, { method: "DELETE" });
       await load();
@@ -82,6 +90,7 @@ export default function TournamentAdminsPage() {
   return (
     // Track B-c — Toss 토큰 적용 루트 opt-in
     <div data-skin="toss">
+      {tossConfirm.dialog}
       {/* 추가 폼 */}
       <section className="ts-card mb-6">
         <h2 className="tp-title mb-4">관리자 추가</h2>

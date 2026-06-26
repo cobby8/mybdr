@@ -6,6 +6,7 @@ import Link from "next/link";
 // 2026-05-04 (P4) — 듀얼 조 배정 에디터 (16팀 → 4그룹 배정 + 페어링 모드 + 저장/생성)
 import { DualGroupAssignmentEditor } from "../bracket/_components/dual-group-assignment-editor";
 import { PanelLoadingState } from "./panel-loading-state";
+import { useTossConfirm } from "@/components/admin-toss";
 import type { SemifinalPairingMode } from "@/lib/tournaments/dual-defaults";
 // 2026-05-16 PR-Admin-1 — 단계간 CTA (페이지 footer "다음: 경기 관리 →")
 import { NextStepCTA } from "../_components/NextStepCTA";
@@ -152,6 +153,7 @@ export default function BracketAdminPage() {
   const [activating, setActivating] = useState(false);
   const [savingMatch, setSavingMatch] = useState<string | null>(null);
   const [error, setError] = useState("");
+  const tossConfirm = useTossConfirm();
 
   const load = useCallback(async () => {
     try {
@@ -165,7 +167,16 @@ export default function BracketAdminPage() {
   useEffect(() => { load(); }, [load]);
 
   const generate = async (clear = false) => {
-    if (clear && !confirm("기존 경기를 모두 삭제하고 재생성하시겠습니까?")) return;
+    if (clear) {
+      const ok = await tossConfirm.confirm({
+        title: "대진표 재생성",
+        sub: "기존 경기 데이터를 삭제하고 다시 생성합니다.",
+        body: "이미 편성한 경기, 점수, 일정이 영향을 받을 수 있습니다. 필요한 경우 현재 상태를 먼저 확인해 주세요.",
+        confirmLabel: "재생성",
+        tone: "danger",
+      });
+      if (!ok) return;
+    }
     setGenerating(true);
     setError("");
     try {
@@ -233,6 +244,7 @@ export default function BracketAdminPage() {
   return (
     // Track B-c — Toss 토큰 적용 루트 opt-in (하위 섹션·모달 DOM 상속)
     <div data-skin="toss">
+      {tossConfirm.dialog}
       <div className="mb-4">
         {isLeague && approvedCount >= 2 && !hasMatches && (
           <p className="ta-bracket-note">

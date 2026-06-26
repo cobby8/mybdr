@@ -15,6 +15,7 @@ export {
   StepDots,
   Empty,
   Modal,
+  useTossConfirm,
 } from "./kit";
 export type {
   IconProps,
@@ -28,6 +29,8 @@ export type {
   StepDotsProps,
   EmptyProps,
   ModalProps,
+  TossConfirmOptions,
+  TossConfirmTone,
 } from "./kit";
 
 // 콘솔 키트 (StatusTabs · FilterBar · DataTable · DetailModal · StatCard 등)
