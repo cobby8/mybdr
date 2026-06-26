@@ -444,41 +444,31 @@ export default function BracketAdminPage() {
 
       {/* 전체 경기 목록 — single elim / 풀리그 등 dual 외 포맷 */}
       {hasMatches && !isDual && (
-        <div>
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-[var(--color-text-muted)] uppercase tracking-wide">
+        <div className="ta-match-sections">
+          <div className="ta-section-head">
+            <h2 className="ta-panel-title">
               전체 경기 ({data?.matches.length}경기)
             </h2>
             <Link
               href={`/tournament-admin/tournaments/${id}#matches`}
-              className="text-xs text-[var(--color-info)] hover:underline"
+              className="ta-panel-link"
             >
               경기 관리로 이동 →
             </Link>
           </div>
-          <div className="space-y-1.5">
+          <div className="ta-round-groups">
             {Array.from(new Set(data?.matches.map((m) => m.round_number))).sort((a, b) => (a ?? 0) - (b ?? 0)).map((rn) => {
               const rMatches = data?.matches.filter((m) => m.round_number === rn) ?? [];
               return (
-                <div key={rn ?? "x"}>
-                  <p className="mb-1 text-xs font-medium uppercase tracking-wide text-[var(--color-text-muted)]">
+                <div key={rn ?? "x"} className="ta-round-group">
+                  <p className="ta-round-group__title">
                     {rMatches[0]?.roundName ?? (rn != null ? `라운드 ${rn}` : "라운드 미정")}
                   </p>
+                  <div className="ta-match-list">
                   {rMatches.map((m) => (
-                    <div key={m.id} className="mb-1 flex items-center gap-2 rounded-[10px] bg-[var(--color-surface)] px-3 py-2 text-sm">
-                      <span className="w-5 text-center text-xs text-[var(--color-text-muted)]">#{m.match_number ?? "-"}</span>
-                      <span className={`flex-1 text-right font-medium ${m.homeTeamId == null ? "text-[var(--color-text-muted)]" : ""}`}>
-                        {m.homeTeam?.team.name ?? "미정"}
-                      </span>
-                      <span className="text-xs text-[var(--color-text-muted)]">vs</span>
-                      <span className={`flex-1 font-medium ${m.awayTeamId == null ? "text-[var(--color-text-muted)]" : ""}`}>
-                        {m.awayTeam?.team.name ?? "미정"}
-                      </span>
-                      <span className={`text-xs ${STATUS_LABEL[m.status] ? "text-[var(--color-text-muted)]" : ""}`}>
-                        {STATUS_LABEL[m.status] ?? m.status}
-                      </span>
-                    </div>
+                    <DualMatchCard key={m.id} match={m} />
                   ))}
+                  </div>
                 </div>
               );
             })}
@@ -807,29 +797,26 @@ function DivisionBracketSections({
     : divisionEntries.filter(([code]) => code === divisionFilter);
 
   return (
-    <div className="space-y-4">
-      <div className="mb-3 flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-[var(--color-text-muted)] uppercase tracking-wide">
+    <div className="ta-division-bracket">
+      <div className="ta-section-head">
+        <h2 className="ta-panel-title">
           종별 대진표 ({matches.length}경기 / {divisionEntries.length}종별)
         </h2>
         <Link
           href={`/tournament-admin/tournaments/${tournamentId}#matches`}
-          className="text-xs text-[var(--color-info)] hover:underline"
+          className="ta-panel-link"
         >
           경기 관리로 이동 →
         </Link>
       </div>
 
       {/* 2026-05-12 — 종별 필터 (전체 / 종별 1개 선택) */}
-      <div className="mb-3 flex flex-wrap items-center gap-2">
+      <div className="ta-filterbar">
         <button
           type="button"
           onClick={() => setDivisionFilter(null)}
-          className={`rounded-[4px] px-3 py-1.5 text-xs font-medium transition-colors ${
-            divisionFilter === null
-              ? "bg-[var(--color-info)] text-white"
-              : "bg-[var(--color-elevated)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
-          }`}
+          className="ta-filter-chip"
+          data-active={divisionFilter === null ? "true" : "false"}
         >
           전체 ({matches.length})
         </button>
@@ -838,11 +825,8 @@ function DivisionBracketSections({
             key={code}
             type="button"
             onClick={() => setDivisionFilter(code)}
-            className={`rounded-[4px] px-3 py-1.5 text-xs font-medium transition-colors ${
-              divisionFilter === code
-                ? "bg-[var(--color-info)] text-white"
-                : "bg-[var(--color-elevated)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
-            }`}
+            className="ta-filter-chip"
+            data-active={divisionFilter === code ? "true" : "false"}
           >
             {code === "_no_division" ? "종별 미지정" : code} ({divMatches.length})
           </button>
@@ -866,22 +850,22 @@ function DivisionBracketSections({
         );
 
         return (
-          <section key={divCode} className="ts-card !p-0 overflow-hidden">
+          <section key={divCode} className="ts-card ta-dual-stage">
             {/* 종별 헤더 — 토글 + deep link */}
-            <div className="flex w-full items-center justify-between px-4 py-3 hover:bg-[var(--color-elevated)] transition-colors">
+            <div className="ta-division-stage__head">
               <button
                 type="button"
                 onClick={() => toggle(divCode)}
-                className="flex flex-1 items-center gap-2 text-left"
+                className="ta-division-stage__toggle"
               >
-                <span className="text-sm font-bold text-[var(--color-text-primary)]">
-                  {divCode === "_no_division" ? "종별 미지정" : divCode}
-                </span>
-                <span className="rounded-full bg-[var(--color-elevated)] px-2 py-0.5 text-xs text-[var(--color-text-muted)]">
-                  {divMatches.length}경기
+                <span className="ta-dual-stage__title">
+                  <span>{divCode === "_no_division" ? "종별 미지정" : divCode}</span>
+                  <span className="ta-dual-stage__count">
+                    {divMatches.length}경기
+                  </span>
                 </span>
               </button>
-              <div className="flex items-center gap-2">
+              <div className="ta-division-stage__actions">
                 {/* 2026-05-16 PR-Admin-4 — 종별 단위 매치 generator 버튼.
                     rule 매칭 + 지원 format 일 때만 노출 (DivisionGenerateButton 내부 가드 중복).
                     "_no_division" 매치는 ruleId 없으므로 버튼 비노출. */}
@@ -899,7 +883,7 @@ function DivisionBracketSections({
                 {divCode !== "_no_division" && (
                   <Link
                     href={`/tournament-admin/tournaments/${tournamentId}#matches`}
-                    className="text-xs text-[var(--color-info)] hover:underline"
+                    className="ta-panel-link"
                   >
                     경기 관리 →
                   </Link>
@@ -907,7 +891,7 @@ function DivisionBracketSections({
                 <button
                   type="button"
                   onClick={() => toggle(divCode)}
-                  className="text-xs text-[var(--color-text-muted)]"
+                  className="ta-dual-stage__state"
                 >
                   {isCollapsed ? "펼치기 ▼" : "접기 ▲"}
                 </button>
@@ -916,13 +900,13 @@ function DivisionBracketSections({
 
             {/* 본문 — roundName 별 sub-그룹 */}
             {!isCollapsed && (
-              <div className="border-t border-[var(--color-border-subtle)] p-3">
+              <div className="ta-dual-stage__body">
                 {roundEntries.map(([roundName, rMatches]) => (
-                  <div key={roundName} className="mb-3 last:mb-0">
-                    <p className="mb-1 text-xs font-medium uppercase tracking-wide text-[var(--color-text-muted)]">
+                  <div key={roundName} className="ta-round-group">
+                    <p className="ta-round-group__title">
                       {roundName} ({rMatches.length})
                     </p>
-                    <div className="space-y-1">
+                    <div className="ta-match-list">
                       {rMatches.map((m) => (
                         <DualMatchCard key={m.id} match={m} />
                       ))}
