@@ -70,7 +70,7 @@ export default async function AdminLayout({
       }}
       hideHeader
       topbarRight={
-        // PC topbar 우측 UserMenu — 모바일은 admin.css 가 .admin-topbar 우측을 햄버거 자리로 점유
+        // Desktop user menu slot. Mobile keeps this hidden behind the drawer trigger.
         <div className="hidden lg:flex">
           <UserMenu
             nickname={auth.user.nickname}

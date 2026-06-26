@@ -23,9 +23,10 @@
 | Admin tournament list | Done | `/admin/tournaments` was replaced with a clean Toss list, Korean copy restored, and row click routes directly to the operate workspace. |
 | Tournament teams category display | Done | Teams panel now preserves raw category values but renders/groups by the active division rule, preventing corrupted legacy labels from appearing in live ops. |
 | Tournament admin standalone shell | Done | `/tournament-admin/*` now uses the v2.41/v2.42 standalone Toss workspace layout without the legacy global admin sidebar. |
-| Admin Toss cleanup | In Progress | Admin scope now scans clean for `ta-*`, `au-*`, `material-symbols-outlined`, and `components/ui`; remaining work is broader `admin-*` class parity and full 9-screen replacement. |
+| Admin Toss cleanup | In Progress | Admin scope now scans clean for `ta-*`, `au-*`, `material-symbols-outlined`, `components/ui`, and active shell `admin-shell/admin-main/admin-topbar`; remaining work is mobile drawer/sidebar class parity and full 9-screen replacement. |
 
 ## Work Log
+- 2026-06-27: Migrated shared AdminShell root/main/topbar/content wrappers from legacy shell classes to Toss `ad-*` shell classes, added scoped CSS aliases, and verified local Chrome `/admin/tournaments` plus operate workspace have no old shell/Material/au/ta DOM residue.
 - 2026-06-27: Replaced shared AdminPageHeader markup with canonical Toss `ts-ph` structure while preserving props/search/actions; TypeScript, `admin-pageheader` scan, and local Chrome `/admin/tournaments`/`/tournament-admin/tournaments` passed.
 - 2026-06-27: Removed admin-scope Material Symbols and `components/ui` dependencies by routing icons/skeleton/buttons through admin Toss lucide kit; `rg` cleanup scan, TypeScript, diff check, and local Chrome `/admin/tournaments`/operate workspace passed.
 - 2026-06-27: Replaced admin backoffice `au-*` residue with `ad-*`, added a lucide-based AdminThemeSwitch, and removed global sidebar/user-menu/logout ligature text; TypeScript and local Chrome `/admin/tournaments` passed.

@@ -280,7 +280,7 @@ export function AdminSidebar({ roles }: AdminSidebarProps) {
   return (
     // 사이드바: CSS 변수 기반 배경/보더 (다크모드 자동 전환)
     // 2026-05-04: overflow-y-auto + flex-1 nav 로 메뉴 많아도 스크롤 가능 (사용자 요청)
-    // Phase 1 — 셸 크롬(사이드바)에만 data-skin="toss" opt-in (공유 .admin-shell/.admin-main 엔 금지)
+    // Sidebar chrome keeps its own Toss opt-in until the drawer is migrated.
     <aside data-skin="toss" className="fixed left-0 top-0 z-40 hidden h-screen w-64 flex-col border-r border-[var(--color-border)] bg-[var(--color-surface)] p-4 lg:flex">
       {/* 로고: BDR 이미지 + ADMIN 배지 */}
       <Link href="/admin" className="mb-6 flex items-center gap-3 px-3 shrink-0">

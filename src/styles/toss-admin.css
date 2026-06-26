@@ -1322,6 +1322,72 @@
    ⚠ @keyframes ad-slide 만 글로벌 불가피(ct/ts 패턴 동일). tsfade 는 기존 재사용.
    ============================================================ */
 
+/* ── 관리자 셸 (AdminShell) ───────────────────────────────── */
+[data-skin="toss"].ad-shell {
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--ink);
+  display: block;
+  position: relative;
+}
+[data-skin="toss"].ad-shell--hidden-aside .admin-aside { display: none; }
+[data-skin="toss"].ad-shell--hidden-aside .ad-main { margin-left: 0; }
+[data-skin="toss"].ad-shell--hidden-aside .ad-topbar { justify-content: flex-start; }
+
+[data-skin="toss"] .ad-main {
+  margin-left: var(--sidebar-w);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+[data-skin="toss"] .ad-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  min-height: 56px;
+  padding: 10px 24px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+}
+
+[data-skin="toss"] .ad-main__inner {
+  flex: 1;
+  max-width: 1280px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 24px 24px 80px;
+}
+
+@media (max-width: 1024px) {
+  [data-skin="toss"] .ad-main {
+    margin-left: 0;
+    padding-top: 56px;
+  }
+
+  [data-skin="toss"] .ad-topbar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    justify-content: space-between;
+    padding-left: 64px;
+    background: var(--card);
+  }
+}
+
+@media (max-width: 720px) {
+  [data-skin="toss"] .ad-main__inner { padding: 16px 14px 60px; }
+  [data-skin="toss"] .ad-main input,
+  [data-skin="toss"] .ad-main select,
+  [data-skin="toss"] .ad-main textarea,
+  [data-skin="toss"] .ad-main button { font-size: 16px; }
+}
+
 /* ── 통합 페이지 헤더 (PageHead) ──────────────────────────── */
 [data-skin="toss"] .ad-head { margin-bottom: 24px; }
 [data-skin="toss"] .ad-head__row { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
