@@ -1,5 +1,13 @@
 # Architecture Notes
 
+## 2026-06-26 Tournament Operate/Edit Route Split
+
+- `/tournament-admin/tournaments/[id]` is the operator-facing Toss workspace with six menus: teams, bracket, schedule, operations, site, and settlement.
+- The former setup/edit `TournamentWorkspace` remains available at `/tournament-admin/tournaments/[id]/edit`.
+- `src/app/(admin)/tournament-admin/tournaments/[id]/_components/tournament-detail-data.ts` centralizes the server auth, Prisma load, setup normalization, progress, and recording-mode props used by both routes.
+- Existing panel APIs remain unchanged. The operate workspace lazy-loads the existing `_panels` surfaces and maps legacy hashes such as `#bracket`, `#matches`, `#recorders`, and `#site` to the new six-menu tabs.
+- Tournament-level settlement is intentionally shown as a real-data gap instead of mock numbers because the current schema has referee settlement flows but no dedicated tournament income/expense model.
+
 ## 2026-06-25 Customer Signal Reporting
 
 - `src/lib/customer-signals/report-mailer.ts` is the shared formatter/sender for customer inquiry, site error, correction request, game report, court report, and court edit suggestion signals.

@@ -1,5 +1,12 @@
 # Decision Log
 
+## 2026-06-26 Tournament Operate/Edit Route Split
+
+- Decision: `/tournament-admin/tournaments/[id]` is now the primary operate workspace, and the edit/setup form moves to `/tournament-admin/tournaments/[id]/edit`.
+- Reason: tournament operators need a direct entry point for teams, bracket, schedule, operations, site, and settlement instead of landing in the setup wizard-like edit form.
+- Scope: App Router pages, shared server prop loader, Toss operate workspace component, and scoped Toss CSS only. No DB schema or API route changes.
+- Guardrail: existing hash links keep working by mapping old anchors to operate menus; settlement cannot display mock financial values until a real tournament income/expense data contract exists.
+
 ## 2026-06-26 Manual Recording Mode Contract
 
 - Decision: match-level `recording_mode="manual"` is a real mode, but it means BDR record-system input is disabled rather than another Flutter/score-sheet input path.

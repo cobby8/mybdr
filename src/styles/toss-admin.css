@@ -775,6 +775,147 @@
 [data-skin="toss"] .ct-iconbtn:hover { background: var(--grey-200); color: var(--ink); }
 [data-skin="toss"] .ct-emptybox { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 28px 16px; background: var(--grey-50); border: 1px dashed var(--border-strong); border-radius: 16px; color: var(--ink-mute); font-size: 13.5px; text-align: center; }
 [data-skin="toss"] .ct-emptybox--tall { padding: 48px 16px; }
+[data-skin="toss"] .ct-section__head {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+[data-skin="toss"] .ct-section__title {
+  color: var(--ink);
+  font-size: 17px;
+  font-weight: 800;
+  line-height: 1.35;
+}
+[data-skin="toss"] .ct-section__sub {
+  color: var(--ink-mute);
+  font-size: 13px;
+  line-height: 1.5;
+  margin-top: 2px;
+}
+[data-skin="toss"] .operate-workspace__head-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+[data-skin="toss"] .operate-summary {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 18px;
+}
+[data-skin="toss"] .operate-metric {
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--card);
+  padding: 12px 14px;
+}
+[data-skin="toss"] .operate-metric__label {
+  display: block;
+  color: var(--ink-mute);
+  font-size: 11.5px;
+  font-weight: 800;
+  line-height: 1.2;
+}
+[data-skin="toss"] .operate-metric__value {
+  display: block;
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 900;
+  line-height: 1.35;
+  margin-top: 4px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+[data-skin="toss"] .operate-metric[data-tone="ok"] { border-color: var(--ok-soft); background: var(--ok-weak); }
+[data-skin="toss"] .operate-metric[data-tone="info"] { border-color: var(--cafe-blue-hair); background: var(--primary-weak); }
+[data-skin="toss"] .operate-metric[data-tone="warn"] { border-color: var(--warn-soft); background: var(--warn-weak); }
+[data-skin="toss"] .op-menu {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 18px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+[data-skin="toss"] .op-menu__item {
+  flex: 1 1 0;
+  min-width: 120px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 86px;
+  padding: 14px 10px;
+  border: 1.5px solid var(--border);
+  border-radius: 18px;
+  background: var(--card);
+  color: var(--ink-soft);
+  cursor: pointer;
+  font-family: var(--ff);
+  font-size: 14px;
+  font-weight: 800;
+  transition: background .12s, border-color .12s, color .12s, transform .1s;
+  white-space: nowrap;
+}
+[data-skin="toss"] .op-menu__item:hover {
+  border-color: var(--border-strong);
+  color: var(--ink);
+}
+[data-skin="toss"] .op-menu__item:active { transform: scale(.99); }
+[data-skin="toss"] .op-menu__item.is-active {
+  border-color: var(--primary);
+  background: var(--primary-weak);
+  color: var(--primary);
+}
+[data-skin="toss"] .operate-panel {
+  min-width: 0;
+}
+[data-skin="toss"] .operate-panel__body {
+  margin-top: 0;
+}
+[data-skin="toss"] .operate-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+[data-skin="toss"] .operate-empty-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  margin-top: 10px;
+}
+@media (max-width: 1023px) {
+  [data-skin="toss"] .operate-summary {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  [data-skin="toss"] .op-menu__item {
+    flex: 0 0 132px;
+  }
+}
+@media (max-width: 720px) {
+  [data-skin="toss"] .operate-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  [data-skin="toss"] .operate-workspace__head-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+  [data-skin="toss"] .op-menu {
+    gap: 8px;
+  }
+  [data-skin="toss"] .op-menu__item {
+    flex-basis: 96px;
+    min-width: 96px;
+    min-height: 76px;
+    border-radius: 16px;
+    font-size: 13px;
+  }
+}
 [data-skin="toss"] .ct-embedded-block { min-width: 0; }
 [data-skin="toss"] .ct-reqtag { font-size: 11px; font-weight: 800; color: var(--danger); background: var(--danger-weak); border-radius: 7px; padding: 4px 8px; white-space: nowrap; flex: 0 0 auto; }
 [data-skin="toss"] .ct-banner { display: flex; align-items: flex-start; gap: 9px; padding: 13px 14px; background: var(--ok-weak); border-radius: 14px; font-size: 13px; color: var(--ink-soft); line-height: 1.5; }

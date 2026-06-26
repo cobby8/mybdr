@@ -24,11 +24,11 @@ import {
 } from "../../new/wizard/_components/ct-schedule-venue";
 import { CtGameSettings, type GameRules } from "../../new/wizard/_components/ct-game-settings";
 
-type StatusTone = "ok" | "warn" | "info" | "mute" | "err";
+export type StatusTone = "ok" | "warn" | "info" | "mute" | "err";
 type SectionId = "info" | "schedule" | "divisions" | "game" | "publish";
 type PanelId = "teams" | "divisions" | "bracket" | "matches" | "recorders" | "admins" | "site";
 
-type MatchStats = {
+export type MatchStats = {
   total: number;
   paper: number;
   flutter: number;
@@ -36,7 +36,7 @@ type MatchStats = {
   inProgress: number;
 };
 
-type SetupFormState = {
+export type SetupFormState = {
   name: string;
   status: string;
   startDate: string;
@@ -74,13 +74,13 @@ type SetupFormState = {
   schedule_dates: DateRow[];
 };
 
-type SponsorDraft = {
+export type SponsorDraft = {
   id: string;
   name: string;
   logoUrl: string;
 };
 
-type Props = {
+export type TournamentWorkspaceProps = {
   tournamentId: string;
   progress: SetupProgress;
   publishGate: { ok: boolean; missing: string[] };
@@ -219,7 +219,7 @@ export function TournamentWorkspace({
   defaultRecordingMode,
   setup,
   summary,
-}: Props) {
+}: TournamentWorkspaceProps) {
   const router = useRouter();
   const [active, setActive] = useState<SectionId>("info");
   const [openPanels, setOpenPanels] = useState<Set<PanelId>>(new Set());

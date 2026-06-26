@@ -1,5 +1,7 @@
 # Knowledge Index
 
+- 2026-06-26 admin: tournament detail entry is now the 6-menu Toss operate workspace, while the former setup/edit workspace is preserved at `/tournament-admin/tournaments/[id]/edit`.
+
 - 2026-06-26 admin: division rule operation settings now use an explicit "운영방식 설정 저장" flow instead of blur-only persistence, and local rule state refreshes from the PATCH response.
 - 2026-06-26 admin: bracket generation now routes through `TournamentDivisionRule` when division rules exist; the bracket panel always shows division-rule generators, unsafe global generation is disabled, `single_elimination`/`round_robin` division generation is supported, and mismatched group sizes fail before match writes.
 - 2026-06-26 admin: tournament team category moves now sync `TournamentTeam.category`, `TournamentTeam.division`, and player `division_code`; teams panel exposes single-team and group bulk move controls for live operations.
@@ -47,13 +49,14 @@ Updated: 2026-06-26
 
 | File | Entries | Recent |
 |---|---:|---|
-| architecture.md | 3 | Customer signal reporting |
+| architecture.md | 4 | Tournament operate/edit route split |
 | conventions.md | 2 | 대회 포맷 표준 |
-| decisions.md | 7 | Manual recording mode contract |
+| decisions.md | 8 | Tournament operate/edit route split |
 | errors.md | 8 | Division rule settings save looked unreliable |
 | lessons.md | 0 | - |
 
 Recent work:
+- 2026-06-26 admin: tournament operation entry was split so `/tournament-admin/tournaments/[id]` renders the Toss 6-menu operate workspace and `/edit` retains the setup/edit form workspace.
 - 2026-06-26 admin: division rule settings save UX was fixed by replacing hidden blur persistence with an explicit settings save control and confirmed server-response state refresh.
 - 2026-06-26 admin: bracket generation was fixed for live ops by exposing division-rule generation at 0 matches, disabling unsafe tournament-level generation when rules exist, supporting division single-elimination/round-robin, and blocking invalid group sizes without consuming a bracket version.
 - 2026-06-26 admin: tournament team division operations were fixed for live use with single/bulk category move controls, team/player division sync, and clearer division delete blocking messages.
