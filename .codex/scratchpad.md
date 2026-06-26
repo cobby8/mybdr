@@ -14,6 +14,7 @@
 | Tournament admin implementation | In Progress | Matches score modal now exposes the existing manual recording mode. |
 
 ## Work Log
+- 2026-06-26: Converted the recorders panel add/list/assignment wrappers from UI Card/Button to Toss `ts-*` sections; TypeScript passed.
 - 2026-06-26: Converted the tournament admins panel from UI Card/Button wrappers to Toss `ts-*`/`ct-emptybox` classes; TypeScript passed.
 - 2026-06-26: Replaced the matches panel empty states with Toss `ct-emptybox` wrappers and removed its UI Card dependency; TypeScript passed.
 - 2026-06-26: Updated setup progress to treat `manual` as a configured recording mode; targeted Vitest and TypeScript passed.

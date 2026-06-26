@@ -4,8 +4,6 @@ import { useState, useEffect, useCallback } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 
 // 2026-06-13 HOTFIX: GET 응답은 apiSuccess→convertKeysToSnakeCase 거쳐 snake_case.
 //   camelCase(recorderId/isActive/createdAt)로 읽으면 전 행 undefined → 빈 목록 버그.
@@ -215,7 +213,7 @@ export default function TournamentRecordersPage() {
       </div>
 
       {/* 기록원 추가 */}
-      <Card className="p-4 space-y-3">
+      <section className="ts-card space-y-3 p-4">
         <h2 className="font-semibold text-[var(--color-text-primary)]">기록원 추가</h2>
         <p className="text-sm text-[var(--color-text-muted)]">
           mybdr 가입 회원의 이메일로 기록원을 지정합니다. 기록원은 bdr_stat 앱으로 경기를 실시간 기록할 수 있습니다.
@@ -230,18 +228,18 @@ export default function TournamentRecordersPage() {
               if (e.nativeEvent.isComposing) return;
               if (e.key === "Enter") addRecorder();
             }}
-            className="flex-1 px-3 py-2 border border-[var(--color-border)] rounded-lg bg-[var(--color-surface)] text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/50"
+            className="ts-input flex-1"
           />
-          <Button onClick={addRecorder} disabled={adding || !email.trim()}>
+          <button type="button" onClick={addRecorder} disabled={adding || !email.trim()} className="ts-btn ts-btn--primary">
             {adding ? "추가 중..." : "추가"}
-          </Button>
+          </button>
         </div>
         {error && <p className="text-sm text-[var(--color-error)]">{error}</p>}
         {success && <p className="text-sm text-[var(--color-success)]">{success}</p>}
-      </Card>
+      </section>
 
       {/* 기록원 목록 */}
-      <Card className="p-4 space-y-3">
+      <section className="ts-card space-y-3 p-4">
         <h2 className="font-semibold text-[var(--color-text-primary)]">
           현재 기록원 {activeRecorders.length > 0 && `(${activeRecorders.length}명)`}
         </h2>
@@ -295,22 +293,22 @@ export default function TournamentRecordersPage() {
             ))}
           </ul>
         )}
-      </Card>
+      </section>
 
       {/* Track B-d — 경기별 기록자 배정 (settings.recorder_id).
           위 "기록원 풀"에 등록된 인원을 개별 경기에 배정한다. */}
-      <Card className="p-4 space-y-3">
+      <section className="ts-card space-y-3 p-4">
         <div className="flex items-center justify-between gap-2">
           <h2 className="font-semibold text-[var(--color-text-primary)]">경기별 기록자 배정</h2>
           {/* 자동 배정 — 미배정 경기에 풀 라운드로빈 */}
-          <Button
-            variant="secondary"
+          <button
+            type="button"
             onClick={autoAssign}
             disabled={autoAssigning || activeRecorders.length === 0 || unassignedCount === 0}
-            className="text-xs"
+            className="ts-btn ts-btn--secondary ts-btn--sm"
           >
             {autoAssigning ? "배정 중..." : "자동 배정"}
-          </Button>
+          </button>
         </div>
         <p className="text-sm text-[var(--color-text-muted)]">
           위 풀에 등록된 기록원을 각 경기에 지정합니다.
@@ -361,7 +359,7 @@ export default function TournamentRecordersPage() {
                     value={recorderId ?? ""}
                     disabled={assigningId === m.id}
                     onChange={(e) => assignRecorder(m.id, e.target.value)}
-                    className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-sm text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/50 disabled:opacity-50 sm:w-48"
+                    className="ts-select disabled:opacity-50 sm:w-48"
                   >
                     <option value="">(미배정)</option>
                     {activeRecorders.map((r) => (
@@ -375,7 +373,7 @@ export default function TournamentRecordersPage() {
             })}
           </ul>
         )}
-      </Card>
+      </section>
     </div>
   );
 }
