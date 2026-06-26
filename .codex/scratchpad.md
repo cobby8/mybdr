@@ -11,9 +11,10 @@
 | Admin game rules | Done | `game_time`/`game_method` now derive from canonical `game_rules` instead of free text. |
 | Recording modes | Done | Match-level `manual` is counted, displayed, and blocked from Flutter/score-sheet system inputs. |
 | Admin Toss handoff | Done | `BDR-current/_handoff-admin-toss-v2.41/` added; src unchanged. |
-| Admin Toss sweep | In Progress | v2(40) wiring delta is imported; previous import/place search/wizard actions are real-wired and pushed to dev/main. |
+| Admin Toss sweep | In Progress | v2(41) state/cleanup pass added Toss confirm/prompt modals and first loading/empty helpers; dev/main are synced. |
 
 ## Work Log
+- 2026-06-26: Applied BDR v2 (41) admin Toss state pass: destructive confirms and prompt flows now use Toss modals, state helpers/skeletons are in `admin-toss`, and dev/main were pushed.
 - 2026-06-26: Wired previous tournament import to real DB/API, removed venue mock fallback, linked wizard PDF/association actions, and replaced teams panel player error alerts with Toss toast; TypeScript passed and dev/main were pushed.
 - 2026-06-26: Cleaned recorders/admins panels to shared Toss `tp-*` list/message/avatar classes; scans are clean and TypeScript passed.
 - 2026-06-26: Cleaned teams player table and bulk-import modal to Toss `tt-*` classes; team panel scan only leaves real team primaryColor binding and TypeScript passed.
@@ -23,4 +24,3 @@
 - 2026-06-26: Finished bracket panel Toss cleanup for full match lists and multi-division bracket filters/sections; bracket panel residue scan is now clean and TypeScript passed.
 - 2026-06-26: Added v2.42 admin/public parity inventory and started B1 by switching workspace panel frames to `ct-panel-embed` and keeping the divisions panel visible by default; TypeScript passed.
 - 2026-06-26: Created integrated Claude.ai request for v2.42 admin Toss parity, including schedule/bracket/matches/teams/site state screens and cleanup manifest requirements.
-- 2026-06-26: Replaced tournament detail hybrid workspace with v2.41 Toss shell/steps/footer, split schedule into its own step, removed embedded panel headers, and documented the alignment audit; TypeScript passed.
