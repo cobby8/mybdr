@@ -908,14 +908,12 @@ export default function TournamentTeamsPage() {
           <div
             role="dialog"
             aria-modal="true"
-            className="fixed inset-0 z-40 flex items-start justify-center overflow-y-auto p-3 no-print sm:p-4"
-            style={{ background: "color-mix(in srgb, #000 50%, transparent)" }}
+            className="tt-modal-overlay no-print"
             onClick={() => { setExpandedTeamId(null); setPlayers([]); setShowAddForm(false); }}
           >
             <div
               id="team-detail-printable"
-              className="relative my-3 w-full max-w-3xl rounded-[24px] border bg-[var(--card)] p-4 shadow-[var(--sh-lg)] sm:my-4 sm:p-6"
-              style={{ borderColor: "var(--border)" }}
+              className="tt-detail-modal"
               onClick={(e) => e.stopPropagation()}
             >
               {/* 2026-05-12 — 닫기 X 버튼 우상단 절대 위치 (모달 표준 패턴) */}
@@ -939,13 +937,7 @@ export default function TournamentTeamsPage() {
                       <select
                         value={token?.category ?? ""}
                         onChange={(e) => changeCategory(expandedTeam.id, e.target.value)}
-                        className="rounded-[8px] px-2 py-0.5 text-[10px] font-semibold no-print"
-                        style={{
-                          background: "color-mix(in srgb, var(--color-accent) 15%, transparent)",
-                          color: "var(--color-accent)",
-                          letterSpacing: "0.04em",
-                          border: "1px solid color-mix(in srgb, var(--color-accent) 30%, transparent)",
-                        }}
+                        className="tt-category-select no-print"
                         title="종별 변경"
                       >
                         <option value="" disabled>종별 선택</option>
@@ -955,14 +947,7 @@ export default function TournamentTeamsPage() {
                       </select>
                     ) : (
                       token?.category && (
-                        <span
-                          className="rounded-[8px] px-2 py-0.5 text-[10px] font-semibold"
-                          style={{
-                            background: "color-mix(in srgb, var(--color-accent) 15%, transparent)",
-                            color: "var(--color-accent)",
-                            letterSpacing: "0.04em",
-                          }}
-                        >
+                        <span className="tt-category-chip">
                           {token.category}
                         </span>
                       )
@@ -976,12 +961,7 @@ export default function TournamentTeamsPage() {
                       value={token?.paymentStatus ?? "unpaid"}
                       onChange={(e) => updatePayment(expandedTeam.id, e.target.value)}
                       disabled={actionLoading === expandedTeam.id}
-                      className="no-print rounded-[8px] border px-2 py-0.5 text-[10px] font-semibold"
-                      style={{
-                        borderColor: "var(--color-border)",
-                        background: "var(--color-card)",
-                        color: "var(--color-text-secondary)",
-                      }}
+                      className="tt-select-sm no-print"
                       title="납부 상태 변경 (납부 선택 시 자동 승인)"
                     >
                       <option value="unpaid">미납</option>
@@ -989,12 +969,12 @@ export default function TournamentTeamsPage() {
                       <option value="refunded">환불</option>
                     </select>
                     {token?.waitingNumber && (
-                      <span className="rounded-[8px] bg-[var(--color-warning)]/15 px-2 py-0.5 text-xs font-medium text-[var(--color-warning)]">
+                      <span className="tt-badge" data-tone="warn">
                         대기 {token.waitingNumber}번
                       </span>
                     )}
                   </div>
-                  <p className="mt-1 text-xs text-[var(--color-text-muted)]">
+                  <p className="tt-team-meta">
                     {token?.appliedAt
                       ? `${new Date(token.appliedAt).toLocaleDateString("ko-KR")} 신청`
                       : `${new Date(expandedTeam.createdAt).toLocaleDateString("ko-KR")} 등록`}
@@ -1006,44 +986,40 @@ export default function TournamentTeamsPage() {
                           value={managerForm.name}
                           onChange={(e) => setManagerForm({ ...managerForm, name: e.target.value })}
                           placeholder="코치 이름"
-                          className="w-24 rounded-[8px] border px-2 py-0.5 text-xs"
-                          style={{ borderColor: "var(--color-border)", background: "var(--color-card)" }}
+                          className="tt-inline-input tt-inline-input--name"
                         />
                         <input
                           type="tel"
                           value={managerForm.phone}
                           onChange={(e) => setManagerForm({ ...managerForm, phone: e.target.value })}
                           placeholder="010-XXXX-XXXX"
-                          className="w-32 rounded-[8px] border px-2 py-0.5 text-xs"
-                          style={{ borderColor: "var(--color-border)", background: "var(--color-card)" }}
+                          className="tt-inline-input tt-inline-input--phone"
                         />
                         <button
                           type="button"
                           onClick={() => saveManager(expandedTeam.id)}
-                          className="rounded-[8px] px-2 py-0.5 text-[10px] font-medium text-white"
-                          style={{ background: "var(--color-success)" }}
+                          className="tt-mini-action"
+                          data-tone="ok"
                         >
                           저장
                         </button>
                         <button
                           type="button"
                           onClick={() => setEditingManager(false)}
-                          className="rounded-[8px] px-2 py-0.5 text-[10px]"
-                          style={{ color: "var(--color-text-muted)" }}
+                          className="tt-mini-action"
                         >
                           취소
                         </button>
                       </span>
                     ) : (
                       <>
-                        {token?.managerName ?? <span style={{ color: "var(--color-text-muted)" }}>(미입력)</span>}
+                        {token?.managerName ?? <span className="tt-muted">(미입력)</span>}
                         {token?.managerPhone && (
                           <>
                             {" ("}
                             <a
                               href={`tel:${token.managerPhone.replace(/[^0-9+]/g, "")}`}
-                              className="underline decoration-dotted underline-offset-2 hover:text-[var(--color-info)]"
-                              style={{ color: "var(--color-info)" }}
+                              className="tt-link"
                               onClick={(e) => e.stopPropagation()}
                             >
                               {token.managerPhone}
@@ -1057,9 +1033,8 @@ export default function TournamentTeamsPage() {
                             setEditingManager(true);
                             setManagerForm({ name: token?.managerName ?? "", phone: token?.managerPhone ?? "" });
                           }}
-                          className="ml-1 inline-flex no-print"
+                          className="tt-icon-link no-print"
                           title="코치 정보 편집"
-                          style={{ color: "var(--color-text-muted)" }}
                         >
                           <Icon name="pencil" size={12} />
                         </button>
@@ -1068,8 +1043,8 @@ export default function TournamentTeamsPage() {
                     {token?.registeredBy?.nickname && <> · 신청자 {token.registeredBy.nickname}</>}
                   </p>
                   {/* 조 · 시드 변경 — Phase 3-F 옵션 A 후속: 시드 input 추가 */}
-                  <div className="mt-1 flex flex-wrap items-center gap-3 text-xs text-[var(--color-text-muted)]">
-                    <label className="flex items-center gap-1 no-print">
+                  <div className="tt-meta-row">
+                    <label className="tt-inline-label flex items-center gap-1 no-print">
                       <span>조</span>
                       <input
                         defaultValue={expandedTeam.groupName ?? ""}
@@ -1079,16 +1054,11 @@ export default function TournamentTeamsPage() {
                             updateGroup(expandedTeam.id, next || null);
                           }
                         }}
-                        className="w-12 rounded-[8px] border px-2 py-0.5 text-center text-xs focus:outline-none focus:ring-1"
-                        style={{
-                          borderColor: "var(--color-border)",
-                          background: "var(--color-card)",
-                          color: "var(--color-text-primary)",
-                        }}
+                        className="tt-mini-input tt-mini-input--narrow"
                         placeholder="-"
                       />
                     </label>
-                    <label className="flex items-center gap-1 no-print">
+                    <label className="tt-inline-label flex items-center gap-1 no-print">
                       <span>시드</span>
                       <input
                         type="number"
@@ -1099,17 +1069,12 @@ export default function TournamentTeamsPage() {
                           const v = e.target.value ? Number(e.target.value) : null;
                           if (v !== (expandedTeam.seedNumber ?? null)) updateSeed(expandedTeam.id, v);
                         }}
-                        className="w-14 rounded-[8px] border px-2 py-0.5 text-xs focus:outline-none focus:ring-1"
-                        style={{
-                          borderColor: "var(--color-border)",
-                          background: "var(--color-card)",
-                          color: "var(--color-text-primary)",
-                        }}
+                        className="tt-mini-input"
                       />
                     </label>
                   </div>
                   {/* 5. 토큰 만료일 + 마지막 갱신 시각 + Phase 4-B 재발급 버튼 */}
-                  <div className="mt-0.5 flex flex-wrap items-center gap-3 text-[10px]" style={{ color: "var(--color-text-muted)" }}>
+                  <div className="tt-meta-row tt-meta-row--small">
                     {token?.applyTokenExpiresAt && (
                       <span>
                         토큰 만료: {new Date(token.applyTokenExpiresAt).toLocaleDateString("ko-KR")}
@@ -1118,8 +1083,7 @@ export default function TournamentTeamsPage() {
                     <button
                       type="button"
                       onClick={() => reissueToken(expandedTeam.id)}
-                      className="no-print inline-flex items-center gap-0.5 underline decoration-dotted underline-offset-2"
-                      style={{ color: "var(--color-info)" }}
+                      className="tt-link no-print inline-flex items-center gap-0.5"
                       title="토큰 재발급"
                     >
                       <Icon name="refresh-cw" size={12} />
@@ -1152,8 +1116,7 @@ export default function TournamentTeamsPage() {
                         type="button"
                         onClick={() => updateStatus(expandedTeam.id, "approved")}
                         disabled={actionLoading === expandedTeam.id}
-                        className="ts-btn ts-btn--secondary ts-btn--sm"
-                        style={{ background: "var(--color-success)", color: "white", borderColor: "var(--color-success)" }}
+                        className="ts-btn ts-btn--primary ts-btn--sm"
                       >
                         승인
                       </button>
@@ -1161,8 +1124,7 @@ export default function TournamentTeamsPage() {
                         type="button"
                         onClick={() => updateStatus(expandedTeam.id, "rejected")}
                         disabled={actionLoading === expandedTeam.id}
-                        className="ts-btn ts-btn--secondary ts-btn--sm"
-                        style={{ background: "var(--color-error)", color: "white", borderColor: "var(--color-error)" }}
+                        className="ts-btn ts-btn--danger ts-btn--sm"
                       >
                         거절
                       </button>
@@ -1173,8 +1135,7 @@ export default function TournamentTeamsPage() {
                       type="button"
                       onClick={() => updateStatus(expandedTeam.id, "rejected")}
                       disabled={actionLoading === expandedTeam.id}
-                      className="ts-btn ts-btn--secondary ts-btn--sm"
-                      style={{ color: "var(--color-error)", borderColor: "var(--color-error)" }}
+                      className="ts-btn ts-btn--danger ts-btn--sm"
                     >
                       거절로 변경
                     </button>
@@ -1184,8 +1145,7 @@ export default function TournamentTeamsPage() {
                       type="button"
                       onClick={() => updateStatus(expandedTeam.id, "approved")}
                       disabled={actionLoading === expandedTeam.id}
-                      className="ts-btn ts-btn--secondary ts-btn--sm"
-                      style={{ color: "var(--color-success)", borderColor: "var(--color-success)" }}
+                      className="ts-btn ts-btn--primary ts-btn--sm"
                     >
                       승인으로 변경
                     </button>
