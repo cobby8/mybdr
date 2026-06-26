@@ -4,8 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useParams } from "next/navigation";
 import { PanelLoadingState } from "./panel-loading-state";
 import Link from "next/link";
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Icon } from "@/components/admin-toss";
 
 type Admin = {
   id: string;
@@ -90,7 +89,7 @@ export default function TournamentAdminsPage() {
       </div>
 
       {/* 추가 폼 */}
-      <Card className="mb-6">
+      <section className="ts-card mb-6">
         <h2 className="mb-4 text-base font-semibold">관리자 추가</h2>
         {/* 하드코딩 색상 → CSS 변수 토큰 (시맨틱 메시지: 실패/성공) */}
         {error && <p className="mb-3 text-sm text-[var(--color-error)]">{error}</p>}
@@ -101,7 +100,7 @@ export default function TournamentAdminsPage() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="이메일 주소"
-            className="flex-1 rounded-[16px] border-none bg-[var(--color-border)] px-4 py-3 text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/50"
+            className="ts-input flex-1"
             onKeyDown={(e) => {
               if (e.nativeEvent.isComposing) return;
               if (e.key === "Enter") addAdmin();
@@ -110,28 +109,30 @@ export default function TournamentAdminsPage() {
           <select
             value={role}
             onChange={(e) => setRole(e.target.value)}
-            className="rounded-[16px] border-none bg-[var(--color-border)] px-4 py-3 text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/50"
+            className="ts-select"
           >
             <option value="admin">관리자</option>
             <option value="staff">스태프</option>
             <option value="scorer">기록원</option>
           </select>
-          <Button onClick={addAdmin} disabled={adding || !email.trim()}>
+          <button type="button" onClick={addAdmin} disabled={adding || !email.trim()} className="ts-btn ts-btn--primary">
             {adding ? "추가 중..." : "추가"}
-          </Button>
+          </button>
         </div>
-      </Card>
+      </section>
 
       {/* 관리자 목록 */}
       {admins.length === 0 ? (
-        <Card className="py-12 text-center text-[var(--color-text-muted)]">
-          <div className="mb-2 text-3xl">👥</div>
+        <div className="ct-emptybox py-12 text-center text-[var(--ink-mute)]">
+          <div className="mb-2 flex justify-center">
+            <Icon name="users" size={32} />
+          </div>
           추가된 관리자가 없습니다.
-        </Card>
+        </div>
       ) : (
         <div className="space-y-2">
           {admins.map((admin) => (
-            <Card key={admin.id}>
+            <div key={admin.id} className="ts-card">
               <div className="flex items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
                   {/* 2026-05-12 — admin 빨강 본문 금지 → info(Navy) 토큰 */}
@@ -155,7 +156,7 @@ export default function TournamentAdminsPage() {
                   </button>
                 </div>
               </div>
-            </Card>
+            </div>
           ))}
         </div>
       )}
