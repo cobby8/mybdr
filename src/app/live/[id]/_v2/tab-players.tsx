@@ -19,8 +19,8 @@ export function TabPlayers({ match }: { match: MatchDataV2 }) {
   const otCount = match.quarter_scores?.home?.ot?.length ?? 0;
   const hasOT = otCount > 0;
 
-  // 2026-05-13 FIBA Phase 21: 종이 매치 (recording_mode="paper") 박스스코어 슈팅 6 컬럼 hide.
-  // 종이 기록지 = miss/FG attempted 미박제 → 시도수=성공수=항상 100% → 가짜 정확도 시각 노이즈 차단.
+  // 2026-05-13 FIBA Phase 21: 전자기록지 매치 (recording_mode="paper") 박스스코어 슈팅 6 컬럼 hide.
+  // 전자기록지 = miss/FG attempted 미박제 → 시도수=성공수=항상 100% → 가짜 정확도 시각 노이즈 차단.
   // null/undefined (레거시 API 또는 미반영) = false 안전 fallback (Flutter 매치 19 컬럼 그대로).
   const isPaperMatch = match.recording_mode === "paper";
   const allPlayers = [...match.home_players, ...match.away_players];

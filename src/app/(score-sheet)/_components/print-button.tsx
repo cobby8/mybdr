@@ -2,8 +2,8 @@
  * PrintButton — Phase 6 (2026-05-12).
  *
  * 왜 (이유):
- *   FIBA 양식 = A4 세로 1 페이지 종이 기록지. 운영자가 경기 종료 후 "인쇄" 버튼 1번 클릭
- *   으로 시안 그대로 종이 PDF 저장 / 출력 가능해야 함. 의존성 0 (`window.print()` 만).
+ *   FIBA 양식 = A4 세로 1 페이지 전자기록지. 운영자가 경기 종료 후 "인쇄" 버튼 1번 클릭
+ *   으로 시안 그대로 PDF 저장 / 출력 가능해야 함. 의존성 0 (`window.print()` 만).
  *
  * 방법 (어떻게):
  *   - 클라이언트 컴포넌트 (use client) — onClick = window.print()
@@ -20,7 +20,7 @@
 "use client";
 
 export function PrintButton() {
-  // 브라우저 native 인쇄 다이얼로그 호출. PDF 저장 또는 종이 출력 둘 다 지원.
+  // 브라우저 native 인쇄 다이얼로그 호출. PDF 저장 또는 인쇄 출력 둘 다 지원.
   // SSR 안전 — onClick 이므로 client 진입 후만 실행 (window 접근 시점 보장)
   const handlePrint = () => {
     if (typeof window !== "undefined") {

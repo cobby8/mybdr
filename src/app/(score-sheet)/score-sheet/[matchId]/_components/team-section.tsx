@@ -4,7 +4,7 @@
  * 2026-05-11 — Phase 1 신규 (planner-architect §작업 4).
  * 2026-05-12 — Phase 10 정밀 디자인 fix (사용자 결재 §B·§C·§E·§F·§G).
  *   §B 헤더 = "Team A ____슬로우____" underscore (큰 박스 폐기)
- *   §C Players 15행 (12 → 15 / FIBA 종이기록지 표준)
+ *   §C Players 15행 (12 → 15 / FIBA 전자기록지 표준)
  *   §E Time-outs 빈 박스 + 마킹 시 X 글자 (검정 ● 폐기)
  *   §F Team fouls 1·2·3·4 빈 박스 (라벨 폐기 / 마킹 시 검정 채움)
  *   §G Player Fouls 1-5 빈 박스 (라벨 폐기 / 마킹 시 P/T/U/D 글자만)
@@ -31,7 +31,7 @@
  * 2026-05-12 — Phase 14 A4 정확 비율 + Time-outs 재배치 (이미지 32-33 사용자 직접 결재).
  *   §1 TIME-OUTS 2×N → 3×2 grid (FIBA 정합 / 6 고정 칸)
  *      이유: 이전 Phase 13 2 컬럼 = 마지막 빈 칸 발생 + 시각적 불균형.
- *        FIBA 종이기록지 표준 = 3×2 6칸 (전반 2 + 후반 3 + 여유 1).
+ *        FIBA 전자기록지 표준 = 3×2 6칸 (전반 2 + 후반 3 + 여유 1).
  *      grid-cols-3 × 2 row = 6 고정 / OT 진입 시 7~8 번째 칸은 자동 행 확장.
  *   §4 요소비율 통일 — 박스 18px / 폰트 라벨 9px / 데이터 11px 일관 검증.
  *   §5 A4 정확 비율은 _print.css aspect-ratio 강제 (본 컴포넌트 외부).
@@ -40,7 +40,7 @@
  *   FIBA 양식 좌 절반 = Team A 상 / Team B 하 분할. 각 팀 영역 안에
  *   Time-outs (5칸) + Team fouls (Period 별 1-4 + Extra) + Players 15명
  *   (Licence / 선수명 / No / Player in / Fouls 1-5) + Coach·Asst Coach 입력.
- *   Phase 10 범위 = FIBA 종이기록지와 완벽 정합 (사용자 결재 7건 fix).
+ *   Phase 10 범위 = FIBA 전자기록지와 완벽 정합 (사용자 결재 7건 fix).
  *
  * 방법 (어떻게):
  *   - Players 12 행 (사전 라인업 + TTP fallback 데이터 그대로):
@@ -325,7 +325,7 @@ export function TeamSection({
       </div>
 
       {/* §2 Time-outs + Team fouls 블록 (시안 .ss-tbox__tt grid 92px | 1fr).
-          왜: 시안 rev2 = FIBA 종이 2+3+2 = 7 cells (전반 2 / 후반 3 / OT 2).
+          왜: 시안 rev2 = FIBA 전자기록지 2+3+2 = 7 cells (전반 2 / 후반 3 / OT 2).
           운영 동작 보존:
             - timeouts state / onRequestAddTimeout / onRequestRemoveTimeout 그대로
             - Phase 17 쿼터별 색 = getTimeoutPhaseColor(timeouts[i].period) inline style 으로 wiring */}

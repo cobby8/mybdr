@@ -12,7 +12,7 @@
  * 절대 룰:
  *   - .ss-shell 스코프 내 .ss-toolbar* 룰만 — 운영 globals.css / 다른 컴포넌트 미오염
  *   - radius 4px = 디자인 시스템 default (페이퍼는 D4 직각 = scoresheet 본 영역만 0)
- *   - 페이퍼 외곽이 아닌 toolbar = 4px (시안 그대로)
+ *   - 전자기록지 외곽이 아닌 toolbar = 4px (시안 그대로)
  *
  * 시안 출처: Dev/design/BDR-current/scoresheet.css L41-104 (단 .ss-shell 스코프 wrap)
  */
@@ -143,7 +143,7 @@
    Phase 19 PR-S4 (2026-05-14) — FibaHeader 시각 정합
    ============================================================
    왜 (이유):
-     사용자 결재 D6 — FIBA 종이 정합 = 시안 마크업 (Section A 헤더 / B 팀명 strip / C Meta)
+     사용자 결재 D6 — FIBA 전자기록지 정합 = 시안 마크업 (Section A 헤더 / B 팀명 strip / C Meta)
      운영 fiba-header.tsx 의 Tailwind utility 시각 → 시안 .ss-h / .ss-names / .ss-meta 정합.
    어떻게:
      - .ss-shell 스코프 한정 (운영 globals.css / 다른 컴포넌트 미오염)
@@ -151,7 +151,7 @@
      - 운영 매핑 변수 / props / splitDateTime 변경 0 (시각만)
    절대 룰:
      - .ss-shell 스코프 prefix 유지 (다른 영역 영향 0)
-     - 시안 직각 (border-radius 0) — D4 FIBA 종이 정합
+     - 시안 직각 (border-radius 0) — D4 FIBA 전자기록지 정합
 */
 
 /* ----- Section A — Header (logo + 3-line title) ----- */
@@ -363,7 +363,7 @@
   outline: none;
 }
 .ss-shell .ss-field > input.ss-field__input:focus {
-  /* 입력 인지 — 본문 ink 색 강조 (radius / box-shadow ❌ — FIBA 종이 정합) */
+  /* 입력 인지 — 본문 ink 색 강조 (radius / box-shadow ❌ — FIBA 전자기록지 정합) */
   color: var(--pap-ink);
   border-bottom-color: var(--pap-ink);
 }
@@ -381,7 +381,7 @@
   margin: 0 auto;
   background: var(--pap-bg);
   color: var(--pap-ink);
-  /* 직각 (D4 FIBA 종이 정합) */
+  /* 직각 (D4 FIBA 전자기록지 정합) */
   border-radius: 0;
   border: 1.5px solid var(--pap-line);
   border-bottom: 0; /* 본체 다음 섹션과 시각적으로 연속 — 후속 PR 영역과 무경계 */
@@ -391,14 +391,14 @@
    Phase 19 PR-S5 (2026-05-14) — PeriodScoresSection 시각 정합
    ============================================================
    왜 (이유):
-     사용자 결재 D6 — FIBA 종이 정합. 운영 Tailwind utility 시각 → 시안 .ss-ps / .ss-final / .ss-winner / .ss-circ 정합.
+     사용자 결재 D6 — FIBA 전자기록지 정합. 운영 Tailwind utility 시각 → 시안 .ss-ps / .ss-final / .ss-winner / .ss-circ 정합.
    어떻게:
      - .ss-shell 스코프 한정 (PR-S4 와 동일 패턴 — 다른 컴포넌트 미오염)
      - 시안 출처: Dev/design/BDR-current/scoresheet.css L755-849
      - 운영 데이터 매핑 / 합산 로직 / OT 탭 / OT 종료 버튼 onClick 변경 0
    절대 룰:
      - .ss-shell 스코프 prefix 유지 (다른 영역 영향 0)
-     - 시안 직각 (border-radius 0) — D4 FIBA 종이 정합
+     - 시안 직각 (border-radius 0) — D4 FIBA 전자기록지 정합
      - OT 탭 / OT 종료 버튼 = 시안 미존재 → 운영 마크업 그대로 (별도 .ss-ot-controls wrapper)
 */
 
@@ -409,7 +409,7 @@
   margin: 0 auto;
   background: var(--pap-bg);
   color: var(--pap-ink);
-  /* 직각 (D4 FIBA 종이 정합) */
+  /* 직각 (D4 FIBA 전자기록지 정합) */
   border-radius: 0;
   border: 1.5px solid var(--pap-line);
   /* 상하 본체와 연속 시 부모가 border 조정 — 본 wrapper 는 단독 / 또는 PR-S6/S7 wrapping 영역과 연속 */
@@ -544,7 +544,7 @@
    Phase 19 PR-S6 (2026-05-15 rev2) — TeamSection 시각 정합
    ============================================================
    왜 (이유):
-     사용자 결재 D6 — FIBA 종이 정합. 운영 Tailwind utility / inline style 시각 → 시안 rev2
+     사용자 결재 D6 — FIBA 전자기록지 정합. 운영 Tailwind utility / inline style 시각 → 시안 rev2
      .ss-tbox* / .ss-c-* / .ss-h-fouls* 정합.
    어떻게:
      - .ss-shell 스코프 한정 (PR-S4/S5 와 동일 패턴 — 다른 컴포넌트 미오염)
@@ -552,7 +552,7 @@
      - 운영 동작 (4종 모달 진입점 / 5반칙 차단 / Phase 17 쿼터별 색 / coach onChange) 변경 0
    절대 룰:
      - .ss-shell 스코프 prefix 유지
-     - 시안 직각 (border-radius 0) — D4 FIBA 종이 정합
+     - 시안 직각 (border-radius 0) — D4 FIBA 전자기록지 정합
      - Phase 17 쿼터별 색 = inline style 로 wiring (CSS 토큰은 시안 base 색만)
 */
 
@@ -935,7 +935,7 @@
    Phase 19 PR-S7-officials (2026-05-15) — FooterSignatures 시안 시각 정합
    ============================================================
    왜 (이유):
-     - FIBA 종이기록지 풋터 좌측 = Officials 4행 (Scorer/Asst/Timer/Shot clock op)
+     - FIBA 전자기록지 풋터 좌측 = Officials 4행 (Scorer/Asst/Timer/Shot clock op)
        + 좌하단 sigs 3행 (Referee / Umpire 1+2 / Captain protest).
      - 시안 source: Dev/design/BDR-current/screens/ScoreSheet.bottom.jsx L100~144
        + scoresheet.css L650~679 룰을 .ss-shell 스코프 내 wrap.
@@ -945,7 +945,7 @@
 
    사용자 결재 D 표기:
      - D3: 색상 = .ss-shell 토큰 (--pap-bg/ink/line/hair)
-     - D4: FIBA 종이 정합 — underscore 1px solid var(--pap-line)
+     - D4: FIBA 전자기록지 정합 — underscore 1px solid var(--pap-line)
      - D6: 좌측 컬럼 max-width 안 (frame 안 좌측 절반)
      - D7: 단계별 — FooterSignatures 만
    ============================================================ */
@@ -1054,7 +1054,7 @@
      - Phase 17 쿼터별 색 (getPeriodColor) = inline style 로 색 override 유지.
    절대 룰:
      - .ss-shell 스코프 prefix 유지
-     - 직각 (border-radius 0) — D4 FIBA 종이 정합
+     - 직각 (border-radius 0) — D4 FIBA 전자기록지 정합
      - 다크 진입 시 페이퍼 라이트 강제 (var(--pap-*) 만 사용)
 */
 

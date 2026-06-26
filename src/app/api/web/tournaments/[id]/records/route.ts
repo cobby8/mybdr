@@ -9,7 +9,7 @@ import {
   aggregateTeamBox,
   type RawBox,
 } from "@/lib/records/match-stat-aggregate";
-// 2026-06-16: PBP 기반 출전시간 (라이브와 단일 source). minutesPlayed(999 버그/종이 0) 미사용.
+// 2026-06-16: PBP 기반 출전시간 (라이브와 단일 source). minutesPlayed(999 버그/전자기록지 0) 미사용.
 import {
   getMatchMinutesBySec,
   buildMatchMinutesMeta,
@@ -99,7 +99,7 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
 
   const matchIds = matches.map((m) => m.id);
 
-  // 2026-06-16: PBP 기반 출전초 일괄 산출 (라이브와 단일 source). 종이/PBP없음 매치는 결과 제외 → min '–'.
+  // 2026-06-16: PBP 기반 출전초 일괄 산출 (라이브와 단일 source). 전자기록지/PBP없음 매치는 결과 제외 → min '–'.
   const minutesMeta = await buildMatchMinutesMeta(matches);
   const minutesBySec = await getMatchMinutesBySec(matchIds, minutesMeta);
   // (matchId, ttpId) → 출전초 헬퍼. 부재 시 null → toRawBox 가 min=0 처리.
@@ -160,7 +160,7 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
     if (!ttp) continue;
     const ttpId = ttp.id.toString();
     const ttId = ttp.tournamentTeam?.id?.toString() ?? null;
-    // PBP 출전초 주입 (라이브와 동일 변환 min=Math.round(sec/60)). 종이/PBP없음 = null → min '–'.
+    // PBP 출전초 주입 (라이브와 동일 변환 min=Math.round(sec/60)). 전자기록지/PBP없음 = null → min '–'.
     const box = toRawBox(s, { minOverrideSec: getMinSec(s.tournamentMatchId, ttp.id) });
 
     // 선수

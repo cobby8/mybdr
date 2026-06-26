@@ -651,7 +651,7 @@ export function GameResultV2({ match }: { match: MatchDataV2 }) {
         페이지 다른 형제 노드는 모두 display: none 처리됨.
         printOptions 기반으로 (팀 × 기간) 조합마다 PrintBoxScoreTable 렌더 (옛 page.tsx 와 동일).
       */}
-      {/* 2026-05-13 FIBA Phase 21: 종이 매치 (recording_mode="paper") = 시도/성공 miss 미박제 → 슈팅 6 컬럼 hide */}
+      {/* 2026-05-13 FIBA Phase 21: 전자기록지 매치 (recording_mode="paper") = 시도/성공 miss 미박제 → 슈팅 6 컬럼 hide */}
       <PrintBoxScoreArea
         match={match}
         printOptions={printOptions}

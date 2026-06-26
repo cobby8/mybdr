@@ -400,7 +400,7 @@ function ScoreModal({
               <p className="amt-hint" data-tone="warn">
                 전자기록지 사용 중에는 기록앱 점수 입력이 차단됩니다.
               </p>
-              {/* 2026-05-11: Phase 1-B-2 — paper 모드 매치는 종이 기록지 입력 페이지로 이동 */}
+              {/* 2026-05-11: Phase 1-B-2 — paper 모드 매치는 전자기록지 입력 페이지로 이동 */}
               {match.id && (
                 <a
                   href={`/score-sheet/${match.id}`}

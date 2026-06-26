@@ -212,7 +212,7 @@ export default async function UserProfilePage({
       .catch(() => null),
 
     // 2-b) paper 매치만 MIN _sum + _count — 통산 MIN 평균에서 제외하기 위한 차감용
-    // 2026-05-17 사용자 결재 Q3: paper 매치는 시간 박제 불가 (FIBA 종이 기록지에 출전 시간 칸 없음)
+    // 2026-05-17 사용자 결재 Q3: paper 매치는 시간 박제 불가 (FIBA 전자기록지에 출전 시간 칸 없음)
     //   → flutter 매치만으로 MIN 평균 계산: (전체합 - paper합) / (전체수 - paper수)
     prisma.matchPlayerStat
       .aggregate({
@@ -591,7 +591,7 @@ export default async function UserProfilePage({
   // 2026-05-10 — DB minutes_played 단위 = 초 (Int). 통산 mpg 표시 단위 = 분 → /60 변환.
   // 박스스코어 (formatGameClock) 는 초 그대로 사용해서 정상이지만 통산 _avg 는 단위 변환 누락이었음.
   // 2026-05-17 사용자 결재 Q3: paper 매치 MIN 합산 제외 → (전체합 - paper합) / (전체수 - paper수)
-  //   사유: FIBA 종이 기록지에 출전 시간 칸 없음 = paper 매치 minutesPlayed = 0 박제 → 평균 왜곡 회피
+  //   사유: FIBA 전자기록지에 출전 시간 칸 없음 = paper 매치 minutesPlayed = 0 박제 → 평균 왜곡 회피
   const totalMinSum = Number(statAgg?._sum?.minutesPlayed ?? 0);
   const paperMinSum = Number(paperOnlyMinAgg?._sum?.minutesPlayed ?? 0);
   const paperCount = paperOnlyMinAgg?._count?.id ?? 0;

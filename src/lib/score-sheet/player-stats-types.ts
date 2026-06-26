@@ -4,7 +4,7 @@
  * 2026-05-15 — Phase 19 PR-Stat1 (planner-architect §1)
  *
  * 왜 (이유):
- *   FIBA 종이기록지에 OR (offensive rebound) / DR (defensive rebound) / A (assist) /
+ *   FIBA 전자기록지에 OR (offensive rebound) / DR (defensive rebound) / A (assist) /
  *   S (steal) / B (block) / TO (turnover) 6 stat 을 player row 안에 입력 가능하게 박제.
  *   기존 PBP / fouls 외 별도 state 로 분리 — match_player_stats 직접 박제 (DB schema 변경 0).
  *   사용자 결재 Q1 = P.IN 직후 + Fouls 직전 위치 (FIBA 박스스코어 표준 순서).

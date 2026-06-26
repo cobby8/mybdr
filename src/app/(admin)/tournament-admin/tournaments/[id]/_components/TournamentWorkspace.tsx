@@ -664,7 +664,7 @@ export function TournamentWorkspace({
             ["전체 경기", `${matchStats.total}`],
             ["기록 방식", RECORDING_MODE_LABEL[defaultRecordingMode]],
             ["기록앱", `${matchStats.flutter}`],
-            ["종이", `${matchStats.paper}`],
+            ["전자기록지", `${matchStats.paper}`],
             ["수기", `${matchStats.manual}`],
             ["진행중", `${matchStats.inProgress}`],
           ]}

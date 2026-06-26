@@ -4,7 +4,7 @@
  * 2026-05-17 신규 (사용자 결재 옵션 E + 기록원 인증 가드).
  *
  * 왜 (이유):
- *   미교육 기록원 / 신규 운영자가 실제 매치 없이도 종이 기록지 양식 흐름 (점프볼 /
+ *   미교육 기록원 / 신규 운영자가 실제 매치 없이도 전자기록지 양식 흐름 (점프볼 /
  *   마킹 / 파울 / 임시번호 / 라인업 등) 을 자유롭게 연습할 수 있도록 가상 fixture
  *   기반 연습 모드 박제. 운영 DB / Flutter / 라이브 발행 영향 0.
  *
@@ -119,7 +119,7 @@ export default async function ScoreSheetPracticePage() {
             연습 모드는 기록원 등록 후 사용 가능합니다
           </p>
           <p className="mt-2 text-sm" style={{ color: "var(--color-text-muted)" }}>
-            FIBA 종이 기록지 연습 양식은 기록원 또는 운영자 권한 보유자만 진입할
+            FIBA 전자기록지 연습 양식은 기록원 또는 운영자 권한 보유자만 진입할
             수 있습니다. 대회 운영자에게 기록원 등록을 요청해주세요.
           </p>
           <div className="mt-4 flex flex-col items-center gap-2 sm:flex-row sm:justify-center">

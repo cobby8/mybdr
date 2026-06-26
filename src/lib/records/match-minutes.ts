@@ -5,7 +5,7 @@
  *   (findMany → MinutesPbp 매핑 → qLen/numQuarters 추정 → dbStartersByTeam →
  *    calculateMinutes → 종료매치 home/away applyCompletedCap)을 인라인으로 갖고 있었다.
  *   기록실(records) 도 동일 출전시간이 필요하나, MatchPlayerStat.minutesPlayed 는
- *   종이 모드 0 하드코딩 + 999 truncate 버그가 있어 신뢰 불가.
+ *   전자기록지 모드 0 하드코딩 + 999 truncate 버그가 있어 신뢰 불가.
  *   → 라이브의 검증된 로직을 그대로 공용 함수로 추출해 양쪽이 같은 알고리즘을 쓴다 (중복 0).
  *
  * 방법(어떻게): 알고리즘 본체는 `minutes-engine.ts` 의 calculateMinutes / applyCompletedCap
@@ -13,7 +13,7 @@
  *   만 담당. N+1 금지 — matchIds 배열 1회 IN 쿼리로 모든 매치 PBP/stat 을 모은다.
  *
  * 출력: Map<matchId(number), Map<ttpId(bigint), 출전초(number)>>
- *   - 종이 매치(recording_mode="paper" 또는 PBP max(game_clock)=0)는 결과 Map 에서 제외
+ *   - 전자기록지 매치(recording_mode="paper" 또는 PBP max(game_clock)=0)는 결과 Map 에서 제외
  *     → 호출자(toRawBox)가 min 부재로 처리 → 집계 단계가 null('–') 표기.
  *   - PBP 0건 매치도 결과 Map 에서 제외 (출전시간 산출 불가).
  *
@@ -131,9 +131,9 @@ export async function getMatchMinutesBySec(
   matchIds: bigint[],
   metaById: Map<string, MatchMinutesMeta>,
   opts?: {
-    // 종이/PBP-clock=0 매치를 결과에서 제외할지.
-    //   - true (기본, 기록실): 종이 매치 출전시간 부재 → 결과 제외 → 집계 null('–').
-    //   - false (라이브): 라이브 박스스코어는 종이 매치도 PBP 추정 min 을 그대로 표시 →
+    // 전자기록지/PBP-clock=0 매치를 결과에서 제외할지.
+    //   - true (기본, 기록실): 전자기록지 매치 출전시간 부재 → 결과 제외 → 집계 null('–').
+    //   - false (라이브): 라이브 박스스코어는 전자기록지 매치도 PBP 추정 min 을 그대로 표시 →
     //     동작 100% 보존을 위해 제외하지 않음 (추출 전 인라인 로직과 동일).
     excludePaper?: boolean;
   },
@@ -207,7 +207,7 @@ export async function getMatchMinutesBySec(
     const pbps = pbpByMatch.get(matchKey) ?? [];
     if (pbps.length === 0) continue; // PBP 없음 — 출전시간 산출 불가 → 제외('–')
 
-    // 종이/수기 매치 판별: recording_mode="paper"|"manual" 또는 PBP max(game_clock)=0 (digital clock 부재)
+    // 전자기록지/수기 매치 판별: recording_mode="paper"|"manual" 또는 PBP max(game_clock)=0 (digital clock 부재)
     //   기록실(excludePaper=true)만 제외. 라이브(false)는 추출 전 동작 보존 — PBP 추정 min 산출.
     if (excludePaper) {
       const mode = getRecordingMode({ settings: meta.settings });
@@ -215,7 +215,7 @@ export async function getMatchMinutesBySec(
         mode === "paper" ||
         mode === "manual" ||
         Math.max(...pbps.map((p) => p.game_clock_seconds ?? 0)) === 0;
-      if (isNonFlutter) continue; // 종이/수기 매치 — 출전시간 부재 → 제외('–')
+      if (isNonFlutter) continue; // 전자기록지/수기 매치 — 출전시간 부재 → 제외('–')
     }
 
     // qLen / numQuarters 추정 (라이브 route 와 동일)

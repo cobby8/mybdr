@@ -1,5 +1,7 @@
 # Knowledge Index
 
+- 2026-06-27 recording: `recording_mode="paper"` remains the internal compatibility value, but user-facing/admin copy now calls it "전자기록지"; existing `paper-*` IDs and `[종이 기록]` PBP descriptions stay unchanged.
+
 - 2026-06-26 admin: tournament detail entry is now the 6-menu Toss operate workspace, while the former setup/edit workspace is preserved at `/tournament-admin/tournaments/[id]/edit`.
 
 - 2026-06-26 admin: division rule operation settings now use an explicit "운영방식 설정 저장" flow instead of blur-only persistence, and local rule state refreshes from the PATCH response.
@@ -45,17 +47,18 @@
 - 2026-06-26 tournament-admin: match-level manual recording mode is now a real non-record-system mode instead of Flutter fallback.
 - 2026-06-26 record-app: separated game-rule time presets from nonstop/all-dead clock mode.
 
-Updated: 2026-06-26
+Updated: 2026-06-27
 
 | File | Entries | Recent |
 |---|---:|---|
 | architecture.md | 4 | Tournament operate/edit route split |
-| conventions.md | 2 | 대회 포맷 표준 |
-| decisions.md | 8 | Tournament operate/edit route split |
+| conventions.md | 3 | Recording Mode Copy |
+| decisions.md | 9 | Electronic Score-Sheet Naming |
 | errors.md | 8 | Division rule settings save looked unreliable |
 | lessons.md | 0 | - |
 
 Recent work:
+- 2026-06-27 recording: Gangnam Association Cup D5 was switched to electronic score-sheet mode for the tournament default and all 13 matches; visible "종이 기록지" copy was renamed to "전자기록지" while compatibility data keys were preserved.
 - 2026-06-26 admin: tournament operation entry was split so `/tournament-admin/tournaments/[id]` renders the Toss 6-menu operate workspace and `/edit` retains the setup/edit form workspace.
 - 2026-06-26 admin: division rule settings save UX was fixed by replacing hidden blur persistence with an explicit settings save control and confirmed server-response state refresh.
 - 2026-06-26 admin: bracket generation was fixed for live ops by exposing division-rule generation at 0 matches, disabling unsafe tournament-level generation when rules exist, supporting division single-elimination/round-robin, and blocking invalid group sizes without consuming a bracket version.

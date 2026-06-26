@@ -1,5 +1,5 @@
 /**
- * 웹 종이 기록지 cross-check audit 박제 BFF.
+ * 웹 전자기록지 cross-check audit 박제 BFF.
  *
  * 2026-05-14 — Phase 23 PR5-A 신규 (PR2+PR3 reviewer 후속 권장).
  *

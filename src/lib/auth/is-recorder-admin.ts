@@ -25,7 +25,7 @@
  *   if (isRecorderAdmin(session)) return true; // 모든 대회 점수기록/기록원 배정 통과
  *
  * 권한 매트릭스 (scratchpad §1 참조):
- *   - Flutter 점수입력 / 매치목록 / 웹 종이 기록지 → 모든 대회 통과
+ *   - Flutter 점수입력 / 매치목록 / 웹 전자기록지 → 모든 대회 통과
  *   - 기록원 배정/해제 (`/api/web/tournaments/:id/recorders`) → 모든 대회 통과
  *   - `/referee/admin/*` 진입 + 협회 12 permission → sentinel 자동 통과 (PR3)
  *   - 대회 생성/운영 (Tournament CUD) / 사용자 관리 → ❌ (super_admin 만)

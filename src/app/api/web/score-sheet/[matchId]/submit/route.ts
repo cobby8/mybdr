@@ -1,5 +1,5 @@
 /**
- * 웹 종이 기록지 제출 BFF.
+ * 웹 전자기록지 제출 BFF.
  *
  * 2026-05-11 — Phase 1-B-2 신규 (decisions.md [2026-05-11] §1 — sync API 재사용 + BFF wrap).
  * 2026-05-12 — Phase 2 확장 (running_score → PBP 변환 + service play_by_plays 전달).
@@ -22,9 +22,9 @@
  *   - waitUntil(triggerMatchBriefPublish) — completed 신규 전환 시 자동 발화.
  *
  * Phase 2 PBP 박제 룰:
- *   - local_id = `paper-fix-{uuid}` (service manual-fix 보호 룰과 동일 prefix 미사용 — 종이 기록 식별자)
+ *   - local_id = `paper-fix-{uuid}` (service manual-fix 보호 룰과 동일 prefix 미사용 — 전자기록지 기록 식별자)
  *   - description = `[종이 기록] N점 득점`
- *   - service 가 매번 deleteMany NOT IN (incoming local_id ∪ manual-fix-*) → 종이 기록은 매번 전체 재박제 idempotent
+ *   - service 가 매번 deleteMany NOT IN (incoming local_id ∪ manual-fix-*) → 전자기록지 기록은 매번 전체 재박제 idempotent
  */
 
 import { NextRequest } from "next/server";
@@ -57,7 +57,7 @@ import { foulsToPBPEvents } from "@/lib/score-sheet/foul-helpers";
 //   PURE 헬퍼 (PR-Possession-1) 단순 직렬화 — vitest 15 케이스 보장.
 import { possessionToPBPInputs } from "@/lib/score-sheet/possession-helpers";
 
-// zod schema — 종이 기록지 제출 input
+// zod schema — 전자기록지 제출 input
 // 이유: Phase 2 = running_score 신규. Phase 1 의 quarter_scores 는 호환성 유지 (없으면 running_score 로부터 자동 산출)
 const quarterScoreEntrySchema = z.object({
   q1: z.number().int().min(0).max(199).default(0),
@@ -186,10 +186,10 @@ const lineupSchema = z.object({
 // 박제 범위 (Phase 2 기록 가능 항목 기준):
 //   - points: 합산 (1/2/3pt 모두 포함)
 //   - field_goals_made: 2pt + 3pt 합계 (1pt 자유투 제외)
-//   - field_goals_attempted: made 와 동일 (종이 기록 = miss 미박제 → attempted = made)
+//   - field_goals_attempted: made 와 동일 (전자기록지 기록 = miss 미박제 → attempted = made)
 //   - two_pointers_made / three_pointers_made / free_throws_made: subtype 별 분리 카운트
 //   - personal_fouls / technical_fouls / unsportsmanlike_fouls: foul type 별 분리 카운트
-//   - 기타 22 stat (리바운드/어시스트/스틸 등) = 0 (종이 기록 미박제 — Phase 2 결재 §scope)
+//   - 기타 22 stat (리바운드/어시스트/스틸 등) = 0 (전자기록지 기록 미박제 — Phase 2 결재 §scope)
 //
 // idempotent: 매번 전체 재계산 → service upsert (멱등 — Flutter sync 동작과 동일).
 type RunningScoreInput = {
@@ -314,7 +314,7 @@ export function buildPlayerStatsFromRunningScore(params: {
   //
   // teamId 추론: stats record key 만으로는 home/away 식별 불가.
   //   → 안전 룰: stats 박제는 runningScore 또는 fouls 가 같은 player 에 박제됨을 전제.
-  //   → 둘 다 없는 player 의 6 stat 박제 = 매우 예외 (FIBA 종이기록지 흐름상 정상 케이스 X).
+  //   → 둘 다 없는 player 의 6 stat 박제 = 매우 예외 (FIBA 전자기록지 흐름상 정상 케이스 X).
   //   → 그런 player 는 home 으로 기본 분류 (UI 에서 입력 안 되는 player 는 stats 도 0 — 안전).
   //   안전망: ensure 호출 시 acc 에 player 가 있으면 기존 teamId 유지 (모순 시 home 폴백).
   if (stats) {
@@ -335,7 +335,7 @@ export function buildPlayerStatsFromRunningScore(params: {
   }
 
   // 4) PlayerStatInput[] 변환 — 22 stat 의 미박제 항목은 모두 0
-  //    field_goals_made = 2pt + 3pt / attempted = made (종이 기록 = miss 무박제)
+  //    field_goals_made = 2pt + 3pt / attempted = made (전자기록지 기록 = miss 무박제)
   //    free_throws_attempted = made (동일)
   // Phase 19 PR-Stat4 (2026-05-15) — 6 stat (OR/DR/A/S/B/TO) 박제 wiring.
   //   total_rebounds = or + dr 자동 계산 (FIBA 표준).
@@ -346,7 +346,7 @@ export function buildPlayerStatsFromRunningScore(params: {
       tournament_team_player_id: row.tournamentTeamPlayerIdNum,
       tournament_team_id: row.tournamentTeamIdNum,
       is_starter: false, // lineup 박제는 MatchLineupConfirmed 가 별도 SSOT
-      minutes_played: 0, // 종이 기록 = 시간 미박제
+      minutes_played: 0, // 전자기록지 기록 = 시간 미박제
       points: row.points,
       field_goals_made: fgMade,
       field_goals_attempted: fgMade, // attempted = made (miss 미박제)
@@ -554,8 +554,8 @@ export async function POST(
     const isManual = mode === "manual";
     return apiError(
       isManual
-        ? "이 매치는 수기 기록 모드입니다. 운영자가 모드를 전환해야 종이 기록지로 입력할 수 있습니다."
-        : "이 매치는 Flutter 기록앱 모드입니다. 운영자가 모드를 전환해야 종이 기록지로 입력할 수 있습니다.",
+        ? "이 매치는 수기 기록 모드입니다. 운영자가 모드를 전환해야 전자기록지로 입력할 수 있습니다."
+        : "이 매치는 Flutter 기록앱 모드입니다. 운영자가 모드를 전환해야 전자기록지로 입력할 수 있습니다.",
       403,
       isManual ? "RECORDING_MODE_MANUAL" : "RECORDING_MODE_FLUTTER",
       { match_id: match.id.toString(), current_mode: mode }
@@ -657,7 +657,7 @@ export async function POST(
         tournament_team_player_id: playerIdNum,
         tournament_team_id: Number(teamIdBig),
         quarter: p.quarter,
-        game_clock_seconds: 0, // 종이 기록 = 시각 미박제 (Phase 4 Time-outs 통합 시 검토)
+        game_clock_seconds: 0, // 전자기록지 기록 = 시각 미박제 (Phase 4 Time-outs 통합 시 검토)
         shot_clock_seconds: null,
         action_type: p.action_type,
         action_subtype: p.action_subtype,
@@ -817,7 +817,7 @@ export async function POST(
         tournament_team_player_id: playerIdNum,
         tournament_team_id: Number(teamIdBig),
         quarter: p.period,
-        game_clock_seconds: 0, // 종이 기록 = 시각 미박제
+        game_clock_seconds: 0, // 전자기록지 기록 = 시각 미박제
         shot_clock_seconds: null,
         action_type: p.actionType, // "jump_ball" | "held_ball"
         action_subtype: null,
@@ -849,7 +849,7 @@ export async function POST(
   // 4-4) 2026-05-16 (긴급 박제 — Bench Technical + Delay of Game / FIBA Article 36) → PBP events.
   //
   //   왜 (이유):
-  //     FIBA Article 36.3 (C) / 36.4 (B) / 36.2.3 (Delay) — score-sheet 종이 양식 박제 후
+  //     FIBA Article 36.3 (C) / 36.4 (B) / 36.2.3 (Delay) — score-sheet 전자기록지 양식 박제 후
   //     PBP action_subtype 박제 (이력 추적 / 감사용). action_type = "foul" 통일 + subtype 분기.
   //
   //   박제 룰:
@@ -1042,7 +1042,7 @@ export async function POST(
   // 4-3) Phase 20 — running_score + fouls → player_stats 자동 집계.
   //
   // 이유: BFF 가 service 호출 시 player_stats 미전달 → MatchPlayerStat 0건 →
-  //   라이브 박스스코어 PTS 모두 0 (사용자 보고 이미지 46). 종이 기록 input 으로부터
+  //   라이브 박스스코어 PTS 모두 0 (사용자 보고 이미지 46). 전자기록지 input 으로부터
   //   player_id 단위 합산하여 service 인자 전달 → MatchPlayerStat upsert → 라이브 정상.
   //
   // 박제 범위: points + FG/3P/FT made + foul type 카운트 (자세한 룰은 헬퍼 docstring 참조).

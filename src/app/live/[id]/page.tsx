@@ -986,7 +986,7 @@ export default function LiveBoxScorePage() {
       let cancelled = false;
 
       if (printMode === "system") {
-        // === SYSTEM MODE (window.print) — OS 다이얼로그 + 종이/PDF 출력 ===
+        // === SYSTEM MODE (window.print) — OS 다이얼로그 + 인쇄 출력/PDF 출력 ===
         const originalTitle = document.title;
         document.title = printTitle;
         const handleAfterPrint = () => {

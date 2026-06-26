@@ -133,7 +133,7 @@ export function shouldAwardFreeThrow(
 // PlayByPlay foul event 변환 — service syncSingleMatch 가 박제할 PBP 형태
 //
 // 박제 룰 (Phase 2 score event 와 동일 패턴):
-//   - local_id = `paper-fix-{uuid}` — 종이 기록 식별자
+//   - local_id = `paper-fix-{uuid}` — 전자기록지 기록 식별자
 //   - description = `[종이 기록] 선수 N번 {P/T/U/D}` (N=등번호, 종류 약자 직접 박제)
 //   - action_type = "foul" (live API + 통산 stat 호환 — fouls 누적 시 +1)
 //   - tournament_team_id, tournament_team_player_id 는 caller (BFF) 가 채움

@@ -34,7 +34,7 @@ describe("recording-mode/bulk zod schema (5 케이스)", () => {
     const result = PostBodySchema.safeParse({
       mode: "paper",
       scope: "exclude_in_progress",
-      reason: "결승 매치 종이 기록지 운영 결정",
+      reason: "결승 매치 전자기록지 운영 결정",
     });
     expect(result.success).toBe(true);
   });

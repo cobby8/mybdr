@@ -48,7 +48,7 @@ export type FinalizeMatchCaller =
   | "admin-patch" // admin PATCH route
   | "flutter-batch-sync" // Flutter v1 batch-sync route
   | "flutter-status-patch" // Flutter v1 /matches/:id/status PATCH (updateMatchStatus)
-  | "web-score-sheet"; // 웹 종이 기록지 BFF (현재 match-sync-service 경유 — 미사용)
+  | "web-score-sheet"; // 웹 전자기록지 BFF (현재 match-sync-service 경유 — 미사용)
 
 export interface FinalizeMatchCompletionOptions {
   /**

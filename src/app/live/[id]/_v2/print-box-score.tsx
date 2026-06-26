@@ -36,7 +36,7 @@ export function PrintBoxScoreArea({
 }: {
   match: MatchDataV2;
   printOptions: PrintOptions | null;
-  // 2026-05-13 FIBA Phase 21: 종이 매치 (recording_mode="paper") 슈팅 6 컬럼 hide.
+  // 2026-05-13 FIBA Phase 21: 전자기록지 매치 (recording_mode="paper") 슈팅 6 컬럼 hide.
   // game-result.tsx 에서 match.recording_mode === "paper" 산출 후 prop 전달.
   isPaperMatch?: boolean;
 }) {
@@ -151,7 +151,7 @@ function PrintBoxScoreTable({
   filter: string; // "all" | "1"~"5"
   filterLabel: string; // "누적 기록" / "1쿼터" / "OT"
   hasQuarterEventDetail: boolean;
-  // 2026-05-13 FIBA Phase 21: 종이 매치 슈팅 6 컬럼 hide
+  // 2026-05-13 FIBA Phase 21: 전자기록지 매치 슈팅 6 컬럼 hide
   isPaperMatch?: boolean;
 }) {
   if (!players || players.length === 0) return null;
@@ -369,7 +369,7 @@ function PrintBoxScoreTable({
               {/* 2026-05-17 사용자 결재 — paper 매치 = MIN/+/- hide (시간/점수변동 추적 불가) */}
               {!isPaperMatch && <th>MIN</th>}
               <th>PTS</th>
-              {/* 2026-05-13 FIBA Phase 21: 종이 매치 슈팅 6 컬럼 hide */}
+              {/* 2026-05-13 FIBA Phase 21: 전자기록지 매치 슈팅 6 컬럼 hide */}
               {!isPaperMatch && (
                 <>
                   <th>FG</th>
@@ -401,7 +401,7 @@ function PrintBoxScoreTable({
                   <td>{formatGameClock(p.min_seconds ?? p.min * 60)}</td>
                 )}
                 <td style={{ fontWeight: 700 }}>{showPlaceholder ? "-" : p.pts}</td>
-                {/* 2026-05-13 FIBA Phase 21: 종이 매치 슈팅 6 컬럼 hide */}
+                {/* 2026-05-13 FIBA Phase 21: 전자기록지 매치 슈팅 6 컬럼 hide */}
                 {!isPaperMatch && (
                   <>
                     <td>{showPlaceholder ? "-" : `${p.fgm}/${p.fga}`}</td>
@@ -433,7 +433,7 @@ function PrintBoxScoreTable({
               </tr>
             ))}
             {/* 미출전 선수는 앱 통계 화면과 맞춰 MIN 포함 전체 칸을 "-"로 표시.
-                2026-05-13 FIBA Phase 21: 종이 매치 시 슈팅 6 컬럼 hide → 16 → 10 으로 줄임. */}
+                2026-05-13 FIBA Phase 21: 전자기록지 매치 시 슈팅 6 컬럼 hide → 16 → 10 으로 줄임. */}
             {dnpPlayers.map((p) => (
               <tr key={`dnp-${p.id}`}>
                 <td>{p.jersey_number ?? "-"}</td>
@@ -455,7 +455,7 @@ function PrintBoxScoreTable({
               {/* 2026-05-17 paper 매치 = TOTAL MIN 셀 hide */}
               {!isPaperMatch && <td>{formatGameClock(total.min_seconds)}</td>}
               <td>{showPlaceholder ? "-" : total.pts}</td>
-              {/* 2026-05-13 FIBA Phase 21: 종이 매치 TOTAL 행도 슈팅 6 컬럼 hide */}
+              {/* 2026-05-13 FIBA Phase 21: 전자기록지 매치 TOTAL 행도 슈팅 6 컬럼 hide */}
               {!isPaperMatch && (
                 <>
                   <td>{showPlaceholder ? "-" : `${total.fgm}/${total.fga}`}</td>

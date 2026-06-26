@@ -414,7 +414,7 @@ export function ScoreSheetForm({
   // 2026-05-16 (긴급 박제 — 전후반 모드 / 강남구 i3 종별)
   //
   // 왜 (이유):
-  //   종이 기록지가 전후반 (2 period) 모드 운영 매치 (강남구 i3 등) 대응. 4쿼터 기본 유지 +
+  //   전자기록지가 전후반 (2 period) 모드 운영 매치 (강남구 i3 등) 대응. 4쿼터 기본 유지 +
   //   toolbar 토글로 즉시 전환. DB schema 변경 0 — localStorage draft 박제로 새로고침 시 보존.
   //
   // 어떻게:
@@ -980,7 +980,7 @@ export function ScoreSheetForm({
               </li>
               <li>
                 <strong style={emphasisStyle}>인쇄</strong> — <em>"인쇄"</em> 버튼은 FIBA
-                공식 양식 그대로 PDF / 종이로 출력합니다 (배경 색상 자동 보존).
+                공식 양식 그대로 PDF / 인쇄물로 출력합니다 (배경 색상 자동 보존).
               </li>
               <li>
                 <strong style={emphasisStyle}>이전 페이지로</strong> — 화면 위쪽 좌측

@@ -170,8 +170,8 @@ export function BoxScoreTable({
   otCount?: number;
   // 쿼터별 이벤트 상세 스탯 존재 여부 — false + 쿼터 필터 활성 시 안내 배너 + 스탯 "-"
   hasQuarterEventDetail?: boolean;
-  // 2026-05-13 FIBA Phase 21: 종이 매치 (recording_mode="paper") 슈팅 6 컬럼 (FG/FG%/3P/3P%/FT/FT%) hide.
-  // 종이 기록 = miss 미박제 → 시도=성공=100% → 가짜 정확도 시각 노이즈 차단. default false (Flutter 매치 19 컬럼 유지).
+  // 2026-05-13 FIBA Phase 21: 전자기록지 매치 (recording_mode="paper") 슈팅 6 컬럼 (FG/FG%/3P/3P%/FT/FT%) hide.
+  // 전자기록지 기록 = miss 미박제 → 시도=성공=100% → 가짜 정확도 시각 노이즈 차단. default false (Flutter 매치 19 컬럼 유지).
   isPaperMatch?: boolean;
 }) {
   // 쿼터 필터 state — "all" | "1" ~ "5"
@@ -532,7 +532,7 @@ export function BoxScoreTable({
                     >
                       PTS
                     </th>
-                    {/* 2026-05-13 FIBA Phase 21: 종이 매치 (isPaperMatch=true) 시 슈팅 6 컬럼 hide */}
+                    {/* 2026-05-13 FIBA Phase 21: 전자기록지 매치 (isPaperMatch=true) 시 슈팅 6 컬럼 hide */}
                     {!isPaperMatch && (
                       <>
                         <th className="py-2 px-0.5 text-center font-normal">FG</th>
@@ -614,7 +614,7 @@ export function BoxScoreTable({
                         {!showPlaceholder && <PtsTeamBar />}
                         {showPlaceholder ? "-" : p.pts}
                       </td>
-                      {/* 슈팅 스탯 — showPlaceholder 시 "-". 종이 매치(isPaperMatch=true) 6 컬럼 통째 hide */}
+                      {/* 슈팅 스탯 — showPlaceholder 시 "-". 전자기록지 매치(isPaperMatch=true) 6 컬럼 통째 hide */}
                       {!isPaperMatch && (
                         <>
                           <td
@@ -827,7 +827,7 @@ export function BoxScoreTable({
                           {!showPlaceholder && <PtsTeamBar />}
                           {showPlaceholder ? "-" : total.pts}
                         </td>
-                        {/* 2026-05-13 FIBA Phase 21: 종이 매치 시 TOTAL 행도 슈팅 6 컬럼 hide */}
+                        {/* 2026-05-13 FIBA Phase 21: 전자기록지 매치 시 TOTAL 행도 슈팅 6 컬럼 hide */}
                         {!isPaperMatch && (
                           <>
                             <td

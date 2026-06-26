@@ -6,7 +6,7 @@ import { verifyToken } from "@/lib/auth/jwt";
 import { z } from "zod";
 import { SYNC_ALLOWED_STATUSES } from "@/lib/constants/match-status";
 // 2026-05-11: Phase 1-A 매치별 recording_mode 게이팅 (decisions.md [2026-05-11] §3).
-//   settings.recording_mode === "paper" 매치는 Flutter sync 차단 — 웹 종이 기록지와 충돌 방지.
+//   settings.recording_mode === "paper" 매치는 Flutter sync 차단 — 웹 전자기록지와 충돌 방지.
 //   기존 매치 100% (settings null / {}) 는 fallback "flutter" 로 그대로 허용 — 운영 영향 0.
 import { assertRecordingMode } from "@/lib/tournaments/recording-mode";
 // 2026-05-21 PR-3 F5 (errors.md [2026-05-20] 매치 124 OT2 사고 재발 방지):
@@ -15,7 +15,7 @@ import { assertRecordingMode } from "@/lib/tournaments/recording-mode";
 import { assertCompletedMatchFiba } from "@/lib/tournaments/fiba-rules";
 // 2026-05-11: Phase 1-B refactor — sync core 로직을 service 로 추출.
 //   본 route 는 zod 검증 + 권한 + 모드 가드 + service 호출 + 응답 wrap 만 담당.
-//   웹 종이 기록지 BFF (`/api/web/score-sheet/[matchId]/submit`) 도 동일 service 호출 = 단일 source.
+//   웹 전자기록지 BFF (`/api/web/score-sheet/[matchId]/submit`) 도 동일 service 호출 = 단일 source.
 import { syncSingleMatch } from "@/lib/services/match-sync";
 // 2026-05-16: recorder_admin 전역 흡수 (Flutter 기록앱 모든 대회 sync 통과)
 import { isSuperAdmin } from "@/lib/auth/is-super-admin";

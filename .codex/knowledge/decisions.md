@@ -1,5 +1,12 @@
 # Decision Log
 
+## 2026-06-27 Electronic Score-Sheet Naming
+
+- Decision: user-facing copy should call `recording_mode="paper"` the "전자기록지" mode instead of "종이 기록지".
+- Reason: operations will use the web score-sheet as an electronic record sheet, and the old Korean label confused it with a physical paper workflow.
+- Scope: UI text, admin labels, access/error messages, score-sheet comments, and related tests/documentation copy.
+- Guardrail: do not rename the internal `paper` mode value, `paper-*` local IDs, or historical `[종이 기록]` PBP descriptions because they are persisted data/API compatibility keys.
+
 ## 2026-06-26 Tournament Operate/Edit Route Split
 
 - Decision: `/tournament-admin/tournaments/[id]` is now the primary operate workspace, and the edit/setup form moves to `/tournament-admin/tournaments/[id]/edit`.

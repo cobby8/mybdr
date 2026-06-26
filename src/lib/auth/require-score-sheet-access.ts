@@ -1,5 +1,5 @@
 /**
- * 웹 종이 기록지 페이지 / BFF 권한 가드 헬퍼.
+ * 웹 전자기록지 페이지 / BFF 권한 가드 헬퍼.
  *
  * 2026-05-11 — Phase 1-B-2 신규 (decisions.md [2026-05-11] §2 = `requireRecorder` 의 web 세션 대응판).
  *
@@ -175,7 +175,7 @@ export async function requireScoreSheetAccess(
   if (!hasAccess) {
     return {
       error: apiError(
-        "종이 기록지 입력 권한이 없습니다. 운영자 또는 기록원만 입력 가능합니다.",
+        "전자기록지 입력 권한이 없습니다. 운영자 또는 기록원만 입력 가능합니다.",
         403,
         "FORBIDDEN"
       ),

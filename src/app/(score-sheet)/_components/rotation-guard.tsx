@@ -4,7 +4,7 @@
  * 2026-05-11 — Phase 1 신규 (planner-architect §G §5 §결재 §7 옵션 a 채택).
  *
  * 왜 (이유):
- *   FIBA 종이 기록지 양식 = A4 세로 (1:1.414). 태블릿 세로 모드가 자연 정합.
+ *   FIBA 전자기록지 양식 = A4 세로 (1:1.414). 태블릿 세로 모드가 자연 정합.
  *   가로 모드 진입 시 양식이 좌우로 늘어나 가독성 + 칸 비율 깨짐.
  *   PC (touch X / 데스크탑) 는 가로/세로 무관 — 본 가드는 태블릿/모바일 (touch) 만 차단.
  *
@@ -72,7 +72,7 @@ export function RotationGuard({ children }: RotationGuardProps) {
           className="mt-6 text-center text-xl font-bold"
           style={{ color: "var(--color-text-primary)" }}
         >
-          종이 기록지는 세로 모드에서 사용해주세요
+          전자기록지는 세로 모드에서 사용해주세요
         </h1>
         <p
           className="mt-2 text-center text-sm"

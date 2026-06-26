@@ -13,7 +13,7 @@
  *   5. fouls 합산 — P/T/U/D 타입 분리 + foul-out (5+) 감지
  *   6. running_score + fouls 통합 — 한 선수가 양쪽 등장 시 합쳐짐 (key=playerId)
  *   7. fouled_out = totalFouls >= 5 (P 4 + T 1 = foul-out)
- *   8. attempted = made (종이 기록 = miss 미박제)
+ *   8. attempted = made (전자기록지 기록 = miss 미박제)
  */
 
 import { describe, it, expect } from "vitest";

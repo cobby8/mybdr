@@ -1,5 +1,10 @@
 # Conventions
 
+## Recording Mode Copy
+- Display `recording_mode="paper"` as "전자기록지" in user-facing UI, admin UI, and error messages.
+- Keep internal values unchanged: `paper`, `paper-*` local IDs, and historical `[종이 기록]` PBP descriptions are compatibility data and must not be renamed casually.
+- When adding new score-sheet copy, prefer "전자기록지" over "종이 기록지" or "종이기록지".
+
 ## 대회 포맷 표준
 - 신규 대회/종별 운영 방식은 `토너먼트`, `풀리그`, `듀얼토너먼트`, `조별리그+토너먼트`, `링크제`, `조별리그+동순위 순위결정전` 6개만 사용한다.
 - DB 값은 각각 `single_elimination`, `round_robin`, `dual_tournament`, `group_stage_knockout`, `league_advancement`, `group_stage_with_ranking`을 쓴다.

@@ -2,7 +2,7 @@
  * 2026-05-11 — Phase 1-B sync route refactor 동등성 회귀 방지.
  *
  * 배경 (decisions.md [2026-05-11] §1):
- *   - 웹 종이 기록지 BFF 와 Flutter sync route 가 동일 core 로직 호출 = 단일 source.
+ *   - 웹 전자기록지 BFF 와 Flutter sync route 가 동일 core 로직 호출 = 단일 source.
  *   - sync route 의 inline 분기 로직을 `src/lib/services/match-sync.ts` 에 추출.
  *   - **본 turn 보장: sync route 결과 (응답 데이터 + 부작용) 0 변경**.
  *

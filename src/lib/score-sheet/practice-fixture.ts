@@ -2,7 +2,7 @@
  * 연습용 FIBA SCORESHEET fixture (2026-05-17 신규).
  *
  * 왜 (이유):
- *   미교육 기록원 / 신규 운영자가 운영 매치 없이도 종이 기록지 양식 전체 흐름을
+ *   미교육 기록원 / 신규 운영자가 운영 매치 없이도 전자기록지 양식 전체 흐름을
  *   체험할 수 있도록 가상 매치 + 대회 + 양 팀 로스터(각 10명) fixture 박제.
  *   `/score-sheet/practice` 페이지가 본 fixture 를 import 해서 ScoreSheetForm 에
  *   prop 으로 전달. 운영 DB / API / Flutter 영향 0.

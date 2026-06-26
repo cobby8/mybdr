@@ -43,7 +43,7 @@ describe("recording-mode — getRecordingMode (5 케이스)", () => {
   });
 
   it("settings = { recording_mode: 'paper' } → 'paper' (명시)", () => {
-    // 운영자가 종이 기록지 모드로 전환한 매치 — Flutter sync 차단 대상
+    // 운영자가 전자기록지 모드로 전환한 매치 — Flutter sync 차단 대상
     expect(getRecordingMode({ settings: { recording_mode: "paper" } })).toBe(
       "paper"
     );
@@ -97,7 +97,7 @@ describe("recording-mode — assertRecordingMode (2 케이스)", () => {
   });
 
   it("paper 매치 + expected='flutter' → 403 NextResponse (차단)", async () => {
-    // 종이 모드 매치는 Flutter sync 차단 — RECORDING_MODE_PAPER 코드 + 카피
+    // 전자기록지 모드 매치는 Flutter sync 차단 — RECORDING_MODE_PAPER 코드 + 카피
     const result = assertRecordingMode(
       { id: BigInt(456), settings: { recording_mode: "paper" } },
       "flutter",
@@ -127,7 +127,7 @@ describe("recording-mode — assertRecordingMode (2 케이스)", () => {
   });
 
   it("flutter 매치 + expected='paper' → 403 NextResponse (Phase 1-B 웹 BFF 시나리오)", async () => {
-    // 웹 종이 기록지 BFF 가 flutter 매치 차단 — Phase 1-B 사전 검증
+    // 웹 전자기록지 BFF 가 flutter 매치 차단 — Phase 1-B 사전 검증
     const result = assertRecordingMode(
       { id: BigInt(789), settings: null },
       "paper",

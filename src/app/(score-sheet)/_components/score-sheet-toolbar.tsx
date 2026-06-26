@@ -11,7 +11,7 @@
  *   - **MatchEndButton controlled props 패턴** — onEndMatch trigger / endMatchDisabled 시각 분기 그대로.
  *   - **D3** — 토큰은 `_score-sheet-tokens.css` 의 .ss-shell 스코프 (PR-S7 에서 --pap-* 로 rename).
  *   - **D6** — toolbar max-width: 794px (시안 rev2 그대로) — A4 페이퍼 정합.
- *   - **no-print** — 인쇄 시 toolbar 전체 hidden (FIBA 종이 정합).
+ *   - **no-print** — 인쇄 시 toolbar 전체 hidden (FIBA 전자기록지 정합).
  *
  * Props (rev2):
  *   gameNo         — 타이틀 "SCORESHEET · #{gameNo}" 표시 (없으면 "#" 만)
@@ -70,7 +70,7 @@ interface ScoreSheetToolbarProps {
   isEditMode?: boolean;
   // 2026-05-16 (긴급 박제 — 전후반 모드 토글 / 강남구 i3 종별 1시간 안 시합)
   //   왜:
-  //     종이 기록지가 전후반 (2 period) 모드 운영 매치 대응. 4쿼터 기본 유지 + 토글로 즉시 전환.
+  //     전자기록지가 전후반 (2 period) 모드 운영 매치 대응. 4쿼터 기본 유지 + 토글로 즉시 전환.
   //   동작:
   //     - undefined → 버튼 미노출 (운영 호환 / 진행 매치 영향 0)
   //     - "halves" → "4쿼터로 전환" 라벨 (현재 전후반 / 빨강 강조 outline)
@@ -163,7 +163,7 @@ export function ScoreSheetToolbar({
 
         {/* 2026-05-16 (긴급 박제 — 전후반 모드 토글 / 강남구 i3 종별).
             왜:
-              종이 기록지 전후반 (2 period) 모드 운영 매치 즉시 대응. 4쿼터 기본 + 토글로 전환.
+              전자기록지 전후반 (2 period) 모드 운영 매치 즉시 대응. 4쿼터 기본 + 토글로 전환.
             시각:
               - "halves" (현재 전후반) = accent border + 빨강 색 (운영자 인지 — 현재 모드).
               - "quarters" (현재 4쿼터) = 일반 outline (=ss-toolbar__print 그대로).

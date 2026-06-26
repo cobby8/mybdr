@@ -6,7 +6,7 @@
  *
  * 왜 (이유):
  *   BDR v2.5 시안 (Dev/design/BDR-current/screens/ScoreSheet.parts.jsx SSHeader / SSNames / SSMeta)
- *   의 FIBA 종이 정합 마크업을 운영에 도입. PR-S1 토큰 + PR-S2/S3 toolbar 박제와 정합.
+ *   의 FIBA 전자기록지 정합 마크업을 운영에 도입. PR-S1 토큰 + PR-S2/S3 toolbar 박제와 정합.
  *
  *   시안 = 3 섹션 구조:
  *     Section A (.ss-h)      — BDR 로고 + 3줄 타이틀 (Basketball Daily Routine / MyBDR 공식 기록지 / SCORESHEET)
@@ -21,7 +21,7 @@
  *
  * 사용자 결재 (Phase 19):
  *   - D3: 색상 = .ss-shell 토큰 (PR-S1 + PR-S7 박제) — var(--pap-*)
- *   - D4: FIBA 종이 정합 = 직각 (border-radius 0)
+ *   - D4: FIBA 전자기록지 정합 = 직각 (border-radius 0)
  *   - D6: max-width 794px / 모바일 가로 스크롤 (부모 layout 처리)
  *
  * 방법 (어떻게):
@@ -459,7 +459,7 @@ function SSFieldDisplay({
   grow?: 1 | 2 | 3;
   /**
    * 2026-05-15 (PR-Score-Sheet-Cleanup #49) — 긴 텍스트 wrap 허용.
-   *   default false = FIBA 종이 정합 (1줄 + ellipsis).
+   *   default false = FIBA 전자기록지 정합 (1줄 + ellipsis).
    *   true = Competition 등 긴 대회명 wrap (2줄까지 확장, height auto).
    */
   allowWrap?: boolean;
@@ -480,7 +480,7 @@ function SSFieldDisplay({
     <div className="ss-field" data-grow={grow}>
       {/* PR-S8 — .pap-lbl 클래스 병행 (시안 rev2 정합 / 기존 .ss-field>label 룰 호환 유지) */}
       <label className="pap-lbl">{label}</label>
-      {/* 빈 값은 nbsp 박제 — underscore 가 빈 줄로 보존 (FIBA 종이 정합).
+      {/* 빈 값은 nbsp 박제 — underscore 가 빈 줄로 보존 (FIBA 전자기록지 정합).
           PR-S8 — .pap-u 클래스 병행 (시안 rev2 정합). */}
       <div className="ss-field__v pap-u" style={valueStyle}>{value || " "}</div>
     </div>

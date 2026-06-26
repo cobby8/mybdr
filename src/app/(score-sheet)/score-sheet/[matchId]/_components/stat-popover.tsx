@@ -2,7 +2,7 @@
  * StatPopover — Phase 19 PR-Stat2 (2026-05-15).
  *
  * 왜 (이유):
- *   FIBA 종이기록지 player row 안 OR/DR/A/S/B/TO 6 stat cell 을 클릭 시 +1/-1 옵션 popover 표시.
+ *   FIBA 전자기록지 player row 안 OR/DR/A/S/B/TO 6 stat cell 을 클릭 시 +1/-1 옵션 popover 표시.
  *   사용자 결재 Q2 = 신규 StatPopover 컴포넌트 (모달 아닌 popover — 빠른 입력).
  *   기존 4종 모달 (FoulType / PlayerSelect / LineupSelection / QuarterEnd) 패턴은 큰 dialog →
  *   stat 6 cell 마다 모달 진입은 무거움. popover = 빠른 +1/-1 + 외부 클릭 자동 닫기.

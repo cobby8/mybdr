@@ -36,7 +36,7 @@ export interface RawBox {
 /** 표준 박스 평균 DTO (snake_case = 시안 statCols 키) */
 export interface BoxAvg {
   g: number;
-  // min: 출전시간. 종이(score-sheet) 모드 대회는 minutesPlayed=0 하드코딩이라
+  // min: 출전시간. 전자기록지(score-sheet) 모드 대회는 minutesPlayed=0 하드코딩이라
   //   집계 단위 전체가 0이면 데이터 부재 → null('–' 표기, 평점 정책과 동일).
   min: number | null;
   pts: number;
@@ -121,7 +121,7 @@ export function toRawBox(
   opts?: {
     // 2026-06-16: PBP 기반 출전초(라이브와 단일 source) 주입.
     //   - number(초): min = Math.round(sec/60) (라이브 변환과 동일). 0초도 그대로 0분.
-    //   - null/undefined: minutesPlayed 컬럼 사용 안 함 → min=0 (종이/PBP없음 매치).
+    //   - null/undefined: minutesPlayed 컬럼 사용 안 함 → min=0 (전자기록지/PBP없음 매치).
     //     집계(aggregateBox)에서 scope 전체 합=0 이면 null('–') 표기. minutesPlayed 의
     //     999 truncate 버그를 PBP 기반 주입으로 자동 회피.
     minOverrideSec?: number | null;
@@ -131,7 +131,7 @@ export function toRawBox(
   const dreb = num(s.defensive_rebounds);
   // total_rebounds 있으면 사용, 없으면 OR+DR
   const reb = s.total_rebounds != null ? num(s.total_rebounds) : oreb + dreb;
-  // min: PBP override 우선(라이브 단일 source). override 부재 시 0 (minutesPlayed 미신뢰 — 999 버그/종이 0).
+  // min: PBP override 우선(라이브 단일 source). override 부재 시 0 (minutesPlayed 미신뢰 — 999 버그/전자기록지 0).
   const min =
     opts?.minOverrideSec != null ? Math.round(opts.minOverrideSec / 60) : 0;
   return {
@@ -173,7 +173,7 @@ export function aggregateBox(rows: RawBox[]): BoxAvg {
   const stl = avg("stl");
   const blk = avg("blk");
 
-  // 출전시간 데이터 존재 여부: 집계 단위 전체 합이 0이면 부재(종이모드) → null('–').
+  // 출전시간 데이터 존재 여부: 집계 단위 전체 합이 0이면 부재(전자기록지 모드) → null('–').
   //   하나라도 >0이면(라이브 sync 대회) 평균/합계 그대로 표기.
   const sumMin = sum("min");
   const hasMin = sumMin > 0;

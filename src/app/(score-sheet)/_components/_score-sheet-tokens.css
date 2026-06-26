@@ -10,7 +10,7 @@
  *   → 본 파일은 paper 전용 색상 토큰만 (Q1~Q4 / OT 색상 토큰 = 제거 / period-color.ts 가 var(--color-*) 사용).
  *
  * 사용자 결재 D4 (Phase 19):
- *   페이퍼 외곽 직각 (border-radius: 0) = 13 룰 §10 의 의도적 예외 (FIBA 종이 정합).
+ *   전자기록지 외곽 직각 (border-radius: 0) = 13 룰 §10 의 의도적 예외 (FIBA 전자기록지 정합).
  *   본 파일 = 색 토큰만, radius 룰은 _score-sheet-styles.css 에서 명시.
  *
  * 시안 source (rev2): Dev/design/BDR-current/scoresheet.css L12-19

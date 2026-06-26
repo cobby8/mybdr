@@ -1,9 +1,9 @@
 /**
- * 매치별 기록 모드 (Flutter 기록앱 vs 웹 종이 기록지) 게이팅 헬퍼.
+ * 매치별 기록 모드 (Flutter 기록앱 vs 웹 전자기록지) 게이팅 헬퍼.
  *
  * 2026-05-11 — Phase 1-A 신규.
  *
- * 배경: 웹 종이 기록지 도입 시 Flutter 기록앱과 동시 입력 충돌 우려 — 사용자 결재 (decisions.md [2026-05-11] §3)
+ * 배경: 웹 전자기록지 도입 시 Flutter 기록앱과 동시 입력 충돌 우려 — 사용자 결재 (decisions.md [2026-05-11] §3)
  * 로 "매치별 mode 게이팅" 채택. 한 매치 = 한 mode만. 충돌 자체 차단.
  *
  * 저장 위치: `tournament_matches.settings` JSON 의 `recording_mode` 키.
@@ -13,7 +13,7 @@
  *
  * 사용처:
  *   1. Flutter v1 sync / batch-sync / status 라우트 — `"paper"`/`"manual"` 매치 server-side 차단
- *   2. (Phase 1-B) 웹 종이 기록지 BFF — `"flutter"`/`"manual"` 매치 server-side 차단
+ *   2. (Phase 1-B) 웹 전자기록지 BFF — `"flutter"`/`"manual"` 매치 server-side 차단
  *   3. admin 토글 라우트 — 운영자가 mode 전환 (audit 박제)
  *
  * 응답 컨벤션: `apiError(403, "RECORDING_MODE_*")` — snake_case 자동 변환 (errors.md 2026-04-17 재발 5회 인지).
@@ -113,7 +113,7 @@ export function assertRecordingMode(
   if (current === PAPER_MODE) {
     // expected=flutter 인데 paper — Flutter v1 sync / batch-sync / status 차단
     return apiError(
-      "이 매치는 종이 기록지 모드로 진행 중입니다. 웹 기록지 페이지에서 입력해주세요.",
+      "이 매치는 전자기록지 모드로 진행 중입니다. 웹 기록지 페이지에서 입력해주세요.",
       403,
       "RECORDING_MODE_PAPER",
       {
@@ -125,7 +125,7 @@ export function assertRecordingMode(
   }
   // expected=paper 인데 flutter — 웹 BFF 차단 (Phase 1-B 본 함수 재사용)
   return apiError(
-    "이 매치는 Flutter 기록앱 모드로 진행 중입니다. 웹 종이 기록지로 입력하려면 관리자가 모드를 전환해야 합니다.",
+    "이 매치는 Flutter 기록앱 모드로 진행 중입니다. 웹 전자기록지로 입력하려면 관리자가 모드를 전환해야 합니다.",
     403,
     "RECORDING_MODE_FLUTTER",
     {

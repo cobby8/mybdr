@@ -4,7 +4,7 @@
  * 2026-05-11 — Phase 1 신규 (기존 (web)/score-sheet/[matchId]/page.tsx 이전 + 재설계).
  *
  * 왜 (이유):
- *   사이트 헤더 / AppNav 와 격리된 minimal layout 으로 종이 기록지 입력 집중도 향상.
+ *   사이트 헤더 / AppNav 와 격리된 minimal layout 으로 전자기록지 입력 집중도 향상.
  *   URL = 동일 `/score-sheet/{matchId}` (route group 은 URL 미반영) → admin link 변경 0.
  *   기존 `(web)/score-sheet/` 디렉토리는 폐기 — Phase 1 진입 결재 §6 (a) 채택.
  *
@@ -276,8 +276,8 @@ export default async function ScoreSheetPage({ params }: PageProps) {
       mode === "manual" ? "현재 수기 기록 모드입니다" : "현재 Flutter 기록앱으로 진행 중";
     const description =
       mode === "manual"
-        ? "이 매치는 BDR 전자 기록 시스템을 사용하지 않는 수기 기록 모드입니다. 종이 기록지로 입력하려면 운영자가 대회 관리 페이지에서 기록 모드를 전환해야 합니다."
-        : "이 매치는 Flutter 기록앱 모드입니다. 종이 기록지로 입력하려면 운영자가 대회 관리 페이지에서 기록 모드를 \"종이 기록지(웹)\"로 전환해야 합니다.";
+        ? "이 매치는 BDR 전자 기록 시스템을 사용하지 않는 수기 기록 모드입니다. 전자기록지로 입력하려면 운영자가 대회 관리 페이지에서 기록 모드를 전환해야 합니다."
+        : "이 매치는 Flutter 기록앱 모드입니다. 전자기록지로 입력하려면 운영자가 대회 관리 페이지에서 기록 모드를 \"전자기록지(웹)\"로 전환해야 합니다.";
     return (
       <main className="mx-auto w-full max-w-4xl px-4 py-12">
         <div
@@ -392,7 +392,7 @@ export default async function ScoreSheetPage({ params }: PageProps) {
   // Phase 23 (2026-05-14) — 매치 재진입 시 자동 로드 prop 산출.
   //
   // 왜 (이유 — 매치 218 사고 영구 차단):
-  //   기존: paper 종이 기록 박제 매치 재진입 = 빈 폼 로드 → 운영자가 빈 폼 위에 다시 제출하면
+  //   기존: paper 전자기록지 기록 박제 매치 재진입 = 빈 폼 로드 → 운영자가 빈 폼 위에 다시 제출하면
   //     기존 q3 박제가 흡수되어 사라짐 (사고 발생).
   //   변경: 재진입 시 DB `play_by_plays` 의 shot_made / foul 을 헬퍼로 역변환 + settings JSON 의
   //     timeouts / signatures + notes 자동 로드 → 기존 박제 위에 안전하게 추가/수정.
@@ -453,7 +453,7 @@ export default async function ScoreSheetPage({ params }: PageProps) {
     );
     initialFouls = pbpToFouls(typedRows, homeTeamIdStr, awayTeamIdStr);
 
-    // PBP 0건 = 신규 매치 또는 종이 박제 직전 — 헬퍼 결과 0건 → 빈 폼과 동일 (안전)
+    // PBP 0건 = 신규 매치 또는 전자기록지 박제 직전 — 헬퍼 결과 0건 → 빈 폼과 동일 (안전)
     // 그 경우는 undefined 로 전달해 ScoreSheetForm 이 EMPTY_RUNNING_SCORE / EMPTY_FOULS 사용 (시각 차이 0)
     if (
       initialRunningScore.home.length === 0 &&

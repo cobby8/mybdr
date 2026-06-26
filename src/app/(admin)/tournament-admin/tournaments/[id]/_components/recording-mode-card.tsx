@@ -9,7 +9,7 @@
  *   §3 라디오 3개 = all / new_only / exclude_in_progress
  *
  * 동작:
- *   1. 모드 토글 (Flutter / 종이) — 현재 default 강조 표시
+ *   1. 모드 토글 (Flutter / 전자기록지) — 현재 default 강조 표시
  *   2. scope 라디오 3개 (영향 매치 범위)
  *   3. 사유 textarea (5자 이상 — server-side zod 와 동일)
  *   4. 적용 버튼 → confirm modal (영향 매치 수 미리보기) → POST /bulk
@@ -61,7 +61,7 @@ const SCOPE_OPTIONS: Array<{ value: Scope; label: string; desc: string }> = [
   },
 ];
 
-// 모드 라벨 매핑 — Flutter 기록앱 / 종이 기록지(웹) / 수기(BDR 미사용)
+// 모드 라벨 매핑 — Flutter 기록앱 / 전자기록지(웹) / 수기(BDR 미사용)
 const MODE_LABEL: Record<Mode, string> = {
   flutter: "기록앱",
   paper: "전자기록지",
@@ -193,7 +193,7 @@ export function RecordingModeCard({
         </div>
       </div>
 
-      {/* 모드 토글 — Flutter / 종이 2개 버튼 */}
+      {/* 모드 토글 — Flutter / 전자기록지 2개 버튼 */}
       <div className="mb-4">
         <div className="mb-2 text-xs font-semibold" style={{ color: "var(--color-text-secondary)" }}>
           새 모드 선택

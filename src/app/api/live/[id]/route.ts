@@ -15,8 +15,8 @@ import { getMatchMinutesBySec } from "@/lib/records/match-minutes";
 import { resolveMatchJerseysBatch } from "@/lib/jersey/resolve";
 // 2026-05-11 Phase B: PBP 합산 fallback 헬퍼 — match.homeScore=0 + playerStats.pts=0 케이스 (매치 #132) 안전망
 import { computeScoreFromPbp } from "@/lib/tournaments/score-from-pbp";
-// 2026-05-13 FIBA Phase 21: 종이 매치(`settings.recording_mode = "paper"`) 박스스코어 슈팅 6 컬럼 (FG/FG%/3P/3P%/FT/FT%) 클라이언트 hide 게이팅.
-// 종이 기록 = miss/시도 미박제 → 시도=성공=100% → 가짜 정확도 시각 노이즈 차단. 응답에 recording_mode 노출 (snake_case 변환됨).
+// 2026-05-13 FIBA Phase 21: 전자기록지 매치(`settings.recording_mode = "paper"`) 박스스코어 슈팅 6 컬럼 (FG/FG%/3P/3P%/FT/FT%) 클라이언트 hide 게이팅.
+// 전자기록지 기록 = miss/시도 미박제 → 시도=성공=100% → 가짜 정확도 시각 노이즈 차단. 응답에 recording_mode 노출 (snake_case 변환됨).
 import { getRecordingMode } from "@/lib/tournaments/recording-mode";
 import {
   isLiveMatchStatus,
@@ -480,7 +480,7 @@ export async function GET(
           },
         ],
       ]),
-      // ★라이브 동작 100% 보존 — 종이 매치도 PBP 추정 min 산출 (추출 전 인라인 로직과 동일).
+      // ★라이브 동작 100% 보존 — 전자기록지 매치도 PBP 추정 min 산출 (추출 전 인라인 로직과 동일).
       { excludePaper: false },
     );
     // PBP 0건 매치만 결과 제외 → 빈 Map fallback (이 경우 getPbpSec=0, 추출 전과 동일).

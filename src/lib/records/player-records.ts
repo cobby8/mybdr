@@ -19,7 +19,7 @@
 import { prisma } from "@/lib/db/prisma";
 import { officialMatchNestedFilter } from "@/lib/tournaments/official-match";
 import { toRawBox, aggregateBox, type BoxAvg } from "@/lib/records/match-stat-aggregate";
-// 2026-06-16: PBP 기반 출전시간 (라이브와 단일 source). minutesPlayed(999 버그/종이 0) 미사용.
+// 2026-06-16: PBP 기반 출전시간 (라이브와 단일 source). minutesPlayed(999 버그/전자기록지 0) 미사용.
 import {
   getMatchMinutesBySec,
   buildMatchMinutesMeta,
@@ -181,7 +181,7 @@ export async function getPlayerRecords(userId: bigint): Promise<PlayerRecordsRes
   // tournamentMatch 가 NULL 이면 제외 (안전)
   const valid = rows.filter((r) => r.tournamentMatch != null);
 
-  // 2026-06-16: PBP 기반 출전초 일괄 산출 (라이브와 단일 source). 종이/PBP없음 매치는 결과 제외 → min '–'.
+  // 2026-06-16: PBP 기반 출전초 일괄 산출 (라이브와 단일 source). 전자기록지/PBP없음 매치는 결과 제외 → min '–'.
   //   매치 중복 제거(선수 1행/매치) → buildMatchMinutesMeta 가 매치별 home/away 로스터 cap 처리.
   const matchMetaInput = Array.from(
     new Map(

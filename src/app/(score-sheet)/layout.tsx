@@ -1,5 +1,5 @@
 /**
- * 종이 기록지 (score-sheet) route group — minimal layout.
+ * 전자기록지 (score-sheet) route group — minimal layout.
  *
  * 2026-05-11 — Phase 1 신규 (planner-architect §B §URL / §E-4).
  * 2026-05-14 — Phase 19 PR-S2 (시안 toolbar 전체 도입):

@@ -81,7 +81,7 @@ export interface BuildSubmitPayloadParams {
    * 2026-05-16 (긴급 박제 — Bench Technical + Delay of Game / FIBA Article 36).
    *
    * 왜 (이유):
-   *   FIBA Article 36.3 (C) / 36.4 (B) / 36.2.3 (Delay) — score-sheet 종이 양식 박제.
+   *   FIBA Article 36.3 (C) / 36.4 (B) / 36.2.3 (Delay) — score-sheet 전자기록지 양식 박제.
    *   BFF settings.bench_technicals / settings.delay_of_game JSON merge (timeouts 패턴 재사용).
    *   PBP action_subtype 신규 (B_HEAD / B_BENCH / C / DELAY_W / DELAY_T) 박제 (이력 추적).
    *

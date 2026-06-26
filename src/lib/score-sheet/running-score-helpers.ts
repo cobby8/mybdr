@@ -156,7 +156,7 @@ export function toQuarterScoresJson(state: RunningScoreState): {
 // PlayByPlayInput 변환 — service syncSingleMatch 가 박제할 PBP 형태
 //
 // 박제 룰:
-//   - local_id = `paper-fix-{uuid}` — 종이 기록 식별자
+//   - local_id = `paper-fix-{uuid}` — 전자기록지 기록 식별자
 //   - description = `[종이 기록] N점 득점`
 //   - action_type = "shot_made" (1/2/3점 모두 made 슛으로 박제 — FT 는 Phase 3 확장)
 //   - action_subtype = "1pt" | "2pt" | "3pt"

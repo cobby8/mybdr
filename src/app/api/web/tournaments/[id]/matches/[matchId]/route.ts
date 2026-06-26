@@ -176,7 +176,7 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
   const scoreFieldChanged = homeScore !== undefined || awayScore !== undefined;
   if (recordingMode === "paper" && scoreFieldChanged) {
     return apiError(
-      "종이 기록지 모드 매치는 점수를 직접 수정할 수 없습니다. score-sheet 페이지에서 입력해주세요.",
+      "전자기록지 모드 매치는 점수를 직접 수정할 수 없습니다. score-sheet 페이지에서 입력해주세요.",
       403,
       "RECORDING_MODE_PAPER_SCORE_BLOCKED",
       { match_id: matchBigInt.toString(), current_mode: recordingMode }

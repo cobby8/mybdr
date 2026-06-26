@@ -21,7 +21,7 @@ export const TRACKED_FIELDS = [
 
 type TrackedField = (typeof TRACKED_FIELDS)[number];
 
-// 2026-05-11: Phase 1-A — admin matches 토글 source "mode_switch" / Phase 1-B-2 — 웹 종이 기록지 BFF source "web-score-sheet".
+// 2026-05-11: Phase 1-A — admin matches 토글 source "mode_switch" / Phase 1-B-2 — 웹 전자기록지 BFF source "web-score-sheet".
 //   DB 컬럼은 String @db.VarChar 라 enum 차단 없으나, type narrow 용 union 확장 (Phase 1-A reviewer Minor 1 권고).
 export type AuditSource = "admin" | "flutter" | "system" | "mode_switch" | "web-score-sheet";
 

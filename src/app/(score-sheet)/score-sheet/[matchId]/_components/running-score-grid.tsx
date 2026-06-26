@@ -141,7 +141,7 @@ export function RunningScoreGrid({
 
   // PR-S10 (2026-05-15) — Period 별 마지막 position 산출 (data-period-end 시안 정합).
   //   왜: 시안 .ss-rs__cell[data-period-end="true"]::before = 분기 종료 원형 마커.
-  //     각 period 의 마지막 마킹 position 에 표시 (FIBA 종이기록지의 분기 종료 표시).
+  //     각 period 의 마지막 마킹 position 에 표시 (FIBA 전자기록지의 분기 종료 표시).
   //   어떻게: period 별 max(position) 산출. 점수 칸 (PrintScoreCell) 에서 매칭 시 data-period-end="true".
   const homePeriodEnds = computePeriodEnds(state.home);
   const awayPeriodEnds = computePeriodEnds(state.away);
@@ -222,7 +222,7 @@ export function RunningScoreGrid({
     <div className={wrapperClass} style={wrapperStyle} data-ss-section="running-score">
       {/* Phase 19 (2026-05-13) — 헤더 시인성 강화 (사용자 결재 §2 / FIBA 정합).
           - 영역 padding px-2 py-0.5 → px-2 py-1 (상하 4px 여백 일관)
-          - "Running Score" 14px font-semibold → 16px font-bold (FIBA 종이기록지 정합)
+          - "Running Score" 14px font-semibold → 16px font-bold (FIBA 전자기록지 정합)
           - 우측 안내 9px → 10px (가독성 ↑)
           PR-S10 — 색 토큰 페이퍼 (--pap-*) 로 통일 — 다크 진입 시에도 라이트 강제. */}
       <div
@@ -628,7 +628,7 @@ function MarkCell({
     >
       {/* Phase 18 — FIBA 정합 1/2/3점 아이콘 (· / ● / ●+○). 색 = Q별 색 (Phase 17 유지). */}
       <ScoreMarkIcon points={mark.points} color={periodColor} />
-      {/* Phase 19 — 등번호 6px → 8px font-bold (가독성 ↑ / FIBA 종이기록지 등번호는 진하게 표기). */}
+      {/* Phase 19 — 등번호 6px → 8px font-bold (가독성 ↑ / FIBA 전자기록지 등번호는 진하게 표기). */}
       {jerseyNumber !== null && (
         <span className="text-[8px] font-bold" style={{ color: periodColor }}>
           {jerseyNumber}

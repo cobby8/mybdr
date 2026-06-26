@@ -159,7 +159,7 @@ async function handler(req: NextRequest, ctx: AuthContext, tournamentId: string)
       if (errMsg === "Match not found in tournament") {
         safeReason = "Match not found in tournament";
       } else if (errMsg === "RECORDING_MODE_PAPER") {
-        safeReason = "이 매치는 종이 기록지 모드로 진행 중입니다.";
+        safeReason = "이 매치는 전자기록지 모드로 진행 중입니다.";
       } else if (errMsg === "RECORDING_MODE_MANUAL") {
         safeReason = "이 매치는 수기 기록 모드로 진행 중입니다.";
       } else if (errMsg === "FIBA_OT1_TIE_REQUIRES_OT2") {

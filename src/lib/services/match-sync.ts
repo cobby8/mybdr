@@ -1,5 +1,5 @@
 /**
- * 단일 매치 동기화 core 서비스 — Flutter sync route + 웹 종이 기록지 BFF 공용.
+ * 단일 매치 동기화 core 서비스 — Flutter sync route + 웹 전자기록지 BFF 공용.
  *
  * 2026-05-11 — Phase 1-B 신규 (sync route refactor 추출).
  *
