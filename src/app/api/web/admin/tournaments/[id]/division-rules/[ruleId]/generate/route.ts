@@ -33,6 +33,8 @@ import { apiSuccess, apiError, unauthorized, forbidden } from "@/lib/api/respons
 import { getWebSession } from "@/lib/auth/web-session";
 import { canManageTournament } from "@/lib/auth/tournament-permission";
 import {
+  generateDivisionSingleEliminationMatches,
+  generateDivisionRoundRobinMatches,
   generateLeagueAdvancementMatches,
   generateGroupStageRankingMatches,
   generateGroupStageKnockoutMatches,
@@ -45,6 +47,8 @@ type Ctx = { params: Promise<{ id: string; ruleId: string }> };
 
 // 본 endpoint 가 지원하는 format 화이트리스트 (대회 단위 format 은 bracket POST 사용)
 const SUPPORTED_FORMATS = new Set([
+  "single_elimination",
+  "round_robin",
   "dual_tournament",
   "league_advancement",
   "group_stage_with_ranking",
@@ -129,6 +133,12 @@ export async function POST(req: NextRequest, { params }: Ctx) {
         // 본 endpoint = format 화이트리스트 통과 → 분기 분기 결정적
         let genResult;
         switch (rule.format) {
+          case "single_elimination":
+            genResult = await generateDivisionSingleEliminationMatches(tx, tournamentId, rule.code);
+            break;
+          case "round_robin":
+            genResult = await generateDivisionRoundRobinMatches(tx, tournamentId, rule.code);
+            break;
           case "league_advancement":
             genResult = await generateLeagueAdvancementMatches(tx, tournamentId, rule.code);
             break;
@@ -161,8 +171,11 @@ export async function POST(req: NextRequest, { params }: Ctx) {
     // 7) bracket_version 박제 (트랜잭션 외부 — 다른 format 일관성 유지)
     //    종별 generator 가 1 종별만 변경해도 버전 +1 = 운영자가 변경 인지 가능
     //    free version 한도 도달 시 createBracketVersion 내부 분기로 정상 동작 (단순 INSERT)
-    await createBracketVersion(tournamentId, userId);
-    const versionStatus = await getBracketVersionStatus(tournamentId);
+    let versionStatus = await getBracketVersionStatus(tournamentId);
+    if (result.genResult.generated > 0 || result.deleted > 0) {
+      await createBracketVersion(tournamentId, userId);
+      versionStatus = await getBracketVersionStatus(tournamentId);
+    }
 
     // 8) admin_logs 박제 — advance-placeholders route 와 동일 패턴
     await adminLog("tournament.division_generate", "Tournament", {

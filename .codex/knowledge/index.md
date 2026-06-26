@@ -1,5 +1,6 @@
 # Knowledge Index
 
+- 2026-06-26 admin: bracket generation now routes through `TournamentDivisionRule` when division rules exist; the bracket panel always shows division-rule generators, unsafe global generation is disabled, `single_elimination`/`round_robin` division generation is supported, and mismatched group sizes fail before match writes.
 - 2026-06-26 admin: tournament team category moves now sync `TournamentTeam.category`, `TournamentTeam.division`, and player `division_code`; teams panel exposes single-team and group bulk move controls for live operations.
 - 2026-06-26 admin: BDR v2 (41) state cleanup added shared Toss `useTossConfirm`/`useTossPrompt`, removing browser confirm/prompt/alert from `tournament-admin` paths.
 - 2026-06-26 admin: Toss `Skel`/`SkelTable`/`ErrState`/`PermState` helpers and `st-*` CSS were added; panel loading and admins/recorders empty states now use the v2.42 state pattern.
@@ -52,6 +53,7 @@ Updated: 2026-06-26
 | lessons.md | 0 | - |
 
 Recent work:
+- 2026-06-26 admin: bracket generation was fixed for live ops by exposing division-rule generation at 0 matches, disabling unsafe tournament-level generation when rules exist, supporting division single-elimination/round-robin, and blocking invalid group sizes without consuming a bracket version.
 - 2026-06-26 admin: tournament team division operations were fixed for live use with single/bulk category move controls, team/player division sync, and clearer division delete blocking messages.
 - 2026-06-26 admin: BDR v2 (41) state/cleanup pass replaced destructive browser confirms and prompt flows with Toss modals, added Toss state helpers/skeleton CSS, and pushed dev/main.
 - 2026-06-26 admin: new tournament wizard previous import, venue search, PDF/association actions, and teams player error feedback were wired to real APIs/routes/Toss toast and pushed through dev/main.

@@ -108,7 +108,7 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
     prisma.tournamentDivisionRule.findMany({
       where: { tournamentId: id },
       orderBy: { code: "asc" },
-      select: { id: true, code: true, format: true },
+      select: { id: true, code: true, label: true, format: true, settings: true },
     }),
   ]);
 

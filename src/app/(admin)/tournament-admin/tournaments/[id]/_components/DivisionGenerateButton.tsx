@@ -47,6 +47,8 @@ type ResponsePayload = {
 
 // 본 컴포넌트가 지원하는 format (그 외 = 버튼 미노출 권장 — 호출자 분기)
 const SUPPORTED_FORMATS = new Set([
+  "single_elimination",
+  "round_robin",
   "dual_tournament",
   "league_advancement",
   "group_stage_with_ranking",

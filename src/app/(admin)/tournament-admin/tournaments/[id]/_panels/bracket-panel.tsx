@@ -82,7 +82,9 @@ type BracketData = {
   divisionRules?: Array<{
     id: string;
     code: string;
+    label?: string | null;
     format: string | null;
+    settings?: Record<string, unknown> | null;
   }>;
 };
 
@@ -144,6 +146,105 @@ const STATUS_LABEL: Record<string, string> = {
   cancelled: "취소",
   bye: "부전승",
 };
+
+const DIVISION_FORMAT_LABEL: Record<string, string> = {
+  single_elimination: "토너먼트",
+  round_robin: "풀리그",
+  dual_tournament: "듀얼토너먼트",
+  league_advancement: "순위전",
+  group_stage_with_ranking: "조별리그+순위전",
+  group_stage_knockout: "조별리그+본선",
+};
+
+function getDivisionMatchCount(matches: Match[], divisionCode: string): number {
+  return matches.filter((match) => getDivisionCode(match) === divisionCode).length;
+}
+
+function getDivisionSettingsSummary(settings: Record<string, unknown> | null | undefined): string {
+  if (!settings) return "설정 없음";
+  const groupSize = Number(settings.group_size ?? 0);
+  const groupCount = Number(settings.group_count ?? 0);
+  const advancePerGroup = Number(settings.advance_per_group ?? 0);
+  const parts: string[] = [];
+  if (groupCount > 0) parts.push(`${groupCount}조`);
+  if (groupSize > 0) parts.push(`조별 ${groupSize}팀`);
+  if (advancePerGroup > 0) parts.push(`조별 ${advancePerGroup}팀 진출`);
+  return parts.length > 0 ? parts.join(" · ") : "설정 확인";
+}
+
+function DivisionGenerationSections({
+  tournamentId,
+  rules,
+  matches,
+  onDivisionGenerated,
+}: {
+  tournamentId: string;
+  rules: NonNullable<BracketData["divisionRules"]>;
+  matches: Match[];
+  onDivisionGenerated?: () => void;
+}) {
+  if (rules.length === 0) return null;
+
+  return (
+    <section className="ts-card ta-bracket-card">
+      <div className="ta-section-head">
+        <div>
+          <h2 className="ta-panel-title">종별별 대진 생성</h2>
+          <p className="ta-bracket-note">
+            대회 생성에서 저장한 종별 운영방식 기준으로 대진을 생성합니다.
+          </p>
+        </div>
+        <Link
+          href={`/tournament-admin/tournaments/${tournamentId}#divisions`}
+          className="ta-panel-link"
+        >
+          종별 설정 확인
+        </Link>
+      </div>
+
+      <div className="ta-match-list">
+        {rules.map((rule) => {
+          const matchCount = getDivisionMatchCount(matches, rule.code);
+          const formatLabel = rule.format
+            ? DIVISION_FORMAT_LABEL[rule.format] ?? rule.format
+            : "방식 미설정";
+
+          return (
+            <div key={rule.id} className="ta-match-card">
+              <div className="ta-match-meta">
+                <div className="ta-match-meta__main">
+                  <span className="ta-match-no">{rule.label ?? rule.code}</span>
+                  <span className="ta-match-round">{formatLabel}</span>
+                </div>
+                <span className="ta-match-status" data-status={matchCount > 0 ? "scheduled" : "pending"}>
+                  {matchCount > 0 ? `${matchCount}경기` : "미생성"}
+                </span>
+              </div>
+              <div className="ta-match-info">
+                <span>{getDivisionSettingsSummary(rule.settings)}</span>
+              </div>
+              <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+                <p className="text-sm text-[var(--color-text-muted)]">
+                  {matchCount > 0
+                    ? "기존 종별 경기만 재생성할 수 있습니다."
+                    : "이 종별의 첫 대진을 생성합니다."}
+                </p>
+                <DivisionGenerateButton
+                  tournamentId={tournamentId}
+                  ruleId={rule.id}
+                  divisionCode={rule.code}
+                  divisionFormat={rule.format}
+                  hasMatches={matchCount > 0}
+                  onSuccess={onDivisionGenerated}
+                />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
 
 export default function BracketAdminPage() {
   const { id } = useParams<{ id: string }>();
@@ -240,6 +341,8 @@ export default function BracketAdminPage() {
   // 풀리그 예상 경기 수 = n*(n-1)/2
   const approvedCount = data?.approvedTeams?.length ?? 0;
   const expectedLeagueMatches = approvedCount >= 2 ? (approvedCount * (approvedCount - 1)) / 2 : 0;
+  const divisionRules = data?.divisionRules ?? [];
+  const hasDivisionRules = divisionRules.length > 0;
 
   return (
     // Track B-c — Toss 토큰 적용 루트 opt-in (하위 섹션·모달 DOM 상속)
@@ -307,11 +410,16 @@ export default function BracketAdminPage() {
                 {activating ? "처리 중..." : "최신 버전 확정"}
               </button>
             )}
+            {hasDivisionRules && (
+              <span className="ta-version-status">
+                종별별 생성 사용
+              </span>
+            )}
             {hasMatches ? (
               <button
                 type="button"
                 onClick={() => generate(true)}
-                disabled={generating || !canGenerate}
+                disabled={generating || !canGenerate || hasDivisionRules}
                 className="ts-btn ts-btn--secondary ts-btn--sm"
               >
                 {generating ? "생성 중..." : "재생성"}
@@ -320,7 +428,7 @@ export default function BracketAdminPage() {
               <button
                 type="button"
                 onClick={() => generate(false)}
-                disabled={generating || !canGenerate}
+                disabled={generating || !canGenerate || hasDivisionRules}
                 className="ts-btn ts-btn--primary"
               >
                 {generating ? "생성 중..." : isLeague ? "경기 자동 생성" : "대진표 생성"}
@@ -351,6 +459,13 @@ export default function BracketAdminPage() {
       </section>
 
       {/* 1라운드 팀 배치 편집 */}
+      <DivisionGenerationSections
+        tournamentId={id}
+        rules={divisionRules}
+        matches={data?.matches ?? []}
+        onDivisionGenerated={() => load()}
+      />
+
       {round1Matches.length > 0 && (
         <div className="ta-round-edit">
           <h2 className="ta-panel-title">

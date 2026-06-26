@@ -806,6 +806,296 @@ export interface GenerateResult {
   matchIds: string[];
 }
 
+type DivisionKnockoutSource = {
+  teamId: bigint | null;
+  slot: string | null;
+  sourceKey: string | null;
+};
+
+type DivisionKnockoutMatchSpec = {
+  key: string;
+  roundNumber: number;
+  bracketPosition: number;
+  bracketLevel: number;
+  roundName: string;
+  matchIndex: number;
+  homeTeamId: bigint | null;
+  awayTeamId: bigint | null;
+  homeSlot: string | null;
+  awaySlot: string | null;
+  status: "scheduled" | "pending";
+  nextKey: string | null;
+  nextSlot: "home" | "away" | null;
+};
+
+function buildDivisionKnockoutPlan(teams: Array<{ id: bigint }>): DivisionKnockoutMatchSpec[] {
+  const slots = nextPowerOfTwo(teams.length);
+  const totalRounds = Math.log2(slots);
+  const seedOrder = standardBracketSeedOrder(slots);
+  const teamBySeed = new Map<number, bigint>();
+  teams.forEach((team, index) => teamBySeed.set(index + 1, team.id));
+
+  const leafSources: DivisionKnockoutSource[] = seedOrder.map((seed) => ({
+    teamId: teamBySeed.get(seed) ?? null,
+    slot: seed <= teams.length ? `시드 ${seed}` : null,
+    sourceKey: null,
+  }));
+
+  const specs: DivisionKnockoutMatchSpec[] = [];
+  let matchIndex = 0;
+  let sources = leafSources;
+
+  for (let roundNumber = 1; roundNumber <= totalRounds; roundNumber++) {
+    const roundName = knockoutRoundName(roundNumber, totalRounds);
+    const nextSources: DivisionKnockoutSource[] = [];
+
+    for (let i = 0; i < sources.length; i += 2) {
+      const bracketPosition = i / 2 + 1;
+      const home = sources[i];
+      const away = sources[i + 1];
+      const hasHome = Boolean(home?.teamId || home?.slot);
+      const hasAway = Boolean(away?.teamId || away?.slot);
+
+      if (!hasHome && !hasAway) {
+        nextSources.push({ teamId: null, slot: null, sourceKey: null });
+        continue;
+      }
+      if (hasHome && !hasAway) {
+        nextSources.push(home);
+        continue;
+      }
+      if (!hasHome && hasAway) {
+        nextSources.push(away);
+        continue;
+      }
+
+      const key = `${roundNumber}:${bracketPosition}`;
+      specs.push({
+        key,
+        roundNumber,
+        bracketPosition,
+        bracketLevel: roundNumber,
+        roundName,
+        matchIndex: matchIndex++,
+        homeTeamId: home?.teamId ?? null,
+        awayTeamId: away?.teamId ?? null,
+        homeSlot: home?.teamId ? null : home?.slot ?? null,
+        awaySlot: away?.teamId ? null : away?.slot ?? null,
+        status: home?.teamId && away?.teamId ? "scheduled" : "pending",
+        nextKey: null,
+        nextSlot: null,
+      });
+      nextSources.push({
+        teamId: null,
+        slot: buildSlotLabel({ kind: "match_winner", roundName, matchNumber: bracketPosition }),
+        sourceKey: key,
+      });
+    }
+
+    for (let nextIndex = 0; nextIndex < nextSources.length; nextIndex++) {
+      const source = nextSources[nextIndex];
+      if (!source.sourceKey) continue;
+      const nextRoundSourceIndex = Math.floor(nextIndex / 2);
+      const nextRoundHasMatch =
+        roundNumber < totalRounds &&
+        Boolean(
+          (nextSources[nextRoundSourceIndex * 2]?.teamId ||
+            nextSources[nextRoundSourceIndex * 2]?.slot) &&
+            (nextSources[nextRoundSourceIndex * 2 + 1]?.teamId ||
+              nextSources[nextRoundSourceIndex * 2 + 1]?.slot),
+        );
+      if (!nextRoundHasMatch) continue;
+      const spec = specs.find((item) => item.key === source.sourceKey);
+      if (!spec) continue;
+      spec.nextKey = `${roundNumber + 1}:${nextRoundSourceIndex + 1}`;
+      spec.nextSlot = nextIndex % 2 === 0 ? "home" : "away";
+    }
+
+    sources = nextSources;
+  }
+
+  return specs;
+}
+
+export async function generateDivisionSingleEliminationMatches(
+  prisma: PrismaClient | Prisma.TransactionClient,
+  tournamentId: string,
+  divisionCode: string,
+  opts: GenerateOptions = {},
+): Promise<GenerateResult> {
+  const rule = await prisma.tournamentDivisionRule.findFirst({
+    where: { tournamentId, code: divisionCode },
+    select: { format: true },
+  });
+  if (!rule) {
+    return { divisionCode, generated: 0, skipped: 0, reason: "rule-not-found", matchIds: [] };
+  }
+  if (rule.format !== "single_elimination") {
+    return { divisionCode, generated: 0, skipped: 0, reason: `format=${rule.format} (single_elimination only)`, matchIds: [] };
+  }
+
+  const existing = await prisma.tournamentMatch.findMany({
+    where: {
+      tournamentId,
+      settings: { path: ["division_code"], equals: divisionCode },
+    },
+    select: { id: true },
+  });
+  if (existing.length > 0) {
+    return {
+      divisionCode,
+      generated: 0,
+      skipped: existing.length,
+      reason: `이미 종별 매치 ${existing.length}건이 있습니다. 재생성하려면 기존 종별 매치를 지우고 다시 생성하세요.`,
+      matchIds: [],
+    };
+  }
+
+  const teams = await prisma.tournamentTeam.findMany({
+    where: { tournamentId, status: "approved", category: divisionCode },
+    orderBy: [{ seedNumber: "asc" }, { createdAt: "asc" }],
+    select: { id: true },
+  });
+  if (teams.length < 2) {
+    return {
+      divisionCode,
+      generated: 0,
+      skipped: 0,
+      reason: "승인팀이 2팀 이상이어야 토너먼트 대진을 생성할 수 있습니다.",
+      matchIds: [],
+    };
+  }
+
+  const specs = buildDivisionKnockoutPlan(teams);
+  const specByKey = new Map(specs.map((spec) => [spec.key, spec]));
+  const idByKey = new Map<string, bigint>();
+  const intervalMs = (opts.intervalMinutes ?? 30) * 60 * 1000;
+  const matchIds: string[] = [];
+
+  for (const spec of [...specs].sort((a, b) => b.roundNumber - a.roundNumber || a.bracketPosition - b.bracketPosition)) {
+    const scheduledAt =
+      spec.roundNumber === 1 && opts.startScheduledAt
+        ? new Date(opts.startScheduledAt.getTime() + spec.matchIndex * intervalMs)
+        : null;
+    const nextSpec = spec.nextKey ? specByKey.get(spec.nextKey) : null;
+    const nextMatchId = nextSpec ? idByKey.get(nextSpec.key) ?? null : null;
+    const created = await prisma.tournamentMatch.create({
+      data: {
+        tournamentId,
+        homeTeamId: spec.homeTeamId,
+        awayTeamId: spec.awayTeamId,
+        roundName: spec.roundName,
+        round_number: spec.roundNumber,
+        bracket_level: spec.bracketLevel,
+        bracket_position: spec.bracketPosition,
+        match_number: spec.matchIndex + 1,
+        venue_name: opts.venueName ?? null,
+        scheduledAt,
+        notes:
+          spec.homeSlot || spec.awaySlot
+            ? buildPlaceholderNotes(spec.homeSlot ?? "미정", spec.awaySlot ?? "미정")
+            : null,
+        settings: {
+          division_code: divisionCode,
+          stage: "single_elimination",
+          ...(spec.homeSlot && { homeSlotLabel: spec.homeSlot }),
+          ...(spec.awaySlot && { awaySlotLabel: spec.awaySlot }),
+        },
+        status: spec.status,
+        next_match_id: nextMatchId,
+        next_match_slot: spec.nextSlot,
+      },
+      select: { id: true },
+    });
+    idByKey.set(spec.key, created.id);
+    matchIds.push(created.id.toString());
+  }
+
+  return { divisionCode, generated: matchIds.length, skipped: 0, reason: "OK", matchIds };
+}
+
+export async function generateDivisionRoundRobinMatches(
+  prisma: PrismaClient | Prisma.TransactionClient,
+  tournamentId: string,
+  divisionCode: string,
+  opts: GenerateOptions = {},
+): Promise<GenerateResult> {
+  const rule = await prisma.tournamentDivisionRule.findFirst({
+    where: { tournamentId, code: divisionCode },
+    select: { format: true },
+  });
+  if (!rule) {
+    return { divisionCode, generated: 0, skipped: 0, reason: "rule-not-found", matchIds: [] };
+  }
+  if (rule.format !== "round_robin") {
+    return { divisionCode, generated: 0, skipped: 0, reason: `format=${rule.format} (round_robin only)`, matchIds: [] };
+  }
+
+  const existing = await prisma.tournamentMatch.findMany({
+    where: {
+      tournamentId,
+      settings: { path: ["division_code"], equals: divisionCode },
+    },
+    select: { id: true },
+  });
+  if (existing.length > 0) {
+    return {
+      divisionCode,
+      generated: 0,
+      skipped: existing.length,
+      reason: `이미 종별 매치 ${existing.length}건이 있습니다. 재생성하려면 기존 종별 매치를 지우고 다시 생성하세요.`,
+      matchIds: [],
+    };
+  }
+
+  const teams = await prisma.tournamentTeam.findMany({
+    where: { tournamentId, status: "approved", category: divisionCode },
+    orderBy: [{ seedNumber: "asc" }, { createdAt: "asc" }],
+    select: { id: true },
+  });
+  if (teams.length < 2) {
+    return {
+      divisionCode,
+      generated: 0,
+      skipped: 0,
+      reason: "승인팀이 2팀 이상이어야 풀리그 경기를 생성할 수 있습니다.",
+      matchIds: [],
+    };
+  }
+
+  const intervalMs = (opts.intervalMinutes ?? 30) * 60 * 1000;
+  const matchIds: string[] = [];
+  let matchIndex = 0;
+  for (let i = 0; i < teams.length; i++) {
+    for (let j = i + 1; j < teams.length; j++) {
+      const scheduledAt = opts.startScheduledAt
+        ? new Date(opts.startScheduledAt.getTime() + matchIndex * intervalMs)
+        : null;
+      const created = await prisma.tournamentMatch.create({
+        data: {
+          tournamentId,
+          homeTeamId: teams[i].id,
+          awayTeamId: teams[j].id,
+          roundName: "풀리그",
+          match_number: matchIndex + 1,
+          venue_name: opts.venueName ?? null,
+          scheduledAt,
+          settings: {
+            division_code: divisionCode,
+            stage: "round_robin",
+          },
+          status: "scheduled",
+        },
+        select: { id: true },
+      });
+      matchIds.push(created.id.toString());
+      matchIndex++;
+    }
+  }
+
+  return { divisionCode, generated: matchIds.length, skipped: 0, reason: "OK", matchIds };
+}
+
 /**
  * G5.3 (DB) — league_advancement (링크제) 순위전 매치 자동 INSERT.
  *
@@ -1112,6 +1402,43 @@ export async function generateGroupStageKnockoutMatches(
       generated: 0,
       skipped: 0,
       reason: `설정된 조 개수(${groupCount})와 실제 조편성(${actualGroupCount})이 다릅니다.`,
+      matchIds: [],
+    };
+  }
+  const groupCounts = new Map<string, number>();
+  for (const team of teams) {
+    const groupName = team.groupName?.trim();
+    if (!groupName) continue;
+    groupCounts.set(groupName, (groupCounts.get(groupName) ?? 0) + 1);
+  }
+  const tooSmallGroups = [...groupCounts.entries()].filter(([, count]) => count < 2);
+  if (tooSmallGroups.length > 0) {
+    return {
+      divisionCode,
+      generated: 0,
+      skipped: 0,
+      reason: `2팀 미만 조가 있습니다: ${tooSmallGroups.map(([name, count]) => `${name}조 ${count}팀`).join(", ")}. 먼저 조편성을 다시 실행하세요.`,
+      matchIds: [],
+    };
+  }
+  const overfilledGroups = [...groupCounts.entries()].filter(([, count]) => count > groupSize);
+  if (overfilledGroups.length > 0) {
+    return {
+      divisionCode,
+      generated: 0,
+      skipped: 0,
+      reason: `설정된 조별 팀수(${groupSize}팀)를 초과한 조가 있습니다: ${overfilledGroups.map(([name, count]) => `${name}조 ${count}팀`).join(", ")}. 먼저 조편성을 다시 실행하세요.`,
+      matchIds: [],
+    };
+  }
+  const expectedTotalTeams = groupSize * groupCount;
+  const unbalancedGroups = [...groupCounts.entries()].filter(([, count]) => count !== groupSize);
+  if (teams.length === expectedTotalTeams && unbalancedGroups.length > 0) {
+    return {
+      divisionCode,
+      generated: 0,
+      skipped: 0,
+      reason: `조편성이 설정과 다릅니다: ${[...groupCounts.entries()].map(([name, count]) => `${name}조 ${count}팀`).join(", ")} / 기준 ${groupCount}조 × ${groupSize}팀. 먼저 조편성을 다시 실행하세요.`,
       matchIds: [],
     };
   }
