@@ -447,6 +447,13 @@ export default function DivisionsSetupPage() {
     (sum, category) => sum + category.divisions.length,
     0,
   );
+  const selectedDivisions = currentCategories.flatMap((category) =>
+    category.divisions.map((division, divisionIndex) => ({
+      category: category.category,
+      division,
+      divisionIndex,
+    })),
+  );
 
   if (loading) {
     return (
@@ -520,6 +527,29 @@ export default function DivisionsSetupPage() {
         <p className="mt-3 text-xs font-semibold text-[var(--ink-mute)]">
           종별 추가/삭제, 정원, 참가비, 일정·체육관 변경 후 선택 변경 저장을 눌러 반영합니다.
         </p>
+
+        {selectedDivisions.length > 0 && (
+          <div className="ta-selected-divisions" aria-label="선택된 종별">
+            {selectedDivisions.map(({ category, division, divisionIndex }) => (
+              <div
+                key={`${category}-${divisionIndex}-${division.name}`}
+                className="ta-selected-division"
+              >
+                <span className="ta-selected-division__meta">{category}</span>
+                <span className="ta-selected-division__name">{division.name || "이름 없음"}</span>
+                <button
+                  type="button"
+                  onClick={() => removeDivision(category, divisionIndex)}
+                  className="ct-iconbtn"
+                  aria-label={`${division.name || "디비전"} 삭제`}
+                  title="삭제"
+                >
+                  <Icon name="x" size={15} />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
 
         <div className="ta-division-category-grid">
           {masterCategories.map((category) => {

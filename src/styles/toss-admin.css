@@ -720,9 +720,56 @@
   flex-wrap: wrap;
   justify-content: flex-end;
 }
+[data-skin="toss"] .ta-selected-divisions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--card);
+}
+[data-skin="toss"] .ta-selected-division {
+  display: inline-flex;
+  min-width: 0;
+  max-width: 100%;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 7px 7px 10px;
+  border: 1px solid var(--primary);
+  border-radius: 12px;
+  background: var(--primary-weak);
+  color: var(--primary);
+  font-weight: 800;
+}
+[data-skin="toss"] .ta-selected-division__meta {
+  color: var(--primary);
+  font-size: 11px;
+  font-weight: 800;
+  opacity: .75;
+  white-space: nowrap;
+}
+[data-skin="toss"] .ta-selected-division__name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+}
+[data-skin="toss"] .ta-selected-division .ct-iconbtn {
+  width: 28px;
+  height: 28px;
+  border-radius: 9px;
+  color: var(--primary);
+}
+[data-skin="toss"] .ta-selected-division .ct-iconbtn:hover {
+  background: var(--danger-weak);
+  color: var(--danger);
+}
 [data-skin="toss"] .ta-division-category-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 480px), 1fr));
   gap: 12px;
   margin-top: 14px;
 }
@@ -743,9 +790,12 @@
 }
 [data-skin="toss"] .ta-division-row {
   display: grid;
-  grid-template-columns: minmax(132px, 1fr) minmax(82px, .5fr) minmax(96px, .55fr) minmax(138px, .8fr) minmax(150px, .9fr) auto;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, .6fr) minmax(0, .7fr) minmax(0, 1fr) minmax(0, 1.1fr) auto;
   gap: 8px;
   align-items: center;
+  min-width: 0;
+}
+[data-skin="toss"] .ta-division-row > * {
   min-width: 0;
 }
 [data-skin="toss"] .ta-division-delete {
@@ -793,6 +843,11 @@
   }
   [data-skin="toss"] .ta-division-delete {
     justify-content: center;
+  }
+}
+@media (max-width: 560px) {
+  [data-skin="toss"] .ta-division-row {
+    grid-template-columns: 1fr;
   }
 }
 

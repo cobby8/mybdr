@@ -11,9 +11,10 @@
 | Admin game rules | Done | `game_time`/`game_method` now derive from canonical `game_rules` instead of free text. |
 | Recording modes | Done | Match-level `manual` is counted, displayed, and blocked from Flutter/score-sheet system inputs. |
 | Admin Toss handoff | Done | `BDR-current/_handoff-admin-toss-v2.41/` added; src unchanged. |
-| Admin Toss sweep | In Progress | v2(40) wiring delta is imported; B1 workspace panel parity started with canonical panel embed and division default visibility. |
+| Admin Toss sweep | In Progress | v2(40) wiring delta is imported; B2 divisions panel now exposes selected divisions with direct delete controls and stabilized row grids. |
 
 ## Work Log
+- 2026-06-26: Added selected division chips with direct delete controls and stabilized division row/grid sizing in the Toss divisions panel; TypeScript passed.
 - 2026-06-26: Added v2.42 admin/public parity inventory and started B1 by switching workspace panel frames to `ct-panel-embed` and keeping the divisions panel visible by default; TypeScript passed.
 - 2026-06-26: Reviewed BDR v2 (40) wiring delta, imported it into BDR-current, corrected active handoff data, and updated remaining work around public site data gates.
 - 2026-06-26: Created integrated Claude.ai request for v2.42 admin Toss parity, including schedule/bracket/matches/teams/site state screens and cleanup manifest requirements.
@@ -23,4 +24,3 @@
 - 2026-06-26: Applied BDR v2 (39) admin mock data consistency update to active v2.41 handoff; src unchanged because operational pages already use DB/API wiring.
 - 2026-06-26: Added Material-to-lucide Icon aliases and converted organization detail top/tab icons to Toss Icon wrapper; TypeScript passed.
 - 2026-06-26: Rebuilt organization members page with v2.41 Toss PageHead, invite panel, list rows, badges, and Icon wrappers; TypeScript passed.
-- 2026-06-26: Rebuilt series hard-delete button/modal with v2.41 Toss Icon, danger button, modal, and input structures; TypeScript passed.
