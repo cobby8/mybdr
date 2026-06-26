@@ -119,11 +119,18 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
     }),
   ]);
 
+  const normalizedApprovedTeams =
+    divisionRules.length === 1 &&
+    approvedTeams.length > 0 &&
+    !approvedTeams.some((team) => team.category === divisionRules[0].code)
+      ? approvedTeams.map((team) => ({ ...team, category: divisionRules[0].code }))
+      : approvedTeams;
+
   return apiSuccess({
     ...versionStatus,
     versions,
     matches,
-    approvedTeams,
+    approvedTeams: normalizedApprovedTeams,
     format: tournamentMeta?.format ?? null, // UI 가 풀리그/토너먼트 분기할 때 사용
     // 2026-05-04 (P4) — settings.bracket 노출 (dual editor 복원용 / 다른 포맷도 안전 — 무시)
     settings: tournamentMeta?.settings ?? null,

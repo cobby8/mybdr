@@ -116,6 +116,21 @@ export async function POST(req: NextRequest, { params }: Ctx) {
         // tournament_id 기반 advisory lock (bracket POST 와 동일 패턴 — 동일 대회 동시 요청 직렬화)
         await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${tournamentId})::bigint)`;
 
+        let normalizedTeamCount = 0;
+        const matchingTeams = await tx.tournamentTeam.count({
+          where: { tournamentId, status: "approved", category: rule.code },
+        });
+        if (matchingTeams === 0) {
+          const ruleCount = await tx.tournamentDivisionRule.count({ where: { tournamentId } });
+          if (ruleCount === 1) {
+            const normalized = await tx.tournamentTeam.updateMany({
+              where: { tournamentId, status: "approved" },
+              data: { category: rule.code },
+            });
+            normalizedTeamCount = normalized.count;
+          }
+        }
+
         // clear=true 시 본 종별 매치만 deleteMany (다른 종별 매치 보존 = settings.division_code 매칭)
         // 사유: tournamentMatch 에 division_code 컬럼 없음 — settings JSON path 로 매칭
         let deleted = 0;
@@ -163,7 +178,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
           data: { matches_count: total },
         });
 
-        return { genResult, deleted };
+        return { genResult, deleted, normalizedTeamCount };
       },
       { timeout: 30000 },
     );
@@ -188,6 +203,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
         generated: result.genResult.generated,
         skipped: result.genResult.skipped,
         deleted: result.deleted,
+        normalized_team_count: result.normalizedTeamCount,
         reason: result.genResult.reason,
       },
       severity: "info",
@@ -202,6 +218,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
       generated: result.genResult.generated,
       skipped: result.genResult.skipped,
       deleted: result.deleted,
+      normalized_team_count: result.normalizedTeamCount,
       reason: result.genResult.reason,
       match_ids: result.genResult.matchIds,
       version_number: versionStatus.currentVersion,
