@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 // 2026-05-16 PR-Admin-3 — placeholder 매치 검증 배너 (강남구협회장배 사고 재발 방지)
 import { PlaceholderValidationBanner } from "../_components/PlaceholderValidationBanner";
@@ -68,6 +68,43 @@ type TournamentTeam = {
   status: string;
 };
 
+type TournamentDetail = {
+  start_date: string | null;
+  end_date: string | null;
+  venue_name: string | null;
+  venue_address: string | null;
+  places?: unknown;
+  schedule_dates?: unknown;
+};
+
+type VenueDraft = {
+  id: string;
+  name: string;
+  courtCount: number;
+};
+
+type ScheduleDateDraft = {
+  id: string;
+  date: string;
+  courtIds: string[];
+};
+
+type ScheduleLane = {
+  key: string;
+  date: string;
+  venueName: string;
+  courtNumber: string;
+  courtId: string;
+  abbrev: string;
+};
+
+type SchedulePatch = {
+  matchId: string;
+  scheduledAt: string | null;
+  venueName: string | null;
+  courtNumber: string | null;
+};
+
 const STATUS_LABEL: Record<string, string> = {
   pending: "대기",
   scheduled: "예정",
@@ -82,6 +119,138 @@ const RECORDING_MODE_LABEL: Record<RecordingMode, string> = {
   paper: "전자기록지",
   manual: "수기",
 };
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value && typeof value === "object" && !Array.isArray(value));
+}
+
+function textFrom(value: unknown): string | null {
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function numberFrom(value: unknown, fallback = 1) {
+  const parsed = typeof value === "number" ? value : typeof value === "string" ? Number(value) : NaN;
+  return Number.isFinite(parsed) && parsed > 0 ? Math.trunc(parsed) : fallback;
+}
+
+function normalizeVenues(tournament: TournamentDetail | null): VenueDraft[] {
+  const rows = Array.isArray(tournament?.places) ? tournament?.places : [];
+  const venues = rows.flatMap((row, index): VenueDraft[] => {
+    if (!isRecord(row)) return [];
+    const name = textFrom(row.name);
+    if (!name) return [];
+    return [{
+      id: textFrom(row.id) ?? `v_${index}`,
+      name,
+      courtCount: numberFrom(row.courtCount ?? row.court_count, 1),
+    }];
+  });
+  if (venues.length > 0) return venues;
+  if (!tournament?.venue_name) return [];
+  return [{ id: "v_legacy_0", name: tournament.venue_name, courtCount: 1 }];
+}
+
+function normalizeScheduleDates(tournament: TournamentDetail | null): ScheduleDateDraft[] {
+  const rows = Array.isArray(tournament?.schedule_dates) ? tournament?.schedule_dates : [];
+  const dates = rows.flatMap((row, index): ScheduleDateDraft[] => {
+    if (!isRecord(row)) return [];
+    const date = textFrom(row.date);
+    if (!date) return [];
+    const rawCourtIds = row.courtIds ?? row.court_ids;
+    return [{
+      id: textFrom(row.id) ?? `dt_${index}`,
+      date,
+      courtIds: Array.isArray(rawCourtIds)
+        ? rawCourtIds.filter((courtId): courtId is string => typeof courtId === "string")
+        : [],
+    }];
+  });
+  if (dates.length > 0) return dates;
+  const start = tournament?.start_date?.slice(0, 10);
+  if (!start) return [];
+  return [{ id: "dt_legacy_0", date: start, courtIds: [] }];
+}
+
+function venueAbbrev(name: string) {
+  const cleaned = name.replace(/(생활체육관|문화체육관|체육관|체육센터|스포츠센터|센터|관)$/g, "");
+  return (cleaned || name).slice(0, 2).toUpperCase();
+}
+
+function buildScheduleLanes(tournament: TournamentDetail | null): ScheduleLane[] {
+  const venues = normalizeVenues(tournament);
+  const dates = normalizeScheduleDates(tournament);
+  const venueMap = new Map(venues.map((venue) => [venue.id, venue]));
+  const allCourtIds = venues.flatMap((venue) =>
+    Array.from({ length: venue.courtCount }, (_, index) => `${venue.id}_c${index}`),
+  );
+
+  const lanes: ScheduleLane[] = [];
+  for (const date of dates) {
+    const courtIds = date.courtIds.length > 0 ? date.courtIds : allCourtIds;
+    for (const courtId of courtIds) {
+      const [venueId, rawCourtIndex] = courtId.split("_c");
+      const venue = venueMap.get(venueId);
+      if (!venue) continue;
+      const courtIndex = Number(rawCourtIndex);
+      const courtNumber = Number.isFinite(courtIndex) ? String(courtIndex + 1) : "1";
+      lanes.push({
+        key: `${date.date}|${courtId}`,
+        date: date.date,
+        venueName: venue.name,
+        courtNumber,
+        courtId,
+        abbrev: `${venueAbbrev(venue.name)}${courtNumber}`,
+      });
+    }
+  }
+  return lanes;
+}
+
+function addMinutesToTime(time: string, minutes: number) {
+  const [hour = 9, minute = 0] = time.split(":").map(Number);
+  const total = hour * 60 + minute + minutes;
+  return `${String(Math.floor(total / 60) % 24).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
+}
+
+function toKstIso(date: string, time: string) {
+  const [year, month, day] = date.split("-").map(Number);
+  const [hour, minute] = time.split(":").map(Number);
+  return new Date(Date.UTC(year, month - 1, day, hour - 9, minute)).toISOString();
+}
+
+function formatKstTime(value: string | null) {
+  if (!value) return "미정";
+  return new Date(value).toLocaleTimeString("ko-KR", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+    timeZone: "Asia/Seoul",
+  });
+}
+
+function formatKstDate(value: string | null) {
+  if (!value) return null;
+  return new Date(value).toLocaleDateString("en-CA", { timeZone: "Asia/Seoul" });
+}
+
+function sortMatchesForSchedule(a: Match, b: Match) {
+  const ad = getMatchDivision(a) ?? "";
+  const bd = getMatchDivision(b) ?? "";
+  if (ad !== bd) return ad.localeCompare(bd, "ko-KR", { numeric: true });
+  return (
+    (a.round_number ?? 999) - (b.round_number ?? 999) ||
+    (a.bracket_position ?? 999) - (b.bracket_position ?? 999) ||
+    (a.match_number ?? 999) - (b.match_number ?? 999)
+  );
+}
+
+function matchStageLabel(match: Match) {
+  const raw = `${match.roundName ?? ""} ${(match.settings?.stage as string | undefined) ?? ""}`;
+  if (raw.includes("dual") || raw.includes("더블")) return "듀얼";
+  if (raw.includes("knockout") || raw.includes("토너먼트") || raw.includes("본선")) return "본선";
+  if (raw.includes("group") || raw.includes("조별") || raw.includes("예선")) return "예선";
+  return match.roundName ?? "경기";
+}
 
 function formatMatchDate(value: string | null) {
   if (!value) return "미정";
@@ -457,14 +626,179 @@ function ScoreModal({
   );
 }
 
+function ManualScheduleModal({
+  tournamentId,
+  matches,
+  lanes,
+  laneStart,
+  onClose,
+  onSaved,
+  onError,
+}: {
+  tournamentId: string;
+  matches: Match[];
+  lanes: ScheduleLane[];
+  laneStart: Record<string, string>;
+  onClose: () => void;
+  onSaved: () => Promise<void> | void;
+  onError: (message: string) => void;
+}) {
+  const candidates = useMemo(
+    () => matches
+      .filter((match) => match.status !== "completed" && match.status !== "cancelled")
+      .sort(sortMatchesForSchedule),
+    [matches],
+  );
+  const [matchId, setMatchId] = useState(candidates[0]?.id ?? "");
+  const [laneKey, setLaneKey] = useState(lanes[0]?.key ?? "");
+  const [time, setTime] = useState(laneStart[lanes[0]?.key ?? ""] ?? "09:00");
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!matchId && candidates[0]) setMatchId(candidates[0].id);
+  }, [candidates, matchId]);
+
+  useEffect(() => {
+    if (!laneKey && lanes[0]) setLaneKey(lanes[0].key);
+  }, [laneKey, lanes]);
+
+  useEffect(() => {
+    if (laneKey) setTime(laneStart[laneKey] ?? "09:00");
+  }, [laneKey, laneStart]);
+
+  const selectedMatch = candidates.find((match) => match.id === matchId) ?? null;
+  const selectedLane = lanes.find((lane) => lane.key === laneKey) ?? null;
+
+  const save = async () => {
+    if (!selectedMatch || !selectedLane) return;
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/web/tournaments/${tournamentId}/matches/${selectedMatch.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          scheduledAt: toKstIso(selectedLane.date, time),
+          venue_name: selectedLane.venueName,
+          court_number: selectedLane.courtNumber,
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error ?? "직접 배치 저장 실패");
+      }
+      await onSaved();
+      onClose();
+    } catch (e) {
+      onError(e instanceof Error ? e.message : "직접 배치 저장 실패");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div data-skin="toss" className="amt-modal-overlay no-print" onClick={onClose}>
+      <div className="amt-modal amt-modal--wide" onClick={(e) => e.stopPropagation()}>
+        <button type="button" onClick={onClose} className="ct-iconbtn absolute right-3 top-3" aria-label="닫기">
+          <Icon name="x" size={20} />
+        </button>
+        <h3 className="mb-1 pr-10 text-lg font-bold text-[var(--ink)]">직접 배치</h3>
+        <p className="mb-4 text-sm font-semibold text-[var(--ink-mute)]">
+          경기 하나를 선택해 날짜·코트·시작시간을 바로 저장합니다.
+        </p>
+
+        {candidates.length === 0 || lanes.length === 0 ? (
+          <div className="ct-emptybox py-10 text-center text-[var(--ink-mute)]">
+            <Icon name="calendar-clock" size={34} />
+            <p className="mt-2 text-sm font-bold">배치할 경기 또는 코트가 없습니다.</p>
+          </div>
+        ) : (
+          <div className="sc-manwrap">
+            <div className="sc-manpool">
+              <h4 className="bk-subh">배치할 경기</h4>
+              <div className="sc-poollist">
+                {candidates.map((match) => (
+                  <button
+                    key={match.id}
+                    type="button"
+                    className="sc-poolcard"
+                    data-active={match.id === matchId}
+                    onClick={() => setMatchId(match.id)}
+                  >
+                    <span className="sc-divtag" data-ko={matchStageLabel(match) === "본선"}>
+                      {getMatchDivision(match) ?? "종별 미정"}<i>{matchStageLabel(match)}</i>
+                    </span>
+                    <span className="sc-poolcard__teams">{formatMatchTeams(match)}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="sc-manlane">
+              <h4 className="bk-subh">배치 위치</h4>
+              <div className="sc-manbar sc-manbar--single">
+                <div>
+                  <span className="ts-field__label">코트</span>
+                  <div className="sc-manchips">
+                    {lanes.map((lane) => (
+                      <button
+                        key={lane.key}
+                        type="button"
+                        className="sc-divchip"
+                        data-on={lane.key === laneKey}
+                        onClick={() => setLaneKey(lane.key)}
+                      >
+                        {lane.key === laneKey && <Icon name="check" size={12} />}
+                        {lane.abbrev} · {lane.date.slice(5)}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <label className="ts-field">
+                <span className="ts-field__label">시작 시간</span>
+                <input className="ts-input" type="time" value={time} onChange={(e) => setTime(e.target.value)} />
+              </label>
+              {selectedMatch && selectedLane && (
+                <div className="sc-manpreview">
+                  <span className="sc-lane-court">{selectedLane.abbrev}</span>
+                  <div>
+                    <b>{formatMatchTeams(selectedMatch)}</b>
+                    <span>{selectedLane.date} · {selectedLane.venueName} {selectedLane.courtNumber}코트 · {time}</span>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+          <button type="button" className="ts-btn ts-btn--secondary" onClick={onClose}>취소</button>
+          <button
+            type="button"
+            className="ts-btn ts-btn--primary"
+            disabled={saving || !selectedMatch || !selectedLane}
+            onClick={save}
+          >
+            {saving ? "저장 중..." : "배치 저장"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function MatchesClient() {
   const { id } = useParams<{ id: string }>();
   const searchParams = useSearchParams();
   const [matches, setMatches] = useState<Match[]>([]);
   const [teams, setTeams] = useState<TournamentTeam[]>([]);
+  const [tournament, setTournament] = useState<TournamentDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
+  const [scheduling, setScheduling] = useState(false);
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
+  const [manualOpen, setManualOpen] = useState(false);
+  const [toast, setToast] = useState("");
   const [error, setError] = useState("");
   // 2026-05-12 — 종별 필터 (강남구협회장배 다중 종별 운영)
   //   URL 쿼리 ?division=i3-U9 로 deep link 가능 (bracket 페이지에서 종별 카드 클릭 진입)
@@ -479,12 +813,14 @@ export default function MatchesClient() {
 
   const load = useCallback(async () => {
     try {
-      const [mRes, tRes] = await Promise.all([
+      const [mRes, tRes, tournamentRes] = await Promise.all([
         fetch(`/api/web/tournaments/${id}/matches`),
         fetch(`/api/web/tournaments/${id}/teams`),
+        fetch(`/api/web/tournaments/${id}`),
       ]);
       if (mRes.ok) setMatches(await mRes.json());
       if (tRes.ok) setTeams(await tRes.json());
+      if (tournamentRes.ok) setTournament(await tournamentRes.json());
     } catch { /* ignore */ } finally {
       setLoading(false);
     }
@@ -551,6 +887,160 @@ export default function MatchesClient() {
     : Array.from(new Set(filteredMatches.map((m) => m.round_number))).sort(
         (a, b) => (a ?? 0) - (b ?? 0),
       );
+
+  const scheduleLanes = useMemo(() => buildScheduleLanes(tournament), [tournament]);
+  const allDivisionCodes = useMemo(
+    () => Array.from(new Set(matches.map(getMatchDivision).filter((code): code is string => !!code))).sort(),
+    [matches],
+  );
+  const [durationByDivision, setDurationByDivision] = useState<Record<string, number>>({});
+  const [laneStart, setLaneStart] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    setDurationByDivision((current) => {
+      const next = { ...current };
+      for (const code of allDivisionCodes) {
+        if (!next[code]) next[code] = 40;
+      }
+      return next;
+    });
+  }, [allDivisionCodes]);
+
+  useEffect(() => {
+    setLaneStart((current) => {
+      const next = { ...current };
+      for (const [index, lane] of scheduleLanes.entries()) {
+        if (!next[lane.key]) next[lane.key] = index === 0 ? "09:00" : index === 1 ? "09:30" : "10:00";
+      }
+      return next;
+    });
+  }, [scheduleLanes]);
+
+  const getDuration = useCallback(
+    (match: Match) => durationByDivision[getMatchDivision(match) ?? ""] ?? 40,
+    [durationByDivision],
+  );
+
+  const patchSchedule = useCallback(async ({ matchId, scheduledAt, venueName, courtNumber }: SchedulePatch) => {
+    const res = await fetch(`/api/web/tournaments/${id}/matches/${matchId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        scheduledAt,
+        venue_name: venueName,
+        court_number: courtNumber,
+      }),
+    });
+    if (!res.ok) {
+      const data = await res.json();
+      throw new Error(data.error ?? "일정 저장 실패");
+    }
+  }, [id]);
+
+  const showToast = useCallback((message: string) => {
+    setToast(message);
+    window.setTimeout(() => setToast(""), 2200);
+  }, []);
+
+  const autoSchedule = async (overwrite: boolean) => {
+    if (scheduleLanes.length === 0) {
+      setError("대회 일정·장소에서 사용할 코트를 먼저 설정해 주세요.");
+      return;
+    }
+    const targetMatches = filteredMatches
+      .filter((match) => match.status !== "completed" && match.status !== "cancelled")
+      .filter((match) => overwrite || !match.scheduledAt)
+      .sort(sortMatchesForSchedule);
+    if (targetMatches.length === 0) {
+      setError(overwrite ? "자동 배치할 경기가 없습니다." : "미배치 경기가 없습니다.");
+      return;
+    }
+    if (overwrite) {
+      const ok = await tossConfirm.confirm({
+        title: "전체 일정 다시 배치",
+        sub: `${targetMatches.length}경기의 기존 시간·코트를 덮어씁니다.`,
+        body: "이미 공개했거나 기록원이 확인한 일정이 있다면 먼저 공유 상태를 확인해 주세요.",
+        confirmLabel: "다시 배치",
+        tone: "danger",
+      });
+      if (!ok) return;
+    }
+
+    setScheduling(true);
+    setError("");
+    try {
+      const cursorByLane = new Map(scheduleLanes.map((lane) => [lane.key, laneStart[lane.key] ?? "09:00"]));
+      for (const [index, match] of targetMatches.entries()) {
+        const lane = scheduleLanes[index % scheduleLanes.length];
+        const start = cursorByLane.get(lane.key) ?? "09:00";
+        await patchSchedule({
+          matchId: match.id,
+          scheduledAt: toKstIso(lane.date, start),
+          venueName: lane.venueName,
+          courtNumber: lane.courtNumber,
+        });
+        cursorByLane.set(lane.key, addMinutesToTime(start, getDuration(match)));
+      }
+      await load();
+      showToast(`${targetMatches.length}경기 일정 저장 완료`);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "일정 자동 저장 실패");
+    } finally {
+      setScheduling(false);
+    }
+  };
+
+  const clearMatchSchedule = async (match: Match) => {
+    const ok = await tossConfirm.confirm({
+      title: "일정 배치 해제",
+      sub: formatMatchTeams(match),
+      body: "이 경기의 시간, 체육관, 코트 정보만 비웁니다. 대진과 점수는 유지됩니다.",
+      confirmLabel: "해제",
+      tone: "danger",
+    });
+    if (!ok) return;
+    setScheduling(true);
+    try {
+      await patchSchedule({ matchId: match.id, scheduledAt: null, venueName: null, courtNumber: null });
+      await load();
+      showToast("일정 배치 해제 완료");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "일정 해제 실패");
+    } finally {
+      setScheduling(false);
+    }
+  };
+
+  const scheduledGroups = useMemo(() => {
+    const groups = new Map<string, { laneLabel: string; matches: Match[] }>();
+    for (const match of filteredMatches) {
+      if (!match.scheduledAt) continue;
+      const date = formatKstDate(match.scheduledAt) ?? "날짜 미정";
+      const venue = match.venue_name ?? "체육관 미정";
+      const court = match.court_number ?? "코트 미정";
+      const key = `${date}|${venue}|${court}`;
+      const lane = scheduleLanes.find((item) =>
+        item.date === date && item.venueName === venue && item.courtNumber === court,
+      );
+      if (!groups.has(key)) {
+        groups.set(key, {
+          laneLabel: `${lane?.abbrev ?? court} · ${date} · ${venue} ${court === "코트 미정" ? "" : `${court}코트`}`.trim(),
+          matches: [],
+        });
+      }
+      groups.get(key)?.matches.push(match);
+    }
+    return Array.from(groups.values())
+      .map((group) => ({
+        ...group,
+        matches: group.matches.sort((a, b) =>
+          new Date(a.scheduledAt ?? 0).getTime() - new Date(b.scheduledAt ?? 0).getTime(),
+        ),
+      }))
+      .sort((a, b) => (a.matches[0]?.scheduledAt ?? "").localeCompare(b.matches[0]?.scheduledAt ?? ""));
+  }, [filteredMatches, scheduleLanes]);
+
+  const unscheduledCount = filteredMatches.filter((match) => !match.scheduledAt).length;
 
   if (loading)
     return <div data-skin="toss" className="amt-loading">불러오는 중...</div>;
@@ -664,6 +1154,174 @@ export default function MatchesClient() {
               </button>
             );
           })}
+        </div>
+      )}
+
+      {matches.length > 0 && (
+        <div className="ts-card ts-card--flat sc-scheduler-card">
+          <div className="sc-scheduler-head">
+            <div className="sc-scheduler-title">
+              <span className="ct-headicon"><Icon name="calendar-clock" size={18} /></span>
+              <div>
+                <h3>경기 시간 · 코트 시작 시간</h3>
+                <p>대진표에서 생성된 경기를 날짜·코트별로 배치하고 실제 일정으로 저장합니다.</p>
+              </div>
+            </div>
+            <div className="sc-scheduler-actions">
+              <button
+                type="button"
+                className="ts-btn ts-btn--secondary ts-btn--sm"
+                onClick={() => setManualOpen(true)}
+                disabled={scheduling || scheduleLanes.length === 0}
+              >
+                직접 배치
+              </button>
+              <button
+                type="button"
+                className="ts-btn ts-btn--primary ts-btn--sm"
+                onClick={() => autoSchedule(false)}
+                disabled={scheduling || scheduleLanes.length === 0}
+              >
+                {scheduling ? "저장 중..." : "미배치 자동 저장"}
+              </button>
+            </div>
+          </div>
+
+          {scheduleLanes.length === 0 ? (
+            <div className="ct-emptybox py-8 text-center text-[var(--ink-mute)]">
+              <Icon name="map-pin" size={32} />
+              <p className="mt-2 text-sm font-bold">일정·장소 코트 설정이 필요합니다.</p>
+              <p className="mt-1 text-xs font-semibold">대회 정보 수정에서 날짜와 체육관 코트를 먼저 저장해 주세요.</p>
+            </div>
+          ) : (
+            <>
+              <div className="bk-fromnote">
+                <Icon name="git-merge" size={15} />
+                <span>
+                  대진표 반영됨 — 전체 {filteredMatches.length}경기 · 미배치 {unscheduledCount}경기 · 코트 {scheduleLanes.length}면
+                </span>
+              </div>
+
+              <span className="ts-field__label sc-section-label">종별 경기 시간(분)</span>
+              <div className="sc-durgrid">
+                {(allDivisionCodes.length > 0 ? allDivisionCodes : ["종별 미정"]).map((code) => {
+                  const count = filteredMatches.filter((match) => (getMatchDivision(match) ?? "종별 미정") === code).length;
+                  return (
+                    <div key={code} className="sc-durcell">
+                      <span className="sc-durcell__lbl">{code}</span>
+                      <input
+                        className="ts-input"
+                        type="number"
+                        min={5}
+                        step={5}
+                        value={durationByDivision[code] ?? 40}
+                        onChange={(e) =>
+                          setDurationByDivision((current) => ({
+                            ...current,
+                            [code]: Number(e.target.value) || 40,
+                          }))
+                        }
+                      />
+                      <span className="sc-durcell__cnt">{count}경기</span>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <span className="ts-field__label sc-section-label">코트별 시작 시간</span>
+              <div className="sc-durgrid">
+                {scheduleLanes.map((lane) => (
+                  <div key={lane.key} className="sc-durcell">
+                    <span className="sc-lane-court">{lane.abbrev}</span>
+                    <input
+                      className="ts-input"
+                      type="time"
+                      value={laneStart[lane.key] ?? "09:00"}
+                      onChange={(e) =>
+                        setLaneStart((current) => ({
+                          ...current,
+                          [lane.key]: e.target.value,
+                        }))
+                      }
+                    />
+                    <span className="sc-durcell__cnt">{lane.date.slice(5)}</span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="sc-scheduler-foot">
+                <span>자동 저장은 현재 선택한 종별·체육관 필터 범위에 적용됩니다.</span>
+                <button
+                  type="button"
+                  className="ts-btn ts-btn--secondary ts-btn--sm"
+                  onClick={() => autoSchedule(true)}
+                  disabled={scheduling || filteredMatches.length === 0}
+                >
+                  현재 필터 전체 다시 저장
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      {scheduledGroups.length > 0 && (
+        <div className="space-y-4">
+          {scheduledGroups.map((group) => (
+            <div key={group.laneLabel} className="sc-lane-block">
+              <div className="sc-lane-head">
+                <span className="sc-lane-court">{group.laneLabel.split(" · ")[0]}</span>
+                <div>
+                  <b>{group.laneLabel}</b>
+                  <span>{group.matches.length}경기 배치됨</span>
+                </div>
+              </div>
+              <div className="amt-table-wrap">
+                <table className="amt-table sc-table">
+                  <thead>
+                    <tr>
+                      <th>시간</th>
+                      <th>종별</th>
+                      <th>단계</th>
+                      <th>대진</th>
+                      <th>#</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {group.matches.map((match) => (
+                      <tr key={match.id} onClick={() => setSelectedMatch(match)}>
+                        <td className="amt-table__time">{formatKstTime(match.scheduledAt)}</td>
+                        <td><span className="sc-divtag">{getMatchDivision(match) ?? "-"}</span></td>
+                        <td><span className="sc-divtag" data-ko={matchStageLabel(match) === "본선"}><i>{matchStageLabel(match)}</i></span></td>
+                        <td>
+                          <span className="amt-table__teams">
+                            <b className="amt-team">{match.homeTeam?.team.name ?? "미정"}</b>
+                            <span className="vs">대</span>
+                            <b className="amt-team">{match.awayTeam?.team.name ?? "미정"}</b>
+                          </span>
+                        </td>
+                        <td><span className="amt-table__div">#{match.match_number ?? "-"}</span></td>
+                        <td className="text-right">
+                          <button
+                            type="button"
+                            className="sc-del"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              clearMatchSchedule(match);
+                            }}
+                            aria-label="일정 해제"
+                          >
+                            <Icon name="x" size={14} />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ))}
         </div>
       )}
 
@@ -819,6 +1477,25 @@ export default function MatchesClient() {
           onClose={() => setSelectedMatch(null)}
           onSaved={load}
         />
+      )}
+
+      {manualOpen && (
+        <ManualScheduleModal
+          tournamentId={id}
+          matches={filteredMatches}
+          lanes={scheduleLanes}
+          laneStart={laneStart}
+          onClose={() => setManualOpen(false)}
+          onSaved={load}
+          onError={setError}
+        />
+      )}
+
+      {toast && (
+        <div className="ts-toast" role="status">
+          <Icon name="check" size={16} />
+          {toast}
+        </div>
       )}
     </div>
   );
