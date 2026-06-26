@@ -18,13 +18,14 @@
 | Recording copy | Done | User-facing "종이 기록지" copy has been renamed to "전자기록지" while internal `paper` mode/data keys are preserved. |
 | Admin Toss handoff | Done | `BDR-current/_handoff-admin-toss-v2.41/` added; src unchanged. |
 | Admin Toss sweep | In Progress | Tournament teams, bracket, schedule, ops, and settlement panels were rebuilt around Toss operate flow; site still needs the same direct-replacement pass. |
-| Tournament operate bracket | Done | Bracket tab now has robust single-division category fallback plus Toss-style generation summary and stage-grouped generated match review. |
+| Tournament operate bracket | Done | Bracket tab now has robust single-division category fallback, Toss-style generated match review, and 2-group/3-qualifier cross-seeding with bye-aware preview counts. |
 | Tournament operate schedule | Done | Schedule tab now loads tournament dates/courts, supports division durations, lane start times, unscheduled/overwrite auto placement, direct placement, and lane timelines over real match PATCH saves. |
 | Admin tournament list | Done | `/admin/tournaments` was replaced with a clean Toss list, Korean copy restored, and row click routes directly to the operate workspace. |
 | Tournament teams category display | Done | Teams panel now preserves raw category values but renders/groups by the active division rule, preventing corrupted legacy labels from appearing in live ops. |
 | Tournament admin standalone shell | Done | `/tournament-admin/*` now uses the v2.41/v2.42 standalone Toss workspace layout without the legacy global admin sidebar. |
 
 ## Work Log
+- 2026-06-27: Fixed 2-group/3-qualifier group-stage knockout seeding so first-round matches cross groups, bye slots advance without counting fake games, and the operate bracket preview shows 본선 5경기; Vitest, TypeScript, diff check, and local Chrome passed.
 - 2026-06-27: Fixed tournament operate hash hydration by deferring hash sync to mount, and aligned bracket seeded slots/dual advance controls with the Toss flow; local Chrome verified `#bracket` loads without console errors; TypeScript passed.
 - 2026-06-27: Replaced remaining Material ligature icons on `/tournament-admin/tournaments` with admin Toss lucide `Icon` components; local Chrome verified no ligature text or legacy sidebar residue; TypeScript passed.
 - 2026-06-27: Removed the legacy global admin sidebar from `/tournament-admin/*`, kept auth/permission guards, and verified list/detail pages render as standalone Toss workspaces at 1240px without `light_mode` sidebar residue; TypeScript passed.
@@ -34,4 +35,3 @@
 - 2026-06-27: Added drag reorder persistence to scheduled lane timelines so same-court match order changes recalculate and save start times; TypeScript and production build passed.
 - 2026-06-27: Wired tournament operate schedule court numbers end-to-end through match create/update APIs, service writes, and admin match edit UI; TypeScript and production build passed.
 - 2026-06-27: Replaced the operate settlement placeholder with a Toss settlement overview over real team/tournament APIs; local Chrome verified paid/unpaid KPIs, team payment rows, fallback division labels, and no console errors; TypeScript passed.
-- 2026-06-27: Rebuilt the operate ops tab around the v44 Toss structure: role metrics, admins, recorders, notice API-disabled state, and real recording-mode trigger; local browser verified `#ops` without console errors; TypeScript passed.

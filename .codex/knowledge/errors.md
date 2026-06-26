@@ -1,5 +1,12 @@
 # Errors
 
+## 2026-06-27 Group Stage Knockout Preview Count Diverged From Generator
+
+- Symptom: For a 2-group tournament with 3 qualifiers per group, the operate bracket preview could imply same-group first-round risk and showed `본선 7경기` even though only 5 real knockout matches should be generated.
+- Cause: The real generator and the bracket-panel preview used separate leaf ordering/bye handling. The preview counted bye advancement as if it were a played match.
+- Fix: Added the 2-group/3-qualifier cross-seeded leaf order to both generation and preview, made preview rounds propagate bye slots without creating fake matches, and covered the generator path with a regression test.
+- Prevention: When changing bracket rules, update generator specs and UI preview together; bye slots should advance labels, not increment match counts.
+
 ## 2026-06-26 Division Rule Settings Save Looked Unreliable
 
 - Symptom: Tournament division settings appeared not to save reliably after editing group size/count, ranking format, or advance-per-group values.

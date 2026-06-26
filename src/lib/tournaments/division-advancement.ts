@@ -708,7 +708,18 @@ export function planGroupStageKnockoutMatches(opts: {
 
   const totalRounds = Math.log2(bracketSize);
   const orderedLeafSlots =
-    advancePerGroup === 2
+    groupCount === 2 && advancePerGroup === 3
+      ? [
+          buildSlotLabel({ kind: "group_rank", group: "A", rank: 1 }),
+          null,
+          buildSlotLabel({ kind: "group_rank", group: "B", rank: 2 }),
+          buildSlotLabel({ kind: "group_rank", group: "A", rank: 3 }),
+          buildSlotLabel({ kind: "group_rank", group: "B", rank: 1 }),
+          null,
+          buildSlotLabel({ kind: "group_rank", group: "A", rank: 2 }),
+          buildSlotLabel({ kind: "group_rank", group: "B", rank: 3 }),
+        ]
+    : advancePerGroup === 2
       ? buildMirroredTwoRankQualifierSlots({ groupCount, bracketSize })
       : (() => {
           const bracketOrder = standardBracketSeedOrder(bracketSize);

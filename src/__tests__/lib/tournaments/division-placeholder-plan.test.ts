@@ -221,6 +221,18 @@ describe("planGroupStageKnockoutMatches — 조별리그+토너먼트", () => {
     });
   });
 
+  it("2조 * 3팀 진출 = 1라운드에서 같은 조 재대결을 만들지 않는다", () => {
+    const specs = planGroupStageKnockoutMatches({ groupCount: 2, advancePerGroup: 3 });
+    const firstRound = specs.filter((spec) => spec.roundNumber === 1);
+
+    expect(specs).toHaveLength(5);
+    expect(firstRound).toHaveLength(2);
+    expect(firstRound.map((spec) => [spec.homeSlot[0], spec.awaySlot[0]])).toEqual([
+      ["B", "A"],
+      ["A", "B"],
+    ]);
+  });
+
   it("4조 * 2팀 진출 = 8강 4경기 + 준결승 2경기 + 결승 1경기", () => {
     const specs = planGroupStageKnockoutMatches({ groupCount: 4, advancePerGroup: 2 });
     expect(specs).toHaveLength(7);

@@ -1,5 +1,7 @@
 # Knowledge Index
 
+- 2026-06-27 admin: 2-group/3-qualifier group-stage knockout brackets now use cross-seeded first-round matches and bye-aware preview counts, so the operate bracket displays `본선 5경기` instead of counting bye advancement as played games.
+
 - 2026-06-27 recording: `recording_mode="paper"` remains the internal compatibility value, but user-facing/admin copy now calls it "전자기록지"; existing `paper-*` IDs and `[종이 기록]` PBP descriptions stay unchanged.
 
 - 2026-06-26 admin: tournament detail entry is now the 6-menu Toss operate workspace, while the former setup/edit workspace is preserved at `/tournament-admin/tournaments/[id]/edit`.
@@ -54,10 +56,11 @@ Updated: 2026-06-27
 | architecture.md | 4 | Tournament operate/edit route split |
 | conventions.md | 3 | Recording Mode Copy |
 | decisions.md | 9 | Electronic Score-Sheet Naming |
-| errors.md | 8 | Division rule settings save looked unreliable |
+| errors.md | 9 | Group stage knockout preview count diverged from generator |
 | lessons.md | 0 | - |
 
 Recent work:
+- 2026-06-27 admin: 2-group/3-qualifier group-stage knockout seeding now crosses groups in the first round, propagates bye slots without fake games in the operate preview, and shows `본선 5경기`; local Chrome, Vitest, TypeScript, and diff check passed.
 - 2026-06-27 recording: Gangnam Association Cup D5 was switched to electronic score-sheet mode for the tournament default and all 13 matches; visible "종이 기록지" copy was renamed to "전자기록지" while compatibility data keys were preserved.
 - 2026-06-26 admin: tournament operation entry was split so `/tournament-admin/tournaments/[id]` renders the Toss 6-menu operate workspace and `/edit` retains the setup/edit form workspace.
 - 2026-06-26 admin: division rule settings save UX was fixed by replacing hidden blur persistence with an explicit settings save control and confirmed server-response state refresh.

@@ -294,6 +294,10 @@ function buildKnockoutLeaves(config: RuleConfig, teamCount: number) {
   const advancePerGroup = config.format === "dual_tournament"
     ? 2
     : Math.min(config.advance_per_group, config.group_size);
+  if (config.group_count === 2 && advancePerGroup === 3) {
+    return ["A1위", "부전승", "B2위", "A3위", "B1위", "부전승", "A2위", "B3위"];
+  }
+
   const leaves: string[] = [];
   for (let rank = 1; rank <= advancePerGroup; rank++) {
     for (let groupIndex = 0; groupIndex < config.group_count; groupIndex++) {
@@ -312,17 +316,42 @@ function buildKnockoutLeaves(config: RuleConfig, teamCount: number) {
   return crossed;
 }
 
+function isByeSlot(slot: string | undefined) {
+  return !slot || slot === "부전승";
+}
+
 function nextRoundsFromLeaves(leaves: string[]) {
   const rounds: Array<{ name: string; pairs: Array<[string, string]> }> = [];
   let current = leaves;
   while (current.length >= 2) {
     const name = knockoutRoundName(current.length);
     const pairs: Array<[string, string]> = [];
+    const next: string[] = [];
     for (let index = 0; index < current.length; index += 2) {
-      pairs.push([current[index], current[index + 1]]);
+      const home = current[index];
+      const away = current[index + 1];
+      const homeBye = isByeSlot(home);
+      const awayBye = isByeSlot(away);
+
+      if (homeBye && awayBye) {
+        next.push("부전승");
+        continue;
+      }
+      if (awayBye) {
+        next.push(home);
+        continue;
+      }
+      if (homeBye) {
+        next.push(away);
+        continue;
+      }
+
+      const bracketPosition = index / 2 + 1;
+      pairs.push([home, away]);
+      next.push(`${name} ${bracketPosition}경기 승자`);
     }
-    rounds.push({ name, pairs });
-    current = pairs.map((_, index) => `${name} ${index + 1}경기 승자`);
+    if (pairs.length > 0) rounds.push({ name, pairs });
+    current = next;
   }
   return rounds;
 }
