@@ -341,7 +341,7 @@ export default function OrganizationDashboardPage() {
   );
 
   return (
-    <div className="space-y-5">
+    <div data-skin="toss" className="space-y-5">
       {/* 위계 crumbs — 단체 노드 표시 (4C-2 OrgHierarchyCrumbs 재사용) */}
       <OrgHierarchyCrumbs
         trail={[{ label: org.name, level: "org", active: true }]}
@@ -368,14 +368,14 @@ export default function OrganizationDashboardPage() {
             </h1>
             {/* archived 시 회색 보관됨 뱃지 */}
             {isArchived && (
-              <span className="rounded-full bg-[var(--color-border)] px-2 py-0.5 text-xs font-medium text-[var(--color-text-muted)]">
+              <span className="rounded-[10px] bg-[var(--color-border)] px-2 py-0.5 text-xs font-medium text-[var(--color-text-muted)]">
                 보관됨
               </span>
             )}
             {/* 내 역할 뱃지 */}
             {org.myRole && (
               <span
-                className="rounded-full px-2 py-0.5 text-xs font-medium"
+                className="rounded-[10px] px-2 py-0.5 text-xs font-medium"
                 style={{
                   color: "var(--color-info)",
                   backgroundColor:
@@ -402,7 +402,7 @@ export default function OrganizationDashboardPage() {
           href={`/organizations/${org.slug}`}
           target="_blank"
           rel="noopener"
-          className="btn btn--sm"
+          className="ts-btn ts-btn--secondary ts-btn--sm"
         >
           <span className="material-symbols-outlined mr-0.5 text-sm align-middle">
             open_in_new
@@ -460,7 +460,7 @@ export default function OrganizationDashboardPage() {
               <button
                 type="button"
                 onClick={openEditModal}
-                className="btn btn--sm"
+                className="ts-btn ts-btn--secondary ts-btn--sm"
               >
                 <span className="material-symbols-outlined mr-0.5 text-sm align-middle">
                   edit
@@ -471,7 +471,7 @@ export default function OrganizationDashboardPage() {
           </div>
 
           {/* 정보 카드 (dl) */}
-          <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
+          <div className="ts-card">
             <dl className="grid gap-3 text-sm md:grid-cols-2">
               <div>
                 <dt className="text-[var(--color-text-muted)]">단체명</dt>
@@ -541,7 +541,7 @@ export default function OrganizationDashboardPage() {
 
           {/* 위험 영역 — owner only (단체 보관 / 복구) */}
           {isOwner && (
-            <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
+            <div className="ts-card">
               <h3 className="mb-2 flex items-center gap-1.5 text-sm font-bold text-[var(--color-text-primary)]">
                 <span className="material-symbols-outlined text-base text-[var(--color-text-muted)]">
                   warning
@@ -574,7 +574,7 @@ export default function OrganizationDashboardPage() {
             {isAdmin && (
               <Link
                 href={`/tournament-admin/organizations/${orgId}/members`}
-                className="btn btn--sm btn--primary"
+                className="ts-btn ts-btn--primary ts-btn--sm"
               >
                 <span className="material-symbols-outlined mr-0.5 text-sm align-middle">
                   manage_accounts
@@ -592,7 +592,7 @@ export default function OrganizationDashboardPage() {
             {org.members.map((m) => (
               <div
                 key={m.id}
-                className="flex items-center justify-between rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-4"
+                className="ts-card flex items-center justify-between"
               >
                 <div className="flex items-center gap-3">
                   <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--color-border)] text-xs font-medium text-[var(--color-text-muted)]">
@@ -603,7 +603,7 @@ export default function OrganizationDashboardPage() {
                   </p>
                 </div>
                 <span
-                  className="rounded-full px-2 py-0.5 text-xs font-medium"
+                  className="rounded-[10px] px-2 py-0.5 text-xs font-medium"
                   style={{
                     color:
                       m.role === "owner"
@@ -644,7 +644,7 @@ export default function OrganizationDashboardPage() {
               <button
                 type="button"
                 onClick={() => setShowSeriesForm((v) => !v)}
-                className="btn btn--sm btn--primary"
+                className="ts-btn ts-btn--primary ts-btn--sm"
               >
                 <span className="material-symbols-outlined mr-0.5 text-sm align-middle">
                   add
@@ -685,7 +685,7 @@ export default function OrganizationDashboardPage() {
               {org.series.map((s) => (
                 <div
                   key={s.id}
-                  className="flex items-center justify-between rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-4 transition-colors hover:border-[var(--color-accent)]"
+                  className="ts-card flex items-center justify-between transition-colors hover:border-[var(--color-accent)]"
                 >
                   {/* 좌측: 시리즈 정보 — Link 로 진입 */}
                   <Link
@@ -773,7 +773,7 @@ export default function OrganizationDashboardPage() {
                 <Link
                   key={e.id}
                   href={`/tournament-admin/tournaments/${e.id}`}
-                  className="flex items-center justify-between rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-4 transition-colors hover:border-[var(--color-accent)]"
+                  className="ts-card flex items-center justify-between transition-colors hover:border-[var(--color-accent)]"
                 >
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
@@ -781,7 +781,7 @@ export default function OrganizationDashboardPage() {
                         {e.name}
                       </p>
                       <span
-                        className="rounded-full px-2 py-0.5 text-xs font-medium"
+                        className="rounded-[10px] px-2 py-0.5 text-xs font-medium"
                         style={{
                           color:
                             e.status === "completed"
@@ -849,7 +849,7 @@ export default function OrganizationDashboardPage() {
               {adminMembers.map((m) => (
                 <div
                   key={m.id}
-                  className="flex items-center justify-between rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-4"
+                  className="ts-card flex items-center justify-between"
                 >
                   <div className="flex items-center gap-3">
                     <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--color-border)] text-xs font-medium text-[var(--color-text-muted)]">
@@ -860,7 +860,7 @@ export default function OrganizationDashboardPage() {
                     </p>
                   </div>
                   <span
-                    className="rounded-full px-2 py-0.5 text-xs font-medium"
+                    className="rounded-[10px] px-2 py-0.5 text-xs font-medium"
                     style={{
                       color: "var(--color-info)",
                       backgroundColor:
@@ -888,7 +888,7 @@ export default function OrganizationDashboardPage() {
             활동 이력
           </h2>
           {/* ORG_ACTIVITY_LOG 테이블 없음 + admin_logs(organization) 0건 → 빈 상태 (mock 금지) */}
-          <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] py-12 text-center">
+          <div className="ts-card py-12 text-center">
             <span className="material-symbols-outlined mb-2 text-4xl text-[var(--color-text-muted)]">
               history
             </span>
@@ -1030,7 +1030,7 @@ export default function OrganizationDashboardPage() {
                 type="button"
                 onClick={() => !editSaving && setEditOpen(false)}
                 disabled={editSaving}
-                className="btn btn--sm"
+                className="ts-btn ts-btn--secondary ts-btn--sm"
               >
                 취소
               </button>
@@ -1038,7 +1038,7 @@ export default function OrganizationDashboardPage() {
                 type="button"
                 onClick={submitEdit}
                 disabled={editSaving || !editForm.name.trim()}
-                className="btn btn--sm btn--primary"
+                className="ts-btn ts-btn--primary ts-btn--sm"
               >
                 {editSaving ? "저장 중..." : "저장"}
               </button>

@@ -16,7 +16,6 @@ import { prisma } from "@/lib/db/prisma";
 import { getWebSession } from "@/lib/auth/web-session";
 import { redirect, notFound } from "next/navigation";
 import { isSuperAdmin } from "@/lib/auth/is-super-admin";
-import { Card } from "@/components/ui/card";
 import Link from "next/link";
 import { SeriesEditForm } from "./_components/series-edit-form";
 
@@ -85,7 +84,7 @@ export default async function SeriesEditPage({
   }
 
   return (
-    <div className="mx-auto max-w-lg">
+    <div data-skin="toss" className="mx-auto max-w-lg">
       <Link
         href={`/tournament-admin/series/${id}`}
         className="mb-4 inline-block text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text-muted)]"
@@ -94,7 +93,7 @@ export default async function SeriesEditPage({
       </Link>
       <h1 className="mb-6 text-xl font-bold sm:text-2xl">시리즈 편집</h1>
 
-      <Card>
+      <section className="ts-card">
         <SeriesEditForm
           seriesId={id}
           initialName={series.name}
@@ -102,7 +101,7 @@ export default async function SeriesEditPage({
           initialIsPublic={series.is_public ?? true}
           initialOrganizationId={series.organization_id?.toString() ?? ""}
         />
-      </Card>
+      </section>
     </div>
   );
 }

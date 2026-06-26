@@ -117,20 +117,20 @@ export default function OrganizationMembersPage() {
   };
 
   return (
-    <div className="mx-auto max-w-2xl">
+    <div data-skin="toss" className="mx-auto max-w-2xl">
       <h1 className="mb-6 text-xl font-bold text-[var(--color-text-primary)]">
         멤버 관리
       </h1>
 
       {/* 메시지 */}
       {message && (
-        <div className="mb-4 rounded border border-[var(--color-border)] bg-[var(--color-surface)] p-3 text-sm text-[var(--color-text-primary)]">
+        <div className="ts-card mb-4 text-sm text-[var(--color-text-primary)]">
           {message}
         </div>
       )}
 
       {/* 초대 폼 */}
-      <div className="mb-6 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
+      <section className="ts-card mb-6">
         <h2 className="mb-3 text-sm font-medium text-[var(--color-text-primary)]">
           <span className="material-symbols-outlined mr-1 text-base align-middle">
             person_add
@@ -158,11 +158,11 @@ export default function OrganizationMembersPage() {
             <option value="admin">관리자</option>
           </select>
           {/* 2026-05-12: admin 빨강 본문 금지 → btn--primary */}
-          <button onClick={handleInvite} disabled={inviting} className="btn btn--primary disabled:opacity-50">
+          <button type="button" onClick={handleInvite} disabled={inviting} className="ts-btn ts-btn--primary disabled:opacity-50">
             {inviting ? "..." : "초대"}
           </button>
         </div>
-      </div>
+      </section>
 
       {/* 로딩 */}
       {loading && (
@@ -182,7 +182,7 @@ export default function OrganizationMembersPage() {
           {members.map((m) => (
             <div
               key={m.id}
-              className="flex items-center justify-between rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-4"
+              className="ts-card flex items-center justify-between"
             >
               <div className="flex items-center gap-3">
                 {/* 프로필 이미지 */}
@@ -209,7 +209,7 @@ export default function OrganizationMembersPage() {
               <div className="flex items-center gap-3">
                 {/* 역할 뱃지 */}
                 <span
-                  className="rounded-full px-2 py-0.5 text-xs font-medium"
+                  className="rounded-[10px] px-2 py-0.5 text-xs font-medium"
                   style={{
                     color: roleColor(m.role),
                     backgroundColor: `color-mix(in srgb, ${roleColor(m.role)} 12%, transparent)`,
@@ -221,6 +221,7 @@ export default function OrganizationMembersPage() {
                 {/* hover 액션 = accent 강조 (빨강 본문 금지 — conventions.md 2026-05-11) */}
                 {m.role !== "owner" && (
                   <button
+                    type="button"
                     onClick={() => handleRemove(m.id, m.nickname)}
                     className="text-[var(--color-text-muted)] hover:text-[var(--color-accent)]"
                     title="멤버 제거"

@@ -171,7 +171,7 @@ export default function ArchiveOrganizationButton({
                 type="button"
                 disabled={submitting}
                 onClick={handleConfirm}
-                className="btn btn--primary flex-1 disabled:opacity-50"
+                className="ts-btn ts-btn--primary flex-1 disabled:opacity-50"
               >
                 {submitting ? "처리 중..." : submitLabel}
               </button>

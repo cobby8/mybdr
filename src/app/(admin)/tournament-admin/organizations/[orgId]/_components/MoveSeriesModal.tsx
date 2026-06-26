@@ -245,7 +245,7 @@ export default function MoveSeriesModal({
                       key={o.id}
                       className={`flex min-h-[44px] cursor-pointer items-start gap-3 rounded border px-3 py-2 text-sm transition-colors ${
                         checked
-                          ? "border-[var(--color-accent)] bg-[var(--color-accent-muted,rgba(227,27,35,0.08))]"
+                          ? "border-[var(--color-accent)] bg-[color-mix(in_srgb,var(--color-accent)_8%,transparent)]"
                           : "border-[var(--color-border)] hover:border-[var(--color-accent)]"
                       }`}
                     >
@@ -299,7 +299,7 @@ export default function MoveSeriesModal({
               type="button"
               disabled={!selectedOrgId || submitting || !!resultMessage}
               onClick={handleMoveClick}
-              className="btn btn--primary flex-1 disabled:cursor-not-allowed disabled:opacity-50"
+              className="ts-btn ts-btn--primary flex-1 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {selectedOrgId ? "이동" : "단체를 선택하세요"}
             </button>
@@ -345,7 +345,7 @@ export default function MoveSeriesModal({
                 type="button"
                 disabled={submitting}
                 onClick={handleConfirmMove}
-                className="btn btn--primary flex-1 disabled:opacity-50"
+                className="ts-btn ts-btn--primary flex-1 disabled:opacity-50"
               >
                 {submitting ? "처리 중..." : "이동"}
               </button>

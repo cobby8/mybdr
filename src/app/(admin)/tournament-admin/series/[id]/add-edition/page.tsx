@@ -2,8 +2,6 @@
 
 import { useState } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import Link from "next/link";
 
 export default function AddEditionPage() {
@@ -44,13 +42,13 @@ export default function AddEditionPage() {
   }
 
   return (
-    <div className="mx-auto max-w-lg">
+    <div data-skin="toss" className="mx-auto max-w-lg">
       <Link href={`/tournament-admin/series/${id}`} className="mb-4 inline-block text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text-muted)]">
         ← 시리즈로 돌아가기
       </Link>
       <h1 className="mb-6 text-xl font-bold sm:text-2xl">새 회차 추가</h1>
 
-      <Card>
+      <section className="ts-card">
         <form onSubmit={handleSubmit} className="space-y-5">
           {/* 날짜 */}
           <div>
@@ -104,15 +102,15 @@ export default function AddEditionPage() {
             </p>
           )}
 
-          <Button
+          <button
             type="submit"
             disabled={!startDate || loading}
-            className="w-full py-4"
+            className="ts-btn ts-btn--primary w-full py-4"
           >
             {loading ? "추가 중..." : "회차 추가하기"}
-          </Button>
+          </button>
         </form>
-      </Card>
+      </section>
     </div>
   );
 }

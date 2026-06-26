@@ -2,8 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import Link from "next/link";
 
 /* ============================================================
@@ -174,7 +172,7 @@ export default function NewSeriesPage() {
     : null;
 
   return (
-    <div className="mx-auto max-w-lg">
+    <div data-skin="toss" className="mx-auto max-w-lg">
       {/* 뒤로가기 (시안 wizard 상단 "시리즈 목록") */}
       <Link
         href="/tournament-admin/series"
@@ -235,7 +233,7 @@ export default function NewSeriesPage() {
         })}
       </div>
 
-      <Card>
+      <section className="ts-card">
         {/* STEP 1 — 시리즈 기본 (이름 + 소속 단체) */}
         {step === 1 && (
           <div className="space-y-5">
@@ -431,13 +429,13 @@ export default function NewSeriesPage() {
                 <span className="material-symbols-outlined text-base">arrow_forward</span>
               </button>
             ) : (
-              <Button type="button" onClick={handleSubmit} disabled={loading} className="min-h-[44px] px-5">
+              <button type="button" onClick={handleSubmit} disabled={loading} className="ts-btn ts-btn--primary min-h-[44px] px-5">
                 {loading ? "생성 중..." : "시리즈 만들기"}
-              </Button>
+              </button>
             )}
           </div>
         </div>
-      </Card>
+      </section>
     </div>
   );
 }
