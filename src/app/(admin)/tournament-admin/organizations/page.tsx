@@ -57,7 +57,7 @@ export default function OrganizationsListPage() {
   };
 
   return (
-    <div>
+    <div data-skin="toss">
       {/* 헤더: 제목 + 생성 버튼 */}
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-xl font-bold text-[var(--color-text-primary)]">
@@ -68,7 +68,7 @@ export default function OrganizationsListPage() {
             (라이트 = navy / 다크 = BDR Red 자동 분기, globals.css L276+) */}
         <Link
           href="/tournament-admin/organizations/new"
-          className="btn btn--primary"
+          className="ts-btn ts-btn--primary"
         >
           <span className="material-symbols-outlined mr-1 text-base align-middle">
             add
@@ -103,7 +103,7 @@ export default function OrganizationsListPage() {
                   <Link
                     key={org.id}
                     href={`/tournament-admin/organizations/${org.id}`}
-                    className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-5 transition-colors hover:border-[var(--color-accent)]"
+                    className="ts-card block transition-colors hover:border-[var(--color-accent)]"
                   >
                     <div className="flex items-center gap-3">
                       {org.logoUrl ? (
@@ -127,7 +127,7 @@ export default function OrganizationsListPage() {
                       </div>
                     </div>
                     <div className="mt-3 flex items-center justify-between">
-                      <span className="rounded-full bg-[rgba(27,60,135,0.12)] px-2.5 py-0.5 text-xs font-medium text-[var(--color-info)]">
+                      <span className="rounded-[10px] bg-[color-mix(in_srgb,var(--color-info)_12%,transparent)] px-2.5 py-0.5 text-xs font-medium text-[var(--color-info)]">
                         {roleLabel(org.myRole)}
                       </span>
                       <span className="material-symbols-outlined text-base text-[var(--color-text-muted)]">
@@ -156,7 +156,7 @@ export default function OrganizationsListPage() {
                       key={org.id}
                       href={`/tournament-admin/organizations/${org.id}`}
                       // 회색 톤 — opacity-70 + hover 시 정상 색
-                      className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-5 opacity-70 transition-all hover:opacity-100 hover:border-[var(--color-text-muted)]"
+                      className="ts-card block opacity-70 transition-all hover:opacity-100 hover:border-[var(--color-text-muted)]"
                     >
                       <div className="flex items-center gap-3">
                         {org.logoUrl ? (
@@ -181,10 +181,10 @@ export default function OrganizationsListPage() {
                       </div>
                       <div className="mt-3 flex items-center justify-between">
                         <div className="flex items-center gap-1">
-                          <span className="rounded-full bg-[var(--color-border)] px-2 py-0.5 text-xs font-medium text-[var(--color-text-muted)]">
+                          <span className="rounded-[10px] bg-[var(--color-border)] px-2 py-0.5 text-xs font-medium text-[var(--color-text-muted)]">
                             보관됨
                           </span>
-                          <span className="rounded-full bg-[rgba(27,60,135,0.12)] px-2.5 py-0.5 text-xs font-medium text-[var(--color-info)]">
+                          <span className="rounded-[10px] bg-[color-mix(in_srgb,var(--color-info)_12%,transparent)] px-2.5 py-0.5 text-xs font-medium text-[var(--color-info)]">
                             {roleLabel(org.myRole)}
                           </span>
                         </div>
@@ -212,7 +212,7 @@ export default function OrganizationsListPage() {
           </p>
           <Link
             href="/tournament-admin/organizations/new"
-            className="btn btn--primary"
+            className="ts-btn ts-btn--primary"
           >
             단체 만들기
           </Link>
@@ -226,7 +226,7 @@ export default function OrganizationsListPage() {
           좌측 info 라인 강조 = --color-info 토큰 (시안 cafe-blue 대응). */}
       {!loading && (
         <div
-          className="mt-6 flex items-start gap-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-4 text-xs"
+          className="ts-card mt-6 flex items-start gap-3 text-xs"
           style={{ borderLeft: "3px solid var(--color-info)" }}
         >
           <span className="material-symbols-outlined flex-shrink-0 text-lg text-[var(--color-info)]">
