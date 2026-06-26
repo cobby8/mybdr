@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useParams } from "next/navigation";
 import Image from "next/image";
-import { useTossConfirm } from "@/components/admin-toss";
+import { Empty, SkelTable, useTossConfirm } from "@/components/admin-toss";
 
 // 2026-06-13 HOTFIX: GET 응답은 apiSuccess→convertKeysToSnakeCase 거쳐 snake_case.
 //   camelCase(recorderId/isActive/createdAt)로 읽으면 전 행 undefined → 빈 목록 버그.
@@ -249,9 +249,13 @@ export default function TournamentRecordersPage() {
         </h2>
 
         {loading ? (
-          <p className="tp-desc">불러오는 중...</p>
+          <SkelTable rows={3} />
         ) : activeRecorders.length === 0 ? (
-          <p className="tp-desc">등록된 기록원이 없습니다.</p>
+          <Empty
+            icon="users"
+            title="등록된 기록원이 없습니다"
+            desc="이메일로 기록원을 추가하면 경기별로 배정할 수 있습니다."
+          />
         ) : (
           <ul className="space-y-2">
             {activeRecorders.map((r) => (
@@ -321,15 +325,19 @@ export default function TournamentRecordersPage() {
         {matchError && <p className="tp-message" data-tone="danger">{matchError}</p>}
 
         {matchesLoading ? (
-          <p className="tp-desc">불러오는 중...</p>
+          <SkelTable rows={4} />
         ) : matches.length === 0 ? (
-          <p className="tp-desc">
-            등록된 경기가 없습니다. 대진표를 먼저 생성하세요.
-          </p>
+          <Empty
+            icon="calendar-x"
+            title="등록된 경기가 없습니다"
+            desc="대진표를 먼저 생성하면 경기별 기록자를 배정할 수 있습니다."
+          />
         ) : activeRecorders.length === 0 ? (
-          <p className="tp-desc">
-            먼저 기록원 풀에 인원을 추가하면 경기별 배정을 할 수 있습니다.
-          </p>
+          <Empty
+            icon="user-plus"
+            title="기록원 풀을 먼저 추가하세요"
+            desc="기록원 추가 후 경기별 배정 기능을 사용할 수 있습니다."
+          />
         ) : (
           <ul className="space-y-2">
             {matches.map((m) => {

@@ -240,6 +240,112 @@ export function Empty({ icon = "inbox", title, desc, children }: EmptyProps) {
   );
 }
 
+// ── State helpers ────────────────────────────────────────────────────
+export type SkelProps = {
+  w?: number | string;
+  h?: number | string;
+  r?: number | string;
+  style?: React.CSSProperties;
+};
+
+export function Skel({ w = "100%", h = 14, r = 8, style }: SkelProps) {
+  return (
+    <span
+      className="st-skel"
+      style={{ width: w, height: h, borderRadius: r, ...style }}
+    />
+  );
+}
+
+export type SkelTableProps = {
+  rows?: number;
+};
+
+export function SkelTable({ rows = 5 }: SkelTableProps) {
+  return (
+    <div className="ts-card st-skel-table">
+      <div className="st-skrow st-skrow--head">
+        <Skel w="22%" h={12} />
+        <Skel w="14%" h={12} />
+        <Skel w="14%" h={12} />
+        <Skel w="10%" h={12} />
+      </div>
+      {Array.from({ length: rows }).map((_, i) => (
+        <div key={i} className="st-skrow">
+          <div className="st-skrow__main">
+            <Skel w={34} h={34} r={10} />
+            <div className="st-skrow__text">
+              <Skel w="46%" h={13} />
+              <Skel w="28%" h={10} style={{ marginTop: 7 }} />
+            </div>
+          </div>
+          <Skel w={54} h={13} />
+          <Skel w={54} h={13} />
+          <Skel w={64} h={26} r={8} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export type ErrStateProps = {
+  title: React.ReactNode;
+  desc?: React.ReactNode;
+  onRetry?: () => void;
+  retryLabel?: React.ReactNode;
+};
+
+export function ErrState({
+  title,
+  desc,
+  onRetry,
+  retryLabel = "다시 시도",
+}: ErrStateProps) {
+  return (
+    <div className="st-state">
+      <div className="st-state__ic st-state__ic--danger">
+        <Icon name="cloud-off" size={28} />
+      </div>
+      <div className="st-state__t">{title}</div>
+      {desc && <div className="st-state__x">{desc}</div>}
+      {onRetry && (
+        <div className="st-state__actions">
+          <Btn variant="secondary" size="sm" icon="refresh-cw" onClick={onRetry}>
+            {retryLabel}
+          </Btn>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export type PermStateProps = {
+  role?: React.ReactNode;
+  onRequest?: () => void;
+};
+
+export function PermState({ role = "스태프", onRequest }: PermStateProps) {
+  return (
+    <div className="st-state">
+      <div className="st-state__ic st-state__ic--lock">
+        <Icon name="lock" size={26} />
+      </div>
+      <div className="st-state__t">접근 권한이 없습니다</div>
+      <div className="st-state__x">
+        이 화면은 <b>주최자·관리자</b>만 열람할 수 있어요. 현재 역할은{" "}
+        <Badge tone="grey">{role}</Badge> 입니다.
+      </div>
+      {onRequest && (
+        <div className="st-state__actions">
+          <Btn variant="primary" size="sm" icon="user-plus" onClick={onRequest}>
+            권한 요청
+          </Btn>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Modal ────────────────────────────────────────────────────────────
 export type ModalProps = {
   open: boolean;

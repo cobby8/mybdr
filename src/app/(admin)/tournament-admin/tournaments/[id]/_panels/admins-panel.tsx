@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useParams } from "next/navigation";
 import { PanelLoadingState } from "./panel-loading-state";
-import { Icon, useTossConfirm } from "@/components/admin-toss";
+import { Empty, useTossConfirm } from "@/components/admin-toss";
 
 type Admin = {
   id: string;
@@ -125,12 +125,11 @@ export default function TournamentAdminsPage() {
 
       {/* 관리자 목록 */}
       {admins.length === 0 ? (
-        <div className="ct-emptybox py-12 text-center text-[var(--ink-mute)]">
-          <div className="mb-2 flex justify-center">
-            <Icon name="users" size={32} />
-          </div>
-          추가된 관리자가 없습니다.
-        </div>
+        <Empty
+          icon="users"
+          title="추가된 관리자가 없습니다"
+          desc="이메일로 운영진을 추가하면 대회 관리 권한을 공유할 수 있습니다."
+        />
       ) : (
         <div className="space-y-2">
           {admins.map((admin) => (
