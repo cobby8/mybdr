@@ -499,17 +499,17 @@ export default function DivisionsSetupPage() {
 
   return (
     // Track B-c — Toss 토큰 적용 루트 opt-in
-    <div data-skin="toss" className="ta-divisions-panel space-y-4">
+    <div data-skin="toss" className="ct-divisions-panel space-y-4">
       {tossConfirm.dialog}
 
       {error && (
-        <div className="ta-division-alert" data-tone="danger">
+        <div className="ct-division-alert" data-tone="danger">
           {error}
         </div>
       )}
 
-      <section className="ta-division-config">
-        <div className="ta-division-config__head">
+      <section className="ct-division-config">
+        <div className="ct-division-config__head">
           <div className="flex min-w-0 gap-3">
             <div className="ct-headicon">
               <Icon name="category" size={18} color="var(--primary)" />
@@ -523,7 +523,7 @@ export default function DivisionsSetupPage() {
               </p>
             </div>
           </div>
-          <div className="ta-division-savebox">
+          <div className="ct-division-savebox">
             <span className="ct-pill" data-tone={selectedDivisionCount > 0 ? "info" : "warn"}>
               선택 {selectedDivisionCount}개
             </span>
@@ -539,7 +539,7 @@ export default function DivisionsSetupPage() {
         </div>
 
         {syncResult && (
-          <div className="ta-division-alert mt-3" data-tone="ok">
+          <div className="ct-division-alert mt-3" data-tone="ok">
             {syncResult}
           </div>
         )}
@@ -549,14 +549,14 @@ export default function DivisionsSetupPage() {
         </p>
 
         {selectedDivisions.length > 0 && (
-          <div className="ta-selected-divisions" aria-label="선택된 종별">
+          <div className="ct-selected-divisions" aria-label="선택된 종별">
             {selectedDivisions.map(({ category, division, divisionIndex }) => (
               <div
                 key={`${category}-${divisionIndex}-${division.name}`}
-                className="ta-selected-division"
+                className="ct-selected-division"
               >
-                <span className="ta-selected-division__meta">{displayCategoryName(category)}</span>
-                <span className="ta-selected-division__name">{division.name || "이름 없음"}</span>
+                <span className="ct-selected-division__meta">{displayCategoryName(category)}</span>
+                <span className="ct-selected-division__name">{division.name || "이름 없음"}</span>
                 <button
                   type="button"
                   onClick={() => removeDivision(category, divisionIndex)}
@@ -571,7 +571,7 @@ export default function DivisionsSetupPage() {
           </div>
         )}
 
-        <div className="ta-division-category-grid">
+        <div className="ct-division-category-grid">
           {masterCategories.map((category) => {
             const selected = currentCategories.find(
               (item) => item.category === category.name,
@@ -579,7 +579,7 @@ export default function DivisionsSetupPage() {
             return (
               <div
                 key={category.id}
-                className="ta-division-category"
+                className="ct-division-category"
               >
                 <div className="flex items-center justify-between gap-3">
                   <h3 className="font-semibold text-[var(--ink)]">
@@ -609,7 +609,7 @@ export default function DivisionsSetupPage() {
                 </div>
 
                 {selected && selected.divisions.length > 0 && (
-                  <div className="ta-division-editor">
+                  <div className="ct-division-editor">
                     {selected.divisions.map((division, divisionIndex) => {
                       const schedule = getDivisionSchedule(division.name);
                       const selectedDate = scheduleDates.find(
@@ -625,7 +625,7 @@ export default function DivisionsSetupPage() {
                       return (
                         <div
                           key={`${category.name}-${divisionIndex}`}
-                          className="ta-division-row"
+                          className="ct-division-row"
                         >
                           <input
                             type="text"
@@ -708,7 +708,7 @@ export default function DivisionsSetupPage() {
                           <button
                             type="button"
                             onClick={() => removeDivision(category.name, divisionIndex)}
-                            className="ts-btn ts-btn--secondary ts-btn--sm ta-division-delete"
+                            className="ts-btn ts-btn--secondary ts-btn--sm ct-division-delete"
                             aria-label={`${division.name || "디비전"} 삭제`}
                             title="삭제"
                           >
@@ -743,17 +743,17 @@ export default function DivisionsSetupPage() {
             </div>
         </div>
       ) : (
-        <div className="ta-division-rule-grid">
+        <div className="ct-division-rule-grid">
           {rules.map((r) => (
-            <article key={r.id} className="ta-division-rule-card">
-              <div className="ta-division-rule-card__head">
+            <article key={r.id} className="ct-division-rule-card">
+              <div className="ct-division-rule-card__head">
                 <div>
                   {/*
                     2026-05-28 PR-1C-12 박제 — 시안 adv-card__head (code 모노 칩 + 종별명).
                     사유: 운영 평면 "code (label)" → 시안의 code 모노 칩(blue-soft 배경) + 라벨로 시각 강화.
                   */}
                   <p className="flex items-center gap-2 font-semibold text-[var(--ink)]">
-                    <span className="ta-rule-code">
+                    <span className="ct-rule-code">
                       {r.code}
                     </span>
                     {r.label}
@@ -777,11 +777,11 @@ export default function DivisionsSetupPage() {
                     );
                     return (
                       <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-                        <span className="ta-rule-meta">
+                        <span className="ct-rule-meta">
                           <Icon name="calendar" size={12} />
                           {dateLabel ?? "–"}
                         </span>
-                        <span className="ta-rule-meta">
+                        <span className="ct-rule-meta">
                           <Icon name="map-pin" size={12} />
                           {courtLabel ?? "–"}
                         </span>
@@ -789,7 +789,7 @@ export default function DivisionsSetupPage() {
                     );
                   })()}
                 </div>
-                <div className="ta-division-rule-card__actions">
+                <div className="ct-division-rule-card__actions">
                   <label className="text-xs text-[var(--ink-mute)]">진행 방식:</label>
                   <select
                     value={r.format ?? ""}
@@ -825,7 +825,7 @@ export default function DivisionsSetupPage() {
               )}
 
               {/* 2026-05-12 Phase 3.5-C — 진출 매핑 수동 실행 */}
-              <div className="ta-division-rule-card__foot">
+              <div className="ct-division-rule-card__foot">
                 <p className="text-xs text-[var(--ink-mute)]">
                   예선 순위 기준 순위전 자동 매핑
                 </p>
@@ -841,7 +841,7 @@ export default function DivisionsSetupPage() {
 
               {/* 매핑 결과 — 해당 종별만 표시 */}
               {advanceResult && advanceResult.code === r.code && (
-                <div className="ta-division-alert mt-2" data-tone="ok">
+                <div className="ct-division-alert mt-2" data-tone="ok">
                   매핑 완료 · 갱신 {advanceResult.updated}건 · 제외 {advanceResult.skipped}건
                 </div>
               )}

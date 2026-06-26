@@ -1412,7 +1412,7 @@ export default function MatchesClient() {
 
             return (
               <div key={String(roundKey ?? "none")}>
-                <h2 className="ta-panel-title">
+                <h2 className="amt-panel-title">
                   {roundLabel}
                 </h2>
                 <div className="space-y-2 md:hidden">

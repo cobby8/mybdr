@@ -709,8 +709,8 @@ export default function BracketPanel(_props: { showNextStepCTA?: boolean } = {})
   return (
     <div data-skin="toss" className="bk-operate">
       {tossConfirm.dialog}
-      {error && <div className="ta-bracket-alert" data-tone="danger">{error}</div>}
-      {notice && <div className="ta-bracket-alert" data-tone="ok">{notice}</div>}
+      {error && <div className="bk-alert" data-tone="danger">{error}</div>}
+      {notice && <div className="bk-alert" data-tone="ok">{notice}</div>}
 
       <DivisionTabs
         rules={rules}
