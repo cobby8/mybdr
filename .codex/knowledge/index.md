@@ -1,5 +1,6 @@
 # Knowledge Index
 
+- 2026-06-26 admin: organization members page now uses v2.41 Toss `ts-ph`, `ad-panel`, `ad-listrow`, `ts-badge`, and lucide `Icon` wrappers.
 - 2026-06-26 admin: series hard-delete confirmation now uses v2.41 Toss `Icon`, `ts-modal`, `ts-input`, and `ts-btn--danger`.
 - 2026-06-26 admin: tournament-admin series creation wizard now uses v2.41 Toss `ts-ph`, `ts-steps`, `ad-panel`, form controls, and lucide `Icon` wrappers.
 - 2026-06-26 admin: tournament-admin organization creation form now uses v2.41 Toss `ts-ph`, `ad-panel`, `ts-input`, `ts-select`, and lucide `Icon` wrappers.
@@ -28,6 +29,7 @@ Updated: 2026-06-26
 | lessons.md | 0 | - |
 
 Recent work:
+- 2026-06-26 admin: organization members page was rebuilt on v2.41 Toss invite/list patterns while preserving member invite and delete API flows.
 - 2026-06-26 admin: series hard-delete button and confirmation modal were rebuilt on v2.41 Toss modal/danger-button patterns while preserving the DELETE API flow.
 - 2026-06-26 admin: tournament-admin series creation wizard was rebuilt on v2.41 Toss stepper/form structures while preserving organization fetch and `/api/web/series` payload.
 - 2026-06-26 admin: tournament-admin organization creation form was rebuilt on v2.41 Toss form controls while preserving `/api/web/organizations` payload fields.
