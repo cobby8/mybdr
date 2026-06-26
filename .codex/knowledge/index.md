@@ -1,5 +1,6 @@
 # Knowledge Index
 
+- 2026-06-26 admin: tournament-admin series creation wizard now uses v2.41 Toss `ts-ph`, `ts-steps`, `ad-panel`, form controls, and lucide `Icon` wrappers.
 - 2026-06-26 admin: tournament-admin organization creation form now uses v2.41 Toss `ts-ph`, `ad-panel`, `ts-input`, `ts-select`, and lucide `Icon` wrappers.
 - 2026-06-26 admin: tournament-admin series detail now uses v2.41 `ts-ph`, `ad-kpi-*`, and static `ad-table` edition rows.
 - 2026-06-26 admin: tournament-admin series list now uses v2.41 `ts-ph` and static `ad-tablescroll`/`ad-table` server markup.
@@ -26,6 +27,7 @@ Updated: 2026-06-26
 | lessons.md | 0 | - |
 
 Recent work:
+- 2026-06-26 admin: tournament-admin series creation wizard was rebuilt on v2.41 Toss stepper/form structures while preserving organization fetch and `/api/web/series` payload.
 - 2026-06-26 admin: tournament-admin organization creation form was rebuilt on v2.41 Toss form controls while preserving `/api/web/organizations` payload fields.
 - 2026-06-26 admin: tournament-admin series detail was rebuilt on v2.41 Toss header/KPI/table structures while preserving permission and Prisma lookup logic.
 - 2026-06-26 admin: tournament-admin series list was rebuilt on v2.41 Toss PageHead/table markup without changing the Prisma query.
