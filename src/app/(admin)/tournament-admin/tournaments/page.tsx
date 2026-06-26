@@ -75,7 +75,7 @@ export default async function TournamentAdminTournamentsPage() {
         actions={
           <Link
             href="/tournament-admin/tournaments/new/wizard"
-            className="btn btn--primary"
+            className="ts-btn ts-btn--primary"
             style={{ textDecoration: "none" }}
           >
             + 새 대회 만들기

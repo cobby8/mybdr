@@ -398,7 +398,7 @@ export default function NewSeriesPage() {
 
         {/* 공통 에러 표시 */}
         {error && (
-          <p className="mt-5 rounded-[12px] bg-[rgba(239,68,68,0.1)] px-4 py-3 text-sm text-[var(--color-error)]">
+          <p className="mt-5 rounded-[12px] bg-[color-mix(in_srgb,var(--color-error)_10%,transparent)] px-4 py-3 text-sm text-[var(--color-error)]">
             {error}
           </p>
         )}
