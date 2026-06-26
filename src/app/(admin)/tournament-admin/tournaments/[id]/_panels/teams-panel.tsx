@@ -466,10 +466,10 @@ export default function TournamentTeamsPage() {
         await load(); // 팀 목록도 새로고침 (선수 수 반영)
       } else {
         const err = await res.json();
-        alert(err.error ?? "선수 추가에 실패했습니다.");
+        showToast(err.error ?? "선수 추가에 실패했습니다.");
       }
     } catch {
-      alert("선수 추가에 실패했습니다.");
+      showToast("선수 추가에 실패했습니다.");
     } finally {
       setAddLoading(false);
     }
