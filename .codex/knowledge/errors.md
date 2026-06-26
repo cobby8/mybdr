@@ -1,5 +1,12 @@
 # Errors
 
+## 2026-06-26 Missing Primary Contrast Token
+
+- Symptom: Red primary buttons could render black text/icons when components used `var(--color-on-primary)`.
+- Cause: Several components referenced `--color-on-primary`, but the global theme alias layer only defined `--color-on-text-primary` and `--color-on-accent`.
+- Fix: Define `--color-on-primary: #ffffff` in both light and dark theme alias blocks.
+- Prevention: When introducing `--color-on-*` usages, confirm the alias exists in `src/app/globals.css` for every theme block.
+
 ## 2026-06-26 Next Validator Stale Route Cache
 
 - Symptom: `.\node_modules\.bin\tsc.cmd --noEmit --incremental false` failed in `.next/dev/types/validator.ts` and `.next/types/validator.ts`, pointing to deleted tournament-admin route files.

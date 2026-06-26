@@ -1,5 +1,6 @@
 # Knowledge Index
 
+- 2026-06-26 theme: `--color-on-primary` is defined as white so red primary buttons do not inherit black text.
 - 2026-06-26 live: box score now has a per-team `기본/고급` toggle, advanced-stat help, and game-wide PIE denominator wiring.
 - 2026-06-26 tournament-admin: match-level manual recording mode is now a real non-record-system mode instead of Flutter fallback.
 - 2026-06-26 record-app: separated game-rule time presets from nonstop/all-dead clock mode.
@@ -11,10 +12,11 @@ Updated: 2026-06-26
 | architecture.md | 3 | Customer signal reporting |
 | conventions.md | 2 | 대회 포맷 표준 |
 | decisions.md | 7 | Manual recording mode contract |
-| errors.md | 4 | Next validator stale route cache |
+| errors.md | 5 | Missing primary contrast token |
 | lessons.md | 0 | - |
 
 Recent work:
+- 2026-06-26 theme: added the missing `--color-on-primary` alias used by primary buttons.
 - 2026-06-26 live: box score tables now switch between basic and advanced stats, with one help popover per team table and PIE calculated against both teams.
 - 2026-06-26 tournament-admin: `game_time`/`game_method` are derived from canonical `game_rules`, and match-level manual recording mode is counted and blocked from Flutter/score-sheet system inputs.
 - 2026-06-26 tournament-admin: selected division rows now support inline rename/delete and validate empty/duplicate names before sync.
