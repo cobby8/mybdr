@@ -14,6 +14,7 @@
  */
 
 import type { AssociationWizardDraft } from "@/lib/tournaments/association-wizard-types";
+import { Icon } from "@/components/admin-toss";
 import {
   ASSOCIATION_ADMIN_ROLE_OPTIONS,
   ASSOCIATION_LEVEL_OPTIONS,
@@ -64,9 +65,7 @@ export function WizardConfirm({ draft }: WizardConfirmProps) {
   return (
     <div className="space-y-5">
       <h2 className="flex items-center gap-2 text-base font-bold text-[var(--color-text-primary)]">
-        <span className="material-symbols-outlined text-lg text-[var(--color-info)]">
-          check_circle
-        </span>
+        <Icon name="check_circle" size={18} color="var(--color-info)" />
         확인 및 생성
       </h2>
 
@@ -78,9 +77,7 @@ export function WizardConfirm({ draft }: WizardConfirmProps) {
       {/* === Step 1: 협회 정보 === */}
       <section className="rounded-md border border-[var(--color-border)] bg-[var(--color-elevated)] p-4">
         <h3 className="mb-2 flex items-center gap-1.5 text-sm font-bold text-[var(--color-text-primary)]">
-          <span className="material-symbols-outlined text-base text-[var(--color-info)]">
-            domain
-          </span>
+          <Icon name="domain" size={16} color="var(--color-info)" />
           협회 정보
         </h3>
         <Row label="이름" value={draft.association.name} />
@@ -95,9 +92,7 @@ export function WizardConfirm({ draft }: WizardConfirmProps) {
       {/* === Step 2: 사무국장 === */}
       <section className="rounded-md border border-[var(--color-border)] bg-[var(--color-elevated)] p-4">
         <h3 className="mb-2 flex items-center gap-1.5 text-sm font-bold text-[var(--color-text-primary)]">
-          <span className="material-symbols-outlined text-base text-[var(--color-info)]">
-            person_add
-          </span>
+          <Icon name="person_add" size={16} color="var(--color-info)" />
           사무국장
         </h3>
         <Row label="회원" value={draft.admin.user_label} />
@@ -107,9 +102,7 @@ export function WizardConfirm({ draft }: WizardConfirmProps) {
       {/* === Step 3: 단가표 === */}
       <section className="rounded-md border border-[var(--color-border)] bg-[var(--color-elevated)] p-4">
         <h3 className="mb-2 flex items-center gap-1.5 text-sm font-bold text-[var(--color-text-primary)]">
-          <span className="material-symbols-outlined text-base text-[var(--color-info)]">
-            payments
-          </span>
+          <Icon name="payments" size={16} color="var(--color-info)" />
           배정비 단가
         </h3>
         <Row label="주심" value={formatKRW(draft.fee_setting.main_fee)} />
@@ -124,9 +117,7 @@ export function WizardConfirm({ draft }: WizardConfirmProps) {
       {/* === Step 4: 심판 사전 등록 (옵션) === PR3 추가 */}
       <section className="rounded-md border border-[var(--color-border)] bg-[var(--color-elevated)] p-4">
         <h3 className="mb-2 flex items-center gap-1.5 text-sm font-bold text-[var(--color-text-primary)]">
-          <span className="material-symbols-outlined text-base text-[var(--color-info)]">
-            sports
-          </span>
+          <Icon name="sports" size={16} color="var(--color-info)" />
           심판 사전 등록
           <span className="ml-1 text-xs font-normal text-[var(--color-text-muted)]">
             ({draft.referees.length}건)
@@ -170,9 +161,7 @@ export function WizardConfirm({ draft }: WizardConfirmProps) {
       {/* 안내 — 생성 후 흐름 */}
       <div className="rounded-md border border-[var(--color-border)] bg-[var(--color-elevated)] p-3 text-xs text-[var(--color-text-muted)]">
         <p className="flex items-start gap-1.5">
-          <span className="material-symbols-outlined text-base text-[var(--color-info)]">
-            info
-          </span>
+          <Icon name="info" size={16} color="var(--color-info)" />
           <span>
             생성 버튼을 누르면 협회 본체 → 사무국장 → 단가표
             {draft.referees.length > 0 ? " → 심판 사전 등록" : ""} 순으로

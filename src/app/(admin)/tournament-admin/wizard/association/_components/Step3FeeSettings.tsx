@@ -14,6 +14,7 @@
  */
 
 import type { AssociationStep3Data } from "@/lib/tournaments/association-wizard-types";
+import { Icon } from "@/components/admin-toss";
 
 export interface Step3FeeSettingsProps {
   data: AssociationStep3Data;
@@ -71,9 +72,7 @@ export function Step3FeeSettings({ data, onChange }: Step3FeeSettingsProps) {
   return (
     <div className="space-y-4">
       <h2 className="flex items-center gap-2 text-base font-bold text-[var(--color-text-primary)]">
-        <span className="material-symbols-outlined text-lg text-[var(--color-info)]">
-          payments
-        </span>
+        <Icon name="payments" size={18} color="var(--color-info)" />
         배정비 단가
       </h2>
 
@@ -85,9 +84,7 @@ export function Step3FeeSettings({ data, onChange }: Step3FeeSettingsProps) {
         {FEE_FIELDS.map((field) => (
           <div key={field.key}>
             <label className={`${labelCls} flex items-center gap-1.5`}>
-              <span className="material-symbols-outlined text-base text-[var(--color-info)]">
-                {field.icon}
-              </span>
+              <Icon name={field.icon} size={16} color="var(--color-info)" />
               {field.label}
             </label>
             <input
@@ -110,9 +107,7 @@ export function Step3FeeSettings({ data, onChange }: Step3FeeSettingsProps) {
       {/* 안내 — 후속 grid 형식 박제 */}
       <div className="rounded-md border border-[var(--color-border)] bg-[var(--color-elevated)] p-3 text-xs text-[var(--color-text-muted)]">
         <p className="flex items-start gap-1.5">
-          <span className="material-symbols-outlined text-base text-[var(--color-info)]">
-            info
-          </span>
+          <Icon name="info" size={16} color="var(--color-info)" />
           <span>
             종별·등급·시간별 세부 단가표는 추후 별도 화면에서 등록 예정입니다.
             여기서는 협회 기본 단가만 박제합니다.

@@ -21,6 +21,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import MoveSeriesModal from "./MoveSeriesModal";
+import { Icon } from "@/components/admin-toss";
 
 interface Props {
   /** 시리즈 ID — PATCH 대상 */
@@ -137,7 +138,7 @@ export default function SeriesActionsMenu({
           // 44px 터치 영역 + 시리즈 카드 hover 영향 최소화 (border 없이 hover bg 만)
           className="flex h-11 w-11 items-center justify-center rounded text-[var(--color-text-muted)] hover:bg-[var(--color-border)]"
         >
-          <span className="material-symbols-outlined">more_vert</span>
+          <Icon name="more_vert" size={20} />
         </button>
 
         {/* dropdown — 절대 위치 / 우측 정렬 / 카드 우측 끝에 정렬 */}
@@ -154,9 +155,7 @@ export default function SeriesActionsMenu({
               // 44px 미만 (메뉴 항목은 38px+) — 메뉴 컨텍스트는 터치 룰 예외 (행 단위 컴팩트)
               className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm text-[var(--color-text-primary)] hover:bg-[var(--color-bg)]"
             >
-              <span className="material-symbols-outlined text-base text-[var(--color-text-muted)]">
-                link_off
-              </span>
+              <Icon name="link_off" size={16} color="var(--color-text-muted)" />
               단체에서 분리
             </button>
             <button
@@ -165,9 +164,7 @@ export default function SeriesActionsMenu({
               onClick={handleMoveClick}
               className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm text-[var(--color-text-primary)] hover:bg-[var(--color-bg)]"
             >
-              <span className="material-symbols-outlined text-base text-[var(--color-text-muted)]">
-                swap_horiz
-              </span>
+              <Icon name="swap_horiz" size={16} color="var(--color-text-muted)" />
               다른 단체로 이동
             </button>
           </div>
@@ -185,9 +182,7 @@ export default function SeriesActionsMenu({
             onClick={(e) => e.stopPropagation()}
           >
             <h3 className="mb-3 flex items-center gap-2 text-base font-bold text-[var(--color-text-primary)]">
-              <span className="material-symbols-outlined text-lg text-[var(--color-info)]">
-                info
-              </span>
+              <Icon name="info" size={18} color="var(--color-info)" />
               단체에서 분리
             </h3>
             <p className="mb-5 text-sm leading-relaxed text-[var(--color-text-secondary)]">

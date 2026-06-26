@@ -1,3 +1,5 @@
+import { Icon } from "@/components/admin-toss";
+
 /* ============================================================
  * SiteOperatorBadge — super-admin "Site Operator" 뱃지 (8C-6 박제 2026-06-07)
  *
@@ -30,9 +32,7 @@ export function SiteOperatorBadge() {
       }}
     >
       {/* gold 아이콘 (#F4C76C) — Site Operator 측 구분 색 */}
-      <span className="material-symbols-outlined text-[13px]" style={{ color: "#F4C76C" }}>
-        verified_user
-      </span>
+      <Icon name="verified_user" size={13} color="#F4C76C" />
       Site Operator
     </span>
   );

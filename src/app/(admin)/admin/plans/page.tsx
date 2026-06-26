@@ -18,9 +18,8 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
 // Toss Phase 2 2B — lucide 키트 Icon (Material Symbols 교체)
-import { Icon } from "@/components/admin-toss";
+import { Btn, Icon } from "@/components/admin-toss";
 import { PageHead, StatRow, StatusBadge } from "@/components/admin/console-kit";
 
 // (web) 시안 카드 패턴
@@ -186,7 +185,7 @@ export default function AdminPlansPage() {
               <Icon name="credit-card" size={16} />
               결제 내역
             </Link>
-            <Button onClick={openCreate}>+ 요금제 추가</Button>
+            <Btn onClick={openCreate} icon="plus">요금제 추가</Btn>
           </>
         }
       />
@@ -403,9 +402,9 @@ export default function AdminPlansPage() {
             </div>
 
             <div className="mt-6 flex gap-3">
-              <Button onClick={handleSave} disabled={saving} className="flex-1">
+              <Btn onClick={handleSave} disabled={saving} block>
                 {saving ? "저장 중..." : "저장"}
-              </Button>
+              </Btn>
               <button
                 onClick={() => setShowModal(false)}
                 className="flex-1 rounded-[12px] border border-[var(--color-border)] py-2 text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"

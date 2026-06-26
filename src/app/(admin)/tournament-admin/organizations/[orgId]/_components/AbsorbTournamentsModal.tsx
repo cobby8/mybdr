@@ -18,6 +18,7 @@
  */
 
 import { useEffect, useState, useCallback } from "react";
+import { Icon } from "@/components/admin-toss";
 
 interface UnlinkedTournament {
   id: string;
@@ -213,9 +214,7 @@ export default function AbsorbTournamentsModal({
           {/* 헤더 */}
           <div className="flex items-center justify-between border-b border-[var(--color-border)] px-5 py-4">
             <h3 className="flex items-center gap-2 text-base font-bold text-[var(--color-text-primary)]">
-              <span className="material-symbols-outlined text-lg text-[var(--color-info)]">
-                folder_managed
-              </span>
+              <Icon name="folder_managed" size={18} color="var(--color-info)" />
               기존 대회 가져오기
             </h3>
             <button
@@ -224,7 +223,7 @@ export default function AbsorbTournamentsModal({
               className="flex h-11 w-11 items-center justify-center rounded text-[var(--color-text-muted)] hover:bg-[var(--color-border)]"
               aria-label="닫기"
             >
-              <span className="material-symbols-outlined">close</span>
+              <Icon name="close" size={20} />
             </button>
           </div>
 
@@ -252,9 +251,7 @@ export default function AbsorbTournamentsModal({
             )}
             {!loading && !error && totalCount === 0 && (
               <div className="py-8 text-center">
-                <span className="material-symbols-outlined mb-2 block text-3xl text-[var(--color-text-muted)]">
-                  inbox
-                </span>
+                <Icon name="inbox" size={30} color="var(--color-text-muted)" />
                 <p className="text-sm text-[var(--color-text-muted)]">
                   현재 미연결 대회가 없습니다.
                 </p>
@@ -328,9 +325,12 @@ export default function AbsorbTournamentsModal({
           {/* 결과 메시지 (흡수 성공 후 1.5초 표시) */}
           {resultMessage && (
             <div className="border-t border-[var(--color-border)] bg-[var(--color-bg)] px-5 py-3 text-sm text-[var(--color-success,#0a8754)]">
-              <span className="material-symbols-outlined mr-1 align-middle text-base">
-                check_circle
-              </span>
+              <Icon
+                name="check_circle"
+                size={16}
+                color="var(--color-success,#0a8754)"
+                style={{ display: "inline-flex", verticalAlign: "-2px", marginRight: 4 }}
+              />
               {resultMessage}
             </div>
           )}
@@ -370,9 +370,7 @@ export default function AbsorbTournamentsModal({
             onClick={(e) => e.stopPropagation()}
           >
             <h3 className="mb-3 flex items-center gap-2 text-base font-bold text-[var(--color-text-primary)]">
-              <span className="material-symbols-outlined text-lg text-[var(--color-accent)]">
-                info
-              </span>
+              <Icon name="info" size={18} color="var(--color-accent)" />
               흡수 확인
             </h3>
             <p className="mb-5 text-sm leading-relaxed text-[var(--color-text-secondary)]">

@@ -23,6 +23,7 @@
 
 import Link from "next/link";
 import { prisma } from "@/lib/db/prisma";
+import { Icon } from "@/components/admin-toss";
 
 // 분류별 한국어 label + tone (admin-stat-pill 패턴 답습)
 const MISMATCH_LABELS: Record<string, { label: string; tone: "err" | "warn" | "info" }> = {
@@ -68,12 +69,7 @@ export async function ScoreConsistencyAlertCard() {
       }}
     >
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-        <span
-          className="material-symbols-outlined"
-          style={{ color: "var(--color-primary)", fontSize: 20 }}
-        >
-          warning
-        </span>
+        <Icon name="warning" size={20} color="var(--color-primary)" />
         <h3
           style={{
             fontSize: 13,

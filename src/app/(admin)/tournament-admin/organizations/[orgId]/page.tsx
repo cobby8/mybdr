@@ -459,9 +459,7 @@ export default function OrganizationDashboardPage() {
                 onClick={openEditModal}
                 className="ts-btn ts-btn--secondary ts-btn--sm"
               >
-                <span className="material-symbols-outlined mr-0.5 text-sm align-middle">
-                  edit
-                </span>
+                <Icon name="edit" size={14} style={{ display: "inline-flex", verticalAlign: "-2px", marginRight: 2 }} />
                 편집
               </button>
             )}
@@ -540,9 +538,7 @@ export default function OrganizationDashboardPage() {
           {isOwner && (
             <div className="ts-card">
               <h3 className="mb-2 flex items-center gap-1.5 text-sm font-bold text-[var(--color-text-primary)]">
-                <span className="material-symbols-outlined text-base text-[var(--color-text-muted)]">
-                  warning
-                </span>
+                <Icon name="warning" size={16} color="var(--color-text-muted)" />
                 위험 영역 — 소유자 전용
               </h3>
               <p className="mb-3 text-xs leading-relaxed text-[var(--color-text-muted)]">
@@ -573,9 +569,7 @@ export default function OrganizationDashboardPage() {
                 href={`/tournament-admin/organizations/${orgId}/members`}
                 className="ts-btn ts-btn--primary ts-btn--sm"
               >
-                <span className="material-symbols-outlined mr-0.5 text-sm align-middle">
-                  manage_accounts
-                </span>
+                <Icon name="manage_accounts" size={14} style={{ display: "inline-flex", verticalAlign: "-2px", marginRight: 2 }} />
                 멤버 관리
               </Link>
             )}
@@ -643,9 +637,7 @@ export default function OrganizationDashboardPage() {
                 onClick={() => setShowSeriesForm((v) => !v)}
                 className="ts-btn ts-btn--primary ts-btn--sm"
               >
-                <span className="material-symbols-outlined mr-0.5 text-sm align-middle">
-                  add
-                </span>
+                <Icon name="add" size={14} style={{ display: "inline-flex", verticalAlign: "-2px", marginRight: 2 }} />
                 새 시리즈
               </button>
             )}
@@ -709,9 +701,7 @@ export default function OrganizationDashboardPage() {
                         }}
                         className="flex min-h-[44px] items-center gap-1 rounded-[4px] border border-[var(--color-border)] px-3 py-2 text-xs font-medium text-[var(--color-text-secondary)] transition-colors hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]"
                       >
-                        <span className="material-symbols-outlined text-sm">
-                          folder_managed
-                        </span>
+                        <Icon name="folder_managed" size={14} />
                         기존 대회 가져오기
                       </button>
                     )}
@@ -728,9 +718,7 @@ export default function OrganizationDashboardPage() {
                       href={`/tournament-admin/series/${s.id}`}
                       aria-label={`${s.name} 상세 진입`}
                     >
-                      <span className="material-symbols-outlined text-[var(--color-text-muted)]">
-                        chevron_right
-                      </span>
+                      <Icon name="chevron_right" size={20} color="var(--color-text-muted)" />
                     </Link>
                   </div>
                 </div>
@@ -754,9 +742,7 @@ export default function OrganizationDashboardPage() {
           </div>
           {/* 안내 — 회차 클릭 시 셋업 hub 진입 */}
           <div className="flex items-start gap-2 rounded-[4px] border border-[var(--color-border)] bg-[var(--color-elevated)] p-3 text-xs leading-relaxed text-[var(--color-text-secondary)]">
-            <span className="material-symbols-outlined flex-shrink-0 text-sm text-[var(--color-info)]">
-              info
-            </span>
+            <Icon name="info" size={14} color="var(--color-info)" style={{ flexShrink: 0 }} />
             <div>
               모든 시리즈의 회차를 통합해 보여줍니다. 회차를 클릭하면{" "}
               <b>대회 셋업 페이지</b>로 이동합니다. 시리즈별 상세 보기는 시리즈
@@ -803,9 +789,7 @@ export default function OrganizationDashboardPage() {
                       {e.maxTeams && ` · 최대 ${e.maxTeams}팀`}
                     </p>
                   </div>
-                  <span className="material-symbols-outlined text-[var(--color-text-muted)]">
-                    chevron_right
-                  </span>
+                  <Icon name="chevron_right" size={20} color="var(--color-text-muted)" />
                 </Link>
               ))}
             </div>
@@ -831,9 +815,7 @@ export default function OrganizationDashboardPage() {
 
           {/* 권한 안내 박스 (역할별 권한 설명 — 정적 안내) */}
           <div className="flex items-start gap-2 rounded-[4px] border border-[var(--color-border)] bg-[var(--color-elevated)] p-3 text-xs leading-relaxed text-[var(--color-text-secondary)]">
-            <span className="material-symbols-outlined flex-shrink-0 text-sm text-[var(--color-info)]">
-              shield
-            </span>
+            <Icon name="shield" size={14} color="var(--color-info)" style={{ flexShrink: 0 }} />
             <div>
               <b>소유자</b> = 모든 권한 (단체 보관 / 해산 포함). <b>관리자</b> =
               시리즈 생성 / 멤버 초대 / 회차 추가. <b>멤버</b> = 읽기 전용.
@@ -886,9 +868,7 @@ export default function OrganizationDashboardPage() {
           </h2>
           {/* ORG_ACTIVITY_LOG 테이블 없음 + admin_logs(organization) 0건 → 빈 상태 (mock 금지) */}
           <div className="ts-card py-12 text-center">
-            <span className="material-symbols-outlined mb-2 text-4xl text-[var(--color-text-muted)]">
-              history
-            </span>
+            <Icon name="history" size={40} color="var(--color-text-muted)" />
             <p className="text-sm text-[var(--color-text-primary)]">
               활동 이력 기능 준비 중
             </p>
@@ -927,7 +907,7 @@ export default function OrganizationDashboardPage() {
               className="absolute right-3 top-3 rounded-[4px] p-2 text-[var(--color-text-muted)] hover:bg-[var(--color-elevated)]"
               aria-label="닫기"
             >
-              <span className="material-symbols-outlined">close</span>
+              <Icon name="close" size={20} />
             </button>
             <h3 className="mb-4 text-base font-bold text-[var(--color-text-primary)]">
               단체 정보 편집

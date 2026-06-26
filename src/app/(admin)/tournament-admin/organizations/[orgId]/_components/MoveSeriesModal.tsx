@@ -17,6 +17,7 @@
  */
 
 import { useEffect, useState, useCallback } from "react";
+import { Icon } from "@/components/admin-toss";
 
 interface MyOrganization {
   id: string;
@@ -186,9 +187,7 @@ export default function MoveSeriesModal({
           {/* 헤더 */}
           <div className="flex items-center justify-between border-b border-[var(--color-border)] px-5 py-4">
             <h3 className="flex items-center gap-2 text-base font-bold text-[var(--color-text-primary)]">
-              <span className="material-symbols-outlined text-lg text-[var(--color-info)]">
-                swap_horiz
-              </span>
+              <Icon name="swap_horiz" size={18} color="var(--color-info)" />
               다른 단체로 이동
             </h3>
             <button
@@ -197,7 +196,7 @@ export default function MoveSeriesModal({
               className="flex h-11 w-11 items-center justify-center rounded text-[var(--color-text-muted)] hover:bg-[var(--color-border)]"
               aria-label="닫기"
             >
-              <span className="material-symbols-outlined">close</span>
+              <Icon name="close" size={20} />
             </button>
           </div>
 
@@ -225,9 +224,7 @@ export default function MoveSeriesModal({
             )}
             {!loading && !error && orgs.length === 0 && (
               <div className="py-8 text-center">
-                <span className="material-symbols-outlined mb-2 block text-3xl text-[var(--color-text-muted)]">
-                  inbox
-                </span>
+                <Icon name="inbox" size={30} color="var(--color-text-muted)" />
                 <p className="text-sm text-[var(--color-text-muted)]">
                   이동 가능한 다른 단체가 없습니다.
                 </p>
@@ -278,9 +275,12 @@ export default function MoveSeriesModal({
           {/* 결과 메시지 */}
           {resultMessage && (
             <div className="border-t border-[var(--color-border)] bg-[var(--color-bg)] px-5 py-3 text-sm text-[var(--color-success,#0a8754)]">
-              <span className="material-symbols-outlined mr-1 align-middle text-base">
-                check_circle
-              </span>
+              <Icon
+                name="check_circle"
+                size={16}
+                color="var(--color-success,#0a8754)"
+                style={{ display: "inline-flex", verticalAlign: "-2px", marginRight: 4 }}
+              />
               {resultMessage}
             </div>
           )}
@@ -318,9 +318,7 @@ export default function MoveSeriesModal({
             onClick={(e) => e.stopPropagation()}
           >
             <h3 className="mb-3 flex items-center gap-2 text-base font-bold text-[var(--color-text-primary)]">
-              <span className="material-symbols-outlined text-lg text-[var(--color-info)]">
-                info
-              </span>
+              <Icon name="info" size={18} color="var(--color-info)" />
               이동 확인
             </h3>
             <p className="mb-5 text-sm leading-relaxed text-[var(--color-text-secondary)]">

@@ -1,5 +1,7 @@
 # Knowledge Index
 
+- 2026-06-27 admin: admin-scope Toss cleanup now scans clean for `material-symbols-outlined`, `components/ui`, `ta-*`, and `au-*`; legacy Material icon names are mapped through the lucide-based admin Toss `Icon` alias table.
+
 - 2026-06-27 admin: 2-group/3-qualifier group-stage knockout brackets now use cross-seeded first-round matches and bye-aware preview counts, so the operate bracket displays `본선 5경기` instead of counting bye advancement as played games.
 
 - 2026-06-27 recording: `recording_mode="paper"` remains the internal compatibility value, but user-facing/admin copy now calls it "전자기록지"; existing `paper-*` IDs and `[종이 기록]` PBP descriptions stay unchanged.
@@ -60,6 +62,7 @@ Updated: 2026-06-27
 | lessons.md | 0 | - |
 
 Recent work:
+- 2026-06-27 admin: admin-scope Material Symbols and `components/ui` dependencies were removed; icons now route through admin Toss lucide aliases, loading skeletons use Toss `st-skel`, and local Chrome verified `/admin/tournaments` plus operate workspace with no `material-symbols-outlined`/`au-*`/`ta-*` DOM residue.
 - 2026-06-27 admin: 2-group/3-qualifier group-stage knockout seeding now crosses groups in the first round, propagates bye slots without fake games in the operate preview, and shows `본선 5경기`; local Chrome, Vitest, TypeScript, and diff check passed.
 - 2026-06-27 recording: Gangnam Association Cup D5 was switched to electronic score-sheet mode for the tournament default and all 13 matches; visible "종이 기록지" copy was renamed to "전자기록지" while compatibility data keys were preserved.
 - 2026-06-26 admin: tournament operation entry was split so `/tournament-admin/tournaments/[id]` renders the Toss 6-menu operate workspace and `/edit` retains the setup/edit form workspace.

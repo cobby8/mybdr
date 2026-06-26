@@ -15,6 +15,7 @@
 
 import type { AssociationStep1Data } from "@/lib/tournaments/association-wizard-types";
 import { ASSOCIATION_LEVEL_OPTIONS } from "@/lib/tournaments/association-wizard-constants";
+import { Icon } from "@/components/admin-toss";
 
 export interface Step1AssociationFormProps {
   data: AssociationStep1Data;
@@ -44,9 +45,7 @@ export function Step1AssociationForm({
   return (
     <div className="space-y-4">
       <h2 className="flex items-center gap-2 text-base font-bold text-[var(--color-text-primary)]">
-        <span className="material-symbols-outlined text-lg text-[var(--color-info)]">
-          domain
-        </span>
+        <Icon name="domain" size={18} color="var(--color-info)" />
         협회 정보
       </h2>
 

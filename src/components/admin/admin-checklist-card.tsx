@@ -31,6 +31,7 @@
  * ============================================================ */
 
 import { useState } from "react";
+import { Icon } from "@/components/admin-toss";
 
 type ChecklistStatus = "done" | "progress" | "idle" | "locked";
 
@@ -154,13 +155,7 @@ export function AdminChecklistCard({
         >
           {num}
         </span>
-        <span
-          className="material-symbols-outlined"
-          style={{ fontSize: 16, color: cfg.iconColor }}
-          aria-hidden="true"
-        >
-          {icon}
-        </span>
+        <Icon name={icon} size={16} color={cfg.iconColor} />
         <span
           style={{
             fontWeight: 600,
@@ -184,13 +179,12 @@ export function AdminChecklistCard({
             *
           </span>
         )}
-        <span
-          className="material-symbols-outlined"
-          style={{ fontSize: 18, color: cfg.iconColor, flexShrink: 0 }}
-          aria-hidden="true"
-        >
-          {cfg.statusIcon}
-        </span>
+        <Icon
+          name={cfg.statusIcon}
+          size={18}
+          color={cfg.iconColor}
+          style={{ flexShrink: 0 }}
+        />
       </header>
       {/* 설명 */}
       <div style={{ fontSize: 11.5, color: "var(--ink-mute)", lineHeight: 1.5 }}>{desc}</div>
@@ -204,13 +198,12 @@ export function AdminChecklistCard({
             marginTop: 2,
           }}
         >
-          <span
-            className="material-symbols-outlined"
-            style={{ fontSize: 11, verticalAlign: "-2px", marginRight: 3 }}
-            aria-hidden="true"
-          >
-            lock
-          </span>
+          <Icon
+            name="lock"
+            size={11}
+            color="var(--ink-dim)"
+            style={{ display: "inline-flex", verticalAlign: "-2px", marginRight: 3 }}
+          />
           {lockedReason}
         </div>
       )}
@@ -238,13 +231,7 @@ export function AdminChecklistCard({
           {cfg.statusLabel}
         </span>
         {clickable && (
-          <span
-            className="material-symbols-outlined"
-            style={{ fontSize: 16, color: "var(--ink-mute)" }}
-            aria-hidden="true"
-          >
-            chevron_right
-          </span>
+          <Icon name="chevron_right" size={16} color="var(--ink-mute)" />
         )}
       </div>
     </button>

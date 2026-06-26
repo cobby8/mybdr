@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, type ReactNode } from "react";
+import { Icon } from "@/components/admin-toss";
 
 // 관리자 상세 모달 — 화면 중앙에 플로팅되는 모달
 // 행 클릭 시 상세 정보를 보여주는 공통 컴포넌트
@@ -68,7 +69,7 @@ export function AdminDetailModal({
             aria-label="닫기"
             className="flex h-9 w-9 sm:h-8 sm:w-8 items-center justify-center rounded-lg text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-elevated)] hover:text-[var(--color-text-primary)]"
           >
-            <span className="material-symbols-outlined text-xl">close</span>
+            <Icon name="x" size={20} />
           </button>
         </div>
 

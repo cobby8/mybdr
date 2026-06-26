@@ -20,6 +20,7 @@ import type {
   AssociationWizardDraft,
   RefereeInput,
 } from "@/lib/tournaments/association-wizard-types";
+import { Icon } from "@/components/admin-toss";
 
 export interface Step4RefereeRegisterProps {
   // 부모 draft 의 referees 만 받음 (Step1~3 와 동일 인터페이스).
@@ -65,9 +66,7 @@ export function Step4RefereeRegister({
   return (
     <div className="space-y-4">
       <h2 className="flex items-center gap-2 text-base font-bold text-[var(--color-text-primary)]">
-        <span className="material-symbols-outlined text-lg text-[var(--color-info)]">
-          sports
-        </span>
+        <Icon name="sports" size={18} color="var(--color-info)" />
         심판 사전 등록 <span className="text-xs font-normal text-[var(--color-text-muted)]">(선택)</span>
       </h2>
 
@@ -81,9 +80,7 @@ export function Step4RefereeRegister({
       {data.length === 0 ? (
         // 빈 상태 안내 — skip 가능 강조.
         <div className="rounded-md border border-dashed border-[var(--color-border)] bg-[var(--color-elevated)] p-6 text-center">
-          <span className="material-symbols-outlined text-3xl text-[var(--color-text-muted)]">
-            person_off
-          </span>
+          <Icon name="person_off" size={30} color="var(--color-text-muted)" />
           <p className="mt-2 text-sm text-[var(--color-text-muted)]">
             아직 등록된 심판이 없습니다.
           </p>
@@ -110,9 +107,7 @@ export function Step4RefereeRegister({
                   className="flex items-center gap-1 rounded-[4px] px-2 py-1 text-xs text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-border)] hover:text-[var(--color-error)]"
                   aria-label={`심판 #${index + 1} 삭제`}
                 >
-                  <span className="material-symbols-outlined text-base">
-                    delete
-                  </span>
+                  <Icon name="trash-2" size={16} />
                   삭제
                 </button>
               </div>
@@ -181,16 +176,14 @@ export function Step4RefereeRegister({
         onClick={addRow}
         className="flex w-full items-center justify-center gap-2 rounded-[4px] border border-dashed border-[var(--color-info)]/50 bg-[var(--color-info)]/5 px-4 py-3 text-sm font-bold text-[var(--color-info)] transition-colors hover:bg-[var(--color-info)]/10"
       >
-        <span className="material-symbols-outlined text-base">add</span>
+        <Icon name="add" size={16} />
         심판 추가
       </button>
 
       {/* 안내 — Q7 결재 박제 (1차 미검증) */}
       <div className="rounded-md border border-[var(--color-border)] bg-[var(--color-elevated)] p-3 text-xs text-[var(--color-text-muted)]">
         <p className="flex items-start gap-1.5">
-          <span className="material-symbols-outlined text-base text-[var(--color-info)]">
-            info
-          </span>
+          <Icon name="info" size={16} color="var(--color-info)" />
           <span>
             자격번호는 1차 미검증 박제입니다 (운영자 책임 입력). 추후 협회 API
             연동 또는 OCR 검증 기능이 추가될 예정입니다. 등록하지 않고 진행해도

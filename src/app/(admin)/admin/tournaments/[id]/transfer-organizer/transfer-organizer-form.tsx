@@ -15,6 +15,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { Icon } from "@/components/admin-toss";
 
 type FoundUser = {
   id: string;
@@ -324,7 +325,12 @@ export function TransferOrganizerForm({
             color: "var(--color-success)",
           }}
         >
-          <span className="material-symbols-outlined align-middle mr-1 text-base">check_circle</span>
+          <Icon
+            name="check_circle"
+            size={16}
+            color="var(--color-success)"
+            style={{ display: "inline-flex", verticalAlign: "-2px", marginRight: 4 }}
+          />
           {success}
         </div>
       )}

@@ -24,6 +24,7 @@ import { Step2AdminPicker } from "./_components/Step2AdminPicker";
 import { Step3FeeSettings } from "./_components/Step3FeeSettings";
 import { Step4RefereeRegister } from "./_components/Step4RefereeRegister";
 import { WizardConfirm } from "./_components/WizardConfirm";
+import { Icon } from "@/components/admin-toss";
 import { useAssociationWizardDraft } from "@/lib/tournaments/use-association-wizard-draft";
 import type {
   AssociationCreateResponse,
@@ -300,9 +301,7 @@ export default function AssociationWizardPage() {
     // redirect 진행 중 placeholder — useEffect 가 즉시 push.
     return (
       <div className="flex min-h-[40vh] flex-col items-center justify-center gap-3 text-center">
-        <span className="material-symbols-outlined text-5xl text-[var(--color-text-muted)]">
-          lock
-        </span>
+        <Icon name="lock" size={48} color="var(--color-text-muted)" />
         <p className="text-sm text-[var(--color-text-muted)]">
           협회 생성은 super_admin 또는 협회 관리자만 가능합니다.
         </p>

@@ -17,6 +17,7 @@
 import { useState, useEffect, useRef } from "react";
 import type { AssociationStep2Data } from "@/lib/tournaments/association-wizard-types";
 import { ASSOCIATION_ADMIN_ROLE_OPTIONS } from "@/lib/tournaments/association-wizard-constants";
+import { Icon } from "@/components/admin-toss";
 
 export interface Step2AdminPickerProps {
   data: AssociationStep2Data;
@@ -101,9 +102,7 @@ export function Step2AdminPicker({ data, onChange }: Step2AdminPickerProps) {
   return (
     <div className="space-y-4">
       <h2 className="flex items-center gap-2 text-base font-bold text-[var(--color-text-primary)]">
-        <span className="material-symbols-outlined text-lg text-[var(--color-info)]">
-          person_add
-        </span>
+        <Icon name="person_add" size={18} color="var(--color-info)" />
         사무국장 지정
       </h2>
 
@@ -116,9 +115,7 @@ export function Step2AdminPicker({ data, onChange }: Step2AdminPickerProps) {
         <div className="rounded-md border border-[var(--color-info)]/40 bg-[var(--color-info)]/10 p-3">
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-2 text-sm text-[var(--color-text-primary)]">
-              <span className="material-symbols-outlined text-base text-[var(--color-info)]">
-                check_circle
-              </span>
+              <Icon name="check_circle" size={16} color="var(--color-info)" />
               <span className="font-bold">{data.user_label}</span>
             </div>
             <button
@@ -161,9 +158,7 @@ export function Step2AdminPicker({ data, onChange }: Step2AdminPickerProps) {
                     onClick={() => selectUser(u)}
                     className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-[var(--color-border)]"
                   >
-                    <span className="material-symbols-outlined text-base text-[var(--color-text-muted)]">
-                      person
-                    </span>
+                    <Icon name="person" size={16} color="var(--color-text-muted)" />
                     <span className="flex-1 text-[var(--color-text-primary)]">
                       <span className="font-bold">{u.nickname}</span>
                       {u.email && (
@@ -214,9 +209,7 @@ export function Step2AdminPicker({ data, onChange }: Step2AdminPickerProps) {
       {/* 안내 — 1인 1협회 제약 */}
       <div className="rounded-md border border-[var(--color-border)] bg-[var(--color-elevated)] p-3 text-xs text-[var(--color-text-muted)]">
         <p className="flex items-start gap-1.5">
-          <span className="material-symbols-outlined text-base text-[var(--color-info)]">
-            info
-          </span>
+          <Icon name="info" size={16} color="var(--color-info)" />
           <span>
             한 회원은 한 협회에만 소속됩니다. 이미 다른 협회 관리자인 회원을
             선택하면 본 협회로 이동됩니다.

@@ -21,6 +21,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { Icon } from "@/components/admin-toss";
 
 interface Props {
   /** 단체 ID — API endpoint */
@@ -119,12 +120,10 @@ export default function ArchiveOrganizationButton({
         aria-label={`${organizationName} ${buttonLabel}`}
       >
         <div className="flex items-center gap-2">
-          <span className="material-symbols-outlined">{buttonIcon}</span>
+          <Icon name={buttonIcon} size={20} />
           <span className="text-sm font-medium">{buttonLabel}</span>
         </div>
-        <span className="material-symbols-outlined text-[var(--color-text-muted)]">
-          chevron_right
-        </span>
+        <Icon name="chevron_right" size={20} color="var(--color-text-muted)" />
       </button>
 
       {/* confirm 다이얼로그 — Phase D 와 동일 패턴 */}
@@ -138,15 +137,11 @@ export default function ArchiveOrganizationButton({
             onClick={(e) => e.stopPropagation()}
           >
             <h3 className="mb-3 flex items-center gap-2 text-base font-bold text-[var(--color-text-primary)]">
-              <span
-                className={`material-symbols-outlined text-lg ${
-                  isArchive
-                    ? "text-[var(--color-warning,#d97706)]"
-                    : "text-[var(--color-info)]"
-                }`}
-              >
-                {isArchive ? "warning" : "info"}
-              </span>
+              <Icon
+                name={isArchive ? "warning" : "info"}
+                size={18}
+                color={isArchive ? "var(--color-warning,#d97706)" : "var(--color-info)"}
+              />
               {dialogTitle}
             </h3>
             <p className="mb-5 text-sm leading-relaxed text-[var(--color-text-secondary)]">

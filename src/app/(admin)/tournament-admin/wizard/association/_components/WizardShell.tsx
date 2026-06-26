@@ -17,7 +17,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import { AdminPageHeader } from "@/components/admin/admin-page-header";
-import { useTossConfirm } from "@/components/admin-toss";
+import { Icon, useTossConfirm } from "@/components/admin-toss";
 import { ASSOCIATION_WIZARD_STEPS } from "@/lib/tournaments/association-wizard-constants";
 
 export interface WizardShellProps {
@@ -94,12 +94,7 @@ export function WizardShell({
               className="ts-btn ts-btn--secondary ts-btn--sm"
               aria-label="작성 종료"
             >
-              <span
-                className="material-symbols-outlined"
-                style={{ fontSize: 16 }}
-              >
-                close
-              </span>
+              <Icon name="close" size={16} />
               종료
             </button>
           </>
@@ -127,9 +122,7 @@ export function WizardShell({
                 >
                   {/* 완료된 step 은 체크 아이콘, 그 외 step 번호 */}
                   {isCompleted ? (
-                    <span className="material-symbols-outlined text-base">
-                      check
-                    </span>
+                    <Icon name="check" size={16} />
                   ) : (
                     step.id
                   )}
