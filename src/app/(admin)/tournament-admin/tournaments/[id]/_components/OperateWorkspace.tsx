@@ -17,6 +17,7 @@ type MatchesPanelProps = {
   defaultMode: RecordingMode;
   matchStats: MatchStats;
 };
+type SettlementPanelProps = { tournamentId: string };
 
 const TeamsPanel = dynamic(() => import("../_panels/teams-panel"), {
   ssr: false,
@@ -42,6 +43,10 @@ const SitePanel = dynamic(() => import("../_panels/site-panel"), {
   ssr: false,
   loading: () => <PanelLoading />,
 }) as PanelComponent;
+const SettlementPanel = dynamic(() => import("../_panels/settlement-panel"), {
+  ssr: false,
+  loading: () => <PanelLoading />,
+}) as ComponentType<SettlementPanelProps>;
 
 const MENUS: Array<{ id: MenuId; label: string; icon: string; desc: string }> = [
   { id: "teams", label: "참가팀", icon: "users", desc: "종별 참가 신청과 참가비 현황을 관리합니다." },
@@ -233,7 +238,7 @@ function OperateBody({
   if (menu === "site") {
     return <PanelFrame><SitePanel /></PanelFrame>;
   }
-  return <SettlementPanel />;
+  return <PanelFrame><SettlementPanel tournamentId={tournamentId} /></PanelFrame>;
 }
 
 function OpsPanel() {
@@ -258,23 +263,6 @@ function OpsPanel() {
           </div>
         </div>
         <PanelFrame><RecordersPanel /></PanelFrame>
-      </div>
-    </div>
-  );
-}
-
-function SettlementPanel() {
-  return (
-    <div className="ct-emptybox ct-emptybox--tall">
-      <Icon name="wallet" size={36} color="var(--ink-dim)" />
-      <b style={{ color: "var(--ink)" }}>대회별 정산 패널은 아직 실배선 전입니다.</b>
-      <span>
-        현재 운영 DB에는 심판 배정 정산 흐름만 연결되어 있습니다. 참가비 입금·지출 정산은 데이터 필드 확정 후 연결해야 합니다.
-      </span>
-      <div className="operate-empty-actions">
-        <Link href="/referee/admin/settlements" className="ts-btn ts-btn--secondary ts-btn--sm">
-          심판 정산 관리
-        </Link>
       </div>
     </div>
   );

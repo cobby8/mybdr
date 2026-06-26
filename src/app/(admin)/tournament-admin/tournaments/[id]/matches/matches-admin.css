@@ -861,6 +861,140 @@
   color: var(--danger);
 }
 
+[data-skin="toss"] .op-settle-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  margin-top: 18px;
+}
+
+[data-skin="toss"] .op-settle-kpis {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+[data-skin="toss"] .op-settle-kpi {
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  background: var(--card);
+  box-shadow: var(--sh-sm);
+  padding: 18px;
+}
+
+[data-skin="toss"] .op-settle-kpi span {
+  display: block;
+  color: var(--ink-mute);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+[data-skin="toss"] .op-settle-kpi b {
+  display: block;
+  margin-top: 7px;
+  color: var(--ink);
+  font-family: var(--ff-mono);
+  font-size: 25px;
+  font-weight: 900;
+  letter-spacing: 0;
+}
+
+[data-skin="toss"] .op-settle-kpi em {
+  display: block;
+  margin-top: 5px;
+  color: var(--ink-dim);
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 800;
+}
+
+[data-skin="toss"] .op-settle-kpi[data-tone="ok"] b {
+  color: var(--ok);
+}
+
+[data-skin="toss"] .op-settle-kpi[data-tone="warn"] b {
+  color: var(--warn);
+}
+
+[data-skin="toss"] .op-settle-kpi[data-tone="mute"] b {
+  color: var(--ink-mute);
+}
+
+[data-skin="toss"] .op-settle-card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+[data-skin="toss"] .op-settle-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+[data-skin="toss"] .op-settle-head h3 {
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 900;
+  margin: 0;
+}
+
+[data-skin="toss"] .op-settle-head p {
+  color: var(--ink-mute);
+  font-size: 12.5px;
+  font-weight: 700;
+  line-height: 1.45;
+  margin: 4px 0 0;
+}
+
+[data-skin="toss"] .op-settle-table .op-settle-money {
+  color: var(--ink);
+  font-family: var(--ff-mono);
+  font-size: 13px;
+  font-weight: 900;
+}
+
+[data-skin="toss"] .op-settle-team {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 10px;
+}
+
+[data-skin="toss"] .op-settle-team .ts-avatar {
+  width: 30px;
+  height: 30px;
+  background: var(--primary-weak);
+  color: var(--primary);
+  font-size: 12px;
+}
+
+[data-skin="toss"] .op-settle-team b {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 900;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+[data-skin="toss"] .op-settle-empty {
+  color: var(--ink-mute);
+  font-size: 13px;
+  font-weight: 800;
+  text-align: center;
+}
+
+[data-skin="toss"] .op-settle-note {
+  min-height: 132px;
+}
+
+[data-skin="toss"] .op-settle-note b {
+  color: var(--ink);
+}
+
 @media (max-width: 720px) {
   [data-skin="toss"] .op-schedule-panel__actions {
     justify-content: stretch;
@@ -876,5 +1010,13 @@
 
   [data-skin="toss"] .op-manual {
     grid-template-columns: 1fr;
+  }
+
+  [data-skin="toss"] .op-settle-kpis {
+    grid-template-columns: 1fr;
+  }
+
+  [data-skin="toss"] .op-settle-head {
+    flex-direction: column;
   }
 }
