@@ -953,7 +953,7 @@ export default function TournamentTeamsPage() {
             role="dialog"
             aria-modal="true"
             className="fixed inset-0 z-40 flex items-start justify-center overflow-y-auto p-3 no-print sm:p-4"
-            style={{ background: "rgba(0,0,0,0.5)" }}
+            style={{ background: "color-mix(in srgb, #000 50%, transparent)" }}
             onClick={() => { setExpandedTeamId(null); setPlayers([]); setShowAddForm(false); }}
           >
             <div
@@ -1538,7 +1538,7 @@ function ImportPlayersModal({
       role="dialog"
       aria-modal="true"
       className="fixed inset-0 z-50 flex items-center justify-center p-3 no-print sm:p-4"
-      style={{ background: "rgba(0,0,0,0.6)" }}
+      style={{ background: "color-mix(in srgb, #000 60%, transparent)" }}
       onClick={onClose}
     >
       <div
