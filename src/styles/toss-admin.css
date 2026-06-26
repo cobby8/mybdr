@@ -800,7 +800,7 @@
   gap: 8px;
 }
 [data-skin="toss"] .operate-summary {
-  display: grid;
+  display: none;
   grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 8px;
   margin-bottom: 18px;
@@ -835,29 +835,28 @@
 [data-skin="toss"] .operate-metric[data-tone="warn"] { border-color: var(--warn-soft); background: var(--warn-weak); }
 [data-skin="toss"] .op-menu {
   display: flex;
-  gap: 10px;
+  gap: 6px;
   margin-bottom: 18px;
   overflow-x: auto;
   padding-bottom: 2px;
 }
 [data-skin="toss"] .op-menu__item {
   flex: 1 1 0;
-  min-width: 120px;
+  min-width: 88px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  min-height: 86px;
-  padding: 14px 10px;
+  gap: 6px;
+  padding: 12px 8px;
   border: 1.5px solid var(--border);
-  border-radius: 18px;
+  border-radius: 16px;
   background: var(--card);
   color: var(--ink-soft);
   cursor: pointer;
   font-family: var(--ff);
-  font-size: 14px;
-  font-weight: 800;
+  font-size: 13px;
+  font-weight: 700;
   transition: background .12s, border-color .12s, color .12s, transform .1s;
   white-space: nowrap;
 }

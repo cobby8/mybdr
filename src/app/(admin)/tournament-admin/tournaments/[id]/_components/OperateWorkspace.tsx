@@ -9,7 +9,8 @@ import type { MatchStats, StatusTone, TournamentWorkspaceProps } from "./Tournam
 
 type MenuId = "teams" | "bracket" | "schedule" | "ops" | "site" | "settle";
 
-type PanelComponent = ComponentType<object>;
+type StepPanelProps = { showNextStepCTA?: boolean };
+type PanelComponent = ComponentType<StepPanelProps>;
 
 type MatchesPanelProps = {
   tournamentId: string;
@@ -181,7 +182,7 @@ export function OperateWorkspace({
               className={["op-menu__item", active ? "is-active" : ""].join(" ")}
               onClick={() => selectMenu(item.id)}
             >
-              <Icon name={item.icon} size={22} />
+              <Icon name={item.icon} size={18} />
               <span>{item.label}</span>
             </button>
           );
@@ -219,10 +220,10 @@ function OperateBody({
   matchStats: MatchStats;
 }) {
   if (menu === "teams") {
-    return <PanelFrame><TeamsPanel /></PanelFrame>;
+    return <PanelFrame><TeamsPanel showNextStepCTA={false} /></PanelFrame>;
   }
   if (menu === "bracket") {
-    return <PanelFrame><BracketPanel /></PanelFrame>;
+    return <PanelFrame><BracketPanel showNextStepCTA={false} /></PanelFrame>;
   }
   if (menu === "schedule") {
     return (
