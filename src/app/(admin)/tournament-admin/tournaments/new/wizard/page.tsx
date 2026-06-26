@@ -388,6 +388,7 @@ function QuickCreateForm() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             name: payload.name,
+            format: payload.format ?? undefined,
             // 시리즈(정규대회) 연결 — POST seriesId 키(camelCase). 미연결 시 미전송.
             seriesId: payload.isRegular ? payload.seriesId ?? undefined : undefined,
             organizer: payload.organizer || undefined,

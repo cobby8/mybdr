@@ -20,6 +20,7 @@ import React from "react";
 import { Icon, Btn, Modal } from "@/components/admin-toss";
 import { ImageUploader } from "@/components/shared/image-uploader";
 import { InlineSeriesForm, type CreatedSeries } from "@/components/tournament/inline-series-form";
+import { normalizeGameRules } from "@/lib/tournaments/game-rules";
 import {
   ScheduleVenue,
   allCourts,
@@ -95,6 +96,7 @@ export type CtDraftPayload = {
   bankName: string;
   bankAccount: string;
   bankHolder: string;
+  format?: string | null;
   // ── F-1: 무스키마 보존 데이터(Tournament.settings jsonb) ──────────────
   //   왜: sponsors 컬럼(String)·categories/divCaps/divFees(Record) 로는 보존 못 하는
   //       ①후원사 로고URL ②디비전별 경기날짜/코트 를 settings jsonb 에 담아 저장한다.
@@ -105,30 +107,175 @@ export type CtDraftPayload = {
 };
 
 // =====================================================================
-// 이전 대회 불러오기 모달 (mockup 시드 — 백엔드 연동은 후속)
+// 이전 대회 불러오기 모달 — 운영 DB 실데이터
 // =====================================================================
-const PAST_TOURNAMENTS = [
-  { id: "pt9", name: "강남구협회장배 #9", date: "2026-08-15", venue: "장충체육관", host: "강남구농구협회", cats: 1, divs: 3 },
-  { id: "pt8", name: "강남구협회장배 #8", date: "2026-05-10", venue: "잠실학생체육관", host: "강남구농구협회", cats: 2, divs: 5 },
-  { id: "pt-w3", name: "전국 여성부 챌린지 #3", date: "2026-04-12", venue: "올림픽공원 핸드볼경기장", host: "BDR 운영위", cats: 1, divs: 4 },
-  { id: "pt-y2", name: "유청소년 스킬업 리그 #2", date: "2026-03-01", venue: "목동 실내체육관", host: "BDR 유소년본부", cats: 1, divs: 5 },
-];
-type PastTournament = (typeof PAST_TOURNAMENTS)[number];
+type JsonRecord = Record<string, unknown>;
+type PreviousDivisionRule = {
+  code?: string;
+  label?: string;
+  feeKrw?: number;
+  sortOrder?: number;
+  format?: string | null;
+  settings?: JsonRecord | null;
+};
+type PreviousTournament = {
+  id: string;
+  name: string;
+  startDate?: string | null;
+  venueName?: string | null;
+  organizer?: string | null;
+  host?: string | null;
+  sponsors?: string | null;
+  poster?: string | null;
+  format?: string | null;
+  places?: unknown;
+  categories?: unknown;
+  divCaps?: unknown;
+  divFees?: unknown;
+  entryFee?: number;
+  gameRules?: unknown;
+  settings?: JsonRecord | null;
+  divisionRules?: PreviousDivisionRule[];
+};
+
+function isRecord(value: unknown): value is JsonRecord {
+  return !!value && typeof value === "object" && !Array.isArray(value);
+}
+
+function text(value: unknown): string {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function numberValue(value: unknown, fallback = 0): number {
+  const n = typeof value === "number" ? value : typeof value === "string" ? Number(value) : NaN;
+  return Number.isFinite(n) ? n : fallback;
+}
+
+function objectMap(value: unknown): Record<string, unknown> {
+  return isRecord(value) ? value : {};
+}
+
+function numberMap(value: unknown): Record<string, number> {
+  const source = objectMap(value);
+  return Object.fromEntries(Object.entries(source).map(([k, v]) => [k, numberValue(v)]));
+}
+
+function copyableSettings(value: unknown): JsonRecord {
+  const source = objectMap(value);
+  const { div_schedule: _divSchedule, ...rest } = source;
+  void _divSchedule;
+  return rest;
+}
+
+function previousVenues(t: PreviousTournament): Venue[] {
+  const places = Array.isArray(t.places) ? t.places : [];
+  const fromPlaces: Venue[] = [];
+  places.forEach((raw) => {
+    if (!isRecord(raw)) return;
+    const provider = raw.provider === "kakao" || raw.provider === "google" ? raw.provider : undefined;
+    const name = text(raw.name);
+    if (!name) return;
+    fromPlaces.push({
+      id: text(raw.id) || ctUid("v"),
+      name,
+      region: text(raw.region),
+      courtCount: Math.max(1, numberValue(raw.courtCount ?? raw.court_count, 1)),
+      naming: raw.naming === "alpha" ? "alpha" : "num",
+      provider,
+      placeId: text(raw.placeId ?? raw.place_id) || undefined,
+      lat: typeof raw.lat === "number" ? raw.lat : undefined,
+      lng: typeof raw.lng === "number" ? raw.lng : undefined,
+      phone: text(raw.phone) || undefined,
+      category: text(raw.category) || undefined,
+      mapUrl: text(raw.mapUrl ?? raw.map_url) || undefined,
+      routeUrl: text(raw.routeUrl ?? raw.route_url) || undefined,
+    });
+  });
+
+  if (fromPlaces.length > 0) return fromPlaces;
+  const venueName = text(t.venueName);
+  return venueName ? [{ id: ctUid("v"), name: venueName, region: "", courtCount: 1, naming: "num" }] : [];
+}
+
+function previousSponsors(t: PreviousTournament): Sponsor[] {
+  const names = (t.sponsors ?? "")
+    .split(",")
+    .map((v) => v.trim())
+    .filter(Boolean);
+  const settings = objectMap(t.settings);
+  const logos = Array.isArray(settings.sponsor_logos) ? settings.sponsor_logos.filter(isRecord) : [];
+  const logoByName = new Map(logos.map((s) => [text(s.name), text(s.logoUrl ?? s.logo_url)]));
+  return names.map((name) => ({ id: ctUid("sp"), name, logoUrl: logoByName.get(name) ?? "" }));
+}
+
+function categoriesFromPrevious(t: PreviousTournament): CategoryItem[] {
+  const categories = objectMap(t.categories);
+  const divCaps = numberMap(t.divCaps);
+  const divFees = numberMap(t.divFees);
+  const fromCategoryMap: CategoryItem[] = [];
+  Object.entries(categories).forEach(([name, rawDivisions]) => {
+    const divisions = Array.isArray(rawDivisions)
+      ? rawDivisions.map(text).filter(Boolean)
+      : [];
+    if (!name.trim() || divisions.length === 0) return;
+    fromCategoryMap.push({
+      id: ctUid("c"),
+      name,
+      divisions: divisions.map((division) => ({
+        id: ctUid("d"),
+        name: division,
+        cap: divCaps[division] ?? 0,
+        fee: divFees[division] ?? numberValue(t.entryFee),
+      })),
+    });
+  });
+
+  if (fromCategoryMap.length > 0) return fromCategoryMap;
+
+  const grouped = new Map<string, PreviousDivisionRule[]>();
+  (t.divisionRules ?? []).forEach((rule) => {
+    const settings = objectMap(rule.settings);
+    const category = text(settings.category) || "기본 종별";
+    grouped.set(category, [...(grouped.get(category) ?? []), rule]);
+  });
+
+  return Array.from(grouped.entries()).map(([name, rules]) => ({
+    id: ctUid("c"),
+    name,
+    divisions: rules.map((rule) => {
+      const division = text(rule.label) || text(rule.code) || "디비전";
+      return {
+        id: ctUid("d"),
+        name: division,
+        cap: divCaps[division] ?? 0,
+        fee: numberValue(rule.feeKrw, divFees[division] ?? numberValue(t.entryFee)),
+      };
+    }),
+  }));
+}
 
 function LoadPreviousModal({
   open,
   onClose,
   onLoad,
+  rows,
+  loading,
+  error,
+  onRetry,
 }: {
   open: boolean;
   onClose: () => void;
-  onLoad: (t: PastTournament) => void;
+  onLoad: (t: PreviousTournament) => void;
+  rows: PreviousTournament[];
+  loading: boolean;
+  error: string | null;
+  onRetry: () => void;
 }) {
   const [q, setQ] = React.useState("");
   React.useEffect(() => {
     if (open) setQ("");
   }, [open]);
-  const rows = PAST_TOURNAMENTS.filter((t) => t.name.toLowerCase().includes(q.trim().toLowerCase()));
+  const filteredRows = rows.filter((t) => t.name.toLowerCase().includes(q.trim().toLowerCase()));
   return (
     <Modal open={open} onClose={onClose} title="이전 대회 불러오기" sub="기존 대회의 형식·설정·종별 구성을 그대로 가져와 채웁니다. 날짜·참가팀은 제외됩니다.">
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16, padding: "0 14px", background: "var(--grey-100)", borderRadius: "var(--radius-input)" }}>
@@ -136,7 +283,20 @@ function LoadPreviousModal({
         <input className="ts-input" style={{ background: "transparent", padding: "13px 0" }} value={q} onChange={(e) => setQ(e.target.value)} placeholder="대회명으로 검색" />
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-        {rows.map((t) => (
+        {loading && <div style={{ padding: "32px 0", textAlign: "center", color: "var(--ink-mute)", fontSize: 14 }}>이전 대회를 불러오는 중입니다</div>}
+        {!loading && error && (
+          <div style={{ padding: "24px 0", textAlign: "center", color: "var(--ink-mute)", fontSize: 14 }}>
+            <div>{error}</div>
+            <Btn variant="secondary" size="sm" onClick={onRetry} style={{ marginTop: 12 }}>
+              다시 시도
+            </Btn>
+          </div>
+        )}
+        {!loading && !error && filteredRows.map((t) => {
+          const cats = categoriesFromPrevious(t);
+          const divs = cats.reduce((sum, cat) => sum + cat.divisions.length, 0);
+          const venue = text(t.venueName) || previousVenues(t)[0]?.name || "장소 미정";
+          return (
           <button key={t.id} type="button" className="ct-pastrow" onClick={() => onLoad(t)}>
             <span className="ct-pastrow__icon">
               <Icon name="trophy" size={18} color="var(--primary)" />
@@ -144,13 +304,14 @@ function LoadPreviousModal({
             <span style={{ flex: 1, minWidth: 0, textAlign: "left" }}>
               <span style={{ display: "block", fontWeight: 700, fontSize: 14.5, color: "var(--ink)" }}>{t.name}</span>
               <span style={{ display: "block", fontSize: 12.5, color: "var(--ink-mute)", marginTop: 2 }}>
-                {t.date} · {t.venue} · {t.cats}종별 {t.divs}디비전
+                {(t.startDate ?? "").slice(0, 10) || "일정 미정"} · {venue} · {cats.length}종별 {divs}디비전
               </span>
             </span>
             <Icon name="chevron-right" size={18} color="var(--ink-dim)" />
           </button>
-        ))}
-        {rows.length === 0 && <div style={{ padding: "32px 0", textAlign: "center", color: "var(--ink-mute)", fontSize: 14 }}>검색 결과가 없습니다</div>}
+          );
+        })}
+        {!loading && !error && filteredRows.length === 0 && <div style={{ padding: "32px 0", textAlign: "center", color: "var(--ink-mute)", fontSize: 14 }}>{rows.length === 0 ? "불러올 수 있는 이전 대회가 없습니다" : "검색 결과가 없습니다"}</div>}
       </div>
     </Modal>
   );
@@ -416,8 +577,14 @@ export function CtCreateTournament({
   const [categories, setCategories] = React.useState<CategoryItem[]>([]);
   // 경기 설정(우측 CtGameSettings controlled) — GameRules 정본 기본값
   const [gameRules, setGameRules] = React.useState<GameRules>({ ...GAME_SETTINGS_DEFAULTS });
+  const [copiedFormat, setCopiedFormat] = React.useState<string | null>(null);
+  const [copiedSettings, setCopiedSettings] = React.useState<JsonRecord>({});
   const [touched, setTouched] = React.useState(false);
   const [loadOpen, setLoadOpen] = React.useState(false);
+  const [previousRows, setPreviousRows] = React.useState<PreviousTournament[]>([]);
+  const [previousLoading, setPreviousLoading] = React.useState(false);
+  const [previousLoaded, setPreviousLoaded] = React.useState(false);
+  const [previousError, setPreviousError] = React.useState<string | null>(null);
   const [showSeriesForm, setShowSeriesForm] = React.useState(false);
   // 게시 모달 — 필수값 검증 통과 시 오픈(시안 1:1)
   const [pubOpen, setPubOpen] = React.useState(false);
@@ -425,6 +592,31 @@ export function CtCreateTournament({
   const set = <K extends keyof typeof d>(k: K, v: (typeof d)[K]) => setD((p) => ({ ...p, [k]: v }));
   const nameOk = d.name.trim().length > 0;
   const courts = allCourts(venues);
+
+  const loadPreviousRows = React.useCallback(async () => {
+    setPreviousLoading(true);
+    setPreviousError(null);
+    try {
+      const res = await fetch("/api/web/admin/tournaments/previous");
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(json.error || "이전 대회 목록을 불러오지 못했습니다");
+      }
+      const list = Array.isArray(json.data) ? json.data : [];
+      setPreviousRows(list as PreviousTournament[]);
+      setPreviousLoaded(true);
+    } catch (err) {
+      setPreviousError(err instanceof Error ? err.message : "이전 대회 목록을 불러오지 못했습니다");
+    } finally {
+      setPreviousLoading(false);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    if (loadOpen && !previousLoaded && !previousLoading) {
+      void loadPreviousRows();
+    }
+  }, [loadOpen, previousLoaded, previousLoading, loadPreviousRows]);
 
   // ── 장소 · 코트 ─────────────────────────────────────────────────────
   const addVenue = (draft: VenueDraft) => {
@@ -468,16 +660,24 @@ export function CtCreateTournament({
       ),
     );
 
-  // ── 이전 대회 불러오기 (mockup 채움) ───────────────────────────────
-  const loadPrevious = (t: PastTournament) => {
+  // ── 이전 대회 불러오기 (실데이터 채움) ───────────────────────────────
+  const loadPrevious = (t: PreviousTournament) => {
     const nextNum = (t.name.match(/#(\d+)/) || [])[1];
     setD((p) => ({
       ...p,
       name: nextNum ? t.name.replace(/#\d+/, `#${+nextNum + 1}`) : `${t.name} (복사)`,
-      host: t.host,
-      organizer: t.host,
+      host: t.host || t.organizer || p.host,
+      organizer: t.organizer || t.host || p.organizer,
+      poster: t.poster || p.poster,
     }));
-    if (t.venue) setVenues([{ id: ctUid("v"), name: t.venue, region: "", courtCount: 1, naming: "num" }]);
+    setCopiedFormat(t.format ?? null);
+    setCopiedSettings(copyableSettings(t.settings));
+    setGameRules(normalizeGameRules(t.gameRules));
+    setSponsors(previousSponsors(t));
+    setCategories(categoriesFromPrevious(t));
+    const nextVenues = previousVenues(t);
+    if (nextVenues.length > 0) setVenues(nextVenues);
+    setDates([]);
     setLoadOpen(false);
     toast(`'${t.name}' 형식·설정 불러옴`);
   };
@@ -554,7 +754,7 @@ export function CtCreateTournament({
       });
     });
     //   비어있지 않은 것만 settings 에 담는다(둘 다 비면 settings 자체 생략 → undefined).
-    const settings: Record<string, unknown> = {};
+    const settings: Record<string, unknown> = { ...copiedSettings };
     if (sponsorLogos.length > 0) settings.sponsor_logos = sponsorLogos;
     if (Object.keys(divSchedule).length > 0) settings.div_schedule = divSchedule;
 
@@ -587,6 +787,7 @@ export function CtCreateTournament({
       bankName: pub.pays.includes("bank") ? pub.bank : "",
       bankAccount: pub.pays.includes("bank") ? pub.account : "",
       bankHolder: pub.pays.includes("bank") ? pub.holder : "",
+      format: copiedFormat,
       // F-1: 후원사 로고·디비전 일정 보존(둘 다 비면 undefined → 미전송)
       settings: Object.keys(settings).length > 0 ? settings : undefined,
     });
@@ -793,7 +994,15 @@ export function CtCreateTournament({
         </div>
       </div>
 
-      <LoadPreviousModal open={loadOpen} onClose={() => setLoadOpen(false)} onLoad={loadPrevious} />
+      <LoadPreviousModal
+        open={loadOpen}
+        onClose={() => setLoadOpen(false)}
+        onLoad={loadPrevious}
+        rows={previousRows}
+        loading={previousLoading}
+        error={previousError}
+        onRetry={loadPreviousRows}
+      />
       {/* 게시 설정 모달 — 검증 통과 시 오픈, 확인 시 publish(평면변환→onSubmitDraft) */}
       <PublishModal
         open={pubOpen}
