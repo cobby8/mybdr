@@ -17,6 +17,7 @@
 | Tournament admin implementation | In Progress | Matches score modal now exposes the existing manual recording mode. |
 
 ## Work Log
+- 2026-06-26: Converted dual group assignment editor from UI Card/Button to Toss `ts-card`/`ts-btn`; TypeScript passed.
 - 2026-06-26: Removed remaining tournament-admin series new-page UI Card/Button dependencies; TypeScript passed.
 - 2026-06-26: Converted tournament-admin series add-edition/edit form wrappers and submit buttons to Toss `ts-card`/`ts-btn`; TypeScript passed.
 - 2026-06-26: Converted tournament-admin series detail edition rows and empty state from UI Card/Badge to Toss wrappers; TypeScript passed.
@@ -26,12 +27,3 @@
 - 2026-06-26: Defined `--color-on-primary` to fix black text/icons on red primary buttons.
 - 2026-06-26: Added live box score `기본/고급` toggle, advanced stats, and one help popover per team table.
 - 2026-06-26: Updated setup progress and match edit modal to treat `manual` as a real recording mode; targeted Vitest and TypeScript passed.
-- 2026-06-26: Absorbed v2.41 admin Toss reverse-bake handoff into `BDR-current`, preserving B1 QA lock docs; no src changes.
-- 2026-06-26: Restored the tournament creation CTA on the tournament admin list page and verified TypeScript.
-- 2026-06-26: Pushed/merged prior fixes, then aligned tournament admin game-rule display and match-level manual recording-mode guards.
-- 2026-06-26: Added tournament division inline rename/delete controls and separated record-app time presets from clock mode.
-- 2026-06-25: Repaired customer signal contact/report flow copy and prepared operator email reporting verification.
-- 2026-06-25: Improved tournament admin PC/mobile UX with grouped registration/team/public controls, desktop sticky save, active mobile tabs, and larger image delete targets.
-- 2026-06-25: Added manual group assignment controls to tournament admin team cards using the existing team PATCH API.
-- 2026-06-25: Restored tournament admin edit fields for bank info, roster/waiting list, rules/prize info, and logo/banner media.
-- 2026-06-25: Updated group-stage knockout seeding so 2-rank qualifiers from the same group cannot meet before the final for 2~12 groups.

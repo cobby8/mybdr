@@ -16,8 +16,6 @@
 //             기존 27매치가 있는 5/2 대회는 이 UI 진입 X (page.tsx 가 hasMatches 분기 처리).
 
 import { useState, useMemo, useEffect } from "react";
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import {
   DUAL_DEFAULT_PAIRING,
   type SemifinalPairingMode,
@@ -250,7 +248,7 @@ export function DualGroupAssignmentEditor({
   const isReady = validation.ok;
 
   return (
-    <Card className="mb-6">
+    <section data-skin="toss" className="ts-card mb-6">
       {/* 헤더 + 자동 시드 */}
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
         <div>
@@ -261,14 +259,14 @@ export function DualGroupAssignmentEditor({
             16팀을 4그룹 (A/B/C/D) 에 배정하세요. 각 조 4팀 = 시드 순서.
           </p>
         </div>
-        <Button
-          variant="secondary"
+        <button
+          type="button"
           onClick={autoSeed}
           disabled={approvedTeams.length !== 16 || saving}
-          className="text-sm"
+          className="ts-btn ts-btn--secondary ts-btn--sm"
         >
           자동 시드 추천
-        </Button>
+        </button>
       </div>
 
       {/* 4×4 그리드 — 모바일 1열 / md 2열 / lg 4열 */}
@@ -358,22 +356,23 @@ export function DualGroupAssignmentEditor({
 
       {/* 저장 / 매치 생성 버튼 */}
       <div className="mt-4 flex flex-wrap items-center justify-end gap-2">
-        <Button
-          variant="secondary"
+        <button
+          type="button"
           onClick={save}
           disabled={!isReady || saving || generating}
-          className="text-sm"
+          className="ts-btn ts-btn--secondary ts-btn--sm"
         >
           {saving ? "저장 중..." : "조 배정 저장"}
-        </Button>
-        <Button
+        </button>
+        <button
+          type="button"
           onClick={saveAndGenerate}
           disabled={!isReady || saving || generating || !canGenerate}
-          className="text-sm"
+          className="ts-btn ts-btn--primary ts-btn--sm"
         >
           {generating ? "생성 중..." : "저장 + 매치 자동 생성"}
-        </Button>
+        </button>
       </div>
-    </Card>
+    </section>
   );
 }
