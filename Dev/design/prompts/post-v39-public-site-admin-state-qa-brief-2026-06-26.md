@@ -1,5 +1,7 @@
 # BDR v2.42 Follow-up Design Brief - Public Site Data Sync + Admin Toss State QA
 
+> Superseded note (2026-06-26): `BDR v2 (40).zip` delivered `_delta-v2.42-wiring`, so the public-site fiction baseline is now resolved. Current baseline is admin/public shared data: 44 teams / 27 matches / 4 divisions. Use `admin-toss-v242-integrated-design-request-2026-06-26.md` and `bdr-v2-40-delta-review-2026-06-26.md` for new work.
+
 > 전달 대상: Claude.ai BDR 디자인 프로젝트
 > 작성일: 2026-06-26
 > 현재 기준: `dev == main == a141a96`

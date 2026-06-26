@@ -165,11 +165,15 @@
   border-radius: 18px !important;
   box-shadow: none !important;
 }
+[data-skin="toss"] .ct-panel-embed > [data-skin="toss"],
 [data-skin="toss"] .ta-panel-embed > [data-skin="toss"] {
   max-width: none !important;
   margin: 0 !important;
   padding: 0 !important;
 }
+[data-skin="toss"] .ct-panel-embed > [data-skin="toss"] > .mb-6:first-child,
+[data-skin="toss"] .ct-panel-embed > [data-skin="toss"] > .flex.items-center.gap-3:first-child,
+[data-skin="toss"] .ct-panel-embed > [data-skin="toss"] > :first-child:has(a[href*="/tournament-admin/tournaments/"]),
 [data-skin="toss"] .ta-panel-embed > [data-skin="toss"] > .mb-6:first-child,
 [data-skin="toss"] .ta-panel-embed > [data-skin="toss"] > .flex.items-center.gap-3:first-child,
 [data-skin="toss"] .ta-panel-embed > [data-skin="toss"] > :first-child:has(a[href*="/tournament-admin/tournaments/"]) {
@@ -687,9 +691,12 @@
 [data-skin="toss"] .ct-banner svg { flex: 0 0 auto; margin-top: 1px; }
 
 /* 대회 운영 — 종별 구성/운영 방식 */
+[data-skin="toss"] .ct-panel-embed,
 [data-skin="toss"] .ta-panel-embed {
   min-width: 0;
   margin-top: 14px;
+  border-top: 1px solid var(--border);
+  padding-top: 16px;
 }
 [data-skin="toss"] .ta-divisions-panel {
   min-width: 0;
