@@ -1,5 +1,6 @@
 # Knowledge Index
 
+- 2026-06-26 admin: tournament-admin series list now uses v2.41 `ts-ph` and static `ad-tablescroll`/`ad-table` server markup.
 - 2026-06-26 admin: tournament-admin organizations list now uses v2.41 `ts-ph`, `ad-cardgrid`, `ad-card`, `Empty`, and lucide `Icon` wrappers.
 - 2026-06-26 admin: tournament workspace detail header and site panel remaining visible legacy buttons now use v2.41 `ts-btn` classes.
 - 2026-06-26 admin: v2.41 Toss package KPI rows use `ad-kpi-*` classes; browser QA needs DB pooler connectivity.
@@ -23,6 +24,7 @@ Updated: 2026-06-26
 | lessons.md | 0 | - |
 
 Recent work:
+- 2026-06-26 admin: tournament-admin series list was rebuilt on v2.41 Toss PageHead/table markup without changing the Prisma query.
 - 2026-06-26 admin: tournament-admin organizations list was rebuilt on v2.41 Toss PageHead/cardgrid/Empty structures while preserving `/api/web/organizations` data mapping.
 - 2026-06-26 admin: tournament workspace detail header and site panel remaining visible legacy buttons were normalized to v2.41 Toss `ts-btn`.
 - 2026-06-26 admin: tournament detail auxiliary pages were cleaned of legacy `.btn`/Material Symbols header actions and aligned to Toss PageHead/buttons.

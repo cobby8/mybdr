@@ -1,10 +1,18 @@
+import Link from "next/link";
+import { redirect } from "next/navigation";
+import { Icon } from "@/components/admin-toss";
 import { prisma } from "@/lib/db/prisma";
 import { getWebSession } from "@/lib/auth/web-session";
-import { redirect } from "next/navigation";
 import { TOURNAMENT_STATUS_LABEL } from "@/lib/constants/tournament-status";
-import Link from "next/link";
 
 export const dynamic = "force-dynamic";
+
+function formatLatestEdition(
+  latest: { edition_number: number | null; status: string | null } | undefined,
+) {
+  if (!latest) return "회차 없음";
+  return `${latest.edition_number ?? "-"}회차`;
+}
 
 export default async function SeriesListPage() {
   const session = await getWebSession();
@@ -23,64 +31,83 @@ export default async function SeriesListPage() {
   }).catch(() => []);
 
   return (
-    <div data-skin="toss">
-      <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-extrabold uppercase tracking-wide sm:text-3xl" style={{ fontFamily: "var(--font-heading)" }}>시리즈</h1>
-        {/* 2026-05-12 — pill 빨강 ❌ (admin 빨강 본문 금지) → btn btn--primary 표준 (Navy/Red 자동 분기) */}
-        <Link
-          href="/tournament-admin/series/new"
-          className="ts-btn ts-btn--primary"
-        >
-          새 시리즈 만들기
-        </Link>
+    <div data-skin="toss" className="space-y-6">
+      <div className="ts-ph">
+        <div className="ts-ph__row">
+          <div style={{ minWidth: 0 }}>
+            <div className="ts-ph__eyebrow">
+              <Icon name="layers" size={15} />
+              대회 관리자
+            </div>
+            <div className="ts-ph__title">시리즈</div>
+            <div className="ts-ph__sub">반복 개최되는 대회 묶음과 다음 회차를 관리합니다.</div>
+          </div>
+          <div className="ts-ph__actions">
+            <Link href="/tournament-admin/series/new" className="ts-btn ts-btn--primary">
+              <Icon name="plus" size={17} />
+              시리즈 만들기
+            </Link>
+          </div>
+        </div>
       </div>
 
       {seriesList.length > 0 ? (
-        <div className="space-y-3">
-          {seriesList.map((s) => {
-            const latest = s.tournaments[0];
-            return (
-              // 2026-06-26 — Link + ts-card: <a> color cascade 방지 위해 명시 색 유지
-              //   되는 패턴. Link 자체에 명시 색 박제 + 자식 p/span 도 명시 박제 (회귀 가드).
-              <Link
-                key={s.id.toString()}
-                href={`/tournament-admin/series/${s.id}`}
-                className="block text-[var(--color-text-primary)]"
-              >
-                <div className="ts-card flex cursor-pointer items-center justify-between transition-colors hover:bg-[var(--color-elevated)]">
-                  <div>
-                    <p className="font-semibold text-[var(--color-text-primary)]">{s.name}</p>
-                    <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">
-                      총 {s.tournaments_count ?? 0}회차
-                      {s.description && ` · ${s.description}`}
-                    </p>
-                  </div>
-                  <div className="flex flex-col items-end gap-1">
-                    {latest && (
-                      <span className="rounded-[8px] bg-[var(--color-elevated)] px-2 py-0.5 text-xs font-medium text-[var(--color-text-secondary)]">
-                        {TOURNAMENT_STATUS_LABEL[latest.status ?? "draft"] ?? latest.status}
-                      </span>
-                    )}
-                    <span className="text-xs text-[var(--color-text-muted)]">
-                      {latest ? `${latest.edition_number}회차 진행` : "회차 없음"}
+        <div className="ad-tablescroll">
+          <div className="ts-table ad-table">
+            <div
+              className="ts-thead"
+              style={{ gridTemplateColumns: "minmax(220px,1.4fr) 110px 130px 110px 64px" }}
+            >
+              <span>시리즈</span>
+              <span>회차</span>
+              <span>최근 상태</span>
+              <span>다음</span>
+              <span />
+            </div>
+            {seriesList.map((series) => {
+              const latest = series.tournaments[0];
+              const status = latest?.status ?? "draft";
+              return (
+                <Link
+                  key={series.id.toString()}
+                  href={`/tournament-admin/series/${series.id}`}
+                  className="ts-trow"
+                  style={{ gridTemplateColumns: "minmax(220px,1.4fr) 110px 130px 110px 64px" }}
+                >
+                  <span>
+                    <span className="ad-cell-strong">{series.name}</span>
+                    <span className="ad-cell-sub">
+                      {series.description || "설명 없음"}
                     </span>
-                  </div>
-                </div>
-              </Link>
-            );
-          })}
+                  </span>
+                  <span className="ad-cell-mono">{series.tournaments_count ?? 0}회</span>
+                  <span className="ad-statusline">
+                    <span className="ad-dot" data-tone={latest ? "ok" : "mute"} />
+                    {latest ? TOURNAMENT_STATUS_LABEL[status] ?? status : "대기"}
+                  </span>
+                  <span className="ad-cell-muted">{formatLatestEdition(latest)}</span>
+                  <span className="ad-rowact">
+                    <span className="ad-iconbtn" title="보기">
+                      <Icon name="chevron-right" size={16} />
+                    </span>
+                  </span>
+                </Link>
+              );
+            })}
+          </div>
         </div>
       ) : (
-        <div className="ct-emptybox py-16 text-center text-[var(--ink-mute)]">
-          <div className="mb-3 text-lg font-semibold text-[var(--color-text-muted)]">No Series</div>
-          <p className="mb-4">아직 시리즈가 없습니다.</p>
-          {/* 2026-05-12 — pill 빨강 ❌ → btn btn--primary 표준 */}
-          <Link
-            href="/tournament-admin/series/new"
-            className="ts-btn ts-btn--primary"
-          >
-            첫 시리즈 만들기
-          </Link>
+        <div className="ts-empty">
+          <div className="ts-empty__icon">
+            <Icon name="layers" size={30} />
+          </div>
+          <div className="ts-empty__title">아직 시리즈가 없습니다</div>
+          <div className="ts-empty__desc">첫 시리즈를 만들고 회차 대회를 이어서 운영해 보세요.</div>
+          <div style={{ marginTop: 18 }}>
+            <Link href="/tournament-admin/series/new" className="ts-btn ts-btn--primary">
+              시리즈 만들기
+            </Link>
+          </div>
         </div>
       )}
     </div>

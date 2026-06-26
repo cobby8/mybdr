@@ -14,6 +14,7 @@
 | Admin Toss sweep | In Progress | v2.41 package reviewed; shared KPI, DataTable, PageHead, and Toolbar blocks now use package structures. |
 
 ## Work Log
+- 2026-06-26: Rebuilt tournament-admin series list with v2.41 Toss PageHead and ad-table static server markup; TypeScript passed.
 - 2026-06-26: Rebuilt tournament-admin organizations list with v2.41 PageHead, ad-cardgrid, Empty, and lucide Icon wrappers; TypeScript passed.
 - 2026-06-26: Removed remaining tournament workspace legacy button classes in site panel/detail header; TypeScript and residue scans passed.
 - 2026-06-26: Aligned tournament detail, organizer management, and audit log pages with v2.41 Toss buttons/PageHead; TypeScript and residue scans passed.
@@ -23,4 +24,3 @@
 - 2026-06-26: Reviewed BDR v2.41 admin Toss package and converted shared admin KPI rows to package `ad-kpi-*`; TypeScript and residue scans passed, browser QA blocked by DB pooler access.
 - 2026-06-26: Pushed tournament-admin Toss cleanup to dev and merged main; then token-normalized admin campaigns, games, and categories pages; TypeScript passed.
 - 2026-06-26: Replaced remaining tournament-admin rgba overlays/shadows with `color-mix` tokens; TypeScript and residue scans passed.
-- 2026-06-26: Converted site and teams panels to Toss buttons and tokenized site selection shadow; TypeScript passed.
