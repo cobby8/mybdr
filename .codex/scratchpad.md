@@ -14,6 +14,7 @@
 | Admin Toss sweep | In Progress | v2.41 package reviewed; shared KPI, DataTable, PageHead, and Toolbar blocks now use package structures. |
 
 ## Work Log
+- 2026-06-26: Added Material-to-lucide Icon aliases and converted organization detail top/tab icons to Toss Icon wrapper; TypeScript passed.
 - 2026-06-26: Rebuilt organization members page with v2.41 Toss PageHead, invite panel, list rows, badges, and Icon wrappers; TypeScript passed.
 - 2026-06-26: Rebuilt series hard-delete button/modal with v2.41 Toss Icon, danger button, modal, and input structures; TypeScript passed.
 - 2026-06-26: Rebuilt tournament-admin series creation wizard with v2.41 Toss PageHead, stepper, panels, inputs, and Icon wrappers; TypeScript passed.
@@ -22,5 +23,4 @@
 - 2026-06-26: Rebuilt tournament-admin series list with v2.41 Toss PageHead and ad-table static server markup; TypeScript passed.
 - 2026-06-26: Rebuilt tournament-admin organizations list with v2.41 PageHead, ad-cardgrid, Empty, and lucide Icon wrappers; TypeScript passed.
 - 2026-06-26: Removed remaining tournament workspace legacy button classes in site panel/detail header; TypeScript and residue scans passed.
-- 2026-06-26: Aligned tournament detail, organizer management, and audit log pages with v2.41 Toss buttons/PageHead; TypeScript and residue scans passed.
 - 2026-06-26: Reviewed BDR v2.41 admin Toss package and converted shared admin KPI rows to package `ad-kpi-*`; TypeScript and residue scans passed, browser QA blocked by DB pooler access.

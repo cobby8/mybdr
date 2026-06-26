@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { Icon } from "@/components/admin-toss";
 // 2026-05-12 PR3 — "기존 대회 가져오기" 모달 (다건 흡수)
 import AbsorbTournamentsModal from "./_components/AbsorbTournamentsModal";
 // 2026-05-12 Phase D-1 — 시리즈 카드 ⋮ 메뉴 (분리 / 이동)
@@ -404,9 +405,7 @@ export default function OrganizationDashboardPage() {
           rel="noopener"
           className="ts-btn ts-btn--secondary ts-btn--sm"
         >
-          <span className="material-symbols-outlined mr-0.5 text-sm align-middle">
-            open_in_new
-          </span>
+          <Icon name="external-link" size={15} />
           공개 페이지
         </a>
       </div>
@@ -435,9 +434,7 @@ export default function OrganizationDashboardPage() {
                   : "border-transparent text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]"
               }`}
             >
-              <span className="material-symbols-outlined text-base">
-                {t.ico}
-              </span>
+              <Icon name={t.ico} size={14} />
               {t.l}
               {count !== null && (
                 <span className="ml-0.5 rounded bg-[var(--color-elevated)] px-1.5 text-xs text-[var(--color-text-secondary)]">

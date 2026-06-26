@@ -22,6 +22,23 @@ import type { LucideProps } from "lucide-react";
 // 컴포넌트(Search)로 export 하므로, kebab→Pascal 변환 후 조회한다.
 // 일부 시안 아이콘명은 lucide-react 에 없어서(예: won-sign) 별칭 테이블로 보정한다.
 const ICON_ALIAS: Record<string, string> = {
+  add: "Plus",
+  arrow_back: "ArrowLeft",
+  arrow_forward: "ArrowRight",
+  check_circle: "CheckCircle",
+  close: "X",
+  collections_bookmark: "Layers",
+  description: "FileText",
+  edit: "Pencil",
+  event: "CalendarDays",
+  group: "Users",
+  history: "History",
+  info: "Info",
+  inventory_2: "Archive",
+  open_in_new: "ExternalLink",
+  person_add: "UserPlus",
+  shield: "Shield",
+  shield_person: "ShieldUser",
   // 원화 아이콘 — lucide-react 에 WonSign 부재 → Banknote 로 대체
   "won-sign": "Banknote",
   // 썬더덩크(농구 임팩트 강조) — lucide-react 에 ThunderDunk 부재 → Zap(번개)로 대체
