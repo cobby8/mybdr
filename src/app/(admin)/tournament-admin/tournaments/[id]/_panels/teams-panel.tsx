@@ -552,10 +552,8 @@ export default function TournamentTeamsPage() {
 
   return (
     <div data-skin="toss">
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+      <div className="ts-card ts-card--flat mb-4 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <Link href={`/tournament-admin/tournaments/${id}`} className="text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]">&larr; 대회 관리</Link>
-          <h1 className="mt-1 text-xl font-bold sm:text-2xl">참가팀 관리</h1>
           {/* Phase 2-C 안내 — 코치 토큰 URL 공유 시 비로그인으로 명단 입력 가능 */}
           <p className="mt-1 text-xs text-[var(--color-text-muted)]">
             코치에게 토큰 URL을 공유하면 비로그인으로 명단 입력 가능합니다.

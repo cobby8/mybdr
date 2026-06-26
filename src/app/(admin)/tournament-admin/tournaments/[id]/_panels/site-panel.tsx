@@ -225,13 +225,6 @@ export default function TournamentSitePage() {
   if (site?.is_published) {
     return (
       <div data-skin="toss">
-        <div className="mb-6">
-          <Link href={`/tournament-admin/tournaments/${id}`} className="text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]">
-            ← 대회 관리
-          </Link>
-          <h1 className="mt-1 text-xl font-bold sm:text-2xl">사이트 관리</h1>
-        </div>
-
         {/* 발행 중 상태 카드 */}
         <div className="mb-6 rounded-md border border-[var(--color-success)]/30 bg-[var(--color-success)]/5 p-6">
           <div className="flex items-center justify-between">
@@ -336,16 +329,9 @@ export default function TournamentSitePage() {
   return (
     // Track B-c — Toss 토큰 적용 루트 opt-in
     <div data-skin="toss">
-      {/* 헤더 */}
-      <div className="mb-8">
-        <Link href={`/tournament-admin/tournaments/${id}`} className="text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]">
-          ← 대회 관리
-        </Link>
-        <h1 className="mt-1 text-xl font-bold sm:text-2xl">사이트 만들기</h1>
-        <p className="mt-1 text-sm text-[var(--color-text-muted)]">
-          3단계로 대회 전용 웹사이트를 만들어보세요
-        </p>
-      </div>
+      <p className="mb-6 text-sm text-[var(--color-text-muted)]">
+        3단계로 대회 전용 웹사이트를 만들어보세요
+      </p>
 
       {/* 진행 표시 */}
       <div className="mb-8 flex items-center gap-2">

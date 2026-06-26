@@ -510,18 +510,145 @@
 
 /* 레이아웃 — 헤더 / 2컬럼 그리드 / 하단 고정 생성바 */
 [data-skin="toss"] .ct-page { max-width: 1180px; margin: 0 auto; padding-bottom: 96px; }
-[data-skin="toss"] .ct-page--workspace { padding-bottom: 80px; }
-[data-skin="toss"] .ct-page--workspace .ts-card { padding: 18px; }
-[data-skin="toss"] .ct-page--workspace .ts-card--tight { padding: 14px; }
-[data-skin="toss"] .ct-page--workspace .ts-field { margin-bottom: 10px; }
-[data-skin="toss"] .ct-page--workspace .ts-field__label { margin-bottom: 6px; }
-[data-skin="toss"] .ct-page--workspace .ct-grid { gap: 14px; }
+[data-skin="toss"].tw-shell {
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 28px 24px 96px;
+}
+[data-skin="toss"] .tw-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+[data-skin="toss"] .ct-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: 999px;
+  padding: 3px 9px;
+  font-size: 11.5px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+[data-skin="toss"] .ct-pill[data-tone="ok"] { background: var(--ok-weak); color: var(--ok); }
+[data-skin="toss"] .ct-pill[data-tone="warn"] { background: var(--warn-weak); color: var(--warn); }
+[data-skin="toss"] .ct-pill[data-tone="info"] { background: var(--primary-weak); color: var(--primary); }
+[data-skin="toss"] .ct-pill[data-tone="err"] { background: var(--danger-weak); color: var(--danger); }
+[data-skin="toss"] .ct-pill[data-tone="mute"] { background: var(--grey-100); color: var(--ink-mute); }
+[data-skin="toss"] .tw-steps {
+  display: flex;
+  gap: 6px;
+  margin: 16px 0 10px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  padding-bottom: 2px;
+}
+[data-skin="toss"] .tw-step {
+  flex: 1 1 0;
+  min-width: 120px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 12px;
+  border: 1.5px solid var(--border);
+  background: #fff;
+  border-radius: 14px;
+  cursor: pointer;
+  font-family: var(--ff);
+  transition: border-color .12s, background .12s, color .12s;
+  white-space: nowrap;
+}
+[data-skin="toss"] .tw-step:hover { border-color: var(--border-strong); }
+[data-skin="toss"] .tw-step.is-active { border-color: var(--primary); background: var(--primary-weak); }
+[data-skin="toss"] .tw-step.is-done { border-color: transparent; background: var(--grey-50); }
+[data-skin="toss"] .tw-step__num {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  background: var(--grey-200);
+  color: var(--ink-mute);
+  font-size: 12.5px;
+  font-weight: 800;
+}
+[data-skin="toss"] .tw-step.is-active .tw-step__num { background: var(--primary); color: #fff; }
+[data-skin="toss"] .tw-step.is-done .tw-step__num { background: var(--ok); color: #fff; }
+[data-skin="toss"] .tw-step__lbl {
+  color: var(--ink-soft);
+  font-size: 13.5px;
+  font-weight: 700;
+}
+[data-skin="toss"] .tw-step.is-active .tw-step__lbl { color: var(--primary); }
+[data-skin="toss"] .ct-progress {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--grey-100);
+  overflow: hidden;
+  margin-bottom: 18px;
+}
+[data-skin="toss"] .ct-progress__fill {
+  height: 100%;
+  background: var(--primary);
+  transition: width .3s;
+}
+[data-skin="toss"] .tw-body { display: block; min-width: 0; }
+[data-skin="toss"] .tw-body .ct-col { display: contents; }
+[data-skin="toss"][data-step="info"] #schedule,
+[data-skin="toss"][data-step="info"] #game,
+[data-skin="toss"][data-step="info"] #divisions,
+[data-skin="toss"][data-step="info"] #publish,
+[data-skin="toss"][data-step="schedule"] #info,
+[data-skin="toss"][data-step="schedule"] #game,
+[data-skin="toss"][data-step="schedule"] #divisions,
+[data-skin="toss"][data-step="schedule"] #publish,
+[data-skin="toss"][data-step="divisions"] #info,
+[data-skin="toss"][data-step="divisions"] #schedule,
+[data-skin="toss"][data-step="divisions"] #game,
+[data-skin="toss"][data-step="divisions"] #publish,
+[data-skin="toss"][data-step="game"] #info,
+[data-skin="toss"][data-step="game"] #schedule,
+[data-skin="toss"][data-step="game"] #divisions,
+[data-skin="toss"][data-step="game"] #publish,
+[data-skin="toss"][data-step="publish"] #info,
+[data-skin="toss"][data-step="publish"] #schedule,
+[data-skin="toss"][data-step="publish"] #game,
+[data-skin="toss"][data-step="publish"] #divisions {
+  display: none;
+}
+[data-skin="toss"] .tw-foot {
+  position: sticky;
+  bottom: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 16px;
+  padding: 14px 16px;
+  background: rgba(255,255,255,.96);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  box-shadow: var(--sh-md);
+}
+[data-skin="toss"] .tw-foot__mid {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  text-align: center;
+}
+[data-skin="toss"] .tw-foot__actions { display: flex; gap: 8px; }
+[data-skin="toss"] .tw-msg { color: var(--danger); font-size: 13px; font-weight: 700; }
 [data-skin="toss"] .ct-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 20px; margin-bottom: 26px; flex-wrap: wrap; }
 [data-skin="toss"] .ct-head__txt { min-width: 0; }
 [data-skin="toss"] .ct-head__aux { display: flex; gap: 8px; flex-wrap: wrap; }
 [data-skin="toss"] .ct-grid { display: grid; grid-template-columns: 1fr; gap: 20px; align-items: start; }
 [data-skin="toss"] .ct-grid--2 { grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr); }
-[data-skin="toss"] .ct-grid--workspace { grid-template-columns: minmax(0, 1.12fr) minmax(420px, 0.88fr); }
 [data-skin="toss"] .ct-col { min-width: 0; }
 [data-skin="toss"] .ct-grid, [data-skin="toss"] .ct-col, [data-skin="toss"] .ct-grid > *, [data-skin="toss"] .ts-field { min-width: 0; }
 [data-skin="toss"] .ct-panel-summary { display: grid; gap: 10px; align-items: start; min-width: 0; }
@@ -534,10 +661,6 @@
   [data-skin="toss"] .ct-panel-summary { grid-template-columns: minmax(0, 1fr) auto; }
   [data-skin="toss"] .ct-panel-actions { justify-content: flex-end; }
 }
-@media (max-width: 1279px) {
-  [data-skin="toss"] .ct-grid--workspace { grid-template-columns: 1fr; max-width: 760px; margin: 0 auto; }
-}
-
 [data-skin="toss"] .ct-game-rules-card { padding: 16px; }
 [data-skin="toss"] .ct-rule-topgrid { display: grid; grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.08fr); gap: 12px; align-items: start; }
 [data-skin="toss"] .ct-rulegrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 14px; align-items: start; }
@@ -654,9 +777,26 @@
 
 /* 모바일 720px 분기 — input 16px / 2컬럼 → 1컬럼 / 생성바 메타 숨김 */
 @media (max-width: 720px) {
-  [data-skin="toss"] .ct-grid--2,
-  [data-skin="toss"] .ct-grid--workspace { grid-template-columns: 1fr; max-width: 620px; margin: 0 auto; }
-  [data-skin="toss"] .ct-page--workspace .ts-card { padding: 15px; }
+  [data-skin="toss"].tw-shell { padding: 16px 14px 96px; }
+  [data-skin="toss"] .tw-step {
+    flex: 0 0 auto;
+    min-width: 0;
+    padding: 11px;
+  }
+  [data-skin="toss"] .tw-step__lbl { display: none; }
+  [data-skin="toss"] .tw-foot {
+    flex-wrap: wrap;
+    border-radius: 16px;
+  }
+  [data-skin="toss"] .tw-foot__mid {
+    order: -1;
+    flex: 1 0 100%;
+  }
+  [data-skin="toss"] .tw-foot__actions {
+    flex: 1;
+    justify-content: flex-end;
+  }
+  [data-skin="toss"] .ct-grid--2 { grid-template-columns: 1fr; max-width: 620px; margin: 0 auto; }
   [data-skin="toss"] .ct-game-rules-card { padding: 14px; }
   [data-skin="toss"] .ct-rule-topgrid,
   [data-skin="toss"] .ct-rulegrid { grid-template-columns: 1fr; }

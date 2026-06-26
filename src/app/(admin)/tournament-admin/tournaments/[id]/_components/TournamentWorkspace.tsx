@@ -132,10 +132,10 @@ const MatchesPanel = dynamic(() => import("../_panels/matches-panel"), {
 });
 
 const SECTIONS: Array<{ id: SectionId; label: string }> = [
-  { id: "info", label: "기본" },
-  { id: "schedule", label: "일정" },
-  { id: "divisions", label: "종별" },
-  { id: "game", label: "경기" },
+  { id: "info", label: "대회 정보" },
+  { id: "schedule", label: "일정·장소" },
+  { id: "divisions", label: "종별·디비전" },
+  { id: "game", label: "경기 설정" },
   { id: "publish", label: "접수·공개" },
 ];
 
@@ -451,102 +451,48 @@ export function TournamentWorkspace({
     }
   }
 
-  function renderGlobalSave() {
-    return (
-      <div className="flex flex-wrap items-center justify-end gap-2">
-        {message && (
-          <p className={saveState === "error" ? "text-sm text-[var(--color-error)]" : "text-sm text-[var(--color-success)]"}>
-            {message}
-          </p>
-        )}
-        <button type="button" className="ts-btn ts-btn--primary ts-btn--sm" onClick={saveSetup} disabled={saving}>
-          {saving ? "저장 중" : "저장"}
-        </button>
-      </div>
-    );
-  }
-
-  function renderDesktopSaveBar() {
-    return (
-      <div
-        className="sticky bottom-3 z-30 ml-auto hidden w-fit max-w-full rounded-[12px] border px-3 py-2 shadow-lg lg:flex lg:items-center lg:gap-3"
-        style={{
-          borderColor: "var(--color-border)",
-          backgroundColor: "color-mix(in srgb, var(--color-card) 94%, transparent)",
-        }}
-      >
-        <div className="min-w-[180px] text-right">
-          <p className="text-xs font-bold text-[var(--color-text-muted)]">저장 상태</p>
-          <p className="truncate text-sm font-black text-[var(--color-text-primary)]">
-            {saving ? "저장 중입니다" : dirty ? "변경사항이 있습니다" : saveState === "saved" ? "저장되었습니다" : message || "변경사항 없음"}
-          </p>
-        </div>
-        <button type="button" className="ts-btn ts-btn--primary ts-btn--sm min-w-[96px]" onClick={saveSetup} disabled={saving}>
-          {saving ? "저장 중" : "저장"}
-        </button>
-      </div>
-    );
-  }
+  const activeIndex = Math.max(0, SECTIONS.findIndex((section) => section.id === active));
+  const stateMessage = saving
+    ? "저장 중입니다"
+    : dirty
+      ? "변경사항이 있습니다"
+      : saveState === "saved"
+        ? "저장되었습니다"
+        : message || "변경사항 없음";
 
   return (
-    <div data-skin="toss" className="ct-page ct-page--workspace space-y-3 pb-24 lg:pb-0">
-      <section className="ts-card ts-card--tight ct-workspace-summary">
-        <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(260px,0.42fr)]">
+    <div data-skin="toss" className="tw-shell" data-step={active}>
+      <div className="ts-ph">
+        <div className="ts-ph__row">
           <div className="min-w-0">
-            <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
-              <OperationShortcut
-                label="참가팀"
-                value={`${summary.teamCount}${summary.maxTeams ? ` / ${summary.maxTeams}` : ""}`}
-                helper={form.auto_approve_teams ? "자동 승인" : "승인 확인"}
-                onClick={() => openPanelAndMove("publish", "teams")}
-              />
-              <OperationShortcut
-                label="종별 설정"
-                value={`${summary.divisionCount}개`}
-                helper={summary.divisionCount > 0 ? "운영 방식 확인" : "설정 필요"}
-                onClick={() => openPanelAndMove("divisions", "divisions")}
-              />
-              <OperationShortcut
-                label="경기 운영"
-                value={`${matchStats.total}경기`}
-                helper={matchStats.inProgress > 0 ? `${matchStats.inProgress}경기 진행중` : "일정·기록 확인"}
-                onClick={() => openPanelAndMove("game", "matches")}
-              />
-              <OperationShortcut
-                label="공개 상태"
-                value={summary.sitePublished ? "공개 중" : publishGate.ok ? "공개 가능" : `${urgentCount}개 확인`}
-                helper={summary.siteConfigured ? "사이트 설정" : "사이트 필요"}
-                onClick={() => openPanelAndMove("publish", "site")}
-              />
+            <div className="ts-ph__eyebrow">대회 수정 · v2.41 Toss</div>
+            <h1 className="ts-ph__title">{form.name || setup.name}</h1>
+            <div className="tw-badges">
+              <span className="ct-pill" data-tone={summary.statusTone}>{summary.statusLabel}</span>
+              <span className="ct-pill" data-tone={summary.sitePublished ? "ok" : "mute"}>
+                {summary.sitePublished ? "공개 중" : "비공개"}
+              </span>
+              <span className="ct-pill" data-tone={publishGate.ok ? "ok" : "warn"}>
+                {publishGate.ok ? "공개 가능" : `필수 ${publishGate.missing.length}개 남음`}
+              </span>
+              <span className="ct-pill" data-tone="info">
+                참가 {summary.teamCount}{summary.maxTeams ? ` / ${summary.maxTeams}` : ""}
+              </span>
+              <span className="ct-pill" data-tone="mute">{summary.divisionCount}종별 · {summary.matchCount}경기</span>
             </div>
-            <div className="mt-2 h-2 overflow-hidden rounded-[4px] bg-[var(--grey-100)]">
-              <div
-                className="h-full transition-all"
-                style={{ width: `${percent}%`, backgroundColor: "var(--color-accent)" }}
-              />
-            </div>
-            <p className="mt-1 text-xs text-[var(--color-text-muted)]">
-              진행률 {progress.completed}/{progress.total} · {publishGate.ok ? "공개 가능" : `${publishGate.missing.length}개 남음`}
-            </p>
           </div>
-          <div className="hidden lg:flex lg:flex-col lg:gap-2">
-            <SectionNav active={active} onMove={moveTo} compact />
-            {renderGlobalSave()}
-          </div>
+          <button type="button" className="ts-btn ts-btn--secondary ts-btn--sm" onClick={() => router.push("/tournament-admin/tournaments")}>
+            목록으로
+          </button>
         </div>
-      </section>
-
-      <div
-        className="sticky top-0 z-30 border-y py-1.5 backdrop-blur lg:hidden"
-        style={{
-          borderColor: "var(--color-border)",
-          backgroundColor: "color-mix(in srgb, var(--color-background) 92%, transparent)",
-        }}
-      >
-        <SectionNav active={active} onMove={moveTo} compact />
       </div>
 
-      <div className="ct-grid ct-grid--2 ct-grid--workspace">
+      <SectionNav active={active} onMove={moveTo} />
+      <div className="ct-progress">
+        <div className="ct-progress__fill" style={{ width: `${((activeIndex + 1) / SECTIONS.length) * 100}%` }} />
+      </div>
+
+      <div className="tw-body">
         <div className="ct-col space-y-3">
       <WorkspaceSection
         id="info"
@@ -554,14 +500,13 @@ export function TournamentWorkspace({
         subtitle="기본 정보와 일정·장소를 함께 수정합니다."
       >
         <div className="grid gap-4">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="tw-name-block grid grid-cols-2 gap-3">
             <FormGroupTitle title="대회 정보" flush />
             <Field label="대회 이름" className="col-span-2">
               <input className="ts-input" value={form.name} onChange={(e) => patchForm("name", e.target.value)} />
             </Field>
           </div>
-          <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(280px,0.82fr)]">
-            <div className="grid grid-cols-2 content-start gap-3 self-start">
+          <div className="tw-info-fields grid grid-cols-2 content-start gap-3 self-start">
               <Field label="주최">
                 <input className="ts-input" value={form.organizer} onChange={(e) => patchForm("organizer", e.target.value)} />
               </Field>
@@ -571,23 +516,8 @@ export function TournamentWorkspace({
               <div className="col-span-2">
                 <SponsorEditor sponsors={form.sponsors} setSponsors={setSponsors} />
               </div>
-            </div>
-            <div id="schedule" className="scroll-mt-24">
-              <ScheduleVenue
-                embedded
-                dates={form.schedule_dates}
-                venues={form.places}
-                courts={courts}
-                syncDates={syncDates}
-                removeDate={removeDate}
-                addVenue={addVenue}
-                updateVenue={updateVenue}
-                removeVenue={removeVenue}
-                toggleDateCourt={toggleDateCourt}
-              />
-            </div>
           </div>
-          <div>
+          <div className="tw-description-block">
             <FormGroupTitle title="소개" />
             <Field label="대회 소개">
               <textarea
@@ -599,7 +529,7 @@ export function TournamentWorkspace({
             </Field>
           </div>
           <details
-            className="border-t pt-3"
+            className="tw-media-block border-t pt-3"
             style={{ borderColor: "var(--color-border)" }}
           >
             <summary className="min-h-[44px] cursor-pointer py-2 text-xs font-black uppercase tracking-[0.12em] text-[var(--color-text-muted)]">
@@ -627,6 +557,25 @@ export function TournamentWorkspace({
             </div>
           </details>
         </div>
+      </WorkspaceSection>
+
+      <WorkspaceSection
+        id="schedule"
+        title="일정·장소"
+        subtitle="대회 일정과 경기장을 관리합니다."
+      >
+        <ScheduleVenue
+          embedded
+          dates={form.schedule_dates}
+          venues={form.places}
+          courts={courts}
+          syncDates={syncDates}
+          removeDate={removeDate}
+          addVenue={addVenue}
+          updateVenue={updateVenue}
+          removeVenue={removeVenue}
+          toggleDateCourt={toggleDateCourt}
+        />
       </WorkspaceSection>
 
       <WorkspaceSection
@@ -914,21 +863,33 @@ export function TournamentWorkspace({
         </div>
       </div>
 
-      {renderDesktopSaveBar()}
-
-      <div
-        className="fixed inset-x-0 bottom-0 z-40 border-t p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] lg:hidden"
-        style={{ borderColor: "var(--color-border)", backgroundColor: "var(--color-card)" }}
-      >
-        <div className="mx-auto flex max-w-[520px] items-center gap-3">
-          <div className="min-w-0 flex-1">
-            <p className="text-xs font-bold text-[var(--color-text-muted)]">저장 상태</p>
-            <p className="truncate text-sm font-black text-[var(--color-text-primary)]">
-              {saving ? "저장 중입니다" : dirty ? "변경사항이 있습니다" : saveState === "saved" ? "저장되었습니다" : message || "변경사항 없음"}
-            </p>
-          </div>
-          <button type="button" className="ts-btn ts-btn--primary min-w-[112px]" onClick={saveSetup} disabled={saving}>
+      <div className="tw-foot">
+        <button
+          type="button"
+          className="ts-btn ts-btn--secondary"
+          onClick={() => moveTo(SECTIONS[Math.max(0, activeIndex - 1)].id)}
+          disabled={activeIndex === 0}
+        >
+          이전
+        </button>
+        <div className="tw-foot__mid">
+          <span className="ct-savebar__state">{stateMessage}</span>
+          {saveState === "error" && message && <span className="tw-msg" data-tone="err">{message}</span>}
+        </div>
+        <div className="tw-foot__actions">
+          <button type="button" className="ts-btn ts-btn--secondary" onClick={saveSetup} disabled={saving}>
             {saving ? "저장 중" : "저장"}
+          </button>
+          <button
+            type="button"
+            className="ts-btn ts-btn--primary"
+            onClick={() => {
+              if (activeIndex < SECTIONS.length - 1) moveTo(SECTIONS[activeIndex + 1].id);
+              else void saveSetup();
+            }}
+            disabled={saving}
+          >
+            {activeIndex < SECTIONS.length - 1 ? "다음" : "저장하고 완료"}
           </button>
         </div>
       </div>
@@ -1015,65 +976,41 @@ function SponsorEditor({
 function SectionNav({
   active,
   onMove,
-  compact = false,
 }: {
   active: SectionId;
   onMove: (id: SectionId) => void;
-  compact?: boolean;
 }) {
   const rootRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!compact) return;
     const activeButton = rootRef.current?.querySelector<HTMLButtonElement>('[data-active="true"]');
     activeButton?.scrollIntoView({ block: "nearest", inline: "center", behavior: "smooth" });
-  }, [active, compact]);
+  }, [active]);
 
   return (
-    <div ref={rootRef} className={["ts-segment", compact ? "overflow-x-auto" : ""].join(" ")}>
-      {SECTIONS.map((section) => (
+    <div ref={rootRef} className="tw-steps">
+      {SECTIONS.map((section, index) => {
+        const activeIndex = SECTIONS.findIndex((item) => item.id === active);
+        const isActive = active === section.id;
+        const isDone = index < activeIndex;
+        return (
         <button
           key={section.id}
           type="button"
           aria-label={section.label}
-          aria-current={active === section.id ? "true" : undefined}
-          data-active={active === section.id}
+          aria-current={isActive ? "true" : undefined}
+          data-active={isActive}
           onClick={() => onMove(section.id)}
-          className={[
-            "ts-segment__btn whitespace-nowrap",
-            compact ? "min-w-[84px] shrink-0 text-xs" : "",
-          ].join(" ")}
+          className={["tw-step", isActive ? "is-active" : "", isDone ? "is-done" : ""].join(" ")}
         >
-          {section.label}
+          <span className="tw-step__num">
+            {isDone ? <Icon name="check" size={15} /> : index + 1}
+          </span>
+          <span className="tw-step__lbl">{section.label}</span>
         </button>
-      ))}
+        );
+      })}
     </div>
-  );
-}
-
-function OperationShortcut({
-  label,
-  value,
-  helper,
-  onClick,
-}: {
-  label: string;
-  value: string;
-  helper: string;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="rounded-[12px] bg-[var(--grey-50)] p-2.5 text-left transition hover:bg-[var(--primary-weak)]"
-    >
-      <span className="min-w-0">
-        <span className="block text-xs font-bold text-[var(--ink-mute)]">{label}</span>
-        <span className="block truncate text-sm font-black text-[var(--ink)]">{value}</span>
-        <span className="block truncate text-xs text-[var(--ink-mute)]">{helper}</span>
-      </span>
-    </button>
   );
 }
 

@@ -11,9 +11,10 @@
 | Admin game rules | Done | `game_time`/`game_method` now derive from canonical `game_rules` instead of free text. |
 | Recording modes | Done | Match-level `manual` is counted, displayed, and blocked from Flutter/score-sheet system inputs. |
 | Admin Toss handoff | Done | `BDR-current/_handoff-admin-toss-v2.41/` added; src unchanged. |
-| Admin Toss sweep | In Progress | v2.41 package reviewed; shared KPI, DataTable, PageHead, Toolbar blocks aligned; v39 data consistency note applied. |
+| Admin Toss sweep | In Progress | Tournament detail workspace shell replaced with v2.41 Toss step flow; panel header hybrid residue removed. |
 
 ## Work Log
+- 2026-06-26: Replaced tournament detail hybrid workspace with v2.41 Toss shell/steps/footer, split schedule into its own step, removed embedded panel headers, and documented the alignment audit; TypeScript passed.
 - 2026-06-26: Created post-v39 Claude.ai design brief for public-site data sync and admin Toss state QA.
 - 2026-06-26: Applied BDR v2 (39) admin mock data consistency update to active v2.41 handoff; src unchanged because operational pages already use DB/API wiring.
 - 2026-06-26: Added Material-to-lucide Icon aliases and converted organization detail top/tab icons to Toss Icon wrapper; TypeScript passed.
@@ -23,4 +24,3 @@
 - 2026-06-26: Rebuilt tournament-admin organization creation form with v2.41 Toss PageHead, panel, inputs, selects, and Icon wrappers; TypeScript passed.
 - 2026-06-26: Rebuilt tournament-admin series detail with v2.41 PageHead, KPI cards, and ad-table editions list; TypeScript passed.
 - 2026-06-26: Rebuilt tournament-admin series list with v2.41 Toss PageHead and ad-table static server markup; TypeScript passed.
-- 2026-06-26: Rebuilt tournament-admin organizations list with v2.41 PageHead, ad-cardgrid, Empty, and lucide Icon wrappers; TypeScript passed.

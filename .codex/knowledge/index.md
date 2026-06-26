@@ -1,5 +1,6 @@
 # Knowledge Index
 
+- 2026-06-26 admin: tournament detail page looked unchanged because the live route still used the legacy `ct-page--workspace`/`ct-grid--workspace` shell; it now uses v2.41 `tw-shell`/`tw-steps`/`tw-foot` and embedded panel headers were removed.
 - 2026-06-26 design: BDR v2 (39) only corrected v2.41 admin mock consistency; active handoff now uses 44 teams/27 matches, while public site 38-team fiction remains PM-decision gated.
 - 2026-06-26 admin: `Icon` supports common legacy Material names as lucide aliases; organization detail top/tab icons now use the Toss Icon wrapper.
 - 2026-06-26 admin: organization members page now uses v2.41 Toss `ts-ph`, `ad-panel`, `ad-listrow`, `ts-badge`, and lucide `Icon` wrappers.
@@ -31,6 +32,7 @@ Updated: 2026-06-26
 | lessons.md | 0 | - |
 
 Recent work:
+- 2026-06-26 admin: tournament detail workspace was replaced with the v2.41 Toss shell/step/footer flow, schedule became its own step, and panel-level standalone headers/back links were removed.
 - 2026-06-26 design: BDR v2 (39) was checked as mock consistency rather than source wiring; active v2.41 admin handoff now documents 44-team/27-match baseline and leaves public site mock untouched pending PM decision.
 - 2026-06-26 admin: organization detail top actions/tab icons moved to the Toss Icon wrapper, with common Material icon names aliased to lucide components.
 - 2026-06-26 admin: organization members page was rebuilt on v2.41 Toss invite/list patterns while preserving member invite and delete API flows.
