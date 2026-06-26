@@ -70,6 +70,23 @@ type CurrentCategory = {
   }>;
 };
 
+function readApiError(json: unknown, fallback: string) {
+  if (!json || typeof json !== "object") return fallback;
+  const record = json as Record<string, unknown>;
+  if (typeof record.error === "string") return record.error;
+  if (Array.isArray(record.error)) {
+    const issue = record.error.find((item) => item && typeof item === "object" && "message" in item);
+    const message = issue && (issue as { message?: unknown }).message;
+    if (typeof message === "string") return message;
+  }
+  if (typeof record.message === "string") return record.message;
+  return fallback;
+}
+
+function displayCategoryName(category: string) {
+  return category === "divisions" ? "종별" : category;
+}
+
 // FORMAT_LABEL / showGroupSettings / showRankingFormat = lib/tournaments/division-formats.ts 로 이동 (Phase 3.5-D)
 // 사유: server (route.ts) + client (page.tsx) 양쪽에서 동일 enum 사용 + vitest 단위 검증 가능.
 
@@ -108,7 +125,7 @@ export default function DivisionsSetupPage() {
       );
       const json = await res.json();
       if (!res.ok) {
-        setError(json.error ?? "조회 실패");
+        setError(readApiError(json, "조회 실패"));
         setLoading(false);
         return;
       }
@@ -359,7 +376,7 @@ export default function DivisionsSetupPage() {
       );
       const json = await res.json();
       if (!res.ok) {
-        setError(json.error ?? "종별 저장 실패");
+        setError(readApiError(json, "종별 저장 실패"));
         return;
       }
 
@@ -402,7 +419,7 @@ export default function DivisionsSetupPage() {
       );
       const json = await res.json();
       if (!res.ok) {
-        setError(json.error ?? "매핑 실패");
+        setError(readApiError(json, "매핑 실패"));
         return;
       }
       setAdvanceResult({
@@ -435,7 +452,7 @@ export default function DivisionsSetupPage() {
       );
       const json = await res.json();
       if (!res.ok) {
-        setError(json.error ?? "저장 실패");
+        setError(readApiError(json, "저장 실패"));
         return;
       }
       // 낙관적 갱신
@@ -538,7 +555,7 @@ export default function DivisionsSetupPage() {
                 key={`${category}-${divisionIndex}-${division.name}`}
                 className="ta-selected-division"
               >
-                <span className="ta-selected-division__meta">{category}</span>
+                <span className="ta-selected-division__meta">{displayCategoryName(category)}</span>
                 <span className="ta-selected-division__name">{division.name || "이름 없음"}</span>
                 <button
                   type="button"
@@ -566,7 +583,7 @@ export default function DivisionsSetupPage() {
               >
                 <div className="flex items-center justify-between gap-3">
                   <h3 className="font-semibold text-[var(--ink)]">
-                    {category.name}
+                    {displayCategoryName(category.name)}
                   </h3>
                   <span className="ts-badge ts-badge--grey">
                     {selected?.divisions.length ?? 0}개 선택
