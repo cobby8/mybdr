@@ -2335,6 +2335,106 @@
   color: var(--danger);
 }
 
+/* Tournament staff/recorders panels */
+[data-skin="toss"] .tp-title {
+  color: var(--ink);
+  font-size: 16px;
+  font-weight: 900;
+}
+[data-skin="toss"] .tp-desc,
+[data-skin="toss"] .tp-list-meta {
+  color: var(--ink-mute);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.45;
+}
+[data-skin="toss"] .tp-message {
+  color: var(--ink-mute);
+  font-size: 13.5px;
+  font-weight: 800;
+}
+[data-skin="toss"] .tp-message[data-tone="danger"] {
+  color: var(--danger);
+}
+[data-skin="toss"] .tp-message[data-tone="ok"] {
+  color: var(--ok);
+}
+[data-skin="toss"] .tp-list-row,
+[data-skin="toss"] .tp-match-row {
+  display: flex;
+  gap: 12px;
+  border-radius: 14px;
+  background: var(--grey-50);
+  padding: 13px;
+}
+[data-skin="toss"] .tp-list-row {
+  align-items: center;
+  justify-content: space-between;
+}
+[data-skin="toss"] .tp-match-row {
+  flex-direction: column;
+}
+@media (min-width: 640px) {
+  [data-skin="toss"] .tp-match-row {
+    align-items: center;
+    flex-direction: row;
+    justify-content: space-between;
+  }
+}
+[data-skin="toss"] .tp-avatar {
+  width: 32px;
+  height: 32px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  object-fit: cover;
+}
+[data-skin="toss"] .tp-avatar--large {
+  width: 40px;
+  height: 40px;
+}
+[data-skin="toss"] .tp-avatar--fallback {
+  display: grid;
+  place-items: center;
+  background: var(--primary-weak);
+  color: var(--primary);
+  font-size: 12px;
+  font-weight: 900;
+}
+[data-skin="toss"] .tp-list-name {
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 800;
+}
+[data-skin="toss"] .tp-danger-link {
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--danger);
+  cursor: pointer;
+  font-family: var(--ff);
+  font-size: 12.5px;
+  font-weight: 800;
+  padding: 6px 9px;
+}
+[data-skin="toss"] .tp-danger-link:hover {
+  background: var(--danger-weak);
+}
+[data-skin="toss"] .tp-assigned {
+  color: var(--primary);
+  font-weight: 900;
+}
+[data-skin="toss"] .tp-role-badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  background: var(--grey-100);
+  color: var(--ink-mute);
+  font-size: 12px;
+  font-weight: 800;
+  padding: 6px 10px;
+  white-space: nowrap;
+}
+
 @media (max-width: 560px) {
   [data-skin="toss"] .ta-bracket-versions,
   [data-skin="toss"] .ta-bracket-actions {

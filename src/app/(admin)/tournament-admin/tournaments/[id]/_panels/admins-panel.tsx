@@ -84,10 +84,9 @@ export default function TournamentAdminsPage() {
     <div data-skin="toss">
       {/* 추가 폼 */}
       <section className="ts-card mb-6">
-        <h2 className="mb-4 text-base font-semibold">관리자 추가</h2>
-        {/* 하드코딩 색상 → CSS 변수 토큰 (시맨틱 메시지: 실패/성공) */}
-        {error && <p className="mb-3 text-sm text-[var(--color-error)]">{error}</p>}
-        {success && <p className="mb-3 text-sm text-[var(--color-success)]">{success}</p>}
+        <h2 className="tp-title mb-4">관리자 추가</h2>
+        {error && <p className="tp-message mb-3" data-tone="danger">{error}</p>}
+        {success && <p className="tp-message mb-3" data-tone="ok">{success}</p>}
         <div className="flex flex-col gap-3 sm:flex-row">
           <input
             type="email"
@@ -129,22 +128,21 @@ export default function TournamentAdminsPage() {
             <div key={admin.id} className="ts-card">
               <div className="flex items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
-                  {/* 2026-05-12 — admin 빨강 본문 금지 → info(Navy) 토큰 */}
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--color-elevated)] text-sm font-bold text-[var(--color-info)]">
+                  <div className="tp-avatar tp-avatar--large tp-avatar--fallback">
                     {(admin.user.nickname ?? admin.user.email)[0].toUpperCase()}
                   </div>
                   <div>
                     <p className="font-medium">{admin.user.nickname ?? "이름 없음"}</p>
-                    <p className="text-xs text-[var(--color-text-muted)]">{admin.user.email}</p>
+                    <p className="tp-list-meta">{admin.user.email}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
-                  <span className="rounded-full bg-[var(--color-elevated)] px-3 py-1 text-xs text-[var(--color-text-muted)]">
+                  <span className="tp-role-badge">
                     {ROLE_LABEL[admin.role] ?? admin.role}
                   </span>
                   <button
                     onClick={() => removeAdmin(admin.id, admin.user.nickname ?? admin.user.email)}
-                    className="text-xs text-[var(--color-error)] hover:underline"
+                    className="tp-danger-link"
                   >
                     제거
                   </button>
