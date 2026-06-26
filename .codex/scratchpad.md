@@ -17,10 +17,11 @@
 | Recording modes | Done | Match-level `manual` is counted, displayed, and blocked from Flutter/score-sheet system inputs. |
 | Recording copy | Done | User-facing "종이 기록지" copy has been renamed to "전자기록지" while internal `paper` mode/data keys are preserved. |
 | Admin Toss handoff | Done | `BDR-current/_handoff-admin-toss-v2.41/` added; src unchanged. |
-| Admin Toss sweep | In Progress | v2(41) state/cleanup pass added Toss confirm/prompt modals and first loading/empty helpers; dev/main are synced. |
+| Admin Toss sweep | In Progress | Tournament teams panel was rebuilt around Toss operate flow; remaining panels still need the same direct-replacement pass. |
 | Tournament operate bracket | Done | Legacy bracket tab was replaced with the Toss operate flow: division config, seeded/random draw, group slots, and division generation. |
 
 ## Work Log
+- 2026-06-27: Rebuilt tournament operate teams panel around the Toss v2.41 flow so division status, single/bulk category moves, approval/payment, tokens, and player roster actions are first-screen operations; TypeScript and production build passed.
 - 2026-06-27: Removed first-empty-slot fallback from single-elim winner advancement; winners now require and use explicit `next_match_slot`, with targeted Vitest and TypeScript passing.
 - 2026-06-27: Set Gangnam Association Cup D5 tournament and all 13 matches to `recording_mode=paper`, renamed user-facing score-sheet copy to "전자기록지", and kept internal `paper`/`[종이 기록]` data keys for compatibility; TypeScript passed.
 - 2026-06-27: Fixed single-division bracket data fallback for corrupted team category values so the operate bracket tab recognizes approved teams and normalizes categories on draw/generate; TypeScript and production build passed.
@@ -31,4 +32,3 @@
 - 2026-06-26: Fixed tournament team division operations for next-day live ops: single/bulk team category moves now sync team division and player division codes, team cards expose category selects, and delete blocks show linked counts; TypeScript passed.
 - 2026-06-26: Applied BDR v2 (41) admin Toss state pass: destructive confirms and prompt flows now use Toss modals, state helpers/skeletons are in `admin-toss`, and dev/main were pushed.
 - 2026-06-26: Wired previous tournament import to real DB/API, removed venue mock fallback, linked wizard PDF/association actions, and replaced teams panel player error alerts with Toss toast; TypeScript passed and dev/main were pushed.
-- 2026-06-26: Cleaned recorders/admins panels to shared Toss `tp-*` list/message/avatar classes; scans are clean and TypeScript passed.

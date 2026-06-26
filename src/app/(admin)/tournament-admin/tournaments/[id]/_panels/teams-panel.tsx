@@ -1,52 +1,28 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
-import Link from "next/link";
-// 2026-05-16 PR-Admin-1 — 단계간 CTA (페이지 footer "다음: 대진표 생성 →")
-import { NextStepCTA } from "../_components/NextStepCTA";
-// Track B-a Toss 리스킨 — Material Symbols → lucide-react 키트(<Icon>)
-import { Icon, useTossConfirm } from "@/components/admin-toss";
+import { Btn, Empty, Icon, Modal, useTossConfirm } from "@/components/admin-toss";
 import { PanelLoadingState } from "./panel-loading-state";
 
-/* ---------- 타입 ---------- */
+type TeamStatus = "pending" | "approved" | "rejected" | "withdrawn" | string;
+type PaymentStatus = "unpaid" | "paid" | "refunded" | "waived" | string;
 
-type Player = {
+type TeamRow = {
   id: string;
-  player_name: string | null;
-  phone: string | null;
-  jersey_number: number | null;
-  position: string | null;
-  role: string | null;
-  user_id: string | null;
-  users: { id: string; nickname: string | null; phone: string | null; profile_image_url: string | null } | null;
-};
-
-type TournamentTeam = {
-  id: string;
-  status: string;
-  seedNumber: number | null;
-  groupName: string | null;
-  createdAt: string;
+  status: TeamStatus;
+  seed_number: number | null;
+  group_name: string | null;
+  created_at: string;
   team: {
     id: string;
     name: string;
-    logoUrl: string | null;
-    primaryColor: string | null;
+    logo_url: string | null;
+    primary_color: string | null;
   };
-  players: { id: string; role: string }[];
+  players: Array<{ id: string; role: string }>;
 };
 
-/**
- * apply_token 진행 표 row (Phase 2-C IA 통합).
- * - team-applications API 응답의 토큰 정보를 tournamentTeam.id 로 매핑해서 표 컬럼 추가.
- * - applyTokenUrl: 만료 토큰은 null 처리 (API 가 만료 검사 후 노출).
- */
-// 2026-05-11 Phase 3-D — 검토 보고서 §D 권장 4건 통합:
-//   - appliedVia (admin / coach_token / self / null) — 등록 경로 배지
-//   - appliedAt (신청 시각) — createdAt 보다 우선 표시
-//   - waitingNumber — 대기접수 N번
-//   - registeredBy — 일반 신청자 정보 (nickname / email)
 type TokenInfo = {
   applyTokenUrl: string | null;
   applyTokenExpiresAt: string | null;
@@ -56,9 +32,8 @@ type TokenInfo = {
   appliedAt: string | null;
   waitingNumber: number | null;
   registeredBy: { nickname: string | null; email: string | null } | null;
-  // Phase 3-F 옵션 A 신규
   category: string | null;
-  paymentStatus: string | null;
+  paymentStatus: PaymentStatus | null;
   updatedAt: string;
 };
 
@@ -68,111 +43,144 @@ type DivisionRuleOption = {
   cap: number | null;
 };
 
-/* ---------- 상수 ---------- */
+type TeamView = TeamRow & {
+  token: TokenInfo | null;
+  category: string | null;
+  paymentStatus: PaymentStatus | null;
+  managerName: string | null;
+  managerPhone: string | null;
+  tokenAlive: boolean;
+};
+
+type Player = {
+  id: string;
+  player_name: string | null;
+  phone: string | null;
+  jersey_number: number | null;
+  position: string | null;
+  role: string | null;
+  birth_date?: string | null;
+  school_name?: string | null;
+  parent_name?: string | null;
+  parent_phone?: string | null;
+};
+
+type PlayerDraft = {
+  player_name: string;
+  phone: string;
+  jersey_number: string;
+  position: string;
+};
 
 const STATUS_LABEL: Record<string, string> = {
-  pending: "대기 중",
+  pending: "대기",
   approved: "승인",
   rejected: "거절",
   withdrawn: "취소",
 };
 
-/* ---------- 선수 추가 폼 초기값 ---------- */
-const EMPTY_FORM = { player_name: "", phone: "", jersey_number: "", position: "" };
+const STATUS_TONE: Record<string, "ok" | "warn" | "err" | "mute" | "info"> = {
+  pending: "warn",
+  approved: "ok",
+  rejected: "err",
+  withdrawn: "mute",
+};
 
-/* ---------- 메인 컴포넌트 ---------- */
+const PAYMENT_LABEL: Record<string, string> = {
+  unpaid: "미납",
+  paid: "납부",
+  refunded: "환불",
+  waived: "면제",
+};
 
-export default function TournamentTeamsPage({
-  showNextStepCTA = true,
-}: {
-  showNextStepCTA?: boolean;
-} = {}) {
+const VIA_LABEL: Record<string, string> = {
+  admin: "운영자",
+  coach_token: "코치",
+  self: "본인",
+};
+
+const EMPTY_PLAYER: PlayerDraft = {
+  player_name: "",
+  phone: "",
+  jersey_number: "",
+  position: "",
+};
+
+function statusLabel(status: string) {
+  return STATUS_LABEL[status] ?? status;
+}
+
+function paymentLabel(status: string | null | undefined) {
+  if (!status) return "미납";
+  return PAYMENT_LABEL[status] ?? status;
+}
+
+function formatDate(value: string | null | undefined) {
+  if (!value) return "-";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "-";
+  return date.toLocaleDateString("ko-KR");
+}
+
+function categoryLabel(code: string | null, rules: DivisionRuleOption[]) {
+  if (!code) return "종별 미지정";
+  return rules.find((rule) => rule.code === code)?.label ?? code;
+}
+
+function categorySortKey(code: string | null) {
+  return code ?? "\uffff";
+}
+
+function normalizePhone(value: string) {
+  return value.replace(/\D/g, "");
+}
+
+function isCoachPending(team: TeamView) {
+  return team.token?.appliedVia === "admin" && team.players.length === 0;
+}
+
+function toneForStatus(status: string) {
+  return STATUS_TONE[status] ?? "mute";
+}
+
+export default function TournamentTeamsPanel() {
   const { id } = useParams<{ id: string }>();
-  const [teams, setTeams] = useState<TournamentTeam[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<string>("all");
-  const [actionLoading, setActionLoading] = useState<string | null>(null);
-  const [drawingDivision, setDrawingDivision] = useState<string | null>(null);
-  const [bulkMovingCategory, setBulkMovingCategory] = useState<string | null>(null);
-  const [bulkMoveTarget, setBulkMoveTarget] = useState<Record<string, string>>({});
-
-  // 선수 관리 상태
-  const [expandedTeamId, setExpandedTeamId] = useState<string | null>(null);
-  const [players, setPlayers] = useState<Player[]>([]);
-  const [playersLoading, setPlayersLoading] = useState(false);
-  const [showAddForm, setShowAddForm] = useState(false);
-  const [addForm, setAddForm] = useState(EMPTY_FORM);
-  const [addLoading, setAddLoading] = useState(false);
-
-  // Phase 2-C IA — apply_token 진행 표 통합
-  // tokenMap: tournamentTeam.id → 토큰 URL/만료/코치정보
-  // 이유(왜): 기존 API 응답에는 토큰 정보가 없어 별도 endpoint 호출 후 id 매핑.
+  const [teams, setTeams] = useState<TeamRow[]>([]);
   const [tokenMap, setTokenMap] = useState<Record<string, TokenInfo>>({});
-  const [toast, setToast] = useState<string | null>(null);
-  // Phase 3-F 옵션 A — Tournament 진행률 표시용 roster 룰
+  const [divisionRules, setDivisionRules] = useState<DivisionRuleOption[]>([]);
   const [rosterRule, setRosterRule] = useState<{ min: number | null; max: number | null }>({
     min: null,
     max: null,
   });
-  // 2026-05-12 Phase 4-B — 종별 룰 목록 (드롭다운용)
-  const [divisionRules, setDivisionRules] = useState<DivisionRuleOption[]>([]);
-  // 모달 inline 편집 상태 (코치 / 종별 / import)
-  const [editingManager, setEditingManager] = useState(false);
-  const [managerForm, setManagerForm] = useState({ name: "", phone: "" });
-  const [showImportModal, setShowImportModal] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState("all");
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [bulkMovingCategory, setBulkMovingCategory] = useState<string | null>(null);
+  const [bulkMoveTarget, setBulkMoveTarget] = useState<Record<string, string>>({});
+  const [toast, setToast] = useState<string | null>(null);
+  const [detailId, setDetailId] = useState<string | null>(null);
   const tossConfirm = useTossConfirm();
 
-  // 토스트 자동 사라짐 (3초)
-  const showToast = useCallback((msg: string) => {
-    setToast(msg);
-    setTimeout(() => setToast(null), 3000);
+  const showToast = useCallback((message: string) => {
+    setToast(message);
+    window.setTimeout(() => setToast(null), 2800);
   }, []);
 
-  /* --- 팀 목록 로드 + 토큰 정보 병합 (Phase 2-C 통합) --- */
   const load = useCallback(async () => {
     try {
-      // 1) 기존 팀/선수 정보 (시드/상태 관리용)
-      //    API 응답이 snake_case 자동 변환되므로 camelCase interface 로 명시 매핑 (Invalid Date / 시드 누락 fix)
-      const res = await fetch(`/api/web/tournaments/${id}/teams`);
-      if (res.ok) {
-        const raw = (await res.json()) as Array<{
-          id: string;
-          status: string;
-          seed_number: number | null;
-          group_name: string | null;
-          created_at: string;
-          team: {
-            id: string; name: string;
-            logo_url: string | null; primary_color: string | null;
-          };
-          players: Array<{ id: string; role: string }>;
-        }>;
-        const mapped: TournamentTeam[] = raw.map((t) => ({
-          id: t.id,
-          status: t.status,
-          seedNumber: t.seed_number,
-          groupName: t.group_name,
-          createdAt: t.created_at,
-          team: {
-            id: t.team.id,
-            name: t.team.name,
-            logoUrl: t.team.logo_url,
-            primaryColor: t.team.primary_color,
-          },
-          players: t.players,
-        }));
-        setTeams(mapped);
+      const [teamRes, tokenRes] = await Promise.all([
+        fetch(`/api/web/tournaments/${id}/teams`),
+        fetch(`/api/web/admin/tournaments/${id}/team-applications`),
+      ]);
+
+      if (teamRes.ok) {
+        setTeams((await teamRes.json()) as TeamRow[]);
       }
 
-      // 2) 토큰 정보 (apply_token URL + 만료) — 별도 endpoint
-      //    응답은 snake_case (apiSuccess 자동 변환) — apply_token_url / apply_token_expires_at
-      const tokenRes = await fetch(`/api/web/admin/tournaments/${id}/team-applications`);
       if (tokenRes.ok) {
         const json = await tokenRes.json();
         const next: Record<string, TokenInfo> = {};
-        // apiSuccess 응답 = raw data (no { data: ... } wrapper). { teams: [...] } 형태.
-        // 응답 key 가 snake_case 로 변환되므로 접근자도 snake_case 사용 (CLAUDE.md §보안 5번)
-        const teamsArr = (json?.teams ?? []) as Array<{
+        const rows = (json?.teams ?? []) as Array<{
           id: string;
           apply_token_url: string | null;
           apply_token_expires_at: string | null;
@@ -183,10 +191,10 @@ export default function TournamentTeamsPage({
           waiting_number: number | null;
           registered_by: { nickname: string | null; email: string | null } | null;
           category: string | null;
-          payment_status: string | null;
+          payment_status: PaymentStatus | null;
           updated_at: string;
         }>;
-        for (const row of teamsArr) {
+        for (const row of rows) {
           next[row.id] = {
             applyTokenUrl: row.apply_token_url,
             applyTokenExpiresAt: row.apply_token_expires_at,
@@ -202,64 +210,125 @@ export default function TournamentTeamsPage({
           };
         }
         setTokenMap(next);
-        // Tournament roster 룰 (페이지 단위 1회)
         setRosterRule({
           min: typeof json?.roster_min === "number" ? json.roster_min : null,
           max: typeof json?.roster_max === "number" ? json.roster_max : null,
         });
-        // Phase 4-B 종별 룰 (드롭다운용)
         setDivisionRules((json?.division_rules ?? []) as DivisionRuleOption[]);
       }
-    } catch { /* ignore */ } finally {
+    } catch {
+      showToast("참가팀 정보를 불러오지 못했습니다.");
+    } finally {
       setLoading(false);
     }
-  }, [id]);
+  }, [id, showToast]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    void load();
+  }, [load]);
 
-  /* --- 토큰 URL 복사 (clipboard + 토스트) --- */
-  const copyTokenUrl = useCallback(
-    async (url: string | null) => {
-      if (!url) {
-        showToast("토큰이 만료되었습니다. 재발급이 필요합니다.");
-        return;
-      }
-      try {
-        await navigator.clipboard.writeText(url);
-        showToast("토큰 URL이 복사되었습니다");
-      } catch {
-        showToast("복사에 실패했습니다");
-      }
-    },
-    [showToast],
+  const viewTeams = useMemo<TeamView[]>(() => {
+    return teams.map((team) => {
+      const token = tokenMap[team.id] ?? null;
+      return {
+        ...team,
+        token,
+        category: token?.category ?? null,
+        paymentStatus: token?.paymentStatus ?? null,
+        managerName: token?.managerName ?? null,
+        managerPhone: token?.managerPhone ?? null,
+        tokenAlive: Boolean(token?.applyTokenUrl),
+      };
+    });
+  }, [teams, tokenMap]);
+
+  const counts = useMemo(() => {
+    return {
+      all: viewTeams.length,
+      pending: viewTeams.filter((team) => team.status === "pending").length,
+      approved: viewTeams.filter((team) => team.status === "approved").length,
+      rejected: viewTeams.filter((team) => team.status === "rejected").length,
+      coach_pending: viewTeams.filter(isCoachPending).length,
+      paid: viewTeams.filter((team) => team.paymentStatus === "paid").length,
+      tokenAlive: viewTeams.filter((team) => team.tokenAlive).length,
+    };
+  }, [viewTeams]);
+
+  const filteredTeams = useMemo(() => {
+    if (filter === "all") return viewTeams;
+    if (filter === "coach_pending") return viewTeams.filter(isCoachPending);
+    if (filter === "paid") return viewTeams.filter((team) => team.paymentStatus === "paid");
+    if (filter === "unpaid") return viewTeams.filter((team) => team.paymentStatus !== "paid");
+    return viewTeams.filter((team) => team.status === filter);
+  }, [filter, viewTeams]);
+
+  const grouped = useMemo(() => {
+    const map = new Map<string | null, TeamView[]>();
+    for (const team of filteredTeams) {
+      const key = team.category;
+      map.set(key, [...(map.get(key) ?? []), team]);
+    }
+    return [...map.entries()].sort(([a], [b]) =>
+      categorySortKey(a).localeCompare(categorySortKey(b)),
+    );
+  }, [filteredTeams]);
+
+  const divisionStats = useMemo(() => {
+    return divisionRules.map((rule) => {
+      const total = viewTeams.filter((team) => team.category === rule.code).length;
+      const approved = viewTeams.filter(
+        (team) => team.category === rule.code && team.status === "approved",
+      ).length;
+      const paid = viewTeams.filter(
+        (team) => team.category === rule.code && team.paymentStatus === "paid",
+      ).length;
+      return {
+        ...rule,
+        total,
+        approved,
+        paid,
+        overCapacity: rule.cap != null && approved > rule.cap,
+      };
+    });
+  }, [divisionRules, viewTeams]);
+
+  const detailTeam = useMemo(
+    () => viewTeams.find((team) => team.id === detailId) ?? null,
+    [detailId, viewTeams],
   );
 
-  /* --- 만료일 포맷 (YYYY.MM.DD) --- */
-  const formatExpiry = (iso: string | null): string => {
-    if (!iso) return "—";
-    const d = new Date(iso);
-    return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}`;
-  };
+  async function copyToClipboard(text: string | null, emptyMessage: string) {
+    if (!text) {
+      showToast(emptyMessage);
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(text);
+      showToast("복사했습니다.");
+    } catch {
+      showToast("복사에 실패했습니다.");
+    }
+  }
 
-  /* --- 팀 상태 변경 --- */
-  const updateStatus = async (teamId: string, status: string) => {
+  async function updateStatus(teamId: string, status: TeamStatus) {
     setActionLoading(teamId);
     try {
-      await fetch(`/api/web/tournaments/${id}/teams/${teamId}`, {
+      const res = await fetch(`/api/web/tournaments/${id}/teams/${teamId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status }),
       });
+      if (!res.ok) throw new Error();
+      showToast(`${statusLabel(status)} 처리했습니다.`);
       await load();
-    } catch { /* ignore */ } finally {
+    } catch {
+      showToast("상태 변경에 실패했습니다.");
+    } finally {
       setActionLoading(null);
     }
-  };
+  }
 
-  /* --- Track B-a: 납부 상태 변경 (paid 설정 시 입금→자동확정 트리거) --- */
-  // 이유(왜): 운영자가 입금 확인 후 "납부"로 바꾸면 서버가 정원 가드 통과 시 자동으로 승인 처리한다.
-  //   응답의 promoted / promote_reason 으로 결과(승격 / 정원초과 보류)를 토스트 안내한다.
-  const updatePayment = async (teamId: string, paymentStatus: string) => {
+  async function updatePayment(teamId: string, paymentStatus: PaymentStatus) {
     setActionLoading(teamId);
     try {
       const res = await fetch(`/api/web/tournaments/${id}/teams/${teamId}`, {
@@ -267,1602 +336,1029 @@ export default function TournamentTeamsPage({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ payment_status: paymentStatus }),
       });
-      // 응답 key 는 snake_case (apiSuccess 자동 변환) — promoted / promote_reason
       const json = await res.json().catch(() => null);
-      if (paymentStatus === "paid" && json) {
-        if (json.promoted) {
-          showToast("입금 확인 — 참가 확정(승인)으로 자동 변경되었습니다.");
-        } else if (json.promote_reason === "division_full") {
-          showToast("입금 처리됨 — 단, 해당 종별 정원이 가득 차 자동 승인은 보류되었습니다.");
-        } else {
-          showToast("납부 상태가 변경되었습니다.");
-        }
+      if (!res.ok) throw new Error(json?.error ?? "납부 상태 변경 실패");
+      if (paymentStatus === "paid" && json?.promoted) {
+        showToast("입금 확인 후 자동 승인했습니다.");
+      } else if (paymentStatus === "paid" && json?.promote_reason === "division_full") {
+        showToast("입금은 확인했지만 정원 초과로 승인은 보류됐습니다.");
       } else {
-        showToast("납부 상태가 변경되었습니다.");
+        showToast("납부 상태를 변경했습니다.");
       }
       await load();
     } catch {
-      showToast("네트워크 오류");
+      showToast("납부 상태 변경에 실패했습니다.");
     } finally {
       setActionLoading(null);
     }
-  };
+  }
 
-  /* --- Phase 4-B 옵션 B (모달 inline 액션 4건) --- */
-
-  // 토큰 재발급
-  const reissueToken = async (ttId: string) => {
-    const ok = await tossConfirm.confirm({
-      title: "토큰 재발급",
-      sub: "기존 참가 신청 토큰 URL은 즉시 무효화됩니다.",
-      body: "새 토큰 링크가 발급되며, 가능하면 새 링크를 바로 공유해 주세요.",
-      confirmLabel: "재발급",
-      tone: "danger",
-    });
-    if (!ok) return;
-    try {
-      const res = await fetch(`/api/web/admin/tournaments/${id}/teams/${ttId}/reissue-token`, {
-        method: "POST",
-      });
-      const json = await res.json();
-      if (!res.ok) return showToast(json.error ?? "재발급 실패");
-      if (json.apply_token_url) {
-        try { await navigator.clipboard.writeText(json.apply_token_url); } catch { /* ignore */ }
-        showToast(`재발급 완료 — 링크가 복사되었습니다. (만료 ${new Date(json.expires_at).toLocaleDateString("ko-KR")})`);
-      } else {
-        showToast("재발급 완료");
-      }
-      await load();
-    } catch { showToast("네트워크 오류"); }
-  };
-
-  // 코치 정보 변경
-  const saveManager = async (ttId: string) => {
-    try {
-      const body: Record<string, string> = {};
-      if (managerForm.name.trim()) body.managerName = managerForm.name.trim();
-      // phone 빈 문자열 = null 처리 (zod 가 빈 값 허용)
-      body.managerPhone = managerForm.phone.trim();
-      const res = await fetch(`/api/web/admin/tournaments/${id}/teams/${ttId}/manager`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-      const json = await res.json();
-      if (!res.ok) return showToast(json.error ?? "저장 실패");
-      showToast(json.changed ? "코치 정보 변경됨" : "변경 사항 없음");
-      setEditingManager(false);
-      await load();
-    } catch { showToast("네트워크 오류"); }
-  };
-
-  // 종별 변경
-  const changeCategory = async (ttId: string, category: string) => {
+  async function changeCategory(teamId: string, category: string) {
     if (!category) return;
+    const team = viewTeams.find((item) => item.id === teamId);
     const ok = await tossConfirm.confirm({
-      title: "팀 종별 변경",
-      sub: `종별을 "${category}" 로 변경합니다.`,
-      body: "선수 명단의 division_code도 함께 변경됩니다. 이미 생성된 대진이 있다면 이후 대진 상태를 다시 확인해 주세요.",
-      confirmLabel: "변경",
+      title: "신청 종별 변경",
+      sub: `${team?.team.name ?? "선택 팀"}을 ${categoryLabel(category, divisionRules)}로 이동합니다.`,
+      body: "팀의 신청 종별과 선수 division_code가 함께 변경됩니다. 이미 생성된 대진표가 있다면 대진표 탭에서 다시 확인하세요.",
+      confirmLabel: "종별 변경",
       tone: "danger",
     });
     if (!ok) return;
-    setActionLoading(ttId);
+
+    setActionLoading(teamId);
     try {
-      const res = await fetch(`/api/web/admin/tournaments/${id}/teams/${ttId}/category`, {
+      const res = await fetch(`/api/web/admin/tournaments/${id}/teams/${teamId}/category`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ category }),
       });
-      const json = await res.json();
-      if (!res.ok) return showToast(json.error ?? "변경 실패");
+      const json = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(json?.error ?? "종별 변경 실패");
       showToast(
-        json.changed
-          ? `종별: ${json.previous ?? "(없음)"} → ${json.current} · 선수 ${json.player_count ?? 0}명 반영`
-          : "변경 사항 없음",
+        json?.changed
+          ? `${categoryLabel(json.current, divisionRules)}로 이동했습니다.`
+          : "변경사항이 없습니다.",
       );
       await load();
     } catch {
-      showToast("네트워크 오류");
+      showToast("종별 변경에 실패했습니다.");
     } finally {
       setActionLoading(null);
     }
-  };
+  }
 
-  // 종별 그룹 일괄 이동
-  const bulkChangeCategory = async (
-    fromCategory: string | null,
-    targetCategory: string,
-    teamCount: number,
-  ) => {
+  async function bulkChangeCategory(fromCategory: string | null, targetCategory: string, count: number) {
     if (!targetCategory) return;
-    const fromLabel = fromCategory ?? "종별 미지정";
     const ok = await tossConfirm.confirm({
       title: "종별 일괄 이동",
-      sub: `${fromLabel} ${teamCount}팀을 "${targetCategory}" 로 이동합니다.`,
-      body: "팀의 신청 종별, 대회 디비전 값, 선수 division_code가 함께 변경됩니다. 이동 후 대진·조편성을 다시 확인해 주세요.",
+      sub: `${categoryLabel(fromCategory, divisionRules)} ${count}팀을 ${categoryLabel(targetCategory, divisionRules)}로 이동합니다.`,
+      body: "팀과 선수의 종별 코드가 함께 변경됩니다. 운영 당일에는 이동 후 대진표 생성 상태를 반드시 다시 확인하세요.",
       confirmLabel: "일괄 이동",
       tone: "danger",
     });
     if (!ok) return;
-    setBulkMovingCategory(fromLabel);
+
+    const key = fromCategory ?? "__unassigned";
+    setBulkMovingCategory(key);
     try {
       const res = await fetch(`/api/web/admin/tournaments/${id}/teams/category`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ fromCategory, category: targetCategory }),
       });
-      const json = await res.json();
-      if (!res.ok) return showToast(json.error ?? "일괄 이동 실패");
+      const json = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(json?.error ?? "일괄 이동 실패");
       showToast(
-        json.changed
-          ? `${json.previous ?? "종별 미지정"} → ${json.current} · ${json.team_count ?? 0}팀 / 선수 ${json.player_count ?? 0}명 반영`
+        json?.changed
+          ? `${json.team_count ?? 0}팀 / 선수 ${json.player_count ?? 0}명 이동 완료`
           : "이동할 팀이 없습니다.",
       );
       await load();
     } catch {
-      showToast("네트워크 오류");
+      showToast("종별 일괄 이동에 실패했습니다.");
     } finally {
       setBulkMovingCategory(null);
     }
-  };
+  }
 
-  /* --- 시드 배정 --- */
-  const updateSeed = async (teamId: string, seed: number | null) => {
+  async function updateSeed(teamId: string, seedNumber: number | null) {
     try {
-      await fetch(`/api/web/tournaments/${id}/teams/${teamId}`, {
+      const res = await fetch(`/api/web/tournaments/${id}/teams/${teamId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ seedNumber: seed }),
+        body: JSON.stringify({ seedNumber }),
       });
+      if (!res.ok) throw new Error();
+      showToast("시드를 저장했습니다.");
       await load();
-    } catch { /* ignore */ }
-  };
+    } catch {
+      showToast("시드 저장에 실패했습니다.");
+    }
+  }
 
-  const updateGroup = async (teamId: string, groupName: string | null) => {
+  async function updateGroup(teamId: string, groupName: string | null) {
     try {
       const res = await fetch(`/api/web/tournaments/${id}/teams/${teamId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ groupName }),
       });
-      if (!res.ok) {
-        const json = await res.json().catch(() => null);
-        showToast(json?.error ?? "조 변경 실패");
-        return;
-      }
-      showToast(groupName ? `${groupName}조로 변경되었습니다.` : "조 편성이 해제되었습니다.");
+      if (!res.ok) throw new Error();
+      showToast(groupName ? `${groupName}조로 저장했습니다.` : "조 배정을 해제했습니다.");
       await load();
     } catch {
-      showToast("네트워크 오류");
+      showToast("조 저장에 실패했습니다.");
     }
-  };
+  }
 
-  const autoDrawDivision = async (
-    rule: DivisionRuleOption,
-    mode: "random" | "seeded" = "random",
-  ) => {
-    const ready = divisionReadiness.find((item) => item.code === rule.code);
-    if (!ready || ready.approved < 2) {
-      showToast("승인팀이 2팀 이상이어야 조편성을 할 수 있습니다.");
-      return;
-    }
-    const modeLabel = mode === "seeded" ? "시드 반영" : "랜덤";
+  async function deleteTeam(team: TeamView) {
     const ok = await tossConfirm.confirm({
-      title: "종별 조편성",
-      sub: `${rule.label} 승인팀 ${ready.approved}팀을 ${modeLabel} 방식으로 배정합니다.`,
-      body: "기존 조 정보가 있는 팀은 새 배정 결과로 변경될 수 있습니다.",
-      confirmLabel: "조편성 실행",
-    });
-    if (!ok) return;
-    setDrawingDivision(rule.code);
-    try {
-      const res = await fetch(`/api/web/admin/tournaments/${id}/division-draw`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ divisionCode: rule.code, mode }),
-      });
-      const json = await res.json();
-      if (!res.ok) {
-        showToast(json.error ?? "조편성 실패");
-        return;
-      }
-      showToast(`${json.division_label ?? rule.label}: ${json.group_count ?? 0}개 조 편성 완료`);
-      await load();
-    } catch {
-      showToast("네트워크 오류");
-    } finally {
-      setDrawingDivision(null);
-    }
-  };
-
-  /* --- 선수 목록 로드 --- */
-  const loadPlayers = async (teamId: string) => {
-    setPlayersLoading(true);
-    try {
-      const res = await fetch(`/api/web/tournaments/${id}/teams/${teamId}/players`);
-      if (res.ok) {
-        const data = await res.json();
-        setPlayers(data);
-      }
-    } catch { /* ignore */ } finally {
-      setPlayersLoading(false);
-    }
-  };
-
-  /* --- 팀 카드 클릭 → 선수 목록 토글 --- */
-  const toggleTeam = (teamId: string) => {
-    if (expandedTeamId === teamId) {
-      setExpandedTeamId(null);
-      setPlayers([]);
-      setShowAddForm(false);
-    } else {
-      setExpandedTeamId(teamId);
-      setShowAddForm(false);
-      setAddForm(EMPTY_FORM);
-      loadPlayers(teamId);
-    }
-  };
-
-  /* --- 선수 추가 --- */
-  const handleAddPlayer = async () => {
-    if (!expandedTeamId || !addForm.player_name.trim()) return;
-    setAddLoading(true);
-    try {
-      const body: Record<string, unknown> = {
-        player_name: addForm.player_name.trim(),
-      };
-      // 전화번호: 숫자만 추출
-      if (addForm.phone.trim()) {
-        body.phone = addForm.phone.replace(/[^0-9]/g, "");
-      }
-      // 등번호
-      if (addForm.jersey_number.trim()) {
-        body.jersey_number = Number(addForm.jersey_number);
-      }
-      // 포지션
-      if (addForm.position.trim()) {
-        body.position = addForm.position.trim();
-      }
-
-      const res = await fetch(`/api/web/tournaments/${id}/teams/${expandedTeamId}/players`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-
-      if (res.ok) {
-        setAddForm(EMPTY_FORM);
-        setShowAddForm(false);
-        await loadPlayers(expandedTeamId);
-        await load(); // 팀 목록도 새로고침 (선수 수 반영)
-      } else {
-        const err = await res.json();
-        showToast(err.error ?? "선수 추가에 실패했습니다.");
-      }
-    } catch {
-      showToast("선수 추가에 실패했습니다.");
-    } finally {
-      setAddLoading(false);
-    }
-  };
-
-  /* --- 선수 삭제 --- */
-  const handleDeletePlayer = async (playerId: string) => {
-    if (!expandedTeamId) return;
-    const ok = await tossConfirm.confirm({
-      title: "선수 삭제",
-      sub: "이 팀의 선수 명단에서 해당 선수를 삭제합니다.",
-      body: "삭제 후 팀 선수 수와 참가 조건을 다시 확인해 주세요.",
+      title: "참가팀 삭제",
+      sub: `${team.team.name}을 참가팀 목록에서 삭제합니다.`,
+      body: "승인된 팀이면 참가팀 수가 함께 감소합니다. 대진표가 이미 생성된 경우 삭제 후 대진표를 다시 확인해야 합니다.",
       confirmLabel: "삭제",
       tone: "danger",
     });
     if (!ok) return;
 
+    setActionLoading(team.id);
     try {
-      const res = await fetch(
-        `/api/web/tournaments/${id}/teams/${expandedTeamId}/players/${playerId}`,
-        { method: "DELETE" }
-      );
-      if (res.ok) {
-        await loadPlayers(expandedTeamId);
-        await load();
-      }
-    } catch { /* ignore */ }
-  };
+      const res = await fetch(`/api/web/tournaments/${id}/teams/${team.id}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) throw new Error();
+      showToast("참가팀을 삭제했습니다.");
+      setDetailId(null);
+      await load();
+    } catch {
+      showToast("참가팀 삭제에 실패했습니다.");
+    } finally {
+      setActionLoading(null);
+    }
+  }
 
-  /* --- 필터 + 통계 (Phase 3-D 검토 보고서 §D 통합) --- */
-  // 코치 미입력 = appliedVia='admin' + players 0건 (운영자 박제 후 코치가 토큰으로 입력 안 함)
-  const isCoachPending = (tt: TournamentTeam): boolean => {
-    const t = tokenMap[tt.id];
-    return t?.appliedVia === "admin" && tt.players.length === 0;
-  };
+  function downloadTokenCsv() {
+    const header = "팀명,코치명,코치연락처,신청종별,납부상태,토큰URL,토큰만료";
+    const rows = viewTeams.map((team) =>
+      [
+        team.team.name,
+        team.managerName ?? "",
+        team.managerPhone ?? "",
+        categoryLabel(team.category, divisionRules),
+        paymentLabel(team.paymentStatus),
+        team.token?.applyTokenUrl ?? "",
+        formatDate(team.token?.applyTokenExpiresAt),
+      ]
+        .map((cell) => `"${String(cell).replace(/"/g, '""')}"`)
+        .join(","),
+    );
+    const blob = new Blob(["\ufeff" + [header, ...rows].join("\n")], {
+      type: "text/csv;charset=utf-8",
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `tournament-teams-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showToast("참가팀 CSV를 내려받았습니다.");
+  }
 
-  const filtered =
-    filter === "all"
-      ? teams
-      : filter === "coach_pending"
-        ? teams.filter(isCoachPending)
-        : teams.filter((t) => t.status === filter);
+  function copyTokenMessages() {
+    const blocks = viewTeams
+      .filter((team) => team.token?.applyTokenUrl)
+      .map((team) => {
+        const manager = team.managerName ? `${team.managerName} 코치님` : `${team.team.name} 코치님`;
+        return `[${team.team.name}]
+안녕하세요, ${manager}.
+MyBDR 참가팀 선수 명단 입력 링크입니다.
+${team.token?.applyTokenUrl}
+링크는 1회용입니다. 한 번에 모든 선수 명단을 입력해주세요.`;
+      });
+    void copyToClipboard(blocks.join("\n\n----------\n\n"), "복사할 토큰이 없습니다.");
+  }
 
-  const counts = {
-    all: teams.length,
-    pending: teams.filter((t) => t.status === "pending").length,
-    approved: teams.filter((t) => t.status === "approved").length,
-    rejected: teams.filter((t) => t.status === "rejected").length,
-    coach_pending: teams.filter(isCoachPending).length,
-  };
-
-  // 통계 카드 — 등록 경로별 분류 (Phase 3-D 권장 4)
-  const viaStats = {
-    admin: teams.filter((tt) => tokenMap[tt.id]?.appliedVia === "admin").length,
-    coach_token: teams.filter((tt) => tokenMap[tt.id]?.appliedVia === "coach_token").length,
-    self: teams.filter((tt) => tokenMap[tt.id]?.appliedVia === "self").length,
-    null: teams.filter((tt) => !tokenMap[tt.id]?.appliedVia).length,
-  };
-  const approvedTeams = teams.filter((tt) => tt.status === "approved");
-  const divisionReadiness = divisionRules.map((rule) => {
-    const approved = approvedTeams.filter(
-      (tt) => tokenMap[tt.id]?.category === rule.code,
-    ).length;
-    const total = teams.filter((tt) => tokenMap[tt.id]?.category === rule.code).length;
-    const overCapacity = rule.cap != null && approved > rule.cap;
-    return {
-      ...rule,
-      approved,
-      total,
-      overCapacity,
-      ready: approved >= 2 && !overCapacity,
-    };
-  });
-  const unassignedApprovedCount = approvedTeams.filter(
-    (tt) => !tokenMap[tt.id]?.category,
-  ).length;
-  const readyDivisionCount = divisionReadiness.filter((item) => item.ready).length;
-
-  if (loading) return <PanelLoadingState label="참가팀 정보를 준비 중입니다." />;
+  if (loading) {
+    return <PanelLoadingState label="참가팀 정보를 준비 중입니다." />;
+  }
 
   return (
-    <div data-skin="toss">
+    <div data-skin="toss" className="space-y-4">
       {tossConfirm.dialog}
-      <div className="ts-card ts-card--flat mb-4 flex flex-wrap items-center justify-between gap-3">
+
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          {/* Phase 2-C 안내 — 코치 토큰 URL 공유 시 비로그인으로 명단 입력 가능 */}
-          <p className="tt-note">
-            코치에게 토큰 URL을 공유하면 비로그인으로 명단 입력 가능합니다.
+          <h3 className="text-sm font-black text-[var(--ink)]">참가팀 운영</h3>
+          <p className="mt-1 text-xs font-semibold text-[var(--ink-mute)]">
+            승인, 입금, 신청 종별 이동, 선수명단을 한 화면에서 처리합니다.
           </p>
         </div>
-        {/* 2026-05-11 Phase 3-C — 토큰 발송 도구 (CSV 다운로드 + 메시지 일괄 복사) */}
         <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={() => downloadTokenCsv(teams, tokenMap)}
-            disabled={!aliveTokenCount(tokenMap)}
-            className="ts-btn ts-btn--secondary ts-btn--sm"
-            title="모든 팀의 명단 입력 링크를 파일로 받기"
-          >
-            <Icon name="download" size={16} className="align-middle mr-1" />
-            토큰 파일 받기 ({aliveTokenCount(tokenMap)})
-          </button>
-          <button
-            type="button"
-            onClick={() => copyAllTokenMessages(teams, tokenMap, showToast)}
-            disabled={!aliveTokenCount(tokenMap)}
-            className="ts-btn ts-btn--primary ts-btn--sm"
-            title="카톡 발송용 안내문 일괄 복사"
-          >
-            <Icon name="message-circle" size={16} className="align-middle mr-1" />
+          <Btn variant="secondary" size="sm" icon="download" onClick={downloadTokenCsv}>
+            CSV
+          </Btn>
+          <Btn variant="primary" size="sm" icon="message-circle" onClick={copyTokenMessages}>
             카톡 문구 복사
-          </button>
-          {/* 2026-05-16 PR-Admin-2 — "순위전 자동 채우기" 버튼은 matches 페이지로 이동 박제됨 (AdvancePlayoffsButton).
-              admin-flow §3 단계 10 = "예선 종료 → 순위전 진출" 은 matches 페이지가 자연스러운 위치. */}
+          </Btn>
         </div>
       </div>
 
-      {/* 등록 경로 통계 카드 (Phase 3-D 권장 4 — 강남구 일괄 박제 vs 코치 신청 구분 시각화) */}
-      <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
-        <ViaStatCard label="운영자 등록" count={viaStats.admin} icon="briefcase" />
-        <ViaStatCard label="코치 신청" count={viaStats.coach_token} icon="id-card" />
-        <ViaStatCard label="본인 신청" count={viaStats.self} icon="user" />
-        <ViaStatCard label="경로 미상" count={viaStats.null} icon="circle-help" />
+      <div className="ct-panel-stats">
+        <Metric icon="users" label="전체" value={`${counts.all}팀`} />
+        <Metric icon="check-circle" label="승인" value={`${counts.approved}팀`} tone="ok" />
+        <Metric icon="clock" label="대기" value={`${counts.pending}팀`} tone="warn" />
+        <Metric icon="banknote" label="납부" value={`${counts.paid}팀`} tone="ok" />
+        <Metric icon="link" label="토큰" value={`${counts.tokenAlive}개`} />
       </div>
 
-      {/* 통계 탭 — status 분류 + 코치 미입력 (운영자 박제 + 코치 명단 0건) */}
-      {divisionRules.length > 0 && (
-        <section className="tt-readiness">
-          <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <div className="min-w-0">
-              <h2 className="text-sm font-bold text-[var(--ink)]">종별 배정 현황</h2>
-              <p className="tt-note">
-                승인팀 기준 {readyDivisionCount}/{divisionRules.length}개 종별 대진 준비
-              </p>
-            </div>
-            <Link
-              href={`/tournament-admin/tournaments/${id}#bracket`}
-              className="ts-btn ts-btn--secondary ts-btn--sm"
-            >
-              대진추첨으로
-            </Link>
+      <section className="ts-card ts-card--flat">
+        <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h3 className="text-sm font-black text-[var(--ink)]">종별 현황</h3>
+            <p className="mt-1 text-xs font-semibold text-[var(--ink-mute)]">
+              종별별 신청, 승인, 납부 상태입니다. 정원 초과는 대진 생성 전 정리하세요.
+            </p>
           </div>
-          <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
-            {divisionReadiness.map((item) => (
-              <div key={item.code} className="tt-readiness-card">
-                <div className="flex items-start justify-between gap-2">
+          <span className="ct-pill" data-tone={divisionRules.length > 0 ? "info" : "warn"}>
+            {divisionRules.length > 0 ? `${divisionRules.length}종별` : "종별 없음"}
+          </span>
+        </div>
+        {divisionStats.length === 0 ? (
+          <Empty icon="layout-grid" title="등록된 종별이 없습니다" desc="대회 정보 수정의 종별 단계에서 먼저 종별을 저장하세요." />
+        ) : (
+          <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+            {divisionStats.map((rule) => (
+              <div key={rule.code} className="rounded-[14px] bg-[var(--grey-50)] p-3">
+                <div className="flex items-center justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="truncate text-sm font-bold text-[var(--ink)]">
-                      {item.label}
-                    </p>
-                    <p className="tt-note">
-                      전체 {item.total}팀 · 승인 {item.approved}
-                      {item.cap != null ? ` / 정원 ${item.cap}` : ""}
-                    </p>
+                    <p className="truncate text-sm font-extrabold text-[var(--ink)]">{rule.label}</p>
+                    <p className="mt-1 text-xs font-semibold text-[var(--ink-mute)]">{rule.code}</p>
                   </div>
-                  <span className="tt-badge" data-tone={item.overCapacity ? "danger" : item.ready ? "ok" : "mute"}>
-                    {item.overCapacity ? "정원 초과" : item.ready ? "준비" : "대기"}
+                  <span className="ct-pill" data-tone={rule.overCapacity ? "err" : "mute"}>
+                    {rule.cap == null ? "정원 없음" : `${rule.approved}/${rule.cap}`}
                   </span>
                 </div>
-                <div className="mt-3 grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => autoDrawDivision(item, "random")}
-                    disabled={drawingDivision === item.code || item.approved < 2}
-                    className="ts-btn ts-btn--secondary ts-btn--sm w-full"
-                  >
-                    {drawingDivision === item.code ? "조편성 중..." : "랜덤"}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => autoDrawDivision(item, "seeded")}
-                    disabled={drawingDivision === item.code || item.approved < 2}
-                    className="ts-btn ts-btn--secondary ts-btn--sm w-full"
-                  >
-                    시드 반영
-                  </button>
+                <div className="mt-3 grid grid-cols-3 gap-2">
+                  <MiniStat label="신청" value={rule.total} />
+                  <MiniStat label="승인" value={rule.approved} />
+                  <MiniStat label="납부" value={rule.paid} />
                 </div>
               </div>
             ))}
-            {unassignedApprovedCount > 0 && (
-              <div className="tt-readiness-card tt-readiness-card--warn">
-                <p className="text-sm font-bold text-[var(--ink)]">종별 미배정</p>
-                <p className="tt-note">
-                  승인팀 {unassignedApprovedCount}팀의 종별을 먼저 지정해야 합니다.
-                </p>
-              </div>
-            )}
           </div>
-        </section>
-      )}
+        )}
+      </section>
 
-      <div className="mb-4 flex flex-wrap gap-2">
-        {(["all", "pending", "approved", "rejected", "coach_pending"] as const).map((s) => (
+      <div className="flex flex-wrap gap-2">
+        {[
+          ["all", "전체", counts.all],
+          ["pending", "대기", counts.pending],
+          ["approved", "승인", counts.approved],
+          ["rejected", "거절", counts.rejected],
+          ["paid", "납부", counts.paid],
+          ["unpaid", "미납", counts.all - counts.paid],
+          ["coach_pending", "코치 미입력", counts.coach_pending],
+        ].map(([key, label, count]) => (
           <button
-            key={s}
-            onClick={() => setFilter(s)}
+            key={String(key)}
+            type="button"
             className="ts-chip"
-            data-active={filter === s}
+            data-active={filter === key}
+            onClick={() => setFilter(String(key))}
           >
-            {s === "all" ? "전체" : s === "coach_pending" ? "코치 미입력" : STATUS_LABEL[s]}
-            <span className="rounded-[8px] bg-[var(--grey-100)] px-1.5 py-0.5 text-xs">{counts[s]}</span>
+            {label}
+            <span className="rounded-[8px] bg-[var(--grey-100)] px-1.5 py-0.5 text-xs">
+              {count}
+            </span>
           </button>
         ))}
       </div>
 
-      {filtered.length === 0 ? (
-        <div className="ct-emptybox py-12 text-center text-[var(--ink-mute)]">
-          <div className="mb-2 flex justify-center">
-            <Icon name="volleyball" size={36} />
-          </div>
-          {filter === "all" ? "참가 신청한 팀이 없습니다." : `${STATUS_LABEL[filter]} 상태의 팀이 없습니다.`}
-        </div>
+      {filteredTeams.length === 0 ? (
+        <Empty icon="users" title="표시할 참가팀이 없습니다" desc="필터를 바꾸거나 신청 토큰을 다시 확인하세요." />
       ) : (
-        // 2026-05-12 — 사용자 요청: 종별 그룹화 (i2-U11 / i3-U9 / i3w-U12 등 같은 종별 묶음)
-        // 그룹 정렬 = 종 코드 알파벳 / 그룹 내 = 기존 filtered 순서 유지 (createdAt desc)
-        // "종별 미지정" 팀 = "기타" 그룹으로 마지막
-        (() => {
-          const groups: Record<string, typeof filtered> = {};
-          for (const tt of filtered) {
-            const cat = tokenMap[tt.id]?.category ?? "기타";
-            (groups[cat] ??= []).push(tt);
-          }
-          // 정렬 — 종 코드 알파벳 / "기타" 는 항상 마지막
-          const sortedKeys = Object.keys(groups).sort((a, b) => {
-            if (a === "기타") return 1;
-            if (b === "기타") return -1;
-            return a.localeCompare(b);
-          });
-          return (
-            <div className="space-y-6">
-              {sortedKeys.map((cat) => {
-                const fromCategory = cat === "기타" ? null : cat;
-                const bulkActionKey = fromCategory ?? "종별 미지정";
-                const moveOptions = divisionRules.filter(
-                  (rule) => rule.code !== fromCategory,
-                );
-                const selectedBulkTarget =
-                  bulkMoveTarget[cat] ?? moveOptions[0]?.code ?? "";
-
-                return (
-                <section key={cat}>
-                  {/* 종별 헤더 — accent 톤 작은 헤더 */}
-                  <div className="tt-group-head">
-                    <h3 className="tt-group-head__title">
-                      {cat}
-                    </h3>
-                    <span className="tt-group-head__count">
-                      ({groups[cat].length}팀)
-                    </span>
-                    {moveOptions.length > 0 && (
-                      <div className="ml-auto flex flex-wrap items-center gap-2 no-print">
-                        <select
-                          value={selectedBulkTarget}
-                          onChange={(e) =>
-                            setBulkMoveTarget((prev) => ({
-                              ...prev,
-                              [cat]: e.target.value,
-                            }))
-                          }
-                          className="tt-category-select"
-                          aria-label={`${cat} 그룹 이동 대상 종별`}
-                        >
-                          {moveOptions.map((rule) => (
-                            <option key={rule.code} value={rule.code}>
-                              {rule.label}
-                            </option>
-                          ))}
-                        </select>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            bulkChangeCategory(
-                              fromCategory,
-                              selectedBulkTarget,
-                              groups[cat].length,
-                            )
-                          }
-                          disabled={
-                            !selectedBulkTarget ||
-                            bulkMovingCategory === bulkActionKey
-                          }
-                          className="ts-btn ts-btn--secondary ts-btn--sm"
-                        >
-                          {bulkMovingCategory === bulkActionKey
-                            ? "이동 중..."
-                            : "그룹 일괄 이동"}
-                        </button>
-                      </div>
-                    )}
-                    <div className="tt-group-head__line" />
-                  </div>
-                  <div className="space-y-2">
-                    {groups[cat].map((tt) => {
-            // Phase 2-C — 토큰 정보 매핑 (tournamentTeam.id 기준)
-            const token = tokenMap[tt.id];
-            const tokenAlive = !!token?.applyTokenUrl;
+        <div className="space-y-5">
+          {grouped.map(([category, rows]) => {
+            const moveOptions = divisionRules.filter((rule) => rule.code !== category);
+            const groupKey = category ?? "__unassigned";
+            const selectedTarget = bulkMoveTarget[groupKey] ?? moveOptions[0]?.code ?? "";
             return (
-            <div key={tt.id} className="ts-card">
-              {/* 팀 정보 행 */}
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div
-                  className="flex min-w-0 cursor-pointer items-center gap-3"
-                  onClick={() => toggleTeam(tt.id)}
-                >
-                  {/* 팀 색상 아이콘 — 정사각형(W=H) 원형은 룰 10에 따라 9999px 회피 → 50% */}
-                  <div
-                    className="tt-team-avatar"
-                    style={{ backgroundColor: tt.team.primaryColor ?? "var(--primary)" }}
-                  />
-                  <div>
-                    {/* 팀명 + 배지 (Phase 3-D 권장 1 — applied_via 배지) */}
+              <section key={groupKey} className="space-y-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h3 className="text-sm font-black text-[var(--primary)]">
+                    {categoryLabel(category, divisionRules)}
+                  </h3>
+                  <span className="text-xs font-bold text-[var(--ink-mute)]">{rows.length}팀</span>
+                  <div className="min-w-[80px] flex-1 border-t border-[var(--border)]" />
+                  {moveOptions.length > 0 && (
                     <div className="flex flex-wrap items-center gap-2">
-                      <p className="font-semibold">{tt.team.name}</p>
-                      <ViaBadge appliedVia={token?.appliedVia ?? null} />
-                      <StatusBadge status={tt.status} />
-                      {token?.waitingNumber && (
-                        <span className="tt-badge" data-tone="warn">
-                          대기 {token.waitingNumber}번
-                        </span>
-                      )}
-                      {isCoachPending(tt) && (
-                        <span className="tt-badge" data-tone="info">
-                          코치 입력 대기
-                        </span>
-                      )}
-                    </div>
-                    {/* 메타 정보 — 선수수 / 신청 시각 (applied_at 우선, fallback createdAt) / 코치 / 신청자 */}
-                    <p className="tt-team-meta">
-                      선수 {tt.players.length}명 &middot;{" "}
-                      {token?.appliedAt
-                        ? `${new Date(token.appliedAt).toLocaleDateString("ko-KR")} 신청`
-                        : `${new Date(tt.createdAt).toLocaleDateString("ko-KR")} 등록`}
-                      {token?.managerName && <> &middot; 코치 {token.managerName}</>}
-                      {token?.registeredBy?.nickname && (
-                        <> &middot; 신청자 {token.registeredBy.nickname}</>
-                      )}
-                    </p>
-                  </div>
-                  {/* 펼침 화살표 */}
-                  <Icon
-                    name={expandedTeamId === tt.id ? "chevron-up" : "chevron-down"}
-                    size={18}
-                    className="tt-expand-icon"
-                  />
-                </div>
-
-                <div className="flex w-full flex-wrap items-center justify-start gap-2 sm:w-auto sm:justify-end">
-                  {divisionRules.length > 0 && (
-                    <label
-                      className="flex items-center gap-1 no-print"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <span className="tt-inline-label">신청 종별</span>
                       <select
-                        value={token?.category ?? ""}
-                        onChange={(e) => changeCategory(tt.id, e.target.value)}
-                        disabled={actionLoading === tt.id}
-                        className="tt-category-select"
-                        title="신청 종별 변경"
+                        className="ts-select"
+                        style={{ minHeight: 36, width: 160 }}
+                        value={selectedTarget}
+                        onChange={(event) =>
+                          setBulkMoveTarget((current) => ({
+                            ...current,
+                            [groupKey]: event.target.value,
+                          }))
+                        }
+                        aria-label="일괄 이동할 종별"
                       >
-                        <option value="" disabled>
-                          종별 선택
-                        </option>
-                        {token?.category &&
-                          !divisionRules.some((rule) => rule.code === token.category) && (
-                            <option value={token.category}>{token.category}</option>
-                          )}
-                        {divisionRules.map((d) => (
-                          <option key={d.code} value={d.code}>
-                            {d.label}
+                        {moveOptions.map((rule) => (
+                          <option key={rule.code} value={rule.code}>
+                            {rule.label}
                           </option>
                         ))}
                       </select>
-                    </label>
-                  )}
-                  {/* Phase 2-C — 토큰 URL 복사 버튼 */}
-                  {/* 토큰 자체가 발급된 적이 없는 팀(직접 등록 등) = "-" / 만료 = "만료" 표시 */}
-                  {token ? (
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        copyTokenUrl(token.applyTokenUrl);
-                      }}
-                      disabled={!tokenAlive}
-                      title={tokenAlive ? `만료: ${formatExpiry(token.applyTokenExpiresAt)}` : "토큰 만료됨"}
-                      className={`ts-btn ts-btn--sm ${
-                        tokenAlive
-                          ? "ts-btn--secondary"
-                          : "cursor-not-allowed opacity-60"
-                      }`}
-                    >
-                      <Icon name={tokenAlive ? "copy" : "link-2-off"} size={14} />
-                      {tokenAlive ? "링크 복사" : "만료"}
-                    </button>
-                  ) : (
-                    <span className="tt-muted" title="토큰 미발급">—</span>
-                  )}
-                  {/* 시드 배정 */}
-                  {tt.status === "approved" && (
-                    <div className="flex items-center gap-1">
-                      <label className="tt-inline-label">시드</label>
-                      <input
-                        type="number"
-                        min={1}
-                        defaultValue={tt.seedNumber ?? ""}
-                        onBlur={(e) =>
-                          updateSeed(tt.id, e.target.value ? Number(e.target.value) : null)
-                        }
-                        className="tt-mini-input"
-                        placeholder="-"
-                      />
-                    </div>
-                  )}
-
-                  {/* 상태 뱃지 */}
-                  {tt.status === "approved" && (
-                    <label className="tt-inline-label flex items-center gap-1">
-                      <span>조</span>
-                      <input
-                        defaultValue={tt.groupName ?? ""}
-                        onBlur={(e) => {
-                          const next = e.target.value.trim().toUpperCase();
-                          if (next !== (tt.groupName ?? "")) updateGroup(tt.id, next || null);
-                        }}
-                        className="tt-mini-input tt-mini-input--narrow"
-                        placeholder="-"
-                      />
-                    </label>
-                  )}
-
-                  <StatusBadge status={tt.status} />
-
-                  {/* 액션 버튼 */}
-                  {tt.status === "pending" && (
-                    <div className="flex gap-1">
-                      <button
-                        onClick={() => updateStatus(tt.id, "approved")}
-                        disabled={actionLoading === tt.id}
-                        className="ts-btn ts-btn--primary ts-btn--sm"
+                      <Btn
+                        variant="secondary"
+                        size="sm"
+                        icon="move-right"
+                        disabled={!selectedTarget || bulkMovingCategory === groupKey}
+                        onClick={() => bulkChangeCategory(category, selectedTarget, rows.length)}
                       >
-                        승인
-                      </button>
-                      <button
-                        onClick={() => updateStatus(tt.id, "rejected")}
-                        disabled={actionLoading === tt.id}
-                        className="ts-btn ts-btn--danger ts-btn--sm"
-                      >
-                        거절
-                      </button>
+                        일괄 이동
+                      </Btn>
                     </div>
-                  )}
-                  {tt.status === "approved" && (
-                    <button
-                      onClick={() => updateStatus(tt.id, "rejected")}
-                      disabled={actionLoading === tt.id}
-                      className="ts-btn ts-btn--danger ts-btn--sm"
-                    >
-                      거절
-                    </button>
-                  )}
-                  {tt.status === "rejected" && (
-                    <button
-                      onClick={() => updateStatus(tt.id, "approved")}
-                      disabled={actionLoading === tt.id}
-                      className="ts-btn ts-btn--primary ts-btn--sm"
-                    >
-                      승인으로 변경
-                    </button>
                   )}
                 </div>
-              </div>
-
-              {/* 2026-05-12 Phase 3-E 후속 — 인라인 펼침 dead code 청소 완료.
-                  선수 명단은 모달 (페이지 끝 TeamDetailModal) 에서 렌더링됨. */}
-            </div>
+                <div className="space-y-2">
+                  {rows.map((team) => (
+                    <TeamCard
+                      key={team.id}
+                      team={team}
+                      divisionRules={divisionRules}
+                      actionLoading={actionLoading === team.id}
+                      onOpen={() => setDetailId(team.id)}
+                      onCopy={() => copyToClipboard(team.token?.applyTokenUrl ?? null, "복사할 토큰이 없습니다.")}
+                      onStatus={updateStatus}
+                      onPayment={updatePayment}
+                      onCategory={changeCategory}
+                      onDelete={deleteTeam}
+                    />
+                  ))}
+                </div>
+              </section>
             );
           })}
-                  </div>
-                </section>
-                );
-              })}
-            </div>
-          );
-        })()
+        </div>
       )}
 
-      {/* Phase 4-B — 선수 일괄 import 모달 */}
-      {showImportModal && expandedTeamId && (
-        <ImportPlayersModal
+      {detailTeam && (
+        <TeamDetailModal
           tournamentId={id}
-          ttId={expandedTeamId}
-          onClose={() => setShowImportModal(false)}
-          onSuccess={(msg) => {
-            setShowImportModal(false);
-            showToast(msg);
-            if (expandedTeamId) loadPlayers(expandedTeamId);
-            load();
-          }}
+          team={detailTeam}
+          divisionRules={divisionRules}
+          rosterRule={rosterRule}
+          onClose={() => setDetailId(null)}
+          onReload={load}
+          onToast={showToast}
+          onStatus={updateStatus}
+          onPayment={updatePayment}
+          onCategory={changeCategory}
+          onSeed={updateSeed}
+          onGroup={updateGroup}
+          onDelete={deleteTeam}
         />
       )}
 
-      {/* Phase 2-C — 토스트 (화면 우상단 고정) */}
       {toast && (
         <div
           role="status"
-          className="fixed top-20 right-4 z-50 rounded-[16px] border border-[var(--border)] bg-[var(--card)] px-4 py-3 text-sm text-[var(--ink)] shadow-[var(--sh-md)] no-print"
-          style={{ minWidth: 220 }}
+          className="fixed right-4 top-20 z-50 rounded-[16px] border border-[var(--border)] bg-[var(--card)] px-4 py-3 text-sm font-bold text-[var(--ink)] shadow-[var(--sh-md)]"
         >
           {toast}
         </div>
       )}
-
-      {/* 2026-05-11 Phase 3-E — 팀 상세 모달 (인라인 펼침 → 모달 전환 + 선수 명단 프린트) */}
-      {expandedTeamId && (() => {
-        const expandedTeam = teams.find((t) => t.id === expandedTeamId);
-        if (!expandedTeam) return null;
-        const token = tokenMap[expandedTeam.id];
-        return (
-          <div
-            role="dialog"
-            aria-modal="true"
-            className="tt-modal-overlay no-print"
-            onClick={() => { setExpandedTeamId(null); setPlayers([]); setShowAddForm(false); }}
-          >
-            <div
-              id="team-detail-printable"
-              className="tt-detail-modal"
-              onClick={(e) => e.stopPropagation()}
-            >
-              {/* 2026-05-12 — 닫기 X 버튼 우상단 절대 위치 (모달 표준 패턴) */}
-              <button
-                type="button"
-                onClick={() => { setExpandedTeamId(null); setPlayers([]); setShowAddForm(false); }}
-                className="ct-iconbtn absolute right-3 top-3 z-10 no-print"
-                title="닫기"
-                aria-label="닫기"
-              >
-                <Icon name="x" size={20} />
-              </button>
-              {/* 모달 헤더 — 팀 정보 + 액션 (프린트 / 닫기) — Phase 3-F 옵션 A 5건 통합
-                  2026-05-11 모바일 최적화: 좁은 화면(<sm)에서 정보·액션 세로 분리 + 액션 wrap */}
-              <div className="mb-4 flex flex-col gap-3 print-header sm:flex-row sm:items-start sm:justify-between">
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h2 className="text-lg font-bold">{expandedTeam.team.name}</h2>
-                    {/* 1. 신청 종별 — Phase 4-B: 드롭다운으로 변경 가능 */}
-                    {divisionRules.length > 0 ? (
-                      <select
-                        value={token?.category ?? ""}
-                        onChange={(e) => changeCategory(expandedTeam.id, e.target.value)}
-                        disabled={actionLoading === expandedTeam.id}
-                        className="tt-category-select no-print"
-                        title="종별 변경"
-                      >
-                        <option value="" disabled>종별 선택</option>
-                        {token?.category &&
-                          !divisionRules.some((rule) => rule.code === token.category) && (
-                            <option value={token.category}>{token.category}</option>
-                          )}
-                        {divisionRules.map((d) => (
-                          <option key={d.code} value={d.code}>{d.label}</option>
-                        ))}
-                      </select>
-                    ) : (
-                      token?.category && (
-                        <span className="tt-category-chip">
-                          {token.category}
-                        </span>
-                      )
-                    )}
-                    <ViaBadge appliedVia={token?.appliedVia ?? null} />
-                    <StatusBadge status={expandedTeam.status} />
-                    {/* 3. 납부 상태 배지 (프린트 포함 표시) */}
-                    <PaymentBadge status={token?.paymentStatus ?? null} />
-                    {/* Track B-a — 납부 상태 인라인 변경 (paid 선택 시 입금→자동확정 트리거) */}
-                    <select
-                      value={token?.paymentStatus ?? "unpaid"}
-                      onChange={(e) => updatePayment(expandedTeam.id, e.target.value)}
-                      disabled={actionLoading === expandedTeam.id}
-                      className="tt-select-sm no-print"
-                      title="납부 상태 변경 (납부 선택 시 자동 승인)"
-                    >
-                      <option value="unpaid">미납</option>
-                      <option value="paid">납부</option>
-                      <option value="refunded">환불</option>
-                    </select>
-                    {token?.waitingNumber && (
-                      <span className="tt-badge" data-tone="warn">
-                        대기 {token.waitingNumber}번
-                      </span>
-                    )}
-                  </div>
-                  <p className="tt-team-meta">
-                    {token?.appliedAt
-                      ? `${new Date(token.appliedAt).toLocaleDateString("ko-KR")} 신청`
-                      : `${new Date(expandedTeam.createdAt).toLocaleDateString("ko-KR")} 등록`}
-                    {" "}· 코치{" "}
-                    {editingManager ? (
-                      <span className="no-print inline-flex items-center gap-1">
-                        <input
-                          type="text"
-                          value={managerForm.name}
-                          onChange={(e) => setManagerForm({ ...managerForm, name: e.target.value })}
-                          placeholder="코치 이름"
-                          className="tt-inline-input tt-inline-input--name"
-                        />
-                        <input
-                          type="tel"
-                          value={managerForm.phone}
-                          onChange={(e) => setManagerForm({ ...managerForm, phone: e.target.value })}
-                          placeholder="010-XXXX-XXXX"
-                          className="tt-inline-input tt-inline-input--phone"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => saveManager(expandedTeam.id)}
-                          className="tt-mini-action"
-                          data-tone="ok"
-                        >
-                          저장
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setEditingManager(false)}
-                          className="tt-mini-action"
-                        >
-                          취소
-                        </button>
-                      </span>
-                    ) : (
-                      <>
-                        {token?.managerName ?? <span className="tt-muted">(미입력)</span>}
-                        {token?.managerPhone && (
-                          <>
-                            {" ("}
-                            <a
-                              href={`tel:${token.managerPhone.replace(/[^0-9+]/g, "")}`}
-                              className="tt-link"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              {token.managerPhone}
-                            </a>
-                            {")"}
-                          </>
-                        )}
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setEditingManager(true);
-                            setManagerForm({ name: token?.managerName ?? "", phone: token?.managerPhone ?? "" });
-                          }}
-                          className="tt-icon-link no-print"
-                          title="코치 정보 편집"
-                        >
-                          <Icon name="pencil" size={12} />
-                        </button>
-                      </>
-                    )}
-                    {token?.registeredBy?.nickname && <> · 신청자 {token.registeredBy.nickname}</>}
-                  </p>
-                  {/* 조 · 시드 변경 — Phase 3-F 옵션 A 후속: 시드 input 추가 */}
-                  <div className="tt-meta-row">
-                    <label className="tt-inline-label flex items-center gap-1 no-print">
-                      <span>조</span>
-                      <input
-                        defaultValue={expandedTeam.groupName ?? ""}
-                        onBlur={(e) => {
-                          const next = e.target.value.trim().toUpperCase();
-                          if (next !== (expandedTeam.groupName ?? "")) {
-                            updateGroup(expandedTeam.id, next || null);
-                          }
-                        }}
-                        className="tt-mini-input tt-mini-input--narrow"
-                        placeholder="-"
-                      />
-                    </label>
-                    <label className="tt-inline-label flex items-center gap-1 no-print">
-                      <span>시드</span>
-                      <input
-                        type="number"
-                        min={1}
-                        max={99}
-                        defaultValue={expandedTeam.seedNumber ?? ""}
-                        onBlur={(e) => {
-                          const v = e.target.value ? Number(e.target.value) : null;
-                          if (v !== (expandedTeam.seedNumber ?? null)) updateSeed(expandedTeam.id, v);
-                        }}
-                        className="tt-mini-input"
-                      />
-                    </label>
-                  </div>
-                  {/* 5. 토큰 만료일 + 마지막 갱신 시각 + Phase 4-B 재발급 버튼 */}
-                  <div className="tt-meta-row tt-meta-row--small">
-                    {token?.applyTokenExpiresAt && (
-                      <span>
-                        토큰 만료: {new Date(token.applyTokenExpiresAt).toLocaleDateString("ko-KR")}
-                      </span>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => reissueToken(expandedTeam.id)}
-                      className="tt-link no-print inline-flex items-center gap-0.5"
-                      title="토큰 재발급"
-                    >
-                      <Icon name="refresh-cw" size={12} />
-                      재발급
-                    </button>
-                    {token?.updatedAt && (
-                      <span>
-                        {token.appliedVia === "coach_token" ? "코치 입력" : "마지막 갱신"}: {formatUpdatedAt(token.updatedAt)}
-                      </span>
-                    )}
-                  </div>
-                </div>
-                <div className="flex flex-wrap items-center gap-2 no-print sm:flex-shrink-0">
-                  {/* 1. URL 복사 버튼 */}
-                  {token?.applyTokenUrl && (
-                    <button
-                      type="button"
-                      onClick={() => copyTokenUrl(token.applyTokenUrl)}
-                      className="ts-btn ts-btn--secondary ts-btn--sm"
-                      title={`토큰 만료: ${token.applyTokenExpiresAt ? new Date(token.applyTokenExpiresAt).toLocaleDateString("ko-KR") : "-"}`}
-                    >
-                      <Icon name="copy" size={16} className="align-middle mr-1" />
-                      링크 복사
-                    </button>
-                  )}
-                  {/* 2. 승인 / 거절 액션 (status 분기) */}
-                  {expandedTeam.status === "pending" && (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => updateStatus(expandedTeam.id, "approved")}
-                        disabled={actionLoading === expandedTeam.id}
-                        className="ts-btn ts-btn--primary ts-btn--sm"
-                      >
-                        승인
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => updateStatus(expandedTeam.id, "rejected")}
-                        disabled={actionLoading === expandedTeam.id}
-                        className="ts-btn ts-btn--danger ts-btn--sm"
-                      >
-                        거절
-                      </button>
-                    </>
-                  )}
-                  {expandedTeam.status === "approved" && (
-                    <button
-                      type="button"
-                      onClick={() => updateStatus(expandedTeam.id, "rejected")}
-                      disabled={actionLoading === expandedTeam.id}
-                      className="ts-btn ts-btn--danger ts-btn--sm"
-                    >
-                      거절로 변경
-                    </button>
-                  )}
-                  {expandedTeam.status === "rejected" && (
-                    <button
-                      type="button"
-                      onClick={() => updateStatus(expandedTeam.id, "approved")}
-                      disabled={actionLoading === expandedTeam.id}
-                      className="ts-btn ts-btn--primary ts-btn--sm"
-                    >
-                      승인으로 변경
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => window.print()}
-                    className="ts-btn ts-btn--secondary ts-btn--sm"
-                    title="선수 명단 프린트"
-                  >
-                    <Icon name="printer" size={16} className="align-middle mr-1" />
-                    프린트
-                  </button>
-                  {/* 닫기 X 버튼은 모달 우상단 absolute 로 이동 (위 button.absolute.right-3.top-3) */}
-                </div>
-              </div>
-
-              {/* 선수 명단 헤더 + 4. 진행률 (rosterMin/Max 대비) */}
-              <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex items-center gap-2">
-                  <h3 className="text-sm font-semibold">선수 명단 ({players.length}명)</h3>
-                  <RosterProgressBadge
-                    count={players.length}
-                    min={rosterRule.min}
-                    max={rosterRule.max}
-                  />
-                </div>
-                <div className="flex flex-wrap gap-2 no-print">
-                  <button
-                    type="button"
-                    onClick={() => setShowImportModal(true)}
-                    className="ts-btn ts-btn--secondary ts-btn--sm"
-                    title="카톡 명단 텍스트 일괄 입력"
-                  >
-                    <Icon name="clipboard-paste" size={16} className="align-middle mr-1" />
-                    일괄 입력
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setShowAddForm(!showAddForm)}
-                    className="ts-btn ts-btn--primary ts-btn--sm"
-                  >
-                    <Icon name="user-plus" size={16} className="align-middle mr-1" />
-                    선수 추가
-                  </button>
-                </div>
-              </div>
-
-              {/* 선수 추가 폼 */}
-              {showAddForm && (
-                <div className="mb-4 rounded-[16px] bg-[var(--grey-50)] p-4 no-print">
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                    <input
-                      type="text"
-                      placeholder="이름 *"
-                      value={addForm.player_name}
-                      onChange={(e) => setAddForm({ ...addForm, player_name: e.target.value })}
-                      className="ts-input"
-                    />
-                    <input
-                      type="text"
-                      placeholder="전화번호"
-                      value={addForm.phone}
-                      onChange={(e) => setAddForm({ ...addForm, phone: e.target.value })}
-                      className="ts-input"
-                    />
-                    <input
-                      type="number"
-                      placeholder="등번호"
-                      value={addForm.jersey_number}
-                      onChange={(e) => setAddForm({ ...addForm, jersey_number: e.target.value })}
-                      className="ts-input"
-                    />
-                    <input
-                      type="text"
-                      placeholder="포지션"
-                      value={addForm.position}
-                      onChange={(e) => setAddForm({ ...addForm, position: e.target.value })}
-                      className="ts-input"
-                    />
-                  </div>
-                  <div className="mt-3 flex justify-end gap-2">
-                    <button
-                      onClick={() => { setShowAddForm(false); setAddForm(EMPTY_FORM); }}
-                      className="ts-btn ts-btn--secondary ts-btn--sm"
-                    >
-                      취소
-                    </button>
-                    <button
-                      onClick={handleAddPlayer}
-                      disabled={addLoading || !addForm.player_name.trim()}
-                      className="ts-btn ts-btn--primary ts-btn--sm"
-                    >
-                      {addLoading ? "추가 중..." : "추가"}
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {/* 선수 명단 테이블 */}
-              {playersLoading ? (
-                <p className="tt-empty-line">불러오는 중...</p>
-              ) : players.length === 0 ? (
-                <p className="tt-empty-line tt-empty-line--tall">등록된 선수가 없습니다.</p>
-              ) : (
-                <>
-                <div className="space-y-2 sm:hidden">
-                  {players.map((p) => (
-                    <div key={p.id} className="tt-player-card">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <p className="font-semibold text-[var(--ink)]">
-                            {p.jersey_number ? `${p.jersey_number}번 · ` : ""}{p.player_name ?? "-"}
-                          </p>
-                          <p className="tt-team-meta">
-                            {(p as { birth_date?: string }).birth_date ?? "-"} · {(p as { school_name?: string }).school_name ?? "-"}
-                          </p>
-                          <p className="tt-team-meta">
-                            보호자 {(p as { parent_name?: string }).parent_name ?? "-"} · {(p as { parent_phone?: string }).parent_phone ?? p.phone ?? "-"}
-                          </p>
-                        </div>
-                        <button
-                          onClick={() => handleDeletePlayer(p.id)}
-                          className="ct-iconbtn no-print"
-                          title="선수 삭제"
-                        >
-                          <Icon name="trash-2" size={18} />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                <div className="hidden overflow-x-auto sm:block">
-                  <table className="tt-player-table">
-                    <thead>
-                      <tr>
-                        <th>#</th>
-                        <th>이름</th>
-                        <th>생년월일</th>
-                        <th>학교</th>
-                        <th>포지션</th>
-                        <th>학부모</th>
-                        <th className="no-print">연락처</th>
-                        <th className="no-print" />
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {players.map((p) => (
-                        <tr key={p.id}>
-                          <td className="tt-player-muted">{p.jersey_number ?? "-"}</td>
-                          <td className="tt-player-name">{p.player_name ?? "-"}</td>
-                          <td className="tt-player-muted">{(p as { birth_date?: string }).birth_date ?? "-"}</td>
-                          <td className="tt-player-muted">{(p as { school_name?: string }).school_name ?? "-"}</td>
-                          <td className="tt-player-muted">{p.position ?? "-"}</td>
-                          <td className="tt-player-muted">{(p as { parent_name?: string }).parent_name ?? "-"}</td>
-                          <td className="tt-player-muted no-print">
-                            {(p as { parent_phone?: string }).parent_phone ?? p.phone ?? "-"}
-                          </td>
-                          <td className="tt-player-action no-print">
-                            <button
-                              onClick={() => handleDeletePlayer(p.id)}
-                              className="ct-iconbtn"
-                              title="선수 삭제"
-                            >
-                              <Icon name="trash-2" size={18} />
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-                </>
-              )}
-
-              {/* 프린트 푸터 — 프린트 시에만 표시 */}
-              <p className="tt-print-note print-only">
-                ※ 본 명단은 운영자 어드민 (mybdr.kr) 에서 출력되었습니다. 출력일: {new Date().toLocaleDateString("ko-KR")}
-              </p>
-            </div>
-          </div>
-        );
-      })()}
-
-      {/* 프린트 전용 CSS — 모달만 표시 + 페이지 나머지 hide */}
-      <style jsx global>{`
-        @media print {
-          body * { visibility: hidden; }
-          #team-detail-printable, #team-detail-printable * { visibility: visible; }
-          #team-detail-printable { position: absolute; top: 0; left: 0; width: 100%; box-shadow: none; border: none; padding: 0; margin: 0; background: white; color: black; }
-          .no-print { display: none !important; }
-          .print-only { display: block !important; }
-        }
-        .print-only { display: none; }
-      `}</style>
-
-      {/* 2026-05-16 PR-Admin-1 — 단계간 CTA (admin-flow-audit §3 단계 4 단절 해소) */}
-      {showNextStepCTA && <NextStepCTA tournamentId={id} currentStep="teams" />}
     </div>
   );
 }
 
-/* ============================================================
- * 2026-05-12 Phase 4-B (옵션 B 4번) — 선수 일괄 import 모달
- * - 카톡 명단 텍스트 붙여넣기 → 파싱 → 미리보기 → POST API
- * - 형식: 이름/생년월일/등번호/포지션/학교명/부모님성함/부모님연락처 (Phase 3-A 동일)
- * - overwrite 옵션 (기존 명단 삭제 후 INSERT)
- * ============================================================ */
-function ImportPlayersModal({
+function Metric({
+  icon,
+  label,
+  value,
+  tone = "mute",
+}: {
+  icon: string;
+  label: string;
+  value: string;
+  tone?: "ok" | "warn" | "err" | "mute";
+}) {
+  return (
+    <div className="ct-metric flex items-center gap-3">
+      <Icon name={icon} size={20} color={tone === "ok" ? "var(--ok)" : tone === "warn" ? "var(--warn)" : "var(--primary)"} />
+      <div>
+        <p className="ct-metric__lbl">{label}</p>
+        <p className="ct-metric__val">{value}</p>
+      </div>
+    </div>
+  );
+}
+
+function MiniStat({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="rounded-[10px] bg-white px-3 py-2">
+      <p className="text-[11px] font-bold text-[var(--ink-mute)]">{label}</p>
+      <p className="mt-1 text-sm font-black text-[var(--ink)]">{value}</p>
+    </div>
+  );
+}
+
+function TeamCard({
+  team,
+  divisionRules,
+  actionLoading,
+  onOpen,
+  onCopy,
+  onStatus,
+  onPayment,
+  onCategory,
+  onDelete,
+}: {
+  team: TeamView;
+  divisionRules: DivisionRuleOption[];
+  actionLoading: boolean;
+  onOpen: () => void;
+  onCopy: () => void;
+  onStatus: (teamId: string, status: TeamStatus) => void;
+  onPayment: (teamId: string, paymentStatus: PaymentStatus) => void;
+  onCategory: (teamId: string, category: string) => void;
+  onDelete: (team: TeamView) => void;
+}) {
+  return (
+    <div className="ts-card ts-card--tight">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <button
+          type="button"
+          onClick={onOpen}
+          className="flex min-w-0 flex-1 items-center gap-3 border-0 bg-transparent p-0 text-left"
+        >
+          <span
+            className="grid h-10 w-10 shrink-0 place-items-center rounded-[50%] text-xs font-black text-white"
+            style={{ backgroundColor: team.team.primary_color ?? "var(--primary)" }}
+          >
+            {team.team.name.slice(0, 2)}
+          </span>
+          <span className="min-w-0">
+            <span className="flex flex-wrap items-center gap-2">
+              <b className="text-sm text-[var(--ink)]">{team.team.name}</b>
+              <span className="ct-pill" data-tone={toneForStatus(team.status)}>
+                {statusLabel(team.status)}
+              </span>
+              <span className="ct-pill" data-tone={team.paymentStatus === "paid" ? "ok" : "warn"}>
+                {paymentLabel(team.paymentStatus)}
+              </span>
+              {team.token?.appliedVia && (
+                <span className="ct-pill" data-tone="mute">
+                  {VIA_LABEL[team.token.appliedVia] ?? team.token.appliedVia}
+                </span>
+              )}
+              {team.token?.waitingNumber && (
+                <span className="ct-pill" data-tone="warn">
+                  대기 {team.token.waitingNumber}번
+                </span>
+              )}
+              {isCoachPending(team) && (
+                <span className="ct-pill" data-tone="info">
+                  코치 입력 대기
+                </span>
+              )}
+            </span>
+            <span className="mt-1 block text-xs font-semibold text-[var(--ink-mute)]">
+              선수 {team.players.length}명 · {categoryLabel(team.category, divisionRules)}
+              {team.managerName ? ` · 코치 ${team.managerName}` : ""}
+            </span>
+          </span>
+        </button>
+
+        <div className="flex flex-wrap items-center gap-2">
+          {divisionRules.length > 0 && (
+            <select
+              className="ts-select"
+              style={{ minHeight: 36, width: 150 }}
+              value={team.category ?? ""}
+              onChange={(event) => onCategory(team.id, event.target.value)}
+              disabled={actionLoading}
+              aria-label={`${team.team.name} 신청 종별`}
+            >
+              <option value="" disabled>
+                종별 선택
+              </option>
+              {team.category && !divisionRules.some((rule) => rule.code === team.category) && (
+                <option value={team.category}>{team.category}</option>
+              )}
+              {divisionRules.map((rule) => (
+                <option key={rule.code} value={rule.code}>
+                  {rule.label}
+                </option>
+              ))}
+            </select>
+          )}
+          <select
+            className="ts-select"
+            style={{ minHeight: 36, width: 110 }}
+            value={team.paymentStatus ?? "unpaid"}
+            onChange={(event) => onPayment(team.id, event.target.value)}
+            disabled={actionLoading}
+            aria-label={`${team.team.name} 납부 상태`}
+          >
+            <option value="unpaid">미납</option>
+            <option value="paid">납부</option>
+            <option value="refunded">환불</option>
+          </select>
+          <Btn variant="secondary" size="sm" icon="copy" onClick={onCopy} disabled={!team.tokenAlive}>
+            링크
+          </Btn>
+          {team.status === "pending" && (
+            <>
+              <Btn size="sm" disabled={actionLoading} onClick={() => onStatus(team.id, "approved")}>
+                승인
+              </Btn>
+              <Btn variant="danger" size="sm" disabled={actionLoading} onClick={() => onStatus(team.id, "rejected")}>
+                거절
+              </Btn>
+            </>
+          )}
+          {team.status === "approved" && (
+            <Btn variant="danger" size="sm" disabled={actionLoading} onClick={() => onStatus(team.id, "rejected")}>
+              거절
+            </Btn>
+          )}
+          {team.status === "rejected" && (
+            <Btn size="sm" disabled={actionLoading} onClick={() => onStatus(team.id, "approved")}>
+              승인
+            </Btn>
+          )}
+          <Btn variant="ghost" size="sm" icon="trash-2" disabled={actionLoading} onClick={() => onDelete(team)} aria-label="참가팀 삭제" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TeamDetailModal({
   tournamentId,
-  ttId,
+  team,
+  divisionRules,
+  rosterRule,
   onClose,
-  onSuccess,
+  onReload,
+  onToast,
+  onStatus,
+  onPayment,
+  onCategory,
+  onSeed,
+  onGroup,
+  onDelete,
 }: {
   tournamentId: string;
-  ttId: string;
+  team: TeamView;
+  divisionRules: DivisionRuleOption[];
+  rosterRule: { min: number | null; max: number | null };
   onClose: () => void;
-  onSuccess: (msg: string) => void;
+  onReload: () => Promise<void>;
+  onToast: (message: string) => void;
+  onStatus: (teamId: string, status: TeamStatus) => void;
+  onPayment: (teamId: string, paymentStatus: PaymentStatus) => void;
+  onCategory: (teamId: string, category: string) => void;
+  onSeed: (teamId: string, seedNumber: number | null) => void;
+  onGroup: (teamId: string, groupName: string | null) => void;
+  onDelete: (team: TeamView) => void;
+}) {
+  const [players, setPlayers] = useState<Player[]>([]);
+  const [playersLoading, setPlayersLoading] = useState(true);
+  const [showAdd, setShowAdd] = useState(false);
+  const [draft, setDraft] = useState<PlayerDraft>(EMPTY_PLAYER);
+  const [adding, setAdding] = useState(false);
+  const [managerEditing, setManagerEditing] = useState(false);
+  const [managerName, setManagerName] = useState(team.managerName ?? "");
+  const [managerPhone, setManagerPhone] = useState(team.managerPhone ?? "");
+  const [importOpen, setImportOpen] = useState(false);
+
+  const loadPlayers = useCallback(async () => {
+    setPlayersLoading(true);
+    try {
+      const res = await fetch(`/api/web/tournaments/${tournamentId}/teams/${team.id}/players`);
+      if (!res.ok) throw new Error();
+      setPlayers((await res.json()) as Player[]);
+    } catch {
+      onToast("선수 명단을 불러오지 못했습니다.");
+    } finally {
+      setPlayersLoading(false);
+    }
+  }, [onToast, team.id, tournamentId]);
+
+  useEffect(() => {
+    void loadPlayers();
+  }, [loadPlayers]);
+
+  async function reissueToken() {
+    try {
+      const res = await fetch(`/api/web/admin/tournaments/${tournamentId}/teams/${team.id}/reissue-token`, {
+        method: "POST",
+      });
+      const json = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(json?.error ?? "토큰 재발급 실패");
+      if (json?.apply_token_url) {
+        await navigator.clipboard.writeText(json.apply_token_url).catch(() => undefined);
+      }
+      onToast("토큰을 재발급했습니다.");
+      await onReload();
+    } catch {
+      onToast("토큰 재발급에 실패했습니다.");
+    }
+  }
+
+  async function saveManager() {
+    try {
+      const body: Record<string, string> = {};
+      if (managerName.trim()) body.managerName = managerName.trim();
+      body.managerPhone = managerPhone.trim();
+      const res = await fetch(`/api/web/admin/tournaments/${tournamentId}/teams/${team.id}/manager`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) throw new Error();
+      setManagerEditing(false);
+      onToast("코치 정보를 저장했습니다.");
+      await onReload();
+    } catch {
+      onToast("코치 정보 저장에 실패했습니다.");
+    }
+  }
+
+  async function addPlayer() {
+    if (!draft.player_name.trim()) return;
+    setAdding(true);
+    try {
+      const payload = {
+        player_name: draft.player_name.trim(),
+        phone: draft.phone ? normalizePhone(draft.phone) : null,
+        jersey_number: draft.jersey_number ? Number(draft.jersey_number) : null,
+        position: draft.position.trim() || null,
+      };
+      const res = await fetch(`/api/web/tournaments/${tournamentId}/teams/${team.id}/players`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const json = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(json?.error ?? "선수 추가 실패");
+      setDraft(EMPTY_PLAYER);
+      setShowAdd(false);
+      onToast("선수를 추가했습니다.");
+      await loadPlayers();
+      await onReload();
+    } catch (error) {
+      onToast(error instanceof Error ? error.message : "선수 추가에 실패했습니다.");
+    } finally {
+      setAdding(false);
+    }
+  }
+
+  async function deletePlayer(playerId: string) {
+    try {
+      const res = await fetch(`/api/web/tournaments/${tournamentId}/teams/${team.id}/players/${playerId}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) throw new Error();
+      onToast("선수를 삭제했습니다.");
+      await loadPlayers();
+      await onReload();
+    } catch {
+      onToast("선수 삭제에 실패했습니다.");
+    }
+  }
+
+  return (
+    <>
+      <Modal
+        open
+        onClose={onClose}
+        maxWidth={860}
+        title={team.team.name}
+        sub={`${categoryLabel(team.category, divisionRules)} · 선수 ${players.length}명`}
+        foot={
+          <div className="flex w-full flex-wrap items-center gap-2">
+            <Btn variant="secondary" icon="printer" onClick={() => window.print()}>
+              명단 출력
+            </Btn>
+            <Btn variant="danger" icon="trash-2" onClick={() => onDelete(team)}>
+              팀 삭제
+            </Btn>
+            <div className="flex-1" />
+            {team.status === "pending" && (
+              <>
+                <Btn onClick={() => onStatus(team.id, "approved")}>승인</Btn>
+                <Btn variant="danger" onClick={() => onStatus(team.id, "rejected")}>
+                  거절
+                </Btn>
+              </>
+            )}
+            <Btn variant="secondary" onClick={onClose}>
+              닫기
+            </Btn>
+          </div>
+        }
+      >
+        <div className="space-y-4">
+          <div className="grid gap-3 md:grid-cols-3">
+            <InfoBox label="상태" value={statusLabel(team.status)} />
+            <InfoBox label="납부" value={paymentLabel(team.paymentStatus)} />
+            <InfoBox label="신청일" value={formatDate(team.token?.appliedAt ?? team.created_at)} />
+          </div>
+
+          <div className="grid gap-3 md:grid-cols-2">
+            <label className="ts-field block">
+              <span className="ts-field__label">신청 종별</span>
+              <select
+                className="ts-select w-full"
+                value={team.category ?? ""}
+                onChange={(event) => onCategory(team.id, event.target.value)}
+              >
+                <option value="" disabled>
+                  종별 선택
+                </option>
+                {team.category && !divisionRules.some((rule) => rule.code === team.category) && (
+                  <option value={team.category}>{team.category}</option>
+                )}
+                {divisionRules.map((rule) => (
+                  <option key={rule.code} value={rule.code}>
+                    {rule.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="ts-field block">
+              <span className="ts-field__label">납부 상태</span>
+              <select
+                className="ts-select w-full"
+                value={team.paymentStatus ?? "unpaid"}
+                onChange={(event) => onPayment(team.id, event.target.value)}
+              >
+                <option value="unpaid">미납</option>
+                <option value="paid">납부</option>
+                <option value="refunded">환불</option>
+              </select>
+            </label>
+          </div>
+
+          <div className="grid gap-3 md:grid-cols-3">
+            <label className="ts-field block">
+              <span className="ts-field__label">조</span>
+              <input
+                className="ts-input"
+                defaultValue={team.group_name ?? ""}
+                onBlur={(event) => {
+                  const next = event.target.value.trim().toUpperCase();
+                  if (next !== (team.group_name ?? "")) onGroup(team.id, next || null);
+                }}
+                placeholder="A"
+              />
+            </label>
+            <label className="ts-field block">
+              <span className="ts-field__label">시드</span>
+              <input
+                className="ts-input"
+                type="number"
+                min={1}
+                defaultValue={team.seed_number ?? ""}
+                onBlur={(event) => {
+                  const next = event.target.value ? Number(event.target.value) : null;
+                  if (next !== (team.seed_number ?? null)) onSeed(team.id, next);
+                }}
+                placeholder="-"
+              />
+            </label>
+            <div className="ts-field block">
+              <span className="ts-field__label">토큰</span>
+              <div className="flex gap-2">
+                <Btn
+                  variant="secondary"
+                  size="sm"
+                  icon="copy"
+                  disabled={!team.token?.applyTokenUrl}
+                  onClick={() => {
+                    if (!team.token?.applyTokenUrl) return onToast("복사할 토큰이 없습니다.");
+                    navigator.clipboard.writeText(team.token.applyTokenUrl).catch(() => undefined);
+                    onToast("토큰 링크를 복사했습니다.");
+                  }}
+                >
+                  복사
+                </Btn>
+                <Btn variant="secondary" size="sm" icon="refresh-cw" onClick={reissueToken}>
+                  재발급
+                </Btn>
+              </div>
+            </div>
+          </div>
+
+          <section className="rounded-[16px] bg-[var(--grey-50)] p-4">
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <h3 className="text-sm font-black text-[var(--ink)]">코치 정보</h3>
+                <p className="mt-1 text-xs font-semibold text-[var(--ink-mute)]">
+                  대표 연락처는 토큰 안내와 당일 운영 연락에 사용됩니다.
+                </p>
+              </div>
+              {!managerEditing && (
+                <Btn variant="secondary" size="sm" icon="pencil" onClick={() => setManagerEditing(true)}>
+                  수정
+                </Btn>
+              )}
+            </div>
+            {managerEditing ? (
+              <div className="grid gap-2 md:grid-cols-[1fr_1fr_auto_auto]">
+                <input className="ts-input" value={managerName} onChange={(event) => setManagerName(event.target.value)} placeholder="코치명" />
+                <input className="ts-input" value={managerPhone} onChange={(event) => setManagerPhone(event.target.value)} placeholder="010-0000-0000" />
+                <Btn size="sm" onClick={saveManager}>저장</Btn>
+                <Btn variant="secondary" size="sm" onClick={() => setManagerEditing(false)}>취소</Btn>
+              </div>
+            ) : (
+              <div className="grid gap-2 md:grid-cols-2">
+                <InfoBox label="코치명" value={team.managerName ?? "-"} />
+                <InfoBox label="연락처" value={team.managerPhone ?? "-"} />
+              </div>
+            )}
+          </section>
+
+          <section>
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <h3 className="text-sm font-black text-[var(--ink)]">선수 명단</h3>
+                <p className="mt-1 text-xs font-semibold text-[var(--ink-mute)]">
+                  {rosterRule.min != null || rosterRule.max != null
+                    ? `권장 ${rosterRule.min ?? "-"}~${rosterRule.max ?? "-"}명`
+                    : "등록 선수 명단"}
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <Btn variant="secondary" size="sm" icon="clipboard-paste" onClick={() => setImportOpen(true)}>
+                  일괄 입력
+                </Btn>
+                <Btn size="sm" icon="user-plus" onClick={() => setShowAdd((current) => !current)}>
+                  선수 추가
+                </Btn>
+              </div>
+            </div>
+
+            {showAdd && (
+              <div className="mb-3 grid gap-2 rounded-[14px] bg-[var(--grey-50)] p-3 md:grid-cols-[1fr_110px_1fr_1fr_auto]">
+                <input className="ts-input" value={draft.player_name} onChange={(event) => setDraft((current) => ({ ...current, player_name: event.target.value }))} placeholder="선수명" />
+                <input className="ts-input" value={draft.jersey_number} onChange={(event) => setDraft((current) => ({ ...current, jersey_number: event.target.value }))} placeholder="등번호" />
+                <input className="ts-input" value={draft.position} onChange={(event) => setDraft((current) => ({ ...current, position: event.target.value }))} placeholder="포지션" />
+                <input className="ts-input" value={draft.phone} onChange={(event) => setDraft((current) => ({ ...current, phone: event.target.value }))} placeholder="연락처" />
+                <Btn size="sm" disabled={adding || !draft.player_name.trim()} onClick={addPlayer}>
+                  추가
+                </Btn>
+              </div>
+            )}
+
+            {playersLoading ? (
+              <PanelLoadingState label="선수 명단을 불러오는 중입니다." />
+            ) : players.length === 0 ? (
+              <Empty icon="user-plus" title="등록된 선수가 없습니다" desc="코치 토큰 또는 일괄 입력으로 선수 명단을 채우세요." />
+            ) : (
+              <div className="amt-table-wrap">
+                <table className="amt-table">
+                  <thead>
+                    <tr>
+                      <th>#</th>
+                      <th>이름</th>
+                      <th>생년월일</th>
+                      <th>학교</th>
+                      <th>포지션</th>
+                      <th>연락처</th>
+                      <th />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {players.map((player) => (
+                      <tr key={player.id}>
+                        <td>{player.jersey_number ?? "-"}</td>
+                        <td className="font-bold">{player.player_name ?? "-"}</td>
+                        <td className="amt-table__div">{player.birth_date ?? "-"}</td>
+                        <td className="amt-table__div">{player.school_name ?? "-"}</td>
+                        <td className="amt-table__div">{player.position ?? "-"}</td>
+                        <td className="amt-table__div">{player.parent_phone ?? player.phone ?? "-"}</td>
+                        <td>
+                          <Btn variant="ghost" size="sm" icon="trash-2" onClick={() => deletePlayer(player.id)} aria-label="선수 삭제" />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
+        </div>
+      </Modal>
+
+      {importOpen && (
+        <ImportPlayersModal
+          tournamentId={tournamentId}
+          teamId={team.id}
+          onClose={() => setImportOpen(false)}
+          onToast={onToast}
+          onReload={async () => {
+            await loadPlayers();
+            await onReload();
+          }}
+        />
+      )}
+    </>
+  );
+}
+
+function InfoBox({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-[12px] bg-[var(--grey-50)] px-3 py-2">
+      <p className="text-[11px] font-bold text-[var(--ink-mute)]">{label}</p>
+      <p className="mt-1 text-sm font-black text-[var(--ink)]">{value}</p>
+    </div>
+  );
+}
+
+function ImportPlayersModal({
+  tournamentId,
+  teamId,
+  onClose,
+  onToast,
+  onReload,
+}: {
+  tournamentId: string;
+  teamId: string;
+  onClose: () => void;
+  onToast: (message: string) => void;
+  onReload: () => Promise<void>;
 }) {
   const [text, setText] = useState("");
   const [overwrite, setOverwrite] = useState(false);
   const [strict, setStrict] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [parseError, setParseError] = useState<string | null>(null);
+  const lines = text.split(/\r?\n/).filter((line) => line.trim());
 
-  // 카톡 텍스트 파싱 (Phase 3-A team-apply-form 와 동일 형식)
-  const parsePlayers = (raw: string) => {
-    const lines = raw.split(/\r?\n/).filter((l) => l.trim());
-    if (lines.length === 0) return { players: [], errors: ["붙여넣을 명단이 없습니다."] };
-    const players: Array<Record<string, string | number | null>> = [];
-    const errors: string[] = [];
-    lines.forEach((line, idx) => {
-      const parts = line.split("/").map((s) => s.trim());
-      if (parts.length < 2) {
-        errors.push(`${idx + 1}줄: 형식 오류 (최소 이름/생년월일)`);
-        return;
-      }
-      const [name, birth, jersey, position, school, parentName, parentPhone] = parts;
-      // 생년월일 normalize
-      const m = birth.match(/^(\d{4})[-./]?(\d{1,2})[-./]?(\d{1,2})$/);
-      if (!m) {
-        errors.push(`${idx + 1}줄 (${name}): 생년월일 형식 오류 "${birth}"`);
-        return;
-      }
-      const normBirth = `${m[1]}-${m[2].padStart(2, "0")}-${m[3].padStart(2, "0")}`;
-      // 연락처 normalize
-      const phoneDigits = (parentPhone ?? "").replace(/\D/g, "");
-      const normPhone =
-        phoneDigits.length === 11
-          ? `${phoneDigits.slice(0, 3)}-${phoneDigits.slice(3, 7)}-${phoneDigits.slice(7)}`
-          : null;
-      players.push({
-        player_name: name,
-        birth_date: normBirth,
-        jersey_number: jersey ? Number(jersey) : null,
+  function parsePlayers() {
+    return lines.map((line) => {
+      const [playerName, birthDate, jerseyNumber, position, schoolName, parentName, parentPhone] = line
+        .split("/")
+        .map((part) => part.trim());
+      return {
+        player_name: playerName,
+        birth_date: birthDate || null,
+        jersey_number: jerseyNumber ? Number(jerseyNumber) : null,
         position: position || null,
-        school_name: school || null,
+        school_name: schoolName || null,
         parent_name: parentName || null,
-        parent_phone: normPhone,
-      });
+        parent_phone: parentPhone ? normalizePhone(parentPhone) : null,
+      };
     });
-    return { players, errors };
-  };
+  }
 
-  const submit = async () => {
-    setError(null);
-    setParseError(null);
-    const { players, errors } = parsePlayers(text);
-    if (errors.length > 0) {
-      setParseError(errors.join("\n"));
-      return;
-    }
-    if (players.length === 0) {
-      setParseError("파싱된 선수가 없습니다.");
-      return;
-    }
+  async function submit() {
+    if (lines.length === 0) return;
     setSubmitting(true);
     try {
-      const res = await fetch(`/api/web/admin/tournaments/${tournamentId}/teams/${ttId}/import-players`, {
+      const res = await fetch(`/api/web/admin/tournaments/${tournamentId}/teams/${teamId}/import-players`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ players, overwrite, strictDivisionRule: strict }),
+        body: JSON.stringify({
+          players: parsePlayers(),
+          overwrite,
+          strictDivisionRule: strict,
+        }),
       });
-      const json = await res.json();
-      if (!res.ok) {
-        if (json.code === "DIVISION_VALIDATION_FAILED" && Array.isArray(json.errors)) {
-          setError(`종별 검증 실패:\n${json.errors.map((e: { index: number; message: string }) => `${e.index + 1}번: ${e.message}`).join("\n")}`);
-        } else {
-          setError(json.error ?? "입력 실패");
-        }
-        setSubmitting(false);
-        return;
-      }
-      const warningNote = Array.isArray(json.warnings) && json.warnings.length > 0
-        ? ` (경고 ${json.warnings.length}건)` : "";
-      onSuccess(`${json.inserted_count}명 입력${overwrite ? ` / ${json.deleted_count}명 삭제` : ""}${warningNote}`);
-    } catch {
-      setError("네트워크 오류");
+      const json = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(json?.error ?? "일괄 입력 실패");
+      onToast(`${json?.inserted_count ?? lines.length}명 입력했습니다.`);
+      await onReload();
+      onClose();
+    } catch (error) {
+      onToast(error instanceof Error ? error.message : "일괄 입력에 실패했습니다.");
+    } finally {
       setSubmitting(false);
     }
-  };
+  }
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      className="tt-modal-overlay no-print"
-      onClick={onClose}
-    >
-      <div
-        className="tt-import-modal"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <button
-          type="button"
-          onClick={onClose}
-          className="ct-iconbtn absolute right-3 top-3"
-          aria-label="닫기"
-        >
-          <Icon name="x" size={20} />
-        </button>
-        <h2 className="mb-4 text-lg font-bold">선수 일괄 입력</h2>
-        <p className="tt-note mb-3">
-          한 줄에 한 명씩 입력합니다. 순서: 이름/생년월일/등번호/포지션/학교명/보호자/연락처
-        </p>
-        <textarea
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          rows={10}
-          placeholder={"홍길동/2017-05-16/7/가드/강남초등학교/홍판서/010-1234-5678\n김철수/2017.8.22/12/포워드/잠실초등학교/김보호자/010-9876-5432"}
-          className="ts-input min-h-[220px] font-mono text-sm"
-        />
-        <div className="mt-3 flex flex-wrap items-center gap-4 text-xs">
-          <label className="flex items-center gap-1">
-            <input type="checkbox" checked={overwrite} onChange={(e) => setOverwrite(e.target.checked)} />
-            <span>기존 명단 전체 삭제 후 입력</span>
-          </label>
-          <label className="flex items-center gap-1">
-            <input type="checkbox" checked={strict} onChange={(e) => setStrict(e.target.checked)} />
-            <span>종별 규칙 엄격 검증</span>
-          </label>
-        </div>
-        {parseError && (
-          <p className="tt-form-message" data-tone="warn">
-            {parseError}
-          </p>
-        )}
-        {error && (
-          <p className="tt-form-message" data-tone="danger">
-            {error}
-          </p>
-        )}
-        <div className="mt-4 flex justify-end gap-2">
-          <button type="button" onClick={onClose} disabled={submitting} className="ts-btn ts-btn--secondary ts-btn--sm">
+    <Modal
+      open
+      onClose={onClose}
+      maxWidth={640}
+      title="선수 일괄 입력"
+      sub="한 줄에 한 명씩 이름/생년월일/등번호/포지션/학교/보호자/연락처 순서로 입력합니다."
+      foot={
+        <div className="flex w-full justify-end gap-2">
+          <Btn variant="secondary" onClick={onClose} disabled={submitting}>
             취소
-          </button>
-          <button type="button" onClick={submit} disabled={submitting || !text.trim()} className="ts-btn ts-btn--primary ts-btn--sm">
-            {submitting ? "처리 중..." : "일괄 입력 실행"}
-          </button>
+          </Btn>
+          <Btn onClick={submit} disabled={submitting || lines.length === 0}>
+            {submitting ? "입력 중" : `일괄 입력 (${lines.length})`}
+          </Btn>
         </div>
+      }
+    >
+      <div className="space-y-3">
+        <textarea
+          className="ts-textarea"
+          style={{ minHeight: 220, fontFamily: "var(--ff-mono)", fontSize: 13 }}
+          value={text}
+          onChange={(event) => setText(event.target.value)}
+          placeholder={"홍길동/2017-05-16/7/가드/강남초/홍보호/010-1234-5678"}
+        />
+        <label className="ct-checkrow">
+          <input type="checkbox" checked={overwrite} onChange={(event) => setOverwrite(event.target.checked)} />
+          <span>기존 명단 전체 삭제 후 입력</span>
+        </label>
+        <label className="ct-checkrow">
+          <input type="checkbox" checked={strict} onChange={(event) => setStrict(event.target.checked)} />
+          <span>종별 규칙 엄격 검증</span>
+        </label>
       </div>
-    </div>
+    </Modal>
   );
-}
-
-// 2026-05-11 Phase 2-C 후속: AddTeamTokenModal 컴포넌트 제거.
-//   - 강남구 36팀 일괄 INSERT 스크립트로 박제 완료 → 운영자 페이지 단건 발급 빈도 0.
-//   - POST /api/web/admin/tournaments/[id]/team-applications endpoint 는 그대로 보존
-//     (향후 비상 단건 케이스 또는 다른 운영 흐름에서 진입점 재추가 가능).
-
-/* ============================================================
- * 2026-05-11 Phase 3-D — 등록 경로/상태/통계 배지 헬퍼
- * ============================================================ */
-
-// 등록 경로 배지 — applied_via 값별 색상/라벨
-function ViaBadge({ appliedVia }: { appliedVia: string | null }) {
-  const map: Record<string, string> = {
-    admin: "운영자",
-    coach_token: "코치",
-    self: "본인",
-  };
-  return (
-    <span className="tt-badge" data-kind={appliedVia && map[appliedVia] ? `via-${appliedVia}` : "via-unknown"}>
-      {appliedVia && map[appliedVia] ? map[appliedVia] : "경로 미상"}
-    </span>
-  );
-}
-
-// 상태 배지 — status 값별 색상/라벨
-function StatusBadge({ status }: { status: string }) {
-  return (
-    <span className="tt-badge" data-status={status}>
-      {STATUS_LABEL[status] ?? (status === "waiting" ? "대기접수" : status)}
-    </span>
-  );
-}
-
-// 2026-05-11 Phase 3-F 옵션 A — 납부 상태 배지
-function PaymentBadge({ status }: { status: string | null }) {
-  const map: Record<string, string> = {
-    paid: "납부",
-    unpaid: "미납",
-    waived: "면제",
-    refunded: "환불",
-  };
-  if (!status || !map[status]) return null;
-  return (
-    <span className="tt-badge" data-payment={status}>
-      {map[status]}
-    </span>
-  );
-}
-
-// 진행률 배지 — players.length vs roster_min/max
-function RosterProgressBadge({
-  count,
-  min,
-  max,
-}: {
-  count: number;
-  min: number | null;
-  max: number | null;
-}) {
-  if (min == null && max == null) return null;
-  // 상태 분기: 부족 / 충족 / 초과
-  let label: string;
-  let color: string;
-  if (min != null && count < min) {
-    label = `${count} / ${min} 이상`;
-    color = "warn";
-  } else if (max != null && count > max) {
-    label = `${count} / ${max} 초과`;
-    color = "danger";
-  } else {
-    label = `${count}${max ? ` / ${max}` : ""}`;
-    color = "ok";
-  }
-  return (
-    <span className="tt-badge" data-tone={color}>
-      {label}
-    </span>
-  );
-}
-
-// 마지막 갱신 시각 — 상대 시간 또는 절대 (1일 이상 = 절대)
-function formatUpdatedAt(iso: string): string {
-  const d = new Date(iso);
-  const diffMs = Date.now() - d.getTime();
-  const min = Math.floor(diffMs / 60000);
-  if (min < 1) return "방금";
-  if (min < 60) return `${min}분 전`;
-  const hr = Math.floor(min / 60);
-  if (hr < 24) return `${hr}시간 전`;
-  const day = Math.floor(hr / 24);
-  if (day < 7) return `${day}일 전`;
-  return d.toLocaleDateString("ko-KR");
-}
-
-// 등록 경로 통계 카드 — accent 톤 단일 (conventions.md "admin 빨간색 본문 금지" 준수)
-function ViaStatCard({ label, count, icon }: { label: string; count: number; icon: string }) {
-  return (
-    <div className="tt-stat-card">
-      <Icon name={icon} size={24} />
-      <div>
-        <p className="tt-stat-card__label">{label}</p>
-        <p className="tt-stat-card__value">{count}</p>
-      </div>
-    </div>
-  );
-}
-
-/* ============================================================
- * 2026-05-11 Phase 3-C — 토큰 발송 도구 (CSV 다운로드 + 카톡 메시지 일괄 복사)
- *
- * 자동 SMS 발송은 별 PR (채널 결정 필요 — 솔라피/알리고/카카오 비즈).
- * 본 fix = 즉시 가능한 빠른 옵션:
- *   - CSV 다운로드 → 엑셀로 열어 데이터 확인 + 일괄 카톡 발송 보조
- *   - 카톡 메시지 일괄 복사 → 클립보드에 팀별 안내문 일괄 → 단톡방 붙여넣기
- * ============================================================ */
-
-// alive 토큰 수 (UI 버튼 disabled 가드용)
-function aliveTokenCount(tokenMap: Record<string, TokenInfo>): number {
-  return Object.values(tokenMap).filter((t) => !!t.applyTokenUrl).length;
-}
-
-// CSV 다운로드 — 운영자가 엑셀로 열어 검토 가능
-function downloadTokenCsv(
-  teams: TournamentTeam[],
-  tokenMap: Record<string, TokenInfo>,
-): void {
-  // UTF-8 BOM 추가 (엑셀 한글 깨짐 회피 — Windows 표준)
-  const BOM = "﻿";
-  const header = "팀명,코치명,코치번호,토큰 URL,만료";
-  const lines = [header];
-  for (const tt of teams) {
-    const token = tokenMap[tt.id];
-    if (!token?.applyTokenUrl) continue;
-    const expiry = token.applyTokenExpiresAt
-      ? new Date(token.applyTokenExpiresAt).toLocaleDateString("ko-KR")
-      : "";
-    // CSV escape — 컴마/따옴표 포함 시 큰따옴표로 감싸고 내부 따옴표는 ""
-    const cells = [
-      tt.team.name,
-      token.managerName ?? "",
-      token.managerPhone ?? "",
-      token.applyTokenUrl,
-      expiry,
-    ].map((c) => {
-      const s = String(c);
-      return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-    });
-    lines.push(cells.join(","));
-  }
-  const csv = BOM + lines.join("\n");
-  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `team-tokens-${new Date().toISOString().slice(0, 10)}.csv`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-}
-
-// 2026-05-16 PR-Admin-2 — Phase 3-B `advancePlaceholders` 헬퍼는 matches 페이지의
-// AdvancePlayoffsButton 컴포넌트로 이동 + 흡수됨 (modal UI 포함 / load() refetch trigger).
-// teams 페이지 헤더 버튼 제거에 따라 본 헬퍼도 deadcode → 제거.
-
-// 카톡 메시지 일괄 복사 — 클립보드에 팀별 안내문 합쳐서 복사
-function copyAllTokenMessages(
-  teams: TournamentTeam[],
-  tokenMap: Record<string, TokenInfo>,
-  toast: (msg: string) => void,
-): void {
-  const blocks: string[] = [];
-  for (const tt of teams) {
-    const token = tokenMap[tt.id];
-    if (!token?.applyTokenUrl) continue;
-    const managerName = token.managerName ? `${token.managerName} 코치님` : `${tt.team.name} 코치님`;
-    blocks.push(
-      `[${tt.team.name}]\n` +
-      `안녕하세요, ${managerName}.\n` +
-      `참가팀 명단 입력 링크입니다.\n` +
-      `${token.applyTokenUrl}\n` +
-      `※ 링크는 일회용입니다. 한 번에 모든 선수 명단을 입력해주세요.`,
-    );
-  }
-  if (blocks.length === 0) {
-    toast("발송 가능한 토큰이 없습니다.");
-    return;
-  }
-  const text = blocks.join("\n\n────────\n\n");
-  navigator.clipboard
-    .writeText(text)
-    .then(() => toast(`${blocks.length}팀 메시지 복사 완료 — 단톡방에 붙여넣기`))
-    .catch(() => toast("복사에 실패했습니다. 토큰 파일 받기를 사용하세요."));
 }
