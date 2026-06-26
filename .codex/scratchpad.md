@@ -14,6 +14,7 @@
 | Tournament admin implementation | In Progress | Matches score modal now exposes the existing manual recording mode. |
 
 ## Work Log
+- 2026-06-26: Replaced the matches panel empty states with Toss `ct-emptybox` wrappers and removed its UI Card dependency; TypeScript passed.
 - 2026-06-26: Updated setup progress to treat `manual` as a configured recording mode; targeted Vitest and TypeScript passed.
 - 2026-06-26: Aligned the tournament admin match edit modal with the existing `manual` recording-mode contract; TypeScript passed.
 - 2026-06-26: Absorbed v2.41 admin Toss reverse-bake handoff into `BDR-current`, preserving B1 QA lock docs; no src changes.

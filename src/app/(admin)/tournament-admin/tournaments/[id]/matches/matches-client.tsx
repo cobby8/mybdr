@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useParams, useSearchParams } from "next/navigation";
-import { Card } from "@/components/ui/card";
 // 2026-05-16 PR-Admin-3 — placeholder 매치 검증 배너 (강남구협회장배 사고 재발 방지)
 import { PlaceholderValidationBanner } from "../_components/PlaceholderValidationBanner";
 // 2026-05-16 PR-Admin-2 — 단일 순위전 진출 trigger (teams 페이지 헤더에서 이동 박제)
@@ -645,7 +644,7 @@ export default function MatchesClient() {
       )}
 
       {matches.length === 0 ? (
-        <Card className="py-16 text-center text-[var(--color-text-muted)]">
+        <div className="ct-emptybox py-16 text-center text-[var(--ink-mute)]">
           <div className="mb-3 flex justify-center">
             <Icon name="calendar-plus" size={36} />
           </div>
@@ -658,11 +657,11 @@ export default function MatchesClient() {
             </span>
             {" "}있습니다. 대진표를 생성하세요.
           </p>
-        </Card>
+        </div>
       ) : filteredMatches.length === 0 ? (
-        <Card className="py-12 text-center text-[var(--color-text-muted)]">
+        <div className="ct-emptybox py-12 text-center text-[var(--ink-mute)]">
           <p className="text-sm">선택한 종별({divisionFilter})에 매치가 없습니다.</p>
-        </Card>
+        </div>
       ) : (
         <div className="space-y-6">
           {rounds.map((roundKey) => {
