@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 // 2026-05-04 (P4) — 듀얼 조 배정 에디터 (16팀 → 4그룹 배정 + 페어링 모드 + 저장/생성)
 import { DualGroupAssignmentEditor } from "../bracket/_components/dual-group-assignment-editor";
 import { PanelLoadingState } from "./panel-loading-state";
-import { useTossConfirm } from "@/components/admin-toss";
+import { Icon, useTossConfirm } from "@/components/admin-toss";
 import type { SemifinalPairingMode } from "@/lib/tournaments/dual-defaults";
 // 2026-05-16 PR-Admin-1 — 단계간 CTA (페이지 footer "다음: 경기 관리 →")
 import { NextStepCTA } from "../_components/NextStepCTA";
@@ -52,11 +52,22 @@ type Match = {
   court_number?: string | null;
 };
 
-type ApprovedTeam = { id: string; seedNumber: number | null; team: { name: string } };
+type ApprovedTeam = {
+  id: string;
+  seedNumber: number | null;
+  groupName: string | null;
+  group_order: number | null;
+  category: string | null;
+  team: { name: string };
+};
 type RawApprovedTeam = {
   id: string;
   seedNumber?: number | null;
   seed_number?: number | null;
+  groupName?: string | null;
+  group_name?: string | null;
+  group_order?: number | null;
+  category?: string | null;
   team: { name: string };
 };
 
@@ -177,6 +188,9 @@ function normalizeBracketData(raw: RawBracketData): BracketData {
     approvedTeams: approvedTeams.map((team) => ({
       id: team.id,
       seedNumber: team.seedNumber ?? team.seed_number ?? null,
+      groupName: team.groupName ?? team.group_name ?? null,
+      group_order: team.group_order ?? null,
+      category: team.category ?? null,
       team: team.team,
     })),
     format: raw.format ?? null,
@@ -343,6 +357,530 @@ function DivisionGenerationSections({
   );
 }
 
+type DivisionRule = NonNullable<BracketData["divisionRules"]>[number];
+type RuleConfig = {
+  format: string;
+  group_count: number;
+  group_size: number;
+  advance_per_group: number;
+};
+type DrawPhase = "config" | "seeding" | "drawn";
+
+const OPERATE_FORMATS = [
+  "single_elimination",
+  "round_robin",
+  "dual_tournament",
+  "group_stage_knockout",
+  "league_advancement",
+  "group_stage_with_ranking",
+] as const;
+
+const OPERATE_FORMAT_LABEL: Record<string, string> = {
+  single_elimination: "토너먼트",
+  round_robin: "풀리그",
+  dual_tournament: "듀얼토너먼트",
+  group_stage_knockout: "조별리그+토너먼트",
+  league_advancement: "링크제",
+  group_stage_with_ranking: "조별리그+동순위전",
+};
+
+const GROUP_LABELS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+
+function numberSetting(settings: Record<string, unknown> | null | undefined, key: string, fallback: number) {
+  const value = settings?.[key];
+  return typeof value === "number" && Number.isFinite(value) ? value : fallback;
+}
+
+function makeRuleConfig(rule: DivisionRule): RuleConfig {
+  const format = rule.format ?? "group_stage_knockout";
+  return {
+    format,
+    group_count: numberSetting(rule.settings, "group_count", format === "single_elimination" ? 1 : 2),
+    group_size: numberSetting(rule.settings, "group_size", 4),
+    advance_per_group: numberSetting(rule.settings, "advance_per_group", format === "dual_tournament" ? 2 : 2),
+  };
+}
+
+function needsGroupConfig(format: string) {
+  return format !== "single_elimination";
+}
+
+function needsAdvanceConfig(format: string) {
+  return format === "group_stage_knockout" || format === "dual_tournament";
+}
+
+function ruleMatches(matches: Match[], code: string) {
+  return matches.filter((match) => getDivisionCode(match) === code);
+}
+
+function ruleTeams(teams: ApprovedTeam[], code: string) {
+  return teams.filter((team) => team.category === code);
+}
+
+function slotLabels(cfg: RuleConfig, teamCount: number) {
+  if (!needsGroupConfig(cfg.format)) {
+    return Array.from({ length: Math.max(teamCount, 2) }, (_, index) => `T${index + 1}`);
+  }
+  const labels: string[] = [];
+  for (let g = 0; g < cfg.group_count; g++) {
+    for (let s = 1; s <= cfg.group_size; s++) labels.push(`${GROUP_LABELS[g]}${s}`);
+  }
+  return labels;
+}
+
+function parseSlot(slot: string) {
+  const match = /^([A-Z])(\d+)$/.exec(slot);
+  if (!match) return null;
+  return { group: match[1], order: Number(match[2]) };
+}
+
+function teamSlot(team: ApprovedTeam) {
+  if (!team.groupName) return null;
+  return `${team.groupName}${team.group_order ?? team.seedNumber ?? ""}`;
+}
+
+function groupSummary(teams: ApprovedTeam[], cfg: RuleConfig) {
+  const map = new Map<string, ApprovedTeam[]>();
+  for (let i = 0; i < cfg.group_count; i++) map.set(GROUP_LABELS[i], []);
+  for (const team of teams) {
+    const group = team.groupName?.trim();
+    if (!group) continue;
+    if (!map.has(group)) map.set(group, []);
+    map.get(group)!.push(team);
+  }
+  return Array.from(map.entries()).map(([group, values]) => ({
+    group,
+    teams: values.sort((a, b) => (a.group_order ?? a.seedNumber ?? 999) - (b.group_order ?? b.seedNumber ?? 999)),
+  }));
+}
+
+function knockoutRoundName(size: number) {
+  if (size <= 2) return "결승";
+  if (size === 4) return "4강";
+  if (size === 8) return "8강";
+  if (size === 16) return "16강";
+  return `${size}강`;
+}
+
+function bracketLeaves(cfg: RuleConfig) {
+  if (cfg.format === "round_robin") return [];
+  if (cfg.format === "single_elimination") return ["T1", "T2"];
+  const advance = cfg.format === "dual_tournament" ? 2 : Math.min(cfg.advance_per_group, cfg.group_size);
+  const leaves: string[] = [];
+  for (let rank = 1; rank <= advance; rank++) {
+    for (let group = 0; group < cfg.group_count; group++) leaves.push(`${GROUP_LABELS[group]}${rank}위`);
+  }
+  let size = 2;
+  while (size < leaves.length) size *= 2;
+  while (leaves.length < size) leaves.push("부전승");
+  const crossed: string[] = [];
+  for (let index = 0; index < size / 2; index++) {
+    crossed.push(leaves[index], leaves[size - 1 - index]);
+  }
+  return crossed;
+}
+
+function roundRobinCount(size: number) {
+  return Math.max(0, (size * (size - 1)) / 2);
+}
+
+function readApiError(json: unknown, fallback: string) {
+  if (!json || typeof json !== "object") return fallback;
+  const record = json as Record<string, unknown>;
+  if (typeof record.error === "string") return record.error;
+  if (Array.isArray(record.error)) {
+    const first = record.error.find((item) => item && typeof item === "object" && "message" in item);
+    if (first && typeof (first as { message?: unknown }).message === "string") {
+      return (first as { message: string }).message;
+    }
+  }
+  return fallback;
+}
+
+function OperateBracketBuilder({
+  tournamentId,
+  data,
+  error,
+  setError,
+  onReload,
+}: {
+  tournamentId: string;
+  data: BracketData | null;
+  error: string;
+  setError: (message: string) => void;
+  onReload: () => Promise<void>;
+}) {
+  const rules = data?.divisionRules ?? [];
+  const [activeCode, setActiveCode] = useState("");
+  const [configs, setConfigs] = useState<Record<string, RuleConfig>>({});
+  const [phases, setPhases] = useState<Record<string, DrawPhase>>({});
+  const [seedSlots, setSeedSlots] = useState<Record<string, Record<string, string>>>({});
+  const [busy, setBusy] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
+  const tossConfirm = useTossConfirm();
+
+  useEffect(() => {
+    if (!activeCode && rules[0]) setActiveCode(rules[0].code);
+  }, [activeCode, rules]);
+
+  useEffect(() => {
+    setConfigs((prev) => {
+      const next = { ...prev };
+      for (const rule of rules) {
+        if (!next[rule.code]) next[rule.code] = makeRuleConfig(rule);
+      }
+      return next;
+    });
+  }, [rules]);
+
+  const activeRule = rules.find((rule) => rule.code === activeCode) ?? rules[0] ?? null;
+  const cfg = activeRule ? configs[activeRule.code] ?? makeRuleConfig(activeRule) : null;
+  const teams = useMemo(
+    () => (activeRule && data ? ruleTeams(data.approvedTeams, activeRule.code) : []),
+    [activeRule, data],
+  );
+  const matches = useMemo(
+    () => (activeRule && data ? ruleMatches(data.matches, activeRule.code) : []),
+    [activeRule, data],
+  );
+  const currentPhase = activeRule ? phases[activeRule.code] ?? (teams.some((team) => team.groupName) ? "drawn" : "config") : "config";
+  const selectedSeeds = activeRule ? seedSlots[activeRule.code] ?? {} : {};
+  const hasMatches = matches.length > 0;
+
+  if (rules.length === 0 || !activeRule || !cfg) {
+    return (
+      <div className="ct-emptybox">
+        <Icon name="git-merge" size={34} color="var(--ink-dim)" />
+        <b>종별 설정이 없습니다</b>
+        <span>먼저 대회 정보 수정에서 종별을 저장한 뒤 대진표를 생성하세요.</span>
+      </div>
+    );
+  }
+
+  const selectedRule = activeRule;
+  const selectedCfg = cfg;
+  const slots = slotLabels(selectedCfg, teams.length);
+  const groups = groupSummary(teams, selectedCfg);
+  const leaves = bracketLeaves(selectedCfg);
+  const configDirty = JSON.stringify(selectedCfg) !== JSON.stringify(makeRuleConfig(selectedRule));
+
+  function patchConfig(patch: Partial<RuleConfig>) {
+    setConfigs((prev) => ({
+      ...prev,
+      [selectedRule.code]: { ...selectedCfg, ...patch },
+    }));
+  }
+
+  function setPhase(phase: DrawPhase) {
+    setPhases((prev) => ({ ...prev, [selectedRule.code]: phase }));
+  }
+
+  function setSeed(slot: string, teamId: string) {
+    setSeedSlots((prev) => ({
+      ...prev,
+      [selectedRule.code]: { ...(prev[selectedRule.code] ?? {}), [slot]: teamId },
+    }));
+  }
+
+  async function saveSettings() {
+    setBusy("settings");
+    setError("");
+    setMessage(null);
+    try {
+      const settings = {
+        ...(selectedRule.settings ?? {}),
+        group_count: selectedCfg.group_count,
+        group_size: selectedCfg.group_size,
+        advance_per_group: selectedCfg.advance_per_group,
+      };
+      const res = await fetch(`/api/web/admin/tournaments/${tournamentId}/division-rules/${selectedRule.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ format: selectedCfg.format, settings }),
+      });
+      const json = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(readApiError(json, "종별 설정 저장 실패"));
+      setMessage("종별 설정을 저장했습니다.");
+      await onReload();
+      return true;
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "종별 설정 저장 중 오류가 발생했습니다.");
+      return false;
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function runDraw(mode: "random" | "seeded") {
+    if (configDirty) {
+      const saved = await saveSettings();
+      if (!saved) return;
+    }
+    setBusy(mode);
+    setError("");
+    setMessage(null);
+    try {
+      const seedAssignments = mode === "seeded"
+        ? Object.entries(selectedSeeds).map(([slot, teamId]) => ({ slot, teamId }))
+        : [];
+      const res = await fetch(`/api/web/admin/tournaments/${tournamentId}/division-draw`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          divisionCode: selectedRule.code,
+          groupCount: selectedCfg.group_count,
+          mode,
+          seedAssignments,
+        }),
+      });
+      const json = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(readApiError(json, "조편성 실패"));
+      setPhase("drawn");
+      setMessage(`${selectedRule.label ?? selectedRule.code} 조편성을 완료했습니다.`);
+      await onReload();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "조편성 중 오류가 발생했습니다.");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function generateDivisionMatches() {
+    const ok = !hasMatches || await tossConfirm.confirm({
+      title: "대진표 재생성",
+      sub: `${selectedRule.label ?? selectedRule.code} 기존 경기 ${matches.length}건을 삭제 후 다시 생성합니다.`,
+      body: "이미 입력한 점수와 일정이 있으면 영향을 받을 수 있습니다. 내일 운영 전에는 이 종별의 생성 결과를 반드시 확인하세요.",
+      confirmLabel: "재생성",
+      tone: "danger",
+    });
+    if (!ok) return;
+
+    setBusy("generate");
+    setError("");
+    setMessage(null);
+    try {
+      const res = await fetch(`/api/web/admin/tournaments/${tournamentId}/division-rules/${selectedRule.id}/generate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ clear: hasMatches }),
+      });
+      const json = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(readApiError(json, "대진표 생성 실패"));
+      const payload = json?.data ?? json;
+      if (!payload?.generated) {
+        throw new Error(payload?.reason ?? "생성된 경기가 없습니다. 조편성과 설정을 다시 확인하세요.");
+      }
+      setPhase("drawn");
+      setMessage(`${payload.generated}경기를 생성했습니다.`);
+      await onReload();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "대진표 생성 중 오류가 발생했습니다.");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  return (
+    <div className="bk-operate">
+      {tossConfirm.dialog}
+      {error && <div className="ta-bracket-alert" data-tone="danger">{error}</div>}
+      {message && <div className="ta-bracket-alert" data-tone="ok">{message}</div>}
+
+      <div className="bk-rule-tabs" aria-label="종별 선택">
+        <span className="bk-rule-tabs__label">종별:</span>
+        {rules.map((rule) => {
+          const selected = rule.code === selectedRule.code;
+          const generated = ruleMatches(data?.matches ?? [], rule.code).length > 0;
+          return (
+            <button
+              key={rule.id}
+              type="button"
+              className="ts-chip bk-rule-chip"
+              data-active={selected ? "true" : "false"}
+              onClick={() => setActiveCode(rule.code)}
+            >
+              {rule.label ?? rule.code}
+              {generated && <Icon name="check" size={13} />}
+            </button>
+          );
+        })}
+      </div>
+
+      <section className="ts-card ts-card--flat bk-config">
+        <div className="ct-section__head">
+          <span className="ct-headicon"><Icon name="settings-2" size={18} /></span>
+          <div>
+            <h3 className="ct-section__title">대회 방식 · 조 설정</h3>
+            <p className="ct-section__sub">대회 생성 시 입력값을 여기서 확인·수정합니다.</p>
+          </div>
+        </div>
+        <div className="bk-cfg-grid">
+          <label className="ts-field">
+            <span className="ts-field__label">대회 방식</span>
+            <select className="ts-select" value={selectedCfg.format} onChange={(e) => patchConfig({ format: e.target.value })}>
+              {OPERATE_FORMATS.map((format) => (
+                <option key={format} value={format}>{OPERATE_FORMAT_LABEL[format]}</option>
+              ))}
+            </select>
+          </label>
+          <label className="ts-field" data-disabled={!needsGroupConfig(selectedCfg.format)}>
+            <span className="ts-field__label">조 수</span>
+            <input className="ts-input" type="number" min={1} max={16} disabled={!needsGroupConfig(selectedCfg.format)} value={selectedCfg.group_count} onChange={(e) => patchConfig({ group_count: Math.max(1, Number(e.target.value) || 1) })} />
+          </label>
+          <label className="ts-field" data-disabled={!needsGroupConfig(selectedCfg.format)}>
+            <span className="ts-field__label">조별 팀수</span>
+            <input className="ts-input" type="number" min={2} max={16} disabled={!needsGroupConfig(selectedCfg.format)} value={selectedCfg.group_size} onChange={(e) => patchConfig({ group_size: Math.max(2, Number(e.target.value) || 2) })} />
+          </label>
+          <label className="ts-field" data-disabled={!needsAdvanceConfig(selectedCfg.format)}>
+            <span className="ts-field__label">본선 진출(조별)</span>
+            <input className="ts-input" type="number" min={1} max={selectedCfg.group_size} disabled={!needsAdvanceConfig(selectedCfg.format)} value={selectedCfg.format === "dual_tournament" ? 2 : selectedCfg.advance_per_group} onChange={(e) => patchConfig({ advance_per_group: Math.max(1, Number(e.target.value) || 1) })} />
+          </label>
+        </div>
+        <div className="bk-badges">
+          <span className="ct-pill" data-tone="mute">{OPERATE_FORMAT_LABEL[selectedCfg.format] ?? selectedCfg.format}</span>
+          <span className="ct-pill" data-tone="info">참가 {teams.length}팀</span>
+          <span className="ct-pill" data-tone="mute">슬롯 {slots.length}</span>
+          {needsAdvanceConfig(selectedCfg.format) && <span className="ct-pill" data-tone="ok">본선 진출 {selectedCfg.group_count * (selectedCfg.format === "dual_tournament" ? 2 : selectedCfg.advance_per_group)}팀</span>}
+          {configDirty && <span className="ct-pill" data-tone="warn">저장 필요</span>}
+        </div>
+      </section>
+
+      <section className="ts-card ts-card--flat bk-drawbar">
+        <div>
+          <p className="bk-subtitle">조편성</p>
+          <p className="ct-section__sub">
+            {currentPhase === "seeding"
+              ? "시드 팀을 조·슬롯에 배정한 뒤 나머지를 랜덤 추첨하세요."
+              : currentPhase === "drawn"
+                ? "조편성 완료. 설정에 맞춰 대진표를 생성할 수 있습니다."
+                : "완전 랜덤 또는 시드 배정 후 랜덤으로 추첨하세요."}
+          </p>
+        </div>
+        <div className="bk-actions">
+          <button type="button" className="ts-btn ts-btn--secondary ts-btn--sm" onClick={saveSettings} disabled={busy != null || !configDirty}>
+            {busy === "settings" ? "저장 중..." : "설정 저장"}
+          </button>
+          {currentPhase !== "seeding" && (
+            <button type="button" className="ts-btn ts-btn--secondary ts-btn--sm" onClick={() => runDraw("random")} disabled={busy != null || teams.length < 2}>
+              완전 랜덤 추첨
+            </button>
+          )}
+          {currentPhase !== "seeding" && (
+            <button type="button" className="ts-btn ts-btn--primary ts-btn--sm" onClick={() => setPhase("seeding")} disabled={busy != null || teams.length < 2}>
+              시드 배정
+            </button>
+          )}
+          {currentPhase === "seeding" && (
+            <button type="button" className="ts-btn ts-btn--secondary ts-btn--sm" onClick={() => setPhase("config")}>시드 취소</button>
+          )}
+          {currentPhase === "seeding" && (
+            <button type="button" className="ts-btn ts-btn--primary ts-btn--sm" onClick={() => runDraw("seeded")} disabled={busy != null}>
+              {busy === "seeded" ? "추첨 중..." : "시드 완료 → 랜덤 추첨"}
+            </button>
+          )}
+        </div>
+      </section>
+
+      {currentPhase === "seeding" && (
+        <section className="ts-card ts-card--flat">
+          <h4 className="bk-subh">시드 슬롯 — 클릭해 팀 배정</h4>
+          <div className="bk-groups">
+            {GROUP_LABELS.slice(0, Math.max(selectedCfg.group_count, 1)).map((group) => (
+              <div key={group} className="bk-group">
+                <div className="bk-group__name">{group}조</div>
+                {Array.from({ length: selectedCfg.group_size }).map((_, index) => {
+                  const slot = `${group}${index + 1}`;
+                  return (
+                    <label key={slot} className="bk-slot" data-seeded={selectedSeeds[slot] ? "true" : "false"}>
+                      <span className="bk-slot__lbl">{slot}</span>
+                      <select className="bk-slot__select" value={selectedSeeds[slot] ?? ""} onChange={(e) => setSeed(slot, e.target.value)}>
+                        <option value="">팀 선택</option>
+                        {teams.map((team) => (
+                          <option key={team.id} value={team.id}>{team.team.name}</option>
+                        ))}
+                      </select>
+                    </label>
+                  );
+                })}
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      <section className="ts-card ts-card--flat">
+        <div className="bk-section-row">
+          <h4 className="bk-subh">조 편성</h4>
+          <span className="ct-pill" data-tone={teams.some((team) => team.groupName) ? "ok" : "warn"}>
+            {teams.some((team) => team.groupName) ? "편성됨" : "편성 전"}
+          </span>
+        </div>
+        {teams.some((team) => team.groupName) ? (
+          <div className="bk-groups">
+            {groups.map(({ group, teams: groupTeams }) => (
+              <div key={group} className="bk-group">
+                <div className="bk-group__name">{group}조</div>
+                {Array.from({ length: selectedCfg.group_size }).map((_, index) => {
+                  const slot = `${group}${index + 1}`;
+                  const team = groupTeams.find((item) => teamSlot(item) === slot) ?? groupTeams[index];
+                  return (
+                    <div key={slot} className="bk-slot">
+                      <span className="bk-slot__lbl">{slot}</span>
+                      <span className="bk-slot__team">{team?.team.name ?? "부전승"}</span>
+                    </div>
+                  );
+                })}
+                <div className="bk-group__games">{selectedCfg.format === "dual_tournament" ? "더블엘리미 5경기" : `조별 ${roundRobinCount(Math.max(groupTeams.length, 2))}경기`}</div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="ct-emptybox">
+            <Icon name="git-merge" size={34} color="var(--ink-dim)" />
+            <b>아직 조편성 전입니다</b>
+            <span>위에서 방식과 조 설정을 확인한 뒤 완전 랜덤 추첨 또는 시드 배정을 진행하세요.</span>
+          </div>
+        )}
+      </section>
+
+      <section className="ts-card ts-card--flat">
+        <div className="bk-section-row">
+          <div>
+            <h4 className="bk-subh">토너먼트 트리</h4>
+            <p className="ct-section__sub">조편성 결과와 진출 규칙으로 생성될 본선 흐름입니다.</p>
+          </div>
+          <button type="button" className="ts-btn ts-btn--primary ts-btn--sm" onClick={generateDivisionMatches} disabled={busy != null || teams.length < 2}>
+            {busy === "generate" ? "생성 중..." : hasMatches ? "이 종별 재생성" : "이 종별 생성"}
+          </button>
+        </div>
+        {hasMatches ? (
+          <div className="ta-match-list">
+            {matches.map((match) => <DualMatchCard key={match.id} match={match} />)}
+          </div>
+        ) : leaves.length > 0 ? (
+          <div className="bk-tree">
+            <div className="bk-round">
+              <div className="bk-round__name">{knockoutRoundName(leaves.length)}</div>
+              {Array.from({ length: leaves.length / 2 }).map((_, index) => (
+                <div key={index} className="bk-match">
+                  <div className="bk-seedrow"><span>{leaves[index * 2]}</span></div>
+                  <div className="bk-seedrow"><span>{leaves[index * 2 + 1]}</span></div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div className="ct-emptybox">
+            <Icon name="calendar-plus" size={34} color="var(--ink-dim)" />
+            <b>리그전 방식입니다</b>
+            <span>조편성 후 경기 생성을 누르면 조별 리그 일정이 생성됩니다.</span>
+          </div>
+        )}
+      </section>
+    </div>
+  );
+}
+
 export default function BracketAdminPage({
   showNextStepCTA = true,
 }: {
@@ -427,6 +965,16 @@ export default function BracketAdminPage({
   };
 
   if (loading) return <PanelLoadingState label="대진 정보를 준비 중입니다." />;
+
+  return (
+    <OperateBracketBuilder
+      tournamentId={id}
+      data={data}
+      error={error}
+      setError={setError}
+      onReload={load}
+    />
+  );
 
   // 풀리그는 라운드 개념이 없어 "1라운드 팀 배치 편집"을 숨긴다
   // 듀얼토너먼트는 27 매치를 5섹션으로 표시 — 기존 1라운드 편집/전체 목록 UI 숨기고 dual 전용 섹션 사용

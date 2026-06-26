@@ -94,7 +94,14 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
     prisma.tournamentTeam.findMany({
       where: { tournamentId: id, status: "approved" },
       orderBy: [{ seedNumber: "asc" }, { createdAt: "asc" }],
-      select: { id: true, seedNumber: true, team: { select: { name: true } } },
+      select: {
+        id: true,
+        seedNumber: true,
+        groupName: true,
+        group_order: true,
+        category: true,
+        team: { select: { name: true } },
+      },
     }),
     prisma.tournament.findUnique({
       where: { id },

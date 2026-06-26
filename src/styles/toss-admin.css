@@ -775,6 +775,49 @@
 [data-skin="toss"] .ct-iconbtn:hover { background: var(--grey-200); color: var(--ink); }
 [data-skin="toss"] .ct-emptybox { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 28px 16px; background: var(--grey-50); border: 1px dashed var(--border-strong); border-radius: 16px; color: var(--ink-mute); font-size: 13.5px; text-align: center; }
 [data-skin="toss"] .ct-emptybox--tall { padding: 48px 16px; }
+
+/* 대회 운영 워크스페이스 — 대진표 탭 */
+[data-skin="toss"] .bk-operate { display: flex; flex-direction: column; gap: 16px; }
+[data-skin="toss"] .bk-rule-tabs { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+[data-skin="toss"] .bk-rule-tabs__label { color: var(--ink-mute); font-size: 12px; font-weight: 800; }
+[data-skin="toss"] .bk-rule-chip { min-height: 38px; gap: 6px; }
+[data-skin="toss"] .bk-rule-chip[data-active="true"] { border-color: var(--primary); background: var(--primary-weak); color: var(--primary); }
+[data-skin="toss"] .bk-config { display: flex; flex-direction: column; gap: 12px; }
+[data-skin="toss"] .bk-cfg-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+[data-skin="toss"] .bk-cfg-grid .ts-field { margin: 0; min-width: 0; }
+[data-skin="toss"] .bk-cfg-grid .ts-field[data-disabled="true"] { opacity: .52; }
+[data-skin="toss"] .bk-cfg-grid .ts-input,
+[data-skin="toss"] .bk-cfg-grid .ts-select { min-height: 44px; }
+[data-skin="toss"] .bk-badges { display: flex; flex-wrap: wrap; gap: 6px; }
+[data-skin="toss"] .bk-drawbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+[data-skin="toss"] .bk-subtitle { color: var(--ink); font-size: 14px; font-weight: 800; }
+[data-skin="toss"] .bk-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+[data-skin="toss"] .bk-section-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+[data-skin="toss"] .bk-subh { margin: 0 0 10px; color: var(--ink); font-size: 13px; font-weight: 900; letter-spacing: 0; }
+[data-skin="toss"] .bk-groups { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
+[data-skin="toss"] .bk-group { min-width: 0; padding: 12px; border: 1px solid var(--border); border-radius: 14px; background: var(--grey-50); }
+[data-skin="toss"] .bk-group__name { margin-bottom: 9px; color: var(--ink); font-size: 13px; font-weight: 900; }
+[data-skin="toss"] .bk-group__games { margin-top: 9px; padding-top: 9px; border-top: 1px solid var(--border); color: var(--ink-mute); font-size: 11.5px; font-weight: 700; }
+[data-skin="toss"] .bk-slot { position: relative; display: flex; align-items: center; gap: 8px; min-height: 42px; margin-bottom: 6px; padding: 7px 9px; border: 1px solid var(--border); border-radius: 10px; background: #fff; min-width: 0; }
+[data-skin="toss"] .bk-slot[data-seeded="true"] { border-color: var(--primary); background: var(--primary-weak); }
+[data-skin="toss"] .bk-slot__lbl { flex: 0 0 34px; color: var(--ink-mute); font-size: 11.5px; font-weight: 900; }
+[data-skin="toss"] .bk-slot__team { min-width: 0; overflow: hidden; color: var(--ink); font-size: 13px; font-weight: 800; text-overflow: ellipsis; white-space: nowrap; }
+[data-skin="toss"] .bk-slot__select { min-width: 0; width: 100%; border: 0; background: transparent; color: var(--ink); font: inherit; font-size: 13px; font-weight: 800; outline: none; }
+[data-skin="toss"] .bk-tree { display: flex; gap: 18px; overflow-x: auto; padding: 6px 2px 12px; }
+[data-skin="toss"] .bk-round { display: flex; flex: 0 0 190px; flex-direction: column; gap: 12px; min-width: 190px; }
+[data-skin="toss"] .bk-round__name { color: var(--ink-mute); font-size: 11px; font-weight: 900; text-align: center; }
+[data-skin="toss"] .bk-match { overflow: hidden; border: 1px solid var(--border); border-radius: 12px; background: #fff; }
+[data-skin="toss"] .bk-seedrow { display: flex; align-items: center; min-height: 38px; padding: 9px 11px; color: var(--ink); font-size: 13px; font-weight: 800; }
+[data-skin="toss"] .bk-seedrow:first-child { border-bottom: 1px solid var(--border); }
+[data-skin="toss"] .bk-seedrow span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 920px) {
+  [data-skin="toss"] .bk-cfg-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  [data-skin="toss"] .bk-drawbar { align-items: flex-start; flex-direction: column; }
+  [data-skin="toss"] .bk-actions { justify-content: flex-start; }
+}
+@media (max-width: 560px) {
+  [data-skin="toss"] .bk-cfg-grid { grid-template-columns: 1fr; }
+}
 [data-skin="toss"] .ct-section__head {
   display: flex;
   align-items: flex-start;
