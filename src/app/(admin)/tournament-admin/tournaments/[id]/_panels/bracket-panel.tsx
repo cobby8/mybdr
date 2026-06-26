@@ -3,8 +3,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 // 2026-05-04 (P4) — 듀얼 조 배정 에디터 (16팀 → 4그룹 배정 + 페어링 모드 + 저장/생성)
 import { DualGroupAssignmentEditor } from "../bracket/_components/dual-group-assignment-editor";
 import { PanelLoadingState } from "./panel-loading-state";
@@ -276,7 +274,7 @@ export default function BracketAdminPage() {
       )}
 
       {/* 버전 현황 */}
-      <Card className="mb-6">
+      <section className="ts-card mb-6">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <p className="text-sm font-medium text-[var(--color-text-primary)]">생성 횟수</p>
@@ -318,21 +316,23 @@ export default function BracketAdminPage() {
               </button>
             )}
             {hasMatches ? (
-              <Button
-                variant="secondary"
+              <button
+                type="button"
                 onClick={() => generate(true)}
                 disabled={generating || !canGenerate}
-                className="text-sm"
+                className="ts-btn ts-btn--secondary ts-btn--sm"
               >
                 {generating ? "생성 중..." : "재생성"}
-              </Button>
+              </button>
             ) : (
-              <Button
+              <button
+                type="button"
                 onClick={() => generate(false)}
                 disabled={generating || !canGenerate}
+                className="ts-btn ts-btn--primary"
               >
                 {generating ? "생성 중..." : isLeague ? "경기 자동 생성" : "대진표 생성"}
-              </Button>
+              </button>
             )}
           </div>
         </div>
@@ -359,7 +359,7 @@ export default function BracketAdminPage() {
             </div>
           </div>
         )}
-      </Card>
+      </section>
 
       {/* 1라운드 팀 배치 편집 */}
       {round1Matches.length > 0 && (
@@ -369,7 +369,7 @@ export default function BracketAdminPage() {
           </h2>
           <div className="space-y-3">
             {round1Matches.map((match) => (
-              <Card key={match.id} className={match.status === "bye" ? "opacity-60" : ""}>
+              <div key={match.id} className={`ts-card ${match.status === "bye" ? "opacity-60" : ""}`}>
                 <div className="flex items-center gap-3">
                   <span className="w-6 shrink-0 text-center text-xs text-[var(--color-text-muted)]">
                     #{match.match_number ?? "-"}
@@ -415,7 +415,7 @@ export default function BracketAdminPage() {
                     </span>
                   )}
                 </div>
-              </Card>
+              </div>
             ))}
           </div>
         </div>
@@ -510,8 +510,8 @@ export default function BracketAdminPage() {
       )}
 
       {!hasMatches && (
-        <Card className="py-16 text-center text-[var(--color-text-muted)]">
-          <div className="mb-3 text-4xl">🏆</div>
+        <div className="ct-emptybox py-16 text-center text-[var(--ink-mute)]">
+          <div className="mb-3 text-4xl">대진표</div>
           <p className="font-medium">
             {isLeague
               ? "생성된 경기가 없습니다"
@@ -531,7 +531,7 @@ export default function BracketAdminPage() {
               <> · 듀얼토너먼트는 정확히 16팀이 필요합니다.</>
             )}
           </p>
-        </Card>
+        </div>
       )}
 
       {/* 2026-05-16 PR-Admin-1 — 단계간 CTA (admin-flow-audit §3 단계 7 단절 해소) */}
@@ -606,7 +606,7 @@ function DualBracketSections({
         const count = stage.matches.length;
 
         return (
-          <Card key={stage.key} className="!p-0 overflow-hidden">
+          <section key={stage.key} className="ts-card !p-0 overflow-hidden">
             {/* 섹션 헤더 — 클릭 시 토글 */}
             <button
               type="button"
@@ -646,7 +646,7 @@ function DualBracketSections({
                 )}
               </div>
             )}
-          </Card>
+          </section>
         );
       })}
     </div>
@@ -904,7 +904,7 @@ function DivisionBracketSections({
         );
 
         return (
-          <Card key={divCode} className="!p-0 overflow-hidden">
+          <section key={divCode} className="ts-card !p-0 overflow-hidden">
             {/* 종별 헤더 — 토글 + deep link */}
             <div className="flex w-full items-center justify-between px-4 py-3 hover:bg-[var(--color-elevated)] transition-colors">
               <button
@@ -969,7 +969,7 @@ function DivisionBracketSections({
                 ))}
               </div>
             )}
-          </Card>
+          </section>
         );
       })}
     </div>
