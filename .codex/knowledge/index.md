@@ -1,5 +1,6 @@
 # Knowledge Index
 
+- 2026-06-26 admin: new tournament wizard previous-import now reads real manageable tournaments, venue search no longer falls back to hardcoded mock venues, PDF/association actions navigate to real routes, and teams player errors use Toss toast.
 - 2026-06-26 admin: recorders/admins panels now share Toss `tp-*` list/message/avatar/role classes; both panels scan clean for legacy BDR token residue.
 - 2026-06-26 admin: teams panel player table and bulk-import modal now use Toss `tt-*` classes; the remaining style scan hit is only real team `primaryColor` data binding.
 - 2026-06-26 admin: teams detail modal shell/header/category/payment/manager controls now use Toss `tt-*` classes while preserving edit, token, print, and status actions.
@@ -48,6 +49,7 @@ Updated: 2026-06-26
 | lessons.md | 0 | - |
 
 Recent work:
+- 2026-06-26 admin: new tournament wizard previous import, venue search, PDF/association actions, and teams player error feedback were wired to real APIs/routes/Toss toast and pushed through dev/main.
 - 2026-06-26 admin: recorders/admins panel list rows, messages, avatars, role badges, and danger actions were normalized to shared Toss `tp-*` classes.
 - 2026-06-26 admin: teams player table and bulk-import modal were normalized to Toss local classes, leaving only intentional team brand-color data binding in the panel scan.
 - 2026-06-26 admin: teams detail modal frame/header controls were normalized to Toss classes, including category/payment selects, manager inline edit controls, and status action buttons.
