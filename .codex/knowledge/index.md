@@ -1,5 +1,6 @@
 # Knowledge Index
 
+- 2026-06-26 admin: matches client table, mobile cards, ScoreModal, errors, and filter labels now use Toss-only `amt-*` classes; legacy BDR token scan is clean for the matches files.
 - 2026-06-26 admin: bracket panel full match lists and multi-division bracket filters/sections now reuse Toss match/section classes; `--color-*`/`rounded-[4px]`/`rounded-full` scan is clean for the panel.
 - 2026-06-26 admin: dual bracket sections and match cards now use Toss `ta-dual-*`/`ta-match-*` classes while preserving collapse and score/status display behavior.
 - 2026-06-26 admin: bracket panel round-1 team assignment editor now uses Toss `ta-round-*` grid/select/badge classes for stable desktop/mobile layout.
@@ -42,6 +43,7 @@ Updated: 2026-06-26
 | lessons.md | 0 | - |
 
 Recent work:
+- 2026-06-26 admin: matches table/mobile cards/ScoreModal were moved to Toss `amt-*` classes while keeping match generation, filters, score editing, and recording-mode save flows unchanged.
 - 2026-06-26 admin: bracket panel full match lists and multi-division filters/sections were normalized to Toss local classes, completing the panel-level token/radius cleanup scan.
 - 2026-06-26 admin: dual bracket section headers, grouped match cards, status chips, and team score rows were moved to Toss-only local classes.
 - 2026-06-26 admin: bracket panel round-1 assignment rows were converted to Toss-only grid/select/badge styling while keeping `updateMatchTeam` behavior unchanged.
