@@ -41,17 +41,14 @@ export function RecordingModeTriggerClient({ tournamentId, defaultMode, matchSta
   return (
     <>
       {/* 압축 버튼 — 우측 정렬 + accent 톤 */}
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+      <div className="rm-trigger">
         <div>
-          <p
-            className="text-xs font-semibold uppercase"
-            style={{ color: "var(--color-text-muted)", letterSpacing: "0.04em" }}
-          >
+          <p className="rm-trigger__eyebrow">
             기록 모드
           </p>
-          <p className="text-sm">
-            대회 기본: <span className="font-semibold">{modeLabel}</span>{" "}
-            <span style={{ color: "var(--color-text-muted)" }}>
+          <p className="rm-trigger__copy">
+            대회 기본: <span className="rm-trigger__mode">{modeLabel}</span>{" "}
+            <span className="rm-trigger__meta">
               · 총 {matchStats.total}건 (기록앱 {matchStats.flutter} / 전자기록지 {matchStats.paper} / 수기 {matchStats.manual}
               {matchStats.inProgress > 0 && ` / 진행중 ${matchStats.inProgress}`})
             </span>
@@ -63,7 +60,7 @@ export function RecordingModeTriggerClient({ tournamentId, defaultMode, matchSta
           className="ts-btn ts-btn--secondary ts-btn--sm"
         >
           {/* Material tune → lucide sliders-horizontal */}
-          <Icon name="sliders-horizontal" size={16} className="align-middle mr-1" />
+          <Icon name="sliders-horizontal" size={16} />
           기록 모드 설정
         </button>
       </div>
@@ -73,18 +70,17 @@ export function RecordingModeTriggerClient({ tournamentId, defaultMode, matchSta
         <div
           role="dialog"
           aria-modal="true"
-          className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-3 sm:p-4"
-          style={{ background: "color-mix(in srgb, #000 50%, transparent)" }}
+          className="rm-modal-overlay"
           onClick={() => setOpen(false)}
         >
           <div
-            className="relative my-3 w-full max-w-3xl sm:my-4"
+            className="rm-modal-shell"
             onClick={(e) => e.stopPropagation()}
           >
             <button
               type="button"
               onClick={() => setOpen(false)}
-              className="ct-iconbtn absolute right-3 top-3 z-10"
+              className="ct-iconbtn rm-modal-close"
               aria-label="닫기"
             >
               {/* Material close → lucide x */}

@@ -160,33 +160,27 @@ export function RecordingModeCard({
   };
 
   return (
-    <section data-skin="toss" className="ts-card mb-6">
+    <section data-skin="toss" className="ts-card rm-card">
       {/* 헤더 — 아이콘 + 타이틀 */}
-      <div className="mb-3 flex items-center gap-2">
+      <div className="rm-card__head">
         {/* Material tune → lucide sliders-horizontal */}
-        <Icon name="sliders-horizontal" size={22} color="var(--color-primary)" />
-        <h3 className="font-bold text-base">기록 모드 설정</h3>
+        <Icon name="sliders-horizontal" size={22} color="var(--primary)" />
+        <h3 className="rm-card__title">기록 모드 설정</h3>
       </div>
 
       {/* 현재 상태 요약 — 대회 default + 매치별 통계 */}
-      <div
-        className="mb-4 rounded-[var(--radius-card)] border p-3 text-sm"
-        style={{
-          borderColor: "var(--color-border)",
-          backgroundColor: "var(--color-elevated)",
-        }}
-      >
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-          <span style={{ color: "var(--color-text-secondary)" }}>대회 기본:</span>
-          <span className="font-semibold">{MODE_LABEL[defaultMode]}</span>
+      <div className="rm-summary">
+        <div className="rm-summary__row">
+          <span className="rm-summary__label">대회 기본:</span>
+          <span className="rm-summary__mode">{MODE_LABEL[defaultMode]}</span>
         </div>
-        <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs" style={{ color: "var(--color-text-muted)" }}>
+        <div className="rm-summary__stats">
           <span>총 {matchStats.total}건</span>
           <span>기록앱 {matchStats.flutter}건</span>
           <span>전자기록지 {matchStats.paper}건</span>
           <span>수기 {matchStats.manual}건</span>
           {matchStats.inProgress > 0 && (
-            <span style={{ color: "var(--color-primary)" }}>
+            <span className="rm-summary__active">
               진행중 {matchStats.inProgress}건
             </span>
           )}
@@ -194,12 +188,12 @@ export function RecordingModeCard({
       </div>
 
       {/* 모드 토글 — Flutter / 전자기록지 2개 버튼 */}
-      <div className="mb-4">
-        <div className="mb-2 text-xs font-semibold" style={{ color: "var(--color-text-secondary)" }}>
+      <div className="rm-field">
+        <div className="rm-field-label">
           새 모드 선택
         </div>
         {/* 2026-06-22: 2지선다 → 3지선다(수기 추가). grid-cols-3 로 자연 확장 */}
-        <div className="grid grid-cols-3 gap-2">
+        <div className="rm-mode-grid">
           {(["flutter", "paper", "manual"] as Mode[]).map((m) => {
             const active = selectedMode === m;
             return (
@@ -207,14 +201,7 @@ export function RecordingModeCard({
                 key={m}
                 type="button"
                 onClick={() => setSelectedMode(m)}
-                className="flex items-center justify-center gap-2 rounded-[12px] border px-3 py-2 text-sm font-semibold transition-colors"
-                style={{
-                  borderColor: active ? "var(--color-primary)" : "var(--color-border)",
-                  backgroundColor: active
-                    ? "color-mix(in srgb, var(--color-primary) 12%, transparent)"
-                    : "var(--color-card)",
-                  color: active ? "var(--color-primary)" : "var(--color-text-primary)",
-                }}
+                className={["rm-mode-btn", active ? "is-active" : ""].join(" ")}
                 aria-pressed={active}
               >
                 {/* MODE_ICON = lucide 키트 이름(gamepad-2/file-text) */}
@@ -227,15 +214,8 @@ export function RecordingModeCard({
 
         {/* 수기 모드 안내 — selectedMode="manual" 일 때만 의미 1줄 노출 */}
         {selectedMode === "manual" && (
-          <div
-            className="mt-2 flex items-start gap-1.5 rounded-[12px] p-2 text-xs"
-            style={{
-              backgroundColor:
-                "color-mix(in srgb, var(--color-primary) 8%, transparent)",
-              color: "var(--color-text-secondary)",
-            }}
-          >
-            <Icon name="info" size={14} color="var(--color-primary)" />
+          <div className="rm-note">
+            <Icon name="info" size={14} color="var(--primary)" />
             <span>
               수기 = 앱과 전자기록지를 사용하지 않는 방식입니다.
             </span>
@@ -244,25 +224,15 @@ export function RecordingModeCard({
       </div>
 
       {/* 영향 범위 라디오 — 3개 옵션 */}
-      <div className="mb-4">
-        <div className="mb-2 text-xs font-semibold" style={{ color: "var(--color-text-secondary)" }}>
+      <div className="rm-field">
+        <div className="rm-field-label">
           적용 범위
         </div>
-        <div className="space-y-2">
+        <div className="rm-scope-list">
           {SCOPE_OPTIONS.map((opt) => (
             <label
               key={opt.value}
-              className="flex cursor-pointer items-start gap-2 rounded-[12px] border p-2 text-sm transition-colors"
-              style={{
-                borderColor:
-                  scope === opt.value
-                    ? "var(--color-primary)"
-                    : "var(--color-border)",
-                backgroundColor:
-                  scope === opt.value
-                    ? "color-mix(in srgb, var(--color-primary) 6%, transparent)"
-                    : "transparent",
-              }}
+              className={["rm-scope", scope === opt.value ? "is-active" : ""].join(" ")}
             >
               <input
                 type="radio"
@@ -270,11 +240,11 @@ export function RecordingModeCard({
                 value={opt.value}
                 checked={scope === opt.value}
                 onChange={() => setScope(opt.value)}
-                className="mt-1"
+                className="rm-scope__radio"
               />
               <div>
-                <div className="font-semibold">{opt.label}</div>
-                <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>
+                <div className="rm-scope__title">{opt.label}</div>
+                <div className="rm-scope__desc">
                   {opt.desc}
                 </div>
               </div>
@@ -284,13 +254,12 @@ export function RecordingModeCard({
       </div>
 
       {/* 사유 textarea — 5자 이상 (server-side zod) */}
-      <div className="mb-4">
+      <div className="rm-field">
         <label
-          className="mb-2 block text-xs font-semibold"
-          style={{ color: "var(--color-text-secondary)" }}
+          className="rm-field-label"
           htmlFor="recording-mode-reason"
         >
-          변경 사유 <span style={{ color: "var(--color-primary)" }}>*</span>
+          변경 사유 <span className="rm-required">*</span>
         </label>
         <textarea
           id="recording-mode-reason"
@@ -299,14 +268,9 @@ export function RecordingModeCard({
           rows={2}
           maxLength={500}
           placeholder="결승은 전자기록지 운영"
-          className="ts-input min-h-[88px] text-sm"
-          style={{
-            borderColor: "var(--color-border)",
-            backgroundColor: "var(--color-card)",
-            color: "var(--color-text-primary)",
-          }}
+          className="ts-input rm-textarea"
         />
-        <div className="mt-1 text-xs" style={{ color: "var(--color-text-muted)" }}>
+        <div className="rm-count">
           {reason.length} / 500자 (최소 5자)
         </div>
       </div>
@@ -314,28 +278,15 @@ export function RecordingModeCard({
       {/* 결과 메시지 (inline) */}
       {resultMsg && (
         <div
-          className="mb-3 rounded-[12px] border p-2 text-sm"
-          style={{
-            borderColor:
-              resultMsg.type === "success"
-                ? "var(--color-success)"
-                : "var(--color-primary)",
-            backgroundColor:
-              resultMsg.type === "success"
-                ? "color-mix(in srgb, var(--color-success) 10%, transparent)"
-                : "color-mix(in srgb, var(--color-primary) 10%, transparent)",
-            color:
-              resultMsg.type === "success"
-                ? "var(--color-success)"
-                : "var(--color-primary)",
-          }}
+          className="rm-message"
+          data-tone={resultMsg.type}
         >
           {resultMsg.text}
         </div>
       )}
 
       {/* 적용 버튼 */}
-      <div className="flex justify-end">
+      <div className="rm-actions">
         <button
           type="button"
           onClick={handleApplyClick}
@@ -388,32 +339,27 @@ function ConfirmModal({
   return (
     <div
       data-skin="toss"
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ backgroundColor: "color-mix(in srgb, #000 50%, transparent)" }}
+      className="rm-confirm-overlay"
       onClick={onCancel}
     >
       <div
-        className="w-full max-w-sm rounded-[24px] border p-5 shadow-[var(--sh-lg)]"
-        style={{
-          borderColor: "var(--color-border)",
-          backgroundColor: "var(--color-card)",
-        }}
+        className="rm-confirm-card"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="mb-3 flex items-center gap-2">
+        <div className="rm-confirm-head">
           {/* Material warning → lucide triangle-alert */}
-          <Icon name="triangle-alert" size={22} color="var(--color-primary)" />
-          <h4 className="font-bold">기록 방식 변경 확인</h4>
+          <Icon name="triangle-alert" size={22} color="var(--primary)" />
+          <h4 className="rm-confirm-title">기록 방식 변경 확인</h4>
         </div>
-        <p className="mb-4 text-sm" style={{ color: "var(--color-text-secondary)" }}>
-          최대 <strong style={{ color: "var(--color-primary)" }}>{previewCount}건</strong>의 매치가{" "}
+        <p className="rm-confirm-copy">
+          최대 <strong className="rm-confirm-accent">{previewCount}건</strong>의 매치가{" "}
           <strong>{MODE_LABEL[selectedMode]}</strong> 방식으로 변경됩니다.
           <br />
-          <span className="text-xs" style={{ color: "var(--color-text-muted)" }}>
+          <span>
             이미 같은 방식인 경기는 자동 제외됩니다.
           </span>
         </p>
-        <div className="flex justify-end gap-2">
+        <div className="rm-confirm-actions">
           <button
             type="button"
             onClick={onCancel}

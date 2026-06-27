@@ -279,22 +279,22 @@ export default function TournamentSitePage() {
         />
       )}
 
-      {notice && <div className="tsite-message" style={{ color: "var(--ok)" }}>{notice}</div>}
+      {notice && <div className="tsite-message" data-tone="ok">{notice}</div>}
       {error && <div className="tsite-message" data-tone="danger">{error}</div>}
 
-      <section className="ts-card ts-card--flat" style={{ marginTop: 18 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
+      <section className="ts-card ts-card--flat tsite-section-card">
+        <div className="tsite-section-head">
           <span className="ct-headicon"><Icon name="eye" size={18} /></span>
           <div>
-            <h3 style={{ fontSize: 16 }}>공개 섹션</h3>
-            <p style={{ marginTop: 3, color: "var(--ink-mute)", fontSize: 13, fontWeight: 700 }}>
+            <h3 className="tsite-section-title">공개 섹션</h3>
+            <p className="tsite-section-desc">
               공개 사이트는 대회 정보, 참가팀, 대진표, 일정, 결과 섹션을 사용합니다.
             </p>
           </div>
         </div>
         <div className="tsite-action-grid">
           {["대회 정보", "참가팀", "대진표", "일정", "결과"].map((label) => (
-            <div key={label} className="tsite-action-card" aria-disabled="true" style={{ cursor: "default" }}>
+            <div key={label} className="tsite-action-card" aria-disabled="true">
               <span className="tsite-action-card__icon"><Icon name="check-circle" size={18} /></span>
               <p className="tsite-action-card__title">{label}</p>
               <p className="tsite-action-card__meta">기본 공개</p>

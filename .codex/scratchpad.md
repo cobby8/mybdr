@@ -27,6 +27,7 @@
 | Tournament operate panel Toss flow | Done | Teams, bracket, schedule, ops, site, and settlement panel roots now run inside the single Toss workspace skin without nested compatibility wrappers. |
 
 ## Work Log
+- 2026-06-27: Replaced recording-mode trigger/card modal Tailwind/inline UI with Toss `rm-*` classes and removed layout inline styles from site panel public-section card; TypeScript and diff check passed.
 - 2026-06-27: Added operate-workspace final parity CSS guard for v2.41 Toss sizing and converted schedule table inline cell styles to classes; TypeScript and diff check passed.
 - 2026-06-27: Removed nested Toss skin wrappers from bracket/schedule/ops/site/settlement panels, deleted old nested-skin compatibility CSS, and added shared operate panel flow.
 - 2026-06-27: Rebuilt tournament teams tab visible order to match the v2.41 Toss screen, removed nested `data-skin` grey background, verified TypeScript/diff check/local Chrome DOM metrics.
@@ -36,4 +37,3 @@
 - 2026-06-27: Migrated AdminStatCard, AdminEmptyState, and AdminStatusTabs to Toss `ad-stat`/`ad-empty`/`ad-tabs` markup with scoped CSS; TypeScript and local Chrome `/admin` DOM cleanup passed.
 - 2026-06-27: Rebuilt AdminMobileNav on Toss `ad-mobile-*`/`ad-side-*` classes while preserving ESC close, route close, body scroll lock, and role-filtered links; TypeScript and local Chrome `/admin/tournaments` DOM cleanup passed.
 - 2026-06-27: Migrated shared AdminShell root/main/topbar/content wrappers from legacy shell classes to Toss `ad-*` shell classes, added scoped CSS aliases, and verified local Chrome `/admin/tournaments` plus operate workspace have no old shell/Material/au/ta DOM residue.
-- 2026-06-27: Replaced shared AdminPageHeader markup with canonical Toss `ts-ph` structure while preserving props/search/actions; TypeScript, `admin-pageheader` scan, and local Chrome `/admin/tournaments`/`/tournament-admin/tournaments` passed.
