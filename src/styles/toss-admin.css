@@ -2902,6 +2902,176 @@
 }
 
 /* Tournament teams panel */
+[data-skin="toss"] .tt-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+[data-skin="toss"] .tt-actionbar {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: -2px;
+}
+[data-skin="toss"] .tt-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+[data-skin="toss"] .tt-readiness__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+[data-skin="toss"] .tt-readiness__title {
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 900;
+  letter-spacing: 0;
+}
+[data-skin="toss"] .tt-readiness-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 10px;
+}
+[data-skin="toss"] .tt-readiness-card__top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+[data-skin="toss"] .tt-readiness-card__name {
+  min-width: 0;
+}
+[data-skin="toss"] .tt-readiness-card__name p {
+  overflow: hidden;
+  margin: 0;
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 900;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+[data-skin="toss"] .tt-readiness-card__name span {
+  display: block;
+  margin-top: 3px;
+  color: var(--ink-mute);
+  font-size: 11.5px;
+  font-weight: 800;
+}
+[data-skin="toss"] .tt-mini-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 12px;
+}
+[data-skin="toss"] .tt-mini-stat {
+  min-width: 0;
+  border-radius: 10px;
+  background: var(--card);
+  padding: 9px 10px;
+}
+[data-skin="toss"] .tt-mini-stat p {
+  margin: 0;
+  color: var(--ink-mute);
+  font-size: 11px;
+  font-weight: 800;
+}
+[data-skin="toss"] .tt-mini-stat b {
+  display: block;
+  margin-top: 4px;
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+}
+[data-skin="toss"] .tt-filterbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+[data-skin="toss"] .tt-filter-count {
+  display: inline-flex;
+  align-items: center;
+  min-height: 18px;
+  border-radius: 8px;
+  background: var(--grey-100);
+  padding: 1px 7px;
+  color: inherit;
+  font-size: 11px;
+  font-weight: 900;
+}
+[data-skin="toss"] .tt-groups,
+[data-skin="toss"] .tt-team-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+[data-skin="toss"] .tt-groups {
+  gap: 18px;
+}
+[data-skin="toss"] .tt-group-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+[data-skin="toss"] .tt-team-row {
+  padding: 14px;
+}
+[data-skin="toss"] .tt-team-row__inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  min-width: 0;
+}
+[data-skin="toss"] .tt-team-row__main {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font-family: var(--ff);
+  padding: 0;
+  text-align: left;
+}
+[data-skin="toss"] .tt-team-row__text {
+  min-width: 0;
+}
+[data-skin="toss"] .tt-team-row__badges {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+[data-skin="toss"] .tt-team-row__badges b {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 900;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+[data-skin="toss"] .tt-team-row__actions {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
 [data-skin="toss"] .tt-badge {
   display: inline-flex;
   align-items: center;
@@ -3021,8 +3191,13 @@
 [data-skin="toss"] .tt-team-avatar {
   width: 40px;
   height: 40px;
+  display: grid;
+  place-items: center;
   flex: 0 0 auto;
   border-radius: 50%;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 900;
   box-shadow: inset 0 0 0 1px rgba(0,0,0,.05);
 }
 [data-skin="toss"] .tt-expand-icon {
@@ -3213,6 +3388,28 @@
 }
 [data-skin="toss"] .tt-form-message[data-tone="danger"] {
   color: var(--danger);
+}
+@media (max-width: 900px) {
+  [data-skin="toss"] .tt-stats-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  [data-skin="toss"] .tt-team-row__inner {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  [data-skin="toss"] .tt-team-row__actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+}
+@media (max-width: 560px) {
+  [data-skin="toss"] .tt-actionbar {
+    justify-content: flex-start;
+  }
+  [data-skin="toss"] .tt-stats-grid,
+  [data-skin="toss"] .tt-readiness-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* Tournament staff/recorders panels */

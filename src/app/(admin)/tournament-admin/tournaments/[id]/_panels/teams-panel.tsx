@@ -276,6 +276,15 @@ export default function TournamentTeamsPanel() {
     };
   }, [viewTeams]);
 
+  const viaStats = useMemo(() => {
+    return {
+      admin: viewTeams.filter((team) => team.token?.appliedVia === "admin").length,
+      coachToken: viewTeams.filter((team) => team.token?.appliedVia === "coach_token").length,
+      self: viewTeams.filter((team) => team.token?.appliedVia === "self").length,
+      unknown: viewTeams.filter((team) => !team.token?.appliedVia).length,
+    };
+  }, [viewTeams]);
+
   const filteredTeams = useMemo(() => {
     if (filter === "all") return viewTeams;
     if (filter === "coach_pending") return viewTeams.filter(isCoachPending);
@@ -547,41 +556,30 @@ ${team.token?.applyTokenUrl}
   }
 
   return (
-    <div data-skin="toss" className="space-y-4">
+    <div className="tt-panel">
       {tossConfirm.dialog}
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h3 className="text-sm font-black text-[var(--ink)]">참가팀 운영</h3>
-          <p className="mt-1 text-xs font-semibold text-[var(--ink-mute)]">
-            승인, 입금, 신청 종별 이동, 선수명단을 한 화면에서 처리합니다.
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Btn variant="secondary" size="sm" icon="download" onClick={downloadTokenCsv}>
-            CSV
-          </Btn>
-          <Btn variant="primary" size="sm" icon="message-circle" onClick={copyTokenMessages}>
-            카톡 문구 복사
-          </Btn>
-        </div>
+      <div className="tt-actionbar">
+        <Btn variant="secondary" size="sm" icon="download" onClick={downloadTokenCsv}>
+          토큰 파일 받기 ({counts.all})
+        </Btn>
+        <Btn variant="primary" size="sm" icon="message-circle" onClick={copyTokenMessages}>
+          카톡 문구 복사
+        </Btn>
       </div>
 
-      <div className="ct-panel-stats">
-        <Metric icon="users" label="전체" value={`${counts.all}팀`} />
-        <Metric icon="check-circle" label="승인" value={`${counts.approved}팀`} tone="ok" />
-        <Metric icon="clock" label="대기" value={`${counts.pending}팀`} tone="warn" />
-        <Metric icon="banknote" label="납부" value={`${counts.paid}팀`} tone="ok" />
-        <Metric icon="link" label="토큰" value={`${counts.tokenAlive}개`} />
+      <div className="tt-stats-grid">
+        <Metric icon="briefcase" label="운영자 등록" value={`${viaStats.admin}`} />
+        <Metric icon="id-card" label="코치 신청" value={`${viaStats.coachToken}`} />
+        <Metric icon="user" label="본인 신청" value={`${viaStats.self}`} />
+        <Metric icon="circle-help" label="경로 미상" value={`${viaStats.unknown}`} />
       </div>
 
-      <section className="ts-card ts-card--flat">
-        <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
+      <section className="tt-readiness">
+        <div className="tt-readiness__head">
           <div>
-            <h3 className="text-sm font-black text-[var(--ink)]">종별 현황</h3>
-            <p className="mt-1 text-xs font-semibold text-[var(--ink-mute)]">
-              종별별 신청, 승인, 납부 상태입니다. 정원 초과는 대진 생성 전 정리하세요.
-            </p>
+            <h3 className="tt-readiness__title">종별 현황</h3>
+            <p className="tt-note">종별별 참가신청 팀 수 · 대진 추첨은 대진표 탭에서 진행합니다.</p>
           </div>
           <span className="ct-pill" data-tone={divisionRules.length > 0 ? "info" : "warn"}>
             {divisionRules.length > 0 ? `${divisionRules.length}종별` : "종별 없음"}
@@ -590,19 +588,22 @@ ${team.token?.applyTokenUrl}
         {divisionStats.length === 0 ? (
           <Empty icon="layout-grid" title="등록된 종별이 없습니다" desc="대회 정보 수정의 종별 단계에서 먼저 종별을 저장하세요." />
         ) : (
-          <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+          <div className="tt-readiness-grid">
             {divisionStats.map((rule) => (
-              <div key={rule.code} className="rounded-[14px] bg-[var(--grey-50)] p-3">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-extrabold text-[var(--ink)]">{rule.label}</p>
-                    <p className="mt-1 text-xs font-semibold text-[var(--ink-mute)]">{rule.code}</p>
+              <div
+                key={rule.code}
+                className={["tt-readiness-card", rule.overCapacity ? "tt-readiness-card--warn" : ""].join(" ")}
+              >
+                <div className="tt-readiness-card__top">
+                  <div className="tt-readiness-card__name">
+                    <p>{rule.label}</p>
+                    <span>{rule.code}</span>
                   </div>
                   <span className="ct-pill" data-tone={rule.overCapacity ? "err" : "mute"}>
                     {rule.cap == null ? "정원 없음" : `${rule.approved}/${rule.cap}`}
                   </span>
                 </div>
-                <div className="mt-3 grid grid-cols-3 gap-2">
+                <div className="tt-mini-grid">
                   <MiniStat label="신청" value={rule.total} />
                   <MiniStat label="승인" value={rule.approved} />
                   <MiniStat label="납부" value={rule.paid} />
@@ -613,7 +614,7 @@ ${team.token?.applyTokenUrl}
         )}
       </section>
 
-      <div className="flex flex-wrap gap-2">
+      <div className="tt-filterbar">
         {[
           ["all", "전체", counts.all],
           ["pending", "대기", counts.pending],
@@ -631,9 +632,7 @@ ${team.token?.applyTokenUrl}
             onClick={() => setFilter(String(key))}
           >
             {label}
-            <span className="rounded-[8px] bg-[var(--grey-100)] px-1.5 py-0.5 text-xs">
-              {count}
-            </span>
+            <span className="tt-filter-count">{count}</span>
           </button>
         ))}
       </div>
@@ -641,7 +640,7 @@ ${team.token?.applyTokenUrl}
       {filteredTeams.length === 0 ? (
         <Empty icon="users" title="표시할 참가팀이 없습니다" desc="필터를 바꾸거나 신청 토큰을 다시 확인하세요." />
       ) : (
-        <div className="space-y-5">
+        <div className="tt-groups">
           {grouped.map(([category, rows]) => {
             const moveOptions = divisionRules.filter((rule) => rule.code !== category);
             const groupKey = category ?? "__unassigned";
@@ -651,15 +650,13 @@ ${team.token?.applyTokenUrl}
             );
             const bulkSourceCategory = category ?? (rawCategories.length === 1 ? rawCategories[0] ?? null : null);
             return (
-              <section key={groupKey} className="space-y-2">
-                <div className="flex flex-wrap items-center gap-2">
-                  <h3 className="text-sm font-black text-[var(--primary)]">
-                    {categoryLabel(category, divisionRules)}
-                  </h3>
-                  <span className="text-xs font-bold text-[var(--ink-mute)]">{rows.length}팀</span>
-                  <div className="min-w-[80px] flex-1 border-t border-[var(--border)]" />
+              <section key={groupKey}>
+                <div className="tt-group-head">
+                  <h3 className="tt-group-head__title">{categoryLabel(category, divisionRules)}</h3>
+                  <span className="tt-group-head__count">{rows.length}팀</span>
+                  <div className="tt-group-head__line" />
                   {moveOptions.length > 0 && (
-                    <div className="flex flex-wrap items-center gap-2">
+                    <div className="tt-group-actions">
                       <select
                         className="ts-select"
                         style={{ minHeight: 36, width: 160 }}
@@ -690,7 +687,7 @@ ${team.token?.applyTokenUrl}
                     </div>
                   )}
                 </div>
-                <div className="space-y-2">
+                <div className="tt-team-list">
                   {rows.map((team) => (
                     <TeamCard
                       key={team.id}
@@ -746,19 +743,17 @@ function Metric({
   icon,
   label,
   value,
-  tone = "mute",
 }: {
   icon: string;
   label: string;
   value: string;
-  tone?: "ok" | "warn" | "err" | "mute";
 }) {
   return (
-    <div className="ct-metric flex items-center gap-3">
-      <Icon name={icon} size={20} color={tone === "ok" ? "var(--ok)" : tone === "warn" ? "var(--warn)" : "var(--primary)"} />
+    <div className="tt-stat-card">
+      <Icon name={icon} size={20} />
       <div>
-        <p className="ct-metric__lbl">{label}</p>
-        <p className="ct-metric__val">{value}</p>
+        <p className="tt-stat-card__label">{label}</p>
+        <p className="tt-stat-card__value">{value}</p>
       </div>
     </div>
   );
@@ -766,9 +761,9 @@ function Metric({
 
 function MiniStat({ label, value }: { label: string; value: number }) {
   return (
-    <div className="rounded-[10px] bg-white px-3 py-2">
-      <p className="text-[11px] font-bold text-[var(--ink-mute)]">{label}</p>
-      <p className="mt-1 text-sm font-black text-[var(--ink)]">{value}</p>
+    <div className="tt-mini-stat">
+      <p>{label}</p>
+      <b>{value}</b>
     </div>
   );
 }
@@ -795,22 +790,22 @@ function TeamCard({
   onDelete: (team: TeamView) => void;
 }) {
   return (
-    <div className="ts-card ts-card--tight">
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+    <div className="ts-card ts-card--tight tt-team-row">
+      <div className="tt-team-row__inner">
         <button
           type="button"
           onClick={onOpen}
-          className="flex min-w-0 flex-1 items-center gap-3 border-0 bg-transparent p-0 text-left"
+          className="tt-team-row__main"
         >
           <span
-            className="grid h-10 w-10 shrink-0 place-items-center rounded-[50%] text-xs font-black text-white"
+            className="tt-team-avatar"
             style={{ backgroundColor: team.team.primary_color ?? "var(--primary)" }}
           >
             {team.team.name.slice(0, 2)}
           </span>
-          <span className="min-w-0">
-            <span className="flex flex-wrap items-center gap-2">
-              <b className="text-sm text-[var(--ink)]">{team.team.name}</b>
+          <span className="tt-team-row__text">
+            <span className="tt-team-row__badges">
+              <b>{team.team.name}</b>
               <span className="ct-pill" data-tone={toneForStatus(team.status)}>
                 {statusLabel(team.status)}
               </span>
@@ -833,14 +828,14 @@ function TeamCard({
                 </span>
               )}
             </span>
-            <span className="mt-1 block text-xs font-semibold text-[var(--ink-mute)]">
+            <span className="tt-team-meta">
               선수 {team.players.length}명 · {categoryLabel(team.category, divisionRules)}
               {team.managerName ? ` · 코치 ${team.managerName}` : ""}
             </span>
           </span>
         </button>
 
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="tt-team-row__actions">
           {divisionRules.length > 0 && (
             <select
               className="ts-select"
