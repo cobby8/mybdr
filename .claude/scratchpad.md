@@ -5,8 +5,8 @@
 ## 현재 작업
 - **요청**: 관리자 영역 Toss 시안 박제 (admin-toss v2.41 정본). 단계 PR(PR-0~PR-5).
 - **기준 패키지**: `Dev/design/BDR v2.41-admin-toss/` + 계약문서 `_PR0-CONTRACT-CONFIRMED.md`(PR-1~5 단일 참조점).
-- **상태**: PR-0✅·PR-1✅·PR-2✅완료(전부 dev push·7daba99). **dev→main 릴리스 PR #773 생성·열림**(23커밋). 사용자 결정=**프리뷰 검토 후 수빈이 머지**(지금 머지 안 함). `tournament_expenses` 운영 DB 이미 반영→main 배포 시 마이그0. 머지 후 다음=PR-3(생성/수정 마법사).
-- **🔎 프리뷰 검토 대기(수빈)**: PR-2 기능 런타임 확인 — 운영관리(공지 저장·series 칩)·일정(휴식)·정산(지출 추가/잔액). 이상없으면 PR #773 머지.
+- **상태**: 🎉 **PR-0~5 전체 박제 코드 완료**. PR-3 생성/수정 마법사·PR-4 §6-2 목록제거·PR-5 공개사이트(준비중 카피+대진 탭). **남은 것**: ①PR-3 생성플로우+PR-5 대진 로컬/프리뷰 검증 ②미푸시 push→빌드확인 ③디테일 정리 일괄(휴식CSS·dead코드·subtab·actions 등) ④PR #773(dev→main) 최종 검토 후 수빈 머지.
+- **PR #773**(dev→main 릴리스·열림): 검토 후 머지 대기. `tournament_expenses` 운영 DB 이미 반영→main 마이그0.
 - **🔄 v2.45 재베이스라이닝(2026-06-27)**: 새 zip `BDR v2 (45)` → 정본 교체(design_handoff_admin → `Dev/design/BDR v2.41-admin-toss/`, 직전본 `_archive/...-pre45/`). **START-HERE·IMPLEMENTATION-PROMPT·screenshots 17장(시각 정본) 반입** → §1 치환표 폐기. 폐기 38팀 site-* 제거. 정본 교체 커밋 = design(sync). 계약문서 §v2.45 갱신.
 - **★계정 배치 확정**: 정본=계정 **사이드바 푸터 UserChip**(데스크톱 topbar 없음). 사용자 "사이드 패널 유지"=계정을 사이드에. 배치1.5=ad-topbar 계정 제거+UserChip 푸터 이전(로그아웃 보존 필수).
 - **배치2 모바일(900px)·배치3 st-* 상태모듈 = 후속**. (v2.42 신규: 8상태 QA·preview 6 검수하네스·공개사이트 44팀 통일→PR-5)
@@ -21,7 +21,7 @@
 | PR-2 | 대회 운영. 시각박제 완료(전 패널 정합·0줄) + 기능4건 완료: 공지(e1a98e2)·series칩(31cdd79)·일정휴식(cabbef4)·지출 신규테이블(db push 완료). 런타임검증=프리뷰 | ✅ 완료 |
 | PR-3 | 생성/수정 마법사. 3-A 입구단일화(b49c701)·3-B SUBTABS제거(7bc6db8)·3-C 생성폼 5단계스텝화 OptionA(8c75d2c)·3-D 수정폼 정합(9952966). 마이그0·로직보존. **코드완료·로컬 검증대기**(생성 1~5+제출) | 🔄 검증 |
 | PR-4 | 셸별 콘솔. 진단=4영역(대회관리자/백오피스18/협력/심판) **이미 정합·박제0**. 4-A §6-2 목록 제거(redirect+sidebar 일원화·상세/audit/transfer 보존) | ✅ 완료 |
-| PR-5 | 공개 사이트(44팀/27경기 통일본) — BDR 13룰(Material Symbols·별도 서브도메인) | 🔄 분석 |
+| PR-5 | 공개 사이트(BDR 13룰). 진단=발행가시성/실데이터/BDR분리 이미 정합. 5-A "준비중"카피(900488b)·5-B 대진 공개탭(2e2f472). 자동가시성 유지·Toss0·마이그0 | ✅ 완료 |
 
 **§6 결정(2026-06-27)**: 6-1 = 5단계 단일진입 + prospectus/association 코드 보존 / 6-2 = `/admin/tournaments` 목록 **완전 제거**(상세 [id] audit-log·transfer-organizer 유지).
 **§5 핵심**: 전면신규=`tournament_expense` 1건뿐. #5 teams(coach_token=apply_token·로스터=TournamentTeamPlayer) 전부 기존→**바인딩만**. 나머지 NULL허용 무중단 ADD/JSON 확장.
