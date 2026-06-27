@@ -58,68 +58,9 @@
 
 ## 구현 기록 (developer)
 
-### PR-1 배치1 — ad-shell → ts-shell 마이그레이션 (파일럿)
-📝 `/admin/*` 셸 크롬을 ad-*/Tailwind → 시안 ts-* 클래스로 swap (className만, 로직 0). 셸은 `admin/layout.tsx` 1곳 중앙화 / tournament-admin·partner-admin은 이미 ts라 무관.
-
-| 파일 | 변경 | 신규/수정 |
-|------|------|----------|
-| `src/components/admin/admin-shell.tsx` | `ad-shell`→`ts-shell`, `ad-shell--hidden-aside`→`ts-shell--hidden-aside`, `ad-main`→`ts-main`, `ad-main__inner`→`ts-main__inner` | 수정 |
-| `src/components/admin/sidebar.tsx` | 컨테이너 Tailwind`fixed w-64…`→`ts-sidebar`, 로고→`ts-sidebar__brand`(BDR 로고 Image 보존), nav→`ts-sidebar__nav overflow-y-auto`, 그룹헤더 `aside__title`→`ts-sidebar__label`, 링크3곳 `aside__link`→`ts-navlink`(메뉴·마이페이지·복귀), 푸터→`ts-sidebar__foot` | 수정 |
-
-**보존 확인(회귀 0)**: `navStructure`(A1 IA 1독립+4그룹+외부관리) 항목 추가/삭제/이동 0 · `filterStructureByRoles`/`filterItemByRoles`(권한)·`children` 재귀 들여쓰기·`hrefByRole`·`data-active` active 로직·푸터(테마·마이페이지·복귀) 전부 그대로. git diff = className+주석 라인만(로직 토큰 0 변경).
-
-**검증**: `npx tsc --noEmit --incremental false` = **EXIT 0**. 정적: 2파일 className 잔존 `ad-shell/ad-main/aside__link/aside__title` = 0(단 ⚠️아래 ad-topbar 예외) / swap한 ts-shell·ts-main·ts-sidebar·ts-navlink·ts-sidebar__label·ts-sidebar__foot·ts-main__inner = toss-admin.css 전부 실존(L245~270).
-
-⚠️ **의도적 예외 / 후속 결정 필요**:
-- `admin-shell.tsx` L49 **`ad-topbar` 유지**(미swap). 시안 `ts-topbar`는 `display:none@desktop`(모바일 전용 fixed bar)이라 swap 시 **데스크톱 우상단 UserMenu(계정메뉴)가 사라지는 회귀** 발생(시안은 계정을 ts-sidebar__foot ts-userchip에 둠). 회귀 0 우선 → 이번 배치 미처리. **권고 후속(배치 1.5)**: layout의 topbarRight UserMenu를 ts-sidebar__foot로 이전 후 ts-topbar 정합(layout.tsx 1파일 추가 필요 → 별도 결정).
-- `ts-shell--hidden-aside`는 CSS 룰 부재(구 `ad-shell--hidden-aside .ad-main{margin-left:0}` 미대응). 단 hidden variant는 현재 호출처 0(layout=default)이라 무동작·잠재영향 0.
-- ⚠️ 시각 미세: `ts-navlink` 내부 `<span>`(icon+label) 래퍼 유지 → ts-navlink gap이 span 1자식에만 적용돼 아이콘/라벨 간격이 다소 좁을 수 있음(구조 보존 우선). PM 육안 확인 후 필요시 후속.
-
-🖥️ **PM 육안확인 필요 라우트(데스크톱 ≥1024px + 모바일 ≤768px)**: `/admin`(대시보드), `/admin/users`(테이블), `/admin/games`(콘텐츠) — 사이드바 렌더·active 상태·그룹헤더·푸터·BDR 로고·데스크톱 UserMenu 표시 / 모바일은 배치2(mobile-admin-nav) 전이라 기존 ad-mobile 유지(정상).
-
-### PR-1 배치1.5 — 계정 우상단 topbar 제거 → 사이드바 푸터 UserChip 이전
-📝 정본(v2.45) 데스크톱 topbar 부재 정합. 데스크톱 우상단 UserMenu 제거 + 계정을 ts-sidebar__foot UserChip 으로 이전. **로그아웃 보존(기능 손실 0)**.
-
-| 파일 | 변경 | 신규/수정 |
-|------|------|----------|
-| `src/app/(admin)/admin/layout.tsx` | `topbarRight={<UserMenu/>}` 배선 + UserMenu import 제거(user prop 전달 유지) | 수정 |
-| `src/components/admin/admin-shell.tsx` | 데스크톱 `ad-topbar` div 제거 + `topbarLeft/topbarRight` props 제거 + `<AdminSidebar user={user}/>` 전달 | 수정 |
-| `src/components/admin/sidebar.tsx` | 푸터 **UserChip 신설**(ts-userchip/ts-avatar 아바타+이름+역할+chevron-right→/admin/me) + **LogoutButton 추가**(로그아웃 보존) + getInitial/getRoleLabel + user prop | 수정 |
-
-**로그아웃 보존**: 제거된 UserMenu 로그아웃을 LogoutButton(drawer-card) 재사용으로 푸터 박제 — `POST /api/web/logout`+full reload 로직 무변경. 마이페이지(/admin/me)·사이트복귀(/)·로그아웃·계정진입 **전부 접근 가능**.
-**보존(회귀 0)**: navStructure/filter/children 재귀/active 0변경(nav 토큰 20 동일). user 미전달 시 UserChip·로그아웃 미렌더(폴백).
-**검증**: tsc **EXIT 0**. 정적: admin-shell.tsx ad-topbar/topbarRight 코드 잔존 0(주석만)·layout UserMenu 코드 잔존 0(주석만)·sidebar ts-userchip(CSS L258)·ts-avatar(L260)·LogoutButton·chevron-right 실존.
-⚠️ **모바일 interim(배치2 해소)**: ad-topbar div 제거가 모바일에도 영향 — ts-main 모바일 `padding-top:56px`(ts-topbar 전제)라 현재 모바일 상단 56px 빈공간+플로팅 햄버거만. 배치2(mobile-admin-nav→ts-topbar/ts-drawer)에서 정합. AdminMobileNav 미변경.
-ℹ️ `user-menu.tsx` 이제 미import(고아)지만 빌드 무해 — 삭제는 별도(범위 외).
-🖥️ **PM 육안확인(배치1.5)**: 데스크톱 `/admin` 우상단 계정 **없음**(정본 정합) + 사이드바 푸터 UserChip(아바타+이름+역할)·로그아웃·클릭 동작 확인.
-
-### PR-1 배치2 — 모바일 정합 (ad-mobile-* → ts-topbar/ts-drawer)
-📝 배치1.5에서 데스크톱 topbar 제거로 어중간해진 모바일(상단 56px 빈공간+플로팅 햄버거)을 정본 ts-topbar/ts-drawer로 정합. **1파일 변경**(admin-shell은 배치1.5에서 이미 `user` 전달 → 추가 배선 불필요).
-
-| 파일 | 변경 | 신규/수정 |
-|------|------|----------|
-| `src/components/admin/mobile-admin-nav.tsx` | ① **ts-topbar 신설**(햄버거 ts-mtoggle + 활성탭 제목 getActiveTitle) → ts-main 모바일 padding-top:56px 채움 ② 드로어 swap `ad-mobile-toggle/overlay/drawer/__*`·`ad-side-link/title`→`ts-overlay`/`ts-drawer`+인라인 head/`ts-sidebar__nav`/`ts-sidebar__foot`·`ts-navlink`/`ts-sidebar__label` ③ **드로어 푸터=데스크톱 사이드바 푸터 동등**: UserChip(ts-userchip/ts-avatar+역할)+테마+마이페이지+사이트복귀+로그아웃 | 수정 |
-
-**기능 손실 0(모바일 유일 경로)**: LogoutButton(drawer-card, onBeforeLogout=close) 재사용=로그아웃 보존 / UserChip·마이페이지→/admin/me / 사이트복귀→/ / 테마 AdminThemeSwitch. 드로어 head=브랜드(로고)+닫기, 정체성은 푸터 UserChip 이전(정본 패턴).
-**보존(회귀 0)**: filterStructureByRoles/renderMobileItem/children 재귀/getTournamentMobileStructure/active 0변경(className+자식 들여쓰기 inline화만). 자식 들여쓰기 data-child(ts-navlink CSS 부재)→inline paddingLeft:28(데스크톱 sidebar 동일).
-**검증**: tsc **EXIT 0**. 정적: `ad-mobile-*`/`ad-side-*` 잔존 **0** / ts-topbar·ts-mtoggle·ts-overlay·ts-drawer·ts-navlink·ts-userchip·ts-avatar·ts-sidebar__nav/__label/__foot/__brand 전부 toss-admin.css 실존(임의 CSS 0). ⚠️`ts-drawer__head/__body/__foot`는 CSS 부재 → 정본 jsx대로 인라인 head+ts-sidebar__nav/__foot 사용.
-🖥️ **PM 육안확인(배치2·모바일 ≤900px)**: 상단 ts-topbar(햄버거+페이지 제목)·56px 빈공간 해소 / 햄버거→드로어 슬라이드 / 드로어 푸터 UserChip·로그아웃·테마·마이페이지·복귀 동작 / 데스크톱(≥900px) ts-topbar 숨김·배치1.5 사이드바 유지(회귀 0).
-
-### PR-1 배치3 — st-* 상태 공유모듈 (PR-2 대비 인프라)
-📝 정본 admin-state.jsx 상태 프리미티브 박제. **실측 결과 대부분 기존재**(v2.42 배치에서 이미 이식) → 중복 생성 금지. 진짜 누락분(Banner·Spinner)만 신설. **신규 CSS 0**(모든 st-* 룰 기존재).
-
-**기존재(미변경·재사용)**: `Skel`·`SkelTable`·`ErrState`·`PermState`·`Modal`·`Empty` = `admin-toss/kit.tsx` 존재+barrel export(정본 1:1, 일부 optional props 상위호환). CSS `st-skel`~`st-dirtydot`(st-skrow/__main/__text·st-spin/--sm·st-state/__ic/--danger/--lock/__t/__x/__actions·st-banner/--danger/--grey·st-dirtydot) = `toss-admin.css` L299~386 실존.
-
-**신규(2 컴포넌트)**:
-| 파일 | 변경 | 신규/수정 |
-|------|------|----------|
-| `src/components/admin-toss/kit.tsx` | `Banner`(st-banner tone=danger/grey+icon+title+desc+action) + `Spinner`(st-spin/--sm) 신설. 정본 인라인 마크업 1:1·기존 CSS 재사용·lucide·var(--*) | 수정 |
-| `src/components/admin-toss/index.ts` | barrel에 Banner/Spinner + BannerProps/BannerTone/SpinnerProps export 추가 | 수정 |
-
-**박제 제외(정본이나 프리뷰 하net스=프로덕션 재사용 아님)**: Demo·AdminStatePreview·LoadingDemos/EmptyDemos/ErrorDemos/SaveFlowDemo/PermDemos/MobileDemos/DestructiveDemo + 갤러리 클래스(st-app/st-head/st-tabs/st-sechead/st-grid/st-demo/st-statgrid/st-spinrow/st-phone/st-mcard/st-msheet/st-flabel/st-finput). `st-toast`=운영 `ts-toast` 기존재로 대체(중복 생성 안 함).
-**위치 결정**: 코디네이터 제안 `state.tsx` 대신 **kit.tsx**(기존 상태 프리미티브 Skel/ErrState 등이 이미 거기 있어 cohesion). 파편화 회피.
-**검증**: tsc **EXIT 0**. 정적: Banner/Spinner barrel export 확인·참조 CSS(st-banner/--danger/--grey/st-spin/--sm) toss-admin.css 실존(6건)·Material 0·하드코딩 hex 0(var(--ink-soft)만). **소비처 import 0=정상**(PR-2 대비 인프라).
-⚠️ **주의(정본 대비)**: st-toast 클래스는 운영 미존재(ts-toast로 대체). st-mcard(모바일 카드)는 데모 클래스라 미박제 — PR-2에서 모바일 카드 패턴 필요 시 그때 신설.
+> **PR-1(완료) 상세는 git + 작업 로그 참조.** 배치1 셸/사이드바 ts-shell swap(8a2dd89)·1.5 계정→사이드바 푸터 UserChip+로그아웃(a0276a1)·2 모바일 ts-topbar/ts-drawer(fb0f943)·3 상태모듈 Banner/Spinner 신설(7a385f4). 전부 tsc0·회귀0·코워크 합격.
+> **PR-1 재사용 자산(PR-2가 활용)**: 셸=ts-shell/ts-sidebar/ts-navlink·계정=ts-userchip+LogoutButton·모바일=ts-topbar/ts-drawer·상태=admin-toss/kit.tsx(Skel/SkelTable/ErrState/PermState/Modal/Empty/Banner/Spinner)·토스트=ts-toast. st-mcard(모바일 카드)는 미박제→PR-2 필요 시 신설.
+> PR-2 착수 시 이 섹션에 신규 구현 기록.
 
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
