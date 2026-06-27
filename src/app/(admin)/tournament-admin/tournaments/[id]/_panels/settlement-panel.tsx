@@ -185,14 +185,14 @@ export default function SettlementPanel({ tournamentId }: { tournamentId: string
 
   if (loading) {
     return (
-      <div data-skin="toss" className="op-settle-panel">
+      <div className="op-settle-panel op-panel-flow">
         <SkelTable rows={5} />
       </div>
     );
   }
 
   return (
-    <div data-skin="toss" className="op-settle-panel">
+    <div className="op-settle-panel op-panel-flow">
       {error && <div className="amt-errorbox">{error}</div>}
 
       <div className="op-settle-kpis">

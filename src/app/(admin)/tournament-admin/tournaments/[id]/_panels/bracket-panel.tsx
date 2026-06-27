@@ -480,7 +480,7 @@ export default function BracketPanel(_props: { showNextStepCTA?: boolean } = {})
 
   if (!data || rules.length === 0 || !activeRule || !selectedConfig) {
     return (
-      <div data-skin="toss" className="ct-emptybox">
+      <div className="ct-emptybox">
         <Icon name="git-merge" size={36} color="var(--ink-dim)" />
         <b>종별 설정이 없습니다</b>
         <span>대회 정보 수정에서 종별을 먼저 저장하면 여기서 조편성과 대진표를 만들 수 있습니다.</span>
@@ -707,7 +707,7 @@ export default function BracketPanel(_props: { showNextStepCTA?: boolean } = {})
   }
 
   return (
-    <div data-skin="toss" className="bk-operate">
+    <div className="bk-operate op-panel-flow">
       {tossConfirm.dialog}
       {error && <div className="bk-alert" data-tone="danger">{error}</div>}
       {notice && <div className="bk-alert" data-tone="ok">{notice}</div>}

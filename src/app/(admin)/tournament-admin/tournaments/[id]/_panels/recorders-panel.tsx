@@ -214,7 +214,7 @@ export default function TournamentRecordersPage() {
 
   return (
     // Track B-c — Toss 토큰 적용 루트 opt-in
-    <div data-skin="toss" className="space-y-6">
+    <div className="op-recorders-panel op-panel-flow">
       {tossConfirm.dialog}
       {/* 기록원 추가 */}
       <section className="ts-card space-y-3 p-4">

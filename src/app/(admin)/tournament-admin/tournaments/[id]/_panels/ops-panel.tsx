@@ -60,7 +60,7 @@ export default function OpsPanel({ tournamentId, defaultMode, matchStats }: OpsP
   const adminCount = admins.length;
 
   return (
-    <div data-skin="toss" className="op-ops-panel">
+    <div className="op-ops-panel op-panel-flow">
       <div className="op-role-grid">
         <RoleMetric
           icon="shield"

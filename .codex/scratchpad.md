@@ -17,16 +17,17 @@
 | Recording modes | Done | Match-level `manual` is counted, displayed, and blocked from Flutter/score-sheet system inputs. |
 | Recording copy | Done | User-facing "종이 기록지" copy has been renamed to "전자기록지" while internal `paper` mode/data keys are preserved. |
 | Admin Toss handoff | Done | `BDR-current/_handoff-admin-toss-v2.41/` added; src unchanged. |
-| Admin Toss sweep | In Progress | Tournament teams, bracket, schedule, ops, and settlement panels were rebuilt around Toss operate flow; site still needs the same direct-replacement pass. |
+| Admin Toss sweep | In Progress | Tournament operate tabs now share the single Toss workspace skin; remaining admin sweep work is broader 9-screen parity. |
 | Tournament operate bracket | Done | Bracket tab now has robust single-division category fallback, Toss-style generated match review, and 2-group/3-qualifier cross-seeding with bye-aware preview counts. |
 | Tournament operate schedule | Done | Schedule tab now loads tournament dates/courts, supports division durations, lane start times, unscheduled/overwrite auto placement, direct placement, and lane timelines over real match PATCH saves. |
 | Admin tournament list | Done | `/admin/tournaments` was replaced with a clean Toss list, Korean copy restored, and row click routes directly to the operate workspace. |
 | Tournament teams category display | Done | Teams panel now preserves raw category values but renders/groups by the active division rule, preventing corrupted legacy labels from appearing in live ops. |
 | Tournament admin standalone shell | Done | `/tournament-admin/*` now uses the v2.41/v2.42 standalone Toss workspace layout without the legacy global admin sidebar. |
 | Admin Toss cleanup | In Progress | Admin scope now scans clean for `ta-*`, `au-*`, `material-symbols-outlined`, `components/ui`, active shell/mobile classes, shared stat/empty/status components, admin dashboard local classes, active `admin-stat-pill`, and active admin table wrappers; remaining work is desktop sidebar class parity and full 9-screen replacement. |
-| Tournament teams Toss parity | In Progress | Teams tab now uses the canonical actionbar → registration-route stats → division readiness → filter → grouped team rows structure; remaining operate panels still need direct visual replacement. |
+| Tournament operate panel Toss flow | Done | Teams, bracket, schedule, ops, site, and settlement panel roots now run inside the single Toss workspace skin without nested compatibility wrappers. |
 
 ## Work Log
+- 2026-06-27: Removed nested Toss skin wrappers from bracket/schedule/ops/site/settlement panels, deleted old nested-skin compatibility CSS, and added shared operate panel flow.
 - 2026-06-27: Rebuilt tournament teams tab visible order to match the v2.41 Toss screen, removed nested `data-skin` grey background, verified TypeScript/diff check/local Chrome DOM metrics.
 - 2026-06-27: Migrated tournament audit-log native table wrapper to Toss `ad-native-table`, removed remaining active `admin-table` strings, and verified TypeScript/local Chrome no old table DOM residue.
 - 2026-06-27: Replaced active `admin-stat-pill` usages with Toss `ad-pill` across admin status surfaces and added tone CSS; TypeScript and local Chrome `/admin/users` DOM cleanup passed.
@@ -36,4 +37,3 @@
 - 2026-06-27: Migrated shared AdminShell root/main/topbar/content wrappers from legacy shell classes to Toss `ad-*` shell classes, added scoped CSS aliases, and verified local Chrome `/admin/tournaments` plus operate workspace have no old shell/Material/au/ta DOM residue.
 - 2026-06-27: Replaced shared AdminPageHeader markup with canonical Toss `ts-ph` structure while preserving props/search/actions; TypeScript, `admin-pageheader` scan, and local Chrome `/admin/tournaments`/`/tournament-admin/tournaments` passed.
 - 2026-06-27: Removed admin-scope Material Symbols and `components/ui` dependencies by routing icons/skeleton/buttons through admin Toss lucide kit; `rg` cleanup scan, TypeScript, diff check, and local Chrome `/admin/tournaments`/operate workspace passed.
-- 2026-06-27: Replaced admin backoffice `au-*` residue with `ad-*`, added a lucide-based AdminThemeSwitch, and removed global sidebar/user-menu/logout ligature text; TypeScript and local Chrome `/admin/tournaments` passed.

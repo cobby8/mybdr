@@ -89,7 +89,7 @@ export default function TournamentAdminsPage() {
 
   return (
     // Track B-c — Toss 토큰 적용 루트 opt-in
-    <div data-skin="toss">
+    <div className="op-admins-panel op-panel-flow">
       {tossConfirm.dialog}
       {/* 추가 폼 */}
       <section className="ts-card mb-6">

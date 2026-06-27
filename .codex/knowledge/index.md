@@ -1,5 +1,7 @@
 # Knowledge Index
 
+- 2026-06-27 admin: bracket/schedule/ops/site/settlement operate panels no longer mount nested `data-skin="toss"` roots; all six operate tabs now rely on the single parent Toss skin and shared `op-panel-flow`, avoiding grey embedded backgrounds and legacy compatibility CSS.
+
 - 2026-06-27 admin: tournament teams tab looked unchanged because visible operate panels were still hybrid-preserving old structure; the teams tab now starts direct Toss parity with actionbar, registration-route stats, division readiness, grouped rows, and no nested `data-skin` grey background.
 
 - 2026-06-27 admin: tournament audit log table now uses Toss `ad-native-table` classes; active admin scope scans clean for old `admin-table` wrappers.

@@ -484,14 +484,14 @@ export default function MatchesPanel({ tournamentId }: Props) {
 
   if (loading) {
     return (
-      <div data-skin="toss" className="amt-loading">
+      <div className="amt-loading">
         일정을 불러오는 중입니다.
       </div>
     );
   }
 
   return (
-    <div data-skin="toss" className="op-schedule-panel">
+    <div className="op-schedule-panel op-panel-flow">
       {error && <div className="amt-errorbox">{error}</div>}
 
       <div className="ts-card ts-card--flat sc-scheduler-card">

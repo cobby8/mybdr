@@ -165,20 +165,6 @@
   border-radius: 18px !important;
   box-shadow: none !important;
 }
-[data-skin="toss"] .ct-panel-embed > [data-skin="toss"],
-[data-skin="toss"] .ct-panel-embed > [data-skin="toss"] {
-  max-width: none !important;
-  margin: 0 !important;
-  padding: 0 !important;
-}
-[data-skin="toss"] .ct-panel-embed > [data-skin="toss"] > .mb-6:first-child,
-[data-skin="toss"] .ct-panel-embed > [data-skin="toss"] > .flex.items-center.gap-3:first-child,
-[data-skin="toss"] .ct-panel-embed > [data-skin="toss"] > :first-child:has(a[href*="/tournament-admin/tournaments/"]),
-[data-skin="toss"] .ct-panel-embed > [data-skin="toss"] > .mb-6:first-child,
-[data-skin="toss"] .ct-panel-embed > [data-skin="toss"] > .flex.items-center.gap-3:first-child,
-[data-skin="toss"] .ct-panel-embed > [data-skin="toss"] > :first-child:has(a[href*="/tournament-admin/tournaments/"]) {
-  display: none;
-}
 
 /* ── Input ───────────────────────────────────────────────── */
 [data-skin="toss"] .ts-input {
@@ -918,6 +904,18 @@
   min-width: 0;
 }
 [data-skin="toss"] .operate-panel__body {
+  margin-top: 0;
+}
+[data-skin="toss"] .op-panel-flow {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+  background: transparent;
+}
+[data-skin="toss"] .op-panel-flow > .ts-card:first-child,
+[data-skin="toss"] .op-panel-flow > .sc-scheduler-card:first-child,
+[data-skin="toss"] .op-panel-flow > .bk-config:first-child {
   margin-top: 0;
 }
 [data-skin="toss"] .operate-stack {

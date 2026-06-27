@@ -225,14 +225,14 @@ export default function TournamentSitePage() {
 
   if (loading) {
     return (
-      <div data-skin="toss">
+      <div className="tsite-panel op-panel-flow">
         <SkelTable rows={4} />
       </div>
     );
   }
 
   return (
-    <div data-skin="toss">
+    <div className="tsite-panel op-panel-flow">
       {isPublished && !editingPublished ? (
         <PublishedState
           subdomain={site?.subdomain ?? subdomain}
