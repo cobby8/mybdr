@@ -624,15 +624,15 @@ export default function MatchesPanel({ tournamentId }: Props) {
                 <table className="amt-table sc-table">
                   <thead>
                     <tr>
-                      <th style={{ width: 34 }} />
+                      <th className="sc-col-handle" />
                       <th>경기번호</th>
                       <th>종별</th>
                       <th>시간</th>
-                      <th style={{ textAlign: "right" }}>홈</th>
-                      <th style={{ width: 28 }} />
+                      <th className="sc-col-home">홈</th>
+                      <th className="sc-col-vs" />
                       <th>원정</th>
                       <th>상태</th>
-                      <th style={{ width: 38 }} />
+                      <th className="sc-col-action" />
                     </tr>
                   </thead>
                   <tbody>
@@ -661,17 +661,17 @@ export default function MatchesPanel({ tournamentId }: Props) {
                           </span>
                         </td>
                         <td className="amt-table__time">{formatKstTime(match.scheduledAt)}</td>
-                        <td style={{ textAlign: "right", fontWeight: 800 }}>
+                        <td className="sc-team-cell sc-team-cell--home">
                           {slotOrTeam(match, "home", showResolvedName)}
                         </td>
-                        <td style={{ textAlign: "center", color: "var(--ink-dim)", fontSize: 12 }}>대</td>
-                        <td style={{ fontWeight: 800 }}>{slotOrTeam(match, "away", showResolvedName)}</td>
+                        <td className="sc-vs-cell">대</td>
+                        <td className="sc-team-cell">{slotOrTeam(match, "away", showResolvedName)}</td>
                         <td>
                           <span className="amt-status" data-status={match.status}>
                             {STATUS_LABEL[match.status] ?? match.status}
                           </span>
                         </td>
-                        <td style={{ textAlign: "center" }}>
+                        <td className="sc-action-cell">
                           <button
                             type="button"
                             className="sc-del"
