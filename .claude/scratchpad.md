@@ -5,7 +5,8 @@
 ## 현재 작업
 - **요청**: 🔄 **전략 피벗(2026-06-27)** — 기존 코드 위 점진 박제(PR-0~5) 대신 **관리자 영역 전체 UI 그린필드 리빌딩**. 사유=레거시 섞임·snake/계약 데이터 처리 반복 꼬임. 사용자 결정: ①범위=관리자 전체 UI 신규(공개사이트 제외) ②백엔드 유지(API/Prisma/인증·오늘 추가분 재사용) ③그린필드(새 라우트/컴포넌트→영역별 검증 후 교체) ④**타입드 데이터 계층 포함**(snake↔camel 1곳·반복버그 근본차단=핵심실익).
 - **기준 패키지**: `Dev/design/BDR v2.41-admin-toss/`(정본·screenshots 17) + `_PR0-CONTRACT-CONFIRMED.md`.
-- **현재**: planner 그린필드 **아키텍처 설계 중**(그린필드 구조/컷오버·타입드 데이터계층·컴포넌트 라이브러리·영역 시퀀싱/파일럿). 토대+파일럿 로드맵 대기.
+- **아키텍처 확정(2026-06-27)**: 그린필드 `src/app/(admin-v2)/` + `/v2/*` prefix 병행→영역별 **디렉토리 스왑** 교체(레거시 `_legacy-archive/`·북마크 보존). 데이터계층 `src/lib/admin-api/`(adminFetch: camel↔snake 1곳+핵심 Zod). canonical 디자인셋=admin-toss kit/console-kit/toss-admin.css/셸 재사용+admin-blocks 신규. **로드맵: M1 데이터계층→M2 토대셋(셸골격)→M3 파일럿=대회관리자 셸(5화면) end-to-end→이후 백오피스18/대회운영7/마법사/심판**. Zod=핵심필드만. ⚠️인증보호 위치(middleware 미발견) M1 점검.
+- **현재: M1 데이터 계층 구축 중(developer)**.
 - **PR-0~5(완료·dev·빌드 통과)는 "현재 관리자"로 유지** — 그린필드가 영역별 교체할 때까지 살림. 백엔드 변경분(tournament_expenses+expenses API·settings.notice) 재사용. PR #773(dev→main)은 현 관리자 릴리스로 유지 가능(수빈 결정).
 - **🔄 v2.45 재베이스라이닝(2026-06-27)**: 새 zip `BDR v2 (45)` → 정본 교체(design_handoff_admin → `Dev/design/BDR v2.41-admin-toss/`, 직전본 `_archive/...-pre45/`). **START-HERE·IMPLEMENTATION-PROMPT·screenshots 17장(시각 정본) 반입** → §1 치환표 폐기. 폐기 38팀 site-* 제거. 정본 교체 커밋 = design(sync). 계약문서 §v2.45 갱신.
 - **★계정 배치 확정**: 정본=계정 **사이드바 푸터 UserChip**(데스크톱 topbar 없음). 사용자 "사이드 패널 유지"=계정을 사이드에. 배치1.5=ad-topbar 계정 제거+UserChip 푸터 이전(로그아웃 보존 필수).
