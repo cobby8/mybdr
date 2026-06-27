@@ -9,6 +9,8 @@ import { getProfileLevelInfo } from "@/lib/profile/gamification";
 // 5/9 재구성: server component 전환 — 공개 프로필 패턴 카피 (page.tsx /users/[id])
 //   사용자 결정 Q1=K-1 (server component 전환 / SWR client → server)
 import { officialMatchNestedFilter } from "@/lib/tournaments/official-match";
+// 2026-06-27 통산 더보기 모달 슈팅% paper 제외 — 매치 settings 에서 기록 모드 판정.
+import { getRecordingMode } from "@/lib/tournaments/recording-mode";
 // 대회 상태 종료일 보정 — 종료일 지난 대회를 "종료"로 표시 (다른 공개화면 컨벤션 동일)
 import {
   effectiveTournamentStatus,
@@ -215,7 +217,14 @@ export default async function BasketballPage() {
             settings: { path: ["recording_mode"], equals: "paper" },
           },
         },
-        _sum: { minutesPlayed: true },
+        // 2026-06-27: MIN 외 슈팅 4필드도 paper 합 차감용(paper 는 FG 100% 박제 → 통산 부풀림 보정).
+        _sum: {
+          minutesPlayed: true,
+          fieldGoalsMade: true,
+          fieldGoalsAttempted: true,
+          threePointersMade: true,
+          threePointersAttempted: true,
+        },
         _count: { id: true },
       })
       .catch(() => null),
@@ -370,6 +379,8 @@ export default async function BasketballPage() {
               awayTeamId: true,
               // 승률 NBA 표준 (winner_team_id 기반) — 라이브 매치 분모 제외
               winner_team_id: true,
+              // 2026-06-27 통산 모달 슈팅% paper 제외용 — 매치 기록 모드 판정 source.
+              settings: true,
               tournament: {
                 select: { id: true, name: true, short_code: true },
               },
@@ -630,12 +641,23 @@ export default async function BasketballPage() {
   const flutterCount = gamesPlayed - paperCount;
   const avgMinutes = flutterCount > 0 ? flutterMinSum / flutterCount / 60 : 0;
   // 2026-05-10 NBA 표준 fix — FG%/3P% 는 _sum 누적 메이드/시도 기반 (매치별 % 산술평균 X)
+  // 2026-06-27 paper 슈팅% 누수 보정 — paper 는 시도=성공으로 박제(FG 100%) → flutter-only = (총 − paper).
   const fgMadeSum = Number(statAgg?._sum?.fieldGoalsMade ?? 0);
   const fgAttSum = Number(statAgg?._sum?.fieldGoalsAttempted ?? 0);
-  const fgPctSum = fgAttSum > 0 ? (fgMadeSum / fgAttSum) * 100 : 0;
   const threeMadeSum = Number(statAgg?._sum?.threePointersMade ?? 0);
   const threeAttSum = Number(statAgg?._sum?.threePointersAttempted ?? 0);
-  const threePctSum = threeAttSum > 0 ? (threeMadeSum / threeAttSum) * 100 : 0;
+  // paper 매치 슈팅 합 (차감용)
+  const paperFgMade = Number(paperOnlyMinAgg?._sum?.fieldGoalsMade ?? 0);
+  const paperFgAtt = Number(paperOnlyMinAgg?._sum?.fieldGoalsAttempted ?? 0);
+  const paperThreeMade = Number(paperOnlyMinAgg?._sum?.threePointersMade ?? 0);
+  const paperThreeAtt = Number(paperOnlyMinAgg?._sum?.threePointersAttempted ?? 0);
+  // flutter-only 분자/분모
+  const flutterFgMade = fgMadeSum - paperFgMade;
+  const flutterFgAtt = fgAttSum - paperFgAtt;
+  const flutterThreeMade = threeMadeSum - paperThreeMade;
+  const flutterThreeAtt = threeAttSum - paperThreeAtt;
+  const fgPctSum = flutterFgAtt > 0 ? (flutterFgMade / flutterFgAtt) * 100 : 0;
+  const threePctSum = flutterThreeAtt > 0 ? (flutterThreeMade / flutterThreeAtt) * 100 : 0;
   const careerStats = {
     games: gamesPlayed,
     winRate: playerStats?.winRate ?? null,
@@ -644,8 +666,9 @@ export default async function BasketballPage() {
     apg: gamesPlayed > 0 ? Number(avgAssists.toFixed(1)) : null,
     // 2026-05-17 mpg = flutter 매치 수 기준 (paper 매치 0건이어도 통산 매치 있으면 null 표시 X)
     mpg: flutterCount > 0 ? Number(avgMinutes.toFixed(1)) : null,
-    fgPct: fgAttSum > 0 ? Number(fgPctSum.toFixed(1)) : null,
-    threePct: threeAttSum > 0 ? Number(threePctSum.toFixed(1)) : null,
+    // 2026-06-27 flutter 시도 분모 기준 — paper 만 있는 선수는 측정 불가 → null('–')
+    fgPct: flutterFgAtt > 0 ? Number(fgPctSum.toFixed(1)) : null,
+    threePct: flutterThreeAtt > 0 ? Number(threePctSum.toFixed(1)) : null,
   };
 
   // ---- 최근 경기 변환 (PlayerMatchCard props) ----
@@ -819,6 +842,8 @@ export default async function BasketballPage() {
         tournamentId: m.tournament?.id ?? null,
         tournamentName: m.tournament?.name ?? null,
         tournamentShortCode: m.tournament?.short_code ?? null,
+        // 2026-06-27 이 경기가 paper 인지 — 모달 FG%/3P% sum/sum 에서 제외(시도=성공 박제 왜곡 차단).
+        isPaper: getRecordingMode({ settings: m.settings }) === "paper",
       };
     });
 

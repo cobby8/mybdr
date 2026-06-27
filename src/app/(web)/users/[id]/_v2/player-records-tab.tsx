@@ -31,6 +31,8 @@ import {
   type StatMode,
 } from "@/app/(web)/_components/records/records-shared";
 import type { PlayerRecordsResult } from "@/lib/records/player-records";
+// 2026-06-27 기록 모드 인증 뱃지 — 경기별 행에 부착(per-game recording_mode).
+import { RecordingModeBadge } from "@/components/recording-mode-badge";
 
 type Unit = "game" | "tournament" | "season";
 
@@ -87,7 +89,16 @@ export function PlayerRecordsTab({
       key: "tournament",
       label: "대회",
       align: "left",
-      render: (r) => <span className="rec-dim">{r.tournament as string}</span>,
+      // 대회명 + 이 경기의 기록 모드 뱃지(per-game). flutter/paper 만 노출(그 외 null).
+      render: (r) => (
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+          <span className="rec-dim">{r.tournament as string}</span>
+          <RecordingModeBadge
+            mode={r.recording_mode as string | null | undefined}
+            size="sm"
+          />
+        </span>
+      ),
     },
     ...statCols({ avg: false }),
     {

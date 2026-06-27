@@ -29,6 +29,8 @@ import {
   type RecColumn,
   type StatMode,
 } from "../../../_components/records/records-shared";
+// 2026-06-27 기록 모드 인증 뱃지 — 경기 행(per-game) + 대회 행(대회 기본 모드).
+import { RecordingModeBadge } from "@/components/recording-mode-badge";
 
 // raw fetcher — snake_case 응답 그대로(camelCase 변환 안 함).
 const fetcher = (url: string) =>
@@ -47,11 +49,14 @@ interface GameRow {
   hs: number;
   as: number;
   box: RecRow[];
+  // 2026-06-27: 이 경기의 기록 모드(records API 가 이미 노출). 타입만 보강.
+  recording_mode?: string | null;
 }
 interface TeamRecordsData {
   meta: { team_name: string; members_n: number; claimed_n: number };
   seasons: number[];
-  tournaments: { id: string; name: string }[];
+  // 2026-06-27: 대회 기본 기록 모드(default_recording_mode) 타입 보강.
+  tournaments: { id: string; name: string; default_recording_mode?: string | null }[];
   games: GameRow[];
   season_rosters: Record<string, RecRow[]>;
   tournament_rosters: Record<string, RecRow[]>;
@@ -310,7 +315,14 @@ export function TeamRecordsTab({ teamId }: { teamId: string }) {
                 emoji_events
               </span>
               <span className="rec-listrow__main">
-                <span className="rec-listrow__title">{t.name}</span>
+                <span className="rec-listrow__title">
+                  {t.name}
+                  {/* 2026-06-27 대회 기본 기록 모드 뱃지(sm) */}
+                  <RecordingModeBadge
+                    mode={t.default_recording_mode}
+                    size="sm"
+                  />
+                </span>
                 <span className="rec-listrow__sub">대회 전체 기록 보기</span>
               </span>
               <span className="ico material-symbols-outlined rec-listrow__go">
@@ -367,7 +379,14 @@ export function TeamRecordsTab({ teamId }: { teamId: string }) {
                 {g.date.slice(5).replace("-", ".")}
               </span>
               <span className="rec-listrow__main">
-                <span className="rec-listrow__title">vs {g.opp}</span>
+                <span className="rec-listrow__title">
+                  vs {g.opp}
+                  {/* 2026-06-27 이 경기의 기록 모드 뱃지(sm, per-game) */}
+                  <RecordingModeBadge
+                    mode={g.recording_mode}
+                    size="sm"
+                  />
+                </span>
                 <span className="rec-listrow__sub">{g.tournament}</span>
               </span>
               <span

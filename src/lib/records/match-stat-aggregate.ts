@@ -31,7 +31,15 @@ export interface RawBox {
   tov: number;
   pf: number;
   pm: number;
+  // 2026-06-27: 전자기록지(paper) 매치 여부. 이유(왜): paper 입력은 시도=성공(attempted=made)·
+  //   +/-=0 으로 저장돼 슈팅 시도/성공률/+/- 가 "측정 불가". 집계(aggregateBox)에서 이 행의
+  //   시도(fga/tpa/fta)·%·+/- 를 풀에서 제외해 paper 100% 가 평균을 왜곡하지 않게 한다.
+  //   득점·성공(made)·리바운드 등은 유지(측정 가능). min 은 기존 게이팅(minOverrideSec) 유지.
+  isPaper: boolean;
 }
+
+// RawBox 중 숫자 집계 대상 키만 (isPaper(boolean) 제외 — sum/avg 의 a+r[k] 타입 안전).
+type RawBoxNumKey = Exclude<keyof RawBox, "isPaper">;
 
 /** 표준 박스 평균 DTO (snake_case = 시안 statCols 키) */
 export interface BoxAvg {
@@ -41,14 +49,16 @@ export interface BoxAvg {
   min: number | null;
   pts: number;
   fgm: number;
-  fga: number;
-  fg_pct: number;
+  // 2026-06-27: 시도(fga/tpa/fta)·성공률(fg_pct 등)·+/-(pm) 은 paper 매치 측정 불가 →
+  //   비-paper 풀에서만 집계. 풀 전체가 paper면 측정 표본 0 → null('–' 표기, min·rating 정책과 동일).
+  fga: number | null;
+  fg_pct: number | null;
   tpm: number;
-  tpa: number;
-  tp_pct: number;
+  tpa: number | null;
+  tp_pct: number | null;
   ftm: number;
-  fta: number;
-  ft_pct: number;
+  fta: number | null;
+  ft_pct: number | null;
   oreb: number;
   dreb: number;
   reb: number;
@@ -57,8 +67,13 @@ export interface BoxAvg {
   blk: number;
   tov: number;
   pf: number;
-  pm: number;
+  pm: number | null;
   rating: null;
+  // ── 기록 모드 식별(표시 레이어 — 뱃지/컬럼 hide 용) ──
+  //   paper_games: 이 집계 풀에 섞인 전자기록지 매치 수(>0 이면 시도/%/+/- 일부 측정 불가).
+  //   measured_games: 측정 가능(비-paper) 매치 수 = 시도/%/+/- 평균의 실제 분모. 0 이면 위 필드 null.
+  paper_games: number;
+  measured_games: number;
   // 리더보드 별칭 (평균)
   ppg: number;
   rpg: number;
@@ -71,11 +86,12 @@ export interface BoxAvg {
   sum_min: number | null;
   sum_pts: number;
   sum_fgm: number;
-  sum_fga: number;
+  // 2026-06-27: 누적 시도/+/- 도 paper 제외(비-paper 합). 측정 표본 0 → null.
+  sum_fga: number | null;
   sum_tpm: number;
-  sum_tpa: number;
+  sum_tpa: number | null;
   sum_ftm: number;
-  sum_fta: number;
+  sum_fta: number | null;
   sum_oreb: number;
   sum_dreb: number;
   sum_reb: number;
@@ -84,7 +100,7 @@ export interface BoxAvg {
   sum_blk: number;
   sum_to: number;
   sum_pf: number;
-  sum_pm: number;
+  sum_pm: number | null;
 }
 
 const r1 = (n: number): number => Math.round(n * 10) / 10;
@@ -125,6 +141,9 @@ export function toRawBox(
     //     집계(aggregateBox)에서 scope 전체 합=0 이면 null('–') 표기. minutesPlayed 의
     //     999 truncate 버그를 PBP 기반 주입으로 자동 회피.
     minOverrideSec?: number | null;
+    // 2026-06-27: 전자기록지(paper) 매치 여부. 호출자가 getRecordingMode({settings})==="paper"
+    //   판정을 주입(같은 paper 판정 source 재사용). 기본 false(flutter/manual 은 측정 가능 취급).
+    isPaper?: boolean;
   },
 ): RawBox {
   const oreb = num(s.offensive_rebounds);
@@ -152,6 +171,7 @@ export function toRawBox(
     tov: num(s.turnovers),
     pf: num(s.personal_fouls),
     pm: num(s.plusMinus),
+    isPaper: opts?.isPaper ?? false,
   };
 }
 
@@ -163,8 +183,27 @@ export function toRawBox(
 export function aggregateBox(rows: RawBox[]): BoxAvg {
   const g = rows.length;
   const n = g || 1;
-  const sum = (k: keyof RawBox): number => rows.reduce((a, r) => a + r[k], 0);
-  const avg = (k: keyof RawBox): number => r1(sum(k) / n);
+  // 전체 풀(측정 가능 스탯: 득점·made·리바운드 등 — paper 포함 평균).
+  const sum = (k: RawBoxNumKey): number => rows.reduce((a, r) => a + r[k], 0);
+  const avg = (k: RawBoxNumKey): number => r1(sum(k) / n);
+
+  // 2026-06-27: 측정 불가 항목(시도·성공률·+/-) 전용 풀 — paper 매치 제외.
+  //   분모 = 비-paper 매치 수(npN). paper 100% 가 평균/% 를 왜곡하지 않게 한다.
+  //   paper_games: 풀에 섞인 paper 수(표시 레이어 뱃지/컬럼 hide 판단용).
+  const nonPaper = rows.filter((r) => !r.isPaper);
+  const npN = nonPaper.length;
+  const paperGames = g - npN;
+  const sumNP = (k: RawBoxNumKey): number =>
+    nonPaper.reduce((a, r) => a + r[k], 0);
+  // 비-paper 평균(분모 npN). 측정 표본 0(전부 paper)이면 null('–').
+  const avgNP = (k: RawBoxNumKey): number | null =>
+    npN ? r1(sumNP(k) / npN) : null;
+  // 비-paper 합계. 측정 표본 0이면 null.
+  const sumNPorNull = (k: RawBoxNumKey): number | null =>
+    npN ? sumNP(k) : null;
+  // 비-paper 성공률(made/att 모두 비-paper 합). 표본 0이면 null.
+  const pctNP = (mk: RawBoxNumKey, ak: RawBoxNumKey): number | null =>
+    npN ? pct(sumNP(mk), sumNP(ak)) : null;
 
   const oreb = avg("oreb");
   const dreb = avg("dreb");
@@ -174,7 +213,7 @@ export function aggregateBox(rows: RawBox[]): BoxAvg {
   const blk = avg("blk");
 
   // 출전시간 데이터 존재 여부: 집계 단위 전체 합이 0이면 부재(전자기록지 모드) → null('–').
-  //   하나라도 >0이면(라이브 sync 대회) 평균/합계 그대로 표기.
+  //   하나라도 >0이면(라이브 sync 대회) 평균/합계 그대로 표기. (기존 게이팅 유지 — paper 무관)
   const sumMin = sum("min");
   const hasMin = sumMin > 0;
 
@@ -182,15 +221,15 @@ export function aggregateBox(rows: RawBox[]): BoxAvg {
     g,
     min: hasMin ? avg("min") : null,
     pts: avg("pts"),
-    fgm: avg("fgm"),
-    fga: avg("fga"),
-    fg_pct: pct(sum("fgm"), sum("fga")),
+    fgm: avg("fgm"), // made 는 유지(paper 포함)
+    fga: avgNP("fga"), // 시도 = paper 제외
+    fg_pct: pctNP("fgm", "fga"), // 성공률 = paper 제외(분자도 비-paper made)
     tpm: avg("tpm"),
-    tpa: avg("tpa"),
-    tp_pct: pct(sum("tpm"), sum("tpa")),
+    tpa: avgNP("tpa"),
+    tp_pct: pctNP("tpm", "tpa"),
     ftm: avg("ftm"),
-    fta: avg("fta"),
-    ft_pct: pct(sum("ftm"), sum("fta")),
+    fta: avgNP("fta"),
+    ft_pct: pctNP("ftm", "fta"),
     oreb,
     dreb,
     reb,
@@ -199,8 +238,11 @@ export function aggregateBox(rows: RawBox[]): BoxAvg {
     blk,
     tov: avg("tov"),
     pf: avg("pf"),
-    pm: avg("pm"),
+    pm: avgNP("pm"), // +/- = paper 제외(paper 는 +/-=0 저장)
     rating: null,
+    // 기록 모드 식별
+    paper_games: paperGames,
+    measured_games: npN,
     // 리더보드 별칭
     ppg: avg("pts"),
     rpg: reb,
@@ -211,11 +253,11 @@ export function aggregateBox(rows: RawBox[]): BoxAvg {
     sum_min: hasMin ? sumMin : null,
     sum_pts: sum("pts"),
     sum_fgm: sum("fgm"),
-    sum_fga: sum("fga"),
+    sum_fga: sumNPorNull("fga"), // 누적 시도 = paper 제외
     sum_tpm: sum("tpm"),
-    sum_tpa: sum("tpa"),
+    sum_tpa: sumNPorNull("tpa"),
     sum_ftm: sum("ftm"),
-    sum_fta: sum("fta"),
+    sum_fta: sumNPorNull("fta"),
     sum_oreb: sum("oreb"),
     sum_dreb: sum("dreb"),
     sum_reb: sum("oreb") + sum("dreb"),
@@ -224,7 +266,7 @@ export function aggregateBox(rows: RawBox[]): BoxAvg {
     sum_blk: sum("blk"),
     sum_to: sum("tov"),
     sum_pf: sum("pf"),
-    sum_pm: sum("pm"),
+    sum_pm: sumNPorNull("pm"), // 누적 +/- = paper 제외
   };
 }
 
@@ -243,6 +285,9 @@ export function aggregateTeamBox(
     const total: RawBox = {
       min: 0, pts: 0, fgm: 0, fga: 0, tpm: 0, tpa: 0, ftm: 0, fta: 0,
       oreb: 0, dreb: 0, reb: 0, ast: 0, stl: 0, blk: 0, tov: 0, pf: 0, pm: 0,
+      // 2026-06-27: 한 매치 = 한 기록 모드 → 선수 행 중 하나라도 paper면 매치 총합도 paper.
+      //   aggregateBox 가 이 매치 총합의 시도/%/+/- 를 풀에서 제외(팀 슈팅% 도 paper 왜곡 방지).
+      isPaper: boxes.some((b) => b.isPaper),
     };
     for (const b of boxes) {
       total.pts += b.pts; total.fgm += b.fgm; total.fga += b.fga;

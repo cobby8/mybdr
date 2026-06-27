@@ -5,6 +5,9 @@ import { isLiveMatchStatus } from "@/lib/constants/match-status";
 // 4단계 C — 행 전체 router.push (서버 컴포넌트라 클라 래퍼 분리) + 상대팀 TeamLink (nested anchor 회피)
 import { TeamLink } from "@/components/links/team-link";
 import { RecentTabRow } from "./recent-tab-row";
+// 2026-06-27 기록 모드 인증 뱃지 — 최근 경기 행. settings 는 include 쿼리라 이미 반환됨 → getRecordingMode 로 판정.
+import { getRecordingMode } from "@/lib/tournaments/recording-mode";
+import { RecordingModeBadge } from "@/components/recording-mode-badge";
 
 /**
  * RecentTabV2
@@ -122,6 +125,8 @@ export async function RecentTabV2({ teamId }: Props) {
           : m.homeTeam?.team?.id?.toString() ?? null;
         const tournamentName = m.tournament?.name ?? "대회";
         const href = m.tournament?.id ? `/tournaments/${m.tournament.id}` : "#";
+        // 2026-06-27 이 경기의 기록 모드 — settings(include 로 이미 반환) 에서 판정(min 게이팅과 동일 source).
+        const recordingMode = getRecordingMode({ settings: m.settings });
 
         // 날짜 MM.DD (KST)
         const dateLabel = m.scheduledAt
@@ -179,12 +184,18 @@ export async function RecentTabV2({ teamId }: Props) {
             {/* 4단계 C: 상대팀명 → TeamLink. teamId 없으면 자동 span fallback ("미정" 케이스).
                 2026-05-18 fix — server component → client onClick 직렬화 사고 차단:
                   onClick prop 제거. stopPropagation 은 TeamLink 자체 onClick handler 에서 자동. */}
-            <div data-primary="true" className="title">
+            <div
+              data-primary="true"
+              className="title"
+              style={{ display: "flex", alignItems: "center", gap: 6 }}
+            >
               <TeamLink
                 teamId={oppTeamId}
                 name={oppName}
                 style={{ fontWeight: 600 }}
               />
+              {/* 2026-06-27 기록 모드 뱃지(sm) — flutter/paper 만 노출(그 외 null) */}
+              <RecordingModeBadge mode={recordingMode} size="sm" />
             </div>
             {/* 스코어 — data-label "스코어" / ff-mono 700 */}
             <div

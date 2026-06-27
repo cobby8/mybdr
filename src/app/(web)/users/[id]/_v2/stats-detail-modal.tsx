@@ -42,6 +42,9 @@ export type AllStatsRow = {
   tournamentId: string | null;
   tournamentName: string | null;
   tournamentShortCode: string | null;
+  // 2026-06-27 paper 매치 여부 — FG%/3P% 계산에서만 제외(시도=성공 박제 = FG 100% 왜곡 차단).
+  //   득점/리바운드/AST 등 측정 가능 항목과 출전시간 MIN 은 전체 유지(영향 없음).
+  isPaper: boolean;
 };
 
 // 그룹 분해 행 (전체 / 연도별 / 대회별 공용)
@@ -82,10 +85,13 @@ function buildRow(key: string, label: string, rows: AllStatsRow[]): SeasonRow {
   const sumAst = rows.reduce((s, r) => s + r.assists, 0);
   const sumMin = rows.reduce((s, r) => s + r.minutes, 0);
   // NBA 표준 % = 누적 made / 누적 attempted (sum/sum) — 매치별 % 평균 X
-  const sumFgM = rows.reduce((s, r) => s + r.fgMade, 0);
-  const sumFgA = rows.reduce((s, r) => s + r.fgAttempted, 0);
-  const sum3pM = rows.reduce((s, r) => s + r.threeMade, 0);
-  const sum3pA = rows.reduce((s, r) => s + r.threeAttempted, 0);
+  // 2026-06-27 paper 매치 제외 — paper 는 시도=성공으로 박제(FG 100%)라 통산 %를 부풀림.
+  //   슈팅% 분자/분모는 flutter(측정 가능) 행만 합산. 모든 행이 paper 면 분모 0 → fmtPct 가 '-' 표시.
+  const shootingRows = rows.filter((r) => !r.isPaper);
+  const sumFgM = shootingRows.reduce((s, r) => s + r.fgMade, 0);
+  const sumFgA = shootingRows.reduce((s, r) => s + r.fgAttempted, 0);
+  const sum3pM = shootingRows.reduce((s, r) => s + r.threeMade, 0);
+  const sum3pA = shootingRows.reduce((s, r) => s + r.threeAttempted, 0);
   return {
     key,
     label,

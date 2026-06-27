@@ -19,6 +19,12 @@
 import { prisma } from "@/lib/db/prisma";
 import { officialMatchNestedFilter } from "@/lib/tournaments/official-match";
 import { toRawBox, aggregateBox, type BoxAvg } from "@/lib/records/match-stat-aggregate";
+// 2026-06-27: 기록 모드 전파 — 매치별 recording_mode(paper 측정 불가 게이팅 source) + 대회 기본 모드.
+import {
+  getRecordingMode,
+  getTournamentDefaultMode,
+  type RecordingMode,
+} from "@/lib/tournaments/recording-mode";
 // 2026-06-16: PBP 기반 출전시간 (라이브와 단일 source). minutesPlayed(999 버그/전자기록지 0) 미사용.
 import {
   getMatchMinutesBySec,
@@ -53,6 +59,8 @@ export interface PlayerGameRow {
   pf: number;
   pm: number;
   rating: null;
+  // 2026-06-27: 이 경기의 기록 모드(표시 레이어 뱃지용). paper=전자기록지(시도/%/+/- 측정 불가).
+  recording_mode: RecordingMode;
 }
 
 // ── 대회별 행(평균 박스 + 승패) ──
@@ -62,6 +70,8 @@ export interface PlayerTournamentRow extends BoxAvg {
   period: string;
   wins: number;
   losses: number;
+  // 2026-06-27: 대회 기본 기록 모드(대회 단위 식별). paper_games(BoxAvg)와 함께 표시 레이어가 사용.
+  default_recording_mode: RecordingMode;
 }
 
 // ── 시즌별 행(평균 박스) ──
@@ -106,7 +116,11 @@ interface StatRow {
     settings: import("@prisma/client").Prisma.JsonValue | null;
     homeTeam: { team: { id: bigint; name: string } | null } | null;
     awayTeam: { team: { id: bigint; name: string } | null } | null;
-    tournament: { id: string; name: string } | null;
+    tournament: {
+      id: string;
+      name: string;
+      settings: import("@prisma/client").Prisma.JsonValue | null;
+    } | null;
   } | null;
 }
 
@@ -170,7 +184,8 @@ export async function getPlayerRecords(userId: bigint): Promise<PlayerRecordsRes
             settings: true,
             homeTeam: { select: { team: { select: { id: true, name: true } } } },
             awayTeam: { select: { team: { select: { id: true, name: true } } } },
-            tournament: { select: { id: true, name: true } },
+            // 2026-06-27: tournament.settings = 대회 기본 기록 모드(default_recording_mode) 판정용.
+            tournament: { select: { id: true, name: true, settings: true } },
           },
         },
       },
@@ -213,6 +228,14 @@ export async function getPlayerRecords(userId: bigint): Promise<PlayerRecordsRes
     return minutesBySec.get(Number(m.id))?.get(ttpId) ?? null;
   };
 
+  // 2026-06-27: 매치 기록 모드(getRecordingMode 재사용 — 같은 paper 판정 source). paper=시도/%/+/- 측정 불가.
+  const modeOf = (r: StatRow): RecordingMode =>
+    r.tournamentMatch
+      ? getRecordingMode({ settings: r.tournamentMatch.settings })
+      : "flutter";
+  // 집계 게이팅용 boolean(시도/%/+/- 풀 제외 판단). manual/flutter 는 측정 가능 취급.
+  const isPaperOf = (r: StatRow): boolean => modeOf(r) === "paper";
+
   // 3) games — 매치별 raw 행
   const games: PlayerGameRow[] = valid.map((r) => {
     const m = r.tournamentMatch!;
@@ -234,7 +257,7 @@ export async function getPlayerRecords(userId: bigint): Promise<PlayerRecordsRes
     // 상대팀(반대 side)
     const oppTeam =
       side === "home" ? m.awayTeam?.team : side === "away" ? m.homeTeam?.team : null;
-    const box = toRawBox(r, { minOverrideSec: minSecOf(r) });
+    const box = toRawBox(r, { minOverrideSec: minSecOf(r), isPaper: isPaperOf(r) });
     return {
       match_id: m.id.toString(),
       date: m.scheduledAt ? m.scheduledAt.toISOString() : "",
@@ -245,13 +268,22 @@ export async function getPlayerRecords(userId: bigint): Promise<PlayerRecordsRes
       result,
       ...box,
       rating: null,
+      recording_mode: modeOf(r), // 경기별 기록 모드(표시 레이어 뱃지)
     };
   });
 
   // 4) tournaments — tournamentId groupBy 평균 + 승패
   const byTn = new Map<
     string,
-    { name: string; boxes: ReturnType<typeof toRawBox>[]; dates: Date[]; w: number; l: number }
+    {
+      name: string;
+      boxes: ReturnType<typeof toRawBox>[];
+      dates: Date[];
+      w: number;
+      l: number;
+      // 대회 기본 기록 모드(첫 매치의 tournament.settings 에서 1회 산출 — 대회 단위 불변).
+      defaultMode: RecordingMode;
+    }
   >();
   for (let i = 0; i < valid.length; i++) {
     const r = valid[i];
@@ -260,10 +292,19 @@ export async function getPlayerRecords(userId: bigint): Promise<PlayerRecordsRes
     if (!tid) continue;
     let e = byTn.get(tid);
     if (!e) {
-      e = { name: m.tournament?.name ?? "-", boxes: [], dates: [], w: 0, l: 0 };
+      e = {
+        name: m.tournament?.name ?? "-",
+        boxes: [],
+        dates: [],
+        w: 0,
+        l: 0,
+        defaultMode: m.tournament
+          ? getTournamentDefaultMode({ settings: m.tournament.settings })
+          : "flutter",
+      };
       byTn.set(tid, e);
     }
-    e.boxes.push(toRawBox(r, { minOverrideSec: minSecOf(r) }));
+    e.boxes.push(toRawBox(r, { minOverrideSec: minSecOf(r), isPaper: isPaperOf(r) }));
     if (m.scheduledAt) e.dates.push(m.scheduledAt);
     const g = games[i];
     if (g.result === "W") e.w++;
@@ -283,6 +324,7 @@ export async function getPlayerRecords(userId: bigint): Promise<PlayerRecordsRes
       period,
       wins: e.w,
       losses: e.l,
+      default_recording_mode: e.defaultMode, // 대회 기본 모드(표시 레이어)
       ...aggregateBox(e.boxes),
     };
   });
@@ -294,7 +336,7 @@ export async function getPlayerRecords(userId: bigint): Promise<PlayerRecordsRes
     if (!m.scheduledAt) continue;
     const y = m.scheduledAt.getFullYear();
     const arr = bySeason.get(y) ?? [];
-    arr.push(toRawBox(r, { minOverrideSec: minSecOf(r) }));
+    arr.push(toRawBox(r, { minOverrideSec: minSecOf(r), isPaper: isPaperOf(r) }));
     bySeason.set(y, arr);
   }
   const seasons: PlayerSeasonRow[] = [...bySeason.entries()]

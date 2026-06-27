@@ -25,6 +25,8 @@ import { PlayerRecordsTab } from "./_v2/player-records-tab";
 import { ActionButtons } from "./_components/action-buttons";
 // 2026-06-16 기록 탭 — 선수 기록 서버 헬퍼(공식가드 집계, 신규 DB 0)
 import { getPlayerRecords } from "@/lib/records/player-records";
+// 2026-06-27 통산 더보기 모달 슈팅% paper 제외 — 매치 settings 에서 기록 모드 판정.
+import { getRecordingMode } from "@/lib/tournaments/recording-mode";
 
 /**
  * 타인 프로필 페이지 (/users/[id]) — v2 재구성 (서버 컴포넌트)
@@ -223,7 +225,15 @@ export default async function UserProfilePage({
             settings: { path: ["recording_mode"], equals: "paper" },
           },
         },
-        _sum: { minutesPlayed: true },
+        // 2026-06-27: MIN 외 슈팅 4필드도 paper 합 차감용. paper 는 DB 에 시도=성공으로 박제(FG 100%)라
+        //   통산 FG%/3P% 를 부풀림 → flutter-only = (총 − paper) 로 보정하기 위한 차감 분자/분모.
+        _sum: {
+          minutesPlayed: true,
+          fieldGoalsMade: true,
+          fieldGoalsAttempted: true,
+          threePointersMade: true,
+          threePointersAttempted: true,
+        },
         _count: { id: true },
       })
       .catch(() => null),
@@ -434,6 +444,8 @@ export default async function UserProfilePage({
               awayTeamId: true,
               // 승률 NBA 표준 (winner_team_id 기반 — 확정 매치만 분모) — 5/10 일관성 fix
               winner_team_id: true,
+              // 2026-06-27 통산 모달 슈팅% paper 제외용 — 매치 기록 모드 판정 source.
+              settings: true,
               tournament: {
                 select: {
                   id: true,
@@ -600,12 +612,26 @@ export default async function UserProfilePage({
   const avgMinutes = flutterCount > 0 ? flutterMinSum / flutterCount / 60 : 0;
   // 2026-05-10 NBA 표준 fix — FG%/3P% 는 _sum 누적 메이드/시도 기반 (매치별 % 산술평균 X)
   // 정환조 케이스: 매치별 [100%, 40%, 0%, 50%, 9.1%] 평균 = 39.8% 잘못 / 9÷29 = 31.0% 정답
+  // 2026-06-27 paper 슈팅% 누수 보정 — paper 매치는 시도=성공으로 박제(FG 100%)라 통산을 부풀림.
+  //   FG%/3P% 는 flutter-only 로 계산: (총 made − paper made) / (총 att − paper att).
+  //   분모(flutter 시도) 0 이면 null('–'). MIN 차감 패턴(위 flutterMinSum)과 동일 차감 구조.
   const fgMade = Number(statAgg?._sum?.fieldGoalsMade ?? 0);
   const fgAttempted = Number(statAgg?._sum?.fieldGoalsAttempted ?? 0);
-  const fgPctSum = fgAttempted > 0 ? (fgMade / fgAttempted) * 100 : 0;
   const threeMade = Number(statAgg?._sum?.threePointersMade ?? 0);
   const threeAttempted = Number(statAgg?._sum?.threePointersAttempted ?? 0);
-  const threePctSum = threeAttempted > 0 ? (threeMade / threeAttempted) * 100 : 0;
+  // paper 매치 슈팅 합 (차감용)
+  const paperFgMade = Number(paperOnlyMinAgg?._sum?.fieldGoalsMade ?? 0);
+  const paperFgAttempted = Number(paperOnlyMinAgg?._sum?.fieldGoalsAttempted ?? 0);
+  const paperThreeMade = Number(paperOnlyMinAgg?._sum?.threePointersMade ?? 0);
+  const paperThreeAttempted = Number(paperOnlyMinAgg?._sum?.threePointersAttempted ?? 0);
+  // flutter-only 분자/분모
+  const flutterFgMade = fgMade - paperFgMade;
+  const flutterFgAttempted = fgAttempted - paperFgAttempted;
+  const flutterThreeMade = threeMade - paperThreeMade;
+  const flutterThreeAttempted = threeAttempted - paperThreeAttempted;
+  const fgPctSum = flutterFgAttempted > 0 ? (flutterFgMade / flutterFgAttempted) * 100 : 0;
+  const threePctSum =
+    flutterThreeAttempted > 0 ? (flutterThreeMade / flutterThreeAttempted) * 100 : 0;
   // 6.1C-6: record 비공개면 모든 스탯 null + 경기수 0 (CareerStatsGrid 자연 빈상태)
   const seasonStats = showRecord
     ? {
@@ -616,8 +642,9 @@ export default async function UserProfilePage({
         apg: gamesPlayed > 0 ? Number(avgAssists.toFixed(1)) : null,
         // 2026-05-17 mpg = flutter 매치 수 기준 (paper 매치만 있으면 null)
         mpg: flutterCount > 0 ? Number(avgMinutes.toFixed(1)) : null,
-        fgPct: fgAttempted > 0 ? Number(fgPctSum.toFixed(1)) : null,
-        threePct: threeAttempted > 0 ? Number(threePctSum.toFixed(1)) : null,
+        // 2026-06-27 flutter 시도 분모 기준 — paper 만 있는 선수는 측정 불가 → null('–')
+        fgPct: flutterFgAttempted > 0 ? Number(fgPctSum.toFixed(1)) : null,
+        threePct: flutterThreeAttempted > 0 ? Number(threePctSum.toFixed(1)) : null,
       }
     : {
         games: 0,
@@ -854,6 +881,8 @@ export default async function UserProfilePage({
         tournamentId: m.tournament?.id ?? null,
         tournamentName: m.tournament?.name ?? null,
         tournamentShortCode: m.tournament?.short_code ?? null,
+        // 2026-06-27 이 경기가 paper 인지 — 모달 FG%/3P% sum/sum 에서 제외(시도=성공 박제 왜곡 차단).
+        isPaper: getRecordingMode({ settings: m.settings }) === "paper",
       };
     });
 
