@@ -59,16 +59,8 @@ const GENDER_OPTIONS = [
   { value: "female", label: "여성" },
 ];
 
-// 2026-05-28 PR-1C-14 (PA2) — 진입점 sub-tab 4 옵션 (시안 AdminTournamentWizard1Step.jsx SUBTABS 박제).
-//   quick = 현재 QuickCreateForm 폼 / 나머지 3개 = 기존 라우트로 이동 (라우팅 구조 변경 ❌).
-//   adminOnly = showAssociationCard 권한일 때만 노출 (Phase 6 PR2 분기 재사용).
-// 2026-06-21 Toss B-b — icon 값을 lucide kebab 명으로 교체(아이콘만·key/label/탭 동작 동일).
-const SUBTABS = [
-  { key: "quick", icon: "zap", label: "Quick", hint: "이름·시작일만", time: "1분", recommended: true, adminOnly: false },        // flash_on
-  { key: "legacy", icon: "list-checks", label: "단계별 설정", hint: "3-step", time: "5분", recommended: false, adminOnly: false }, // list_alt
-  { key: "prospectus", icon: "file-text", label: "PDF 요강", hint: "AI 추출", time: "3분", recommended: false, adminOnly: false }, // description
-  { key: "association", icon: "award", label: "협회 대회", hint: "super admin", time: "7분", recommended: false, adminOnly: true }, // workspace_premium
-] as const;
+// PR-3 3-B §6-1: 진입점 SUBTABS(4탭) 제거 — quick(CtCreateTournament) 단독 진입으로 단일화.
+//   요강/협회/legacy 진입은 CtCreateTournament 버튼 + ?legacy=1 URL 로 보존(라우트 삭제 0).
 
 // draft step(0~4) → 사람이 읽는 단계 라벨. 작성시각이 없으므로 진행도는 step 으로만 표시.
 //   wizard-types.ts WizardStep: 0 단체 / 1 시리즈 / 2 대회정보 / 3 참가설정 / 4 확인생성.
@@ -511,49 +503,8 @@ function QuickCreateForm() {
         }
       />
 
-      {/* === 2026-05-28 PR-1C-14 (PA2) — 진입점 sub-tab (4 옵션) ===
-          이유: 생성 방식 진입점이 헤더 actions(요강 분석) / association 카드 / ?legacy 링크로 분산(S3 사각지대).
-                시안처럼 quick/legacy/prospectus/association 을 sub-tab 으로 통합 → 한 화면에서 방식 전환.
-          박제 룰: 탭은 상태 + router.push 만. 라우팅 구조 / API / POST body 변경 0.
-                   association 탭은 showAssociationCard 권한일 때만 노출 (Phase 6 PR2 권한 분기 재사용). */}
-      <div role="tablist" className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
-        {SUBTABS.filter((t) => !t.adminOnly || showAssociationCard).map((t) => {
-          const active = subtab === t.key;
-          return (
-            <button
-              key={t.key}
-              type="button"
-              role="tab"
-              aria-selected={active}
-              onClick={() => setSubtab(t.key)}
-              className={`flex flex-col gap-1 rounded-md border p-3 text-left transition-colors ${
-                active
-                  ? "border-[var(--color-info)] bg-[var(--color-info)]/10"
-                  : "border-[var(--color-border)] bg-[var(--color-elevated)] hover:bg-[var(--color-border)]"
-              }`}
-            >
-              <span className="flex items-center gap-1.5 text-sm font-bold text-[var(--color-text-primary)]">
-                {/* 2026-06-21 Toss B-b: Material span → lucide <Icon>(kebab). active 색상 동등 이전. */}
-                <Icon
-                  name={t.icon}
-                  size={18}
-                  color={active ? "var(--color-info)" : "var(--color-text-muted)"}
-                />
-                {t.label}
-                {/* 추천 칩 — quick 만. info 토큰 (admin 빨강 본문 금지). */}
-                {t.recommended && (
-                  <span className="rounded-[4px] bg-[var(--color-info)] px-1.5 py-0.5 text-[10px] font-bold text-white">
-                    추천
-                  </span>
-                )}
-              </span>
-              <span className="text-xs text-[var(--color-text-muted)]">
-                {t.hint} · ~{t.time}
-              </span>
-            </button>
-          );
-        })}
-      </div>
+      {/* PR-3 3-B §6-1: 진입점 SUBTABS(4탭) 제거 — quick(CtCreateTournament) 단독 진입.
+          요강/협회 진입은 CtCreateTournament 자체 버튼(onOpenProspectus/onOpenAssociationWizard), legacy 는 ?legacy=1 URL 로 보존. */}
 
       {/* === 2026-05-28 PR-1C-14 (PA2) — draft 복구 배너 ===
           이유: 작성 중이던 draft(sessionStorage)가 있으면 "이어하기"를 명시 노출 → 재진입 시 이탈 방지.
@@ -625,44 +576,6 @@ function QuickCreateForm() {
         </div>
       )}
 
-      {/* === 2026-05-28 PR-1C-14 (PA2) — quick 외 sub-tab 선택 시 "전환 안내 카드" ===
-          이유: legacy/prospectus/association 탭은 별도 라우트가 정답(라우팅 구조 변경 ❌).
-                각 방식 설명 + 기존 라우트로 이동 버튼만 표시 (시안 L170~191 패턴).
-          박제 룰: 이동 = router.push (legacy 는 ?legacy=1 쿼리). 새 라우트 생성 0 / fetch 0.
-          2026-06-21 B-2: quick 탭은 위 early-return(2컬럼 폼)으로 분리 → 여기 도달 시 subtab 은 항상 quick 외. */}
-      {(
-        <TossCard className="flex flex-col items-center gap-3 py-10 text-center hover:scale-100">
-          {/* 2026-06-21 Toss B-b: 동적 Material → lucide <Icon>(SUBTABS.icon 은 이미 kebab). */}
-          <Icon
-            name={SUBTABS.find((t) => t.key === subtab)?.icon ?? "circle"}
-            size={48}
-            color="var(--color-text-muted)"
-          />
-          <h3 className="text-lg font-bold text-[var(--color-text-primary)]">
-            {SUBTABS.find((t) => t.key === subtab)?.label} 방식으로 전환
-          </h3>
-          <p className="max-w-md text-sm text-[var(--color-text-muted)]">
-            {subtab === "legacy" && "3-step 마법사로 전환합니다. 대회 정보 → 참가 설정 → 확인·생성 순서로 진행해요."}
-            {subtab === "prospectus" && "PDF 요강을 업로드하면 AI 가 종별·신청 정책을 자동으로 추출합니다."}
-            {subtab === "association" && "협회 본체·사무국장·배정비를 한 번에 등록하는 협회 마법사로 전환합니다."}
-          </p>
-          <button
-            type="button"
-            onClick={() => {
-              // 기존 라우트로만 이동 — 라우팅 구조 변경 ❌.
-              if (subtab === "legacy") router.push("/tournament-admin/tournaments/new/wizard?legacy=1");
-              else if (subtab === "prospectus") router.push("/tournament-admin/tournaments/new/wizard/prospectus");
-              else if (subtab === "association") router.push("/tournament-admin/wizard/association");
-            }}
-            className="ts-btn ts-btn--primary inline-flex items-center gap-1"
-          >
-            <Icon name="arrow-right" size={16} />
-            이 방식으로 전환
-          </button>
-        </TossCard>
-      )}
-
-      {/* quick 탭 본문은 위 early-return(2컬럼 풀폭 폼)으로 분리됨 — 여기엔 quick 외 전환 카드만 노출. */}
     </div>
   );
 }

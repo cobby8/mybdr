@@ -78,6 +78,15 @@
 - **검증**: tsc EXIT0. 정적: 변경 admin-entry-cta만·ENTRY_OPTIONS/aen-grid/panel 코드 제거(주석만 잔존)·보존 라우트 3종 실존·LegacyWizardForm 보존·하드코딩 hex 0·데드링크 0(CTA→실존 wizard). Toss aen-hero/aen-hero__cta + lucide 유지.
 - 🖥️ PM 육안: 대회목록 hero에 단일 "새 대회 만들기" 버튼 → 클릭 시 5단계 마법사 진입 / 마법사 내부에서 PDF요강·협회 경로 여전히 도달.
 
+### PR-3 3-B — 생성 마법사 SUBTABS(4탭) 제거 (§6-1·1파일·라우트 보존)
+📝 `new/wizard/page.tsx` QuickCreateForm의 진입점 SUBTABS(quick/legacy/prospectus/association 4탭) + 탭 전환 안내카드 + SUBTABS const 제거 → quick(CtCreateTournament) 단독 진입.
+- **변경 1파일**: `new/wizard/page.tsx` (+4/-91). 제거: `SUBTABS` const·`<div role="tablist">` 4탭 nav·"전환 안내 카드"(TossCard+router.push 탭전환).
+- **🔑 구조 발견**: 2026-06-21 B-2의 `if (subtab==="quick")` early-return 이후 **두 번째 return(SUBTABS셸)은 이미 도달 불가(dead)**였음 — quick이 항상 단독 렌더. 즉 SUBTABS는 이미 비노출 상태, 본 작업은 orphaned dead 코드 정리.
+- **요강/협회 진입 보존**: 실제 진입은 **CtCreateTournament 자체 버튼**(L815 `onOpenProspectus`→/prospectus·L818 `onOpenAssociationWizard`→/wizard/association)에 살아있음 = "단일 보조 진입점 1개"는 그쪽이 충족. legacy=`?legacy=1`→`LegacyWizardForm`(L111-114) 분기 무변경. prospectus/association 라우트 파일 실존 확인(삭제 0).
+- **⚠️ 의도적 보류**: 코디 "subtab state 제거" 중 **subtab state는 유지**. 이유=제거 시 early-return이 무조건화→두 번째 return 전체(195줄: 헤더 요강버튼·draft배너·협회카드)가 unreachable→통삭제 + draftMeta/showAssociationCard useEffect cascade 발생(고위험). 명시 타깃(SUBTABS nav/const/전환카드)만 정밀 제거하고 요강버튼/협회카드/배너는 보존(코디 "유지" 준수). subtab은 "quick" 단일값 vestigial — orphaned 두번째 return 통삭제는 별도 hygiene 후속 권장.
+- **검증**: tsc EXIT0(미사용/unreachable 0). 정적: SUBTABS 코드 제거(주석만)·탭전환 제거·요강/협회/legacy/CtCreateTournament 진입 보존·보존 라우트 실존·하드코딩 hex 0·데드링크 0.
+- 🖥️ PM 육안: `/new/wizard`→CtCreateTournament 바로(4탭 없음, 폼 내 요강/협회 버튼) / `?legacy=1`→LegacyWizardForm 여전히.
+
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
 |------|------|------|
