@@ -5,8 +5,7 @@
 ## 현재 작업
 - **요청**: 관리자 영역 Toss 시안 박제 (admin-toss v2.41 정본). 단계 PR(PR-0~PR-5).
 - **기준 패키지**: `Dev/design/BDR v2.41-admin-toss/` + 계약문서 `_PR0-CONTRACT-CONFIRMED.md`(PR-1~5 단일 참조점).
-- **상태**: PR-0✅·PR-1✅완료. **PR-2 시각 박제 사실상 완료** — 진단결과 전 패널(참가팀/셸/대진표/사이트/운영진/기록원) **이미 Toss 정합·superset·변경0**(최근 972b3da·4fe38a0·847a1b5·9040ff1로 정합완료). **남은 건 UI 아닌 기능 4건**(아래). 신규필드 필요 패널 0(대진 seed/사이트 publishedSections/운영진 invite 전부 기존 처리).
-- **PR-2 잔여 기능4건(설계완료)**: ①일정=운영 matches-panel이 **이미 SchedulePanel 등가**→**휴식삽입 보강만**(마이그0·점수운영 matches-client 보존) ②정산 지출 `tournament_expenses` **신규테이블(유일 마이그·무중단 CREATE·✅schema diff 승인됨 2026-06-27)** ③공지=`settings.notice` JSON(마이그0) ④series=읽기칩+series-admin 위임(마이그0). **배치: 3-A 공지(파일럿·진행中)→3-B series→3-C 일정휴식→3-D 지출(게이트)**. 미세결정 채택: amount Int(원)·Cascade·공지 저장만(푸시 후속)·series 위임.
+- **상태**: PR-0✅·PR-1✅완료. **PR-2 ✅완료** — 시각박제=전 패널 이미 정합(변경0) + 기능4건 박제(공지·series칩·일정휴식·지출 신규테이블). `tournament_expenses` 운영 DB 반영(db push·8컬럼0행 검증). **런타임 검증=프리뷰(로컬 dev 클라이언트 stale)**. 다음=PR-3(생성/수정 마법사) 또는 마무리.
 - **🔄 v2.45 재베이스라이닝(2026-06-27)**: 새 zip `BDR v2 (45)` → 정본 교체(design_handoff_admin → `Dev/design/BDR v2.41-admin-toss/`, 직전본 `_archive/...-pre45/`). **START-HERE·IMPLEMENTATION-PROMPT·screenshots 17장(시각 정본) 반입** → §1 치환표 폐기. 폐기 38팀 site-* 제거. 정본 교체 커밋 = design(sync). 계약문서 §v2.45 갱신.
 - **★계정 배치 확정**: 정본=계정 **사이드바 푸터 UserChip**(데스크톱 topbar 없음). 사용자 "사이드 패널 유지"=계정을 사이드에. 배치1.5=ad-topbar 계정 제거+UserChip 푸터 이전(로그아웃 보존 필수).
 - **배치2 모바일(900px)·배치3 st-* 상태모듈 = 후속**. (v2.42 신규: 8상태 QA·preview 6 검수하네스·공개사이트 44팀 통일→PR-5)
@@ -18,7 +17,7 @@
 |----|------|------|
 | PR-0 | 패키지 배치 + §1치환 + §5스키마실측 + §6결정 | ✅ 93b90ef |
 | PR-1 | 셸 ts-shell 통일(배치1 8a2dd89·1.5 a0276a1·2 fb0f943·코워크 합격) + 배치3 st-* 상태모듈 Banner/Spinner(7a385f4) | ✅ 완료 |
-| PR-2 | 대회 운영. 시각 박제 완료(전 패널 정합·변경0). 기능: 3-A 공지✅(e1a98e2) / 3-B series·3-C 일정휴식·3-D 지출(승인됨) 진행 | 🔄 기능 |
+| PR-2 | 대회 운영. 시각박제 완료(전 패널 정합·0줄) + 기능4건 완료: 공지(e1a98e2)·series칩(31cdd79)·일정휴식(cabbef4)·지출 신규테이블(db push 완료). 런타임검증=프리뷰 | ✅ 완료 |
 | PR-3 | 생성/수정 5단계 마법사(6-1: 단일화+prospectus/assoc 보존) | 대기 |
 | PR-4 | 셸별 콘솔(대회관리자/백오피스18/협력/심판) + 6-2 /admin/tournaments 목록 제거 | 대기 |
 | PR-5 | 공개 사이트(44팀/27경기 통일본) | 대기 |
@@ -63,46 +62,13 @@
 > **PR-1 재사용 자산(PR-2가 활용)**: 셸=ts-shell/ts-sidebar/ts-navlink·계정=ts-userchip+LogoutButton·모바일=ts-topbar/ts-drawer·상태=admin-toss/kit.tsx(Skel/SkelTable/ErrState/PermState/Modal/Empty/Banner/Spinner)·토스트=ts-toast. st-mcard(모바일 카드)는 미박제→PR-2 필요 시 신설.
 > PR-2 착수 시 이 섹션에 신규 구현 기록.
 
-### PR-2 2-1 — 참가팀 패널 정합 (결과: 이미 정합·변경 0)
-📝 운영 `teams-panel.tsx`를 정본 panels-core.jsx `TeamsPanel` + teams-preview + 01-대회운영 스크린샷과 1:1 대조. **결과: 정본 대비 superset·이미 Toss 정합** → 코드 변경 0(과잉 리스킨 금지 준수).
-- **근거**: 운영은 동일 Toss 언어(`ts-card`/`ts-chip`/`ct-pill`/`ts-select`/`ts-field`/`Btn`/`Modal`/`Empty`) + 자체 `tt-*`/`amt-table` 레이어(toss-admin.css 실존, 세부 sub-class 24건 포함). 이미 `9040ff1 refactor: align tournament teams panel with toss parity`로 정합 완료된 패널.
-- **정본 대비 운영이 더 많음(누락 아님)**: 납부 pill/select·종별 select+일괄이동·시드/조 입력·로스터 import·코치 편집·토큰 재발급·CSV/카톡문구·로딩(PanelLoadingState)·종별 readiness 카드(신청/승인/납부 mini). 정본은 mock 데모(승인/거절만).
-- **시각 차이 = UX 격차 아님**: 정본 avatar=단색원 / 운영=`tt-team-avatar` 2글자 이니셜(상위). 정본 stat=ct-metric / 운영=tt-stat-card(등가). 토스트=인라인 Tailwind이나 var(--*) 토큰만(하드코딩 hex 0)·스크린샷 무관 → 미변경.
-- **§5 #5 보존**: 코치토큰=apply_token·로스터=TournamentTeamPlayer 전부 기존 바인딩. 데이터/API/서버액션/권한/snake/schema 0접촉. 신규필드/마이그 0.
-- **검증**: tsc EXIT0. 정적: 하드코딩 hex 0·Material 0·tt-*/amt-* 클래스 전부 CSS 실존(무스타일 0)·git diff teams-panel = **0줄**.
-- 🖥️ PM 육안: 정본 01-대회운영.png와 운영 참가팀 화면 비교 시 동등+α 확인(억지 변경 안 함).
-
-### PR-2 3-A — 운영관리 공지 저장 (settings.notice·마이그 0·단일 파일)
-📝 운영관리 `ops-panel.tsx` 공지 textarea가 placeholder(저장 0)였던 것을 **실제 저장**으로 연결. 저장소=`Tournament.settings` JSON `notice` 필드(신규 테이블/컬럼 0).
-- **변경 파일**: `ops-panel.tsx` 단일. (PATCH route·schema 무변경 — 이미 지원 확인)
-- **저장 경로**: ①load()에 `GET /api/web/tournaments/[id]` 병렬 추가 → `settings.notice` 초기값 로드 ②`saveNotice`=`PATCH {settings:{notice}}` 전송. 기존 PATCH route가 `{...existing, ...incoming}` 병합 + div_schedule만 prune → **sponsor_logos/div_schedule 등 다른 settings 키 보존**. 저장 후 setNoticeInitial→리로드 시 GET으로 값 유지.
-- **snake 함정 회피(F-2b)**: 키=단일 단어 **`notice`**(camelCase 금지). apiSuccess 재귀 snake 변환에도 그대로라 GET 읽기/PATCH 쓰기 모두 사일런트 undefined 0. schema `settings: z.record(z.string(), z.unknown())` 통과. getTournament=include라 settings 반환 확인.
-- **범위**: 저장만(정본도 시연). **푸시 발송은 1차 범위 외** — 즉시발송 체크박스는 disabled 유지·문구 "푸시는 추후 지원"으로 갱신. 운영진/기록원 임베드·기록모드 0접촉.
-- **UI**: 헤더 카피 갱신 + "공지 저장" 버튼(dirty 시 활성) + 저장되지않은변경/저장됨/실패 인라인 표시. 신규 CSS 0(var(--*) 인라인·하드코딩 hex 0).
-- **검증**: tsc EXIT0. 정적: 코드 변경=ops-panel.tsx만·하드코딩 hex 0·notice 단일단어(camelCase 오용 0)·settings 병합 다른키 보존(route L218~236 확인). self-trace 저장→리패치 값유지 OK.
-- 🖥️ PM 육안: 공지 입력→저장→새로고침 후 값 유지 확인(실 저장 검증). 다른 settings(후원사로고/일정) 영향 0 확인.
-
-### PR-2 3-B — 운영관리 정규대회(series) 연결 읽기 칩 + 관리 링크 (마이그 0·위임형)
-📝 운영관리 `ops-panel.tsx`에 "정규대회 연결" 섹션 추가 — **읽기 칩 + 시리즈 관리 링크**(ops에서 연결 변경 ❌, series-admin 위임=이중 진실 방지). 신규 컬럼 0(`series_id`·`tournament_series` 기존재).
-- **변경 2파일**: `ops-panel.tsx`(섹션+상태+파싱) + `lib/services/tournament.ts`(TOURNAMENT_DETAIL_INCLUDE에 `tournament_series:{select:{name}}` 1줄 additive).
-- **series 데이터 경로**: 3-A에서 이미 호출하는 `GET /api/web/tournaments/[id]`(getTournament detail include)에 series명 추가 → **추가 round-trip 0**. `series_id`(BigInt→**case.ts L8 convertKeysToSnakeCase가 string 변환**) + `tournament_series.name`(이미 snake) 읽기. ⚠️`/api/web/series/[id]` GET은 organizer-only 403 게이트라 ops 사용자(TAM/미소유 super)에 부적합 → tournament 자체 관계로 권한 우회 없이 안전.
-- **링크 라우트(실존)**: 연결시 `/tournament-admin/series/{series_id}` · 미연결시 `/tournament-admin/series`. `ts-btn ts-btn--secondary ts-btn--sm` 링크.
-- **칩**: 읽기 전용이라 ts-chip(pointer) 대신 **ct-pill** — 연결=`info`("연결: {시리즈명}")·미연결=`mute`("연결 안 됨")·로딩=`mute`. CSS 실존(2 tone).
-- **위임 보존**: series_id는 **읽기 파싱만**, ops에서 PATCH로 series 변경 0. 3-A 공지·운영진/기록원 임베드·기록모드 0접촉.
-- **검증**: tsc EXIT0. 정적: 변경 2파일·라우트 실존·ct-pill info/mute CSS 실존·하드코딩 hex 0·series 쓰기 0. self-trace 연결/미연결/로딩 3상태 OK.
-- 🖥️ PM 육안: 연결 대회→"연결: {명}"칩+링크→시리즈 상세 / 미연결→"연결 안 됨"+링크→시리즈 목록.
-
-### PR-2 3-C — 일정 휴식시간 삽입 보강 (마이그 0·클라 상태·단일 파일)
-📝 `matches-panel.tsx`(일정 스케줄러)에 정본 schedule.jsx의 유일 누락분 **휴식시간 삽입**만 보강. DB 저장 0(정본 동일·클라 오버레이).
-- **구현**: `breaksByGroup` state(코트별 휴식 클라 전용)·insertBreak(맨끝 10분)·setBreakMin(5~30)·removeBreak·moveBreak(▲▼)·buildGroupRows(경기 DB+휴식 클라 펼쳐 휴식분 누적→후속 경기 표시시간 += 누적). **휴식 0개=extra0→DB 시간 그대로(기존 바이트 동일)**.
-- **격리 결정**: 정본은 경기+휴식 단일 드래그였으나, 기존 경기 드래그/DB 재정렬 핸들러 0접촉 위해 **휴식 재배치만 ▲▼ 분리**. runAutoSchedule/patchSchedule/clearMatchSchedule/reorder 0변경.
-- **CSS**: `sc-break`/`sc-brkmin` 운영 CSS 미존재 → 단일파일 제약상 **인라인(전부 var(--*) 토큰·하드코딩hex0)**으로 동등 외형, 클래스명 부착(향후 CSS 박제 시 자동적용). ⚠️선택적 후속=matches-admin.css에 2클래스 박제(시각 100% 파리티).
-- **검증**: tsc EXIT0·하드코딩hex0·lucide(coffee/chevron/x/grip 매핑 실존)·기존 스케줄 로직 self-diff 0·누적 self-trace 정확.
-- 🖥️ tester: 휴식 버튼→행 추가·▲▼ 이동 시 후속 경기 시간 밀림·분 변경 재계산·새로고침 시 휴식 사라짐(DB0)·휴식0 시 기존 동일.
+> **PR-2(완료) 상세는 git + 작업 로그 참조.** 시각박제=전 패널 이미 정합(변경0). 기능4건: 2-1 참가팀 정합확인(0줄) / 3-A 공지 settings.notice(e1a98e2) / 3-B series 읽기칩+위임(31cdd79) / 3-C 일정 휴식삽입 클라오버레이(cabbef4) / 3-D 정산 지출 `tournament_expenses` 신규테이블+API+패널(db push 완료·8컬럼0행 검증).
+> **PR-2 재사용/주의**: 신규 테이블 `tournament_expenses`(tournament_id uuid FK·amount Int·Cascade) 운영 반영됨. 지출 API=`/api/web/tournaments/[id]/expenses`. 공지=settings.notice. ⚠️로컬 Prisma 클라이언트는 dev서버 DLL 잠금으로 재생성 막힘→3-D 런타임은 프리뷰 빌드에서 검증(로컬 dev 서버 stale). ⚠️선택후속: matches-admin.css에 sc-break/sc-brkmin 박제(현재 인라인).
 
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
 |------|------|------|
+| 2026-06-27 | **admin-toss PR-2 3-D 정산 지출 + PR-2 완료** | ✅ `tournament_expenses` 신규테이블(tournament_id **uuid** FK 교정·amount Int·Cascade) db push 운영반영(무중단 CREATE·8컬럼0행·insert/delete 롤백검증). expenses API(GET/POST/PATCH/DELETE·requireTournamentAdmin·IDOR). settlement-panel 지출/잔액(입금−지출) KPI+모달, 기존 입금로직0접촉. tsc EXIT0. ⚠️로컬 Prisma 재생성 EPERM(dev서버 잠금·미킬)→런타임 프리뷰 검증. **PR-2 완료**. |
 | 2026-06-27 | **admin-toss PR-2 기능 3-A·3-B·3-C (마이그0)** | ✅ 3-A 공지저장(settings.notice·e1a98e2) / 3-B series 읽기칩+위임링크(ops-panel+tournament.ts include 1줄·31cdd79) / 3-C 일정 휴식삽입(matches-panel 클라오버레이·DB0·정본동일). 전부 tsc EXIT0·하드코딩hex0·기존로직0접촉·snake 함정 회피(notice/series_id 단어키). 잔여=3-D 지출(승인됨). |
 | 2026-06-27 | **admin-toss PR-2 파일럿 2-1 참가팀 정합** | ✅ **이미 정합·코드 변경 0**. 운영 teams-panel이 정본 TeamsPanel의 superset(납부/종별이동/로스터/토큰재발급 등 운영 우위)·최근 9040ff1로 정합완료. tsc EXIT0·하드코딩hex0·tt-*/amt-* CSS 실존·git diff 0줄. §5 #5 보존(apply_token·TournamentTeamPlayer 기존). 검증패널 일괄진단 착수. |
 | 2026-06-27 | **admin-toss PR-1 배치3 — st-* 상태 공유모듈 (PR-1 완료)** | ✅ 정본 admin-state.jsx 대조: Skel/SkelTable/ErrState/PermState/Modal/Empty + st-* CSS 전부 기존재(v2.42) → **Banner/Spinner 2개만 신설·신규 CSS 0**. st-toast=ts-toast 재사용·데모하네스 미박제. 소비처 미배선(PR-2 인프라). tsc EXIT0. 7a385f4. **PR-1 전 배치 완료**. |
