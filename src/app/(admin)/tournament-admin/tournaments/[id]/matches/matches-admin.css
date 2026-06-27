@@ -893,7 +893,10 @@
   display: block;
   margin-top: 7px;
   color: var(--ink);
-  font-family: var(--ff-mono);
+  /* 금액 본문 폰트 + tabular-nums — mono 슬래시/점-제로 글리프가 "0원"을
+     취소선처럼 보이게 해 본문 폰트로 교체(표 금액과 동일 처리). 정렬은 tabular-nums 유지 */
+  font-family: var(--ff-body);
+  font-variant-numeric: tabular-nums;
   font-size: 25px;
   font-weight: 900;
   letter-spacing: 0;
@@ -950,7 +953,10 @@
 
 [data-skin="toss"] .op-settle-table .op-settle-money {
   color: var(--ink);
-  font-family: var(--ff-mono);
+  /* 금액 본문 폰트 + tabular-nums — mono 슬래시/점-제로 글리프가 "0원"을
+     취소선처럼 보이게 해 본문 폰트로 교체. 자리수 정렬은 tabular-nums 로 유지 */
+  font-family: var(--ff-body);
+  font-variant-numeric: tabular-nums;
   font-size: 13px;
   font-weight: 900;
 }

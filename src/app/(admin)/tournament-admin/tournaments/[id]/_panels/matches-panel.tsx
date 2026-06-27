@@ -24,20 +24,23 @@ type TeamInfo = {
 
 type Match = {
   id: string;
-  roundName: string | null;
+  // ⚠️ API 응답은 apiSuccess→convertKeysToSnakeCase 로 전부 snake_case.
+  // Prisma 의 camelCase 필드(scheduledAt/roundName/homeTeam 등)는 응답에서 snake_case 로 바뀜.
+  // 따라서 프론트 접근자도 snake_case 여야 함 (CLAUDE.md 보안 §"프론트 접근자도 snake_case").
+  round_name: string | null;
   round_number: number | null;
   bracket_position: number | null;
   match_number: number | null;
-  scheduledAt: string | null;
+  scheduled_at: string | null;
   venue_name: string | null;
   court_number: string | null;
-  homeTeamId: string | null;
-  awayTeamId: string | null;
-  homeScore: number;
-  awayScore: number;
+  home_team_id: string | null;
+  away_team_id: string | null;
+  home_score: number;
+  away_score: number;
   status: string;
-  homeTeam: TeamInfo | null;
-  awayTeam: TeamInfo | null;
+  home_team: TeamInfo | null;
+  away_team: TeamInfo | null;
   settings: Record<string, unknown> | null;
 };
 
@@ -85,6 +88,19 @@ type ScheduledGroup = {
   lane: ScheduleLane | null;
   matches: Match[];
 };
+
+// 휴식 블록 — 정본 schedule.jsx 와 동일하게 순수 클라 상태(DB 저장 0).
+// afterIndex = 이 휴식 앞에 오는 경기 수(0 = 첫 경기 앞, matchCount = 맨 끝).
+type BreakRow = {
+  id: string;
+  afterIndex: number;
+  min: number;
+};
+
+// 코트(그룹) 시간표를 경기 + 휴식이 섞인 렌더용 행으로 펼친 결과.
+type GroupRow =
+  | { kind: "match"; match: Match; seq: number; time: string }
+  | { kind: "break"; brk: BreakRow; time: string };
 
 type Toast = { tone: "ok" | "danger"; text: string } | null;
 
@@ -233,18 +249,60 @@ function sortMatchesForSchedule(a: Match, b: Match) {
   );
 }
 
+// 경기(DB 시간) + 휴식(클라)을 한 시간표로 펼친다.
+// 정본과 동일한 누적 방식: 휴식 분(min)을 만나면 extra 에 더하고,
+// 이후 경기 표시 시간 = 원래 scheduledAt + extra. 휴식이 0개면 extra=0 → 기존 동작과 동일.
+function buildGroupRows(
+  group: ScheduledGroup,
+  breaks: BreakRow[],
+  durations: Record<string, number>,
+): GroupRow[] {
+  const sorted = [...breaks].sort((a, b) => a.afterIndex - b.afterIndex);
+  const matchCount = group.matches.length;
+  const lastMatch = group.matches[matchCount - 1];
+  const rows: GroupRow[] = [];
+  let extra = 0; // 지금까지 누적된 휴식 분
+
+  for (let i = 0; i <= matchCount; i++) {
+    // i번째 경기 앞에 놓인 휴식들을 먼저 배치
+    for (const brk of sorted.filter((b) => b.afterIndex === i)) {
+      let baseTime: string;
+      if (i < matchCount) {
+        // 다음 경기의 원래 시작 시간이 휴식의 기준 시각
+        baseTime = formatKstTime(group.matches[i].scheduled_at);
+      } else {
+        // 맨 끝 휴식 — 마지막 경기 종료 시각(시작 + 경기 시간)을 기준으로
+        const lastTime = formatKstTime(lastMatch?.scheduled_at ?? null);
+        const dur = lastMatch ? durations[getDivisionCode(lastMatch)] ?? 40 : 40;
+        baseTime = lastTime === "미정" ? "미정" : addMinutesToTime(lastTime, dur);
+      }
+      const time = baseTime === "미정" ? "미정" : addMinutesToTime(baseTime, extra);
+      rows.push({ kind: "break", brk, time });
+      extra += brk.min; // 이후 경기는 이 휴식만큼 밀린다
+    }
+    if (i < matchCount) {
+      const match = group.matches[i];
+      const base = formatKstTime(match.scheduled_at);
+      const time = base === "미정" || extra === 0 ? base : addMinutesToTime(base, extra);
+      rows.push({ kind: "match", match, seq: i + 1, time });
+    }
+  }
+  return rows;
+}
+
 function stageLabel(match: Match) {
-  const raw = `${match.roundName ?? ""} ${textFrom(match.settings?.stage) ?? ""}`.toLowerCase();
+  const raw = `${match.round_name ?? ""} ${textFrom(match.settings?.stage) ?? ""}`.toLowerCase();
   if (raw.includes("group") || raw.includes("조별") || raw.includes("예선")) return "예선";
   if (raw.includes("dual") || raw.includes("듀얼")) return "듀얼";
   if (raw.includes("knockout") || raw.includes("본선") || raw.includes("결승")) return "토너먼트";
-  return match.roundName ?? "경기";
+  return match.round_name ?? "경기";
 }
 
 function slotOrTeam(match: Match, side: "home" | "away", showResolvedName: boolean) {
-  const team = side === "home" ? match.homeTeam?.team.name : match.awayTeam?.team.name;
+  const team = side === "home" ? match.home_team?.team.name : match.away_team?.team.name;
   if (showResolvedName && team) return team;
-  const slot = textFrom(match.settings?.[side === "home" ? "homeSlotLabel" : "awaySlotLabel"]);
+  // settings JSON 도 convertKeysToSnakeCase 로 키가 snake_case 가 됨 → home_slot_label
+  const slot = textFrom(match.settings?.[side === "home" ? "home_slot_label" : "away_slot_label"]);
   return slot ?? team ?? "미정";
 }
 
@@ -265,6 +323,8 @@ export default function MatchesPanel({ tournamentId }: Props) {
   const [autoOpen, setAutoOpen] = useState(false);
   const [manualOpen, setManualOpen] = useState(false);
   const [draggedMatchId, setDraggedMatchId] = useState<string | null>(null);
+  // 코트(그룹 key)별 휴식 목록 — 클라 상태만, DB 저장 0 (정본 schedule.jsx 동일 방식)
+  const [breaksByGroup, setBreaksByGroup] = useState<Record<string, BreakRow[]>>({});
 
   const load = useCallback(async () => {
     setError("");
@@ -333,8 +393,8 @@ export default function MatchesPanel({ tournamentId }: Props) {
   const scheduledGroups = useMemo<ScheduledGroup[]>(() => {
     const groups = new Map<string, ScheduledGroup>();
     for (const match of matches) {
-      if (!match.scheduledAt) continue;
-      const date = formatKstDate(match.scheduledAt) ?? "날짜 미정";
+      if (!match.scheduled_at) continue;
+      const date = formatKstDate(match.scheduled_at) ?? "날짜 미정";
       const venueName = match.venue_name ?? "체육관 미정";
       const courtNumber = match.court_number ?? "코트 미정";
       const key = `${date}|${venueName}|${courtNumber}`;
@@ -357,14 +417,14 @@ export default function MatchesPanel({ tournamentId }: Props) {
       .map((group) => ({
         ...group,
         matches: group.matches.sort((a, b) =>
-          new Date(a.scheduledAt ?? 0).getTime() - new Date(b.scheduledAt ?? 0).getTime(),
+          new Date(a.scheduled_at ?? 0).getTime() - new Date(b.scheduled_at ?? 0).getTime(),
         ),
       }))
       .sort((a, b) => a.key.localeCompare(b.key));
   }, [lanes, matches]);
 
   const unscheduledMatches = useMemo(
-    () => matches.filter((match) => !match.scheduledAt).sort(sortMatchesForSchedule),
+    () => matches.filter((match) => !match.scheduled_at).sort(sortMatchesForSchedule),
     [matches],
   );
   const totalCount = matches.length;
@@ -396,7 +456,7 @@ export default function MatchesPanel({ tournamentId }: Props) {
       return;
     }
     const targets = matches
-      .filter((match) => overwrite || !match.scheduledAt)
+      .filter((match) => overwrite || !match.scheduled_at)
       .sort(sortMatchesForSchedule);
     if (targets.length === 0) {
       setToast({ tone: "ok", text: "미배치 경기가 없습니다." });
@@ -452,8 +512,8 @@ export default function MatchesPanel({ tournamentId }: Props) {
     reordered.splice(toIndex, 0, moved);
 
     const first = group.matches[0];
-    const date = formatKstDate(first?.scheduledAt ?? null) ?? group.lane?.date;
-    const startTime = formatKstTime(first?.scheduledAt ?? null);
+    const date = formatKstDate(first?.scheduled_at ?? null) ?? group.lane?.date;
+    const startTime = formatKstTime(first?.scheduled_at ?? null);
     if (!date || startTime === "미정") return;
 
     setSaving(true);
@@ -481,6 +541,38 @@ export default function MatchesPanel({ tournamentId }: Props) {
       setDraggedMatchId(null);
     }
   };
+
+  // ── 휴식 삽입/수정/이동/삭제 (전부 클라 상태 — DB 접촉 0) ──
+  // 정본 insertBreak: 해당 코트 맨 끝에 10분 휴식 추가. ▲▼ 로 위치 조정.
+  const insertBreak = (groupKey: string, matchCount: number) =>
+    setBreaksByGroup((current) => ({
+      ...current,
+      [groupKey]: [
+        ...(current[groupKey] ?? []),
+        { id: `brk_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`, afterIndex: matchCount, min: 10 },
+      ],
+    }));
+  // 정본 setBreakMin: 휴식 분 변경
+  const setBreakMin = (groupKey: string, breakId: string, min: number) =>
+    setBreaksByGroup((current) => ({
+      ...current,
+      [groupKey]: (current[groupKey] ?? []).map((b) => (b.id === breakId ? { ...b, min } : b)),
+    }));
+  const removeBreak = (groupKey: string, breakId: string) =>
+    setBreaksByGroup((current) => ({
+      ...current,
+      [groupKey]: (current[groupKey] ?? []).filter((b) => b.id !== breakId),
+    }));
+  // 휴식 위치 조정 — 정본은 드래그였으나, 기존 경기 드래그 핸들러를 건드리지 않기 위해 ▲▼ 로 대체
+  const moveBreak = (groupKey: string, breakId: string, delta: number, matchCount: number) =>
+    setBreaksByGroup((current) => ({
+      ...current,
+      [groupKey]: (current[groupKey] ?? []).map((b) =>
+        b.id === breakId
+          ? { ...b, afterIndex: Math.min(Math.max(b.afterIndex + delta, 0), matchCount) }
+          : b,
+      ),
+    }));
 
   if (loading) {
     return (
@@ -611,7 +703,10 @@ export default function MatchesPanel({ tournamentId }: Props) {
         </div>
       ) : (
         <div className="op-schedule-panel__lanes">
-          {scheduledGroups.map((group) => (
+          {scheduledGroups.map((group) => {
+            // 경기(DB) + 휴식(클라)을 한 시간표로 펼친다
+            const rows = buildGroupRows(group, breaksByGroup[group.key] ?? [], durations);
+            return (
             <div key={group.key} className="sc-lane-block">
               <div className="sc-lane-head">
                 <span className="sc-lane-court">{group.lane?.abbrev ?? group.label.split(" · ")[0]}</span>
@@ -619,6 +714,16 @@ export default function MatchesPanel({ tournamentId }: Props) {
                   <b>{group.label}</b>
                   <span>{group.matches.length}경기 배치됨 · 드래그로 순서 변경</span>
                 </div>
+                {/* 정본 휴식 삽입 버튼 — 해당 코트 맨 끝에 휴식 추가 */}
+                <Btn
+                  variant="ghost"
+                  size="sm"
+                  icon="coffee"
+                  disabled={saving}
+                  onClick={() => insertBreak(group.key, group.matches.length)}
+                >
+                  휴식
+                </Btn>
               </div>
               <div className="amt-table-wrap">
                 <table className="amt-table sc-table">
@@ -636,39 +741,90 @@ export default function MatchesPanel({ tournamentId }: Props) {
                     </tr>
                   </thead>
                   <tbody>
-                    {group.matches.map((match, index) => (
+                    {rows.map((row) => row.kind === "break" ? (
+                      // ── 휴식 행 (클라 상태 / 정본 sc-break · sc-brkmin) ──
+                      <tr key={`brk-${row.brk.id}`} className="sc-break">
+                        <td className="sc-handle" style={{ background: "var(--grey-50)" }}>
+                          <Icon name="coffee" size={15} color="var(--ink-dim)" />
+                        </td>
+                        <td colSpan={3} style={{ background: "var(--grey-50)", color: "var(--ink-mute)", fontWeight: 700, fontSize: 12.5 }}>
+                          휴식 {row.time}
+                          {/* 위치 조정 — 정본 드래그 대체(기존 경기 드래그 핸들러 무접촉) */}
+                          <button
+                            type="button"
+                            className="sc-del"
+                            style={{ marginLeft: 8 }}
+                            disabled={saving}
+                            onClick={() => moveBreak(group.key, row.brk.id, -1, group.matches.length)}
+                            aria-label="휴식 위로"
+                          >
+                            <Icon name="chevron-up" size={14} />
+                          </button>
+                          <button
+                            type="button"
+                            className="sc-del"
+                            disabled={saving}
+                            onClick={() => moveBreak(group.key, row.brk.id, 1, group.matches.length)}
+                            aria-label="휴식 아래로"
+                          >
+                            <Icon name="chevron-down" size={14} />
+                          </button>
+                        </td>
+                        <td colSpan={3} style={{ background: "var(--grey-50)" }}>
+                          <select
+                            className="sc-brkmin"
+                            value={row.brk.min}
+                            onChange={(e) => setBreakMin(group.key, row.brk.id, Number(e.target.value))}
+                            style={{ fontWeight: 700, color: "var(--ink-soft)", border: "1.5px solid var(--border)", background: "var(--card)", borderRadius: 8, padding: "4px 8px", cursor: "pointer" }}
+                          >
+                            {[5, 10, 15, 20, 30].map((m) => <option key={m} value={m}>{m}분</option>)}
+                          </select>
+                        </td>
+                        <td style={{ background: "var(--grey-50)" }} />
+                        <td className="sc-action-cell" style={{ background: "var(--grey-50)" }}>
+                          <button
+                            type="button"
+                            className="sc-del"
+                            onClick={() => removeBreak(group.key, row.brk.id)}
+                            aria-label="휴식 삭제"
+                          >
+                            <Icon name="x" size={14} />
+                          </button>
+                        </td>
+                      </tr>
+                    ) : (
                       <tr
-                        key={match.id}
+                        key={row.match.id}
                         draggable
-                        className={draggedMatchId === match.id ? "sc-dragging" : ""}
-                        onDragStart={() => setDraggedMatchId(match.id)}
+                        className={draggedMatchId === row.match.id ? "sc-dragging" : ""}
+                        onDragStart={() => setDraggedMatchId(row.match.id)}
                         onDragOver={(e) => e.preventDefault()}
                         onDrop={(e) => {
                           e.preventDefault();
-                          void reorderScheduledGroup(group, match.id);
+                          void reorderScheduledGroup(group, row.match.id);
                         }}
                       >
                         <td className="sc-handle"><Icon name="grip-vertical" size={15} color="var(--ink-dim)" /></td>
                         <td>
                           <span className="amt-table__court">
-                            {group.lane?.abbrev ?? "G"}-{String(index + 1).padStart(2, "0")}
+                            {group.lane?.abbrev ?? "G"}-{String(row.seq).padStart(2, "0")}
                           </span>
                         </td>
                         <td>
-                          <span className="sc-divtag" data-ko={stageLabel(match) !== "예선"}>
-                            {divisionLabels.get(getDivisionCode(match)) ?? getDivisionCode(match)}
-                            <i>{stageLabel(match)}</i>
+                          <span className="sc-divtag" data-ko={stageLabel(row.match) !== "예선"}>
+                            {divisionLabels.get(getDivisionCode(row.match)) ?? getDivisionCode(row.match)}
+                            <i>{stageLabel(row.match)}</i>
                           </span>
                         </td>
-                        <td className="amt-table__time">{formatKstTime(match.scheduledAt)}</td>
+                        <td className="amt-table__time">{row.time}</td>
                         <td className="sc-team-cell sc-team-cell--home">
-                          {slotOrTeam(match, "home", showResolvedName)}
+                          {slotOrTeam(row.match, "home", showResolvedName)}
                         </td>
                         <td className="sc-vs-cell">대</td>
-                        <td className="sc-team-cell">{slotOrTeam(match, "away", showResolvedName)}</td>
+                        <td className="sc-team-cell">{slotOrTeam(row.match, "away", showResolvedName)}</td>
                         <td>
-                          <span className="amt-status" data-status={match.status}>
-                            {STATUS_LABEL[match.status] ?? match.status}
+                          <span className="amt-status" data-status={row.match.status}>
+                            {STATUS_LABEL[row.match.status] ?? row.match.status}
                           </span>
                         </td>
                         <td className="sc-action-cell">
@@ -676,7 +832,7 @@ export default function MatchesPanel({ tournamentId }: Props) {
                             type="button"
                             className="sc-del"
                             disabled={saving}
-                            onClick={() => void clearMatchSchedule(match)}
+                            onClick={() => void clearMatchSchedule(row.match)}
                             aria-label="일정 배치 해제"
                           >
                             <Icon name="x" size={14} />
@@ -688,7 +844,8 @@ export default function MatchesPanel({ tournamentId }: Props) {
                 </table>
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
 

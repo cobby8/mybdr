@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Btn, Icon, SkelTable } from "@/components/admin-toss";
+import { Btn, Icon, Modal, SkelTable, useTossConfirm } from "@/components/admin-toss";
 import "../matches/matches-admin.css";
 
 type PaymentStatus = "unpaid" | "paid" | "refunded" | "waived" | string;
@@ -34,6 +34,19 @@ type TournamentDetail = {
   division_rules?: DivisionRule[];
   divisionRules?: DivisionRule[];
 };
+
+// 지출 — API 응답(apiSuccess 재귀 snake). id=BigInt→string, amount=Int, created_at=ISO.
+type Expense = {
+  id: string;
+  label: string;
+  amount: number;
+  category: string | null;
+  memo: string | null;
+  created_at: string;
+};
+
+type ExpenseDraft = { label: string; amount: string; category: string; memo: string };
+const EMPTY_EXPENSE: ExpenseDraft = { label: "", amount: "", category: "", memo: "" };
 
 const PAYMENT_LABEL: Record<string, string> = {
   unpaid: "미납",
@@ -102,8 +115,15 @@ function teamDivisionCode(team: TeamRow) {
 export default function SettlementPanel({ tournamentId }: { tournamentId: string }) {
   const [teams, setTeams] = useState<TeamRow[]>([]);
   const [tournament, setTournament] = useState<TournamentDetail | null>(null);
+  const [expenses, setExpenses] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [addOpen, setAddOpen] = useState(false);
+  const [draft, setDraft] = useState<ExpenseDraft>(EMPTY_EXPENSE);
+  const [submitting, setSubmitting] = useState(false);
+  // 모달 내부 전용 실패 사유 — 패널 상단 error 박스는 모달 오버레이에 가려 안 보임.
+  const [submitError, setSubmitError] = useState("");
+  const tossConfirm = useTossConfirm();
 
   const load = useCallback(async () => {
     if (!tournamentId) return;
@@ -111,15 +131,18 @@ export default function SettlementPanel({ tournamentId }: { tournamentId: string
     setError("");
 
     try {
-      const [teamsRes, tournamentRes] = await Promise.all([
+      const [teamsRes, tournamentRes, expensesRes] = await Promise.all([
         fetch(`/api/web/tournaments/${tournamentId}/teams`),
         fetch(`/api/web/tournaments/${tournamentId}`),
+        fetch(`/api/web/tournaments/${tournamentId}/expenses`),
       ]);
       if (!teamsRes.ok || !tournamentRes.ok) {
         throw new Error("정산 데이터를 불러오지 못했습니다.");
       }
       setTeams((await teamsRes.json()) as TeamRow[]);
       setTournament((await tournamentRes.json()) as TournamentDetail);
+      // 지출 — 신규 테이블(DB 반영 전이면 실패 가능) → 실패해도 입금/미수 본문은 유지(graceful).
+      setExpenses(expensesRes.ok ? ((await expensesRes.json()) as Expense[]) : []);
     } catch (e) {
       setError(e instanceof Error ? e.message : "정산 데이터를 불러오지 못했습니다.");
     } finally {
@@ -130,6 +153,66 @@ export default function SettlementPanel({ tournamentId }: { tournamentId: string
   useEffect(() => {
     void load();
   }, [load]);
+
+  // 지출 추가 — amount 양의 정수(원). 성공 시 리로드.
+  const submitExpense = useCallback(async () => {
+    const amountNum = Number(draft.amount);
+    if (!draft.label.trim() || !Number.isFinite(amountNum) || amountNum <= 0) return;
+    setSubmitting(true);
+    setSubmitError("");
+    try {
+      const res = await fetch(`/api/web/tournaments/${tournamentId}/expenses`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          label: draft.label.trim(),
+          amount: Math.trunc(amountNum),
+          category: draft.category.trim() || null,
+          memo: draft.memo.trim() || null,
+        }),
+      });
+      // 실패 시 서버 사유(권한/검증/상태코드)를 모달 안에 그대로 노출 → "무반응" 오인 방지.
+      if (!res.ok) {
+        const data = (await res.json().catch(() => null)) as { error?: string } | null;
+        throw new Error(data?.error || `지출 추가에 실패했습니다. (오류 ${res.status})`);
+      }
+      setDraft(EMPTY_EXPENSE);
+      setAddOpen(false);
+      await load();
+    } catch (e) {
+      setSubmitError(e instanceof Error ? e.message : "지출 추가에 실패했습니다.");
+    } finally {
+      setSubmitting(false);
+    }
+  }, [draft, tournamentId, load]);
+
+  const deleteExpense = useCallback(
+    async (expense: Expense) => {
+      const ok = await tossConfirm.confirm({
+        title: "지출 삭제",
+        sub: `${expense.label} (${money(expense.amount)})을 삭제합니다.`,
+        confirmLabel: "삭제",
+        tone: "danger",
+      });
+      if (!ok) return;
+      try {
+        const res = await fetch(
+          `/api/web/tournaments/${tournamentId}/expenses/${expense.id}`,
+          { method: "DELETE" },
+        );
+        if (!res.ok) throw new Error();
+        await load();
+      } catch {
+        setError("지출 삭제에 실패했습니다.");
+      }
+    },
+    [tossConfirm, tournamentId, load],
+  );
+
+  const expenseTotal = useMemo(
+    () => expenses.reduce((sum, expense) => sum + (expense.amount ?? 0), 0),
+    [expenses],
+  );
 
   const divisionLabels = useMemo(() => {
     const rows = tournament?.division_rules ?? tournament?.divisionRules ?? [];
@@ -182,6 +265,8 @@ export default function SettlementPanel({ tournamentId }: { tournamentId: string
   const paidTotal = paidRows.reduce((sum, team) => sum + (team.paymentStatus === "waived" ? 0 : team.fee), 0);
   const expectedTotal = rows.reduce((sum, team) => sum + (team.paymentStatus === "waived" ? 0 : team.fee), 0);
   const unpaidTotal = Math.max(expectedTotal - paidTotal, 0);
+  // 잔액 = 입금 합계 − 지출 합계 (기존 입금/미수 로직 무변경, 지출만 차감).
+  const balance = paidTotal - expenseTotal;
 
   if (loading) {
     return (
@@ -193,12 +278,14 @@ export default function SettlementPanel({ tournamentId }: { tournamentId: string
 
   return (
     <div className="op-settle-panel op-panel-flow">
+      {tossConfirm.dialog}
       {error && <div className="amt-errorbox">{error}</div>}
 
       <div className="op-settle-kpis">
         <SettleKpi label="입금 합계" value={money(paidTotal)} tone="ok" />
         <SettleKpi label="미수 합계" value={money(unpaidTotal)} tone={unpaidRows.length > 0 ? "warn" : "ok"} />
-        <SettleKpi label="지출 합계" value="미연동" tone="mute" sub="DATA-CONTRACT 신규 필드 필요" />
+        <SettleKpi label="지출 합계" value={money(expenseTotal)} tone="mute" />
+        <SettleKpi label="잔액" value={money(balance)} tone={balance >= 0 ? "ok" : "warn"} sub="입금 − 지출" />
       </div>
 
       <section className="ts-card ts-card--flat op-settle-card">
@@ -267,11 +354,131 @@ export default function SettlementPanel({ tournamentId }: { tournamentId: string
         </div>
       </section>
 
-      <div className="ct-emptybox op-settle-note">
-        <Icon name="info" size={24} color="var(--ink-dim)" />
-        <b>지출·잔액 정산은 아직 데이터 필드가 없습니다.</b>
-        <span>DATA-CONTRACT의 expenses 신규 필드가 확정되면 지출 합계와 잔액까지 같은 화면에 연결할 수 있습니다.</span>
-      </div>
+      <section className="ts-card ts-card--flat op-settle-card">
+        <div className="op-settle-head">
+          <div>
+            <h3>지출 내역 ({expenses.length}건 · {money(expenseTotal)})</h3>
+            <p>대회 운영 지출을 기록합니다. 잔액 = 입금 합계 − 지출 합계.</p>
+          </div>
+          <Btn
+            size="sm"
+            icon="plus"
+            onClick={() => {
+              setSubmitError("");
+              setAddOpen(true);
+            }}
+          >
+            지출 추가
+          </Btn>
+        </div>
+
+        {expenses.length === 0 ? (
+          <div className="ct-emptybox op-settle-note">
+            <Icon name="receipt" size={24} color="var(--ink-dim)" />
+            <b>등록된 지출이 없습니다.</b>
+            <span>코트 대관료·심판비 등 운영 지출을 추가하면 잔액에 반영됩니다.</span>
+          </div>
+        ) : (
+          <div className="amt-table-wrap">
+            <table className="amt-table op-settle-table">
+              <thead>
+                <tr>
+                  <th>항목</th>
+                  <th>분류</th>
+                  <th>금액</th>
+                  <th>메모</th>
+                  <th />
+                </tr>
+              </thead>
+              <tbody>
+                {expenses.map((expense) => (
+                  <tr key={expense.id}>
+                    <td><b>{expense.label}</b></td>
+                    <td>{expense.category ?? "-"}</td>
+                    <td className="op-settle-money">{money(expense.amount)}</td>
+                    <td>{expense.memo ?? "-"}</td>
+                    <td>
+                      <Btn
+                        variant="ghost"
+                        size="sm"
+                        icon="trash-2"
+                        onClick={() => deleteExpense(expense)}
+                        aria-label="지출 삭제"
+                      />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+
+      {addOpen && (
+        <Modal
+          open
+          onClose={() => setAddOpen(false)}
+          maxWidth={480}
+          title="지출 추가"
+          sub="대회 운영 지출 항목을 기록합니다."
+          foot={
+            <div className="flex w-full justify-end gap-2">
+              <Btn variant="secondary" onClick={() => setAddOpen(false)} disabled={submitting}>
+                취소
+              </Btn>
+              <Btn
+                icon="check"
+                disabled={submitting || !draft.label.trim() || Number(draft.amount) <= 0}
+                onClick={submitExpense}
+              >
+                {submitting ? "추가 중" : "추가"}
+              </Btn>
+            </div>
+          }
+        >
+          <div className="space-y-3">
+            {submitError && <div className="amt-errorbox">{submitError}</div>}
+            <label className="ts-field block">
+              <span className="ts-field__label">항목명</span>
+              <input
+                className="ts-input"
+                value={draft.label}
+                onChange={(event) => setDraft((current) => ({ ...current, label: event.target.value }))}
+                placeholder="예: 코트 대관료"
+              />
+            </label>
+            <label className="ts-field block">
+              <span className="ts-field__label">금액 (원)</span>
+              <input
+                className="ts-input"
+                type="number"
+                min={1}
+                value={draft.amount}
+                onChange={(event) => setDraft((current) => ({ ...current, amount: event.target.value }))}
+                placeholder="50000"
+              />
+            </label>
+            <label className="ts-field block">
+              <span className="ts-field__label">분류 (선택)</span>
+              <input
+                className="ts-input"
+                value={draft.category}
+                onChange={(event) => setDraft((current) => ({ ...current, category: event.target.value }))}
+                placeholder="예: 대관 / 심판 / 물품"
+              />
+            </label>
+            <label className="ts-field block">
+              <span className="ts-field__label">메모 (선택)</span>
+              <input
+                className="ts-input"
+                value={draft.memo}
+                onChange={(event) => setDraft((current) => ({ ...current, memo: event.target.value }))}
+                placeholder="비고"
+              />
+            </label>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }

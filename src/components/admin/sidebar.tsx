@@ -7,6 +7,8 @@ import { usePathname } from "next/navigation";
 import { AdminThemeSwitch } from "@/components/admin/admin-theme-switch";
 // Phase 1 (Toss 전환) — Material Symbols → lucide-react. kit Icon 경유(kebab name).
 import { Icon } from "@/components/admin-toss";
+// 2026-06-27 PR-1 배치1.5 — 푸터 UserChip 로그아웃 보존(우상단 UserMenu 제거분 흡수).
+import { LogoutButton } from "@/app/(admin)/admin/_components/logout-button";
 
 // Phase 1 — Material Symbols 아이콘명 → lucide kebab 아이콘명 매핑.
 //   navStructure 의 icon 값(Material 명)을 1:1 로 lucide 명으로 바꿔 <Icon> 에 넘긴다.
@@ -97,7 +99,9 @@ export const navStructure: AdminNavEntry[] = [
     items: [
       {
         type: "item",
-        href: "/admin/tournaments",
+        // PR-4 4-A §6-2: 대회 목록 일원화 — 전 역할이 /tournament-admin/tournaments 로 진입.
+        //   (구 /admin/tournaments 목록 제거. 상세 /admin/tournaments/[id] 는 직접 URL 유지.)
+        href: "/tournament-admin/tournaments",
         hrefByRole: { tournament_admin: "/tournament-admin/tournaments" },
         // 2026-05-04: "토너먼트" → "대회 관리" 통일 (사용자 요청).
         label: "대회 관리",
@@ -237,10 +241,33 @@ export function filterStructureByRoles(roles: AdminRole[]): AdminNavEntry[] {
 interface AdminSidebarProps {
   // 이 유저가 가진 관리 역할들 (복수 가능)
   roles: AdminRole[];
+  // 2026-06-27 배치1.5 — 푸터 UserChip 표시용 (옵션). 미전달 시 UserChip 미렌더(회귀 0).
+  user?: {
+    nickname: string | null;
+    email: string;
+  };
+}
+
+// 이니셜 — 닉네임 우선, 없으면 이메일 첫 글자 (UserMenu/모바일 드로어와 동일 규칙)
+function getInitial(nickname: string | null, email: string): string {
+  const source = nickname?.trim() || email;
+  return (source[0] ?? "?").toUpperCase();
+}
+
+// 역할 라벨 — 보유 역할 중 최상위 1개를 한국어로 표시 (UserChip 부제용)
+function getRoleLabel(roles: AdminRole[]): string {
+  const order: { role: AdminRole; label: string }[] = [
+    { role: "super_admin", label: "최고 관리자" },
+    { role: "site_admin", label: "사이트 관리자" },
+    { role: "tournament_admin", label: "대회 관리자" },
+    { role: "partner_member", label: "협력업체" },
+    { role: "org_member", label: "단체 멤버" },
+  ];
+  return order.find((o) => roles.includes(o.role))?.label ?? "관리자";
 }
 
 // 메뉴 항목 1개 렌더링 (children 들여쓰기 포함)
-// 2026-05-04: (web) community-aside 패턴 (.aside__link + data-active) 적용 — 시각 통일
+// PR-1 배치1: ts-navlink + data-active(Toss). 이전 community-aside(.aside__link) 패턴에서 전환.
 function renderItem(item: AdminNavItem, pathname: string, depth = 0) {
   const isActive =
     item.href === "/admin"
@@ -251,7 +278,7 @@ function renderItem(item: AdminNavItem, pathname: string, depth = 0) {
     <div key={item.href}>
       <Link
         href={item.href}
-        className="aside__link"
+        className="ts-navlink"
         data-active={isActive}
         style={indentStyle}
       >
@@ -271,45 +298,76 @@ function renderItem(item: AdminNavItem, pathname: string, depth = 0) {
   );
 }
 
-export function AdminSidebar({ roles }: AdminSidebarProps) {
+export function AdminSidebar({ roles, user }: AdminSidebarProps) {
   const pathname = usePathname();
 
   // 유저 역할에 맞는 메뉴만 필터링 (그룹 구조)
   const visibleStructure = filterStructureByRoles(roles);
 
+  // 배치1.5 — 푸터 UserChip 표시값 (user 미전달 시 미렌더)
+  const displayName = user ? user.nickname?.trim() || user.email.split("@")[0] : null;
+  const initial = user ? getInitial(user.nickname, user.email) : null;
+  const roleLabel = getRoleLabel(roles);
+
   return (
-    // 사이드바: CSS 변수 기반 배경/보더 (다크모드 자동 전환)
-    // 2026-05-04: overflow-y-auto + flex-1 nav 로 메뉴 많아도 스크롤 가능 (사용자 요청)
-    // Sidebar chrome keeps its own Toss opt-in until the drawer is migrated.
-    <aside data-skin="toss" className="fixed left-0 top-0 z-40 hidden h-screen w-64 flex-col border-r border-[var(--color-border)] bg-[var(--color-surface)] p-4 lg:flex">
-      {/* 로고: BDR 이미지 + ADMIN 배지 */}
-      <Link href="/admin" className="mb-6 flex items-center gap-3 px-3 shrink-0">
+    // 사이드바: Toss ts-sidebar 셸 (PR-1 배치1 — ad/Tailwind → ts-*). 토큰은 [data-skin="toss"] 제공.
+    // ts-sidebar = position:fixed 248px, lg(≤900px)에서 display:none (모바일은 AdminMobileNav 담당).
+    <aside data-skin="toss" className="ts-sidebar">
+      {/* 로고: BDR 이미지 + ADMIN 배지 — ts-sidebar__brand 컨테이너에 실로고 보존 */}
+      <Link href="/admin" className="ts-sidebar__brand">
         <Image src="/images/logo.png" alt="BDR" width={120} height={36} className="h-9 w-auto" />
         <span className="rounded bg-[var(--color-primary)] px-2 py-0.5 text-xs font-bold uppercase tracking-wider text-white">
           Admin
         </span>
       </Link>
 
-      {/* 내비게이션 메뉴 — 그룹화 + 스크롤 가능
-          2026-05-04: (web) community-aside 패턴 (.aside__title + .aside__link) 적용 */}
-      <nav className="flex-1 overflow-y-auto pr-1 -mr-1">
+      {/* 내비게이션 메뉴 — 그룹화 + 스크롤 가능 (ts-sidebar__label 헤더 + ts-navlink 링크).
+          flex-1 nav 에 overflow-y-auto 유지 — 메뉴 많아도 스크롤 (기존 동작 보존). */}
+      <nav className="ts-sidebar__nav overflow-y-auto">
         {visibleStructure.map((entry, idx) => {
           if (entry.type === "item") {
             return renderItem(entry, pathname);
           }
-          // 그룹 — .aside__title 헤더 + items (community-aside 와 동일 클래스)
+          // 그룹 — ts-sidebar__label 헤더 + items (ts-navlink)
           return (
             <div key={`group-${idx}`}>
-              <div className="aside__title">{entry.label}</div>
+              <div className="ts-sidebar__label">{entry.label}</div>
               {entry.items.map((item) => renderItem(item, pathname))}
             </div>
           );
         })}
       </nav>
 
-      {/* 하단: 테마 토글 + 마이페이지 + 사이트로 돌아가기 */}
-      {/* 2026-05-11 admin 마이페이지 Phase 1 — "마이페이지" 1줄 추가 (사이트로 돌아가기 위) */}
-      <div className="mt-3 border-t border-[var(--color-border)] pt-3 shrink-0">
+      {/* 하단: UserChip(계정) + 테마 토글 + 마이페이지 + 사이트로 돌아가기 + 로그아웃 */}
+      {/* 2026-06-27 배치1.5 — 데스크톱 우상단 UserMenu 제거분을 푸터로 이전. 기존 항목과 공존. */}
+      <div className="ts-sidebar__foot">
+        {/* UserChip — 아바타(이니셜)+이름+역할+chevron. 클릭=마이페이지(/admin/me=계정 허브) 진입.
+            정본 admin-shell.jsx UserChip 패턴(ts-userchip/ts-avatar). user 미전달 시 미렌더. */}
+        {user && (
+          <Link
+            href="/admin/me"
+            className="ts-userchip"
+            data-active={pathname === "/admin/me" || pathname.startsWith("/admin/me/")}
+          >
+            <span className="ts-avatar">{initial}</span>
+            <div style={{ textAlign: "left", lineHeight: 1.3, minWidth: 0 }}>
+              <div
+                style={{
+                  fontSize: 14,
+                  fontWeight: 700,
+                  color: "var(--ink)",
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                }}
+              >
+                {displayName}
+              </div>
+              <div style={{ fontSize: 12, color: "var(--ink-mute)" }}>{roleLabel}</div>
+            </div>
+            <Icon name="chevron-right" size={16} style={{ marginLeft: "auto", color: "var(--ink-dim)" }} />
+          </Link>
+        )}
         {/* 테마 토글 — (web) AppNav 와 동일 컴포넌트 (라이트/다크 듀얼 라벨, theme-preference localStorage 키) */}
         <div className="px-3 pb-2">
           <AdminThemeSwitch />
@@ -317,7 +375,7 @@ export function AdminSidebar({ roles }: AdminSidebarProps) {
         {/* 마이페이지 — 사용자 결재 §7 (사이트로 돌아가기 위 / 가장 자연) */}
         <Link
           href="/admin/me"
-          className="aside__link"
+          className="ts-navlink"
           data-active={pathname === "/admin/me" || pathname.startsWith("/admin/me/")}
         >
           <span>
@@ -325,12 +383,15 @@ export function AdminSidebar({ roles }: AdminSidebarProps) {
             마이페이지
           </span>
         </Link>
-        <Link href="/" className="aside__link">
+        <Link href="/" className="ts-navlink">
           <span>
             <Icon name="arrow-left" size={18} />
             사이트로 돌아가기
           </span>
         </Link>
+        {/* 로그아웃 — 제거된 우상단 UserMenu 의 로그아웃 진입점 보존(기능 손실 0).
+            LogoutButton 컴포넌트 재사용(POST /api/web/logout + full reload 로직 그대로). */}
+        {user && <LogoutButton variant="drawer-card" />}
       </div>
     </aside>
   );

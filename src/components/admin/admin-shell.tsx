@@ -15,8 +15,6 @@ interface AdminShellProps {
     nickname: string | null;
     email: string;
   };
-  topbarLeft?: ReactNode;
-  topbarRight?: ReactNode;
   hideHeader?: boolean;
   children: ReactNode;
 }
@@ -30,27 +28,20 @@ export function AdminShell({
   sidebarVariant = "default",
   roles,
   user,
-  topbarLeft,
-  topbarRight,
   hideHeader = false,
   children,
 }: AdminShellProps) {
   const hidden = sidebarVariant === "hidden";
 
   return (
-    <div className={`ad-shell ${hidden ? "ad-shell--hidden-aside" : ""}`} data-skin="toss">
-      {!hidden && <AdminSidebar roles={roles} />}
+    <div className={`ts-shell ${hidden ? "ts-shell--hidden-aside" : ""}`} data-skin="toss">
+      {/* 배치1.5 — 계정(아바타/이름/역할/로그아웃)을 사이드바 푸터 UserChip 으로 이전.
+          정본은 데스크톱 우상단 topbar 없음 → 데스크톱 ad-topbar 제거. user 를 사이드바로 전달. */}
+      {!hidden && <AdminSidebar roles={roles} user={user} />}
       {!hidden && <AdminMobileNav roles={roles} user={user} />}
 
-      <main className="ad-main">
-        <div className="ad-topbar">
-          <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
-            {topbarLeft}
-          </div>
-          {topbarRight}
-        </div>
-
-        <div className="ad-main__inner">
+      <main className="ts-main">
+        <div className="ts-main__inner">
           {!hideHeader && title && (
             <AdminPageHeader
               title={title}

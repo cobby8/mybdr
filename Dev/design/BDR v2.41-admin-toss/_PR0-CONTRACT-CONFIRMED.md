@@ -5,6 +5,28 @@
 
 ---
 
+## ⚠️ v2.45 재베이스라이닝 갱신 (2026-06-27) — 이 섹션이 §1보다 우선
+
+새 시안 zip `BDR v2 (45)`로 정본 교체됨. 변경점:
+- **이 폴더 = 새 정본**(구 `design_handoff_admin/` 큐레이트본). 직전본은 `Dev/design/_archive/BDR v2.41-admin-toss-pre45/`에 보존.
+- **§1 치환표 폐기**: `START-HERE.md`·`IMPLEMENTATION-PROMPT.md`·`screenshots/`(17 PNG + INDEX) **실재**. 더 이상 우회 불필요.
+- **시각 정합 기준 = `screenshots/`** (17 PNG): 관리자홈·백오피스(3)·대회관리자(3)·대회운영(4: 참가팀/대진표/일정/정산)·대회생성·수정·협력업체(2)·심판(2). 갭=`09-토너먼트사이트.png` 부재→`public-site-preview.html`로 대체. 미수록 화면은 `*-preview.html` 검수.
+- **★계정 배치 확정(정본)**: 계정 = **사이드바 푸터 `ts-sidebar__foot`의 UserChip**(name/role/initial 아바타+chevron-right). **데스크톱 topbar 없음**(`ts-topbar`=모바일 전용: 햄버거+활성탭 제목). → 배치1에서 유지한 우상단 topbar 계정은 **제거 대상**(배치1.5).
+- **v2.42 신규**: ①`admin-state.jsx`+`ADMIN-TOSS-STATE-QA.md` = 8상태 QA(`st-*`: Skel/ErrState/PermState/st-toast…) → PR-1 상태 공유모듈로 추가 ②`*-preview.html` 6종 = 박제 아님, **검수 QA 하네스**(390/720/1024/1440) ③공개사이트 `public-site-*` **44팀/27경기 통일** → PR-5 base, 구 38팀 site-* 폐기. summary 숫자 44/27 통일.
+- **모바일 분기 = 900px**(공개앱 720px과 다름), 사이드바 폭 248px.
+
+### 업데이트된 PR-1 잔여 계획
+| 단계 | 작업 | 검증 |
+|---|---|---|
+| 배치1 | 셸/사이드바 className swap | ✅ 완료(8a2dd89) |
+| **배치1.5** | `admin-shell.tsx` 데스크톱 ad-topbar 계정 제거 + `sidebar.tsx` `ts-sidebar__foot`에 UserChip 이전(기존 ThemeSwitch/마이페이지/복귀와 공존) | `01-백오피스.png` 대비 우상단 계정 없음·푸터 계정 |
+| 배치2 | 모바일 `ts-topbar`+`ts-drawer` ↔ `AdminMobileNav` 정합(900px) | RESPONSIVE-QA |
+| 배치3(선택) | `st-*` 상태 컴포넌트 toss-kit 확장 공유화 | admin-state-preview.html |
+
+> IA 그룹 라벨 차이(정본 사이드바 그룹 vs 운영 A1 IA 1독립+4그룹+외부관리)는 **PR-1 범위 밖** — nav 구조는 호환되므로 보존, 그룹 재편은 후속 PR 사용자 결정.
+
+---
+
 ## §1 프롬프트 ↔ 패키지 불일치 치환표 (확정)
 
 | 프롬프트 지칭 | 처리 |

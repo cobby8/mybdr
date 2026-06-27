@@ -1,161 +1,41 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
 import { Icon } from "@/components/admin-toss";
 
 /* ============================================================
- * AdminEntryCta — A1 (PR-1C-7 박제 2026-05-28)
+ * AdminEntryCta — PR-3 3-A §6-1 대회 생성 입구 단일화 (2026-06-27)
  *
- * 박제 source: Dev/design/BDR-current/screens/AdminTournamentAdminList.jsx
- *              (aen-hero / aen-panel / aen-grid / aen-opt)
- * 박제 target: 본 파일 (admin 대회 목록 진입점)
+ * 변경: 기존 4옵션 진입 패널(quick/legacy/prospectus/association = aen-grid/aen-panel/aen-opt
+ *       + ENTRY_OPTIONS + panelOpen 토글)을 제거하고, 단일 "새 대회 만들기" CTA →
+ *       5단계 마법사(/tournament-admin/tournaments/new/wizard) 직행으로 단일화한다.
  *
- * 이유 (왜):
- *   - 시안 A1 = 단일 hero CTA → 4 옵션 인라인 panel 전환.
- *     panel 펼침 토글은 클라이언트 상태(panelOpen)가 필요 →
- *     server component(page.tsx)에서 분리해 클라이언트 컴포넌트로 추출.
- *   - 4 옵션 = 운영 실제 라우트로만 매핑 (가짜링크 ❌).
- *     panel 닫혀있을 때 hero CTA 만 노출 → 클릭 시 4 옵션 panel 펼침.
- *
- * 어떻게:
- *   1. aen-hero + aen-hero__cta (펼침 토글 버튼).
- *   2. panelOpen 시 aen-panel + aen-grid 안에 4 옵션 카드.
- *   3. 각 옵션 = <Link>(button 대신) → 운영 라우트 직접 이동.
- *   4. admin(협회) 옵션은 isSuperAdmin=true 일 때만 노출.
+ * ⚠ 라우트/컴포넌트 보존: prospectus(/new/wizard/prospectus)·association(/wizard/association)·
+ *   legacy(?legacy=1 / LegacyWizardForm) 는 전부 그대로 살아있다. 여기선 입구 패널의 href 만
+ *   제거할 뿐 기능/라우트 삭제가 아니다. 5단계 마법사 내부에 prospectus·association 진입 안내가
+ *   이미 있어 해당 경로는 마법사 안에서 계속 도달 가능(§6-1 = 단일 진입 + 보존).
  * ============================================================ */
 
-// 4 옵션 진입 정의 — href 는 운영 실제 라우트만 (가짜링크 ❌)
-interface EntryOption {
-  key: string;
-  name: string;
-  icon: string;
-  time: string;
-  case: string;
-  sub: string;
-  href: string;
-  rec?: boolean; // 추천 chip
-  admin?: boolean; // super_admin 전용
-}
+// 5단계 마법사 단일 진입 경로(§6-1 확정). 내부 단계: 단체/시리즈/대회정보/참가설정/확인생성.
+const NEW_WIZARD_HREF = "/tournament-admin/tournaments/new/wizard";
 
-const ENTRY_OPTIONS: EntryOption[] = [
-  {
-    key: "quick",
-    name: "Quick · 빠르게 시작",
-    icon: "zap",
-    time: "1분",
-    case: "이전 대회 비슷하게",
-    sub: "이름·시작일만 입력. 셋업은 hub 에서 차근차근.",
-    // Quick = 운영 wizard 1-step 진입 (기존 라우트)
-    href: "/tournament-admin/tournaments/new/wizard",
-    rec: true,
-  },
-  {
-    key: "legacy",
-    name: "단계별 설정",
-    icon: "list",
-    time: "5분",
-    case: "처음부터 꼼꼼히",
-    sub: "3-step 마법사 — 대회정보 / 참가설정 / 확인.",
-    // Legacy = 동일 wizard 페이지 (legacy 쿼리로 단계별 모드)
-    href: "/tournament-admin/tournaments/new/wizard?legacy=1",
-  },
-  {
-    key: "prospectus",
-    name: "PDF 요강",
-    icon: "file-text",
-    time: "3분",
-    case: "협회 요강 PDF 가 있을 때",
-    sub: "PDF 업로드 → AI 가 종별·신청정책 자동 추출.",
-    // Prospectus = 운영 prospectus wizard (기존 라우트)
-    href: "/tournament-admin/tournaments/new/wizard/prospectus",
-  },
-  {
-    key: "association",
-    name: "협회 대회",
-    icon: "award",
-    time: "7분",
-    case: "협회 등록 + 종별 위임",
-    sub: "협회 단체 등록 + 시리즈 + 권한 위임 4-step.",
-    // 협회 = 운영 association wizard (super_admin 전용 라우트)
-    href: "/tournament-admin/wizard/association",
-    admin: true,
-  },
-];
-
-export function AdminEntryCta({ isSuperAdmin = false }: { isSuperAdmin?: boolean }) {
-  // panel 펼침 상태 — 시안과 동일 (기본 닫힘)
-  const [panelOpen, setPanelOpen] = useState(false);
-
+// isSuperAdmin prop 은 부모(page.tsx)가 계속 전달하므로 시그니처 유지.
+//   단일화 후 분기 불필요(협회 옵션 제거)라 미사용 — `_` 표기로 unused 가드.
+export function AdminEntryCta({ isSuperAdmin: _isSuperAdmin = false }: { isSuperAdmin?: boolean }) {
   return (
-    <>
-      {/* Hero CTA — 단일 진입점 (navy 그라데이션) */}
-      <div className="aen-hero">
-        <div>
-          <div className="aen-hero__eyebrow">대회 만들기 · 4 가지 방법</div>
-          <div className="aen-hero__title">새 대회를 어떻게 만들까요?</div>
-          <p className="aen-hero__sub">
-            이전 대회 빠르게 복제 · 처음부터 꼼꼼히 · PDF 요강에서 자동 · 협회 등록.
-          </p>
-        </div>
-        {/* 펼침 토글 — panelOpen 따라 lucide chevron 아이콘 전환 */}
-        <button
-          type="button"
-          className="aen-hero__cta"
-          onClick={() => setPanelOpen((v) => !v)}
-        >
-          <Icon name="circle-plus" size={18} className="ico" />
-          새 대회 만들기
-          <Icon name={panelOpen ? "chevron-up" : "chevron-down"} size={18} className="ico" />
-        </button>
+    <div className="aen-hero">
+      <div>
+        <div className="aen-hero__eyebrow">대회 만들기</div>
+        <div className="aen-hero__title">새 대회를 만들어 보세요</div>
+        <p className="aen-hero__sub">
+          5단계 마법사로 대회 정보부터 종별·일정·발행까지 한 번에 설정합니다.
+        </p>
       </div>
-
-      {/* 4 옵션 panel (펼침) */}
-      {panelOpen && (
-        <div className="aen-panel">
-          <div className="aen-panel__head">
-            <h3 className="aen-panel__title">생성 방식 선택</h3>
-            <button
-              type="button"
-              className="aen-panel__close"
-              onClick={() => setPanelOpen(false)}
-              aria-label="닫기"
-            >
-              <Icon name="x" size={18} className="ico" />
-            </button>
-          </div>
-          <div className="aen-grid">
-            {ENTRY_OPTIONS.map((o) => {
-              // 협회 옵션 = super_admin 만 노출 (운영 권한 가드 시각 반영)
-              if (o.admin && !isSuperAdmin) return null;
-              const cls =
-                "aen-opt" +
-                (o.rec ? " aen-opt--rec" : "") +
-                (o.admin ? " aen-opt--admin" : "");
-              return (
-                // button → Link 로 박제: 옵션 클릭 = 운영 실제 라우트 이동
-                <Link key={o.key} href={o.href} className={cls}>
-                  {o.rec && <span className="aen-opt__rec-chip">추천</span>}
-                  <div className="aen-opt__head">
-                    <span className="aen-opt__icon ico">
-                      <Icon name={o.icon} size={22} />
-                    </span>
-                    <h4 className="aen-opt__name">{o.name}</h4>
-                  </div>
-                  <p className="aen-opt__sub">{o.sub}</p>
-                  <div className="aen-opt__meta">
-                    <span className="aen-opt__time">
-                      <Icon name="clock" size={13} className="ico" />
-                      예상 {o.time}
-                    </span>
-                    <span className="aen-opt__case">{o.case}</span>
-                  </div>
-                </Link>
-              );
-            })}
-          </div>
-        </div>
-      )}
-    </>
+      {/* 단일 CTA — 5단계 마법사 직행(button 토글 → Link). aen-hero__cta 스킨 재사용. */}
+      <Link href={NEW_WIZARD_HREF} className="aen-hero__cta">
+        <Icon name="circle-plus" size={18} className="ico" />
+        새 대회 만들기
+      </Link>
+    </div>
   );
 }

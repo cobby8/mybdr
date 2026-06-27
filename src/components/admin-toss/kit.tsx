@@ -362,6 +362,45 @@ export function PermState({ role = "스태프", onRequest }: PermStateProps) {
   );
 }
 
+// ── Banner ───────────────────────────────────────────────────────────
+// 정본 admin-state.jsx 의 인라인 .st-banner 마크업(에러/권한 상태)을 재사용 컴포넌트로 박제.
+//   tone=danger(저장실패 등)/grey(주최자 전용 등). icon=lucide name. action=우측 버튼(선택).
+//   CSS(.st-banner / --danger / --grey)는 toss-admin.css 기존 룰 재사용(신규 CSS 0).
+export type BannerTone = "danger" | "grey";
+
+export type BannerProps = {
+  tone?: BannerTone;
+  icon?: string;
+  title?: React.ReactNode;
+  desc?: React.ReactNode;
+  action?: React.ReactNode; // 우측 액션(Btn 등) — 정본은 marginLeft:auto 로 우측 정렬
+};
+
+export function Banner({ tone = "danger", icon, title, desc, action }: BannerProps) {
+  return (
+    <div className={`st-banner st-banner--${tone}`}>
+      {icon && <Icon name={icon} size={18} />}
+      <div>
+        {title && <div style={{ fontWeight: 700 }}>{title}</div>}
+        {desc && (
+          <div style={{ fontSize: 13, color: "var(--ink-soft)", marginTop: 2 }}>{desc}</div>
+        )}
+      </div>
+      {action && <div style={{ marginLeft: "auto" }}>{action}</div>}
+    </div>
+  );
+}
+
+// ── Spinner ──────────────────────────────────────────────────────────
+// 정본 인라인 .st-spin / .st-spin--sm(버튼 내 작은 스피너) 박제. CSS 기존 룰 재사용(신규 CSS 0).
+export type SpinnerProps = {
+  sm?: boolean; // st-spin--sm — 버튼/인라인용 작은 스피너
+};
+
+export function Spinner({ sm }: SpinnerProps) {
+  return <span className={"st-spin" + (sm ? " st-spin--sm" : "")} />;
+}
+
 // ── Modal ────────────────────────────────────────────────────────────
 export type ModalProps = {
   open: boolean;

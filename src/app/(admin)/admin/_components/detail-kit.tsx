@@ -51,12 +51,15 @@ export function displayUser(user: UserLabel | null | undefined): string {
 
 export function formatDate(value: Date | string | null | undefined): string {
   if (!value) return "-";
-  return new Date(value).toLocaleDateString("ko-KR");
+  // 서버 컴포넌트에서 호출 — Vercel 서버 UTC 회피 위해 Asia/Seoul 강제
+  return new Date(value).toLocaleDateString("ko-KR", { timeZone: "Asia/Seoul" });
 }
 
 export function formatDateTime(value: Date | string | null | undefined): string {
   if (!value) return "-";
+  // 서버 컴포넌트에서 호출 — Vercel 서버 UTC 회피 위해 Asia/Seoul 강제 (KST 표시)
   return new Date(value).toLocaleString("ko-KR", {
+    timeZone: "Asia/Seoul",
     year: "numeric",
     month: "2-digit",
     day: "2-digit",

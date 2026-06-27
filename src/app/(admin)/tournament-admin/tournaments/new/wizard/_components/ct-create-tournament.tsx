@@ -539,6 +539,25 @@ function SponsorField({
 // =====================================================================
 // 메인
 // =====================================================================
+// PR-3 3-C §6-1: 5단계 순차 스텝 정의(정본 대회 생성.html tw-steps). 섹션 매핑만, 로직 0변경.
+const CT_STEPS = [
+  { id: "info", label: "대회정보" },
+  { id: "schedule", label: "일정·장소" },
+  { id: "divisions", label: "종별·디비전" },
+  { id: "game", label: "경기설정" },
+  { id: "publish", label: "접수·공개" },
+] as const;
+
+// 5스텝 마지막(검토) 요약 행 — 표시 전용.
+function ReviewRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div style={{ display: "flex", justifyContent: "space-between", gap: 12, padding: "8px 0", borderTop: "1px solid var(--border)" }}>
+      <span style={{ color: "var(--ink-mute)", fontWeight: 700 }}>{label}</span>
+      <span style={{ color: "var(--ink)", fontWeight: 700, textAlign: "right", minWidth: 0 }}>{value}</span>
+    </div>
+  );
+}
+
 export function CtCreateTournament({
   seriesOptions,
   seriesLoaded,
@@ -592,6 +611,12 @@ export function CtCreateTournament({
   const [showSeriesForm, setShowSeriesForm] = React.useState(false);
   // 게시 모달 — 필수값 검증 통과 시 오픈(시안 1:1)
   const [pubOpen, setPubOpen] = React.useState(false);
+  // PR-3 3-C — 5단계 순차 진행. 현재 스텝만 노출(섹션 내부·state·submit 무변경). 새 로컬 state(0부터).
+  const [step, setStep] = React.useState(0);
+  const go = (i: number) => {
+    setStep(Math.max(0, Math.min(CT_STEPS.length - 1, i)));
+    if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
+  };
 
   const set = <K extends keyof typeof d>(k: K, v: (typeof d)[K]) => setD((p) => ({ ...p, [k]: v }));
   const nameOk = d.name.trim().length > 0;
@@ -805,7 +830,7 @@ export function CtCreateTournament({
           <div className="ts-ph__eyebrow">대회 운영 · 생성</div>
           <h1 className="ts-ph__title">새 대회 만들기</h1>
           <p className="ts-ph__sub" style={{ marginTop: 6 }}>
-            이름·주최·일정·장소를 입력해 대회를 만듭니다. 종별·경기 설정은 우측에서 진행합니다.
+            대회정보 → 일정·장소 → 종별 → 경기설정 → 접수·공개 5단계로 차근차근 진행하세요.
           </p>
         </div>
         <div className="ct-head__aux">
@@ -821,9 +846,27 @@ export function CtCreateTournament({
         </div>
       </div>
 
-      <div className="ct-grid ct-grid--2">
-        {/* 좌측 — 대회 정보 + 일정·장소 */}
-        <div className="ct-col" style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+      {/* PR-3 3-C §6-1: 5단계 순차 스텝(정본 tw-steps/ct-progress). 섹션 내부·로직 무변경, 배치만 스텝화. */}
+      <div className="tw-steps">
+        {CT_STEPS.map((s, i) => (
+          <button
+            key={s.id}
+            type="button"
+            className={"tw-step" + (i === step ? " is-active" : "") + (i < step ? " is-done" : "")}
+            onClick={() => go(i)}
+          >
+            <span className="tw-step__num">{i < step ? <Icon name="check" size={13} /> : i + 1}</span>
+            <span className="tw-step__lbl">{s.label}</span>
+          </button>
+        ))}
+      </div>
+      <div className="ct-progress" style={{ marginBottom: 18 }}>
+        <div className="ct-progress__fill" style={{ width: `${((step + 1) / CT_STEPS.length) * 100}%` }} />
+      </div>
+
+      {/* 스텝 본문 — 현재 스텝만 노출(단일 컬럼). 섹션 내부 마크업은 기존 그대로. */}
+      <div className="ct-col" style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+        {step === 0 && (
           <section className="ts-card">
             {/* 카드 헤더 */}
             <div style={{ display: "flex", alignItems: "center", gap: 11, marginBottom: 18 }}>
@@ -952,8 +995,10 @@ export function CtCreateTournament({
               <div className="ts-field__hint">선택 · 대회 포스터 이미지를 첨부하세요</div>
             </div>
           </section>
+        )}
 
-          {/* 대회 일정 · 장소 */}
+        {/* 스텝 2 — 일정·장소 */}
+        {step === 1 && (
           <ScheduleVenue
             dates={dates}
             venues={venues}
@@ -965,11 +1010,10 @@ export function CtCreateTournament({
             removeVenue={removeVenue}
             toggleDateCourt={toggleDateCourt}
           />
-        </div>
+        )}
 
-        {/* 우측 — 종별·디비전 / 경기 설정 (B-4: 실폼 교체) */}
-        <div className="ct-col" style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-          {/* 종별·디비전 빌더 (controlled) — scheduleDates 는 POST 규격으로 변환해 전달 */}
+        {/* 스텝 3 — 종별·디비전 (controlled, 내부 무변경) */}
+        {step === 2 && (
           <CtDivisions
             value={categories}
             onChange={setCategories}
@@ -977,24 +1021,63 @@ export function CtCreateTournament({
             venues={venues}
             toast={toast}
           />
-          {/* 경기 설정 (controlled) — 기록앱 정합 GameRules */}
+        )}
+
+        {/* 스텝 4 — 경기 설정 (controlled, 내부 무변경) */}
+        {step === 3 && (
           <CtGameSettings value={gameRules} onChange={setGameRules} />
-        </div>
+        )}
+
+        {/* 스텝 5 — 접수·공개 검토. 실제 접수·공개 입력 + 생성은 기존 PublishModal(보존)에서. */}
+        {step === 4 && (
+          <section className="ts-card">
+            <div style={{ display: "flex", alignItems: "center", gap: 11, marginBottom: 18 }}>
+              <span className="ct-headicon">
+                <Icon name="clipboard-check" size={18} color="var(--primary)" />
+              </span>
+              <span style={{ fontSize: 16, fontWeight: 800, color: "var(--ink)", letterSpacing: "-0.02em" }}>접수·공개 · 검토</span>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column" }}>
+              <ReviewRow label="대회명" value={d.name || "—"} />
+              <ReviewRow label="주최 / 주관" value={`${d.organizer || "—"} / ${d.host || "—"}`} />
+              <ReviewRow
+                label="정규대회"
+                value={d.isRegular ? (seriesOptions.find((s) => s.id === d.seriesId)?.name ?? "선택됨") : "일반대회"}
+              />
+              <ReviewRow label="일정 · 장소" value={`${dates.length}일차 · ${venues.length} 장소`} />
+              <ReviewRow label="종별 · 디비전" value={`${categories.length}종별 · ${totalDiv}디비전`} />
+            </div>
+            <div className="ct-emptybox" style={{ marginTop: 16 }}>
+              <Icon name="info" size={20} color="var(--ink-dim)" />
+              <span>참가비·계좌·게시/접수 기간은 <b>대회 생성</b>을 누르면 게시 설정에서 입력합니다.</span>
+            </div>
+          </section>
+        )}
       </div>
 
-      {/* 하단 고정 생성바 */}
-      <div className="ct-bar">
-        <div className="ct-bar__inner">
-          <Btn variant="ghost" onClick={onCancel}>
-            취소
-          </Btn>
-          <div style={{ flex: 1 }} />
+      {/* 하단 스텝 네비(정본 tw-foot) — 이전/다음. 마지막 스텝에서 대회 생성=기존 submit 호출(검증·PublishModal 보존). */}
+      <div className="tw-foot">
+        <Btn variant="secondary" icon="chevron-left" onClick={() => go(step - 1)} disabled={step === 0}>
+          이전
+        </Btn>
+        <div className="tw-foot__mid">
           <span className="ct-bar__meta">
             {totalDiv}디비전 · {dates.length}일차 · {venues.length} 장소
           </span>
-          <Btn size="lg" style={{ width: "auto", minWidth: 150 }} icon="check" onClick={submit}>
-            대회 생성
+        </div>
+        <div className="tw-foot__actions">
+          <Btn variant="ghost" onClick={onCancel}>
+            취소
           </Btn>
+          {step < CT_STEPS.length - 1 ? (
+            <Btn iconRight="chevron-right" onClick={() => go(step + 1)}>
+              다음
+            </Btn>
+          ) : (
+            <Btn size="lg" style={{ width: "auto", minWidth: 150 }} icon="check" onClick={submit}>
+              대회 생성
+            </Btn>
+          )}
         </div>
       </div>
 

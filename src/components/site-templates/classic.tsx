@@ -1,11 +1,14 @@
 import Link from "next/link";
 import Image from "next/image";
+import type { CSSProperties } from "react";
 import type { Prisma } from "@prisma/client";
 import { TOURNAMENT_STATUS_LABEL, TOURNAMENT_FORMAT_LABEL, effectiveTournamentStatus } from "@/lib/constants/tournament-status";
 import type {
   PublicSection,
   PublicVisibilityResult,
 } from "@/lib/tournaments/public-visibility";
+// 대진표 밴드/연결선 트리 — 정본 site.css .s-bracket 을 BDR 토큰으로 박제 (PR-5 5-B)
+import styles from "./bracket.module.css";
 
 // ─── 타입 ───────────────────────────────────────────────────────────────────
 
@@ -35,6 +38,9 @@ type TeamEntry = {
 type MatchEntry = {
   id: bigint;
   roundName: string | null;
+  // 대진 그룹핑용 — page.tsx 의 tournamentMatch 쿼리가 이미 scalar 로 반환하므로 타입만 선언
+  round_number: number | null;
+  bracket_position: number | null;
   scheduledAt: Date | null;
   homeScore: number | null;
   awayScore: number | null;
@@ -522,6 +528,105 @@ function ResultsPage({
   );
 }
 
+// ─── 대진 페이지 ────────────────────────────────────────────────────────────
+// 정본 BracketPage(public-site-pages.jsx) 밴드/연결선 트리를 운영 실데이터로 박제.
+// 데이터: 운영 매치 중 라운드/슬롯(round_number·bracket_position)이 둘 다 있는 대진 경기만 파생
+//   (예선/순위전 매치 제외). mock 0 — 실 매치 파생만.
+function BracketPage({
+  matches,
+  primary,
+  showScore,
+}: {
+  matches: MatchEntry[];
+  primary: string;
+  showScore: boolean;
+}) {
+  // 대진 경기 = round_number·bracket_position 둘 다 존재
+  const bracketMatches = matches.filter(
+    (m) => m.round_number != null && m.bracket_position != null,
+  );
+
+  // 라운드(round_number) 오름차순 그룹핑 → 8강·4강·결승 순서로 왼→오 배치
+  const roundMap = new Map<number, MatchEntry[]>();
+  for (const m of bracketMatches) {
+    const r = m.round_number as number;
+    if (!roundMap.has(r)) roundMap.set(r, []);
+    roundMap.get(r)!.push(m);
+  }
+  const rounds = [...roundMap.entries()]
+    .sort((a, b) => a[0] - b[0])
+    .map(([roundNumber, games]) => ({
+      roundNumber,
+      // 라운드명 = roundName 우선, 없으면 "N라운드"
+      name: games[0]?.roundName ?? `${roundNumber}라운드`,
+      // 슬롯(bracket_position) 순서대로 — 트리 세로 배치 기준
+      games: [...games].sort(
+        (a, b) => (a.bracket_position ?? 0) - (b.bracket_position ?? 0),
+      ),
+    }));
+
+  // show 인데 아직 대진 경기가 없으면 준비중 안내(방어적 fallback)
+  if (rounds.length === 0) {
+    return (
+      <div>
+        <h2 className="mb-1 text-xl font-bold text-(--color-text-primary)">대진표</h2>
+        <p className="mb-6 text-sm text-(--color-text-muted)">결선 토너먼트</p>
+        <SectionPlaceholder
+          title="대진 준비 중"
+          description="조별리그 종료 후 조 1·2위가 가려지면 결선 대진이 공개됩니다."
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <h2 className="mb-1 text-xl font-bold text-(--color-text-primary)">대진표</h2>
+      <p className="mb-6 text-sm text-(--color-text-muted)">
+        결선 토너먼트 — 각 라운드 승자가 다음 라운드로 진출합니다
+      </p>
+      {/* 정본 s-bracket: 가로 스크롤 라운드 컬럼 + 밴드/연결선.
+          --bk-primary = 사이트 primary 주입(승자 강조 동적 대응, 하드코딩 hex 0). */}
+      <div
+        className={styles.bracket}
+        style={{ ["--bk-primary"]: primary } as CSSProperties}
+      >
+        {rounds.map((rd) => (
+          <div key={rd.roundNumber} className={styles.col}>
+            <div className={styles.colHead}>
+              <span>{rd.name}</span>
+            </div>
+            <div className={styles.colBody}>
+              {rd.games.map((g) => {
+                const home = g.homeTeam?.team;
+                const away = g.awayTeam?.team;
+                // 스코어는 live/ended 상태 + 완료 경기에서만 노출 (정본 동일)
+                const done = showScore && g.status === "completed";
+                const homeWin = done && (g.homeScore ?? 0) > (g.awayScore ?? 0);
+                const awayWin = done && (g.awayScore ?? 0) > (g.homeScore ?? 0);
+                return (
+                  <div key={g.id.toString()} className={styles.cell}>
+                    <div className={styles.game}>
+                      <div className={`${styles.row} ${homeWin ? styles.rowWin : ""}`}>
+                        <span className={styles.nm}>{home?.name ?? "TBD"}</span>
+                        <span className={styles.sc}>{done ? g.homeScore ?? 0 : "–"}</span>
+                      </div>
+                      <div className={`${styles.row} ${awayWin ? styles.rowWin : ""}`}>
+                        <span className={styles.nm}>{away?.name ?? "TBD"}</span>
+                        <span className={styles.sc}>{done ? g.awayScore ?? 0 : "–"}</span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function SectionPlaceholder({
   title,
   description,
@@ -641,6 +746,8 @@ const NAV_LINKS = [
   { href: "/", label: "홈", page: "home", section: "overview" },
   { href: "/teams", label: "팀", page: "teams", section: "teams" },
   { href: "/schedule", label: "일정", page: "schedule", section: "schedule" },
+  // PR-5 5-B: 대진 탭 — visibleNavLinks 필터가 bracket==="hide" 면 자동 숨김(정본 위치 = 일정·결과 사이)
+  { href: "/bracket", label: "대진", page: "bracket", section: "bracket" },
   { href: "/results", label: "결과", page: "results", section: "results" },
   { href: "/registration", label: "참가신청", page: "registration", section: "registration" },
 ] satisfies Array<{
@@ -777,6 +884,26 @@ export function ClassicTemplate({
           />
         ) : currentPage === "schedule" ? (
           <SchedulePage matches={matches} primary={primary} />
+        ) : currentPage === "bracket" && visibility.sections.bracket === "prep" ? (
+          // PR-5 5-B: 대진 prep — 정본 카피(조 1·2위 확정 후 공개). schedule/results prep 과 동일 패턴.
+          <SectionPlaceholder
+            title="대진 준비 중"
+            description="조별리그 종료 후 조 1·2위가 가려지면 결선 대진이 공개됩니다."
+          />
+        ) : currentPage === "bracket" ? (
+          // show 상태 — 실 매치 파생 대진 트리. 스코어는 live/ended 에서만 노출.
+          <BracketPage
+            matches={matches}
+            primary={primary}
+            showScore={visibility.state === "live" || visibility.state === "ended"}
+          />
+        ) : currentPage === "results" && visibility.sections.results === "prep" ? (
+          // PR-5 5-A §정합: 미발행/종료-미보유 시 공식 기록 prep 카피(정본 public-site-pages.jsx).
+          //   mock 기사/가짜 데이터 0 — "준비중" 안내만. SectionPlaceholder = BDR var(--color-*).
+          <SectionPlaceholder
+            title="공식 기록 준비 중"
+            description="대회 공식 스탯과 기사는 집계 후 게시됩니다. 준비되면 이 영역에 공개됩니다."
+          />
         ) : currentPage === "results" ? (
           <ResultsPage matches={matches} primary={primary} />
         ) : currentPage === "registration" ? (

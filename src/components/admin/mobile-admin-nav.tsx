@@ -29,6 +29,38 @@ function getInitial(nickname: string | null, email: string): string {
   return (source[0] ?? "?").toUpperCase();
 }
 
+// 역할 라벨 — 보유 역할 중 최상위 1개 한국어 (UserChip 부제용). sidebar.tsx getRoleLabel 과 동일 규칙.
+function getRoleLabel(roles: AdminRole[]): string {
+  const order: { role: AdminRole; label: string }[] = [
+    { role: "super_admin", label: "최고 관리자" },
+    { role: "site_admin", label: "사이트 관리자" },
+    { role: "tournament_admin", label: "대회 관리자" },
+    { role: "partner_member", label: "협력업체" },
+    { role: "org_member", label: "단체 멤버" },
+  ];
+  return order.find((o) => roles.includes(o.role))?.label ?? "관리자";
+}
+
+// 현재 활성 탭 제목 — ts-topbar 표시용. pathname 에 가장 깊게 매칭되는 항목 라벨(children 포함).
+function getActiveTitle(structure: AdminNavEntry[], pathname: string): string {
+  let best = "";
+  let bestLen = -1;
+  const consider = (item: AdminNavItem) => {
+    const matched =
+      item.href === "/admin" ? pathname === "/admin" : pathname.startsWith(item.href);
+    if (matched && item.href.length > bestLen) {
+      best = item.label;
+      bestLen = item.href.length;
+    }
+    item.children?.forEach(consider);
+  };
+  structure.forEach((entry) => {
+    if (entry.type === "item") consider(entry);
+    else entry.items.forEach(consider);
+  });
+  return best || "관리자";
+}
+
 function getTournamentMobileStructure(): AdminNavEntry[] {
   return [
     {
@@ -68,9 +100,10 @@ function renderMobileItem(
       <Link
         href={item.href}
         onClick={closeFn}
-        className="ad-side-link"
+        className="ts-navlink"
         data-active={isActive ? "true" : "false"}
-        data-child={isChild ? "true" : "false"}
+        // 자식 항목 들여쓰기(28px) — 데스크톱 sidebar renderItem 과 동일(ts-navlink 에 data-child CSS 부재).
+        style={isChild ? { paddingLeft: 28 } : undefined}
       >
         <Icon name={toLucide(item.icon)} size={18} />
         <span>{item.label}</span>
@@ -86,8 +119,11 @@ export function AdminMobileNav({ roles, scope = "default", user }: Props) {
   const close = () => setOpen(false);
   const displayName = user ? user.nickname?.trim() || user.email.split("@")[0] : null;
   const initial = user ? getInitial(user.nickname, user.email) : null;
+  const roleLabel = getRoleLabel(roles);
   const visibleStructure =
     scope === "tournament" ? getTournamentMobileStructure() : filterStructureByRoles(roles);
+  // ts-topbar 활성 탭 제목 (모바일 상단바)
+  const activeTitle = getActiveTitle(visibleStructure, pathname);
 
   useEffect(() => {
     if (!open) return;
@@ -114,92 +150,123 @@ export function AdminMobileNav({ roles, scope = "default", user }: Props) {
     };
   }, [open]);
 
+  const myActive =
+    pathname === "/admin/me" || pathname.startsWith("/admin/me/") ? "true" : "false";
+
   return (
     <>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        aria-label="관리자 메뉴 열기"
-        className="ad-mobile-toggle"
-        data-skin="toss"
-      >
-        <Icon name="menu" size={22} />
-      </button>
+      {/* 모바일 토픽바 — 햄버거 + 활성 탭 제목. ts-topbar=display:none@desktop, flex@≤900px(56px 고정).
+          배치1.5에서 데스크톱 topbar 제거로 비던 ts-main padding-top:56px 영역을 채운다. */}
+      <header className="ts-topbar" data-skin="toss">
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          aria-label="관리자 메뉴 열기"
+          className="ts-mtoggle"
+        >
+          <Icon name="menu" size={20} />
+        </button>
+        <div style={{ fontWeight: 800, fontSize: 16 }}>{activeTitle}</div>
+      </header>
 
-      <div
-        aria-hidden="true"
-        onClick={close}
-        className="ad-mobile-overlay"
-        data-open={open ? "true" : "false"}
-        data-skin="toss"
-      />
+      {/* 오버레이 — 열렸을 때만 렌더(정본 패턴) */}
+      {open && (
+        <div aria-hidden="true" onClick={close} className="ts-overlay" data-skin="toss" />
+      )}
 
+      {/* 드로어 — ts-drawer(280px, 좌측 슬라이드). head 인라인 + ts-sidebar__nav + ts-sidebar__foot
+          (ts-drawer__head/__body/__foot 클래스는 CSS 부재 → 정본 jsx 와 동일 구조 사용). */}
       <aside
         role="dialog"
         aria-modal="true"
         aria-label="관리자 메뉴"
-        className="ad-mobile-drawer"
+        className="ts-drawer"
         data-open={open ? "true" : "false"}
         data-skin="toss"
       >
-        <div className="ad-mobile-drawer__head">
-          {user ? (
-            <>
-              <div className="ad-mobile-drawer__avatar">{initial}</div>
-              <div className="ad-mobile-drawer__identity">
-                <div className="ad-mobile-drawer__name">{displayName}</div>
-                <div className="ad-mobile-drawer__email">{user.email}</div>
-              </div>
-            </>
-          ) : (
-            <Link href="/admin" onClick={close} className="ad-mobile-drawer__brand">
-              <Image src="/images/logo.png" alt="BDR" width={90} height={26} className="h-6 w-auto" />
-              <span className="ad-side-logo-badge">ADMIN</span>
-            </Link>
-          )}
-
+        {/* head — 브랜드(BDR 로고+ADMIN) + 닫기 */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            paddingRight: 12,
+          }}
+        >
+          <Link href="/admin" onClick={close} className="ts-sidebar__brand">
+            <Image src="/images/logo.png" alt="BDR" width={100} height={30} className="h-7 w-auto" />
+            <span className="rounded bg-[var(--color-primary)] px-2 py-0.5 text-xs font-bold uppercase tracking-wider text-white">
+              Admin
+            </span>
+          </Link>
           <button
             type="button"
             onClick={close}
             aria-label="메뉴 닫기"
-            className="ad-mobile-close"
+            className="ts-mtoggle"
+            style={{ background: "transparent" }}
           >
             <Icon name="x" size={20} />
           </button>
         </div>
 
-        <nav className="ad-mobile-drawer__body">
+        {/* body — nav (ts-sidebar__label 헤더 + ts-navlink 링크). navStructure/권한필터/children 보존. */}
+        <nav className="ts-sidebar__nav overflow-y-auto">
           {visibleStructure.map((entry, index) => {
             if (entry.type === "item") {
-              return (
-                <div key={`item-${index}`} className="ad-side-group">
-                  {renderMobileItem(entry, pathname, close)}
-                </div>
-              );
+              return <div key={`item-${index}`}>{renderMobileItem(entry, pathname, close)}</div>;
             }
 
             return (
-              <div key={`group-${index}`} className="ad-side-group">
-                <div className="ad-side-title">{entry.label}</div>
+              <div key={`group-${index}`}>
+                <div className="ts-sidebar__label">{entry.label}</div>
                 {entry.items.map((item) => renderMobileItem(item, pathname, close))}
               </div>
             );
           })}
         </nav>
 
-        <div className="ad-mobile-drawer__foot">
-          <div className="ad-mobile-drawer__theme">
+        {/* foot — 데스크톱 사이드바 푸터와 동등(기능 손실 0): UserChip + 테마 + 마이페이지 + 사이트복귀 + 로그아웃.
+            모바일에선 데스크톱 사이드바가 숨겨지므로 계정/로그아웃의 유일 경로. */}
+        <div className="ts-sidebar__foot">
+          {user && (
+            <Link
+              href="/admin/me"
+              onClick={close}
+              className="ts-userchip"
+              data-active={myActive}
+            >
+              <span className="ts-avatar">{initial}</span>
+              <div style={{ textAlign: "left", lineHeight: 1.3, minWidth: 0 }}>
+                <div
+                  style={{
+                    fontSize: 14,
+                    fontWeight: 700,
+                    color: "var(--ink)",
+                    whiteSpace: "nowrap",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                  }}
+                >
+                  {displayName}
+                </div>
+                <div style={{ fontSize: 12, color: "var(--ink-mute)" }}>{roleLabel}</div>
+              </div>
+              <Icon name="chevron-right" size={16} style={{ marginLeft: "auto", color: "var(--ink-dim)" }} />
+            </Link>
+          )}
+          <div className="px-3 pb-2">
             <AdminThemeSwitch />
           </div>
           {user && (
-            <Link href="/admin/me" onClick={close} className="ad-side-foot-link">
-              <Icon name="circle-user" size={16} />
-              마이페이지
+            <Link href="/admin/me" onClick={close} className="ts-navlink" data-active={myActive}>
+              <Icon name="circle-user" size={18} />
+              <span>마이페이지</span>
             </Link>
           )}
-          <Link href="/" onClick={close} className="ad-side-foot-link">
-            <Icon name="arrow-left" size={16} />
-            사이트로 돌아가기
+          <Link href="/" onClick={close} className="ts-navlink">
+            <Icon name="arrow-left" size={18} />
+            <span>사이트로 돌아가기</span>
           </Link>
           {user && <LogoutButton variant="drawer-card" onBeforeLogout={close} />}
         </div>

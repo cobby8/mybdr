@@ -55,12 +55,14 @@ function fmtDDay(iso: string): string {
 function fmtDateTime(iso: string): string {
   const d = new Date(iso);
   if (isNaN(d.getTime())) return "-";
+  // 서버 렌더(Vercel UTC) 가능 — KST(+9h) 보정 후 getUTC* 로 한국시간 추출
+  const k = new Date(d.getTime() + 9 * 60 * 60 * 1000);
   const days = ["일", "월", "화", "수", "목", "금", "토"];
-  const m = d.getMonth() + 1;
-  const day = d.getDate();
-  const dow = days[d.getDay()];
-  const hh = String(d.getHours()).padStart(2, "0");
-  const mm = String(d.getMinutes()).padStart(2, "0");
+  const m = k.getUTCMonth() + 1;
+  const day = k.getUTCDate();
+  const dow = days[k.getUTCDay()];
+  const hh = String(k.getUTCHours()).padStart(2, "0");
+  const mm = String(k.getUTCMinutes()).padStart(2, "0");
   return `${m}/${day} (${dow}) ${hh}:${mm}`;
 }
 

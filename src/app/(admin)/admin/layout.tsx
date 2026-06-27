@@ -7,7 +7,8 @@ import { getAuthUser } from "@/lib/auth/get-auth-user";
 import { getAdminRoles } from "@/lib/auth/admin-roles";
 // 2026-05-12 로그인 redirect 통합 — 비로그인 → 로그인 페이지 후 원래 admin 페이지 복귀
 import { buildLoginRedirect } from "@/lib/auth/redirect";
-import { UserMenu } from "./_components/user-menu";
+// 2026-06-27 PR-1 배치1.5 — 데스크톱 우상단 UserMenu 제거(정본은 데스크톱 topbar 없음).
+//   계정(아바타/이름/역할/로그아웃)은 AdminSidebar 푸터 UserChip 으로 이전 → UserMenu import 불필요.
 
 /**
  * Admin 레이아웃: 권한별 접근 제어 + AdminShell wrap (Admin-2 박제 2026-05-15)
@@ -69,15 +70,6 @@ export default async function AdminLayout({
         email: auth.session.email,
       }}
       hideHeader
-      topbarRight={
-        // Desktop user menu slot. Mobile keeps this hidden behind the drawer trigger.
-        <div className="hidden lg:flex">
-          <UserMenu
-            nickname={auth.user.nickname}
-            email={auth.session.email}
-          />
-        </div>
-      }
     >
       {children}
     </AdminShell>

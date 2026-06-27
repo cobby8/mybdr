@@ -17,6 +17,7 @@ const PAGE_SECTION: Record<string, PublicSection> = {
   home: "overview",
   teams: "teams",
   schedule: "schedule",
+  bracket: "bracket", // PR-5 5-B: /bracket 발행 게이트 — hide=404·prep=placeholder·show=트리
   results: "results",
   registration: "registration",
 };

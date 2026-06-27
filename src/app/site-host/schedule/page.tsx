@@ -69,7 +69,7 @@ export default async function SiteSchedulePage() {
   // 날짜별 그룹핑
   const grouped = matches.reduce<Record<string, typeof matches>>((acc, m) => {
     const key = m.scheduledAt
-      ? m.scheduledAt.toLocaleDateString("ko-KR", { year: "numeric", month: "long", day: "numeric", weekday: "short" })
+      ? m.scheduledAt.toLocaleDateString("ko-KR", { timeZone: "Asia/Seoul", year: "numeric", month: "long", day: "numeric", weekday: "short" })
       : "날짜 미정";
     if (!acc[key]) acc[key] = [];
     acc[key].push(m);
@@ -129,6 +129,7 @@ export default async function SiteSchedulePage() {
                           <span className="min-w-[4rem] text-center text-sm text-[var(--color-text-muted)]">
                             {m.scheduledAt
                               ? m.scheduledAt.toLocaleTimeString("ko-KR", {
+                                  timeZone: "Asia/Seoul",
                                   hour: "2-digit",
                                   minute: "2-digit",
                                 })
