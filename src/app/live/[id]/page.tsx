@@ -40,6 +40,9 @@ import { LiveShareButton } from "./_v2/live-share-button";
 // 2026-05-10 PlayerLink/TeamLink 2단계 마이그 — 라이브/scheduled/ready 매치 hero scoreboard 팀명·박스스코어 선수명 link.
 import { TeamLink } from "@/components/links/team-link";
 import { PlayerLink } from "@/components/links/player-link";
+// 2026-06-27 기록 모드 인증 뱃지 — flutter=골드 "BDR full" / paper=실버 "BDR" / 그 외 null.
+//   종료 후 hero-scoreboard 와 동일 컴포넌트. 진행 중(LIVE) 스코어보드에도 노출 (LIVE/FINAL 무관).
+import { RecordingModeBadge } from "@/components/recording-mode-badge";
 // 2026-05-16 (긴급 박제 — PBP 표시 한글 라벨 / 사용자 보고 이미지 #163).
 //   formatPbpAction = action_type + meta 분기 → 구체 한글 라벨 ("3점 성공", "수비리바운드", "U파울" 등).
 //   PbpSection 행 렌더에서 호출 — 기존 ACTION_LABEL 단순 lookup 대체.
@@ -193,6 +196,12 @@ interface MatchData {
   //   "halves" = 라벨 "전반/후반/OT1+" / "quarters" = "Q1/Q2/Q3/Q4/OT1+" (기본 / 호환성).
   //   미박제 매치 (구버전 / 4쿼터 기본) = "quarters" 폴백 (API 가 항상 박제하지만 안전망).
   period_format?: "halves" | "quarters";
+  // 2026-06-27 (라이브 진행 중 paper 게이팅 버그 수정) — 매치 기록 모드.
+  //   API `/api/live/[id]` 가 recordingMode: getRecordingMode(match) → snake_case 변환 → recording_mode 수신.
+  //   "paper" = 전자기록지 (슈팅 6컬럼 + MIN + +/- hide / 기록 모드 뱃지 실버 "BDR").
+  //   "flutter"(기본) = 기록앱 풀스탯 (19컬럼 유지 / 뱃지 골드 "BDR full"). "manual"/누락 = 뱃지 없음.
+  //   진행 중(LIVE) 화면도 종료 후 box-score-table.tsx 와 동일하게 이 값으로 게이팅.
+  recording_mode?: "flutter" | "paper" | "manual" | null;
 }
 
 const STATUS_LABEL: Record<string, string> = {
@@ -530,6 +539,10 @@ function CenterInfoBlock({
       >
         {statusText}
       </span>
+      {/* 2026-06-27 기록 모드 인증 뱃지 — 진행 중(LIVE) 스코어보드 상태 라벨 바로 아래.
+          종료 후 hero-scoreboard 는 FINAL 배지 옆에 노출하나, 진행 중 화면엔 hero 가 안 떠서 누락이었음.
+          LIVE/예정/하프타임 등 모든 비종료 상태에서 상태 라벨과 함께 항상 노출 (모바일/PC 공통). */}
+      <RecordingModeBadge mode={match.recording_mode} size="sm" />
       {clockText && (
         <span
           className="text-2xl sm:text-3xl font-black leading-none whitespace-nowrap"
@@ -1766,6 +1779,8 @@ export default function LiveBoxScorePage() {
               players={players}
               hasOT={quarters.some((q) => q.label.startsWith("OT"))}
               hasQuarterEventDetail={match.has_quarter_event_detail}
+              // 2026-06-27 진행 중 paper 게이팅 — 종료 후 box-score-table.tsx 와 동일 분기.
+              isPaperMatch={match.recording_mode === "paper"}
             />
           </div>
         ))}
@@ -1940,6 +1955,7 @@ function BoxScoreTable({
   players,
   hasOT = false,
   hasQuarterEventDetail = true,
+  isPaperMatch = false,
 }: {
   teamName: string;
   color: string;
@@ -1949,6 +1965,11 @@ function BoxScoreTable({
   // 2026-04-16: 쿼터별 이벤트 상세 스탯 존재 여부
   // false + quarterFilter !== "all" → 안내 배너 + MIN/+- 외 스탯 "-" 처리
   hasQuarterEventDetail?: boolean;
+  // 2026-06-27 (라이브 진행 중 paper 게이팅 버그 수정) — 전자기록지 매치(recording_mode="paper").
+  //   종료 후 box-score-table.tsx 와 동일: 슈팅 6컬럼(FG/FG%/3P/3P%/FT/FT%) + MIN + +/- hide.
+  //   전자기록지 = miss 미박제 → 시도=성공=100% 가짜 정확도 + 시간/점수변동 추적 불가 → 노이즈 차단.
+  //   default false (Flutter 매치 19컬럼 유지). 헤더·바디·DNP·합계행 모두 동일 분기.
+  isPaperMatch?: boolean;
 }) {
   // 2026-04-15: 쿼터 필터 state — "all" | "1" | "2" | "3" | "4" | "5"(OT1)
   // 이유: 사용자가 특정 쿼터만 집중해서 보고 싶을 때 활용. "all"은 전체 합계(기본값).
@@ -2091,15 +2112,21 @@ function BoxScoreTable({
                   className="py-2 px-1 text-left font-normal sticky left-8 z-10 min-w-[70px] print:static print:bg-transparent"
                   style={{ backgroundColor: "var(--color-card)" }}
                 >이름</th>
-                {/* 2026-04-15: MIN 복원 — 이름 바로 다음, PTS 앞 */}
-                <th className="py-2 px-0.5 text-center font-normal">MIN</th>
+                {/* 2026-04-15: MIN 복원 — 이름 바로 다음, PTS 앞.
+                    2026-06-27 paper 매치 = MIN hide (시간 추적 칸 없음 / box-score-table.tsx 동일) */}
+                {!isPaperMatch && <th className="py-2 px-0.5 text-center font-normal">MIN</th>}
                 <th className="py-2 px-0.5 text-center font-semibold" style={{ color: "var(--color-text-primary)" }}>PTS</th>
-                <th className="py-2 px-0.5 text-center font-normal">FG</th>
-                <th className="py-2 px-0.5 text-center font-normal">FG%</th>
-                <th className="py-2 px-0.5 text-center font-normal">3P</th>
-                <th className="py-2 px-0.5 text-center font-normal">3P%</th>
-                <th className="py-2 px-0.5 text-center font-normal">FT</th>
-                <th className="py-2 px-0.5 text-center font-normal">FT%</th>
+                {/* 2026-06-27 paper 매치 = 슈팅 6 컬럼(FG/FG%/3P/3P%/FT/FT%) hide */}
+                {!isPaperMatch && (
+                  <>
+                    <th className="py-2 px-0.5 text-center font-normal">FG</th>
+                    <th className="py-2 px-0.5 text-center font-normal">FG%</th>
+                    <th className="py-2 px-0.5 text-center font-normal">3P</th>
+                    <th className="py-2 px-0.5 text-center font-normal">3P%</th>
+                    <th className="py-2 px-0.5 text-center font-normal">FT</th>
+                    <th className="py-2 px-0.5 text-center font-normal">FT%</th>
+                  </>
+                )}
                 <th className="py-2 px-0.5 text-center font-normal">OR</th>
                 <th className="py-2 px-0.5 text-center font-normal">DR</th>
                 <th className="py-2 px-0.5 text-center font-normal">REB</th>
@@ -2108,7 +2135,8 @@ function BoxScoreTable({
                 <th className="py-2 px-0.5 text-center font-normal">BLK</th>
                 <th className="py-2 px-0.5 text-center font-normal">TO</th>
                 <th className="py-2 px-0.5 text-center font-normal">PF</th>
-                <th className="py-2 px-0.5 text-center font-normal">+/-</th>
+                {/* 2026-06-27 paper 매치 = +/- hide (시간+점수 변동 추적 불가) */}
+                {!isPaperMatch && <th className="py-2 px-0.5 text-center font-normal">+/-</th>}
               </tr>
             </thead>
             <tbody>
@@ -2144,10 +2172,12 @@ function BoxScoreTable({
                       )}
                     </span>
                   </td>
-                  {/* MIN — muted 색으로 살짝 약하게 (스탯만큼 강조 X) */}
-                  <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-muted)" }}>
-                    {formatGameClock(p.min_seconds ?? p.min * 60)}
-                  </td>
+                  {/* MIN — muted 색으로 살짝 약하게 (스탯만큼 강조 X). 2026-06-27 paper 매치 hide */}
+                  {!isPaperMatch && (
+                    <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-muted)" }}>
+                      {formatGameClock(p.min_seconds ?? p.min * 60)}
+                    </td>
+                  )}
                   {/* PTS — 팀색 좌측 띠 + 텍스트 기본색. 부모 td에 relative 필수
                       2026-04-16: showPlaceholder 시 "-"만 표시하고 팀색 띠는 생략 (PTS 숫자가 없어 띠의 의미가 없음) */}
                   <td
@@ -2157,25 +2187,30 @@ function BoxScoreTable({
                     {!showPlaceholder && <PtsTeamBar />}
                     {showPlaceholder ? "-" : p.pts}
                   </td>
-                  {/* 이하 스탯 셀들 — showPlaceholder 시 모두 "-" (MIN과 +/-만 예외) */}
-                  <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-secondary)" }}>
-                    {showPlaceholder ? "-" : `${p.fgm}/${p.fga}`}
-                  </td>
-                  <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-secondary)" }}>
-                    {showPlaceholder ? "-" : `${pct(p.fgm, p.fga)}%`}
-                  </td>
-                  <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-secondary)" }}>
-                    {showPlaceholder ? "-" : `${p.tpm}/${p.tpa}`}
-                  </td>
-                  <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-secondary)" }}>
-                    {showPlaceholder ? "-" : `${pct(p.tpm, p.tpa)}%`}
-                  </td>
-                  <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-secondary)" }}>
-                    {showPlaceholder ? "-" : `${p.ftm}/${p.fta}`}
-                  </td>
-                  <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-secondary)" }}>
-                    {showPlaceholder ? "-" : `${pct(p.ftm, p.fta)}%`}
-                  </td>
+                  {/* 이하 스탯 셀들 — showPlaceholder 시 모두 "-" (MIN과 +/-만 예외).
+                      2026-06-27 paper 매치 = 슈팅 6 셀 통째 hide */}
+                  {!isPaperMatch && (
+                    <>
+                      <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-secondary)" }}>
+                        {showPlaceholder ? "-" : `${p.fgm}/${p.fga}`}
+                      </td>
+                      <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-secondary)" }}>
+                        {showPlaceholder ? "-" : `${pct(p.fgm, p.fga)}%`}
+                      </td>
+                      <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-secondary)" }}>
+                        {showPlaceholder ? "-" : `${p.tpm}/${p.tpa}`}
+                      </td>
+                      <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-secondary)" }}>
+                        {showPlaceholder ? "-" : `${pct(p.tpm, p.tpa)}%`}
+                      </td>
+                      <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-secondary)" }}>
+                        {showPlaceholder ? "-" : `${p.ftm}/${p.fta}`}
+                      </td>
+                      <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-secondary)" }}>
+                        {showPlaceholder ? "-" : `${pct(p.ftm, p.fta)}%`}
+                      </td>
+                    </>
+                  )}
                   <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-primary)" }}>{showPlaceholder ? "-" : p.oreb}</td>
                   <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-primary)" }}>{showPlaceholder ? "-" : p.dreb}</td>
                   <td className="py-2 px-0.5 text-center font-semibold" style={{ color: "var(--color-text-primary)" }}>{showPlaceholder ? "-" : p.reb}</td>
@@ -2184,9 +2219,12 @@ function BoxScoreTable({
                   <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-primary)" }}>{showPlaceholder ? "-" : p.blk}</td>
                   <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-primary)" }}>{showPlaceholder ? "-" : p.to}</td>
                   <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-primary)" }}>{showPlaceholder ? "-" : p.fouls}</td>
-                  <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-secondary)" }}>
-                    {p.plus_minus != null ? (p.plus_minus > 0 ? `+${p.plus_minus}` : p.plus_minus) : "-"}
-                  </td>
+                  {/* 2026-06-27 paper 매치 = +/- 셀 hide */}
+                  {!isPaperMatch && (
+                    <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-secondary)" }}>
+                      {p.plus_minus != null ? (p.plus_minus > 0 ? `+${p.plus_minus}` : p.plus_minus) : "-"}
+                    </td>
+                  )}
                 </tr>
               ))}
               {/* 2026-04-15: DNP 행 재구조화 — colSpan 제거, 셀마다 "-".
@@ -2220,14 +2258,30 @@ function BoxScoreTable({
                       )}
                     </span>
                   </td>
-                  {/* 미출전 선수는 앱 통계 화면과 맞춰 MIN도 "-"로 표시 */}
-                  <td
-                    className="py-2 px-0.5 text-center text-xs font-semibold tracking-wider"
-                    style={{ color: "var(--color-text-muted)" }}
-                  >
-                    -
-                  </td>
-                  {/* 나머지 16개 스탯 셀은 모두 "-" */}
+                  {/* 미출전 선수는 앱 통계 화면과 맞춰 MIN도 "-"로 표시.
+                      2026-06-27 paper 매치 = MIN 셀 hide (헤더와 동일 게이팅) */}
+                  {!isPaperMatch && (
+                    <td
+                      className="py-2 px-0.5 text-center text-xs font-semibold tracking-wider"
+                      style={{ color: "var(--color-text-muted)" }}
+                    >
+                      -
+                    </td>
+                  )}
+                  {/* PTS 자리 "-" (paper/flutter 공통) */}
+                  <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-muted)" }}>-</td>
+                  {/* 슈팅 6 셀 — 2026-06-27 paper 매치 hide */}
+                  {!isPaperMatch && (
+                    <>
+                      <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-muted)" }}>-</td>
+                      <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-muted)" }}>-</td>
+                      <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-muted)" }}>-</td>
+                      <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-muted)" }}>-</td>
+                      <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-muted)" }}>-</td>
+                      <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-muted)" }}>-</td>
+                    </>
+                  )}
+                  {/* OR DR REB AST STL BLK TO PF (8 셀, 공통) */}
                   <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-muted)" }}>-</td>
                   <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-muted)" }}>-</td>
                   <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-muted)" }}>-</td>
@@ -2236,14 +2290,10 @@ function BoxScoreTable({
                   <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-muted)" }}>-</td>
                   <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-muted)" }}>-</td>
                   <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-muted)" }}>-</td>
-                  <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-muted)" }}>-</td>
-                  <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-muted)" }}>-</td>
-                  <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-muted)" }}>-</td>
-                  <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-muted)" }}>-</td>
-                  <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-muted)" }}>-</td>
-                  <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-muted)" }}>-</td>
-                  <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-muted)" }}>-</td>
-                  <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-muted)" }}>-</td>
+                  {/* +/- 셀 — 2026-06-27 paper 매치 hide */}
+                  {!isPaperMatch && (
+                    <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-muted)" }}>-</td>
+                  )}
                 </tr>
               ))}
               {/* TOTAL 합산 행 — 출전 선수만 집계 (DNP 제외) */}
@@ -2288,10 +2338,12 @@ function BoxScoreTable({
                       className="py-2 px-1 sticky left-8 z-10 print:static print:bg-transparent"
                       style={{ color: "var(--color-text-primary)", backgroundColor: totalStickyBg }}
                     >TOTAL</td>
-                    {/* MIN — TOTAL 행은 secondary 색으로 강조 */}
-                    <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-secondary)" }}>
-                      {formatGameClock(total.min_seconds)}
-                    </td>
+                    {/* MIN — TOTAL 행은 secondary 색으로 강조. 2026-06-27 paper 매치 hide */}
+                    {!isPaperMatch && (
+                      <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-secondary)" }}>
+                        {formatGameClock(total.min_seconds)}
+                      </td>
+                    )}
                     {/* PTS — TOTAL 행도 동일하게 팀색 좌측 띠 + 텍스트 기본색
                         2026-04-16: showPlaceholder 시 "-"만 표시, 팀색 띠 생략 */}
                     <td
@@ -2301,13 +2353,18 @@ function BoxScoreTable({
                       {!showPlaceholder && <PtsTeamBar />}
                       {showPlaceholder ? "-" : total.pts}
                     </td>
-                    {/* 나머지 TOTAL 스탯 셀 — showPlaceholder 시 모두 "-" */}
-                    <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-primary)" }}>{showPlaceholder ? "-" : `${total.fgm}/${total.fga}`}</td>
-                    <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-primary)" }}>{showPlaceholder ? "-" : `${pct(total.fgm, total.fga)}%`}</td>
-                    <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-primary)" }}>{showPlaceholder ? "-" : `${total.tpm}/${total.tpa}`}</td>
-                    <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-primary)" }}>{showPlaceholder ? "-" : `${pct(total.tpm, total.tpa)}%`}</td>
-                    <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-primary)" }}>{showPlaceholder ? "-" : `${total.ftm}/${total.fta}`}</td>
-                    <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-primary)" }}>{showPlaceholder ? "-" : `${pct(total.ftm, total.fta)}%`}</td>
+                    {/* 나머지 TOTAL 스탯 셀 — showPlaceholder 시 모두 "-".
+                        2026-06-27 paper 매치 = 슈팅 6 셀 통째 hide */}
+                    {!isPaperMatch && (
+                      <>
+                        <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-primary)" }}>{showPlaceholder ? "-" : `${total.fgm}/${total.fga}`}</td>
+                        <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-primary)" }}>{showPlaceholder ? "-" : `${pct(total.fgm, total.fga)}%`}</td>
+                        <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-primary)" }}>{showPlaceholder ? "-" : `${total.tpm}/${total.tpa}`}</td>
+                        <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-primary)" }}>{showPlaceholder ? "-" : `${pct(total.tpm, total.tpa)}%`}</td>
+                        <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-primary)" }}>{showPlaceholder ? "-" : `${total.ftm}/${total.fta}`}</td>
+                        <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-primary)" }}>{showPlaceholder ? "-" : `${pct(total.ftm, total.fta)}%`}</td>
+                      </>
+                    )}
                     <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-primary)" }}>{showPlaceholder ? "-" : total.oreb}</td>
                     <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-primary)" }}>{showPlaceholder ? "-" : total.dreb}</td>
                     <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-primary)" }}>{showPlaceholder ? "-" : total.reb}</td>
@@ -2316,7 +2373,10 @@ function BoxScoreTable({
                     <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-primary)" }}>{showPlaceholder ? "-" : total.blk}</td>
                     <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-primary)" }}>{showPlaceholder ? "-" : total.to}</td>
                     <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-primary)" }}>{showPlaceholder ? "-" : total.fouls}</td>
-                    <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-secondary)" }}>-</td>
+                    {/* 2026-06-27 paper 매치 = TOTAL +/- 셀 hide */}
+                    {!isPaperMatch && (
+                      <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-secondary)" }}>-</td>
+                    )}
                   </tr>
                 );
               })()}
