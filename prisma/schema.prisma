@@ -356,6 +356,7 @@ model Tournament {
   siteRegistrations                      site_registrations[]
   tournamentTeams                        TournamentTeam[]
   tournament_bracket_versions            tournament_bracket_versions[]
+  tournament_expenses                    tournament_expense[]
   // 2026-05-11 Phase 1 (유소년 일괄 등록) — 대회별 종별 룰 (U10/U12/M1 등 매핑)
   divisionRules                          TournamentDivisionRule[]
   teams                                  Team?                         @relation(fields: [champion_team_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_rails_18732ad2a6")
@@ -2263,6 +2264,23 @@ model tournament_recorders {
   @@index([tournamentId])
   @@index([recorderId])
   @@map("tournament_recorders")
+}
+
+// PR-2 3-D 정산 지출 — 대회별 지출 기록(신규 테이블, 사용자 schema diff 승인).
+//   ⚠ tournament_id 는 Tournament.id(String @db.Uuid) FK 라 BigInt 아님 String @db.Uuid (recorders 패턴 동일).
+model tournament_expense {
+  id            BigInt     @id @default(autoincrement())
+  tournament_id String     @db.Uuid
+  label         String
+  amount        Int
+  category      String?
+  memo          String?
+  created_at    DateTime   @default(now())
+  updated_at    DateTime   @updatedAt
+  tournament    Tournament @relation(fields: [tournament_id], references: [id], onDelete: Cascade)
+
+  @@index([tournament_id])
+  @@map("tournament_expenses")
 }
 
 model match_events {
