@@ -240,7 +240,7 @@ interface AdminSidebarProps {
 }
 
 // 메뉴 항목 1개 렌더링 (children 들여쓰기 포함)
-// 2026-05-04: (web) community-aside 패턴 (.aside__link + data-active) 적용 — 시각 통일
+// PR-1 배치1: ts-navlink + data-active(Toss). 이전 community-aside(.aside__link) 패턴에서 전환.
 function renderItem(item: AdminNavItem, pathname: string, depth = 0) {
   const isActive =
     item.href === "/admin"
@@ -251,7 +251,7 @@ function renderItem(item: AdminNavItem, pathname: string, depth = 0) {
     <div key={item.href}>
       <Link
         href={item.href}
-        className="aside__link"
+        className="ts-navlink"
         data-active={isActive}
         style={indentStyle}
       >
@@ -278,29 +278,28 @@ export function AdminSidebar({ roles }: AdminSidebarProps) {
   const visibleStructure = filterStructureByRoles(roles);
 
   return (
-    // 사이드바: CSS 변수 기반 배경/보더 (다크모드 자동 전환)
-    // 2026-05-04: overflow-y-auto + flex-1 nav 로 메뉴 많아도 스크롤 가능 (사용자 요청)
-    // Sidebar chrome keeps its own Toss opt-in until the drawer is migrated.
-    <aside data-skin="toss" className="fixed left-0 top-0 z-40 hidden h-screen w-64 flex-col border-r border-[var(--color-border)] bg-[var(--color-surface)] p-4 lg:flex">
-      {/* 로고: BDR 이미지 + ADMIN 배지 */}
-      <Link href="/admin" className="mb-6 flex items-center gap-3 px-3 shrink-0">
+    // 사이드바: Toss ts-sidebar 셸 (PR-1 배치1 — ad/Tailwind → ts-*). 토큰은 [data-skin="toss"] 제공.
+    // ts-sidebar = position:fixed 248px, lg(≤900px)에서 display:none (모바일은 AdminMobileNav 담당).
+    <aside data-skin="toss" className="ts-sidebar">
+      {/* 로고: BDR 이미지 + ADMIN 배지 — ts-sidebar__brand 컨테이너에 실로고 보존 */}
+      <Link href="/admin" className="ts-sidebar__brand">
         <Image src="/images/logo.png" alt="BDR" width={120} height={36} className="h-9 w-auto" />
         <span className="rounded bg-[var(--color-primary)] px-2 py-0.5 text-xs font-bold uppercase tracking-wider text-white">
           Admin
         </span>
       </Link>
 
-      {/* 내비게이션 메뉴 — 그룹화 + 스크롤 가능
-          2026-05-04: (web) community-aside 패턴 (.aside__title + .aside__link) 적용 */}
-      <nav className="flex-1 overflow-y-auto pr-1 -mr-1">
+      {/* 내비게이션 메뉴 — 그룹화 + 스크롤 가능 (ts-sidebar__label 헤더 + ts-navlink 링크).
+          flex-1 nav 에 overflow-y-auto 유지 — 메뉴 많아도 스크롤 (기존 동작 보존). */}
+      <nav className="ts-sidebar__nav overflow-y-auto">
         {visibleStructure.map((entry, idx) => {
           if (entry.type === "item") {
             return renderItem(entry, pathname);
           }
-          // 그룹 — .aside__title 헤더 + items (community-aside 와 동일 클래스)
+          // 그룹 — ts-sidebar__label 헤더 + items (ts-navlink)
           return (
             <div key={`group-${idx}`}>
-              <div className="aside__title">{entry.label}</div>
+              <div className="ts-sidebar__label">{entry.label}</div>
               {entry.items.map((item) => renderItem(item, pathname))}
             </div>
           );
@@ -309,7 +308,7 @@ export function AdminSidebar({ roles }: AdminSidebarProps) {
 
       {/* 하단: 테마 토글 + 마이페이지 + 사이트로 돌아가기 */}
       {/* 2026-05-11 admin 마이페이지 Phase 1 — "마이페이지" 1줄 추가 (사이트로 돌아가기 위) */}
-      <div className="mt-3 border-t border-[var(--color-border)] pt-3 shrink-0">
+      <div className="ts-sidebar__foot">
         {/* 테마 토글 — (web) AppNav 와 동일 컴포넌트 (라이트/다크 듀얼 라벨, theme-preference localStorage 키) */}
         <div className="px-3 pb-2">
           <AdminThemeSwitch />
@@ -317,7 +316,7 @@ export function AdminSidebar({ roles }: AdminSidebarProps) {
         {/* 마이페이지 — 사용자 결재 §7 (사이트로 돌아가기 위 / 가장 자연) */}
         <Link
           href="/admin/me"
-          className="aside__link"
+          className="ts-navlink"
           data-active={pathname === "/admin/me" || pathname.startsWith("/admin/me/")}
         >
           <span>
@@ -325,7 +324,7 @@ export function AdminSidebar({ roles }: AdminSidebarProps) {
             마이페이지
           </span>
         </Link>
-        <Link href="/" className="aside__link">
+        <Link href="/" className="ts-navlink">
           <span>
             <Icon name="arrow-left" size={18} />
             사이트로 돌아가기

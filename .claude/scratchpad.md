@@ -52,10 +52,31 @@
 - M2 컬럼: `waitlist_position`INT NULL / `promotion_deadline`TIMESTAMPTZ NULL
 > 대회(tournament) 도메인 필드 대조는 `Dev/design/BDR v2.41-admin-toss/_PR0-CONTRACT-CONFIRMED.md §5` 참조.
 
+## 구현 기록 (developer)
+
+### PR-1 배치1 — ad-shell → ts-shell 마이그레이션 (파일럿)
+📝 `/admin/*` 셸 크롬을 ad-*/Tailwind → 시안 ts-* 클래스로 swap (className만, 로직 0). 셸은 `admin/layout.tsx` 1곳 중앙화 / tournament-admin·partner-admin은 이미 ts라 무관.
+
+| 파일 | 변경 | 신규/수정 |
+|------|------|----------|
+| `src/components/admin/admin-shell.tsx` | `ad-shell`→`ts-shell`, `ad-shell--hidden-aside`→`ts-shell--hidden-aside`, `ad-main`→`ts-main`, `ad-main__inner`→`ts-main__inner` | 수정 |
+| `src/components/admin/sidebar.tsx` | 컨테이너 Tailwind`fixed w-64…`→`ts-sidebar`, 로고→`ts-sidebar__brand`(BDR 로고 Image 보존), nav→`ts-sidebar__nav overflow-y-auto`, 그룹헤더 `aside__title`→`ts-sidebar__label`, 링크3곳 `aside__link`→`ts-navlink`(메뉴·마이페이지·복귀), 푸터→`ts-sidebar__foot` | 수정 |
+
+**보존 확인(회귀 0)**: `navStructure`(A1 IA 1독립+4그룹+외부관리) 항목 추가/삭제/이동 0 · `filterStructureByRoles`/`filterItemByRoles`(권한)·`children` 재귀 들여쓰기·`hrefByRole`·`data-active` active 로직·푸터(테마·마이페이지·복귀) 전부 그대로. git diff = className+주석 라인만(로직 토큰 0 변경).
+
+**검증**: `npx tsc --noEmit --incremental false` = **EXIT 0**. 정적: 2파일 className 잔존 `ad-shell/ad-main/aside__link/aside__title` = 0(단 ⚠️아래 ad-topbar 예외) / swap한 ts-shell·ts-main·ts-sidebar·ts-navlink·ts-sidebar__label·ts-sidebar__foot·ts-main__inner = toss-admin.css 전부 실존(L245~270).
+
+⚠️ **의도적 예외 / 후속 결정 필요**:
+- `admin-shell.tsx` L49 **`ad-topbar` 유지**(미swap). 시안 `ts-topbar`는 `display:none@desktop`(모바일 전용 fixed bar)이라 swap 시 **데스크톱 우상단 UserMenu(계정메뉴)가 사라지는 회귀** 발생(시안은 계정을 ts-sidebar__foot ts-userchip에 둠). 회귀 0 우선 → 이번 배치 미처리. **권고 후속(배치 1.5)**: layout의 topbarRight UserMenu를 ts-sidebar__foot로 이전 후 ts-topbar 정합(layout.tsx 1파일 추가 필요 → 별도 결정).
+- `ts-shell--hidden-aside`는 CSS 룰 부재(구 `ad-shell--hidden-aside .ad-main{margin-left:0}` 미대응). 단 hidden variant는 현재 호출처 0(layout=default)이라 무동작·잠재영향 0.
+- ⚠️ 시각 미세: `ts-navlink` 내부 `<span>`(icon+label) 래퍼 유지 → ts-navlink gap이 span 1자식에만 적용돼 아이콘/라벨 간격이 다소 좁을 수 있음(구조 보존 우선). PM 육안 확인 후 필요시 후속.
+
+🖥️ **PM 육안확인 필요 라우트(데스크톱 ≥1024px + 모바일 ≤768px)**: `/admin`(대시보드), `/admin/users`(테이블), `/admin/games`(콘텐츠) — 사이드바 렌더·active 상태·그룹헤더·푸터·BDR 로고·데스크톱 UserMenu 표시 / 모바일은 배치2(mobile-admin-nav) 전이라 기존 ad-mobile 유지(정상).
+
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
 |------|------|------|
-| 2026-06-27 | **admin-toss PR-0 계약 확정** | ✅ 정본 패키지 배치(구버전 _archive 격리)·§1치환표·§5 스키마 실측 9건(전면신규=tournament_expense 1건·#5 teams 기존 바인딩만)·§6 결정. `_PR0-CONTRACT-CONFIRMED.md` 박제. 코드0. 커밋 93b90ef. |
+| 2026-06-27 | **기록 모드 인증 뱃지 + 전자기록지 측정불가 항목 통계 제외 (3단계·developer×2·13파일·커밋 bbdaa72·미푸시)** | ✅ **tsc0·vitest 1153/1153**. ①`RecordingModeBadge` 신규(flutter=골드 'BDR full'/paper=실버 'BDR'/manual·기타 미표시·hex인라인=SiteOperatorBadge 정책·Material Symbols·radius4). ②**데이터레이어**(match-stat-aggregate·player-records·tournaments/teams records route): paper 매치 슈팅 시도(fga/tpa/fta)·성공률·+/- 를 **measured_games 분모로 비-paper만 집계**(made/리바운드/AST 유지·풀 전체 paper면 null·`getRecordingMode==="paper"` 판정), `recording_mode`/`default_recording_mode`/`paper_games`/`measured_games` 전파. ③**표시레이어** 뱃지 5곳(hero-scoreboard md·player-records-tab·tournament-records-tab 메타+로그·team-records-tab 경기/대회·recent-tab-v2)+통산 FG%/3P% **flutter-only**(users/[id]/page·profile/basketball·stats-detail-modal paperOnlyMinAgg 슈팅4필드). 라이브 박스스코어 기존 isPaperMatch hide 유지. || 2026-06-27 | **admin-toss PR-0 계약 확정** | ✅ 정본 패키지 배치(구버전 _archive 격리)·§1치환표·§5 스키마 실측 9건(전면신규=tournament_expense 1건·#5 teams 기존 바인딩만)·§6 결정. `_PR0-CONTRACT-CONFIRMED.md` 박제. 코드0. 커밋 93b90ef. |
 | 2026-06-27 | **유스챌린지 2차 대회생성+순위전 자동배정+선수입력 (운영 DB)** | ✅ tournamentId=2b93e9bf…. Tournament(U11 round_robin·U12 group_stage_with_ranking)+Team6+TournamentTeam10+Match15. 순위전 자동배정 보정(category=division_code·home/away NULL 유지=advanceDivisionPlaceholders 자동박제). U11 4팀 33명 선수입력(auto_registered). 임시스크립트 정리·코드0. |
 | 2026-06-23 | **v2.40 A5 캠페인 생성 보강** | ✅ `/admin/campaigns` 생성 모달+`POST /api/admin/campaigns`(ad_campaigns+ad_placements) 신설. 나머지 생성플로우는 기존 폼 재사용. tsc0. |
 | 2026-06-23 | **v2.40 A4-2 단체·대회 상세 읽기요약** | ✅ 신규 상세라우트 `/admin/organizations/[id]`·`/admin/tournaments/[id]`(조직 요약·대회 4탭). read-only. tsc0. |
@@ -64,4 +85,3 @@
 | 2026-06-23 | **v2.40 A3-3 비즈니스4 키트(payments·plans·campaigns·partners)** | ✅ 5파일. 환불·CRUD·승인/반려 fetch·폼/모달 보존. tsc0. |
 | 2026-06-23 | **v2.40 A3-2 키트(suggestions·game-reports·users·community·season-awards) + tester/reviewer 병렬** | ✅ 통과·차단0. 목록/툴바/StatRow만 키트화·상세모달/차트/큐 보존. 데이터/액션/라우트/snake/schema/api 0변경. CSS 토큰 교정(--line/--surface 부재→--border/--card). tsc0. |
 | 2026-06-22 | **v2.40 A3-1 키트(tournaments·games·teams·organizations·courts) + tester/reviewer 병렬** | ✅ 통과·차단0. AdminStatusTabs→Toolbar·table→DataTable·모달→Drawer. 삭제 이름게이트/신청현황/3탭 복잡동작 보존. git=해당 화면만. tsc0. |
-| 2026-06-22 | **v2.40 A2 콘솔 키트 박제+검증** | ✅ console-kit 신규8(서버5+StatusBadge+클라3)+au.css→toss-admin.css 흡수(`[data-skin="toss"]` 스코프). tester 7/7·reviewer 차단0. tsc0. |

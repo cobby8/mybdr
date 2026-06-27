@@ -38,11 +38,14 @@ export function AdminShell({
   const hidden = sidebarVariant === "hidden";
 
   return (
-    <div className={`ad-shell ${hidden ? "ad-shell--hidden-aside" : ""}`} data-skin="toss">
+    <div className={`ts-shell ${hidden ? "ts-shell--hidden-aside" : ""}`} data-skin="toss">
       {!hidden && <AdminSidebar roles={roles} />}
       {!hidden && <AdminMobileNav roles={roles} user={user} />}
 
-      <main className="ad-main">
+      <main className="ts-main">
+        {/* 데스크톱 우상단 토픽바(UserMenu). 시안 ts-topbar 는 모바일 전용(display:none@desktop)이라
+            여기에 적용하면 데스크톱 계정 메뉴가 사라짐 → 회귀 0 위해 topbar 는 후속 배치에서 처리
+            (UserMenu 를 ts-sidebar__foot 로 이전 후 ts-topbar 정합). 이번 배치는 셸/사이드바만. */}
         <div className="ad-topbar">
           <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
             {topbarLeft}
@@ -50,7 +53,7 @@ export function AdminShell({
           {topbarRight}
         </div>
 
-        <div className="ad-main__inner">
+        <div className="ts-main__inner">
           {!hideHeader && title && (
             <AdminPageHeader
               title={title}
