@@ -23,6 +23,9 @@ function serializeRule(r: {
   id: bigint;
   code: string;
   label: string;
+  // 2026-06-28 연령 자동 채움 — 출생연도 범위 응답 노출 (학년은 기존부터 노출).
+  birthYearMin: number | null;
+  birthYearMax: number | null;
   gradeMin: number | null;
   gradeMax: number | null;
   feeKrw: number;
@@ -34,6 +37,9 @@ function serializeRule(r: {
     id: r.id.toString(),
     code: r.code,
     label: r.label,
+    // 출생연도 min/max 추가 — 패널 연령 입력 초기값으로 사용.
+    birth_year_min: r.birthYearMin,
+    birth_year_max: r.birthYearMax,
     grade_min: r.gradeMin,
     grade_max: r.gradeMax,
     fee_krw: r.feeKrw,
@@ -146,6 +152,8 @@ export async function GET(
         settings: true,
         schedule_dates: true,
         places: true,
+        // 2026-06-28 연령 자동 채움 — 출생연도 계산 기준 연도(대회 시작일).
+        startDate: true,
       },
     }),
     prisma.adminCategory.findMany({
@@ -159,6 +167,14 @@ export async function GET(
       ? (tournament.settings as Record<string, unknown>)
       : {};
 
+  // 2026-06-28 연령 자동 채움 — 대회 기준 연도 = startDate 의 연도(KST).
+  //   Vercel 서버는 UTC 라 tz 보정 없이 getFullYear 하면 12/31 자정 KST 가 전년으로 밀릴 수 있다.
+  //   Phase 2 createTournament 와 동일하게 +9h 보정 후 UTC 연도를 취한다(한국은 DST 없음).
+  //   startDate 없으면(초안 등) 현재 연도 폴백.
+  const tournamentYear = tournament.startDate
+    ? new Date(tournament.startDate.getTime() + 9 * 60 * 60 * 1000).getUTCFullYear()
+    : new Date().getFullYear();
+
   return apiSuccess({
     rules: rules.map(serializeRule),
     allowed_formats: ALLOWED_FORMATS,
@@ -171,6 +187,8 @@ export async function GET(
     div_schedule: serializeDivSchedule(settingsObj.div_schedule),
     schedule_dates: tournament.schedule_dates ?? [],
     places: tournament.places ?? [],
+    // 패널 "연령 자동 채움" 버튼의 출생연도 계산 기준 연도.
+    tournament_year: tournamentYear,
   });
 }
 
