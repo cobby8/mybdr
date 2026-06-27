@@ -139,6 +139,15 @@ const SECTIONS: Array<{ id: SectionId; label: string }> = [
   { id: "publish", label: "접수·공개" },
 ];
 
+// PR-3 3-D §정합: 정본 workspace.jsx mode=edit 스텝 헤더 per-step 아이콘(고정 trophy → 단계별). lucide kebab.
+const SECTION_ICONS: Record<SectionId, string> = {
+  info: "info",
+  schedule: "calendar-days",
+  divisions: "layout-grid",
+  game: "sliders-horizontal",
+  publish: "globe",
+};
+
 const LEGACY_SECTION_MAP: Record<string, SectionId> = {
   setup: "info",
   teams: "publish",
@@ -1071,6 +1080,9 @@ function WorkspaceSection({
   action?: ReactNode;
   children: ReactNode;
 }) {
+  // 정본 mode=edit 정합: 섹션 헤더 = 단계별 아이콘 + "{N}단계 · {제목}" (SectionNav 번호와 일치).
+  const stepNo = SECTIONS.findIndex((section) => section.id === id) + 1;
+  const icon = SECTION_ICONS[id] ?? "trophy";
   return (
     <section
       id={id}
@@ -1079,10 +1091,10 @@ function WorkspaceSection({
       <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex min-w-0 gap-3">
           <div className="ct-headicon">
-            <Icon name="trophy" size={18} color="var(--primary)" />
+            <Icon name={icon} size={18} color="var(--primary)" />
           </div>
           <div className="min-w-0">
-            <h2 className="text-base font-black text-[var(--ink)]">{title}</h2>
+            <h2 className="text-base font-black text-[var(--ink)]">{stepNo}단계 · {title}</h2>
             <p className="mt-0.5 text-xs text-[var(--ink-mute)]">{subtitle}</p>
           </div>
         </div>

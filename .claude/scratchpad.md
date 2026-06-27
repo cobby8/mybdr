@@ -97,6 +97,14 @@
 - **검증**: tsc EXIT0(JSX 균형). 정적: 변경 1파일·hex 0·ct-bar/2컬럼 제거·POST/submit/publish/PublishModal/요강/협회 grep 14건 보존·lucide/var(--*).
 - 🖥️ PM 육안(중요): 생성 1→5 진행(다음/이전/스텝클릭)·5스텝 검토요약·"대회 생성"→게시 모달→실제 POST 동일 / 요강·협회·이전대회 도달.
 
+### PR-3 3-D — 대회 수정폼(TournamentWorkspace) 정본 미세 정합 (PR-3 마지막)
+📝 정본 workspace.jsx(mode=edit) + 07 스크린샷과 1:1 대조. **결과: 운영 거의 정합(과잉 변경 금지)** — 실제 격차 1건만 보강.
+- **정합 확인(이미 일치)**: tw-shell·ts-ph·tw-badges·SectionNav(tw-steps)·ct-progress·tw-foot(이전/저장/다음·dirty/saving/saved·tw-msg)·SetupChecklist·PR-2 패널 dynamic import(teams/divisions/bracket/matches/recorders/admins/site) 전부 존재. **단일 스텝 표시 방식 동일**(정본=조건렌더 / 운영=전섹션 렌더 + `tw-shell[data-step] #other{display:none}` CSS + `.tw-body .ct-col{display:contents}` → 같은 UX).
+- **격차 1건(보강)**: 정본 섹션 헤더 = per-step 아이콘(info/calendar-days/layout-grid/sliders-horizontal/globe) + "{N}단계 · {라벨}". 운영 `WorkspaceSection` = 고정 trophy 아이콘 + 단계번호 없음 → 07 대비 가시 차이. **SECTION_ICONS 맵 + WorkspaceSection 헤더만 보강**(trophy→단계 아이콘, 제목 앞 "{N}단계 ·"). SectionNav 번호와 일치.
+- **변경 1파일**: `TournamentWorkspace.tsx` (+14/-2). saveSetup·PATCH·dirty/saving/saved·SectionNav·tw-foot·ct-progress·SetupChecklist·PR-2 패널 임베드 **0접촉**(self-diff = 보강분만).
+- **검증**: tsc EXIT0. 정적: 변경 +14/-2·보강분 외 변경 0·하드코딩 hex 0·lucide 단계 아이콘 유효.
+- 🖥️ PM 육안: 07 대비 각 스텝 헤더에 단계별 아이콘 + "1~5단계 ·" 표기 / 나머지(저장바·체크리스트·패널) 기존 동작 그대로. PR-3 전 배치(3-A~3-D) 완료.
+
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
 |------|------|------|
