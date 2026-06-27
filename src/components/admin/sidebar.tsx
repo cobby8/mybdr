@@ -73,6 +73,10 @@ export interface AdminNavItem {
   external?: boolean;
   // 외부 링크를 새 탭으로 열지 여부(external=true 일 때만 의미). 기본 false=현재 탭.
   openInNewTab?: boolean;
+  // M3 (대회관리자 셸): 정확 일치 활성화. 인덱스/대시보드 항목(예: /v2/tournament-admin)이
+  //   하위 라우트(/v2/tournament-admin/tournaments 등)에서도 startsWith 로 활성화되는 것을 막는다.
+  //   기존 navStructure 항목은 미설정 → 기존 startsWith 동작 그대로(레거시 0 영향).
+  exact?: boolean;
 }
 
 export interface AdminNavGroup {
@@ -256,6 +260,11 @@ interface AdminSidebarProps {
   home?: string; // 관리자 홈 라우트(brand + BackRow 홈 버튼). 미전달 시 "/admin"(기존 brand href 동일).
   isHome?: boolean; // isHome === false 일 때만 BackRow 렌더. 미전달=BackRow 미렌더.
   footAction?: ReactNode; // 푸터 추가 슬롯. 미전달 시 미렌더.
+  // M3 (대회관리자 셸) — 커스텀 네비/브랜드 부제. 전부 옵셔널·opt-in.
+  //   nav 전달 시 roles 기반 navStructure 대신 이 트리를 렌더(서브콘솔 전용 메뉴).
+  //   미전달 시 기존 filterStructureByRoles(roles) 렌더(레거시 0 영향).
+  nav?: AdminNavEntry[];
+  brandSub?: string; // 브랜드 로고 하단 부제(예: "대회 콘솔"). 미전달 시 미렌더.
 }
 
 // 이니셜 — 닉네임 우선, 없으면 이메일 첫 글자 (UserMenu/모바일 드로어와 동일 규칙)
@@ -279,8 +288,10 @@ function getRoleLabel(roles: AdminRole[]): string {
 // 메뉴 항목 1개 렌더링 (children 들여쓰기 포함)
 // PR-1 배치1: ts-navlink + data-active(Toss). 이전 community-aside(.aside__link) 패턴에서 전환.
 function renderItem(item: AdminNavItem, pathname: string, depth = 0) {
-  const isActive =
-    item.href === "/admin"
+  // M3 — exact 항목(대시보드 등 인덱스)은 정확 일치만 활성. 그 외는 기존 동작(/admin 특례 + startsWith).
+  const isActive = item.exact
+    ? pathname === item.href
+    : item.href === "/admin"
       ? pathname === "/admin"
       : pathname.startsWith(item.href);
   const indentStyle = depth > 0 ? { paddingLeft: 28 } : undefined;
@@ -355,11 +366,11 @@ export function AdminBackRow({ homeHref }: { homeHref: string }) {
   );
 }
 
-export function AdminSidebar({ roles, user, home, isHome, footAction }: AdminSidebarProps) {
+export function AdminSidebar({ roles, user, home, isHome, footAction, nav, brandSub }: AdminSidebarProps) {
   const pathname = usePathname();
 
-  // 유저 역할에 맞는 메뉴만 필터링 (그룹 구조)
-  const visibleStructure = filterStructureByRoles(roles);
+  // M3 — nav 가 전달되면(대회관리자 셸) 그 트리를 렌더, 아니면 기존 roles 필터(레거시 동일).
+  const visibleStructure = nav ?? filterStructureByRoles(roles);
 
   // 배치1.5 — 푸터 UserChip 표시값 (user 미전달 시 미렌더)
   const displayName = user ? user.nickname?.trim() || user.email.split("@")[0] : null;
@@ -383,6 +394,21 @@ export function AdminSidebar({ roles, user, home, isHome, footAction }: AdminSid
           Admin
         </span>
       </Link>
+
+      {/* M3 — 브랜드 부제(예: "대회 콘솔"). 미전달 시 미렌더(레거시 동일). 토큰 var(--*) 사용. */}
+      {brandSub && (
+        <div
+          style={{
+            padding: "2px 12px 10px",
+            fontSize: 12.5,
+            fontWeight: 700,
+            color: "var(--ink-mute)",
+            letterSpacing: "-0.01em",
+          }}
+        >
+          {brandSub}
+        </div>
+      )}
 
       {/* 내비게이션 메뉴 — 그룹화 + 스크롤 가능 (ts-sidebar__label 헤더 + ts-navlink 링크).
           flex-1 nav 에 overflow-y-auto 유지 — 메뉴 많아도 스크롤 (기존 동작 보존). */}

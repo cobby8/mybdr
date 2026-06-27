@@ -2,7 +2,8 @@ import { adminFetch } from "../client";
 import {
   TOURNAMENT_RAW_JSON_KEYS,
   type AdminTournamentDetail,
-  type AdminTournamentSummary,
+  type AdminTournamentListItem,
+  type AdminTournamentListResponse,
 } from "../types";
 
 /**
@@ -16,15 +17,21 @@ import {
  * Zod 미적용(전면 강제 금지 원칙) — 대회 스키마는 광범위해 고위험 신규필드(expenses)에만 검증 집중.
  */
 
-/** 대회 목록(공개 GET — status 필터 옵션). */
+/**
+ * 대회 목록(공개 GET — status 필터 옵션).
+ * ⚠️ route 응답은 `{ tournaments: [...] }` 래핑이라 adminFetch 가 객체를 반환 → 여기서 배열만 언래핑.
+ *   (직전 구현이 바로 배열로 받으려다 형상 불일치였던 것을 교정.)
+ * ⚠️ 데이터 범위: 공개 대회 + 뷰어(세션) 관계 비공개 대회(viewer-aware, take 60).
+ *   "내가 운영하는 대회"만 거르는 전용 HTTP 엔드포인트는 없음(레거시는 server Prisma) → M4 백엔드 확장 갭.
+ */
 export function listTournaments(
   params?: { status?: string },
   signal?: AbortSignal
-): Promise<AdminTournamentSummary[]> {
+): Promise<AdminTournamentListItem[]> {
   const query = params?.status ? `?status=${encodeURIComponent(params.status)}` : "";
-  return adminFetch<AdminTournamentSummary[]>(`/api/web/tournaments${query}`, {
+  return adminFetch<AdminTournamentListResponse>(`/api/web/tournaments${query}`, {
     signal,
-  });
+  }).then((res) => res.tournaments ?? []);
 }
 
 /** 대회 상세 — jsonb 키 raw 보존(rawJsonKeys). */

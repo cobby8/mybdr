@@ -20,5 +20,7 @@ export * from "./schemas";
 
 export * as tournamentsApi from "./endpoints/tournaments";
 export * as expensesApi from "./endpoints/expenses";
+export * as organizationsApi from "./endpoints/organizations";
+export * as seriesApi from "./endpoints/series";
 
 export { useAdminQuery } from "./use-admin-query";

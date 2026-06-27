@@ -27,6 +27,8 @@ interface Props {
   home?: string; // 관리자 홈 라우트(brand + BackRow 홈). 미전달 시 "/admin".
   isHome?: boolean; // isHome === false 일 때만 드로어 BackRow 렌더.
   footAction?: ReactNode; // 드로어 푸터 추가 슬롯.
+  // M3 (대회관리자 셸) — 커스텀 네비. 전달 시 roles/scope 대신 이 트리를 드로어에 렌더(opt-in).
+  nav?: AdminNavEntry[];
 }
 
 function getInitial(nickname: string | null, email: string): string {
@@ -51,8 +53,12 @@ function getActiveTitle(structure: AdminNavEntry[], pathname: string): string {
   let best = "";
   let bestLen = -1;
   const consider = (item: AdminNavItem) => {
-    const matched =
-      item.href === "/admin" ? pathname === "/admin" : pathname.startsWith(item.href);
+    // M3 — exact 항목은 정확 일치만(인덱스/대시보드), 그 외 기존 동작.
+    const matched = item.exact
+      ? pathname === item.href
+      : item.href === "/admin"
+        ? pathname === "/admin"
+        : pathname.startsWith(item.href);
     if (matched && item.href.length > bestLen) {
       best = item.label;
       bestLen = item.href.length;
@@ -97,8 +103,11 @@ function renderMobileItem(
   closeFn: () => void,
   isChild = false,
 ) {
-  const isActive =
-    item.href === "/admin" ? pathname === "/admin" : pathname.startsWith(item.href);
+  const isActive = item.exact
+    ? pathname === item.href
+    : item.href === "/admin"
+      ? pathname === "/admin"
+      : pathname.startsWith(item.href);
 
   // M2.5 (v46 흡수) — 외부 콘솔 링크: <Link> 대신 <a target> + arrow-up-right. 기존 navStructure 항목은 미설정.
   if (item.external) {
@@ -142,7 +151,7 @@ function renderMobileItem(
   );
 }
 
-export function AdminMobileNav({ roles, scope = "default", user, home, isHome, footAction }: Props) {
+export function AdminMobileNav({ roles, scope = "default", user, home, isHome, footAction, nav }: Props) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
   const close = () => setOpen(false);
@@ -152,8 +161,12 @@ export function AdminMobileNav({ roles, scope = "default", user, home, isHome, f
   const displayName = user ? user.nickname?.trim() || user.email.split("@")[0] : null;
   const initial = user ? getInitial(user.nickname, user.email) : null;
   const roleLabel = getRoleLabel(roles);
-  const visibleStructure =
-    scope === "tournament" ? getTournamentMobileStructure() : filterStructureByRoles(roles);
+  // M3 — nav 전달 시 그 트리 우선(대회관리자 셸), 아니면 기존 scope/roles 분기(레거시 동일).
+  const visibleStructure = nav
+    ? nav
+    : scope === "tournament"
+      ? getTournamentMobileStructure()
+      : filterStructureByRoles(roles);
   // ts-topbar 활성 탭 제목 (모바일 상단바)
   const activeTitle = getActiveTitle(visibleStructure, pathname);
 

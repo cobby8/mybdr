@@ -97,3 +97,75 @@ export type CreateExpenseInput = {
 export type DeleteResult = {
   deleted: boolean;
 };
+
+// ─────────────────────────────────────────────────────────────────────────
+// M3 파일럿(대회관리자 셸) 데이터 배선용 타입
+//   각 타입은 실제 HTTP 라우트 응답(snake)을 adminFetch 가 camel 로 변환한 형상과 1:1.
+//   레거시 화면이 이미 쓰는 그 source(진실)를 그대로 타입화 — 추측 없음.
+// ─────────────────────────────────────────────────────────────────────────
+
+/**
+ * 대회 목록 1행 — GET /api/web/tournaments 의 `tournaments[]` 항목.
+ * ⚠️ route 가 `apiSuccess({ tournaments })` 로 래핑 → 응답 형상은 { tournaments: [...] }.
+ *   (AdminTournamentSummary 와 별개: 그쪽은 상세(getTournament)용. 목록은 teamCount/venueName 등 다른 셋.)
+ */
+export type AdminTournamentListItem = {
+  id: string;
+  name: string | null;
+  format: string | null;
+  status: string | null;
+  startDate: string | null; // ISO
+  endDate: string | null;   // ISO
+  entryFee: string | null;  // Decimal → string
+  city: string | null;
+  venueName: string | null;
+  maxTeams: number | null;
+  divisions: unknown;       // jsonb 배열
+  categories: unknown;      // jsonb 객체
+  divisionTiers: unknown;   // jsonb 배열
+  teamCount: number | null; // _count.tournamentTeams
+};
+
+/** GET /api/web/tournaments 래핑 응답. */
+export type AdminTournamentListResponse = {
+  tournaments: AdminTournamentListItem[];
+};
+
+/**
+ * 단체 1건 — GET /api/web/organizations 의 `organizations[]` 항목.
+ * route 는 내가 멤버인 단체만 반환(scoped). myRole = owner/admin/member.
+ */
+export type AdminOrganizationSummary = {
+  id: string;
+  uuid: string | null;
+  name: string;
+  slug: string;
+  logoUrl: string | null;
+  region: string | null;
+  status: string | null;     // approved/pending/archived
+  seriesCount: number | null;
+  myRole: string | null;     // owner/admin/member
+  createdAt: string | null;  // ISO
+};
+
+/** GET /api/web/organizations 래핑 응답. */
+export type AdminOrganizationsResponse = {
+  organizations: AdminOrganizationSummary[];
+};
+
+/**
+ * 정규대회(시리즈) 1건 — GET /api/web/series/my 의 `data[]` 항목.
+ * route 는 본인 소유 + active 시리즈만 반환(scoped·드롭다운용 최소 필드).
+ * ⚠️ cadence/회차/다음 회차는 본 route 에 없음(레거시 series 목록은 Prisma 직접 조회로 추가 필드 사용).
+ *   → 파일럿은 name + 단체만 실배선, 나머지는 미배선(갭) 처리.
+ */
+export type AdminSeriesSummary = {
+  id: string;
+  name: string;
+  organization: { id: string; name: string; slug: string } | null;
+};
+
+/** GET /api/web/series/my 래핑 응답. */
+export type AdminSeriesResponse = {
+  data: AdminSeriesSummary[];
+};

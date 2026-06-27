@@ -8,6 +8,9 @@ import { buildLoginRedirect } from "@/lib/auth/redirect";
 import { ToastProvider } from "@/contexts/toast-context";
 import { AdminShell } from "@/components/admin/admin-shell";
 import type { AdminRole } from "@/components/admin/sidebar";
+// M3 — 대회관리자 콘솔 네비(5메뉴) + 홈 경로.
+import { TA_CONSOLE_NAV, TA_CONSOLE_HOME } from "@/components/admin-v2/ta-console-nav";
+import { Icon } from "@/components/admin-toss";
 
 /**
  * (admin-v2) 그린필드 셸 레이아웃 — `/v2/*` 전 페이지 wrap.
@@ -73,7 +76,9 @@ export default async function AdminV2Layout({
 
   return (
     <ToastProvider>
-      {/* AdminShell 루트가 data-skin="toss" + 사이드바(UserChip/로그아웃)/모바일 드로어 제공 */}
+      {/* AdminShell 루트가 data-skin="toss" + 사이드바(UserChip/로그아웃)/모바일 드로어 제공.
+          M3 — 대회관리자 콘솔: 커스텀 nav(5메뉴) + brandSub + 홈 + footAction("내 공개 사이트").
+          nav 전달 → roles 기반 navStructure 대신 콘솔 5메뉴 렌더(M2.5 opt-in 패턴). */}
       <AdminShell
         roles={roles}
         user={{
@@ -81,6 +86,22 @@ export default async function AdminV2Layout({
           email: dbUser?.email ?? session.email,
         }}
         hideHeader
+        nav={TA_CONSOLE_NAV}
+        brandSub="대회 콘솔"
+        home={TA_CONSOLE_HOME}
+        footAction={
+          // 내 공개 사이트 열기 — 외부 링크만(PR-5 공개사이트 별도 트랙). 새 탭.
+          <a
+            href="/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="ts-cancelbtn"
+            style={{ textDecoration: "none" }}
+          >
+            <Icon name="globe" size={16} />
+            <span>내 공개 사이트 열기</span>
+          </a>
+        }
       >
         {children}
       </AdminShell>

@@ -5112,3 +5112,22 @@
 [data-skin="toss"] .ad-bar__col { width: 100%; max-width: 38px; border-radius: 8px 8px 0 0; background: var(--primary); transition: height .3s; }
 [data-skin="toss"] .ad-bar__col[data-soft="true"] { background: var(--primary-weak); }
 [data-skin="toss"] .ad-bar__lbl { font-size: 11.5px; color: var(--ink-mute); font-weight: 600; }
+
+/* ── M3 (대회관리자 셸) — 카드 그리드 / 2열 레이아웃 ──────────────────────
+   정본 Dev/design/BDR v2.41-admin-toss/admin-pages.css 의 ad-cols/ad-cardgrid/ad-card* 를
+   [data-skin="toss"] 스코프로 append. 단체·주최(카드) / 대시보드 2열에서 사용.
+   하드코딩 hex → 토큰화: #fff→var(--card), rgba(0,0,0,0.03)→var(--border). 기존 ad-* 룰 0 수정. */
+[data-skin="toss"] .ad-cols { display: grid; grid-template-columns: 1.6fr 1fr; gap: 20px; align-items: start; }
+@media (max-width: 900px) { [data-skin="toss"] .ad-cols { grid-template-columns: 1fr; } }
+[data-skin="toss"] .ad-cardgrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+@media (max-width: 900px) { [data-skin="toss"] .ad-cardgrid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 600px) { [data-skin="toss"] .ad-cardgrid { grid-template-columns: 1fr; } }
+[data-skin="toss"] .ad-card { background: var(--card); border-radius: 18px; padding: 20px; box-shadow: var(--sh-sm); border: 1px solid var(--border); display: flex; flex-direction: column; gap: 12px; min-width: 0; transition: box-shadow .15s, transform .1s; }
+[data-skin="toss"] .ad-card__head { display: flex; align-items: flex-start; gap: 12px; }
+[data-skin="toss"] .ad-card__logo { width: 48px; height: 48px; border-radius: 14px; display: grid; place-items: center; font-size: 16px; font-weight: 800; color: #fff; flex: 0 0 auto; }
+[data-skin="toss"] .ad-card__title { font-size: 16px; font-weight: 700; color: var(--ink); letter-spacing: -0.02em; min-width: 0; }
+[data-skin="toss"] .ad-card__sub { font-size: 13px; color: var(--ink-mute); margin-top: 2px; }
+[data-skin="toss"] .ad-card__stats { display: flex; gap: 18px; padding-top: 12px; border-top: 1px solid var(--border); }
+[data-skin="toss"] .ad-card__stat-v { font-size: 18px; font-weight: 800; color: var(--ink); }
+[data-skin="toss"] .ad-card__stat-l { font-size: 12px; color: var(--ink-mute); margin-top: 2px; white-space: nowrap; }
+[data-skin="toss"] .ad-card__foot { display: flex; gap: 8px; }
