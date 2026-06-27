@@ -6,7 +6,7 @@
 - **요청**: 관리자 영역 Toss 시안 박제 (admin-toss v2.41 정본). 단계 PR(PR-0~PR-5).
 - **기준 패키지**: `Dev/design/BDR v2.41-admin-toss/` + 계약문서 `_PR0-CONTRACT-CONFIRMED.md`(PR-1~5 단일 참조점).
 - **상태**: PR-0✅·PR-1✅완료. **PR-2 시각 박제 사실상 완료** — 진단결과 전 패널(참가팀/셸/대진표/사이트/운영진/기록원) **이미 Toss 정합·superset·변경0**(최근 972b3da·4fe38a0·847a1b5·9040ff1로 정합완료). **남은 건 UI 아닌 기능 4건**(아래). 신규필드 필요 패널 0(대진 seed/사이트 publishedSections/운영진 invite 전부 기존 처리).
-- **PR-2 잔여 = 기능 연결(결정 필요)**: ①일정 탭 SchedulePanel(정본 배정/드래그) vs 현행 MatchesPanel — 탭 정의 결정 ②정산 지출 `tournament_expense` 신규테이블 ③운영관리 정규대회 series 연결 칩(배치 vs 생략) ④운영관리 공지 저장 API(placeholder→실연결). 전부 데이터/API/마이그 영역=UI 리스킨 범위 밖.
+- **PR-2 잔여 기능4건 — 전부 진행 결정(2026-06-27)**: ①일정 탭=**정본 SchedulePanel로 교체**(기존 MatchesPanel 경기운영 재배치 설계 필요) ②정산 지출 `tournament_expense` 신규테이블(schema diff 승인 게이트) ③운영관리 공지 저장 API ④series 연결 칩. 전부 데이터/API/마이그=UI 범위 밖 → planner 정밀설계 먼저(코드0).
 - **PR-2 배치 분해**: 2-1 참가팀(파일럿·최저위험·신규필드0)→2-2 셸/요약→2-3 운영관리→2-4 대진표→2-5 **일정(SchedulePanel 신규+마이그)**→2-6 사이트→2-7 **정산(tournament_expense 신규테이블)**. 위험 신규/마이그(2-5·2-7) 뒤로·schema diff 게이트.
 - **⚠️ PR-2 미결정(2-5에서)**: 일정 탭 충돌 — 정본 일정=SchedulePanel(배정/드래그) vs 운영 일정=MatchesPanel(경기운영). 교체/둘다/현행 중 택. 정본 6메뉴엔 matches 독립메뉴 없음.
 - **🔄 v2.45 재베이스라이닝(2026-06-27)**: 새 zip `BDR v2 (45)` → 정본 교체(design_handoff_admin → `Dev/design/BDR v2.41-admin-toss/`, 직전본 `_archive/...-pre45/`). **START-HERE·IMPLEMENTATION-PROMPT·screenshots 17장(시각 정본) 반입** → §1 치환표 폐기. 폐기 38팀 site-* 제거. 정본 교체 커밋 = design(sync). 계약문서 §v2.45 갱신.
