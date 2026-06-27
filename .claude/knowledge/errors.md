@@ -2,6 +2,27 @@
 <!-- 담당: debugger, tester | 최대 30항목 -->
 <!-- 이 프로젝트에서 반복되는 에러 패턴, 함정, 주의사항을 기록 -->
 
+### [2026-06-27] 일정 탭 스케줄러 전멸 = `match.scheduledAt`(camel) 읽기 → 항상 undefined (snake 함정 8회차 / 3-C 오진)
+- **분류**: 함정 (apiSuccess snake↔camel / 프론트 접근자 / 사일런트 렌더 전멸)
+- **발견자**: debugger (PR-2 일정 탭 "코트·휴식·자동/직접배치·드래그 전부 안 보임" 조사)
+- **증상**: `/tournament-admin/tournaments/[id]` 일정 탭에서 ①드래그 일정 생성 안 됨 ②날짜별 코트 안 보임 ③휴식 버튼 안 보임 ④자동/직접 배치 눌러도 안 보임 — **4건 동시**. tsc EXIT0·런타임 throw 없음(사일런트).
+- **오진 경계(중요)**: PM/사용자 1순위 가설 = 직전 커밋 `cabbef4`(3-C 휴식 보강)가 스케줄러를 깸. **실제로는 3-C 무관**. `buildGroupRows`(3-C)는 `scheduledGroups.length>0` 일 때만 호출되는데, 진짜 원인 때문에 `scheduledGroups`가 **항상 빈 배열** → 3-C 코드는 한 번도 실행되지 않음(완전 inert). 휴식0개 시 byte-identical도 코드추적으로 확인. **직전 커밋 = 범인 추정은 호출조건부터 검증**.
+- **진짜 원인**: `matches-panel.tsx`가 `/api/web/.../matches`(=`apiSuccess`→`convertKeysToSnakeCase` 재귀 snake) 응답을 `readJson`(무변환)으로 받는데, Prisma **camelCase 필드**(`scheduledAt`/`roundName`/`homeTeam`/`awayTeam`)는 응답에서 `scheduled_at`/`round_name`/`home_team`/`away_team`이 됨. 그런데 패널은 `match.scheduledAt`(camel)로 읽음 → 항상 `undefined` → `if(!match.scheduledAt) continue`로 **모든 경기가 미배치 처리** → `scheduledGroups` 영구 빈 배열 → "아직 배치된 일정이 없습니다" 빈 박스만 표시. 배치(PATCH는 정상 저장)해도 reload 후 같은 키로 못 읽어 안 보임. 같은 타입 안에서 `round_number/venue_name/court_number`(Prisma가 이미 snake 필드)만 맞게 적혀 있어 **혼재로 발견 지연**.
+- **해결**: 패널의 **읽기 접근자만** snake로 정정(데이터/API/PATCH 요청 바디는 보존) — 타입 `scheduledAt→scheduled_at`·`roundName→round_name`·`homeTeam/awayTeam→home_team/away_team`, 접근자 일괄 치환, `settings` jsonb 슬롯키도 `homeSlotLabel→home_slot_label`. PATCH body 키 `scheduledAt`는 route가 camel로 읽으므로 **그대로 유지**.
+- **예방**: (a) `apiSuccess` 경유 응답을 읽는 프론트는 **Prisma camel 필드(scheduledAt/homeTeam/roundName 등)가 snake로 바뀐다**는 전제로 접근자 작성 — 신규 필드 추가 전 `curl`로 raw 응답 1회 확인(CLAUDE.md 보안 §재발). (b) 한 타입에 snake/camel 혼재 시 **camel 쪽이 런타임 undefined 후보** — 의심하면 그 필드만 읽는 화면이 통째로 빈다. (c) **tsc 통과 ≠ 런타임 정상** — 잘못된 키 접근은 타입상 합법(타입이 같이 틀려서)이라 사일런트. (d) "직전 커밋이 깼다" 신고도 **그 커밋 코드의 실행 조건(호출 여부)부터** 확인 — inert면 무죄.
+- **참조횟수**: 0
+
+### [2026-06-27] ★ tsc --noEmit 통과해도 `next build`가 Zod 3 문법(`invalid_type_error`)을 reject → 빌드 실패 = PR 미배포 (정산 지출/휴식 "안 보임" 진짜 원인)
+- **분류**: error (Zod 3→4 마이그레이션 잔재 / tsc ≠ next build / 배포 차단)
+- **발견자**: debugger + PM (PR-2 3-D 정산 "지출 추가 안 됨" 조사 중 Vercel 빌드 로그로 확정)
+- **증상**: 프리뷰에서 정산 지출 추가·휴식 등 PR-2 신규 기능이 **전부 "안 보임"**. 코드/DB/가드 다 정상인데 동작 안 함.
+- **진짜 근본 원인**: `expenses/route.ts` + `expenses/[expenseId]/route.ts` 의 `z.number({ invalid_type_error: "..." })` = **Zod 3 문법**. 이 프로젝트는 **Zod 4.3.6** — `invalid_type_error`/`required_error` 옵션 제거됨(`z.number(...)` 파라미터 타입은 `{ error?, message? }`). Vercel `next build` 타입체크가 `Type error: 'invalid_type_error' does not exist in type ...` 로 **빌드 실패** → PR-2 가 프리뷰에 **한 번도 배포 안 됨**. 그래서 "지출/휴식 안 보임"은 런타임 버그가 아니라 **배포 부재**.
+- **★ tsc 함정**: `npx tsc --noEmit` 는 **통과**했는데(EXIT0) `next build` 는 실패. 같은 TS 에러를 로컬 tsc 가 못/안 잡는 케이스 존재(설정·incremental 캐시·overload 해석 차이). **tsc EXIT0 ≠ 배포 안전.** 신규 PR 은 빌드 타입체크(또는 Vercel preview)까지 확인해야 함.
+- **해결**: 두 라우트 모두 `z.number({ invalid_type_error: "..." })` → **`z.number()`** (옵션 객체 제거, 프로젝트 실제 패턴 = `score-sheet/submit/route.ts` 등 전부 옵션 없는 `z.number().int().min()`). `.int("금액은 정수여야 합니다.")`·`.positive("금액은 0보다 커야 합니다.")` 문자열 메시지는 **Zod 4 에서 유효**(빌드도 이 둘은 통과)라 보존. 검증 의미(양의 정수·필수) 그대로. 런타임 self-check: valid 통과 / 빈label+소수amount 거절 / 음수 메시지 정확.
+- **예방**: (a) **Zod 3→4 잔재 grep**: `invalid_type_error`/`required_error` = 0 이어야 함(현재 0 확인). 신규 스키마는 `z.number({ error: "..." })`(Zod4) 또는 옵션 없는 `z.number()` 사용. (b) **tsc --noEmit 통과만으로 커밋/배포 단정 금지** — 적어도 핵심 신규 파일은 빌드 타입체크 흉내(스키마 런타임 parse + 타입 정합) 또는 Vercel preview 빌드 확인. (c) "프리뷰에서 신규 기능 통째 안 보임" = **런타임 디버깅 전에 빌드 성공/배포 여부부터** 확인(빌드 실패면 코드 추적은 전부 헛수고). (d) errors [2026-05-31] CSS `*/` Turbopack 빌드실패와 동류 = tsc 못 잡는 빌드 차단 클래스.
+- **(부수 개선) 모달 실패 가시화**: `settlement-panel.tsx` 지출 추가 POST 실패 시 패널 **상단** error 박스만 세팅 → 모달 오버레이가 가려 "무반응" 오인 + 서버 사유 미캡처. 모달 전용 `submitError` state 추가해 `res.json().error`(없으면 `오류 {status}`)를 **모달 본문 내 `amt-errorbox`에 표출**(열기/재시도 시 초기화). 이제 빌드 정상화 후에도 401/403/500 등 실제 사유가 화면에 보임. 룰: **모달 제출 실패는 모달 내부에 렌더 + 빈 `throw new Error()` 금지(서버 error/status 캡처)**.
+- **참조횟수**: 0
+
 ### [2026-06-22] apiSuccess snake 변환은 jsonb 내부·동적 키까지 재귀 → 중첩 map 통째로 망가짐 (snake 함정 7회차)
 - **분류**: 함정 (apiSuccess snake↔camel / jsonb 중첩 / 동적 키)
 - **발견자**: reviewer + tester (생성폼 F-2b 디비전 일정 표시)

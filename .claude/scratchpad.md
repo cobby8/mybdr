@@ -40,9 +40,13 @@
 - **KO Sprint2 (group_cross 자동등록)** — Sprint1로 사고 영구차단됨(편의 기능).
 - **IA1 발행 알림 실발송** — createNotification 연동(현재 UI 체크박스만).
 
-## 수정 요청 (미해결 minor·동작영향 경미·전부 비차단)
+## 수정 요청
 | 대상 | 문제 | 상태 |
 |------|------|------|
+| 🔴→✅ **빌드 실패**(expenses Zod) | `next build` 타입체크가 Zod3 `z.number({invalid_type_error})` reject(이 프로젝트 Zod4.3.6) → **PR-2 전체 프리뷰 미배포**(7daba99·715f7b2 ERROR). **이게 휴식/지출 "안보임" 진짜 원인**. ✅해결: 옵션 제거(프로젝트 패턴 `z.number().int().min()`). tsc EXIT0 |
+| 🔴→✅ **일정 비어보임**(matches-panel snake) | API는 snake(`scheduled_at`/`home_team`/`round_name`)인데 패널이 camel(`scheduledAt`) 읽음→전 경기 "미배치"→코트/휴식/배치 안보임(snake함정 8회). 3-C는 무죄(inert). ✅해결: 읽기 접근자 snake 교정(PATCH body는 camel 유지) |
+| 정산 모달 에러가시화 | POST 실패가 모달에 가려 "무반응"으로 보임 → 모달내 사유표시 보강(부수개선) | ✅ |
+| (이하 기존 minor·비차단) | | |
 | scrim PATCH 가드 | 수락/거절 captain only(vice/manager 없음)→isCaptain 헬퍼 통일 검토 | 후속 |
 | apply-panel.tsx L510/L536 | 승인/거절 배지 raw rgba 하드코딩(룰10 경미)→color-mix 교체 권장·시각영향0 | 후속 |
 | tournament-completed-bracket.tsx L274 | 조내 정렬 승수만(gnba 미세순위차) | 후속 |
@@ -69,6 +73,7 @@
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
 |------|------|------|
+| 2026-06-27 | **PR-2 프리뷰 QA 버그 2건 수정 (되돌림 루프)** | ✅ ①빌드실패: expenses Zod3 `invalid_type_error`→Zod4(옵션 제거)·PR-2 전체 미배포 원인. ②일정 비어보임: matches-panel camel→snake 읽기 교정(snake함정8회·3-C 무죄). +정산 모달 에러가시화. **tsc EXIT0 직접확인**(3-D dev의 EXIT0은 캐시 오판이었음). errors.md 박제. push→프리뷰 빌드 SUCCESS 확인 필요. |
 | 2026-06-27 | **admin-toss PR-2 3-D 정산 지출 + PR-2 완료** | ✅ `tournament_expenses` 신규테이블(tournament_id **uuid** FK 교정·amount Int·Cascade) db push 운영반영(무중단 CREATE·8컬럼0행·insert/delete 롤백검증). expenses API(GET/POST/PATCH/DELETE·requireTournamentAdmin·IDOR). settlement-panel 지출/잔액(입금−지출) KPI+모달, 기존 입금로직0접촉. tsc EXIT0. ⚠️로컬 Prisma 재생성 EPERM(dev서버 잠금·미킬)→런타임 프리뷰 검증. **PR-2 완료**. |
 | 2026-06-27 | **admin-toss PR-2 기능 3-A·3-B·3-C (마이그0)** | ✅ 3-A 공지저장(settings.notice·e1a98e2) / 3-B series 읽기칩+위임링크(ops-panel+tournament.ts include 1줄·31cdd79) / 3-C 일정 휴식삽입(matches-panel 클라오버레이·DB0·정본동일). 전부 tsc EXIT0·하드코딩hex0·기존로직0접촉·snake 함정 회피(notice/series_id 단어키). 잔여=3-D 지출(승인됨). |
 | 2026-06-27 | **admin-toss PR-2 파일럿 2-1 참가팀 정합** | ✅ **이미 정합·코드 변경 0**. 운영 teams-panel이 정본 TeamsPanel의 superset(납부/종별이동/로스터/토큰재발급 등 운영 우위)·최근 9040ff1로 정합완료. tsc EXIT0·하드코딩hex0·tt-*/amt-* CSS 실존·git diff 0줄. §5 #5 보존(apply_token·TournamentTeamPlayer 기존). 검증패널 일괄진단 착수. |

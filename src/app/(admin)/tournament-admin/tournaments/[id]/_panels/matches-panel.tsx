@@ -24,20 +24,23 @@ type TeamInfo = {
 
 type Match = {
   id: string;
-  roundName: string | null;
+  // ⚠️ API 응답은 apiSuccess→convertKeysToSnakeCase 로 전부 snake_case.
+  // Prisma 의 camelCase 필드(scheduledAt/roundName/homeTeam 등)는 응답에서 snake_case 로 바뀜.
+  // 따라서 프론트 접근자도 snake_case 여야 함 (CLAUDE.md 보안 §"프론트 접근자도 snake_case").
+  round_name: string | null;
   round_number: number | null;
   bracket_position: number | null;
   match_number: number | null;
-  scheduledAt: string | null;
+  scheduled_at: string | null;
   venue_name: string | null;
   court_number: string | null;
-  homeTeamId: string | null;
-  awayTeamId: string | null;
-  homeScore: number;
-  awayScore: number;
+  home_team_id: string | null;
+  away_team_id: string | null;
+  home_score: number;
+  away_score: number;
   status: string;
-  homeTeam: TeamInfo | null;
-  awayTeam: TeamInfo | null;
+  home_team: TeamInfo | null;
+  away_team: TeamInfo | null;
   settings: Record<string, unknown> | null;
 };
 
@@ -266,10 +269,10 @@ function buildGroupRows(
       let baseTime: string;
       if (i < matchCount) {
         // 다음 경기의 원래 시작 시간이 휴식의 기준 시각
-        baseTime = formatKstTime(group.matches[i].scheduledAt);
+        baseTime = formatKstTime(group.matches[i].scheduled_at);
       } else {
         // 맨 끝 휴식 — 마지막 경기 종료 시각(시작 + 경기 시간)을 기준으로
-        const lastTime = formatKstTime(lastMatch?.scheduledAt ?? null);
+        const lastTime = formatKstTime(lastMatch?.scheduled_at ?? null);
         const dur = lastMatch ? durations[getDivisionCode(lastMatch)] ?? 40 : 40;
         baseTime = lastTime === "미정" ? "미정" : addMinutesToTime(lastTime, dur);
       }
@@ -279,7 +282,7 @@ function buildGroupRows(
     }
     if (i < matchCount) {
       const match = group.matches[i];
-      const base = formatKstTime(match.scheduledAt);
+      const base = formatKstTime(match.scheduled_at);
       const time = base === "미정" || extra === 0 ? base : addMinutesToTime(base, extra);
       rows.push({ kind: "match", match, seq: i + 1, time });
     }
@@ -288,17 +291,18 @@ function buildGroupRows(
 }
 
 function stageLabel(match: Match) {
-  const raw = `${match.roundName ?? ""} ${textFrom(match.settings?.stage) ?? ""}`.toLowerCase();
+  const raw = `${match.round_name ?? ""} ${textFrom(match.settings?.stage) ?? ""}`.toLowerCase();
   if (raw.includes("group") || raw.includes("조별") || raw.includes("예선")) return "예선";
   if (raw.includes("dual") || raw.includes("듀얼")) return "듀얼";
   if (raw.includes("knockout") || raw.includes("본선") || raw.includes("결승")) return "토너먼트";
-  return match.roundName ?? "경기";
+  return match.round_name ?? "경기";
 }
 
 function slotOrTeam(match: Match, side: "home" | "away", showResolvedName: boolean) {
-  const team = side === "home" ? match.homeTeam?.team.name : match.awayTeam?.team.name;
+  const team = side === "home" ? match.home_team?.team.name : match.away_team?.team.name;
   if (showResolvedName && team) return team;
-  const slot = textFrom(match.settings?.[side === "home" ? "homeSlotLabel" : "awaySlotLabel"]);
+  // settings JSON 도 convertKeysToSnakeCase 로 키가 snake_case 가 됨 → home_slot_label
+  const slot = textFrom(match.settings?.[side === "home" ? "home_slot_label" : "away_slot_label"]);
   return slot ?? team ?? "미정";
 }
 
@@ -389,8 +393,8 @@ export default function MatchesPanel({ tournamentId }: Props) {
   const scheduledGroups = useMemo<ScheduledGroup[]>(() => {
     const groups = new Map<string, ScheduledGroup>();
     for (const match of matches) {
-      if (!match.scheduledAt) continue;
-      const date = formatKstDate(match.scheduledAt) ?? "날짜 미정";
+      if (!match.scheduled_at) continue;
+      const date = formatKstDate(match.scheduled_at) ?? "날짜 미정";
       const venueName = match.venue_name ?? "체육관 미정";
       const courtNumber = match.court_number ?? "코트 미정";
       const key = `${date}|${venueName}|${courtNumber}`;
@@ -413,14 +417,14 @@ export default function MatchesPanel({ tournamentId }: Props) {
       .map((group) => ({
         ...group,
         matches: group.matches.sort((a, b) =>
-          new Date(a.scheduledAt ?? 0).getTime() - new Date(b.scheduledAt ?? 0).getTime(),
+          new Date(a.scheduled_at ?? 0).getTime() - new Date(b.scheduled_at ?? 0).getTime(),
         ),
       }))
       .sort((a, b) => a.key.localeCompare(b.key));
   }, [lanes, matches]);
 
   const unscheduledMatches = useMemo(
-    () => matches.filter((match) => !match.scheduledAt).sort(sortMatchesForSchedule),
+    () => matches.filter((match) => !match.scheduled_at).sort(sortMatchesForSchedule),
     [matches],
   );
   const totalCount = matches.length;
@@ -452,7 +456,7 @@ export default function MatchesPanel({ tournamentId }: Props) {
       return;
     }
     const targets = matches
-      .filter((match) => overwrite || !match.scheduledAt)
+      .filter((match) => overwrite || !match.scheduled_at)
       .sort(sortMatchesForSchedule);
     if (targets.length === 0) {
       setToast({ tone: "ok", text: "미배치 경기가 없습니다." });
@@ -508,8 +512,8 @@ export default function MatchesPanel({ tournamentId }: Props) {
     reordered.splice(toIndex, 0, moved);
 
     const first = group.matches[0];
-    const date = formatKstDate(first?.scheduledAt ?? null) ?? group.lane?.date;
-    const startTime = formatKstTime(first?.scheduledAt ?? null);
+    const date = formatKstDate(first?.scheduled_at ?? null) ?? group.lane?.date;
+    const startTime = formatKstTime(first?.scheduled_at ?? null);
     if (!date || startTime === "미정") return;
 
     setSaving(true);

@@ -13,7 +13,7 @@ type Ctx = { params: Promise<{ id: string; expenseId: string }> };
 const updateExpenseSchema = z.object({
   label: z.string().trim().min(1, "항목명을 입력하세요.").max(100).optional(),
   amount: z
-    .number({ invalid_type_error: "금액은 숫자여야 합니다." })
+    .number()
     .int("금액은 정수여야 합니다.")
     .positive("금액은 0보다 커야 합니다.")
     .optional(),

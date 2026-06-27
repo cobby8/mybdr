@@ -121,6 +121,8 @@ export default function SettlementPanel({ tournamentId }: { tournamentId: string
   const [addOpen, setAddOpen] = useState(false);
   const [draft, setDraft] = useState<ExpenseDraft>(EMPTY_EXPENSE);
   const [submitting, setSubmitting] = useState(false);
+  // 모달 내부 전용 실패 사유 — 패널 상단 error 박스는 모달 오버레이에 가려 안 보임.
+  const [submitError, setSubmitError] = useState("");
   const tossConfirm = useTossConfirm();
 
   const load = useCallback(async () => {
@@ -157,6 +159,7 @@ export default function SettlementPanel({ tournamentId }: { tournamentId: string
     const amountNum = Number(draft.amount);
     if (!draft.label.trim() || !Number.isFinite(amountNum) || amountNum <= 0) return;
     setSubmitting(true);
+    setSubmitError("");
     try {
       const res = await fetch(`/api/web/tournaments/${tournamentId}/expenses`, {
         method: "POST",
@@ -168,12 +171,16 @@ export default function SettlementPanel({ tournamentId }: { tournamentId: string
           memo: draft.memo.trim() || null,
         }),
       });
-      if (!res.ok) throw new Error();
+      // 실패 시 서버 사유(권한/검증/상태코드)를 모달 안에 그대로 노출 → "무반응" 오인 방지.
+      if (!res.ok) {
+        const data = (await res.json().catch(() => null)) as { error?: string } | null;
+        throw new Error(data?.error || `지출 추가에 실패했습니다. (오류 ${res.status})`);
+      }
       setDraft(EMPTY_EXPENSE);
       setAddOpen(false);
       await load();
-    } catch {
-      setError("지출 추가에 실패했습니다.");
+    } catch (e) {
+      setSubmitError(e instanceof Error ? e.message : "지출 추가에 실패했습니다.");
     } finally {
       setSubmitting(false);
     }
@@ -353,7 +360,14 @@ export default function SettlementPanel({ tournamentId }: { tournamentId: string
             <h3>지출 내역 ({expenses.length}건 · {money(expenseTotal)})</h3>
             <p>대회 운영 지출을 기록합니다. 잔액 = 입금 합계 − 지출 합계.</p>
           </div>
-          <Btn size="sm" icon="plus" onClick={() => setAddOpen(true)}>
+          <Btn
+            size="sm"
+            icon="plus"
+            onClick={() => {
+              setSubmitError("");
+              setAddOpen(true);
+            }}
+          >
             지출 추가
           </Btn>
         </div>
@@ -423,6 +437,7 @@ export default function SettlementPanel({ tournamentId }: { tournamentId: string
           }
         >
           <div className="space-y-3">
+            {submitError && <div className="amt-errorbox">{submitError}</div>}
             <label className="ts-field block">
               <span className="ts-field__label">항목명</span>
               <input
