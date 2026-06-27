@@ -5064,3 +5064,35 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* ===================================================================
+   admin-v2 blocks (admin-blocks.jsx 박제 — 2026-06-27 M2 토대셋)
+   정본 admin-pages.css 의 AdBarPanel/AdListPanel/SchemaList status·avatar
+   셀 룰을 [data-skin="toss"] 스코프로 추가. 기존 ad-* 셀 룰(ad-cell-strong/
+   sub/mono/muted/rowact/iconbtn/toolbar/search/table)과 중복 없음.
+   정본 #fff/rgba 는 기존 toss 패턴(var(--card)/var(--border))으로 맞춤(하드코딩 hex 0).
+   =================================================================== */
+[data-skin="toss"] .ad-cell-flex { display: flex; align-items: center; gap: 10px; min-width: 0; }
+[data-skin="toss"] .ad-avatar-sm { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; font-size: 13px; font-weight: 800; color: #fff; flex: 0 0 auto; }
+[data-skin="toss"] .ad-statusline { display: inline-flex; align-items: center; gap: 7px; font-size: 13.5px; font-weight: 600; color: var(--ink-soft); }
+[data-skin="toss"] .ad-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex: 0 0 auto; }
+[data-skin="toss"] .ad-dot[data-tone="ok"] { background: var(--ok); }
+[data-skin="toss"] .ad-dot[data-tone="warn"] { background: var(--warn); }
+[data-skin="toss"] .ad-dot[data-tone="danger"] { background: var(--danger); }
+[data-skin="toss"] .ad-dot[data-tone="mute"] { background: var(--ink-dim); }
+[data-skin="toss"] .ad-panel { background: var(--card); border-radius: 20px; padding: 22px; box-shadow: var(--sh-sm); border: 1px solid var(--border); }
+[data-skin="toss"] .ad-panel__head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+[data-skin="toss"] .ad-panel__title { font-size: 16px; font-weight: 800; color: var(--ink); }
+[data-skin="toss"] .ad-list { display: flex; flex-direction: column; gap: 2px; }
+[data-skin="toss"] .ad-listrow { display: flex; align-items: center; gap: 12px; padding: 12px 8px; border-radius: 12px; min-width: 0; }
+[data-skin="toss"] .ad-listrow:hover { background: var(--grey-50); }
+[data-skin="toss"] .ad-listrow__icon { width: 36px; height: 36px; border-radius: 10px; display: grid; place-items: center; flex: 0 0 auto; }
+[data-skin="toss"] .ad-listrow__body { flex: 1; min-width: 0; }
+[data-skin="toss"] .ad-listrow__t { font-size: 14px; font-weight: 600; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+[data-skin="toss"] .ad-listrow__s { font-size: 12.5px; color: var(--ink-mute); margin-top: 1px; }
+[data-skin="toss"] .ad-listrow__meta { font-size: 12.5px; color: var(--ink-mute); font-family: var(--ff-mono); flex: 0 0 auto; }
+[data-skin="toss"] .ad-bars { display: flex; align-items: flex-end; gap: 10px; height: 160px; padding-top: 12px; }
+[data-skin="toss"] .ad-bar { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: 0; }
+[data-skin="toss"] .ad-bar__col { width: 100%; max-width: 38px; border-radius: 8px 8px 0 0; background: var(--primary); transition: height .3s; }
+[data-skin="toss"] .ad-bar__col[data-soft="true"] { background: var(--primary-weak); }
+[data-skin="toss"] .ad-bar__lbl { font-size: 11.5px; color: var(--ink-mute); font-weight: 600; }

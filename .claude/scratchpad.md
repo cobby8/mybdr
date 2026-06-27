@@ -160,9 +160,34 @@
 💡 tester: tsc EXIT0(--incremental false). 변환/Zod self-trace 통과. 소비처 미배선(M3 파일럿에서 배선). 백엔드/레거시 0접촉.
 ⚠️ reviewer: ZodType<TRes> 변성(expenseListSchema→AdminExpense[]) tsc 통과. AdminApiError status=0=네트워크에러.
 
+### M2 — 토대셋: admin-blocks 컴포넌트 + (admin-v2) 셸 골격/인증 (신규8파일·css append·레거시0접촉)
+📝 그린필드 리빌딩 M2. ①정본 admin-blocks 박제(`src/components/admin-v2/blocks/`) ②`(admin-v2)/v2` 셸+인증 복제. M3 대회관리자 파일럿(5화면)이 이 위에 올라감.
+
+| 파일 | 내용 | 신규 |
+|------|------|------|
+| `admin-v2/blocks/types.ts` | Schema/Col/Row/DetailPayload 타입(정본 동적객체 TS화) | 신규 |
+| `admin-v2/blocks/page-head.tsx` | PageHead(정본 admin-shell.jsx, ts-ph 마크업·훅없음=서버공용) | 신규 |
+| `admin-v2/blocks/schema-list.tsx` | SchemaList+renderSchemaCell+SchemaTable(정본 그리드 DataTable). rowHref/onRow/스키마셀 패턴 보존 | 신규 |
+| `admin-v2/blocks/panels.tsx` | AdBarPanel/AdListPanel/adToneColor | 신규 |
+| `admin-v2/blocks/settings.tsx` | AdSettings(토글/값 그룹) | 신규 |
+| `admin-v2/blocks/index.ts` | barrel | 신규 |
+| `app/(admin-v2)/v2/layout.tsx` | 인증복제(getWebSession+membershipType≥3/super+buildLoginRedirect)+AdminShell 마운트 | 신규 |
+| `app/(admin-v2)/v2/page.tsx` | "v2 그린필드 셸 OK" 플레이스홀더 | 신규 |
+| `src/styles/toss-admin.css` | 누락 ad-* 룰 32줄 append(scoped) | 수정 |
+
+🔑 **PageHead/DataTable 결정**: admin-toss 키트엔 PageHead 없고 DataTable은 API 상이(columns/keyField) → 정본 admin-shell.jsx 정의(PageHead=ts-ph, DataTable=cols/rows/render(r,k)/onRow)를 blocks 내부에 TS 박제. Icon/Btn/Badge/Toggle/Empty는 admin-toss 재사용. SchemaTable 명명으로 admin-toss DataTable과 충돌 회피.
+🔑 **하드코딩 hex 0**: 정본 toneColor violet `#6D5AE6`→`var(--primary)` 토큰. CSS append도 정본 `#fff`/`rgba`→`var(--card)`/`var(--border)`(기존 toss ad-table 패턴). 단 ad-avatar-sm `color:#fff`(아바타 흰 텍스트)는 기존 toss-admin.css(ts-table) 동일 패턴이라 유지. r.color/a.color+"1A"(알파)는 데이터 주입(컴포넌트 하드코딩 아님).
+🔑 **CSS append(스코프)**: ad-cell-flex/avatar-sm/statusline/dot/panel*/list*/listrow*/bars/bar* 9그룹을 정본 admin-pages.css→`[data-skin="toss"]` 스코프로 말미 append(32줄, 삭제0). 기존 ad-cell-strong/sub/mono/muted/rowact/iconbtn/toolbar/search/table/ts-ph는 실존→재사용(중복0).
+🔑 **인증 복제**: tournament-admin/layout.tsx 패턴 그대로 — getWebSession→미인증 buildLoginRedirect(x-pathname, proxy가 모든경로 무조건 주입), membershipType≥3 or super, 부족 시 no_permission. AdminShell roles=[super_admin?/tournament_admin?]→사이드바 nav 필터. data-skin="toss"는 AdminShell 루트 제공. ToastProvider wrap(M3 패널 대비).
+🔑 **라우트 충돌 0**: `(admin-v2)`는 신규 route group(URL=/v2). 기존 /v2 라우트 부재 확인(glob 0). 레거시 /admin·/tournament-admin과 미겹침. proxy.ts 미접촉(x-pathname이 /v2 커버).
+
+💡 tester: tsc EXIT0(--incremental false 클린). self-trace: 미인증 /v2→buildLoginRedirect(로그인), 인증+권한→AdminShell+플레이스홀더 렌더. 소비처 미배선(blocks는 M3에서 실데이터 배선). git diff=신규8+css append만(레거시 0접촉).
+⚠️ reviewer: (1) SchemaList 진입=window.location.href(정본 1:1, Next router 미사용). (2) 내보내기/필터/저장/취소/더보기 = 정본 데모 토스트 제거→no-op(M3 배선). (3) panels `a.color+"1A"`=정본 8자리 hex 알파 1:1 보존(데이터 주입). (4) blocks barrel은 client/server 혼재(page-head는 서버공용)—플레이스홀더 page.tsx는 page-head 직접 import.
+
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
 |------|------|------|
+| 2026-06-27 | **그린필드 M2 — 토대셋: admin-blocks 박제 + (admin-v2) 셸 골격/인증(신규8파일·css append32줄·레거시0접촉)** | ✅ tsc EXIT0. ①`components/admin-v2/blocks/`(SchemaList/renderSchemaCell/AdBarPanel/AdListPanel/AdSettings/PageHead/SchemaTable) 정본 admin-blocks.jsx 1:1 TS화·Icon/Btn/Badge/Toggle/Empty=admin-toss 재사용. ②`app/(admin-v2)/v2/`(layout=tournament-admin 인증복제 getWebSession+membershipType≥3/super+buildLoginRedirect+AdminShell 마운트, page=플레이스홀더). ③toss-admin.css ad-panel/list/bars/dot/statusline/avatar 9그룹 [data-skin=toss] 스코프 append(삭제0). 하드코딩hex0(violet#6D5AE6→var(--primary)). 라우트충돌0(/v2 신규). 소비처 미배선(M3). |
 | 2026-06-27 | **그린필드 M1 — 관리자 타입드 데이터 계층(`src/lib/admin-api/` 신규7파일·백엔드0)** | ✅ tsc EXIT0. adminFetch=snake↔camel 변환 ★유일지점(5회 재발버그 구조근절)+AdminApiError+Zod parse. jsonb rawJsonKeys 보존(F-2b 차단·self-trace court_ids raw 유지). 인증보호=루트 middleware 부재→세그먼트 레이아웃(getAuthUser/getWebSession) 담당(v2도 동일패턴 복제). apiSuccess=래퍼없는 raw snake body. Zod4(int reject 검증). endpoints=expenses(list/create/delete)+tournaments(list/get). useAdminQuery 훅. 소비처 미배선(M3). |
 | 2026-06-27 | **admin-toss PR-5 5-B 공개 사이트 대진 탭 추가 (BDR 13룰·실데이터·마이그0)** | ✅ tsc EXIT0. classic.tsx에 대진 탭(일정·결과 사이)+BracketPage 트리 신설(정본 .s-bracket 밴드/연결선→`bracket.module.css` BDR 토큰 박제·셀 min-height 92px). 데이터=기존 matches 재활용(round_number/bracket_position·쿼리 변경0). visibility.sections.bracket prep/show/hide 게이트(public-visibility 0접촉). page.tsx PAGE_SECTION bracket 1줄. Toss잔존0·하드코딩hex0·3스킨 보존. 승자강조=--bk-primary 인라인. |
 | 2026-06-27 | **PR-2 로컬 QA 추가 2건 해소 (지출 500·0원 폰트)** | ✅ ①지출추가 500 = **로컬 dev 서버 stale Prisma 클라이언트**(신규 tournament_expenses 미인식·DLL 잠금으로 generate 막혔던 것). 포트3001 PID12460 종료→`prisma generate`→재시작(새 PID63888)으로 해소(코드 무죄). ②금액 "0원" 슬래시제로(JetBrains Mono)→본문폰트+tabular-nums(d1c2d3e). **PR-2 로컬 검증 완료**(지출/일정/공지/series 동작). 교훈: 신규 모델 후 dev 서버 재시작+generate 필수. |
