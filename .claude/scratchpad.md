@@ -6,7 +6,7 @@
 - **요청**: 관리자 영역 Toss 시안 박제 (admin-toss v2.41 정본). 단계 PR(PR-0~PR-5).
 - **기준 패키지**: `Dev/design/BDR v2.41-admin-toss/` + 계약문서 `_PR0-CONTRACT-CONFIRMED.md`(PR-1~5 단일 참조점).
 - **상태**: PR-0✅·PR-1✅완료. **PR-2 시각 박제 사실상 완료** — 진단결과 전 패널(참가팀/셸/대진표/사이트/운영진/기록원) **이미 Toss 정합·superset·변경0**(최근 972b3da·4fe38a0·847a1b5·9040ff1로 정합완료). **남은 건 UI 아닌 기능 4건**(아래). 신규필드 필요 패널 0(대진 seed/사이트 publishedSections/운영진 invite 전부 기존 처리).
-- **PR-2 잔여 기능4건(설계완료)**: ①일정=운영 matches-panel이 **이미 SchedulePanel 등가**→**휴식삽입 보강만**(마이그0·점수운영 matches-client 보존) ②정산 지출 `tournament_expenses` **신규테이블(유일 마이그·무중단 CREATE·승인 게이트)** ③공지=`settings.notice` JSON(마이그0) ④series=읽기칩+series-admin 위임(마이그0). **배치: 3-A 공지(파일럿·진행中)→3-B series→3-C 일정휴식→3-D 지출(게이트)**. 미세결정 채택: amount Int(원)·Cascade·공지 저장만(푸시 후속)·series 위임.
+- **PR-2 잔여 기능4건(설계완료)**: ①일정=운영 matches-panel이 **이미 SchedulePanel 등가**→**휴식삽입 보강만**(마이그0·점수운영 matches-client 보존) ②정산 지출 `tournament_expenses` **신규테이블(유일 마이그·무중단 CREATE·✅schema diff 승인됨 2026-06-27)** ③공지=`settings.notice` JSON(마이그0) ④series=읽기칩+series-admin 위임(마이그0). **배치: 3-A 공지(파일럿·진행中)→3-B series→3-C 일정휴식→3-D 지출(게이트)**. 미세결정 채택: amount Int(원)·Cascade·공지 저장만(푸시 후속)·series 위임.
 - **PR-2 배치 분해**: 2-1 참가팀(파일럿·최저위험·신규필드0)→2-2 셸/요약→2-3 운영관리→2-4 대진표→2-5 **일정(SchedulePanel 신규+마이그)**→2-6 사이트→2-7 **정산(tournament_expense 신규테이블)**. 위험 신규/마이그(2-5·2-7) 뒤로·schema diff 게이트.
 - **⚠️ PR-2 미결정(2-5에서)**: 일정 탭 충돌 — 정본 일정=SchedulePanel(배정/드래그) vs 운영 일정=MatchesPanel(경기운영). 교체/둘다/현행 중 택. 정본 6메뉴엔 matches 독립메뉴 없음.
 - **🔄 v2.45 재베이스라이닝(2026-06-27)**: 새 zip `BDR v2 (45)` → 정본 교체(design_handoff_admin → `Dev/design/BDR v2.41-admin-toss/`, 직전본 `_archive/...-pre45/`). **START-HERE·IMPLEMENTATION-PROMPT·screenshots 17장(시각 정본) 반입** → §1 치환표 폐기. 폐기 38팀 site-* 제거. 정본 교체 커밋 = design(sync). 계약문서 §v2.45 갱신.
@@ -73,6 +73,16 @@
 - **§5 #5 보존**: 코치토큰=apply_token·로스터=TournamentTeamPlayer 전부 기존 바인딩. 데이터/API/서버액션/권한/snake/schema 0접촉. 신규필드/마이그 0.
 - **검증**: tsc EXIT0. 정적: 하드코딩 hex 0·Material 0·tt-*/amt-* 클래스 전부 CSS 실존(무스타일 0)·git diff teams-panel = **0줄**.
 - 🖥️ PM 육안: 정본 01-대회운영.png와 운영 참가팀 화면 비교 시 동등+α 확인(억지 변경 안 함).
+
+### PR-2 3-A — 운영관리 공지 저장 (settings.notice·마이그 0·단일 파일)
+📝 운영관리 `ops-panel.tsx` 공지 textarea가 placeholder(저장 0)였던 것을 **실제 저장**으로 연결. 저장소=`Tournament.settings` JSON `notice` 필드(신규 테이블/컬럼 0).
+- **변경 파일**: `ops-panel.tsx` 단일. (PATCH route·schema 무변경 — 이미 지원 확인)
+- **저장 경로**: ①load()에 `GET /api/web/tournaments/[id]` 병렬 추가 → `settings.notice` 초기값 로드 ②`saveNotice`=`PATCH {settings:{notice}}` 전송. 기존 PATCH route가 `{...existing, ...incoming}` 병합 + div_schedule만 prune → **sponsor_logos/div_schedule 등 다른 settings 키 보존**. 저장 후 setNoticeInitial→리로드 시 GET으로 값 유지.
+- **snake 함정 회피(F-2b)**: 키=단일 단어 **`notice`**(camelCase 금지). apiSuccess 재귀 snake 변환에도 그대로라 GET 읽기/PATCH 쓰기 모두 사일런트 undefined 0. schema `settings: z.record(z.string(), z.unknown())` 통과. getTournament=include라 settings 반환 확인.
+- **범위**: 저장만(정본도 시연). **푸시 발송은 1차 범위 외** — 즉시발송 체크박스는 disabled 유지·문구 "푸시는 추후 지원"으로 갱신. 운영진/기록원 임베드·기록모드 0접촉.
+- **UI**: 헤더 카피 갱신 + "공지 저장" 버튼(dirty 시 활성) + 저장되지않은변경/저장됨/실패 인라인 표시. 신규 CSS 0(var(--*) 인라인·하드코딩 hex 0).
+- **검증**: tsc EXIT0. 정적: 코드 변경=ops-panel.tsx만·하드코딩 hex 0·notice 단일단어(camelCase 오용 0)·settings 병합 다른키 보존(route L218~236 확인). self-trace 저장→리패치 값유지 OK.
+- 🖥️ PM 육안: 공지 입력→저장→새로고침 후 값 유지 확인(실 저장 검증). 다른 settings(후원사로고/일정) 영향 0 확인.
 
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
