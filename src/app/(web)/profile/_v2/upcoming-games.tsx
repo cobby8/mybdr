@@ -59,9 +59,10 @@ function calcDDay(scheduledAtIso: string): number | null {
 function fmtMonthDay(iso: string): string {
   const d = new Date(iso);
   if (isNaN(d.getTime())) return "-";
-  // KST 로 표시 — Korea locale
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
+  // 서버 렌더(Vercel UTC) — KST(+9h) 보정 후 getUTC* 로 한국시간 추출
+  const k = new Date(d.getTime() + 9 * 60 * 60 * 1000);
+  const m = String(k.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(k.getUTCDate()).padStart(2, "0");
   return `${m}.${day}`;
 }
 
@@ -69,8 +70,10 @@ function fmtMonthDay(iso: string): string {
 function fmtTime(iso: string): string {
   const d = new Date(iso);
   if (isNaN(d.getTime())) return "";
-  const h = String(d.getHours()).padStart(2, "0");
-  const mi = String(d.getMinutes()).padStart(2, "0");
+  // 서버 렌더(Vercel UTC) — KST(+9h) 보정 후 getUTC* 로 한국시간 추출
+  const k = new Date(d.getTime() + 9 * 60 * 60 * 1000);
+  const h = String(k.getUTCHours()).padStart(2, "0");
+  const mi = String(k.getUTCMinutes()).padStart(2, "0");
   return `${h}:${mi}`;
 }
 
