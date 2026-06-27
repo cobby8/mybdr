@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>경기 관리 — v2.42 보강</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700;800&display=swap" />
+<link rel="stylesheet" href="toss.css" />
+<link rel="stylesheet" href="workspace.css" />
+<link rel="stylesheet" href="preview.css" />
+</head>
+<body>
+<div id="root"></div>
+<script src="https://unpkg.com/lucide@latest"></script>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script type="text/babel" src="data.jsx"></script>
+<script type="text/babel" src="toss-kit.jsx"></script>
+<script type="text/babel" src="panels-core.jsx"></script>
+<script type="text/babel" src="bracket.jsx"></script>
+<script type="text/babel" src="schedule.jsx"></script>
+<script type="text/babel" src="preview-shell.jsx"></script>
+<script type="text/babel">
+  const states = [
+    { name: "기록 모드 트리거", how: "상단 카드 — 대회 기본(기록앱) + 총 건수(기록앱/전자기록지/진행중)" },
+    { name: "라운드별 표(amt-table)", how: "라운드 묶음 · 시간/코트/종별/대진/스코어/상태/번호 컬럼" },
+    { name: "상태 badge", how: "예정/진행/종료 ct-pill 색상(MATCH_TONE) · 승자 팀명 강조" },
+    { name: "필터", how: "종별 chip · 체육관 chip (2개 이상일 때만 노출)" },
+    { name: "ScoreModal", how: "표의 행 클릭 → 홈/원정 점수, 상태 select, 기록 방식 select" },
+    { name: "기록 방식 전환", how: "ScoreModal 기록 방식 = 전자기록지 선택 시 '전자기록지 열기' CTA 노출" },
+    { name: "기록 모드 설정", how: "'기록 모드 설정' → segment(기록앱/전자기록지/수기) + 적용 범위 radio + 사유" },
+    { name: "삭제", how: "ScoreModal footer '삭제' (danger)" },
+    { name: "모바일 390", how: "툴바 '모바일 390' — amt-table 가로 스크롤, 필터 chip 줄바꿈" },
+  ];
+  ReactDOM.createRoot(document.getElementById('root')).render(
+    <window.PreviewShell title="경기 관리" sub="MatchesPanel · amt-table / ScoreModal · 점수·상태·기록방식" states={states} defaultVp="1440">
+      <window.MatchesPanel />
+    </window.PreviewShell>
+  );
+</script>
+</body>
+</html>

@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>사이트·기록원·운영진 — v2.42 보강</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700;800&display=swap" />
+<link rel="stylesheet" href="toss.css" />
+<link rel="stylesheet" href="workspace.css" />
+<link rel="stylesheet" href="preview.css" />
+<style>
+  .srx-sec { margin-bottom: 22px; }
+  .srx-sec__tag { display: inline-flex; align-items: center; gap: 6px; font-family: var(--ff-mono); font-size: 11px; font-weight: 800; color: var(--primary); background: var(--primary-weak); padding: 4px 9px; border-radius: 8px; margin-bottom: 10px; }
+  .srx-sec > h2 { font-size: 17px; margin-bottom: 4px; }
+  .srx-sec > p { font-size: 12.5px; color: var(--ink-mute); margin-bottom: 12px; }
+  .srx-sec__body { background: #fff; border: 1px solid var(--border); border-radius: 16px; padding: 18px; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script src="https://unpkg.com/lucide@latest"></script>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script type="text/babel" src="data.jsx"></script>
+<script type="text/babel" src="toss-kit.jsx"></script>
+<script type="text/babel" src="panels-core.jsx"></script>
+<script type="text/babel" src="bracket.jsx"></script>
+<script type="text/babel" src="schedule.jsx"></script>
+<script type="text/babel" src="panels-ops.jsx"></script>
+<script type="text/babel" src="preview-shell.jsx"></script>
+<script type="text/babel">
+  const states = [
+    { name: "사이트 위자드", how: "Site — 템플릿 → 색상 → 주소/발행 3스텝(StepDots)" },
+    { name: "사이트 발행 완료", how: "Site 3스텝에서 '공개하기' → 공개 URL + 비공개 전환 + 수정 카드" },
+    { name: "서브도메인 입력", how: "주소 필드 — 소문자/숫자/하이픈만 허용 · 라이브 미리보기 URL" },
+    { name: "기록원 없음 → 초대", how: "Recorders — 이메일 입력 추가 · 빈 상태 안내" },
+    { name: "경기별 배정 / 자동", how: "Recorders — 경기 select 배정 · '자동 배정' round-robin · 미배정 카운트" },
+    { name: "운영진 역할", how: "Admins — 이메일+역할 select(관리자/스태프/기록원) 추가" },
+    { name: "운영진 제거 / 권한", how: "Admins — owner 제외 '제거' · ROLE_LABEL 배지" },
+    { name: "모바일 390", how: "툴바 '모바일 390' — 위자드 카드 1열, 입력행 줄바꿈" },
+  ];
+  function Combined() {
+    return (
+      <div>
+        <div className="srx-sec">
+          <span className="srx-sec__tag">SITE · g-step wizard</span>
+          <h2>공개 사이트</h2>
+          <p>SitePanel · 관리자 UI는 Toss / 공개 결과물은 BDR (별도 분리). 발행 전·후 상태 모두 확인.</p>
+          <div className="srx-sec__body"><window.SitePanel /></div>
+        </div>
+        <div className="srx-sec">
+          <span className="srx-sec__tag">RECORDERS</span>
+          <h2>기록원</h2>
+          <p>RecordersPanel · 풀 추가 → 경기별 배정 → 자동 배정 → 미배정 경고.</p>
+          <div className="srx-sec__body"><window.RecordersPanel /></div>
+        </div>
+        <div className="srx-sec">
+          <span className="srx-sec__tag">ADMINS</span>
+          <h2>운영진</h2>
+          <p>AdminsPanel · 역할 선택 / 제거 / 권한 조건.</p>
+          <div className="srx-sec__body"><window.AdminsPanel /></div>
+        </div>
+      </div>
+    );
+  }
+  ReactDOM.createRoot(document.getElementById('root')).render(
+    <window.PreviewShell title="사이트 · 기록원 · 운영진" sub="SitePanel / RecordersPanel / AdminsPanel" states={states} defaultVp="1440">
+      <Combined />
+    </window.PreviewShell>
+  );
+</script>
+</body>
+</html>

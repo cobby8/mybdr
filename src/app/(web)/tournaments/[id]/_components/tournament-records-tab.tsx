@@ -28,6 +28,8 @@ import {
   type RecColumn,
   type StatMode,
 } from "../../../_components/records/records-shared";
+// 2026-06-27 기록 모드 인증 뱃지 — 대회 메타 헤더(대회 기본 모드) + 경기로그 행(per-game).
+import { RecordingModeBadge } from "@/components/recording-mode-badge";
 
 // raw fetcher — snake_case 응답 그대로(camelCase 변환 안 함).
 // apiSuccess 가 {data:...} 래핑/비래핑 모두 대비해 root 폴백.
@@ -44,6 +46,8 @@ interface RecordsData {
     teams_n: number;
     games_n: number;
     mvp_name: string | null;
+    // 2026-06-27: 대회 기본 기록 모드(records API meta 가 이미 노출). 타입만 보강.
+    default_recording_mode?: string | null;
   };
   players: RecRow[];
   teams: RecRow[];
@@ -116,6 +120,7 @@ export function TournamentRecordsTab({ tournamentId }: { tournamentId: string })
       teams_n: 0,
       games_n: 0,
       mvp_name: null,
+      default_recording_mode: null,
     },
     players: root.players ?? [],
     teams: root.teams ?? [],
@@ -255,7 +260,16 @@ export function TournamentRecordsTab({ tournamentId }: { tournamentId: string })
       label: "라운드",
       align: "left",
       sortable: false,
-      render: (r) => <span className="rec-dim">{r.round}</span>,
+      // 라운드 + 이 경기의 기록 모드 뱃지(sm, per-game recording_mode).
+      render: (r) => (
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+          <span className="rec-dim">{r.round}</span>
+          <RecordingModeBadge
+            mode={r.recording_mode as string | null | undefined}
+            size="sm"
+          />
+        </span>
+      ),
     },
     {
       key: "home",
@@ -480,6 +494,8 @@ export function TournamentRecordsTab({ tournamentId }: { tournamentId: string })
       </div>
       <div className="rec-tnmeta">
         {D.meta.status && <span className="rec-tnmeta__pill">{D.meta.status}</span>}
+        {/* 2026-06-27 대회 기본 기록 모드 뱃지(md) — 메타 헤더. flutter/paper 만 노출 */}
+        <RecordingModeBadge mode={D.meta.default_recording_mode} size="md" />
         {D.meta.division && <span>{D.meta.division}</span>}
         <span>
           <span className="ico material-symbols-outlined">groups</span>

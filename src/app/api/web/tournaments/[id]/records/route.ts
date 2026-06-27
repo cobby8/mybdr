@@ -16,6 +16,11 @@ import {
 } from "@/lib/records/match-minutes";
 // 비공개 대회 노출 차단 가드 (SSR page.tsx와 동일 정책 — insider 외 404).
 import { blockIfPrivateTournament } from "@/lib/auth/private-tournament-guard";
+// 2026-06-27: 기록 모드 전파 — 매치별 recording_mode(paper 측정 불가 게이팅) + 대회 default_recording_mode.
+import {
+  getRecordingMode,
+  getTournamentDefaultMode,
+} from "@/lib/tournaments/recording-mode";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -41,7 +46,8 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
   // 1) 대회 메타
   const tournament = await prisma.tournament.findUnique({
     where: { id },
-    select: { status: true, gender: true, divisions: true, is_public: true },
+    // 2026-06-27: settings = 대회 기본 기록 모드(default_recording_mode) 판정용.
+    select: { status: true, gender: true, divisions: true, is_public: true, settings: true },
   });
   if (!tournament) return apiError("Tournament not found", 404);
 
@@ -49,6 +55,9 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
   if (await blockIfPrivateTournament(id, tournament.is_public)) {
     return apiError("Tournament not found", 404);
   }
+
+  // 2026-06-27: 대회 기본 기록 모드(대회 단위 식별 — meta 노출). paper 면 표시 레이어가 슈팅 시도/% 컬럼 hide.
+  const defaultRecordingMode = getTournamentDefaultMode({ settings: tournament.settings });
 
   // 2) 공식 매치 (공식가드 필수)
   const matches = await prisma.tournamentMatch.findMany({
@@ -90,6 +99,7 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
         teams_n: tts.length,
         games_n: 0,
         mvp_name: null,
+        default_recording_mode: defaultRecordingMode,
       },
       players: [],
       teams: [],
@@ -98,6 +108,14 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
   }
 
   const matchIds = matches.map((m) => m.id);
+
+  // 2026-06-27: 매치별 기록 모드 맵 — recording_mode(표시 뱃지) + isPaper(집계 게이팅).
+  //   getRecordingMode 재사용(같은 paper 판정 source). paper 만 시도/%/+/- 측정 불가로 본다.
+  const modeByMatch = new Map(
+    matches.map((m) => [m.id.toString(), getRecordingMode({ settings: m.settings })]),
+  );
+  const isPaperOf = (matchId: bigint): boolean =>
+    modeByMatch.get(matchId.toString()) === "paper";
 
   // 2026-06-16: PBP 기반 출전초 일괄 산출 (라이브와 단일 source). 전자기록지/PBP없음 매치는 결과 제외 → min '–'.
   const minutesMeta = await buildMatchMinutesMeta(matches);
@@ -161,7 +179,11 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
     const ttpId = ttp.id.toString();
     const ttId = ttp.tournamentTeam?.id?.toString() ?? null;
     // PBP 출전초 주입 (라이브와 동일 변환 min=Math.round(sec/60)). 전자기록지/PBP없음 = null → min '–'.
-    const box = toRawBox(s, { minOverrideSec: getMinSec(s.tournamentMatchId, ttp.id) });
+    //   isPaper: paper 매치는 시도/%/+/- 측정 불가 → aggregateBox 가 풀에서 제외.
+    const box = toRawBox(s, {
+      minOverrideSec: getMinSec(s.tournamentMatchId, ttp.id),
+      isPaper: isPaperOf(s.tournamentMatchId),
+    });
 
     // 선수
     let pa = playerAcc.get(ttpId);
@@ -317,6 +339,8 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
       away_id: away?.teamId ?? null,
       hs: m.homeScore ?? 0,
       as: m.awayScore ?? 0,
+      // 2026-06-27: 경기별 기록 모드(표시 레이어 뱃지). paper=전자기록지(시도/%/+/- 측정 불가).
+      recording_mode: modeByMatch.get(m.id.toString()) ?? "flutter",
     };
   });
 
@@ -331,6 +355,8 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
       games_n: matches.length,
       // mvp_name: 대회 단위 MVP 소스 미확정(mvp_player_id 타깃 불명) → null('–'). 후속 결정.
       mvp_name: null,
+      // 대회 기본 기록 모드(대회 단위 식별). paper_games(players/teams 행)와 함께 표시 레이어 사용.
+      default_recording_mode: defaultRecordingMode,
     },
     players,
     teams,

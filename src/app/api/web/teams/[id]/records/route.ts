@@ -8,6 +8,12 @@ import {
   getMatchMinutesBySec,
   buildMatchMinutesMeta,
 } from "@/lib/records/match-minutes";
+// 2026-06-27: 기록 모드 전파 — 매치별 recording_mode(paper 측정 불가 게이팅) + 대회 default_recording_mode.
+import {
+  getRecordingMode,
+  getTournamentDefaultMode,
+  type RecordingMode,
+} from "@/lib/tournaments/recording-mode";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -74,7 +80,8 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
       awayScore: true,
       winner_team_id: true,
       roundName: true,
-      tournament: { select: { name: true } },
+      // 2026-06-27: tournament.settings = 대회 기본 기록 모드(default_recording_mode) 판정용.
+      tournament: { select: { name: true, settings: true } },
       // 2026-06-16: PBP 출전시간 공용 함수용 — status(cap 분기) / settings(paper 판별)
       status: true,
       settings: true,
@@ -120,6 +127,9 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
     result: "W" | "L" | "-";
     hs: number; // 우리팀 점수
     as: number; // 상대팀 점수
+    // 2026-06-27: 기록 모드 — 매치별(뱃지+집계 게이팅) / 대회 기본(대회 단위 식별).
+    recordingMode: RecordingMode;
+    tnDefaultMode: RecordingMode;
   }
   const matchMeta = new Map<string, MatchMeta>();
   for (const m of matches) {
@@ -144,6 +154,9 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
       result,
       hs: ourScore,
       as: oppScore,
+      // 매치 기록 모드(getRecordingMode 재사용 — 같은 paper 판정 source) + 대회 기본 모드.
+      recordingMode: getRecordingMode({ settings: m.settings }),
+      tnDefaultMode: getTournamentDefaultMode({ settings: m.tournament?.settings ?? null }),
     });
   }
 
@@ -216,11 +229,15 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
         claimed,
       });
     }
-    // PBP 출전초 주입 (라이브와 동일 변환). 전자기록지/PBP없음 = null → min '–'.
-    const box = toRawBox(s, { minOverrideSec: getMinSec(s.tournamentMatchId, ttp.id) });
     const mId = s.tournamentMatchId.toString();
     const mm = matchMeta.get(mId);
     if (!mm) continue;
+    // PBP 출전초 주입 (라이브와 동일 변환). 전자기록지/PBP없음 = null → min '–'.
+    //   isPaper: paper 매치는 시도/%/+/- 측정 불가 → aggregateBox 가 풀에서 제외.
+    const box = toRawBox(s, {
+      minOverrideSec: getMinSec(s.tournamentMatchId, ttp.id),
+      isPaper: mm.recordingMode === "paper",
+    });
 
     // 시즌별
     if (mm.year != null) {
@@ -248,14 +265,19 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
 
   // ── 시즌 목록 / 대회 목록 ──
   const seasonSet = new Set<number>();
-  const tnOrder: { id: string; name: string }[] = [];
+  // 2026-06-27: 대회 목록에 default_recording_mode(대회 단위 식별) 동봉.
+  const tnOrder: { id: string; name: string; default_recording_mode: RecordingMode }[] = [];
   const tnSeen = new Set<string>();
   for (const m of matches) {
     const mm = matchMeta.get(m.id.toString())!;
     if (mm.year != null) seasonSet.add(mm.year);
     if (!tnSeen.has(mm.tnId)) {
       tnSeen.add(mm.tnId);
-      tnOrder.push({ id: mm.tnId, name: mm.tnName });
+      tnOrder.push({
+        id: mm.tnId,
+        name: mm.tnName,
+        default_recording_mode: mm.tnDefaultMode,
+      });
     }
   }
   const seasons = Array.from(seasonSet).sort((a, b) => b - a);
@@ -302,6 +324,8 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
       result: mm.result,
       hs: mm.hs,
       as: mm.as,
+      // 2026-06-27: 경기별 기록 모드(표시 레이어 뱃지). paper=전자기록지(시도/%/+/- 측정 불가).
+      recording_mode: mm.recordingMode,
       box,
     };
   });

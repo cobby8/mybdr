@@ -12,6 +12,8 @@
 import type { MatchDataV2 } from "./game-result";
 // 2026-05-10 PlayerLink/TeamLink 2단계 마이그 — 팀명 클릭 시 팀 페이지(`/teams/[id]`) 이동.
 import { TeamLink } from "@/components/links/team-link";
+// 2026-06-27 기록 모드 인증 뱃지 — flutter=골드 "BDR full" / paper=실버 "BDR" / 그 외 null.
+import { RecordingModeBadge } from "@/components/recording-mode-badge";
 
 // 2026-05-02: PC/모바일 비율 분기 CSS (사용자 요청 — WINNER 제거 + 쿼터 테이블 한번에 + PC 확대)
 import "./hero-scoreboard.css";
@@ -126,6 +128,8 @@ export function HeroScoreboard({ match }: { match: MatchDataV2 }) {
           >
             경기종료 · FINAL
           </span>
+          {/* 2026-06-27 기록 모드 인증 뱃지 — FINAL 배지 옆. match.recording_mode 가 flutter/paper 일 때만 표시(그 외 null 자동) */}
+          <RecordingModeBadge mode={match.recording_mode} size="md" />
           {tournamentLine && (
             <span
               style={{
