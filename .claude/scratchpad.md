@@ -93,6 +93,18 @@
 ℹ️ `user-menu.tsx` 이제 미import(고아)지만 빌드 무해 — 삭제는 별도(범위 외).
 🖥️ **PM 육안확인(배치1.5)**: 데스크톱 `/admin` 우상단 계정 **없음**(정본 정합) + 사이드바 푸터 UserChip(아바타+이름+역할)·로그아웃·클릭 동작 확인.
 
+### PR-1 배치2 — 모바일 정합 (ad-mobile-* → ts-topbar/ts-drawer)
+📝 배치1.5에서 데스크톱 topbar 제거로 어중간해진 모바일(상단 56px 빈공간+플로팅 햄버거)을 정본 ts-topbar/ts-drawer로 정합. **1파일 변경**(admin-shell은 배치1.5에서 이미 `user` 전달 → 추가 배선 불필요).
+
+| 파일 | 변경 | 신규/수정 |
+|------|------|----------|
+| `src/components/admin/mobile-admin-nav.tsx` | ① **ts-topbar 신설**(햄버거 ts-mtoggle + 활성탭 제목 getActiveTitle) → ts-main 모바일 padding-top:56px 채움 ② 드로어 swap `ad-mobile-toggle/overlay/drawer/__*`·`ad-side-link/title`→`ts-overlay`/`ts-drawer`+인라인 head/`ts-sidebar__nav`/`ts-sidebar__foot`·`ts-navlink`/`ts-sidebar__label` ③ **드로어 푸터=데스크톱 사이드바 푸터 동등**: UserChip(ts-userchip/ts-avatar+역할)+테마+마이페이지+사이트복귀+로그아웃 | 수정 |
+
+**기능 손실 0(모바일 유일 경로)**: LogoutButton(drawer-card, onBeforeLogout=close) 재사용=로그아웃 보존 / UserChip·마이페이지→/admin/me / 사이트복귀→/ / 테마 AdminThemeSwitch. 드로어 head=브랜드(로고)+닫기, 정체성은 푸터 UserChip 이전(정본 패턴).
+**보존(회귀 0)**: filterStructureByRoles/renderMobileItem/children 재귀/getTournamentMobileStructure/active 0변경(className+자식 들여쓰기 inline화만). 자식 들여쓰기 data-child(ts-navlink CSS 부재)→inline paddingLeft:28(데스크톱 sidebar 동일).
+**검증**: tsc **EXIT 0**. 정적: `ad-mobile-*`/`ad-side-*` 잔존 **0** / ts-topbar·ts-mtoggle·ts-overlay·ts-drawer·ts-navlink·ts-userchip·ts-avatar·ts-sidebar__nav/__label/__foot/__brand 전부 toss-admin.css 실존(임의 CSS 0). ⚠️`ts-drawer__head/__body/__foot`는 CSS 부재 → 정본 jsx대로 인라인 head+ts-sidebar__nav/__foot 사용.
+🖥️ **PM 육안확인(배치2·모바일 ≤900px)**: 상단 ts-topbar(햄버거+페이지 제목)·56px 빈공간 해소 / 햄버거→드로어 슬라이드 / 드로어 푸터 UserChip·로그아웃·테마·마이페이지·복귀 동작 / 데스크톱(≥900px) ts-topbar 숨김·배치1.5 사이드바 유지(회귀 0).
+
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
 |------|------|------|
