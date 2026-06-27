@@ -99,6 +99,9 @@ export const TOURNAMENT_DETAIL_INCLUDE = {
     where: { isActive: true },
     select: { id: true, userId: true, role: true },
   },
+  // 2026-06-27 PR-2 3-B — 운영관리 "정규대회 연결" 읽기 칩용 시리즈명. 읽기 전용·additive.
+  //   GET /api/web/tournaments/[id] 응답에 tournament_series.name 노출(series_id 는 BigInt→string).
+  tournament_series: { select: { name: true } },
   _count: {
     select: { tournamentTeams: true, tournamentMatches: true },
   },

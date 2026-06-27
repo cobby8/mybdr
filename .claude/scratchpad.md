@@ -82,6 +82,16 @@
 - **검증**: tsc EXIT0. 정적: 코드 변경=ops-panel.tsx만·하드코딩 hex 0·notice 단일단어(camelCase 오용 0)·settings 병합 다른키 보존(route L218~236 확인). self-trace 저장→리패치 값유지 OK.
 - 🖥️ PM 육안: 공지 입력→저장→새로고침 후 값 유지 확인(실 저장 검증). 다른 settings(후원사로고/일정) 영향 0 확인.
 
+### PR-2 3-B — 운영관리 정규대회(series) 연결 읽기 칩 + 관리 링크 (마이그 0·위임형)
+📝 운영관리 `ops-panel.tsx`에 "정규대회 연결" 섹션 추가 — **읽기 칩 + 시리즈 관리 링크**(ops에서 연결 변경 ❌, series-admin 위임=이중 진실 방지). 신규 컬럼 0(`series_id`·`tournament_series` 기존재).
+- **변경 2파일**: `ops-panel.tsx`(섹션+상태+파싱) + `lib/services/tournament.ts`(TOURNAMENT_DETAIL_INCLUDE에 `tournament_series:{select:{name}}` 1줄 additive).
+- **series 데이터 경로**: 3-A에서 이미 호출하는 `GET /api/web/tournaments/[id]`(getTournament detail include)에 series명 추가 → **추가 round-trip 0**. `series_id`(BigInt→**case.ts L8 convertKeysToSnakeCase가 string 변환**) + `tournament_series.name`(이미 snake) 읽기. ⚠️`/api/web/series/[id]` GET은 organizer-only 403 게이트라 ops 사용자(TAM/미소유 super)에 부적합 → tournament 자체 관계로 권한 우회 없이 안전.
+- **링크 라우트(실존)**: 연결시 `/tournament-admin/series/{series_id}` · 미연결시 `/tournament-admin/series`. `ts-btn ts-btn--secondary ts-btn--sm` 링크.
+- **칩**: 읽기 전용이라 ts-chip(pointer) 대신 **ct-pill** — 연결=`info`("연결: {시리즈명}")·미연결=`mute`("연결 안 됨")·로딩=`mute`. CSS 실존(2 tone).
+- **위임 보존**: series_id는 **읽기 파싱만**, ops에서 PATCH로 series 변경 0. 3-A 공지·운영진/기록원 임베드·기록모드 0접촉.
+- **검증**: tsc EXIT0. 정적: 변경 2파일·라우트 실존·ct-pill info/mute CSS 실존·하드코딩 hex 0·series 쓰기 0. self-trace 연결/미연결/로딩 3상태 OK.
+- 🖥️ PM 육안: 연결 대회→"연결: {명}"칩+링크→시리즈 상세 / 미연결→"연결 안 됨"+링크→시리즈 목록.
+
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
 |------|------|------|
