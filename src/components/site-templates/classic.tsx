@@ -777,6 +777,13 @@ export function ClassicTemplate({
           />
         ) : currentPage === "schedule" ? (
           <SchedulePage matches={matches} primary={primary} />
+        ) : currentPage === "results" && visibility.sections.results === "prep" ? (
+          // PR-5 5-A §정합: 미발행/종료-미보유 시 공식 기록 prep 카피(정본 public-site-pages.jsx).
+          //   mock 기사/가짜 데이터 0 — "준비중" 안내만. SectionPlaceholder = BDR var(--color-*).
+          <SectionPlaceholder
+            title="공식 기록 준비 중"
+            description="대회 공식 스탯과 기사는 집계 후 게시됩니다. 준비되면 이 영역에 공개됩니다."
+          />
         ) : currentPage === "results" ? (
           <ResultsPage matches={matches} primary={primary} />
         ) : currentPage === "registration" ? (

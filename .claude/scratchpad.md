@@ -113,6 +113,15 @@
 - **검증**: tsc EXIT0. 정적: page.tsx redirect만(prisma/content import 0)·content 삭제·sidebar href 변경·보존 3파일 실존·content import 0·데드링크 0(잔여 /admin/tournaments 링크는 redirect 처리 or 상세 [id] 정상).
 - 🖥️ PM 육안: super/site/tournament admin "대회 관리" 클릭 → /tournament-admin/tournaments / 구 URL 직접 진입 시 리다이렉트 / 상세·감사로그·운영자이전 직접 URL 도달.
 
+### PR-5 5-A — 공개 사이트 "준비중" 카피 정합 (BDR 13룰·마이그 0·소규모)
+📝 공개 사이트 `classic.tsx`의 prep(준비중) placeholder 카피를 정본 정합. ⚠️공개=BDR 토큰(var(--color-*))·**Toss 0**.
+- **격차 1건(보강)**: 운영은 `currentPage==="results"`에서 **항상 ResultsPage 렌더**(빈 상태 "완료된 경기가 없습니다") — results prep 분기 부재. 정본 public-site-pages.jsx는 "공식 기록 준비 중"(집계 후 게시) prep. → schedule prep과 동일 패턴으로 **results prep 분기 추가**(`visibility.sections.results === "prep"` → `SectionPlaceholder title="공식 기록 준비 중" desc="대회 공식 스탯과 기사는 집계 후 게시됩니다. 준비되면 이 영역에 공개됩니다."`).
+- **bracket prep = N/A**: 운영 SITE_NAV 5페이지(home/teams/schedule/results/registration)에 bracket 페이지 없음 → 해당 prep 불필요. schedule prep은 이미 정본 정합("일정 준비 중") → 무변경.
+- **변경 1파일**: `classic.tsx` (+7, 순수 추가). 기존 `SectionPlaceholder`(BDR var(--color-*)) 재사용·신규 컴포넌트 0.
+- **보존**: `public-visibility.ts` 가시성 로직 0접촉(카피만)·실데이터 바인딩·서브도메인 라우팅 0변경·dark/minimal 스킨 동일(schedule prep과 같은 컴포넌트라 회귀 0)·**mock 기사/가짜데이터 0**("준비중" 안내만).
+- **검증**: tsc EXIT0. 정적: 변경 classic.tsx만(+7)·**Toss(ts-/lucide/admin-toss/data-skin) 잔존 0**·BDR var(--color-*)·하드코딩 hex 0·public-visibility 미변경·3스킨(templateType) 분기 보존.
+- 🖥️ PM 육안: 미발행/종료-미보유(results=prep) 상태 결과 탭 → "공식 기록 준비 중" 안내(mock 0) / show/partial 시 기존 ResultsPage / classic·dark·minimal 동일.
+
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
 |------|------|------|
