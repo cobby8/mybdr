@@ -92,9 +92,18 @@
 - **검증**: tsc EXIT0. 정적: 변경 2파일·라우트 실존·ct-pill info/mute CSS 실존·하드코딩 hex 0·series 쓰기 0. self-trace 연결/미연결/로딩 3상태 OK.
 - 🖥️ PM 육안: 연결 대회→"연결: {명}"칩+링크→시리즈 상세 / 미연결→"연결 안 됨"+링크→시리즈 목록.
 
+### PR-2 3-C — 일정 휴식시간 삽입 보강 (마이그 0·클라 상태·단일 파일)
+📝 `matches-panel.tsx`(일정 스케줄러)에 정본 schedule.jsx의 유일 누락분 **휴식시간 삽입**만 보강. DB 저장 0(정본 동일·클라 오버레이).
+- **구현**: `breaksByGroup` state(코트별 휴식 클라 전용)·insertBreak(맨끝 10분)·setBreakMin(5~30)·removeBreak·moveBreak(▲▼)·buildGroupRows(경기 DB+휴식 클라 펼쳐 휴식분 누적→후속 경기 표시시간 += 누적). **휴식 0개=extra0→DB 시간 그대로(기존 바이트 동일)**.
+- **격리 결정**: 정본은 경기+휴식 단일 드래그였으나, 기존 경기 드래그/DB 재정렬 핸들러 0접촉 위해 **휴식 재배치만 ▲▼ 분리**. runAutoSchedule/patchSchedule/clearMatchSchedule/reorder 0변경.
+- **CSS**: `sc-break`/`sc-brkmin` 운영 CSS 미존재 → 단일파일 제약상 **인라인(전부 var(--*) 토큰·하드코딩hex0)**으로 동등 외형, 클래스명 부착(향후 CSS 박제 시 자동적용). ⚠️선택적 후속=matches-admin.css에 2클래스 박제(시각 100% 파리티).
+- **검증**: tsc EXIT0·하드코딩hex0·lucide(coffee/chevron/x/grip 매핑 실존)·기존 스케줄 로직 self-diff 0·누적 self-trace 정확.
+- 🖥️ tester: 휴식 버튼→행 추가·▲▼ 이동 시 후속 경기 시간 밀림·분 변경 재계산·새로고침 시 휴식 사라짐(DB0)·휴식0 시 기존 동일.
+
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
 |------|------|------|
+| 2026-06-27 | **admin-toss PR-2 기능 3-A·3-B·3-C (마이그0)** | ✅ 3-A 공지저장(settings.notice·e1a98e2) / 3-B series 읽기칩+위임링크(ops-panel+tournament.ts include 1줄·31cdd79) / 3-C 일정 휴식삽입(matches-panel 클라오버레이·DB0·정본동일). 전부 tsc EXIT0·하드코딩hex0·기존로직0접촉·snake 함정 회피(notice/series_id 단어키). 잔여=3-D 지출(승인됨). |
 | 2026-06-27 | **admin-toss PR-2 파일럿 2-1 참가팀 정합** | ✅ **이미 정합·코드 변경 0**. 운영 teams-panel이 정본 TeamsPanel의 superset(납부/종별이동/로스터/토큰재발급 등 운영 우위)·최근 9040ff1로 정합완료. tsc EXIT0·하드코딩hex0·tt-*/amt-* CSS 실존·git diff 0줄. §5 #5 보존(apply_token·TournamentTeamPlayer 기존). 검증패널 일괄진단 착수. |
 | 2026-06-27 | **admin-toss PR-1 배치3 — st-* 상태 공유모듈 (PR-1 완료)** | ✅ 정본 admin-state.jsx 대조: Skel/SkelTable/ErrState/PermState/Modal/Empty + st-* CSS 전부 기존재(v2.42) → **Banner/Spinner 2개만 신설·신규 CSS 0**. st-toast=ts-toast 재사용·데모하네스 미박제. 소비처 미배선(PR-2 인프라). tsc EXIT0. 7a385f4. **PR-1 전 배치 완료**. |
 | 2026-06-27 | **admin-toss PR-1 셸 마이그레이션 육안 검증 (코워크)** | ✅ **합격·회귀 0** (데스크톱+모바일+극단 narrow). 정본 정합: 우상단 계정 없음·사이드바 푸터 UserChip/로그아웃·모바일 햄버거+제목/드로어. 오탐 정리: 플로팅 N버튼=외부 확장(Gemini) 위젯·앱 무관 / 사이드바 그룹 라벨 정본과 차이=의도된 A1 IA 보존(§5). 전달 프롬프트 `Dev/design/prompts/admin-toss-PR1-shell-verify-cowork-2026-06-27.md`. 로컬 dev(3001)는 실제 정상이었음(직전 500은 자동화 브라우저 오인). |
