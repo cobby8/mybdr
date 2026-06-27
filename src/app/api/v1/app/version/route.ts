@@ -8,19 +8,40 @@ import { NextResponse } from "next/server";
  * release_history는 앱정보/업데이트 화면의 누적 릴리즈 아카이브다.
  */
 const LATEST = {
-  latest_version_code: 14,
-  latest_version_name: "0.1.12",
+  latest_version_code: 15,
+  latest_version_name: "0.1.13",
   min_supported_version_code: 1,
   is_mandatory: false,
   apk_url: "https://www.mybdr.kr/api/v1/app/download",
-  sha256: "28c44cf1f82e96512f2a5e2f1709e1f2aaa54779b01edf6a6cad3bd3efc77857",
-  size_bytes: 80338447,
+  sha256: "537d7d3d5fedbe34741db81d9f3dc2e5b32d06fad5d010c8f512febccbdd090d",
+  size_bytes: 80354831,
   release_notes: [
-    "슈팅파울 즉시 시계정지",
-    "슈팅파울/자유투 전환 잔상 제거",
-    "리바운드 선택 위치 중앙 정렬",
+    "릴리즈 아카이브 추가",
+    "버전별 상세 릴리즈 노트 보기",
+    "업데이트 이력 신뢰도 개선",
   ],
   release_history: [
+    {
+      version: "0.1.13",
+      date: "2026-06-28",
+      summary: "앱정보/업데이트 화면을 누적 릴리즈 아카이브로 확장",
+      details:
+        "기록앱이 어떻게 발전하고 있는지 버전별로 확인할 수 있도록 릴리즈 노트를 누적하고, 각 버전 항목을 눌러 상세 변경 내용을 볼 수 있게 했습니다.",
+      notes: [
+        {
+          kind: "new",
+          text: "앱정보/업데이트 화면에 누적 릴리즈 아카이브 추가",
+        },
+        {
+          kind: "new",
+          text: "버전별 릴리즈 노트 항목을 누르면 상세 내용을 확인할 수 있도록 개선",
+        },
+        {
+          kind: "fix",
+          text: "업데이트 매니페스트에 release_history를 추가해 최신 1개 버전뿐 아니라 이전 변경 이력까지 제공",
+        },
+      ],
+    },
     {
       version: "0.1.12",
       date: "2026-06-28",

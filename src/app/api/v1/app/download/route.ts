@@ -22,8 +22,8 @@ export const dynamic = "force-dynamic"; // 서명 URL 은 매번 새로(캐시 �
 
 const OWNER = "cobby8";
 const REPO = "bdr_stat_v3";
-const TAG = "v0.1.12";
-const ASSET_NAME = "bdr-0.1.12.apk";
+const TAG = "v0.1.13";
+const ASSET_NAME = "bdr-0.1.13.apk";
 
 export async function GET() {
   const token = process.env.GH_RELEASE_TOKEN;
@@ -51,7 +51,9 @@ export async function GET() {
       { status: 502 },
     );
   }
-  const rel = (await relRes.json()) as { assets?: { name: string; url: string }[] };
+  const rel = (await relRes.json()) as {
+    assets?: { name: string; url: string }[];
+  };
   const asset = (rel.assets ?? []).find((a) => a.name === ASSET_NAME);
   if (!asset) {
     return NextResponse.json({ error: "asset not found" }, { status: 404 });
