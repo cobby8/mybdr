@@ -1813,6 +1813,7 @@ export default function LiveBoxScorePage() {
               filter={sec.filter}
               filterLabel={sec.label}
               hasQuarterEventDetail={match.has_quarter_event_detail}
+              isPaperMatch={match.recording_mode === "paper"}
             />
           );
         })}
@@ -2746,6 +2747,7 @@ function PrintBoxScoreTable({
   filter,
   filterLabel,
   hasQuarterEventDetail,
+  isPaperMatch = false,
 }: {
   teamName: string;
   color: string;
@@ -2760,6 +2762,11 @@ function PrintBoxScoreTable({
   filter: string;          // "all" | "1"~"5"
   filterLabel: string;     // "누적 기록" / "1쿼터" / "OT"
   hasQuarterEventDetail: boolean;
+  // 2026-06-27 (프린트 paper 게이팅) — 전자기록지 매치(recording_mode="paper").
+  //   진행 중 BoxScoreTable 과 동일: 슈팅 6컬럼(FG/FG%/3P/3P%/FT/FT%) + MIN + +/- hide.
+  //   전자기록지 = miss 미박제 → 가짜 100% 정확도 + 시간/점수변동 추적 불가 → 프린트에서도 차단.
+  //   default false (Flutter 매치 19컬럼 유지). 헤더·바디·DNP·합계행 모두 동일 분기.
+  isPaperMatch?: boolean;
 }) {
   if (!players || players.length === 0) return null;
 
@@ -2863,14 +2870,20 @@ function PrintBoxScoreTable({
             <tr>
               <th>#</th>
               <th style={{ textAlign: "left" }}>이름</th>
-              <th>MIN</th>
+              {/* 2026-06-27 paper 매치 = MIN hide */}
+              {!isPaperMatch && <th>MIN</th>}
               <th>PTS</th>
-              <th>FG</th>
-              <th>FG%</th>
-              <th>3P</th>
-              <th>3P%</th>
-              <th>FT</th>
-              <th>FT%</th>
+              {/* 2026-06-27 paper 매치 = 슈팅 6 컬럼(FG/FG%/3P/3P%/FT/FT%) hide */}
+              {!isPaperMatch && (
+                <>
+                  <th>FG</th>
+                  <th>FG%</th>
+                  <th>3P</th>
+                  <th>3P%</th>
+                  <th>FT</th>
+                  <th>FT%</th>
+                </>
+              )}
               <th>OR</th>
               <th>DR</th>
               <th>REB</th>
@@ -2879,7 +2892,8 @@ function PrintBoxScoreTable({
               <th>BLK</th>
               <th>TO</th>
               <th>PF</th>
-              <th>+/-</th>
+              {/* 2026-06-27 paper 매치 = +/- hide */}
+              {!isPaperMatch && <th>+/-</th>}
             </tr>
           </thead>
           <tbody>
@@ -2887,14 +2901,20 @@ function PrintBoxScoreTable({
               <tr key={p.id}>
                 <td>{p.jersey_number ?? "-"}</td>
                 <td style={{ textAlign: "left" }}>{p.name}</td>
-                <td>{formatGameClock(p.min_seconds ?? p.min * 60)}</td>
+                {/* 2026-06-27 paper 매치 = MIN 셀 hide */}
+                {!isPaperMatch && <td>{formatGameClock(p.min_seconds ?? p.min * 60)}</td>}
                 <td style={{ fontWeight: 700 }}>{showPlaceholder ? "-" : p.pts}</td>
-                <td>{showPlaceholder ? "-" : `${p.fgm}/${p.fga}`}</td>
-                <td>{showPlaceholder ? "-" : `${pct(p.fgm, p.fga)}%`}</td>
-                <td>{showPlaceholder ? "-" : `${p.tpm}/${p.tpa}`}</td>
-                <td>{showPlaceholder ? "-" : `${pct(p.tpm, p.tpa)}%`}</td>
-                <td>{showPlaceholder ? "-" : `${p.ftm}/${p.fta}`}</td>
-                <td>{showPlaceholder ? "-" : `${pct(p.ftm, p.fta)}%`}</td>
+                {/* 2026-06-27 paper 매치 = 슈팅 6 셀 hide */}
+                {!isPaperMatch && (
+                  <>
+                    <td>{showPlaceholder ? "-" : `${p.fgm}/${p.fga}`}</td>
+                    <td>{showPlaceholder ? "-" : `${pct(p.fgm, p.fga)}%`}</td>
+                    <td>{showPlaceholder ? "-" : `${p.tpm}/${p.tpa}`}</td>
+                    <td>{showPlaceholder ? "-" : `${pct(p.tpm, p.tpa)}%`}</td>
+                    <td>{showPlaceholder ? "-" : `${p.ftm}/${p.fta}`}</td>
+                    <td>{showPlaceholder ? "-" : `${pct(p.ftm, p.fta)}%`}</td>
+                  </>
+                )}
                 <td>{showPlaceholder ? "-" : p.oreb}</td>
                 <td>{showPlaceholder ? "-" : p.dreb}</td>
                 <td>{showPlaceholder ? "-" : p.reb}</td>
@@ -2903,31 +2923,50 @@ function PrintBoxScoreTable({
                 <td>{showPlaceholder ? "-" : p.blk}</td>
                 <td>{showPlaceholder ? "-" : p.to}</td>
                 <td>{showPlaceholder ? "-" : p.fouls}</td>
-                <td>{p.plus_minus != null ? (p.plus_minus > 0 ? `+${p.plus_minus}` : p.plus_minus) : "-"}</td>
+                {/* 2026-06-27 paper 매치 = +/- 셀 hide */}
+                {!isPaperMatch && <td>{p.plus_minus != null ? (p.plus_minus > 0 ? `+${p.plus_minus}` : p.plus_minus) : "-"}</td>}
               </tr>
             ))}
             {/* 미출전 선수는 앱 통계 화면과 맞춰 MIN 포함 전체 칸을 "-"로 표시 */}
             {dnpPlayers.map((p) => (
               <tr key={`dnp-${p.id}`}>
+                {/* 2026-06-27 활성 행과 동일 컬럼 순서로 명시 분해 — paper 11칸 / 비-paper 19칸 정합 */}
                 <td>{p.jersey_number ?? "-"}</td>
                 <td style={{ textAlign: "left" }}>{p.name}</td>
-                <td style={{ fontWeight: 600 }}>-</td>
-                <td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td>
-                <td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td>
+                {/* MIN — paper hide */}
+                {!isPaperMatch && <td style={{ fontWeight: 600 }}>-</td>}
+                {/* PTS (공통) */}
+                <td>-</td>
+                {/* 슈팅 6 셀 — paper hide */}
+                {!isPaperMatch && (
+                  <>
+                    <td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td>
+                  </>
+                )}
+                {/* OR DR REB AST STL BLK TO PF (8 셀, 공통) */}
+                <td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td>
+                {/* +/- — paper hide */}
+                {!isPaperMatch && <td>-</td>}
               </tr>
             ))}
             {/* TOTAL 행 — print-total-row 클래스로 상단 굵은 선 + bold */}
             <tr className="print-total-row">
               <td></td>
               <td style={{ textAlign: "left" }}>TOTAL</td>
-              <td>{formatGameClock(total.min_seconds)}</td>
+              {/* 2026-06-27 paper 매치 = MIN hide */}
+              {!isPaperMatch && <td>{formatGameClock(total.min_seconds)}</td>}
               <td>{showPlaceholder ? "-" : total.pts}</td>
-              <td>{showPlaceholder ? "-" : `${total.fgm}/${total.fga}`}</td>
-              <td>{showPlaceholder ? "-" : `${pct(total.fgm, total.fga)}%`}</td>
-              <td>{showPlaceholder ? "-" : `${total.tpm}/${total.tpa}`}</td>
-              <td>{showPlaceholder ? "-" : `${pct(total.tpm, total.tpa)}%`}</td>
-              <td>{showPlaceholder ? "-" : `${total.ftm}/${total.fta}`}</td>
-              <td>{showPlaceholder ? "-" : `${pct(total.ftm, total.fta)}%`}</td>
+              {/* 2026-06-27 paper 매치 = 슈팅 6 셀 hide */}
+              {!isPaperMatch && (
+                <>
+                  <td>{showPlaceholder ? "-" : `${total.fgm}/${total.fga}`}</td>
+                  <td>{showPlaceholder ? "-" : `${pct(total.fgm, total.fga)}%`}</td>
+                  <td>{showPlaceholder ? "-" : `${total.tpm}/${total.tpa}`}</td>
+                  <td>{showPlaceholder ? "-" : `${pct(total.tpm, total.tpa)}%`}</td>
+                  <td>{showPlaceholder ? "-" : `${total.ftm}/${total.fta}`}</td>
+                  <td>{showPlaceholder ? "-" : `${pct(total.ftm, total.fta)}%`}</td>
+                </>
+              )}
               <td>{showPlaceholder ? "-" : total.oreb}</td>
               <td>{showPlaceholder ? "-" : total.dreb}</td>
               <td>{showPlaceholder ? "-" : total.reb}</td>
@@ -2936,7 +2975,8 @@ function PrintBoxScoreTable({
               <td>{showPlaceholder ? "-" : total.blk}</td>
               <td>{showPlaceholder ? "-" : total.to}</td>
               <td>{showPlaceholder ? "-" : total.fouls}</td>
-              <td>-</td>
+              {/* 2026-06-27 paper 매치 = +/- hide */}
+              {!isPaperMatch && <td>-</td>}
             </tr>
           </tbody>
         </table>
