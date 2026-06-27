@@ -122,9 +122,26 @@
 - **검증**: tsc EXIT0. 정적: 변경 classic.tsx만(+7)·**Toss(ts-/lucide/admin-toss/data-skin) 잔존 0**·BDR var(--color-*)·하드코딩 hex 0·public-visibility 미변경·3스킨(templateType) 분기 보존.
 - 🖥️ PM 육안: 미발행/종료-미보유(results=prep) 상태 결과 탭 → "공식 기록 준비 중" 안내(mock 0) / show/partial 시 기존 ResultsPage / classic·dark·minimal 동일.
 
+### PR-5 5-B — 공개 사이트 대진(bracket) 탭 추가 (BDR 13룰·실데이터·마이그 0)
+📝 공개 토너먼트 사이트(`classic.tsx`)에 **대진 탭 + BracketPage 트리** 신설. 정본 BracketPage(public-site-pages.jsx) 밴드/연결선 레이아웃을 BDR 토큰으로 박제. 발행 가시성(`visibility.sections.bracket`) prep/show/hide 게이트.
+
+| 파일 | 변경 | 신규/수정 |
+|------|------|----------|
+| `src/components/site-templates/bracket.module.css` | 정본 `.s-bracket` 밴드/연결선 트리 → BDR `var(--color-*)` 박제(셀 min-height 92px·승자강조 `--bk-primary`) | 신규 |
+| `src/components/site-templates/classic.tsx` | import(CSSProperties+module)·MatchEntry에 round_number/bracket_position·BracketPage 신설·NAV_LINKS 대진 탭(일정·결과 사이)·템플릿 bracket prep/show 분기 | 수정 |
+| `src/app/site-host/[[...path]]/page.tsx` | PAGE_SECTION에 `bracket:"bracket"` 게이트 1줄(hide=404·prep=placeholder·show=트리) | 수정 |
+
+- **데이터 경로**: page.tsx가 이미 로드하는 `matches`(tournamentMatch — `round_number`/`bracket_position` scalar 포함) **재활용. 쿼리 변경 0** — MatchEntry 타입에 2필드만 선언. BracketPage가 `round_number!=null && bracket_position!=null` 필터→round_number 오름차순 그룹핑(8강/4강/결승)→bracket_position 정렬. 라운드명=roundName 우선·없으면 "N라운드". mock 0(실 매치 파생만).
+- **visibility 게이트(소비만·0접촉)**: NAV `visibleNavLinks` 필터가 bracket==="hide"면 탭 숨김(before/reg). 탭 노출=prep(drawn)·show(published+). 템플릿: prep→"대진 준비 중"(정본 카피) / show→트리 / hide→page.tsx에서 404. showScore=state live/ended에서만 스코어 노출(정본 동일). 미발행→탭 hide/prep·발행→트리.
+- **승자강조**: `--bk-primary` 인라인 커스텀 프로퍼티로 site primary 주입→CSS module이 color-mix/inset shadow에 사용(**하드코딩 hex 0**).
+- **검증**: `cmd /c npx tsc --noEmit --incremental false` **EXIT0**. 정적: 대진 탭·BracketPage·게이트 존재 / Toss(ts-/lucide/admin-toss/data-skin) 잔존 0(유일 매치=정본 경로 주석) / BDR var(--color-*)·하드코딩 hex 0(box-shadow rgba=정본 동일 중립 그림자) / min-height 92px / 3스킨(templateType/isDark/minimal 9건) 보존 / public-visibility.ts 0접촉.
+- 💡 tester 참고: 미발행/모집 상태→대진 탭 안 보임. 대진생성 후(drawn)→탭 보이고 "대진 준비 중". 발행(published)→8강/4강/결승 트리(스코어 "–"). 진행/종료(live/ended)→스코어+승자 강조. /bracket 직접 URL: hide 상태면 404.
+- ⚠️ reviewer 참고: (1) 모바일 nav는 기존 `slice(0,4)` 유지 — 6탭 됐으나 ended 상태에서 모바일 상단은 홈/팀/일정/대진(결과 오버플로). "회귀 0" 위해 slice 로직 미변경(결과/참가신청은 기존에도 모바일 오버플로). (2) box-shadow rgba(16,24,40,…)=정본 s-bgame 그림자 그대로 박제(기존 classic/layout rgba 그림자 패턴과 동일). (3) `/schedule` 등 명시 라우트 파일이 catch-all을 shadow하나 `/bracket`은 명시 라우트 없어 catch-all→ClassicTemplate 도달(설계 의도).
+
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
 |------|------|------|
+| 2026-06-27 | **admin-toss PR-5 5-B 공개 사이트 대진 탭 추가 (BDR 13룰·실데이터·마이그0)** | ✅ tsc EXIT0. classic.tsx에 대진 탭(일정·결과 사이)+BracketPage 트리 신설(정본 .s-bracket 밴드/연결선→`bracket.module.css` BDR 토큰 박제·셀 min-height 92px). 데이터=기존 matches 재활용(round_number/bracket_position·쿼리 변경0). visibility.sections.bracket prep/show/hide 게이트(public-visibility 0접촉). page.tsx PAGE_SECTION bracket 1줄. Toss잔존0·하드코딩hex0·3스킨 보존. 승자강조=--bk-primary 인라인. |
 | 2026-06-27 | **PR-2 로컬 QA 추가 2건 해소 (지출 500·0원 폰트)** | ✅ ①지출추가 500 = **로컬 dev 서버 stale Prisma 클라이언트**(신규 tournament_expenses 미인식·DLL 잠금으로 generate 막혔던 것). 포트3001 PID12460 종료→`prisma generate`→재시작(새 PID63888)으로 해소(코드 무죄). ②금액 "0원" 슬래시제로(JetBrains Mono)→본문폰트+tabular-nums(d1c2d3e). **PR-2 로컬 검증 완료**(지출/일정/공지/series 동작). 교훈: 신규 모델 후 dev 서버 재시작+generate 필수. |
 | 2026-06-27 | **PR-2 프리뷰 QA 버그 2건 수정 (되돌림 루프)** | ✅ ①빌드실패: expenses Zod3 `invalid_type_error`→Zod4(옵션 제거)·PR-2 전체 미배포 원인. ②일정 비어보임: matches-panel camel→snake 읽기 교정(snake함정8회·3-C 무죄). +정산 모달 에러가시화. **tsc EXIT0 직접확인**(3-D dev의 EXIT0은 캐시 오판이었음). errors.md 박제. **✅프리뷰 빌드 SUCCESS(d999cba READY)** — PR-2 기능 프리뷰 첫 배포. 수빈 재검토→PR #773 머지 대기. |
 | 2026-06-27 | **admin-toss PR-2 3-D 정산 지출 + PR-2 완료** | ✅ `tournament_expenses` 신규테이블(tournament_id **uuid** FK 교정·amount Int·Cascade) db push 운영반영(무중단 CREATE·8컬럼0행·insert/delete 롤백검증). expenses API(GET/POST/PATCH/DELETE·requireTournamentAdmin·IDOR). settlement-panel 지출/잔액(입금−지출) KPI+모달, 기존 입금로직0접촉. tsc EXIT0. ⚠️로컬 Prisma 재생성 EPERM(dev서버 잠금·미킬)→런타임 프리뷰 검증. **PR-2 완료**. |
