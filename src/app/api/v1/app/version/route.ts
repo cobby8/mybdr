@@ -8,19 +8,31 @@ import { NextResponse } from "next/server";
  * release_history는 앱정보/업데이트 화면의 누적 릴리즈 아카이브다.
  */
 const LATEST = {
-  latest_version_code: 15,
-  latest_version_name: "0.1.13",
+  latest_version_code: 16,
+  latest_version_name: "0.1.14",
   min_supported_version_code: 1,
   is_mandatory: false,
   apk_url: "https://www.mybdr.kr/api/v1/app/download",
-  sha256: "537d7d3d5fedbe34741db81d9f3dc2e5b32d06fad5d010c8f512febccbdd090d",
-  size_bytes: 80354831,
+  sha256: "501bf577517d960ae0f97d8c4690b8c2269ce6df828947eac21075fb3506d4b5",
+  size_bytes: 80396046,
   release_notes: [
-    "릴리즈 아카이브 추가",
-    "버전별 상세 릴리즈 노트 보기",
-    "업데이트 이력 신뢰도 개선",
+    "PBP 누락 보강",
+    "라이브 출전시간 동기화 개선",
+    "선발 출전시간 안정화"
   ],
   release_history: [
+    {
+      version: "0.1.14",
+      date: "2026-06-28",
+      summary: "PBP 표시와 라이브 출전시간 동기화 안정화",
+      details:
+        "경기 기록 중 누락될 수 있는 타임아웃/경고 PBP 표시를 보강하고, 라이브 페이지와 통계 화면의 출전시간이 현재 코트 체류 시간까지 반영되도록 안정화했습니다. 경기 시작 시 선발 5명의 출전시간 집계도 더 안전하게 시작됩니다.",
+      notes: [
+        { kind: "fix", text: "PBP 통계 보기에서 타임아웃과 경고 이벤트 표시 보강" },
+        { kind: "fix", text: "라이브 동기화 통계에 현재 출전 중인 선수의 체류 시간 반영" },
+        { kind: "fix", text: "경기 시작 시 선발 5명 출전시간 집계 시작 순서 안정화" },
+      ],
+    },
     {
       version: "0.1.13",
       date: "2026-06-28",
