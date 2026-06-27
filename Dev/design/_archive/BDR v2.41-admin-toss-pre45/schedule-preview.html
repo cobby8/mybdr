@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>일정 관리 — v2.42 보강</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700;800&display=swap" />
+<link rel="stylesheet" href="toss.css" />
+<link rel="stylesheet" href="workspace.css" />
+<link rel="stylesheet" href="preview.css" />
+</head>
+<body>
+<div id="root"></div>
+<script src="https://unpkg.com/lucide@latest"></script>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script type="text/babel" src="data.jsx"></script>
+<script type="text/babel" src="toss-kit.jsx"></script>
+<script type="text/babel" src="panels-core.jsx"></script>
+<script type="text/babel" src="bracket.jsx"></script>
+<script type="text/babel" src="schedule.jsx"></script>
+<script type="text/babel" src="preview-shell.jsx"></script>
+<script type="text/babel">
+  const states = [
+    { name: "경기 없음(empty)", how: "초기 화면 — '아직 작성된 일정이 없습니다' + 자동생성/직접배치 CTA" },
+    { name: "종별 경기시간·코트 시작시간", how: "설정 카드에서 종별 분(分)·코트별 시작시간 입력" },
+    { name: "자동 배정", how: "'일정 자동 생성' → 모달에서 코트별 종별·예선/토너먼트 칩 배정 → 배정 생성" },
+    { name: "수동 배정", how: "'직접 배치' → 좌측 미배치 풀에서 우측 코트 시간표로 드래그" },
+    { name: "다중 코트/날짜", how: "코트별 lane 헤더 · 경기번호(코트약어-날짜-순번) 자동" },
+    { name: "순서 변경 / 휴식", how: "행 grip 드래그로 재정렬 · '휴식' 버튼으로 break 삽입, 분(分) 변경, X 삭제" },
+    { name: "추첨 결과 반영", how: "'추첨 결과 반영(팀명 표기)' 체크 — 슬롯명 ↔ 실팀명 토글" },
+    { name: "대진 반영됨", how: "대진표 패널에서 '일정에 반영' 후 진입 시 상단 'bk-fromnote' 안내 + 경기수 반영" },
+    { name: "모바일 390", how: "툴바 '모바일 390' — 표 가로 스크롤(amt-table-wrap), 설정 그리드 1열" },
+  ];
+  ReactDOM.createRoot(document.getElementById('root')).render(
+    <window.PreviewShell title="일정 관리" sub="SchedulePanel · sc-* / amt-table · 자동·수동 배정, 드래그, 휴식" states={states} defaultVp="1440">
+      <window.SchedulePanel />
+    </window.PreviewShell>
+  );
+</script>
+</body>
+</html>

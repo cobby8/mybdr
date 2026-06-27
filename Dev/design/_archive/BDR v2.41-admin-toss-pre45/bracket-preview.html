@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>대진 생성 — v2.42 보강</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700;800&display=swap" />
+<link rel="stylesheet" href="toss.css" />
+<link rel="stylesheet" href="workspace.css" />
+<link rel="stylesheet" href="preview.css" />
+</head>
+<body>
+<div id="root"></div>
+<script src="https://unpkg.com/lucide@latest"></script>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script type="text/babel" src="data.jsx"></script>
+<script type="text/babel" src="toss-kit.jsx"></script>
+<script type="text/babel" src="panels-core.jsx"></script>
+<script type="text/babel" src="bracket.jsx"></script>
+<script type="text/babel" src="schedule.jsx"></script>
+<script type="text/babel" src="preview-shell.jsx"></script>
+<script type="text/babel">
+  const states = [
+    { name: "추첨 전(config)", how: "초기 — 대회 방식·조 설정 카드 + '아직 조편성 전입니다' 안내" },
+    { name: "방식 전환", how: "'대회 방식' select: 풀리그 / 조별리그+토너먼트 / 토너먼트 / 듀얼토너먼트 — 조수·진출 필드 활성/비활성 변화" },
+    { name: "완전 랜덤 추첨", how: "'완전 랜덤 추첨' → 조 편성 + (방식별) 토너먼트 트리 자동 생성" },
+    { name: "시드 배정", how: "'시드 배정' → 슬롯 클릭해 팀 지정 → '시드 완료 → 랜덤 추첨'" },
+    { name: "조별리그+토너먼트", how: "조 편성 + bk-tree 토너먼트 트리. 1라운드 칸 드래그로 대진 교체" },
+    { name: "듀얼토너먼트", how: "방식=듀얼 → 조별 더블엘리미(bk-dualrow 5경기/조) + 1·2위 교차 본선" },
+    { name: "팀 부족", how: "참가 2팀 미만 종별 선택 시 추첨 버튼 disabled" },
+    { name: "일정 반영", how: "'일정에 반영' → window.__BRACKET 발행 → 일정 패널이 소비(bracket:publish 이벤트)" },
+    { name: "종별 다중", how: "상단 종별 칩 전환 — 종별마다 독립 상태(편성 완료 시 ✓)" },
+  ];
+  ReactDOM.createRoot(document.getElementById('root')).render(
+    <window.PreviewShell title="대진 생성" sub="BracketPanel(bracket.jsx) · bk-* · 조편성·시드·트리·듀얼·일정반영" states={states} defaultVp="1440">
+      <window.BracketPanel />
+    </window.PreviewShell>
+  );
+</script>
+</body>
+</html>

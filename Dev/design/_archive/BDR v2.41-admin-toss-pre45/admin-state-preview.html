@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>관리자 상태 QA — Toss (v2.42)</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700;800&display=swap" />
+<link rel="stylesheet" href="toss.css" />
+<style>
+  body { background: var(--grey-100); }
+  .st-app { min-height: 100vh; }
+
+  /* header */
+  .st-head { background: #fff; border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 40; }
+  .st-head__in { max-width: 1120px; margin: 0 auto; padding: 16px 24px; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+  .st-head__brand { display: flex; align-items: center; gap: 12px; }
+  .st-head__mark { width: 38px; height: 38px; border-radius: 11px; background: var(--primary); color: #fff; display: grid; place-items: center; font-weight: 900; font-size: 18px; }
+  .st-head__t { font-size: 17px; font-weight: 800; letter-spacing: -.02em; }
+  .st-head__s { font-size: 12px; color: var(--ink-mute); margin-top: 2px; font-family: var(--ff-mono); }
+  .st-tabs { max-width: 1120px; margin: 0 auto; padding: 0 24px 12px; display: flex; gap: 4px; flex-wrap: wrap; }
+  .st-tab { appearance: none; border: 1px solid var(--border); background: var(--grey-50); color: var(--ink-soft); font-family: inherit; font-size: 13px; font-weight: 700; padding: 8px 14px; border-radius: 999px; cursor: pointer; display: inline-flex; align-items: center; gap: 7px; transition: all .12s; }
+  .st-tab:hover { background: #fff; color: var(--ink); border-color: var(--border-strong); }
+  .st-tab[data-on="true"] { background: var(--primary); color: #fff; border-color: var(--primary); }
+  .st-tab__n { font-family: var(--ff-mono); font-size: 11px; opacity: .65; }
+  .st-tab[data-on="true"] .st-tab__n { opacity: .85; }
+
+  /* main */
+  .st-main { max-width: 1120px; margin: 0 auto; padding: 28px 24px 64px; }
+  .st-sechead { margin-bottom: 20px; }
+  .st-sechead__t { font-size: 22px; font-weight: 800; letter-spacing: -.02em; display: flex; align-items: baseline; gap: 12px; }
+  .st-sechead__n { font-family: var(--ff-mono); font-size: 14px; color: var(--primary); font-weight: 800; }
+  .st-sechead__x { font-size: 14px; color: var(--ink-mute); margin: 6px 0 0; }
+  .st-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 18px; }
+
+  /* demo card */
+  .st-demo { background: #fff; border: 1px solid var(--border); border-radius: var(--radius-card); overflow: hidden; min-width: 0; display: flex; flex-direction: column; }
+  .st-demo__bar { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 13px 16px; border-bottom: 1px solid var(--border); background: var(--grey-50); }
+  .st-demo__panel { display: inline-flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 700; color: var(--ink-soft); }
+  .st-demo__stage { padding: 18px; flex: 1; min-width: 0; }
+  .st-demo__note { display: flex; align-items: flex-start; gap: 7px; padding: 11px 16px; border-top: 1px solid var(--border); background: var(--grey-50); font-size: 12.5px; color: var(--ink-mute); line-height: 1.5; }
+  .st-demo__note .licon { margin-top: 1px; flex: none; }
+
+  /* skeleton */
+  .st-skel { display: inline-block; background: linear-gradient(90deg, var(--grey-100) 25%, var(--grey-200) 37%, var(--grey-100) 63%); background-size: 400% 100%; animation: stsh 1.3s ease infinite; }
+  @keyframes stsh { 0% { background-position: 100% 0; } 100% { background-position: -100% 0; } }
+  .st-skrow { display: flex; align-items: center; gap: 14px; padding: 14px 16px; border-bottom: 1px solid var(--border); }
+  .st-skrow:last-child { border-bottom: 0; }
+  .st-skrow--head { background: var(--grey-50); }
+  .st-statgrid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .st-spinrow { display: flex; align-items: center; gap: 9px; margin-top: 14px; font-size: 13px; color: var(--ink-mute); font-weight: 600; }
+
+  /* spinner */
+  .st-spin { width: 18px; height: 18px; border-radius: 50%; border: 2.5px solid var(--grey-200); border-top-color: var(--primary); animation: stspin .7s linear infinite; display: inline-block; flex: none; }
+  .st-spin--sm { width: 15px; height: 15px; border-width: 2px; border-top-color: #fff; border-color: rgba(255,255,255,.4); border-top-color: #fff; }
+  @keyframes stspin { to { transform: rotate(360deg); } }
+
+  /* state block (error/permission) */
+  .st-state { text-align: center; padding: 28px 18px; display: flex; flex-direction: column; align-items: center; }
+  .st-state__ic { width: 58px; height: 58px; border-radius: 17px; display: grid; place-items: center; margin-bottom: 14px; }
+  .st-state__ic--danger { background: var(--danger-weak); color: var(--danger); }
+  .st-state__ic--lock { background: var(--grey-100); color: var(--ink-mute); }
+  .st-state__t { font-size: 16px; font-weight: 800; }
+  .st-state__x { font-size: 13.5px; color: var(--ink-mute); margin-top: 7px; line-height: 1.6; max-width: 340px; }
+  .st-state__x .ts-badge { vertical-align: middle; }
+
+  /* banner */
+  .st-banner { display: flex; align-items: flex-start; gap: 11px; padding: 14px 16px; border-radius: var(--radius-input); }
+  .st-banner--danger { background: var(--danger-weak); color: var(--danger); }
+  .st-banner--grey { background: var(--grey-100); color: var(--ink-soft); }
+  .st-banner > .licon { flex: none; margin-top: 1px; }
+
+  /* dirty dot */
+  .st-dirtydot { width: 7px; height: 7px; border-radius: 50%; background: var(--warn); display: inline-block; }
+
+  /* save toast (in-card) */
+  .st-toast { margin-top: 12px; display: inline-flex; align-items: center; gap: 8px; background: var(--grey-900); color: #fff; padding: 11px 16px; border-radius: 14px; font-size: 13.5px; font-weight: 600; animation: strise .25s ease; }
+  @keyframes strise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+  /* mobile phone frame */
+  .st-phone { width: 320px; max-width: 100%; margin: 0 auto; background: var(--grey-50); border: 8px solid var(--grey-800); border-radius: 26px; padding: 14px 12px; display: flex; flex-direction: column; gap: 10px; }
+  .st-phone--720 { width: 380px; }
+  .st-mcard { background: #fff; border: 1px solid var(--border); border-radius: 14px; padding: 13px; }
+  .st-mcard__top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .st-mcard__nm { font-weight: 700; font-size: 14.5px; }
+  .st-mcard__meta { display: flex; justify-content: space-between; font-size: 12.5px; color: var(--ink-mute); margin-top: 6px; }
+  .st-mcard__act { display: flex; gap: 7px; margin-top: 11px; }
+  .st-msheet { background: #fff; border-radius: 16px; padding: 16px; }
+  .st-flabel { display: block; font-size: 12.5px; font-weight: 700; color: var(--ink-soft); margin-bottom: 6px; }
+  .st-finput { width: 100%; font-family: inherit; font-size: 16px; padding: 12px 13px; border: 1.5px solid var(--border); border-radius: var(--radius-input); background: #fff; color: var(--ink); }
+  .st-finput:focus { outline: 0; border-color: var(--primary); }
+
+  @media (max-width: 760px) {
+    .st-grid { grid-template-columns: 1fr; }
+    .st-head__s { display: none; }
+  }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script src="https://unpkg.com/lucide@latest"></script>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script type="text/babel" src="toss-kit.jsx"></script>
+<script type="text/babel" src="admin-state.jsx"></script>
+<script type="text/babel">
+  ReactDOM.createRoot(document.getElementById("root")).render(<window.AdminStatePreview />);
+</script>
+</body>
+</html>
