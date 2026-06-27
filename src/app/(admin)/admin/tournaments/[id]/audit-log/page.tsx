@@ -174,7 +174,8 @@ export default async function TournamentAuditLogPage({
                       style={{ color: "var(--color-text-muted)" }}
                       data-label="시각"
                     >
-                      {l.created_at.toLocaleString("ko-KR")}
+                      {/* Vercel 서버 = UTC 이므로 Asia/Seoul 강제 — KST 로 표시 */}
+                      {l.created_at.toLocaleString("ko-KR", { timeZone: "Asia/Seoul" })}
                     </td>
                     <td data-primary="true" data-label="액션" className="px-4 py-3 font-medium">
                       {l.action}

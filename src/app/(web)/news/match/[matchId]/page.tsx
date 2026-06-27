@@ -150,7 +150,9 @@ export default async function NewsMatchDetailPage({
           <div className="nm-article__cat">
             <span className="nw-tag nw-tag--match">매치 단신</span>
             <span className="nw-card__date">
+              {/* 서버 렌더 — Vercel UTC 회피 위해 Asia/Seoul 강제 (KST 표시) */}
               {new Date(post.created_at).toLocaleString("ko-KR", {
+                timeZone: "Asia/Seoul",
                 year: "numeric",
                 month: "long",
                 day: "numeric",
