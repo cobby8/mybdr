@@ -5,7 +5,9 @@
 ## 현재 작업
 - **요청**: 관리자 영역 Toss 시안 박제 (admin-toss v2.41 정본). 단계 PR(PR-0~PR-5).
 - **기준 패키지**: `Dev/design/BDR v2.41-admin-toss/` + 계약문서 `_PR0-CONTRACT-CONFIRMED.md`(PR-1~5 단일 참조점).
-- **상태**: PR-0✅ → **PR-1 ✅완료**(셸 마이그레이션 합격 + 배치3 st-* 상태모듈 7a385f4). 코워크 육안 검증 합격(회귀0). **다음 = PR-2 대회 운영 워크스페이스**(착수 전 계획/분석 필요).
+- **상태**: PR-0✅·PR-1✅완료(push 동기화). **PR-2 진행** — 분석 결과: 운영 `[id]`에 6메뉴+9패널 **이미 Toss 작동**(옛 8카드 허브 통합 완료) → PR-2=신규 아닌 **격차 보강**. **파일럿 2-1 참가팀 진행 중(developer)**.
+- **PR-2 배치 분해**: 2-1 참가팀(파일럿·최저위험·신규필드0)→2-2 셸/요약→2-3 운영관리→2-4 대진표→2-5 **일정(SchedulePanel 신규+마이그)**→2-6 사이트→2-7 **정산(tournament_expense 신규테이블)**. 위험 신규/마이그(2-5·2-7) 뒤로·schema diff 게이트.
+- **⚠️ PR-2 미결정(2-5에서)**: 일정 탭 충돌 — 정본 일정=SchedulePanel(배정/드래그) vs 운영 일정=MatchesPanel(경기운영). 교체/둘다/현행 중 택. 정본 6메뉴엔 matches 독립메뉴 없음.
 - **🔄 v2.45 재베이스라이닝(2026-06-27)**: 새 zip `BDR v2 (45)` → 정본 교체(design_handoff_admin → `Dev/design/BDR v2.41-admin-toss/`, 직전본 `_archive/...-pre45/`). **START-HERE·IMPLEMENTATION-PROMPT·screenshots 17장(시각 정본) 반입** → §1 치환표 폐기. 폐기 38팀 site-* 제거. 정본 교체 커밋 = design(sync). 계약문서 §v2.45 갱신.
 - **★계정 배치 확정**: 정본=계정 **사이드바 푸터 UserChip**(데스크톱 topbar 없음). 사용자 "사이드 패널 유지"=계정을 사이드에. 배치1.5=ad-topbar 계정 제거+UserChip 푸터 이전(로그아웃 보존 필수).
 - **배치2 모바일(900px)·배치3 st-* 상태모듈 = 후속**. (v2.42 신규: 8상태 QA·preview 6 검수하네스·공개사이트 44팀 통일→PR-5)
@@ -17,7 +19,7 @@
 |----|------|------|
 | PR-0 | 패키지 배치 + §1치환 + §5스키마실측 + §6결정 | ✅ 93b90ef |
 | PR-1 | 셸 ts-shell 통일(배치1 8a2dd89·1.5 a0276a1·2 fb0f943·코워크 합격) + 배치3 st-* 상태모듈 Banner/Spinner(7a385f4) | ✅ 완료 |
-| PR-2 | 대회 운영 워크스페이스(operate 6메뉴+7패널)→/tournament-admin/tournaments/[id] | 대기 |
+| PR-2 | 대회 운영 워크스페이스(operate 6메뉴+7패널)→/tournament-admin/tournaments/[id] | 🔄 분석 |
 | PR-3 | 생성/수정 5단계 마법사(6-1: 단일화+prospectus/assoc 보존) | 대기 |
 | PR-4 | 셸별 콘솔(대회관리자/백오피스18/협력/심판) + 6-2 /admin/tournaments 목록 제거 | 대기 |
 | PR-5 | 공개 사이트(44팀/27경기 통일본) | 대기 |
