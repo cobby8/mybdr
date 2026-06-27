@@ -118,7 +118,7 @@
     else if (page === "settings") body = <AdSettings eyebrow={EB} title="설정" sub="심판 배정·자격·정산 정책을 설정합니다." groups={window.RF_SETTINGS} />;
     else body = <Dashboard />;
     return (
-      <window.AdminShell brand="MyBDR" brandSub="심판 관리자" nav={NAV} active={page} onNav={go}
+      <window.AdminShell brand="MyBDR" brandSub="심판 콘솔" nav={NAV} active={page} onNav={go}
         user={{ initial: "심", name: "심판 배정 관리자", role: "심판 운영팀" }}>
         {body}
       </window.AdminShell>

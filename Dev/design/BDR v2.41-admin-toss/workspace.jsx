@@ -7,7 +7,7 @@
 // ============================================================
 (function () {
   const { useState, useMemo, useEffect } = React;
-  const { Icon, Btn } = window;
+  const { Icon, Btn, Modal } = window;
   const WS = window.WS;
 
   const STEPS = [
@@ -34,6 +34,29 @@
   const PANEL = { teams: "TeamsPanel", divisions: "DivisionsPanel", matches: "MatchesPanel", bracket: "BracketPanel", recorders: "RecordersPanel", site: "SitePanel", admins: "AdminsPanel" };
   function Embed({ id }) { const C = window[PANEL[id]]; return <div className="ct-panel-embed">{C ? <C /> : null}</div>; }
 
+  function CopyTournamentModal({ onClose, onApply }) {
+    const [q, setQ] = useState("");
+    const list = (WS.copyableTournaments || []).filter(t => !q || t.name.includes(q) || t.org.includes(q));
+    return (
+      <Modal open onClose={onClose} maxWidth={560} title="대회 복사" sub="내가 만든 대회·같은 단체 대회를 선택하면 모든 설정을 새 대회로 복사합니다."
+        foot={<Btn variant="secondary" onClick={onClose}>닫기</Btn>}>
+        <div className="ad-search" style={{ marginBottom: 12 }}><Icon name="search" size={18} /><input value={q} onChange={e => setQ(e.target.value)} placeholder="대회명·단체 검색" /></div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {list.length ? list.map(t => (
+            <button key={t.id} type="button" className="ct-copyrow" onClick={() => onApply(t)}>
+              <span className="ct-copyrow__ic"><Icon name="copy" size={18} /></span>
+              <span className="ct-copyrow__body">
+                <span className="ct-copyrow__nm">{t.name}<span className="ct-copychip" data-mine={t.mine ? "true" : "false"}>{t.tag}</span></span>
+                <span className="ct-copyrow__meta">{t.org} · {t.date} · {t.teams}팀</span>
+              </span>
+              <Icon name="chevron-right" size={16} style={{ color: "var(--ink-dim)", flex: "0 0 auto" }} />
+            </button>
+          )) : <div className="ct-emptybox" style={{ padding: 20 }}>검색 결과가 없습니다.</div>}
+        </div>
+      </Modal>
+    );
+  }
+
   window.TournamentWorkspace = function TournamentWorkspace({ mode = "edit" }) {
     const isCreate = mode === "create";
     const init = isCreate ? (WS.emptyForm || WS.form) : WS.form;
@@ -43,9 +66,22 @@
     const [saved, setSaved] = useState(init);
     const [saving, setSaving] = useState(false);
     const [state, setState] = useState("idle");
+    const [delOpen, setDelOpen] = useState(false);
+    const [copyOpen, setCopyOpen] = useState(false);
     const s = WS.summary, ms = WS.matchStats;
     const pct = Math.round((s.progressCompleted / s.progressTotal) * 100);
     const dirty = useMemo(() => JSON.stringify(form) !== JSON.stringify(saved), [form, saved]);
+
+    // 종별별 참가비
+    const [feeOpen, setFeeOpen] = useState(false);
+    const [note, setNote] = useState(null);
+    const divList = WS.divisionRules || [];
+    const [divFees, setDivFees] = useState(() => { const m = {}; divList.forEach(r => { m[r.code] = r.fee; }); return m; });
+    const [draftFees, setDraftFees] = useState(divFees);
+    const won = (n) => (Number(n) || 0).toLocaleString() + "원";
+    const tieredCount = divList.filter(r => (divFees[r.code] != null ? divFees[r.code] : form.entryFee) !== form.entryFee).length;
+    const openFee = () => { setDraftFees(divFees); setFeeOpen(true); };
+    const applyFees = () => { setDivFees(draftFees); setFeeOpen(false); setNote("종별별 참가비를 적용했습니다"); setTimeout(() => setNote(null), 2400); };
 
     const patch = (k, v) => { setState("idle"); setForm(f => ({ ...f, [k]: v })); };
     const toggle = (id) => setOpenP(c => { const n = new Set(c); n.has(id) ? n.delete(id) : n.add(id); return n; });
@@ -57,10 +93,25 @@
       setSaving(true); setState("idle");
       setTimeout(() => { setSaving(false); setSaved(form); setState("ok"); }, 700);
     };
+    // 마지막 단계 완료 → 대회 목록으로 복귀
+    const complete = () => {
+      if (form.rosterMin > form.rosterMax) { setState("err"); return; }
+      setSaving(true); setState("idle");
+      setTimeout(() => { setSaving(false); setSaved(form); window.location.href = "대회 관리자.html#list"; }, 700);
+    };
     const stateMsg = saving ? "저장 중입니다" : dirty ? "변경사항이 있습니다" : state === "ok" ? "저장되었습니다" : "변경사항 없음";
     const cur = STEPS[step];
+    const cancelCreate = () => { if (window.confirm("대회 생성을 취소할까요? 입력한 내용은 저장되지 않습니다.")) window.history.back(); };
+    const confirmDelete = () => { setDelOpen(false); window.location.href = "대회 관리자.html#list"; };
+    const applyCopy = (t) => { setForm(f => ({ ...f, ...t.form })); setCopyOpen(false); setNote(`'${t.name}' 설정을 복사했습니다`); setTimeout(() => setNote(null), 2400); };
+    const stepNav = [{ label: isCreate ? "생성 단계" : "수정 단계" }, ...STEPS.map((x, i) => ({ id: x.id, icon: x.icon, text: `${i + 1}. ${x.label}` }))];
+    const footAction = isCreate
+      ? <button type="button" className="ts-cancelbtn" onClick={cancelCreate}><Icon name="x" size={16} /><span>생성 취소</span></button>
+      : <button type="button" className="ts-cancelbtn" data-danger="true" onClick={() => setDelOpen(true)}><Icon name="trash-2" size={16} /><span>대회 삭제</span></button>;
 
     return (
+      <window.AdminShell brand="MyBDR" brandSub={isCreate ? "새 대회 만들기" : "대회 수정"}
+        nav={stepNav} active={cur.id} onNav={(id) => go(IDX[id] != null ? IDX[id] : 0)} footAction={footAction}>
       <div className="tw-shell">
         {/* 헤더 */}
         <div className="ts-ph" style={{ marginBottom: 16 }}>
@@ -75,19 +126,13 @@
                 <span className="ct-pill" data-tone="info">D-{WS.tournament.dDay}</span>
               </div>}
             </div>
-            <Btn variant="secondary" size="sm" iconRight="arrow-up-right">사이트로</Btn>
+            {isCreate
+              ? <Btn variant="secondary" size="sm" icon="copy" onClick={() => setCopyOpen(true)}>대회 복사</Btn>
+              : <Btn variant="secondary" size="sm" iconRight="arrow-up-right">사이트로</Btn>}
           </div>
         </div>
 
-        {/* 스텝 네비 */}
-        <div className="tw-steps">
-          {STEPS.map((x, i) => (
-            <button key={x.id + "-" + (i === step ? "a" : i < step ? "d" : "n")} className={"tw-step" + (i === step ? " is-active" : "") + (i < step ? " is-done" : "")} onClick={() => go(i)}>
-              <span className="tw-step__num">{i < step ? <Icon name="check" size={15} /> : i + 1}</span>
-              <span className="tw-step__lbl">{x.label}</span>
-            </button>
-          ))}
-        </div>
+        {/* 스텝 진행률 (스텝 네비는 좌측 사이드패널) */}
         <div className="ct-progress" style={{ marginBottom: 18 }}><div className="ct-progress__fill" style={{ width: ((step + 1) / STEPS.length * 100) + "%" }} /></div>
 
         {/* 스텝 본문 */}
@@ -113,9 +158,9 @@
             <div>
               <PanelSummary open={openP} toggle={toggle}
                 stats={[["종별", s.divisionCount], ["대진 경기", s.matchCount]]}
-                panels={[["divisions", "종별 운영 방식"], ["bracket", "대진 생성"]]} />
+                panels={[["divisions", "종별 운영 방식"]]} />
               {openP.has("divisions") && <Embed id="divisions" />}
-              {openP.has("bracket") && <Embed id="bracket" />}
+              <div className="ops-note" style={{ marginTop: 12 }}><Icon name="info" size={16} color="var(--primary)" style={{ flex: "0 0 auto", marginTop: 1 }} /><span>대진 생성·일정·경기 운영은 대회 생성 후 <b>대회 운영 워크스페이스</b>에서 처리합니다.</span></div>
             </div>
           )}
 
@@ -147,7 +192,13 @@
                 <Field label="은행명"><input className="ts-input" value={form.bankName} onChange={e => patch("bankName", e.target.value)} /></Field>
                 <Field label="계좌번호"><input className="ts-input" value={form.bankAccount} onChange={e => patch("bankAccount", e.target.value)} /></Field>
                 <Field label="예금주"><input className="ts-input" value={form.bankHolder} onChange={e => patch("bankHolder", e.target.value)} /></Field>
-                <Field label="참가비"><input type="number" className="ts-input" value={form.entryFee} onChange={e => patch("entryFee", +e.target.value)} /></Field>
+                <Field label="참가비 (기본)">
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <input type="number" className="ts-input" style={{ flex: 1, minWidth: 0 }} value={form.entryFee} onChange={e => patch("entryFee", +e.target.value)} />
+                    <Btn variant="secondary" icon="layers" onClick={openFee}>종별별</Btn>
+                  </div>
+                  {tieredCount > 0 && <div className="ts-field__hint" style={{ color: "var(--primary)", fontWeight: 700 }}>종별 차등 참가비 {tieredCount}개 설정됨</div>}
+                </Field>
                 <Field label="참가 접수 안내" span2><textarea className="ts-textarea" style={{ minHeight: 64 }} value={form.feeNotes} onChange={e => patch("feeNotes", e.target.value)} /></Field>
                 <label className="ct-checkrow ct-span2"><window.Check on={form.autoApprove} onChange={v => patch("autoApprove", v)} /><span>참가팀 자동 승인</span></label>
                 <label className="ct-checkrow ct-span2"><window.Check on={form.allowWaiting} onChange={v => patch("allowWaiting", v)} /><span>대기 접수 허용</span></label>
@@ -170,17 +221,53 @@
             <Btn variant="secondary" onClick={save} {...(saving ? { disabled: true } : {})}>{saving ? "저장 중" : "저장"}</Btn>
             {step < STEPS.length - 1
               ? <Btn iconRight="chevron-right" onClick={() => go(step + 1)}>다음</Btn>
-              : <Btn icon="check" onClick={save} {...(saving ? { disabled: true } : {})}>{isCreate ? "대회 생성" : "저장하고 완료"}</Btn>}
+              : <Btn icon="check" onClick={complete} {...(saving ? { disabled: true } : {})}>{isCreate ? "대회 생성" : "저장하고 완료"}</Btn>}
           </div>
         </div>
+
+        {/* 종별별 참가비 모달 */}
+        <Modal open={feeOpen} onClose={() => setFeeOpen(false)} title="종별 참가비 설정"
+          sub="생성한 종별별로 참가비를 다르게 설정합니다. 미설정 종별은 기본 참가비를 적용합니다."
+          foot={<>
+            <Btn variant="secondary" onClick={() => setFeeOpen(false)}>취소</Btn>
+            <Btn icon="check" onClick={applyFees}>적용</Btn>
+          </>}>
+          {divList.length ? (
+            <div>
+              <button type="button" className="ct-feeapply" onClick={() => setDraftFees(() => { const m = {}; divList.forEach(r => { m[r.code] = form.entryFee; }); return m; })}>
+                <Icon name="copy" size={15} />기본 참가비 일괄 적용 · {won(form.entryFee)}
+              </button>
+              {divList.map(d => (
+                <div key={d.code} className="ct-feerow">
+                  <div className="ct-feerow__nm">{d.label}<span className="ct-feerow__cap">정원 {d.cap}팀 · {window.FORMAT_LABEL[d.format] || d.format}</span></div>
+                  <div className="ct-feerow__in">
+                    <input type="number" className="ts-input" value={draftFees[d.code] != null ? draftFees[d.code] : ""} onChange={e => setDraftFees(f => ({ ...f, [d.code]: +e.target.value }))} />
+                    <span className="ct-feerow__won">원</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="ct-emptybox"><b>종별·디비전</b> 단계에서 종별을 먼저 추가하세요.</div>
+          )}
+        </Modal>
+        {copyOpen && <CopyTournamentModal onClose={() => setCopyOpen(false)} onApply={applyCopy} />}
+        {note && <div className="ts-toast"><Icon name="check" size={16} />{note}</div>}
+        {delOpen && (
+          <Modal open onClose={() => setDelOpen(false)} title="대회를 삭제할까요?" sub={WS.tournament ? WS.tournament.name : ""}
+            foot={<><Btn variant="secondary" onClick={() => setDelOpen(false)}>취소</Btn><Btn variant="danger" icon="trash-2" onClick={confirmDelete}>영구 삭제</Btn></>}>
+            <div className="ops-warn" style={{ marginBottom: 4 }}><Icon name="alert-triangle" size={18} color="var(--warn)" style={{ flex: "0 0 auto", marginTop: 1 }} /><span>대회와 연결된 <b>참가팀·대진·일정·정산 기록</b>이 모두 삭제됩니다. 이 작업은 되돌릴 수 없습니다.</span></div>
+          </Modal>
+        )}
       </div>
+      </window.AdminShell>
     );
   };
 
   const STEP_SUB = {
     info: "대회 기본 정보와 소개를 입력합니다.",
     schedule: "본선 일정과 경기장·코트를 등록합니다.",
-    divisions: "종별을 추가·수정·삭제하고 운영 방식·대진을 관리합니다.",
+    divisions: "종별을 추가·수정·삭제하고 운영 방식을 관리합니다.",
     game: "경기 규칙·기록 방식과 운영진을 설정합니다.",
     publish: "참가 접수, 팀 기준, 사이트 공개를 운영합니다.",
   };

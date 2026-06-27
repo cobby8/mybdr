@@ -31,7 +31,7 @@ window.WS = {
   // 메가폼 초기값
   form: {
     name: "BDR 서머 오픈 #4", organizer: "BDR 운영팀", host: "서울시농구협회",
-    description: "전국 아마추어 농구 동호인을 위한 BDR 서머 시리즈 4번째 대회.",
+    description: "전국 아마추어 농구 동호인을 위한 BDR 서머 정규대회 4번째 대회.",
     gameTime: "10분", gameBall: "몰텐 GG7X", gameMethod: "4쿼터",
     rules: "FIBA 룰 적용. 자세한 운영 규칙은 요강 참조.", prize: "우승 200만원 / 준우승 100만원",
     entryFee: 60000, regStart: "2026-05-01T10:00", regEnd: "2026-05-25T18:00",
@@ -136,7 +136,7 @@ window.WS = {
   ],
 
   // site 패널
-  site: { published: false, subdomain: "bdr-summer-4", template: "classic-tournament", color: "#1B3C87" },
+  site: { published: false, subdomain: "bdr-summer-4", org: "BDR 농구문화", orgSlug: "bdr-basketball", template: "classic-tournament", color: "#1B3C87" },
   siteTemplates: [
     { slug: "classic-tournament", name: "Classic", desc: "깔끔한 화이트 배경의 모던 레이아웃", navBg: "#1B3C87", bg: "#F5F7FA", cardBg: "#FFFFFF" },
     { slug: "the-process", name: "Dark", desc: "강렬한 다크 배경의 대담한 스타일", navBg: "#1F2937", bg: "#0F172A", cardBg: "#1E293B" },
@@ -162,11 +162,52 @@ window.WS = {
     ["퍼플", "#6D3AD1"], ["스카이", "#3DA9E0"], ["민트", "#19C3A6"], ["핑크", "#E85FA0"],
     ["그레이", "#8A93A0"], ["마룬", "#7A1620"], ["틸", "#0E7C86"], ["골드", "#C9A227"],
   ],
-  // 경기 시간 프리셋
+  // 경기 시간 프리셋 (기록앱 _kPresets 정합 — 시간 + 타임아웃 + 파울 + 쿼터간 휴식)
   gamePresets: [
-    { label: "10분 4쿼터", quarterType: "4Q", quarterMinutes: 10 },
-    { label: "8분 4쿼터", quarterType: "4Q", quarterMinutes: 8 },
-    { label: "20분 전후반", quarterType: "HALF", quarterMinutes: 20 },
+    { label: "6분 4쿼터", quarterType: "4Q", quarterMinutes: 6, firstHalfTimeouts: 1, secondHalfTimeouts: 1, foulLimit: 5, teamFoulBonus: 4, shortBreakDurationSeconds: 60 },
+    { label: "7분 4쿼터", quarterType: "4Q", quarterMinutes: 7, firstHalfTimeouts: 1, secondHalfTimeouts: 2, foulLimit: 5, teamFoulBonus: 4, shortBreakDurationSeconds: 90 },
+    { label: "10분 4쿼터", quarterType: "4Q", quarterMinutes: 10, firstHalfTimeouts: 2, secondHalfTimeouts: 3, foulLimit: 5, teamFoulBonus: 5, shortBreakDurationSeconds: 120 },
+    { label: "10분 전후반", quarterType: "HALF", quarterMinutes: 10, firstHalfTimeouts: 1, secondHalfTimeouts: 1, foulLimit: 5, teamFoulBonus: 7, shortBreakDurationSeconds: 120 },
+  ],
+
+  // 디비전 진행방식별 기본 settings (동적 폼 기본값)
+  formatDefaults: {
+    single_elimination: {},
+    round_robin: { rounds: 1 },
+    dual_tournament: {},
+    group_stage_knockout: { group_size: 4, group_count: 4, advance_per_group: 2 },
+    league_advancement: { group_count: 2, advance_per_group: 2, linkage_pairs: 2 },
+    group_stage_with_ranking: { group_size: 4, group_count: 4, ranking_format: "crossover" },
+  },
+
+  // 종별 생성 — 성별 + 종별 마스터(디비전 + 연령부) — 종별디비전 설정 규칙 정합
+  //   3계층: 종별 > 디비전 > [연령부]. 디비전 명명: 여성 'w' 접미 · 종별×연령 결합(예: i3w U11)
+  genders: ["남성", "여성"],
+  tournamentYear: 2026,
+  categoryTemplates: [
+    { id: "ct-general", name: "일반부", divisions: ["D3", "D4", "D5", "D6", "D7", "D8"], ages: [] },
+    { id: "ct-youth", name: "유청소년", divisions: ["하모니", "i1", "i2", "i3", "i4"], ages: ["U8", "U9", "U10", "U11", "U12", "U13", "U14", "U15", "U16", "U17", "U18"] },
+    { id: "ct-univ", name: "대학부", divisions: ["U1", "U2", "U3"], ages: [] },
+    { id: "ct-senior", name: "시니어", divisions: ["S1", "S2", "S3"], ages: ["+40", "+45", "+50", "+55", "+60", "+65", "+70"] },
+  ],
+
+  // 대회 복사 — 내가 만든 / 같은 단체 대회 (전체 설정 스냅샷)
+  copyableTournaments: [
+    { id: "cp1", name: "BDR 스프링 오픈 #3", org: "BDR 농구문화", date: "2026.04", mine: true, teams: 40, tag: "내 대회",
+      form: { organizer: "BDR 운영팀", host: "BDR 농구문화", description: "BDR 오픈 정규대회 3회차. 조별리그 후 토너먼트.",
+        gameBall: "몰텐 GG7X", rules: "FIBA 룰 적용. 상세는 요강 참조.", prize: "우승 200만원 / 준우승 100만원",
+        entryFee: 60000, teamSize: 5, rosterMin: 5, rosterMax: 12, autoApprove: false, allowWaiting: true,
+        gameRules: { homeColor: "#FFFFFF", awayColor: "#1A1E27", vestProvided: true, clockMode: "dead", quarterType: "4Q", quarterMinutes: 10, overtimeMinutes: 5, lastScoreStopMin: 1, shotClockEnabled: true, foulLimit: 5, teamFoulBonus: 5, firstHalfTimeouts: 2, secondHalfTimeouts: 3, timeoutDurationSeconds: 60, shortBreakDurationSeconds: 120, halftimeDurationSeconds: 600, overtimeBreakDurationSeconds: 120, autoIntervalTimerEnabled: true } } },
+    { id: "cp2", name: "BDR 윈터컵 U18", org: "BDR 농구문화", date: "2025.12", mine: true, teams: 16, tag: "내 대회",
+      form: { organizer: "BDR 운영팀", host: "BDR 농구문화", description: "유스 단판 토너먼트 (U18).",
+        gameBall: "몰텐 GG7", rules: "FIBA 유스 룰.", prize: "우승 100만원 / 준우승 50만원",
+        entryFee: 40000, teamSize: 5, rosterMin: 5, rosterMax: 10, autoApprove: true, allowWaiting: false,
+        gameRules: { homeColor: "#FFFFFF", awayColor: "#1B2A4A", vestProvided: false, clockMode: "dead", quarterType: "4Q", quarterMinutes: 8, overtimeMinutes: 5, lastScoreStopMin: 1, shotClockEnabled: true, foulLimit: 5, teamFoulBonus: 4, firstHalfTimeouts: 1, secondHalfTimeouts: 2, timeoutDurationSeconds: 60, shortBreakDurationSeconds: 90, halftimeDurationSeconds: 600, overtimeBreakDurationSeconds: 120, autoIntervalTimerEnabled: true } } },
+    { id: "cp3", name: "한강 3x3 페스타", org: "BDR 농구문화", date: "2025.09", mine: false, teams: 24, tag: "같은 단체",
+      form: { organizer: "BDR 운영팀", host: "BDR 농구문화", description: "FIBA 3x3 단판 토너먼트.",
+        gameBall: "FIBA 3x3 공인구", rules: "FIBA 3x3 룰 / 10분 단판 21점.", prize: "우승 50만원",
+        entryFee: 30000, teamSize: 3, rosterMin: 3, rosterMax: 4, autoApprove: true, allowWaiting: true,
+        gameRules: { homeColor: "#FFFFFF", awayColor: "#1A1E27", vestProvided: false, clockMode: "nonstop", quarterType: "HALF", quarterMinutes: 10, overtimeMinutes: 3, lastScoreStopMin: 0, shotClockEnabled: true, foulLimit: 5, teamFoulBonus: 6, firstHalfTimeouts: 1, secondHalfTimeouts: 1, timeoutDurationSeconds: 30, shortBreakDurationSeconds: 60, halftimeDurationSeconds: 0, overtimeBreakDurationSeconds: 60, autoIntervalTimerEnabled: false } } },
   ],
 };
 

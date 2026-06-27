@@ -46,6 +46,27 @@
     ],
   };
 
+  // ── 요금제 포함 기능 카탈로그 (요금제 편집기에서 토글) ──
+  const FEAT_CATALOG = [
+    { k: "match", label: "기본 매칭" },
+    { k: "priority", label: "우선 매칭" },
+    { k: "court", label: "코트 예약" },
+    { k: "courtDiscount", label: "코트 예약 할인" },
+    { k: "stats", label: "상세 통계" },
+    { k: "adfree", label: "광고 제거" },
+    { k: "team", label: "팀 운영 도구" },
+    { k: "settle", label: "정산 관리" },
+    { k: "tournDiscount", label: "대회 참가비 할인" },
+    { k: "support", label: "전용 지원" },
+  ];
+  const PLAN_ON = {
+    basic: ["match", "court"],
+    premium: ["match", "priority", "court", "stats", "adfree"],
+    pro: ["match", "priority", "court", "courtDiscount", "stats", "adfree", "team", "settle", "tournDiscount"],
+    ent: FEAT_CATALOG.map(f => f.k),
+  };
+  const PLAN_FEATS = (key) => FEAT_CATALOG.map(f => ({ k: f.k, label: f.label, on: PLAN_ON[key].includes(f.k) }));
+
   // ── 페이지 스키마 (테이블형) ──
   // type: title|badge|mono|muted|avatar|status|actions|tags
   const T = (page, head, sub, addLabel, cols, rows) => ({ page, head, sub, addLabel, cols, rows });
@@ -200,11 +221,11 @@
         { key: "act", label: "", w: "60px", align: "right", type: "actions" },
       ],
       [
-        { id: 1, name: "BDR 서머 오픈 참가비", sub: "송파 불스", method: "계좌이체", amount: "₩200,000", date: "06.26 14:20", badge: "완료", tone: "ok" },
-        { id: 2, name: "코트 예약 결제", sub: "김도윤", method: "카드", amount: "₩45,000", date: "06.26 11:08", badge: "완료", tone: "ok" },
-        { id: 3, name: "참가비 환불 요청", sub: "성동 썬더", method: "계좌이체", amount: "-₩200,000", date: "06.25 18:40", badge: "환불대기", tone: "warn" },
-        { id: 4, name: "프리미엄 구독 결제", sub: "마포 레이커스", method: "카드", amount: "₩19,900", date: "06.25 09:30", badge: "완료", tone: "ok" },
-        { id: 5, name: "코트 예약 결제 실패", sub: "이서준", method: "카드", amount: "₩30,000", date: "06.24 20:15", badge: "실패", tone: "danger" },
+        { id: 1, name: "BDR 서머 오픈 참가비", sub: "송파 불스", method: "계좌이체", amount: "₩200,000", date: "06.26 14:20", badge: "완료", tone: "ok", txid: "TX-20260626-0042", gateway: "토스페이먼츠" },
+        { id: 2, name: "코트 예약 결제", sub: "김도윤", method: "카드", amount: "₩45,000", date: "06.26 11:08", badge: "완료", tone: "ok", txid: "TX-20260626-0031", gateway: "토스페이먼츠" },
+        { id: 3, name: "참가비 환불 요청", sub: "성동 썬더", method: "계좌이체", amount: "-₩200,000", date: "06.25 18:40", badge: "환불대기", tone: "warn", txid: "TX-20260625-0188", gateway: "토스페이먼츠" },
+        { id: 4, name: "프리미엄 구독 결제", sub: "마포 레이커스", method: "카드", amount: "₩19,900", date: "06.25 09:30", badge: "완료", tone: "ok", txid: "TX-20260625-0090", gateway: "토스페이먼츠" },
+        { id: 5, name: "코트 예약 결제 실패", sub: "이서준", method: "카드", amount: "₩30,000", date: "06.24 20:15", badge: "실패", tone: "danger", txid: "TX-20260624-0205", gateway: "토스페이먼츠" },
       ]),
 
     plans: T("plans", "요금제 관리", "구독 요금제와 가입자 현황을 관리합니다.", "요금제 추가",
@@ -216,10 +237,10 @@
         { key: "act", label: "", w: "60px", align: "right", type: "actions" },
       ],
       [
-        { id: 1, name: "베이직", sub: "기본 매칭 · 코트 예약", price: "무료", subs: "10,420", st: "운영중", sttone: "ok" },
-        { id: 2, name: "프리미엄", sub: "우선 매칭 · 통계 · 광고 제거", price: "₩9,900", subs: "1,840", st: "운영중", sttone: "ok" },
-        { id: 3, name: "팀 프로", sub: "팀 운영 · 대회 할인 · 정산", price: "₩19,900", subs: "320", st: "운영중", sttone: "ok" },
-        { id: 4, name: "단체 엔터프라이즈", sub: "협회·주최사 전용", price: "협의", subs: "12", st: "비공개", sttone: "mute" },
+        { id: 1, name: "베이직", sub: "기본 매칭 · 코트 예약", price: "무료", subs: "10,420", st: "운영중", sttone: "ok", features: PLAN_FEATS("basic") },
+        { id: 2, name: "프리미엄", sub: "우선 매칭 · 통계 · 광고 제거", price: "₩9,900", subs: "1,840", st: "운영중", sttone: "ok", features: PLAN_FEATS("premium") },
+        { id: 3, name: "팀 프로", sub: "팀 운영 · 대회 할인 · 정산", price: "₩19,900", subs: "320", st: "운영중", sttone: "ok", features: PLAN_FEATS("pro") },
+        { id: 4, name: "단체 엔터프라이즈", sub: "협회·주최사 전용", price: "협의", subs: "12", st: "비공개", sttone: "mute", features: PLAN_FEATS("ent") },
       ]),
 
     community: T("community", "커뮤니티 관리", "게시글·댓글과 신고 콘텐츠를 관리합니다.", null,
@@ -281,10 +302,113 @@
   };
 
   // ── 진입점 연결: 행 클릭 → 실제 관리자 페이지 이동 ──
+  // ── 매칭 콘솔 신규 스키마 (게스트 / 픽업 / 연습경기) ──
+  window.BO_PAGES.guest = T("guest", "게스트 모집", "팀이 올린 게스트 모집 공고를 관리합니다.", null,
+    [
+      { key: "name", label: "모집 공고", w: "minmax(0,2fr)", type: "title" },
+      { key: "team", label: "모집 팀", w: "minmax(0,1.2fr)", type: "muted" },
+      { key: "pos", label: "포지션", w: "100px", align: "center", type: "muted" },
+      { key: "when", label: "경기 일시", w: "minmax(0,1fr)", type: "mono" },
+      { key: "status", label: "상태", w: "92px", align: "center", type: "badge" },
+    ],
+    [
+      { id: 1, name: "주말 리그 가드 1명 급구", sub: "실력 D3 이상 · 송파 불스", pos: "가드", team: "송파 불스", when: "06.29 14:00", badge: "모집중", tone: "ok" },
+      { id: 2, name: "센터 게스트 구합니다", sub: "친선 경기 · 마포 레이커스", pos: "센터", team: "마포 레이커스", when: "06.30 19:00", badge: "모집중", tone: "ok" },
+      { id: 3, name: "포워드 2명 (매너 우대)", sub: "정기전 · 용산 워리어스", pos: "포워드", team: "용산 워리어스", when: "07.02 20:00", badge: "마감", tone: "grey" },
+    ]);
+
+  window.BO_PAGES.pickup = T("pickup", "픽업 게임", "개인 단위로 모이는 픽업 게임을 관리합니다.", null,
+    [
+      { key: "name", label: "픽업 게임", w: "minmax(0,2fr)", type: "title" },
+      { key: "court", label: "코트", w: "minmax(0,1.2fr)", type: "muted" },
+      { key: "players", label: "인원", w: "92px", align: "center", type: "mono" },
+      { key: "when", label: "일시", w: "minmax(0,1fr)", type: "mono" },
+      { key: "status", label: "상태", w: "92px", align: "center", type: "badge" },
+    ],
+    [
+      { id: 1, name: "강남 5x5 픽업", sub: "호스트 김도윤", court: "강남 스포츠센터", players: "10/10", when: "06.27 19:00", badge: "모집완료", tone: "ok" },
+      { id: 2, name: "송파 3x3 번개", sub: "호스트 박지호", court: "올림픽공원 코트", players: "4/6", when: "06.27 20:30", badge: "모집중", tone: "primary" },
+      { id: 3, name: "용산 야간 픽업", sub: "호스트 이서준", court: "용산 실내체육관", players: "10/10", when: "06.26 21:00", badge: "종료", tone: "grey" },
+    ]);
+
+  window.BO_PAGES.scrim = T("scrim", "연습 경기", "팀 간 연습 경기(스크림) 매칭을 관리합니다.", null,
+    [
+      { key: "name", label: "연습 경기", w: "minmax(0,2fr)", type: "title" },
+      { key: "court", label: "코트", w: "minmax(0,1.2fr)", type: "muted" },
+      { key: "level", label: "수준", w: "92px", align: "center", type: "muted" },
+      { key: "when", label: "일시", w: "minmax(0,1fr)", type: "mono" },
+      { key: "status", label: "상태", w: "92px", align: "center", type: "badge" },
+    ],
+    [
+      { id: 1, name: "송파 불스 vs 마포 레이커스", sub: "5x5 풀코트", court: "장충체육관", level: "상급", when: "06.28 15:00", badge: "확정", tone: "ok" },
+      { id: 2, name: "성동 썬더 상대팀 구함", sub: "5x5 친선", court: "미정", level: "중급", when: "07.01 19:00", badge: "매칭중", tone: "primary" },
+      { id: 3, name: "강남 새벽 크루 vs 직장인 농구회", sub: "3x3", court: "올림픽공원 코트", level: "중급", when: "06.25 06:30", badge: "종료", tone: "grey" },
+    ]);
+
+  // ── 코트 콘솔 (실내 / 야외 / 제휴) ──
+  const _court = (page, head, sub, rows) => T(page, head, sub, "코트 등록",
+    [
+      { key: "court", label: "코트", w: "minmax(0,1.8fr)", type: "avatar" },
+      { key: "region", label: "지역", w: "minmax(0,1fr)", type: "muted" },
+      { key: "bookings", label: "월 예약", w: "92px", align: "center", type: "mono" },
+      { key: "status", label: "상태", w: "92px", align: "center", type: "status" },
+      { key: "act", label: "", w: "60px", align: "right", type: "actions" },
+    ], rows);
+  window.BO_PAGES["court-indoor"] = _court("court-indoor", "실내 코트", "실내 체육관·전용 코트를 관리합니다.", [
+    { id: 1, name: "장충체육관", sub: "실내 · 5면", color: av[0], region: "서울 중구", bookings: "82", st: "운영중", sttone: "ok" },
+    { id: 2, name: "용산 실내체육관", sub: "실내 · 3면", color: av[4], region: "서울 용산", bookings: "61", st: "운영중", sttone: "ok" },
+    { id: 3, name: "고양체육관", sub: "실내 · 4면", color: av[3], region: "경기 고양", bookings: "38", st: "점검중", sttone: "warn" },
+  ]);
+  window.BO_PAGES["court-outdoor"] = _court("court-outdoor", "야외 코트", "야외·공원 농구 코트를 관리합니다.", [
+    { id: 1, name: "올림픽공원 코트", sub: "야외 · 3면", color: av[1], region: "서울 송파", bookings: "140", st: "운영중", sttone: "ok" },
+    { id: 2, name: "망원 한강 코트", sub: "야외 · 2면", color: av[2], region: "서울 마포", bookings: "96", st: "운영중", sttone: "ok" },
+    { id: 3, name: "반포 한강 코트", sub: "야외 · 2면", color: av[5], region: "서울 서초", bookings: "88", st: "운영중", sttone: "ok" },
+  ]);
+  window.BO_PAGES["court-partner"] = _court("court-partner", "제휴 코트", "협력업체가 제공하는 제휴 코트를 관리합니다.", [
+    { id: 1, name: "스포클 강남점", sub: "제휴 · 2면", color: av[6], region: "서울 강남", bookings: "120", st: "운영중", sttone: "ok" },
+    { id: 2, name: "스포클 분당점", sub: "제휴 · 3면", color: av[7], region: "경기 성남", bookings: "75", st: "운영중", sttone: "ok" },
+    { id: 3, name: "한강사업본부 임대코트", sub: "제휴 · 3면", color: av[2], region: "서울 영등포", bookings: "54", st: "갱신예정", sttone: "warn" },
+  ]);
+
+  // ── 커뮤니티 콘솔 (게시판별) ──
+  const _board = (page, head, name, rows) => T(page, head, `${name} 게시글·댓글과 신고를 관리합니다.`, null,
+    [
+      { key: "name", label: "게시글", w: "minmax(0,2.4fr)", type: "title" },
+      { key: "engage", label: "반응", w: "120px", align: "center", type: "mono" },
+      { key: "status", label: "상태", w: "96px", align: "center", type: "badge" },
+      { key: "act", label: "", w: "60px", align: "right", type: "actions" },
+    ], rows);
+  window.BO_PAGES["board-free"] = _board("board-free", "자유게시판", "자유게시판의", [
+    { id: 1, name: "3x3 룰 질문있습니다", sub: "이서준 · 5시간 전", engage: "♡ 8 · 💬 6", badge: "정상", tone: "ok" },
+    { id: 2, name: "[신고] 비방성 댓글 포함", sub: "익명 · 어제", engage: "🚩 3", badge: "신고", tone: "danger" },
+    { id: 3, name: "서울 동부 야외 코트 추천", sub: "성동썬더 · 2일 전", engage: "♡ 14 · 💬 9", badge: "정상", tone: "ok" },
+  ]);
+  window.BO_PAGES["board-recruit"] = _board("board-recruit", "팀원 모집", "팀원 모집 게시판의", [
+    { id: 1, name: "이번 주말 강남 코트 같이 뛰실 분", sub: "김도윤 · 2시간 전", engage: "♡ 24 · 💬 12", badge: "정상", tone: "ok" },
+    { id: 2, name: "송파 5x5 정기팀 멤버 모집", sub: "박지호 · 6시간 전", engage: "♡ 11 · 💬 7", badge: "정상", tone: "ok" },
+  ]);
+  window.BO_PAGES["board-review"] = _board("board-review", "후기", "후기 게시판의", [
+    { id: 1, name: "스프링 리그 우승 후기 (장문)", sub: "마포불스 · 3일 전", engage: "♡ 52 · 💬 21", badge: "정상", tone: "ok" },
+    { id: 2, name: "장충체육관 코트 상태 후기", sub: "용산러버 · 4일 전", engage: "♡ 18 · 💬 5", badge: "정상", tone: "ok" },
+  ]);
+
+  // ── 진입점 연결: 행 클릭 → 실제 관리자 페이지 이동 ──
   window.BO_PAGES.tournaments.rowHref = "대회 운영.html";
   window.BO_PAGES.tournaments.sub = "플랫폼 전체 대회를 운영 관점에서 모니터링합니다. 행을 눌러 운영 워크스페이스로 이동합니다.";
   window.BO_PAGES.partners.rowHref = "협력업체 콘솔.html";
   window.BO_PAGES.partners.sub = "시설 제공·후원 협력업체를 관리합니다. 행을 눌러 협력업체 콘솔로 이동합니다.";
+
+  // ── Phase 2 전용 상세 화면 라우팅 (행 클릭 → 셸 내 상세 전환) ──
+  window.BO_PAGES.users.detail = "user";
+  window.BO_PAGES.users.sub = "전체 회원 계정을 조회·관리합니다. 행을 눌러 회원 상세·계정 관리로 이동합니다.";
+  window.BO_PAGES.teams.detail = "team";
+  window.BO_PAGES.teams.sub = "등록된 모든 팀을 관리합니다. 행을 눌러 팀 상세·선수 명단으로 이동합니다.";
+  window.BO_PAGES.organizations.detail = "org";
+  window.BO_PAGES.organizations.sub = "주최 단체·협회·동호회의 인증과 권한을 관리합니다. 행을 눌러 단체 상세·인증 처리로 이동합니다.";
+  window.BO_PAGES.payments.detail = "payment";
+  window.BO_PAGES.payments.sub = "참가비·예약 결제와 환불을 처리합니다. 행을 눌러 결제 상세·환불 처리로 이동합니다.";
+  window.BO_PAGES.plans.detail = "plan";
+  window.BO_PAGES.plans.sub = "구독 요금제와 가입자 현황을 관리합니다. 행을 눌러 요금제 편집기로 이동합니다.";
 
   // 설정(settings) — 폼형, 별도 처리
   window.BO_SETTINGS = [

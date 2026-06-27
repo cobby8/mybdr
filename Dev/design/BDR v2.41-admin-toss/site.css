@@ -38,7 +38,7 @@ body { background: var(--s-bg); color: var(--s-ink); font-family: var(--s-ff); -
 .s-brand__mark { width: 34px; height: 34px; border-radius: 8px; background: #fff; color: var(--s-navy); display: grid; place-items: center; font-weight: 900; font-size: 17px; flex: none; }
 .s-brand__sub { font-size: 11.5px; font-weight: 600; color: rgba(255,255,255,.65); margin-top: 1px; }
 .s-tabs { display: flex; gap: 2px; }
-.s-tab { appearance: none; border: 0; background: transparent; color: rgba(255,255,255,.74); font-family: inherit; font-size: 14.5px; font-weight: 600; padding: 8px 14px; border-radius: 8px; cursor: pointer; position: relative; }
+.s-tab { appearance: none; border: 0; background: transparent; color: rgba(255,255,255,.74); font-family: inherit; font-size: 14.5px; font-weight: 600; padding: 8px 14px; border-radius: 8px; cursor: pointer; white-space: nowrap; position: relative; }
 .s-tab:hover { color: #fff; background: rgba(255,255,255,.08); }
 .s-tab[aria-current="true"] { color: #fff; }
 .s-tab[aria-current="true"]::after { content: ""; position: absolute; left: 14px; right: 14px; bottom: -1px; height: 3px; border-radius: 3px 3px 0 0; background: #fff; }
@@ -222,3 +222,102 @@ body { background: var(--s-bg); color: var(--s-ink); font-family: var(--s-ff); -
   .s-gtable { display: block; overflow-x: auto; white-space: nowrap; }
   .s-topbar__links { display: none; }
 }
+
+/* ── 단체 사이트: 브레드크럼 / 단체 홈 ─────────────────── */
+.s-crumb { background: var(--s-card); border-bottom: 1px solid var(--s-border); }
+.s-crumb__in { max-width: 1080px; margin: 0 auto; padding: 11px 24px; display: flex; align-items: center; flex-wrap: wrap; gap: 6px; font-size: 13px; color: var(--s-mute); }
+.s-crumb__in a { color: var(--s-soft); font-weight: 600; cursor: pointer; }
+.s-crumb__in a:hover { color: var(--s-navy); }
+.s-crumb__in .cur { color: var(--s-ink); font-weight: 700; }
+.s-orghero { background: linear-gradient(135deg, var(--s-navy), var(--s-navy-d)); color: #fff; }
+.s-orghero__in { max-width: 1080px; margin: 0 auto; padding: 48px 24px; display: flex; align-items: center; gap: 22px; }
+.s-orghero__logo { width: 76px; height: 76px; border-radius: 20px; background: rgba(255,255,255,.14); display: grid; place-items: center; font-size: 34px; font-weight: 800; flex: none; }
+.s-orghero__txt { min-width: 0; }
+.s-orghero__badge { display: inline-flex; align-items: center; gap: 5px; font-size: 12.5px; font-weight: 700; background: rgba(255,255,255,.16); padding: 4px 11px; border-radius: 999px; white-space: nowrap; }
+.s-orghero__txt h1 { font-size: 34px; margin: 12px 0 0; letter-spacing: -0.02em; }
+.s-orghero__txt > p { font-size: 15px; color: rgba(255,255,255,.82); margin: 8px 0 0; }
+.s-orghero__meta { display: flex; flex-wrap: wrap; gap: 18px; margin-top: 16px; font-size: 13.5px; color: rgba(255,255,255,.8); }
+.s-orghero__meta span { white-space: nowrap; }
+.s-orghero__meta b { color: #fff; font-weight: 800; }
+.s-orgtlist { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; }
+.s-orgtcard { text-align: left; background: var(--s-card); border: 1px solid var(--s-border); border-radius: 16px; padding: 18px; cursor: pointer; font-family: inherit; transition: border-color .12s, box-shadow .12s; }
+.s-orgtcard:hover { border-color: var(--s-navy); box-shadow: 0 6px 20px rgba(27,60,135,.08); }
+.s-orgtcard__top { display: flex; gap: 6px; margin-bottom: 12px; }
+.s-orgtcard__nm { font-size: 17px; font-weight: 800; color: var(--s-ink); letter-spacing: -0.01em; }
+.s-orgtcard__meta { font-size: 13px; color: var(--s-mute); margin-top: 5px; }
+.s-orgtcard__go { display: flex; align-items: center; gap: 5px; margin-top: 14px; font-size: 13px; font-weight: 700; color: var(--s-navy); }
+@media (max-width: 760px) {
+  .s-orghero__in { padding: 32px 20px; gap: 16px; }
+  .s-orghero__logo { width: 60px; height: 60px; font-size: 26px; border-radius: 16px; }
+  .s-orghero__txt h1 { font-size: 26px; }
+}
+/* ── 단체 하위 페이지: 연혁 / 조직 / 게시판 ─────────────── */
+.s-history { display: flex; flex-direction: column; }
+.s-history__row { display: flex; gap: 18px; padding: 14px 0; border-top: 1px solid var(--s-border); }
+.s-history__row:first-child { border-top: 0; }
+.s-history__y { flex: 0 0 58px; font-family: var(--s-mono); font-weight: 800; color: var(--s-navy); }
+.s-history__t { color: var(--s-soft); font-size: 14.5px; line-height: 1.5; }
+.s-orgmembers { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
+.s-member { display: flex; align-items: center; gap: 12px; background: var(--s-card); border: 1px solid var(--s-border); border-radius: 14px; padding: 14px; min-width: 0; }
+.s-member__av { width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; color: #fff; font-weight: 800; font-size: 16px; flex: none; }
+.s-member__nm { font-weight: 800; color: var(--s-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.s-member__role { font-size: 13px; color: var(--s-mute); margin-top: 2px; }
+.s-member__since { margin-left: auto; font-family: var(--s-mono); font-size: 12px; color: var(--s-dim); flex: none; }
+.s-board__t { font-weight: 600; color: var(--s-ink); }
+.s-board__rc { color: var(--s-red); font-weight: 700; margin-left: 6px; font-size: 12.5px; }
+.s-board tbody tr { cursor: pointer; }
+.s-board tbody tr:hover { background: var(--s-bg); }
+.s-empty { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 44px 20px; color: var(--s-mute); font-size: 14px; font-weight: 600; background: var(--s-card); border: 1px dashed var(--s-border); border-radius: 16px; }
+.s-previewbar { display: flex; align-items: center; gap: 9px; max-width: 1080px; margin: 0 auto; padding: 11px 24px; font-size: 13px; font-weight: 700; color: var(--s-navy); background: rgba(27,60,135,.07); border-bottom: 1px solid var(--s-border); }
+.s-previewbar[data-pending="true"] { color: #92400e; background: rgba(234,179,8,.12); }
+
+/* ── 대회: 정규대회 아카이브 / 일반대회 ──────────────────── */
+.s-subtabs { display: inline-flex; gap: 4px; background: var(--s-card); border: 1px solid var(--s-border); border-radius: 12px; padding: 4px; margin-bottom: 24px; }
+.s-subtabs button { display: inline-flex; align-items: center; gap: 6px; border: 0; background: transparent; font-family: inherit; font-size: 14px; font-weight: 700; color: var(--s-mute); padding: 9px 18px; border-radius: 9px; cursor: pointer; }
+.s-subtabs button[data-on="true"] { background: var(--s-navy); color: #fff; }
+.s-leagues { display: flex; flex-direction: column; gap: 24px; }
+.s-league { border: 1px solid var(--s-border); border-radius: 18px; overflow: hidden; background: var(--s-card); box-shadow: 0 4px 16px rgba(16,24,40,.05); }
+.s-league__head { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 24px; background: linear-gradient(135deg, var(--s-navy), var(--s-navy-d)); color: #fff; }
+.s-league__badge { display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; font-weight: 800; letter-spacing: .03em; color: #5a4410; background: #e9c46a; padding: 3px 11px; border-radius: 999px; }
+.s-league__head h2 { margin: 11px 0 0; font-size: 23px; letter-spacing: -0.01em; }
+.s-league__head p { margin: 7px 0 0; font-size: 13px; color: rgba(255,255,255,.78); }
+.s-league__head p b { color: #e9c46a; }
+.s-league__seal { flex: none; width: 66px; height: 66px; border-radius: 50%; border: 2px solid rgba(233,196,106,.55); display: grid; place-items: center; font-family: var(--s-mono); font-size: 27px; font-weight: 800; color: #e9c46a; line-height: .9; }
+.s-league__seal span { font-size: 10.5px; font-weight: 700; color: rgba(255,255,255,.7); }
+.s-arch { padding: 8px 12px; }
+.s-arch__row { display: flex; align-items: center; gap: 16px; padding: 15px 12px; cursor: pointer; border-radius: 12px; }
+.s-arch__row + .s-arch__row { border-top: 1px solid var(--s-border); }
+.s-arch__row:hover { background: var(--s-bg); }
+.s-arch__row.is-current { background: rgba(27,60,135,.05); box-shadow: inset 3px 0 0 var(--s-navy); }
+.s-arch__no { flex: none; width: 48px; text-align: center; font-family: var(--s-mono); font-size: 25px; font-weight: 800; color: var(--s-navy); line-height: 1; }
+.s-arch__no i { display: block; font-style: normal; font-size: 11px; font-weight: 700; color: var(--s-mute); margin-top: 3px; }
+.s-arch__body { flex: 1; min-width: 0; }
+.s-arch__nm { font-size: 15.5px; font-weight: 800; color: var(--s-ink); }
+.s-arch__meta { font-size: 12.5px; color: var(--s-mute); margin-top: 3px; font-family: var(--s-mono); }
+.s-arch__champ { flex: none; display: flex; align-items: center; gap: 9px; text-align: right; }
+.s-arch__champ .material-symbols-outlined { color: #C9A227; flex: none; }
+.s-arch__champnm { display: block; font-size: 14px; font-weight: 800; color: var(--s-ink); }
+.s-arch__runner { display: block; font-size: 11.5px; color: var(--s-mute); margin-top: 1px; }
+.s-arch__go { flex: none; display: inline-flex; align-items: center; gap: 5px; font-size: 13px; font-weight: 800; color: var(--s-navy); }
+@media (max-width: 600px) {
+  .s-league__head { padding: 18px; }
+  .s-league__head h2 { font-size: 19px; }
+  .s-arch__row { gap: 11px; padding: 13px 8px; }
+  .s-arch__no { width: 38px; font-size: 21px; }
+  .s-arch__champ { flex-direction: row-reverse; }
+  .s-arch__champ > div { text-align: left; }
+}
+/* ── 아카이브 상세(지난 회차 결과) ──────────────────────── */
+.s-archback { display: inline-flex; align-items: center; gap: 5px; border: 0; background: transparent; color: var(--s-soft); font-family: inherit; font-weight: 700; font-size: 13.5px; cursor: pointer; padding: 0; margin-bottom: 18px; }
+.s-archback:hover { color: var(--s-navy); }
+.s-archhd { padding: 26px; border-radius: 18px; background: linear-gradient(135deg, var(--s-navy), var(--s-navy-d)); color: #fff; margin-bottom: 22px; }
+.s-archhd h1 { margin: 11px 0 0; font-size: 28px; letter-spacing: -0.02em; }
+.s-archhd p { margin: 8px 0 0; font-size: 13.5px; color: rgba(255,255,255,.8); font-family: var(--s-mono); }
+.s-champ { text-align: center; background: var(--s-card); border: 1px solid var(--s-border); border-radius: 18px; padding: 34px 24px; margin-bottom: 6px; }
+.s-champ .material-symbols-outlined { color: #C9A227; }
+.s-champ__nm { font-size: 27px; font-weight: 800; color: var(--s-ink); margin-top: 8px; letter-spacing: -0.01em; }
+.s-champ__lb { display: inline-block; margin-top: 9px; font-size: 12px; font-weight: 800; color: #5a4410; background: #e9c46a; padding: 3px 15px; border-radius: 999px; }
+.s-champ__sub { font-size: 13px; color: var(--s-mute); margin-top: 13px; font-family: var(--s-mono); }
+.s-rankno { display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; font-family: var(--s-mono); font-weight: 800; font-size: 13px; background: var(--s-bg); color: var(--s-soft); }
+.s-rankno.gold { background: #e9c46a; color: #5a4410; }
+.s-rankno.silver { background: #d4d8e0; color: #3a4254; }

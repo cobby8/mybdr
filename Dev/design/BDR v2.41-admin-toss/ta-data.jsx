@@ -8,8 +8,8 @@
 
   // 대회 목록 (장소 컬럼 포함)
   window.TA_TOURNAMENTS = [
-    { id: "t1", name: "BDR 서머 오픈 #4", series: "BDR 오픈 시리즈", org: "BDR 농구문화", venue: "장충체육관", region: "서울 중구", date: "2026.06.15", status: "진행중", statusTone: "ok", teams: 44, divisions: 4 },
-    { id: "t2", name: "한강 3x3 페스타", series: "한강 시리즈", org: "한강 스포츠클럽", venue: "잠실학생체육관", region: "서울 송파", date: "2026.07.02", status: "접수중", statusTone: "primary", teams: 21, divisions: 3 },
+    { id: "t1", name: "BDR 서머 오픈 #4", series: "BDR 오픈 정규대회", org: "BDR 농구문화", venue: "장충체육관", region: "서울 중구", date: "2026.06.15", status: "진행중", statusTone: "ok", teams: 44, divisions: 4 },
+    { id: "t2", name: "한강 3x3 페스타", series: "한강 정규대회", org: "한강 스포츠클럽", venue: "잠실학생체육관", region: "서울 송파", date: "2026.07.02", status: "접수중", statusTone: "primary", teams: 21, divisions: 3 },
     { id: "t3", name: "U18 윈터컵", series: "유스 디벨롭", org: "BDR 농구문화", venue: "고양체육관", region: "경기 고양", date: "2026.07.20", status: "준비중", statusTone: "warn", teams: 12, divisions: 2 },
     { id: "t4", name: "BDR 스프링 리그", series: "BDR 정규리그", org: "BDR 농구문화", venue: "올림픽공원 SK핸드볼", region: "서울 송파", date: "2026.05.10", status: "종료", statusTone: "mute", teams: 44, divisions: 5 },
     { id: "t5", name: "인천 오픈 클래식", series: "지역 오픈", org: "인천농구협회", venue: "인천삼산월드체육관", region: "인천 부평", date: "2026.08.08", status: "준비중", statusTone: "warn", teams: 0, divisions: 3 },
@@ -25,11 +25,11 @@
     { id: "o5", name: "유스 디벨롭 센터", type: "제휴 단체", admins: 2, tournaments: 3, members: 210, color: col(4), verified: true },
   ];
 
-  // 시리즈
+  // 정규대회
   window.TA_SERIES = [
-    { id: "s1", name: "BDR 오픈 시리즈", org: "BDR 농구문화", cadence: "분기", editions: 4, next: "2026.09.14", active: true, color: col(0) },
+    { id: "s1", name: "BDR 오픈 정규대회", org: "BDR 농구문화", cadence: "분기", editions: 4, next: "2026.09.14", active: true, color: col(0) },
     { id: "s2", name: "BDR 정규리그", org: "BDR 농구문화", cadence: "시즌", editions: 2, next: "2026.09.01", active: true, color: col(1) },
-    { id: "s3", name: "한강 시리즈", org: "한강 스포츠클럽", cadence: "월간", editions: 8, next: "2026.07.02", active: true, color: col(2) },
+    { id: "s3", name: "한강 정규대회", org: "한강 스포츠클럽", cadence: "월간", editions: 8, next: "2026.07.02", active: true, color: col(2) },
     { id: "s4", name: "유스 디벨롭", org: "유스 디벨롭 센터", cadence: "비정기", editions: 3, next: "미정", active: false, color: col(3) },
     { id: "s5", name: "마스터즈", org: "BDR 농구문화", cadence: "연간", editions: 1, next: "2027.04.18", active: true, color: col(4) },
   ];

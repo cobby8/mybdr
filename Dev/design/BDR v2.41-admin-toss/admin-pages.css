@@ -139,3 +139,85 @@
 .ad-drawer__v { font-size: 14px; font-weight: 600; color: var(--ink); flex: 1; min-width: 0; word-break: break-word; }
 .ad-drawer__foot { display: flex; gap: 10px; padding: 16px 22px; border-top: 1px solid var(--border); }
 @media (max-width: 760px) { .ad-drawer { width: 100%; max-width: 100vw; } }
+
+/* ── Phase 2: 결제 상세 / 요금제 편집 (bo-detail.jsx) ───────── */
+.bo-detail-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 22px; }
+.bo-amt { font-family: var(--ff-mono); font-size: 40px; font-weight: 800; letter-spacing: -0.03em; color: var(--ink); line-height: 1.1; }
+.bo-amt[data-neg="true"] { color: var(--danger); }
+.bo-sumrow { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin-top: 12px; }
+.bo-field { display: flex; gap: 16px; padding: 12px 0; border-top: 1px solid var(--border); }
+.bo-field:first-of-type { border-top: 0; }
+.bo-field__k { flex: 0 0 96px; font-size: 13px; font-weight: 700; color: var(--ink-mute); }
+.bo-field__v { flex: 1; min-width: 0; font-size: 14px; font-weight: 600; color: var(--ink); word-break: break-word; }
+/* 처리 이력 타임라인 */
+.bo-tl { display: flex; flex-direction: column; }
+.bo-tl__row { display: flex; gap: 14px; }
+.bo-tl__rail { display: flex; flex-direction: column; align-items: center; flex: 0 0 auto; }
+.bo-tl__dot { width: 13px; height: 13px; border-radius: 50%; background: #fff; box-shadow: 0 0 0 2px var(--border-strong); margin-top: 4px; flex: 0 0 auto; }
+.bo-tl__dot[data-on="true"] { background: var(--primary); box-shadow: 0 0 0 2px var(--primary); }
+.bo-tl__dot[data-on="true"][data-tone="ok"] { background: var(--ok); box-shadow: 0 0 0 2px var(--ok); }
+.bo-tl__dot[data-on="true"][data-tone="danger"] { background: var(--danger); box-shadow: 0 0 0 2px var(--danger); }
+.bo-tl__dot[data-tone="warn"] { box-shadow: 0 0 0 2px var(--warn); }
+.bo-tl__line { width: 2px; flex: 1; background: var(--border); min-height: 16px; margin: 4px 0; }
+.bo-tl__row:last-child .bo-tl__line { display: none; }
+.bo-tl__body { padding-bottom: 20px; min-width: 0; }
+.bo-tl__row:last-child .bo-tl__body { padding-bottom: 0; }
+.bo-tl__t { font-size: 14px; font-weight: 700; color: var(--ink); }
+.bo-tl__time { font-size: 12.5px; color: var(--ink-mute); font-family: var(--ff-mono); margin-top: 3px; }
+/* 요금제 편집 폼 */
+.bo-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+@media (max-width: 720px) { .bo-form-grid { grid-template-columns: 1fr; } }
+.bo-featrow { display: flex; align-items: center; gap: 14px; padding: 13px 0; border-top: 1px solid var(--border); }
+.bo-featrow:first-child { border-top: 0; }
+.bo-featrow__t { flex: 1; min-width: 0; font-size: 14.5px; font-weight: 600; color: var(--ink); }
+
+/* ── Phase 2 Batch 2: 회원·팀·단체 상세 (bo-detail-2.jsx) ───── */
+.bo-hero { display: flex; align-items: center; gap: 18px; min-width: 0; }
+.bo-hero__av { width: 66px; height: 66px; border-radius: 18px; display: grid; place-items: center; color: #fff; font-size: 25px; font-weight: 800; flex: 0 0 auto; letter-spacing: -0.02em; }
+.bo-hero__av[data-round="true"] { border-radius: 50%; }
+.bo-hero__meta { min-width: 0; }
+.bo-hero__name { font-size: 22px; font-weight: 800; color: var(--ink); letter-spacing: -0.02em; line-height: 1.2; }
+.bo-hero__sub { font-size: 13.5px; color: var(--ink-mute); margin-top: 4px; word-break: break-word; }
+.bo-hero__badges { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+.bo-statgrid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-top: 20px; }
+@media (max-width: 760px) { .bo-statgrid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.bo-stat { background: var(--grey-50); border-radius: 14px; padding: 15px 16px; min-width: 0; box-sizing: border-box; }
+.bo-stat__v { font-family: var(--ff-mono); font-size: 23px; font-weight: 800; color: var(--ink); letter-spacing: -0.02em; line-height: 1.1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bo-stat__v[data-tone="ok"] { color: var(--ok); }
+.bo-stat__v[data-tone="danger"] { color: var(--danger); }
+.bo-stat__v[data-tone="primary"] { color: var(--primary); }
+.bo-stat__k { font-size: 12.5px; font-weight: 700; color: var(--ink-mute); margin-top: 5px; }
+/* 명단/목록 행 (선수·팀·운영진·서류) */
+.bo-rowitem { display: flex; align-items: center; gap: 12px; padding: 13px 0; border-top: 1px solid var(--border); min-width: 0; }
+.bo-rowitem:first-child { border-top: 0; }
+.bo-rowitem__av { width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center; color: #fff; font-size: 13px; font-weight: 800; flex: 0 0 auto; }
+.bo-rowitem__av[data-square="true"] { border-radius: 11px; }
+.bo-rowitem__body { flex: 1; min-width: 0; }
+.bo-rowitem__t { font-size: 14px; font-weight: 700; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bo-rowitem__s { font-size: 12.5px; color: var(--ink-mute); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bo-rowitem__meta { flex: 0 0 auto; font-size: 12.5px; font-weight: 700; color: var(--ink-soft); font-family: var(--ff-mono); }
+.bo-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.bo-chip { font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 8px; background: var(--grey-100); color: var(--ink-soft); white-space: nowrap; }
+.bo-chip[data-tone="primary"] { background: var(--primary-weak); color: var(--primary); }
+.bo-chip[data-tone="ok"] { background: var(--ok-weak); color: var(--ok); }
+.bo-chip[data-tone="warn"] { background: var(--warn-weak); color: var(--warn); }
+/* 전적 막대 (승-패) */
+.bo-wl { display: flex; height: 9px; border-radius: 5px; overflow: hidden; background: var(--grey-100); margin-top: 4px; }
+.bo-wl__w { background: var(--ok); }
+.bo-wl__l { background: var(--grey-300); }
+/* 관리자 홈 — 운영 콘솔 바로가기 */
+.bo-launchgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(248px, 1fr)); gap: 12px; }
+@media (max-width: 720px) { .bo-launchgrid { grid-template-columns: 1fr; } }
+.bo-launch { display: flex; align-items: center; gap: 13px; background: #fff; border: 1px solid var(--border); border-radius: 14px; padding: 16px; text-decoration: none; box-shadow: var(--sh-xs); transition: transform .12s, box-shadow .14s, border-color .12s; min-width: 0; box-sizing: border-box; }
+.bo-launch:hover { transform: translateY(-2px); box-shadow: var(--sh-md); border-color: var(--primary); }
+.bo-launch__ic { width: 44px; height: 44px; border-radius: 12px; background: var(--primary-weak); color: var(--primary); display: grid; place-items: center; flex: 0 0 auto; }
+.bo-launch__body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.bo-launch__t { font-size: 15px; font-weight: 800; color: var(--ink); letter-spacing: -0.01em; }
+.bo-launch__d { font-size: 12.5px; color: var(--ink-mute); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bo-orgsite-note { display: flex; gap: 9px; align-items: flex-start; padding: 12px 14px; background: var(--primary-weak); border-radius: 12px; font-size: 13px; color: var(--ink-soft); line-height: 1.5; margin-bottom: 16px; }
+.bo-orgsite-note b { color: var(--ink); }
+/* 콘솔 내부 탭바 */
+.bo-constabs { display: flex; gap: 4px; flex-wrap: wrap; background: #fff; border: 1px solid var(--border); border-radius: 14px; padding: 6px; margin-bottom: 18px; box-shadow: var(--sh-xs); }
+.bo-constab { border: 0; background: transparent; font-family: var(--ff); font-size: 14px; font-weight: 700; color: var(--ink-mute); padding: 10px 16px; border-radius: 9px; cursor: pointer; white-space: nowrap; }
+.bo-constab:hover { background: var(--grey-50); color: var(--ink); }
+.bo-constab[data-on="true"] { background: var(--primary); color: #fff; }

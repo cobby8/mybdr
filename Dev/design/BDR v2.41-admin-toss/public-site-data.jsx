@@ -108,7 +108,7 @@
   // ── 대회 메타 (관리자 form/summary 파생) ──────────────────────
   const meta = {
     name: "BDR 서머 오픈 #4",
-    series: "BDR 오픈 시리즈", org: "BDR 농구문화",
+    series: "BDR 오픈 정규대회", org: "BDR 농구문화",
     subdomain: "bdr-summer-4", navy: "#1B3C87",
     period: "2026.06.15 ~ 06.22", venue: "장충체육관 · 잠실학생체육관", region: "서울",
     tagline: "전국 농구 매칭 플랫폼 — 여름을 여는 4종별 오픈전",

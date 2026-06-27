@@ -1,6 +1,6 @@
 /* global React, window */
 // ============================================================
-// ta-pages.jsx — 대회 관리자 페이지들 (대시보드/목록/단체/시리즈/템플릿)
+// ta-pages.jsx — 대회 관리자 페이지들 (대시보드/목록/단체/정규대회/템플릿)
 // ============================================================
 (function () {
   const { useState } = React;
@@ -129,10 +129,10 @@
     );
   }
 
-  // ── 시리즈 ─────────────────────────────────────────────
+  // ── 정규대회 ─────────────────────────────────────────────
   function Series() {
     const cols = [
-      { key: "name", label: "시리즈", w: "minmax(0,2fr)" },
+      { key: "name", label: "정규대회", w: "minmax(0,2fr)" },
       { key: "cadence", label: "주기", w: "100px", align: "center" },
       { key: "editions", label: "회차", w: "84px", align: "center" },
       { key: "next", label: "다음 대회", w: "minmax(0,1fr)" },
@@ -141,10 +141,10 @@
     ];
     return (
       <div>
-        <PageHead eyebrow="대회 관리자" title="시리즈"
-          sub="정기적으로 반복 개최하는 대회 시리즈를 묶어 관리합니다."
-          actions={<Btn icon="plus" onClick={() => window.adToast && window.adToast("시리즈 만들기 (시연)")}>시리즈 만들기</Btn>} />
-        <DataTable cols={cols} rows={window.TA_SERIES} onRow={(r) => window.adToast && window.adToast(r.name + " 시리즈 열기 (시연)")}
+        <PageHead eyebrow="대회 관리자" title="정규대회"
+          sub="정기적으로 반복 개최하는 정규대회를 묶어 관리합니다."
+          actions={<Btn icon="plus" onClick={() => window.adToast && window.adToast("정규대회 만들기 (시연)")}>정규대회 만들기</Btn>} />
+        <DataTable cols={cols} rows={window.TA_SERIES} onRow={(r) => window.adToast && window.adToast(r.name + " 열기 (시연)")}
           render={(r, k) => {
             if (k === "name") return <div className="ad-cell-flex"><span className="ad-card__logo" style={{ background: r.color, width: 38, height: 38, borderRadius: 11, fontSize: 14 }}>{r.name.slice(0, 1)}</span><div style={{ minWidth: 0 }}><div className="ad-cell-strong">{r.name}</div><div className="ad-cell-sub">{r.org}</div></div></div>;
             if (k === "cadence") return <Badge tone="grey">{r.cadence}</Badge>;
@@ -196,8 +196,10 @@
     { id: "list", icon: "trophy", text: "대회 목록", badge: 6 },
     { label: "구성" },
     { id: "orgs", icon: "building-2", text: "단체·주최", badge: 5 },
-    { id: "series", icon: "layers", text: "시리즈", badge: 5 },
+    { id: "series", icon: "layers", text: "정규대회", badge: 5 },
     { id: "templates", icon: "layout-template", text: "템플릿", badge: 4 },
+    { label: "우리 단체" },
+    { href: "토너먼트 사이트.html?org=bdr-basketball", icon: "globe", text: "내 공개 사이트", blank: true },
   ];
 
   window.TournamentAdminApp = function () {
@@ -205,7 +207,8 @@
     const go = (p) => { setPage(p); window.history.replaceState(null, "", "#" + p); window.scrollTo(0, 0); };
     const P = { dash: <Dashboard go={go} />, list: <TournamentList />, orgs: <Orgs />, series: <Series />, templates: <Templates /> }[page] || <Dashboard go={go} />;
     return (
-      <window.AdminShell brand="MyBDR" brandSub="대회 관리자" nav={NAV} active={page} onNav={go}
+      <window.AdminShell brand="MyBDR" brandSub="대회 콘솔" nav={NAV} active={page} onNav={go}
+        footAction={<a href="토너먼트 사이트.html?org=bdr-basketball" target="_blank" rel="noopener" className="ts-cancelbtn" style={{ textDecoration: "none" }}><window.Icon name="globe" size={16} /><span>내 공개 사이트 열기</span></a>}
         user={{ initial: "관", name: "BDR 농구문화", role: "대회 운영자" }}>
         {P}
       </window.AdminShell>

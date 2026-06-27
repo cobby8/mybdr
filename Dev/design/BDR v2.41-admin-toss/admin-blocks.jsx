@@ -65,9 +65,11 @@
   window.SchemaList = function SchemaList({ schema, eyebrow }) {
     const [q, setQ] = useState("");
     const rows = schema.rows.filter(r => !q || (r.name && r.name.includes(q)) || (r.sub && r.sub.includes(q)));
-    const goRow = schema.rowHref
-      ? (r) => { window.location.href = typeof schema.rowHref === "function" ? schema.rowHref(r) : schema.rowHref; }
-      : (r) => openDetail(r, schema);
+    const goRow = (schema.detail && window.__boDetailNav)
+      ? (r) => window.__boDetailNav(schema.detail, r)
+      : schema.rowHref
+        ? (r) => { window.location.href = typeof schema.rowHref === "function" ? schema.rowHref(r) : schema.rowHref; }
+        : (r) => openDetail(r, schema);
     return (
       <div>
         <PageHead eyebrow={eyebrow || ""} title={schema.head} sub={schema.sub}

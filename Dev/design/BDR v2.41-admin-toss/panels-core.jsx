@@ -58,35 +58,18 @@
           <Btn size="sm" icon="message-circle" onClick={() => copy("[안내문]...", show, "카톡 문구 복사 완료")}>카톡 문구 복사</Btn>
         </div>
 
-        {/* 등록경로 stat 4 */}
-        <div className="ct-panel-stats" style={{ gridTemplateColumns: "repeat(4,1fr)", marginBottom: 14 }}>
-          {[["운영자 등록", via.admin, "briefcase"], ["코치 신청", via.coach_token, "id-card"], ["본인 신청", via.self, "user"], ["경로 미상", via.null, "circle-help"]].map(([l, v, ic]) => (
-            <div key={l} className="ct-metric" style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <Icon name={ic} size={20} color="var(--primary)" />
-              <div><div className="ct-metric__lbl">{l}</div><div className="ct-metric__val">{v}</div></div>
-            </div>
-          ))}
-        </div>
-
-        {/* 종별 현황 — 종별별 참가신청 팀 수 */}
-        <div className="ts-card ts-card--flat" style={{ marginBottom: 14 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-            <div><h3 style={{ fontSize: 14 }}>종별 현황</h3><p style={{ fontSize: 12, color: "var(--ink-mute)", marginTop: 2 }}>종별별 참가신청 팀 수 · 대진 추첨은 대진표 탭에서</p></div>
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(200px,1fr))", gap: 8 }}>
+        {/* 종별 현황 — 한줄 요약 */}
+        <div className="ts-card ts-card--flat" style={{ marginBottom: 14, display: "flex", alignItems: "center", flexWrap: "wrap", gap: 10 }}>
+          <span style={{ fontSize: 13, fontWeight: 700, color: "var(--ink)", flex: "0 0 auto" }}>종별 현황</span>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6, flex: 1, minWidth: 0 }}>
             {readiness.map(r => (
-              <div key={r.code} style={{ background: "var(--grey-50)", borderRadius: 14, padding: "14px 14px" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8 }}>
-                  <p style={{ fontWeight: 700, fontSize: 13.5, minWidth: 0 }}>{r.label}</p>
-                  {r.over && <span className="ct-pill" data-tone="err">정원 초과</span>}
-                </div>
-                <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginTop: 8 }}>
-                  <span style={{ fontSize: 26, fontWeight: 800, color: "var(--ink)" }}>{r.total}</span>
-                  <span style={{ fontSize: 13, color: "var(--ink-mute)" }}>팀 신청{r.cap != null ? ` / 정원 ${r.cap}` : ""}</span>
-                </div>
-              </div>
+              <span key={r.code} style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 600, color: "var(--ink-soft)", background: "var(--grey-100)", padding: "5px 11px", borderRadius: 9 }}>
+                {r.label} <b style={{ fontFamily: "var(--ff-mono)", color: r.over ? "var(--danger)" : "var(--ink)" }}>{r.total}{r.cap != null ? `/${r.cap}` : ""}</b>
+                {r.over && <span className="ct-pill" data-tone="err">초과</span>}
+              </span>
             ))}
           </div>
+          <span style={{ fontSize: 12, color: "var(--ink-mute)", flex: "0 0 auto" }}>대진 추첨은 대진표 탭</span>
         </div>
 
         {/* 필터 */}
@@ -108,7 +91,9 @@
               {groups[cat].map(t => (
                 <div key={t.id} className="ts-card ts-card--tight" style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 12, justifyContent: "space-between" }}>
                   <button onClick={() => setOpen(t)} style={{ display: "flex", alignItems: "center", gap: 10, border: 0, background: "transparent", cursor: "pointer", minWidth: 0, textAlign: "left", fontFamily: "var(--ff)" }}>
-                    <span style={{ width: 38, height: 38, borderRadius: "50%", background: t.color, flex: "0 0 auto" }} />
+                    <span style={{ width: 38, height: 38, borderRadius: "50%", background: t.color, flex: "0 0 auto", display: "grid", placeItems: "center", color: "#fff", fontWeight: 800, fontSize: 15, overflow: "hidden" }}>
+                      {t.logo ? <img src={t.logo} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : t.name.slice(0, 1)}
+                    </span>
                     <span style={{ minWidth: 0 }}>
                       <span style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 6 }}>
                         <b style={{ color: "var(--ink)" }}>{t.name}</b>
@@ -179,50 +164,129 @@
   }
 
   // ── C. DIVISIONS ────────────────────────────────────────
+  function gradeLabel(g) {
+    if (g <= 0) return "미취학";
+    if (g <= 6) return "초" + g;
+    if (g <= 9) return "중" + (g - 6);
+    if (g <= 12) return "고" + (g - 9);
+    return "성인";
+  }
+  function ageInfo(age) {
+    const yr = (WS.tournamentYear || 2026);
+    const m = /^U(\d+)$/.exec(age);
+    if (m) { const n = +m[1]; return `${yr - n}년생 · ${gradeLabel(n - 6)}`; }
+    const s = /^\+(\d+)$/.exec(age);
+    if (s) return `만 ${s[1]}세 이상`;
+    return "";
+  }
+
+  function CategoryAddModal({ onClose, onCreate }) {
+    const genders = WS.genders || ["남성", "여성"];
+    const templates = WS.categoryTemplates || [];
+    const [gender, setGender] = useState(genders[0]);
+    const [tpl, setTpl] = useState(templates[0]);
+    const [divs, setDivs] = useState([]);
+    const [ages, setAges] = useState([]);
+    const [fmt, setFmt] = useState("single_elimination");
+    const hasAge = !!(tpl && tpl.ages && tpl.ages.length);
+    const toggle = (d) => setDivs(s => s.includes(d) ? s.filter(x => x !== d) : [...s, d]);
+    const toggleAge = (a) => setAges(s => s.includes(a) ? s.filter(x => x !== a) : [...s, a]);
+    const pickTpl = (t) => { setTpl(t); setDivs([]); setAges([]); };
+    const wsfx = gender === "여성" ? "w" : "";
+    const combos = [];
+    divs.forEach(d => { if (hasAge && ages.length) ages.forEach(a => combos.push(`${d}${wsfx} ${a}`)); else combos.push(`${d}${wsfx}`); });
+    const canCreate = divs.length > 0 && (!hasAge || ages.length > 0);
+    return (
+      <Modal open onClose={onClose} maxWidth={580} title="새 종별 추가"
+        sub="성별·종별을 고르고 디비전(·연령부)을 선택하면 종별이 생성됩니다. 여성부는 디비전에 'w'가 붙습니다."
+        foot={<><Btn variant="secondary" onClick={onClose}>취소</Btn><Btn icon="plus" onClick={() => onCreate(gender, tpl, divs, hasAge ? ages : [], fmt)} {...(canCreate ? {} : { disabled: true })}>종별 생성{combos.length ? ` (${combos.length})` : ""}</Btn></>}>
+        <div className="cat-step"><span className="cat-step__n">1단계 · 성별</span>
+          <div className="ct-segsm cat-seg">{genders.map(g => <button key={g} type="button" data-active={gender === g} onClick={() => setGender(g)}>{g}</button>)}</div>
+        </div>
+        <div className="cat-step"><span className="cat-step__n">2단계 · 종별</span>
+          <div className="cat-chips">{templates.map(t => <button key={t.id} type="button" className="cat-tpl" data-active={tpl && tpl.id === t.id} onClick={() => pickTpl(t)}>{t.name}{t.ages.length ? <span className="cat-tpl__age">연령</span> : null}</button>)}</div>
+        </div>
+        <div className="cat-step"><span className="cat-step__n">3단계 · 디비전<span className="cat-step__hint">여러 개 선택{wsfx ? " · 여성은 w 접미" : ""}</span></span>
+          <div className="cat-chips">{(tpl ? tpl.divisions : []).map(d => <button key={d} type="button" className="cat-div" data-active={divs.includes(d)} onClick={() => toggle(d)}>{divs.includes(d) && <Icon name="check" size={13} />}{d}{wsfx}</button>)}</div>
+        </div>
+        {hasAge && (
+          <div className="cat-step"><span className="cat-step__n">4단계 · 연령부<span className="cat-step__hint">선택 시 출생연도·학년 자동 채움</span></span>
+            <div className="cat-chips">{tpl.ages.map(a => <button key={a} type="button" className="cat-div cat-age" data-active={ages.includes(a)} onClick={() => toggleAge(a)}>{ages.includes(a) && <Icon name="check" size={13} />}<span>{a}</span><span className="cat-age__info">{ageInfo(a)}</span></button>)}</div>
+          </div>
+        )}
+        {combos.length > 0 && <div className="cat-preview"><Icon name="layout-grid" size={15} color="var(--primary)" /><span>생성됨 ({combos.length}): {combos.join(", ")}</span></div>}
+        <div className="cat-step" style={{ marginTop: 18, marginBottom: 0 }}><span className="cat-step__n">{hasAge ? "5" : "4"}단계 · 진행방식<span className="cat-step__hint">선택한 디비전에 일괄 적용 · 이후 카드에서 개별 변경</span></span>
+          <div className="cat-chips">{window.ALLOWED_FORMATS.map(f => <button key={f} type="button" className="cat-div" data-active={fmt === f} onClick={() => setFmt(f)}>{fmt === f && <Icon name="check" size={13} />}{window.FORMAT_LABEL[f]}</button>)}</div>
+        </div>
+      </Modal>
+    );
+  }
+
   window.DivisionsPanel = function DivisionsPanel() {
     const [rules, setRules] = useState(WS.divisionRules);
     const [editCode, setEditCode] = useState(null);   // 인라인 수정 중인 종별
     const [newLabel, setNewLabel] = useState("");
+    const [catOpen, setCatOpen] = useState(false);
     const [show, toast] = useToast();
     const showGroup = (f) => ["round_robin", "dual_tournament", "group_stage_knockout", "league_advancement", "group_stage_with_ranking"].includes(f);
     const showAdvance = (f) => ["group_stage_knockout", "dual_tournament"].includes(f);
+    // 진행방식별 동적 settings 필드
+    const FMT_FIELDS = {
+      single_elimination: [],
+      round_robin: [["rounds", "리그 회전", "select", [[1, "단판"], [2, "홈앤어웨이"]]]],
+      dual_tournament: [["advance_per_group", "조별 진출", "num", "2"]],
+      group_stage_knockout: [["group_size", "조 크기", "num", "4"], ["group_count", "조 개수", "num", "4"], ["advance_per_group", "조별 진출", "num", "2"]],
+      league_advancement: [["group_count", "조 개수", "num", "2"], ["advance_per_group", "조별 진출", "num", "2"], ["linkage_pairs", "링크 대진 수", "num", "2"]],
+      group_stage_with_ranking: [["group_size", "조 크기", "num", "4"], ["group_count", "조 개수", "num", "4"], ["ranking_format", "순위결정 방식", "select", [["crossover", "크로스오버"], ["playoff", "플레이오프"], ["bracket", "순위 토너먼트"]]]],
+    };
 
     const patchRule = (code, p) => setRules(rs => rs.map(r => r.code === code ? { ...r, ...p } : r));
     const patchSettings = (code, p) => setRules(rs => rs.map(r => r.code === code ? { ...r, settings: { ...r.settings, ...p } } : r));
     const removeRule = (code, label) => { if (!confirm(`"${label}" 종별을 삭제할까요?\n해당 종별의 배정·대진 정보도 함께 제거됩니다.`)) return; setRules(rs => rs.filter(r => r.code !== code)); setEditCode(c => c === code ? null : c); show(`${label} 삭제(시연)`); };
     const slug = (s) => s.trim().toLowerCase().replace(/[^a-z0-9가-힣]+/g, "-").replace(/(^-|-$)/g, "") || ("div" + Date.now());
-    const addRule = (label) => {
-      const lab = label.trim(); if (!lab) return;
+    const addRule = (label, preset) => {
+      const lab = (preset ? preset.label : label || "").trim(); if (!lab) return;
       if (rules.some(r => r.label === lab)) { show("이미 있는 종별입니다."); return; }
       let code = slug(lab); if (rules.some(r => r.code === code)) code += "-" + Math.random().toString(36).slice(2, 4);
-      setRules(rs => [...rs, { code, label: lab, cap: 16, fee: 50000, format: "single_elimination", settings: {} }]);
+      const base = preset
+        ? { code, label: lab, cap: preset.cap, fee: preset.fee, format: preset.format, settings: { ...(preset.settings || {}) } }
+        : { code, label: lab, cap: 16, fee: 50000, format: "single_elimination", settings: {} };
+      setRules(rs => [...rs, base]);
       setNewLabel(""); setEditCode(code); show(`${lab} 추가(시연)`);
     };
-    const MASTER = ["오픈부", "아마추어부", "U18", "U15", "U12", "U10", "여성부", "3x3"];
+    const addCategory = (gender, template, divs, ages, fmt) => {
+      const format = fmt || "single_elimination";
+      const fdef = (WS.formatDefaults && WS.formatDefaults[format]) || {};
+      const wsfx = gender === "여성" ? "w" : "";
+      const leaves = [];
+      divs.forEach(d => { if (ages && ages.length) ages.forEach(a => leaves.push(`${d}${wsfx} ${a}`)); else leaves.push(`${d}${wsfx}`); });
+      setRules(rs => {
+        const next = [...rs];
+        leaves.forEach(label => {
+          if (next.some(r => r.label === label)) return;
+          let code = slug(label); if (next.some(r => r.code === code)) code += "-" + Math.random().toString(36).slice(2, 4);
+          next.push({ code, label, cap: 16, fee: 50000, format, settings: { ...fdef } });
+        });
+        return next;
+      });
+      setCatOpen(false); show(`${gender} ${template.name} · ${leaves.length}개 종별 추가(시연)`);
+    };
 
     return (
       <div>
-        {/* 종별 구성 — 마스터 chip 토글(추가/삭제) + 직접 추가 */}
+        {/* 종별 · 디비전 — 새 종별 추가 모달(성별→템플릿→디비전) */}
         <div className="ts-card ts-card--flat" style={{ marginBottom: 14 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-            <div style={{ display: "flex", gap: 10, alignItems: "center" }}><span className="ct-headicon"><Icon name="layout-grid" size={18} /></span><div><h3 style={{ fontSize: 14 }}>종별 구성</h3><p style={{ fontSize: 12, color: "var(--ink-mute)", marginTop: 2 }}>칩을 눌러 추가/삭제 · 카드에서 이름·정원·참가비 수정</p></div></div>
-            <Btn size="sm" onClick={() => show("종별 저장(시연)")}>종별 저장</Btn>
-          </div>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 10 }}>
-            {MASTER.map(d => { const on = rules.some(r => r.label === d); return (
-              <button key={d} className="ts-chip" data-active={on} onClick={() => on ? removeRule(rules.find(r => r.label === d).code, d) : addRule(d)}>
-                <Icon name={on ? "check" : "plus"} size={14} />{d}
-              </button>
-            ); })}
-          </div>
-          <div style={{ display: "flex", gap: 8 }}>
-            <input className="ts-input" placeholder="직접 종별 추가 (예: U16 남자부)" value={newLabel} onChange={e => setNewLabel(e.target.value)} onKeyDown={e => { if (!e.nativeEvent.isComposing && e.key === "Enter") addRule(newLabel); }} />
-            <Btn variant="secondary" icon="plus" onClick={() => addRule(newLabel)} {...(newLabel.trim() ? {} : { disabled: true })}>추가</Btn>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+            <div style={{ display: "flex", gap: 10, alignItems: "center" }}><span className="ct-headicon"><Icon name="layout-grid" size={18} /></span><div><h3 style={{ fontSize: 14 }}>종별 · 디비전</h3><p style={{ fontSize: 12, color: "var(--ink-mute)", marginTop: 2 }}>성별·종별 템플릿을 고르고 디비전을 선택해 종별을 추가합니다.</p></div></div>
+            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              {rules.length === 0 && <span className="ct-pill" data-tone="err">1개 이상 필수</span>}
+              <Btn size="sm" icon="plus" onClick={() => setCatOpen(true)}>종별 추가</Btn>
+            </div>
           </div>
         </div>
 
         {rules.length === 0 ? (
-          <div className="ct-emptybox"><Icon name="layout-grid" size={40} color="var(--ink-dim)" /><b style={{ color: "var(--ink)" }}>등록된 종별이 없습니다</b><span>위에서 종별을 추가하세요.</span></div>
+          <div className="ct-emptybox"><Icon name="layout-grid" size={40} color="var(--ink-dim)" /><b style={{ color: "var(--ink)" }}>등록된 종별이 없습니다</b><span>“종별 추가”로 성별·템플릿·디비전을 선택하세요.</span></div>
         ) : (
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }} className="ct-divgrid">
           {rules.map(r => {
@@ -258,22 +322,23 @@
                 </select>
               </div>
 
-              {showGroup(r.format) && (
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginTop: 10 }} className="ct-div-edit3">
-                  <label className="ts-field" style={{ margin: 0 }}><span className="ts-field__label">조 크기</span><input className="ts-input" type="number" value={r.settings.group_size ?? ""} onChange={e => patchSettings(r.code, { group_size: e.target.value === "" ? undefined : +e.target.value })} placeholder="4" /></label>
-                  <label className="ts-field" style={{ margin: 0 }}><span className="ts-field__label">조 개수</span><input className="ts-input" type="number" value={r.settings.group_count ?? ""} onChange={e => patchSettings(r.code, { group_count: e.target.value === "" ? undefined : +e.target.value })} placeholder="4" /></label>
-                  {showAdvance(r.format) && <label className="ts-field" style={{ margin: 0 }}><span className="ts-field__label">조별 진출</span><input className="ts-input" type="number" value={r.settings.advance_per_group ?? 2} onChange={e => patchSettings(r.code, { advance_per_group: +e.target.value })} /></label>}
+              {(FMT_FIELDS[r.format] || []).length > 0 && (
+                <div style={{ display: "grid", gridTemplateColumns: (FMT_FIELDS[r.format].length >= 3 ? "1fr 1fr 1fr" : "1fr 1fr"), gap: 8, marginTop: 10 }} className="ct-div-edit3">
+                  {FMT_FIELDS[r.format].map(([k, lab, type, opt]) => (
+                    <label key={k} className="ts-field" style={{ margin: 0 }}><span className="ts-field__label">{lab}</span>
+                      {type === "select"
+                        ? <select className="ts-select" value={r.settings[k] ?? opt[0][0]} onChange={e => { const v = e.target.value; patchSettings(r.code, { [k]: (typeof opt[0][0] === "number" ? +v : v) }); }}>{opt.map(([ov, ol]) => <option key={ov} value={ov}>{ol}</option>)}</select>
+                        : <input className="ts-input" type="number" value={r.settings[k] ?? ""} onChange={e => patchSettings(r.code, { [k]: e.target.value === "" ? undefined : +e.target.value })} placeholder={opt || ""} />}
+                    </label>
+                  ))}
                 </div>
               )}
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 12 }}>
-                <span style={{ fontSize: 11.5, color: "var(--ink-mute)" }}>예선 순위 기준 순위전 자동 매핑</span>
-                <Btn variant="secondary" size="sm" onClick={() => show(`${r.code} 진출 매핑(시연)`)}>진출 매핑 실행</Btn>
-              </div>
             </article>
             );
           })}
         </div>
         )}
+        {catOpen && <CategoryAddModal onClose={() => setCatOpen(false)} onCreate={addCategory} />}
         {toast}
       </div>
     );

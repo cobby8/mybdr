@@ -8,28 +8,35 @@
   const { useState, useEffect } = React;
   const { Icon } = window;
 
-  // nav 항목: { label } = 그룹 헤더 / { id, icon, text, badge } = 링크
+  // nav 항목: { label } = 그룹 헤더 / { id, icon, text, badge } = 내부 링크 / { href, icon, text } = 외부 콘솔 링크
   function Nav({ nav, active, onNav, onClose }) {
     return (
       <nav className="ts-sidebar__nav">
         {nav.map((it, i) =>
           it.label
             ? <div key={"l" + i} className="ts-sidebar__label">{it.label}</div>
-            : <button key={it.id + (active === it.id ? "-a" : "")} className="ts-navlink" data-active={active === it.id ? "true" : "false"}
-                onClick={() => { onNav(it.id); onClose && onClose(); }}>
-                <Icon name={it.icon} size={19} />
-                <span style={{ flex: 1 }}>{it.text}</span>
-                {it.badge != null && <span className="ts-navlink__badge">{it.badge}</span>}
-              </button>
+            : it.href
+              ? <a key={it.href} href={it.href} className="ts-navlink" title={it.text} target={it.blank ? "_blank" : undefined} rel={it.blank ? "noopener" : undefined} style={{ textDecoration: "none", color: "inherit" }}>
+                  <Icon name={it.icon} size={19} />
+                  <span style={{ flex: 1 }}>{it.text}</span>
+                  <Icon name="arrow-up-right" size={14} style={{ color: "var(--ink-dim)" }} />
+                </a>
+              : <button key={it.id + (active === it.id ? "-a" : "")} className="ts-navlink" data-active={active === it.id ? "true" : "false"}
+                  onClick={() => { onNav(it.id); onClose && onClose(); }}>
+                  <Icon name={it.icon} size={19} />
+                  <span style={{ flex: 1 }}>{it.text}</span>
+                  {it.badge != null && <span className="ts-navlink__badge">{it.badge}</span>}
+                </button>
         )}
       </nav>
     );
   }
 
-  window.AdminShell = function AdminShell({ brand, brandSub, nav, active, onNav, user, children }) {
+  window.AdminShell = function AdminShell({ brand, brandSub, nav, active, onNav, user, children, home, isHome, footAction }) {
     const [drawer, setDrawer] = useState(false);
     const [toast, setToast] = useState(null);
     const [detail, setDetail] = useState(null);
+    const homeHref = home || "백오피스.html";
     useEffect(() => { document.body.style.overflow = drawer ? "hidden" : ""; }, [drawer]);
     useEffect(() => {
       window.adToast = (msg) => { setToast(msg); clearTimeout(window.__adToastT); window.__adToastT = setTimeout(() => setToast(null), 2200); };
@@ -38,8 +45,18 @@
     }, []);
     const activeText = (nav.find(n => n.id === active) || {}).text || "";
 
+    const BackRow = (
+      <div className="ts-backrow">
+        <button type="button" className="ts-backbtn" onClick={() => window.history.back()} title="이전 페이지로">
+          <Icon name="arrow-left" size={16} /><span>뒤로</span>
+        </button>
+        <a href={homeHref} className="ts-backbtn" title="관리자 홈으로">
+          <Icon name="home" size={16} /><span>관리자 홈</span>
+        </a>
+      </div>
+    );
     const Brand = (
-      <a href="관리자 홈.html" className="ts-sidebar__brand" title="관리자 홈으로" style={{ textDecoration: "none", color: "inherit" }}>
+      <a href={homeHref} className="ts-sidebar__brand" title="관리자 홈으로" style={{ textDecoration: "none", color: "inherit" }}>
         <span className="ts-sidebar__brand-dot">B</span>
         <div style={{ lineHeight: 1.2 }}>
           <div>{brand}</div>
@@ -62,9 +79,10 @@
       <div className="ts-shell">
         {/* 데스크톱 사이드바 */}
         <aside className="ts-sidebar">
+          {!isHome && BackRow}
           {Brand}
           <Nav nav={nav} active={active} onNav={onNav} />
-          <div className="ts-sidebar__foot">{UserChip}</div>
+          <div className="ts-sidebar__foot">{UserChip}{footAction}</div>
         </aside>
 
         {/* 모바일 토픽바 */}
@@ -80,8 +98,9 @@
             {Brand}
             <button className="ts-mtoggle" style={{ background: "transparent" }} onClick={() => setDrawer(false)}><Icon name="x" size={20} /></button>
           </div>
+          {!isHome && BackRow}
           <Nav nav={nav} active={active} onNav={onNav} onClose={() => setDrawer(false)} />
-          <div className="ts-sidebar__foot">{UserChip}</div>
+          <div className="ts-sidebar__foot">{UserChip}{footAction}</div>
         </aside>
 
         <main className="ts-main">

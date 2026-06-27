@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>팀 관리 — v2.42 보강</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700;800&display=swap" />
+<link rel="stylesheet" href="toss.css" />
+<link rel="stylesheet" href="workspace.css" />
+<link rel="stylesheet" href="preview.css" />
+</head>
+<body>
+<div id="root"></div>
+<script src="https://unpkg.com/lucide@latest"></script>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script type="text/babel" src="data.jsx"></script>
+<script type="text/babel" src="toss-kit.jsx"></script>
+<script type="text/babel" src="panels-core.jsx"></script>
+<script type="text/babel" src="bracket.jsx"></script>
+<script type="text/babel" src="schedule.jsx"></script>
+<script type="text/babel" src="preview-shell.jsx"></script>
+<script type="text/babel">
+  const states = [
+    { name: "등록경로 stat 4종", how: "운영자 등록 / 코치 신청 / 본인 신청 / 경로 미상 (ct-metric)" },
+    { name: "종별 현황 카드", how: "종별별 신청 팀 수 / 정원 · 정원 초과 시 'ct-pill err'" },
+    { name: "필터 chip 5종", how: "전체 / 대기 / 승인 / 거절 / 코치 미입력 (각 카운트 배지)" },
+    { name: "종별 그룹핑 카드", how: "종별 헤더 + 팀 행(상태/경로/대기번호/코치입력대기 pill)" },
+    { name: "승인 / 거절 / 복구", how: "행 액션 — 대기:승인·거절 / 승인:거절 / 거절:승인으로" },
+    { name: "TeamDetailModal", how: "팀명 클릭 → 상태/납부 select(미납·납부·환불)/토큰 재발급 + 선수 명단 표" },
+    { name: "선수 없음 → import", how: "모달 '일괄 입력' → ImportModal 카톡 텍스트 줄단위 파싱 프리뷰" },
+    { name: "토큰 / 카톡 / CSV", how: "상단 '토큰 파일 받기'·'카톡 문구 복사' · 모달 '프린트'" },
+    { name: "모바일 390", how: "툴바 '모바일 390' — 팀 행 줄바꿈, stat 4열 유지 확인" },
+  ];
+  ReactDOM.createRoot(document.getElementById('root')).render(
+    <window.PreviewShell title="팀 관리" sub="TeamsPanel · ct-metric / ct-pill · 승인·납부·코치토큰·import" states={states} defaultVp="1440">
+      <window.TeamsPanel />
+    </window.PreviewShell>
+  );
+</script>
+</body>
+</html>

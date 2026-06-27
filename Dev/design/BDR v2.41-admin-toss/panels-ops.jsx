@@ -84,13 +84,14 @@
     const [published, setPublished] = useState(WS.site.published);
     const [show, toast] = useToast();
     const T = WS.siteTemplates;
+    const blocked = !!window.__exposureBlocked;
 
     if (published) {
       return (
         <div>
           <div className="ts-card ts-card--flat" style={{ borderColor: "var(--ok)", marginBottom: 14 }}>
             <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
-              <div><p style={{ fontSize: 13, fontWeight: 700, color: "var(--ok)" }}>● 사이트 공개 중</p><p style={{ fontFamily: "var(--ff-mono)", fontWeight: 700, marginTop: 2 }}>{sub}.mybdr.kr</p></div>
+              <div><p style={{ fontSize: 13, fontWeight: 700, color: "var(--ok)" }}>● 사이트 공개 중</p><p style={{ fontFamily: "var(--ff-mono)", fontWeight: 700, marginTop: 2 }}>mybdr.kr/{WS.site.orgSlug}/{sub}</p><p style={{ fontSize: 12, color: "var(--ink-mute)", marginTop: 3 }}>주최 단체 {WS.site.org}의 대회 페이지</p></div>
               <div style={{ display: "flex", gap: 8 }}><Btn variant="secondary" size="sm" iconRight="arrow-up-right" onClick={() => { window.location.href = "토너먼트 사이트.html"; }}>방문하기</Btn><Btn variant="danger" size="sm" onClick={() => { setPublished(false); show("비공개 전환(시연)"); }}>비공개 전환</Btn></div>
             </div>
           </div>
@@ -108,6 +109,7 @@
 
     return (
       <div>
+        {blocked && <div className="ops-warn" style={{ marginBottom: 14 }}><Icon name="alert-triangle" size={16} color="var(--warn)" style={{ flex: "0 0 auto", marginTop: 1 }} /><span><b>주최 단체 승인 대기</b> — 단체 승인 전에는 사이트를 공개(노출)할 수 없습니다. 승인 후 공개가 가능합니다.</span></div>}
         <window.StepDots step={step - 1} total={3} />
         <div style={{ display: "flex", gap: 16, marginBottom: 20, fontSize: 13 }}>
           {["템플릿", "색상", "발행"].map((l, i) => <span key={l} style={{ fontWeight: step === i + 1 ? 700 : 500, color: step === i + 1 ? "var(--ink)" : "var(--ink-mute)" }}>{i + 1}. {l}</span>)}
@@ -147,14 +149,18 @@
         {step === 3 && (
           <div>
             <h3 style={{ fontSize: 16, marginBottom: 4 }}>주소 설정 및 발행</h3>
-            <p style={{ fontSize: 13, color: "var(--ink-mute)", marginBottom: 14 }}>URL 설정 후 공개하거나 임시 저장.</p>
-            <label className="ts-field"><span className="ts-field__label">사이트 주소 *</span>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}><input className="ts-input" value={sub} onChange={e => setSub(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))} placeholder="my-tournament" /><span style={{ fontSize: 14, color: "var(--ink-mute)", whiteSpace: "nowrap" }}>.mybdr.kr</span></div>
-              {sub && <span className="ts-field__hint">https://<b style={{ color: "var(--primary)" }}>{sub}</b>.mybdr.kr</span>}
+            <p style={{ fontSize: 13, color: "var(--ink-mute)", marginBottom: 14 }}>대회 사이트는 주최 단체 사이트의 대회 페이지로 게시됩니다.</p>
+            <div className="ops-note" style={{ marginBottom: 14 }}><Icon name="building-2" size={16} color="var(--primary)" style={{ flex: "0 0 auto", marginTop: 1 }} /><span>주최 단체 <b>{WS.site.org}</b> · 단체 주소 <b style={{ fontFamily: "var(--ff-mono)" }}>/{WS.site.orgSlug}</b> — 대회 주최자는 반드시 단체에 소속되어야 합니다.</span></div>
+            <label className="ts-field"><span className="ts-field__label">대회 주소 *</span>
+              <div style={{ display: "flex", alignItems: "center", gap: 0, background: "var(--grey-100)", borderRadius: "var(--radius-input)", overflow: "hidden" }}>
+                <span style={{ fontSize: 14, color: "var(--ink-mute)", whiteSpace: "nowrap", padding: "0 1px 0 14px", fontFamily: "var(--ff-mono)" }}>mybdr.kr/{WS.site.orgSlug}/</span>
+                <input className="ts-input" style={{ background: "transparent", paddingLeft: 2, minWidth: 0 }} value={sub} onChange={e => setSub(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))} placeholder="대회-주소" />
+              </div>
+              {sub && <span className="ts-field__hint">https://mybdr.kr/{WS.site.orgSlug}/<b style={{ color: "var(--primary)" }}>{sub}</b></span>}
             </label>
             <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", gap: 10, marginTop: 16 }}>
               <Btn variant="ghost" onClick={() => setStep(2)}>← 이전</Btn>
-              <div style={{ display: "flex", gap: 8 }}><Btn variant="secondary" onClick={() => show("임시 저장(시연)")} {...(sub.trim() ? {} : { disabled: true })}>임시 저장</Btn><Btn onClick={() => { setPublished(true); show("공개(시연)"); }} {...(sub.trim() ? {} : { disabled: true })}>🚀 공개하기</Btn></div>
+              <div style={{ display: "flex", gap: 8 }}><Btn variant="secondary" onClick={() => show("임시 저장(시연)")} {...(sub.trim() ? {} : { disabled: true })}>임시 저장</Btn><Btn onClick={() => { if (blocked) { show("단체 승인 후 공개 가능"); return; } setPublished(true); show("공개(시연)"); }} {...((sub.trim() && !blocked) ? {} : { disabled: true })}>🚀 공개하기</Btn></div>
             </div>
           </div>
         )}
@@ -206,11 +212,11 @@
   };
 
   // ── H. 마법사: Stepper / SegSm ──────────────────────────
-  function Stepper({ value, unit, min, max, onChange }) {
+  function Stepper({ value, unit, min, max, step = 1, onChange }) {
     return (<div className="ct-stepper">
-      <button disabled={value <= min} onClick={() => onChange(Math.max(min, value - 1))}><Icon name="minus" size={16} /></button>
+      <button disabled={value <= min} onClick={() => onChange(Math.max(min, value - step))}><Icon name="minus" size={16} /></button>
       <span className="ct-stepper__val">{value}{unit && <span className="u">{unit}</span>}</span>
-      <button disabled={value >= max} onClick={() => onChange(Math.min(max, value + 1))}><Icon name="plus" size={16} /></button>
+      <button disabled={value >= max} onClick={() => onChange(Math.min(max, value + step))}><Icon name="plus" size={16} /></button>
     </div>);
   }
   function SegSm({ options, index, onSelect }) {
@@ -302,6 +308,20 @@
     const [uniOpen, setUniOpen] = useState(null);
     const set = (k, v) => patch({ ...rules, [k]: v });
     const lum = (hex) => { const s = hex.replace("#", ""); return 0.299 * parseInt(s.slice(0, 2), 16) + 0.587 * parseInt(s.slice(2, 4), 16) + 0.114 * parseInt(s.slice(4, 6), 16); };
+    // 경기 구성 프리셋 (시간+타임아웃+파울+쿼터간 휴식) + 사용자 프리셋
+    const PK = ["quarterType", "quarterMinutes", "firstHalfTimeouts", "secondHalfTimeouts", "foulLimit", "teamFoulBonus", "shortBreakDurationSeconds"];
+    const [userPresets, setUserPresets] = useState(() => { try { return JSON.parse(window.localStorage.getItem("bdr_user_gamepresets") || "[]"); } catch (e) { return []; } });
+    const allPresets = [...WS.gamePresets, ...userPresets];
+    const presetMatch = (p) => PK.every(k => rules[k] === p[k]);
+    const activePreset = allPresets.find(presetMatch);
+    const applyPreset = (p) => patch({ ...rules, ...PK.reduce((a, k) => (a[k] = p[k], a), {}) });
+    const saveUserPreset = () => {
+      const nm = window.prompt("이 경기 구성을 프리셋으로 저장합니다. 이름을 입력하세요.", `${rules.quarterMinutes}분 ${rules.quarterType === "HALF" ? "전후반" : "4쿼터"} 커스텀`);
+      if (!nm || !nm.trim()) return;
+      const np = { label: nm.trim(), user: true, ...PK.reduce((a, k) => (a[k] = rules[k], a), {}) };
+      setUserPresets(ps => { const n = [...ps.filter(x => x.label !== np.label), np]; try { window.localStorage.setItem("bdr_user_gamepresets", JSON.stringify(n)); } catch (e) {} return n; });
+    };
+    const removeUserPreset = (label) => setUserPresets(ps => { const n = ps.filter(x => x.label !== label); try { window.localStorage.setItem("bdr_user_gamepresets", JSON.stringify(n)); } catch (e) {} return n; });
     return (
       <section className="ts-card ts-card--flat">
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}><span className="ct-headicon"><Icon name="sliders-horizontal" size={18} /></span><span style={{ fontSize: 15, fontWeight: 800 }}>경기 설정</span><Badge tone="primary">기록앱 정합</Badge></div>
@@ -321,8 +341,16 @@
             <label className="ct-checkrow" style={{ marginTop: 9 }}><Check on={rules.vestProvided} onChange={v => set("vestProvided", v)} /><span>팀 조끼(번호 조끼) 제공</span></label>
           </div>
           <div>
-            <div style={{ fontSize: 12.5, fontWeight: 800, color: "var(--ink-soft)", margin: "0 0 8px", display: "flex", alignItems: "center", gap: 6 }}><Icon name="clock" size={15} color="var(--ink-mute)" />경기 구성</div>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>{WS.gamePresets.map(p => <button key={p.label} className="ts-chip" data-active={rules.quarterType === p.quarterType && rules.quarterMinutes === p.quarterMinutes} onClick={() => patch({ ...rules, quarterType: p.quarterType, quarterMinutes: p.quarterMinutes })}>{p.label}</button>)}</div>
+            <div style={{ fontSize: 12.5, fontWeight: 800, color: "var(--ink-soft)", margin: "0 0 8px", display: "flex", alignItems: "center", gap: 6 }}><Icon name="clock" size={15} color="var(--ink-mute)" />경기 구성<span style={{ fontWeight: 600, color: "var(--ink-dim)" }}>· 타임아웃·파울·쿼터간 휴식 포함</span></div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center" }}>
+              {allPresets.map(p => (
+                <span key={p.label} className="ct-presetchip" data-active={presetMatch(p) ? "true" : "false"}>
+                  <button type="button" className="ts-chip" data-active={presetMatch(p)} onClick={() => applyPreset(p)}>{p.user && <Icon name="bookmark" size={12} />}{p.label}</button>
+                  {p.user && <button type="button" className="ct-presetchip__x" title="프리셋 삭제" onClick={() => removeUserPreset(p.label)}><Icon name="x" size={12} /></button>}
+                </span>
+              ))}
+              {!activePreset && <Btn size="sm" variant="secondary" icon="bookmark-plus" onClick={saveUserPreset}>프리셋 저장</Btn>}
+            </div>
           </div>
         </div>
 
@@ -340,9 +368,19 @@
 
         <details className="ct-details" style={{ marginTop: 12 }} open>
           <summary><Icon name="flag" size={15} style={{ marginRight: 6 }} />파울 · 타임아웃 — 개인 {rules.foulLimit} · 팀 {rules.teamFoulBonus} · 타임아웃 {rules.firstHalfTimeouts}/{rules.secondHalfTimeouts}</summary>
-          <div style={{ marginTop: 8 }}>{[["개인 파울 한도", "foulLimit", 4, 6, "파울"], ["팀파울 보너스", "teamFoulBonus", 3, 7, "파울"], ["타임아웃 · 전반", "firstHalfTimeouts", 0, 4, "회"], ["타임아웃 · 후반", "secondHalfTimeouts", 0, 4, "회"]].map(([n, k, mn, mx, u]) => (
-            <div key={k} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderBottom: "1px solid var(--border)" }}><div style={{ flex: 1, fontSize: 13.5, fontWeight: 700 }}>{n}</div><Stepper value={rules[k]} unit={u} min={mn} max={mx} onChange={v => set(k, v)} /></div>
+          <div style={{ marginTop: 8 }}>{[["개인 파울 한도", "foulLimit", 4, 6, "파울", 1], ["팀파울 보너스", "teamFoulBonus", 3, 7, "파울", 1], ["타임아웃 · 전반", "firstHalfTimeouts", 0, 4, "회", 1], ["타임아웃 · 후반", "secondHalfTimeouts", 0, 4, "회", 1], ["타임아웃 시간", "timeoutDurationSeconds", 30, 120, "초", 10]].map(([n, k, mn, mx, u, st]) => (
+            <div key={k} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderBottom: "1px solid var(--border)" }}><div style={{ flex: 1, fontSize: 13.5, fontWeight: 700 }}>{n}</div><Stepper value={rules[k]} unit={u} min={mn} max={mx} step={st} onChange={v => set(k, v)} /></div>
           ))}</div>
+        </details>
+
+        <details className="ct-details" style={{ marginTop: 12 }} open>
+          <summary><Icon name="timer" size={15} style={{ marginRight: 6 }} />휴식 · 인터벌 시간 — 쿼터간 {Math.round(rules.shortBreakDurationSeconds / 60 * 10) / 10}분 · 하프타임 {Math.round(rules.halftimeDurationSeconds / 60)}분</summary>
+          <p style={{ fontSize: 12, color: "var(--ink-mute)", margin: "8px 0 4px" }}>기록앱(BDR full stat)의 자동 인터벌 타이머와 동일하게 적용됩니다.</p>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderBottom: "1px solid var(--border)" }}><div style={{ flex: 1, fontSize: 13.5, fontWeight: 700 }}>쿼터 간 휴식</div><Stepper value={rules.shortBreakDurationSeconds} unit="초" min={0} max={300} step={30} onChange={v => set("shortBreakDurationSeconds", v)} /></div>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderBottom: "1px solid var(--border)" }}><div style={{ flex: 1, fontSize: 13.5, fontWeight: 700 }}>하프타임 휴식</div><Stepper value={Math.round(rules.halftimeDurationSeconds / 60)} unit="분" min={1} max={20} step={1} onChange={v => set("halftimeDurationSeconds", v * 60)} /></div>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderBottom: "1px solid var(--border)" }}><div style={{ flex: 1, fontSize: 13.5, fontWeight: 700 }}>연장 전 휴식</div><Stepper value={Math.round(rules.overtimeBreakDurationSeconds / 60)} unit="분" min={0} max={10} step={1} onChange={v => set("overtimeBreakDurationSeconds", v * 60)} /></div>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderBottom: "1px solid var(--border)" }}><div style={{ flex: 1, fontSize: 13.5, fontWeight: 700 }}>막판 득점 시 시계 정지<div style={{ fontSize: 11.5, fontWeight: 500, color: "var(--ink-mute)", marginTop: 2 }}>마지막 지정 분에서 득점 시 시계 정지</div></div><Stepper value={rules.lastScoreStopMin} unit="분" min={0} max={3} step={1} onChange={v => set("lastScoreStopMin", v)} /></div>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0" }}><div style={{ flex: 1, fontSize: 13.5, fontWeight: 700 }}>자동 인터벌 타이머<div style={{ fontSize: 11.5, fontWeight: 500, color: "var(--ink-mute)", marginTop: 2 }}>쿼터·하프타임 휴식을 자동 카운트다운</div></div><SegSm options={["사용", "미사용"]} index={rules.autoIntervalTimerEnabled ? 0 : 1} onSelect={i => set("autoIntervalTimerEnabled", i === 0)} /></div>
         </details>
 
       </section>
