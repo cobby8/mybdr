@@ -187,6 +187,7 @@
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
 |------|------|------|
+| 2026-06-28 | **8차 스타터스리그 기록 진단 + 더미 결승 9건 정리 (운영 DB)** | 진단=기록시스템 정상, "안 된 것처럼 보인" 원인=①더미 결승 9건(329~337 전부 scheduled·0-0·기록0·대진로직 오류 양산, 7차와 동일) ②리그 진행중(예선 2/6완료). 9건 삭제(next참조0·기록0 확인)·matches_count 15→6 정정. 예선6(완료2·진행1·미실시3) 기록 보존(324:194·325:246·327:269). 코드변경0. |
 | 2026-06-28 | **7차 스타터스리그 더미 결승 8경기 삭제 (운영 DB·검증)** | ✅ 대회 40bc82b9. 결승 9건 중 실제 1건(319 완료43-41·기록266) 제외 **8건(314·5·6·7·8·320·1·2) 삭제**(전부 scheduled·0-0·기록0·next참조0=대진로직 수정 전 라운드로빈식 오생성). matchLineup/pbp/stat 선삭제(0행)→deleteMany. matches_count 15→7 정정. 사전/사후검증(예선6·결승319 보존). 코드변경0. |
 | 2026-06-28 | **운영 DB 중복/데모 대회 4건 삭제 (사용자 요청·검증)** | ✅ 빈 대회 3건(남양주시클럽리그 d50fd96a·남동&부평 추가팀모집 7e01d5ff·강남구협회장배 빈중복 acd00c5a) + 데모 1건(열혈농구단 결승데모 96adad01). 데모는 자식(2팀/1경기/기록원3/운영진3) FK NoAction이라 **route.ts Hard DELETE cascade 7스텝 복제**(pbp/스탯/라인업→매치→ttp/팀→사이트→운영진/대진/종별→대회). 보존: 강남구 유소년부36팀/일반부D5·SEASON2·실제 클럽(제이크루·펜타곤). 사전/사후 검증. 코드변경0. |
 | 2026-06-27 | **그린필드 M2 — 토대셋: admin-blocks 박제 + (admin-v2) 셸 골격/인증(신규8파일·css append32줄·레거시0접촉)** | ✅ tsc EXIT0. ①`components/admin-v2/blocks/`(SchemaList/renderSchemaCell/AdBarPanel/AdListPanel/AdSettings/PageHead/SchemaTable) 정본 admin-blocks.jsx 1:1 TS화·Icon/Btn/Badge/Toggle/Empty=admin-toss 재사용. ②`app/(admin-v2)/v2/`(layout=tournament-admin 인증복제 getWebSession+membershipType≥3/super+buildLoginRedirect+AdminShell 마운트, page=플레이스홀더). ③toss-admin.css ad-panel/list/bars/dot/statusline/avatar 9그룹 [data-skin=toss] 스코프 append(삭제0). 하드코딩hex0(violet#6D5AE6→var(--primary)). 라우트충돌0(/v2 신규). 소비처 미배선(M3). |
