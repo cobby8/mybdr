@@ -247,7 +247,7 @@
 @media (max-width: 900px) { [data-skin="toss"] .ts-sidebar { display: none; } }
 [data-skin="toss"] .ts-sidebar__brand { display: flex; align-items: center; gap: 9px; padding: 22px 22px 18px; font-weight: 800; font-size: 19px; letter-spacing: -0.02em; color: var(--ink); }
 [data-skin="toss"] .ts-sidebar__brand-dot { width: 26px; height: 26px; border-radius: 8px; background: var(--primary); color: #fff; display: grid; place-items: center; font-size: 13px; font-weight: 900; }
-[data-skin="toss"] .ts-sidebar__nav { flex: 1; padding: 8px 14px; display: flex; flex-direction: column; gap: 2px; }
+[data-skin="toss"] .ts-sidebar__nav { flex: 1; min-height: 0; overflow-y: auto; padding: 8px 14px; display: flex; flex-direction: column; gap: 2px; }
 [data-skin="toss"] .ts-sidebar__label { font-size: 11px; font-weight: 700; color: var(--ink-dim); padding: 14px 12px 6px; letter-spacing: 0.02em; }
 [data-skin="toss"] .ts-navlink { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 0; background: transparent; cursor: pointer; text-align: left; width: 100%; font-size: 15px; font-weight: 600; color: var(--ink-soft); border-radius: 14px; font-family: var(--ff); transition: background .12s, color .12s; }
 [data-skin="toss"] .ts-navlink:hover { background: var(--grey-50); color: var(--ink); }
@@ -258,6 +258,22 @@
 [data-skin="toss"] .ts-userchip { display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px; border: 0; background: transparent; border-radius: 14px; cursor: pointer; font-family: var(--ff); }
 [data-skin="toss"] .ts-userchip:hover { background: var(--grey-50); }
 [data-skin="toss"] .ts-avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--primary); color: #fff; display: grid; place-items: center; font-size: 14px; font-weight: 800; flex: 0 0 auto; }
+
+/* ── BackRow (M2.5 v46 흡수) — 사이드바/드로어 상단 "뒤로 + 관리자 홈" 2버튼.
+   AdminSidebar/AdminMobileNav 가 isHome===false(그린필드 opt-in) 일 때만 렌더.
+   레거시 셸은 .ts-backrow DOM 자체가 없어 본 규칙 미적용(영향 0). #fff → var(--card) 토큰화. */
+[data-skin="toss"] .ts-backrow { display: flex; gap: 6px; padding: 14px 14px 0; }
+[data-skin="toss"] .ts-backbtn { display: flex; align-items: center; justify-content: center; gap: 6px; flex: 1 1 0; min-width: 0; padding: 9px 10px; border: 1px solid var(--border); background: var(--card); border-radius: var(--radius-input); cursor: pointer; font-family: var(--ff); font-size: 13px; font-weight: 700; color: var(--ink-soft); text-decoration: none; transition: background .12s, border-color .12s, color .12s; }
+[data-skin="toss"] .ts-backbtn:hover { background: var(--grey-50); border-color: var(--border-strong); color: var(--ink); }
+[data-skin="toss"] .ts-backbtn span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* BackRow 가 brand 바로 위에 올 때만 brand 상단 패딩 축소(정본 값 16→14 톤). 레거시(.ts-backrow 부재)는 미적용. */
+[data-skin="toss"] .ts-backrow + .ts-sidebar__brand { padding-top: 14px; }
+
+/* ── 푸터 액션 버튼 (M2.5 v46 흡수) — footAction 슬롯용 취소/위험 버튼. #fff → var(--card). */
+[data-skin="toss"] .ts-cancelbtn { display: flex; align-items: center; justify-content: center; gap: 7px; width: 100%; padding: 11px; border: 1px solid var(--border); background: var(--card); border-radius: var(--radius-chip); font-family: var(--ff); font-size: 13.5px; font-weight: 700; color: var(--ink-soft); cursor: pointer; }
+[data-skin="toss"] .ts-cancelbtn:hover { background: var(--grey-50); color: var(--ink); }
+[data-skin="toss"] .ts-cancelbtn[data-danger="true"] { color: var(--danger); border-color: color-mix(in oklab, var(--danger) 30%, var(--border)); }
+[data-skin="toss"] .ts-cancelbtn[data-danger="true"]:hover { background: var(--danger-weak); }
 
 /* ── Main ────────────────────────────────────────────────── */
 [data-skin="toss"] .ts-main { margin-left: var(--sidebar-w); min-height: 100vh; }

@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+  AdminBackRow,
   filterStructureByRoles,
   toLucide,
   type AdminNavEntry,
@@ -22,6 +23,10 @@ interface Props {
     nickname: string | null;
     email: string;
   };
+  // M2.5 (v46 흡수) — 전부 옵셔널·기본 no-op(미전달 시 드로어 렌더 기존 동일).
+  home?: string; // 관리자 홈 라우트(brand + BackRow 홈). 미전달 시 "/admin".
+  isHome?: boolean; // isHome === false 일 때만 드로어 BackRow 렌더.
+  footAction?: ReactNode; // 드로어 푸터 추가 슬롯.
 }
 
 function getInitial(nickname: string | null, email: string): string {
@@ -95,6 +100,30 @@ function renderMobileItem(
   const isActive =
     item.href === "/admin" ? pathname === "/admin" : pathname.startsWith(item.href);
 
+  // M2.5 (v46 흡수) — 외부 콘솔 링크: <Link> 대신 <a target> + arrow-up-right. 기존 navStructure 항목은 미설정.
+  if (item.external) {
+    return (
+      <a
+        key={item.href}
+        href={item.href}
+        onClick={closeFn}
+        className="ts-navlink"
+        title={item.label}
+        target={item.openInNewTab ? "_blank" : undefined}
+        rel={item.openInNewTab ? "noopener noreferrer" : undefined}
+        style={isChild ? { paddingLeft: 28 } : undefined}
+      >
+        <Icon name={toLucide(item.icon)} size={18} />
+        <span>{item.label}</span>
+        <Icon
+          name="arrow-up-right"
+          size={14}
+          style={{ marginLeft: "auto", color: "var(--ink-dim)" }}
+        />
+      </a>
+    );
+  }
+
   return (
     <div key={item.href}>
       <Link
@@ -113,10 +142,13 @@ function renderMobileItem(
   );
 }
 
-export function AdminMobileNav({ roles, scope = "default", user }: Props) {
+export function AdminMobileNav({ roles, scope = "default", user, home, isHome, footAction }: Props) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
   const close = () => setOpen(false);
+  // M2.5 — 홈 라우트(미전달 시 "/admin" = 기존 brand href 동일) + BackRow opt-in 여부
+  const homeHref = home ?? "/admin";
+  const showBackRow = isHome === false;
   const displayName = user ? user.nickname?.trim() || user.email.split("@")[0] : null;
   const initial = user ? getInitial(user.nickname, user.email) : null;
   const roleLabel = getRoleLabel(roles);
@@ -193,7 +225,7 @@ export function AdminMobileNav({ roles, scope = "default", user }: Props) {
             paddingRight: 12,
           }}
         >
-          <Link href="/admin" onClick={close} className="ts-sidebar__brand">
+          <Link href={homeHref} onClick={close} className="ts-sidebar__brand">
             <Image src="/images/logo.png" alt="BDR" width={100} height={30} className="h-7 w-auto" />
             <span className="rounded bg-[var(--color-primary)] px-2 py-0.5 text-xs font-bold uppercase tracking-wider text-white">
               Admin
@@ -209,6 +241,9 @@ export function AdminMobileNav({ roles, scope = "default", user }: Props) {
             <Icon name="x" size={20} />
           </button>
         </div>
+
+        {/* M2.5 — BackRow: isHome===false 일 때만 brand 아래 렌더(드로어). 레거시(미전달)는 미렌더. */}
+        {showBackRow && <AdminBackRow homeHref={homeHref} />}
 
         {/* body — nav (ts-sidebar__label 헤더 + ts-navlink 링크). navStructure/권한필터/children 보존. */}
         <nav className="ts-sidebar__nav overflow-y-auto">
@@ -269,6 +304,8 @@ export function AdminMobileNav({ roles, scope = "default", user }: Props) {
             <span>사이트로 돌아가기</span>
           </Link>
           {user && <LogoutButton variant="drawer-card" onBeforeLogout={close} />}
+          {/* M2.5 (v46 흡수) — 드로어 푸터 추가 슬롯. 미전달 시 null → 렌더 0. */}
+          {footAction}
         </div>
       </aside>
     </>

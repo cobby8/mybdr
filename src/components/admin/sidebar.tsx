@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
@@ -67,6 +68,11 @@ export interface AdminNavItem {
   roles: AdminRole[] | "all"; // 어떤 역할이 이 메뉴를 볼 수 있는지
   // 2026-05-04: 하위 메뉴 (예: 커뮤니티 → BDR NEWS)
   children?: AdminNavItem[];
+  // M2.5 (v46 흡수): 외부 콘솔 링크. true 면 <Link> 대신 <a href target> + arrow-up-right 아이콘 렌더.
+  //   navStructure 의 기존 항목은 미설정 → 항상 내부 링크(레거시 렌더 동일). 신규 외부링크 항목만 opt-in.
+  external?: boolean;
+  // 외부 링크를 새 탭으로 열지 여부(external=true 일 때만 의미). 기본 false=현재 탭.
+  openInNewTab?: boolean;
 }
 
 export interface AdminNavGroup {
@@ -246,6 +252,10 @@ interface AdminSidebarProps {
     nickname: string | null;
     email: string;
   };
+  // M2.5 (v46 흡수) — 전부 옵셔널·기본 no-op. 미전달 시 기존 렌더 동일(레거시 0 영향).
+  home?: string; // 관리자 홈 라우트(brand + BackRow 홈 버튼). 미전달 시 "/admin"(기존 brand href 동일).
+  isHome?: boolean; // isHome === false 일 때만 BackRow 렌더. 미전달=BackRow 미렌더.
+  footAction?: ReactNode; // 푸터 추가 슬롯. 미전달 시 미렌더.
 }
 
 // 이니셜 — 닉네임 우선, 없으면 이메일 첫 글자 (UserMenu/모바일 드로어와 동일 규칙)
@@ -274,6 +284,31 @@ function renderItem(item: AdminNavItem, pathname: string, depth = 0) {
       ? pathname === "/admin"
       : pathname.startsWith(item.href);
   const indentStyle = depth > 0 ? { paddingLeft: 28 } : undefined;
+  // M2.5 (v46 흡수) — 외부 콘솔 링크: <Link> 대신 <a target> + 우측 arrow-up-right 아이콘.
+  //   navStructure 기존 항목은 external 미설정 → 항상 아래 내부 <Link> 분기(레거시 렌더 동일).
+  if (item.external) {
+    return (
+      <a
+        key={item.href}
+        href={item.href}
+        className="ts-navlink"
+        title={item.label}
+        target={item.openInNewTab ? "_blank" : undefined}
+        rel={item.openInNewTab ? "noopener noreferrer" : undefined}
+        style={indentStyle}
+      >
+        <span>
+          <Icon name={toLucide(item.icon)} size={18} />
+          {item.label}
+        </span>
+        <Icon
+          name="arrow-up-right"
+          size={14}
+          style={{ marginLeft: "auto", color: "var(--ink-dim)" }}
+        />
+      </a>
+    );
+  }
   return (
     <div key={item.href}>
       <Link
@@ -298,7 +333,29 @@ function renderItem(item: AdminNavItem, pathname: string, depth = 0) {
   );
 }
 
-export function AdminSidebar({ roles, user }: AdminSidebarProps) {
+// M2.5 (v46 흡수) — BackRow: 사이드바 상단 "뒤로(history.back)" + "관리자 홈" 2버튼.
+//   isHome === false(명시 전달) 일 때만 렌더. 데스크톱 사이드바 / 모바일 드로어 공용.
+export function AdminBackRow({ homeHref }: { homeHref: string }) {
+  return (
+    <div className="ts-backrow">
+      <button
+        type="button"
+        className="ts-backbtn"
+        onClick={() => window.history.back()}
+        title="이전 페이지로"
+      >
+        <Icon name="arrow-left" size={16} />
+        <span>뒤로</span>
+      </button>
+      <Link href={homeHref} className="ts-backbtn" title="관리자 홈으로">
+        <Icon name="home" size={16} />
+        <span>관리자 홈</span>
+      </Link>
+    </div>
+  );
+}
+
+export function AdminSidebar({ roles, user, home, isHome, footAction }: AdminSidebarProps) {
   const pathname = usePathname();
 
   // 유저 역할에 맞는 메뉴만 필터링 (그룹 구조)
@@ -309,12 +366,18 @@ export function AdminSidebar({ roles, user }: AdminSidebarProps) {
   const initial = user ? getInitial(user.nickname, user.email) : null;
   const roleLabel = getRoleLabel(roles);
 
+  // M2.5 — 홈 라우트(미전달 시 "/admin" = 기존 brand href 와 동일) + BackRow 노출 여부(opt-in)
+  const homeHref = home ?? "/admin";
+  const showBackRow = isHome === false;
+
   return (
     // 사이드바: Toss ts-sidebar 셸 (PR-1 배치1 — ad/Tailwind → ts-*). 토큰은 [data-skin="toss"] 제공.
     // ts-sidebar = position:fixed 248px, lg(≤900px)에서 display:none (모바일은 AdminMobileNav 담당).
     <aside data-skin="toss" className="ts-sidebar">
+      {/* M2.5 — BackRow: isHome===false(그린필드 서브화면 opt-in) 일 때만 brand 위에 렌더. 레거시(미전달)는 미렌더. */}
+      {showBackRow && <AdminBackRow homeHref={homeHref} />}
       {/* 로고: BDR 이미지 + ADMIN 배지 — ts-sidebar__brand 컨테이너에 실로고 보존 */}
-      <Link href="/admin" className="ts-sidebar__brand">
+      <Link href={homeHref} className="ts-sidebar__brand">
         <Image src="/images/logo.png" alt="BDR" width={120} height={36} className="h-9 w-auto" />
         <span className="rounded bg-[var(--color-primary)] px-2 py-0.5 text-xs font-bold uppercase tracking-wider text-white">
           Admin
@@ -392,6 +455,8 @@ export function AdminSidebar({ roles, user }: AdminSidebarProps) {
         {/* 로그아웃 — 제거된 우상단 UserMenu 의 로그아웃 진입점 보존(기능 손실 0).
             LogoutButton 컴포넌트 재사용(POST /api/web/logout + full reload 로직 그대로). */}
         {user && <LogoutButton variant="drawer-card" />}
+        {/* M2.5 (v46 흡수) — 푸터 추가 슬롯(예: "내 공개 사이트 열기"). 미전달 시 null → 렌더 0. */}
+        {footAction}
       </div>
     </aside>
   );
