@@ -7,8 +7,6 @@
 - **기준 패키지**: `Dev/design/BDR v2.41-admin-toss/` + 계약문서 `_PR0-CONTRACT-CONFIRMED.md`(PR-1~5 단일 참조점).
 - **상태**: PR-0✅·PR-1✅완료. **PR-2 시각 박제 사실상 완료** — 진단결과 전 패널(참가팀/셸/대진표/사이트/운영진/기록원) **이미 Toss 정합·superset·변경0**(최근 972b3da·4fe38a0·847a1b5·9040ff1로 정합완료). **남은 건 UI 아닌 기능 4건**(아래). 신규필드 필요 패널 0(대진 seed/사이트 publishedSections/운영진 invite 전부 기존 처리).
 - **PR-2 잔여 기능4건(설계완료)**: ①일정=운영 matches-panel이 **이미 SchedulePanel 등가**→**휴식삽입 보강만**(마이그0·점수운영 matches-client 보존) ②정산 지출 `tournament_expenses` **신규테이블(유일 마이그·무중단 CREATE·✅schema diff 승인됨 2026-06-27)** ③공지=`settings.notice` JSON(마이그0) ④series=읽기칩+series-admin 위임(마이그0). **배치: 3-A 공지(파일럿·진행中)→3-B series→3-C 일정휴식→3-D 지출(게이트)**. 미세결정 채택: amount Int(원)·Cascade·공지 저장만(푸시 후속)·series 위임.
-- **PR-2 배치 분해**: 2-1 참가팀(파일럿·최저위험·신규필드0)→2-2 셸/요약→2-3 운영관리→2-4 대진표→2-5 **일정(SchedulePanel 신규+마이그)**→2-6 사이트→2-7 **정산(tournament_expense 신규테이블)**. 위험 신규/마이그(2-5·2-7) 뒤로·schema diff 게이트.
-- **⚠️ PR-2 미결정(2-5에서)**: 일정 탭 충돌 — 정본 일정=SchedulePanel(배정/드래그) vs 운영 일정=MatchesPanel(경기운영). 교체/둘다/현행 중 택. 정본 6메뉴엔 matches 독립메뉴 없음.
 - **🔄 v2.45 재베이스라이닝(2026-06-27)**: 새 zip `BDR v2 (45)` → 정본 교체(design_handoff_admin → `Dev/design/BDR v2.41-admin-toss/`, 직전본 `_archive/...-pre45/`). **START-HERE·IMPLEMENTATION-PROMPT·screenshots 17장(시각 정본) 반입** → §1 치환표 폐기. 폐기 38팀 site-* 제거. 정본 교체 커밋 = design(sync). 계약문서 §v2.45 갱신.
 - **★계정 배치 확정**: 정본=계정 **사이드바 푸터 UserChip**(데스크톱 topbar 없음). 사용자 "사이드 패널 유지"=계정을 사이드에. 배치1.5=ad-topbar 계정 제거+UserChip 푸터 이전(로그아웃 보존 필수).
 - **배치2 모바일(900px)·배치3 st-* 상태모듈 = 후속**. (v2.42 신규: 8상태 QA·preview 6 검수하네스·공개사이트 44팀 통일→PR-5)
@@ -20,7 +18,7 @@
 |----|------|------|
 | PR-0 | 패키지 배치 + §1치환 + §5스키마실측 + §6결정 | ✅ 93b90ef |
 | PR-1 | 셸 ts-shell 통일(배치1 8a2dd89·1.5 a0276a1·2 fb0f943·코워크 합격) + 배치3 st-* 상태모듈 Banner/Spinner(7a385f4) | ✅ 완료 |
-| PR-2 | 대회 운영. **시각 박제 완료(전 패널 이미 정합·변경0)**. 잔여=기능4건(일정탭·정산지출·series칩·공지API)=결정 대기 | 🔄 기능결정 |
+| PR-2 | 대회 운영. 시각 박제 완료(전 패널 정합·변경0). 기능: 3-A 공지✅(e1a98e2) / 3-B series·3-C 일정휴식·3-D 지출(승인됨) 진행 | 🔄 기능 |
 | PR-3 | 생성/수정 5단계 마법사(6-1: 단일화+prospectus/assoc 보존) | 대기 |
 | PR-4 | 셸별 콘솔(대회관리자/백오피스18/협력/심판) + 6-2 /admin/tournaments 목록 제거 | 대기 |
 | PR-5 | 공개 사이트(44팀/27경기 통일본) | 대기 |
