@@ -2,48 +2,70 @@ import { NextResponse } from "next/server";
 
 /**
  * GET /api/v1/app/version
- * 앱(Flutter) 버전 매니페스트.
+ * Flutter 기록앱 업데이트 매니페스트.
  *
- * 강제 업데이트/최신 버전 안내용. 앱은 자신의 versionCode 를
- * min_supported_version_code 와 비교해 강제 업데이트 여부를 판단한다.
- *
- * - 응답 키는 repo 컨벤션(snake_case) 그대로 작성한다.
- * - 캐시 헤더(Cache-Control)를 직접 제어하기 위해 apiSuccess 대신
- *   NextResponse.json 을 직접 사용한다 (자동 snake_case 변환 미적용).
- *
- * APK Blob 업로드 절차 (APK 파일 준비되면 수동 1회):
- *   1) @vercel/blob 의 put(`apk/mybdr-v0.1.0.apk`, fileBuffer, { access: "public" }) 호출
- *      (BLOB_READ_WRITE_TOKEN env 필요 — Vercel 프로젝트 Storage 에서 발급)
- *   2) 반환된 url 을 아래 LATEST.apk_url 에 박제, sha256/size_bytes 도 실측값으로 갱신
- *   3) 새 릴리스마다 LATEST 상수 + version_code/name 만 올리고 커밋
+ * release_notes는 구버전 앱 호환용 최신 1개 버전 요약이고,
+ * release_history는 앱정보/업데이트 화면의 누적 릴리즈 아카이브다.
  */
-
-// 릴리스마다 이 상수만 갱신한다 (단일 source).
-//   ★[AUTOUPDATE-D] APK 는 비공개 GitHub 릴리스(cobby8/bdr_stat_v3)에 두고,
-//     apk_url 은 같은 서버의 프록시(/api/v1/app/download)를 가리킨다. 프록시가
-//     서버 토큰(GH_RELEASE_TOKEN)으로 단기 서명 URL 을 받아 302 리다이렉트한다.
-//   ★앱(클라)은 latest_version_name(semver)로 비교 — 'v' 접두는 클라가 방어하나 미사용 권장.
-//   ★배포마다: 아래 버전/sha256/size + download/route.ts 의 TAG·ASSET_NAME 동시 갱신.
 const LATEST = {
   latest_version_code: 14,
   latest_version_name: "0.1.12",
-  // 이 코드 미만 버전은 강제 업데이트 대상
   min_supported_version_code: 1,
-  // 강제 업데이트 여부 (true 면 앱이 진입 차단)
   is_mandatory: false,
-  // 비공개 릴리스 APK 를 중계하는 서버 프록시(공개 repo 노출 없음)
   apk_url: "https://www.mybdr.kr/api/v1/app/download",
-  // bdr-0.1.12.apk 실측 SHA256 / 바이트
   sha256: "28c44cf1f82e96512f2a5e2f1709e1f2aaa54779b01edf6a6cad3bd3efc77857",
   size_bytes: 80338447,
-  // 릴리스 노트 (배열)
-  release_notes: ["슈팅파울 즉시 시계정지", "슈팅파울/자유투 전환 잔상 제거", "리바운드 선택 위치 중앙 정렬"],
+  release_notes: [
+    "슈팅파울 즉시 시계정지",
+    "슈팅파울/자유투 전환 잔상 제거",
+    "리바운드 선택 위치 중앙 정렬",
+  ],
+  release_history: [
+    {
+      version: "0.1.12",
+      date: "2026-06-28",
+      summary:
+        "슈팅파울 흐름과 리바운드 선택 위치를 현장 기록 흐름에 맞게 정리",
+      details:
+        "슈팅파울 터치 즉시 경기 시계를 멈추고, 2샷/3샷/앤드원 선택 뒤 자유투로 넘어가는 과정에서 이전 액션이 잠깐 겹쳐 보이는 현상을 줄였습니다.",
+      notes: [
+        { kind: "fix", text: "슈팅파울 터치 즉시 경기 시계가 정지되도록 수정" },
+        {
+          kind: "fix",
+          text: "슈팅파울/자유투 단계 전환 중 이전 액션 버튼이 잠깐 겹쳐 보이는 현상 개선",
+        },
+        {
+          kind: "fix",
+          text: "자유투 실패/슛 실패 후 리바운드 선택 위치를 골대와 자유투 라인 사이, 코트 세로 중앙 기준으로 정렬",
+        },
+      ],
+    },
+    {
+      version: "0.1.11",
+      date: "2026-06-28",
+      summary: "튜토리얼 하이라이트 위치 안정화",
+      details:
+        "튜토리얼 진행 중 하이라이트와 설명 말풍선이 실제 조작 대상에 더 정확히 붙도록 보정했습니다.",
+      notes: [{ kind: "fix", text: "튜토리얼 하이라이트 위치 안정화" }],
+    },
+    {
+      version: "0.1.10",
+      date: "2026-06-27",
+      summary: "현장 운영 보강과 기록 안정성 개선",
+      details:
+        "경기 당일 현장에서 필요한 긴급 선수 추가, 팀파울 표시, 기록 흐름 안정성 검증을 중심으로 보강했습니다.",
+      notes: [
+        { kind: "new", text: "현장 긴급 선수 추가" },
+        { kind: "fix", text: "팀파울 표시 안정화" },
+        { kind: "fix", text: "골든 기준 갱신 및 안정성 검증" },
+      ],
+    },
+  ],
 } as const;
 
 export async function GET() {
   return NextResponse.json(LATEST, {
     headers: {
-      // 5분 캐시 (버전 매니페스트는 자주 안 바뀜)
       "Cache-Control": "public, max-age=300",
     },
   });
