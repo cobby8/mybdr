@@ -25,19 +25,19 @@ import { NextResponse } from "next/server";
 //   ★앱(클라)은 latest_version_name(semver)로 비교 — 'v' 접두는 클라가 방어하나 미사용 권장.
 //   ★배포마다: 아래 버전/sha256/size + download/route.ts 의 TAG·ASSET_NAME 동시 갱신.
 const LATEST = {
-  latest_version_code: 13,
-  latest_version_name: "0.1.11",
+  latest_version_code: 14,
+  latest_version_name: "0.1.12",
   // 이 코드 미만 버전은 강제 업데이트 대상
   min_supported_version_code: 1,
   // 강제 업데이트 여부 (true 면 앱이 진입 차단)
   is_mandatory: false,
   // 비공개 릴리스 APK 를 중계하는 서버 프록시(공개 repo 노출 없음)
   apk_url: "https://www.mybdr.kr/api/v1/app/download",
-  // bdr-0.1.11.apk 실측 SHA256 / 바이트
-  sha256: "fe4d49efc049ecc2efa28d2590a5f399041a62061e16aab7a40ca1b6c02d93b2",
-  size_bytes: 80125243,
+  // bdr-0.1.12.apk 실측 SHA256 / 바이트
+  sha256: "28c44cf1f82e96512f2a5e2f1709e1f2aaa54779b01edf6a6cad3bd3efc77857",
+  size_bytes: 80338447,
   // 릴리스 노트 (배열)
-  release_notes: ["튜토리얼 하이라이트 위치 안정화"],
+  release_notes: ["슈팅파울 즉시 시계정지", "슈팅파울/자유투 전환 잔상 제거", "리바운드 선택 위치 중앙 정렬"],
 } as const;
 
 export async function GET() {
