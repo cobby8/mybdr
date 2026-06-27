@@ -130,6 +130,8 @@ import { BenchTechModal } from "./bench-tech-modal";
 import { useConfirm } from "../../../_components/confirm-modal-provider";
 // 2026-05-15 (PR-D-3) — 수정 모드 / read-only 가드 단일 source.
 import { useEditModeGuard } from "../_hooks/use-edit-mode-guard";
+// 2026-06-28 (매치357 재발 방지) — 미종료 경기 이탈 방지 가드 (beforeunload + popstate sentinel).
+import { useUnsavedMatchGuard } from "../_hooks/use-unsaved-match-guard";
 // 2026-05-15 (PR-D-4b) — input state 묶음 (header / signatures / teamA / teamB) 훅.
 import { useScoreSheetInputState } from "../_hooks/use-score-sheet-input-state";
 // 2026-05-15 (PR-D-4c) — 핵심 기록 state 6건 통합 훅.
@@ -1205,6 +1207,23 @@ export function ScoreSheetForm({
   //   - 종료 매치 + isEditMode=true = isReadOnly=false → 사용자 명시 동의 후 수정 가능.
   const { isCompleted, isEditMode, setIsEditMode, isReadOnly } = useEditModeGuard(match);
 
+  // 2026-06-28 (매치357 재발 방지) — 미종료 경기 이탈 방지 가드.
+  //
+  // 왜 (이유):
+  //   매치357 = 입력 후 "경기 종료"를 안 누르고 이탈 → in_progress 방치 → 다른 기록원이
+  //   같은 경기를 다시 입력 + 종료 → PBP/스탯 2배 박제. 본 가드가 그 1차 진입점(이탈)을 경고.
+  //
+  // active 조건 (모두 만족 시만 가드 — 빈 경기/종료 매치/연습 모드는 예외 허용):
+  //   - !isPractice       = 연습 모드 = DB 영향 0 → 가드 불필요.
+  //   - !isReadOnly       = 종료 매치(수정 모드 미진입) = 이미 종료됨 → 가드 불필요.
+  //   - !matchEndSubmitted = "경기 종료" 제출 완료 = 정상 종료 → 가드 해제.
+  //   - 입력 데이터 존재   = runningScore 마킹 1개 이상 (빈 경기는 예외 허용 — 의뢰 §2).
+  const hasRecordedData =
+    runningScore.home.length > 0 || runningScore.away.length > 0;
+  useUnsavedMatchGuard(
+    !isPractice && !isReadOnly && !matchEndSubmitted && hasRecordedData,
+  );
+
   // Phase 23 PR-EDIT4 (2026-05-15) — 수정 이력 펼침 토글 (사용자 결재 Q7).
   //   기본 = 접힘 (배너만 N건 표시) / 클릭 시 = 펼침 (행 리스트 표시).
   const [auditExpanded, setAuditExpanded] = useState(false);
@@ -2050,6 +2069,12 @@ export function ScoreSheetForm({
     // 자동 sync 비활성 조건 (위 3 트리거) — 한 가지라도 false 면 interval 미설치.
     if (lineup === null) return;
     if (isReadOnly) return;
+    // 2026-06-28 (매치357 재발 방지 — 가드 #3 강화):
+    //   종료(completed) 매치는 수정 모드(isEditMode)로 isReadOnly=false 가 되어도 자동 sync 금지.
+    //   사유: auto-sync 는 status="in_progress" override 를 보내므로, 종료 매치를 in_progress 로
+    //     되돌리는 status 강등 + 부분 편집 누적 위험. 종료 매치 편집 결과는 "경기 종료 확인"
+    //     (status="completed") 명시 제출로만 박제 → idempotent replace 보장.
+    if (isCompleted) return;
     if (matchEndSubmitted) return;
     // 2026-05-17 연습 모드 (사용자 결재 옵션 E):
     //   10초 auto-sync 전체 skip → interval 미설치 (= 운영 DB 호출 0).
@@ -2076,7 +2101,7 @@ export function ScoreSheetForm({
     }, 10_000);
 
     return () => clearInterval(intervalId);
-  }, [lineup, isReadOnly, matchEndSubmitted, match.id, isPractice]);
+  }, [lineup, isReadOnly, isCompleted, matchEndSubmitted, match.id, isPractice]);
 
   // Phase 7-B — 출전 명단 필터 + isStarter 재계산.
   //   lineup state 확정 시 양식 (TeamSection / RunningScoreGrid) 에 표시될 선수 = 출전 명단만.
