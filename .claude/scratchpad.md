@@ -5,7 +5,8 @@
 ## 현재 작업
 - **요청**: 관리자 영역 Toss 시안 박제 (admin-toss v2.41 정본). 단계 PR(PR-0~PR-5).
 - **기준 패키지**: `Dev/design/BDR v2.41-admin-toss/` + 계약문서 `_PR0-CONTRACT-CONFIRMED.md`(PR-1~5 단일 참조점).
-- **상태**: PR-0✅·PR-1✅완료. **PR-2 ✅완료** — 시각박제=전 패널 이미 정합(변경0) + 기능4건 박제(공지·series칩·일정휴식·지출 신규테이블). `tournament_expenses` 운영 DB 반영(db push·8컬럼0행 검증). **런타임 검증=프리뷰(로컬 dev 클라이언트 stale)**. 다음=PR-3(생성/수정 마법사) 또는 마무리.
+- **상태**: PR-0✅·PR-1✅·PR-2✅완료(전부 dev push·7daba99). **dev→main 릴리스 PR #773 생성·열림**(23커밋). 사용자 결정=**프리뷰 검토 후 수빈이 머지**(지금 머지 안 함). `tournament_expenses` 운영 DB 이미 반영→main 배포 시 마이그0. 머지 후 다음=PR-3(생성/수정 마법사).
+- **🔎 프리뷰 검토 대기(수빈)**: PR-2 기능 런타임 확인 — 운영관리(공지 저장·series 칩)·일정(휴식)·정산(지출 추가/잔액). 이상없으면 PR #773 머지.
 - **🔄 v2.45 재베이스라이닝(2026-06-27)**: 새 zip `BDR v2 (45)` → 정본 교체(design_handoff_admin → `Dev/design/BDR v2.41-admin-toss/`, 직전본 `_archive/...-pre45/`). **START-HERE·IMPLEMENTATION-PROMPT·screenshots 17장(시각 정본) 반입** → §1 치환표 폐기. 폐기 38팀 site-* 제거. 정본 교체 커밋 = design(sync). 계약문서 §v2.45 갱신.
 - **★계정 배치 확정**: 정본=계정 **사이드바 푸터 UserChip**(데스크톱 topbar 없음). 사용자 "사이드 패널 유지"=계정을 사이드에. 배치1.5=ad-topbar 계정 제거+UserChip 푸터 이전(로그아웃 보존 필수).
 - **배치2 모바일(900px)·배치3 st-* 상태모듈 = 후속**. (v2.42 신규: 8상태 QA·preview 6 검수하네스·공개사이트 44팀 통일→PR-5)
