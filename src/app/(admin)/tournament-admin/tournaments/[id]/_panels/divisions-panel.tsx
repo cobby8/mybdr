@@ -40,11 +40,16 @@ import {
   type PlaceLite,
   type DivScheduleEntry,
 } from "../divisions/_components/schedule-format";
+// 2026-06-28 연령 자동 채움(A안) — 종별 연령코드(U{N}/+{N}) → 출생연도·학년 범위 순수 매핑.
+import { computeAgeRangeForDivision } from "@/lib/tournaments/age-mapping";
 
 interface DivisionRule {
   id: string;
   code: string;
   label: string;
+  // 2026-06-28 연령 자동 채움 — 출생연도 범위(학년은 기존부터 존재).
+  birth_year_min: number | null;
+  birth_year_max: number | null;
   grade_min: number | null;
   grade_max: number | null;
   fee_krw: number;
@@ -98,6 +103,10 @@ export default function DivisionsSetupPage() {
   const [allowedFormats, setAllowedFormats] = useState<string[]>([]);
   const [masterCategories, setMasterCategories] = useState<MasterCategory[]>([]);
   const [currentCategories, setCurrentCategories] = useState<CurrentCategory[]>([]);
+  // 2026-06-28 연령 자동 채움 — 출생연도 계산 기준 연도(GET tournament_year, 폴백=현재 연도).
+  const [tournamentYear, setTournamentYear] = useState<number>(() =>
+    new Date().getFullYear(),
+  );
   // 2026-06-22 F-2b — 디비전 일정 역참조용 데이터(div_schedule 배열 + 룩업 소스)
   //   route 에서 map→배열로 변환해 내보내므로(디비전명 snake 변환 회피) 배열로 받는다.
   const [divSchedule, setDivSchedule] = useState<DivScheduleEntry[]>([]);
@@ -133,6 +142,10 @@ export default function DivisionsSetupPage() {
       setAllowedFormats((json.allowed_formats ?? []) as string[]);
       setMasterCategories((json.master_categories ?? []) as MasterCategory[]);
       setCurrentCategories((json.current_categories ?? []) as CurrentCategory[]);
+      // 대회 기준 연도 — 연령 자동 채움 출생연도 계산에 사용.
+      if (typeof json.tournament_year === "number") {
+        setTournamentYear(json.tournament_year);
+      }
       // F-2b — 디비전 일정 역참조 데이터(배열·route 에서 map→배열 변환·snake)
       setDivSchedule(
         Array.isArray(json.div_schedule)
@@ -436,7 +449,15 @@ export default function DivisionsSetupPage() {
 
   const updateRule = async (
     ruleId: string,
-    patch: { format?: string | null; settings?: Record<string, unknown> }
+    patch: {
+      format?: string | null;
+      settings?: Record<string, unknown>;
+      // 2026-06-28 연령 자동 채움 — PATCH body 는 camelCase(이 라우트는 입력 변환 없음).
+      birthYearMin?: number | null;
+      birthYearMax?: number | null;
+      gradeMin?: number | null;
+      gradeMax?: number | null;
+    }
   ) => {
     setSavingId(ruleId);
     setError(null);
@@ -455,7 +476,7 @@ export default function DivisionsSetupPage() {
         setError(readApiError(json, "저장 실패"));
         return;
       }
-      // 낙관적 갱신
+      // 낙관적 갱신 — 연령 4필드는 null 도 유효값이라 응답에 키가 있으면 그대로 반영.
       setRules((prev) =>
         prev.map((r) =>
           r.id === ruleId
@@ -463,6 +484,12 @@ export default function DivisionsSetupPage() {
                 ...r,
                 format: json.format ?? r.format,
                 settings: json.settings ?? r.settings,
+                birth_year_min:
+                  json.birth_year_min !== undefined ? json.birth_year_min : r.birth_year_min,
+                birth_year_max:
+                  json.birth_year_max !== undefined ? json.birth_year_max : r.birth_year_max,
+                grade_min: json.grade_min !== undefined ? json.grade_min : r.grade_min,
+                grade_max: json.grade_max !== undefined ? json.grade_max : r.grade_max,
               }
             : r
         )
@@ -824,6 +851,33 @@ export default function DivisionsSetupPage() {
                 />
               )}
 
+              {/* 2026-06-28 연령 자동 채움(A안) — 출생연도·학년 입력 + 자동 채움 버튼 + 저장.
+                  종별 ages = 룰 settings.category 로 masterCategories 매칭(별도 fetch 없음). */}
+              {(() => {
+                // 룰이 속한 종별명(생성/동기화 시 seed 가 settings.category 박제).
+                const ruleCategory =
+                  r.settings && typeof r.settings.category === "string"
+                    ? (r.settings.category as string)
+                    : null;
+                // 해당 종별의 연령 코드 배열(유청소년 ["U8"..] / 일반부·대학부 []).
+                const ageCodes = ruleCategory
+                  ? masterCategories.find((c) => c.name === ruleCategory)?.ages ?? []
+                  : [];
+                return (
+                  <AgeRangeInputs
+                    divisionName={r.code}
+                    ageCodes={ageCodes}
+                    tournamentYear={tournamentYear}
+                    birthYearMin={r.birth_year_min}
+                    birthYearMax={r.birth_year_max}
+                    gradeMin={r.grade_min}
+                    gradeMax={r.grade_max}
+                    saving={savingId === r.id}
+                    onSave={(patch) => updateRule(r.id, patch)}
+                  />
+                );
+              })()}
+
               {/* 2026-05-12 Phase 3.5-C — 진출 매핑 수동 실행 */}
               <div className="ct-division-rule-card__foot">
                 <p className="text-xs text-[var(--ink-mute)]">
@@ -1088,6 +1142,192 @@ function GroupSettingsInputs(props: {
           className="ts-btn ts-btn--secondary ts-btn--sm"
         >
           {saving ? "저장 중..." : hasPendingSettings ? "운영방식 설정 저장" : "설정 저장됨"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// 2026-06-28 연령 자동 채움(A안) — 출생연도·학년 입력 + "연령 자동 채움" 버튼 + 저장
+// ─────────────────────────────────────────────────────────────────────────
+//
+// 동작:
+//   - 출생연도 min/max, 학년 min/max 4개 입력(초기값 = GET serializeRule 응답).
+//   - "연령 자동 채움": computeAgeRangeForDivision(디비전명, 종별ages, 대회연도) 결과를
+//     입력 state 에만 채움(저장 X). 운영자 확인 후 "연령 저장" 으로 PATCH.
+//   - 결과 null(연령부 없는 일반부/대학부 = ages 토큰 매칭 실패)이면 자동 채움 버튼 비활성.
+//   - override: 자동 채움 후 값 수정 가능, 저장은 부모 updateRule → PATCH(camel body).
+//
+// 입력 파싱: 빈 문자열 = null, 숫자면 정수. 음수는 input min 으로 1차 방어.
+function AgeRangeInputs(props: {
+  divisionName: string;
+  ageCodes: string[];
+  tournamentYear: number;
+  birthYearMin: number | null;
+  birthYearMax: number | null;
+  gradeMin: number | null;
+  gradeMax: number | null;
+  saving: boolean;
+  onSave: (patch: {
+    birthYearMin: number | null;
+    birthYearMax: number | null;
+    gradeMin: number | null;
+    gradeMax: number | null;
+  }) => void | Promise<void>;
+}) {
+  const {
+    divisionName,
+    ageCodes,
+    tournamentYear,
+    birthYearMin,
+    birthYearMax,
+    gradeMin,
+    gradeMax,
+    saving,
+    onSave,
+  } = props;
+
+  // null → "" 로 표시(빈 입력). 숫자는 문자열로.
+  const toStr = (v: number | null) => (v != null ? String(v) : "");
+
+  // 로컬 입력 state(빈 문자열 허용).
+  const [byMin, setByMin] = useState<string>(toStr(birthYearMin));
+  const [byMax, setByMax] = useState<string>(toStr(birthYearMax));
+  const [gMin, setGMin] = useState<string>(toStr(gradeMin));
+  const [gMax, setGMax] = useState<string>(toStr(gradeMax));
+
+  // 저장(PATCH) 후 부모 props 갱신 → 로컬 입력 재동기화.
+  useEffect(() => {
+    setByMin(toStr(birthYearMin));
+    setByMax(toStr(birthYearMax));
+    setGMin(toStr(gradeMin));
+    setGMax(toStr(gradeMax));
+  }, [birthYearMin, birthYearMax, gradeMin, gradeMax]);
+
+  // 자동 채움 가능 여부 = 디비전명에 종별 ages 코드가 토큰으로 매칭되는지.
+  //   null(일반부/대학부 = ages [] 또는 매칭 실패)이면 버튼 비활성.
+  const autoRange = computeAgeRangeForDivision(divisionName, ageCodes, tournamentYear);
+  const canAutoFill = autoRange !== null;
+
+  // "연령 자동 채움" — 계산 결과를 입력 state 에만 반영(저장은 별도).
+  const handleAutoFill = () => {
+    if (!autoRange) return;
+    setByMin(toStr(autoRange.birthYearMin));
+    setByMax(toStr(autoRange.birthYearMax));
+    setGMin(toStr(autoRange.gradeMin));
+    setGMax(toStr(autoRange.gradeMax));
+  };
+
+  // 문자열 입력 → number|null(빈 값/비정상은 null).
+  const parse = (s: string): number | null => {
+    if (s.trim() === "") return null;
+    const n = Number(s);
+    return Number.isFinite(n) ? Math.trunc(n) : null;
+  };
+
+  // 저장 변경 감지(현재 입력 vs 저장된 props).
+  const hasPending =
+    parse(byMin) !== birthYearMin ||
+    parse(byMax) !== birthYearMax ||
+    parse(gMin) !== gradeMin ||
+    parse(gMax) !== gradeMax;
+
+  const handleSave = async () => {
+    if (saving) return;
+    await onSave({
+      birthYearMin: parse(byMin),
+      birthYearMax: parse(byMax),
+      gradeMin: parse(gMin),
+      gradeMax: parse(gMax),
+    });
+  };
+
+  return (
+    <div className="ct-division-rule-card__age mt-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span className="text-xs font-semibold text-[var(--ink)]">연령 제한</span>
+        {/* 자동 채움 — 종별 연령코드 기반. 일반부/대학부(매칭 없음)는 비활성 */}
+        <button
+          type="button"
+          onClick={handleAutoFill}
+          disabled={saving || !canAutoFill}
+          className="ts-btn ts-btn--secondary ts-btn--sm"
+          title={
+            canAutoFill
+              ? `${divisionName} 연령코드로 출생연도·학년 자동 계산`
+              : "연령부가 없는 종별이라 자동 채움 대상이 아닙니다"
+          }
+        >
+          <Icon name="wand-2" size={16} />
+          연령 자동 채움
+        </button>
+      </div>
+
+      <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <label className="ts-field text-xs text-[var(--ink-mute)]">
+          출생연도(이상)
+          <input
+            type="number"
+            step={1}
+            value={byMin}
+            disabled={saving}
+            onChange={(e) => setByMin(e.target.value)}
+            className="ts-input mt-1"
+            placeholder="예: 2012"
+          />
+        </label>
+        <label className="ts-field text-xs text-[var(--ink-mute)]">
+          출생연도(이하)
+          <input
+            type="number"
+            step={1}
+            value={byMax}
+            disabled={saving}
+            onChange={(e) => setByMax(e.target.value)}
+            className="ts-input mt-1"
+            placeholder="예: 2015"
+          />
+        </label>
+        <label className="ts-field text-xs text-[var(--ink-mute)]">
+          학년(이상)
+          <input
+            type="number"
+            min={1}
+            step={1}
+            value={gMin}
+            disabled={saving}
+            onChange={(e) => setGMin(e.target.value)}
+            className="ts-input mt-1"
+            placeholder="예: 1"
+          />
+        </label>
+        <label className="ts-field text-xs text-[var(--ink-mute)]">
+          학년(이하)
+          <input
+            type="number"
+            min={1}
+            step={1}
+            value={gMax}
+            disabled={saving}
+            onChange={(e) => setGMax(e.target.value)}
+            className="ts-input mt-1"
+            placeholder="예: 6"
+          />
+        </label>
+      </div>
+
+      <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+        <span className="text-xs text-[var(--ink-mute)]">
+          {hasPending ? "연령 변경사항이 있습니다." : "연령이 저장되어 있습니다."}
+        </span>
+        <button
+          type="button"
+          onClick={() => void handleSave()}
+          disabled={saving || !hasPending}
+          className="ts-btn ts-btn--secondary ts-btn--sm"
+        >
+          {saving ? "저장 중..." : hasPending ? "연령 저장" : "연령 저장됨"}
         </button>
       </div>
     </div>

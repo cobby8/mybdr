@@ -27,6 +27,13 @@ const settingsSchema = z.record(z.string(), z.unknown()).refine(
 const patchSchema = z.object({
   format: z.enum(ALLOWED_FORMATS).nullable().optional(),
   settings: settingsSchema.optional(),
+  // 2026-06-28 연령 자동 채움(A안) — 출생연도·학년 범위 부분 업데이트.
+  //   각 필드 nullable+optional → 전달된 키만 반영, 미전달 키는 기존값 유지(아래 data 조립).
+  //   null 명시 = 해당 제한 해제(연령부 없는 일반부/대학부로 전환 등).
+  birthYearMin: z.number().int().nullable().optional(),
+  birthYearMax: z.number().int().nullable().optional(),
+  gradeMin: z.number().int().nullable().optional(),
+  gradeMax: z.number().int().nullable().optional(),
 });
 
 export async function PATCH(
@@ -60,9 +67,22 @@ export async function PATCH(
   const parsed = patchSchema.safeParse(body);
   if (!parsed.success) return validationError(parsed.error.issues);
 
-  const data: { format?: string | null; settings?: object } = {};
+  // 전달된 필드만 update data 에 담아 부분 업데이트(미전달 필드는 기존값 유지).
+  const data: {
+    format?: string | null;
+    settings?: object;
+    birthYearMin?: number | null;
+    birthYearMax?: number | null;
+    gradeMin?: number | null;
+    gradeMax?: number | null;
+  } = {};
   if (parsed.data.format !== undefined) data.format = parsed.data.format;
   if (parsed.data.settings !== undefined) data.settings = parsed.data.settings;
+  // 2026-06-28 연령 4필드 — undefined(미전달)면 건드리지 않고, null/숫자면 그대로 반영.
+  if (parsed.data.birthYearMin !== undefined) data.birthYearMin = parsed.data.birthYearMin;
+  if (parsed.data.birthYearMax !== undefined) data.birthYearMax = parsed.data.birthYearMax;
+  if (parsed.data.gradeMin !== undefined) data.gradeMin = parsed.data.gradeMin;
+  if (parsed.data.gradeMax !== undefined) data.gradeMax = parsed.data.gradeMax;
 
   if (Object.keys(data).length === 0) {
     return apiError("no-changes", 400);
@@ -76,6 +96,11 @@ export async function PATCH(
       code: true,
       format: true,
       settings: true,
+      // 연령 4필드 — 응답 노출(패널 낙관적 갱신용).
+      birthYearMin: true,
+      birthYearMax: true,
+      gradeMin: true,
+      gradeMax: true,
     },
   });
 
@@ -84,5 +109,10 @@ export async function PATCH(
     code: updated.code,
     format: updated.format,
     settings: updated.settings,
+    // apiSuccess 가 snake 변환 → 프론트는 birth_year_min/max·grade_min/max 로 읽음.
+    birth_year_min: updated.birthYearMin,
+    birth_year_max: updated.birthYearMax,
+    grade_min: updated.gradeMin,
+    grade_max: updated.gradeMax,
   });
 }
