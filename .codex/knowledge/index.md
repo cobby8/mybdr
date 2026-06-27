@@ -1,5 +1,7 @@
 # Knowledge Index
 
+- 2026-06-27 admin: `/admin` dashboard now uses Toss `ad-stats`, `ad-chart`, and `ad-log-card` markup while preserving Prisma count queries, weekly raw SQL, and recent admin log data.
+
 - 2026-06-27 admin: shared `AdminStatCard`, `AdminEmptyState`, and `AdminStatusTabs` now render Toss `ad-stat`, `ad-empty`, and `ad-tabs` markup with scoped Toss CSS.
 
 - 2026-06-27 admin: `AdminMobileNav` now renders Toss `ad-mobile-*` and `ad-side-*` drawer classes while preserving ESC close, route close, body scroll lock, and role-filtered links.
@@ -70,6 +72,7 @@ Updated: 2026-06-27
 | lessons.md | 0 | - |
 
 Recent work:
+- 2026-06-27 admin: `/admin` dashboard local chart/log/stat markup moved to Toss `ad-*` classes; TypeScript, diff check, and local Chrome DOM cleanup passed after one reload retry for dev-server compile latency.
 - 2026-06-27 admin: shared stat, empty, and status-tab components moved to Toss `ad-*` markup; TypeScript, diff check, and local Chrome `/admin` DOM check passed.
 - 2026-06-27 admin: mobile admin navigation was rebuilt on Toss `ad-mobile-*`/`ad-side-*` classes; TypeScript, cleanup scan, diff check, and local Chrome `/admin/tournaments` DOM check passed.
 - 2026-06-27 admin: shared `AdminShell` was moved from old shell wrapper classes to Toss `ad-*` shell wrappers; TypeScript, diff check, local Chrome `/admin/tournaments`, and operate workspace DOM checks passed.

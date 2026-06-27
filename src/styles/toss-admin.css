@@ -1684,6 +1684,157 @@
 }
 [data-skin="toss"] .ad-empty__cta { margin-top: 8px; }
 
+/* admin dashboard */
+[data-skin="toss"] .ad-section-title {
+  margin: 24px 0 12px;
+  color: var(--ink-soft);
+  font-size: 13px;
+  font-weight: 800;
+}
+[data-skin="toss"] .ad-section-title:first-child { margin-top: 0; }
+[data-skin="toss"] .ad-dash-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(340px, .9fr);
+  gap: 18px;
+  align-items: stretch;
+}
+[data-skin="toss"] .ad-chart,
+[data-skin="toss"] .ad-log-card {
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  background: var(--card);
+  box-shadow: var(--sh-xs);
+}
+[data-skin="toss"] .ad-chart { padding: 20px 22px 18px; }
+[data-skin="toss"] .ad-chart__head,
+[data-skin="toss"] .ad-log-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+[data-skin="toss"] .ad-chart__title,
+[data-skin="toss"] .ad-log-card__title {
+  color: var(--ink);
+  font-size: 16px;
+  font-weight: 800;
+}
+[data-skin="toss"] .ad-chart__sub {
+  color: var(--ink-mute);
+  font-size: 12.5px;
+  font-weight: 700;
+}
+[data-skin="toss"] .ad-chart__body {
+  height: 220px;
+  display: flex;
+  align-items: end;
+  gap: 10px;
+  border-bottom: 1px solid var(--border);
+  padding-top: 20px;
+}
+[data-skin="toss"] .ad-chart__bar {
+  position: relative;
+  flex: 1;
+  min-width: 18px;
+  border-radius: 12px 12px 0 0;
+  background: var(--primary);
+  opacity: .92;
+}
+[data-skin="toss"] .ad-chart__bar[data-zero="true"] {
+  background: var(--grey-200);
+  opacity: 1;
+}
+[data-skin="toss"] .ad-chart__bar-value {
+  position: absolute;
+  top: -20px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: var(--ink-mute);
+  font-family: var(--ff-mono);
+  font-size: 11px;
+  font-weight: 800;
+}
+[data-skin="toss"] .ad-chart__x {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+  color: var(--ink-dim);
+  font-family: var(--ff-mono);
+  font-size: 11px;
+  text-align: center;
+}
+[data-skin="toss"] .ad-log-card { padding: 18px 20px; }
+[data-skin="toss"] .ad-log-card__link {
+  color: var(--primary);
+  font-size: 12.5px;
+  font-weight: 800;
+  text-decoration: none;
+}
+[data-skin="toss"] .ad-log-card__link:hover { color: var(--primary-hover); }
+[data-skin="toss"] .ad-log-row {
+  display: grid;
+  grid-template-columns: 10px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: start;
+  padding: 13px 0;
+  border-bottom: 1px solid var(--grey-100);
+}
+[data-skin="toss"] .ad-log-row:last-child { border-bottom: 0; }
+[data-skin="toss"] .ad-log-row__dot {
+  width: 8px;
+  height: 8px;
+  margin-top: 7px;
+  border-radius: 50%;
+  background: var(--primary);
+}
+[data-skin="toss"] .ad-log-row__dot[data-severity="warning"] { background: var(--warn); }
+[data-skin="toss"] .ad-log-row__dot[data-severity="error"] { background: var(--danger); }
+[data-skin="toss"] .ad-log-row__dot[data-severity="success"] { background: var(--ok); }
+[data-skin="toss"] .ad-log-row__body { min-width: 0; }
+[data-skin="toss"] .ad-log-row__action {
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 13.5px;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+[data-skin="toss"] .ad-log-row__desc {
+  overflow: hidden;
+  color: var(--ink-mute);
+  font-size: 12.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+[data-skin="toss"] .ad-log-row__meta {
+  color: var(--ink-dim);
+  font-size: 11.5px;
+  line-height: 1.45;
+  text-align: right;
+  white-space: nowrap;
+}
+[data-skin="toss"] .ad-log-empty {
+  padding: 28px;
+  color: var(--ink-mute);
+  font-size: 13px;
+  text-align: center;
+}
+@media (max-width: 1024px) {
+  [data-skin="toss"] .ad-dash-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 560px) {
+  [data-skin="toss"] .ad-chart { padding: 18px 16px 16px; }
+  [data-skin="toss"] .ad-chart__body { height: 180px; gap: 6px; }
+  [data-skin="toss"] .ad-log-row { grid-template-columns: 10px minmax(0, 1fr); }
+  [data-skin="toss"] .ad-log-row__meta {
+    grid-column: 2;
+    text-align: left;
+  }
+}
+
 /* ── 여유 테이블 (DataTable .ad-* 셀 스타일) ─────────────── */
 [data-skin="toss"] .ad-table { background: var(--card); border: 1px solid var(--border); border-radius: 18px; overflow: hidden; box-shadow: var(--sh-xs); }
 [data-skin="toss"] .ad-thead, [data-skin="toss"] .ad-trow { display: grid; align-items: center; gap: 16px; padding: 0 24px; }
