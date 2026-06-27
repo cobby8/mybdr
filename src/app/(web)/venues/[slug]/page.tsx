@@ -159,11 +159,13 @@ export default async function VenueDetailPage({ params }: { params: Promise<Page
 
   // 날짜 포맷 — v2 ff-mono 톤 (YYYY.MM.DD HH:mm)
   const fmtDate = (d: Date) => {
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, "0");
-    const day = String(d.getDate()).padStart(2, "0");
-    const hh = String(d.getHours()).padStart(2, "0");
-    const mm = String(d.getMinutes()).padStart(2, "0");
+    // 서버 렌더(Vercel UTC) — DB는 UTC 저장. KST(+9h) 보정 후 getUTC* 로 한국시간 추출
+    const k = new Date(d.getTime() + 9 * 60 * 60 * 1000);
+    const y = k.getUTCFullYear();
+    const m = String(k.getUTCMonth() + 1).padStart(2, "0");
+    const day = String(k.getUTCDate()).padStart(2, "0");
+    const hh = String(k.getUTCHours()).padStart(2, "0");
+    const mm = String(k.getUTCMinutes()).padStart(2, "0");
     return `${y}.${m}.${day} ${hh}:${mm}`;
   };
 

@@ -144,7 +144,8 @@ export default async function SiteResultsPage() {
 
                         {m.scheduledAt && (
                           <p className="mt-1 text-center text-xs text-[var(--color-text-muted)]">
-                            {m.scheduledAt.toLocaleDateString("ko-KR")}
+                            {/* 서버 렌더 — Vercel UTC 회피 위해 Asia/Seoul 강제 */}
+                            {m.scheduledAt.toLocaleDateString("ko-KR", { timeZone: "Asia/Seoul" })}
                             {m.venue_name ? ` · ${m.venue_name}` : ""}
                           </p>
                         )}

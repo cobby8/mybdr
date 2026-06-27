@@ -320,14 +320,16 @@ function labelStatus(status: string): string {
   }
 }
 
-// ISO → "MM/DD HH:mm" 단순 표시 (서버 측 — Asia/Seoul 가정)
+// ISO → "MM/DD HH:mm" 단순 표시 (서버 렌더 = Vercel UTC → KST 강제 보정)
 function formatDateTime(iso: string): string {
   try {
     const d = new Date(iso);
-    const mm = String(d.getMonth() + 1).padStart(2, "0");
-    const dd = String(d.getDate()).padStart(2, "0");
-    const hh = String(d.getHours()).padStart(2, "0");
-    const mi = String(d.getMinutes()).padStart(2, "0");
+    // KST(+9h) 보정 후 getUTC* 로 한국시간 추출 (한국은 DST 없음)
+    const k = new Date(d.getTime() + 9 * 60 * 60 * 1000);
+    const mm = String(k.getUTCMonth() + 1).padStart(2, "0");
+    const dd = String(k.getUTCDate()).padStart(2, "0");
+    const hh = String(k.getUTCHours()).padStart(2, "0");
+    const mi = String(k.getUTCMinutes()).padStart(2, "0");
     return `${mm}/${dd} ${hh}:${mi}`;
   } catch {
     return iso;
