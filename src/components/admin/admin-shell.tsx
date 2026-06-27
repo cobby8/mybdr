@@ -15,8 +15,6 @@ interface AdminShellProps {
     nickname: string | null;
     email: string;
   };
-  topbarLeft?: ReactNode;
-  topbarRight?: ReactNode;
   hideHeader?: boolean;
   children: ReactNode;
 }
@@ -30,8 +28,6 @@ export function AdminShell({
   sidebarVariant = "default",
   roles,
   user,
-  topbarLeft,
-  topbarRight,
   hideHeader = false,
   children,
 }: AdminShellProps) {
@@ -39,20 +35,12 @@ export function AdminShell({
 
   return (
     <div className={`ts-shell ${hidden ? "ts-shell--hidden-aside" : ""}`} data-skin="toss">
-      {!hidden && <AdminSidebar roles={roles} />}
+      {/* 배치1.5 — 계정(아바타/이름/역할/로그아웃)을 사이드바 푸터 UserChip 으로 이전.
+          정본은 데스크톱 우상단 topbar 없음 → 데스크톱 ad-topbar 제거. user 를 사이드바로 전달. */}
+      {!hidden && <AdminSidebar roles={roles} user={user} />}
       {!hidden && <AdminMobileNav roles={roles} user={user} />}
 
       <main className="ts-main">
-        {/* 데스크톱 우상단 토픽바(UserMenu). 시안 ts-topbar 는 모바일 전용(display:none@desktop)이라
-            여기에 적용하면 데스크톱 계정 메뉴가 사라짐 → 회귀 0 위해 topbar 는 후속 배치에서 처리
-            (UserMenu 를 ts-sidebar__foot 로 이전 후 ts-topbar 정합). 이번 배치는 셸/사이드바만. */}
-        <div className="ad-topbar">
-          <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
-            {topbarLeft}
-          </div>
-          {topbarRight}
-        </div>
-
         <div className="ts-main__inner">
           {!hideHeader && title && (
             <AdminPageHeader

@@ -5,16 +5,18 @@
 ## 현재 작업
 - **요청**: 관리자 영역 Toss 시안 박제 (admin-toss v2.41 정본). 단계 PR(PR-0~PR-5).
 - **기준 패키지**: `Dev/design/BDR v2.41-admin-toss/` + 계약문서 `_PR0-CONTRACT-CONFIRMED.md`(PR-1~5 단일 참조점).
-- **상태**: PR-0✅ → **PR-1 진행 중**. 진단 결과 공유기반 85~90% 이미 운영 존재(toss-kit 8종·toss.css 토큰 전부 기존). 셸 전략 = **ts-shell 통일**(사용자 결정). **배치1(데스크톱 셸+사이드바) 완료·푸시(8a2dd89)**.
-- **⏸️ 배치1.5/배치2 보류**: 사용자가 "사이드 패널 유지"로 결정·**시안 재생성 중** → 새 시안 대기. 섣불리 topbar/UserMenu(배치1.5)·모바일(배치2) 안 건드림. (배치1에서 ad-topbar 그대로 둔 게 이 결정과 부합)
-- **⚠️ 육안 확인 막힘**: 로컬 dev(3001)=Turbopack DLL `0xc0000142` ROOT 500 환경이슈 / 프리뷰=미로그인(PM 로그인 불가). 화면 확인은 수빈이 직접(프리뷰 로그인 or 로컬 수리).
+- **상태**: PR-0✅ → **PR-1 진행 중**. 셸 전략=**ts-shell 통일**. **배치1(데스크톱 셸+사이드바 swap) 완료(8a2dd89)** → 새 시안 정합 ✅. **배치1.5(계정 사이드바 푸터 이전) 진행 중(developer)**.
+- **🔄 v2.45 재베이스라이닝(2026-06-27)**: 새 zip `BDR v2 (45)` → 정본 교체(design_handoff_admin → `Dev/design/BDR v2.41-admin-toss/`, 직전본 `_archive/...-pre45/`). **START-HERE·IMPLEMENTATION-PROMPT·screenshots 17장(시각 정본) 반입** → §1 치환표 폐기. 폐기 38팀 site-* 제거. 정본 교체 커밋 = design(sync). 계약문서 §v2.45 갱신.
+- **★계정 배치 확정**: 정본=계정 **사이드바 푸터 UserChip**(데스크톱 topbar 없음). 사용자 "사이드 패널 유지"=계정을 사이드에. 배치1.5=ad-topbar 계정 제거+UserChip 푸터 이전(로그아웃 보존 필수).
+- **배치2 모바일(900px)·배치3 st-* 상태모듈 = 후속**. (v2.42 신규: 8상태 QA·preview 6 검수하네스·공개사이트 44팀 통일→PR-5)
+- **⚠️ 육안 확인**: 로컬 dev(3001)=Turbopack DLL 500 환경이슈 / 프리뷰=미로그인(PM 불가). **이제 screenshots 17장이 시각 정합 기준**(developer가 PNG 대조). 실렌더 확인은 수빈이 프리뷰 로그인으로.
 - **운영**: 단독 운영(dev 직접 작업·subin 폐지). dev→main 머지=수빈 단독.
 
 ### 📋 admin-toss 단계 PR 계획
 | PR | 내용 | 상태 |
 |----|------|------|
 | PR-0 | 패키지 배치 + §1치환 + §5스키마실측 + §6결정 | ✅ 93b90ef |
-| PR-1 | 공유 기반: 진단(85~90% 기존)→셸 ts-shell 통일. 배치1 데스크톱✅(8a2dd89) / 배치2 모바일·1.5 UserMenu = ⏸️ 새 시안 대기 | 🔄 진행 |
+| PR-1 | 셸 ts-shell 통일. 배치1 데스크톱✅(8a2dd89) / 배치1.5 계정→사이드바푸터 🔄진행 / 배치2 모바일900px·배치3 st-* = 후속 | 🔄 진행 |
 | PR-2 | 대회 운영 워크스페이스(operate 6메뉴+7패널)→/tournament-admin/tournaments/[id] | 대기 |
 | PR-3 | 생성/수정 5단계 마법사(6-1: 단일화+prospectus/assoc 보존) | 대기 |
 | PR-4 | 셸별 콘솔(대회관리자/백오피스18/협력/심판) + 6-2 /admin/tournaments 목록 제거 | 대기 |
@@ -74,6 +76,22 @@
 - ⚠️ 시각 미세: `ts-navlink` 내부 `<span>`(icon+label) 래퍼 유지 → ts-navlink gap이 span 1자식에만 적용돼 아이콘/라벨 간격이 다소 좁을 수 있음(구조 보존 우선). PM 육안 확인 후 필요시 후속.
 
 🖥️ **PM 육안확인 필요 라우트(데스크톱 ≥1024px + 모바일 ≤768px)**: `/admin`(대시보드), `/admin/users`(테이블), `/admin/games`(콘텐츠) — 사이드바 렌더·active 상태·그룹헤더·푸터·BDR 로고·데스크톱 UserMenu 표시 / 모바일은 배치2(mobile-admin-nav) 전이라 기존 ad-mobile 유지(정상).
+
+### PR-1 배치1.5 — 계정 우상단 topbar 제거 → 사이드바 푸터 UserChip 이전
+📝 정본(v2.45) 데스크톱 topbar 부재 정합. 데스크톱 우상단 UserMenu 제거 + 계정을 ts-sidebar__foot UserChip 으로 이전. **로그아웃 보존(기능 손실 0)**.
+
+| 파일 | 변경 | 신규/수정 |
+|------|------|----------|
+| `src/app/(admin)/admin/layout.tsx` | `topbarRight={<UserMenu/>}` 배선 + UserMenu import 제거(user prop 전달 유지) | 수정 |
+| `src/components/admin/admin-shell.tsx` | 데스크톱 `ad-topbar` div 제거 + `topbarLeft/topbarRight` props 제거 + `<AdminSidebar user={user}/>` 전달 | 수정 |
+| `src/components/admin/sidebar.tsx` | 푸터 **UserChip 신설**(ts-userchip/ts-avatar 아바타+이름+역할+chevron-right→/admin/me) + **LogoutButton 추가**(로그아웃 보존) + getInitial/getRoleLabel + user prop | 수정 |
+
+**로그아웃 보존**: 제거된 UserMenu 로그아웃을 LogoutButton(drawer-card) 재사용으로 푸터 박제 — `POST /api/web/logout`+full reload 로직 무변경. 마이페이지(/admin/me)·사이트복귀(/)·로그아웃·계정진입 **전부 접근 가능**.
+**보존(회귀 0)**: navStructure/filter/children 재귀/active 0변경(nav 토큰 20 동일). user 미전달 시 UserChip·로그아웃 미렌더(폴백).
+**검증**: tsc **EXIT 0**. 정적: admin-shell.tsx ad-topbar/topbarRight 코드 잔존 0(주석만)·layout UserMenu 코드 잔존 0(주석만)·sidebar ts-userchip(CSS L258)·ts-avatar(L260)·LogoutButton·chevron-right 실존.
+⚠️ **모바일 interim(배치2 해소)**: ad-topbar div 제거가 모바일에도 영향 — ts-main 모바일 `padding-top:56px`(ts-topbar 전제)라 현재 모바일 상단 56px 빈공간+플로팅 햄버거만. 배치2(mobile-admin-nav→ts-topbar/ts-drawer)에서 정합. AdminMobileNav 미변경.
+ℹ️ `user-menu.tsx` 이제 미import(고아)지만 빌드 무해 — 삭제는 별도(범위 외).
+🖥️ **PM 육안확인(배치1.5)**: 데스크톱 `/admin` 우상단 계정 **없음**(정본 정합) + 사이드바 푸터 UserChip(아바타+이름+역할)·로그아웃·클릭 동작 확인.
 
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
