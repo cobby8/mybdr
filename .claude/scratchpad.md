@@ -87,6 +87,16 @@
 - **검증**: tsc EXIT0(미사용/unreachable 0). 정적: SUBTABS 코드 제거(주석만)·탭전환 제거·요강/협회/legacy/CtCreateTournament 진입 보존·보존 라우트 실존·하드코딩 hex 0·데드링크 0.
 - 🖥️ PM 육안: `/new/wizard`→CtCreateTournament 바로(4탭 없음, 폼 내 요강/협회 버튼) / `?legacy=1`→LegacyWizardForm 여전히.
 
+### PR-3 3-C — 대회 생성폼 5단계 스텝화 (Option A·레이아웃만·로직 100% 보존)
+📝 `ct-create-tournament.tsx` 2컬럼 단일 스크롤 폼을 정본 `대회 생성.html`처럼 **5단계 순차 스텝**으로 래핑. **섹션 내부·submit·PublishModal·draft·state 전부 무변경, 배치만 스텝화.**
+- **변경 1파일**: `new/wizard/_components/ct-create-tournament.tsx` (+103/-20). ct-divisions/game/schedule-venue 내부·page.tsx 미접촉.
+- **5스텝 매핑**: 1 대회정보(`<section ts-card>`)·2 일정장소(`<ScheduleVenue>`)·3 종별(`<CtDivisions>`)·4 경기설정(`<CtGameSettings>`)·5 접수·공개 검토(요약 ReviewRow+안내). 각 섹션 `{step===N && (…)}`로 감싸 현재 스텝만 노출.
+- **네비**: 정본 `tw-steps`(클릭 점프·is-active/is-done) + `ct-progress`((step+1)/5) + `tw-foot`(이전/다음, 마지막=대회 생성). `ct-grid--2`/`ct-bar` 제거→단일 컬럼+tw-foot. CSS(tw-steps/tw-step/__num/__lbl/ct-progress/__fill/tw-foot/__mid/__actions) 실존.
+- **🔒 로직 보존(회귀 0)**: `submit`·`publish`·`onSubmitDraft` payload·`PublishModal`·전 state·핸들러 **0변경**. "대회 생성"=마지막 스텝 **기존 submit 그대로**→검증→PublishModal→동일 POST. 다음=soft(차단0), 최종검증은 submit 기존대로(누락 토스트).
+- **보존 진입점**: 헤더 요강(onOpenProspectus)·협회(onOpenAssociationWizard)·이전대회 그대로. draft=page.tsx 소관(미접촉). step=신규 로컬(0부터)—값 복구 기존대로·스텝은 1부터.
+- **검증**: tsc EXIT0(JSX 균형). 정적: 변경 1파일·hex 0·ct-bar/2컬럼 제거·POST/submit/publish/PublishModal/요강/협회 grep 14건 보존·lucide/var(--*).
+- 🖥️ PM 육안(중요): 생성 1→5 진행(다음/이전/스텝클릭)·5스텝 검토요약·"대회 생성"→게시 모달→실제 POST 동일 / 요강·협회·이전대회 도달.
+
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
 |------|------|------|
