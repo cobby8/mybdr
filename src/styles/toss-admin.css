@@ -1591,6 +1591,29 @@
 [data-skin="toss"] .ad-stat__delta[data-trend="up"]   { color: var(--ok); }
 [data-skin="toss"] .ad-stat__delta[data-trend="down"] { color: var(--danger); }
 [data-skin="toss"] .ad-stat__delta[data-trend="flat"] { color: var(--ink-mute); }
+[data-skin="toss"] button.ad-stat {
+  appearance: none;
+  width: 100%;
+  border: 1px solid var(--border);
+  text-align: left;
+  font-family: var(--ff);
+}
+[data-skin="toss"] .ad-stat[data-link="true"] { cursor: pointer; }
+[data-skin="toss"] .ad-stat[data-link="true"]:hover {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-weak);
+}
+[data-skin="toss"] .ad-stat--skel .ad-stat__top,
+[data-skin="toss"] .ad-stat--skel .ad-stat__value,
+[data-skin="toss"] .ad-stat--skel .ad-stat__delta {
+  border-radius: 10px;
+  background: var(--grey-100);
+  color: transparent;
+  animation: tsfade 1s ease-in-out infinite alternate;
+}
+[data-skin="toss"] .ad-stat--skel .ad-stat__top { height: 18px; width: 62%; }
+[data-skin="toss"] .ad-stat--skel .ad-stat__value { height: 34px; width: 76%; }
+[data-skin="toss"] .ad-stat--skel .ad-stat__delta { height: 16px; width: 42%; }
 
 /* ── 필터 툴바 (Toolbar) ─────────────────────────────────── */
 [data-skin="toss"] .ad-toolbar {
@@ -1619,6 +1642,47 @@
 [data-skin="toss"] .ad-tab:hover { border-color: var(--border-strong); }
 [data-skin="toss"] .ad-tab[data-active="true"] { background: var(--ink); border-color: var(--ink); color: #fff; }
 [data-skin="toss"] .ad-tab__n { font-family: var(--ff-mono); font-size: 11.5px; opacity: .7; }
+[data-skin="toss"] .ad-tab__n[data-overflow="true"] { color: var(--warn); opacity: 1; }
+
+/* empty state */
+[data-skin="toss"] .ad-empty {
+  display: flex;
+  min-height: 240px;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 10px;
+  border: 1px dashed var(--border);
+  border-radius: 20px;
+  background: var(--card);
+  color: var(--ink-mute);
+  padding: 32px 20px;
+  text-align: center;
+}
+[data-skin="toss"] .ad-empty__icon {
+  width: 48px;
+  height: 48px;
+  display: grid;
+  place-items: center;
+  border-radius: 15px;
+  background: var(--primary-weak);
+  color: var(--primary);
+}
+[data-skin="toss"] .ad-empty__title {
+  margin: 4px 0 0;
+  color: var(--ink);
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+[data-skin="toss"] .ad-empty__desc {
+  max-width: 420px;
+  margin: 0;
+  color: var(--ink-mute);
+  font-size: 14px;
+  line-height: 1.55;
+}
+[data-skin="toss"] .ad-empty__cta { margin-top: 8px; }
 
 /* ── 여유 테이블 (DataTable .ad-* 셀 스타일) ─────────────── */
 [data-skin="toss"] .ad-table { background: var(--card); border: 1px solid var(--border); border-radius: 18px; overflow: hidden; box-shadow: var(--sh-xs); }
