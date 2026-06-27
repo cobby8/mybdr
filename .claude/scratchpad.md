@@ -5,14 +5,16 @@
 ## 현재 작업
 - **요청**: 관리자 영역 Toss 시안 박제 (admin-toss v2.41 정본). 단계 PR(PR-0~PR-5).
 - **기준 패키지**: `Dev/design/BDR v2.41-admin-toss/` + 계약문서 `_PR0-CONTRACT-CONFIRMED.md`(PR-1~5 단일 참조점).
-- **상태**: ✅ **PR-0 완료(계약 확정·코드0·커밋 93b90ef)**. 다음 = **PR-1 공유 기반**(toss.css→components/admin-toss→admin-shell/admin-blocks·관리자 Material Symbols 제거·lucide).
+- **상태**: PR-0✅ → **PR-1 진행 중**. 진단 결과 공유기반 85~90% 이미 운영 존재(toss-kit 8종·toss.css 토큰 전부 기존). 셸 전략 = **ts-shell 통일**(사용자 결정). **배치1(데스크톱 셸+사이드바) 완료·푸시(8a2dd89)**.
+- **⏸️ 배치1.5/배치2 보류**: 사용자가 "사이드 패널 유지"로 결정·**시안 재생성 중** → 새 시안 대기. 섣불리 topbar/UserMenu(배치1.5)·모바일(배치2) 안 건드림. (배치1에서 ad-topbar 그대로 둔 게 이 결정과 부합)
+- **⚠️ 육안 확인 막힘**: 로컬 dev(3001)=Turbopack DLL `0xc0000142` ROOT 500 환경이슈 / 프리뷰=미로그인(PM 로그인 불가). 화면 확인은 수빈이 직접(프리뷰 로그인 or 로컬 수리).
 - **운영**: 단독 운영(dev 직접 작업·subin 폐지). dev→main 머지=수빈 단독.
 
 ### 📋 admin-toss 단계 PR 계획
 | PR | 내용 | 상태 |
 |----|------|------|
 | PR-0 | 패키지 배치 + §1치환 + §5스키마실측 + §6결정 | ✅ 93b90ef |
-| PR-1 | 공유 기반: toss.css→admin-toss 키트→admin-shell/blocks | ⏭️ 다음 |
+| PR-1 | 공유 기반: 진단(85~90% 기존)→셸 ts-shell 통일. 배치1 데스크톱✅(8a2dd89) / 배치2 모바일·1.5 UserMenu = ⏸️ 새 시안 대기 | 🔄 진행 |
 | PR-2 | 대회 운영 워크스페이스(operate 6메뉴+7패널)→/tournament-admin/tournaments/[id] | 대기 |
 | PR-3 | 생성/수정 5단계 마법사(6-1: 단일화+prospectus/assoc 보존) | 대기 |
 | PR-4 | 셸별 콘솔(대회관리자/백오피스18/협력/심판) + 6-2 /admin/tournaments 목록 제거 | 대기 |
@@ -76,6 +78,7 @@
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
 |------|------|------|
+| 2026-06-27 | **admin-toss PR-1 배치1 — ad-shell→ts-shell 데스크톱 셸/사이드바 (developer)** | ✅ 2파일 className swap(admin-shell·sidebar). navStructure(A1 IA)·권한필터·children 재귀·푸터 로직 100% 보존. tsc EXIT0·swap 클래스 toss-admin.css 실존·partner-admin 운영증명. ad-topbar 1건 의도보류(데스크톱 UserMenu 보존=배치1.5). 커밋 8a2dd89(공유 push). **육안 미확인**(로컬 Turbopack DLL 500·프리뷰 미로그인). 배치1.5/2 = 사이드패널 유지 결정·시안 재생성 대기로 보류. |
 | 2026-06-27 | **기록 모드 인증 뱃지 + 전자기록지 측정불가 항목 통계 제외 (3단계·developer×2·13파일·커밋 bbdaa72·미푸시)** | ✅ **tsc0·vitest 1153/1153**. ①`RecordingModeBadge` 신규(flutter=골드 'BDR full'/paper=실버 'BDR'/manual·기타 미표시·hex인라인=SiteOperatorBadge 정책·Material Symbols·radius4). ②**데이터레이어**(match-stat-aggregate·player-records·tournaments/teams records route): paper 매치 슈팅 시도(fga/tpa/fta)·성공률·+/- 를 **measured_games 분모로 비-paper만 집계**(made/리바운드/AST 유지·풀 전체 paper면 null·`getRecordingMode==="paper"` 판정), `recording_mode`/`default_recording_mode`/`paper_games`/`measured_games` 전파. ③**표시레이어** 뱃지 5곳(hero-scoreboard md·player-records-tab·tournament-records-tab 메타+로그·team-records-tab 경기/대회·recent-tab-v2)+통산 FG%/3P% **flutter-only**(users/[id]/page·profile/basketball·stats-detail-modal paperOnlyMinAgg 슈팅4필드). 라이브 박스스코어 기존 isPaperMatch hide 유지. || 2026-06-27 | **admin-toss PR-0 계약 확정** | ✅ 정본 패키지 배치(구버전 _archive 격리)·§1치환표·§5 스키마 실측 9건(전면신규=tournament_expense 1건·#5 teams 기존 바인딩만)·§6 결정. `_PR0-CONTRACT-CONFIRMED.md` 박제. 코드0. 커밋 93b90ef. |
 | 2026-06-27 | **유스챌린지 2차 대회생성+순위전 자동배정+선수입력 (운영 DB)** | ✅ tournamentId=2b93e9bf…. Tournament(U11 round_robin·U12 group_stage_with_ranking)+Team6+TournamentTeam10+Match15. 순위전 자동배정 보정(category=division_code·home/away NULL 유지=advanceDivisionPlaceholders 자동박제). U11 4팀 33명 선수입력(auto_registered). 임시스크립트 정리·코드0. |
 | 2026-06-23 | **v2.40 A5 캠페인 생성 보강** | ✅ `/admin/campaigns` 생성 모달+`POST /api/admin/campaigns`(ad_campaigns+ad_placements) 신설. 나머지 생성플로우는 기존 폼 재사용. tsc0. |
