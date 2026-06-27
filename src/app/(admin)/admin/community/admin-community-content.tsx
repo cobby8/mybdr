@@ -1,9 +1,9 @@
 "use client";
 
 // 2026-05-04: (web) community 디자인 시스템 통일 (Phase C-1)
-// - <Card> wrapper 제거 → 직접 .admin-table-wrap (5/2 통일된 board 톤)
+// - <Card> wrapper 제거 → 직접 .ad-table wrapper (5/2 통일된 board 톤)
 // - <Badge> → .badge--soft (web 동일 클래스)
-// - admin-table 은 이미 5/2 작업으로 (web) .board.data-table 톤 정합 (globals.css L2174~)
+// - ad-table 은 이미 5/2 작업으로 (web) .board.data-table 톤 정합 (globals.css L2174~)
 //
 // 2026-05-15 Admin-4-C 박제 — 카테고리/상태 뱃지를 ad-pill[data-tone] 으로 통일
 //   시안 source: Dev/design/BDR-current/screens/AdminCommunity.jsx (v2.9)

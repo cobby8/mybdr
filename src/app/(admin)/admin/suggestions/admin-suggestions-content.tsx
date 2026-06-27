@@ -1,7 +1,7 @@
 "use client";
 
 // 2026-06-22 v2.40 Phase A3-2b — 통합 콘솔 키트(console-kit) 풀 교체.
-//   변경: AdminStatusTabs→Toolbar(탭) · admin-table→DataTable(행 요약 Drawer) ·
+//   변경: AdminStatusTabs→Toolbar(탭) · ad-table→DataTable(행 요약 Drawer) ·
 //         AdminDetailModal→Drawer(DL 요약 + foot 상태변경 form) · ad-pill→StatusBadge.
 //   유지(0변경): 데이터 패칭(page.tsx 서버 ?q=)·server action(updateSuggestionStatusAction)·
 //     TRANSITIONS 상태전환 규칙·snake/직렬화 접근자.

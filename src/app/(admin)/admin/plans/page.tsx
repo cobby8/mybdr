@@ -3,14 +3,14 @@
 // 2026-05-04: (web) 디자인 시스템 통일 (Phase C-3)
 // - <Card> wrapper → div + 토큰 (admin/* 단순화)
 // - 자체 rounded bg-* 버튼 → .btn .btn--primary / .btn--ghost / .btn--sm
-// - thead 자체 className 제거 (admin-table CSS 자동)
-// - tr hover className 제거 (admin-table CSS 자동)
+// - thead 자체 className 제거 (ad-table CSS 자동)
+// - tr hover className 제거 (ad-table CSS 자동)
 // 2026-05-15: Admin-5-B 박제 (BDR v2.14)
 // - AdminPageHeader 에 eyebrow="ADMIN · 비즈니스" + breadcrumbs + actions(결제 내역 링크)
 // - 상태 `.badge--soft` 인라인 색상 → `ad-pill[data-tone]` (active=ok / withdrawn=mute)
 // - 프로모션 종료 버튼 / 모달 / fetch / Server Action 100% 보존
 // 2026-05-31: Phase 6.2C-4 박제 (BDR v2.25 · BA2 · BB1)
-// - 플랜 list: admin-table → 카드 grid (시안 BB1 bl-pgrid 답습). 기존 CARD_CLASS/CARD_STYLE 재사용 → 신규 CSS 0
+// - 플랜 list: ad-table → 카드 grid (시안 BB1 bl-pgrid 답습). 기존 CARD_CLASS/CARD_STYLE 재사용 → 신규 CSS 0
 // - 카드 = 이름 + 활성배지(ad-pill) + 타입/기능키 태그 + 가격(0원→무료, 천단위) + 설명 + 수정/토글/삭제
 // - subscribers·features hide (운영 plans 미보유 컬럼, mock 0) / 복제 버튼 미배치 (신규 mutation 0)
 // - 파싱 보정: data.data ?? data (apiSuccess snake_case 래핑 대비, 액션 0 변경)
@@ -250,7 +250,7 @@ export default function AdminPlansPage() {
           등록된 요금제가 없습니다.
         </div>
       ) : (
-        // 시안 BB1 bl-pgrid 박제 — admin-table → 카드 grid. 기존 CARD_CLASS/CARD_STYLE 재사용 (신규 CSS 0)
+        // 시안 BB1 bl-pgrid 박제 — ad-table → 카드 grid. 기존 CARD_CLASS/CARD_STYLE 재사용 (신규 CSS 0)
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {plans.map((plan) => {
             // 기능 키 라벨 매핑 (기존 FEATURE_KEY_OPTIONS 재사용, 미매핑 시 원문 노출)

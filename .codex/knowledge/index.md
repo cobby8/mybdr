@@ -1,5 +1,7 @@
 # Knowledge Index
 
+- 2026-06-27 admin: tournament audit log table now uses Toss `ad-native-table` classes; active admin scope scans clean for old `admin-table` wrappers.
+
 - 2026-06-27 admin: active `admin-stat-pill` usages were replaced with Toss `ad-pill` across admin status surfaces; `/admin/users` now renders status badges without old pill classes.
 
 - 2026-06-27 admin: `/admin` dashboard now uses Toss `ad-stats`, `ad-chart`, and `ad-log-card` markup while preserving Prisma count queries, weekly raw SQL, and recent admin log data.
@@ -74,6 +76,7 @@ Updated: 2026-06-27
 | lessons.md | 0 | - |
 
 Recent work:
+- 2026-06-27 admin: tournament audit-log native table moved to Toss `ad-native-table`; TypeScript, diff check, scan, and local Chrome old-table DOM check passed.
 - 2026-06-27 admin: active status badges were moved from `admin-stat-pill` to Toss `ad-pill` with matching tone CSS; TypeScript, diff check, and local Chrome `/admin/users` DOM check passed.
 - 2026-06-27 admin: `/admin` dashboard local chart/log/stat markup moved to Toss `ad-*` classes; TypeScript, diff check, and local Chrome DOM cleanup passed after one reload retry for dev-server compile latency.
 - 2026-06-27 admin: shared stat, empty, and status-tab components moved to Toss `ad-*` markup; TypeScript, diff check, and local Chrome `/admin` DOM check passed.

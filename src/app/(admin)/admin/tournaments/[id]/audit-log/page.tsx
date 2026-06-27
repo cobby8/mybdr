@@ -153,8 +153,8 @@ export default async function TournamentAuditLogPage({
           </p>
         </div>
       ) : (
-        <div className="overflow-x-auto admin-table-wrap">
-          <table className="admin-table w-full text-left text-sm">
+        <div className="ad-native-table">
+          <table className="ad-native-table__table">
             <thead>
               <tr>
                 <th className="px-4 py-3 font-medium">시각</th>
