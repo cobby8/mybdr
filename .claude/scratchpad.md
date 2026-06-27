@@ -70,6 +70,14 @@
 > **PR-2(완료) 상세는 git + 작업 로그 참조.** 시각박제=전 패널 이미 정합(변경0). 기능4건: 2-1 참가팀 정합확인(0줄) / 3-A 공지 settings.notice(e1a98e2) / 3-B series 읽기칩+위임(31cdd79) / 3-C 일정 휴식삽입 클라오버레이(cabbef4) / 3-D 정산 지출 `tournament_expenses` 신규테이블+API+패널(db push 완료·8컬럼0행 검증).
 > **PR-2 재사용/주의**: 신규 테이블 `tournament_expenses`(tournament_id uuid FK·amount Int·Cascade) 운영 반영됨. 지출 API=`/api/web/tournaments/[id]/expenses`. 공지=settings.notice. ⚠️로컬 Prisma 클라이언트는 dev서버 DLL 잠금으로 재생성 막힘→3-D 런타임은 프리뷰 빌드에서 검증(로컬 dev 서버 stale). ⚠️선택후속: matches-admin.css에 sc-break/sc-brkmin 박제(현재 인라인).
 
+### PR-3 3-A — 대회 생성 입구 단일화 (§6-1·1파일·라우트 보존)
+📝 대회관리자 목록 hero의 4옵션 진입 패널(quick/legacy/prospectus/association)을 제거하고 **단일 "새 대회 만들기" CTA → 5단계 마법사(`/tournament-admin/tournaments/new/wizard`) 직행**으로 단일화.
+- **변경 1파일**: `tournaments/_components/admin-entry-cta.tsx` (-146/+26). `ENTRY_OPTIONS`·`aen-grid`/`aen-panel`/`aen-opt`·`panelOpen` 토글·`EntryOption` 제거 → `aen-hero` + 단일 `aen-hero__cta` Link.
+- **라우트 보존(삭제 0)**: prospectus(`new/wizard/prospectus/page.tsx`)·association(`wizard/association/page.tsx`)·legacy(`?legacy=1`/`LegacyWizardForm`)·new/wizard 전부 실존 확인. **href만 입구에서 제거**, 5단계 마법사 내부에 prospectus·association 진입 안내가 이미 있어 경로 계속 도달 가능(§6-1 단일진입+보존).
+- **부모 호환**: page.tsx가 `isSuperAdmin={isSuper}` 전달 → prop 시그니처 유지(단일화로 미사용 → `_isSuperAdmin` 가드). 부모 0접촉.
+- **검증**: tsc EXIT0. 정적: 변경 admin-entry-cta만·ENTRY_OPTIONS/aen-grid/panel 코드 제거(주석만 잔존)·보존 라우트 3종 실존·LegacyWizardForm 보존·하드코딩 hex 0·데드링크 0(CTA→실존 wizard). Toss aen-hero/aen-hero__cta + lucide 유지.
+- 🖥️ PM 육안: 대회목록 hero에 단일 "새 대회 만들기" 버튼 → 클릭 시 5단계 마법사 진입 / 마법사 내부에서 PDF요강·협회 경로 여전히 도달.
+
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
 |------|------|------|
