@@ -5,9 +5,9 @@
 // - <Badge> → .badge--soft (web 동일 클래스)
 // - admin-table 은 이미 5/2 작업으로 (web) .board.data-table 톤 정합 (globals.css L2174~)
 //
-// 2026-05-15 Admin-4-C 박제 — 카테고리/상태 뱃지를 admin-stat-pill[data-tone] 으로 통일
+// 2026-05-15 Admin-4-C 박제 — 카테고리/상태 뱃지를 ad-pill[data-tone] 으로 통일
 //   시안 source: Dev/design/BDR-current/screens/AdminCommunity.jsx (v2.9)
-//   - 카테고리 뱃지: badge--soft → admin-stat-pill data-tone="mute" (시안 type_label 박제)
+//   - 카테고리 뱃지: badge--soft → ad-pill data-tone="mute" (시안 type_label 박제)
 //   - 상태 뱃지: 신규 추가 (hidden=warn / 그 외=ok). 시안 status_tone 패턴 일관
 //
 // 2026-05-31 5C-5 CA1 박제 (BDR v2.23 · BC6 · OA1 답습)
@@ -38,7 +38,7 @@ import {
   type Column,
 } from "@/components/admin/console-kit";
 
-// 2026-05-15 Admin-4-C 박제 — 상태별 admin-stat-pill data-tone 매핑
+// 2026-05-15 Admin-4-C 박제 — 상태별 ad-pill data-tone 매핑
 //   hidden 일 때만 warn(주황), 정상 게시는 ok(녹) (시안 v2.9 status_tone 패턴 박제)
 const STATUS_LABEL: Record<string, string> = {
   published: "게시중",
@@ -293,8 +293,8 @@ export function AdminCommunityContent({
               rows={[
                 [
                   "카테고리",
-                  // 2026-05-15 Admin-4-C 박제 — admin-stat-pill 통일 (시안 v2.9 modal header pill 박제)
-                  <span key="cat" className="admin-stat-pill" data-tone="mute">
+                  // 2026-05-15 Admin-4-C 박제 — ad-pill 통일 (시안 v2.9 modal header pill 박제)
+                  <span key="cat" className="ad-pill" data-tone="mute">
                     {CATEGORY_LABEL[selected.category ?? ""] ?? selected.category ?? "기타"}
                   </span>,
                 ],
@@ -304,7 +304,7 @@ export function AdminCommunityContent({
                   // 2026-05-15 Admin-4-C 박제 — 상태 pill (hidden=warn / 게시중=ok)
                   <span
                     key="st"
-                    className="admin-stat-pill"
+                    className="ad-pill"
                     data-tone={STATUS_TONE[selected.status ?? "published"] ?? "ok"}
                   >
                     {STATUS_LABEL[selected.status ?? "published"] ?? "게시중"}

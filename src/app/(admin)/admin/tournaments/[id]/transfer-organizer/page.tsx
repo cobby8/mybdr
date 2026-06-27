@@ -21,7 +21,7 @@ import { TransferOrganizerForm } from "./transfer-organizer-form";
 
 // 2026-05-15 Admin-4-A 박제 (v2.14):
 // - h1 직접 → <PageHead> (eyebrow + actions) v2.41 Toss 패턴
-// - 현 주최자 / 위임 운영자 카드 = "읽기 전용" admin-stat-pill 보조
+// - 현 주최자 / 위임 운영자 카드 = "읽기 전용" ad-pill 보조
 // - 비즈 로직 (Prisma tournament / TournamentAdminMember 조회) 100% 보존
 // - TransferOrganizerForm 자체는 미박제 — 이미 신 토큰 (--color-*) 사용 중
 

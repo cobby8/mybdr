@@ -25,7 +25,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/db/prisma";
 import { Icon } from "@/components/admin-toss";
 
-// 분류별 한국어 label + tone (admin-stat-pill 패턴 답습)
+// 분류별 한국어 label + tone (ad-pill 패턴 답습)
 const MISMATCH_LABELS: Record<string, { label: string; tone: "err" | "warn" | "info" }> = {
   HEADER_ZERO: { label: "헤더 0/0", tone: "err" },
   MULTI_DIFF: { label: "다중 불일치", tone: "err" },

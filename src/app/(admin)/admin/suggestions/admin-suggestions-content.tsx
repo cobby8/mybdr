@@ -2,7 +2,7 @@
 
 // 2026-06-22 v2.40 Phase A3-2b — 통합 콘솔 키트(console-kit) 풀 교체.
 //   변경: AdminStatusTabs→Toolbar(탭) · admin-table→DataTable(행 요약 Drawer) ·
-//         AdminDetailModal→Drawer(DL 요약 + foot 상태변경 form) · admin-stat-pill→StatusBadge.
+//         AdminDetailModal→Drawer(DL 요약 + foot 상태변경 form) · ad-pill→StatusBadge.
 //   유지(0변경): 데이터 패칭(page.tsx 서버 ?q=)·server action(updateSuggestionStatusAction)·
 //     TRANSITIONS 상태전환 규칙·snake/직렬화 접근자.
 //   설계 메모:
@@ -46,7 +46,7 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 // v2.40 A3-2b — StatusBadge map (status → 톤/라벨).
-//   기존 admin-stat-pill 매핑을 키트 Badge tone 으로 변환(승인 규약):
+//   기존 ad-pill 매핑을 키트 Badge tone 으로 변환(승인 규약):
 //   mute→grey · warn→warn · ok→ok.
 const STATUS_META: Record<string, StatusMeta> = {
   pending: { tone: "grey", label: "대기" },

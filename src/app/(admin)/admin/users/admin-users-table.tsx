@@ -84,7 +84,7 @@ interface UserDetail {
   };
 }
 
-// 2026-05-15 Admin-5-A 박제 — 시안 admin-stat-pill[data-tone] 패턴 적용
+// 2026-05-15 Admin-5-A 박제 — 시안 ad-pill[data-tone] 패턴 적용
 // 시안 source: Dev/design/BDR-current/screens/AdminUsers.jsx (line 250~253)
 // ROLE_TONE: 운영 membershipType (0=일반/1=호스트/2=팀장/3=대회관리자) → tone
 const ROLE_TONE: Record<number, string> = {
@@ -112,24 +112,24 @@ function getAdminRoleLabel(role: string | null): string | null {
 }
 
 // 상태 뱃지 — DataTableV2 columns 명세에서도 사용하므로 모듈 스코프로 끌어올림
-// 시안 admin-stat-pill[data-tone] 박제 (ok=활성 / mute=탈퇴 / err=정지)
+// 시안 ad-pill[data-tone] 박제 (ok=활성 / mute=탈퇴 / err=정지)
 function statusBadge(s: string | null) {
   if (s === "active") {
     return (
-      <span className="admin-stat-pill" data-tone="ok">
+      <span className="ad-pill" data-tone="ok">
         활성
       </span>
     );
   }
   if (s === "withdrawn") {
     return (
-      <span className="admin-stat-pill" data-tone="mute">
+      <span className="ad-pill" data-tone="mute">
         탈퇴
       </span>
     );
   }
   return (
-    <span className="admin-stat-pill" data-tone="err">
+    <span className="ad-pill" data-tone="err">
       정지
     </span>
   );
@@ -190,10 +190,10 @@ const USER_COLUMNS: Column<SerializedUser>[] = [
     label: "회원 등급",
     width: "120px",
     render: (u) => {
-      // 시안 admin-stat-pill[data-tone] 박제
+      // 시안 ad-pill[data-tone] 박제
       const role = getRoleInfo(u.membershipType);
       return (
-        <span className="admin-stat-pill" data-tone={role.tone}>
+        <span className="ad-pill" data-tone={role.tone}>
           {role.label}
         </span>
       );
@@ -208,14 +208,14 @@ const USER_COLUMNS: Column<SerializedUser>[] = [
     render: (u) => {
       // 슈퍼관리자(isAdmin=true) → err 톤 칩 "슈퍼관리자" (기존 강한 빨강 신호 유지).
       if (u.isAdmin) {
-        return <span className="admin-stat-pill" data-tone="err">슈퍼관리자</span>;
+        return <span className="ad-pill" data-tone="err">슈퍼관리자</span>;
       }
       // 2026-06-12 PR-RECORDER-AUDIT — admin_role 가시화.
       //   recorder_admin/association_admin 은 info 톤 칩으로 표시 (var(--color-*) 토큰).
       const roleLabel = getAdminRoleLabel(u.admin_role);
       if (roleLabel) {
         return (
-          <span className="admin-stat-pill" data-tone="info">
+          <span className="ad-pill" data-tone="info">
             {roleLabel}
           </span>
         );
@@ -442,8 +442,8 @@ export function AdminUsersTable({
                   </div>
                 </div>
                 <div className="mt-3 flex items-center gap-2">
-                  {/* 2026-05-15 Admin-5-A 박제 — admin-stat-pill[data-tone] 통일 */}
-                  <span className="admin-stat-pill" data-tone={role.tone}>{role.label}</span>
+                  {/* 2026-05-15 Admin-5-A 박제 — ad-pill[data-tone] 통일 */}
+                  <span className="ad-pill" data-tone={role.tone}>{role.label}</span>
                   {statusBadge(u.status)}
                   {u.provider && <span className="rounded-full bg-white/15 px-2 py-0.5 text-xs text-white/80">{u.provider}</span>}
                   <Link

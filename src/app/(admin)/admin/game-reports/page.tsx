@@ -371,7 +371,7 @@ function MannerStatsTab({ stats, loading }: { stats: StatsData | null; loading: 
                           u.flags.map((f) => {
                             const m = flagMeta(f);
                             return (
-                              <span key={f} className="admin-stat-pill" data-tone={m.tone}>
+                              <span key={f} className="ad-pill" data-tone={m.tone}>
                                 {m.emoji} {m.label}
                               </span>
                             );
@@ -635,7 +635,7 @@ function ReportQueueTab({
                       {r.game.title || "(제목 없음)"}
                     </h3>
                   </div>
-                  <span className="admin-stat-pill" data-tone={badge.tone}>
+                  <span className="ad-pill" data-tone={badge.tone}>
                     {badge.label}
                   </span>
                 </header>
@@ -675,12 +675,12 @@ function ReportQueueTab({
                         </span>
                         <div className="flex flex-wrap gap-1">
                           {rt.flags.map((f) => (
-                            <span key={f} className="admin-stat-pill" data-tone={flagMeta(f).tone}>
+                            <span key={f} className="ad-pill" data-tone={flagMeta(f).tone}>
                               {flagMeta(f).emoji} {flagMeta(f).label}
                             </span>
                           ))}
                           {rt.is_noshow && !rt.flags.includes("no_show") && (
-                            <span className="admin-stat-pill" data-tone="err">
+                            <span className="ad-pill" data-tone="err">
                               🚫 노쇼
                             </span>
                           )}

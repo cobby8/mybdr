@@ -54,7 +54,7 @@ interface Organization {
 
 // v2.40 A3-1b — StatusBadge 매핑(상태코드 → 톤/라벨).
 //   (기존 STATUS_LABEL/STATUS_TONE 를 Badge 매핑으로 통합)
-// 기존 admin-stat-pill tone(warn/ok/err/mute) → Badge tone(primary/ok/danger/grey)로 변환.
+// 기존 ad-pill tone(warn/ok/err/mute) → Badge tone(primary/ok/danger/grey)로 변환.
 //   pending=대기(primary) / approved=승인(ok) / rejected=거절(danger) / archived=보관(grey)
 const STATUS_BADGE_MAP: Record<string, StatusMeta> = {
   pending: { tone: "primary", label: "대기" },

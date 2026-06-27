@@ -48,7 +48,7 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 // v2.40 A3-1a — StatusBadge map (team status → 톤/라벨).
-//   기존 admin-stat-pill 매핑을 키트 Badge tone 으로 변환(승인 규약): active(ok)·inactive(err→danger).
+//   기존 ad-pill 매핑을 키트 Badge tone 으로 변환(승인 규약): active(ok)·inactive(err→danger).
 const STATUS_META: Record<string, StatusMeta> = {
   active: { tone: "ok", label: "활동중" },
   inactive: { tone: "danger", label: "비활성" },

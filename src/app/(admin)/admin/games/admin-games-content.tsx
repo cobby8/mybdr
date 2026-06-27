@@ -79,7 +79,7 @@ const STATUS_LABEL: Record<number, string> = {
 };
 
 // v2.40 A3-1a — StatusBadge map (game status → 톤/라벨).
-//   기존 admin-stat-pill 매핑을 키트 Badge tone 으로 변환(승인 규약):
+//   기존 ad-pill 매핑을 키트 Badge tone 으로 변환(승인 규약):
 //   1.모집중(ok)·2.확정(info→primary)·3.완료(mute→grey)·4.취소(err→danger).
 const STATUS_META: Record<string, StatusMeta> = {
   "1": { tone: "ok", label: "모집중" },

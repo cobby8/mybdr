@@ -23,9 +23,10 @@
 | Admin tournament list | Done | `/admin/tournaments` was replaced with a clean Toss list, Korean copy restored, and row click routes directly to the operate workspace. |
 | Tournament teams category display | Done | Teams panel now preserves raw category values but renders/groups by the active division rule, preventing corrupted legacy labels from appearing in live ops. |
 | Tournament admin standalone shell | Done | `/tournament-admin/*` now uses the v2.41/v2.42 standalone Toss workspace layout without the legacy global admin sidebar. |
-| Admin Toss cleanup | In Progress | Admin scope now scans clean for `ta-*`, `au-*`, `material-symbols-outlined`, `components/ui`, active shell/mobile classes, shared stat/empty/status components, and admin dashboard local classes; remaining work is desktop sidebar class parity, stat-pill/table residues, and full 9-screen replacement. |
+| Admin Toss cleanup | In Progress | Admin scope now scans clean for `ta-*`, `au-*`, `material-symbols-outlined`, `components/ui`, active shell/mobile classes, shared stat/empty/status components, admin dashboard local classes, and active `admin-stat-pill`; remaining work is desktop sidebar class parity, table residues, and full 9-screen replacement. |
 
 ## Work Log
+- 2026-06-27: Replaced active `admin-stat-pill` usages with Toss `ad-pill` across admin status surfaces and added tone CSS; TypeScript and local Chrome `/admin/users` DOM cleanup passed.
 - 2026-06-27: Rebuilt `/admin` dashboard markup on Toss `ad-stats`/`ad-chart`/`ad-log-card` classes while preserving Prisma counts, weekly raw SQL, and recent admin log queries; TypeScript and local Chrome DOM cleanup passed.
 - 2026-06-27: Migrated AdminStatCard, AdminEmptyState, and AdminStatusTabs to Toss `ad-stat`/`ad-empty`/`ad-tabs` markup with scoped CSS; TypeScript and local Chrome `/admin` DOM cleanup passed.
 - 2026-06-27: Rebuilt AdminMobileNav on Toss `ad-mobile-*`/`ad-side-*` classes while preserving ESC close, route close, body scroll lock, and role-filtered links; TypeScript and local Chrome `/admin/tournaments` DOM cleanup passed.

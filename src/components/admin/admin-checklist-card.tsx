@@ -217,7 +217,7 @@ export function AdminChecklistCard({
         }}
       >
         <span
-          className="admin-stat-pill"
+          className="ad-pill"
           data-tone={
             status === "done"
               ? "ok"

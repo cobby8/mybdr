@@ -551,6 +551,27 @@
   border-radius: 8px;
   padding: 4px 10px;
 }
+[data-skin="toss"] .ad-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-height: 24px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+[data-skin="toss"] .ad-pill[data-tone="ok"] { background: var(--ok-weak); color: var(--ok); }
+[data-skin="toss"] .ad-pill[data-tone="info"] { background: var(--primary-weak); color: var(--primary); }
+[data-skin="toss"] .ad-pill[data-tone="warn"] { background: var(--warn-weak); color: var(--warn); }
+[data-skin="toss"] .ad-pill[data-tone="err"],
+[data-skin="toss"] .ad-pill[data-tone="danger"] { background: var(--danger-weak); color: var(--danger); }
+[data-skin="toss"] .ad-pill[data-tone="accent"] { background: var(--primary-weak); color: var(--primary); }
+[data-skin="toss"] .ad-pill[data-tone="mute"] { background: var(--grey-100); color: var(--ink-mute); }
 
 /* 상태 탭 — Toss 강조 */
 [data-skin="toss"] .admin-status-tab[data-active="true"] { color: var(--accent); }

@@ -586,8 +586,8 @@ function SuggestionsTab({ suggestions }: { suggestions: SerializedSuggestion[] }
                 {s.nickname} &middot; {new Date(s.createdAt).toLocaleDateString("ko-KR")}
               </p>
             </div>
-            {/* Admin-4-B 박제 — admin-stat-pill[data-tone] (admin.css) */}
-            <span className="admin-stat-pill" data-tone="info">대기중</span>
+            {/* Admin-4-B 박제 — ad-pill[data-tone] (admin.css) */}
+            <span className="ad-pill" data-tone="info">대기중</span>
           </div>
 
           {/* 변경 내용 diff */}
@@ -667,7 +667,7 @@ const AMBASSADOR_STATUS_LABEL: Record<string, string> = {
   revoked: "해임/거절",
 };
 
-// 2026-05-15 Admin-4-B 박제 — AMBASSADOR_STATUS_COLOR inline 색 → admin-stat-pill data-tone 매핑.
+// 2026-05-15 Admin-4-B 박제 — AMBASSADOR_STATUS_COLOR inline 색 → ad-pill data-tone 매핑.
 // pending=warn / active=ok / revoked=err (시안 AdminCourts.jsx v2.9 status_tone 박제 패턴)
 const AMBASSADOR_STATUS_TONE: Record<string, "mute" | "info" | "ok" | "warn" | "err" | "accent"> = {
   pending: "warn",
@@ -793,8 +793,8 @@ function AmbassadorsTab({ ambassadors }: { ambassadors: SerializedAmbassador[] }
                 {a.courtCity}{a.courtDistrict ? ` ${a.courtDistrict}` : ""}
               </p>
             </div>
-            {/* Admin-4-B 박제 — admin-stat-pill[data-tone] (admin.css) */}
-            <span className="admin-stat-pill" data-tone={AMBASSADOR_STATUS_TONE[a.status] ?? "mute"}>
+            {/* Admin-4-B 박제 — ad-pill[data-tone] (admin.css) */}
+            <span className="ad-pill" data-tone={AMBASSADOR_STATUS_TONE[a.status] ?? "mute"}>
               {AMBASSADOR_STATUS_LABEL[a.status] ?? a.status}
             </span>
           </div>
@@ -925,7 +925,7 @@ function SubmissionsReviewTab({ submissions }: { submissions: SerializedSubmissi
                 {s.nickname} &middot; {new Date(s.createdAt).toLocaleDateString("ko-KR")}
               </p>
             </div>
-            <span className="admin-stat-pill" data-tone="info">대기중</span>
+            <span className="ad-pill" data-tone="info">대기중</span>
           </div>
 
           {/* 제보 상세 정보 */}

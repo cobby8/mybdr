@@ -4,7 +4,7 @@
 // - 통계 <Card> → div + 토큰 (3 카드 단순화)
 // - 본문 <Card> wrapper 제거 / 상태 뱃지 → .badge--soft + 상태별 inline color
 // 2026-05-15: Admin-5-B 박제 (BDR v2.14)
-// - STATUS_STYLE(inline css) → STATUS_TONE (admin-stat-pill[data-tone] 매핑)
+// - STATUS_STYLE(inline css) → STATUS_TONE (ad-pill[data-tone] 매핑)
 // - paid=ok / pending=warn / failed=err / cancelled=mute / refunded=info / partial_refunded=info
 // - 비즈 로직 (fetch / filter / setSelected) 100% 보존
 // 2026-05-31: Phase 6.2C-5 BA1 박제 (BDR v2.25 · Option A)
@@ -56,7 +56,7 @@ const STATUS_LABEL: Record<string, string> = {
   partial_refunded: "부분 환불",
 };
 
-// 시안 v2.14 — admin-stat-pill[data-tone] 매핑
+// 시안 v2.14 — ad-pill[data-tone] 매핑
 // (paid=ok / pending=warn / failed=err / cancelled=mute / refunded=info / partial_refunded=info)
 const STATUS_TONE: Record<string, "ok" | "warn" | "err" | "info" | "mute"> = {
   pending: "warn",

@@ -6,7 +6,7 @@
  *
  * 2026-05-15: Admin-5-C 박제 (BDR v2.14)
  * - AdminPageHeader eyebrow + breadcrumbs (시안 v2.14)
- * - statusBadge(inline bg) → STATUS_TONE + admin-stat-pill[data-tone]
+ * - statusBadge(inline bg) → STATUS_TONE + ad-pill[data-tone]
  *   (pending=warn / approved=ok / rejected=err / suspended=mute)
  * - 비즈 로직 (fetch/handleStatusChange/handleCreate/state) 100% 보존
  * ============================================================ */

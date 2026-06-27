@@ -312,12 +312,12 @@ export default async function AdminLogsPage({
 
                           <div className="min-w-0 flex-1">
                             <div className="flex flex-wrap items-center gap-2">
-                              {/* Admin-6 박제 — severity pill (시안 admin-stat-pill[data-tone]) */}
+                              {/* Admin-6 박제 — severity pill (시안 ad-pill[data-tone]) */}
                               <StatusBadge map={SEVERITY_META} value={log.severity ?? "info"} />
                               <span className={`font-mono text-xs font-semibold ${SEVERITY_COLOR[log.severity ?? "info"]}`}>
                                 {log.action}
                               </span>
-                              {/* resource_type → admin-stat-pill mute (시안 source_label 패턴) */}
+                              {/* resource_type → ad-pill mute (시안 source_label 패턴) */}
                               <Badge tone="grey">{log.resource_type}</Badge>
                               {ACTION_LABEL[log.action] && (
                                 <span className="text-xs text-[var(--color-text-secondary)]">-- {ACTION_LABEL[log.action]}</span>

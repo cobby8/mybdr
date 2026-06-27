@@ -24,10 +24,10 @@ export const dynamic = "force-dynamic";
 
 // 2026-05-15 Admin-4-A 박제 (v2.14):
 // - h1 직접 → <PageHead> (eyebrow + actions) v2.41 Toss 패턴
-// - severity 뱃지 inline color → .admin-stat-pill[data-tone=...] (admin.css)
+// - severity 뱃지 inline color → .ad-pill[data-tone=...] (admin.css)
 // - 비즈 로직 (Prisma admin_logs / formatUser / enrichDescription) 100% 보존.
 //
-// severity → admin-stat-pill data-tone 매핑 (시안 v2.14 박제)
+// severity → ad-pill data-tone 매핑 (시안 v2.14 박제)
 const SEVERITY_TONE: Record<string, "mute" | "warn" | "err" | "info"> = {
   info: "info",
   warning: "warn",
@@ -200,9 +200,9 @@ export default async function TournamentAuditLogPage({
                       {enrichDescription(l.description)}
                     </td>
                     <td data-label="레벨" className="px-4 py-3">
-                      {/* Admin-4-A 박제 — admin-stat-pill[data-tone] (admin.css) */}
+                      {/* Admin-4-A 박제 — ad-pill[data-tone] (admin.css) */}
                       <span
-                        className="admin-stat-pill"
+                        className="ad-pill"
                         data-tone={SEVERITY_TONE[l.severity ?? "info"] ?? "info"}
                         style={{ fontFamily: "var(--ff-mono)", fontWeight: 700, letterSpacing: "0.04em", fontSize: 10 }}
                       >
