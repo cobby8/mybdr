@@ -20,8 +20,8 @@
 | PR-1 | 셸 ts-shell 통일(배치1 8a2dd89·1.5 a0276a1·2 fb0f943·코워크 합격) + 배치3 st-* 상태모듈 Banner/Spinner(7a385f4) | ✅ 완료 |
 | PR-2 | 대회 운영. 시각박제 완료(전 패널 정합·0줄) + 기능4건 완료: 공지(e1a98e2)·series칩(31cdd79)·일정휴식(cabbef4)·지출 신규테이블(db push 완료). 런타임검증=프리뷰 | ✅ 완료 |
 | PR-3 | 생성/수정 마법사. 3-A 입구단일화(b49c701)·3-B SUBTABS제거(7bc6db8)·3-C 생성폼 5단계스텝화 OptionA(8c75d2c)·3-D 수정폼 정합(9952966). 마이그0·로직보존. **코드완료·로컬 검증대기**(생성 1~5+제출) | 🔄 검증 |
-| PR-4 | 셸별 콘솔(대회관리자/백오피스18/협력/심판) + 6-2 /admin/tournaments 목록 제거 | 대기 |
-| PR-5 | 공개 사이트(44팀/27경기 통일본) | 대기 |
+| PR-4 | 셸별 콘솔. 진단=4영역(대회관리자/백오피스18/협력/심판) **이미 정합·박제0**. 4-A §6-2 목록 제거(redirect+sidebar 일원화·상세/audit/transfer 보존) | ✅ 완료 |
+| PR-5 | 공개 사이트(44팀/27경기 통일본) — BDR 13룰(Material Symbols·별도 서브도메인) | 🔄 분석 |
 
 **§6 결정(2026-06-27)**: 6-1 = 5단계 단일진입 + prospectus/association 코드 보존 / 6-2 = `/admin/tournaments` 목록 **완전 제거**(상세 [id] audit-log·transfer-organizer 유지).
 **§5 핵심**: 전면신규=`tournament_expense` 1건뿐. #5 teams(coach_token=apply_token·로스터=TournamentTeamPlayer) 전부 기존→**바인딩만**. 나머지 NULL허용 무중단 ADD/JSON 확장.
