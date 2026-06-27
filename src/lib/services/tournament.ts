@@ -579,11 +579,42 @@ export async function createTournament(input: CreateTournamentInput) {
       : {}),
   };
 
+  // 대회 기준 연도 (KST). 서버(Vercel)는 UTC 이므로 +9h 보정 후 연도 추출. startDate 없으면 현재.
+  const ageBaseDate = input.startDate ?? new Date();
+  const tournamentYear = new Date(
+    ageBaseDate.getTime() + 9 * 60 * 60 * 1000,
+  ).getUTCFullYear();
+
+  // 종별명 → ages 맵 구성. input.categories 키("남성 일반부")에서 성별 접두 제거 후 AdminCategory.name 매칭.
+  const categoryAges: Record<string, string[]> = {};
+  const inputCategoryKeys = Object.keys(input.categories ?? {});
+  if (inputCategoryKeys.length > 0) {
+    const adminCategories = await prisma.adminCategory.findMany({
+      select: { name: true, ages: true },
+    });
+    // AdminCategory.name → ages(string[]) 사전. ages 는 Json 이므로 문자열만 안전 추출.
+    const agesByName = new Map<string, string[]>();
+    for (const ac of adminCategories) {
+      const ages = Array.isArray(ac.ages)
+        ? ac.ages.filter((a): a is string => typeof a === "string")
+        : [];
+      agesByName.set(ac.name, ages);
+    }
+    for (const key of inputCategoryKeys) {
+      // "남성 일반부"/"여성 유청소년" → "일반부"/"유청소년" (접두 없으면 키 그대로 폴백 매칭).
+      const baseName = key.replace(/^(남성|여성)\s+/, "");
+      const ages = agesByName.get(baseName) ?? agesByName.get(key) ?? [];
+      if (ages.length > 0) categoryAges[key] = ages;
+    }
+  }
+
   const divisionRuleSeeds = buildDivisionRuleSeedsFromCategories({
     categories: input.categories,
     divFees: input.divFees,
     entryFee: input.entryFee ?? 0,
     format: input.format ?? "single_elimination",
+    categoryAges,
+    tournamentYear,
   });
 
   // 대회 생성과 종별 운영 룰 생성을 한 트랜잭션으로 묶어 반쪽 생성 상태를 막는다.
@@ -593,7 +624,17 @@ export async function createTournament(input: CreateTournamentInput) {
     if (divisionRuleSeeds.length > 0) {
       await tx.tournamentDivisionRule.createMany({
         data: divisionRuleSeeds.map((rule) => ({
-          ...rule,
+          code: rule.code,
+          label: rule.label,
+          feeKrw: rule.feeKrw,
+          sortOrder: rule.sortOrder,
+          format: rule.format,
+          settings: rule.settings,
+          // 종별 연령 자동 채움 4필드 (Phase 2). 미산출 시 null = 기존 동작.
+          birthYearMin: rule.birthYearMin ?? null,
+          birthYearMax: rule.birthYearMax ?? null,
+          gradeMin: rule.gradeMin ?? null,
+          gradeMax: rule.gradeMax ?? null,
           tournamentId: created.id,
         })),
       });

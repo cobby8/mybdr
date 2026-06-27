@@ -1,4 +1,6 @@
 import type { Prisma } from "@prisma/client";
+// Phase 1 순수 매핑 함수 — 종별 연령코드(U{N}/+{N}) → 출생연도·학년 범위 계산.
+import { computeAgeRangeForDivision } from "@/lib/tournaments/age-mapping";
 
 export type TournamentCategoryMap = Record<string, string[]>;
 export type TournamentNumberMap = Record<string, number>;
@@ -10,6 +12,11 @@ export type DivisionRuleSeed = {
   sortOrder: number;
   format: string | null;
   settings: Prisma.InputJsonValue;
+  // 종별 연령 자동 채움 (Phase 2). 미산출 시 null = 기존 동작 유지.
+  birthYearMin?: number | null;
+  birthYearMax?: number | null;
+  gradeMin?: number | null;
+  gradeMax?: number | null;
 };
 
 export type CategorySelectionItem = {
@@ -104,11 +111,17 @@ export function buildDivisionRuleSeedsFromCategories({
   divFees,
   entryFee,
   format,
+  categoryAges,
+  tournamentYear,
 }: {
   categories: unknown;
   divFees?: unknown;
   entryFee?: number | null;
   format?: string | null;
+  // 종별명 → ages 배열 (유청소년 ["U8".."U18"] / 일반부·대학부 []). 미전달 시 연령 자동 채움 skip.
+  categoryAges?: Record<string, string[]>;
+  // 대회 기준 연도 (출생연도 계산용). 미전달 시 연령 자동 채움 skip.
+  tournamentYear?: number;
 }): DivisionRuleSeed[] {
   const normalizedCategories = normalizeCategoryMap(categories);
   const normalizedFees = normalizeNumberMap(divFees);
@@ -121,9 +134,16 @@ export function buildDivisionRuleSeedsFromCategories({
   const seeds: DivisionRuleSeed[] = [];
 
   for (const [category, divisions] of Object.entries(normalizedCategories)) {
+    // 해당 종별의 연령 코드 배열 (없으면 [] → 토큰 매칭 실패로 연령 미적용).
+    const ageCodes = categoryAges?.[category] ?? [];
     for (const division of divisions) {
       if (seen.has(division)) continue;
       seen.add(division);
+      // tournamentYear 미전달 시 계산 자체를 건너뛰어 기존 동작(전부 null) 유지 = 회귀 0.
+      const ageRange =
+        tournamentYear != null
+          ? computeAgeRangeForDivision(division, ageCodes, tournamentYear)
+          : null;
       seeds.push({
         code: division,
         label: division,
@@ -131,6 +151,11 @@ export function buildDivisionRuleSeedsFromCategories({
         sortOrder: seeds.length,
         format: format ?? null,
         settings: { category },
+        // 연령 범위 null 이면 4필드 모두 null (일반부/대학부 ages=[] → null).
+        birthYearMin: ageRange?.birthYearMin ?? null,
+        birthYearMax: ageRange?.birthYearMax ?? null,
+        gradeMin: ageRange?.gradeMin ?? null,
+        gradeMax: ageRange?.gradeMax ?? null,
       });
     }
   }
