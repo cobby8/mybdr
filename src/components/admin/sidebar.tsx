@@ -99,7 +99,9 @@ export const navStructure: AdminNavEntry[] = [
     items: [
       {
         type: "item",
-        href: "/admin/tournaments",
+        // PR-4 4-A §6-2: 대회 목록 일원화 — 전 역할이 /tournament-admin/tournaments 로 진입.
+        //   (구 /admin/tournaments 목록 제거. 상세 /admin/tournaments/[id] 는 직접 URL 유지.)
+        href: "/tournament-admin/tournaments",
         hrefByRole: { tournament_admin: "/tournament-admin/tournaments" },
         // 2026-05-04: "토너먼트" → "대회 관리" 통일 (사용자 요청).
         label: "대회 관리",

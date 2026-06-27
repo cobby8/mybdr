@@ -105,6 +105,14 @@
 - **검증**: tsc EXIT0. 정적: 변경 +14/-2·보강분 외 변경 0·하드코딩 hex 0·lucide 단계 아이콘 유효.
 - 🖥️ PM 육안: 07 대비 각 스텝 헤더에 단계별 아이콘 + "1~5단계 ·" 표기 / 나머지(저장바·체크리스트·패널) 기존 동작 그대로. PR-3 전 배치(3-A~3-D) 완료.
 
+### PR-4 4-A — /admin/tournaments 목록 완전 제거·일원화 (§6-2·마이그 0)
+📝 대회 목록을 `/tournament-admin/tournaments`로 일원화. 구 `/admin/tournaments` 목록 제거. **상세 [id]·audit-log·transfer-organizer는 유지**.
+- **변경/삭제 3파일**: ①`admin/tournaments/page.tsx` 목록 렌더 제거→`redirect("/tournament-admin/tournaments")` 서버 컴포넌트(-169/+9) ②`admin-tournaments-content.tsx` **삭제**(-257·page.tsx 유일 import였음·잔존 import 0 확인) ③`sidebar.tsx` "대회 관리" base href `/admin/tournaments`→`/tournament-admin/tournaments`(전 역할 일원화·hrefByRole 무변경).
+- **보존(§6-2)**: `[id]/page.tsx`·`[id]/audit-log/page.tsx`·`[id]/transfer-organizer/page.tsx` 미접촉·실존 확인. 직접 URL 도달 유지. 상세/audit/transfer의 "목록으로" back 링크(`/admin/tournaments`)는 redirect로 처리(데드링크 아님).
+- **보고**: `app/actions/admin-tournaments.ts`(updateTournamentStatusAction/toggleTournamentVisibilityAction + revalidatePath) = 삭제된 content가 유일 소비처였어 **이제 미사용**. revalidatePath는 redirect 경로라 무해 → 코디 지시대로 **유지(미삭제)**, 보고만. 후속 정리 선택.
+- **검증**: tsc EXIT0. 정적: page.tsx redirect만(prisma/content import 0)·content 삭제·sidebar href 변경·보존 3파일 실존·content import 0·데드링크 0(잔여 /admin/tournaments 링크는 redirect 처리 or 상세 [id] 정상).
+- 🖥️ PM 육안: super/site/tournament admin "대회 관리" 클릭 → /tournament-admin/tournaments / 구 URL 직접 진입 시 리다이렉트 / 상세·감사로그·운영자이전 직접 URL 도달.
+
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
 |------|------|------|
