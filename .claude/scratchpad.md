@@ -105,6 +105,22 @@
 **검증**: tsc **EXIT 0**. 정적: `ad-mobile-*`/`ad-side-*` 잔존 **0** / ts-topbar·ts-mtoggle·ts-overlay·ts-drawer·ts-navlink·ts-userchip·ts-avatar·ts-sidebar__nav/__label/__foot/__brand 전부 toss-admin.css 실존(임의 CSS 0). ⚠️`ts-drawer__head/__body/__foot`는 CSS 부재 → 정본 jsx대로 인라인 head+ts-sidebar__nav/__foot 사용.
 🖥️ **PM 육안확인(배치2·모바일 ≤900px)**: 상단 ts-topbar(햄버거+페이지 제목)·56px 빈공간 해소 / 햄버거→드로어 슬라이드 / 드로어 푸터 UserChip·로그아웃·테마·마이페이지·복귀 동작 / 데스크톱(≥900px) ts-topbar 숨김·배치1.5 사이드바 유지(회귀 0).
 
+### PR-1 배치3 — st-* 상태 공유모듈 (PR-2 대비 인프라)
+📝 정본 admin-state.jsx 상태 프리미티브 박제. **실측 결과 대부분 기존재**(v2.42 배치에서 이미 이식) → 중복 생성 금지. 진짜 누락분(Banner·Spinner)만 신설. **신규 CSS 0**(모든 st-* 룰 기존재).
+
+**기존재(미변경·재사용)**: `Skel`·`SkelTable`·`ErrState`·`PermState`·`Modal`·`Empty` = `admin-toss/kit.tsx` 존재+barrel export(정본 1:1, 일부 optional props 상위호환). CSS `st-skel`~`st-dirtydot`(st-skrow/__main/__text·st-spin/--sm·st-state/__ic/--danger/--lock/__t/__x/__actions·st-banner/--danger/--grey·st-dirtydot) = `toss-admin.css` L299~386 실존.
+
+**신규(2 컴포넌트)**:
+| 파일 | 변경 | 신규/수정 |
+|------|------|----------|
+| `src/components/admin-toss/kit.tsx` | `Banner`(st-banner tone=danger/grey+icon+title+desc+action) + `Spinner`(st-spin/--sm) 신설. 정본 인라인 마크업 1:1·기존 CSS 재사용·lucide·var(--*) | 수정 |
+| `src/components/admin-toss/index.ts` | barrel에 Banner/Spinner + BannerProps/BannerTone/SpinnerProps export 추가 | 수정 |
+
+**박제 제외(정본이나 프리뷰 하net스=프로덕션 재사용 아님)**: Demo·AdminStatePreview·LoadingDemos/EmptyDemos/ErrorDemos/SaveFlowDemo/PermDemos/MobileDemos/DestructiveDemo + 갤러리 클래스(st-app/st-head/st-tabs/st-sechead/st-grid/st-demo/st-statgrid/st-spinrow/st-phone/st-mcard/st-msheet/st-flabel/st-finput). `st-toast`=운영 `ts-toast` 기존재로 대체(중복 생성 안 함).
+**위치 결정**: 코디네이터 제안 `state.tsx` 대신 **kit.tsx**(기존 상태 프리미티브 Skel/ErrState 등이 이미 거기 있어 cohesion). 파편화 회피.
+**검증**: tsc **EXIT 0**. 정적: Banner/Spinner barrel export 확인·참조 CSS(st-banner/--danger/--grey/st-spin/--sm) toss-admin.css 실존(6건)·Material 0·하드코딩 hex 0(var(--ink-soft)만). **소비처 import 0=정상**(PR-2 대비 인프라).
+⚠️ **주의(정본 대비)**: st-toast 클래스는 운영 미존재(ts-toast로 대체). st-mcard(모바일 카드)는 데모 클래스라 미박제 — PR-2에서 모바일 카드 패턴 필요 시 그때 신설.
+
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
 |------|------|------|
