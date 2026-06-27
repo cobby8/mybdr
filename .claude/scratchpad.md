@@ -3,10 +3,10 @@
 > 2026-06-27 정리: 262KB→압축. 과거 세션 상세(기획설계/리뷰/구현/테스트 섹션)는 작업 로그로 요약·제거. 상세 이력은 git log + knowledge/ 참조.
 
 ## 현재 작업
-- **요청**: 관리자 영역 Toss 시안 박제 (admin-toss v2.41 정본). 단계 PR(PR-0~PR-5).
-- **기준 패키지**: `Dev/design/BDR v2.41-admin-toss/` + 계약문서 `_PR0-CONTRACT-CONFIRMED.md`(PR-1~5 단일 참조점).
-- **상태**: 🎉 **PR-0~5 전체 박제 코드 완료**. PR-3 생성/수정 마법사·PR-4 §6-2 목록제거·PR-5 공개사이트(준비중 카피+대진 탭). **남은 것**: ①PR-3 생성플로우+PR-5 대진 로컬/프리뷰 검증 ②미푸시 push→빌드확인 ③디테일 정리 일괄(휴식CSS·dead코드·subtab·actions 등) ④PR #773(dev→main) 최종 검토 후 수빈 머지.
-- **PR #773**(dev→main 릴리스·열림): 검토 후 머지 대기. `tournament_expenses` 운영 DB 이미 반영→main 마이그0.
+- **요청**: 🔄 **전략 피벗(2026-06-27)** — 기존 코드 위 점진 박제(PR-0~5) 대신 **관리자 영역 전체 UI 그린필드 리빌딩**. 사유=레거시 섞임·snake/계약 데이터 처리 반복 꼬임. 사용자 결정: ①범위=관리자 전체 UI 신규(공개사이트 제외) ②백엔드 유지(API/Prisma/인증·오늘 추가분 재사용) ③그린필드(새 라우트/컴포넌트→영역별 검증 후 교체) ④**타입드 데이터 계층 포함**(snake↔camel 1곳·반복버그 근본차단=핵심실익).
+- **기준 패키지**: `Dev/design/BDR v2.41-admin-toss/`(정본·screenshots 17) + `_PR0-CONTRACT-CONFIRMED.md`.
+- **현재**: planner 그린필드 **아키텍처 설계 중**(그린필드 구조/컷오버·타입드 데이터계층·컴포넌트 라이브러리·영역 시퀀싱/파일럿). 토대+파일럿 로드맵 대기.
+- **PR-0~5(완료·dev·빌드 통과)는 "현재 관리자"로 유지** — 그린필드가 영역별 교체할 때까지 살림. 백엔드 변경분(tournament_expenses+expenses API·settings.notice) 재사용. PR #773(dev→main)은 현 관리자 릴리스로 유지 가능(수빈 결정).
 - **🔄 v2.45 재베이스라이닝(2026-06-27)**: 새 zip `BDR v2 (45)` → 정본 교체(design_handoff_admin → `Dev/design/BDR v2.41-admin-toss/`, 직전본 `_archive/...-pre45/`). **START-HERE·IMPLEMENTATION-PROMPT·screenshots 17장(시각 정본) 반입** → §1 치환표 폐기. 폐기 38팀 site-* 제거. 정본 교체 커밋 = design(sync). 계약문서 §v2.45 갱신.
 - **★계정 배치 확정**: 정본=계정 **사이드바 푸터 UserChip**(데스크톱 topbar 없음). 사용자 "사이드 패널 유지"=계정을 사이드에. 배치1.5=ad-topbar 계정 제거+UserChip 푸터 이전(로그아웃 보존 필수).
 - **배치2 모바일(900px)·배치3 st-* 상태모듈 = 후속**. (v2.42 신규: 8상태 QA·preview 6 검수하네스·공개사이트 44팀 통일→PR-5)
