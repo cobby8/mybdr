@@ -5,7 +5,7 @@
 ## 현재 작업
 - **요청**: 관리자 영역 Toss 시안 박제 (admin-toss v2.41 정본). 단계 PR(PR-0~PR-5).
 - **기준 패키지**: `Dev/design/BDR v2.41-admin-toss/` + 계약문서 `_PR0-CONTRACT-CONFIRMED.md`(PR-1~5 단일 참조점).
-- **상태**: PR-0✅·PR-1✅완료(push 동기화). **PR-2 진행** — 분석 결과: 운영 `[id]`에 6메뉴+9패널 **이미 Toss 작동**(옛 8카드 허브 통합 완료) → PR-2=신규 아닌 **격차 보강**. **파일럿 2-1 참가팀 진행 중(developer)**.
+- **상태**: PR-0✅·PR-1✅완료(push 동기화). **PR-2 진행** — 운영 `[id]` 6메뉴+9패널 **이미 Toss 작동**. **파일럿 2-1 참가팀=이미 정합·변경0**(정본 superset·최근 9040ff1로 정합완료). 최근 operate 정합 커밋들 있어 검증 패널(대진/운영관리/사이트/셸) **일괄 정합 진단 중**. 실작업=신규 2-5 일정·2-7 정산.
 - **PR-2 배치 분해**: 2-1 참가팀(파일럿·최저위험·신규필드0)→2-2 셸/요약→2-3 운영관리→2-4 대진표→2-5 **일정(SchedulePanel 신규+마이그)**→2-6 사이트→2-7 **정산(tournament_expense 신규테이블)**. 위험 신규/마이그(2-5·2-7) 뒤로·schema diff 게이트.
 - **⚠️ PR-2 미결정(2-5에서)**: 일정 탭 충돌 — 정본 일정=SchedulePanel(배정/드래그) vs 운영 일정=MatchesPanel(경기운영). 교체/둘다/현행 중 택. 정본 6메뉴엔 matches 독립메뉴 없음.
 - **🔄 v2.45 재베이스라이닝(2026-06-27)**: 새 zip `BDR v2 (45)` → 정본 교체(design_handoff_admin → `Dev/design/BDR v2.41-admin-toss/`, 직전본 `_archive/...-pre45/`). **START-HERE·IMPLEMENTATION-PROMPT·screenshots 17장(시각 정본) 반입** → §1 치환표 폐기. 폐기 38팀 site-* 제거. 정본 교체 커밋 = design(sync). 계약문서 §v2.45 갱신.
@@ -19,7 +19,7 @@
 |----|------|------|
 | PR-0 | 패키지 배치 + §1치환 + §5스키마실측 + §6결정 | ✅ 93b90ef |
 | PR-1 | 셸 ts-shell 통일(배치1 8a2dd89·1.5 a0276a1·2 fb0f943·코워크 합격) + 배치3 st-* 상태모듈 Banner/Spinner(7a385f4) | ✅ 완료 |
-| PR-2 | 대회 운영 워크스페이스(operate 6메뉴+7패널)→/tournament-admin/tournaments/[id] | 🔄 분석 |
+| PR-2 | 대회 운영 워크스페이스. 2-1 참가팀=이미정합✅. 검증패널 일괄진단 中. 실작업=2-5 일정(신규)·2-7 정산(신규테이블) | 🔄 진행 |
 | PR-3 | 생성/수정 5단계 마법사(6-1: 단일화+prospectus/assoc 보존) | 대기 |
 | PR-4 | 셸별 콘솔(대회관리자/백오피스18/협력/심판) + 6-2 /admin/tournaments 목록 제거 | 대기 |
 | PR-5 | 공개 사이트(44팀/27경기 통일본) | 대기 |
@@ -64,9 +64,19 @@
 > **PR-1 재사용 자산(PR-2가 활용)**: 셸=ts-shell/ts-sidebar/ts-navlink·계정=ts-userchip+LogoutButton·모바일=ts-topbar/ts-drawer·상태=admin-toss/kit.tsx(Skel/SkelTable/ErrState/PermState/Modal/Empty/Banner/Spinner)·토스트=ts-toast. st-mcard(모바일 카드)는 미박제→PR-2 필요 시 신설.
 > PR-2 착수 시 이 섹션에 신규 구현 기록.
 
+### PR-2 2-1 — 참가팀 패널 정합 (결과: 이미 정합·변경 0)
+📝 운영 `teams-panel.tsx`를 정본 panels-core.jsx `TeamsPanel` + teams-preview + 01-대회운영 스크린샷과 1:1 대조. **결과: 정본 대비 superset·이미 Toss 정합** → 코드 변경 0(과잉 리스킨 금지 준수).
+- **근거**: 운영은 동일 Toss 언어(`ts-card`/`ts-chip`/`ct-pill`/`ts-select`/`ts-field`/`Btn`/`Modal`/`Empty`) + 자체 `tt-*`/`amt-table` 레이어(toss-admin.css 실존, 세부 sub-class 24건 포함). 이미 `9040ff1 refactor: align tournament teams panel with toss parity`로 정합 완료된 패널.
+- **정본 대비 운영이 더 많음(누락 아님)**: 납부 pill/select·종별 select+일괄이동·시드/조 입력·로스터 import·코치 편집·토큰 재발급·CSV/카톡문구·로딩(PanelLoadingState)·종별 readiness 카드(신청/승인/납부 mini). 정본은 mock 데모(승인/거절만).
+- **시각 차이 = UX 격차 아님**: 정본 avatar=단색원 / 운영=`tt-team-avatar` 2글자 이니셜(상위). 정본 stat=ct-metric / 운영=tt-stat-card(등가). 토스트=인라인 Tailwind이나 var(--*) 토큰만(하드코딩 hex 0)·스크린샷 무관 → 미변경.
+- **§5 #5 보존**: 코치토큰=apply_token·로스터=TournamentTeamPlayer 전부 기존 바인딩. 데이터/API/서버액션/권한/snake/schema 0접촉. 신규필드/마이그 0.
+- **검증**: tsc EXIT0. 정적: 하드코딩 hex 0·Material 0·tt-*/amt-* 클래스 전부 CSS 실존(무스타일 0)·git diff teams-panel = **0줄**.
+- 🖥️ PM 육안: 정본 01-대회운영.png와 운영 참가팀 화면 비교 시 동등+α 확인(억지 변경 안 함).
+
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
 |------|------|------|
+| 2026-06-27 | **admin-toss PR-2 파일럿 2-1 참가팀 정합** | ✅ **이미 정합·코드 변경 0**. 운영 teams-panel이 정본 TeamsPanel의 superset(납부/종별이동/로스터/토큰재발급 등 운영 우위)·최근 9040ff1로 정합완료. tsc EXIT0·하드코딩hex0·tt-*/amt-* CSS 실존·git diff 0줄. §5 #5 보존(apply_token·TournamentTeamPlayer 기존). 검증패널 일괄진단 착수. |
 | 2026-06-27 | **admin-toss PR-1 배치3 — st-* 상태 공유모듈 (PR-1 완료)** | ✅ 정본 admin-state.jsx 대조: Skel/SkelTable/ErrState/PermState/Modal/Empty + st-* CSS 전부 기존재(v2.42) → **Banner/Spinner 2개만 신설·신규 CSS 0**. st-toast=ts-toast 재사용·데모하네스 미박제. 소비처 미배선(PR-2 인프라). tsc EXIT0. 7a385f4. **PR-1 전 배치 완료**. |
 | 2026-06-27 | **admin-toss PR-1 셸 마이그레이션 육안 검증 (코워크)** | ✅ **합격·회귀 0** (데스크톱+모바일+극단 narrow). 정본 정합: 우상단 계정 없음·사이드바 푸터 UserChip/로그아웃·모바일 햄버거+제목/드로어. 오탐 정리: 플로팅 N버튼=외부 확장(Gemini) 위젯·앱 무관 / 사이드바 그룹 라벨 정본과 차이=의도된 A1 IA 보존(§5). 전달 프롬프트 `Dev/design/prompts/admin-toss-PR1-shell-verify-cowork-2026-06-27.md`. 로컬 dev(3001)는 실제 정상이었음(직전 500은 자동화 브라우저 오인). |
 | 2026-06-27 | **admin-toss 정본 v2.45 교체 + PR-1 배치1.5·배치2 (재베이스라이닝)** | ✅ 새 zip(45)→정본 교체(screenshots 17장·START-HERE 반입, 38팀 site-* 폐기, §1 치환표 폐기). 배치1.5 계정 topbar→사이드바 푸터 UserChip 이전(로그아웃 보존·a0276a1). 배치2 모바일 ad-mobile→ts-topbar/ts-drawer(56px 빈공간 해소·드로어 계정/로그아웃 동등·fb0f943). 전부 tsc EXIT0·nav 로직 0변경·임의 CSS 0. **PR-1 셸 마이그레이션 완료**(육안 미확인). user-menu.tsx 고아(별도 정리). |
