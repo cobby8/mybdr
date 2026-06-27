@@ -139,9 +139,31 @@
 - 💡 tester 참고: 미발행/모집 상태→대진 탭 안 보임. 대진생성 후(drawn)→탭 보이고 "대진 준비 중". 발행(published)→8강/4강/결승 트리(스코어 "–"). 진행/종료(live/ended)→스코어+승자 강조. /bracket 직접 URL: hide 상태면 404.
 - ⚠️ reviewer 참고: (1) 모바일 nav는 기존 `slice(0,4)` 유지 — 6탭 됐으나 ended 상태에서 모바일 상단은 홈/팀/일정/대진(결과 오버플로). "회귀 0" 위해 slice 로직 미변경(결과/참가신청은 기존에도 모바일 오버플로). (2) box-shadow rgba(16,24,40,…)=정본 s-bgame 그림자 그대로 박제(기존 classic/layout rgba 그림자 패턴과 동일). (3) `/schedule` 등 명시 라우트 파일이 catch-all을 shadow하나 `/bracket`은 명시 라우트 없어 catch-all→ClassicTemplate 도달(설계 의도).
 
+### M1 — 관리자 타입드 데이터 계층 (`src/lib/admin-api/`·신규 7파일·백엔드 0변경)
+📝 snake_case 5회 재발버그를 **fetch 1곳에서 구조 근절**하는 데이터 계층 신설. camel↔snake 변환을 adminFetch 안에서만 처리 → 호출부는 항상 camel 타입만 봄.
+
+| 파일 | 내용 | 신규 |
+|------|------|------|
+| `admin-api/client.ts` | `adminFetch<TRes>`(★유일 변환지점) + `AdminApiError`. body camel→snake / 응답 snake→camel / apiError 메시지 추출 / Zod parse / abort | 신규 |
+| `admin-api/types.ts` | camel 도메인 타입(AdminTournamentSummary/Detail·AdminExpense·Create/Delete) + `TOURNAMENT_RAW_JSON_KEYS` | 신규 |
+| `admin-api/schemas.ts` | Zod4 응답 스키마(expense/list/delete·고위험 신규필드 우선) | 신규 |
+| `admin-api/endpoints/expenses.ts` | list/create/delete (Zod 검증) | 신규 |
+| `admin-api/endpoints/tournaments.ts` | list/getTournament(rawJsonKeys 보존) | 신규 |
+| `admin-api/use-admin-query.ts` | 클라 훅 {data,loading,error,refetch}+abort | 신규 |
+| `admin-api/index.ts` | barrel | 신규 |
+
+🔑 **인증 보호 메커니즘(0번 점검 보고)**: 루트 `middleware.ts` **부재**(전수검색=`src/lib/api/middleware.ts`만, 이건 API withAuth 래퍼). 보호는 **라우트그룹 세그먼트 레이아웃 서버컴포넌트**가 담당 — `(admin)/admin/layout.tsx`=`getAuthUser()`+`getAdminRoles()`, `(admin)/tournament-admin/layout.tsx`=`getWebSession()`+membershipType>=3/super. `(admin)/layout.tsx` 공통 없음(각 세그먼트 독립). → 향후 `(admin-v2)/v2/*`도 **세그먼트 레이아웃에 동일 `getWebSession()`/`getAuthUser()`+역할체크+`buildLoginRedirect` 패턴 복제**하면 됨(루트 middleware 추가 불필요). M2에서 처리.
+🔑 **응답 래핑(0번)**: `apiSuccess(data)`=`NextResponse.json(convertKeysToSnakeCase(data))` → **래퍼 없음**(body 자체가 snake 데이터). 언래핑=body 그대로. apiError=`{error,code?}` → 메시지 추출.
+🔑 **jsonb F-2b 차단**: `rawJsonKeys` 옵션 → 지정 키(settings/scheduleDates/categories 등)는 값 verbatim 보존(키만 camel, 내부 변환 제외). self-trace 검증: scheduleDates 키 camel化되나 내부 `court_ids` raw 유지(courtIds 변환 안됨)·settings 내부키 raw. rawKeys 없으면 기존 `convertKeysToCamelCase` 그대로 재사용(중복구현 회피·동일동작).
+🔑 **Zod4**: 옵션객체 금지·`z.number().int()` 패턴. parse 런타임 검증: list.parse OK / int위반 정상 reject(invalid_type).
+
+💡 tester: tsc EXIT0(--incremental false). 변환/Zod self-trace 통과. 소비처 미배선(M3 파일럿에서 배선). 백엔드/레거시 0접촉.
+⚠️ reviewer: ZodType<TRes> 변성(expenseListSchema→AdminExpense[]) tsc 통과. AdminApiError status=0=네트워크에러.
+
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
 |------|------|------|
+| 2026-06-27 | **그린필드 M1 — 관리자 타입드 데이터 계층(`src/lib/admin-api/` 신규7파일·백엔드0)** | ✅ tsc EXIT0. adminFetch=snake↔camel 변환 ★유일지점(5회 재발버그 구조근절)+AdminApiError+Zod parse. jsonb rawJsonKeys 보존(F-2b 차단·self-trace court_ids raw 유지). 인증보호=루트 middleware 부재→세그먼트 레이아웃(getAuthUser/getWebSession) 담당(v2도 동일패턴 복제). apiSuccess=래퍼없는 raw snake body. Zod4(int reject 검증). endpoints=expenses(list/create/delete)+tournaments(list/get). useAdminQuery 훅. 소비처 미배선(M3). |
 | 2026-06-27 | **admin-toss PR-5 5-B 공개 사이트 대진 탭 추가 (BDR 13룰·실데이터·마이그0)** | ✅ tsc EXIT0. classic.tsx에 대진 탭(일정·결과 사이)+BracketPage 트리 신설(정본 .s-bracket 밴드/연결선→`bracket.module.css` BDR 토큰 박제·셀 min-height 92px). 데이터=기존 matches 재활용(round_number/bracket_position·쿼리 변경0). visibility.sections.bracket prep/show/hide 게이트(public-visibility 0접촉). page.tsx PAGE_SECTION bracket 1줄. Toss잔존0·하드코딩hex0·3스킨 보존. 승자강조=--bk-primary 인라인. |
 | 2026-06-27 | **PR-2 로컬 QA 추가 2건 해소 (지출 500·0원 폰트)** | ✅ ①지출추가 500 = **로컬 dev 서버 stale Prisma 클라이언트**(신규 tournament_expenses 미인식·DLL 잠금으로 generate 막혔던 것). 포트3001 PID12460 종료→`prisma generate`→재시작(새 PID63888)으로 해소(코드 무죄). ②금액 "0원" 슬래시제로(JetBrains Mono)→본문폰트+tabular-nums(d1c2d3e). **PR-2 로컬 검증 완료**(지출/일정/공지/series 동작). 교훈: 신규 모델 후 dev 서버 재시작+generate 필수. |
 | 2026-06-27 | **PR-2 프리뷰 QA 버그 2건 수정 (되돌림 루프)** | ✅ ①빌드실패: expenses Zod3 `invalid_type_error`→Zod4(옵션 제거)·PR-2 전체 미배포 원인. ②일정 비어보임: matches-panel camel→snake 읽기 교정(snake함정8회·3-C 무죄). +정산 모달 에러가시화. **tsc EXIT0 직접확인**(3-D dev의 EXIT0은 캐시 오판이었음). errors.md 박제. **✅프리뷰 빌드 SUCCESS(d999cba READY)** — PR-2 기능 프리뷰 첫 배포. 수빈 재검토→PR #773 머지 대기. |
