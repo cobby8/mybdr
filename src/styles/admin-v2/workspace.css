@@ -355,6 +355,19 @@
 @media (max-width: 720px) { [data-admin="v2"] .ct-div-edit3 { grid-template-columns: 1fr !important; } }
 [data-admin="v2"] .cat-preview { display: flex; align-items: center; gap: 8px; margin-top: 4px; padding: 10px 12px; background: var(--primary-weak); border-radius: 11px; font-size: 12.5px; font-weight: 700; color: var(--primary); }
 
+/* ── 종별 추가 모달 — 좌(입력)/우(장바구니) 2단 레이아웃 ─────────── */
+[data-admin="v2"] .cat-modal--cart { display: grid; grid-template-columns: 1fr 280px; gap: 18px; align-items: start; }
+@media (max-width: 720px) { [data-admin="v2"] .cat-modal--cart { grid-template-columns: 1fr; } }
+/* 장바구니 패널 — 좌측과 시각 분리(연한 박스). 모바일에선 입력 단계 아래로 스택 */
+[data-admin="v2"] .cat-cart { position: sticky; top: 0; display: flex; flex-direction: column; gap: 10px; padding: 14px; border: 1px solid var(--border); border-radius: 14px; background: var(--grey-50); }
+[data-admin="v2"] .cat-cart__head { display: flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 800; color: var(--ink); }
+[data-admin="v2"] .cat-cart__count { margin-left: auto; min-width: 22px; padding: 1px 7px; text-align: center; background: var(--primary); color: #fff; border-radius: 999px; font-size: 12px; font-weight: 800; }
+[data-admin="v2"] .cat-cart__empty { padding: 22px 10px; text-align: center; font-size: 12.5px; color: var(--ink-dim); }
+[data-admin="v2"] .cat-cart__list { display: flex; flex-direction: column; gap: 8px; max-height: 360px; overflow-y: auto; }
+[data-admin="v2"] .cat-cart__item { display: flex; align-items: center; gap: 8px; padding: 9px 10px; background: var(--card); border: 1px solid var(--border); border-radius: 10px; }
+[data-admin="v2"] .cat-cart__nm { font-size: 13px; font-weight: 700; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+[data-admin="v2"] .cat-cart__meta { margin-top: 2px; font-size: 11px; color: var(--ink-mute); }
+
 /* ── 푸터(이전/다음/생성) ─────────────────────────────── */
 [data-admin="v2"] .tw-foot { position: sticky; bottom: 0; z-index: 20; display: flex; align-items: center; gap: 12px; margin-top: 16px; padding: 14px 16px; background: color-mix(in srgb, var(--card) 96%, transparent); backdrop-filter: blur(8px); border: 1px solid var(--border); border-radius: 18px; box-shadow: var(--sh-md); }
 [data-admin="v2"] .tw-foot__mid { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 2px; text-align: center; }

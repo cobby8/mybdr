@@ -69,19 +69,30 @@ const groupKey = (d: DivisionRow) => (d.category && d.category.trim()) || SOLO_K
 type MasterCategory = { id: string; name: string; divisions: string[]; ages: string[] };
 
 // =====================================================================
-// DivisionGenerator — 성별/종별템플릿/디비전/연령코드 4단계 모달
+// DivisionGenerator — 성별/종별템플릿/디비전/연령코드 단계 + 장바구니 모달
+//   ★ 장바구니 방식(2026-06-29 개편):
+//     - 좌측 = 입력 단계 + "추가" 버튼. "추가" 클릭 시 현재 조합을 곧장
+//       form.divisions 에 push(onGenerate)하되 모달은 닫지 않는다.
+//       → 디비전/연령만 리셋(다음 종별 연속 입력), 성별/종별/진행방식은 유지.
+//     - 우측 = 장바구니 패널. divisions(=form.divisions) 실시간 렌더 + x 삭제(onRemove).
+//     - footer = 취소/완료 모두 닫기(추가는 이미 실시간 반영 → 별도 커밋 불필요).
 //   onGenerate(rows): 곱집합으로 생성된 DivisionRow[] 를 부모에 append.
+//   onRemove(id):     장바구니에서 해당 디비전 1개 제거.
 // =====================================================================
 function DivisionGenerator({
   open,
   onClose,
   onGenerate,
+  onRemove,
+  divisions,
   toast,
   defaultFee,
 }: {
   open: boolean;
   onClose: () => void;
   onGenerate: (rows: DivisionRow[]) => void;
+  onRemove: (id: string) => void;
+  divisions: DivisionRow[];
   toast: (msg: string) => void;
   defaultFee: number;
 }) {
@@ -152,7 +163,8 @@ function DivisionGenerator({
     });
   }
 
-  // 생성 — 디비전×연령 곱집합. category = "${성별} ${종별명}"(서버가 성별 접두 제거 후 AdminCategory 매칭).
+  // 추가 — 디비전×연령 곱집합을 장바구니(form.divisions)에 push. category = "${성별} ${종별명}".
+  //   ★ 장바구니 방식: 모달을 닫지 않고 디비전/연령만 리셋(성별/종별/진행방식 유지 → 연속 추가 편의).
   const gen = () => {
     if (!tpl || !divs.length) return;
     const category = `${gender} ${tpl.name}`.trim();
@@ -172,28 +184,48 @@ function DivisionGenerator({
     } else {
       divs.forEach((dn) => rows.push(make(wfix(dn))));
     }
-    onGenerate(rows);
-    toast(`'${category}' 종별 · 디비전 ${rows.length}개 추가`);
-    onClose();
+    // 중복 방지 — 이미 장바구니에 같은 디비전명(label)이 있으면 skip.
+    const existing = new Set(divisions.map((d) => d.label));
+    const fresh = rows.filter((r) => !existing.has(r.label));
+    const skipped = rows.length - fresh.length;
+    if (fresh.length === 0) {
+      // 전부 중복 → push 없이 안내만.
+      toast(`이미 추가된 디비전입니다 (${rows.length}개 중복)`);
+      return;
+    }
+    onGenerate(fresh);
+    toast(
+      skipped > 0
+        ? `'${category}' 디비전 ${fresh.length}개 추가 (${skipped}개 중복 제외)`
+        : `'${category}' 종별 · 디비전 ${fresh.length}개 추가`
+    );
+    // 다음 종별 입력 준비 — 디비전/연령만 초기화. 성별·종별 템플릿·진행방식은 유지.
+    setDivs([]);
+    setAges([]);
   };
 
   return (
     <Modal
       open={open}
       onClose={onClose}
+      // 2단 레이아웃(좌 입력 / 우 장바구니)이라 폭 확대. 모바일은 CSS 가 세로 스택.
+      maxWidth={880}
       title="종별 템플릿으로 추가"
-      sub="성별·종별 템플릿을 고르고 디비전을 선택하면 종별이 생성됩니다. 유청소년 등은 연령도 함께 선택하면 연령 제한이 자동 적용됩니다."
+      sub="성별·종별 템플릿을 고르고 디비전을 선택해 ‘추가’하면 우측 장바구니에 쌓입니다. 여러 종별을 연속으로 추가할 수 있습니다."
       foot={
         <>
           <Btn variant="secondary" onClick={onClose} style={{ flex: 1 }}>
             취소
           </Btn>
-          <Btn onClick={gen} disabled={!tpl || !divs.length} icon="plus" style={{ flex: 2 }}>
-            종별 생성 {totalDivs ? `(${totalDivs})` : ""}
+          {/* 추가는 이미 실시간 반영 → 완료 = 단순 닫기 */}
+          <Btn onClick={onClose} icon="check" style={{ flex: 2 }}>
+            완료
           </Btn>
         </>
       }
     >
+      {/* 2단 — 좌측 입력 컬럼 / 우측 장바구니 패널(720px 이하 세로 스택) */}
+      <div className="cat-modal--cart">
       <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
         {/* 1단계 · 성별 */}
         <div>
@@ -313,6 +345,39 @@ function DivisionGenerator({
             <span>생성됨 ({combos.length}): {combos.join(", ")}</span>
           </div>
         )}
+
+        {/* 추가 버튼 — 현재 조합을 장바구니에 push(모달 유지) */}
+        <Btn onClick={gen} disabled={!tpl || !divs.length} icon="plus" block>
+          추가 {totalDivs ? `(${totalDivs})` : ""}
+        </Btn>
+      </div>
+
+      {/* 우측 — 장바구니 패널(form.divisions 실시간 렌더) */}
+      <aside className="cat-cart">
+        <div className="cat-cart__head">
+          <Icon name="shopping-cart" size={15} color="var(--ink-mute)" />
+          <span>장바구니</span>
+          <span className="cat-cart__count">{divisions.length}</span>
+        </div>
+        {divisions.length === 0 ? (
+          <div className="cat-cart__empty">아직 추가된 종별이 없습니다</div>
+        ) : (
+          <div className="cat-cart__list">
+            {divisions.map((d) => (
+              <div key={d.id} className="cat-cart__item">
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <div className="cat-cart__nm">{d.label || "(디비전명 미입력)"}</div>
+                  {/* 진행방식 라벨 — 미지정(빈값/null)은 대회 방식 폴백 표시 */}
+                  <div className="cat-cart__meta">{FORMAT_LABEL[d.format ?? ""] ?? "대회 방식"}</div>
+                </div>
+                <button type="button" className="ct-iconbtn" title="삭제" aria-label="삭제" onClick={() => onRemove(d.id)}>
+                  <Icon name="x" size={14} />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </aside>
       </div>
     </Modal>
   );
@@ -547,8 +612,16 @@ export function DivisionsEditor({
         </div>
       )}
 
-      {/* 템플릿 생성 모달 */}
-      <DivisionGenerator open={genOpen} onClose={() => setGenOpen(false)} onGenerate={addGenerated} toast={toast} defaultFee={defaultFee} />
+      {/* 템플릿 생성 모달(장바구니 방식) — divisions/onRemove 로 우측 패널 실시간 연동 */}
+      <DivisionGenerator
+        open={genOpen}
+        onClose={() => setGenOpen(false)}
+        onGenerate={addGenerated}
+        onRemove={removeDiv}
+        divisions={divisions}
+        toast={toast}
+        defaultFee={defaultFee}
+      />
     </div>
   );
 }
