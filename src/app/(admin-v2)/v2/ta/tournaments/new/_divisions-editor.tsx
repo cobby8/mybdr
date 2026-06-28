@@ -53,7 +53,8 @@ const FMT_FIELDS: Record<string, FmtField[]> = {
   group_stage_with_ranking: [
     ["group_size", "조별 팀수", "num", "4"],
     ["group_count", "조 개수", "num", "4"],
-    ["ranking_format", "순위결정 방식", "select", [["round_robin", "풀리그"], ["single_elimination", "순위 토너먼트"]]],
+    // 순위결정 방식은 고정 — 동순위전(2조 케이스)은 ranking_format 미분기(division-advancement.ts:472-473).
+    //   select 노출은 미사용(환각)이라 제거. groupCount>2 분기 구현 시 재도입.
   ],
 };
 

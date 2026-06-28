@@ -566,7 +566,7 @@ export function CreateWizard({
             <DivisionsEditor
               divisions={form.divisions}
               onChange={(v) => patch("divisions", v)}
-              defaultFee={form.entryFee || 60000}
+              defaultFee={form.entryFee || 0}
               toast={toast}
             />
             <div className="ops-note" style={{ marginTop: 4 }}>
