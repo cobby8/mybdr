@@ -84,7 +84,7 @@ export function TournamentList({ rows }: { rows: TaTournamentRow[] }) {
             >
               내보내기
             </Btn>
-            <Btn icon="plus" onClick={() => toast("대회 생성은 준비 중입니다")}>
+            <Btn icon="plus" onClick={() => router.push("/v2/ta/tournaments/new")}>
               새 대회 만들기
             </Btn>
           </>
