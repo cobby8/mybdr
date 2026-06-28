@@ -2626,6 +2626,7 @@ model partners {
   owner     User              @relation("partner_owner", fields: [owner_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   members   partner_members[]
   campaigns ad_campaigns[]
+  settlements PartnerSettlement[]
 
   @@index([owner_id], map: "idx_partners_owner_id")
   @@index([status], map: "idx_partners_status")
@@ -2826,6 +2827,7 @@ model Referee {
   certificates RefereeCertificate[]
   assignments  RefereeAssignment[]
   settlements  RefereeSettlement[]
+  evaluations  RefereeEvaluation[]
   documents    RefereeDocument[]
   // 배정 워크플로우: 심판이 제출한 신청 + 일자별 선정 풀 역참조
   applications AssignmentApplication[]
@@ -3598,4 +3600,56 @@ model AdminInboxState {
 
   @@unique([refType, refId]) // 도메인 + 원본 PK 조합당 상태 1개 (upsert 키)
   @@map("admin_inbox_state")
+}
+
+// 2026-06-28 R6-C: 심판 평가 리포트(RefereeEvaluation) — 경기 후 제출된 심판 평가.
+// 정본 referee-data.jsx RF_EVAL("평가 리포트") 박제. 1심판×1경기×1평가자.
+// tournament_match_id는 RefereeAssignment 선례대로 평문 BigInt + @@index(TournamentMatch 미수정).
+// 평가자도 단방향 BigInt(User 미수정 — Referee.registered_by_admin_id 선례).
+model RefereeEvaluation {
+  id                  BigInt   @id @default(autoincrement())
+  referee_id          BigInt
+  tournament_match_id BigInt // tournament_matches.id (관계 미선언·평문)
+  overall_score       Decimal  @db.Decimal(2, 1) // 평점 0.0~5.0
+  scores              Json? // 항목별 세부 점수 (확장 대비)
+  comment             String?
+  evaluator_user_id   BigInt? // 제출 User.id (개인 평가자만·단방향)
+  evaluator_label     String?  @db.VarChar // 표시용 평가자명(단체 포함)
+  status              String   @default("submitted") @db.VarChar // submitted/confirmed/review_needed
+  evaluated_at        DateTime @default(now()) @db.Timestamp(6)
+  created_at          DateTime @default(now()) @db.Timestamp(6)
+  updated_at          DateTime @updatedAt @db.Timestamp(6)
+
+  referee Referee @relation(fields: [referee_id], references: [id], onDelete: Cascade)
+
+  @@index([referee_id])
+  @@index([tournament_match_id])
+  @@index([status])
+  @@map("referee_evaluations")
+}
+
+// 2026-06-28 R6-C: 파트너 정산(PartnerSettlement) — 파트너사 월별 대관 수익 정산.
+// 정본 partner-data.jsx PT_SETTLE("정산") 박제. 파트너당 월 1행. 금액=원 단위 Int(기존 정산 선례).
+model PartnerSettlement {
+  id            BigInt    @id @default(autoincrement())
+  partner_id    BigInt
+  period_year   Int // 정산 연도
+  period_month  Int // 정산 월 1~12
+  booking_count Int       @default(0) // 대관 건수
+  gross_amount  Int       @default(0) // 대관 수익(원)
+  fee_amount    Int       @default(0) // 수수료(양수 저장)
+  net_amount    Int       @default(0) // 정산액 = gross - fee
+  status        String    @default("pending") @db.VarChar // pending/paid/cancelled
+  scheduled_at  DateTime? @db.Timestamp(6) // 입금 예정일
+  paid_at       DateTime? @db.Timestamp(6) // 입금 완료
+  memo          String?
+  created_at    DateTime  @default(now()) @db.Timestamp(6)
+  updated_at    DateTime  @updatedAt @db.Timestamp(6)
+
+  partner partners @relation(fields: [partner_id], references: [id], onDelete: Cascade)
+
+  @@unique([partner_id, period_year, period_month]) // 파트너당 월 1정산
+  @@index([partner_id])
+  @@index([status])
+  @@map("partner_settlements")
 }
