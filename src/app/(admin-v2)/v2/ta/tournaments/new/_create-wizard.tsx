@@ -19,7 +19,7 @@
 //   레거시 0 import. 전부 admin-v2 kit + adminFetch.
 // ============================================================
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
   Btn,
@@ -111,6 +111,9 @@ export type FormState = {
   allowWaiting: boolean;
   // 대기 정원(waiting_list_cap) — null/0 = 무제한. allowWaiting 일 때만 의미.
   waitingCap: number | null;
+  // 대표 이미지(기존 logo_url/banner_url 컬럼) — 미설정 시 "". 로고 1:1·포스터 16:9.
+  logoUrl: string;
+  bannerUrl: string;
 };
 
 const EMPTY_FORM: FormState = {
@@ -140,6 +143,8 @@ const EMPTY_FORM: FormState = {
   autoApprove: false,
   allowWaiting: true,
   waitingCap: null, // 무제한 기본
+  logoUrl: "", // 대표 로고 미설정
+  bannerUrl: "", // 대표 포스터 미설정
 };
 
 let uidSeq = 0;
@@ -397,6 +402,9 @@ export function CreateWizard({
             allowWaitingList: form.allowWaiting || undefined,
             // 대기 정원 — 0/빈값(null) = 무제한. validation positive() 회피 위해 falsy → null.
             waitingListCap: form.waitingCap || null,
+            // 대표 이미지(camel) — 빈값은 미전송(undefined). 서버: input.logoUrl ?? null.
+            logoUrl: form.logoUrl || undefined,
+            bannerUrl: form.bannerUrl || undefined,
           },
         }
       );
@@ -501,6 +509,17 @@ export function CreateWizard({
               <GroupTitle>대회 소개</GroupTitle>
               <Field label="대회 소개"><textarea className="ts-textarea" value={form.description} onChange={(e) => patch("description", e.target.value)} placeholder="대회 소개" /></Field>
             </div>
+            {/* 대표 이미지 관리 — 접이식(details). 로고 1:1 + 포스터 16:9.
+                기존 logo_url/banner_url 컬럼 재사용(백엔드 0변경). 미설정 시 빈값. */}
+            <details className="ct-details">
+              <summary>대표 이미지 관리</summary>
+              <div className="ct-imgslots" style={{ display: "grid", gridTemplateColumns: "1fr 2fr", gap: 14, marginTop: 12 }}>
+                {/* 로고 — 정사각(1:1). 카드/헤더 슬롯용 */}
+                <ImageSlot title="대회 로고" hint="정사각형 1:1" aspect="1 / 1" url={form.logoUrl} onChange={(u) => patch("logoUrl", u)} toast={toast} />
+                {/* 포스터 — 가로형(16:9). 대표 배너용 */}
+                <ImageSlot title="대표 포스터" hint="가로형 16:9" aspect="16 / 9" url={form.bannerUrl} onChange={(u) => patch("bannerUrl", u)} toast={toast} />
+              </div>
+            </details>
           </div>
         )}
 
@@ -877,6 +896,102 @@ export function VenueAdd({ onAdd }: { onAdd: (name: string) => void }) {
   );
 }
 // ReviewRow(검토 요약 행) 는 publish 단계 검토 섹션 삭제로 미사용 → 제거(2026-06-29).
+
+// ── 대표 이미지 슬롯(로고/포스터 공용 업로더) ── (R5-B 수정 마법사 재사용 위해 export)
+//   ★ step-emblem.tsx 패턴 1:1: 파일 선택 → FormData(file/bucket/path) → POST /api/web/upload(쿠키 인증)
+//     → 응답 { url } → onChange(url). 대회 이미지 버킷 = "tournament-images", path = "tournaments".
+//   url="" = 미설정. 업로드 중 스피너(loader-2 회전) + 트리거 비활성, 실패 시 toast.
+//   미리보기는 Supabase public URL 그대로 <img>(외부 도메인 → next/image 회피, step-emblem 동일).
+export function ImageSlot({
+  title,
+  hint,
+  aspect,
+  url,
+  onChange,
+  toast,
+}: {
+  title: string;
+  hint: string;
+  aspect: string; // CSS aspect-ratio 값(예 "1 / 1", "16 / 9") — 슬롯 비율
+  url: string;
+  onChange: (url: string) => void;
+  toast: (msg: string) => void;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  // 업로드 진행 상태 — Supabase 왕복 동안 스피너 표시 + 중복 클릭 차단
+  const [uploading, setUploading] = useState(false);
+
+  // 파일 선택 → 즉시 업로드(폼 제출 일괄 업로드 대비 부분 실패 단순화 — step-emblem 사유 동일)
+  async function handleFile(file: File | null) {
+    if (!file) return;
+    // 클라 1차 검증(서버 /api/web/upload 와 동일 기준 — 5MB·이미지 타입)
+    if (file.size > 5 * 1024 * 1024) {
+      toast("이미지 크기는 5MB 이하만 가능합니다.");
+      return;
+    }
+    if (!file.type.startsWith("image/")) {
+      toast("이미지 파일만 업로드할 수 있습니다.");
+      return;
+    }
+    setUploading(true);
+    try {
+      // FormData 3키 = step-emblem 과 동일. bucket/path 만 대회 이미지용으로 교체.
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("bucket", "tournament-images");
+      fd.append("path", "tournaments");
+      const res = await fetch("/api/web/upload", { method: "POST", body: fd });
+      // 응답(apiSuccess snake 변환): 성공 { url } / 실패 { error }
+      const json = (await res.json().catch(() => null)) as { url?: string; error?: string } | null;
+      if (!res.ok || !json?.url) {
+        toast(json?.error ?? "이미지 업로드에 실패했습니다.");
+        return;
+      }
+      onChange(json.url);
+    } catch {
+      toast("네트워크 오류로 업로드하지 못했습니다.");
+    } finally {
+      setUploading(false);
+      // 같은 파일 재선택도 onChange 트리거되게 input 값 리셋
+      if (inputRef.current) inputRef.current.value = "";
+    }
+  }
+
+  return (
+    <div className="ct-imgslot">
+      {/* 비율 고정 박스 — aspect 는 인라인(로고 1/1·포스터 16/9). 박스 클릭 = 파일 피커 */}
+      <div className="ct-imgslot__box" style={{ aspectRatio: aspect }}>
+        <button type="button" className="ct-imgslot__trigger" disabled={uploading} onClick={() => inputRef.current?.click()}>
+          {url ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img className="ct-imgslot__img" src={url} alt={title} />
+          ) : (
+            <span className="ct-imgslot__ph">
+              <Icon name="image-plus" size={24} />
+              <span className="ct-imgslot__ph-t">{title}</span>
+              <span className="ct-imgslot__ph-h">{hint}</span>
+            </span>
+          )}
+        </button>
+        {/* 업로드 로딩 오버레이 — 스피너 */}
+        {uploading && (
+          <span className="ct-imgslot__busy"><Icon name="loader-2" size={22} className="ct-spin" /></span>
+        )}
+        {/* 이미지 있을 때: 하단 "교체" 힌트(클릭 통과) + 우상단 제거(x) 버튼. 둘 다 트리거 button 밖. */}
+        {url && !uploading && (
+          <>
+            <span className="ct-imgslot__edit"><Icon name="image-up" size={13} />교체</span>
+            <button type="button" className="ct-imgslot__rm" aria-label={`${title} 제거`} onClick={() => onChange("")}>
+              <Icon name="x" size={14} />
+            </button>
+          </>
+        )}
+      </div>
+      {/* hidden file input — accept = 서버 허용 MIME 동기화 */}
+      <input ref={inputRef} type="file" accept="image/png,image/jpeg,image/webp,image/gif" onChange={(e) => handleFile(e.target.files?.[0] ?? null)} style={{ display: "none" }} />
+    </div>
+  );
+}
 
 // ── 월 캘린더(복수 날짜 토글 — 정본 CalendarModal 대체) ── (R5-B 재사용 export)
 //   ★ form.dates 가 source-of-truth. 셀 클릭 → onToggle("YYYY-MM-DD") →

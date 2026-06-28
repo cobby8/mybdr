@@ -147,6 +147,8 @@ export type CopySource = {
   waiting_list_cap: number | null;
   game_ball: string | null;
   format: string | null;
+  logo_url: string | null;
+  banner_url: string | null;
   // entry_fee = Prisma Decimal | number | null → Number() 로 정규화(아래 buildCopyForm).
   entry_fee: unknown;
   game_rules: unknown;
@@ -188,5 +190,7 @@ export function buildCopyForm(t: CopySource, ruleRows: DivisionRulePrefill[]): F
     autoApprove: t.auto_approve_teams ?? false,
     allowWaiting: t.allow_waiting_list ?? true,
     waitingCap: t.waiting_list_cap ?? null, // 대기 정원 복사(없으면 무제한)
+    logoUrl: t.logo_url ?? "", // 대표 로고 복사(없으면 미설정)
+    bannerUrl: t.banner_url ?? "", // 대표 포스터 복사(없으면 미설정)
   };
 }

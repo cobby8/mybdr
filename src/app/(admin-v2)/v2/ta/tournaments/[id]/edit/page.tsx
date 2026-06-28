@@ -100,6 +100,8 @@ export default async function EditTournamentPage({
         allow_waiting_list: true,
         waiting_list_cap: true,
         game_ball: true,
+        logo_url: true,
+        banner_url: true,
         game_rules: true,
         categories: true,
         div_caps: true,
@@ -205,6 +207,8 @@ export default async function EditTournamentPage({
     autoApprove: t.auto_approve_teams ?? false,
     allowWaiting: t.allow_waiting_list ?? true,
     waitingCap: t.waiting_list_cap ?? null, // 대기 정원 prefill(없으면 무제한)
+    logoUrl: t.logo_url ?? "", // 대표 로고 prefill(없으면 미설정)
+    bannerUrl: t.banner_url ?? "", // 대표 포스터 prefill(없으면 미설정)
   };
 
   return (

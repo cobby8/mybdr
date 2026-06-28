@@ -42,6 +42,7 @@ import {
   SegSm,
   VenueAdd,
   MonthCalendar,
+  ImageSlot,
   FORMAT_LABEL,
   fmtDate,
   won,
@@ -154,6 +155,9 @@ function buildPatchBody(
     //   항상 전송(빈 객체 포함) — 진행방식을 비운 디비전을 폴백으로 되돌리려면 키가 와야 하므로.
     div_formats: divFormats,
     div_settings: divSettings,
+    // 대표 이미지(snake 키) — 빈값(제거 포함)은 null 로 전송 → 서버: data.x || null.
+    logo_url: form.logoUrl || null,
+    banner_url: form.bannerUrl || null,
   };
   // 일정이 있을 때만 startDate/endDate 갱신(없으면 기존값 보존 — 미전송)
   if (startDate) body.startDate = startDate;
@@ -408,6 +412,14 @@ export function EditWizard({
               <GroupTitle>대회 소개</GroupTitle>
               <Field label="대회 소개"><textarea className="ts-textarea" value={form.description} onChange={(e) => patch("description", e.target.value)} placeholder="대회 소개" /></Field>
             </div>
+            {/* 대표 이미지 관리 — 생성 마법사와 동일(로고 1:1 + 포스터 16:9·logo_url/banner_url 컬럼) */}
+            <details className="ct-details">
+              <summary>대표 이미지 관리</summary>
+              <div className="ct-imgslots" style={{ display: "grid", gridTemplateColumns: "1fr 2fr", gap: 14, marginTop: 12 }}>
+                <ImageSlot title="대회 로고" hint="정사각형 1:1" aspect="1 / 1" url={form.logoUrl} onChange={(u) => patch("logoUrl", u)} toast={toast} />
+                <ImageSlot title="대표 포스터" hint="가로형 16:9" aspect="16 / 9" url={form.bannerUrl} onChange={(u) => patch("bannerUrl", u)} toast={toast} />
+              </div>
+            </details>
           </div>
         )}
 

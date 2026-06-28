@@ -43,6 +43,8 @@ const COPY_SELECT = {
   waiting_list_cap: true,
   game_ball: true,
   format: true,
+  logo_url: true,
+  banner_url: true,
   game_rules: true,
   categories: true,
   div_caps: true,
