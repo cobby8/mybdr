@@ -57,6 +57,79 @@ const FMT_FIELDS: Record<string, FmtField[]> = {
   ],
 };
 
+// ── 진행방식별 settings 입력 필드(공용) ──────────────────────────────────────
+//   ★ 왜 컴포넌트로 추출했나: 모달(DivisionGenerator)과 본문 카드(DivisionCard) 가
+//     동일한 FMT_FIELDS 필드를 입력해야 한다. 같은 렌더/스타일을 공유해 중복을 없앤다.
+//   settings = 현재 값 맵(읽기 전용) / onChange(키, 값) = 병합 책임은 부모에게.
+//     num 빈 값은 undefined 로 올려보내 서버 기본값/폴백이 적용되게 한다(카드와 동일).
+function FmtSettingsFields({
+  fields,
+  settings,
+  onChange,
+}: {
+  fields: FmtField[];
+  settings: Record<string, unknown>;
+  onChange: (key: string, value: string | number | undefined) => void;
+}) {
+  return (
+    <>
+      {fields.map((field) => {
+        const [k, lab, type] = field;
+        if (type === "select") {
+          const opt = field[3]; // 옵션 배열 [[값,라벨],...]
+          const def = opt[0][0];
+          const cur = settings[k] ?? def;
+          return (
+            <label key={k} className="ts-field" style={{ margin: 0 }}>
+              <span className="ts-field__label">{lab}</span>
+              <select
+                className="ts-select"
+                value={String(cur)}
+                onChange={(e) => onChange(k, typeof def === "number" ? +e.target.value : e.target.value)}
+              >
+                {opt.map(([ov, ol]) => (
+                  <option key={String(ov)} value={String(ov)}>{ol}</option>
+                ))}
+              </select>
+            </label>
+          );
+        }
+        // num — placeholder = 기본값 힌트. 빈 값은 undefined 저장(서버 폴백/기본값 적용).
+        const ph = field[3];
+        return (
+          <label key={k} className="ts-field" style={{ margin: 0 }}>
+            <span className="ts-field__label">{lab}</span>
+            <input
+              className="ts-input"
+              type="number"
+              value={typeof settings[k] === "number" ? (settings[k] as number) : ""}
+              placeholder={ph}
+              onChange={(e) => onChange(k, e.target.value === "" ? undefined : +e.target.value)}
+            />
+          </label>
+        );
+      })}
+    </>
+  );
+}
+
+// 진행방식 → 기본 settings 맵. FMT_FIELDS 의 기본값 힌트(num placeholder / select 첫 옵션)를 채운다.
+//   ★ 모달에서 진행방식을 바꾸면 이 기본값으로 settings 를 초기화 → "추가" 시 빈 객체 대신
+//     실제 기본 세부설정이 디비전에 박힌다(이후 카드에서 개별 변경 가능).
+const defaultSettings = (fmt: string): Record<string, string | number> => {
+  const out: Record<string, string | number> = {};
+  for (const field of FMT_FIELDS[fmt] ?? []) {
+    const [k, , type] = field;
+    if (type === "select") {
+      out[k] = field[3][0][0]; // 첫 옵션 값(string|number)
+    } else {
+      const n = Number(field[3]); // placeholder 기본값 힌트 → 숫자
+      if (Number.isFinite(n)) out[k] = n;
+    }
+  }
+  return out;
+};
+
 // 내부 고유 id (레거시 uid 와 무관 — 순환 import 회피 위해 자체 생성기).
 const genUid = (p: string) => `${p}${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`;
 
@@ -137,6 +210,14 @@ function DivisionGenerator({
   const [ages, setAges] = useState<string[]>([]);
   // 진행방식 — 생성될 디비전에 일괄 적용(이후 카드에서 개별 변경). 정본 CategoryAddModal 1:1.
   const [fmt, setFmt] = useState("single_elimination");
+  // 세부설정(진행방식별)·참가비 — 생성될 디비전에 일괄 적용. fmt 변경 시 settings 재초기화.
+  const [settings, setSettings] = useState<Record<string, string | number | undefined>>(() => defaultSettings("single_elimination"));
+  const [fee, setFee] = useState(defaultFee);
+  // 진행방식 선택 핸들러 — fmt 교체 시 settings 를 새 진행방식 기본값으로 초기화(이전 키 잔존 방지).
+  const pickFmt = (f: string) => {
+    setFmt(f);
+    setSettings(defaultSettings(f));
+  };
   useEffect(() => {
     if (open) {
       setGender("남성");
@@ -144,8 +225,10 @@ function DivisionGenerator({
       setDivs([]);
       setAges([]);
       setFmt("single_elimination");
+      setSettings(defaultSettings("single_elimination"));
+      setFee(defaultFee);
     }
-  }, [open]);
+  }, [open, defaultFee]);
 
   const tpl = master.find((c) => c.id === tplId);
   const hasAges = !!(tpl && tpl.ages.length > 0);
@@ -172,11 +255,11 @@ function DivisionGenerator({
       id: genUid("d"),
       label: name,
       cap: 16, // 정본 DEFAULT_CAP
-      fee: defaultFee,
+      fee, // 모달에서 입력한 참가비 일괄 적용(기본 defaultFee)
       category,
-      // 선택한 진행방식을 일괄 적용(settings 는 빈 객체 — 카드 FMT 필드 기본값 placeholder 적용).
+      // 선택한 진행방식 + 세부설정을 일괄 적용(모달 입력값 반영 — 이후 카드에서 개별 변경 가능).
       format: fmt,
-      settings: {},
+      settings: { ...settings },
     });
     const rows: DivisionRow[] = [];
     if (hasAges && ages.length) {
@@ -330,11 +413,41 @@ function DivisionGenerator({
           </div>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
             {ALLOWED_FORMATS.map((f) => (
-              <button key={f} type="button" className="ts-chip" data-active={fmt === f ? "true" : "false"} onClick={() => setFmt(f)}>
+              <button key={f} type="button" className="ts-chip" data-active={fmt === f ? "true" : "false"} onClick={() => pickFmt(f)}>
                 {fmt === f && <Icon name="check" size={13} />}
                 {FORMAT_LABEL[f]}
               </button>
             ))}
+          </div>
+        </div>
+
+        {/* 세부 설정 + 참가비 — 선택한 진행방식의 FMT_FIELDS + 참가비를 모달에서 미리 입력.
+            생성될 디비전 전부에 일괄 적용(이후 카드에서 개별 변경). 빈 객체/기본값이 아니라 입력값이 박힌다. */}
+        <div style={{ opacity: tpl ? 1 : 0.4, pointerEvents: tpl ? "auto" : "none" }}>
+          <div className="ts-field__label">
+            {hasAges ? "6" : "5"}단계 · 세부 설정{" "}
+            <span style={{ color: "var(--ink-mute)", fontWeight: 600 }}>선택한 디비전에 일괄 적용 · 이후 카드에서 개별 변경</span>
+          </div>
+          <div
+            className="ct-div-edit3"
+            style={{
+              display: "grid",
+              // 진행방식 settings 필드 수 + 참가비(1) 기준으로 2/3열 분기(카드 ct-div-edit3 과 동일 룰).
+              gridTemplateColumns: (FMT_FIELDS[fmt]?.length ?? 0) + 1 >= 3 ? "1fr 1fr 1fr" : "1fr 1fr",
+              gap: 8,
+            }}
+          >
+            {/* 진행방식별 settings 필드(해당 진행방식에 필드가 있을 때만 노출) */}
+            <FmtSettingsFields
+              fields={FMT_FIELDS[fmt] ?? []}
+              settings={settings}
+              onChange={(k, v) => setSettings((s) => ({ ...s, [k]: v }))}
+            />
+            {/* 참가비 — 항상 노출(기본 defaultFee). 정원(cap)은 기본 16 유지 → 카드에서 조정 */}
+            <label className="ts-field" style={{ margin: 0 }}>
+              <span className="ts-field__label">참가비</span>
+              <input className="ts-input" type="number" min={0} step={1000} value={fee} onChange={(e) => setFee(+e.target.value)} />
+            </label>
           </div>
         </div>
 
@@ -431,44 +544,6 @@ export function DivisionsEditor({
   };
   const addGenerated = (rows: DivisionRow[]) => onChange([...divisions, ...rows]);
 
-  // 진행방식별 settings 입력 1칸 렌더(정본 FMT_FIELDS 매핑 1:1).
-  const renderSettingsField = (d: DivisionRow, field: FmtField) => {
-    const [k, lab, type] = field;
-    if (type === "select") {
-      const opt = field[3]; // 옵션 배열 [[값,라벨],...]
-      const def = opt[0][0];
-      const cur = d.settings?.[k] ?? def;
-      return (
-        <label key={k} className="ts-field" style={{ margin: 0 }}>
-          <span className="ts-field__label">{lab}</span>
-          <select
-            className="ts-select"
-            value={String(cur)}
-            onChange={(e) => patchSettings(d.id, { [k]: typeof def === "number" ? +e.target.value : e.target.value })}
-          >
-            {opt.map(([ov, ol]) => (
-              <option key={String(ov)} value={String(ov)}>{ol}</option>
-            ))}
-          </select>
-        </label>
-      );
-    }
-    // num — placeholder = 기본값 힌트. 빈 값은 undefined 저장(서버 폴백/기본값 적용).
-    const ph = field[3];
-    return (
-      <label key={k} className="ts-field" style={{ margin: 0 }}>
-        <span className="ts-field__label">{lab}</span>
-        <input
-          className="ts-input"
-          type="number"
-          value={typeof d.settings?.[k] === "number" ? (d.settings[k] as number) : ""}
-          placeholder={ph}
-          onChange={(e) => patchSettings(d.id, { [k]: e.target.value === "" ? undefined : +e.target.value })}
-        />
-      </label>
-    );
-  };
-
   // 단일 디비전 카드 렌더(공용) — 읽기/편집 토글 + 종별별 진행방식. 정본 DivisionsPanel 카드 1:1.
   const DivisionCard = (d: DivisionRow, index: number) => {
     const editing = editCode === d.id;
@@ -552,7 +627,8 @@ export function DivisionsEditor({
             className="ct-div-edit3"
             style={{ display: "grid", gridTemplateColumns: fmtFields.length >= 3 ? "1fr 1fr 1fr" : "1fr 1fr", gap: 8, marginTop: 10 }}
           >
-            {fmtFields.map((field) => renderSettingsField(d, field))}
+            {/* 공용 컴포넌트 재사용 — 모달 세부설정과 동일 렌더/스타일 */}
+            <FmtSettingsFields fields={fmtFields} settings={d.settings ?? {}} onChange={(k, v) => patchSettings(d.id, { [k]: v })} />
           </div>
         )}
       </article>
