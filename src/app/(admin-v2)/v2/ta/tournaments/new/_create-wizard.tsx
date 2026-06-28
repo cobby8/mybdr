@@ -673,27 +673,28 @@ export function CreateWizard({
                 {tieredCount > 0 && <div className="ts-field__hint" style={{ color: "var(--primary)", fontWeight: 700 }}>종별 차등 참가비 {tieredCount}개 설정됨</div>}
               </Field>
               <Field label="참가 접수 안내" span2><textarea className="ts-textarea" style={{ minHeight: 64 }} value={form.feeNotes} onChange={(e) => patch("feeNotes", e.target.value)} placeholder="입금자명·환불 안내 등" /></Field>
-              <label className="ct-checkrow ct-span2"><Check on={form.autoApprove} onChange={(v) => patch("autoApprove", v)} /><span>참가팀 자동 승인</span></label>
+              {/* 승인 방식 — 즉시 승인 / 결제 확인 후 승인. form.autoApprove(boolean) 로컬 매핑(instant/after_payment).
+                  제출 payload(autoApproveTeams) 는 boolean 그대로 — 표현만 드롭다운으로 교체(백엔드 0변경). */}
+              <Field label="승인 방식" span2>
+                <select
+                  className="ts-select"
+                  value={form.autoApprove ? "instant" : "after_payment"}
+                  onChange={(e) => patch("autoApprove", e.target.value === "instant")}
+                >
+                  <option value="instant">신청 즉시 승인</option>
+                  <option value="after_payment">결제 확인 후 승인</option>
+                </select>
+                <div className="ts-field__hint">결제 확인 후 승인 = 입금 확인 시 자동으로 승인됩니다.</div>
+              </Field>
               <label className="ct-checkrow ct-span2"><Check on={form.allowWaiting} onChange={(v) => patch("allowWaiting", v)} /><span>대기 접수 허용</span></label>
             </div>
-            {/* 검토 요약 */}
-            <div>
-              <GroupTitle>검토</GroupTitle>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-                <ReviewRow label="대회 이름" value={review.name} />
-                <ReviewRow label="대회 방식" value={review.format} />
-                <ReviewRow label="장소" value={`${review.venues}곳`} />
-                <ReviewRow label="일정" value={review.dates ? `${review.dates}일 (${review.startDate ?? ""}${review.endDate && review.endDate !== review.startDate ? ` ~ ${review.endDate}` : ""})` : "미설정"} />
-                <ReviewRow label="종별" value={`${review.divisions}개`} />
-                <ReviewRow label="기본 참가비" value={won(form.entryFee)} />
+            {/* 종별 미추가 가드(생성 차단) — 검토 요약은 제거하되 "종별 1개+ 필수" 경고만 유지 */}
+            {review.divisions === 0 && (
+              <div className="ops-warn">
+                <Icon name="alert-triangle" size={16} color="var(--warn)" style={{ flex: "0 0 auto", marginTop: 1 }} />
+                <span><b>종별</b>을 1개 이상 추가해야 대회를 생성할 수 있습니다.</span>
               </div>
-              {review.divisions === 0 && (
-                <div className="ops-warn" style={{ marginTop: 10 }}>
-                  <Icon name="alert-triangle" size={16} color="var(--warn)" style={{ flex: "0 0 auto", marginTop: 1 }} />
-                  <span><b>종별</b>을 1개 이상 추가해야 대회를 생성할 수 있습니다.</span>
-                </div>
-              )}
-            </div>
+            )}
           </div>
         )}
       </section>
@@ -827,6 +828,7 @@ export function VenueAdd({ onAdd }: { onAdd: (name: string) => void }) {
     </div>
   );
 }
+// ReviewRow(검토 요약 행) 는 publish 단계 검토 섹션 삭제로 미사용 → 제거(2026-06-29).
 
 // ── 월 캘린더(복수 날짜 토글 — 정본 CalendarModal 대체) ── (R5-B 재사용 export)
 //   ★ form.dates 가 source-of-truth. 셀 클릭 → onToggle("YYYY-MM-DD") →
@@ -887,15 +889,6 @@ export function MonthCalendar({ selected, onToggle }: { selected: string[]; onTo
           )
         )}
       </div>
-    </div>
-  );
-}
-
-export function ReviewRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="ct-metric" style={{ background: "var(--grey-50)", borderRadius: 12, padding: "10px 12px" }}>
-      <div style={{ fontSize: 11.5, fontWeight: 700, color: "var(--ink-mute)" }}>{label}</div>
-      <div style={{ fontSize: 14, fontWeight: 800, color: "var(--ink)", marginTop: 2, wordBreak: "break-all" }}>{value}</div>
     </div>
   );
 }
