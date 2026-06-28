@@ -211,7 +211,7 @@ function DivisionGenerator({
       // 2단 레이아웃(좌 입력 / 우 장바구니)이라 폭 확대. 모바일은 CSS 가 세로 스택.
       maxWidth={880}
       title="종별 템플릿으로 추가"
-      sub="성별·종별 템플릿을 고르고 디비전을 선택해 ‘추가’하면 우측 장바구니에 쌓입니다. 여러 종별을 연속으로 추가할 수 있습니다."
+      sub="성별·종별 템플릿을 고르고 디비전을 선택해 ‘추가’하면 우측 목록에 모입니다. 여러 종별을 연속으로 추가할 수 있습니다."
       foot={
         <>
           <Btn variant="secondary" onClick={onClose} style={{ flex: 1 }}>
@@ -355,8 +355,8 @@ function DivisionGenerator({
       {/* 우측 — 장바구니 패널(form.divisions 실시간 렌더) */}
       <aside className="cat-cart">
         <div className="cat-cart__head">
-          <Icon name="shopping-cart" size={15} color="var(--ink-mute)" />
-          <span>장바구니</span>
+          <Icon name="layout-grid" size={15} color="var(--ink-mute)" />
+          <span>추가한 종별</span>
           <span className="cat-cart__count">{divisions.length}</span>
         </div>
         {divisions.length === 0 ? (
