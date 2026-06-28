@@ -7,7 +7,9 @@
 - **기준 패키지**: `Dev/design/BDR v2.41-admin-toss/`(정본·screenshots 17) + `_PR0-CONTRACT-CONFIRMED.md`.
 - **아키텍처 확정(2026-06-27)**: 그린필드 `src/app/(admin-v2)/` + `/v2/*` prefix 병행→영역별 **디렉토리 스왑** 교체(레거시 `_legacy-archive/`·북마크 보존). 데이터계층 `src/lib/admin-api/`(adminFetch: camel↔snake 1곳+핵심 Zod). canonical 디자인셋=admin-toss kit/console-kit/toss-admin.css/셸 재사용+admin-blocks 신규. **로드맵: M1 데이터계층→M2 토대셋(셸골격)→M3 파일럿=대회관리자 셸(5화면) end-to-end→이후 백오피스18/대회운영7/마법사/심판**. Zod=핵심필드만. ⚠️인증보호 위치(middleware 미발견) M1 점검.
 - **🔄 2차 피벗(2026-06-28): 클린 슬레이트 재시작**. 1차 그린필드(M1~M3)는 **레거시 5133줄 `toss-admin.css`+레거시 셸 재사용**으로 시안 깔끔함 미달(수빈 육안 불합격). 사용자 결정: 관리자 전부 처음부터·**시안 HTML 충실 1:1 포팅**·데이터계층도 새로·**DB 보전 절대**(프론트만, Prisma/DB/API 0변경). 첫 영역=백오피스(최대).
-- **현재: R2-A 백오피스(BO-0 셸/IA+BO-1 유저콘솔) 진행 중(developer)**. R0✅(실패 그린필드 M1~M3 제거)·R1✅(토대: `styles/admin-v2/` 정본CSS verbatim `[data-admin=v2]`스코프·`components/admin-v2/` kit/shell/blocks 정본1:1·`lib/admin-v2/data/` adminFetch 새로·쇼케이스 `/v2`→**수빈 합격**). 레거시 0의존.
+- **현재: R4-A 대회운영 워크스페이스(셸+요약+참가팀) 진행 중(developer)**. 완료: R0✅·R1✅토대(`styles/admin-v2/` 정본CSS verbatim·`components/admin-v2/` kit/shell/blocks 1:1·`lib/admin-v2/data/`·쇼케이스 수빈합격)·**R2 백오피스 BO-0/1/3/4/5✅**(셸/유저콘솔/마케팅·결제·요금제/커뮤니티4탭/코트2탭·BO-2 매칭 보류)·**R3 대회관리자 5화면✅**(/v2/ta 별도콘솔셸·organizer-scoped·jsonb verbatim). 레거시 0의존·전부 서버Prisma직접 READ·tsc0·백오피스 회귀0.
+- **★라우트 구조(R3)**: `(admin-v2)/v2/layout.tsx`=인증-only → 백오피스 `(backoffice)/`그룹(URL `/v2/*` 보존)·대회관리자 `/v2/ta`(자체 셸). 시각보정 완료(H1 타이포누수차단+빈상태/차트/text-rendering — 코워크QA: 토큰/CSS/컴포넌트 정본1:1, 깔끔함이슈=빈상태였음). dev캐시 함정=errors.md 2026-06-28(라우트재구성후 .next삭제·재시작).
+- **로드맵 잔여**: R4 대회운영(R4-A 진행→대진표/일정/운영관리/사이트/정산 패널+모달5종)→R5 마법사/심판→영역별 컷오버. PaymentDetail/PlanEditor·news/anonymous·매칭(BO-2)·2FA = 후속 결정.
 - **클린슬레이트 로드맵**: R1✅토대→**R2 백오피스**(BO-0/1먼저→5리스트→3커뮤니티/4코트는 결정후→2매칭 보류)→R3 대회관리자→R4 대회운영→R5 마법사/심판→영역별 컷오버(디렉토리 스왑·데이터/북마크 보존). 1차 M4 DB정합조사 유효(아래 갭6건).
 - **정본 v46/v48 교체 완료(2026-06-28)**: repo `Dev/design/BDR v2.41-admin-toss/`=v46/v48(v48폴더+v46스크린샷17+START-HERE+IMPL+repo _PR0계약). 직전본 v45→`_archive/...-pre48/`. v46=3영역 대규모 갱신(백오피스 5콘솔재편·operate 3배·공개사이트). 대회관리자=시리즈→정규대회 용어확정.
 - **★확정 로드맵(2026-06-28 범위 재산정)**: M2.5 셸갱신(home/isHome/footAction·BackRow·외부링크·toss-admin.css 3클래스)→M3 대회관리자 셸(시안확정·갭0)→M4 백오피스(BO-0셸/1유저/5마케팅 먼저→2매칭/3커뮤니티/4코트는 DB확인 후)→M5 대회운영(모달5종 배선·4정합/Notice확인)→PR-5 공개사이트(BDR 별도트랙). 백엔드 유지=대부분 배선작업.
@@ -204,9 +206,101 @@
 💡 tester: tsc EXIT0·age-mapping 13/13. 자동채움(유청소년 U{N}/+{N} 디비전)→4입력 채워짐·저장 후 새로고침 유지 / 일반부·대학부=버튼 비활성·수동입력 저장 가능 / 빈 입력=null 저장.
 ⚠️ reviewer: 부분 업데이트(undefined 미반영)·null=제한 해제 의미. 기존 GroupSettings/진출매핑 0접촉.
 
+### R2 시각 보정 — 코워크 QA 후속 4건 (admin-v2 4파일·미커밋)
+📝 코워크 픽셀 QA 결론(토큰/CSS 정합·"깔끔함 부족"=빈상태 처리 미흡) 따라 admin-v2만 4건 보정. 백엔드/DB/레거시 0접촉.
+
+| 파일 | 변경 | 신규/수정 |
+|------|------|----------|
+| `components/admin-v2/blocks.tsx` | ①AdListPanel `items.length===0`→정본 `Empty`(.ts-empty) "처리할 항목이 없습니다" 분기(빈 흰패널 제거) ②AdBarPanel 막대 height `Math.max((c.v/max)*130, 2)` 0값 2px baseline + `max=Math.max(...,1)` NaN차단 | 수정 |
+| `app/(admin-v2)/v2/page.tsx` | 콘솔섹션 인라인라벨 → `.ad-section-label` 클래스 + 래퍼 marginTop 22→28 | 수정 |
+| `styles/admin-v2/admin-pages.css` | `.ad-section-label` 신설(정본 동일값 13/800/ink-mute/.02em) | 수정 |
+| `styles/admin-v2/toss.css` | L76 베이스 `[data-admin=v2]`에 `text-rendering: auto` 추가(globals.css optimizeLegibility 상속 차단) | 수정 |
+
+💡 tester: tsc EXIT0. /v2 새로고침 → ①처리대기 0건 시 "처리할 항목이 없습니다" 빈상태(빈 패널 X) ②월별 신규가입 0값 달도 막대 2px 보임 ③"운영 콘솔 바로가기" 섹션 간격 통일(28px). 정본 계수 130 보존·실데이터 막대 영향0.
+⚠️ reviewer: 신규 클래스 `.ad-section-label` 1개. Empty=kit.tsx 기존 컴포넌트 재사용(신규0). 하드코딩 hex 0. 레거시 0접촉(git diff=admin-v2 4파일).
+
+### 구현 기록 (developer) — R2-B 백오피스 BO-5 (마케팅/결제/요금제 리스트·신규3+셸1·미커밋)
+📝 정본 bo-pages 의 3 리스트(마케팅 콘솔·결제·요금제)를 R2-A 패턴(서버컴포넌트 Prisma 직접 READ → SchemaList)으로 박제. 백엔드/DB/Prisma 0변경. 상세(PaymentDetail/PlanEditor)는 시안 미완 → 미배선(리스트만).
+
+| 파일 | 변경 | 신규/수정 |
+|------|------|----------|
+| `(admin-v2)/v2/marketing-console/page.tsx` | `ad_campaigns`+partner.name+`_count.placements`. 정본 campaigns 컬럼(캠페인/기간/클릭률/상태). 단일탭(캠페인) 정적 bo-constabs. status/period/ctr 매핑 | 신규 |
+| `(admin-v2)/v2/payments/page.tsx` | `payments`+users(nickname/name) take50 `.catch(()=>[])`. 정본 컬럼(내역/수단/금액/일시/상태). 0건→SchemaList Empty 빈상태. method 한글맵·KST datetime·₩금액 | 신규 |
+| `(admin-v2)/v2/plans/page.tsx` | `plans`+`_count.user_subscriptions`. 정본 컬럼(요금제/월요금/가입자/상태). 0원→무료·is_active→운영중/비공개(status dot) | 신규 |
+| `(admin-v2)/v2/_shell.tsx` | TARGET 3건 soon→실라우트(marketing-console/payments/plans)·active 계산 3분기 추가 | 수정 |
+
+🔑 데이터 소스(레거시 동일): 마케팅=`ad_campaigns`(레거시 /admin/campaigns 와 동일 모델·partner 조인) / 결제=`payments`+users(레거시 payments page.tsx 와 동일 서버 Prisma·0건 가능) / 요금제=`plans`(레거시 /admin/plans). snake→표시값 변환은 각 서버 컴포넌트 단일 매핑(snake 함정 차단). raw fetch 0(전부 Prisma 직접).
+💡 tester: /v2/marketing-console·/payments·/plans 인증→리스트 렌더. 결제 0건이면 "데이터가 없습니다" Empty. 요금제 4건 가입자수 실집계. 행 클릭=기본 읽기 드로어(커스텀 상세 미배선). _shell nav 3항목 soon→실화면.
+⚠️ reviewer: 상세 미배선=onRow/rowHref 없음→SchemaList 기본 openDetail(읽기 드로어)·PaymentDetail/PlanEditor 커스텀 0. plans subs=user_subscriptions 전체 count(active 필터 없음·실데이터). 하드코딩hex0·레거시/백엔드/DB 0접촉. tsc EXIT0.
+
+### 구현 기록 (developer) — R2-C 백오피스 BO-3 커뮤니티 + BO-4 코트 콘솔 (신규4+types+_shell·미커밋)
+📝 정본 bo-pages communityConsole/courtConsole 을 R2-A/B 패턴(서버컴포넌트 Prisma 직접 READ → SchemaList)으로 박제. 백엔드/DB/Prisma 0변경.
+
+| 파일 | 변경 | 신규/수정 |
+|------|------|----------|
+| `(admin-v2)/v2/community-console/page.tsx` | `community_posts`(general/recruit/review·3쿼리)+`suggestions`(.catch([])) 병렬. snake→표시 단일매핑(status/engage/category). 정본 _board·suggestions 컬럼 | 신규 |
+| `(admin-v2)/v2/community-console/_console.tsx` | 4탭(자유/모집/후기/제안) bo-constabs + 탭별 SchemaList. 게시판=name/engage/status, 제안=name/category/status | 신규 |
+| `(admin-v2)/v2/court-console/page.tsx` | `court_infos` where court_type indoor/outdoor 병렬+`_count.court_bookings`. status/region/주소 매핑·AV 색주입 | 신규 |
+| `(admin-v2)/v2/court-console/_console.tsx` | 2탭(실내/야외) bo-constabs + SchemaList. 정본 _court 컬럼(코트/지역/월예약/상태) | 신규 |
+| `lib/admin-v2/data/types.ts` | AdminBoPostRow/AdminBoSuggestionRow/AdminBoCourtRow 표시 행 타입 3종 추가 | 수정 |
+| `(admin-v2)/v2/_shell.tsx` | TARGET communityConsole/courtConsole soon→실라우트·active 2분기 추가 | 수정 |
+
+🔑 **매핑(확정·실값 기반)**: 커뮤니티 자유=`category:"general"`(438)/모집=`recruit`(211)/후기=`review`(396), 건의=`suggestions` 모델. 코트 실내=`court_type:"indoor"`(217)/야외=`outdoor`(429). snake→표시 변환은 각 서버 컴포넌트 단일매핑(snake 함정 차단)·raw fetch 0.
+🔑 **시안 회피(룰 준수)**: partner 코트 탭 제외(DB 미지원=court_type partner 0건·partners 0건)·커뮤니티 news(135)/anonymous(141) UI 미추가(정본 4탭만).
+⚠️ **데이터 갭(보고)**: ①건의 정본 votes(추천) 컬럼 = suggestions 모델에 추천/투표 데이터 없음 → **컬럼 제외**(빈컬럼 회피·정본 나머지 name/category/status 유지) ②코트 정본 "월 예약" = DB 월분할 데이터 없어 court_bookings **전체 예약수**로 대체(대부분 0=예약기능 신규) ③suggestions.category = 원값 passthrough(라벨 매핑 미정).
+💡 tester: /v2 커뮤니티/코트 인증→탭 전환 시 리스트. 데이터 0건→SchemaList "데이터가 없습니다" Empty. 행 클릭=기본 읽기 드로어(커스텀 상세 미배선). _shell nav 2항목 soon→실화면.
+⚠️ reviewer: 상세 미배선=onRow/rowHref 없음→기본 openDetail. 하드코딩hex=AV 색(데이터 주입·룰10 허용). 레거시/백엔드/DB 0접촉. tsc EXIT0.
+
+### 구현 기록 (developer) — R3 대회관리자 콘솔 (별도 콘솔·5화면·라우트그룹 분리·미커밋)
+📝 정본 ta-pages 1:1. **별도 콘솔 셸**(자체 NAV·brandSub="대회 콘솔")을 백오피스와 분리. 백엔드/DB/Prisma 0변경. organizer-scoped 서버 Prisma 직접 READ. 레거시 0 import.
+
+**★아키텍처 — 라우트그룹 분리(백오피스 무영향 최우선)**: `/v2/layout.tsx`가 모든 자식을 V2Shell로 감싸므로, /v2/ta가 별도 셸을 가지려면 부모는 셸을 마운트하면 안 됨 → 부모를 **인증-only**로 리팩터하고 셸 마운트를 자식 그룹 레이아웃으로 이전.
+| 파일 | 변경 | 신규/수정 |
+|------|------|----------|
+| `(admin-v2)/v2/layout.tsx` | 인증게이트+CSS만 유지·V2Shell 마운트 제거→`<>{children}</>` | 수정 |
+| `(admin-v2)/v2/(backoffice)/layout.tsx` | 백오피스 V2Shell 마운트 이전(인증은 부모) | 신규 |
+| `(admin-v2)/v2/_admin-user.ts` | 셸 표시용 user 빌더(양 콘솔 공용) | 신규 |
+| 백오피스 페이지 14파일 | `(backoffice)/`로 **이동만**(git rename·내용0·route group=URL 불변) | 이동 |
+| `(admin-v2)/v2/_shell.tsx` | "대회 콘솔" href `/tournament-admin`→`/v2/ta`(1줄) | 수정 |
+| `(admin-v2)/v2/(backoffice)/page.tsx` | LAUNCH "대회 콘솔" href→`/v2/ta`(1줄) | 수정 |
+| `ta/layout.tsx`·`_ta-shell.tsx`·`_logout-button.tsx` | 대회콘솔 TaShell(운영/구성 NAV·brandSub="대회 콘솔") | 신규 |
+| `ta/_helpers.ts` | tournamentStatus/fmtDate(KST)/AV색 | 신규 |
+| `ta/page.tsx`+`_dashboard.tsx` | 대시보드: KPI(운영중/이번달참가팀/접수대기/등록단체)+월별개최막대+최근활동(실집계·mock0) | 신규 |
+| `ta/tournaments/page.tsx`+`_list.tsx` | 대회목록: 검색+상태필터칩+DataTable(정본컬럼) | 신규 |
+| `ta/series/page.tsx`+`_series.tsx` | 정규대회(series·organizer_id scoped): 주기/회차/다음대회/상태 | 신규 |
+| `ta/organizations/page.tsx`+`_orgs.tsx` | 단체: 멤버십기반 카드그리드(대회/운영진/회원) | 신규 |
+| `ta/templates/page.tsx` | 템플릿: 백엔드모델부재→정본 Empty "준비 중"(mock0·순수서버) | 신규 |
+
+🔑 **데이터(레거시 동일·organizer-scoped)**: 대회목록=`tournament`(super=전체/else `organizer_id` OR `adminMembers.some active`)·M3 viewer-aware 갭 교정. 정규대회=`tournament_series.organizer_id`. 단체=`organization_members(user_id+is_active)` 멤버십. 대시보드=동일 scope count/aggregate.
+🔑 **jsonb verbatim(F-2b 차단)**: 서버 컴포넌트 스칼라+관계명만 select(settings/divisions/schedule_dates 미접촉). series 주기만 `settings.cadence` 단일키 verbatim 참조(재귀변환 0).
+🔑 **셸 함수 직렬화**: PageHead actions/DataTable render·onRow=함수 → 서버→클라 전달불가 → 5화면 각 server page(Prisma)+client `_*.tsx`(UI) 분리(R2 패턴 동일). 템플릿만 함수 0 → 순수 서버.
+⚠️ **갭/미배선(보고)**: ①주기=DB필드 부재→`settings.cadence` 있으면 표시·없으면 "—" ②단체 "대회" 통계=`_count.series`(정규대회 수·정본 라벨 유지) ③템플릿=모델 부재 Empty ④create/operate/export/site 버튼=R4/R5 스코프→준비 중 토스트(mock 0) ⑤정본 6번째 nav "내 공개 사이트"=단일 org 공개 URL 부재→생략(데드링크 0) ⑥KPI delta=과거 스냅샷 부재→생략.
+💡 tester: `/v2/ta` 인증→대시보드. NAV 5화면 전환(셸 brandSub "대회 콘솔"). 대회목록 검색/상태필터. organizer 본인 대회만(super=전체). 템플릿=준비 중. 백오피스 `/v2`·`/v2/user-console`·`/v2/payments` 등 기존대로(셸/NAV 동일).
+⚠️ reviewer: 백오피스 변경=rename(내용0)+href 2줄+layout 인증-only 리팩터뿐(git -M 확인). 라우트그룹 `(backoffice)` URL 비가시→URL 보존. 하드코딩hex=AV색+ad-card__logo(데이터/정본 주입·룰10). tsc EXIT0. 레거시/백엔드/DB/Prisma 0접촉.
+
+### 구현 기록 (developer) — 라이브 유튜브 매치별 시작 타임스탬프 연결 (4파일·미커밋)
+📝 박제된 `settings.youtube_start_seconds`(정수 초)를 라이브/종료 페이지 유튜브 임베드에 연결 → 영상이 매치별 시작 지점부터 재생. DB/schema 0변경(데이터는 이미 박제).
+
+| 파일 | 변경 | 신규/수정 |
+|------|------|----------|
+| `live/[id]/_v2/youtube-embed.tsx` | `startSeconds?: number` prop 추가. `>0`이면 embedUrl에 `&start=${Math.floor(n)}` 부착(기존 autoplay/mute/modestbranding/rel 유지) | 수정 |
+| `api/live/[id]/route.ts` (1472 근처) | `youtubeStartSeconds` 응답 추가(`settings.youtube_start_seconds` 숫자면 노출·아니면 0). settings 이미 select됨(period_format 등 사용 중) | 수정 |
+| `live/[id]/page.tsx` | MatchDataV2에 `youtube_start_seconds?: number\|null` 추가 + 임베드 호출부 2곳(진행중 일반/PIP)에 `startSeconds={match.youtube_start_seconds ?? 0}` 전달 | 수정 |
+| `live/[id]/_v2/game-result.tsx` | 인터페이스에 동일 필드 추가 + 종료후 임베드 호출부 1곳에 `startSeconds` 전달 | 수정 |
+
+🔑 snake/camel: API 응답키 `youtubeStartSeconds`→apiSuccess 자동변환→프론트는 `youtube_start_seconds` 읽기(기존 youtube_video_id 패턴 동일). settings는 `Record<string,unknown>` 캐스팅으로 숫자 검사 후 추출.
+💡 tester: youtube_video_id 박제된 매치 라이브/종료 페이지 진입 → start_seconds>0(예 U12 #2=2400)이면 영상 40:00 지점부터 재생·0이면 처음부터. VOD는 정확, 라이브(DVR)는 방송 설정에 따라 seek. 영상 미등록 매치는 임베드 영역 hidden(기존 동작 유지).
+⚠️ reviewer: start 파라미터는 정수만 허용→Math.floor. startSeconds 미전달/0/음수면 부착 안 함(기존 URL 동일=회귀0). tsc EXIT0.
+
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
 |------|------|------|
+| 2026-06-28 | **라이브 유튜브 매치별 시작 타임스탬프 연결(4파일·미커밋)** | ✅ tsc EXIT0. 박제 `settings.youtube_start_seconds`(초)를 임베드에 배선. youtube-embed.tsx `startSeconds` prop→`&start=N`(>0·Math.floor). route.ts 1472근처 `youtubeStartSeconds` 응답(settings 기존 select). page.tsx(진행중 일반+PIP 2곳)·game-result.tsx(종료후 1곳) `startSeconds={match.youtube_start_seconds ?? 0}` 전달. MatchDataV2 양쪽 인터페이스 필드 추가. DB/schema 0변경·미등록 매치 임베드 hidden 유지. |
+| 2026-06-28 | **R3 대회관리자 콘솔(별도 콘솔·5화면·라우트그룹 분리·미커밋)** | ✅ tsc EXIT0·백오피스 회귀0. 정본 ta-pages 1:1. `/v2/layout`을 인증-only로 리팩터+백오피스 14파일을 `(backoffice)/` route group으로 **이동만**(URL 불변·내용0)+백오피스 셸 마운트를 `(backoffice)/layout`으로 이전→`/v2/ta`에 자체 **TaShell**(대회콘솔 NAV·brandSub="대회 콘솔") 마운트(셸 중첩0). 5화면=대시보드(KPI4+월별막대+활동 실집계)/대회목록(검색+상태필터)/정규대회(series organizer_id)/단체(멤버십 카드)/템플릿(Empty 준비중). organizer-scoped(`organizer_id` OR `adminMembers active`·M3 갭 교정). jsonb verbatim(스칼라만 select·cadence 단일키). 미배선=create/operate/template(R4/R5)→준비중 토스트. 백오피스 href 2줄(대회콘솔→/v2/ta). 레거시/백엔드/DB 0변경. |
+| 2026-06-28 | **R2-C 백오피스 BO-3 커뮤니티 + BO-4 코트 콘솔 (신규4+types+_shell·미커밋)** | ✅ tsc EXIT0·레거시0접촉. 정본 bo-pages community/court 콘솔을 R2-A/B 패턴(서버 Prisma직접 READ→SchemaList) 박제. 커뮤니티 4탭=자유/모집/후기(`community_posts.category` general/recruit/review)+건의(`suggestions` 모델). 코트 2탭=실내/야외(`court_infos.court_type`). **partner 탭 제외(DB 미지원)·news/anonymous UI 미추가**(정본 회피). 갭보고: 건의 votes컬럼 제외(DB없음)·코트 "월예약"=court_bookings 전체수(0대부분). snake→표시 단일매핑·raw fetch0. 백엔드/DB/Prisma 0변경. |
+| 2026-06-28 | **R2-B 백오피스 BO-5 — 마케팅/결제/요금제 리스트(신규3+_shell·미커밋)** | ✅ tsc EXIT0·git diff=admin-v2 4파일(레거시0). 정본 bo-pages 3리스트를 R2-A 패턴(서버컴포넌트 Prisma직접 READ→SchemaList) 박제. 소스=마케팅 `ad_campaigns`+partner+`_count.placements` / 결제 `payments`+users(take50·0건→Empty) / 요금제 `plans`+`_count.user_subscriptions`. snake→표시 단일매핑(raw fetch0). 상세(PaymentDetail/PlanEditor)=시안미완→미배선(리스트만·기본 읽기드로어). _shell TARGET 3건 soon→실라우트+active 3분기. 백엔드/DB/Prisma 0변경. |
+| 2026-06-28 | **R2 시각 보정 — 코워크 QA 후속 4건(admin-v2 4파일·미커밋)** | ✅ tsc EXIT0·git diff=admin-v2 4파일. ①AdListPanel 빈상태=정본 Empty(.ts-empty) "처리할 항목이 없습니다"(빈 흰패널 제거) ②AdBarPanel 0값 막대 `Math.max((c.v/max)*130, 2)` 2px baseline+max NaN차단(정본 130 보존) ③page.tsx 콘솔섹션 인라인라벨→`.ad-section-label` 클래스·marginTop 22→28 ④toss.css L76 `text-rendering:auto`(globals optimizeLegibility 상속 차단). 신규클래스1·hex0·레거시/백엔드/DB 0접촉. |
+| 2026-06-28 | **R2 시각 보정 — /v2 백오피스 전역 타이포 누수 차단(2파일·미커밋)** | ✅ tsc EXIT0·2파일만 변경. **H1**(★80%): `styles/admin-v2/toss.css` 베이스 `[data-admin=v2]`에 `font-size:16px;line-height:normal;font-feature-settings:normal` 추가 → globals.css body(var(--fs-body)/var(--lh-body)/"tnum","ss01") 상속누수 차단·정본 데모 기본값 복원(데모 촘촘함). **M1**: `(admin-v2)/v2/page.tsx` 전체회원/활성팀 KPI에 전월말(이번달1일 이전 createdAt) 누적 대비 성장률 `delta` 실집계(growthPct·SELECT count 2개 추가·prev≤0→pill생략). 인증대기/정지=상태스냅샷 무의미→생략(mock금지). **L1**: `.ts-shell` self 셀렉터(`[data-admin=v2].ts-shell`) 병기(shell.tsx:241 동일엘리먼트). **L2**: `[data-admin=v2] ::selection`(primary-weak)·`a:hover{none}` 정본톤 차단. 레거시0접촉·백엔드/DB/Prisma 0변경. |
 | 2026-06-28 | **종별 디비전 연령 편집 Phase 3 — UI/PATCH end-to-end (A안·3파일·미커밋)** | ✅ tsc EXIT0·age-mapping 13/13. ①GET serializeRule `birth_year_min/max`+`tournament_year`(startDate KST) 응답. ②PATCH zod 연령4필드(int·nullable·optional) additive+부분 update+응답 노출(기존 가드 0접촉). ③divisions-panel `AgeRangeInputs`(입력4+자동채움버튼+저장) 신설. ages=master_categories[].ages×settings.category 매칭(fetch 0). 자동채움=computeAgeRangeForDivision(null=버튼 비활성). PATCH body camel·응답 snake. DB/schema 변경0. |
 | 2026-06-28 | **종별 디비전 연령 자동 채움 Phase 2 (서버 연결·2파일·미커밋)** | ✅ tsc EXIT0·age-mapping 13/13·tournaments 317/317. Phase1 `computeAgeRangeForDivision` 연결. ①`division-rule-sync.ts`: DivisionRuleSeed 연령 4필드(optional)+build 함수 `categoryAges?`/`tournamentYear?` 파라미터→디비전별 연령 계산 채움(미전달 시 skip=회귀0). ②`tournament.ts createTournament`: tournamentYear=startDate 연도(KST·+9h)·AdminCategory 조회→input.categories 키 성별접두(`/^(남성\|여성)\s+/`) 제거→name 매칭→ages 맵·createMany 연령4필드 명시 insert. 일반부/대학부(ages=[])→토큰매칭 실패→null 유지. DB/schema 변경0(컬럼 기존). |
 | 2026-06-28 | **시간 표시 KST 전수 점검 + UTC 노출 9파일 교정 (표시 변환만·DB/저장 0변경·미커밋)** | ✅ tsc EXIT0. 핵심=서버 컴포넌트(Vercel UTC)에서 tz없이 포맷한 지점만 UTC 누출(클라 "use client"는 브라우저=KST라 정상·score-sheet 기록시각/matches-panel은 이미 Asia/Seoul). 수정: ①audit-log L177 ②detail-kit formatDate/formatDateTime(admin 상세 다수) ③news/match 게시시각 ④site-host/schedule 일정날짜+경기시각 ⑤site-host/results 날짜 = `timeZone:"Asia/Seoul"` 추가 / ⑥venues 픽업경기시각 ⑦next-tournament-match-card ⑧upcoming-games ⑨lineup-confirm = `getHours()`→UTC+9h 보정 후 `getUTC*`(한국 DST 없음). 클라엔 무회귀·서버엔 교정. |
@@ -232,5 +326,4 @@
 | 2026-06-23 | **v2.40 A4-1 드릴다운 상세 4종(user·team·court·game)** | ✅ 신규 상세라우트 4개+detail-kit. Prisma SELECT read-only·서버액션/write/schema/api 0변경. tsc0. |
 | 2026-06-23 | **v2.40 A3-4 시스템5 키트(analytics·categories·notifications·logs·settings)** | ✅ 5파일. PageHead/StatRow/Panel/StatusBadge·조회/액션/CRUD 보존. tsc0. |
 | 2026-06-23 | **v2.40 A3-3 비즈니스4 키트(payments·plans·campaigns·partners)** | ✅ 5파일. 환불·CRUD·승인/반려 fetch·폼/모달 보존. tsc0. |
-| 2026-06-23 | **v2.40 A3-2 키트(suggestions·game-reports·users·community·season-awards) + tester/reviewer 병렬** | ✅ 통과·차단0. 목록/툴바/StatRow만 키트화·상세모달/차트/큐 보존. 데이터/액션/라우트/snake/schema/api 0변경. CSS 토큰 교정(--line/--surface 부재→--border/--card). tsc0. |
 | 2026-06-22 | **v2.40 A3-1 키트(tournaments·games·teams·organizations·courts) + tester/reviewer 병렬** | ✅ 통과·차단0. AdminStatusTabs→Toolbar·table→DataTable·모달→Drawer. 삭제 이름게이트/신청현황/3탭 복잡동작 보존. git=해당 화면만. tsc0. |

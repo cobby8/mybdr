@@ -2,6 +2,15 @@
 <!-- 담당: debugger, tester | 최대 30항목 -->
 <!-- 이 프로젝트에서 반복되는 에러 패턴, 함정, 주의사항을 기록 -->
 
+### [2026-06-28] 라우트 그룹 재구성 후 dev 서버 stale SSR 캐시 → 하이드레이션 미스매치 (코드는 정상)
+- **분류**: 함정 (dev 환경 캐시 / Turbopack / 라우트 재구성 / 하이드레이션)
+- **발견자**: PM (R3 대회관리자 `(backoffice)/` 라우트그룹 분리 후 사용자가 /v2 콘솔에서 hydration 에러 신고)
+- **증상**: `/v2` 새로고침 시 React hydration mismatch — nav `<a>`의 href가 **서버=`/tournament-admin`(옛값) vs 클라=`/v2/ta`(새값)** 불일치. "A tree hydrated but some attributes... didn't match".
+- **진짜 원인**: 코드(`_shell.tsx`)는 href를 **정적 `/v2/ta`로 이미 정확**(옛 `/tournament-admin`은 주석뿐). dev 서버가 **라우트 변경(R3가 `(backoffice)/` 그룹 신설+파일 이동) 이전부터 계속 떠 있어**, Turbopack의 **SSR/RSC 캐시가 옛 컴파일(`/tournament-admin`)을 보유** → 클라 번들만 핫리로드돼 `/v2/ta` → 미스매치. 즉 **코드 버그 아님, dev 캐시 아티팩트**. 프로덕션/Vercel은 매번 클린 빌드라 무관.
+- **해결**: dev 서버 종료(포트별 PID) + **`.next` 삭제** + 클린 재시작 → 서버·클라 둘 다 새 컴파일(`/v2/ta`) → 일치. 사용자는 브라우저 **하드 새로고침(Ctrl+Shift+R)** 으로 탭의 옛 HTML 비움.
+- **예방**: (a) **라우트 구조 변경(route group 신설/파일 이동/layout 분리) 후엔 dev 서버를 재시작**(가능하면 `.next` 삭제) — 핫리로드만으론 SSR 캐시가 안 갱신될 수 있음. (b) hydration 미스매치에서 **서버값이 코드의 옛값**이고 코드 grep상 새값만 있으면 = stale 캐시(코드 추적 헛수고, 재시작이 답). (c) 동시 세션이 같은 worktree에서 브랜치/라우트를 바꾸면 더 자주 발생.
+- **참조횟수**: 0
+
 ### [2026-06-27] 일정 탭 스케줄러 전멸 = `match.scheduledAt`(camel) 읽기 → 항상 undefined (snake 함정 8회차 / 3-C 오진)
 - **분류**: 함정 (apiSuccess snake↔camel / 프론트 접근자 / 사일런트 렌더 전멸)
 - **발견자**: debugger (PR-2 일정 탭 "코트·휴식·자동/직접배치·드래그 전부 안 보임" 조사)
