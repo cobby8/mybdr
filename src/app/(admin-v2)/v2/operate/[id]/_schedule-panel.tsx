@@ -13,18 +13,21 @@
 //     배치(scheduledAt) 경기는 자기 레인에 항상 표시(self-trace 검증 = "미배치" 오판 0).
 //   - 계획 조작(종별시간/시작시간/자동·수동배치/드래그/휴식) = 클라 오버레이(정본 동작 보존).
 //   ⚠️ 의도적 deviation(보고):
-//     ① 일정 영속화 = 미배선(stub). bulk 일정저장 엔드포인트 부재(DATA-CONTRACT 🔴:
-//        divDur/laneStart/assign 저장필드 없음) + 정본도 저장 없음(전부 시연 토스트).
-//        per-match PATCH(/matches/[matchId] · scheduledAt/court_number/venue_name)는 실존하나
-//        정본의 "시작시간+종별시간 파생" bulk 모델에 매핑 시 기존 scheduledAt 손실(lossy) →
-//        R4-B 드래그 미배선과 동일 판단으로 미배선. 계획 결과는 클라 미리보기(저장 연동 준비 중).
+//     ① 일정 영속화 v1 = 배선 완료(#7). 신규 bulk route(/matches/schedule · PATCH)로
+//        배치 결과를 기존 3칸(scheduled_at KST→UTC · court_number · venue_name)에만 저장.
+//        "보이는 시간 = 저장 시간"(buildSchedulePayload 가 렌더 cursor walk 단일 재사용).
+//        진행/종료(in_progress·completed) 매치는 서버 가드로 제외(skip) — 부분 적용.
+//        스키마 0변경(divDur/laneStart/assign 등 계획 메타는 저장 안 함 = v2 과제).
 //     ② 정본 "추첨 결과 반영(팀명 표기)" 토글 생략 — 실 매치는 이미 실 팀명 보유(슬롯라벨 개념 없음).
 //        팀명 상시 표기(미정 = "미정").
 //   - className(sc-*/amt-*/ct-*/ts-*)·마크업은 정본 verbatim.
 // ============================================================
 
 import React from "react";
+import { useRouter } from "next/navigation";
 import { Icon, Btn, Modal, useAdminShell } from "@/components/admin-v2";
+// #7 일정 영속화: 저장 mutation 단일 진입점(adminFetch — camel→snake 자동 변환)
+import { adminFetch } from "@/lib/admin-v2/data/client";
 
 // ── 도메인 타입(서버에서 단일 매핑된 camel) ──────────────────────────────
 export type ScheduleMatch = {
@@ -132,8 +135,15 @@ type Lane = {
 
 type Slot = { t: "g"; matchId: string } | { t: "b"; min: number };
 
-export function SchedulePanel({ data }: { data: ScheduleData }) {
+export function SchedulePanel({
+  tournamentId,
+  data,
+}: {
+  tournamentId: string;
+  data: ScheduleData;
+}) {
   const { toast } = useAdminShell();
+  const router = useRouter(); // #7 저장 성공 후 서버 재조회(타 패널 패턴 복제)
   const { matches, venues, dates, rules } = data;
 
   // 종별 label lookup
@@ -347,6 +357,78 @@ export function SchedulePanel({ data }: { data: ScheduleData }) {
   const placed = placedMatchIds.size;
   const lanesWith = lanes.filter((l) => (assign[l.key] || []).length);
 
+  // ── #7 일정 저장 payload 생성 — 렌더 cursor walk 와 동일 로직 단일화 ─────────
+  //   "보이는 시간 = 저장 시간" 보장: 화면 표(L545~ rows.map)의 time 계산을 그대로 재사용.
+  //   배치 매치 = lane.date + 계산 time → KST→UTC ISO / court=courtLabel / venue=venueName(센티넬 null).
+  //   미배치 매치 = scheduledAt/court/venue 모두 null (저장 시 일정 해제).
+  type SchedulePayloadRow = {
+    id: string;
+    scheduledAt: string | null;
+    courtNumber: string | null;
+    venueName: string | null;
+  };
+  const buildSchedulePayload = (): SchedulePayloadRow[] => {
+    // 배치된 매치 → 계산 결과 맵(렌더와 동일한 cursor 누적)
+    const placedMap = new Map<
+      string,
+      { scheduledAt: string; courtNumber: string; venueName: string | null }
+    >();
+    lanes.forEach((l) => {
+      const arr = assign[l.key] || [];
+      let cursor = laneStart[l.key] || "09:00"; // 렌더와 동일한 코트 시작시간
+      arr.forEach((it) => {
+        const time = cursor; // 이 슬롯의 시작시간 = 화면에 그려지는 time
+        const g = it.t === "g" ? allGames[it.matchId] : undefined;
+        // 다음 슬롯 시작 = 현재 + (경기 종별시간 | 휴식분) — 렌더 로직과 1:1
+        cursor = addTime(cursor, it.t === "g" ? durOf(g?.code || "") : it.min);
+        if (it.t === "g") {
+          const [y, mo, d] = l.date.split("-").map(Number);
+          const [h, mi] = time.split(":").map(Number);
+          // KST → UTC: KST 시각에서 9시간 뺀 절대시각(서버 scheduled_at = UTC 저장)
+          const iso = new Date(Date.UTC(y, mo - 1, d, h - 9, mi)).toISOString();
+          placedMap.set(it.matchId, {
+            scheduledAt: iso,
+            courtNumber: l.courtLabel,
+            venueName: l.venueName === "장소 미지정" ? null : l.venueName,
+          });
+        }
+      });
+    });
+    // 전 매치 순회 — 배치는 계산값, 미배치는 null 3종(일정 해제)
+    return matches.map((m) => {
+      const p = placedMap.get(m.id);
+      return p
+        ? { id: m.id, scheduledAt: p.scheduledAt, courtNumber: p.courtNumber, venueName: p.venueName }
+        : { id: m.id, scheduledAt: null, courtNumber: null, venueName: null };
+    });
+  };
+
+  // ── #7 일정 저장(bulk PATCH) — 패널 mutation 패턴(busy/toast) 일관 ──────────
+  const [saving, setSaving] = React.useState(false);
+  const saveSchedule = async () => {
+    if (saving) return;
+    setSaving(true);
+    try {
+      const payload = buildSchedulePayload();
+      // adminFetch deep camel→snake: matches[].scheduledAt → scheduled_at 등 자동 변환
+      const res = await adminFetch<{ updated: number; skipped: string[] }>(
+        `/api/web/tournaments/${tournamentId}/matches/schedule`,
+        { method: "PATCH", body: { matches: payload } },
+      );
+      const skippedN = res?.skipped?.length || 0;
+      toast(
+        skippedN > 0
+          ? `일정 ${res.updated}경기 저장 (진행·종료 ${skippedN}경기 제외)`
+          : `일정 ${res.updated}경기를 저장했습니다`,
+      );
+      router.refresh(); // 서버 재조회 → 저장된 scheduled_at 반영
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "일정 저장에 실패했습니다");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   // ── 자동 생성(모달에서 확정) — 정본 verbatim(실 games 기반) ───────────────
   const runAuto = (sel: Record<string, { code: string; phase: "all" | "group" | "ko" }[]>) => {
     const next: Record<string, Slot[]> = {};
@@ -525,10 +607,29 @@ export function SchedulePanel({ data }: { data: ScheduleData }) {
             </Btn>
           </div>
         </div>
-        {/* 영속화 미배선 안내(정직성 — bulk 일정저장 엔드포인트 부재) */}
-        <p style={{ fontSize: 11.5, color: "var(--ink-dim)", marginTop: 10 }}>
-          배치 결과는 미리보기입니다. 저장 연동은 준비 중이며, 개별 경기의 시간·코트는 경기 관리에서 수정할 수 있습니다.
-        </p>
+        {/* #7 일정 저장 — 배치 결과(보이는 시간)를 scheduled_at/court/venue 3칸에 영속화 */}
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            gap: 8,
+            marginTop: 10,
+            flexWrap: "wrap",
+          }}
+        >
+          <span style={{ fontSize: 11.5, color: "var(--ink-dim)" }}>
+            화면에 보이는 시간·코트가 그대로 저장됩니다. 진행·종료된 경기는 보호되어 제외됩니다.
+          </span>
+          <Btn
+            size="sm"
+            icon="save"
+            onClick={saveSchedule}
+            {...(saving ? { disabled: true } : {})}
+          >
+            {saving ? "저장 중…" : "일정 저장"}
+          </Btn>
+        </div>
       </div>
 
       {/* ── 코트별 일정표 ───────────────────────────── */}

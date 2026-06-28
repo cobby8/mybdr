@@ -177,8 +177,8 @@ export function OperateShell({
           // R4-B: 대진표 패널(실데이터 READ + 기존 엔드포인트 mutation)
           <BracketPanel tournamentId={tournamentId} data={bracketData} />
         ) : menu === "schedule" ? (
-          // R4-C: 일정 패널(실데이터 READ · 계획 클라 오버레이 · 영속화 미배선 보고)
-          <SchedulePanel data={scheduleData} />
+          // R4-C: 일정 패널(실데이터 READ · 계획 클라 오버레이 · #7 일정 저장 배선)
+          <SchedulePanel tournamentId={tournamentId} data={scheduleData} />
         ) : menu === "ops" ? (
           // R4-D: 운영관리(운영진·기록원·심판·공지·기록모드 — 실 엔드포인트)
           <OpsPanel tournamentId={tournamentId} data={opsData} />
