@@ -375,6 +375,13 @@ export function SchedulePanel({ data }: { data: ScheduleData }) {
 
   const totalGames = Object.values(countOf).reduce((a, b) => a + b, 0);
 
+  // 대진표 발행분(경기가 생성된 종별) — 정본 schedule.jsx bracketDivs.
+  //   정본 mock fromBracket(window.__BRACKET) 대신 실 matches 카운트로 파생.
+  const bracketDivs = React.useMemo(
+    () => divisions.filter((d) => (countOf[d.code] || 0) > 0),
+    [divisions, countOf],
+  );
+
   // 레인이 0개이고 경기도 없으면 정본 Empty
   if (lanes.length === 0 && matches.length === 0) {
     return (
@@ -392,6 +399,19 @@ export function SchedulePanel({ data }: { data: ScheduleData }) {
     <div>
       {/* ── 설정 카드 ─────────────────────────────── */}
       <div className="ts-card ts-card--flat" style={{ marginBottom: 14 }}>
+        {/* 대진표 반영됨 알림 밴드 — 정본 schedule.jsx:184-186 bk-fromnote 1:1 */}
+        {bracketDivs.length > 0 && (
+          <div className="bk-fromnote">
+            <Icon name="git-merge" size={15} color="var(--primary)" />
+            <span>
+              대진표 반영됨 —{" "}
+              {bracketDivs
+                .map((r) => `${r.label} ${countOf[r.code]}경기`)
+                .join(" · ")}{" "}
+              (조별예선+토너먼트)
+            </span>
+          </div>
+        )}
         <div
           style={{
             display: "flex",

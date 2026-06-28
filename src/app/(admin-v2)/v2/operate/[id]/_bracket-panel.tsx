@@ -643,6 +643,18 @@ export function BracketPanel({
                 </span>
               )}
             </h4>
+            {/* 리그전(round_robin)은 토너먼트 트리가 없어 별도 발행 진입점 필요 —
+                정본 bracket.jsx:302 "일정에 반영"(publish) → 패널의 generate(false) 재사용 */}
+            {leagueOnly && phase === "drawn" && (
+              <Btn
+                size="sm"
+                icon="calendar-plus"
+                onClick={() => generate(false)}
+                disabled={busy}
+              >
+                일정에 반영
+              </Btn>
+            )}
           </div>
           <div className="bk-groups" style={{ marginBottom: 16 }}>
             {groups.map(({ group, teams: gteams }) => (
@@ -661,6 +673,66 @@ export function BracketPanel({
                 )}
               </div>
             ))}
+          </div>
+        </>
+      )}
+
+      {/* 조별 더블 엘리미네이션(듀얼토너먼트) — 정본 bracket.jsx:327-348 박제.
+          정본 mock window.dualGroupStages(L,size) 대신 실 조별 매치(groupName===조)를 표시 */}
+      {phase === "drawn" && isDual && (
+        <>
+          <h4 className="bk-subh">
+            조별 더블 엘리미네이션{" "}
+            <span
+              style={{
+                fontWeight: 500,
+                color: "var(--ink-dim)",
+                textTransform: "none",
+                letterSpacing: 0,
+              }}
+            >
+              · 1·2경기 → 승자전/패자전 → 조 최종전
+            </span>
+          </h4>
+          <div className="bk-groups" style={{ marginBottom: 16 }}>
+            {groups
+              .filter(({ group }) => group !== "-")
+              .map(({ group }) => {
+                // 조별 매치(groupName === 조) = 더블엘리미 5경기 구조 — matchNumber→bracketPosition 순
+                const dgames = divMatches
+                  .filter((m) => m.groupName === group)
+                  .slice()
+                  .sort(
+                    (a, b) =>
+                      (a.matchNumber ?? a.bracketPosition ?? 0) -
+                      (b.matchNumber ?? b.bracketPosition ?? 0),
+                  );
+                return (
+                  <div key={group} className="bk-group">
+                    <div className="bk-group__name">{group}조</div>
+                    {dgames.map((m) => {
+                      // 조 최종전(2위 결정) = roundName에 "최종" 포함 → 정본 stage===2 강조
+                      const isFinal = /최종/.test(m.roundName || "");
+                      const label = m.roundName
+                        ? `${group}조 ${m.roundName}`
+                        : `${group}조 ${m.matchNumber ?? ""}경기`;
+                      return (
+                        <div key={m.id} className="bk-dualrow" data-final={isFinal}>
+                          <span className="bk-dualrow__lbl">{label}</span>
+                          <span className="bk-dualrow__vs">
+                            <b>{m.homeName || m.homeSlot || "미정"}</b>
+                            <i>대</i>
+                            <b>{m.awayName || m.awaySlot || "미정"}</b>
+                          </span>
+                        </div>
+                      );
+                    })}
+                    <div className="bk-group__games">
+                      승자전 승자 = 1위 · 최종전 승자 = 2위
+                    </div>
+                  </div>
+                );
+              })}
           </div>
         </>
       )}
