@@ -52,6 +52,11 @@ export default async function PartnerCampaignDetailPage({
       partner_id: true,
       title: true,
       headline: true,
+      // 편집 폼용 raw 필드(설명/이미지/링크/CTA) — READ 는 서버에서 끝내 snake 함정 차단
+      description: true,
+      image_url: true,
+      link_url: true,
+      cta_text: true,
       status: true,
       start_date: true,
       end_date: true,
@@ -93,12 +98,28 @@ export default async function PartnerCampaignDetailPage({
     time: p.is_active ? "활성" : "비활성",
   }));
 
+  // 날짜 → <input type="date"> 용 yyyy-MM-dd 문자열(값 없으면 빈 문자열)
+  const toDateInput = (d: Date | null) =>
+    d ? new Date(d).toISOString().slice(0, 10) : "";
+
   const data: CampaignDetailData = {
     id: c.id.toString(),
     title: c.title || c.headline || "캠페인",
     meta: `${slotMeta} · ${fmtPeriod(c.start_date, c.end_date)} · ${st.label}`,
     kpis,
     placements,
+    // 편집 폼 초기값(camelCase). status 로 수정 가능 여부 판정(draft/pending_review/rejected).
+    edit: {
+      status: c.status,
+      title: c.title ?? "",
+      headline: c.headline ?? "",
+      description: c.description ?? "",
+      imageUrl: c.image_url ?? "",
+      linkUrl: c.link_url ?? "",
+      ctaText: c.cta_text ?? "",
+      startDate: toDateInput(c.start_date),
+      endDate: toDateInput(c.end_date),
+    },
   };
 
   return <CampaignDetail data={data} />;

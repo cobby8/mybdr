@@ -36,6 +36,12 @@ export default async function PartnerVenuesPage() {
           court_type: true,
           operating_hours: true,
           status: true,
+          // 편집 폼용 대관 raw 필드 — READ 는 서버에서 끝내 snake 함정 차단
+          // (court_infos 에 contact_phone 컬럼 부재 → 연락처 편집 제외)
+          rental_available: true,
+          rental_url: true,
+          fee: true,
+          description: true,
         },
       })
     : [];
@@ -59,6 +65,11 @@ export default async function PartnerVenuesPage() {
       // status 셀 = r.st/r.sttone 참조
       st,
       sttone,
+      // 편집 폼 초기값(camelCase). fee 는 BigInt → Number(RSC 직렬화 가능). null 보존.
+      rentalAvailable: c.rental_available ?? false,
+      rentalUrl: c.rental_url ?? "",
+      fee: c.fee != null ? Number(c.fee) : null,
+      description: c.description ?? "",
     };
   });
 
