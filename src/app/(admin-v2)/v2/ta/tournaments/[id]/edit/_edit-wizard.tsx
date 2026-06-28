@@ -48,8 +48,8 @@ import {
   uid,
   type FormState,
   type Venue,
-  type DivisionRow,
 } from "../../new/_create-wizard";
+import { DivisionsEditor } from "../../new/_divisions-editor";
 
 // 정본 STEPS 1:1 (대회 수정.html / workspace.jsx 라인 13~19)
 const STEPS = [
@@ -79,16 +79,17 @@ function buildPatchBody(
   rawPlacesById: Record<string, Record<string, unknown>>,
   rawGameRules: Record<string, unknown>,
 ): Record<string, unknown> {
-  // 종별 → categories/div_caps/div_fees (생성폼과 동일 계약)
+  // 종별 → categories/div_caps/div_fees (생성폼과 동일 계약 · category 그룹핑)
   const validDivs = form.divisions.filter((d) => d.label.trim());
   const categories: Record<string, string[]> = {};
   const divCaps: Record<string, number> = {};
   const divFees: Record<string, number> = {};
   validDivs.forEach((d) => {
-    const label = d.label.trim();
-    categories[label] = [label]; // 각 종별 독립(생성폼 1:1)
-    if (d.cap != null) divCaps[label] = d.cap;
-    divFees[label] = d.fee;
+    const divName = d.label.trim();
+    const catName = (d.category && d.category.trim()) || divName; // 종별명(없으면 자기 자신)
+    (categories[catName] ||= []).push(divName);
+    if (d.cap != null) divCaps[divName] = d.cap;
+    divFees[divName] = d.fee;
   });
 
   // 일정(날짜 오름차순) → startDate/endDate 파생 + schedule_dates(court_ids snake)
@@ -201,14 +202,7 @@ export function EditWizard({
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  // ── 종별/장소/일정 CRUD (생성폼 1:1) ──
-  const addDivision = () =>
-    patch("divisions", [...form.divisions, { id: uid("d"), label: "", cap: 16, fee: form.entryFee || 50000 }]);
-  const patchDivision = (id: string, p: Partial<DivisionRow>) =>
-    patch("divisions", form.divisions.map((d) => (d.id === id ? { ...d, ...p } : d)));
-  const removeDivision = (id: string) =>
-    patch("divisions", form.divisions.filter((d) => d.id !== id));
-
+  // ── 장소/일정 CRUD (생성폼 1:1). 종별 CRUD = DivisionsEditor(공용) onChange. ──
   const addVenue = (name: string) => {
     const nm = name.trim();
     if (!nm) return;
@@ -448,38 +442,13 @@ export function EditWizard({
                 </select>
               </Field>
             </div>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-              <GroupTitle flush>종별 · 정원</GroupTitle>
-              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                {form.divisions.length === 0 && <span className="ct-pill" data-tone="err">1개 이상 권장</span>}
-                <Btn size="sm" icon="plus" onClick={addDivision}>종별 추가</Btn>
-              </div>
-            </div>
-            {form.divisions.length === 0 ? (
-              <div className="ct-emptybox"><Icon name="layout-grid" size={40} color="var(--ink-dim)" /><b style={{ color: "var(--ink)" }}>등록된 종별이 없습니다</b><span>“종별 추가”로 종별·정원·참가비를 입력하세요.</span></div>
-            ) : (
-              <div className="ct-divgrid">
-                {form.divisions.map((d, i) => (
-                  <article key={d.id} className="ts-card ts-card--flat">
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
-                      <span className="ts-field__label">종별 {i + 1}</span>
-                      <button type="button" className="ct-iconbtn" title="삭제" onClick={() => removeDivision(d.id)}><Icon name="trash-2" size={15} /></button>
-                    </div>
-                    <Field label="종별명">
-                      <input className="ts-input" value={d.label} onChange={(e) => patchDivision(d.id, { label: e.target.value })} placeholder="예: 남성 일반부" />
-                    </Field>
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 8 }}>
-                      <Field label="정원(팀)">
-                        <input className="ts-input" type="number" min={0} value={d.cap ?? ""} placeholder="제한 없음" onChange={(e) => patchDivision(d.id, { cap: e.target.value === "" ? null : +e.target.value })} />
-                      </Field>
-                      <Field label="참가비">
-                        <input className="ts-input" type="number" min={0} step={1000} value={d.fee} onChange={(e) => patchDivision(d.id, { fee: +e.target.value })} />
-                      </Field>
-                    </div>
-                  </article>
-                ))}
-              </div>
-            )}
+            {/* 종별 에디터(공용) — 생성 마법사와 동일 프리미티브(템플릿/직접/연령) */}
+            <DivisionsEditor
+              divisions={form.divisions}
+              onChange={(v) => patch("divisions", v)}
+              defaultFee={form.entryFee || 60000}
+              toast={toast}
+            />
             <div className="ops-note" style={{ marginTop: 4 }}>
               <Icon name="info" size={16} color="var(--primary)" style={{ flex: "0 0 auto", marginTop: 1 }} />
               <span>대진 생성·조 편성·일정 배치는 <b>운영 워크스페이스</b>에서 처리합니다. 여기서는 종별·정원·참가비만 수정합니다.</span>

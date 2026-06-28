@@ -26,9 +26,14 @@ import {
   Icon,
   Check,
   Badge,
+  Modal,
   useAdminShell,
 } from "@/components/admin-v2";
 import { adminFetch, AdminApiError } from "@/lib/admin-v2/data";
+import { DivisionsEditor } from "./_divisions-editor";
+
+// 복사 목록 행(서버 page.tsx 가 organizer-scoped Prisma 로 주입 — 스칼라만).
+export type CopyableTournament = { id: string; name: string; statusLabel: string; dateLabel: string };
 
 // 종별 진행방식 6 enum — division-formats.ts / 정본 data.jsx FORMAT_LABEL 1:1(실 enum·mock 아님)
 //   R5-B(수정 마법사)가 동일 라벨/포맷 목록을 재사용하도록 export(값 무변경).
@@ -54,7 +59,9 @@ const STEPS = [
 // ── 폼 타입 ─────────────────────────────────────────────── (R5-B 수정 마법사 공용 재사용 위해 export)
 export type Venue = { id: string; name: string; region: string; courtCount: number; naming: "num" | "alpha" };
 export type DateRow = { id: string; date: string; courtIds: string[] };
-export type DivisionRow = { id: string; label: string; cap: number | null; fee: number };
+// category = 소속 종별명(AdminCategory.name + 성별 접두, 예 "남성 유청소년"). 없으면 단독 디비전.
+//   ★ 페이로드 빌더가 category 로 그룹핑 → categories={종별명:[디비전명]} → 서버 연령 자동채움.
+export type DivisionRow = { id: string; label: string; cap: number | null; fee: number; category?: string };
 export type GameRules = {
   quarterType: "4Q" | "HALF";
   quarterMinutes: number;
@@ -161,13 +168,25 @@ export const fmtDate = (s: string) => {
   return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")} (${WK[d.getDay()]})`;
 };
 
-export function CreateWizard() {
+export function CreateWizard({
+  initialForm,
+  copyableList,
+  copiedFromName,
+}: {
+  // 복사 진입(?copyFrom) 시 서버가 채운 prefill. 없으면 빈 폼.
+  initialForm?: FormState;
+  // "기존 대회 복사" 피커 목록(없으면 복사 버튼 숨김).
+  copyableList?: CopyableTournament[];
+  // 복사 출처 대회명(배너 안내용).
+  copiedFromName?: string;
+} = {}) {
   const router = useRouter();
   const { toast } = useAdminShell();
   const [step, setStep] = useState(0);
-  const [form, setForm] = useState<FormState>(EMPTY_FORM);
+  const [form, setForm] = useState<FormState>(initialForm ?? EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [errMsg, setErrMsg] = useState<string | null>(null);
+  const [copyOpen, setCopyOpen] = useState(false); // 복사 피커 모달
 
   const patch = <K extends keyof FormState>(k: K, v: FormState[K]) => {
     setErrMsg(null);
@@ -200,13 +219,7 @@ export function CreateWizard() {
     go(step + 1);
   };
 
-  // 종별 추가/수정/삭제 (정본 DivisionsPanel 의 핵심 CRUD — 템플릿/연령 mock 제외)
-  const addDivision = () =>
-    patch("divisions", [...form.divisions, { id: uid("d"), label: "", cap: 16, fee: 50000 }]);
-  const patchDivision = (id: string, p: Partial<DivisionRow>) =>
-    patch("divisions", form.divisions.map((d) => (d.id === id ? { ...d, ...p } : d)));
-  const removeDivision = (id: string) =>
-    patch("divisions", form.divisions.filter((d) => d.id !== id));
+  // 종별 CRUD = DivisionsEditor(공용) 가 onChange 로 처리 → form.divisions 갱신.
 
   // 장소 추가/수정/삭제
   const addVenue = (name: string) => {
@@ -263,16 +276,19 @@ export function CreateWizard() {
     }
 
     // 종별 → categories/divCaps/divFees (createTournament 계약: division-rule-sync.ts)
-    //   categories = { 종별명: [종별명] } — 각 종별 독립(템플릿 그룹핑 mock 미포팅).
-    //   division 명이 곧 code/label. divCaps/divFees 는 종별명 키.
+    //   ★ category(소속 종별명) 로 그룹핑 → categories={종별명:[디비전명,...]}.
+    //     종별명 = AdminCategory.name(+성별) → 서버가 ages 매칭해 연령 자동채움.
+    //     category 없는(직접 추가) 디비전은 자기 자신이 종별(=구 동작 보존).
+    //   divCaps/divFees 키는 디비전명. code/label = 디비전명.
     const categories: Record<string, string[]> = {};
     const divCaps: Record<string, number> = {};
     const divFees: Record<string, number> = {};
     validDivs.forEach((d) => {
-      const label = d.label.trim();
-      categories[label] = [label];
-      if (d.cap != null) divCaps[label] = d.cap;
-      divFees[label] = d.fee;
+      const divName = d.label.trim();
+      const catName = (d.category && d.category.trim()) || divName;
+      (categories[catName] ||= []).push(divName);
+      if (d.cap != null) divCaps[divName] = d.cap;
+      divFees[divName] = d.fee;
     });
 
     const dates = [...form.dates].sort((a, b) => a.date.localeCompare(b.date));
@@ -359,10 +375,27 @@ export function CreateWizard() {
             <div className="ts-ph__title">새 대회 만들기</div>
             <div className="ts-ph__sub">5단계로 대회를 생성합니다. 생성 후 대진·일정·운영은 운영 워크스페이스에서 이어집니다.</div>
           </div>
-          <Btn variant="secondary" size="sm" icon="x" onClick={() => router.push("/v2/ta/tournaments")}>
-            생성 취소
-          </Btn>
+          <div style={{ display: "flex", gap: 8 }}>
+            {/* 기존 대회 복사 — copyableList 가 있을 때만 노출 */}
+            {copyableList && copyableList.length > 0 && (
+              <Btn variant="secondary" size="sm" icon="copy" onClick={() => setCopyOpen(true)}>
+                기존 대회 복사
+              </Btn>
+            )}
+            <Btn variant="secondary" size="sm" icon="x" onClick={() => router.push("/v2/ta/tournaments")}>
+              생성 취소
+            </Btn>
+          </div>
         </div>
+        {/* 복사 진입 안내 — ?copyFrom 으로 prefill 된 경우 */}
+        {copiedFromName && (
+          <div className="ops-note" style={{ marginTop: 12 }}>
+            <Icon name="copy" size={16} color="var(--primary)" style={{ flex: "0 0 auto", marginTop: 1 }} />
+            <span>
+              <b>{copiedFromName}</b> 대회 설정을 복사했습니다. 대회 이름·일정·접수기간은 비어 있으니 새로 입력하세요.
+            </span>
+          </div>
+        )}
       </div>
 
       {/* 진행률 바 (정본 ct-progress) */}
@@ -488,38 +521,13 @@ export function CreateWizard() {
                 </select>
               </Field>
             </div>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-              <GroupTitle flush>종별 · 정원</GroupTitle>
-              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                {form.divisions.length === 0 && <span className="ct-pill" data-tone="err">1개 이상 필수</span>}
-                <Btn size="sm" icon="plus" onClick={addDivision}>종별 추가</Btn>
-              </div>
-            </div>
-            {form.divisions.length === 0 ? (
-              <div className="ct-emptybox"><Icon name="layout-grid" size={40} color="var(--ink-dim)" /><b style={{ color: "var(--ink)" }}>등록된 종별이 없습니다</b><span>“종별 추가”로 종별·정원·참가비를 입력하세요.</span></div>
-            ) : (
-              <div className="ct-divgrid">
-                {form.divisions.map((d, i) => (
-                  <article key={d.id} className="ts-card ts-card--flat">
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
-                      <span className="ts-field__label">종별 {i + 1}</span>
-                      <button type="button" className="ct-iconbtn" title="삭제" onClick={() => removeDivision(d.id)}><Icon name="trash-2" size={15} /></button>
-                    </div>
-                    <Field label="종별명">
-                      <input className="ts-input" value={d.label} onChange={(e) => patchDivision(d.id, { label: e.target.value })} placeholder="예: 남성 일반부" />
-                    </Field>
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 8 }}>
-                      <Field label="정원(팀)">
-                        <input className="ts-input" type="number" min={0} value={d.cap ?? ""} placeholder="제한 없음" onChange={(e) => patchDivision(d.id, { cap: e.target.value === "" ? null : +e.target.value })} />
-                      </Field>
-                      <Field label="참가비">
-                        <input className="ts-input" type="number" min={0} step={1000} value={d.fee} onChange={(e) => patchDivision(d.id, { fee: +e.target.value })} />
-                      </Field>
-                    </div>
-                  </article>
-                ))}
-              </div>
-            )}
+            {/* 종별 에디터(공용) — 템플릿(AdminCategory)/직접 추가·연령 자동채움 구조 생성 */}
+            <DivisionsEditor
+              divisions={form.divisions}
+              onChange={(v) => patch("divisions", v)}
+              defaultFee={form.entryFee || 60000}
+              toast={toast}
+            />
             <div className="ops-note" style={{ marginTop: 4 }}>
               <Icon name="info" size={16} color="var(--primary)" style={{ flex: "0 0 auto", marginTop: 1 }} />
               <span>대진 생성·조 편성·일정 배치는 대회 생성 후 <b>운영 워크스페이스</b>에서 처리합니다.</span>
@@ -603,6 +611,44 @@ export function CreateWizard() {
           <Btn icon="check" disabled={saving} onClick={submit}>{saving ? "생성 중" : "대회 생성"}</Btn>
         )}
       </div>
+
+      {/* 기존 대회 복사 피커 — 선택 시 ?copyFrom 으로 재진입(서버 prefill) */}
+      {copyableList && (
+        <Modal
+          open={copyOpen}
+          onClose={() => setCopyOpen(false)}
+          title="기존 대회 복사"
+          sub="설정을 가져올 대회를 선택하세요. 대회 이름·일정·접수기간을 제외한 종별·경기설정·접수설정이 복사됩니다."
+        >
+          {copyableList.length === 0 ? (
+            <div className="ct-emptybox">복사할 수 있는 대회가 없습니다.</div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8, maxHeight: 360, overflowY: "auto" }}>
+              {copyableList.map((c) => (
+                <button
+                  key={c.id}
+                  type="button"
+                  className="ts-card ts-card--flat"
+                  style={{ textAlign: "left", cursor: "pointer", display: "flex", alignItems: "center", gap: 10 }}
+                  onClick={() => {
+                    setCopyOpen(false);
+                    // 서버 재진입 → buildCopyForm prefill. (클라 0 새 API)
+                    router.push(`/v2/ta/tournaments/new?copyFrom=${c.id}`);
+                  }}
+                >
+                  <Icon name="trophy" size={16} color="var(--ink-mute)" style={{ flex: "0 0 auto" }} />
+                  <span style={{ flex: 1, minWidth: 0 }}>
+                    <span style={{ display: "block", fontWeight: 700, color: "var(--ink)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.name}</span>
+                    <span style={{ fontSize: 12, color: "var(--ink-mute)" }}>{c.dateLabel}</span>
+                  </span>
+                  <Badge tone="grey">{c.statusLabel}</Badge>
+                  <Icon name="chevron-right" size={16} color="var(--ink-dim)" style={{ flex: "0 0 auto" }} />
+                </button>
+              ))}
+            </div>
+          )}
+        </Modal>
+      )}
     </div>
   );
 }

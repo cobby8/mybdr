@@ -15,6 +15,7 @@ import { prisma } from "@/lib/db/prisma";
 import { canManageTournament } from "@/lib/auth/tournament-permission";
 import { EditWizard, type EditMeta } from "./_edit-wizard";
 import type { FormState } from "../../new/_create-wizard";
+import { divisionsFromTournament } from "../../new/_form-prefill";
 
 export const dynamic = "force-dynamic";
 
@@ -115,28 +116,17 @@ export default async function EditTournamentPage({
   if (!t) notFound();
 
   const meta = statusPill(t.status);
-  const entryFee = t.entry_fee ?? 0;
+  const entryFee = Number(t.entry_fee ?? 0); // Decimal/number/null → number(FormState.entryFee)
 
-  // ── jsonb verbatim lookup ──
-  const divCaps = asObj(t.div_caps) as Record<string, number>;
-  const divFees = asObj(t.div_fees) as Record<string, number>;
-  const categories = asObj(t.categories);
-  const catKeys = Object.keys(categories);
-
-  // 종별 prefill — categories 키 우선(생성폼 저장 계약 역매핑), 없으면 division rule 폴백
-  const divisions: FormState["divisions"] = catKeys.length
-    ? catKeys.map((label, i) => ({
-        id: `d_${i}`,
-        label,
-        cap: typeof divCaps[label] === "number" ? divCaps[label] : null,
-        fee: typeof divFees[label] === "number" ? divFees[label] : entryFee,
-      }))
-    : ruleRows.map((r, i) => ({
-        id: `d_${i}`,
-        label: r.label,
-        cap: typeof divCaps[r.code] === "number" ? divCaps[r.code] : null,
-        fee: r.feeKrw ?? entryFee,
-      }));
+  // 종별 prefill — categories(그룹 펼침) 우선, 없으면 division rule 폴백(공용 헬퍼).
+  //   ★ 레거시 그룹 {종별명:[디비전,...]} 도 디비전 단위로 펼쳐 category 태깅(생성 마법사와 일관).
+  const divisions: FormState["divisions"] = divisionsFromTournament(
+    t.categories,
+    t.div_caps,
+    t.div_fees,
+    ruleRows,
+    entryFee,
+  );
 
   // 장소 prefill — places jsonb(★ 저장된 id 보존: court id = `${id}_c${n}` 참조 무결성 유지)
   //   rawPlacesById = id→원본객체 맵(저장 시 지도 메타 보존용)
