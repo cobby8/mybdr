@@ -190,6 +190,28 @@ export function CreateWizard({
   const cur = STEPS[step];
   const pct = ((step + 1) / STEPS.length) * 100;
 
+  // ── 종별별 참가비(정본 workspace.jsx 75~84 1:1) ──────────────
+  //   데이터 소스 = form.divisions[].fee(종별 단계와 동일 state) → 양방향 일관.
+  //   모달은 draftFees(종별 id 키) 버퍼로 편집 → 적용 시 form.divisions 갱신. 저장 payload 0변경.
+  const [feeOpen, setFeeOpen] = useState(false); // 종별 참가비 모달
+  const [draftFees, setDraftFees] = useState<Record<string, number>>({}); // 모달 임시 편집값
+  const labeledDivs = form.divisions.filter((d) => d.label.trim()); // 라벨 있는 실 종별만
+  // 기본 참가비와 다른 종별 수(차등 설정 개수) — 힌트 노출 트리거
+  const tieredCount = labeledDivs.filter((d) => (d.fee ?? form.entryFee) !== form.entryFee).length;
+  // 모달 열기 — 현재 form.divisions[].fee 를 draft 로 복사(id 키)
+  const openFee = () => {
+    const m: Record<string, number> = {};
+    labeledDivs.forEach((d) => { m[d.id] = d.fee ?? form.entryFee; });
+    setDraftFees(m);
+    setFeeOpen(true);
+  };
+  // 적용 — draft 값을 form.divisions[].fee 로 반영(3단계 카드와 동일 state → 양방향)
+  const applyFees = () => {
+    patch("divisions", form.divisions.map((d) => (d.id in draftFees ? { ...d, fee: draftFees[d.id] } : d)));
+    setFeeOpen(false);
+    toast("종별별 참가비를 적용했습니다");
+  };
+
   // 장소→코트 파생(정본 ScheduleVenue courts 1:1)
   const courts = form.venues.flatMap((v) =>
     v.courtCount <= 1
@@ -618,7 +640,14 @@ export function CreateWizard({
               <Field label="은행명"><input className="ts-input" value={form.bankName} onChange={(e) => patch("bankName", e.target.value)} /></Field>
               <Field label="계좌번호"><input className="ts-input" value={form.bankAccount} onChange={(e) => patch("bankAccount", e.target.value)} /></Field>
               <Field label="예금주"><input className="ts-input" value={form.bankHolder} onChange={(e) => patch("bankHolder", e.target.value)} /></Field>
-              <Field label="참가비 (기본)"><input className="ts-input" type="number" min={0} step={1000} value={form.entryFee} onChange={(e) => patch("entryFee", +e.target.value)} /></Field>
+              {/* 참가비 기본 + 종별별 차등 진입(정본 195~201 1:1) */}
+              <Field label="참가비 (기본)">
+                <div style={{ display: "flex", gap: 8 }}>
+                  <input className="ts-input" type="number" min={0} step={1000} style={{ flex: 1, minWidth: 0 }} value={form.entryFee} onChange={(e) => patch("entryFee", +e.target.value)} />
+                  <Btn variant="secondary" icon="layers" onClick={openFee}>종별별</Btn>
+                </div>
+                {tieredCount > 0 && <div className="ts-field__hint" style={{ color: "var(--primary)", fontWeight: 700 }}>종별 차등 참가비 {tieredCount}개 설정됨</div>}
+              </Field>
               <Field label="참가 접수 안내" span2><textarea className="ts-textarea" style={{ minHeight: 64 }} value={form.feeNotes} onChange={(e) => patch("feeNotes", e.target.value)} placeholder="입금자명·환불 안내 등" /></Field>
               <label className="ct-checkrow ct-span2"><Check on={form.autoApprove} onChange={(v) => patch("autoApprove", v)} /><span>참가팀 자동 승인</span></label>
               <label className="ct-checkrow ct-span2"><Check on={form.allowWaiting} onChange={(v) => patch("allowWaiting", v)} /><span>대기 접수 허용</span></label>
@@ -658,6 +687,40 @@ export function CreateWizard({
           <Btn icon="check" disabled={saving} onClick={submit}>{saving ? "생성 중" : "대회 생성"}</Btn>
         )}
       </div>
+
+      {/* 종별 참가비 설정 모달(정본 workspace.jsx 228~253 1:1) */}
+      <Modal
+        open={feeOpen}
+        onClose={() => setFeeOpen(false)}
+        title="종별 참가비 설정"
+        sub="생성한 종별별로 참가비를 다르게 설정합니다. 미설정 종별은 기본 참가비를 적용합니다."
+        foot={
+          <>
+            <Btn variant="secondary" onClick={() => setFeeOpen(false)}>취소</Btn>
+            <Btn icon="check" onClick={applyFees}>적용</Btn>
+          </>
+        }
+      >
+        {labeledDivs.length ? (
+          <div>
+            {/* 기본 참가비 일괄 적용 — 모든 종별 draft 를 기본액으로 채움 */}
+            <button type="button" className="ct-feeapply" onClick={() => { const m: Record<string, number> = {}; labeledDivs.forEach((d) => { m[d.id] = form.entryFee; }); setDraftFees(m); }}>
+              <Icon name="copy" size={15} />기본 참가비 일괄 적용 · {won(form.entryFee)}
+            </button>
+            {labeledDivs.map((d) => (
+              <div key={d.id} className="ct-feerow">
+                <div className="ct-feerow__nm">{d.label}<span className="ct-feerow__cap">정원 {d.cap != null ? `${d.cap}팀` : "무제한"} · {FORMAT_LABEL[form.format] || form.format}</span></div>
+                <div className="ct-feerow__in">
+                  <input type="number" className="ts-input" value={d.id in draftFees ? draftFees[d.id] : ""} onChange={(e) => setDraftFees((f) => ({ ...f, [d.id]: +e.target.value }))} />
+                  <span className="ct-feerow__won">원</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="ct-emptybox"><b>종별·정원</b> 단계에서 종별을 먼저 추가하세요.</div>
+        )}
+      </Modal>
 
       {/* 기존 대회 복사 피커 — 선택 시 ?copyFrom 으로 재진입(서버 prefill) */}
       {copyableList && (
