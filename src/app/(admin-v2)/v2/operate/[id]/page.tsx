@@ -15,6 +15,12 @@ import { canManageTournament } from "@/lib/auth/tournament-permission";
 import { buildAdminV2User } from "../../_admin-user";
 import { OperateShell, type OperateSummary } from "./_operate-shell";
 import type { OperateTeam, OperateRule, TeamStatus, PayStatus, ViaKind } from "./_teams-panel";
+import type {
+  BracketData,
+  BracketDivision,
+  BracketTeam,
+  BracketMatch,
+} from "./_bracket-panel";
 
 export const dynamic = "force-dynamic";
 
@@ -65,6 +71,20 @@ function statusPill(s: string | null | undefined): { label: string; tone: string
 const TEAM_STATUSES: TeamStatus[] = ["pending", "approved", "rejected", "withdrawn"];
 const PAY_STATUSES: PayStatus[] = ["unpaid", "paid", "refunded", "waived"];
 
+// 무료 대진 버전 한도(lib/tournaments/bracket-version.ts MAX_BRACKET_VERSIONS_FREE 동일값)
+const MAX_BRACKET_VERSIONS_FREE = 3;
+
+// jsonb verbatim 스칼라 lookup(F-2b 차단 — 재귀변환 0, 지정 키만 읽음)
+function jsonNum(v: unknown, d: number): number {
+  if (typeof v === "number" && Number.isFinite(v)) return v;
+  if (typeof v === "string" && v.trim() !== "" && !Number.isNaN(Number(v)))
+    return Number(v);
+  return d;
+}
+function jsonStr(v: unknown): string | null {
+  return typeof v === "string" && v.trim() !== "" ? v : null;
+}
+
 export default async function OperateWorkspacePage({
   params,
 }: {
@@ -79,12 +99,13 @@ export default async function OperateWorkspacePage({
   if (!allowed) redirect("/v2/ta/tournaments");
 
   // ── 데이터 READ (Prisma 직접) ──
-  const [t, teamRows, ruleRows, matchCount] = await Promise.all([
+  const [t, teamRows, ruleRows, matchRows, versionCount] = await Promise.all([
     prisma.tournament.findUnique({
       where: { id },
       select: {
         name: true,
         status: true,
+        format: true, // R4-B: 종별 룰 format 미지정 시 폴백
         startDate: true,
         endDate: true,
         venue_name: true,
@@ -108,6 +129,10 @@ export default async function OperateWorkspacePage({
         applied_at: true,
         createdAt: true,
         applied_via: true,
+        // R4-B 대진: 시드/조 배정
+        seedNumber: true,
+        groupName: true,
+        group_order: true,
         team: { select: { name: true, logoUrl: true, primaryColor: true } },
         _count: { select: { players: true } },
       },
@@ -115,12 +140,37 @@ export default async function OperateWorkspacePage({
     prisma.tournamentDivisionRule.findMany({
       where: { tournamentId: id },
       orderBy: { sortOrder: "asc" },
-      select: { code: true, label: true, feeKrw: true },
+      // R4-B: id(generate 엔드포인트)·format·settings(jsonb verbatim) 추가
+      select: { id: true, code: true, label: true, feeKrw: true, format: true, settings: true },
     }),
-    prisma.tournamentMatch.count({ where: { tournamentId: id } }),
+    // R4-B: 대진 트리(실 matches). settings jsonb는 verbatim 스칼라 lookup만.
+    prisma.tournamentMatch.findMany({
+      where: { tournamentId: id },
+      orderBy: [{ round_number: "asc" }, { bracket_position: "asc" }],
+      select: {
+        id: true,
+        roundName: true,
+        round_number: true,
+        bracket_position: true,
+        match_number: true,
+        group_name: true,
+        status: true,
+        homeTeamId: true,
+        awayTeamId: true,
+        homeScore: true,
+        awayScore: true,
+        winner_team_id: true,
+        settings: true,
+        homeTeam: { select: { team: { select: { name: true } } } },
+        awayTeam: { select: { team: { select: { name: true } } } },
+      },
+    }),
+    prisma.tournament_bracket_versions.count({ where: { tournament_id: id } }),
   ]);
 
   if (!t) notFound();
+
+  const matchCount = matchRows.length;
 
   // div_caps jsonb verbatim — code별 정원 스칼라 lookup만(재귀변환 0)
   const divCaps = (t.div_caps ?? {}) as Record<string, number>;
@@ -185,6 +235,66 @@ export default async function OperateWorkspacePage({
     matchCount,
   };
 
+  // ── R4-B 대진 데이터 매핑(snake → 도메인 camel 단일 지점) ──
+  const tFormat = t.format || "single_elimination";
+  const bracketDivisions: BracketDivision[] = ruleRows.map((r) => {
+    const s = (r.settings ?? {}) as Record<string, unknown>;
+    return {
+      ruleId: r.id.toString(),
+      code: r.code,
+      label: r.label,
+      // 종별 format 우선 · 없으면 대회 format 폴백
+      format: r.format || tFormat,
+      // settings jsonb verbatim 스칼라 lookup(snake 표준 + legacy camel 폴백)
+      groupCount: jsonNum(s.group_count ?? s.groupCount, 2),
+      groupSize: jsonNum(s.group_size ?? s.groupSize, 4),
+      advancePerGroup: jsonNum(s.advance_per_group ?? s.advanceCount ?? s.advance_count, 2),
+    };
+  });
+
+  const bracketTeams: BracketTeam[] = teamRows
+    .filter((tt) => tt.status === "approved")
+    .map((tt, i) => ({
+      id: tt.id.toString(),
+      name: tt.team?.name ?? "(이름 없음)",
+      color: tt.team?.primaryColor || avColor(i),
+      category: tt.category ?? "기타",
+      seed: tt.seedNumber ?? null,
+      group: tt.groupName ?? null,
+      groupOrder: tt.group_order ?? null,
+    }));
+
+  const bracketMatches: BracketMatch[] = matchRows.map((m) => {
+    const ms = (m.settings ?? {}) as Record<string, unknown>;
+    return {
+      id: m.id.toString(),
+      divisionCode: jsonStr(ms.division_code),
+      roundName: m.roundName ?? null,
+      roundNumber: m.round_number ?? null,
+      bracketPosition: m.bracket_position ?? null,
+      matchNumber: m.match_number ?? null,
+      groupName: m.group_name ?? null,
+      status: m.status ?? "scheduled",
+      homeName: m.homeTeam?.team?.name ?? null,
+      awayName: m.awayTeam?.team?.name ?? null,
+      homeSlot: jsonStr(ms.homeSlotLabel ?? ms.home_slot_label),
+      awaySlot: jsonStr(ms.awaySlotLabel ?? ms.away_slot_label),
+      homeScore: m.homeScore ?? 0,
+      awayScore: m.awayScore ?? 0,
+      homeTeamId: m.homeTeamId != null ? m.homeTeamId.toString() : null,
+      awayTeamId: m.awayTeamId != null ? m.awayTeamId.toString() : null,
+      winnerTeamId: m.winner_team_id != null ? m.winner_team_id.toString() : null,
+    };
+  });
+
+  const bracketData: BracketData = {
+    divisions: bracketDivisions,
+    teams: bracketTeams,
+    matches: bracketMatches,
+    versionCount,
+    maxFree: MAX_BRACKET_VERSIONS_FREE,
+  };
+
   const user = await buildAdminV2User();
 
   return (
@@ -194,6 +304,7 @@ export default async function OperateWorkspacePage({
       summary={summary}
       teams={teams}
       rules={rules}
+      bracketData={bracketData}
     />
   );
 }

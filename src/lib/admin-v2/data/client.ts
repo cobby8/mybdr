@@ -29,6 +29,12 @@ export type AdminFetchOptions<T> = {
   method?: "GET" | "POST" | "PATCH" | "PUT" | "DELETE";
   /** 요청 body(camel). 자동 snake 변환 후 JSON 전송. */
   body?: unknown;
+  /**
+   * body 키 변환 우회(기본 false). true 면 body 를 camel→snake 변환 없이 verbatim 전송.
+   * camelCase zod 계약 엔드포인트(예: division-draw 의 divisionCode/seedAssignments)용.
+   * 대부분의 web API 는 snake 계약이므로 평소엔 미사용.
+   */
+  rawBody?: boolean;
   /** Zod4 응답 스키마 — 있으면 parse(핵심필드 런타임 검증). */
   schema?: ZodType<T>;
   /** jsonb 키(camel 또는 snake). 값 verbatim 보존. */
@@ -49,8 +55,10 @@ export async function adminFetch<T = unknown>(
   };
   if (opts.body !== undefined) {
     init.headers = { "Content-Type": "application/json", ...opts.headers };
-    // 요청 body: camel → snake (단일 변환점)
-    init.body = JSON.stringify(convertKeysDeep(opts.body, toSnake, raw));
+    // 요청 body: camel → snake (단일 변환점). rawBody=true 면 verbatim(camel 계약 엔드포인트).
+    init.body = JSON.stringify(
+      opts.rawBody ? opts.body : convertKeysDeep(opts.body, toSnake, raw)
+    );
   } else if (opts.headers) {
     init.headers = opts.headers;
   }
