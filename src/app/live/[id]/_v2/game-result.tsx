@@ -177,6 +177,8 @@ export interface MatchDataV2 {
   youtube_video_id?: string | null;
   youtube_status?: "manual" | "auto_verified" | "auto_pending" | null;
   youtube_verified_at?: string | null;
+  // 2026-06-28: 매치별 영상 시작 지점 (초). 박제값. 0 또는 미전달이면 영상 처음부터.
+  youtube_start_seconds?: number | null;
   // 2026-05-13 FIBA Phase 21: 매치 기록 모드 — "paper" 매치는 박스스코어 슈팅 6 컬럼 (FG/FG%/3P/3P%/FT/FT%) hide.
   // API getRecordingMode 가 "paper" 만 명시적 match, 그 외 "flutter" fallback. null/undefined = 응답 미제공(레거시) 안전 → 기본 flutter 처리.
   recording_mode?: "paper" | "flutter" | null;
@@ -381,6 +383,8 @@ export function GameResultV2({ match }: { match: MatchDataV2 }) {
             videoId={match.youtube_video_id}
             isLive={false}
             status={match.youtube_status ?? null}
+            // 2026-06-28: 박제된 시작 지점부터 재생 (0 이면 처음부터). 종료 매치=VOD 라 &start 정확 동작.
+            startSeconds={match.youtube_start_seconds ?? 0}
             // GameResultV2 는 admin-check 별도 호출 안 함 — PR4 운영자 모달에서 통합 시 isAdmin 전달.
             isAdmin={false}
           />
