@@ -8,19 +8,31 @@ import { NextResponse } from "next/server";
  * release_history는 앱정보/업데이트 화면의 누적 릴리즈 아카이브다.
  */
 const LATEST = {
-  latest_version_code: 17,
-  latest_version_name: "0.1.15",
+  latest_version_code: 18,
+  latest_version_name: "0.1.16",
   min_supported_version_code: 1,
   is_mandatory: false,
   apk_url: "https://www.mybdr.kr/api/v1/app/download",
-  sha256: "71ad4b21f8b4456fd3c03249230c1a2607f19c8bb8bdd4242bcd787358c8033a",
-  size_bytes: 75333390,
+  sha256: "9d4805d830f84b45edff99e48c021af35196f60dc3b30c9da7ff058ea23ebf73",
+  size_bytes: 75399062,
   release_notes: [
-    "큰 태블릿 액션 버튼 위치 보정",
-    "보안 저장소 강화",
-    "릴리즈 서명 및 난독화 강화"
+    "쿼터 종료 후 추가 기록 중 다음 쿼터 시작 버튼 유지",
+    "추가 기록 중에도 쿼터 전환 경로 보존",
+    "현장 기록 흐름 안정화"
   ],
   release_history: [
+    {
+      version: "0.1.16",
+      date: "2026-06-28",
+      summary: "쿼터 종료 후 추가 기록 중에도 다음 쿼터 시작 경로를 유지",
+      details:
+        "쿼터 종료 알림에서 추가 기록을 선택해도 알림이 완전히 사라지지 않고 상단에 작게 접힌 상태로 남도록 개선했습니다. 남은 리바운드, 파울, 정정 기록을 처리한 뒤에도 Q4 시작 또는 다음 쿼터 시작 버튼을 계속 사용할 수 있습니다.",
+      notes: [
+        { kind: "fix", text: "쿼터 종료 알림의 해제를 추가 기록 모드로 변경" },
+        { kind: "fix", text: "추가 기록 중 상단 접힘 배지에서 다음 쿼터 시작 버튼 유지" },
+        { kind: "fix", text: "00:00 상태에서 다른 기록 액션 후에도 쿼터 전환 경로 보존" },
+      ],
+    },
     {
       version: "0.1.15",
       date: "2026-06-28",
