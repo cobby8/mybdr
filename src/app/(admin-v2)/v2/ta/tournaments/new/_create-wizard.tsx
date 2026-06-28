@@ -251,6 +251,12 @@ export function CreateWizard({
     if (!date || form.dates.some((d) => d.date === date)) return;
     patch("dates", [...form.dates, { id: uid("dt"), date, courtIds: [] }].sort((a, b) => a.date.localeCompare(b.date)));
   };
+  // 캘린더 셀 토글 — 이미 선택된 날이면 제거(removeDate), 아니면 추가(addDate). form.dates = SOT.
+  const toggleDate = (date: string) => {
+    const ex = form.dates.find((d) => d.date === date);
+    if (ex) patch("dates", form.dates.filter((d) => d.id !== ex.id));
+    else addDate(date);
+  };
   const toggleCourt = (did: string, cid: string) =>
     patch("dates", form.dates.map((d) =>
       d.id === did
@@ -499,10 +505,10 @@ export function CreateWizard({
                 </div>
               )}
             </div>
-            {/* 일정 */}
+            {/* 일정 — 월 캘린더에서 날짜를 복수 선택(클릭 토글). 선택 날짜는 아래 카드로 펼침 */}
             <div className="ts-field">
               <span className="ts-field__label">대회 일정</span>
-              <DateAdd onAdd={addDate} />
+              <MonthCalendar selected={form.dates.map((d) => d.date)} onToggle={toggleDate} />
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {form.dates.map((dt, i) => (
                   <div key={dt.id} className="ct-dateblock">
@@ -786,18 +792,65 @@ export function VenueAdd({ onAdd }: { onAdd: (name: string) => void }) {
   );
 }
 
-// ── 일정 추가(date 입력 — 정본 CalendarModal 대체) ── (R5-B 재사용 export)
-export function DateAdd({ onAdd }: { onAdd: (date: string) => void }) {
-  const [d, setD] = useState("");
-  const commit = () => {
-    if (!d) return;
-    onAdd(d);
-    setD("");
-  };
+// ── 월 캘린더(복수 날짜 토글 — 정본 CalendarModal 대체) ── (R5-B 재사용 export)
+//   ★ form.dates 가 source-of-truth. 셀 클릭 → onToggle("YYYY-MM-DD") →
+//     부모가 있으면 removeDate / 없으면 addDate. 선택 날짜 = primary 하이라이트.
+//   표준 월 그리드(일~토 7열) + 이전/다음 월 네비. 일반 컴포넌트라 new Date() 사용 가능(워크플로 아님).
+export function MonthCalendar({ selected, onToggle }: { selected: string[]; onToggle: (date: string) => void }) {
+  // 표시 월 커서(해당 월 1일 기준). 초기 = 선택된 첫 날짜의 월, 없으면 이번 달.
+  const [cursor, setCursor] = useState<Date>(() => {
+    const first = [...selected].sort()[0];
+    const base = first ? new Date(first + "T00:00:00") : new Date();
+    return new Date(base.getFullYear(), base.getMonth(), 1);
+  });
+  const year = cursor.getFullYear();
+  const month = cursor.getMonth(); // 0-based
+  const pad = (n: number) => String(n).padStart(2, "0");
+  // 셀 day(1~말일) → "YYYY-MM-DD" (로컬 기준 — UTC 변환 없이 표시-저장 일관)
+  const dstr = (day: number) => `${year}-${pad(month + 1)}-${pad(day)}`;
+  const firstWeekday = new Date(year, month, 1).getDay(); // 0=일 … 6=토
+  const daysInMonth = new Date(year, month + 1, 0).getDate(); // 다음달 0일 = 이번달 말일
+  const sel = new Set(selected); // 선택 여부 O(1) 조회
+  // 오늘(로컬) 강조용
+  const now = new Date();
+  const todayStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+  // 그리드 셀 = 앞 빈칸(이전 달 자리) + 1~말일
+  const cells: (number | null)[] = [
+    ...Array.from({ length: firstWeekday }, () => null),
+    ...Array.from({ length: daysInMonth }, (_, i) => i + 1),
+  ];
+  // 이전/다음 월 이동(delta = -1/+1) — 월 오버플로는 Date 가 자동 보정
+  const move = (delta: number) => setCursor(new Date(year, month + delta, 1));
   return (
-    <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
-      <input className="ts-input" style={{ flex: 1, minWidth: 0 }} type="date" value={d} onChange={(e) => setD(e.target.value)} />
-      <button type="button" className="ct-adddate" onClick={commit}><Icon name="calendar-plus" size={16} />일정 추가</button>
+    <div className="ct-cal">
+      <div className="ct-cal__head">
+        <button type="button" className="ct-cal__nav" onClick={() => move(-1)} aria-label="이전 달"><Icon name="chevron-left" size={18} /></button>
+        <span className="ct-cal__title">{year}년 {month + 1}월</span>
+        <button type="button" className="ct-cal__nav" onClick={() => move(1)} aria-label="다음 달"><Icon name="chevron-right" size={18} /></button>
+      </div>
+      <div className="ct-cal__grid">
+        {/* 요일 헤더(일~토) — 주말 dim */}
+        {WK.map((w, i) => (
+          <span key={w} className="ct-cal__wk" data-wend={i === 0 || i === 6}>{w}</span>
+        ))}
+        {/* 날짜 셀 — 빈칸은 비활성 placeholder */}
+        {cells.map((day, i) =>
+          day == null ? (
+            <span key={"e" + i} className="ct-cal__cell ct-cal__cell--empty" />
+          ) : (
+            <button
+              key={day}
+              type="button"
+              className="ct-cal__cell"
+              data-on={sel.has(dstr(day))}
+              data-today={dstr(day) === todayStr}
+              onClick={() => onToggle(dstr(day))}
+            >
+              {day}
+            </button>
+          )
+        )}
+      </div>
     </div>
   );
 }

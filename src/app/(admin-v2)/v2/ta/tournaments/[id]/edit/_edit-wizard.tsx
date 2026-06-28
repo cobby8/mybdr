@@ -6,7 +6,7 @@
 //         (TournamentWorkspace mode="edit" — 5단계 폼 + dirty 저장바 + 삭제 모달)
 //
 //   ★ R5-A 생성 마법사(../../new/_create-wizard) 의 프리미티브/타입/CSS 전면 재사용.
-//     - Field/GroupTitle/Stepper/SegSm/VenueAdd/DateAdd/ReviewRow/FORMAT_LABEL/fmtDate/won/타입
+//     - Field/GroupTitle/Stepper/SegSm/VenueAdd/MonthCalendar/ReviewRow/FORMAT_LABEL/fmtDate/won/타입
 //     - 5단계 스텝 구성·className(tw-steps/ct-*) 동일 → 시각 1:1.
 //
 //   ★ 백엔드/DB/Prisma 0변경. 기존 수정/삭제 엔드포인트 재사용:
@@ -39,7 +39,7 @@ import {
   Stepper,
   SegSm,
   VenueAdd,
-  DateAdd,
+  MonthCalendar,
   ReviewRow,
   FORMAT_LABEL,
   ALLOWED_FORMATS,
@@ -237,6 +237,12 @@ export function EditWizard({
     if (!date || form.dates.some((d) => d.date === date)) return;
     patch("dates", [...form.dates, { id: uid("dt"), date, courtIds: [] }].sort((a, b) => a.date.localeCompare(b.date)));
   };
+  // 캘린더 셀 토글 — 이미 선택된 날이면 제거, 아니면 추가(addDate). form.dates = SOT.
+  const toggleDate = (date: string) => {
+    const ex = form.dates.find((d) => d.date === date);
+    if (ex) patch("dates", form.dates.filter((d) => d.id !== ex.id));
+    else addDate(date);
+  };
   const toggleCourt = (did: string, cid: string) =>
     patch("dates", form.dates.map((d) =>
       d.id === did
@@ -425,10 +431,10 @@ export function EditWizard({
                 </div>
               )}
             </div>
-            {/* 일정 */}
+            {/* 일정 — 월 캘린더에서 날짜를 복수 선택(클릭 토글). 선택 날짜는 아래 카드로 펼침 */}
             <div className="ts-field">
               <span className="ts-field__label">대회 일정</span>
-              <DateAdd onAdd={addDate} />
+              <MonthCalendar selected={form.dates.map((d) => d.date)} onToggle={toggleDate} />
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {form.dates.map((dt, i) => (
                   <div key={dt.id} className="ct-dateblock">
