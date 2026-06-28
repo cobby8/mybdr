@@ -15,7 +15,7 @@ f="${CLAUDE_PROJECT_DIR:-.}/.claude/scratchpad.md"
 [ -f "$f" ] || exit 0
 
 n=$(wc -l < "$f" | tr -d ' ')
-[ "$n" -gt 120 ] || exit 0
+[ "$n" -gt 200 ] || exit 0
 
-printf '{"decision":"block","reason":"⚠️ scratchpad.md가 %s줄입니다(임계 120). scratchpad-keeper 에이전트로 완료·커밋된 작업 상세를 압축하세요. 미커밋 작업은 보존."}' "$n"
+printf '{"decision":"block","reason":"⚠️ scratchpad.md가 %s줄입니다(임계 200). scratchpad-keeper 에이전트로 완료·커밋된 작업 상세를 압축하세요. 미커밋 작업은 보존."}' "$n"
 exit 0
