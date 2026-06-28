@@ -188,6 +188,8 @@ interface MatchData {
   youtube_video_id?: string | null;
   youtube_status?: "manual" | "auto_verified" | "auto_pending" | null;
   youtube_verified_at?: string | null;
+  // 2026-06-28: 매치별 영상 시작 지점 (초). 박제값. 0 또는 미전달이면 영상 처음부터.
+  youtube_start_seconds?: number | null;
   // 2026-05-09 PR1: 라이브 매치 카드 패널 — 같은 대회 + 같은 날 (KST) 매치 N건 (현재 매치 포함).
   // 빈 배열 또는 1건만 있으면 Rail 자체 hidden (사용자 결정 Q4=A 가변).
   // 응답 키 이미 snake_case → apiSuccess 자동 변환에서 그대로 통과 (errors.md 2026-04-17 룰).
@@ -1489,6 +1491,8 @@ export default function LiveBoxScorePage() {
                   videoId={match.youtube_video_id}
                   isLive={isLive || match.youtube_status === "manual"}
                   status={match.youtube_status ?? null}
+                  // 2026-06-28: 박제된 시작 지점부터 재생 (0 이면 처음부터)
+                  startSeconds={match.youtube_start_seconds ?? 0}
                   isAdmin={isAdmin}
                   // PR4+PR5 — 운영자 클릭 시 모달 오픈 (수동 입력 / 자동 검색 탭)
                   onManageClick={() => setStreamModalOpen(true)}
@@ -1507,6 +1511,8 @@ export default function LiveBoxScorePage() {
                 videoId={match.youtube_video_id}
                 isLive={isLive || match.youtube_status === "manual"}
                 status={match.youtube_status ?? null}
+                // 2026-06-28: 박제된 시작 지점부터 재생 (0 이면 처음부터)
+                startSeconds={match.youtube_start_seconds ?? 0}
                 isAdmin={isAdmin}
                 onManageClick={() => setStreamModalOpen(true)}
               />

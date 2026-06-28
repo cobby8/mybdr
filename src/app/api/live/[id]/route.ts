@@ -1470,6 +1470,12 @@ export async function GET(
         // 2026-05-09 PR3: 라이브 YouTube 영상 임베딩 — 매치 1건 = 영상 1건 (1:1 옵션 A).
         // null 이면 라이브 페이지에서 임베드 영역 hidden (Q11 결재). apiSuccess camelCase → snake_case 변환.
         youtubeVideoId: match.youtube_video_id,
+        // 2026-06-28: 매치별 영상 시작 지점 (초) — settings.youtube_start_seconds 박제값 노출.
+        //   숫자일 때만 전달, 아니면 0 (처음부터). apiSuccess camelCase → snake_case 변환 → youtube_start_seconds.
+        youtubeStartSeconds:
+          typeof (match.settings as Record<string, unknown> | null)?.youtube_start_seconds === "number"
+            ? ((match.settings as Record<string, unknown>).youtube_start_seconds as number)
+            : 0,
         youtubeStatus: match.youtube_status,
         youtubeVerifiedAt: match.youtube_verified_at?.toISOString() ?? null,
         // 2026-05-09 PR1: 같은 대회 + 같은 날 (KST) 매치 list — 라이브 페이지 매치 카드 패널 (네이버 패턴).
