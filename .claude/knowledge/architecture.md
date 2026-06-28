@@ -2,6 +2,17 @@
 <!-- 담당: planner-architect, developer | 최대 30항목 -->
 <!-- 프로젝트의 폴더 구조, 파일 역할, 핵심 패턴을 기록 -->
 
+### [2026-06-28] 심판·협력 콘솔 백엔드 정합 실측 (그린필드 리빌딩 R5/R6 선행 조사)
+- **분류**: architecture (read-only·SELECT 실측·코드 0변경)
+- **발견자**: planner-architect
+- **내용**:
+  - **★백엔드 실재(모델·API·페이지 전부 존재)** — Toss 시안은 "신규"가 아니라 **기존 기능 리스킨**. ①협력: `partners`/`partner_members`/`ad_campaigns`/`ad_placements`(schema L2611~2703) + `/api/web/partner/{stats,me,venue,campaigns,campaigns/[id],campaigns/[id]/placements}` + `(web)/partner-admin/{page,venue,campaigns,campaigns/[id]}` + `/api/admin/partners`. ②심판: `Referee`/`RefereeCertificate`/`RefereeAssignment`/`RefereeSettlement`/`RefereeDocument`/`Association(Admin/FeeSetting)`/`AssignmentAnnouncement`/`AssignmentApplication(Date)`/`DailyAssignmentPool`(schema L2782~3069) + `/api/web/referee-admin/*` 25 route + `(referee)/referee/admin/*` 14페이지(이미 data-skin="toss").
+  - **★실데이터 SELECT(운영 DB·2026-06-28)**: partners=0·partner_members=0·ad_campaigns=0·ad_placements=0 / court_infos=672(but rental_available=0·booking_mode internal=0)·court_bookings=0 / referees=1(active·matched)·certs=0·assignments=0·settlements=0·documents=0·associations=1·association_admins=1·fee_settings=0·announcements=0·applications=0·pools=0. → 모델·API 완비이나 **실데이터 사실상 0** → 배선해도 전부 빈 상태 렌더(그린필드 룰: mock 금지·빈 상태/준비중 OK).
+  - **★R4-D "심판 배정 부재 가능" stub은 오판** — `RefereeAssignment` 모델+`/referee-admin/assignments`(GET/POST/[id]) API+`/referee/admin/assignments` 페이지 전부 실재. 배정 배선 가능(데이터만 0행).
+  - **★스코프 불일치(사용자 결정 필요)**: 기존 referee-admin = **협회 스코프**(association_admin + AssociationAdmin 매핑, super/recorder_admin 우회). Toss 시안 = **글로벌 단일 콘솔**("MyBDR 심판 콘솔"). 신규 콘솔을 협회 스코프 재사용 vs 글로벌 super-admin 신설 = 결정 항목. (※심판 앱=웹 `(referee)` 그룹, `/api/v1` Flutter 미연계 → CLAUDE.md 사용자결정 트리거 해당 없음.)
+  - **★백엔드 없음 갭(시안에만)**: ①파트너 정산 모델 부재(court_infos.fee/ad budget만, "결제연동" 안내) ②심판 평가 리포트 모델 부재(`game_player_ratings`=선수평가뿐, RefereeEvaluation 없음) ③등급별(1/2/3급) 수당 부재(`AssociationFeeSetting`=역할별 주심/부심/기록/타이머만) ④광고 과금/billing 로직 미구현(ad_campaigns budget/spent/pricing="스키마만") ⑤심판 "신청 관리(승인/반려)" admin 엔드포인트 부재(applications 모델은 있고 pool 선정으로 소비) ⑥court_infos에 partner_id FK 없음(owner_id 일치로 비공식 연결·court_type=partner 없음).
+- **참조횟수**: 0
+
 ### [2026-06-16] 기록(Records) 기능 데이터원 맵 + statCols 21컬럼 매핑 + 집계 재사용 자산
 - **분류**: architecture (선수/팀/대회 기록 탭 3화면 데이터 매핑 + 집계 엔진 재사용 + 신규 라우트)
 - **발견자**: planner-architect (기록 기능 박제 설계 / 운영 read-only · schema+코드 실측)
