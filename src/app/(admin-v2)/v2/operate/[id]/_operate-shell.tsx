@@ -116,7 +116,7 @@ export function OperateShell({
         window.scrollTo({ top: 0 });
       }}
       user={user}
-      home="/v2/ta"
+      home="/v2"
       footAction={<LogoutButton />}
     >
       {/* 요약 헤더 (정본 ts-ph) */}

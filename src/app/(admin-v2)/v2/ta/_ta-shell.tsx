@@ -71,7 +71,7 @@ export function TaShell({
       active={active}
       onNav={onNav}
       user={user}
-      home="/v2/ta"
+      home="/v2"
       isHome={pathname === "/v2/ta"}
       footAction={<LogoutButton />}
     >
