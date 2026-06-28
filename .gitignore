@@ -59,6 +59,9 @@ local_dump.sql
 # Playwright MCP (도구 산출물)
 .playwright-mcp/
 
+# 임시 추출/작업 디렉토리 (zip 추출 등 — git 추적 제외)
+.tmp/
+
 # 디자인 원본 (.ai 등 — 로컬 보관, git 추적 제외)
 /참가팀_로고모음/
 tmp/
