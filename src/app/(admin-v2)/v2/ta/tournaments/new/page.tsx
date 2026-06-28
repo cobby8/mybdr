@@ -40,6 +40,7 @@ const COPY_SELECT = {
   fee_notes: true,
   auto_approve_teams: true,
   allow_waiting_list: true,
+  waiting_list_cap: true,
   game_ball: true,
   format: true,
   game_rules: true,

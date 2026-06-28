@@ -103,6 +103,8 @@ export type FormState = {
   feeNotes: string;
   autoApprove: boolean;
   allowWaiting: boolean;
+  // 대기 정원(waiting_list_cap) — null/0 = 무제한. allowWaiting 일 때만 의미.
+  waitingCap: number | null;
 };
 
 const EMPTY_FORM: FormState = {
@@ -131,6 +133,7 @@ const EMPTY_FORM: FormState = {
   feeNotes: "",
   autoApprove: false,
   allowWaiting: true,
+  waitingCap: null, // 무제한 기본
 };
 
 let uidSeq = 0;
@@ -386,6 +389,8 @@ export function CreateWizard({
             feeNotes: form.feeNotes || undefined,
             autoApproveTeams: form.autoApprove || undefined,
             allowWaitingList: form.allowWaiting || undefined,
+            // 대기 정원 — 0/빈값(null) = 무제한. validation positive() 회피 위해 falsy → null.
+            waitingListCap: form.waitingCap || null,
           },
         }
       );
@@ -687,6 +692,21 @@ export function CreateWizard({
                 <div className="ts-field__hint">결제 확인 후 승인 = 입금 확인 시 자동으로 승인됩니다.</div>
               </Field>
               <label className="ct-checkrow ct-span2"><Check on={form.allowWaiting} onChange={(v) => patch("allowWaiting", v)} /><span>대기 접수 허용</span></label>
+              {/* 대기 정원 — 대기 접수 허용 시에만 노출. 빈값/0 = 무제한(서버 null 저장). */}
+              {form.allowWaiting && (
+                <Field label="대기 정원" span2>
+                  <input
+                    className="ts-input"
+                    type="number"
+                    min={0}
+                    step={1}
+                    value={form.waitingCap ?? ""}
+                    onChange={(e) => patch("waitingCap", e.target.value === "" ? null : Math.max(0, Math.trunc(+e.target.value)))}
+                    placeholder="비워두면 무제한"
+                  />
+                  <div className="ts-field__hint">비워두거나 0이면 대기 정원이 무제한입니다.</div>
+                </Field>
+              )}
             </div>
             {/* 종별 미추가 가드(생성 차단) — 검토 요약은 제거하되 "종별 1개+ 필수" 경고만 유지 */}
             {review.divisions === 0 && (

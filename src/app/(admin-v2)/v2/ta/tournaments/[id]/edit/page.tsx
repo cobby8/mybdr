@@ -98,6 +98,7 @@ export default async function EditTournamentPage({
         fee_notes: true,
         auto_approve_teams: true,
         allow_waiting_list: true,
+        waiting_list_cap: true,
         game_ball: true,
         game_rules: true,
         categories: true,
@@ -203,6 +204,7 @@ export default async function EditTournamentPage({
     feeNotes: t.fee_notes ?? "",
     autoApprove: t.auto_approve_teams ?? false,
     allowWaiting: t.allow_waiting_list ?? true,
+    waitingCap: t.waiting_list_cap ?? null, // 대기 정원 prefill(없으면 무제한)
   };
 
   return (

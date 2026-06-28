@@ -144,6 +144,7 @@ export type CopySource = {
   fee_notes: string | null;
   auto_approve_teams: boolean | null;
   allow_waiting_list: boolean | null;
+  waiting_list_cap: number | null;
   game_ball: string | null;
   format: string | null;
   // entry_fee = Prisma Decimal | number | null → Number() 로 정규화(아래 buildCopyForm).
@@ -186,5 +187,6 @@ export function buildCopyForm(t: CopySource, ruleRows: DivisionRulePrefill[]): F
     feeNotes: t.fee_notes ?? "",
     autoApprove: t.auto_approve_teams ?? false,
     allowWaiting: t.allow_waiting_list ?? true,
+    waitingCap: t.waiting_list_cap ?? null, // 대기 정원 복사(없으면 무제한)
   };
 }
