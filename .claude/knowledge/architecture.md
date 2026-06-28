@@ -2,6 +2,17 @@
 <!-- 담당: planner-architect, developer | 최대 30항목 -->
 <!-- 프로젝트의 폴더 구조, 파일 역할, 핵심 패턴을 기록 -->
 
+### [2026-06-28] 단체(organization) 도메인 전체 맵 — 모델·화면·사이트·API 현황 (read-only 실측·코드0변경)
+- **분류**: architecture
+- **발견자**: planner-architect (단체 생성·관리 + 사이트 고도화 현황분석)
+- **내용**:
+  - **★3단계 계층**: `organizations`(schema L2554) → `tournament_series`(L2161·organization_id? FK) → `Tournament`. 단체 필드 풍부=slug(unique)·logo_url·banner_url·description·region·contact_email/phone·website_url·is_public·status(pending→approved/rejected/archived)·apply_note·승인워크플로(approved_at/by·rejection_reason/at)·series_count(캐시). `organization_members`(L2590·role owner/admin/member·is_active·@@unique[org,user]). **org↔team 직접관계 없음**(series→tournaments→teams만).
+  - **★운영데이터 희박(2026-06-28 SELECT)**: organizations=3(전부 approved·is_public)·organization_members=6·tournament_series=5(**organization_id 연결 1개뿐**·4개 NULL)·**logo_url=0·banner_url=0·description=2**. → 공개사이트 빈약 원인=데이터 미입력(코드 아님).
+  - **★백엔드 API 완비**(`api/web/organizations/*`): GET(내 소속목록)·**POST 생성**(slug 자동·중복회피·super즉시approved/일반pending·owner 자동등록)·GET[id]·**PATCH[id]**(name/description/region/logo_url/**banner_url**/contact_email·phone/website_url/is_public 수정—slug·status 제외)·members GET/POST초대(이메일·owner초대불가)/DELETE소프트삭제·archive POST/DELETE(owner+super·adminLog)·공개 slug/[slug] GET·slug/[slug]/series GET. 슈퍼 `api/web/admin/organizations`+[id]/approve·reject(reason필수). **미지원**=멤버 역할변경PATCH·slug수정·harddelete·이메일발송.
+  - **★Admin 화면 2계통**: ①레거시 `(admin)/tournament-admin/organizations/*` **거의완성**(생성폼7필드/목록/상세6탭basic·members·series·editions·officers·activity/멤버초대삭제/시리즈 생성·이동MoveSeriesModal·흡수AbsorbTournamentsModal·분리·보관/슈퍼승인큐 `(admin)/admin/organizations`). 갭=로고/배너 편집UI 부재(PATCH는 지원)·officers 역할토글 미동작·activity stub. ②그린필드 `(admin-v2)/v2/ta/organizations` = **읽기전용 카드그리드 stub**(_orgs.tsx·등록/관리/운영진 전부 "준비중" 토스트). 멤버십(organization_members user_id+is_active) 기반 "내 운영 단체"만.
+  - **★공개사이트 `(web)/organizations` 60~70%**: page.tsx(목록·실데이터 findMany is_public+approved·지역/정렬/검색 클라필터)·[slug]/page.tsx(server)+`_components_v2`(org-hero-v2·org-tabs-v2 4탭). 실데이터=목록·hero(로고/소개/지역/회원수/연락처/website)·EventsTab(series→tournaments)·MembersTab(top20)·series/[seriesSlug](회차타임라인·champion). **준비중**=TeamsTab(완전placeholder)·가입신청(alert)·Overview(운영원칙/주소/스폰서)·hero(설립연도/팀수). apply/page.tsx=5step 신청폼(POST organizations·status=pending) 실동작. 색상=`org-color.ts` pickColor(id) 해시(brand_color 컬럼 부재).
+- **참조횟수**: 0
+
 ### [2026-06-28] 심판·협력 콘솔 백엔드 정합 실측 (그린필드 리빌딩 R5/R6 선행 조사)
 - **분류**: architecture (read-only·SELECT 실측·코드 0변경)
 - **발견자**: planner-architect
