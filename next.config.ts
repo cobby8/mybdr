@@ -145,6 +145,123 @@ const nextConfig: NextConfig = {
         destination: "/pricing",
         permanent: true,
       },
+
+      // ─────────────────────────────────────────────────────────────
+      // R7-A 컷오버 1단계: 관리자 그린필드(/v2) 안내 redirect (308 영구)
+      // 왜: 그린필드 준비 영역(대회관리자 /v2/ta·백오피스 /v2/*)이 완성되어
+      //   레거시 URL 접근을 그린필드로 안내. 레거시 라우트는 무손상 유지(롤백 안전망).
+      // ★정밀 매칭: 와일드카드(:path*) 금지 — 개별 ready 경로만 명시 열거.
+      //   블로커/super전용/미포팅 보조도구 경로는 의도적으로 제외(잘못 redirect 시 운영 마비).
+      //   /admin(exact)은 /admin/games·/admin/news 등 제외 경로를 잡지 않음.
+      //   /tournament-admin/tournaments/:id/edit 패턴은 /tournament-admin/tournaments/:id
+      //   (대회운영 블로커)를 잡지 않음(세그먼트 edit 필수).
+      // ─────────────────────────────────────────────────────────────
+
+      // ── 대회관리자(/tournament-admin) → /v2/ta (갭 0·ready) ──
+      {
+        // 대회관리자 홈
+        source: "/tournament-admin",
+        destination: "/v2/ta",
+        permanent: true,
+      },
+      {
+        // 대회 목록
+        source: "/tournament-admin/tournaments",
+        destination: "/v2/ta/tournaments",
+        permanent: true,
+      },
+      {
+        // 대회 생성 마법사 → 그린필드 단일 생성 폼
+        source: "/tournament-admin/tournaments/new/wizard",
+        destination: "/v2/ta/tournaments/new",
+        permanent: true,
+      },
+      {
+        // 대회 수정 폼 (:id 보존 매핑)
+        source: "/tournament-admin/tournaments/:id/edit",
+        destination: "/v2/ta/tournaments/:id/edit",
+        permanent: true,
+      },
+      {
+        // 정규대회 시리즈 목록
+        source: "/tournament-admin/series",
+        destination: "/v2/ta/series",
+        permanent: true,
+      },
+      {
+        // 단체(조직) 목록
+        source: "/tournament-admin/organizations",
+        destination: "/v2/ta/organizations",
+        permanent: true,
+      },
+      {
+        // 템플릿 목록
+        source: "/tournament-admin/templates",
+        destination: "/v2/ta/templates",
+        permanent: true,
+      },
+
+      // ── 백오피스(/admin) → /v2 (매칭 제외·ready) ──
+      {
+        // 백오피스 홈
+        source: "/admin",
+        destination: "/v2",
+        permanent: true,
+      },
+      {
+        // 유저 관리 → 유저 콘솔(유저/팀/단체 통합)
+        source: "/admin/users",
+        destination: "/v2/user-console",
+        permanent: true,
+      },
+      {
+        // 팀 관리 → 유저 콘솔
+        source: "/admin/teams",
+        destination: "/v2/user-console",
+        permanent: true,
+      },
+      {
+        // 단체 관리 → 유저 콘솔
+        source: "/admin/organizations",
+        destination: "/v2/user-console",
+        permanent: true,
+      },
+      {
+        // 캠페인 → 마케팅 콘솔
+        source: "/admin/campaigns",
+        destination: "/v2/marketing-console",
+        permanent: true,
+      },
+      {
+        // 결제 관리
+        source: "/admin/payments",
+        destination: "/v2/payments",
+        permanent: true,
+      },
+      {
+        // 요금제 관리
+        source: "/admin/plans",
+        destination: "/v2/plans",
+        permanent: true,
+      },
+      {
+        // 커뮤니티 관리 → 커뮤니티 콘솔
+        source: "/admin/community",
+        destination: "/v2/community-console",
+        permanent: true,
+      },
+      {
+        // 건의/제안 → 커뮤니티 콘솔
+        source: "/admin/suggestions",
+        destination: "/v2/community-console",
+        permanent: true,
+      },
+      {
+        // 코트 관리 → 코트 콘솔
+        source: "/admin/courts",
+        destination: "/v2/court-console",
+        permanent: true,
+      },
     ];
   },
   async headers() {
