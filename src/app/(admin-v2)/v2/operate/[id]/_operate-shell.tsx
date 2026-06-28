@@ -29,6 +29,9 @@ import {
 } from "./_teams-panel";
 import { BracketPanel, type BracketData } from "./_bracket-panel";
 import { SchedulePanel, type ScheduleData } from "./_schedule-panel";
+import { OpsPanel, type OpsData } from "./_ops-panel";
+import { SettlePanel, type SettleData } from "./_settle-panel";
+import { SitePanel, type SiteData } from "./_site-panel";
 
 // 정본 MENUS (operate.jsx) — 6 운영 메뉴
 const MENUS: { id: string; label: string; icon: string; desc: string }[] = [
@@ -74,6 +77,9 @@ export function OperateShell({
   rules,
   bracketData,
   scheduleData,
+  opsData,
+  settleData,
+  siteData,
 }: {
   tournamentId: string;
   user: AdminUser;
@@ -82,6 +88,9 @@ export function OperateShell({
   rules: OperateRule[];
   bracketData: BracketData;
   scheduleData: ScheduleData;
+  opsData: OpsData;
+  settleData: SettleData;
+  siteData: SiteData;
 }) {
   const [menu, setMenu] = React.useState("teams");
   const cur = MENUS.find((m) => m.id === menu) ?? MENUS[0];
@@ -170,8 +179,22 @@ export function OperateShell({
         ) : menu === "schedule" ? (
           // R4-C: 일정 패널(실데이터 READ · 계획 클라 오버레이 · 영속화 미배선 보고)
           <SchedulePanel data={scheduleData} />
+        ) : menu === "ops" ? (
+          // R4-D: 운영관리(운영진·기록원·심판·공지·기록모드 — 실 엔드포인트)
+          <OpsPanel tournamentId={tournamentId} data={opsData} />
+        ) : menu === "site" ? (
+          // R4-D: 사이트(TournamentSite 설정·발행·방문 — 실 엔드포인트)
+          <SitePanel tournamentId={tournamentId} data={siteData} />
+        ) : menu === "settle" ? (
+          // R4-D: 정산(참가비 입금 = teams paid × fee · 지출 = tournament_expense)
+          <SettlePanel
+            tournamentId={tournamentId}
+            teams={teams}
+            rules={rules}
+            data={settleData}
+          />
         ) : (
-          // 나머지 3메뉴 = 준비 중(다음 증분 R4-D~). mock 0.
+          // 정의되지 않은 메뉴(방어) — 정본 Empty
           <Empty
             icon={cur.icon}
             title="준비 중입니다"

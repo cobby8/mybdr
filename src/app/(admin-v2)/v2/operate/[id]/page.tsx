@@ -28,6 +28,9 @@ import type {
   ScheduleDate,
   ScheduleRule,
 } from "./_schedule-panel";
+import type { OpsData, RecordMode } from "./_ops-panel";
+import type { SettleData, SettleExpense } from "./_settle-panel";
+import type { SiteData } from "./_site-panel";
 
 export const dynamic = "force-dynamic";
 
@@ -169,7 +172,8 @@ export default async function OperateWorkspacePage({
   if (!allowed) redirect("/v2/ta/tournaments");
 
   // ── 데이터 READ (Prisma 직접) ──
-  const [t, teamRows, ruleRows, matchRows, versionCount] = await Promise.all([
+  const [t, teamRows, ruleRows, matchRows, versionCount, expenseRows, site] =
+    await Promise.all([
     prisma.tournament.findUnique({
       where: { id },
       select: {
@@ -187,6 +191,10 @@ export default async function OperateWorkspacePage({
         // R4-C 일정: 장소·일정 jsonb(verbatim 정규화)
         places: true,
         schedule_dates: true,
+        // R4-D 운영관리: 공지/기본 기록모드(settings jsonb verbatim 스칼라) + 정규대회 연결(읽기)
+        settings: true,
+        series_id: true,
+        tournament_series: { select: { name: true } },
       },
     }),
     prisma.tournamentTeam.findMany({
@@ -243,6 +251,33 @@ export default async function OperateWorkspacePage({
       },
     }),
     prisma.tournament_bracket_versions.count({ where: { tournament_id: id } }),
+    // R4-D 정산: 지출 내역(tournament_expense — PR-2 신규 테이블 재사용). 실패 시 빈 배열.
+    prisma.tournament_expense
+      .findMany({
+        where: { tournament_id: id },
+        orderBy: { created_at: "desc" },
+        select: {
+          id: true,
+          label: true,
+          amount: true,
+          category: true,
+          memo: true,
+        },
+      })
+      .catch(() => [] as { id: bigint; label: string; amount: number; category: string | null; memo: string | null }[]),
+    // R4-D 사이트: 공개 사이트(TournamentSite — 발행상태/주소/색). 없으면 null.
+    prisma.tournamentSite
+      .findFirst({
+        where: { tournamentId: id },
+        select: {
+          subdomain: true,
+          isPublished: true,
+          primaryColor: true,
+          site_name: true,
+          siteTemplateId: true,
+        },
+      })
+      .catch(() => null),
   ]);
 
   if (!t) notFound();
@@ -404,6 +439,54 @@ export default async function OperateWorkspacePage({
     rules: scheduleRules,
   };
 
+  // ── R4-D 운영관리 데이터 매핑(settings jsonb verbatim 스칼라 lookup — F-2b 차단) ──
+  const tSettings = (t.settings ?? {}) as Record<string, unknown>;
+  // 공지 = settings.notice(단일 string · PR-2 패턴). 단일 단어 키라 snake 변환 무해.
+  const notice = typeof tSettings.notice === "string" ? tSettings.notice : "";
+  // 대회 기본 기록모드 = settings.default_recording_mode("flutter"|"paper"|"manual")
+  const rawMode = tSettings.default_recording_mode;
+  const recordMode: RecordMode =
+    rawMode === "flutter" || rawMode === "paper" || rawMode === "manual"
+      ? rawMode
+      : "flutter";
+  // 정규대회 연결(읽기 전용) — series_id(BigInt→string) + 관계명 둘 다 있을 때만
+  const seriesId = t.series_id != null ? t.series_id.toString() : null;
+  const seriesName = t.tournament_series?.name ?? null;
+  const opsData: OpsData = {
+    notice,
+    recordMode,
+    series: seriesId && seriesName ? { id: seriesId, name: seriesName } : null,
+  };
+
+  // ── R4-D 정산 데이터 매핑(지출 = tournament_expense 실 행) ──
+  const expenses: SettleExpense[] = expenseRows.map((e) => ({
+    id: e.id.toString(),
+    label: e.label,
+    amount: e.amount,
+    category: e.category,
+    memo: e.memo,
+  }));
+  const settleData: SettleData = { expenses };
+
+  // ── R4-D 사이트 데이터 매핑(TournamentSite — 없으면 미생성) ──
+  const siteData: SiteData = site
+    ? {
+        exists: true,
+        subdomain: site.subdomain ?? null,
+        isPublished: !!site.isPublished,
+        primaryColor: site.primaryColor ?? null,
+        siteName: site.site_name ?? null,
+        hasTemplate: site.siteTemplateId != null,
+      }
+    : {
+        exists: false,
+        subdomain: null,
+        isPublished: false,
+        primaryColor: null,
+        siteName: null,
+        hasTemplate: false,
+      };
+
   const user = await buildAdminV2User();
 
   return (
@@ -415,6 +498,9 @@ export default async function OperateWorkspacePage({
       rules={rules}
       bracketData={bracketData}
       scheduleData={scheduleData}
+      opsData={opsData}
+      settleData={settleData}
+      siteData={siteData}
     />
   );
 }
