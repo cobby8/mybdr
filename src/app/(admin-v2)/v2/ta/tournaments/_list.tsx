@@ -7,6 +7,7 @@
 // ============================================================
 
 import React from "react";
+import { useRouter } from "next/navigation";
 import {
   PageHead,
   DataTable,
@@ -52,6 +53,9 @@ const COLS: DataCol[] = [
 
 export function TournamentList({ rows }: { rows: TaTournamentRow[] }) {
   const { toast } = useAdminShell();
+  const router = useRouter();
+  // 행 클릭/운영 버튼 → 대회별 운영 워크스페이스(R4). ta 콘솔 셸 밖 라우트라 셸 중첩 0.
+  const goOperate = (id: string) => router.push(`/v2/operate/${id}`);
   const [q, setQ] = React.useState("");
   const [f, setF] = React.useState("all");
 
@@ -112,7 +116,7 @@ export function TournamentList({ rows }: { rows: TaTournamentRow[] }) {
         cols={COLS}
         rows={filtered as unknown as DataRow[]}
         empty="조건에 맞는 대회가 없습니다"
-        onRow={() => toast("대회 운영 콘솔은 준비 중입니다")}
+        onRow={(row) => goOperate((row as unknown as TaTournamentRow).id)}
         render={(row, k) => {
           const r = row as unknown as TaTournamentRow;
           if (k === "name")
@@ -152,7 +156,7 @@ export function TournamentList({ rows }: { rows: TaTournamentRow[] }) {
                   title="운영"
                   onClick={(e) => {
                     e.stopPropagation();
-                    toast("대회 운영 콘솔은 준비 중입니다");
+                    goOperate(r.id);
                   }}
                 >
                   <Icon name="settings-2" size={16} />

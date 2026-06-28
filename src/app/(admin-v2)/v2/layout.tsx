@@ -21,6 +21,7 @@ import { buildLoginRedirect } from "@/lib/auth/redirect";
 // admin-v2 디자인시스템 CSS (세그먼트 스코프 — /v2/* 라우트에서만 번들 포함)
 import "../../../styles/admin-v2/toss.css";
 import "../../../styles/admin-v2/admin-pages.css";
+import "../../../styles/admin-v2/workspace.css";
 
 export default async function AdminV2Layout({
   children,
