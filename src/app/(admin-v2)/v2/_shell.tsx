@@ -47,9 +47,9 @@ const TARGET: Record<string, string> = {
   matchConsole: "/v2/soon?c=matchConsole",
   communityConsole: "/v2/soon?c=communityConsole",
   courtConsole: "/v2/soon?c=courtConsole",
-  marketingConsole: "/v2/soon?c=marketingConsole",
-  payments: "/v2/soon?c=payments",
-  plans: "/v2/soon?c=plans",
+  marketingConsole: "/v2/marketing-console",
+  payments: "/v2/payments",
+  plans: "/v2/plans",
   notifications: "/v2/soon?c=notifications",
   settings: "/v2/soon?c=settings",
   mypage: "/v2/soon?c=mypage",
@@ -73,6 +73,12 @@ export function V2Shell({
       ? "userConsole"
       : pathname === "/v2/public-site"
       ? "publicsite"
+      : pathname.startsWith("/v2/marketing-console")
+      ? "marketingConsole"
+      : pathname.startsWith("/v2/payments")
+      ? "payments"
+      : pathname.startsWith("/v2/plans")
+      ? "plans"
       : "";
 
   const onNav = (id: string) => {
