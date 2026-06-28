@@ -46,8 +46,8 @@ allowed-tools: Read, Edit, Write, Grep, Glob, Bash
 
 - 코드 변경은 본인이 직접 수행 (developer 에이전트 호출 ❌)
 - 테스트는 tester 에 위임 (UI 흐름 / DB count 검증 / curl)
-- 리뷰는 reviewer 에 위임 (코드 품질 / 보안)
-- 디자인 박제 작업은 design-system-expert 와 협의 (BDR-current 13룰 자동 검수)
+- 리뷰는 reviewer(코드 품질) / security-reviewer(IDOR·인증·데이터 격리 보안) 에 위임
+- 디자인 박제(UI/시각)는 design-system-expert 에 위임·협업 (13룰·02 토큰·03 AppNav frozen 검수). 분담: live-expert=알고리즘/데이터 로직, design-system-expert=시각/시안 박제
 - knowledge 갱신: `architecture.md` / `decisions.md` 본인이 박제 (5필드 형식)
 - scratchpad 기록: 기존 "기획설계" 또는 "구현 기록" 섹션 공용 사용 (별도 섹션 신설 ❌)
 - 작업 로그: 한 줄 형식 유지, 도메인 prefix `[live]` 추가

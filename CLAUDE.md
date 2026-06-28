@@ -263,6 +263,12 @@ scripts/_templates/  재사용 가능한 일회성 스크립트 템플릿
    - Explore: 파일 3개+ 검색, 키워드 애매
    - planner: 구조적 결정, 영향 분석
    - developer: 2파일+ 연계 or 비즈니스 로직
+   - **security-reviewer**: API/권한/사용자데이터 변경 (reviewer와 병렬·IDOR 재발 5회 주의)
+   - **db-migration-expert**: Prisma 스키마 변경·마이그레이션 (운영 DB 단일 안전 가드)
+   - **design-system-expert**: 디자인 시안 박제·BDR-current 13룰 검수
+   - **site-security**: 배포 전·정기 보안 점검 / **site-maintenance**: 정기 점검·미사용/중복 코드 정리
+   - **vercel:performance-optimizer** (빌트인): 런타임 성능 (Web Vitals·번들·캐싱)
+   - **live-expert**: /live·minutes-engine·MVP·PBP·박스스코어 도메인
 
 ## 📋 기록 (상세는 글로벌 CLAUDE.md)
 - **scratchpad.md**: 현재 작업 + 작업 로그 10건 (100줄 이내)
