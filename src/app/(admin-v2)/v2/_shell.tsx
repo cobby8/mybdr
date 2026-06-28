@@ -45,8 +45,8 @@ const TARGET: Record<string, string> = {
   publicsite: "/v2/public-site",
   logs: "/v2/soon?c=logs",
   matchConsole: "/v2/soon?c=matchConsole",
-  communityConsole: "/v2/soon?c=communityConsole",
-  courtConsole: "/v2/soon?c=courtConsole",
+  communityConsole: "/v2/community-console",
+  courtConsole: "/v2/court-console",
   marketingConsole: "/v2/marketing-console",
   payments: "/v2/payments",
   plans: "/v2/plans",
@@ -73,6 +73,10 @@ export function V2Shell({
       ? "userConsole"
       : pathname === "/v2/public-site"
       ? "publicsite"
+      : pathname.startsWith("/v2/community-console")
+      ? "communityConsole"
+      : pathname.startsWith("/v2/court-console")
+      ? "courtConsole"
       : pathname.startsWith("/v2/marketing-console")
       ? "marketingConsole"
       : pathname.startsWith("/v2/payments")

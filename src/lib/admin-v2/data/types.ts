@@ -79,6 +79,45 @@ export type AdminBoTeam = {
   }[];
 };
 
+// ── R2-C 백오피스 · 커뮤니티/코트 콘솔 행 타입(표시 전용) ─────────────
+// 서버 컴포넌트가 Prisma 실데이터(community_posts/suggestions/court_infos)를
+// snake→표시값으로 단일 매핑한 뒤 클라 콘솔에 전달하는 행 타입.
+// (커뮤니티/코트는 정본에 커스텀 상세가 없어 SchemaList 기본 드로어 사용 — 추가 fetch 0)
+
+// 게시글 행(자유/모집/후기) — 정본 _board 컬럼(name·engage·status)
+export type AdminBoPostRow = {
+  id: string;
+  name: string; // 제목
+  sub: string; // 작성자 · 작성일
+  engage: string; // "♡ N · 💬 N"
+  badge: string; // 정상 | 숨김 등(표시)
+  tone: string; // ok | grey | danger
+};
+
+// 건의(제안) 행 — 정본 suggestions 컬럼(name·category·status)
+//   ⚠ 정본 votes(추천) 컬럼은 suggestions 모델에 데이터 없음 → 제외(보고 대상)
+export type AdminBoSuggestionRow = {
+  id: string;
+  name: string; // 제목
+  sub: string; // 작성자 · 작성일
+  category: string; // 분류(suggestions.category 원값)
+  tone: string; // 분류 배지 톤
+  st: string; // 상태 라벨(대기 | 처리중 | 완료 등)
+  sttone: string;
+};
+
+// 코트 행(실내/야외) — 정본 _court 컬럼(court·region·bookings·status)
+export type AdminBoCourtRow = {
+  id: string;
+  name: string;
+  sub: string; // 주소(아바타 보조줄)
+  color: string;
+  region: string; // city + district
+  bookings: string; // 예약 수(court_bookings count) — 정본 "월 예약" 라벨(보고)
+  st: string; // 운영중 | 승인대기 등(표시)
+  sttone: string;
+};
+
 // 단체 — 리스트 행 + 상세(운영진 = members) + 인증 mutation 대상
 export type AdminBoOrg = {
   id: string;
