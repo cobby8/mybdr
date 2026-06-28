@@ -31,7 +31,13 @@ import {
 } from "@/components/admin-v2";
 import { adminFetch, AdminApiError } from "@/lib/admin-v2/data";
 // 경기 규칙 = game-rules.ts 정본(19키 타입 + 디폴트). 마법사가 통째로 payload(gameRules)로 전송 → 서버 normalizeGameRules 정규화.
-import { type TournamentGameRules, GAME_RULE_DEFAULTS } from "@/lib/tournaments/game-rules";
+// GAME_RULE_PRESETS/applyGameRulePreset = 빠른 설정 프리셋(부분 오버레이 — 파울/연장/유니폼 등 기존값 유지) 정본 재사용.
+import {
+  type TournamentGameRules,
+  GAME_RULE_DEFAULTS,
+  GAME_RULE_PRESETS,
+  applyGameRulePreset,
+} from "@/lib/tournaments/game-rules";
 import { DivisionsEditor } from "./_divisions-editor";
 
 // 복사 목록 행(서버 page.tsx 가 organizer-scoped Prisma 로 주입 — 스칼라만).
@@ -585,7 +591,29 @@ export function CreateWizard({
         {cur.id === "game" && (
           <div className="ct-form">
             <div className="ct-form-grid">
-              <GroupTitle flush>경기 구성</GroupTitle>
+              {/* 빠른 설정 — 정본 프리셋 1클릭. applyGameRulePreset이 쿼터/타임아웃/휴식만 덮고 파울·연장·유니폼 등은 유지. */}
+              <GroupTitle flush>빠른 설정</GroupTitle>
+              <div className="ct-presetrow ct-span2">
+                {GAME_RULE_PRESETS.map((p) => {
+                  // 일치 판정 = 프리셋이 정의하는 4키만 비교(헬퍼/정본 기준) → 현재 규칙과 같으면 primary 강조
+                  const active =
+                    form.gameRules.quarterType === p.quarterType &&
+                    form.gameRules.quarterMinutes === p.quarterMinutes &&
+                    form.gameRules.firstHalfTimeouts === p.firstHalfTimeouts &&
+                    form.gameRules.secondHalfTimeouts === p.secondHalfTimeouts;
+                  return (
+                    <Btn
+                      key={p.label}
+                      size="sm"
+                      variant={active ? "primary" : "secondary"}
+                      onClick={() => patch("gameRules", applyGameRulePreset(form.gameRules, p))}
+                    >
+                      {p.label}
+                    </Btn>
+                  );
+                })}
+              </div>
+              <GroupTitle>경기 구성</GroupTitle>
               <Field label="공인구"><input className="ts-input" value={form.gameBall} onChange={(e) => patch("gameBall", e.target.value)} placeholder="예: 몰텐 GG7X" /></Field>
               <Field label="경기 인원"><input className="ts-input" type="number" min={1} value={form.teamSize} onChange={(e) => patch("teamSize", +e.target.value)} /></Field>
               <Field label="쿼터 방식">

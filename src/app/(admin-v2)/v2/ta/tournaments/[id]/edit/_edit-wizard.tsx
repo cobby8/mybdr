@@ -33,6 +33,8 @@ import {
   useAdminShell,
 } from "@/components/admin-v2";
 import { adminFetch, AdminApiError } from "@/lib/admin-v2/data";
+// 빠른 설정 프리셋 = game-rules.ts 정본 재사용(부분 오버레이 — 파울·연장·유니폼 등 기존값 유지).
+import { GAME_RULE_PRESETS, applyGameRulePreset } from "@/lib/tournaments/game-rules";
 import {
   Field,
   GroupTitle,
@@ -496,7 +498,29 @@ export function EditWizard({
         {cur.id === "game" && (
           <div className="ct-form">
             <div className="ct-form-grid">
-              <GroupTitle flush>경기 구성</GroupTitle>
+              {/* 빠른 설정 — 정본 프리셋 1클릭. applyGameRulePreset이 쿼터/타임아웃/휴식만 덮고 파울·연장·유니폼 등은 유지. */}
+              <GroupTitle flush>빠른 설정</GroupTitle>
+              <div className="ct-presetrow ct-span2">
+                {GAME_RULE_PRESETS.map((p) => {
+                  // 일치 판정 = 프리셋이 정의하는 4키만 비교(헬퍼/정본 기준) → 현재 규칙과 같으면 primary 강조
+                  const active =
+                    form.gameRules.quarterType === p.quarterType &&
+                    form.gameRules.quarterMinutes === p.quarterMinutes &&
+                    form.gameRules.firstHalfTimeouts === p.firstHalfTimeouts &&
+                    form.gameRules.secondHalfTimeouts === p.secondHalfTimeouts;
+                  return (
+                    <Btn
+                      key={p.label}
+                      size="sm"
+                      variant={active ? "primary" : "secondary"}
+                      onClick={() => patch("gameRules", applyGameRulePreset(form.gameRules, p))}
+                    >
+                      {p.label}
+                    </Btn>
+                  );
+                })}
+              </div>
+              <GroupTitle>경기 구성</GroupTitle>
               <Field label="공인구"><input className="ts-input" value={form.gameBall} onChange={(e) => patch("gameBall", e.target.value)} placeholder="예: 몰텐 GG7X" /></Field>
               <Field label="경기 인원"><input className="ts-input" type="number" min={1} value={form.teamSize} onChange={(e) => patch("teamSize", +e.target.value)} /></Field>
               <Field label="쿼터 방식">
