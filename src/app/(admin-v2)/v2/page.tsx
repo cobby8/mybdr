@@ -124,10 +124,8 @@ export default async function AdminV2Dashboard() {
       </div>
 
       {/* 운영 콘솔 바로가기(ConsoleLaunch) */}
-      <div style={{ marginTop: 22 }}>
-        <div style={{ fontSize: 13, fontWeight: 800, color: "var(--ink-mute)", letterSpacing: "0.02em", marginBottom: 12 }}>
-          운영 콘솔 바로가기
-        </div>
+      <div style={{ marginTop: 28 }}>
+        <div className="ad-section-label">운영 콘솔 바로가기</div>
         <div className="bo-launchgrid">
           {LAUNCH.map((c) => (
             <Link key={c.href} href={c.href} className="bo-launch">

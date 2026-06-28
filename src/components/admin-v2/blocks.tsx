@@ -13,7 +13,7 @@
 // ============================================================
 
 import React from "react";
-import { Icon, Btn, Badge, Toggle } from "./kit";
+import { Icon, Btn, Badge, Toggle, Empty } from "./kit";
 import {
   PageHead,
   KpiGrid,
@@ -301,7 +301,8 @@ export function AdBarPanel({
   badgeTone?: string;
   data: BarDatum[];
 }) {
-  const max = Math.max(...data.map((c) => c.v));
+  // 전부 0값이어도 분모 0(→NaN) 방지로 최소 1 보장. 실데이터 max≥1 이면 영향 0(정본 계수 보존).
+  const max = Math.max(...data.map((c) => c.v), 1);
   return (
     <div className="ad-panel">
       <div className="ad-panel__head">
@@ -314,7 +315,8 @@ export function AdBarPanel({
             <div
               className="ad-bar__col"
               data-soft={c.soft ? "true" : "false"}
-              style={{ height: (c.v / max) * 130 + "px" }}
+              // 정본 계수 (c.v/max)*130 유지 + 0값 막대는 최소 2px baseline 으로 보이게(안 보임 방지)
+              style={{ height: Math.max((c.v / max) * 130, 2) + "px" }}
             />
             <div className="ad-bar__lbl">{c.m}</div>
           </div>
@@ -355,6 +357,11 @@ export function AdListPanel({
         <div className="ad-panel__title">{title}</div>
         {badge && <Badge tone={(badgeTone as never) || "warn"}>{badge}</Badge>}
       </div>
+      {/* 빈상태: 실데이터 희박(처리대기 0건 등)에서 빈 흰 패널 대신 정본 .ts-empty
+          (kit.tsx Empty) 마크업으로 "처리할 항목이 없습니다" 안내 — 미완성 인상 차단 */}
+      {items.length === 0 ? (
+        <Empty title="처리할 항목이 없습니다" />
+      ) : (
       <div className="ad-list">
         {items.map((a) => (
           <div key={a.id} className="ad-listrow">
@@ -402,6 +409,7 @@ export function AdListPanel({
           </div>
         ))}
       </div>
+      )}
     </div>
   );
 }

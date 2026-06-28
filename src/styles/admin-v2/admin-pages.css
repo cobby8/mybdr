@@ -215,6 +215,8 @@
 [data-admin="v2"] .bo-wl__w { background: var(--ok); }
 [data-admin="v2"] .bo-wl__l { background: var(--grey-300); }
 /* 관리자 홈 — 운영 콘솔 바로가기 */
+/* 섹션 라벨(인라인 스타일 → 재사용 클래스). 값은 정본 동일(13/800/ink-mute/.02em) */
+[data-admin="v2"] .ad-section-label { font-size: 13px; font-weight: 800; color: var(--ink-mute); letter-spacing: 0.02em; margin-bottom: 12px; }
 [data-admin="v2"] .bo-launchgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(248px, 1fr)); gap: 12px; }
 @media (max-width: 720px) { [data-admin="v2"] .bo-launchgrid { grid-template-columns: 1fr; } }
 [data-admin="v2"] .bo-launch { display: flex; align-items: center; gap: 13px; background: #fff; border: 1px solid var(--border); border-radius: 14px; padding: 16px; text-decoration: none; box-shadow: var(--sh-xs); transition: transform .12s, box-shadow .14s, border-color .12s; min-width: 0; box-sizing: border-box; }

@@ -73,7 +73,7 @@
    가 상속으로 [data-admin="v2"] 내부까지 새어들어 텍스트가 느슨·둔탁해졌다(H1).
    → 정본 기준값으로 루트에서 리셋해 데모의 촘촘함을 복원한다.
    (정본 ts-* 컴포넌트들은 필요한 곳에 자체 line-height 를 가지므로 루트 normal 이 깨지 않음) */
-[data-admin="v2"] { background: var(--bg); color: var(--ink); font-family: var(--ff); font-size: 16px; line-height: normal; font-feature-settings: normal; -webkit-font-smoothing: antialiased; }
+[data-admin="v2"] { background: var(--bg); color: var(--ink); font-family: var(--ff); font-size: 16px; line-height: normal; font-feature-settings: normal; text-rendering: auto; -webkit-font-smoothing: antialiased; }
 [data-admin="v2"] h1, [data-admin="v2"] h2, [data-admin="v2"] h3, [data-admin="v2"] h4, [data-admin="v2"] h5, [data-admin="v2"] h6 { font-weight: 700; letter-spacing: -0.02em; margin: 0; }
 [data-admin="v2"] button { font-family: inherit; }
 
