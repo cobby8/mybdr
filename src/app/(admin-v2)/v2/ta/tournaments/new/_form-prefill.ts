@@ -12,6 +12,7 @@
 // ============================================================
 
 import type { FormState, DivisionRow } from "./_create-wizard";
+import { normalizeGameRules } from "@/lib/tournaments/game-rules";
 
 // jsonb 안전 객체화(F-2b — 재귀변환 0, 값 verbatim).
 function asObj(v: unknown): Record<string, unknown> {
@@ -90,16 +91,10 @@ function venuesFromPlaces(placesValue: unknown): FormState["venues"] {
     .filter((v): v is NonNullable<typeof v> => v !== null);
 }
 
-// ── 경기설정 prefill — game_rules(jsonb) → GameRules(5필드) ──────────────
+// ── 경기설정 prefill — game_rules(jsonb) → GameRules(19키 전체) ──────────────
+//   ★ normalizeGameRules 위임 = 누락 14키를 디폴트로 채워 컨트롤 깨짐 방지(create 마법사 일관).
 function gameRulesFrom(grValue: unknown): FormState["gameRules"] {
-  const gr = asObj(grValue);
-  return {
-    quarterType: gr.quarterType === "HALF" ? "HALF" : "4Q",
-    quarterMinutes: jsonNum(gr.quarterMinutes, 10),
-    foulLimit: jsonNum(gr.foulLimit, 5),
-    firstHalfTimeouts: jsonNum(gr.firstHalfTimeouts, 2),
-    secondHalfTimeouts: jsonNum(gr.secondHalfTimeouts, 3),
-  };
+  return normalizeGameRules(grValue);
 }
 
 // 복사 source = edit/page.tsx 와 동일한 Prisma select 필드(이름/일정/접수는 비움 대상).

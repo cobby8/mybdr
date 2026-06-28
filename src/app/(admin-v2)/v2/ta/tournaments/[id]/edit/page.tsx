@@ -13,6 +13,7 @@ import { notFound, redirect } from "next/navigation";
 import { getWebSession } from "@/lib/auth/web-session";
 import { prisma } from "@/lib/db/prisma";
 import { canManageTournament } from "@/lib/auth/tournament-permission";
+import { normalizeGameRules } from "@/lib/tournaments/game-rules";
 import { EditWizard, type EditMeta } from "./_edit-wizard";
 import type { FormState } from "../../new/_create-wizard";
 import { divisionsFromTournament } from "../../new/_form-prefill";
@@ -169,16 +170,11 @@ export default async function EditTournamentPage({
     .filter((d): d is NonNullable<typeof d> => d !== null)
     .sort((a, b) => a.date.localeCompare(b.date));
 
-  // 경기설정 prefill — game_rules jsonb(camelCase 키 — game-rules.ts normalizeGameRules 저장형)
+  // 경기설정 prefill — game_rules jsonb → normalizeGameRules 로 19키 전체 정규화.
+  //   ★ 14개 신규 키가 undefined 면 컨트롤(Stepper/SegSm)이 깨지므로 디폴트로 채움.
   //   gr = 원본 전체(저장 시 고급 필드 보존용으로 그대로 EditWizard 에 전달)
   const gr = asObj(t.game_rules);
-  const gameRules: FormState["gameRules"] = {
-    quarterType: gr.quarterType === "HALF" ? "HALF" : "4Q",
-    quarterMinutes: jsonNum(gr.quarterMinutes, 10),
-    foulLimit: jsonNum(gr.foulLimit, 5),
-    firstHalfTimeouts: jsonNum(gr.firstHalfTimeouts, 2),
-    secondHalfTimeouts: jsonNum(gr.secondHalfTimeouts, 3),
-  };
+  const gameRules: FormState["gameRules"] = normalizeGameRules(gr);
 
   const initialForm: FormState = {
     name: t.name ?? "",

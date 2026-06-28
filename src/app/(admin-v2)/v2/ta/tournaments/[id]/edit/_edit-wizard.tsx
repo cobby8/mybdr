@@ -183,6 +183,9 @@ export function EditWizard({
     setErrMsg(null);
     setForm((f) => ({ ...f, [k]: v }));
   };
+  // gameRules 단일 키 갱신(경기 규칙 19키 입력 공용) — 생성 마법사와 동일 패턴.
+  const setRule = <K extends keyof FormState["gameRules"]>(k: K, v: FormState["gameRules"][K]) =>
+    patch("gameRules", { ...form.gameRules, [k]: v });
   const cur = STEPS[step];
   const pct = ((step + 1) / STEPS.length) * 100;
 
@@ -456,7 +459,7 @@ export function EditWizard({
           </div>
         )}
 
-        {/* 4) 경기설정 */}
+        {/* 4) 경기설정 — 경기 규칙 19키(ct-game-settings.tsx min/max/step 1:1) */}
         {cur.id === "game" && (
           <div className="ct-form">
             <div className="ct-form-grid">
@@ -464,10 +467,62 @@ export function EditWizard({
               <Field label="공인구"><input className="ts-input" value={form.gameBall} onChange={(e) => patch("gameBall", e.target.value)} placeholder="예: 몰텐 GG7X" /></Field>
               <Field label="경기 인원"><input className="ts-input" type="number" min={1} value={form.teamSize} onChange={(e) => patch("teamSize", +e.target.value)} /></Field>
               <Field label="쿼터 방식">
-                <SegSm options={["4쿼터", "전후반"]} index={form.gameRules.quarterType === "HALF" ? 1 : 0} onSelect={(i) => patch("gameRules", { ...form.gameRules, quarterType: i ? "HALF" : "4Q" })} />
+                <SegSm options={["4쿼터", "전후반"]} index={form.gameRules.quarterType === "HALF" ? 1 : 0} onSelect={(i) => setRule("quarterType", i ? "HALF" : "4Q")} />
               </Field>
-              <Field label="쿼터 시간(분)"><input className="ts-input" type="number" min={1} value={form.gameRules.quarterMinutes} onChange={(e) => patch("gameRules", { ...form.gameRules, quarterMinutes: +e.target.value })} /></Field>
-              <Field label="파울 한도"><input className="ts-input" type="number" min={1} value={form.gameRules.foulLimit} onChange={(e) => patch("gameRules", { ...form.gameRules, foulLimit: +e.target.value })} /></Field>
+              <Field label="쿼터 시간(분)"><input className="ts-input" type="number" min={1} value={form.gameRules.quarterMinutes} onChange={(e) => setRule("quarterMinutes", +e.target.value)} /></Field>
+              <Field label="파울 한도"><input className="ts-input" type="number" min={1} value={form.gameRules.foulLimit} onChange={(e) => setRule("foulLimit", +e.target.value)} /></Field>
+              {/* ── 추가 5키: 운영방식·연장·막판정지·팀파울·샷클락 ── */}
+              <Field label="운영 방식">
+                <SegSm options={["논스톱", "올데드"]} index={form.gameRules.clockMode === "nonstop" ? 0 : 1} onSelect={(i) => setRule("clockMode", i === 0 ? "nonstop" : "dead")} />
+              </Field>
+              <Field label="연장 시간">
+                <Stepper value={form.gameRules.overtimeMinutes} unit="분" min={1} max={20} onChange={(n) => setRule("overtimeMinutes", n)} />
+              </Field>
+              <Field label="막판 득점 정지">
+                <Stepper value={form.gameRules.lastScoreStopMin} unit="분" min={0} max={2} onChange={(n) => setRule("lastScoreStopMin", n)} />
+              </Field>
+              <Field label="팀파울 보너스">
+                <Stepper value={form.gameRules.teamFoulBonus} unit="파울" min={3} max={7} onChange={(n) => setRule("teamFoulBonus", n)} />
+              </Field>
+              <Field label="샷클락">
+                <SegSm options={["사용", "미사용"]} index={form.gameRules.shotClockEnabled ? 0 : 1} onSelect={(i) => setRule("shotClockEnabled", i === 0)} />
+              </Field>
+            </div>
+            {/* ── 타임아웃·휴식(추가 7키) ── */}
+            <div className="ct-form-grid">
+              <GroupTitle>타임아웃 · 휴식</GroupTitle>
+              <Field label="타임아웃 · 전반">
+                <Stepper value={form.gameRules.firstHalfTimeouts} unit="회" min={0} max={4} onChange={(n) => setRule("firstHalfTimeouts", n)} />
+              </Field>
+              <Field label="타임아웃 · 후반">
+                <Stepper value={form.gameRules.secondHalfTimeouts} unit="회" min={0} max={4} onChange={(n) => setRule("secondHalfTimeouts", n)} />
+              </Field>
+              <Field label="타임아웃 시간">
+                <Stepper value={form.gameRules.timeoutDurationSeconds} unit="초" min={30} max={90} step={10} onChange={(n) => setRule("timeoutDurationSeconds", n)} />
+              </Field>
+              <Field label="쿼터 사이 휴식">
+                <Stepper value={form.gameRules.shortBreakDurationSeconds} unit="초" min={0} max={600} step={30} onChange={(n) => setRule("shortBreakDurationSeconds", n)} />
+              </Field>
+              <Field label="하프타임">
+                <Stepper value={form.gameRules.halftimeDurationSeconds} unit="초" min={0} max={900} step={30} onChange={(n) => setRule("halftimeDurationSeconds", n)} />
+              </Field>
+              <Field label="연장 전 휴식">
+                <Stepper value={form.gameRules.overtimeBreakDurationSeconds} unit="초" min={0} max={600} step={30} onChange={(n) => setRule("overtimeBreakDurationSeconds", n)} />
+              </Field>
+              <Field label="휴식 자동 시작">
+                <SegSm options={["사용", "미사용"]} index={form.gameRules.autoIntervalTimerEnabled ? 0 : 1} onSelect={(i) => setRule("autoIntervalTimerEnabled", i === 0)} />
+              </Field>
+            </div>
+            {/* ── 유니폼(추가 2색 + 조끼) ── */}
+            <div className="ct-form-grid">
+              <GroupTitle>유니폼</GroupTitle>
+              <Field label="홈 유니폼 색상">
+                <input className="ts-input" type="color" style={{ height: 42, padding: 4 }} value={form.gameRules.homeColor} onChange={(e) => setRule("homeColor", e.target.value)} />
+              </Field>
+              <Field label="원정 유니폼 색상">
+                <input className="ts-input" type="color" style={{ height: 42, padding: 4 }} value={form.gameRules.awayColor} onChange={(e) => setRule("awayColor", e.target.value)} />
+              </Field>
+              <label className="ct-checkrow ct-span2"><Check on={form.gameRules.vestProvided} onChange={(v) => setRule("vestProvided", v)} /><span>팀 조끼(번호 조끼) 제공</span></label>
             </div>
             <div className="ct-form-grid">
               <GroupTitle>선수 구성</GroupTitle>
