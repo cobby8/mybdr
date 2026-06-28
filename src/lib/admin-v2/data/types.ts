@@ -30,3 +30,71 @@ export type AdminExpense = {
   amount: number;
   memo?: string | null;
 };
+
+// ── R2-A 백오피스 · 유저 콘솔 도메인 타입 ──────────────────────────
+// 서버 컴포넌트(user-console/page.tsx)가 Prisma 실데이터를 snake→표시값으로
+// 단일 매핑한 뒤 클라 콘솔에 전달하는 행/상세 타입.
+//   왜: snake↔camel 변환 지점을 서버 경계 1곳으로 모아 "snake 함정" 차단.
+//       (org 인증 mutation 만 adminFetch 경유 — 그쪽은 client.ts 가 변환)
+
+// 회원 — 리스트 행 + 상세 동시 사용(클릭 시 추가 fetch 없이 드릴다운)
+export type AdminBoUser = {
+  id: string;
+  name: string; // 닉네임(없으면 이름)
+  email: string;
+  phone: string | null;
+  region: string; // city + district
+  provider: string | null; // 가입 경로
+  status: string; // active | suspended
+  badge: string; // 활성 | 정지 | 휴면(표시 라벨)
+  tone: string; // ok | danger | grey
+  isAdmin: boolean; // 본인/슈퍼 가드용
+  membershipLabel: string; // 등급 라벨
+  joined: string; // 가입일(표시)
+  lastSeen: string | null; // 최근 접속(표시)
+  teams: { name: string; kind: string; role: string; color: string }[];
+};
+
+// 팀 — 리스트 행 + 상세(선수 명단 TeamMember)
+export type AdminBoTeam = {
+  id: string;
+  name: string;
+  sub: string; // 창단·종별 요약
+  color: string;
+  region: string;
+  members: string; // "9명"
+  status: string; // 운영중 | 휴면 등(표시)
+  sttone: string;
+  captain: string;
+  foundedYear: number | null;
+  wins: number;
+  losses: number;
+  draws: number;
+  roster: {
+    name: string;
+    pos: string;
+    role: string;
+    jersey: string | null;
+    color: string;
+  }[];
+};
+
+// 단체 — 리스트 행 + 상세(운영진 = members) + 인증 mutation 대상
+export type AdminBoOrg = {
+  id: string;
+  name: string;
+  slug: string;
+  region: string;
+  type: string; // 표시 유형(상태 기반 라벨)
+  status: string; // pending | approved | rejected
+  badge: string; // 인증됨 | 대기 | 반려(표시)
+  tone: string;
+  tourn: string; // 주최 대회 수 "12개"
+  contactEmail: string | null;
+  website: string | null;
+  createdAt: string;
+  seriesCount: number;
+  membersCount: number;
+  owner: { name: string; email: string } | null;
+  staff: { name: string; role: string; color: string }[];
+};

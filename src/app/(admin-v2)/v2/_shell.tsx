@@ -1,24 +1,59 @@
 "use client";
 
 // ============================================================
-// _shell.tsx — V2Shell 클라 래퍼 (R1 토대)
-//   AdminShell(정본 셸)에 샘플 nav + active 상태를 주입하고 children 을
-//   셸 main 내부에 렌더. 인증은 부모 layout(서버)에서 처리.
-//   R2 에서는 이 nav 를 영역별 실제 메뉴로 교체해 토대를 재사용.
+// _shell.tsx — V2Shell: R2-A 백오피스 셸 (route 기반 nav)
+//   정본 bo-pages.jsx 의 NAV(5콘솔 + 보조)를 1:1 구성. 정적 HTML 데모의
+//   client-state 페이지 전환을 Next route 전환으로 적응(시각/IA 동일).
+//   - 빌드된 화면: 관리자 홈(/v2) · 유저 콘솔(/v2/user-console) · 공개 사이트
+//   - 미빌드(다음 증분): /v2/soon?c=<id> "준비 중" 플레이스홀더(mock 0)
+//   - 외부 콘솔 런처: 대회=/tournament-admin(실존) · 심판/협력=준비 중
 // ============================================================
 
 import React from "react";
-import { AdminShell, Btn, type AdminUser, type NavItem } from "@/components/admin-v2";
+import { usePathname, useRouter } from "next/navigation";
+import { AdminShell, type AdminUser, type NavItem } from "@/components/admin-v2";
+import { LogoutButton } from "./_logout-button";
 
-// 토대 데모 nav — 그룹 헤더 / 내부 링크(badge) / 외부 콘솔 링크(arrow-up-right) 3종 시연
+// 정본 NAV — { label } 그룹 / { id } 내부 콘솔 / { href } 외부 런처
 const NAV: NavItem[] = [
-  { label: "토대 데모" },
-  { id: "overview", icon: "layout-dashboard", text: "쇼케이스", badge: "1" },
-  { id: "tables", icon: "table", text: "테이블 · 스키마" },
-  { id: "forms", icon: "sliders-horizontal", text: "설정 · 폼" },
-  { label: "외부 콘솔" },
-  { href: "/admin", icon: "shield", text: "레거시 백오피스" },
+  { label: "운영" },
+  { id: "dash", icon: "layout-dashboard", text: "관리자 홈" },
+  { id: "logs", icon: "scroll-text", text: "활동 로그" },
+  { label: "운영 콘솔" },
+  { id: "userConsole", icon: "users", text: "유저 콘솔" },
+  { href: "/tournament-admin", icon: "trophy", text: "대회 콘솔" },
+  { id: "matchConsole", icon: "swords", text: "매칭 콘솔" },
+  { id: "communityConsole", icon: "message-square", text: "커뮤니티 콘솔" },
+  { id: "courtConsole", icon: "map-pin", text: "코트 콘솔" },
+  { href: "/v2/soon?c=referee", icon: "gavel", text: "심판 콘솔" },
+  { href: "/v2/soon?c=partner", icon: "handshake", text: "협력업체 콘솔" },
+  { id: "marketingConsole", icon: "megaphone", text: "마케팅 콘솔" },
+  { id: "publicsite", icon: "globe", text: "공개 사이트" },
+  { label: "정산·플랜" },
+  { id: "payments", icon: "credit-card", text: "결제" },
+  { id: "plans", icon: "layers", text: "요금제" },
+  { label: "시스템" },
+  { id: "notifications", icon: "bell", text: "알림" },
+  { id: "settings", icon: "settings", text: "설정" },
+  { id: "mypage", icon: "user", text: "마이페이지" },
 ];
+
+// 내부 콘솔 id → 라우트. 미빌드는 /v2/soon?c=<id> 플레이스홀더.
+const TARGET: Record<string, string> = {
+  dash: "/v2",
+  userConsole: "/v2/user-console",
+  publicsite: "/v2/public-site",
+  logs: "/v2/soon?c=logs",
+  matchConsole: "/v2/soon?c=matchConsole",
+  communityConsole: "/v2/soon?c=communityConsole",
+  courtConsole: "/v2/soon?c=courtConsole",
+  marketingConsole: "/v2/soon?c=marketingConsole",
+  payments: "/v2/soon?c=payments",
+  plans: "/v2/soon?c=plans",
+  notifications: "/v2/soon?c=notifications",
+  settings: "/v2/soon?c=settings",
+  mypage: "/v2/soon?c=mypage",
+};
 
 export function V2Shell({
   user,
@@ -27,22 +62,35 @@ export function V2Shell({
   user: AdminUser;
   children: React.ReactNode;
 }) {
-  const [active, setActive] = React.useState("overview");
+  const pathname = usePathname();
+  const router = useRouter();
+
+  // 현재 경로 → 활성 nav id (pathname 만 사용 — Suspense 불필요)
+  const active =
+    pathname === "/v2"
+      ? "dash"
+      : pathname.startsWith("/v2/user-console")
+      ? "userConsole"
+      : pathname === "/v2/public-site"
+      ? "publicsite"
+      : "";
+
+  const onNav = (id: string) => {
+    const href = TARGET[id] ?? "/v2";
+    router.push(href);
+  };
+
   return (
     <AdminShell
-      brand="BDR 관리자"
-      brandSub="admin-v2 토대"
+      brand="MyBDR"
+      brandSub="관리자 콘솔"
       nav={NAV}
       active={active}
-      onNav={setActive}
+      onNav={onNav}
       user={user}
       home="/v2"
-      isHome={false}
-      footAction={
-        <Btn variant="ghost" size="sm" block icon="log-out">
-          로그아웃
-        </Btn>
-      }
+      isHome={pathname === "/v2"}
+      footAction={<LogoutButton />}
     >
       {children}
     </AdminShell>

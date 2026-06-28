@@ -26,3 +26,13 @@ export const adminTournamentSummarySchema = z.object({
   startDate: z.string().nullable().optional(),
 });
 export const adminTournamentListSchema = z.array(adminTournamentSummarySchema);
+
+// ── R2-A 단체 인증 처리(approve/reject) 응답 ───────────────────────
+// 실 REST: POST /api/web/admin/organizations/[id]/approve · /reject
+//   응답 body(snake) = { success, name, status } → adminFetch 가 camel 변환.
+export const adminOrgActionSchema = z.object({
+  success: z.boolean().optional(),
+  name: z.string().optional(),
+  status: z.string().optional(),
+});
+export type AdminOrgActionResult = z.infer<typeof adminOrgActionSchema>;

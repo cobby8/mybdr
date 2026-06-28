@@ -194,9 +194,12 @@ export function renderSchemaCell(
 export function SchemaList({
   schema,
   eyebrow,
+  onRow,
 }: {
   schema: Schema;
   eyebrow?: React.ReactNode;
+  // 행 클릭 → 커스텀 드릴다운(정본 백오피스 상세 전환). 없으면 rowHref / 읽기 드로어.
+  onRow?: (r: SchemaRow) => void;
 }) {
   const { toast, openDetail } = useAdminShell();
   const [q, setQ] = React.useState("");
@@ -206,7 +209,9 @@ export function SchemaList({
       (r.name && r.name.includes(q)) ||
       (r.sub && r.sub.includes(q))
   );
-  const goRow = schema.rowHref
+  const goRow = onRow
+    ? (r: DataRow) => onRow(r as SchemaRow)
+    : schema.rowHref
     ? (r: DataRow) => {
         const href = schema.rowHref!;
         window.location.href =

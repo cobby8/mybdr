@@ -6,7 +6,9 @@
 - **요청**: 🔄 **전략 피벗(2026-06-27)** — 기존 코드 위 점진 박제(PR-0~5) 대신 **관리자 영역 전체 UI 그린필드 리빌딩**. 사유=레거시 섞임·snake/계약 데이터 처리 반복 꼬임. 사용자 결정: ①범위=관리자 전체 UI 신규(공개사이트 제외) ②백엔드 유지(API/Prisma/인증·오늘 추가분 재사용) ③그린필드(새 라우트/컴포넌트→영역별 검증 후 교체) ④**타입드 데이터 계층 포함**(snake↔camel 1곳·반복버그 근본차단=핵심실익).
 - **기준 패키지**: `Dev/design/BDR v2.41-admin-toss/`(정본·screenshots 17) + `_PR0-CONTRACT-CONFIRMED.md`.
 - **아키텍처 확정(2026-06-27)**: 그린필드 `src/app/(admin-v2)/` + `/v2/*` prefix 병행→영역별 **디렉토리 스왑** 교체(레거시 `_legacy-archive/`·북마크 보존). 데이터계층 `src/lib/admin-api/`(adminFetch: camel↔snake 1곳+핵심 Zod). canonical 디자인셋=admin-toss kit/console-kit/toss-admin.css/셸 재사용+admin-blocks 신규. **로드맵: M1 데이터계층→M2 토대셋(셸골격)→M3 파일럿=대회관리자 셸(5화면) end-to-end→이후 백오피스18/대회운영7/마법사/심판**. Zod=핵심필드만. ⚠️인증보호 위치(middleware 미발견) M1 점검.
-- **현재: M2.5 셸 갱신 chore 진행 중(developer)**. M1✅(데이터계층 `src/lib/admin-api/`)·M2✅(셸골격 `(admin-v2)/v2/`+admin-blocks). 인증=세그먼트 레이아웃(getWebSession/getAuthUser+역할+buildLoginRedirect).
+- **🔄 2차 피벗(2026-06-28): 클린 슬레이트 재시작**. 1차 그린필드(M1~M3)는 **레거시 5133줄 `toss-admin.css`+레거시 셸 재사용**으로 시안 깔끔함 미달(수빈 육안 불합격). 사용자 결정: 관리자 전부 처음부터·**시안 HTML 충실 1:1 포팅**·데이터계층도 새로·**DB 보전 절대**(프론트만, Prisma/DB/API 0변경). 첫 영역=백오피스(최대).
+- **현재: R2-A 백오피스(BO-0 셸/IA+BO-1 유저콘솔) 진행 중(developer)**. R0✅(실패 그린필드 M1~M3 제거)·R1✅(토대: `styles/admin-v2/` 정본CSS verbatim `[data-admin=v2]`스코프·`components/admin-v2/` kit/shell/blocks 정본1:1·`lib/admin-v2/data/` adminFetch 새로·쇼케이스 `/v2`→**수빈 합격**). 레거시 0의존.
+- **클린슬레이트 로드맵**: R1✅토대→**R2 백오피스**(BO-0/1먼저→5리스트→3커뮤니티/4코트는 결정후→2매칭 보류)→R3 대회관리자→R4 대회운영→R5 마법사/심판→영역별 컷오버(디렉토리 스왑·데이터/북마크 보존). 1차 M4 DB정합조사 유효(아래 갭6건).
 - **정본 v46/v48 교체 완료(2026-06-28)**: repo `Dev/design/BDR v2.41-admin-toss/`=v46/v48(v48폴더+v46스크린샷17+START-HERE+IMPL+repo _PR0계약). 직전본 v45→`_archive/...-pre48/`. v46=3영역 대규모 갱신(백오피스 5콘솔재편·operate 3배·공개사이트). 대회관리자=시리즈→정규대회 용어확정.
 - **★확정 로드맵(2026-06-28 범위 재산정)**: M2.5 셸갱신(home/isHome/footAction·BackRow·외부링크·toss-admin.css 3클래스)→M3 대회관리자 셸(시안확정·갭0)→M4 백오피스(BO-0셸/1유저/5마케팅 먼저→2매칭/3커뮤니티/4코트는 DB확인 후)→M5 대회운영(모달5종 배선·4정합/Notice확인)→PR-5 공개사이트(BDR 별도트랙). 백엔드 유지=대부분 배선작업.
 - **★DB정합 갭 6건(M4/M5에서 결정·구현 전 확인필수)**: ①pickup·scrim·guest(매칭, 모델有 admin API無) ②board 3분할 카테고리값 ③court-partner 분류(DB無 가능→룰 저촉) ④MyPage 2FA/세션 ⑤Notice 공지저장처 ⑥PaymentDetail/PlanEditor 시안미완. **§결정: Payment/Plan=범위제외+Claude.ai 보완의뢰 병행(M4)**.
@@ -187,9 +189,25 @@
 💡 tester: tsc EXIT0(--incremental false 클린). self-trace: 미인증 /v2→buildLoginRedirect(로그인), 인증+권한→AdminShell+플레이스홀더 렌더. 소비처 미배선(blocks는 M3에서 실데이터 배선). git diff=신규8+css append만(레거시 0접촉).
 ⚠️ reviewer: (1) SchemaList 진입=window.location.href(정본 1:1, Next router 미사용). (2) 내보내기/필터/저장/취소/더보기 = 정본 데모 토스트 제거→no-op(M3 배선). (3) panels `a.color+"1A"`=정본 8자리 hex 알파 1:1 보존(데이터 주입). (4) blocks barrel은 client/server 혼재(page-head는 서버공용)—플레이스홀더 page.tsx는 page-head 직접 import.
 
+### 종별 디비전 연령 편집 Phase 3 — UI/PATCH end-to-end (A안·3파일·미커밋)
+📝 종별·디비전 룰 카드에 **연령 입력 4개 + "연령 자동 채움" 버튼 + 저장**을 end-to-end 연결. Phase 1(매핑)·2(생성 시 채움) 위에 **편집 경로** 신설.
+
+| 파일 | 변경 | 신규/수정 |
+|------|------|----------|
+| `.../division-rules/route.ts` (GET) | serializeRule에 `birth_year_min/max` 응답 추가(grade는 기존)·tournament `startDate` select+KST 연도→`tournament_year` 응답 | 수정 |
+| `.../division-rules/[ruleId]/route.ts` (PATCH) | zod `birthYearMin/Max·gradeMin/Max`(int·nullable·optional) 추가·전달 필드만 update(부분)·응답 4필드 노출. **기존 format/settings·IDOR·canManageTournament 가드 0접촉** | 수정 |
+| `divisions-panel.tsx` | DivisionRule에 birth_year_min/max·`tournamentYear` state·updateRule 연령 patch+낙관적 갱신·`AgeRangeInputs` 서브컴포넌트 신설(입력4+자동채움+저장)·룰 카드 렌더 | 수정 |
+
+🔑 **ages 확보 방식**: 별도 fetch 0. GET이 이미 반환하는 `master_categories[].ages` + 룰의 `settings.category`(seed 박제)로 매칭. category 없는 옛 룰은 ages=[]→자동채움 버튼만 비활성(수동입력 정상).
+🔑 **자동 채움 동작**: `computeAgeRangeForDivision(r.code, ages, tournamentYear)` → null(일반부/대학부)이면 버튼 disabled. 결과는 입력 state만 채움(저장 X)→운영자 확인 후 "연령 저장"=PATCH.
+🔑 **snake/camel**: PATCH는 입력 변환 없는 raw zod → body는 camel(`birthYearMin`). 응답은 apiSuccess가 snake 변환 → 프론트는 `birth_year_min` 읽기.
+💡 tester: tsc EXIT0·age-mapping 13/13. 자동채움(유청소년 U{N}/+{N} 디비전)→4입력 채워짐·저장 후 새로고침 유지 / 일반부·대학부=버튼 비활성·수동입력 저장 가능 / 빈 입력=null 저장.
+⚠️ reviewer: 부분 업데이트(undefined 미반영)·null=제한 해제 의미. 기존 GroupSettings/진출매핑 0접촉.
+
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
 |------|------|------|
+| 2026-06-28 | **종별 디비전 연령 편집 Phase 3 — UI/PATCH end-to-end (A안·3파일·미커밋)** | ✅ tsc EXIT0·age-mapping 13/13. ①GET serializeRule `birth_year_min/max`+`tournament_year`(startDate KST) 응답. ②PATCH zod 연령4필드(int·nullable·optional) additive+부분 update+응답 노출(기존 가드 0접촉). ③divisions-panel `AgeRangeInputs`(입력4+자동채움버튼+저장) 신설. ages=master_categories[].ages×settings.category 매칭(fetch 0). 자동채움=computeAgeRangeForDivision(null=버튼 비활성). PATCH body camel·응답 snake. DB/schema 변경0. |
 | 2026-06-28 | **종별 디비전 연령 자동 채움 Phase 2 (서버 연결·2파일·미커밋)** | ✅ tsc EXIT0·age-mapping 13/13·tournaments 317/317. Phase1 `computeAgeRangeForDivision` 연결. ①`division-rule-sync.ts`: DivisionRuleSeed 연령 4필드(optional)+build 함수 `categoryAges?`/`tournamentYear?` 파라미터→디비전별 연령 계산 채움(미전달 시 skip=회귀0). ②`tournament.ts createTournament`: tournamentYear=startDate 연도(KST·+9h)·AdminCategory 조회→input.categories 키 성별접두(`/^(남성\|여성)\s+/`) 제거→name 매칭→ages 맵·createMany 연령4필드 명시 insert. 일반부/대학부(ages=[])→토큰매칭 실패→null 유지. DB/schema 변경0(컬럼 기존). |
 | 2026-06-28 | **시간 표시 KST 전수 점검 + UTC 노출 9파일 교정 (표시 변환만·DB/저장 0변경·미커밋)** | ✅ tsc EXIT0. 핵심=서버 컴포넌트(Vercel UTC)에서 tz없이 포맷한 지점만 UTC 누출(클라 "use client"는 브라우저=KST라 정상·score-sheet 기록시각/matches-panel은 이미 Asia/Seoul). 수정: ①audit-log L177 ②detail-kit formatDate/formatDateTime(admin 상세 다수) ③news/match 게시시각 ④site-host/schedule 일정날짜+경기시각 ⑤site-host/results 날짜 = `timeZone:"Asia/Seoul"` 추가 / ⑥venues 픽업경기시각 ⑦next-tournament-match-card ⑧upcoming-games ⑨lineup-confirm = `getHours()`→UTC+9h 보정 후 `getUTC*`(한국 DST 없음). 클라엔 무회귀·서버엔 교정. |
 | 2026-06-28 | **8차 스타터스리그 기록 진단 + 더미 결승 9건 정리 (운영 DB)** | 진단=기록시스템 정상, "안 된 것처럼 보인" 원인=①더미 결승 9건(329~337 전부 scheduled·0-0·기록0·대진로직 오류 양산, 7차와 동일) ②리그 진행중(예선 2/6완료). 9건 삭제(next참조0·기록0 확인)·matches_count 15→6 정정. 예선6(완료2·진행1·미실시3) 기록 보존(324:194·325:246·327:269). 코드변경0. |
