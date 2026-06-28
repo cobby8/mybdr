@@ -28,6 +28,7 @@ import {
   type OperateRule,
 } from "./_teams-panel";
 import { BracketPanel, type BracketData } from "./_bracket-panel";
+import { SchedulePanel, type ScheduleData } from "./_schedule-panel";
 
 // 정본 MENUS (operate.jsx) — 6 운영 메뉴
 const MENUS: { id: string; label: string; icon: string; desc: string }[] = [
@@ -72,6 +73,7 @@ export function OperateShell({
   teams,
   rules,
   bracketData,
+  scheduleData,
 }: {
   tournamentId: string;
   user: AdminUser;
@@ -79,6 +81,7 @@ export function OperateShell({
   teams: OperateTeam[];
   rules: OperateRule[];
   bracketData: BracketData;
+  scheduleData: ScheduleData;
 }) {
   const [menu, setMenu] = React.useState("teams");
   const cur = MENUS.find((m) => m.id === menu) ?? MENUS[0];
@@ -164,8 +167,11 @@ export function OperateShell({
         ) : menu === "bracket" ? (
           // R4-B: 대진표 패널(실데이터 READ + 기존 엔드포인트 mutation)
           <BracketPanel tournamentId={tournamentId} data={bracketData} />
+        ) : menu === "schedule" ? (
+          // R4-C: 일정 패널(실데이터 READ · 계획 클라 오버레이 · 영속화 미배선 보고)
+          <SchedulePanel data={scheduleData} />
         ) : (
-          // 나머지 4메뉴 = 준비 중(다음 증분 R4-C~). mock 0.
+          // 나머지 3메뉴 = 준비 중(다음 증분 R4-D~). mock 0.
           <Empty
             icon={cur.icon}
             title="준비 중입니다"

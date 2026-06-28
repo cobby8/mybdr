@@ -21,6 +21,13 @@ import type {
   BracketTeam,
   BracketMatch,
 } from "./_bracket-panel";
+import type {
+  ScheduleData,
+  ScheduleMatch,
+  ScheduleVenue,
+  ScheduleDate,
+  ScheduleRule,
+} from "./_schedule-panel";
 
 export const dynamic = "force-dynamic";
 
@@ -85,6 +92,69 @@ function jsonStr(v: unknown): string | null {
   return typeof v === "string" && v.trim() !== "" ? v : null;
 }
 
+// ── R4-C 일정: scheduledAt(UTC) → KST 날짜/시간 파생(서버 단일 매핑) ──────────
+// KST "YYYY-MM-DD"
+function kstDateOnly(d: Date | null | undefined): string | null {
+  if (!d) return null;
+  return d.toLocaleDateString("en-CA", { timeZone: "Asia/Seoul" });
+}
+// KST "HH:MM"
+function kstHm(d: Date | null | undefined): string | null {
+  if (!d) return null;
+  return d.toLocaleTimeString("en-GB", {
+    timeZone: "Asia/Seoul",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+}
+// places(jsonb) → 일정 패널 venues[] 정규화(레거시 normalizeVenues 패턴 — courtIds/court_ids 호환)
+function normalizeScheduleVenues(places: unknown): ScheduleVenue[] {
+  const rows = Array.isArray(places) ? places : [];
+  const out: ScheduleVenue[] = [];
+  rows.forEach((row, index) => {
+    if (!row || typeof row !== "object" || Array.isArray(row)) return;
+    const r = row as Record<string, unknown>;
+    const name = typeof r.name === "string" && r.name.trim() ? r.name.trim() : null;
+    if (!name) return;
+    const rawCount = r.courtCount ?? r.court_count;
+    const cc =
+      typeof rawCount === "number"
+        ? rawCount
+        : typeof rawCount === "string"
+          ? Number(rawCount)
+          : NaN;
+    const naming = r.naming === "alpha" ? "alpha" : "num";
+    out.push({
+      id: typeof r.id === "string" && r.id ? r.id : `v_${index}`,
+      name,
+      courtCount: Number.isFinite(cc) && cc > 0 ? Math.trunc(cc) : 1,
+      naming,
+    });
+  });
+  return out;
+}
+// schedule_dates(jsonb) → 일정 패널 dates[] 정규화(courtIds/court_ids 호환)
+function normalizeScheduleDates(scheduleDates: unknown): ScheduleDate[] {
+  const rows = Array.isArray(scheduleDates) ? scheduleDates : [];
+  const out: ScheduleDate[] = [];
+  rows.forEach((row, index) => {
+    if (!row || typeof row !== "object" || Array.isArray(row)) return;
+    const r = row as Record<string, unknown>;
+    const date = typeof r.date === "string" && r.date.trim() ? r.date.trim() : null;
+    if (!date) return;
+    const rawCourtIds = r.courtIds ?? r.court_ids;
+    out.push({
+      id: typeof r.id === "string" && r.id ? r.id : `dt_${index}`,
+      date,
+      courtIds: Array.isArray(rawCourtIds)
+        ? rawCourtIds.filter((c): c is string => typeof c === "string")
+        : [],
+    });
+  });
+  return out;
+}
+
 export default async function OperateWorkspacePage({
   params,
 }: {
@@ -114,6 +184,9 @@ export default async function OperateWorkspacePage({
         district: true,
         teams_count: true,
         div_caps: true,
+        // R4-C 일정: 장소·일정 jsonb(verbatim 정규화)
+        places: true,
+        schedule_dates: true,
       },
     }),
     prisma.tournamentTeam.findMany({
@@ -161,6 +234,10 @@ export default async function OperateWorkspacePage({
         awayScore: true,
         winner_team_id: true,
         settings: true,
+        // R4-C 일정: 실 배치(scheduledAt camel @map scheduled_at · court_number/venue_name snake TS필드)
+        scheduledAt: true,
+        court_number: true,
+        venue_name: true,
         homeTeam: { select: { team: { select: { name: true } } } },
         awayTeam: { select: { team: { select: { name: true } } } },
       },
@@ -295,6 +372,38 @@ export default async function OperateWorkspacePage({
     maxFree: MAX_BRACKET_VERSIONS_FREE,
   };
 
+  // ── R4-C 일정 데이터 매핑(snake/camel 혼재 Prisma 필드 → camel 도메인 단일 지점) ──
+  //   ★ scheduledAt = camel(@map scheduled_at) / court_number·venue_name = snake TS필드.
+  //     Prisma 직접 READ 이므로 모델 TS 필드명 그대로 읽음(apiSuccess snake 변환 미경유 = 함정 0).
+  const scheduleRules: ScheduleRule[] = ruleRows.map((r) => ({
+    code: r.code,
+    label: r.label,
+  }));
+  const scheduleMatches: ScheduleMatch[] = matchRows.map((m) => {
+    const ms = (m.settings ?? {}) as Record<string, unknown>;
+    return {
+      id: m.id.toString(),
+      divisionCode: jsonStr(ms.division_code),
+      roundName: m.roundName ?? null,
+      roundNumber: m.round_number ?? null,
+      groupName: m.group_name ?? null,
+      matchNumber: m.match_number ?? null,
+      status: m.status ?? "scheduled",
+      homeName: m.homeTeam?.team?.name ?? null,
+      awayName: m.awayTeam?.team?.name ?? null,
+      scheduledDate: kstDateOnly(m.scheduledAt),
+      scheduledTime: kstHm(m.scheduledAt),
+      courtNumber: m.court_number ?? null,
+      venueName: m.venue_name ?? null,
+    };
+  });
+  const scheduleData: ScheduleData = {
+    matches: scheduleMatches,
+    venues: normalizeScheduleVenues(t.places),
+    dates: normalizeScheduleDates(t.schedule_dates),
+    rules: scheduleRules,
+  };
+
   const user = await buildAdminV2User();
 
   return (
@@ -305,6 +414,7 @@ export default async function OperateWorkspacePage({
       teams={teams}
       rules={rules}
       bracketData={bracketData}
+      scheduleData={scheduleData}
     />
   );
 }
