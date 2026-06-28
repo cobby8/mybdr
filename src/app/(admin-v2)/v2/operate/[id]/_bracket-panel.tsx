@@ -25,6 +25,8 @@ import React from "react";
 import { useRouter } from "next/navigation";
 import { Icon, Btn, Badge, useAdminShell } from "@/components/admin-v2";
 import { adminFetch, AdminApiError } from "@/lib/admin-v2/data/client";
+// 대회 방식 enum(정본 ALLOWED_FORMATS) — config 카드 방식 select 옵션 source of truth
+import { ALLOWED_FORMATS } from "@/lib/tournaments/division-formats";
 
 // ── 도메인 타입(서버에서 단일 매핑된 camel) ──────────────────────────────
 export type BracketDivision = {
@@ -35,6 +37,8 @@ export type BracketDivision = {
   groupCount: number;
   groupSize: number;
   advancePerGroup: number;
+  // settings jsonb 원본(verbatim) — config 카드 저장 시 미편집 키 병합 보존용(없으면 빈 객체)
+  settingsRaw?: Record<string, unknown>;
 };
 
 export type BracketTeam = {
@@ -131,6 +135,27 @@ export function BracketPanel({
     setPickSlot(null);
   }, [divCode]);
 
+  // ── config 카드 로컬 편집 state(대회 방식·조 설정) ──────────────────
+  //   정본 bracket.jsx 의 cfg(WS mock)를 실데이터 기반으로 대체.
+  //   서버 props(div)를 초기값으로 두고, 종별 전환·저장 후 router.refresh 로 div 가 바뀌면 재동기화.
+  //   편집 중에는 div 가 그대로라 deps 불변 → 로컬 편집값 유지.
+  const [cfg, setCfg] = React.useState(() => ({
+    format: div?.format ?? "single_elimination",
+    groupCount: div?.groupCount ?? 2,
+    groupSize: div?.groupSize ?? 4,
+    advancePerGroup: div?.advancePerGroup ?? 2,
+  }));
+  React.useEffect(() => {
+    if (!div) return;
+    setCfg({
+      format: div.format,
+      groupCount: div.groupCount,
+      groupSize: div.groupSize,
+      advancePerGroup: div.advancePerGroup,
+    });
+    // div 의 스칼라 값 변화(종별 전환 / 저장 후 서버 refresh)에만 재동기화
+  }, [div?.code, div?.format, div?.groupCount, div?.groupSize, div?.advancePerGroup]);
+
   if (!div) {
     // 종별 룰이 없는 대회 — 정본 Empty
     return (
@@ -171,9 +196,7 @@ export function BracketPanel({
         ? "grouped"
         : "config";
 
-  const totalSlots = isGroupFormat
-    ? div.groupCount * div.groupSize
-    : Math.max(divTeams.length, 2);
+  // (슬롯 수 계산은 config 카드에서 편집 중 cfg 기준 cfgTotalSlots 로 이동 — 정본 즉시 반영)
 
   // 시드 배정 슬롯(조 포맷만): A1,A2.../ 단일토너먼트는 시드 UI 생략
   const seedSlots: string[] = React.useMemo(() => {
@@ -291,6 +314,64 @@ export function BracketPanel({
     }
   };
 
+  // ── config 카드: 편집 헬퍼 + 정본 조건부 disabled 파생 ───────────────
+  // cfg 부분 갱신(정본 setCfg 동일 — 머지 패치)
+  const patchCfg = (p: Partial<typeof cfg>) =>
+    setCfg((c) => ({ ...c, ...p }));
+  // 정본 bracket.jsx 동일 규칙(편집 중인 cfg.format 기준 — div 아님)
+  const cfgIsSingle = cfg.format === "single_elimination";
+  const cfgLeagueOnly = cfg.format === "round_robin"; // 풀리그 = 리그전 마무리(본선 없음)
+  const cfgIsDual = cfg.format === "dual_tournament"; // 듀얼 = 조 1·2위 자동 진출
+  const cfgNoAdvance = cfgIsSingle || cfgLeagueOnly; // 본선 진출 칸 비활성 조건
+  const cfgIsGroup = !cfgIsSingle; // 조 개념 유무
+  const cfgTotalSlots = cfgIsGroup
+    ? cfg.groupCount * cfg.groupSize
+    : Math.max(divTeams.length, 2);
+  // 서버값(div) 대비 편집됐는지 — 저장 버튼 노출/전송 게이트
+  const cfgDirty =
+    cfg.format !== div.format ||
+    (cfgIsGroup && cfg.groupCount !== div.groupCount) ||
+    (cfgIsGroup && cfg.groupSize !== div.groupSize) ||
+    (!cfgNoAdvance && !cfgIsDual && cfg.advancePerGroup !== div.advancePerGroup);
+
+  // ── mutation: config 저장(PATCH division-rules — format/settings) ───
+  //   PATCH 라우트가 format + settings(group_count/group_size/advance_per_group) 이미 지원 → API 0변경.
+  //   ⚠️ settings 는 서버에서 전체 교체 → 기존 settings(ranking_format/linkage_pairs 등) 위에 병합 전송(미편집 키 보존).
+  //   adminFetch 가 body 키 camel→snake 변환(deep) → settings 내부 키도 snake 로 직렬화.
+  const saveCfg = async () => {
+    if (busy || !cfgDirty) return;
+    setBusy(true);
+    try {
+      // single_elimination 은 조 개념 없음 → 조설정 기본값으로 정규화(정본 비활성 입력과 일치)
+      const groupCount = cfgIsGroup ? Math.max(cfg.groupCount, 1) : 1;
+      const groupSize = cfgIsGroup ? Math.max(cfg.groupSize, 2) : 2;
+      // advance_per_group 은 group_size 이하 강제(서버 validateDivisionSettings 동일 규칙)
+      const advancePerGroup = Math.min(Math.max(cfg.advancePerGroup, 1), groupSize);
+      await adminFetch(
+        `/api/web/admin/tournaments/${tournamentId}/division-rules/${div.ruleId}`,
+        {
+          method: "PATCH",
+          body: {
+            format: cfg.format,
+            // 기존 settings 병합 후 조설정 3키만 갱신(미편집 키 보존)
+            settings: {
+              ...(div.settingsRaw ?? {}),
+              group_count: groupCount,
+              group_size: groupSize,
+              advance_per_group: advancePerGroup,
+            },
+          },
+        },
+      );
+      toast("대회 방식·조 설정을 저장했습니다");
+      router.refresh(); // 서버 재조회 → div 갱신 → cfg 재동기화
+    } catch (e) {
+      toast(errMsg(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
   // 시드 슬롯 조작
   const assignSeed = (slot: string, teamId: string) => {
     setSeedDraft((d) => ({ ...d, [slot]: teamId }));
@@ -360,7 +441,7 @@ export function BracketPanel({
         })}
       </div>
 
-      {/* 대회 방식 · 조 설정(읽기전용 — 편집은 생성/수정 마법사) */}
+      {/* 대회 방식 · 조 설정(조건부 편집 가능 — 정본 bracket.jsx L232-251) */}
       <div className="ts-card ts-card--flat" style={{ marginBottom: 14 }}>
         <div
           style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}
@@ -371,67 +452,111 @@ export function BracketPanel({
           <div>
             <h3 style={{ fontSize: 14 }}>대회 방식 · 조 설정</h3>
             <p style={{ fontSize: 12, color: "var(--ink-mute)", marginTop: 2 }}>
-              대회 생성 시 입력값 — 변경은 대회 정보 수정에서 진행합니다
+              대회 생성 시 입력값 — 여기서 확인·수정할 수 있습니다
             </p>
           </div>
         </div>
         <div className="bk-cfg-grid">
+          {/* 대회 방식 — 항상 편집 가능(정본: disabled 없음) */}
           <label className="ts-field" style={{ margin: 0 }}>
             <span className="ts-field__label">대회 방식</span>
-            <select className="ts-select" value={div.format} disabled>
-              <option value={div.format}>{fmtLabel(div.format)}</option>
+            <select
+              className="ts-select"
+              value={cfg.format}
+              onChange={(e) => patchCfg({ format: e.target.value })}
+            >
+              {ALLOWED_FORMATS.map((f) => (
+                <option key={f} value={f}>
+                  {fmtLabel(f)}
+                </option>
+              ))}
             </select>
           </label>
+          {/* 조 수 — 토너먼트(single_elimination) 시 비활성(정본 규칙) */}
           <label
             className="ts-field"
-            style={{ margin: 0, opacity: isGroupFormat ? 1 : 0.45 }}
+            style={{ margin: 0, opacity: cfgIsSingle ? 0.45 : 1 }}
           >
             <span className="ts-field__label">조 수</span>
             <input
               className="ts-input"
               type="number"
-              value={isGroupFormat ? div.groupCount : 1}
-              disabled
+              min={1}
+              max={8}
+              value={cfg.groupCount}
+              disabled={cfgIsSingle}
+              onChange={(e) => patchCfg({ groupCount: Math.max(+e.target.value || 1, 1) })}
               style={{ padding: "9px 11px" }}
             />
           </label>
+          {/* 조별 팀수 — 토너먼트(single_elimination) 시 비활성(정본 규칙) */}
           <label
             className="ts-field"
-            style={{ margin: 0, opacity: isGroupFormat ? 1 : 0.45 }}
+            style={{ margin: 0, opacity: cfgIsSingle ? 0.45 : 1 }}
           >
             <span className="ts-field__label">조별 팀수</span>
             <input
               className="ts-input"
               type="number"
-              value={div.groupSize}
-              disabled
+              min={2}
+              max={8}
+              value={cfg.groupSize}
+              disabled={cfgIsSingle}
+              onChange={(e) => patchCfg({ groupSize: Math.max(+e.target.value || 2, 2) })}
               style={{ padding: "9px 11px" }}
             />
           </label>
+          {/* 본선 진출(조별) — 본선 없음(토너먼트/리그전) 또는 듀얼(자동 2) 시 비활성(정본 규칙) */}
           <label
             className="ts-field"
-            style={{ margin: 0, opacity: leagueOnly || !isGroupFormat || isDual ? 0.55 : 1 }}
+            style={{ margin: 0, opacity: cfgNoAdvance || cfgIsDual ? 0.55 : 1 }}
           >
             <span className="ts-field__label">본선 진출(조별)</span>
             <input
               className="ts-input"
               type="number"
-              value={leagueOnly ? "" : isDual ? 2 : div.advancePerGroup}
-              placeholder={leagueOnly ? "리그전" : undefined}
-              disabled
+              min={1}
+              max={cfg.groupSize}
+              value={cfgLeagueOnly ? "" : cfgIsDual ? 2 : cfg.advancePerGroup}
+              placeholder={cfgLeagueOnly ? "리그전" : undefined}
+              disabled={cfgNoAdvance || cfgIsDual}
+              onChange={(e) => patchCfg({ advancePerGroup: Math.max(+e.target.value || 1, 1) })}
               style={{ padding: "9px 11px" }}
             />
           </label>
         </div>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 12 }}>
-          <Badge tone="grey">{fmtLabel(div.format)}</Badge>
+        <div
+          style={{
+            display: "flex",
+            flexWrap: "wrap",
+            gap: 6,
+            marginTop: 12,
+            alignItems: "center",
+          }}
+        >
+          {/* 뱃지는 편집 중 cfg 기준으로 즉시 반영(정본 동일) */}
+          <Badge tone="grey">{fmtLabel(cfg.format)}</Badge>
           <Badge tone="grey">참가 {divTeams.length}팀</Badge>
           <Badge tone="grey">
-            슬롯 {totalSlots}
-            {divTeams.length < totalSlots ? ` · 부전승 ${totalSlots - divTeams.length}` : ""}
+            슬롯 {cfgTotalSlots}
+            {divTeams.length < cfgTotalSlots
+              ? ` · 부전승 ${cfgTotalSlots - divTeams.length}`
+              : ""}
           </Badge>
-          {leagueOnly && <Badge tone="grey">리그전 마무리 · 본선 진출 없음</Badge>}
-          {isDual && <Badge tone="grey">조별 더블엘리미 · 1·2위 진출</Badge>}
+          {cfgLeagueOnly && <Badge tone="grey">리그전 마무리 · 본선 진출 없음</Badge>}
+          {cfgIsDual && <Badge tone="grey">조별 더블엘리미 · 1·2위 진출</Badge>}
+          {/* 변경분 저장(PATCH division-rules) — dirty 시에만 노출 */}
+          {cfgDirty && (
+            <Btn
+              size="sm"
+              icon="save"
+              onClick={saveCfg}
+              disabled={busy}
+              style={{ marginLeft: "auto" }}
+            >
+              변경사항 저장
+            </Btn>
+          )}
         </div>
       </div>
 

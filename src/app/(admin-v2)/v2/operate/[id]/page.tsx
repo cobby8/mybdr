@@ -361,6 +361,8 @@ export default async function OperateWorkspacePage({
       groupCount: jsonNum(s.group_count ?? s.groupCount, 2),
       groupSize: jsonNum(s.group_size ?? s.groupSize, 4),
       advancePerGroup: jsonNum(s.advance_per_group ?? s.advanceCount ?? s.advance_count, 2),
+      // settings 원본 verbatim — 패널 config 카드 저장 시 미편집 키(ranking_format/linkage_pairs 등) 병합 보존용
+      settingsRaw: s,
     };
   });
 
