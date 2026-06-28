@@ -2,6 +2,15 @@
 <!-- 담당: debugger, tester | 최대 30항목 -->
 <!-- 이 프로젝트에서 반복되는 에러 패턴, 함정, 주의사항을 기록 -->
 
+### [2026-06-28] prisma db/generate 함정 2종 — cmd 래퍼 무음 미적용 + stale .prisma/client 캐시 (R6-C db push)
+- **분류**: 함정 (Windows/cmd 래퍼 / Prisma generate 캐시 / db push)
+- **발견자**: PM (R6-C 신규 테이블 referee_evaluations·partner_settlements db push 중)
+- **증상**: ①`cmd /c "npx prisma db push --skip-generate"` = **exit 0인데 테이블 미생성**(런타임 P2021 "table does not exist"). 출력도 비어 무음. ②`cmd /c "npx prisma generate"` = ✔ 떠도 client에 신규 모델 미반영(`prisma.refereeEvaluation` undefined / index.d.ts 출현 0).
+- **진짜 원인**: ① **git bash가 `cmd /c "npx ..."`를 감쌀 때 prisma CLI 출력·실제 실행이 삼켜짐**(cmd가 Windows 배너만 찍고 npx 본체 미실행/무음 종료, exit 0 오보). tsc는 같은 래퍼로 잘 됐는데 prisma db push/generate는 안 됨(인터랙티브성·stdout 처리 차이 추정). ② generate가 **stale `node_modules/.prisma/client` 캐시**를 재사용 → 새 모델 schema에 있어도 client 미갱신.
+- **해결**: ① **git bash에서 `npx prisma db push`·`npx prisma generate` 직접 실행**(cmd /c 래퍼 X) → 정상 출력("database is now in sync"·"✔ Generated"). ② generate가 신규 모델 안 잡으면 **`rm -rf node_modules/.prisma/client` 후 `npx prisma generate`**(clean 재생성) → index.d.ts에 모델 반영. ③ DLL 잠금(EPERM) 회피 위해 **dev 서버 먼저 종료**(포트별 PID). 검증 = `prisma.<model>.count()` 0행 OK.
+- **예방**: (a) prisma db push/generate/migrate는 **`cmd /c` 래핑 말고 git bash 직접**(또는 PowerShell). exit 0 ≠ 적용됨 — **반드시 실측 검증**(count·table 존재·index.d.ts grep). (b) 신규 모델 추가 후 generate가 미반영이면 **.prisma/client 캐시 삭제 후 재생성**. (c) db push 전 dev 서버 종료(DLL). (d) db push exit 0만 믿지 말고 **신규 모델 `.count()` 1회**로 테이블 실재 확인.
+- **참조횟수**: 0
+
 ### [2026-06-28] 라우트 그룹 재구성 후 dev 서버 stale SSR 캐시 → 하이드레이션 미스매치 (코드는 정상)
 - **분류**: 함정 (dev 환경 캐시 / Turbopack / 라우트 재구성 / 하이드레이션)
 - **발견자**: PM (R3 대회관리자 `(backoffice)/` 라우트그룹 분리 후 사용자가 /v2 콘솔에서 hydration 에러 신고)
