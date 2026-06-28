@@ -189,6 +189,7 @@ export function CreateWizard({
   const [saving, setSaving] = useState(false);
   const [errMsg, setErrMsg] = useState<string | null>(null);
   const [copyOpen, setCopyOpen] = useState(false); // 복사 피커 모달
+  const [calOpen, setCalOpen] = useState(false); // 대회 일정 선택 모달(캘린더)
 
   const patch = <K extends keyof FormState>(k: K, v: FormState[K]) => {
     setErrMsg(null);
@@ -525,10 +526,14 @@ export function CreateWizard({
                 </div>
               )}
             </div>
-            {/* 일정 — 월 캘린더에서 날짜를 복수 선택(클릭 토글). 선택 날짜는 아래 카드로 펼침 */}
+            {/* 일정 — "일정 선택" 버튼 → 캘린더 모달. 선택 날짜는 아래 카드로 펼침(모달 밖 유지) */}
             <div className="ts-field">
               <span className="ts-field__label">대회 일정</span>
-              <MonthCalendar selected={form.dates.map((d) => d.date)} onToggle={toggleDate} />
+              {/* 점선 버튼(ct-adddate 재사용) — 선택 0개="일정 선택", 1개+="N일 선택됨 · 수정" */}
+              <button type="button" className="ct-adddate" onClick={() => setCalOpen(true)}>
+                <Icon name="calendar-plus" size={16} />
+                {form.dates.length ? `${form.dates.length}일 선택됨 · 수정` : "일정 선택"}
+              </button>
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {form.dates.map((dt, i) => (
                   <div key={dt.id} className="ct-dateblock">
@@ -739,6 +744,24 @@ export function CreateWizard({
         ) : (
           <div className="ct-emptybox"><b>종별·정원</b> 단계에서 종별을 먼저 추가하세요.</div>
         )}
+      </Modal>
+
+      {/* 대회 일정 선택 모달(정본 CalendarModal 1:1) — 캘린더 토글이 즉시 form.dates 반영(toggleDate 재사용).
+          "선택 완료"/"취소" 둘 다 닫기만(즉시 반영 모델이라 롤백 불필요). N = form.dates.length 실시간. */}
+      <Modal
+        open={calOpen}
+        onClose={() => setCalOpen(false)}
+        maxWidth={440}
+        title="대회 일정 선택"
+        sub="여러 날 선택 가능. 다시 누르면 해제."
+        foot={
+          <>
+            <Btn variant="secondary" onClick={() => setCalOpen(false)}>취소</Btn>
+            <Btn icon="check" onClick={() => setCalOpen(false)}>선택 완료 ({form.dates.length}일)</Btn>
+          </>
+        }
+      >
+        <MonthCalendar selected={form.dates.map((d) => d.date)} onToggle={toggleDate} />
       </Modal>
 
       {/* 기존 대회 복사 피커 — 선택 시 ?copyFrom 으로 재진입(서버 prefill) */}
