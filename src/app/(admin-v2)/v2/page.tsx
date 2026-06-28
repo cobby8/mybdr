@@ -40,26 +40,46 @@ const LAUNCH = [
   { href: "/v2/soon?c=partner", icon: "handshake", t: "협력업체 콘솔", d: "파트너 시설·캠페인·정산", ext: false },
 ];
 
+// 전월 대비 누적 성장률(%) — 전월말(prev) 0 이면 분모 불가 → undefined(pill 생략)
+function growthPct(cur: number, prev: number): number | undefined {
+  if (prev <= 0) return undefined;
+  return Math.round(((cur - prev) / prev) * 100);
+}
+
 export default async function AdminV2Dashboard() {
   const months = lastMonths(6);
+  // 이번달 1일 0시 — 이 시점 이전 누적값이 "전월말 스냅샷"(delta 분모)
+  const thisMonthStart = months[months.length - 1].gte;
 
-  // KPI 카운트(4) + 월별 신규가입(6) 병렬 — 전부 실 count(SELECT)
-  const [totalUsers, activeTeams, pendingOrgs, suspendedUsers, monthlyCounts] =
-    await Promise.all([
-      prisma.user.count(),
-      prisma.team.count({ where: { status: "active" } }),
-      prisma.organizations.count({ where: { status: "pending" } }),
-      prisma.user.count({ where: { status: "suspended" } }),
-      Promise.all(
-        months.map((m) =>
-          prisma.user.count({ where: { createdAt: { gte: m.gte, lt: m.lt } } })
-        )
-      ),
-    ]);
+  // KPI 카운트(4) + 월별 신규가입(6) + 전월말 누적(2) 병렬 — 전부 실 count(SELECT)
+  const [
+    totalUsers,
+    activeTeams,
+    pendingOrgs,
+    suspendedUsers,
+    monthlyCounts,
+    prevTotalUsers,
+    prevActiveTeams,
+  ] = await Promise.all([
+    prisma.user.count(),
+    prisma.team.count({ where: { status: "active" } }),
+    prisma.organizations.count({ where: { status: "pending" } }),
+    prisma.user.count({ where: { status: "suspended" } }),
+    Promise.all(
+      months.map((m) =>
+        prisma.user.count({ where: { createdAt: { gte: m.gte, lt: m.lt } } })
+      )
+    ),
+    // 전월말 누적(이번달 가입분 제외) — delta 분모
+    prisma.user.count({ where: { createdAt: { lt: thisMonthStart } } }),
+    prisma.team.count({ where: { status: "active", createdAt: { lt: thisMonthStart } } }),
+  ]);
 
   const kpis: KpiItem[] = [
-    { label: "전체 회원", value: totalUsers.toLocaleString(), icon: "users", tone: "primary" },
-    { label: "활성 팀", value: activeTeams.toLocaleString(), icon: "shield", tone: "ok" },
+    // 전체 회원·활성 팀 = createdAt 누적 성장률(전월말 대비) 실집계 → delta pill
+    { label: "전체 회원", value: totalUsers.toLocaleString(), icon: "users", tone: "primary", delta: growthPct(totalUsers, prevTotalUsers) },
+    { label: "활성 팀", value: activeTeams.toLocaleString(), icon: "shield", tone: "ok", delta: growthPct(activeTeams, prevActiveTeams) },
+    // 인증 대기 단체·정지 회원 = 상태 스냅샷(과거 시점 상태 미보존) → 전월 대비 무의미·delta 생략(mock 금지)
     { label: "인증 대기 단체", value: pendingOrgs.toLocaleString(), icon: "building-2", tone: "warn" },
     { label: "정지 회원", value: suspendedUsers.toLocaleString(), icon: "user-x", tone: "danger" },
   ];
