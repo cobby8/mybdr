@@ -111,6 +111,8 @@ export function buildDivisionRuleSeedsFromCategories({
   divFees,
   entryFee,
   format,
+  divFormats,
+  divSettings,
   categoryAges,
   tournamentYear,
 }: {
@@ -118,6 +120,12 @@ export function buildDivisionRuleSeedsFromCategories({
   divFees?: unknown;
   entryFee?: number | null;
   format?: string | null;
+  // 디비전명 → 진행방식(format) 맵. divFees 와 동일한 키 컨벤션(디비전명).
+  //   미지정 디비전은 대회 format 으로 폴백(회귀 0). 빈 문자열도 폴백 취급.
+  divFormats?: Record<string, string>;
+  // 디비전명 → 종별 settings(group_size/advance_per_group 등) 맵.
+  //   기존 { category } 에 병합 저장(category 보존 + 종별 settings 추가).
+  divSettings?: Record<string, Record<string, unknown>>;
   // 종별명 → ages 배열 (유청소년 ["U8".."U18"] / 일반부·대학부 []). 미전달 시 연령 자동 채움 skip.
   categoryAges?: Record<string, string[]>;
   // 대회 기준 연도 (출생연도 계산용). 미전달 시 연령 자동 채움 skip.
@@ -144,13 +152,23 @@ export function buildDivisionRuleSeedsFromCategories({
         tournamentYear != null
           ? computeAgeRangeForDivision(division, ageCodes, tournamentYear)
           : null;
+      // 디비전별 진행방식 — divFormats 우선, 없으면(빈 문자열 포함) 대회 format 폴백.
+      const perFormat = divFormats?.[division];
+      const ruleFormat =
+        typeof perFormat === "string" && perFormat.trim() ? perFormat : (format ?? null);
+      // 디비전별 settings — 기존 { category } 에 종별 settings 병합(category 보존).
+      const perSettings = divSettings?.[division];
+      const ruleSettings: Prisma.InputJsonValue =
+        perSettings && typeof perSettings === "object" && !Array.isArray(perSettings)
+          ? ({ category, ...perSettings } as Prisma.InputJsonValue)
+          : { category };
       seeds.push({
         code: division,
         label: division,
         feeKrw: normalizedFees[division] ?? fallbackFee,
         sortOrder: seeds.length,
-        format: format ?? null,
-        settings: { category },
+        format: ruleFormat,
+        settings: ruleSettings,
         // 연령 범위 null 이면 4필드 모두 null (일반부/대학부 ages=[] → null).
         birthYearMin: ageRange?.birthYearMin ?? null,
         birthYearMax: ageRange?.birthYearMax ?? null,

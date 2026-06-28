@@ -155,6 +155,9 @@ export interface CreateTournamentInput {
   categories?: Record<string, string[]>;
   divCaps?: Record<string, number>;
   divFees?: Record<string, number>;
+  // 종별별 진행방식/세부설정 — divFees 와 동일한 디비전명 키 맵. 미지정 시 대회 format 폴백.
+  divFormats?: Record<string, string>;
+  divSettings?: Record<string, Record<string, unknown>>;
   allowWaitingList?: boolean;
   waitingListCap?: number | null;
   entryFee?: number;
@@ -616,6 +619,9 @@ export async function createTournament(input: CreateTournamentInput) {
     divFees: input.divFees,
     entryFee: input.entryFee ?? 0,
     format: input.format ?? "single_elimination",
+    // 종별별 진행방식/설정 — 디비전 단위 우선 적용(없으면 위 대회 format 폴백).
+    divFormats: input.divFormats,
+    divSettings: input.divSettings,
     categoryAges,
     tournamentYear,
   });

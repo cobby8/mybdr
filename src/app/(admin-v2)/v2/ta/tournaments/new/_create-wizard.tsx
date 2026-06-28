@@ -63,7 +63,17 @@ export type Venue = { id: string; name: string; region: string; courtCount: numb
 export type DateRow = { id: string; date: string; courtIds: string[] };
 // category = 소속 종별명(AdminCategory.name + 성별 접두, 예 "남성 유청소년"). 없으면 단독 디비전.
 //   ★ 페이로드 빌더가 category 로 그룹핑 → categories={종별명:[디비전명]} → 서버 연령 자동채움.
-export type DivisionRow = { id: string; label: string; cap: number | null; fee: number; category?: string };
+// format = 종별별 진행방식(없으면 대회 format 폴백). settings = 진행방식별 세부설정(group_size 등).
+//   ★ 제출 시 divFormats/divSettings(디비전명 키 맵)로 변환 → 서버 seed 빌더가 디비전 우선 적용.
+export type DivisionRow = {
+  id: string;
+  label: string;
+  cap: number | null;
+  fee: number;
+  category?: string;
+  format?: string | null;
+  settings?: Record<string, unknown>;
+};
 // 로컬 5키 타입 제거 → 정본 19키 타입 1:1 재사용(R5-B 수정 마법사도 FormState 통해 동일 타입 자동 확장).
 export type GameRules = TournamentGameRules;
 
@@ -306,12 +316,19 @@ export function CreateWizard({
     const categories: Record<string, string[]> = {};
     const divCaps: Record<string, number> = {};
     const divFees: Record<string, number> = {};
+    // 종별별 진행방식/세부설정 맵(디비전명 키) — divFees 와 동일 패턴. 미설정 디비전은 키 생략 → 서버 폴백.
+    const divFormats: Record<string, string> = {};
+    const divSettings: Record<string, Record<string, unknown>> = {};
     validDivs.forEach((d) => {
       const divName = d.label.trim();
       const catName = (d.category && d.category.trim()) || divName;
       (categories[catName] ||= []).push(divName);
       if (d.cap != null) divCaps[divName] = d.cap;
       divFees[divName] = d.fee;
+      // format 지정 시에만 맵에 담음(빈 값 = 대회 format 폴백).
+      if (d.format) divFormats[divName] = d.format;
+      // settings 키가 있을 때만(빈 객체 제외). undefined 값은 JSON 직렬화 시 자동 제거.
+      if (d.settings && Object.keys(d.settings).length) divSettings[divName] = d.settings;
     });
 
     const dates = [...form.dates].sort((a, b) => a.date.localeCompare(b.date));
@@ -358,6 +375,9 @@ export function CreateWizard({
             categories,
             divCaps: Object.keys(divCaps).length ? divCaps : undefined,
             divFees,
+            // 종별별 진행방식/설정(있을 때만 전송 — 미전송 시 서버가 대회 format 폴백).
+            divFormats: Object.keys(divFormats).length ? divFormats : undefined,
+            divSettings: Object.keys(divSettings).length ? divSettings : undefined,
             entryFee: form.entryFee || undefined,
             bankName: form.bankName || undefined,
             bankAccount: form.bankAccount || undefined,
@@ -534,17 +554,10 @@ export function CreateWizard({
           </div>
         )}
 
-        {/* 3) 종별·정원 */}
+        {/* 3) 종별·정원 — 진행방식은 종별(디비전)별로 카드에서 설정(단일 대회방식 select 제거) */}
         {cur.id === "divisions" && (
           <div className="ct-form">
-            <div className="ct-form-grid">
-              <Field label="대회 방식" span2>
-                <select className="ts-select" value={form.format} onChange={(e) => patch("format", e.target.value)}>
-                  {ALLOWED_FORMATS.map((f) => <option key={f} value={f}>{FORMAT_LABEL[f]}</option>)}
-                </select>
-              </Field>
-            </div>
-            {/* 종별 에디터(공용) — 템플릿(AdminCategory)/직접 추가·연령 자동채움 구조 생성 */}
+            {/* 종별 에디터(공용) — 템플릿(AdminCategory)/직접 추가·연령 자동채움 + 종별별 진행방식 */}
             <DivisionsEditor
               divisions={form.divisions}
               onChange={(v) => patch("divisions", v)}
@@ -715,7 +728,7 @@ export function CreateWizard({
             </button>
             {labeledDivs.map((d) => (
               <div key={d.id} className="ct-feerow">
-                <div className="ct-feerow__nm">{d.label}<span className="ct-feerow__cap">정원 {d.cap != null ? `${d.cap}팀` : "무제한"} · {FORMAT_LABEL[form.format] || form.format}</span></div>
+                <div className="ct-feerow__nm">{d.label}<span className="ct-feerow__cap">정원 {d.cap != null ? `${d.cap}팀` : "무제한"} · {FORMAT_LABEL[d.format || form.format] || d.format || form.format}</span></div>
                 <div className="ct-feerow__in">
                   <input type="number" className="ts-input" value={d.id in draftFees ? draftFees[d.id] : ""} onChange={(e) => setDraftFees((f) => ({ ...f, [d.id]: +e.target.value }))} />
                   <span className="ct-feerow__won">원</span>

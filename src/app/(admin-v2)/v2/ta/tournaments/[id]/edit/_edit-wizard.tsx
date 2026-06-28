@@ -42,7 +42,6 @@ import {
   MonthCalendar,
   ReviewRow,
   FORMAT_LABEL,
-  ALLOWED_FORMATS,
   fmtDate,
   won,
   uid,
@@ -84,12 +83,18 @@ function buildPatchBody(
   const categories: Record<string, string[]> = {};
   const divCaps: Record<string, number> = {};
   const divFees: Record<string, number> = {};
+  // 종별별 진행방식/세부설정 맵(디비전명 키) — 생성폼과 동일. 서버 PATCH 가 기존 rule 에 반영.
+  const divFormats: Record<string, string> = {};
+  const divSettings: Record<string, Record<string, unknown>> = {};
   validDivs.forEach((d) => {
     const divName = d.label.trim();
     const catName = (d.category && d.category.trim()) || divName; // 종별명(없으면 자기 자신)
     (categories[catName] ||= []).push(divName);
     if (d.cap != null) divCaps[divName] = d.cap;
     divFees[divName] = d.fee;
+    // format 은 항상 키 포함(빈 문자열 = 폴백) — "대회 방식 사용"으로 되돌리는 수정도 서버에 반영.
+    divFormats[divName] = d.format || "";
+    if (d.settings && Object.keys(d.settings).length) divSettings[divName] = d.settings;
   });
 
   // 일정(날짜 오름차순) → startDate/endDate 파생 + schedule_dates(court_ids snake)
@@ -142,6 +147,10 @@ function buildPatchBody(
     // 종별 정원/참가비 jsonb
     div_caps: divCaps,
     div_fees: divFees,
+    // 종별별 진행방식/세부설정(snake 키) — 서버가 기존 division rule 의 format/settings 갱신.
+    //   항상 전송(빈 객체 포함) — 진행방식을 비운 디비전을 폴백으로 되돌리려면 키가 와야 하므로.
+    div_formats: divFormats,
+    div_settings: divSettings,
   };
   // 일정이 있을 때만 startDate/endDate 갱신(없으면 기존값 보존 — 미전송)
   if (startDate) body.startDate = startDate;
@@ -460,17 +469,10 @@ export function EditWizard({
           </div>
         )}
 
-        {/* 3) 종별·정원 */}
+        {/* 3) 종별·정원 — 진행방식은 종별(디비전)별 카드에서 설정(단일 대회방식 select 제거) */}
         {cur.id === "divisions" && (
           <div className="ct-form">
-            <div className="ct-form-grid">
-              <Field label="대회 방식" span2>
-                <select className="ts-select" value={form.format} onChange={(e) => patch("format", e.target.value)}>
-                  {ALLOWED_FORMATS.map((f) => <option key={f} value={f}>{FORMAT_LABEL[f]}</option>)}
-                </select>
-              </Field>
-            </div>
-            {/* 종별 에디터(공용) — 생성 마법사와 동일 프리미티브(템플릿/직접/연령) */}
+            {/* 종별 에디터(공용) — 생성 마법사와 동일 프리미티브(템플릿/직접/연령/종별별 진행방식) */}
             <DivisionsEditor
               divisions={form.divisions}
               onChange={(v) => patch("divisions", v)}
@@ -642,7 +644,7 @@ export function EditWizard({
             </button>
             {labeledDivs.map((d) => (
               <div key={d.id} className="ct-feerow">
-                <div className="ct-feerow__nm">{d.label}<span className="ct-feerow__cap">정원 {d.cap != null ? `${d.cap}팀` : "무제한"} · {FORMAT_LABEL[form.format] || form.format}</span></div>
+                <div className="ct-feerow__nm">{d.label}<span className="ct-feerow__cap">정원 {d.cap != null ? `${d.cap}팀` : "무제한"} · {FORMAT_LABEL[d.format || form.format] || d.format || form.format}</span></div>
                 <div className="ct-feerow__in">
                   <input type="number" className="ts-input" value={d.id in draftFees ? draftFees[d.id] : ""} onChange={(e) => setDraftFees((f) => ({ ...f, [d.id]: +e.target.value }))} />
                   <span className="ct-feerow__won">원</span>

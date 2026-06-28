@@ -1,4 +1,5 @@
 import { type NextRequest } from "next/server";
+import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { requireTournamentAdmin } from "@/lib/auth/tournament-auth";
 import { updateTournamentSchema } from "@/lib/validation/tournament";
@@ -161,6 +162,42 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
     if (incompleteMatches > 0) {
       return apiError(`미완료 경기가 ${incompleteMatches}건 있습니다. 모든 경기를 완료한 후 대회를 종료하세요.`, 400);
     }
+  }
+
+  // 종별별 진행방식/세부설정 반영 — div_formats/div_settings(디비전명 키 맵)을 기존
+  //   TournamentDivisionRule(code = 디비전명) 에 패치한다. divFees 와 동일한 키 컨벤션.
+  //   ★ 신규 디비전 row 생성·삭제는 운영 워크스페이스(division-rules POST) 책임 — 여기선 기존 rule 의
+  //     format/settings 만 갱신해 회귀 0(생성/삭제 가드·참가팀 검증을 중복 구현하지 않음).
+  //   ★ 두 return 경로(series 변경 / 일반 update) 진입 전에 실행 = 어느 경로든 항상 반영.
+  if (data.div_formats !== undefined || data.div_settings !== undefined) {
+    const divFormats = data.div_formats ?? {};
+    const divSettings = data.div_settings ?? {};
+    const rules = await prisma.tournamentDivisionRule.findMany({
+      where: { tournamentId: id },
+      select: { id: true, code: true, settings: true },
+    });
+    await Promise.all(
+      rules.map((rule) => {
+        const hasFormat = Object.prototype.hasOwnProperty.call(divFormats, rule.code);
+        const hasSettings = Object.prototype.hasOwnProperty.call(divSettings, rule.code);
+        if (!hasFormat && !hasSettings) return Promise.resolve(null);
+        const patch: { format?: string | null; settings?: Prisma.InputJsonValue } = {};
+        if (hasFormat) {
+          // 빈 문자열 = 대회 format 폴백(null 저장).
+          const f = divFormats[rule.code];
+          patch.format = typeof f === "string" && f.trim() ? f : null;
+        }
+        if (hasSettings) {
+          // 기존 settings(category 등) 보존 + 종별 settings 병합.
+          const existing =
+            rule.settings && typeof rule.settings === "object" && !Array.isArray(rule.settings)
+              ? (rule.settings as Record<string, unknown>)
+              : {};
+          patch.settings = { ...existing, ...divSettings[rule.code] } as Prisma.InputJsonValue;
+        }
+        return prisma.tournamentDivisionRule.update({ where: { id: rule.id }, data: patch });
+      }),
+    );
   }
 
   // Zod 검증 통과된 데이터를 Prisma update 형식으로 변환

@@ -92,7 +92,8 @@ export default async function NewTournamentPage({
         prisma.tournamentDivisionRule.findMany({
           where: { tournamentId: copyFrom },
           orderBy: { sortOrder: "asc" },
-          select: { code: true, label: true, feeKrw: true },
+          // 복사 시 종별별 진행방식/설정도 보존 — format/settings 포함.
+          select: { code: true, label: true, feeKrw: true, format: true, settings: true },
         }),
       ]);
       if (t) {

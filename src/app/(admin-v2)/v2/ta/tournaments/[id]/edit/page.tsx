@@ -110,7 +110,8 @@ export default async function EditTournamentPage({
     prisma.tournamentDivisionRule.findMany({
       where: { tournamentId: id },
       orderBy: { sortOrder: "asc" },
-      select: { code: true, label: true, feeKrw: true },
+      // 종별별 진행방식 복원 — format/settings 포함(prefill 헬퍼가 디비전명 매칭으로 부착).
+      select: { code: true, label: true, feeKrw: true, format: true, settings: true },
     }),
   ]);
 

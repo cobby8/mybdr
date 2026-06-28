@@ -147,6 +147,8 @@ export const POST = withWebAuth(async (req: Request, ctx: WebAuthContext) => {
       registrationStartAt, registrationEndAt,
       venueName, venueAddress, city,
       categories, divCaps, divFees,
+      // 종별별 진행방식/세부설정 맵(디비전명→값) — divFees 와 동일 패턴. 미전송 시 대회 format 폴백.
+      divFormats, divSettings,
       allowWaitingList, waitingListCap,
       entryFee, bankName, bankAccount, bankHolder, feeNotes,
       maxTeams, teamSize, rosterMin, rosterMax, autoApproveTeams,
@@ -252,6 +254,9 @@ export const POST = withWebAuth(async (req: Request, ctx: WebAuthContext) => {
       categories: categories || undefined,
       divCaps: divCaps || undefined,
       divFees: divFees || undefined,
+      // 종별별 진행방식/설정 — createTournament 가 seed 빌더에 전달(디비전 우선·대회 format 폴백).
+      divFormats: divFormats || undefined,
+      divSettings: divSettings || undefined,
       allowWaitingList: allowWaitingList ?? undefined,
       waitingListCap: waitingListCap ? Number(waitingListCap) : undefined,
       entryFee: entryFee ? Number(entryFee) : undefined,

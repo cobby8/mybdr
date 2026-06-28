@@ -24,7 +24,36 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { Btn, Icon, Badge, Modal } from "@/components/admin-v2";
 import { adminFetch } from "@/lib/admin-v2/data";
-import type { DivisionRow } from "./_create-wizard";
+import { FORMAT_LABEL, ALLOWED_FORMATS, type DivisionRow } from "./_create-wizard";
+
+// ── 진행방식별 동적 settings 필드 — 정본 panels-core.jsx FMT_FIELDS 1:1 ──────────
+//   각 항목 = [키, 라벨, 타입, 옵션|placeholder]
+//     · "select" → 옵션 배열 [[값, 라벨], ...] (값이 number 면 number 로 저장)
+//     · "num"    → placeholder 문자열(기본값 힌트)
+type FmtField =
+  | [string, string, "select", Array<[string | number, string]>]
+  | [string, string, "num", string];
+
+const FMT_FIELDS: Record<string, FmtField[]> = {
+  single_elimination: [],
+  round_robin: [["rounds", "리그 회전", "select", [[1, "단판"], [2, "홈앤어웨이"]]]],
+  dual_tournament: [["advance_per_group", "조별 진출", "num", "2"]],
+  group_stage_knockout: [
+    ["group_size", "조 크기", "num", "4"],
+    ["group_count", "조 개수", "num", "4"],
+    ["advance_per_group", "조별 진출", "num", "2"],
+  ],
+  league_advancement: [
+    ["group_count", "조 개수", "num", "2"],
+    ["advance_per_group", "조별 진출", "num", "2"],
+    ["linkage_pairs", "링크 대진 수", "num", "2"],
+  ],
+  group_stage_with_ranking: [
+    ["group_size", "조 크기", "num", "4"],
+    ["group_count", "조 개수", "num", "4"],
+    ["ranking_format", "순위결정 방식", "select", [["crossover", "크로스오버"], ["playoff", "플레이오프"], ["bracket", "순위 토너먼트"]]],
+  ],
+};
 
 // 내부 고유 id (레거시 uid 와 무관 — 순환 import 회피 위해 자체 생성기).
 const genUid = (p: string) => `${p}${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`;
@@ -93,12 +122,15 @@ function DivisionGenerator({
   const [tplId, setTplId] = useState("");
   const [divs, setDivs] = useState<string[]>([]);
   const [ages, setAges] = useState<string[]>([]);
+  // 진행방식 — 생성될 디비전에 일괄 적용(이후 카드에서 개별 변경). 정본 CategoryAddModal 1:1.
+  const [fmt, setFmt] = useState("single_elimination");
   useEffect(() => {
     if (open) {
       setGender("남성");
       setTplId("");
       setDivs([]);
       setAges([]);
+      setFmt("single_elimination");
     }
   }, [open]);
 
@@ -109,6 +141,14 @@ function DivisionGenerator({
   // 여성부는 디비전 뒤에 w 접미(정본 1:1) — 예: D4 → D4w.
   const wfix = (dn: string) => (gender === "여성" ? `${dn}w` : dn);
   const totalDivs = hasAges && ages.length ? divs.length * ages.length : divs.length;
+  // 미리보기용 디비전명 목록(정본 cat-preview "생성됨 (N): ...").
+  const combos: string[] = [];
+  if (tpl) {
+    divs.forEach((dn) => {
+      if (hasAges && ages.length) ages.forEach((ag) => combos.push(`${wfix(dn)} ${ag}`));
+      else combos.push(wfix(dn));
+    });
+  }
 
   // 생성 — 디비전×연령 곱집합. category = "${성별} ${종별명}"(서버가 성별 접두 제거 후 AdminCategory 매칭).
   const gen = () => {
@@ -120,6 +160,9 @@ function DivisionGenerator({
       cap: 16, // 정본 DEFAULT_CAP
       fee: defaultFee,
       category,
+      // 선택한 진행방식을 일괄 적용(settings 는 빈 객체 — 카드 FMT 필드 기본값 placeholder 적용).
+      format: fmt,
+      settings: {},
     });
     const rows: DivisionRow[] = [];
     if (hasAges && ages.length) {
@@ -244,6 +287,30 @@ function DivisionGenerator({
             </div>
           </div>
         )}
+
+        {/* 진행방식 단계 — 선택한 디비전에 일괄 적용(이후 카드에서 개별 변경). 정본 5/4단계 1:1 */}
+        <div style={{ opacity: tpl ? 1 : 0.4, pointerEvents: tpl ? "auto" : "none" }}>
+          <div className="ts-field__label">
+            {hasAges ? "5" : "4"}단계 · 진행방식{" "}
+            <span style={{ color: "var(--ink-mute)", fontWeight: 600 }}>선택한 디비전에 일괄 적용 · 이후 카드에서 개별 변경</span>
+          </div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+            {ALLOWED_FORMATS.map((f) => (
+              <button key={f} type="button" className="ts-chip" data-active={fmt === f ? "true" : "false"} onClick={() => setFmt(f)}>
+                {fmt === f && <Icon name="check" size={13} />}
+                {FORMAT_LABEL[f]}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* 생성 미리보기 — 정본 cat-preview */}
+        {combos.length > 0 && (
+          <div className="cat-preview">
+            <Icon name="layout-grid" size={15} color="var(--primary)" />
+            <span>생성됨 ({combos.length}): {combos.join(", ")}</span>
+          </div>
+        )}
       </div>
     </Modal>
   );
@@ -265,6 +332,8 @@ export function DivisionsEditor({
   toast: (msg: string) => void;
 }) {
   const [genOpen, setGenOpen] = useState(false);
+  // 인라인 편집 중인 디비전 id(정본 editCode 토글). null = 전부 읽기상태.
+  const [editCode, setEditCode] = useState<string | null>(null);
 
   // category 기준 그룹핑(입력 순서 보존).
   const groups = useMemo(() => {
@@ -279,44 +348,149 @@ export function DivisionsEditor({
 
   // ── mutators(불변 갱신) ──
   const patchDiv = (id: string, p: Partial<DivisionRow>) => onChange(divisions.map((d) => (d.id === id ? { ...d, ...p } : d)));
-  const removeDiv = (id: string) => onChange(divisions.filter((d) => d.id !== id));
+  // settings 부분 병합(정본 patchSettings). 기존 settings 유지 + 키 덮어쓰기.
+  const patchSettings = (id: string, p: Record<string, unknown>) =>
+    onChange(divisions.map((d) => (d.id === id ? { ...d, settings: { ...(d.settings ?? {}), ...p } } : d)));
+  const removeDiv = (id: string) => {
+    onChange(divisions.filter((d) => d.id !== id));
+    setEditCode((c) => (c === id ? null : c));
+  };
   const removeGroup = (key: string) => onChange(divisions.filter((d) => groupKey(d) !== key));
-  // 직접 추가 — 빈 종별 디비전 1개(category 없음 = 자기 자신이 종별).
-  const addManual = () => onChange([...divisions, { id: genUid("d"), label: "", cap: 16, fee: defaultFee, category: undefined }]);
+  // 직접 추가 — 빈 종별 디비전 1개(category 없음 = 자기 자신이 종별). 추가 즉시 편집상태 진입.
+  const addManual = () => {
+    const id = genUid("d");
+    onChange([...divisions, { id, label: "", cap: 16, fee: defaultFee, category: undefined, format: "single_elimination", settings: {} }]);
+    setEditCode(id);
+  };
   const addGenerated = (rows: DivisionRow[]) => onChange([...divisions, ...rows]);
 
-  // 단일 디비전 카드 렌더(공용).
-  const DivisionCard = (d: DivisionRow, index: number) => (
-    <article key={d.id} className="ts-card ts-card--flat">
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
-        <span className="ts-field__label">디비전 {index + 1}</span>
-        <button type="button" className="ct-iconbtn" title="삭제" onClick={() => removeDiv(d.id)}>
-          <Icon name="trash-2" size={15} />
-        </button>
-      </div>
-      <label className="ts-field" style={{ margin: 0 }}>
-        <span className="ts-field__label">디비전명</span>
-        <input className="ts-input" value={d.label} onChange={(e) => patchDiv(d.id, { label: e.target.value })} placeholder="예: 남성 일반부 / i3 U12" />
+  // 진행방식별 settings 입력 1칸 렌더(정본 FMT_FIELDS 매핑 1:1).
+  const renderSettingsField = (d: DivisionRow, field: FmtField) => {
+    const [k, lab, type] = field;
+    if (type === "select") {
+      const opt = field[3]; // 옵션 배열 [[값,라벨],...]
+      const def = opt[0][0];
+      const cur = d.settings?.[k] ?? def;
+      return (
+        <label key={k} className="ts-field" style={{ margin: 0 }}>
+          <span className="ts-field__label">{lab}</span>
+          <select
+            className="ts-select"
+            value={String(cur)}
+            onChange={(e) => patchSettings(d.id, { [k]: typeof def === "number" ? +e.target.value : e.target.value })}
+          >
+            {opt.map(([ov, ol]) => (
+              <option key={String(ov)} value={String(ov)}>{ol}</option>
+            ))}
+          </select>
+        </label>
+      );
+    }
+    // num — placeholder = 기본값 힌트. 빈 값은 undefined 저장(서버 폴백/기본값 적용).
+    const ph = field[3];
+    return (
+      <label key={k} className="ts-field" style={{ margin: 0 }}>
+        <span className="ts-field__label">{lab}</span>
+        <input
+          className="ts-input"
+          type="number"
+          value={typeof d.settings?.[k] === "number" ? (d.settings[k] as number) : ""}
+          placeholder={ph}
+          onChange={(e) => patchSettings(d.id, { [k]: e.target.value === "" ? undefined : +e.target.value })}
+        />
       </label>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 8 }}>
-        <label className="ts-field" style={{ margin: 0 }}>
-          <span className="ts-field__label">정원(팀)</span>
-          <input
-            className="ts-input"
-            type="number"
-            min={0}
-            value={d.cap ?? ""}
-            placeholder="제한 없음"
-            onChange={(e) => patchDiv(d.id, { cap: e.target.value === "" ? null : +e.target.value })}
-          />
-        </label>
-        <label className="ts-field" style={{ margin: 0 }}>
-          <span className="ts-field__label">참가비</span>
-          <input className="ts-input" type="number" min={0} step={1000} value={d.fee} onChange={(e) => patchDiv(d.id, { fee: +e.target.value })} />
-        </label>
-      </div>
-    </article>
-  );
+    );
+  };
+
+  // 단일 디비전 카드 렌더(공용) — 읽기/편집 토글 + 종별별 진행방식. 정본 DivisionsPanel 카드 1:1.
+  const DivisionCard = (d: DivisionRow, index: number) => {
+    const editing = editCode === d.id;
+    const fmtFields = FMT_FIELDS[d.format ?? ""] ?? [];
+    return (
+      <article key={d.id} className="ts-card ts-card--flat" style={editing ? { boxShadow: "0 0 0 2px var(--primary)" } : undefined}>
+        {/* 상단 — 라벨(읽기:텍스트 / 편집:input) + 연필/체크·삭제 */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
+          <div style={{ minWidth: 0, flex: "1 1 160px" }}>
+            <span className="ts-field__label">디비전 {index + 1}</span>
+            {editing ? (
+              <input
+                className="ts-input"
+                style={{ marginTop: 4 }}
+                value={d.label}
+                onChange={(e) => patchDiv(d.id, { label: e.target.value })}
+                placeholder="예: 남성 일반부 / i3 U12"
+              />
+            ) : (
+              <p style={{ fontWeight: 700, fontSize: 14.5, color: "var(--ink)", marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {d.label || <span style={{ color: "var(--ink-dim)" }}>(디비전명 미입력)</span>}
+              </p>
+            )}
+            {!editing && (
+              <p style={{ fontSize: 11.5, color: "var(--ink-mute)", marginTop: 4 }}>
+                참가비 {(d.fee || 0).toLocaleString()}원 · 정원 {d.cap ?? "—"}
+              </p>
+            )}
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, flex: "0 0 auto" }}>
+            <button
+              type="button"
+              className="ct-iconbtn"
+              title={editing ? "완료" : "수정"}
+              onClick={() => setEditCode(editing ? null : d.id)}
+              style={editing ? { background: "var(--primary)", color: "#fff" } : undefined}
+            >
+              <Icon name={editing ? "check" : "pencil"} size={15} />
+            </button>
+            <button type="button" className="ct-iconbtn" title="삭제" onClick={() => removeDiv(d.id)}>
+              <Icon name="trash-2" size={15} />
+            </button>
+          </div>
+        </div>
+
+        {/* 편집상태 — 정원/참가비 input */}
+        {editing && (
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 10 }}>
+            <label className="ts-field" style={{ margin: 0 }}>
+              <span className="ts-field__label">정원(팀)</span>
+              <input
+                className="ts-input"
+                type="number"
+                min={0}
+                value={d.cap ?? ""}
+                placeholder="제한 없음"
+                onChange={(e) => patchDiv(d.id, { cap: e.target.value === "" ? null : +e.target.value })}
+              />
+            </label>
+            <label className="ts-field" style={{ margin: 0 }}>
+              <span className="ts-field__label">참가비</span>
+              <input className="ts-input" type="number" min={0} step={1000} value={d.fee} onChange={(e) => patchDiv(d.id, { fee: +e.target.value })} />
+            </label>
+          </div>
+        )}
+
+        {/* 진행 방식 — 항상 노출(정본). 빈 값 = 대회 방식 폴백 */}
+        <div style={{ marginTop: 12 }}>
+          <span className="ts-field__label">진행 방식</span>
+          <select className="ts-select" value={d.format ?? ""} onChange={(e) => patchDiv(d.id, { format: e.target.value || null })}>
+            <option value="">대회 방식 사용</option>
+            {ALLOWED_FORMATS.map((f) => (
+              <option key={f} value={f}>{FORMAT_LABEL[f]}</option>
+            ))}
+          </select>
+        </div>
+
+        {/* 진행방식별 세부설정 — FMT_FIELDS 매핑(정본 ct-div-edit3) */}
+        {fmtFields.length > 0 && (
+          <div
+            className="ct-div-edit3"
+            style={{ display: "grid", gridTemplateColumns: fmtFields.length >= 3 ? "1fr 1fr 1fr" : "1fr 1fr", gap: 8, marginTop: 10 }}
+          >
+            {fmtFields.map((field) => renderSettingsField(d, field))}
+          </div>
+        )}
+      </article>
+    );
+  };
 
   return (
     <div>

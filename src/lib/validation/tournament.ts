@@ -67,6 +67,10 @@ export const updateTournamentSchema = z
     categories: z.record(z.string(), z.union([z.array(z.string()), z.boolean()])),
     div_caps: z.record(z.string(), z.number().int().min(0)),
     div_fees: z.record(z.string(), z.number().min(0)),
+    // 종별별 진행방식/세부설정 — 디비전명 키 맵(div_fees 와 동일 패턴). 둘 다 optional.
+    //   div_formats: 디비전명 → format 문자열 / div_settings: 디비전명 → settings 객체.
+    div_formats: z.record(z.string(), z.string()).optional(),
+    div_settings: z.record(z.string(), z.record(z.string(), z.unknown())).optional(),
     allow_waiting_list: z.boolean(),
     waiting_list_cap: z.number().int().positive().nullable(),
     bank_name: z.string().nullable(),

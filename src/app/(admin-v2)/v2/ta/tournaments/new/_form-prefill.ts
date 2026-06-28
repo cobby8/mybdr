@@ -24,13 +24,30 @@ function jsonNum(v: unknown, d: number): number {
   return d;
 }
 
+// TournamentDivisionRule prefill 타입 — format/settings 포함(종별별 진행방식 복원용).
+export type DivisionRulePrefill = {
+  code: string;
+  label: string;
+  feeKrw: number;
+  format?: string | null;
+  settings?: unknown;
+};
+
+// rule.settings(jsonb)에서 category 키를 제거한 종별 settings 만 추출(FMT 필드용).
+//   ★ category 는 서버가 다시 부여하므로 폼 settings 에서는 빼서 round-trip 오염 방지.
+function ruleSettings(v: unknown): Record<string, unknown> | undefined {
+  if (!v || typeof v !== "object" || Array.isArray(v)) return undefined;
+  const { category: _category, ...rest } = v as Record<string, unknown>;
+  return Object.keys(rest).length ? rest : undefined;
+}
+
 // ── 종별 prefill — categories(jsonb) → DivisionRow[] (그룹 펼침) ──────────
-//   ruleRows = TournamentDivisionRule 폴백(categories 없을 때만).
+//   ruleRows = TournamentDivisionRule. format/settings 는 디비전명(=code) 매칭으로 부착.
 export function divisionsFromTournament(
   categoriesValue: unknown,
   divCapsValue: unknown,
   divFeesValue: unknown,
-  ruleRows: { code: string; label: string; feeKrw: number }[],
+  ruleRows: DivisionRulePrefill[],
   entryFee: number,
 ): DivisionRow[] {
   const categories = asObj(categoriesValue);
@@ -39,6 +56,13 @@ export function divisionsFromTournament(
   const catKeys = Object.keys(categories);
   const out: DivisionRow[] = [];
 
+  // 디비전명(code === label === 디비전명) → rule 맵. format/settings 복원용.
+  const ruleByName = new Map<string, DivisionRulePrefill>();
+  for (const r of ruleRows) {
+    ruleByName.set(r.code, r);
+    if (!ruleByName.has(r.label)) ruleByName.set(r.label, r);
+  }
+
   if (catKeys.length) {
     for (const catName of catKeys) {
       const raw = categories[catName];
@@ -46,6 +70,7 @@ export function divisionsFromTournament(
       // 디비전 배열이 비면(비정상) 종별명 자체를 디비전으로 폴백.
       const names = divNames.length ? divNames : [catName];
       for (const divName of names) {
+        const rule = ruleByName.get(divName);
         out.push({
           id: `d_${out.length}`,
           label: divName,
@@ -53,6 +78,9 @@ export function divisionsFromTournament(
           fee: typeof divFees[divName] === "number" ? divFees[divName] : entryFee,
           // 종별명 = AdminCategory.name(성별 접두 포함). 디비전명과 다를 때만 그룹 태깅.
           category: catName !== divName ? catName : undefined,
+          // 종별별 진행방식/설정 복원(rule 매칭 시).
+          format: rule?.format ?? null,
+          settings: ruleSettings(rule?.settings) ?? {},
         });
       }
     }
@@ -65,6 +93,8 @@ export function divisionsFromTournament(
         cap: typeof divCaps[r.code] === "number" ? divCaps[r.code] : null,
         fee: r.feeKrw ?? entryFee,
         category: undefined,
+        format: r.format ?? null,
+        settings: ruleSettings(r.settings) ?? {},
       });
     });
   }
@@ -128,7 +158,7 @@ export type CopySource = {
 // ── 복사용 FormState — 기존 대회 → 새 대회 폼(이름/일정/접수기간 비움) ────
 //   왜 비우나: 새 대회는 이름·일정·접수기간이 달라야 하므로 합리적 조정.
 //   왜 종별/장소/경기설정은 복사: 재사용성이 높은 설정(템플릿 성격).
-export function buildCopyForm(t: CopySource, ruleRows: { code: string; label: string; feeKrw: number }[]): FormState {
+export function buildCopyForm(t: CopySource, ruleRows: DivisionRulePrefill[]): FormState {
   const entryFee = Number(t.entry_fee ?? 0); // Decimal/number/null → number
   return {
     name: "", // 비움(복사본 이름 새로 입력)
