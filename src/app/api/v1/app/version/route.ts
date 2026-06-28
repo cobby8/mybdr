@@ -8,19 +8,32 @@ import { NextResponse } from "next/server";
  * release_history는 앱정보/업데이트 화면의 누적 릴리즈 아카이브다.
  */
 const LATEST = {
-  latest_version_code: 16,
-  latest_version_name: "0.1.14",
+  latest_version_code: 17,
+  latest_version_name: "0.1.15",
   min_supported_version_code: 1,
   is_mandatory: false,
   apk_url: "https://www.mybdr.kr/api/v1/app/download",
-  sha256: "501bf577517d960ae0f97d8c4690b8c2269ce6df828947eac21075fb3506d4b5",
-  size_bytes: 80396046,
+  sha256: "71ad4b21f8b4456fd3c03249230c1a2607f19c8bb8bdd4242bcd787358c8033a",
+  size_bytes: 75333390,
   release_notes: [
-    "PBP 누락 보강",
-    "라이브 출전시간 동기화 개선",
-    "선발 출전시간 안정화"
+    "큰 태블릿 액션 버튼 위치 보정",
+    "보안 저장소 강화",
+    "릴리즈 서명 및 난독화 강화"
   ],
   release_history: [
+    {
+      version: "0.1.15",
+      date: "2026-06-28",
+      summary: "큰 태블릿 기록 화면에서 액션 버튼 위치와 보안 배포 기반을 보강",
+      details:
+        "큰 태블릿에서도 슛, 자유투, 리바운드, 선수 선택 버튼이 실제 코트 영역 기준으로 안정적으로 뜨도록 보정했습니다. 로그인 정보와 토큰 저장은 Android 암호화 저장소를 명시 사용하도록 강화했고, 릴리즈 빌드는 전용 서명, 리소스 축소, 난독화 설정을 적용했습니다.",
+      notes: [
+        { kind: "fix", text: "큰 태블릿에서 액션 버튼과 선수 저지 선택창이 실제 코트 위치 기준으로 뜨도록 보정" },
+        { kind: "fix", text: "2점/3점 슛 판정 로직은 유지하면서 팝오버 표시 위치만 동적 코트 경계에 맞춤" },
+        { kind: "security", text: "로그인 저장 정보와 토큰 저장소에 Android 암호화 저장 옵션 명시" },
+        { kind: "security", text: "릴리즈 APK 전용 서명, 난독화, 리소스 축소 배포 설정 강화" },
+      ],
+    },
     {
       version: "0.1.14",
       date: "2026-06-28",
