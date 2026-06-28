@@ -44,6 +44,9 @@ interface YouTubeEmbedProps {
   videoId: string;
   title?: string;
   isLive?: boolean;
+  // 2026-06-28: 매치별 영상 시작 지점 (초). 박제된 settings.youtube_start_seconds 전달용.
+  //   >0 이면 embed URL 에 &start=N 추가 → 영상 N초 지점부터 재생. 0 이면 처음부터 (기존 동작).
+  startSeconds?: number;
   // 등록 mode — "manual" / "auto_verified" / "auto_pending" — 운영자 UI 에서 자동 채택 표시용
   status?: "manual" | "auto_verified" | "auto_pending" | null;
   // 운영자 권한 시 우상단 "영상 변경" 버튼 노출
@@ -56,6 +59,7 @@ function YouTubeEmbedInner({
   title,
   isLive,
   status,
+  startSeconds,
   isAdmin,
   onManageClick,
 }: YouTubeEmbedProps) {
@@ -67,7 +71,14 @@ function YouTubeEmbedInner({
   // autoplay=1&mute=1 → Chrome 자동재생 정책 우회 (사용자 클릭 시 unmute)
   // modestbranding=1 → YouTube 로고/관련영상 최소화
   // rel=0 → 종료 후 다른 채널 영상 추천 차단 (BDR 채널 영상만)
-  const embedUrl = `https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&mute=1&modestbranding=1&rel=0`;
+  // 2026-06-28: 시작 지점 파라미터 — startSeconds 가 양수일 때만 &start=N 부착.
+  //   Math.floor 로 정수화 (YouTube start 는 정수 초만 허용). 0 또는 미전달이면 부착 안 함 → 처음부터 재생.
+  //   VOD(다시보기)는 정확히 N초 지점부터, 라이브(DVR)도 대개 해당 시점으로 seek 됨.
+  const startParam =
+    typeof startSeconds === "number" && startSeconds > 0
+      ? `&start=${Math.floor(startSeconds)}`
+      : "";
+  const embedUrl = `https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&mute=1&modestbranding=1&rel=0${startParam}`;
 
   return (
     <section
