@@ -21,7 +21,7 @@ const NAV: NavItem[] = [
   { id: "logs", icon: "scroll-text", text: "활동 로그" },
   { label: "운영 콘솔" },
   { id: "userConsole", icon: "users", text: "유저 콘솔" },
-  { href: "/tournament-admin", icon: "trophy", text: "대회 콘솔" },
+  { href: "/v2/ta", icon: "trophy", text: "대회 콘솔" },
   { id: "matchConsole", icon: "swords", text: "매칭 콘솔" },
   { id: "communityConsole", icon: "message-square", text: "커뮤니티 콘솔" },
   { id: "courtConsole", icon: "map-pin", text: "코트 콘솔" },

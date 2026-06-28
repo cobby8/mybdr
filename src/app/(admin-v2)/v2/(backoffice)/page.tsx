@@ -35,7 +35,7 @@ function lastMonths(n: number): { gte: Date; lt: Date; label: string }[] {
 
 // 운영 콘솔 바로가기 카드(정본 ConsoleLaunch)
 const LAUNCH = [
-  { href: "/tournament-admin", icon: "trophy", t: "대회 콘솔", d: "대회 목록·단체·정규대회·템플릿", ext: true },
+  { href: "/v2/ta", icon: "trophy", t: "대회 콘솔", d: "대회 목록·단체·정규대회·템플릿", ext: true },
   { href: "/v2/soon?c=referee", icon: "gavel", t: "심판 콘솔", d: "배정·검증·등급·수당 정산", ext: false },
   { href: "/v2/soon?c=partner", icon: "handshake", t: "협력업체 콘솔", d: "파트너 시설·캠페인·정산", ext: false },
 ];
