@@ -233,6 +233,26 @@ export function settleStatusBadge(s: string | null | undefined): {
   }
 }
 
+// ── 평가 리포트(RefereeEvaluation) 표시 매핑 ─────────────────────────
+
+// 평가 상태 → 라벨/톤(badge 셀). DB status = submitted/confirmed/review_needed.
+//   정본 RF_EVAL 배지("확정" ok / "검토 필요" amber) 매핑.
+export function evalStatusBadge(s: string | null | undefined): {
+  label: string;
+  tone: Tone;
+} {
+  switch (s) {
+    case "confirmed":
+      return { label: "확정", tone: "ok" };
+    case "review_needed":
+      return { label: "검토 필요", tone: "warn" };
+    case "submitted":
+      return { label: "제출됨", tone: "primary" };
+    default:
+      return { label: s || "제출됨", tone: "grey" };
+  }
+}
+
 // ── 자격·서류 검증(RefereeCertificate / RefereeDocument) 표시 매핑 ───
 
 // 자격증 검증 상태 → 라벨/톤. 만료 임박(verified+만료30일내)도 표시.

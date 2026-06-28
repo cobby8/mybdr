@@ -401,16 +401,110 @@
 💡 tester: operate "대회 정보 수정"→`/v2/ta/tournaments/[id]/edit`(기존값 prefill)→수정→저장(PATCH)/저장하고완료(operate 복귀)·삭제(확인모달→soft cancelled). dirty="변경사항 있음/없음". **실 저장/삭제는 사용자 테스트**(계약 self-check만·운영 대회 손상 방지). 권한=PATCH/DELETE requireTournamentAdmin 서버 재검증.
 ⚠️ reviewer: tsc EXIT0. 회귀=create-wizard export만(로직0)+operate 버튼 배선1곳. 백엔드/DB/Prisma/API 0변경·레거시0 import·raw fetch0(adminFetch only). **알려진 한계**: 폼 venue/division 모델=R5-A 단순화(정본 ScheduleVenue/CategoryModal mock 제외 동일)→레거시 리치 종별룰(연령/디비전 tier)은 PATCH가 categories/div_caps/div_fees jsonb만 갱신(tournamentDivisionRule row 미변경=PATCH 엔드포인트 기존 동작). 다음=심판/협력업체.
 
+### 구현 기록 (developer) — R5-A 보강: 종별 템플릿/연령 자동채움 + 대회 복사 (신규2+수정4·미커밋)
+📝 R5-A 신고 2건 해소: ①종별 단순화(종별명/정원/참가비 평면) → **레거시 ct-divisions.tsx 충실 포팅**(AdminCategory 템플릿·연령코드·곱집합 생성) ②대회 복사 부재 → **서버 ?copyFrom prefill**. **백엔드/DB/Prisma/API 0변경**(기존 생성계약·AdminCategory GET 재사용·새 API 0). 레거시 0 import.
+
+**★연령 자동채움 계약(실측·핵심)**: 생성 POST는 연령(출생연도/학년)을 **직접 받지 않음**. `createTournament`(tournament.ts L591~644)가 `AdminCategory.ages`를 읽어 `computeAgeRangeForDivision`으로 **생성 트랜잭션에서 자동 계산·`tournamentDivisionRule`에 저장**. 조건=①종별명이 AdminCategory.name과 매칭(서버가 "남성/여성 " 접두 제거)·②디비전명에 연령코드(U12 등) 토큰 포함. **→ 그린필드가 연령을 잃은 진짜 원인=`categories[label]=[label]` 평면구조(AdminCategory 매칭 실패)**. 명시적 출생연도/학년 입력+자동채움 버튼은 **생성 후 EDIT 패널**(`[ruleId]` PATCH·divisions-panel.tsx) 기능(생성 계약엔 연령 필드 없음→생성마법사는 구조만 정확히 보내면 서버가 채움).
+
+| 파일 | 변경 | 신규/수정 |
+|------|------|----------|
+| `new/_divisions-editor.tsx` | **DivisionGenerator**(성별/AdminCategory템플릿/디비전/연령코드 4단계·여성 w접미·디비전×연령 곱집합→디비전명 "i3 U12"·종별명 "남성 유청소년")+**DivisionsEditor**(종별 그룹카드·직접/템플릿 추가). 템플릿=`adminFetch GET /api/web/admin/categories`(super-only·비-super는 빈목록+직접추가 폴백). 양 마법사 공용 | 신규 |
+| `new/_form-prefill.ts` | 서버 헬퍼: `divisionsFromTournament`(categories jsonb→디비전 **그룹 펼침**·category 태깅)+`buildCopyForm`(대회→복사폼·이름/일정/접수기간 비움) | 신규 |
+| `new/_create-wizard.tsx` | DivisionRow+`category?`·DivisionsEditor 사용·**페이로드 종별 그룹핑**(category→categories={종별명:[디비전]})·복사 props(initialForm/copyableList/copiedFromName)+복사 피커 모달+안내배너 | 수정 |
+| `[id]/edit/_edit-wizard.tsx` | DivisionsEditor 사용(addDivision 등 제거)·PATCH 페이로드 종별 그룹핑(생성과 동일) | 수정 |
+| `[id]/edit/page.tsx` | 종별 prefill = `divisionsFromTournament`(그룹 펼침·헬퍼). entry_fee Decimal→Number() 정규화(pre-existing 타입오류 동반 수정) | 수정 |
+| `new/page.tsx` | 서버: organizer-scoped 복사목록(Prisma 스칼라)+`?copyFrom` 1건 READ(canManageTournament 권한)→buildCopyForm prefill→CreateWizard props | 수정 |
+
+🔑 **종별 라운드트립 보존**: 구 그린필드 `{디비전명:[디비전명]}`(category=undefined·solo)·레거시 `{종별명:[디비전,...]}`(category 태깅) 둘 다 그룹 펼침→편집→재그룹핑으로 동일 복원. 레거시 그룹 대회가 그린필드 edit에서 1디비전으로 잘못 보이던 **잠복버그도 동반 수정**(개선).
+🔑 **대회 복사 동작(0 새 API)**: 클라 복사버튼→피커(copyableList)→`router.push(?copyFrom=id)`→서버 재진입→Prisma READ+권한검증→buildCopyForm(이름/일정/접수 비움·종별/경기설정/장소/접수설정 복사)→폼 prefill. 레거시 `tournament-copy-modal.tsx`는 의존 API 부재로 작동불가였음(미사용).
+⚠️ **한계/보고**: ①AdminCategory GET=super_admin 전용(레거시 동일 제약)→비-super 운영자는 템플릿 빈목록+직접추가만(연령 자동채움도 super 운영자 경로). ②per-디비전 경기날짜/코트 매칭(레거시 settings.div_schedule)=미포팅(운영 워크스페이스 일정에서 처리·스코프 집중). ③명시적 연령 미세조정=생성 후 division-rules EDIT 패널(별도·R4 operate 잔여).
+💡 tester: `/v2/ta/tournaments/new`→**템플릿 추가**(성별/종별/디비전/연령 선택·연령은 ages 있는 종별만)→곱집합 디비전 생성·그룹카드. **직접 추가**=단독 디비전. **기존 대회 복사** 버튼→피커 선택→설정 prefill(이름/일정 비움). 수정 마법사도 동일 종별 에디터. **실 생성/연령 저장은 사용자 테스트**(계약 self-check만·운영DB 보호). 회귀=생성/수정 종별 라운드트립·복사 prefill.
+⚠️ reviewer: `cmd /c npx tsc --noEmit --incremental false` **EXIT0**(PM 재확인). raw fetch0(adminFetch/Prisma only)·레거시0 import(ct-divisions는 읽고 새작성)·백엔드/DB/Prisma/API 0변경. CSS 신규0(기존 ts-segment/ts-chip/ct-* admin-v2 재사용). 하드코딩hex0.
+
+### 구현 기록 (developer) — R6-A 협력업체 콘솔 (대시보드/내시설/캠페인·신규13·미커밋)
+📝 정본 `협력업체 콘솔.html`/`partner-pages.jsx`/`partner-data.jsx`(PartnerApp) 1:1. 파트너 페르소나 3화면(정산 제외). **백엔드/DB/Prisma/API 0변경 · 레거시 0 import · raw fetch 0**(mutation 0=정본 시연 전부 준비중 토스트).
+
+🔑 **★아키텍처 결정(인증)**: 파트너 인증=`partner_members`(is_active) — **tournament-admin 아님**. `/v2/layout.tsx`(membershipType≥3/super 게이트)에 올리면 진짜 파트너 차단 → **별도 라우트 `(admin-v2)/partner/`**(URL `/partner`·충돌0·레거시는 `/partner-admin`) + **자체 파트너 인증 layout**. CSS도 partner/layout에서 admin-v2 import(세그먼트 스코프). 권한=파트너 본인(partner_members) OR super bypass·미소속 비-super→no_permission redirect.
+
+| 파일 | 변경 | 신규/수정 |
+|------|------|----------|
+| `(admin-v2)/partner/layout.tsx` | 파트너 인증(getWebSession+partner_members is_active+super)+buildLoginRedirect+admin-v2 CSS import+PartnerShell+nav 배지 실카운트 | 신규 |
+| `partner/_partner-shell.tsx` | PartnerShell(AdminShell 협력 NAV·route 기반·운영/마케팅/정산·brandSub="협력업체 콘솔") | 신규 |
+| `partner/_partner-data.ts` | getPartnerContext(partnerId/ownerId 스코프)+표시헬퍼(fmtDate/Period/campaignStatus/placementLabel/courtType·Status/operatingHours/ctrPct) | 신규 |
+| `partner/_logout-button.tsx` | 로그아웃(복제·자기완결) | 신규 |
+| `partner/page.tsx`+`_dashboard.tsx` | 대시보드: Prisma 집계 KPI4(등록시설/운영캠페인/캠페인노출/평균CTR)+월별신규캠페인 막대+최근활동. **과금·정산·delta 제외** | 신규 |
+| `partner/venues/page.tsx`+`_venues.tsx` | 내 시설: court_infos(user_id==owner_id) READ→SchemaList(정본 PT_VENUES)·읽기 드로어 | 신규 |
+| `partner/campaigns/page.tsx`+`_campaigns.tsx` | 캠페인: ad_campaigns(partner_id) READ→SchemaList(정본 PT_CAMPAIGNS·노출/클릭률)·행→상세 | 신규 |
+| `partner/campaigns/[id]/page.tsx`+`_detail.tsx` | 캠페인 상세: IDOR(partner_id==ctx or super)+KPI3(노출/클릭/CTR·과금제외)+placements 패널 | 신규 |
+| `partner/settle/page.tsx` | 정산 준비중 Empty(R6-C 대기·정본 mock 박제 금지) | 신규 |
+
+🔑 **데이터 source**: 대시보드/시설/캠페인 전부 서버 Prisma 직접 READ(stats API 미경유=snake 함정 원천차단). operating_hours=jsonb verbatim(string만 읽음). 데이터 0행→0/빈막대/SchemaList Empty(mock0). 과금(budget/spent/pricing)=통계만, 표시0.
+⚠️ **갭/미배선(보고)**: ①내시설 월예약/가동률=예약 집계 미배선→"—" ②시설 편집=PATCH venue 엔드포인트 실재나 정본 협력콘솔에 폼 없음(레거시 별도)→읽기+드로어(R6 후속) ③캠페인 생성/수정/일시중지=정본 시연→준비중 토스트 ④상세 주차별 노출 막대=시계열 부재→placements만 ⑤정산=R6-C ⑥시설등록 addLabel 생략(자가등록 불가) ⑦super 무소속=빈 컨텍스트.
+💡 tester: `/partner` 대시보드·`/partner/venues`·`/partner/campaigns`(행→상세)·`/partner/settle`(준비중). 파트너 미소속 비-super→로그인. 데이터0→빈상태(정상). 백오피스/ta/operate/마법사 회귀0.
+⚠️ reviewer: tsc EXIT0(PM 재확인). git=신규13파일만(기존 src 수정0=구조적 회귀0)·raw fetch0(Prisma·logout만 예외=기존패턴)·레거시0·백엔드/DB/Prisma/API 0변경·하드코딩hex0(AV=데이터주입). 다음=R6-B 심판·R6-C 정산 신규모델.
+
+### 구현 기록 (developer) — R6-B 심판 콘솔 (글로벌 super·6화면·신규22·미커밋)
+📝 정본 `referee-pages.jsx`/`referee-data.jsx`(RefereeApp·12 nav) 1:1. **글로벌 super-admin 페르소나**(레거시 협회별 심판 admin과 별개). 백엔드/DB/Prisma/API 0변경·레거시 0 import·raw fetch 0(logout만 예외=기존패턴).
+
+**★아키텍처 — 라우트 URL(중요)**: 프롬프트 예시 `/referee`는 **레거시 `(referee)/referee/`가 점유 → 빌드 충돌** → `(admin-v2)/referee-console/` URL **`/referee-console`** 채택(R6-A `/partner`와 동일 별도 라우트·CSS 세그먼트 스코프). 인증=`getWebSession`→`isSuperAdmin(session)` only(전역·협회 멤버십 불요). 비-super→`/login?error=no_permission`(협회 admin은 레거시 `/referee/admin` 유지).
+
+| 파일 | 변경 | 신규 |
+|------|------|------|
+| `referee-console/layout.tsx` | 글로벌 super 인증+buildLoginRedirect+admin-v2 CSS import+RefereeShell+nav badge 실카운트(배정/검증/정산 전역) | 신규 |
+| `referee-console/_referee-shell.tsx` | RefereeShell(AdminShell 12 nav·route기반·brandSub="심판 콘솔") | 신규 |
+| `referee-console/_referee-data.ts` | getRefereeAdminContext(협회 스코프 키 없음=전역)+표시헬퍼(level/status/role/assign/settle/cert/ocr 배지·fmtDate/DateTime/won/region) | 신규 |
+| `referee-console/_logout-button.tsx` | 로그아웃(복제·자기완결) | 신규 |
+| `referee-console/_soon.tsx` | 미배선 공용 "준비 중" placeholder | 신규 |
+| `page.tsx`+`_dashboard.tsx` | 대시보드: Prisma 집계 KPI4(이번달배정/활동심판/정산대기₩/미검증자격)+월별배정 막대+처리대기(실카운트 파생·mock0) | 신규 |
+| `assignments/page.tsx`+`_assignments.tsx` | 배정현황: refereeAssignment 전역 READ→SchemaList(심판/경기/일시/코트/상태). 경기정보=tournamentMatch 2차배치조회 보강(관계선언 없음). **읽기 드로어만**(mutation 후속·PM결정) | 신규 |
+| `members/page.tsx`+`_members.tsx` | 심판명단: referee 전역 READ→SchemaList(등급=level/지역/배정수/상태). READ | 신규 |
+| `settlements/page.tsx`+`_settlements.tsx` | 정산: refereeSettlement 전역 READ→SchemaList+**상태변경 모달**(adminFetch PATCH settlements/[id]/status·2단계확인·에러가시화) | 신규 |
+| `verify/page.tsx`+`_verify.tsx` | 자격검증: refereeCertificate 전역 READ→SchemaList+**검증토글 모달**(adminFetch PATCH admin/referee-certificates/[id]/verify·확인·에러가시화) | 신규 |
+| `settings/page.tsx` | 설정: 정본 RF_SETTINGS 정책 AdSettings 표시(협회별 저장처 없음→저장 no-op·보고) | 신규 |
+| `calendar/apps/requests/evals/grades/noti/page.tsx` | 미배선 6 준비중 placeholder(RefereeSoon·평가=R6-C·mock0) | 신규 |
+
+🔑 **글로벌 스코프(협회필터 제거)**: 레거시는 `getAssociationAdmin().associationId` where 필터(`referee:{association_id}`)지만, super는 **Prisma 직접 READ에 협회 필터 0**(전 협회 통합). 전부 서버 Prisma 직접(snake 함정 원천차단·stats API 미경유).
+🔑 **mutation 2종(재사용·케이스확인)**: 정산상태=`PATCH /referee-admin/settlements/[id]/status {status}`(snake단일·전이 화이트리스트 UI복제) / 자격검증=`PATCH /admin/referee-certificates/[id]/verify {verified}`(boolean단일). 둘 다 adminFetch camel→snake(단일단어라 동일)·**위험액션 2단계 확인모달·실패 사유 모달 가시화**(errors.md 정산모달 패턴).
+⚠️ **cross-association 403 한계(보고·수용)**: 두 엔드포인트 IDOR 가드(`referee.association_id !== admin.associationId`)+super는 `getAssociationAdmin()`이 **첫 활성 협회 1개만 자동선택** → 타 협회 건 mutation 시 403. 백엔드 0변경 유지(IDOR 미수정)·데이터 ~0행이라 수용·**403도 모달에 사유 노출**.
+⚠️ **정본 적응(보고)**: ①배정=정본 경기중심(crew요약 데모)이나 실모델은 (심판1×경기1) → 심판 단위 행 매핑 ②심판명단 "평점" col·평가리포트=`RefereeEvaluation` 부재 → 제외/R6-C ③등급=`referee.level`(DB enum 입문/중급/상급/국제) 직접 매핑(정본 1/2/3급은 cert_grade 데모) ④설정 저장=협회 스코프라 전역 단일 저장처 없음→AdSettings 데모 no-op ⑤서류 OCR 확정=verify 화면 자격증에 집중·문서 OCR 후속.
+🔑 **`/api/v1` 심판 라우트 없음**(Explore 실측) — 건드릴 것 0.
+
+💡 tester: `/referee-console` super 로그인→대시보드(0건 빈상태). NAV 12(배선6+준비중6). 정산/자격 행클릭→상태/검증 모달(2단계 확인). super 첫협회 외 mutation→403 모달 가시. 비-super→no_permission. 백오피스/ta/operate/마법사/협력 회귀0(신규22파일만·기존 src 0수정).
+⚠️ reviewer: tsc EXIT0(PM 재확인). git=신규22파일만(referee-console/·기존 src 0수정=구조적 회귀0)·raw fetch0(Prisma·logout만 예외)·레거시0·백엔드/DB/Prisma/API 0변경·하드코딩hex0(AV=데이터주입). 다음=R6-C(평가/정산 신규모델·등급수당·신청관리 정합).
+
+### 구현 기록 (developer) — R6-C 평가/정산 마무리 (신규4+수정4·미커밋·그린필드 완료)
+📝 db push 완료 신규 테이블 2개(`RefereeEvaluation`·`PartnerSettlement`)로 "준비 중" placeholder 2화면을 실 화면 교체. 신규 API 2개만 신설(나머지 기존 API/Prisma/스키마 0변경). 기존 settlements/venues 화면이 동일 패턴 템플릿이라 1:1 재사용.
+
+| 파일 | 변경 | 신규/수정 |
+|------|------|----------|
+| `referee-console/evals/page.tsx` | RefereeSoon→`refereeEvaluation` 전역 READ(협회필터0·평가경기 평문FK→"경기 #id"·Decimal→toFixed1·evaluator_label) | 수정 |
+| `referee-console/evals/_evals.tsx` | SchemaList(정본 RF_EVAL cols 1:1)+상태변경 모달(2단계 확인·에러 가시화) | 신규 |
+| `referee-console/_referee-data.ts` | `evalStatusBadge` 헬퍼(submitted/confirmed/review_needed) 추가 | 수정 |
+| `partner/settle/page.tsx` | placeholder→`partnerSettlement` 본인스코프(partner_id) READ·월별·금액 won | 수정 |
+| `partner/settle/_settle.tsx` | SchemaList(정본 PT_SETTLE cols 1:1)+입금완료 모달(danger 2단계 확인) | 신규 |
+| `partner/_partner-data.ts` | `won`·`periodLabel`·`settlementStatusBadge`(pending/paid/cancelled) 헬퍼 추가 | 수정 |
+| `api/web/admin/referee-evaluations/[id]/status/route.ts` | **신규 API** PATCH super가드·Zod4 `z.enum([confirmed,review_needed])`·전이 화이트리스트 | 신규 |
+| `api/web/partner/settlements/[id]/route.ts` | **신규 API** PATCH 파트너 IDOR(super bypass)·Zod4 `z.enum([paid,cancelled])`·pending→paid(paid_at) | 신규 |
+
+🔑 **신규 API 2개(최소)**: ①평가상태=super 전역가드(협회 IDOR 불요·`getWebSession`+`isSuperAdmin`)·submitted→confirmed/review_needed·review_needed→confirmed 전이맵 / ②파트너정산=로그인+IDOR(`partner_members` is_active·partner_id 일치·super bypass)·pending에서만 paid/cancelled·paid시 paid_at=now. 둘 다 `apiSuccess`/`apiError`/`validationError`·Zod4 옵션객체 0·동일상태 거부·전이불가 400.
+🔑 **mutation 배선**: `adminFetch` PATCH body `{status}`(단일단어=camel/snake 동일)·성공→`router.refresh()`·실패→모달 사유 가시화(AdminApiError.message). 0행→SchemaList Empty(mock 0).
+💡 tester: tsc EXIT0(--incremental false). self-trace=evals/settle 진입→0행 빈상태·행클릭→상태변경 모달(평가=확정/검토필요·정산=입금완료 danger 2단계). 신규 API curl=super/파트너 가드·Zod reject·전이불가 400 확인 권장(0행이라 UI 무영향).
+⚠️ reviewer: tsc EXIT0(PM 재확인). 신규 API 2개만·기존 API/Prisma/스키마 0변경·파괴적0. 레거시0 import·서버 Prisma 직접 READ·hex0(AV 데이터주입). 회귀0(백오피스/ta/operate/마법사/협력/심판 타화면 미접촉·신규4파일+기존4파일 헬퍼 additive). 한계=평가경기명 평문FK라 "경기 #id"(관계 미선언·mock 회피).
+🎯 **R6/그린필드 리빌딩 완료**: R1 토대→R2 백오피스→R3 대회관리자→R4 대회운영→R5 마법사→R6-A 협력/R6-B 심판/**R6-C 평가·정산** 마무리. 클린 슬레이트 전 영역 박제 완료(커밋·컷오버=PM).
+
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
 |------|------|------|
+| 2026-06-28 | **R6-C 평가/정산 마무리(신규4+수정4·미커밋·그린필드 완료)** | ✅ tsc EXIT0·백오피스/ta/operate/마법사/협력/심판 타화면 회귀0. db push 신규테이블 2개(RefereeEvaluation·PartnerSettlement)로 "준비중" 2화면 실화면 교체. **신규 API 2개만**=①`/api/web/admin/referee-evaluations/[id]/status`(super 전역가드·Zod4 z.enum[confirmed,review_needed]·전이맵 submitted→confirmed/review_needed) ②`/api/web/partner/settlements/[id]`(로그인+파트너 IDOR `partner_members` is_active·super bypass·Zod4 z.enum[paid,cancelled]·pending→paid시 paid_at). 평가=referee-console/evals(전역 READ 협회필터0·정본 RF_EVAL 1:1·상태변경 모달2단계)·정산=partner/settle(본인 partner_id 스코프 READ·정본 PT_SETTLE 1:1·입금완료 danger 모달). adminFetch PATCH `{status}`·성공 router.refresh·실패 모달 사유가시화·0행 Empty(mock0). 헬퍼 additive(evalStatusBadge·won/periodLabel/settlementStatusBadge). 기존 API/Prisma/스키마 0변경·파괴적0·레거시0·서버 Prisma 직접·hex0. 한계=평가경기명 평문FK→"경기 #id". **R6/그린필드 클린슬레이트 전영역 완료**(커밋·컷오버=PM). |
+| 2026-06-28 | **R6-B 심판 콘솔(글로벌 super·6화면·신규22·미커밋)** | ✅ tsc EXIT0·백오피스/ta/operate/마법사/협력 회귀0(신규22파일만·기존 src 0수정). 정본 referee-pages 1:1(12 nav). **★URL=`/referee-console`**(레거시 `/referee` 점유→충돌회피·`(admin-v2)/referee-console/`). 인증=글로벌 super(`isSuperAdmin` only·협회 멤버십 불요·비-super→no_permission). READ=서버 Prisma 직접 **협회필터 0**(전 협회 통합·snake함정 원천차단). 6배선=대시보드(KPI4+월별막대+처리대기 실집계)/배정현황(refereeAssignment+match 2차조회·읽기드로어)/심판명단(referee level/지역/배정)/정산(+상태변경 모달)/자격검증(+검증토글 모달)/설정(정책 AdSettings). **mutation 2종**=정산상태(settlements/[id]/status)·자격검증(referee-certificates/[id]/verify)=adminFetch+2단계 확인모달+**에러 사유 가시화**. ⚠️cross-association 403 한계(super 첫협회 외)=백엔드 0변경 수용·모달 노출·데이터~0행. 미배선6=캘린더/신청/요청/평가(R6-C)/등급/알림 준비중(mock0). `/api/v1` 심판 없음 확인. 백엔드/DB/Prisma/API 0변경·레거시0·raw fetch0·hex0. 다음=R6-C 평가/정산 신규모델. |
+| 2026-06-28 | **R6-A 협력업체 콘솔(대시보드/내시설/캠페인·신규13·미커밋)** | ✅ tsc EXIT0·백오피스/ta/operate/마법사 회귀0(신규13파일만·기존 src 수정0). 정본 partner-pages 1:1(정산 제외). **★인증=별도 라우트 `(admin-v2)/partner/`**(파트너 인증=partner_members is_active+super·tournament-admin 아니라 /v2 게이트 못씀·URL `/partner`). 대시보드=Prisma 집계 KPI4(시설/캠페인/노출/CTR·과금·정산·delta 제외)+월별캠페인 막대+활동. 내시설=court_infos(owner 스코프) SchemaList. 캠페인=ad_campaigns(partner) SchemaList+상세(IDOR·placements·과금제외). 정산=준비중(R6-C). 전부 서버 Prisma 직접 READ(snake함정 원천차단)·mutation0(정본 시연=준비중 토스트). 백엔드/DB/Prisma/API 0변경·레거시0·raw fetch0·hex0. 미배선=월예약/가동률("—")·시설편집폼(정본 부재→R6후속)·캠페인 생성/수정. |
+| 2026-06-28 | **R5-A 보강: 종별 템플릿/연령 자동채움 + 대회 복사(신규2+수정4·미커밋)** | ✅ tsc EXIT0·생성/수정/operate/백오피스/ta 회귀0. 신고2건 해소. ①종별=레거시 ct-divisions.tsx 충실 포팅(`_divisions-editor.tsx`: DivisionGenerator 성별/AdminCategory템플릿/디비전/연령코드 4단계·여성w·곱집합·종별명 "남성 유청소년"/디비전 "i3 U12"). **연령 자동채움=생성 계약상 서버 자동**(createTournament가 AdminCategory.ages+computeAgeRangeForDivision으로 생성시 division-rule에 채움·구조만 정확히 보내면 됨). 페이로드 category 그룹핑(create+edit). ②대회 복사=`?copyFrom` 서버 prefill(`_form-prefill.buildCopyForm`·이름/일정/접수 비움·organizer-scoped 목록 피커·0 새 API). 종별 라운드트립 보존+레거시 그룹 잠복버그 동반수정. entry_fee Decimal→Number 동반수정. 한계=AdminCategory GET super-only(레거시동일)·div_schedule 미포팅. 백엔드/DB/Prisma/API 0변경·레거시0·raw fetch0. 실생성/연령=사용자테스트. |
 | 2026-06-28 | **R5-B 대회 수정 마법사(신규2+수정3·미커밋)** | ✅ tsc EXIT0·생성마법사/operate/백오피스/ta 회귀0. 정본 `대회 수정.html`(mode=edit) 5단계 박제. **기존 PATCH/DELETE `/api/web/tournaments/[id]` 재사용**(★PATCH=updateTournamentSchema 혼합케이스: camel name/startDate/maxTeams/organizer/categories + snake venue_*/entry_fee/roster_*/registration_*_at/div_*/bank_*/game_rules/places/schedule_dates → **rawBody:true verbatim**·blanket변환 금지). _edit-wizard=prefill+dirty(JSON baseline)+저장바+삭제 확인모달·R5-A 프리미티브 import 재사용. page=canManageTournament 권한+Prisma READ→FormState prefill(jsonb verbatim·UTC slice datetime). 데이터보존=places 지도메타/game_rules 고급필드 spread 오버레이·jsonb id 무결성. operate "대회정보수정" stub→edit 배선. create-wizard export additive(로직0). 실저장/삭제=사용자테스트. 다음=심판/협력업체. |
 | 2026-06-28 | **R5-A 대회 생성 마법사(신규2+수정2·미커밋)** | ✅ tsc EXIT0·백오피스/operate/ta 회귀0. 정본 workspace.jsx(create) 5단계(info/schedule/divisions/game/publish) 박제. **기존 생성 API `POST /api/web/tournaments` 재사용**(camelCase·zod없음·필수=name만·신규백엔드0)→adminFetch rawBody:true(verbatim)→응답 snake→camel(tournamentId)→`/v2/operate/[newId]` redirect. _create-wizard(tw-steps+ct-progress+종별CRUD+검토)·page서버래퍼·workspace.css 생성폼클래스 [data-admin=v2] 이식·_list CTA배선1줄. deviation(mock금지)=체육관DB/CalendarModal/종별템플릿·연령/프리셋/대회복사 미포팅→실입력 대체·format tournament-level1개·종별독립(category=label). 실생성=사용자테스트. 다음=R5-B 수정마법사·심판. |
 | 2026-06-28 | **R4-D 대회운영 운영관리+사이트+정산(신규3+수정3·미커밋·R4완료)** | ✅ tsc EXIT0·R4-A/B/C·백오피스·ta 회귀0. 정본 operate.jsx OpsManage/Settle·panels-ops.jsx SitePanel 1:1(클라 mock→실데이터/실mutation). _ops-panel=정규대회연결(읽기위임)/운영인력(운영진·기록원 실CRUD·심판위임)/공지(settings.notice 단건)/기록모드(bulk). _settle-panel=입금(teams paid×feeKrw)/지출(tournament_expense 실API)/잔액 KPI·종별카드·ExpenseModal·팀별납부(teams PATCH). _site-panel=TournamentSite 주소/색/발행(publish API)/방문하기. 재사용 엔드포인트=admins·recorders(rawBody)·recording-mode/bulk·expenses·site(rawBody)·teams PATCH 전부 실존(신규0). page.tsx READ additive(settings/series/expenses/site). ops-*/set-*/ts-textarea CSS 이식. deviation=LeagueCreate/템플릿갤러리/푸시/심판배정=백엔드부재 위임·미배선(mock금지·보고). 백엔드/DB/Prisma 0변경·레거시0·raw fetch0. **R4 대회운영 6메뉴 완성**. 다음=R5 마법사/심판. |
 | 2026-06-28 | **R4-C 대회운영 일정 패널(신규1+수정3·미커밋)** | ✅ tsc EXIT0·R4-A/B/백오피스/ta 회귀0. 정본 schedule.jsx SchedulePanel 1:1(클라 mock→실데이터 READ). _schedule-panel 신규=코트×날짜 레인·종별시간/코트시작 그리드·일정표(sc-table 드래그/휴식/드롭테일)·자동배치/직접배치 모달. ★snake함정 영역: page.tsx Prisma 직접 READ(`m.scheduledAt`camel·`m.court_number`/`m.venue_name`snake 모델필드명 그대로)→camel 도메인 단일매핑(apiSuccess 미경유=함정0). 레인=places×schedule_dates ∪ 실배치경기 좌표(배치경기 항상표시·self-trace 미배치오판0). source=기존 matchRows(3필드 additive)+tournament.places/schedule_dates(jsonb 정규화). **영속화 미배선(stub·보고)**: bulk 일정저장 엔드포인트 부재(DATA-CONTRACT 🔴)+정본 저장없음. per-match PATCH(혼합케이스 scheduledAt camel+court/venue snake·rawBody필요)는 실존하나 파생시간 bulk=lossy→R4-B 드래그미배선과 동일판단. 계획=클라 미리보기+안내명시. deviation=팀명토글생략/레인실좌표키. 백엔드/DB/Prisma 0변경·레거시0. 다음=R4-D 운영관리/사이트/정산. |
 | 2026-06-28 | **R4-B 대회운영 대진표 패널(신규1+수정4·미커밋)** | ✅ tsc EXIT0·R4-A/백오피스/ta 회귀0. 정본 bracket.jsx BracketPanel 1:1(클라 mock→실데이터/실mutation). _bracket-panel 신규=config/seeding/grouped/drawn 상태(실데이터 파생)·종별칩·대회방식조설정(읽기전용)·시드배정UI·조편성결과(실group)·토너먼트트리(실matches·bk-* 92px/연결선). page.tsx READ 확장=team seed/group·rule format/settings·matchRows(트리·팀명·settings verbatim)·versions count(jsonb 스칼라 F-2b·종별↔매치=settings.division_code). 재사용 mutation=division-draw(추첨/시딩·**camelCase zod**→adminFetch `rawBody:true` 우회)·generate(발행/재생성·{clear}). client.ts rawBody 옵션 additive(snake역함정 흡수·raw fetch0). bk-*/sc-del [data-admin=v2] 스코프 이식. deviation=config읽기전용/트리드래그미배선/단일토너먼트시드생략(보고). 백엔드/DB/Prisma 0변경·레거시0. 다음=R4-C 일정 패널(snake함정 주의·matchRows scheduled_at). |
 | 2026-06-28 | **R4-A 대회운영 워크스페이스 1차(셸+요약+참가팀·신규5+수정2·미커밋)** | ✅ tsc EXIT0·백오피스/ta 회귀0. 정본 operate.jsx 1:1. 셸중첩 회피=`/v2/operate/[id]`(ta layout 밖·자체 AdminShell brandSub="대회 운영"·6메뉴 nav). page.tsx=대회별 canManageTournament 권한체크+Prisma 직접 READ(teams/rules/matchCount)+snake→도메인 단일매핑(div_caps jsonb verbatim). _teams-panel=정본 TeamsPanel(종별그룹/필터/ct-pill 상태·납부·경로/readiness/상세모달 실명단 GET). 승인·거절·납부=adminFetch PATCH 기존 엔드포인트(camel→snake·0백엔드·낙관적+router.refresh). 5메뉴=Empty 준비중. workspace.css 필요분 [data-admin=v2] 스코프 이식. _list 행클릭/운영→router.push 배선. 미배선=5메뉴/토큰/선수입력/대회수정(R4-B~/R5). 백엔드/DB/Prisma 0변경·레거시 0 import. |
-| 2026-06-28 | **라이브 유튜브 매치별 시작 타임스탬프 연결(4파일·미커밋)** | ✅ tsc EXIT0. 박제 `settings.youtube_start_seconds`(초)를 임베드에 배선. youtube-embed.tsx `startSeconds` prop→`&start=N`(>0·Math.floor). route.ts 1472근처 `youtubeStartSeconds` 응답(settings 기존 select). page.tsx(진행중 일반+PIP 2곳)·game-result.tsx(종료후 1곳) `startSeconds={match.youtube_start_seconds ?? 0}` 전달. MatchDataV2 양쪽 인터페이스 필드 추가. DB/schema 0변경·미등록 매치 임베드 hidden 유지. |
 | 2026-06-28 | **R3 대회관리자 콘솔(별도 콘솔·5화면·라우트그룹 분리·미커밋)** | ✅ tsc EXIT0·백오피스 회귀0. 정본 ta-pages 1:1. `/v2/layout`을 인증-only로 리팩터+백오피스 14파일을 `(backoffice)/` route group으로 **이동만**(URL 불변·내용0)+백오피스 셸 마운트를 `(backoffice)/layout`으로 이전→`/v2/ta`에 자체 **TaShell**(대회콘솔 NAV·brandSub="대회 콘솔") 마운트(셸 중첩0). 5화면=대시보드(KPI4+월별막대+활동 실집계)/대회목록(검색+상태필터)/정규대회(series organizer_id)/단체(멤버십 카드)/템플릿(Empty 준비중). organizer-scoped(`organizer_id` OR `adminMembers active`·M3 갭 교정). jsonb verbatim(스칼라만 select·cadence 단일키). 미배선=create/operate/template(R4/R5)→준비중 토스트. 백오피스 href 2줄(대회콘솔→/v2/ta). 레거시/백엔드/DB 0변경. |
 | 2026-06-28 | **R2-C 백오피스 BO-3 커뮤니티 + BO-4 코트 콘솔 (신규4+types+_shell·미커밋)** | ✅ tsc EXIT0·레거시0접촉. 정본 bo-pages community/court 콘솔을 R2-A/B 패턴(서버 Prisma직접 READ→SchemaList) 박제. 커뮤니티 4탭=자유/모집/후기(`community_posts.category` general/recruit/review)+건의(`suggestions` 모델). 코트 2탭=실내/야외(`court_infos.court_type`). **partner 탭 제외(DB 미지원)·news/anonymous UI 미추가**(정본 회피). 갭보고: 건의 votes컬럼 제외(DB없음)·코트 "월예약"=court_bookings 전체수(0대부분). snake→표시 단일매핑·raw fetch0. 백엔드/DB/Prisma 0변경. |
 | 2026-06-28 | **R2-B 백오피스 BO-5 — 마케팅/결제/요금제 리스트(신규3+_shell·미커밋)** | ✅ tsc EXIT0·git diff=admin-v2 4파일(레거시0). 정본 bo-pages 3리스트를 R2-A 패턴(서버컴포넌트 Prisma직접 READ→SchemaList) 박제. 소스=마케팅 `ad_campaigns`+partner+`_count.placements` / 결제 `payments`+users(take50·0건→Empty) / 요금제 `plans`+`_count.user_subscriptions`. snake→표시 단일매핑(raw fetch0). 상세(PaymentDetail/PlanEditor)=시안미완→미배선(리스트만·기본 읽기드로어). _shell TARGET 3건 soon→실라우트+active 3분기. 백엔드/DB/Prisma 0변경. |

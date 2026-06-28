@@ -194,6 +194,36 @@ export function n(v: number | null | undefined): string {
   return (v ?? 0).toLocaleString();
 }
 
+// ── 정산(PartnerSettlement) 표시 매핑 ────────────────────────────────
+
+// 원 단위 정수 → "₩4,620,000". null/0 정직 표기(금액 셀).
+export function won(amount: number | null | undefined): string {
+  return "₩" + (amount ?? 0).toLocaleString();
+}
+
+// 정산월 "2026년 6월"(정본 PT_SETTLE month 셀). 연/월 정수 → 한글 표기.
+export function periodLabel(year: number, month: number): string {
+  return `${year}년 ${month}월`;
+}
+
+// 정산 status → 라벨/톤(badge 셀). DB status = pending/paid/cancelled.
+//   정본 PT_SETTLE 배지("입금 예정" amber / "입금 완료" ok) 매핑.
+export function settlementStatusBadge(s: string | null | undefined): {
+  label: string;
+  tone: Tone;
+} {
+  switch (s) {
+    case "paid":
+      return { label: "입금 완료", tone: "ok" };
+    case "pending":
+      return { label: "입금 예정", tone: "warn" };
+    case "cancelled":
+      return { label: "취소", tone: "grey" };
+    default:
+      return { label: s || "입금 예정", tone: "grey" };
+  }
+}
+
 // CTR(%) — 노출 0 이면 "0.0%" (분모 0 방어).
 export function ctrPct(impressions: number, clicks: number): string {
   if (!impressions) return "0.0%";
