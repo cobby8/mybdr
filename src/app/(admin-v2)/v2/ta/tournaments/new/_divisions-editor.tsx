@@ -26,7 +26,9 @@ import { Btn, Icon, Badge, Modal } from "@/components/admin-v2";
 import { adminFetch } from "@/lib/admin-v2/data";
 import { FORMAT_LABEL, ALLOWED_FORMATS, type DivisionRow } from "./_create-wizard";
 
-// ── 진행방식별 동적 settings 필드 — 정본 panels-core.jsx FMT_FIELDS 1:1 ──────────
+// ── 진행방식별 동적 settings 필드 — panels-core.jsx FMT_FIELDS 기반 ──────────
+//   ※ ranking_format 옵션·"조별 팀수" 라벨은 백엔드 정합 보정(시안의 crossover/playoff/bracket 는
+//     백엔드 미지원 — division-formats.ts 는 round_robin/single_elimination 만 허용).
 //   각 항목 = [키, 라벨, 타입, 옵션|placeholder]
 //     · "select" → 옵션 배열 [[값, 라벨], ...] (값이 number 면 number 로 저장)
 //     · "num"    → placeholder 문자열(기본값 힌트)
@@ -39,7 +41,7 @@ const FMT_FIELDS: Record<string, FmtField[]> = {
   round_robin: [["rounds", "리그 회전", "select", [[1, "단판"], [2, "홈앤어웨이"]]]],
   dual_tournament: [["advance_per_group", "조별 진출", "num", "2"]],
   group_stage_knockout: [
-    ["group_size", "조 크기", "num", "4"],
+    ["group_size", "조별 팀수", "num", "4"],
     ["group_count", "조 개수", "num", "4"],
     ["advance_per_group", "조별 진출", "num", "2"],
   ],
@@ -49,9 +51,9 @@ const FMT_FIELDS: Record<string, FmtField[]> = {
     ["linkage_pairs", "링크 대진 수", "num", "2"],
   ],
   group_stage_with_ranking: [
-    ["group_size", "조 크기", "num", "4"],
+    ["group_size", "조별 팀수", "num", "4"],
     ["group_count", "조 개수", "num", "4"],
-    ["ranking_format", "순위결정 방식", "select", [["crossover", "크로스오버"], ["playoff", "플레이오프"], ["bracket", "순위 토너먼트"]]],
+    ["ranking_format", "순위결정 방식", "select", [["round_robin", "풀리그"], ["single_elimination", "순위 토너먼트"]]],
   ],
 };
 
