@@ -12,12 +12,12 @@
 // ============================================================
 
 import React from "react";
+import { useRouter } from "next/navigation";
 import {
   AdminShell,
   Icon,
   Btn,
   Empty,
-  useAdminShell,
   type AdminUser,
   type NavItem,
 } from "@/components/admin-v2";
@@ -54,15 +54,15 @@ export type OperateSummary = {
   matchCount: number;
 };
 
-// "대회 정보 수정" 버튼 = R5 스텁(준비 중 토스트). 셸 컨텍스트 토스트 사용 위해 분리.
-function EditTournamentButton() {
-  const { toast } = useAdminShell();
+// "대회 정보 수정" 버튼 = R5-B 수정 마법사 진입. 운영 워크스페이스 → 수정 마법사 라우트.
+function EditTournamentButton({ tournamentId }: { tournamentId: string }) {
+  const router = useRouter();
   return (
     <Btn
       variant="secondary"
       size="sm"
       iconRight="pencil"
-      onClick={() => toast("대회 정보 수정은 준비 중입니다")}
+      onClick={() => router.push(`/v2/ta/tournaments/${tournamentId}/edit`)}
     >
       대회 정보 수정
     </Btn>
@@ -150,7 +150,7 @@ export function OperateShell({
               </span>
             </div>
           </div>
-          <EditTournamentButton />
+          <EditTournamentButton tournamentId={tournamentId} />
         </div>
       </div>
 

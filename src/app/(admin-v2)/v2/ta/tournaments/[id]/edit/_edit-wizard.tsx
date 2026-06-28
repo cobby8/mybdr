@@ -1,22 +1,26 @@
 "use client";
 
 // ============================================================
-// _create-wizard.tsx — 대회 생성 마법사 (R5-A 클린 슬레이트)
-//   정본: Dev/design/BDR v2.41-admin-toss/workspace.jsx (TournamentWorkspace mode="create")
-//   5단계: 기본정보 > 일정·장소 > 종별·정원 > 대진방식(경기설정) > 접수·검토
+// [id]/edit/_edit-wizard.tsx — 대회 수정 마법사 (R5-B 클린 슬레이트)
+//   정본: Dev/design/BDR v2.41-admin-toss/대회 수정.html
+//         (TournamentWorkspace mode="edit" — 5단계 폼 + dirty 저장바 + 삭제 모달)
 //
-//   ★ 백엔드/DB/Prisma 0변경. 기존 생성 엔드포인트 재사용:
-//      POST /api/web/tournaments  (레거시 wizard 와 동일 — route.ts 라인 141~279)
-//      - body = camelCase(raw destructure·zod 없음) → adminFetch rawBody:true 로 verbatim 전송
-//      - 필수 = name 만. 나머지는 미전송 시 서버 default
-//      - 응답 = { success, tournament_id, redirect_url } (apiSuccess snake) →
-//        adminFetch 가 snake→camel 변환 → result.tournamentId / result.redirectUrl
-//   성공 시 → /v2/operate/[newId] (R4 운영 워크스페이스)로 이동.
+//   ★ R5-A 생성 마법사(../../new/_create-wizard) 의 프리미티브/타입/CSS 전면 재사용.
+//     - Field/GroupTitle/Stepper/SegSm/VenueAdd/DateAdd/ReviewRow/FORMAT_LABEL/fmtDate/won/타입
+//     - 5단계 스텝 구성·className(tw-steps/ct-*) 동일 → 시각 1:1.
 //
-//   ⚠ mock 금지(룰): 정본 ScheduleVenue 의 하드코딩 체육관 DB·종별 템플릿/연령·
-//      GameSettings 프리셋·대회복사(copyableTournaments) 는 mock 이라 미포팅.
-//      실입력 폼으로 대체(장소=직접 입력, 일정=date 입력, 종별=직접 추가).
-//   레거시 0 import. 전부 admin-v2 kit + adminFetch.
+//   ★ 백엔드/DB/Prisma 0변경. 기존 수정/삭제 엔드포인트 재사용:
+//     - PATCH  /api/web/tournaments/[id]  → updateTournamentSchema(Zod·★혼합 케이스★)
+//         camel: name/format/startDate/endDate/organizer/host/sponsors/categories
+//         snake: venue_*/team_size/roster_*/entry_fee/registration_*_at/prize_info/
+//                div_caps/div_fees/bank_*/fee_notes/auto_approve_teams/allow_waiting_list/
+//                game_ball/game_rules/places/schedule_dates
+//       → blanket camel→snake 금지(혼합이라 깨짐). adminFetch rawBody:true 로 키 verbatim 전송.
+//     - DELETE /api/web/tournaments/[id]  → soft(status=cancelled). 확인 모달 경유.
+//
+//   생성 마법사와 다른 점(edit 전용): ①기존값 prefill ②dirty 추적 + 저장바(저장/취소)
+//     ③삭제 모달 ④PATCH(변경 필드·정확 케이스) ⑤성공 시 운영 워크스페이스 복귀.
+//   레거시 0 import. status/series_id/색상/이미지 = 5스텝 범위 밖이라 미전송(기존값 보존).
 // ============================================================
 
 import React, { useState, useMemo } from "react";
@@ -25,149 +29,154 @@ import {
   Btn,
   Icon,
   Check,
-  Badge,
+  Modal,
   useAdminShell,
 } from "@/components/admin-v2";
 import { adminFetch, AdminApiError } from "@/lib/admin-v2/data";
+import {
+  Field,
+  GroupTitle,
+  Stepper,
+  SegSm,
+  VenueAdd,
+  DateAdd,
+  ReviewRow,
+  FORMAT_LABEL,
+  ALLOWED_FORMATS,
+  fmtDate,
+  won,
+  uid,
+  type FormState,
+  type Venue,
+  type DivisionRow,
+} from "../../new/_create-wizard";
 
-// 종별 진행방식 6 enum — division-formats.ts / 정본 data.jsx FORMAT_LABEL 1:1(실 enum·mock 아님)
-//   R5-B(수정 마법사)가 동일 라벨/포맷 목록을 재사용하도록 export(값 무변경).
-export const FORMAT_LABEL: Record<string, string> = {
-  single_elimination: "토너먼트",
-  round_robin: "풀리그",
-  dual_tournament: "듀얼토너먼트",
-  group_stage_knockout: "조별리그+토너먼트",
-  league_advancement: "링크제",
-  group_stage_with_ranking: "조별리그+동순위 순위결정전",
-};
-export const ALLOWED_FORMATS = Object.keys(FORMAT_LABEL);
-
-// 정본 STEPS 1:1 (workspace.jsx 라인 13~19)
+// 정본 STEPS 1:1 (대회 수정.html / workspace.jsx 라인 13~19)
 const STEPS = [
   { id: "info", label: "대회정보", icon: "info", sub: "대회 기본 정보와 소개를 입력합니다." },
   { id: "schedule", label: "일정·장소", icon: "calendar-days", sub: "본선 일정과 경기장·코트를 등록합니다." },
   { id: "divisions", label: "종별·정원", icon: "layout-grid", sub: "종별을 추가하고 정원·참가비를 설정합니다." },
-  { id: "game", label: "대진방식", icon: "sliders-horizontal", sub: "대회 진행 방식과 경기 규칙을 설정합니다." },
-  { id: "publish", label: "접수·검토", icon: "globe", sub: "참가 접수·결제 설정을 입력하고 내용을 검토합니다." },
+  { id: "game", label: "경기설정", icon: "sliders-horizontal", sub: "대회 진행 방식과 경기 규칙을 설정합니다." },
+  { id: "publish", label: "접수·공개", icon: "globe", sub: "참가 접수·결제 설정을 입력하고 내용을 검토합니다." },
 ] as const;
 
-// ── 폼 타입 ─────────────────────────────────────────────── (R5-B 수정 마법사 공용 재사용 위해 export)
-export type Venue = { id: string; name: string; region: string; courtCount: number; naming: "num" | "alpha" };
-export type DateRow = { id: string; date: string; courtIds: string[] };
-export type DivisionRow = { id: string; label: string; cap: number | null; fee: number };
-export type GameRules = {
-  quarterType: "4Q" | "HALF";
-  quarterMinutes: number;
-  foulLimit: number;
-  firstHalfTimeouts: number;
-  secondHalfTimeouts: number;
+// 헤더 상태 칩(요약 헤더용) — operate page statusPill 과 동일 톤 매핑(서버 prefill 에서 전달)
+export type EditMeta = {
+  statusLabel: string;
+  statusTone: string;
 };
 
-export type FormState = {
-  name: string;
-  organizer: string;
-  host: string;
-  sponsors: string;
-  description: string;
-  venues: Venue[];
-  dates: DateRow[];
-  format: string;
-  divisions: DivisionRow[];
-  gameBall: string;
-  teamSize: number;
-  rosterMin: number;
-  rosterMax: number;
-  rules: string;
-  prize: string;
-  gameRules: GameRules;
-  regStart: string;
-  regEnd: string;
-  bankName: string;
-  bankAccount: string;
-  bankHolder: string;
-  entryFee: number;
-  feeNotes: string;
-  autoApprove: boolean;
-  allowWaiting: boolean;
-};
+// ── PATCH 페이로드 빌더 ────────────────────────────────────────
+//   ★ updateTournamentSchema 의 정확한 키 케이스로 직접 구성(혼합 케이스).
+//     rawBody:true 로 보내므로 여기서 만든 키가 그대로 서버에 도달한다.
+//   ★ 데이터 보존(운영 대회 깨짐 방지):
+//     - places: 폼이 안 다루는 원본 필드(lat/lng/address/mapUrl/provider 등)를
+//       id 매칭으로 spread 보존 후 편집 필드만 오버레이(레거시 지도 피커 데이터 유지).
+//     - game_rules: 원본 jsonb 위에 5개 편집 필드만 오버레이(clockMode/shotClock/
+//       타임아웃 등 고급 필드 보존 — 서버 normalizeGameRules 가 명시값 우선 사용).
+function buildPatchBody(
+  form: FormState,
+  rawPlacesById: Record<string, Record<string, unknown>>,
+  rawGameRules: Record<string, unknown>,
+): Record<string, unknown> {
+  // 종별 → categories/div_caps/div_fees (생성폼과 동일 계약)
+  const validDivs = form.divisions.filter((d) => d.label.trim());
+  const categories: Record<string, string[]> = {};
+  const divCaps: Record<string, number> = {};
+  const divFees: Record<string, number> = {};
+  validDivs.forEach((d) => {
+    const label = d.label.trim();
+    categories[label] = [label]; // 각 종별 독립(생성폼 1:1)
+    if (d.cap != null) divCaps[label] = d.cap;
+    divFees[label] = d.fee;
+  });
 
-const EMPTY_FORM: FormState = {
-  name: "",
-  organizer: "",
-  host: "",
-  sponsors: "",
-  description: "",
-  venues: [],
-  dates: [],
-  format: "single_elimination",
-  divisions: [],
-  gameBall: "",
-  teamSize: 5,
-  rosterMin: 5,
-  rosterMax: 12,
-  rules: "",
-  prize: "",
-  gameRules: {
-    quarterType: "4Q",
-    quarterMinutes: 10,
-    foulLimit: 5,
-    firstHalfTimeouts: 2,
-    secondHalfTimeouts: 3,
-  },
-  regStart: "",
-  regEnd: "",
-  bankName: "",
-  bankAccount: "",
-  bankHolder: "",
-  entryFee: 0,
-  feeNotes: "",
-  autoApprove: false,
-  allowWaiting: true,
-};
+  // 일정(날짜 오름차순) → startDate/endDate 파생 + schedule_dates(court_ids snake)
+  const sortedDates = [...form.dates].sort((a, b) => a.date.localeCompare(b.date));
+  const startDate = sortedDates[0]?.date;
+  const endDate = sortedDates[sortedDates.length - 1]?.date;
+  // 장소 jsonb — 원본 필드(지도 메타) spread 보존 후 편집 필드 오버레이(courtCount camel)
+  const places = form.venues.map((v) => ({
+    ...(rawPlacesById[v.id] ?? {}),
+    id: v.id,
+    name: v.name,
+    region: v.region,
+    courtCount: v.courtCount,
+    naming: v.naming,
+  }));
+  const scheduleDates = sortedDates.map((d) => ({ id: d.id, date: d.date, court_ids: d.courtIds }));
 
-let uidSeq = 0;
-export const uid = (p: string) => `${p}${Date.now().toString(36)}${(uidSeq++).toString(36)}`;
-export const won = (n: number) => (Number(n) || 0).toLocaleString() + "원";
-
-// 작은 보조 컴포넌트 — 정본 Field/GroupTitle/Stepper/SegSm 1:1 (R5-B 재사용 위해 export)
-export function Field({ label, span2, children }: { label: string; span2?: boolean; children: React.ReactNode }) {
-  return (
-    <label className={"ts-field" + (span2 ? " ct-span2" : "")} style={{ margin: 0 }}>
-      <span className="ts-field__label">{label}</span>
-      {children}
-    </label>
-  );
-}
-export function GroupTitle({ children, flush }: { children: React.ReactNode; flush?: boolean }) {
-  return <div className={"ct-group-title" + (flush ? " ct-group-title--flush" : "")}>{children}</div>;
-}
-export function Stepper({ value, unit, min = 1, max = 8, onChange }: { value: number; unit?: string; min?: number; max?: number; onChange: (n: number) => void }) {
-  return (
-    <div className="ct-stepper">
-      <button type="button" disabled={value <= min} onClick={() => onChange(Math.max(min, value - 1))}><Icon name="minus" size={15} /></button>
-      <span className="ct-stepper__val">{value}{unit && <span className="u">{unit}</span>}</span>
-      <button type="button" disabled={value >= max} onClick={() => onChange(Math.min(max, value + 1))}><Icon name="plus" size={15} /></button>
-    </div>
-  );
-}
-export function SegSm({ options, index, onSelect }: { options: string[]; index: number; onSelect: (i: number) => void }) {
-  return <div className="ct-segsm">{options.map((o, i) => <button key={o} type="button" data-active={i === index} onClick={() => onSelect(i)}>{o}</button>)}</div>;
+  // ★ 키 케이스 = updateTournamentSchema 정확 매핑(camel/snake 혼합). rawBody:true 로 verbatim.
+  const body: Record<string, unknown> = {
+    // camel 키
+    name: form.name.trim(),
+    format: form.format,
+    organizer: form.organizer || null,
+    host: form.host || null,
+    sponsors: form.sponsors || null,
+    categories,
+    // snake 키
+    description: form.description || null,
+    rules: form.rules || null,
+    prize_info: form.prize || null,
+    team_size: form.teamSize,
+    roster_min: form.rosterMin,
+    roster_max: form.rosterMax,
+    entry_fee: form.entryFee || 0,
+    game_ball: form.gameBall || null,
+    // jsonb — 원본 game_rules 위에 5개 편집 필드 오버레이(고급 필드 보존). 서버가 재정규화.
+    game_rules: { ...rawGameRules, ...form.gameRules },
+    bank_name: form.bankName || null,
+    bank_account: form.bankAccount || null,
+    bank_holder: form.bankHolder || null,
+    fee_notes: form.feeNotes || null,
+    auto_approve_teams: form.autoApprove,
+    allow_waiting_list: form.allowWaiting,
+    // 접수 일시(datetime-local 문자열 또는 "") — 서버: 값 있으면 new Date(), "" → null
+    registration_start_at: form.regStart || "",
+    registration_end_at: form.regEnd || "",
+    // jsonb 배열(장소/일정)
+    places: places.length ? places : null,
+    schedule_dates: scheduleDates.length ? scheduleDates : null,
+    // 종별 정원/참가비 jsonb
+    div_caps: divCaps,
+    div_fees: divFees,
+  };
+  // 일정이 있을 때만 startDate/endDate 갱신(없으면 기존값 보존 — 미전송)
+  if (startDate) body.startDate = startDate;
+  if (endDate) body.endDate = endDate;
+  return body;
 }
 
-const WK = ["일", "월", "화", "수", "목", "금", "토"];
-export const fmtDate = (s: string) => {
-  const d = new Date(s + "T00:00:00");
-  if (isNaN(d.getTime())) return s;
-  return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")} (${WK[d.getDay()]})`;
-};
-
-export function CreateWizard() {
+export function EditWizard({
+  tournamentId,
+  tournamentName,
+  meta,
+  initialForm,
+  rawPlacesById,
+  rawGameRules,
+}: {
+  tournamentId: string;
+  tournamentName: string;
+  meta: EditMeta;
+  initialForm: FormState;
+  // 폼이 안 다루는 원본 jsonb(데이터 보존용) — 저장 시 spread 오버레이
+  rawPlacesById: Record<string, Record<string, unknown>>;
+  rawGameRules: Record<string, unknown>;
+}) {
   const router = useRouter();
   const { toast } = useAdminShell();
   const [step, setStep] = useState(0);
-  const [form, setForm] = useState<FormState>(EMPTY_FORM);
+  // form = 현재 입력 / saved = 마지막 저장 기준(dirty 비교 baseline)
+  const [form, setForm] = useState<FormState>(initialForm);
+  const [saved, setSaved] = useState<FormState>(initialForm);
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [delOpen, setDelOpen] = useState(false);
   const [errMsg, setErrMsg] = useState<string | null>(null);
+
+  // dirty = 저장 이후 변경 여부(JSON 비교 — 정본 workspace.jsx 1:1)
+  const dirty = useMemo(() => JSON.stringify(form) !== JSON.stringify(saved), [form, saved]);
 
   const patch = <K extends keyof FormState>(k: K, v: FormState[K]) => {
     setErrMsg(null);
@@ -191,32 +200,23 @@ export function CreateWizard() {
     setStep(Math.max(0, Math.min(STEPS.length - 1, i)));
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
-  // 다음 — info 단계에서만 대회명 필수(정본 soft 검증)
-  const next = () => {
-    if (cur.id === "info" && !form.name.trim()) {
-      setErrMsg("대회 이름을 입력하세요.");
-      return;
-    }
-    go(step + 1);
-  };
 
-  // 종별 추가/수정/삭제 (정본 DivisionsPanel 의 핵심 CRUD — 템플릿/연령 mock 제외)
+  // ── 종별/장소/일정 CRUD (생성폼 1:1) ──
   const addDivision = () =>
-    patch("divisions", [...form.divisions, { id: uid("d"), label: "", cap: 16, fee: 50000 }]);
+    patch("divisions", [...form.divisions, { id: uid("d"), label: "", cap: 16, fee: form.entryFee || 50000 }]);
   const patchDivision = (id: string, p: Partial<DivisionRow>) =>
     patch("divisions", form.divisions.map((d) => (d.id === id ? { ...d, ...p } : d)));
   const removeDivision = (id: string) =>
     patch("divisions", form.divisions.filter((d) => d.id !== id));
 
-  // 장소 추가/수정/삭제
   const addVenue = (name: string) => {
     const nm = name.trim();
     if (!nm) return;
-    patch("venues", [...form.venues, { id: uid("v"), name: nm, region: "", courtCount: 1, naming: "num" }]);
+    patch("venues", [...form.venues, { id: uid("v"), name: nm, region: "", courtCount: 1, naming: "num" } as Venue]);
   };
   const setVenue = (id: string, p: Partial<Venue>) => patch("venues", form.venues.map((v) => (v.id === id ? { ...v, ...p } : v)));
   const removeVenue = (id: string) => patch("venues", form.venues.filter((v) => v.id !== id));
-  // 일정 추가(date 입력)·코트 토글
+
   const addDate = (date: string) => {
     if (!date || form.dates.some((d) => d.date === date)) return;
     patch("dates", [...form.dates, { id: uid("dt"), date, courtIds: [] }].sort((a, b) => a.date.localeCompare(b.date)));
@@ -228,7 +228,7 @@ export function CreateWizard() {
         : d
     ));
 
-  // 검토 요약(정본 publish 체크리스트 대체 — 실 입력값 요약)
+  // 검토 요약(생성폼 review 1:1)
   const review = useMemo(() => {
     const dates = form.dates.map((d) => d.date).sort();
     return {
@@ -242,18 +242,13 @@ export function CreateWizard() {
     };
   }, [form]);
 
-  // ── 제출(POST /api/web/tournaments · camel · rawBody) ──────────
-  const submit = async () => {
+  // ── 저장(PATCH · 혼합 케이스 · rawBody) ──────────────────────
+  //   complete=true 면 저장 성공 후 운영 워크스페이스로 복귀("저장하고 완료").
+  const doSave = async (complete: boolean) => {
     setErrMsg(null);
     if (!form.name.trim()) {
       setErrMsg("대회 이름은 필수입니다.");
       setStep(0);
-      return;
-    }
-    const validDivs = form.divisions.filter((d) => d.label.trim());
-    if (validDivs.length === 0) {
-      setErrMsg("종별을 1개 이상 추가하세요.");
-      setStep(2);
       return;
     }
     if (form.rosterMin > form.rosterMax) {
@@ -261,106 +256,71 @@ export function CreateWizard() {
       setStep(3);
       return;
     }
-
-    // 종별 → categories/divCaps/divFees (createTournament 계약: division-rule-sync.ts)
-    //   categories = { 종별명: [종별명] } — 각 종별 독립(템플릿 그룹핑 mock 미포팅).
-    //   division 명이 곧 code/label. divCaps/divFees 는 종별명 키.
-    const categories: Record<string, string[]> = {};
-    const divCaps: Record<string, number> = {};
-    const divFees: Record<string, number> = {};
-    validDivs.forEach((d) => {
-      const label = d.label.trim();
-      categories[label] = [label];
-      if (d.cap != null) divCaps[label] = d.cap;
-      divFees[label] = d.fee;
-    });
-
-    const dates = [...form.dates].sort((a, b) => a.date.localeCompare(b.date));
-    // 장소 jsonb(verbatim camel — operate/공개 사이트가 courtCount 로 읽음)
-    const places = form.venues.map((v) => ({
-      id: v.id,
-      name: v.name,
-      region: v.region,
-      courtCount: v.courtCount,
-      naming: v.naming,
-    }));
-    // 일정 jsonb — 정본 ct-create 계약(court_ids snake 키)·operate 가 court_ids/courtIds 호환
-    const scheduleDates = dates.map((d) => ({ id: d.id, date: d.date, court_ids: d.courtIds }));
-
     setSaving(true);
     try {
-      // rawBody:true — 엔드포인트가 camelCase body 를 기대(zod 없는 raw destructure).
-      //   adminFetch 기본 camel→snake 변환을 우회해 키를 verbatim 전송.
-      const result = await adminFetch<{ success?: boolean; tournamentId?: string; redirectUrl?: string }>(
-        "/api/web/tournaments",
-        {
-          method: "POST",
-          rawBody: true,
-          body: {
-            name: form.name.trim(),
-            format: form.format,
-            organizer: form.organizer || undefined,
-            host: form.host || undefined,
-            sponsors: form.sponsors || undefined,
-            description: form.description || undefined,
-            startDate: review.startDate || undefined,
-            endDate: review.endDate || undefined,
-            registrationStartAt: form.regStart || undefined,
-            registrationEndAt: form.regEnd || undefined,
-            places: places.length ? places : undefined,
-            scheduleDates: scheduleDates.length ? scheduleDates : undefined,
-            gameBall: form.gameBall || undefined,
-            teamSize: form.teamSize,
-            rosterMin: form.rosterMin,
-            rosterMax: form.rosterMax,
-            rules: form.rules || undefined,
-            prizeInfo: form.prize || undefined,
-            gameRules: form.gameRules,
-            categories,
-            divCaps: Object.keys(divCaps).length ? divCaps : undefined,
-            divFees,
-            entryFee: form.entryFee || undefined,
-            bankName: form.bankName || undefined,
-            bankAccount: form.bankAccount || undefined,
-            bankHolder: form.bankHolder || undefined,
-            feeNotes: form.feeNotes || undefined,
-            autoApproveTeams: form.autoApprove || undefined,
-            allowWaitingList: form.allowWaiting || undefined,
-          },
-        }
-      );
-      // 성공 → 생성된 대회 운영 워크스페이스(R4)로 이동. 없으면 목록 폴백.
-      if (result?.tournamentId) {
-        router.push(`/v2/operate/${result.tournamentId}`);
+      // rawBody:true — PATCH 는 혼합 케이스 zod 계약. 키를 verbatim 으로 보내 깨짐 방지.
+      await adminFetch(`/api/web/tournaments/${tournamentId}`, {
+        method: "PATCH",
+        rawBody: true,
+        body: buildPatchBody(form, rawPlacesById, rawGameRules),
+      });
+      setSaved(form); // dirty baseline 갱신 → "변경사항 없음"
+      setSaving(false);
+      if (complete) {
+        router.push(`/v2/operate/${tournamentId}`); // 운영 워크스페이스 복귀
       } else {
-        router.push("/v2/ta/tournaments");
+        toast("저장되었습니다");
       }
     } catch (e) {
-      const msg = e instanceof AdminApiError ? e.message : "대회 생성 중 오류가 발생했습니다.";
+      const msg = e instanceof AdminApiError ? e.message : "대회 수정 중 오류가 발생했습니다.";
       setErrMsg(msg);
       toast(msg);
       setSaving(false);
     }
   };
 
+  // ── 삭제(DELETE · soft=cancelled) — 확인 모달 경유. 실행 시 실제 호출. ──
+  const doDelete = async () => {
+    setDeleting(true);
+    try {
+      await adminFetch(`/api/web/tournaments/${tournamentId}`, { method: "DELETE" });
+      setDelOpen(false);
+      setDeleting(false);
+      toast("대회가 취소되었습니다");
+      router.push("/v2/ta/tournaments");
+    } catch (e) {
+      const msg = e instanceof AdminApiError ? e.message : "대회 삭제 중 오류가 발생했습니다.";
+      setDeleting(false);
+      toast(msg);
+    }
+  };
+
+  // 저장바 상태 문구(정본 stateMsg 1:1)
   const stateMsg = saving
-    ? "대회를 생성하는 중입니다"
+    ? "저장 중입니다"
     : errMsg
       ? errMsg
-      : `${step + 1} / ${STEPS.length} 단계`;
+      : dirty
+        ? "변경사항이 있습니다"
+        : "변경사항 없음";
 
   return (
     <div>
-      {/* 헤더 (PageHead 구조 — ts-ph) */}
+      {/* 헤더 (요약 — 대회명 + 상태 칩) */}
       <div className="ts-ph" style={{ marginBottom: 16 }}>
         <div className="ts-ph__row">
           <div>
-            <div className="ts-ph__eyebrow">대회 관리자 · 새 대회 만들기</div>
-            <div className="ts-ph__title">새 대회 만들기</div>
-            <div className="ts-ph__sub">5단계로 대회를 생성합니다. 생성 후 대진·일정·운영은 운영 워크스페이스에서 이어집니다.</div>
+            <div className="ts-ph__eyebrow">대회 관리자 · 대회 정보 수정</div>
+            <div className="ts-ph__title">{tournamentName}</div>
+            <div style={{ display: "flex", gap: 6, marginTop: 8, flexWrap: "wrap" }}>
+              <span className="ct-pill" data-tone={meta.statusTone}>{meta.statusLabel}</span>
+              <span className="ct-pill" data-tone="info">{review.dates ? `${review.dates}일 일정` : "일정 미설정"}</span>
+              <span className="ct-pill" data-tone="mute">{review.divisions}종별</span>
+            </div>
           </div>
-          <Btn variant="secondary" size="sm" icon="x" onClick={() => router.push("/v2/ta/tournaments")}>
-            생성 취소
+          {/* 삭제(danger) — 확인 모달 후 실제 DELETE */}
+          <Btn variant="danger" size="sm" icon="trash-2" onClick={() => setDelOpen(true)}>
+            대회 삭제
           </Btn>
         </div>
       </div>
@@ -491,7 +451,7 @@ export function CreateWizard() {
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
               <GroupTitle flush>종별 · 정원</GroupTitle>
               <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                {form.divisions.length === 0 && <span className="ct-pill" data-tone="err">1개 이상 필수</span>}
+                {form.divisions.length === 0 && <span className="ct-pill" data-tone="err">1개 이상 권장</span>}
                 <Btn size="sm" icon="plus" onClick={addDivision}>종별 추가</Btn>
               </div>
             </div>
@@ -522,12 +482,12 @@ export function CreateWizard() {
             )}
             <div className="ops-note" style={{ marginTop: 4 }}>
               <Icon name="info" size={16} color="var(--primary)" style={{ flex: "0 0 auto", marginTop: 1 }} />
-              <span>대진 생성·조 편성·일정 배치는 대회 생성 후 <b>운영 워크스페이스</b>에서 처리합니다.</span>
+              <span>대진 생성·조 편성·일정 배치는 <b>운영 워크스페이스</b>에서 처리합니다. 여기서는 종별·정원·참가비만 수정합니다.</span>
             </div>
           </div>
         )}
 
-        {/* 4) 대진방식(경기설정) */}
+        {/* 4) 경기설정 */}
         {cur.id === "game" && (
           <div className="ct-form">
             <div className="ct-form-grid">
@@ -553,7 +513,7 @@ export function CreateWizard() {
           </div>
         )}
 
-        {/* 5) 접수·검토 */}
+        {/* 5) 접수·공개 */}
         {cur.id === "publish" && (
           <div className="ct-form">
             <div className="ct-form-grid">
@@ -579,78 +539,52 @@ export function CreateWizard() {
                 <ReviewRow label="종별" value={`${review.divisions}개`} />
                 <ReviewRow label="기본 참가비" value={won(form.entryFee)} />
               </div>
-              {review.divisions === 0 && (
-                <div className="ops-warn" style={{ marginTop: 10 }}>
-                  <Icon name="alert-triangle" size={16} color="var(--warn)" style={{ flex: "0 0 auto", marginTop: 1 }} />
-                  <span><b>종별</b>을 1개 이상 추가해야 대회를 생성할 수 있습니다.</span>
-                </div>
-              )}
             </div>
           </div>
         )}
       </section>
 
-      {/* 푸터 — 이전 / 상태 / 다음·생성 (정본 tw-foot) */}
+      {/* 푸터 — 이전 / 상태 / 저장·다음·완료 (정본 tw-foot + dirty 저장바) */}
       <div className="tw-foot">
         <Btn variant="secondary" icon="chevron-left" disabled={step === 0} onClick={() => go(step - 1)}>이전</Btn>
         <div className="tw-foot__mid">
           <span className="ct-savebar__state">{stateMsg}</span>
           {errMsg && <span className="tw-msg" data-tone="err">{errMsg}</span>}
         </div>
-        {step < STEPS.length - 1 ? (
-          <Btn iconRight="chevron-right" onClick={next}>다음</Btn>
-        ) : (
-          <Btn icon="check" disabled={saving} onClick={submit}>{saving ? "생성 중" : "대회 생성"}</Btn>
-        )}
+        <div style={{ display: "flex", gap: 8 }}>
+          {/* 취소 = 변경 버리고 운영 워크스페이스 복귀 */}
+          <Btn variant="secondary" icon="x" disabled={saving} onClick={() => router.push(`/v2/operate/${tournamentId}`)}>취소</Btn>
+          {/* 저장 = PATCH 후 머무름(저장바 갱신) */}
+          <Btn variant="secondary" icon="save" disabled={saving} onClick={() => doSave(false)}>{saving ? "저장 중" : "저장"}</Btn>
+          {step < STEPS.length - 1 ? (
+            <Btn iconRight="chevron-right" onClick={() => go(step + 1)}>다음</Btn>
+          ) : (
+            // 마지막 스텝 = 저장하고 완료(운영 복귀)
+            <Btn icon="check" disabled={saving} onClick={() => doSave(true)}>{saving ? "저장 중" : "저장하고 완료"}</Btn>
+          )}
+        </div>
       </div>
-    </div>
-  );
-}
 
-// ── 장소 직접 추가 입력(정본 VenueSearch 의 mock 체육관 DB 제외·실 입력만) ── (R5-B 재사용 export)
-export function VenueAdd({ onAdd }: { onAdd: (name: string) => void }) {
-  const [q, setQ] = useState("");
-  const commit = () => {
-    if (!q.trim()) return;
-    onAdd(q.trim());
-    setQ("");
-  };
-  return (
-    <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
-      <input
-        className="ts-input"
-        style={{ flex: 1, minWidth: 0 }}
-        value={q}
-        placeholder="경기장명 입력 후 추가"
-        onChange={(e) => setQ(e.target.value)}
-        onKeyDown={(e) => { if (!e.nativeEvent.isComposing && e.key === "Enter") { e.preventDefault(); commit(); } }}
-      />
-      <Btn variant="secondary" icon="plus" onClick={commit}>추가</Btn>
-    </div>
-  );
-}
-
-// ── 일정 추가(date 입력 — 정본 CalendarModal 대체) ── (R5-B 재사용 export)
-export function DateAdd({ onAdd }: { onAdd: (date: string) => void }) {
-  const [d, setD] = useState("");
-  const commit = () => {
-    if (!d) return;
-    onAdd(d);
-    setD("");
-  };
-  return (
-    <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
-      <input className="ts-input" style={{ flex: 1, minWidth: 0 }} type="date" value={d} onChange={(e) => setD(e.target.value)} />
-      <button type="button" className="ct-adddate" onClick={commit}><Icon name="calendar-plus" size={16} />일정 추가</button>
-    </div>
-  );
-}
-
-export function ReviewRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="ct-metric" style={{ background: "var(--grey-50)", borderRadius: 12, padding: "10px 12px" }}>
-      <div style={{ fontSize: 11.5, fontWeight: 700, color: "var(--ink-mute)" }}>{label}</div>
-      <div style={{ fontSize: 14, fontWeight: 800, color: "var(--ink)", marginTop: 2, wordBreak: "break-all" }}>{value}</div>
+      {/* 삭제 확인 모달 — 정본 1:1. 확인 시 실제 DELETE(soft=cancelled) 호출. */}
+      {delOpen && (
+        <Modal
+          open
+          onClose={() => setDelOpen(false)}
+          title="대회를 삭제할까요?"
+          sub={tournamentName}
+          foot={
+            <>
+              <Btn variant="secondary" onClick={() => setDelOpen(false)} disabled={deleting}>취소</Btn>
+              <Btn variant="danger" icon="trash-2" onClick={doDelete} disabled={deleting}>{deleting ? "처리 중" : "대회 취소"}</Btn>
+            </>
+          }
+        >
+          <div className="ops-warn" style={{ marginBottom: 4 }}>
+            <Icon name="alert-triangle" size={18} color="var(--warn)" style={{ flex: "0 0 auto", marginTop: 1 }} />
+            <span>대회가 <b>취소</b> 상태로 전환됩니다. 참가팀·대진·일정 데이터는 보존되며, 필요 시 운영에서 복원할 수 있습니다.</span>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }
