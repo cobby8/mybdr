@@ -32,9 +32,10 @@ export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
   // 1) CRON_SECRET 검증 — 외부에서 임의 호출하여 부당하게 예약을 취소시키는 것을 방지
-  //    CRON_SECRET 미설정인 로컬/개발 환경에서는 검증 생략 (개발 편의)
+  //    다른 12개 cron 라우트와 동일한 무조건 검증 패턴.
+  //    (보안: CRON_SECRET 미설정 시 우회되던 조건부 검증을 제거 — 미설정이면 모든 요청을 401로 거부)
   const authHeader = req.headers.get("authorization");
-  if (process.env.CRON_SECRET && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

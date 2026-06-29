@@ -32,11 +32,14 @@ export async function GET() {
     );
   } catch (error) {
     // DB 연결 실패 → 503 Service Unavailable
+    // 보안: raw 에러 메시지(DB 호스트/드라이버 내부 정보 등)는 응답에 노출하지 않는다.
+    //       원인 진단용 상세 메시지는 서버 로그(Vercel 함수 로그)로만 남긴다.
+    console.error("[health] DB check failed:", error);
     return NextResponse.json(
       {
         status: "error",
         db: "disconnected",
-        error: error instanceof Error ? error.message : "Unknown error",
+        error: "database error",
         timestamp,
       },
       { status: 503 }

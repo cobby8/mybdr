@@ -180,19 +180,21 @@ export async function handleOAuthLogin(profile: OAuthProfile): Promise<Response>
 /**
  * OAuth 시작 URL 생성
  */
-export function getOAuthStartUrl(provider: "kakao" | "naver" | "google"): string {
+export function getOAuthStartUrl(provider: "kakao" | "naver" | "google", state: string): string {
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3001";
   const callbackUrl = `${baseUrl}/api/auth/callback/${provider}`;
+  // 2026-06-29 CSRF: state는 시작점(/api/auth/login)이 발급·oauth_state 쿠키에 저장한 값.
+  //   3종 provider 모두 인증 URL에 동일하게 부착 → 콜백이 쿠키와 비교(짝 일치 필수).
 
   if (provider === "kakao") {
-    return `https://kauth.kakao.com/oauth/authorize?client_id=${process.env.KAKAO_CLIENT_ID}&redirect_uri=${encodeURIComponent(callbackUrl)}&response_type=code`;
+    return `https://kauth.kakao.com/oauth/authorize?client_id=${process.env.KAKAO_CLIENT_ID}&redirect_uri=${encodeURIComponent(callbackUrl)}&response_type=code&state=${state}`;
   }
 
   if (provider === "naver") {
-    const state = Math.random().toString(36).slice(2);
+    // naver는 state 파라미터가 필수 — 자체 생성(Math.random) 제거하고 시작점 발급 state로 통일.
     return `https://nid.naver.com/oauth2.0/authorize?client_id=${process.env.NAVER_CLIENT_ID}&redirect_uri=${encodeURIComponent(callbackUrl)}&response_type=code&state=${state}`;
   }
 
   // google
-  return `https://accounts.google.com/o/oauth2/v2/auth?client_id=${process.env.GOOGLE_CLIENT_ID}&redirect_uri=${encodeURIComponent(callbackUrl)}&response_type=code&scope=openid%20email%20profile&access_type=offline`;
+  return `https://accounts.google.com/o/oauth2/v2/auth?client_id=${process.env.GOOGLE_CLIENT_ID}&redirect_uri=${encodeURIComponent(callbackUrl)}&response_type=code&scope=openid%20email%20profile&access_type=offline&state=${state}`;
 }
