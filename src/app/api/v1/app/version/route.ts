@@ -8,19 +8,31 @@ import { NextResponse } from "next/server";
  * release_history는 앱정보/업데이트 화면의 누적 릴리즈 아카이브다.
  */
 const LATEST = {
-  latest_version_code: 18,
-  latest_version_name: "0.1.16",
+  latest_version_code: 19,
+  latest_version_name: "0.1.17",
   min_supported_version_code: 1,
   is_mandatory: false,
   apk_url: "https://www.mybdr.kr/api/v1/app/download",
-  sha256: "9d4805d830f84b45edff99e48c021af35196f60dc3b30c9da7ff058ea23ebf73",
-  size_bytes: 75399062,
+  sha256: "78e801d275cd361f856a0648c488d7b9b9e6e5ae6718fe3903f773660f6d296b",
+  size_bytes: 75497610,
   release_notes: [
-    "쿼터 종료 후 추가 기록 중 다음 쿼터 시작 버튼 유지",
-    "추가 기록 중에도 쿼터 전환 경로 보존",
-    "현장 기록 흐름 안정화"
+    "자유투 중 교체 확인창 레이어 개선",
+    "자유투 중 교체 흐름 안정화",
+    "기록 액션 오버레이 개선"
   ],
   release_history: [
+    {
+      version: "0.1.17",
+      date: "2026-06-29",
+      summary: "자유투 중 교체 확인창과 기록 액션 오버레이 안정화",
+      details:
+        "자유투 성공/실패 버튼이 떠 있는 상황에서 선수 교체를 진행하면 교체 확인창이 자유투 버튼보다 위에 표시되도록 레이어 구조를 조정했습니다. 교체를 확정해도 자유투 흐름은 유지되며, 기록 액션 중 코트 음영과 입력 겹침도 함께 안정화했습니다.",
+      notes: [
+        { kind: "fix", text: "자유투 대기 중 교체 확인창이 자유투 성공/실패 버튼 위에 표시되도록 개선" },
+        { kind: "fix", text: "교체 확정 후 자유투 버튼과 남은 자유투 흐름이 유지되도록 검증" },
+        { kind: "fix", text: "기록 액션 오버레이의 불필요한 코트 음영과 입력 겹침 개선" },
+      ],
+    },
     {
       version: "0.1.16",
       date: "2026-06-28",
