@@ -73,13 +73,23 @@ export default function RootLayout({
       className={`${archivo.variable} ${jetbrainsMono.variable}`}
     >
       <head>
-        {/* CDN 사전 연결: DNS+TCP+TLS를 미리 완료해서 폰트 로딩 시간 단축 */}
+        {/* CDN 사전 연결: DNS+TCP+TLS를 미리 완료해서 폰트 로딩 시간 단축
+            (Material Symbols 아이콘은 Google Fonts CDN 유지) */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link rel="preconnect" href="https://cdn.jsdelivr.net" crossOrigin="anonymous" />
 
-        {/* Pretendard(본문) + Material Symbols(아이콘) 비동기 로딩
-            - BDR v2 --ff-body 기본값 'Pretendard' 에 매칭
+        {/* Pretendard 셀프 호스팅 폰트 우선 로딩 (2026-06-29 CDN→로컬 전환)
+            - crossOrigin: woff2 폰트는 익명 CORS 모드로 preload해야 실제 사용 시 재요청 안 됨 */}
+        <link
+          rel="preload"
+          href="/fonts/PretendardVariable.woff2"
+          as="font"
+          type="font/woff2"
+          crossOrigin="anonymous"
+        />
+
+        {/* Material Symbols(아이콘) 비동기 로딩
+            - Pretendard(본문)는 셀프 호스팅 @font-face로 전환 (2026-06-29) → 여기서 제거
             - media="print" 트릭으로 렌더링 차단 해제 (onload에서 media='all'로 전환)
             - Archivo/JetBrains Mono는 next/font가 처리 (위 임포트)
             - SUIT Variable은 v2 이행으로 제거 */}
@@ -88,7 +98,6 @@ export default function RootLayout({
             __html: `
 (function(){
   var fonts = [
-    'https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/variable/pretendardvariable-dynamic-subset.min.css',
     'https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0..1,0&display=swap'
   ];
   fonts.forEach(function(href){
@@ -105,7 +114,6 @@ export default function RootLayout({
         />
         {/* JS 비활성화 환경 폴백 */}
         <noscript>
-          <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/variable/pretendardvariable-dynamic-subset.min.css" />
           <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0..1,0&display=swap" />
         </noscript>
         {/* 테마 초기화: dark/light 클래스 + data-theme 속성 이중 세팅 (v2는 [data-theme="dark"] 사용)

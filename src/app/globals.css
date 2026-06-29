@@ -1,5 +1,17 @@
 @import "tailwindcss";
 
+/* Pretendard 본문 폰트 셀프 호스팅 (CDN→로컬 전환, 2026-06-29)
+   - 이유: 외부 jsDelivr CDN 의존 제거 → 로딩 안정성·프라이버시 확보
+   - public/fonts/PretendardVariable.woff2 (variable font, weight 45~920)
+   - --ff-body 기본값이 'Pretendard'라 별도 변수 수정 없이 자동 매칭됨 */
+@font-face {
+  font-family: "Pretendard";
+  font-weight: 45 920;
+  font-style: normal;
+  font-display: swap;
+  src: url("/fonts/PretendardVariable.woff2") format("woff2-variations");
+}
+
 /* .claude 폴더를 Tailwind 스캔 대상에서 제외 (scratchpad.md에 있는
    text-[var(--...)] 같은 문자열이 CSS 클래스로 인식되어 파싱 에러 발생 방지) */
 @source not "../../.claude";
