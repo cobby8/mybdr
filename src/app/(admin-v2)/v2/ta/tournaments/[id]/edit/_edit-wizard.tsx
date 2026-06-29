@@ -41,6 +41,7 @@ import {
   Stepper,
   SegSm,
   VenueAdd,
+  SponsorEditor,
   MonthCalendar,
   ImageSlot,
   FORMAT_LABEL,
@@ -121,7 +122,8 @@ function buildPatchBody(
     format: form.format,
     organizer: form.organizer || null,
     host: form.host || null,
-    sponsors: form.sponsors || null,
+    // 후원사 — 배열 `[{id,name}]`. 전부 삭제 시 [] 전송(서버 normalizeSponsors 가 빈 배열로 저장).
+    sponsors: form.sponsors.map((s) => ({ id: s.id, name: s.name })),
     categories,
     // snake 키
     description: form.description || null,
@@ -404,8 +406,8 @@ export function EditWizard({
               </Field>
               <Field label="주최"><input className="ts-input" value={form.organizer} onChange={(e) => patch("organizer", e.target.value)} placeholder="주최 단체" /></Field>
               <Field label="주관"><input className="ts-input" value={form.host} onChange={(e) => patch("host", e.target.value)} placeholder="주관 단체" /></Field>
-              <Field label="후원사 (쉼표 구분)" span2>
-                <input className="ts-input" value={form.sponsors} onChange={(e) => patch("sponsors", e.target.value)} placeholder="예: 몰텐, 스팔딩" />
+              <Field label="후원사" span2>
+                <SponsorEditor sponsors={form.sponsors} onChange={(v) => patch("sponsors", v)} />
               </Field>
             </div>
             <div>

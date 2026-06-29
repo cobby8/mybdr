@@ -30,6 +30,8 @@ import {
   useAdminShell,
 } from "@/components/admin-v2";
 import { adminFetch, AdminApiError } from "@/lib/admin-v2/data";
+// 후원사 정규화 — 저장값(배열/문자열/객체)을 형태 무관하게 읽어 복원(prefill·과도기 방어).
+import { normalizeSponsors } from "@/lib/utils/sponsors";
 // 경기 규칙 = game-rules.ts 정본(19키 타입 + 디폴트). 마법사가 통째로 payload(gameRules)로 전송 → 서버 normalizeGameRules 정규화.
 // GAME_RULE_PRESETS/applyGameRulePreset = 빠른 설정 프리셋(부분 오버레이 — 파울/연장/유니폼 등 기존값 유지) 정본 재사용.
 import {
@@ -67,6 +69,17 @@ const STEPS = [
 // ── 폼 타입 ─────────────────────────────────────────────── (R5-B 수정 마법사 공용 재사용 위해 export)
 export type Venue = { id: string; name: string; region: string; courtCount: number; naming: "num" | "alpha" };
 export type DateRow = { id: string; date: string; courtIds: string[] };
+// 후원사 1건 — DB sponsors Json `[{id,name,logo?}]` 정합. id 는 React key·삭제용(로컬 생성).
+export type Sponsor = { id: string; name: string; logo?: string };
+// 후원사 prefill — 저장값(배열/문자열/객체) → Sponsor[] (normalizeSponsors 방어 + id 보강).
+//   copy/edit 진입에서 옛 콤마 문자열도 칩으로 안전 복원(읽기 1단계 방어와 동일 헬퍼).
+export function sponsorsFromValue(v: unknown): Sponsor[] {
+  return normalizeSponsors(v).map((s, i) => ({
+    id: s.id ?? `sp_${i}`,
+    name: s.name,
+    ...(s.logo ? { logo: s.logo } : {}),
+  }));
+}
 // category = 소속 종별명(AdminCategory.name + 성별 접두, 예 "남성 유청소년"). 없으면 단독 디비전.
 //   ★ 페이로드 빌더가 category 로 그룹핑 → categories={종별명:[디비전명]} → 서버 연령 자동채움.
 // format = 종별별 진행방식(없으면 대회 format 폴백). settings = 진행방식별 세부설정(group_size 등).
@@ -87,7 +100,8 @@ export type FormState = {
   name: string;
   organizer: string;
   host: string;
-  sponsors: string;
+  // 후원사 — 배열 `[{id,name,logo?}]`(구 콤마 문자열 입력에서 칩 UI 로 전환).
+  sponsors: Sponsor[];
   description: string;
   venues: Venue[];
   dates: DateRow[];
@@ -120,7 +134,7 @@ const EMPTY_FORM: FormState = {
   name: "",
   organizer: "",
   host: "",
-  sponsors: "",
+  sponsors: [], // 후원사 0개 기본
   description: "",
   venues: [],
   dates: [],
@@ -372,7 +386,8 @@ export function CreateWizard({
             format: form.format,
             organizer: form.organizer || undefined,
             host: form.host || undefined,
-            sponsors: form.sponsors || undefined,
+            // 후원사 — 배열 `[{id,name}]`. 0개면 미전송(서버 default).
+            sponsors: form.sponsors.length ? form.sponsors.map((s) => ({ id: s.id, name: s.name })) : undefined,
             description: form.description || undefined,
             startDate: review.startDate || undefined,
             endDate: review.endDate || undefined,
@@ -501,8 +516,8 @@ export function CreateWizard({
               </Field>
               <Field label="주최"><input className="ts-input" value={form.organizer} onChange={(e) => patch("organizer", e.target.value)} placeholder="주최 단체" /></Field>
               <Field label="주관"><input className="ts-input" value={form.host} onChange={(e) => patch("host", e.target.value)} placeholder="주관 단체" /></Field>
-              <Field label="후원사 (쉼표 구분)" span2>
-                <input className="ts-input" value={form.sponsors} onChange={(e) => patch("sponsors", e.target.value)} placeholder="예: 몰텐, 스팔딩" />
+              <Field label="후원사" span2>
+                <SponsorEditor sponsors={form.sponsors} onChange={(v) => patch("sponsors", v)} />
               </Field>
             </div>
             <div>
@@ -895,6 +910,48 @@ export function VenueAdd({ onAdd }: { onAdd: (name: string) => void }) {
     </div>
   );
 }
+// ── 후원사 입력(이름 input + 추가 버튼 + 칩 목록 x삭제) ── (R5-B 수정 마법사 재사용 export)
+//   ★ DB sponsors Json `[{id,name}]` 정합. 중복 이름 skip. Enter/추가 버튼 둘 다 add.
+//     칩 = ts-chip--tag(제거 버튼 내장 — toss.css 기존 클래스). 하드코딩 색상 0·var/토큰만.
+export function SponsorEditor({ sponsors, onChange }: { sponsors: Sponsor[]; onChange: (next: Sponsor[]) => void }) {
+  const [name, setName] = useState("");
+  const add = () => {
+    const v = name.trim();
+    if (!v) return;
+    // 중복 이름은 추가하지 않고 입력만 비움(조용히 skip — 장바구니 중복 skip 패턴 일관).
+    if (sponsors.some((s) => s.name === v)) { setName(""); return; }
+    onChange([...sponsors, { id: uid("sp"), name: v }]);
+    setName("");
+  };
+  const remove = (id: string) => onChange(sponsors.filter((s) => s.id !== id));
+  return (
+    <div>
+      <div style={{ display: "flex", gap: 8, marginBottom: sponsors.length ? 10 : 0 }}>
+        <input
+          className="ts-input"
+          style={{ flex: 1, minWidth: 0 }}
+          value={name}
+          placeholder="후원사명 입력 후 추가"
+          onChange={(e) => setName(e.target.value)}
+          // 한글 IME 조합 중 Enter 오작동 방지(isComposing 가드 — VenueAdd 동일 패턴)
+          onKeyDown={(e) => { if (!e.nativeEvent.isComposing && e.key === "Enter") { e.preventDefault(); add(); } }}
+        />
+        <Btn variant="secondary" icon="plus" onClick={add}>추가</Btn>
+      </div>
+      {sponsors.length > 0 && (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+          {sponsors.map((s) => (
+            <span key={s.id} className="ts-chip ts-chip--tag">
+              {s.name}
+              <button type="button" aria-label={`${s.name} 삭제`} onClick={() => remove(s.id)}><Icon name="x" size={13} /></button>
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ReviewRow(검토 요약 행) 는 publish 단계 검토 섹션 삭제로 미사용 → 제거(2026-06-29).
 
 // ── 대표 이미지 슬롯(로고/포스터 공용 업로더) ── (R5-B 수정 마법사 재사용 위해 export)

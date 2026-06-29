@@ -14,6 +14,8 @@ import type { Prisma } from "@prisma/client";
 import { getTournamentDefaultMode } from "@/lib/tournaments/recording-mode";
 import { normalizeGameRules } from "@/lib/tournaments/game-rules";
 import { buildDivisionRuleSeedsFromCategories } from "@/lib/tournaments/division-rule-sync";
+// 후원사 정규화 — 입력(문자열/배열/객체)을 `[{id?,name,logo?}]` 배열로 통일(Json 저장 대비).
+import { normalizeSponsors } from "@/lib/utils/sponsors";
 
 // ---------------------------------------------------------------------------
 // apiToken 발급 헬퍼 — Flutter 앱 대회 진입 토큰 (64자 hex)
@@ -173,7 +175,8 @@ export interface CreateTournamentInput {
   // 대회 관리 확장 필드
   organizer?: string;
   host?: string;
-  sponsors?: string;
+  // 후원사 — 배열 `[{id?,name,logo?}]` 권장. 과도기: 옛 콤마 문자열도 허용(저장 시 normalizeSponsors 로 배열 변환).
+  sponsors?: string | { id?: string; name: string; logo?: string }[];
   gameTime?: string;
   gameBall?: string;
   gameMethod?: string;
@@ -542,7 +545,11 @@ export async function createTournament(input: CreateTournamentInput) {
     // 대회 관리 확장 필드
     organizer: input.organizer ?? null,
     host: input.host ?? null,
-    sponsors: input.sponsors ?? null,
+    // 후원사 Json — 입력(문자열/배열) → normalizeSponsors 로 `[{id?,name,logo?}]` 배열 통일 후 저장.
+    //   null/미전송 시 컬럼 생략(undefined) = places Json? 와 동일한 omit-on-null 컨벤션.
+    ...(input.sponsors != null
+      ? { sponsors: JSON.parse(JSON.stringify(normalizeSponsors(input.sponsors))) as Prisma.InputJsonValue }
+      : {}),
     game_time: input.gameTime ?? null,
     game_ball: input.gameBall ?? null,
     game_method: input.gameMethod ?? null,

@@ -60,7 +60,7 @@ function numberFrom(value: unknown): number | undefined {
   return Number.isFinite(parsed) ? parsed : undefined;
 }
 
-function normalizeSponsorDrafts(sponsors: string | null, settings: unknown): SetupFormState["sponsors"] {
+function normalizeSponsorDrafts(sponsors: unknown, settings: unknown): SetupFormState["sponsors"] {
   // sponsors 컬럼을 형태 무관하게 읽어 이름 배열로 변환(현재 콤마 String 기준 기존과 동일).
   //   하류는 string[]("names")를 기대하고 아래에서 push 도 하므로 .map(s=>s.name) 으로 맞춘다.
   const names = normalizeSponsors(sponsors).map((s) => s.name);

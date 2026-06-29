@@ -80,7 +80,21 @@ export const updateTournamentSchema = z
     // 새 필드: 주최/주관/후원/성별/경기설정/장소
     organizer: z.string().nullable(),
     host: z.string().nullable(),
-    sponsors: z.string().nullable(),
+    // 후원사 — 배열 `[{id?,name,logo?}]` 입력. 과도기 안전: 외부에서 옛 콤마 문자열도 들어올 수 있어
+    //   union(문자열|배열) 허용 후 서버(PATCH route)에서 normalizeSponsors 로 배열 Json 통일.
+    sponsors: z
+      .union([
+        z.string(),
+        z.array(
+          z.object({
+            id: z.string().optional(),
+            name: z.string(),
+            logo: z.string().optional(),
+          }),
+        ),
+      ])
+      .nullable()
+      .optional(),
     gender: z.string().nullable(),
     game_time: z.string().nullable(),
     game_ball: z.string().nullable(),

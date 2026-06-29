@@ -310,7 +310,9 @@ model Tournament {
   // 대회 관리 확장 필드 (BDR-join 이식)
   organizer                              String?                       @db.VarChar
   host                                   String?                       @db.VarChar
-  sponsors                               String?                       @db.VarChar
+  // 후원사 — 배열 Json `[{id,name,logo?}]` 저장(구 String 콤마 → Json 마이그레이션). places Json? 컨벤션 동일.
+  //   ⚠ DB ALTER 는 PM 이 별도 저트래픽 시간에 백업과 함께 실행(여기선 schema/타입만 선반영).
+  sponsors                               Json?
   game_time                              String?                       @db.VarChar
   game_ball                              String?                       @db.VarChar
   game_method                            String?

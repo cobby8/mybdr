@@ -16,6 +16,7 @@ import { canManageTournament } from "@/lib/auth/tournament-permission";
 import { normalizeGameRules } from "@/lib/tournaments/game-rules";
 import { EditWizard, type EditMeta } from "./_edit-wizard";
 import type { FormState } from "../../new/_create-wizard";
+import { sponsorsFromValue } from "../../new/_create-wizard";
 import { divisionsFromTournament } from "../../new/_form-prefill";
 
 export const dynamic = "force-dynamic";
@@ -184,7 +185,7 @@ export default async function EditTournamentPage({
     name: t.name ?? "",
     organizer: t.organizer ?? "",
     host: t.host ?? "",
-    sponsors: t.sponsors ?? "",
+    sponsors: sponsorsFromValue(t.sponsors), // 후원사 칩 복원(배열/문자열 형태 무관 방어)
     description: t.description ?? "",
     venues,
     dates,

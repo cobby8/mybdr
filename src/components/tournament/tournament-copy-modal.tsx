@@ -4,6 +4,9 @@ import { useState, useEffect } from "react";
 // 2026-06-21 Track B B-b Toss 리스킨 — Material Symbols → lucide <Icon> 키트(비주얼만).
 //   본 모달은 생성 위저드 자식으로 렌더 → 위저드 루트 data-skin="toss" 가 상속됨(별도 부착 불필요).
 import { Icon } from "@/components/admin-toss";
+// 후원사 정규화 — sponsors 컬럼이 Json 배열로 전환됨. 레거시 CopyData(sponsors:string) 계약 유지를 위해
+//   배열/문자열 어떤 형태든 이름만 콤마 문자열로 복원(과도기 안전 — 텍스트 입력 [object Object] 방지).
+import { normalizeSponsors } from "@/lib/utils/sponsors";
 
 // 이전 대회 복사 모달
 // 내 대회 목록을 불러와서 선택하면 설정을 현재 폼에 복사
@@ -100,7 +103,8 @@ export function TournamentCopyModal({ open, onClose, onApply }: Props) {
         description: t.description ?? undefined,
         organizer: t.organizer ?? undefined,
         host: t.host ?? undefined,
-        sponsors: t.sponsors ?? undefined,
+        // 후원사 — Json 배열/문자열 → 이름 콤마 문자열로 복원(레거시 string 폼 정합).
+        sponsors: normalizeSponsors(t.sponsors).map((s) => s.name).join(", ") || undefined,
         gender: t.gender ?? undefined,
         venueName: t.venue_name ?? t.venueName ?? undefined,
         venueAddress: t.venue_address ?? t.venueAddress ?? undefined,
