@@ -9,7 +9,6 @@ import {
 } from "@/lib/tournaments/recording-mode";
 import { normalizeGameRules } from "@/lib/tournaments/game-rules";
 import { countCategoryDivisions } from "@/lib/tournaments/division-rule-sync";
-import { normalizeSponsors } from "@/lib/utils/sponsors";
 import type { DateRow, Venue } from "../../new/wizard/_components/ct-schedule-venue";
 import type {
   SetupFormState,
@@ -60,10 +59,11 @@ function numberFrom(value: unknown): number | undefined {
   return Number.isFinite(parsed) ? parsed : undefined;
 }
 
-function normalizeSponsorDrafts(sponsors: unknown, settings: unknown): SetupFormState["sponsors"] {
-  // sponsors 컬럼을 형태 무관하게 읽어 이름 배열로 변환(현재 콤마 String 기준 기존과 동일).
-  //   하류는 string[]("names")를 기대하고 아래에서 push 도 하므로 .map(s=>s.name) 으로 맞춘다.
-  const names = normalizeSponsors(sponsors).map((s) => s.name);
+function normalizeSponsorDrafts(sponsors: string | null, settings: unknown): SetupFormState["sponsors"] {
+  const names = (sponsors ?? "")
+    .split(",")
+    .map((name) => name.trim())
+    .filter(Boolean);
   const settingsObj = isRecord(settings) ? settings : {};
   const logoRows = Array.isArray(settingsObj.sponsor_logos)
     ? settingsObj.sponsor_logos

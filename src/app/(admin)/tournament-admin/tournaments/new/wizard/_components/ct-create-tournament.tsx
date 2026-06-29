@@ -21,7 +21,6 @@ import { Icon, Btn, Modal } from "@/components/admin-toss";
 import { ImageUploader } from "@/components/shared/image-uploader";
 import { InlineSeriesForm, type CreatedSeries } from "@/components/tournament/inline-series-form";
 import { normalizeGameRules } from "@/lib/tournaments/game-rules";
-import { normalizeSponsors } from "@/lib/utils/sponsors";
 import {
   ScheduleVenue,
   allCourts,
@@ -74,9 +73,11 @@ export type CtDraftPayload = {
   organizer: string;
   host: string;
   poster: string;
-  // 후원사 = DB sponsors(Json) 컬럼 정합 → 배열 `[{id,name}]` 로 전송(구 콤마 문자열에서 전환).
-  //   로고URL 은 별도(settings.sponsor_logos) 보존 — 읽기 경로는 normalizeSponsors 가 형태 무관 방어.
-  sponsors: { id: string; name: string }[];
+  // 후원사 = DB sponsors(String? VarChar) 컬럼 정합 → 콤마 구분 plain 문자열로 전송.
+  //   왜 객체배열이 아니라 문자열인가: 표시 화면(tournament-about.tsx)이 sponsors 를 `.split(",")` 로
+  //   읽어 렌더하므로 객체배열/JSON 을 보내면 DB INSERT 500 + 표시 깨짐. 입력 UI(SponsorField)는
+  //   로고까지 받지만 전송 시점에 이름만 join(로고는 전용 컬럼 부재 → 1차 미저장·후속 작업).
+  sponsors: string;
   gameRules: Record<string, unknown>;
   // B-1 places 확장형
   places: ReturnType<typeof serializeVenue>[];
@@ -197,9 +198,10 @@ function previousVenues(t: PreviousTournament): Venue[] {
 }
 
 function previousSponsors(t: PreviousTournament): Sponsor[] {
-  // sponsors 컬럼을 형태 무관하게 읽어 이름 배열로 변환(현재 콤마 String 기준 기존과 동일).
-  //   하류 logoByName.get(name)/map 이 string[] 을 기대하므로 .map(s=>s.name) 으로 맞춘다.
-  const names = normalizeSponsors(t.sponsors).map((s) => s.name);
+  const names = (t.sponsors ?? "")
+    .split(",")
+    .map((v) => v.trim())
+    .filter(Boolean);
   const settings = objectMap(t.settings);
   const logos = Array.isArray(settings.sponsor_logos) ? settings.sponsor_logos.filter(isRecord) : [];
   const logoByName = new Map(logos.map((s) => [text(s.name), text(s.logoUrl ?? s.logo_url)]));
@@ -794,12 +796,10 @@ export function CtCreateTournament({
       organizer,
       host,
       poster,
-      // 후원사 → 배열 `[{id,name}]` (DB sponsors Json 컬럼 정합 — 구 콤마 문자열에서 전환).
-      //   빈 이름 제거 후 매핑. 0개면 [] → page.tsx 에서 undefined 처리.
-      //   로고URL(s.logoUrl)은 기존대로 settings.sponsor_logos 에 별도 보존(아래 sponsorLogos·읽기 경로 무변경).
-      sponsors: sponsors
-        .map((s) => ({ id: s.id, name: s.name.trim() }))
-        .filter((s) => s.name),
+      // 후원사 → 이름만 콤마 구분 문자열(DB String 컬럼·표시 화면 `.split(",")` 정합).
+      //   빈 이름 제거 후 join. 0개면 "" → page.tsx 에서 undefined 처리.
+      //   ⚠ 로고URL(s.logoUrl)은 전용 컬럼 부재로 1차 미저장(후속 — JSON 보존하려면 schema 확장 필요).
+      sponsors: sponsors.map((s) => s.name.trim()).filter(Boolean).join(", "),
       // gameRules = CtGameSettings 가 편집한 GameRules 12키(camelCase 그대로 jsonb 저장)
       gameRules: { ...gameRules },
       places,

@@ -469,9 +469,7 @@ export function TournamentWorkspace({
       fee_notes: form.fee_notes.trim() || null,
       organizer: form.organizer.trim() || null,
       host: form.host.trim() || null,
-      // 후원사 → 배열 `[{id,name}]`(DB sponsors Json 컬럼 정합 — 구 콤마 문자열에서 전환).
-      //   로고URL 은 위 sponsorLogos(settings.sponsor_logos)로 별도 보존(읽기 경로 무변경).
-      sponsors: sponsors.map((s) => ({ id: s.id, name: s.name })),
+      sponsors: sponsors.map((s) => s.name).join(", "),
       gender: form.gender.trim() || null,
       game_time: gameRuleStructure,
       game_ball: form.game_ball.trim() || null,

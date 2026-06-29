@@ -399,8 +399,8 @@ function QuickCreateForm() {
             seriesId: payload.isRegular ? payload.seriesId ?? undefined : undefined,
             organizer: payload.organizer || undefined,
             host: payload.host || undefined,
-            // 후원사 = 배열 `[{id,name}]`(ct-create-tournament 에서 변환). 0개면 미전송.
-            sponsors: payload.sponsors.length ? payload.sponsors : undefined,
+            // 후원사 = 콤마 구분 plain 문자열(ct-create-tournament 에서 변환). 빈 문자열이면 미전송.
+            sponsors: payload.sponsors || undefined,
             logoUrl: payload.poster || undefined, // 포스터 → logoUrl(대회 대표 이미지)
             // 일정·장소(B-1 확장형)
             startDate: payload.startDate || undefined,

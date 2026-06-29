@@ -6,8 +6,6 @@ import { updateTournamentSchema } from "@/lib/validation/tournament";
 import { apiSuccess, apiError } from "@/lib/api/response";
 import { getTournament, updateTournament } from "@/lib/services/tournament";
 import { normalizeGameRules } from "@/lib/tournaments/game-rules";
-// 후원사 정규화 — 입력(문자열/배열) → `[{id?,name,logo?}]` 배열 Json 통일 후 저장.
-import { normalizeSponsors } from "@/lib/utils/sponsors";
 // 2026-05-12 PR1 — series_id 변경 시 시리즈 소유자 검증 헬퍼.
 import {
   requireSeriesOwner,
@@ -240,11 +238,7 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
   // 새 필드: 주최/주관/후원/성별/경기설정/장소
   if (data.organizer !== undefined) updateData.organizer = data.organizer;
   if (data.host !== undefined) updateData.host = data.host;
-  // 후원사 — 배열 Json 저장. 옛 콤마 문자열/객체 어떤 형태든 normalizeSponsors 로 통일.
-  //   null = 컬럼 비움(places Json? 와 동일하게 null 통과). 그 외 = 정규화 배열.
-  if (data.sponsors !== undefined) {
-    updateData.sponsors = data.sponsors === null ? null : normalizeSponsors(data.sponsors);
-  }
+  if (data.sponsors !== undefined) updateData.sponsors = data.sponsors;
   if (data.gender !== undefined) updateData.gender = data.gender;
   if (data.game_time !== undefined) updateData.game_time = data.game_time;
   if (data.game_ball !== undefined) updateData.game_ball = data.game_ball;

@@ -12,7 +12,6 @@
 // ============================================================
 
 import type { FormState, DivisionRow } from "./_create-wizard";
-import { sponsorsFromValue } from "./_create-wizard";
 import { normalizeGameRules } from "@/lib/tournaments/game-rules";
 
 // jsonb 안전 객체화(F-2b — 재귀변환 0, 값 verbatim).
@@ -132,8 +131,7 @@ function gameRulesFrom(grValue: unknown): FormState["gameRules"] {
 export type CopySource = {
   organizer: string | null;
   host: string | null;
-  // 후원사 — Json `[{id,name,logo?}]`(과도기 옛 콤마 문자열 가능) → sponsorsFromValue 로 복원.
-  sponsors: unknown;
+  sponsors: string | null;
   description: string | null;
   rules: string | null;
   prize_info: string | null;
@@ -169,7 +167,7 @@ export function buildCopyForm(t: CopySource, ruleRows: DivisionRulePrefill[]): F
     name: "", // 비움(복사본 이름 새로 입력)
     organizer: t.organizer ?? "",
     host: t.host ?? "",
-    sponsors: sponsorsFromValue(t.sponsors), // 후원사 칩 복원(형태 무관 방어)
+    sponsors: t.sponsors ?? "",
     description: t.description ?? "",
     venues: venuesFromPlaces(t.places),
     dates: [], // 비움(새 일정)
