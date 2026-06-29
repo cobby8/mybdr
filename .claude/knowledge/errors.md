@@ -2,6 +2,37 @@
 <!-- 담당: debugger, tester | 최대 30항목 -->
 <!-- 이 프로젝트에서 반복되는 에러 패턴, 함정, 주의사항을 기록 -->
 
+### [2026-06-29] #783 보안수정 검수 — OAuth state CSRF 핸드셰이크 정합 통과 + cookies().delete() on redirect 함정 (security-reviewer)
+- **분류**: error (보안) — #783 7파일 diff 검수
+- **검수 결과**: 핸드셰이크 정합 **통과**. 시작점(`api/auth/login`)이 `crypto.randomUUID()` state를 `NextResponse`에 `oauth_state` 쿠키 set(httpOnly·lax·secure(prod)·600s·path/) + `getOAuthStartUrl(provider,state)`로 3종 URL에 `&state=` 부착. 콜백 3종(google/kakao/naver) 전부 동일 패턴으로 query state↔쿠키 비교, `if(!savedState||savedState!==state)`로 빈값·널·누락 모두 거부. 쿠키명 `oauth_state` 양쪽 일치. naver는 검증된 state를 토큰교환에 재사용(충돌 없음). cron·health도 의도대로 수정됨.
+- **함정 (신규 발견·콜백 3종 공통)**: 콜백이 `next/headers`의 `cookies().delete("oauth_state")` 후 **plain `Response.redirect()` 또는 handleOAuthLogin Response**를 반환 → 형제 고아 라우트 `api/auth/google/callback/route.ts:151` 주석("cookies().set()은 redirect에 미적용됨")이 증언하듯, 이 Next 버전에서 next/headers 쿠키 변이는 redirect 응답에 **미적용될 가능성**. 결과: state **1회용 삭제가 무음 실패**할 수 있음. 단 CSRF 검증 자체(쿠키↔query 비교)는 정상 동작하고, maxAge 600s + 다음 로그인 시 덮어쓰기로 윈도우가 한정되므로 **방어심층 약화이지 핸드셰이크 마비/CSRF 잔존 아님**(🟡). 안전한 1회용 보장 원하면 login route처럼 반환 `NextResponse`에 `response.cookies.set("oauth_state","",{maxAge:0})`로 삭제.
+- **참조 (out-of-diff)**: 병행 고아 로그인 경로 `api/auth/{google,kakao}/route.ts` + `/{provider}/callback`가 동일 `oauth_state` 쿠키명으로 자체 CSRF 보유(google 확인). UI 미배선·정리 대상이나 동일 쿠키명 공유 → 정리 시 함께 제거 권장.
+- **참조횟수**: 0
+
+### [2026-06-29] 운영 보안 전수 점검 — 발견 갭 4건
+- **분류**: error (운영 보안)
+- **발견자**: site-security
+- **내용**:
+  1. **jti 블랙리스트 미구현** — `src/lib/auth/jwt.ts` EXPIRY=7d / jti 생성은 하나 Redis 블랙리스트 미적용. 로그아웃해도 토큰 7일 유효. TODO 주석 존재. 조치: Redis jti 블랙리스트 도입 또는 토큰 만료 단축.
+  2. **expire-pending-bookings cron — CRON_SECRET 조건부 우회** — `src/app/api/cron/expire-pending-bookings/route.ts` L37: `if (process.env.CRON_SECRET && ...)` 패턴. CRON_SECRET 미설정 시 인증 없이 누구나 호출 가능. 다른 12개 cron은 `if (authHeader !== 'Bearer ...')` 무조건 체크(미설정=모든요청차단). 이 cron은 pending 예약을 cancelled 처리하므로 악용 위험. 조치: 다른 cron 패턴(`if (authHeader !== 'Bearer ...')`)으로 통일.
+  3. **CSP script-src 'unsafe-inline' 잔존** — `next.config.ts` L6: 프로덕션에서도 'unsafe-inline' 미제거. TODO 주석으로 nonce 구현 예정이나 미완. XSS 공격 CSP 방어 약화. 조치: nonce 기반 CSP 구현(`proxy.ts`에서 nonce 생성 → `x-nonce` 헤더 전달) 후 'unsafe-inline' 제거.
+  4. **upload rate limit 미매핑** — `RATE_LIMITS.upload` (10/min) 정의는 있으나 `proxy.ts` `getRateLimitConfig()`에서 upload 경로 미매핑 → 파일업로드도 `api` (100/min) 한도 적용. 조치: `pathname.includes("/upload")` 조건 추가.
+- **참조횟수**: 0
+
+### [2026-06-29] 코드 전수 보안 진단 기준선 — IDOR/권한/멀티테넌트 0건, 안전 패턴 박제 (security-reviewer)
+- **분류**: error (보안) — 코드 레벨 기준선 (site-security 운영갭 4건과 상보)
+- **발견자**: security-reviewer (라우트 345개 샘플링 + IDOR/권한상승/멀티테넌트 3영역 심층, 코드 0수정)
+- **안전 패턴 (신규 비공개 API 작성 시 준수)**:
+  - **인증 2계층**: v1(Flutter)=`withAuth`(Bearer JWT+roles)+`withValidation`(Zod) / web=`getWebSession`·`withWebAuth`(httpOnly 쿠키 JWT, `__Host-` prefix). JWT **직접 verify**(헤더 스푸핑 차단). 매치 기록 v1 = `requireRecorder(req,id)` = JWT + **매치별 인가**(super_admin/recorder_admin/organizer/active recorder) + apiToken 폴백.
+  - **IDOR 방어(0건)**: 개인 리소스 라우트 전부 소유권 검증 — `where:{id,userId}` WHERE필터 / 조회후 `entity.userId!==session.sub` 비교 / 헬퍼(`verifyCampaignOwnership`·`checkCourtManager`·`hasTeamOfficerPermission`·`loadOwnedCertificate`). referee-documents(신분증 OCR)도 `referee.user_id===userId`.
+  - **권한상승 방어(0건)**: `/api/admin/**`=super_admin 게이트 / 대회=`requireTournamentAdmin`·`canManageTournament`(tournamentId 더블검증) / 협회=`getAssociationAdmin`(associationId 강제주입→cross-assoc 격리).
+  - **멀티테넌트(0건)**: 서브도메인→`x-tournament-subdomain` 헤더→`tournamentSite.findUnique({subdomain})`→모든 쿼리 `where:{tournamentId}`. 경로 파라미터라 쿼리스트링 우회 불가.
+  - **raw SQL**: 전부 tagged-template 파라미터 바인딩. 유일 `$queryRawUnsafe`(courts/heatmap)=period 화이트리스트+시간상수+`$1` 바인딩(안전).
+  - **시크릿**: NEXT_PUBLIC 노출값 전부 공개용(ANON_KEY·VAPID_PUBLIC·TOSS_CLIENT·KAKAO_MAPS·PORTONE_STORE/CHANNEL). 누출 0. account_number 응답 마스킹+암호화.
+- **경미 2건(🟡)**: ① `web/auth/forgot-password/route.ts:61` dev에서 응답에 reset_token 반환(`isDev` 게이트 — 운영 NODE_ENV 전제로 안전). ② `require-recorder.ts:77` apiToken `===` 비상수시간 비교(고엔트로피라 실위험 무시 수준).
+- **예방**: 신규 비공개 API = web `getWebSession`/`withWebAuth` 또는 v1 `withAuth` 필수 + 개인리소스는 소유권 WHERE/비교 동반. 신규 v1 공개 라우트 = `proxy.ts` PUBLIC_API_ROUTES 등록(별도 함정 참조).
+- **참조횟수**: 0
+
 ### [2026-06-28] prisma db/generate 함정 2종 — cmd 래퍼 무음 미적용 + stale .prisma/client 캐시 (R6-C db push)
 - **분류**: 함정 (Windows/cmd 래퍼 / Prisma generate 캐시 / db push)
 - **발견자**: PM (R6-C 신규 테이블 referee_evaluations·partner_settlements db push 중)

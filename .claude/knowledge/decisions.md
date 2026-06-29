@@ -2,6 +2,17 @@
 <!-- 담당: planner-architect | 최대 30항목 -->
 <!-- "왜 A 대신 B를 선택했는지" 기술 결정의 배경과 이유를 기록 -->
 
+### [2026-06-29] 후원사 sponsors varchar→jsonb 마이그레이션 실행 (운영 DB·무손실)
+- **분류**: decision (스키마 타입 변경 / 데이터 보존 / 마이그레이션 경로)
+- **발견자**: db-migration-expert
+- **계기**: 후원사 입력을 콤마 문자열(`"몰텐, 스티즈"`) → 구조화 배열 `[{id,name,logo?}]`로 전환(마법사 칩 UI·로고 첨부 대비). schema.prisma `sponsors String? @db.VarChar` → `Json?` 선반영(developer), DB ALTER는 PM 별도 실행.
+- **결정·실행**: `ALTER COLUMN sponsors TYPE jsonb USING ...` 단일 트랜잭션. 변환 로직(콤마/슬래시 분리→`{id,name}` 배열)은 **IMMUTABLE 함수로 감싸 USING에서 호출**(PostgreSQL은 ALTER USING transform 식에 **서브쿼리 직접 사용 불가** — `cannot use subquery in transform expression`. 함수는 TX 내 생성→사용→DROP). id = `'sp_' || substr(md5(tok||ord||원본),1,12)` 결정적 생성.
+- **안전 가드**: 실행 전 백업 `CREATE TABLE _backup_sponsors_20260629 AS SELECT id, sponsors AS sponsors_old`(26행, 동일 TX). 사전 SELECT(타입 varchar·26건·빈문자열0 실측) + 사후 SELECT(타입 jsonb·array 26·len≥1 26·원본↔변환 불일치 0건·샘플 6건 대조) 양방향 검증.
+- **연결 방법(함정)**: 생성된 Prisma client가 `--no-engine`(Accelerate)라 직접 raw 쿼리 시 `URL must start with prisma://` 오류. dev 서버(3001)가 엔진 DLL 점유 중이라 재생성 회피 → **`pg` 드라이버 `--no-save` 임시설치 + DIRECT_URL 직결**로 실행(lockfile 무변동, node_modules만, gitignored).
+- **롤백 경로**: 백업 테이블 `_backup_sponsors_20260629`에서 원본 문자열 복원(컬럼 varchar 환원 후 join UPDATE). 백업은 검증 후 사용자 승인 시 별도 DROP(현재 보존).
+- **남은 작업**: 풀 `prisma generate`(엔진 포함·dev 중지 후) 필요 — 미실행 시 런타임 engine=none. 코드 13파일 미커밋.
+- **참조횟수**: 0
+
 ### [2026-06-21] Track B Phase4 새 대회 생성폼 전면교체 — 4개 PM 결정 + Flutter 게이트 오해 차단
 - **분류**: decision (생성폼 리빌딩 / 경기설정 저장 / 날짜↔코트 스키마 / Flutter 무영향)
 - **발견자**: planner-architect + pm (새 대회 만들기 지시서 정합 조사 2회)
