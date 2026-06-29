@@ -21,6 +21,7 @@ import { Icon, Btn, Modal } from "@/components/admin-toss";
 import { ImageUploader } from "@/components/shared/image-uploader";
 import { InlineSeriesForm, type CreatedSeries } from "@/components/tournament/inline-series-form";
 import { normalizeGameRules } from "@/lib/tournaments/game-rules";
+import { normalizeSponsors } from "@/lib/utils/sponsors";
 import {
   ScheduleVenue,
   allCourts,
@@ -198,10 +199,9 @@ function previousVenues(t: PreviousTournament): Venue[] {
 }
 
 function previousSponsors(t: PreviousTournament): Sponsor[] {
-  const names = (t.sponsors ?? "")
-    .split(",")
-    .map((v) => v.trim())
-    .filter(Boolean);
+  // sponsors 컬럼을 형태 무관하게 읽어 이름 배열로 변환(현재 콤마 String 기준 기존과 동일).
+  //   하류 logoByName.get(name)/map 이 string[] 을 기대하므로 .map(s=>s.name) 으로 맞춘다.
+  const names = normalizeSponsors(t.sponsors).map((s) => s.name);
   const settings = objectMap(t.settings);
   const logos = Array.isArray(settings.sponsor_logos) ? settings.sponsor_logos.filter(isRecord) : [];
   const logoByName = new Map(logos.map((s) => [text(s.name), text(s.logoUrl ?? s.logo_url)]));
