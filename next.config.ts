@@ -262,6 +262,48 @@ const nextConfig: NextConfig = {
         destination: "/v2/court-console",
         permanent: true,
       },
+
+      // ─────────────────────────────────────────────────────────────
+      // R7 컷오버 후속: ④협력(partner-admin→partner)·①대회운영(→v2/operate)
+      //   완료영역만 308 봉인. 레거시 라우트 무손상(롤백=규칙제거).
+      // ─────────────────────────────────────────────────────────────
+
+      // ── ④ 협력(/partner-admin) → /partner (편집폼 완료·ready) ──
+      {
+        // 협력 홈
+        source: "/partner-admin",
+        destination: "/partner",
+        permanent: true,
+      },
+      {
+        // 캠페인 목록
+        source: "/partner-admin/campaigns",
+        destination: "/partner/campaigns",
+        permanent: true,
+      },
+      {
+        // 캠페인 상세 (:id 보존 매핑)
+        source: "/partner-admin/campaigns/:id",
+        destination: "/partner/campaigns/:id",
+        permanent: true,
+      },
+      {
+        // 장소 관리 — 레거시 단수 venue → v2 복수 venues (경로 리네이밍)
+        source: "/partner-admin/venue",
+        destination: "/partner/venues",
+        permanent: true,
+      },
+
+      // ── ① 대회운영(/tournament-admin/tournaments/:id) → /v2/operate/:id ──
+      {
+        // ★id=UUID(String) → 숫자제한 불가. UUID 형식 정규식으로 :id 제한해
+        //   세그먼트 1개짜리 비-UUID(예: /new 생성진입)를 자동 배제(운영 마비 방지).
+        //   /:id/edit·/new/wizard(세그먼트 2개)는 애초에 :id(1개) 미매칭.
+        source:
+          "/tournament-admin/tournaments/:id([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})",
+        destination: "/v2/operate/:id",
+        permanent: true,
+      },
     ];
   },
   async headers() {
