@@ -304,6 +304,24 @@ const nextConfig: NextConfig = {
         destination: "/v2/operate/:id",
         permanent: true,
       },
+
+      // ─────────────────────────────────────────────────────────────
+      // R7 컷오버 일괄 봉인(2026-06-30) — 매칭 + 백오피스 6콘솔 완료영역
+      //   v2 포팅·reviewer 통과 영역의 레거시를 308 봉인. 무손상·롤백=규칙제거.
+      //   ★함정: /admin/games 는 [id](BigInt 숫자) → :id(\d+) 숫자제한.
+      //     /admin/news 는 exact(하위 /compose 는 v2 미대응 → 미매칭 유지).
+      // ─────────────────────────────────────────────────────────────
+      // ② 매칭(픽업/게스트 경기) → /v2/match-console
+      { source: "/admin/games", destination: "/v2/match-console", permanent: true },
+      { source: "/admin/games/:id([0-9]+)", destination: "/v2/match-console/:id", permanent: true },
+      // 백오피스 6콘솔(super/admin) → /v2/*
+      { source: "/admin/settings", destination: "/v2/settings", permanent: true },
+      { source: "/admin/logs", destination: "/v2/logs", permanent: true },
+      { source: "/admin/notifications", destination: "/v2/notifications", permanent: true },
+      { source: "/admin/me", destination: "/v2/mypage", permanent: true }, // me → mypage(경로 리네이밍)
+      { source: "/admin/categories", destination: "/v2/categories", permanent: true },
+      { source: "/admin/partners", destination: "/v2/partner-console", permanent: true }, // super 파트너 관리(본인포털 /partner 와 무관)
+      { source: "/admin/news", destination: "/v2/news-console", permanent: true }, // exact — /admin/news/compose 는 미매칭(레거시 유지)
     ];
   },
   async headers() {
