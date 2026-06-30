@@ -2,6 +2,16 @@
 <!-- 담당: debugger, tester | 최대 30항목 -->
 <!-- 이 프로젝트에서 반복되는 에러 패턴, 함정, 주의사항을 기록 -->
 
+### [2026-06-30] tsc EXIT 0인데 `next build` 실패 — RSC client/server 경계 위반 (tsc 미검출)
+- **분류**: error (Next.js App Router 빌드 / RSC 경계)
+- **발견자**: tester (PUB-0b PR1 검증 중 부수 발견 — 원인은 ③-A 심판 배정 작업)
+- **증상**: `npx tsc --noEmit` EXIT 0인데 `npm run build`/`next build`가 `"You're importing a component that needs next/headers. That only works in a Server Component..."` 류로 거부. dev 브랜치 전체 빌드 실패.
+- **원인**: `"use client"` 컴포넌트(`assignments/_assignment-workflow.tsx`)가 순수 표시 헬퍼를 `_referee-data.ts`에서 import했는데, **그 모듈 상단이 `getWebSession`(→`next/headers`)·`prisma`를 import** → 헬퍼 하나만 가져와도 **server 전용 모듈 전체가 클라이언트 번들로 끌려와** Turbopack이 빌드 거부. (트리셰이킹으로 안 빠짐 — 모듈 평가 시점에 import 됨.)
+- **핵심 함정**: **`tsc`는 RSC client/server 경계를 검사하지 않는다.** 그래서 "tsc0 = 검증 완료"로 기록하면 build가 깨진 채 통과로 오인된다. ③-A가 "tsc0·검증대기"로 기록됐으나 실제 build는 실패 상태였고, 그대로 push되어 공유 dev를 마비시킴.
+- **해결**: 순수 표시/포맷 헬퍼는 **server import 없는 별도 파일**(`_referee-format.ts`)로 분리. server 모듈은 거기서 re-export(server 사용처 호환). client는 순수 파일에서만 import. → `next build` EXIT 0.
+- **예방**: ①client에서 쓰는 헬퍼를 server-only(next/headers·prisma·getWebSession) import가 있는 모듈에 **동거시키지 말 것**. ②**검증대기/완료 판정은 `npm run build`로** — RSC 경계·번들 경계는 tsc로 못 잡으니 build 필수. ("tsc0=완료" 금지.) ③`"use client"` 파일이 import하는 모듈 체인에 server-only가 없는지 점검.
+- **참조횟수**: 0
+
 ### [2026-06-29] #783 보안수정 검수 — OAuth state CSRF 핸드셰이크 정합 통과 + cookies().delete() on redirect 함정 (security-reviewer)
 - **분류**: error (보안) — #783 7파일 diff 검수
 - **검수 결과**: 핸드셰이크 정합 **통과**. 시작점(`api/auth/login`)이 `crypto.randomUUID()` state를 `NextResponse`에 `oauth_state` 쿠키 set(httpOnly·lax·secure(prod)·600s·path/) + `getOAuthStartUrl(provider,state)`로 3종 URL에 `&state=` 부착. 콜백 3종(google/kakao/naver) 전부 동일 패턴으로 query state↔쿠키 비교, `if(!savedState||savedState!==state)`로 빈값·널·누락 모두 거부. 쿠키명 `oauth_state` 양쪽 일치. naver는 검증된 state를 토큰교환에 재사용(충돌 없음). cron·health도 의도대로 수정됨.
