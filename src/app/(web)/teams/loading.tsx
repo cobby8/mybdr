@@ -23,8 +23,8 @@ export default function TeamsLoading() {
             key={i}
             className="rounded-lg border overflow-hidden"
             style={{
-              borderColor: "var(--color-border)",
-              backgroundColor: "var(--color-surface)",
+              borderColor: "var(--border)",
+              backgroundColor: "var(--bg-elev)",
             }}
           >
             {/* 배너 영역 */}

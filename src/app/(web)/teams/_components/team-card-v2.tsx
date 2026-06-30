@@ -22,6 +22,8 @@ interface TeamCardV2Data {
   district: string | null;
   accepting_members: boolean | null;
   created_at: string | null;
+  // 시안 Team.jsx 정합: 멤버수 + 지역 표시용
+  member_count?: number;
 }
 
 // 기존 team-card.tsx 의 resolveAccent 와 동일 로직.
@@ -175,8 +177,18 @@ export function TeamCardV2({
             {team.name}
           </div>
 
-          {/* 창단 연도 */}
-          <div style={{ fontSize: 11, opacity: 0.85, marginTop: 4 }}>
+          {/* 시안 정합(Team.jsx): 지역 + 멤버수 메타 — 창단연도와 함께 표시 */}
+          <div style={{ fontSize: 11, opacity: 0.85, marginTop: 4, display: "flex", gap: 8, flexWrap: "wrap" }}>
+            {(team.city || team.district) && (
+              <span>
+                {[team.city, team.district].filter(Boolean).join(" ")}
+              </span>
+            )}
+            {typeof team.member_count === "number" && team.member_count > 0 && (
+              <span>{team.member_count}명</span>
+            )}
+          </div>
+          <div style={{ fontSize: 10, opacity: 0.7, marginTop: 2 }}>
             창단 {founded}
           </div>
         </div>

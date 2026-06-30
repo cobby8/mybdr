@@ -163,28 +163,28 @@ export function JerseyChangeRequestModal({
       <div
         onClick={(e) => e.stopPropagation()}
         style={{
-          // 디자인 토큰 통일 — match-jersey-override-modal 패턴 (--color-* 호환 레이어)
-          background: "var(--color-card)",
+          // DS v4 토큰
+          background: "var(--bg-card)",
           borderRadius: 8,
           padding: 20,
           maxWidth: 420,
           width: "100%",
-          border: "1px solid var(--color-border)",
+          border: "1px solid var(--border)",
           maxHeight: "90vh",
           overflowY: "auto",
-          color: "var(--color-text-primary)",
+          color: "var(--ink)",
         }}
       >
         <h2
           id="jersey-change-modal-title"
-          style={{ fontSize: 18, fontWeight: 700, marginBottom: 4, color: "var(--color-text-primary)" }}
+          style={{ fontSize: 18, fontWeight: 700, marginBottom: 4, color: "var(--ink)" }}
         >
           등번호 변경 신청
         </h2>
         {/* 현재 번호 안내 — 본인 컨텍스트 인지 */}
-        <p style={{ fontSize: 12, color: "var(--color-text-muted)", marginBottom: 12 }}>
+        <p style={{ fontSize: 12, color: "var(--ink-mute)", marginBottom: 12 }}>
           현재 등번호:{" "}
-          <span style={{ color: "var(--color-text-primary)", fontWeight: 600 }}>
+          <span style={{ color: "var(--ink)", fontWeight: 600 }}>
             {currentJersey !== null ? `#${currentJersey}` : "미배정"}
           </span>
         </p>
@@ -193,10 +193,10 @@ export function JerseyChangeRequestModal({
         <div
           style={{
             fontSize: 12,
-            color: "var(--color-text-muted)",
+            color: "var(--ink-mute)",
             marginBottom: 12,
             padding: "8px 10px",
-            background: "var(--color-elevated)",
+            background: "var(--bg-elev)",
             borderRadius: 4,
             minHeight: 32,
           }}
@@ -206,7 +206,7 @@ export function JerseyChangeRequestModal({
           ) : jerseysInUse && jerseysInUse.length > 0 ? (
             <span>
               팀 내 사용 중 번호:{" "}
-              <span style={{ color: "var(--color-text-primary)", fontWeight: 600 }}>
+              <span style={{ color: "var(--ink)", fontWeight: 600 }}>
                 {jerseysInUse.map((j) => `#${j}`).join(", ")}
               </span>
             </span>
@@ -217,8 +217,8 @@ export function JerseyChangeRequestModal({
 
         {/* 새 번호 input */}
         <label style={{ display: "block", marginBottom: 12 }}>
-          <span style={{ fontSize: 13, color: "var(--color-text-primary)", display: "block", marginBottom: 4 }}>
-            새 등번호 (0~99) <span style={{ color: "var(--color-error)" }}>*</span>
+          <span style={{ fontSize: 13, color: "var(--ink)", display: "block", marginBottom: 4 }}>
+            새 등번호 (0~99) <span style={{ color: "var(--danger)" }}>*</span>
           </span>
           <input
             type="number"
@@ -234,9 +234,9 @@ export function JerseyChangeRequestModal({
               width: "100%",
               padding: "8px 10px",
               borderRadius: 4,
-              border: "1px solid var(--color-border)",
-              background: "var(--color-elevated)",
-              color: "var(--color-text-primary)",
+              border: "1px solid var(--border)",
+              background: "var(--bg-elev)",
+              color: "var(--ink)",
               // iOS 자동 줌 차단 — 16px 미만 input 시 발생. 모바일 룰 §6-2
               fontSize: 16,
             }}
@@ -245,7 +245,7 @@ export function JerseyChangeRequestModal({
 
         {/* 사유 textarea — 선택, 100자 / placeholder 5단어 이내 + "예) " prefix 제거 (06 self-checklist) */}
         <label style={{ display: "block", marginBottom: 16 }}>
-          <span style={{ fontSize: 13, color: "var(--color-text-primary)", display: "block", marginBottom: 4 }}>
+          <span style={{ fontSize: 13, color: "var(--ink)", display: "block", marginBottom: 4 }}>
             변경 사유 (선택)
           </span>
           <textarea
@@ -259,15 +259,15 @@ export function JerseyChangeRequestModal({
               width: "100%",
               padding: "8px 10px",
               borderRadius: 4,
-              border: "1px solid var(--color-border)",
-              background: "var(--color-elevated)",
-              color: "var(--color-text-primary)",
+              border: "1px solid var(--border)",
+              background: "var(--bg-elev)",
+              color: "var(--ink)",
               fontSize: 16,
               resize: "vertical",
               fontFamily: "inherit",
             }}
           />
-          <span style={{ fontSize: 11, color: "var(--color-text-muted)" }}>
+          <span style={{ fontSize: 11, color: "var(--ink-mute)" }}>
             {reasonInput.trim().length}/100
           </span>
         </label>
@@ -278,7 +278,7 @@ export function JerseyChangeRequestModal({
             style={{
               fontSize: 12,
               marginBottom: 12,
-              color: message.type === "success" ? "var(--color-success)" : "var(--color-error)",
+              color: message.type === "success" ? "var(--ok)" : "var(--danger)",
             }}
           >
             {message.text}

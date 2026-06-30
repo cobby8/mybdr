@@ -527,6 +527,8 @@ export function TeamsContentV2() {
                 district: team.district,
                 accepting_members: team.accepting_members,
                 created_at: team.created_at ?? null,
+                // 시안 Team.jsx 정합: 멤버수 표시 (API 기존 응답 활용, 신규 fetch 0)
+                member_count: team.member_count,
               };
               // Phase B: 페이지네이션을 가로지르는 전체 정렬 인덱스. 1페이지 1번부터 N번까지 연속.
               const rankIndex = pageStartIndex + idx;
