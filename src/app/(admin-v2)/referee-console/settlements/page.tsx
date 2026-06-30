@@ -16,7 +16,8 @@ import {
   fmtDate,
   avColor,
 } from "../_referee-data";
-import { SettlementsList, type RfSettleRow } from "./_settlements";
+import { type RfSettleRow } from "./_settlements";
+import { SettlementsConsole } from "./_settlements-console";
 
 export const dynamic = "force-dynamic";
 
@@ -53,5 +54,6 @@ export default async function RefereeSettlementsPage() {
     };
   });
 
-  return <SettlementsList rows={rows} />;
+  // 3 탭(목록/통계/일괄생성) 컨테이너로 전달 — 목록 rows 는 서버에서 그대로 박제.
+  return <SettlementsConsole rows={rows} />;
 }
