@@ -328,6 +328,12 @@ const nextConfig: NextConfig = {
       // 매너평가·시즌시상 v2 포팅(67cd7c4) → 봉인 (둘 다 exact·하위 없음)
       { source: "/admin/game-reports", destination: "/v2/manner-console", permanent: true },
       { source: "/admin/season-awards", destination: "/v2/season-awards", permanent: true },
+      // tournaments: 목록→/v2/ta·상세→/v2/operate·super 행정 2화면(5363494)→/v2/tournaments/[id]/*
+      //   id=UUID(String) → 형식 정규식으로 :id 1세그먼트 제한(하위 audit-log/transfer 미매칭·/new 등 배제)
+      { source: "/admin/tournaments", destination: "/v2/ta/tournaments", permanent: true },
+      { source: "/admin/tournaments/:id([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})", destination: "/v2/operate/:id", permanent: true },
+      { source: "/admin/tournaments/:id([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})/audit-log", destination: "/v2/tournaments/:id/audit-log", permanent: true },
+      { source: "/admin/tournaments/:id([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})/transfer-organizer", destination: "/v2/tournaments/:id/transfer-organizer", permanent: true },
     ];
   },
   async headers() {
