@@ -3,8 +3,9 @@
 // ============================================================
 // referee-console/members/_members.tsx — 심판 명단 (클라). 정본 RF_REFS SchemaList 1:1.
 //   서버에서 referee(전역) 실 매핑된 rows 를 받아 SchemaList 렌더.
-//   - 행 클릭 → 읽기전용 상세 드로어(SchemaList 기본 openDetail).
-//   - ⚠ "심판 등록"(addLabel) 생략 — 사전등록은 협회 admin(레거시) 소관. 글로벌 콘솔은 READ.
+//   - 행 클릭 → 상세 페이지 `/referee-console/members/[id]` 로 이동(rowHref).
+//   - "심판 사전 등록"(addLabel) → `/referee-console/members/new` 등록 폼으로 이동.
+//     컷오버 4-4b: 레거시 (referee)/referee/admin/members 신규등록·상세를 v2 로 포팅.
 // ============================================================
 
 import React from "react";
@@ -34,9 +35,13 @@ export function MembersList({ rows }: { rows: RfMemberRow[] }) {
   const schema: Schema = {
     head: "심판 명단",
     sub: "전 협회 활동 심판의 등급·지역·배정 현황을 확인합니다.",
+    // 추가 버튼 → 사전 등록 폼(레거시 new 포팅). addHref 가 있으면 토스트 대신 페이지 이동.
+    addLabel: "심판 사전 등록",
+    addHref: "/referee-console/members/new",
+    // 행 클릭 → 심판 상세 페이지(레거시 [id] 포팅). r.id = referee.id(string).
+    rowHref: (r) => `/referee-console/members/${r.id}`,
     cols: COLS,
     rows,
   };
-  // rowHref/onRow 없음 → SchemaList 기본(읽기전용 상세 드로어).
   return <SchemaList schema={schema} eyebrow="심판 콘솔" />;
 }

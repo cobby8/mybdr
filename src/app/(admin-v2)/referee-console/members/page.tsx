@@ -1,10 +1,12 @@
 // ============================================================
 // referee-console/members/page.tsx — 심판 명단 (정본 referee-pages RF_REFS 1:1)
-//   ★글로벌 super 스코프 — 협회 필터 0(전 협회 심판 통합). READ only.
+//   ★글로벌 super 스코프 — 협회 필터 0(전 협회 심판 통합). 목록 READ only.
 //   서버 컴포넌트 Prisma 직접 READ → 클라(_members) SchemaList.
 //   - 등급 = referee.level(DB enum) 매핑(정본 1/2/3급은 cert_grade 데모 → DB 컬럼 사용).
 //   - 배정 수 = _count.assignments / 활동지역 = region_sido·sigungu.
 //   - 데이터 0행 → SchemaList Empty(mock 0).
+//   ★컷오버 4-4b 배선: rows 의 id(=referee.id)로 _members 에서
+//     rowHref(→상세 [id]) · addHref(→신규 new) 네비게이션을 건다. 본 페이지는 목록 데이터만 매핑.
 // ============================================================
 
 import { prisma } from "@/lib/db/prisma";
