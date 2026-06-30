@@ -33,6 +33,7 @@ const NAV: NavItem[] = [
   { id: "payments", icon: "credit-card", text: "결제" },
   { id: "plans", icon: "layers", text: "요금제" },
   { label: "시스템" },
+  { id: "categories", icon: "layout-grid", text: "종별 관리" },
   { id: "notifications", icon: "bell", text: "알림" },
   { id: "settings", icon: "settings", text: "설정" },
   { id: "mypage", icon: "user", text: "마이페이지" },
@@ -50,6 +51,7 @@ const TARGET: Record<string, string> = {
   marketingConsole: "/v2/marketing-console",
   payments: "/v2/payments",
   plans: "/v2/plans",
+  categories: "/v2/categories",
   notifications: "/v2/notifications",
   settings: "/v2/settings",
   mypage: "/v2/mypage",
@@ -87,6 +89,8 @@ export function V2Shell({
       ? "plans"
       : pathname.startsWith("/v2/logs")
       ? "logs"
+      : pathname.startsWith("/v2/categories")
+      ? "categories"
       : pathname.startsWith("/v2/notifications")
       ? "notifications"
       : pathname.startsWith("/v2/settings")
