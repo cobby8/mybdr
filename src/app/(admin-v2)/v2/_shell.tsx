@@ -26,7 +26,8 @@ const NAV: NavItem[] = [
   { id: "communityConsole", icon: "message-square", text: "커뮤니티 콘솔" },
   { id: "courtConsole", icon: "map-pin", text: "코트 콘솔" },
   { href: "/v2/soon?c=referee", icon: "gavel", text: "심판 콘솔" },
-  { href: "/v2/soon?c=partner", icon: "handshake", text: "협력업체 콘솔" },
+  // 협력업체 콘솔 = super_admin 의 파트너사 승인·관리 콘솔(컷오버 포팅·soon 해제)
+  { id: "partnerConsole", icon: "handshake", text: "협력업체 콘솔" },
   { id: "marketingConsole", icon: "megaphone", text: "마케팅 콘솔" },
   { id: "publicsite", icon: "globe", text: "공개 사이트" },
   { label: "정산·플랜" },
@@ -48,6 +49,7 @@ const TARGET: Record<string, string> = {
   matchConsole: "/v2/match-console",
   communityConsole: "/v2/community-console",
   courtConsole: "/v2/court-console",
+  partnerConsole: "/v2/partner-console",
   marketingConsole: "/v2/marketing-console",
   payments: "/v2/payments",
   plans: "/v2/plans",
@@ -81,6 +83,8 @@ export function V2Shell({
       ? "communityConsole"
       : pathname.startsWith("/v2/court-console")
       ? "courtConsole"
+      : pathname.startsWith("/v2/partner-console")
+      ? "partnerConsole"
       : pathname.startsWith("/v2/marketing-console")
       ? "marketingConsole"
       : pathname.startsWith("/v2/payments")
