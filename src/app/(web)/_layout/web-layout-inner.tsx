@@ -150,7 +150,7 @@ function WebLayoutBody({ children, initialUser }: WebLayoutInnerProps) {
   }, []);
 
   return (
-    <div className="flex min-h-screen flex-col" style={{ background: "var(--bg)" }}>
+    <div className="flex min-h-screen flex-col" style={{ background: "var(--bg)" }} data-pub>
       {/* 상단 가로 네비 — utility bar + 메인 탭 + 모바일 drawer 일체.
        * [2026-04-22] v2 시안 매칭: rightAccessory(별 아이콘) 제거.
        * [2026-05-04 P4] SSR initialUser 주입 → 첫 paint 부터 정확. */}

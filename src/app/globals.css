@@ -7155,3 +7155,128 @@ html.dark {
   .sc-row, .sc-prop { grid-template-columns: 1fr; }
   .sc-row__act { flex-direction: row; min-width: 0; }
 }
+
+/* ============================================================
+   PUB SCOPE — DS v4 토큰 오버라이드 (공개웹 [data-pub] 전용)
+   Phase PUB-0b PR1 — 2026-06-30
+   ⚠️ :root / [data-theme] 전역 블록 미변경.
+      레거시(admin / referee / score-sheet / (site)) 는 스코프 밖이라 영향 0.
+   스코프 마커: (web) 레이아웃 최상위 wrapper에 data-pub 속성.
+   PR2(셸 컴포넌트 교체) 전까지 마커만 부여, 토큰 토대만 정착.
+   ============================================================ */
+
+/* PUB 공통 + LIGHT — 라이트모드 기본값 (포인트 = 토스 블루 #3182F6)
+   html[data-theme="dark"] 또는 html.dark 에서는 아래 DARK 블록이 높은 명시도로 덮어씀. */
+[data-pub] {
+  color-scheme: light;
+
+  /* Radii — DS v4 소프트 지오메트리 (레거시 4px/6px → 9px/11px) */
+  --r-1: 7px;    /* chips / badges */
+  --r-2: 9px;    /* inputs / small cards */
+  --r-3: 11px;   /* buttons / menus */
+  --r-4: 13px;   /* large surfaces */
+  --radius-card: 16px;
+  --radius-chip: 8px;
+
+  /* Neutral surfaces */
+  --bg:          #F2F4F6;
+  --bg-elev:     #FFFFFF;
+  --bg-card:     #FFFFFF;
+  --bg-alt:      #F9FAFB;
+  --bg-head:     #F4F6F8;
+
+  /* Ink */
+  --ink:         #191F28;
+  --ink-soft:    #4E5968;
+  --ink-mute:    #8B95A1;
+  --ink-dim:     #B0B8C1;
+  --ink-on-brand:#FFFFFF;
+
+  /* Borders — 소프트 (하드 대비선 제거) */
+  --border:        #E5E8EB;
+  --border-strong: #D1D6DB;
+  --border-hard:   #D1D6DB;
+
+  /* 포인트 = 토스 블루 (cafe-blue 슬롯에 통합) */
+  --cafe-blue:       #3182F6;
+  --cafe-blue-deep:  #1B64DA;
+  --cafe-blue-soft:  #E8F1FE;
+  --cafe-blue-hair:  #CFE0FC;
+  --link:            #1B64DA;
+  --link-visited:    #6544A6;
+  --accent:          #3182F6;
+  --accent-soft:     #E8F1FE;
+
+  /* DS v4 단축 토큰 별칭
+     — DualSideNav·BDR-current 화면이 참조하는 신규 토큰명을 현행 토큰 위에서 흐르게 함 */
+  --primary:      #3182F6;
+  --primary-deep: #1B64DA;
+  --primary-on:   #FFFFFF;
+  --soft-fill:    #E8F1FE;
+  --soft-ink:     #1B64DA;
+  --red:          #E31B23;  /* 브랜드 레드 — 고정 (LIVE / 기록 / 브랜드 모먼트) */
+  --elev: #FFFFFF; --card: #FFFFFF; --alt: #F9FAFB; --head: #F4F6F8;
+  --soft: #4E5968; --mute: #8B95A1; --dim: #B0B8C1; --bstrong: #D1D6DB;
+  --shadow: rgba(20, 28, 40, .14);
+
+  /* Shadows — 소프트 블러 */
+  --sh-xs: 0 1px 2px rgba(20, 28, 40, .06);
+  --sh-sm: 0 2px 6px rgba(20, 28, 40, .08);
+  --sh-md: 0 6px 18px rgba(20, 28, 40, .10);
+  --sh-lg: 0 12px 40px rgba(20, 28, 40, .14);
+}
+
+/* PUB DARK — 포인트 = BDR 레드 #E31B23
+   ThemeSwitch 이중 셀렉터 호환: data-theme="dark" + html.dark 클래스 모두 지원
+   명시도 (0,2,1) > [data-pub] (0,1,0) → 다크 시 올바르게 덮어씀 */
+html[data-theme="dark"] [data-pub],
+html.dark [data-pub] {
+  color-scheme: dark;
+
+  /* Neutral surfaces */
+  --bg:          #0A0C10;
+  --bg-elev:     #12161C;
+  --bg-card:     #161B22;
+  --bg-alt:      #1C222B;
+  --bg-head:     #1E2530;
+
+  /* Ink */
+  --ink:         #F4F6F8;
+  --ink-soft:    #C9D1DB;
+  --ink-mute:    #8A95A3;
+  --ink-dim:     #5B6675;
+  --ink-on-brand:#FFFFFF;
+
+  /* Borders — 소프트 (흰 하드 테두리 제거) */
+  --border:        #252C36;
+  --border-strong: #39434F;
+  --border-hard:   #39434F;
+
+  /* 포인트 = BDR 레드 */
+  --cafe-blue:       #E31B23;
+  --cafe-blue-deep:  #B3141A;
+  --cafe-blue-soft:  rgba(227, 27, 35, .14);
+  --cafe-blue-hair:  rgba(227, 27, 35, .30);
+  --link:            #6EA8FE;  /* 링크는 가독성 위해 블루 유지 */
+  --link-visited:    #B79BFF;
+  --accent:          #E31B23;
+  --accent-soft:     rgba(227, 27, 35, .16);
+
+  /* DS v4 단축 토큰 별칭 */
+  --primary:      #E31B23;
+  --primary-deep: #B3141A;
+  --primary-on:   #FFFFFF;
+  --soft-fill:    rgba(227, 27, 35, .16);
+  --soft-ink:     #FF8A93;
+  --red:          #E31B23;
+  --elev: #12161C; --card: #161B22; --alt: #1C222B; --head: #1E2530;
+  --soft: #C9D1DB; --mute: #8A95A3; --dim: #5B6675; --bstrong: #39434F;
+  --shadow: rgba(0, 0, 0, .50);
+
+  /* Shadows — 소프트 블러 (다크 하드 오프셋 제거) */
+  --sh-xs: 0 1px 2px rgba(0, 0, 0, .40);
+  --sh-sm: 0 2px 8px rgba(0, 0, 0, .45);
+  --sh-md: 0 8px 24px rgba(0, 0, 0, .50);
+  --sh-lg: 0 16px 48px rgba(0, 0, 0, .55);
+}
+/* END PUB SCOPE ============================================== */
