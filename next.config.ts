@@ -322,6 +322,8 @@ const nextConfig: NextConfig = {
       { source: "/admin/categories", destination: "/v2/categories", permanent: true },
       { source: "/admin/partners", destination: "/v2/partner-console", permanent: true }, // super 파트너 관리(본인포털 /partner 와 무관)
       { source: "/admin/news", destination: "/v2/news-console", permanent: true }, // exact — /admin/news/compose 는 미매칭(레거시 유지)
+      // analytics: v2 지표 보강(레거시 동등·무손실) 완료 → 봉인
+      { source: "/admin/analytics", destination: "/v2/analytics", permanent: true },
     ];
   },
   async headers() {
