@@ -178,6 +178,80 @@ function TabButton({
 }
 
 /* ============================================================
+ * 구독 혜택 + 플랜 비교 정적 데이터 (ProfileSubscription.jsx 시안 박제)
+ * 이유: DB는 plan.name/feature_key만 제공 — 혜택 목록은 UI-only 정적 매핑
+ * ============================================================ */
+const PLAN_BENEFITS: Record<
+  string,
+  { ok: boolean; text: string; highlight?: boolean }[]
+> = {
+  premium: [
+    { ok: true, text: "Pro 의 모든 혜택" },
+    {
+      ok: true,
+      text: "팀 운영 도구 — 로스터 무제한 / 통합 통계",
+      highlight: true,
+    },
+    { ok: true, text: "광고 제거 — 모든 페이지" },
+    { ok: true, text: "코치 매칭 — 월 1회 무료 화상 코칭" },
+    { ok: true, text: "영상 분석 — 경기 영상 AI 분석 (월 5건)" },
+    { ok: true, text: "우선 고객 지원" },
+  ],
+  pro: [
+    { ok: true, text: "우선 매칭 — 빠른 게스트 모집" },
+    { ok: true, text: "전 시즌 통계 무제한" },
+    { ok: true, text: "대회 접수 24h 우선 오픈" },
+    { ok: true, text: "프로필 인증 배지" },
+    { ok: false, text: "광고 노출 — 부분 제거" },
+  ],
+  free: [
+    { ok: true, text: "기본 매칭 알고리즘" },
+    { ok: true, text: "커뮤니티 게시판 열람·작성" },
+    { ok: true, text: "기본 통계 (시즌 1개)" },
+    { ok: false, text: "우선 매칭 — 결제 회원 우선" },
+    { ok: false, text: "광고 노출" },
+  ],
+};
+
+const PLAN_COMPARE = [
+  {
+    key: "free",
+    label: "Free",
+    price: 0,
+    cycle: "",
+    color: "var(--ink-mute)",
+    desc: "기본 매칭 + 커뮤니티",
+  },
+  {
+    key: "pro",
+    label: "BDR Pro",
+    price: 4900,
+    cycle: "/월",
+    color: "var(--cafe-blue)",
+    desc: "우선 매칭 + 통계 무제한",
+  },
+  {
+    key: "premium",
+    label: "BDR Premium",
+    price: 9900,
+    cycle: "/월",
+    color: "var(--accent)",
+    desc: "팀 운영 + 광고 제거 + 코치 매칭",
+  },
+];
+
+/** plan.name 또는 feature_key 로 tierKey 판별 */
+function getPlanTier(
+  planName: string,
+  featureKey?: string
+): "premium" | "pro" | "free" {
+  const k = (featureKey || planName || "").toLowerCase();
+  if (k.includes("premium")) return "premium";
+  if (k.includes("pro")) return "pro";
+  return "free";
+}
+
+/* ============================================================
  * SubscriptionSection — 구독 서브 섹션 (기존 /profile/subscription 이식)
  *
  * 원본: src/app/(web)/profile/subscription/page.tsx
@@ -449,19 +523,58 @@ function SubscriptionSection() {
                     display: "flex",
                     gap: 8,
                     flexWrap: "wrap",
+                    alignItems: "center",
                   }}
                 >
                   {canCancel && (
-                    <button
-                      className="btn btn--ghost"
-                      style={{
-                        marginLeft: "auto",
-                        color: "var(--danger)",
-                      }}
-                      onClick={() => setCancelTarget(sub)}
-                    >
-                      구독 해지
-                    </button>
+                    <>
+                      <Link
+                        href="/pricing"
+                        className="btn btn--sm"
+                        style={{ textDecoration: "none", minHeight: 36 }}
+                      >
+                        플랜 변경
+                      </Link>
+                      <Link
+                        href="/profile/billing?tab=payments"
+                        className="btn btn--sm"
+                        style={{ textDecoration: "none", minHeight: 36 }}
+                      >
+                        결제 내역
+                      </Link>
+                      {/* 자동 갱신 토글 — UI-only (API 미지원) */}
+                      <label
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 6,
+                          fontSize: 12,
+                          color: "var(--ink-soft)",
+                          cursor: "default",
+                          marginLeft: "auto",
+                        }}
+                      >
+                        <input
+                          type="checkbox"
+                          defaultChecked
+                          readOnly
+                          style={{ cursor: "default" }}
+                        />
+                        자동 갱신
+                      </label>
+                      <button
+                        className="btn btn--sm"
+                        style={{
+                          color: "var(--danger)",
+                          borderColor:
+                            "color-mix(in oklab, var(--danger) 30%, var(--border))",
+                          minHeight: 36,
+                        }}
+                        onClick={() => setCancelTarget(sub)}
+                      >
+                        해지
+                      </button>
+                    </>
                   )}
                 </div>
 
@@ -550,6 +663,247 @@ function SubscriptionSection() {
               </Link>
             </div>
           </div>
+
+          {/* 시안 ProfileSubscription.jsx — 혜택 목록 (활성 구독 기준) */}
+          {(() => {
+            const primarySub =
+              subscriptions.find((s) => s.status === "active") ??
+              subscriptions[0];
+            if (!primarySub) return null;
+            const tier = getPlanTier(
+              primarySub.plan.name,
+              primarySub.plan.feature_key
+            );
+            const benefits = PLAN_BENEFITS[tier];
+            return (
+              <div
+                className="card"
+                style={{ padding: "22px 24px", marginBottom: 14 }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "baseline",
+                    marginBottom: 14,
+                  }}
+                >
+                  <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>
+                    {primarySub.plan.name} 혜택
+                  </h2>
+                  <Link
+                    href="/pricing"
+                    style={{
+                      fontSize: 12,
+                      color: "var(--ink-dim)",
+                      textDecoration: "none",
+                    }}
+                  >
+                    전체 비교 →
+                  </Link>
+                </div>
+                <div style={{ display: "flex", flexDirection: "column" }}>
+                  {benefits.map((b, i) => (
+                    <div
+                      key={i}
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: "24px 1fr",
+                        gap: 14,
+                        padding: "12px 0",
+                        alignItems: "center",
+                        borderBottom:
+                          i < benefits.length - 1
+                            ? "1px solid var(--border)"
+                            : 0,
+                      }}
+                    >
+                      <span
+                        style={{
+                          width: 22,
+                          height: 22,
+                          borderRadius: "50%",
+                          display: "grid",
+                          placeItems: "center",
+                          background: b.ok
+                            ? "color-mix(in oklab, var(--ok) 18%, transparent)"
+                            : "var(--bg-alt)",
+                          color: b.ok ? "var(--ok)" : "var(--ink-dim)",
+                          fontSize: 12,
+                          fontWeight: 900,
+                        }}
+                      >
+                        {b.ok ? "✓" : "×"}
+                      </span>
+                      <div
+                        style={{
+                          fontSize: 14,
+                          color: b.ok ? "var(--ink)" : "var(--ink-dim)",
+                          fontWeight: b.highlight ? 700 : 500,
+                          textDecoration: b.ok ? "none" : "line-through",
+                        }}
+                      >
+                        {b.text}
+                        {b.highlight && (
+                          <span
+                            style={{
+                              marginLeft: 8,
+                              padding: "2px 8px",
+                              background:
+                                "color-mix(in oklab, var(--accent) 12%, transparent)",
+                              color: "var(--accent)",
+                              fontSize: 10,
+                              fontWeight: 800,
+                              letterSpacing: ".06em",
+                              borderRadius: 3,
+                              textTransform: "uppercase",
+                            }}
+                          >
+                            PREMIUM
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* 시안 ProfileSubscription.jsx — 다른 플랜 비교 (정적 UI) */}
+          {(() => {
+            const primarySub =
+              subscriptions.find((s) => s.status === "active") ??
+              subscriptions[0];
+            const currentTier = primarySub
+              ? getPlanTier(
+                  primarySub.plan.name,
+                  primarySub.plan.feature_key
+                )
+              : "free";
+            return (
+              <div
+                className="card"
+                style={{
+                  padding: "22px 24px",
+                  marginBottom: 14,
+                  border: "1px solid var(--border)",
+                  borderRadius: 4,
+                }}
+              >
+                <h2 style={{ margin: "0 0 14px", fontSize: 18, fontWeight: 700 }}>
+                  다른 플랜
+                </h2>
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(3, 1fr)",
+                    gap: 10,
+                  }}
+                >
+                  {PLAN_COMPARE.map((p) => {
+                    const isCurrent = p.key === currentTier;
+                    return (
+                      <div
+                        key={p.key}
+                        style={{
+                          padding: "18px",
+                          border: `1px solid ${
+                            isCurrent ? p.color : "var(--border)"
+                          }`,
+                          borderRadius: 6,
+                          background: isCurrent
+                            ? `color-mix(in oklab, ${p.color} 6%, transparent)`
+                            : "transparent",
+                          position: "relative",
+                        }}
+                      >
+                        {isCurrent && (
+                          <span
+                            style={{
+                              position: "absolute",
+                              top: -9,
+                              left: 14,
+                              padding: "2px 8px",
+                              background: p.color,
+                              color: "#fff",
+                              fontSize: 10,
+                              fontWeight: 800,
+                              letterSpacing: ".08em",
+                              borderRadius: 3,
+                              textTransform: "uppercase",
+                            }}
+                          >
+                            이용 중
+                          </span>
+                        )}
+                        <div
+                          style={{
+                            fontFamily: "var(--ff-display)",
+                            fontWeight: 900,
+                            fontSize: 20,
+                            color: p.color,
+                            marginBottom: 4,
+                          }}
+                        >
+                          {p.label}
+                        </div>
+                        <div
+                          style={{
+                            fontFamily: "var(--ff-mono)",
+                            fontSize: 18,
+                            fontWeight: 800,
+                            marginBottom: 4,
+                          }}
+                        >
+                          {p.price === 0
+                            ? "무료"
+                            : `${p.price.toLocaleString("ko-KR")}원${p.cycle}`}
+                        </div>
+                        <div
+                          style={{
+                            fontSize: 12,
+                            color: "var(--ink-mute)",
+                            minHeight: 32,
+                            marginBottom: 12,
+                          }}
+                        >
+                          {p.desc}
+                        </div>
+                        {!isCurrent && (
+                          <Link
+                            href="/pricing"
+                            className="btn btn--sm"
+                            style={{
+                              display: "block",
+                              textAlign: "center",
+                              textDecoration: "none",
+                              minHeight: 40,
+                              lineHeight: "40px",
+                              padding: 0,
+                              background:
+                                p.key === "free" ? "transparent" : p.color,
+                              color:
+                                p.key === "free" ? "var(--ink-soft)" : "#fff",
+                              borderColor:
+                                p.key === "free" ? "var(--border)" : p.color,
+                            }}
+                          >
+                            {p.key === "free" ? "다운그레이드" : "업그레이드"}
+                          </Link>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+                <style>{`
+                  @media (max-width: 720px) {
+                    .plan-compare-grid { grid-template-columns: 1fr !important; }
+                  }
+                `}</style>
+              </div>
+            );
+          })()}
         </div>
       )}
 
@@ -694,6 +1048,11 @@ function PaymentsHub({ view }: { view: "payments" | "refund" }) {
   const [page, setPage] = useState(1);
   const [refundTarget, setRefundTarget] = useState<PaymentItem | null>(null);
   const [refunding, setRefunding] = useState(false);
+  // 시안 ProfilePayments.jsx — 클라이언트 필터 (신규 fetch 0, 현재 페이지 데이터에 적용)
+  const [statusFilter, setStatusFilter] = useState<
+    "all" | "paid" | "refunded" | "failed"
+  >("all");
+  const [yearFilter, setYearFilter] = useState<string>("all");
 
   const { data, isLoading } = useSWR<PaymentsResponse>(
     `/api/web/profile/payments?page=${page}&limit=20`,
@@ -736,10 +1095,27 @@ function PaymentsHub({ view }: { view: "payments" | "refund" }) {
   const payments = data?.payments ?? [];
   const pagination = data?.pagination;
 
-  // 4열 board grid 정의
-  // 이유: 데스크톱에서 결제일/내역/금액/상태 컬럼 너비를 고정해 정렬을 안정시키고,
-  //       상태 컬럼은 라벨+영수증을 담아야 해서 폭을 크게(220px) 잡음.
-  const BOARD_COLUMNS = "140px 1fr 120px 220px";
+  // 시안 ProfilePayments.jsx — 요약 통계 (로드된 전체 페이지 기준)
+  const totalPaidAmt = payments
+    .filter((p) => p.status === "paid")
+    .reduce((s, p) => s + p.final_amount, 0);
+  const totalRefundAmt = payments
+    .filter((p) => p.status === "refunded")
+    .reduce((s, p) => s + (p.refund_amount ?? p.final_amount), 0);
+  const totalNet = totalPaidAmt - totalRefundAmt;
+
+  // 시안 ProfilePayments.jsx — 클라이언트 필터 (status + year)
+  const filteredPayments = payments.filter((p) => {
+    if (statusFilter !== "all" && p.status !== statusFilter) return false;
+    if (yearFilter !== "all") {
+      const dateStr = (p.paid_at || p.created_at).substring(0, 4);
+      if (dateStr !== yearFilter) return false;
+    }
+    return true;
+  });
+
+  // 5열 board grid 정의 (시안 ProfilePayments.jsx: 날짜/항목/결제수단/금액/상태)
+  const BOARD_COLUMNS = "120px 1.6fr 140px 110px 90px";
 
   // 환불 탭용 분리 (시안 BU3 RefundTab): can_refund=서버 산출(paid + 7일 이내) / refunded=환불 완료
   const refundable = payments.filter((p) => p.can_refund);
@@ -937,10 +1313,171 @@ function PaymentsHub({ view }: { view: "payments" | "refund" }) {
     );
   }
 
-  // ====== 결제 내역 뷰 (기존) ======
+  // ====== 결제 내역 뷰 (ProfilePayments.jsx 시안 갭 적용) ======
+  // 변경: 요약 통계 4카드 + 필터 칩 + 연도 셀렉트 + 5열 테이블 + CTA 푸터
+  // 보존: 기존 useSWR/handleRefund/pagination/snake_case 접근 0변경
+
+  // 필터 칩 정의 (시안 ProfilePayments.jsx L32-36)
+  const filterChips = [
+    {
+      id: "all" as const,
+      label: "전체",
+      count: payments.length,
+    },
+    {
+      id: "paid" as const,
+      label: "결제 완료",
+      count: payments.filter((p) => p.status === "paid").length,
+    },
+    {
+      id: "refunded" as const,
+      label: "환불",
+      count: payments.filter((p) => p.status === "refunded").length,
+    },
+    {
+      id: "failed" as const,
+      label: "실패",
+      count: payments.filter((p) => p.status === "failed").length,
+    },
+  ];
+
   return (
-    <div className="space-y-6">
-      {payments.length === 0 ? (
+    <div className="space-y-4">
+      {/* 시안 ProfilePayments.jsx L80-86 — 요약 4 stats */}
+      <div
+        className="pp-stats"
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(4, 1fr)",
+          gap: 10,
+          marginBottom: 4,
+        }}
+      >
+        {[
+          { label: "이번 기간 거래", value: `${payments.length}건`, color: "var(--ink)" },
+          {
+            label: "결제 완료 합계",
+            value: formatAmount(totalPaidAmt),
+            color: "var(--ink)",
+          },
+          {
+            label: "환불 합계",
+            value: formatAmount(totalRefundAmt),
+            color: "var(--ink-mute)",
+          },
+          {
+            label: "순 결제액",
+            value: formatAmount(totalNet),
+            color: "var(--accent)",
+          },
+        ].map((s) => (
+          <div key={s.label} className="card" style={{ padding: "16px 18px" }}>
+            <div
+              style={{
+                fontSize: 10,
+                color: "var(--ink-dim)",
+                fontWeight: 800,
+                letterSpacing: ".08em",
+                textTransform: "uppercase",
+              }}
+            >
+              {s.label}
+            </div>
+            <div
+              style={{
+                fontFamily: "var(--ff-display)",
+                fontWeight: 900,
+                fontSize: 22,
+                letterSpacing: "-0.015em",
+                marginTop: 4,
+                color: s.color,
+              }}
+            >
+              {s.value}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* 시안 ProfilePayments.jsx L88-120 — 필터 칩 + 연도 셀렉트 */}
+      <div
+        className="card"
+        style={{
+          padding: "14px 16px",
+          display: "flex",
+          gap: 8,
+          alignItems: "center",
+          justifyContent: "space-between",
+          flexWrap: "wrap",
+        }}
+      >
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+          {filterChips.map((f) => {
+            const on = statusFilter === f.id;
+            return (
+              <button
+                key={f.id}
+                type="button"
+                onClick={() => setStatusFilter(f.id)}
+                style={{
+                  padding: "8px 12px",
+                  minHeight: 40,
+                  border: `1px solid ${on ? "var(--accent)" : "var(--border)"}`,
+                  background: on ? "var(--accent)" : "transparent",
+                  color: on ? "#fff" : "var(--ink-soft)",
+                  borderRadius: 4,
+                  cursor: "pointer",
+                  fontSize: 13,
+                  fontWeight: on ? 700 : 500,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                }}
+              >
+                {f.label}
+                <span
+                  style={{
+                    fontSize: 11,
+                    fontFamily: "var(--ff-mono)",
+                    fontWeight: 700,
+                    padding: "1px 5px",
+                    borderRadius: 3,
+                    background: on
+                      ? "rgba(255,255,255,.22)"
+                      : "var(--bg-alt)",
+                    color: on ? "#fff" : "var(--ink-dim)",
+                  }}
+                >
+                  {f.count}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+        <select
+          value={yearFilter}
+          onChange={(e) => setYearFilter(e.target.value)}
+          style={{
+            fontSize: 14,
+            minHeight: 40,
+            padding: "0 10px",
+            maxWidth: 140,
+            border: "1px solid var(--border)",
+            borderRadius: 4,
+            background: "var(--bg-alt)",
+            color: "var(--ink)",
+            cursor: "pointer",
+          }}
+        >
+          <option value="all">전체 기간</option>
+          <option value="2026">2026년</option>
+          <option value="2025">2025년</option>
+          <option value="2024">2024년</option>
+        </select>
+      </div>
+
+      {/* 테이블 */}
+      {filteredPayments.length === 0 ? (
         <TossCard>
           <div className="py-12 text-center">
             <span
@@ -949,193 +1486,180 @@ function PaymentsHub({ view }: { view: "payments" | "refund" }) {
             >
               receipt_long
             </span>
-            <p
-              className="text-sm"
-              style={{ color: "var(--ink-mute)" }}
-            >
-              결제 내역이 없습니다
+            <p className="text-sm" style={{ color: "var(--ink-mute)" }}>
+              해당 기간·상태에 결제 내역이 없습니다
             </p>
           </div>
         </TossCard>
       ) : (
         <>
-          {/* 시안 v2(1): 결제 내역 섹션 헤더 (h2 + 전체 다운로드 링크) */}
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "baseline",
-              marginBottom: 10,
-            }}
-          >
-            <h2
-              style={{
-                margin: 0,
-                fontSize: 18,
-                fontWeight: 700,
-                color: "var(--ink)",
-              }}
-            >
-              결제 내역
-            </h2>
-          </div>
-
-          {/* v2 .board 토큰 사용 — 다른 v2 보드(rankings/teams)와 동일 패턴 */}
+          {/* 시안 ProfilePayments.jsx — 5열 data-table (날짜/항목/결제수단/금액/상태) */}
           <div className="board">
-          {/* 헤더: 4열 grid */}
-          <div
-            className="board__head"
-            style={{ gridTemplateColumns: BOARD_COLUMNS }}
-          >
-            <div>결제일</div>
-            <div>내역</div>
-            <div>금액</div>
-            <div>상태</div>
-          </div>
+            <div
+              className="board__head"
+              style={{ gridTemplateColumns: BOARD_COLUMNS }}
+            >
+              <div>날짜</div>
+              <div>항목</div>
+              <div>결제수단</div>
+              <div style={{ textAlign: "right" }}>금액</div>
+              <div style={{ textAlign: "center" }}>상태</div>
+            </div>
 
-          {payments.map((p) => {
-            const statusInfo = getStatusInfo(p.status);
-            // 결제일은 paid_at 우선, 없으면 created_at — 기존 동작 보존
-            const dateStr = p.paid_at
-              ? new Date(p.paid_at).toLocaleDateString("ko-KR", {
-                  year: "numeric",
-                  month: "2-digit",
-                  day: "2-digit",
-                })
-              : new Date(p.created_at).toLocaleDateString("ko-KR", {
-                  year: "numeric",
-                  month: "2-digit",
-                  day: "2-digit",
-                });
+            {filteredPayments.map((p) => {
+              const statusInfo = getStatusInfo(p.status);
+              // 결제일은 paid_at 우선, 없으면 created_at — 기존 동작 보존
+              const dateStr = p.paid_at
+                ? new Date(p.paid_at).toLocaleDateString("ko-KR", {
+                    year: "numeric",
+                    month: "2-digit",
+                    day: "2-digit",
+                  })
+                : new Date(p.created_at).toLocaleDateString("ko-KR", {
+                    year: "numeric",
+                    month: "2-digit",
+                    day: "2-digit",
+                  });
 
-            return (
-              <div
-                key={p.id}
-                className="board__row"
-                style={{ gridTemplateColumns: BOARD_COLUMNS }}
-              >
-                {/* 결제일 — mono 폰트로 정렬 가독성 향상 */}
+              return (
                 <div
-                  style={{
-                    fontFamily: "var(--ff-mono)",
-                    fontSize: 13,
-                    color: "var(--ink-dim)",
-                  }}
+                  key={p.id}
+                  className="board__row"
+                  style={{ gridTemplateColumns: BOARD_COLUMNS }}
                 >
-                  {dateStr}
-                </div>
-
-                {/* 내역 — description 우선, 없으면 payable_type 폴백 + 결제수단/환불일 메타 */}
-                <div className="title" style={{ display: "block" }}>
-                  <p
+                  {/* 날짜 + 주문번호 */}
+                  <div
                     style={{
-                      fontWeight: 600,
-                      color: "var(--ink)",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    {p.description || p.payable_type}
-                  </p>
-                  <p
-                    style={{
+                      fontFamily: "var(--ff-mono)",
                       fontSize: 12,
-                      marginTop: 2,
                       color: "var(--ink-mute)",
                     }}
                   >
-                    {p.payment_method || "—"}
-                    {p.status === "refunded" && p.refunded_at && (
-                      <>
-                        {" · 환불 "}
-                        {new Date(p.refunded_at).toLocaleDateString("ko-KR")}
-                        {p.refund_amount
-                          ? ` (${formatAmount(p.refund_amount)})`
-                          : ""}
-                      </>
-                    )}
-                  </p>
-                </div>
-
-                {/* 금액 — refunded 상태는 line-through로 음소거 */}
-                <div
-                  style={{
-                    fontFamily: "var(--ff-mono)",
-                    fontWeight: 700,
-                    color:
-                      p.status === "refunded"
-                        ? "var(--ink-mute)"
-                        : "var(--ink)",
-                    textDecoration:
-                      p.status === "refunded" ? "line-through" : "none",
-                  }}
-                >
-                  {formatAmount(p.final_amount)}
-                </div>
-
-                {/* 상태 + inline 액션 (영수증/환불)
-                    이유: 4열 board 안에 별도 액션 컬럼을 추가하면 모바일에서 너무 좁아짐.
-                          상태 라벨 옆에 inline으로 배치해 시각적 그룹화. */}
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 8,
-                    flexWrap: "wrap",
-                  }}
-                >
-                  <span
-                    className="badge"
-                    style={{
-                      color: statusInfo.color,
-                      backgroundColor: "var(--bg-alt)",
-                      border: "1px solid var(--border)",
-                      fontSize: 11,
-                      fontWeight: 700,
-                      padding: "2px 8px",
-                      borderRadius: "var(--radius-chip, 4px)",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    {statusInfo.label}
-                  </span>
-
-                  {/* 영수증: 결제완료 건만 노출 — pricing/success 페이지 재활용 */}
-                  {/* 6.2C-6: 환불 버튼은 결제 내역 탭에서 제거 → 환불 탭으로 이전 (Option A) */}
-                  {p.status === "paid" && (
-                    <Link
-                      href={`/pricing/success?orderId=${encodeURIComponent(
-                        p.order_id
-                      )}&amount=${p.final_amount}&method=${encodeURIComponent(
-                        p.payment_method ?? "카드"
-                      )}`}
-                      className="inline-flex items-center gap-1"
+                    {dateStr}
+                    <div
                       style={{
-                        fontSize: 12,
-                        fontWeight: 600,
-                        color: "var(--cafe-blue, var(--accent))",
-                        textDecoration: "none",
+                        fontSize: 10,
+                        color: "var(--ink-dim)",
+                        marginTop: 2,
                       }}
                     >
-                      <span
-                        className="material-symbols-outlined"
-                        style={{ fontSize: 14 }}
+                      {p.order_id}
+                    </div>
+                  </div>
+
+                  {/* 항목 — description 우선, payable_type 폴백 */}
+                  <div className="title" style={{ display: "block" }}>
+                    <p
+                      style={{
+                        fontWeight: 600,
+                        color: "var(--ink)",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {p.description || p.payable_type}
+                    </p>
+                    {p.status === "refunded" && p.refunded_at && (
+                      <p
+                        style={{
+                          fontSize: 11,
+                          color: "var(--ink-dim)",
+                          fontFamily: "var(--ff-mono)",
+                          marginTop: 2,
+                        }}
                       >
-                        receipt
-                      </span>
-                      영수증
-                    </Link>
-                  )}
+                        환불 처리 ·{" "}
+                        {new Date(p.refunded_at).toLocaleDateString("ko-KR")}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* 결제수단 (5열 신규) */}
+                  <div
+                    style={{
+                      fontSize: 12,
+                      color: "var(--ink-soft)",
+                    }}
+                  >
+                    {p.payment_method || "—"}
+                  </div>
+
+                  {/* 금액 — refunded는 line-through */}
+                  <div
+                    style={{
+                      fontFamily: "var(--ff-mono)",
+                      fontWeight: 700,
+                      textAlign: "right",
+                      color:
+                        p.status === "refunded"
+                          ? "var(--ink-mute)"
+                          : p.status === "failed"
+                          ? "var(--ink-dim)"
+                          : "var(--ink)",
+                      textDecoration:
+                        p.status === "failed" ? "line-through" : "none",
+                    }}
+                  >
+                    {formatAmount(p.final_amount)}
+                  </div>
+
+                  {/* 상태 + 영수증 */}
+                  <div
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      gap: 4,
+                    }}
+                  >
+                    <span
+                      className={`badge ${
+                        p.status === "paid"
+                          ? "badge--ok"
+                          : p.status === "failed"
+                          ? "badge--red"
+                          : "badge--ghost"
+                      }`}
+                      style={{ fontSize: 11, whiteSpace: "nowrap" }}
+                    >
+                      {statusInfo.label}
+                    </span>
+                    {/* 영수증: 결제완료 건만 */}
+                    {p.status === "paid" && (
+                      <Link
+                        href={`/pricing/success?orderId=${encodeURIComponent(
+                          p.order_id
+                        )}&amount=${p.final_amount}&method=${encodeURIComponent(
+                          p.payment_method ?? "카드"
+                        )}`}
+                        style={{
+                          fontSize: 10,
+                          color: "var(--ink-dim)",
+                          textDecoration: "none",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 2,
+                        }}
+                      >
+                        <span
+                          className="material-symbols-outlined"
+                          style={{ fontSize: 12 }}
+                        >
+                          receipt
+                        </span>
+                        영수증
+                      </Link>
+                    )}
+                  </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
           </div>
         </>
       )}
 
-      {/* 페이지네이션 */}
+      {/* 페이지네이션 (필터 미적용 전체 기준) */}
       {pagination && pagination.total_pages > 1 && (
         <div className="flex justify-center items-center gap-4 py-4">
           <button
@@ -1146,10 +1670,7 @@ function PaymentsHub({ view }: { view: "payments" | "refund" }) {
           >
             이전
           </button>
-          <span
-            className="text-sm"
-            style={{ color: "var(--ink-mute)" }}
-          >
+          <span className="text-sm" style={{ color: "var(--ink-mute)" }}>
             {page} / {pagination.total_pages}
           </span>
           <button
@@ -1163,8 +1684,45 @@ function PaymentsHub({ view }: { view: "payments" | "refund" }) {
         </div>
       )}
 
+      {/* 시안 ProfilePayments.jsx L183-186 — CTA 푸터 (현금영수증 안내) */}
+      <div
+        style={{
+          marginTop: 8,
+          padding: "14px 18px",
+          background: "var(--bg-alt)",
+          borderRadius: 4,
+          fontSize: 12,
+          color: "var(--ink-mute)",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          gap: 12,
+          flexWrap: "wrap",
+        }}
+      >
+        <span>
+          현금영수증·세금계산서 발급은{" "}
+          <Link
+            href="/settings"
+            style={{ color: "var(--accent)", textDecoration: "none" }}
+          >
+            설정 › 결제·멤버십
+          </Link>{" "}
+          에서 처리됩니다.
+        </span>
+        <button className="btn btn--sm" style={{ minHeight: 36 }}>
+          문의하기
+        </button>
+      </div>
+
       {/* 환불 확인 모달 (공통 변수 — 결제 내역 뷰에서도 마운트하나 트리거는 환불 탭) */}
       {refundModal}
+
+      <style>{`
+        @media (max-width: 720px) {
+          .pp-stats { grid-template-columns: repeat(2, 1fr) !important; }
+        }
+      `}</style>
     </div>
   );
 }

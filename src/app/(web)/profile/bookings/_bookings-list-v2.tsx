@@ -49,7 +49,7 @@ const KIND_LABEL: Record<BookingItemV2["kind"], string> = {
 const KIND_TONE: Record<BookingItemV2["kind"], string> = {
   // 시안: cafe-blue / accent / #10B981 — 사이트 토큰 매핑
   court: "var(--cafe-blue)",
-  tournament: "var(--color-primary)", // 시안 var(--accent) → 사이트는 --color-primary
+  tournament: "var(--primary)", // 시안 var(--accent) → 사이트는 --color-primary
   guest: "#10B981", // 시안에서도 하드코딩 — 그대로 (성공 그린)
 };
 const STATUS_LABEL: Record<BookingItemV2["status"], string> = {
@@ -164,7 +164,7 @@ export function BookingsListV2({ items }: { items: BookingItemV2[] }) {
               fontWeight: 600,
               color: tab === t.id ? "var(--ink)" : "var(--ink-mute)",
               borderBottom:
-                tab === t.id ? "3px solid var(--color-primary)" : "3px solid transparent",
+                tab === t.id ? "3px solid var(--primary)" : "3px solid transparent",
               flexShrink: 0,
             }}
           >
