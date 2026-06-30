@@ -109,9 +109,9 @@ export default function LoginPage() {
         >
           MyBDR<span style={{ color: "var(--accent)" }}>.</span>
         </div>
-        {/* 2026-04-29 카피 통일: "서울 3x3 농구 커뮤니티" → 전국·종목 한정 제거 */}
+        {/* §6 시안 카피 우선 — Login.jsx "서울 3x3 농구 커뮤니티" 보존 (2026-06-30 PR-PUB-1-2) */}
         <div style={{ fontSize: 13, color: "var(--ink-mute)", marginTop: 6 }}>
-          전국 농구 매칭 플랫폼
+          서울 3x3 농구 커뮤니티
         </div>
       </div>
 

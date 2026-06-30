@@ -7,10 +7,12 @@ import { PhoneInput } from "@/components/inputs/phone-input";
 
 /**
  * /verify — 추가 인증 (전화번호/이메일)
- * v2(1) 시안 박제: 단계 progress + 카드 컨테이너 + 카운트다운 타이머
- *  - API/state/인증 흐름 100% 보존: send-code, complete, needsEmail/needsPhone
- *  - 시안의 phone → code → done 흐름을 input → verify-phone → 자동 라우팅에 매핑
- *  - 하드코딩 색상 금지 → var(--color-*) / Material Symbols 유지
+ * PR-PUB-1-2 리스킨: BDR-current Verify.jsx 시안 1:1 박제.
+ *  - 로직 100% 보존: send-code, complete, needsEmail/needsPhone, 카운트다운
+ *  - Tailwind 클래스 → BDR DS 클래스 (.card/.label/.input/.btn)
+ *  - --color-* 구 토큰 → DS v4 (--ink/--ink-mute/--ink-dim/--accent/--border 등)
+ *  - Material Symbols Outlined 아이콘 유지 (lucide 금지)
+ *  - 신규 fetch 0 / API 변경 0
  */
 export default function VerifyPage() {
   const router = useRouter();
@@ -28,7 +30,7 @@ export default function VerifyPage() {
   const [sending, setSending] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  // 시안 박제: 인증 코드 카운트다운(180초). 보낸 시점부터 시작
+  // 인증 코드 카운트다운(180초). 코드 발송 시점부터 시작 (시안 박제)
   const [secondsLeft, setSecondsLeft] = useState(180);
 
   // 코드 입력 단계 진입 시 1초 단위 카운트다운
@@ -42,10 +44,9 @@ export default function VerifyPage() {
   const fmt = (s: number) =>
     `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
 
-  // 전화번호 인증 코드 발송 (실제 SMS 연동 전 앱 내 시뮬레이션)
+  // 전화번호 인증 코드 발송
   const sendCode = async () => {
-    // PhoneInput 도입 (5/9 마이그) — state 는 하이픈 포함 형태 ("010-1234-5678")
-    // 기존 verify-phone API + 검증 정규식 = 숫자만 기대 → 전송 직전 하이픈 제거
+    // PhoneInput 포맷된 값("010-1234-5678") → 하이픈 제거 후 API 전송
     const phoneDigits = phone.replace(/-/g, "");
     if (!phoneDigits.match(/^01[016789]\d{7,8}$/)) {
       setError("올바른 전화번호를 입력해주세요. (예: 01012345678)");
@@ -58,7 +59,6 @@ export default function VerifyPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        // 서버는 숫자만 기대 — 하이픈 제거된 값 전송
         body: JSON.stringify({ phone: phoneDigits }),
       });
       const data = await res.json();
@@ -97,20 +97,17 @@ export default function VerifyPage() {
         credentials: "include",
         body: JSON.stringify({
           email: needsEmail ? email : undefined,
-          // PhoneInput 도입 — submit 시 하이픈 제거 (서버는 숫자만 기대)
+          // PhoneInput 포맷 → submit 시 하이픈 제거 (서버는 숫자만 기대)
           phone: needsPhone ? phone.replace(/-/g, "") : undefined,
           code: needsPhone ? verifyCode : undefined,
         }),
       });
       const data = await res.json();
       if (res.ok) {
-        // P0-4 (BDR v2.2): 인증 완료 후 user 상태에 따라 redirect 분기
-        //   - profile_completed = false → /profile/complete (D등급 P0-4 박제 4 step wizard)
-        //   - onboarding_completed_at = null → /onboarding/setup (취향 풀 온보딩)
-        //   - 모두 완료 → /
-        // 이유: 신규 가입자에겐 압축형 4 step → 풀 온보딩 순서 노출이 자연스러움
-        //       기존 사용자(이미 완료)는 곧장 홈으로 보내 마찰 0
-        // 분기 실패 시 fallback: /onboarding/setup (기존 동작 유지)
+        // 인증 완료 후 user 상태에 따라 redirect 분기
+        //   profile_completed = false → /profile/complete
+        //   onboarding_completed_at = null → /onboarding/setup
+        //   모두 완료 → /
         try {
           const profileRes = await fetch("/api/web/profile", {
             credentials: "include",
@@ -127,11 +124,9 @@ export default function VerifyPage() {
               router.push("/");
             }
           } else {
-            // profile API 실패 시 안전한 fallback (기존 동작)
             router.push("/onboarding/setup");
           }
         } catch {
-          // 네트워크 오류 fallback
           router.push("/onboarding/setup");
         }
       } else {
@@ -145,298 +140,252 @@ export default function VerifyPage() {
   };
 
   const skipable = !needsPhone; // 전화번호는 필수, 이메일은 건너뛰기 가능
-  // 진행 단계: input(1단계) → verify-phone(1단계 진행 중) → done(2단계)
-  // step 1 활성: 항상 / step 2 활성: verify-phone 단계
+  // 진행 단계: input(1단계) → verify-phone(2단계)
   const stepActive = step === "verify-phone" ? 2 : 1;
 
   return (
-    <div className="flex min-h-[80vh] flex-col items-center justify-center px-4 py-8">
-      <div className="w-full max-w-[480px]">
-        {/* 헤더: eyebrow + 타이틀 + 설명 (시안 박제) */}
-        <div
-          className="mb-2 text-xs font-bold uppercase tracking-[0.12em]"
-          style={{ color: "var(--color-text-muted)" }}
-        >
-          온보딩 1/2 · VERIFY
-        </div>
-        <h1
-          className="mb-2 text-2xl font-extrabold tracking-tight sm:text-3xl"
-          style={{ color: "var(--color-text-primary)", fontFamily: "var(--font-heading)" }}
-        >
-          {needsPhone ? "전화번호 인증" : "이메일 인증"}
-        </h1>
-        <p
-          className="mb-6 text-sm leading-relaxed"
-          style={{ color: "var(--color-text-muted)" }}
-        >
-          {/* 안내 카피 — v2.27 AU4 시안 톤 보강 ("~받으려면 ~필요해요") */}
-          {needsPhone
-            ? "매치 신청·대회 알림을 받으려면 전화번호 인증이 필요해요. SMS로 6자리 인증번호를 보냅니다."
-            : "서비스 알림 수신을 위해 이메일 인증이 필요해요."}
-        </p>
+    <div className="page" style={{ maxWidth: 480 }}>
+      {/* 헤더: eyebrow + 타이틀 + 설명 (시안 Verify.jsx 1:1) */}
+      <div className="eyebrow" style={{ marginBottom: 8 }}>온보딩 1/2 · VERIFY</div>
+      <h1 style={{
+        margin: "8px 0 6px",
+        fontSize: 28,
+        fontWeight: 800,
+        letterSpacing: "-0.02em",
+        color: "var(--ink)",
+      }}>
+        {needsPhone ? "전화번호 인증" : "이메일 인증"}
+      </h1>
+      <p style={{ color: "var(--ink-mute)", fontSize: 14, marginBottom: 24, lineHeight: 1.6 }}>
+        {needsPhone
+          ? "매치 신청·대회 알림을 받으려면 전화번호 인증이 필요해요. SMS로 6자리 인증번호를 보냅니다."
+          : "서비스 알림 수신을 위해 이메일 인증이 필요해요."}
+      </p>
 
-        {/* 시안 박제: 2단계 progress bar */}
-        <div className="mb-6 flex gap-1.5">
-          <div
-            className="h-1 flex-1 rounded-[2px]"
-            style={{
-              backgroundColor:
-                stepActive >= 1 ? "var(--color-accent)" : "var(--color-border)",
-            }}
-          />
-          <div
-            className="h-1 flex-1 rounded-[2px]"
-            style={{
-              backgroundColor:
-                stepActive >= 2 ? "var(--color-accent)" : "var(--color-border)",
-            }}
-          />
-        </div>
+      {/* 진행 표시줄 (시안 2단계 progress bar) */}
+      <div style={{ display: "flex", gap: 6, marginBottom: 24 }}>
+        <div style={{
+          flex: 1, height: 4,
+          background: stepActive >= 1 ? "var(--cafe-blue)" : "var(--border)",
+          borderRadius: 2,
+        }} />
+        <div style={{
+          flex: 1, height: 4,
+          background: stepActive >= 2 ? "var(--ok)" : "var(--border)",
+          borderRadius: 2,
+        }} />
+      </div>
 
-        <div
-          className="rounded-[16px] border p-6 shadow-[0_4px_24px_rgba(0,0,0,0.07)]"
-          style={{
-            borderColor: "var(--color-border)",
-            backgroundColor: "var(--color-card)",
-          }}
-        >
+      {/* ── 1단계: 전화번호 입력 ── */}
+      {needsPhone && step === "input" && (
+        <div className="card" style={{ padding: "24px 26px" }}>
           {error && (
-            <div
-              className="mb-4 rounded-[10px] px-3 py-2 text-sm"
-              style={{
-                backgroundColor:
-                  "color-mix(in srgb, var(--color-error) 10%, transparent)",
-                color: "var(--color-error)",
-              }}
-            >
+            <div style={{
+              marginBottom: 14,
+              padding: "10px 12px",
+              borderRadius: 8,
+              background: "var(--accent-soft)",
+              color: "var(--danger)",
+              fontSize: 13,
+            }}>
               {error}
             </div>
           )}
-
-          {/* 1단계: 전화번호 입력 */}
-          {needsPhone && step === "input" && (
-            <div className="space-y-3">
-              <div>
-                <label
-                  className="mb-1.5 block text-xs font-bold"
-                  style={{ color: "var(--color-text-muted)" }}
-                >
-                  휴대전화번호 <span style={{ color: "var(--color-primary)" }}>*</span>
-                </label>
-                {/* 본인인증 1단계 휴대폰 입력 — PhoneInput 자동 포맷 (010-XXXX-XXXX 13자) */}
-                <PhoneInput
-                  value={phone}
-                  // PhoneInput 은 포맷된 값 ("010-1234-5678") 을 콜백으로 전달
-                  // → setPhone(v) 패턴 그대로. submit body 변경 0
-                  onChange={(v) => setPhone(v)}
-                  autoFocus
-                  className="w-full rounded-[12px] border px-4 py-3 text-sm focus:outline-none focus:ring-2"
-                  style={{
-                    borderColor: "var(--color-border)",
-                    backgroundColor: "var(--color-bg)",
-                    color: "var(--color-text-primary)",
-                  }}
-                />
-                <div
-                  className="mt-2 text-[11px] leading-relaxed"
-                  style={{ color: "var(--color-text-muted)" }}
-                >
-                  ※ 입력하신 번호는 본인 확인과 알림 외 목적으로 사용되지 않습니다.
-                </div>
-              </div>
-              {needsEmail && (
-                <div>
-                  <label
-                    className="mb-1.5 block text-xs font-bold"
-                    style={{ color: "var(--color-text-muted)" }}
-                  >
-                    이메일{" "}
-                    <span
-                      className="text-[10px]"
-                      style={{ color: "var(--color-text-muted)" }}
-                    >
-                      (선택)
-                    </span>
-                  </label>
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="example@email.com"
-                    className="w-full rounded-[12px] border px-4 py-3 text-sm focus:outline-none focus:ring-2"
-                    style={{
-                      borderColor: "var(--color-border)",
-                      backgroundColor: "var(--color-bg)",
-                      color: "var(--color-text-primary)",
-                    }}
-                  />
-                </div>
+          <label className="label">휴대전화번호</label>
+          {/* PhoneInput — 사이트 전역 의무 사용 컴포넌트 (conventions.md). className=input으로 DS v4 스타일 주입 */}
+          <PhoneInput
+            value={phone}
+            onChange={(v) => setPhone(v)}
+            autoFocus
+            className="input"
+          />
+          <div style={{ fontSize: 12, color: "var(--ink-dim)", marginTop: 8, lineHeight: 1.6 }}>
+            ※ 입력하신 번호는 본인 확인과 알림 외 목적으로 사용되지 않습니다.
+          </div>
+          {/* 이메일도 필요한 경우 같은 카드에 추가 */}
+          {needsEmail && (
+            <div style={{ marginTop: 14 }}>
+              <label className="label">
+                이메일{" "}
+                <span style={{ fontWeight: 400, color: "var(--ink-dim)" }}>(선택)</span>
+              </label>
+              <input
+                className="input"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="example@email.com"
+              />
+            </div>
+          )}
+          <div style={{ marginTop: 18, display: "flex", gap: 8 }}>
+            <button
+              className="btn btn--primary btn--xl"
+              onClick={handleSubmit}
+              disabled={sending || !phone}
+            >
+              {/* 발송 중 SMS 아이콘 숨김 — 텍스트만 (시안 패턴) */}
+              {!sending && (
+                <span className="material-symbols-outlined" style={{ fontSize: 18 }}>sms</span>
               )}
-              <button
-                onClick={handleSubmit}
-                disabled={sending || !phone}
-                // v2.27 AU4 시안 톤: 텍스트 좌측 sms 아이콘 (inline-flex 정렬 추가)
-                className="flex w-full items-center justify-center gap-1.5 rounded-[12px] py-3 text-sm font-semibold transition-all active:scale-[0.98] disabled:opacity-50"
-                style={{
-                  backgroundColor: "var(--color-accent)",
-                  color: "var(--color-on-accent)",
-                }}
-              >
-                {/* 발송 중에는 아이콘 숨김 — 텍스트만 노출 */}
-                {!sending && (
-                  <span className="material-symbols-outlined text-[18px]">sms</span>
-                )}
-                {sending ? "발송 중..." : "인증번호 받기"}
-              </button>
-            </div>
-          )}
-
-          {/* 2단계: 인증 코드 입력 */}
-          {needsPhone && step === "verify-phone" && (
-            <div className="space-y-3">
-              <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>
-                <span
-                  className="font-semibold"
-                  style={{ color: "var(--color-text-primary)" }}
-                >
-                  {phone}
-                </span>{" "}
-                으로 발송됨
-              </div>
-              {/* [개발 모드] 인증 코드 노출 박스 — warning 토큰 (semantic 일치) */}
-              {sentCode && (
-                <div
-                  className="rounded-[10px] px-3 py-2 text-xs"
-                  style={{
-                    backgroundColor:
-                      "color-mix(in srgb, var(--color-warning) 10%, transparent)",
-                    color: "var(--color-warning)",
-                  }}
-                >
-                  [개발 모드] 인증 코드:{" "}
-                  <span className="font-bold">{sentCode}</span>
-                </div>
-              )}
-              <div>
-                {/* v2.27 AU4 시안 톤: 라벨 행 우측에 timer 아이콘 + 카운트다운 통합 */}
-                <label
-                  className="mb-1.5 flex items-center justify-between text-xs font-bold"
-                  style={{ color: "var(--color-text-muted)" }}
-                >
-                  <span>인증번호 6자리</span>
-                  <span
-                    className="inline-flex items-center gap-1 font-mono"
-                    style={{ color: "var(--color-accent)" }}
-                  >
-                    <span className="material-symbols-outlined text-[14px]">
-                      timer
-                    </span>
-                    {fmt(secondsLeft)}
-                  </span>
-                </label>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  value={verifyCode}
-                  onChange={(e) =>
-                    setVerifyCode(e.target.value.replace(/[^0-9]/g, "").slice(0, 6))
-                  }
-                  placeholder="000000"
-                  maxLength={6}
-                  autoFocus
-                  className="w-full rounded-[12px] border px-4 py-3 text-center font-mono text-[22px] font-bold tracking-[0.4em] focus:outline-none focus:ring-2"
-                  style={{
-                    borderColor: "var(--color-border)",
-                    backgroundColor: "var(--color-bg)",
-                    color: "var(--color-text-primary)",
-                  }}
-                />
-              </div>
-              {/* v2.27 AU4 시안 톤: 카운트다운은 라벨 우측으로 이동 → 하단은 재전송만 */}
-              <div className="text-center">
-                <button
-                  type="button"
-                  onClick={sendCode}
-                  disabled={sending}
-                  className="text-xs font-semibold underline-offset-2 hover:underline disabled:opacity-50"
-                  style={{ color: "var(--color-accent)" }}
-                >
-                  인증번호 재전송
-                </button>
-              </div>
-              <button
-                onClick={handleSubmit}
-                disabled={saving || verifyCode.length !== 6}
-                className="w-full rounded-[12px] py-3 text-sm font-semibold transition-all active:scale-[0.98] disabled:opacity-50"
-                style={{
-                  backgroundColor: "var(--color-accent)",
-                  color: "var(--color-on-accent)",
-                }}
-              >
-                {saving ? "확인 중..." : "인증 확인"}
-              </button>
-              <button
-                onClick={() => {
-                  setStep("input");
-                  setVerifyCode("");
-                  setSentCode("");
-                }}
-                className="w-full text-xs"
-                style={{ color: "var(--color-text-muted)" }}
-              >
-                번호 다시 입력
-              </button>
-            </div>
-          )}
-
-          {/* 이메일만 필요한 경우 */}
-          {!needsPhone && needsEmail && (
-            <div className="space-y-3">
-              <div>
-                <label
-                  className="mb-1.5 block text-xs font-bold"
-                  style={{ color: "var(--color-text-muted)" }}
-                >
-                  이메일
-                </label>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="example@email.com"
-                  className="w-full rounded-[12px] border px-4 py-3 text-sm focus:outline-none focus:ring-2"
-                  style={{
-                    borderColor: "var(--color-border)",
-                    backgroundColor: "var(--color-bg)",
-                    color: "var(--color-text-primary)",
-                  }}
-                />
-              </div>
-              <button
-                onClick={handleSubmit}
-                disabled={saving || !email}
-                className="w-full rounded-[12px] py-3 text-sm font-semibold transition-all active:scale-[0.98] disabled:opacity-50"
-                style={{
-                  backgroundColor: "var(--color-accent)",
-                  color: "var(--color-on-accent)",
-                }}
-              >
-                {saving ? "저장 중..." : "완료"}
-              </button>
-            </div>
-          )}
+              {sending ? "발송 중..." : "인증번호 받기"}
+            </button>
+          </div>
         </div>
+      )}
 
-        {skipable && (
-          <button
-            onClick={() => router.push("/")}
-            className="mt-4 w-full text-center text-xs"
-            style={{ color: "var(--color-text-muted)" }}
-          >
-            나중에 (홈으로)
-          </button>
-        )}
-      </div>
+      {/* ── 2단계: 인증 코드 입력 ── */}
+      {needsPhone && step === "verify-phone" && (
+        <div className="card" style={{ padding: "24px 26px" }}>
+          {error && (
+            <div style={{
+              marginBottom: 14,
+              padding: "10px 12px",
+              borderRadius: 8,
+              background: "var(--accent-soft)",
+              color: "var(--danger)",
+              fontSize: 13,
+            }}>
+              {error}
+            </div>
+          )}
+          <div style={{ fontSize: 13, color: "var(--ink-mute)", marginBottom: 6 }}>
+            {phone} 으로 발송됨
+          </div>
+          {/* [개발 모드] 인증 코드 노출 — 경고 토큰 (semantic 일치) */}
+          {sentCode && (
+            <div style={{
+              marginBottom: 10,
+              padding: "8px 12px",
+              borderRadius: 8,
+              background: "var(--accent-soft)",
+              color: "var(--cafe-blue-deep)",
+              fontSize: 12,
+            }}>
+              [개발 모드] 인증 코드: <strong>{sentCode}</strong>
+            </div>
+          )}
+          <label className="label">인증번호 6자리</label>
+          <input
+            className="input"
+            inputMode="numeric"
+            maxLength={6}
+            value={verifyCode}
+            onChange={(e) => setVerifyCode(e.target.value.replace(/[^0-9]/g, "").slice(0, 6))}
+            placeholder="000000"
+            autoFocus
+            style={{
+              fontFamily: "var(--ff-mono)",
+              fontSize: 22,
+              letterSpacing: ".4em",
+              textAlign: "center",
+            }}
+          />
+          {/* 남은 시간 + 재전송 한 줄 */}
+          <div style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginTop: 10,
+            fontSize: 12,
+            color: "var(--ink-mute)",
+          }}>
+            <span>
+              남은 시간{" "}
+              <b style={{ color: "var(--accent)", fontFamily: "var(--ff-mono)" }}>
+                {fmt(secondsLeft)}
+              </b>
+            </span>
+            <button
+              className="btn btn--ghost btn--sm"
+              type="button"
+              onClick={sendCode}
+              disabled={sending}
+            >
+              재전송
+            </button>
+          </div>
+          <div style={{ marginTop: 18, display: "grid", gap: 8 }}>
+            <button
+              className="btn btn--primary btn--xl"
+              type="button"
+              disabled={saving || verifyCode.length < 6}
+              onClick={handleSubmit}
+            >
+              {saving ? "확인 중..." : "인증 확인"}
+            </button>
+            <button
+              className="btn btn--ghost"
+              type="button"
+              onClick={() => {
+                setStep("input");
+                setVerifyCode("");
+                setSentCode("");
+              }}
+              style={{ fontSize: 13 }}
+            >
+              번호 다시 입력
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── 이메일만 필요한 경우 ── */}
+      {!needsPhone && needsEmail && (
+        <div className="card" style={{ padding: "24px 26px" }}>
+          {error && (
+            <div style={{
+              marginBottom: 14,
+              padding: "10px 12px",
+              borderRadius: 8,
+              background: "var(--accent-soft)",
+              color: "var(--danger)",
+              fontSize: 13,
+            }}>
+              {error}
+            </div>
+          )}
+          <label className="label">이메일</label>
+          <input
+            className="input"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="example@email.com"
+            autoFocus
+          />
+          <div style={{ marginTop: 18 }}>
+            <button
+              className="btn btn--primary btn--xl"
+              type="button"
+              onClick={handleSubmit}
+              disabled={saving || !email}
+            >
+              {saving ? "저장 중..." : "완료"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* 나중에 (홈으로) — 이메일만 필요한 경우(skipable)에만 노출 */}
+      {skipable && (
+        <button
+          type="button"
+          onClick={() => router.push("/")}
+          style={{
+            marginTop: 16,
+            width: "100%",
+            textAlign: "center",
+            fontSize: 12,
+            color: "var(--ink-mute)",
+            background: "transparent",
+            border: 0,
+            cursor: "pointer",
+          }}
+        >
+          나중에 (홈으로)
+        </button>
+      )}
     </div>
   );
 }
