@@ -17,7 +17,7 @@
  * mock 금지: 본인 신청이 없는(myApplicationStatus=null) 경우 page.tsx 측에서
  *   이 컴포넌트를 아예 렌더하지 않는다. 여기서는 0/1/2 만 처리한다.
  *
- * 디자인 13룰: var(--color-*) 토큰 + Material Symbols Outlined 만 사용.
+ * 디자인 13룰: var(--*) DS v4 토큰 + Material Symbols Outlined 만 사용.
  * 서버 데이터에 의존하지 않는 순수 표시 컴포넌트 — 클라이언트 지시어 불필요.
  * ============================================================ */
 
@@ -166,7 +166,7 @@ export function ApplyStep({
                     marginTop: 2,
                     background:
                       step.state === "done"
-                        ? "var(--ok, var(--color-info))"
+                        ? "var(--ok)"
                         : "var(--border)",
                   }}
                 />
@@ -214,10 +214,10 @@ function colorOf(state: StepState): {
 } {
   switch (state) {
     case "done":
-      // 완료 — 성공 색(ok), 없으면 info 폴백
+      // 완료 — 성공 색(ok)
       return {
-        bg: "var(--ok, var(--color-info))",
-        border: "var(--ok, var(--color-info))",
+        bg: "var(--ok)",
+        border: "var(--ok)",
         fg: "#fff",
         labelColor: "var(--ink)",
       };

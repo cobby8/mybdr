@@ -3,6 +3,10 @@
 import { useEffect } from "react";
 import Link from "next/link";
 
+/* ProfileIncompleteBanner — 프로필 미완성 안내 배너
+ * DS v4 토큰: var(--warn) / var(--primary) / var(--primary-deep) / color-mix()
+ * 하드코딩 색상 없음. 인라인 style 표준 (BDR v2 컨벤션).
+ */
 export function ProfileIncompleteBanner() {
   // 페이지 로드 시 fire-and-forget으로 reminder 기록
   useEffect(() => {
@@ -10,13 +14,37 @@ export function ProfileIncompleteBanner() {
   }, []);
 
   return (
-    <div className="mb-4 flex items-center justify-between gap-3 rounded-[12px] bg-[var(--color-warning)]/5 px-4 py-3 border border-[var(--color-primary)]/30">
-      <p className="text-sm text-[var(--color-warning)]">
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: 12,
+        borderRadius: 12,
+        background: "color-mix(in srgb, var(--warn) 8%, transparent)",
+        padding: "12px 16px",
+        border: "1px solid color-mix(in srgb, var(--warn) 25%, transparent)",
+        marginBottom: 16,
+      }}
+    >
+      <p style={{ fontSize: 14, color: "var(--warn)", margin: 0 }}>
         🔔 프로필을 완성하면 경기 신청이 더 편리해요.
       </p>
       <Link
         href="/profile/edit"
-        className="flex-shrink-0 rounded-[8px] bg-[var(--color-primary)] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[var(--color-primary-hover)] transition-colors"
+        style={{
+          flexShrink: 0,
+          borderRadius: 8,
+          background: "var(--primary)",
+          padding: "6px 12px",
+          fontSize: 12,
+          fontWeight: 600,
+          color: "#fff",
+          textDecoration: "none",
+          minHeight: 32,
+          display: "inline-flex",
+          alignItems: "center",
+        }}
       >
         지금 완성하기
       </Link>
