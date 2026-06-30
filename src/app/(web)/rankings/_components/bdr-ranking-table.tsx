@@ -75,7 +75,7 @@ function MoveBadge({ value }: { value: number }) {
   }
   // 변동 없음
   return (
-    <span className="inline-flex items-center text-xs" style={{ color: "var(--color-text-disabled)" }}>
+    <span className="inline-flex items-center text-xs" style={{ color: "var(--ink-dim)" }}>
       <span className="material-symbols-outlined text-sm">remove</span>
     </span>
   );
@@ -100,7 +100,7 @@ function ScoreChangeBadge({ value }: { value: number }) {
     );
   }
   return (
-    <span className="text-xs" style={{ color: "var(--color-text-disabled)" }}>
+    <span className="text-xs" style={{ color: "var(--ink-dim)" }}>
       -
     </span>
   );
@@ -217,14 +217,14 @@ export function BdrRankingTable({ division }: BdrRankingTableProps) {
       <div className="py-20 text-center">
         <span
           className="material-symbols-outlined text-5xl mb-3 block"
-          style={{ color: "var(--color-text-disabled)" }}
+          style={{ color: "var(--ink-dim)" }}
         >
           cloud_off
         </span>
         <p style={{ color: "var(--color-text-secondary)" }}>
           랭킹 데이터를 불러올 수 없습니다.
         </p>
-        <p className="text-xs mt-1" style={{ color: "var(--color-text-disabled)" }}>
+        <p className="text-xs mt-1" style={{ color: "var(--ink-dim)" }}>
           잠시 후 다시 시도해주세요.
         </p>
       </div>
@@ -237,7 +237,7 @@ export function BdrRankingTable({ division }: BdrRankingTableProps) {
       <div className="py-20 text-center">
         <span
           className="material-symbols-outlined text-5xl mb-3 block"
-          style={{ color: "var(--color-text-disabled)" }}
+          style={{ color: "var(--ink-dim)" }}
         >
           leaderboard
         </span>
@@ -278,7 +278,7 @@ export function BdrRankingTable({ division }: BdrRankingTableProps) {
         >
           <span
             className="material-symbols-outlined text-lg"
-            style={{ color: "var(--color-text-disabled)" }}
+            style={{ color: "var(--ink-dim)" }}
           >
             search
           </span>
@@ -295,14 +295,14 @@ export function BdrRankingTable({ division }: BdrRankingTableProps) {
             <button
               onClick={() => setSearchQuery("")}
               className="flex items-center"
-              style={{ color: "var(--color-text-disabled)" }}
+              style={{ color: "var(--ink-dim)" }}
             >
               <span className="material-symbols-outlined text-sm">close</span>
             </button>
           )}
         </div>
         {/* 총 팀 수 표시 */}
-        <span className="text-xs whitespace-nowrap" style={{ color: "var(--color-text-disabled)" }}>
+        <span className="text-xs whitespace-nowrap" style={{ color: "var(--ink-dim)" }}>
           {filteredRankings.length}개 팀
         </span>
       </div>
@@ -341,7 +341,7 @@ export function BdrRankingTable({ division }: BdrRankingTableProps) {
                   <td colSpan={6} className="py-12 text-center">
                     <span
                       className="material-symbols-outlined text-3xl mb-2 block"
-                      style={{ color: "var(--color-text-disabled)" }}
+                      style={{ color: "var(--ink-dim)" }}
                     >
                       search_off
                     </span>
@@ -368,7 +368,7 @@ export function BdrRankingTable({ division }: BdrRankingTableProps) {
                         {/* 팀 이니셜 원 */}
                         <div
                           className="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-bold text-white"
-                          style={{ backgroundColor: "var(--color-navy, #1B3C87)" }}
+                          style={{ backgroundColor: "var(--cafe-blue)" }}
                         >
                           {item.team?.[0] ?? "?"}
                         </div>
@@ -393,7 +393,7 @@ export function BdrRankingTable({ division }: BdrRankingTableProps) {
                     <td className="px-4 py-3 text-center">
                       <span
                         className="text-sm font-bold"
-                        style={{ color: "var(--color-info, #0079B9)" }}
+                        style={{ color: "var(--cafe-blue)" }}
                       >
                         {item.score.toFixed(1)}
                       </span>

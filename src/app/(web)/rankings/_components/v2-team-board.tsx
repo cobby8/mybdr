@@ -92,7 +92,7 @@ export function V2TeamBoard({ teams }: V2TeamBoardProps) {
                   width: 22,
                   height: 22,
                   background: color,
-                  color: "#fff",
+                  color: "var(--ink-on-brand)",
                   display: "grid",
                   placeItems: "center",
                   fontFamily: "var(--ff-mono)",
