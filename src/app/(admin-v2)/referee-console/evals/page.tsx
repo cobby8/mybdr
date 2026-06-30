@@ -6,15 +6,28 @@
 //   - 데이터 0행 → SchemaList Empty(mock 0). RefereeEvaluation = R6-C 신규 모델.
 // ============================================================
 
+import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db/prisma";
-import { refereeName, evalStatusBadge, avColor } from "../_referee-data";
+import {
+  refereeName,
+  evalStatusBadge,
+  avColor,
+  getRefereeScope,
+} from "../_referee-data";
 import { EvalsList, type RfEvalRow } from "./_evals";
 
 export const dynamic = "force-dynamic";
 
 export default async function RefereeEvalsPage() {
-  // 전역 평가 목록(협회 필터 0) — 최근 평가 우선.
+  // ★4-2 스코프 — 협회 admin 은 자기 협회 심판 평가만(referee 관계경유), 전역=전 협회.
+  const scope = await getRefereeScope();
+  if (!scope) notFound();
+
+  // 평가 목록(스코프 필터) — 최근 평가 우선.
   const evals = await prisma.refereeEvaluation.findMany({
+    where: scope.isSuper
+      ? {}
+      : { referee: { association_id: scope.associationId } },
     orderBy: { evaluated_at: "desc" },
     take: 200,
     select: {

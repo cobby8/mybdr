@@ -8,6 +8,7 @@
 //   - 데이터 0행 → SchemaList Empty(mock 0).
 // ============================================================
 
+import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db/prisma";
 import {
   refereeName,
@@ -15,6 +16,7 @@ import {
   won,
   fmtDate,
   avColor,
+  getRefereeScope,
 } from "../_referee-data";
 import { type RfSettleRow } from "./_settlements";
 import { SettlementsConsole } from "./_settlements-console";
@@ -22,8 +24,15 @@ import { SettlementsConsole } from "./_settlements-console";
 export const dynamic = "force-dynamic";
 
 export default async function RefereeSettlementsPage() {
-  // 전역 정산 목록(협회 필터 0) — 최근 생성 우선.
+  // ★4-2 스코프 — 협회 admin 은 자기 협회 심판 정산만(referee 관계경유), 전역=전 협회.
+  const scope = await getRefereeScope();
+  if (!scope) notFound();
+
+  // 정산 목록(스코프 필터) — 최근 생성 우선.
   const settlements = await prisma.refereeSettlement.findMany({
+    where: scope.isSuper
+      ? {}
+      : { referee: { association_id: scope.associationId } },
     orderBy: { created_at: "desc" },
     take: 200,
     select: {

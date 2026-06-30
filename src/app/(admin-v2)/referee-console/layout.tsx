@@ -1,20 +1,19 @@
 // ============================================================
-// (admin-v2)/referee-console/layout.tsx — 심판 콘솔 인증 게이트 + 셸 마운트 (R6-B)
-//   ★스코프 = 글로벌 super-admin. 레거시 협회별 심판 admin(`/referee/admin`)과 별개.
+// (admin-v2)/referee-console/layout.tsx — 심판 콘솔 인증 게이트 + 셸 마운트 (R6-B · 4-3 권한개방)
+//   ★스코프 = 전역(super/recorder) + 협회 admin 공존. 협회 admin 은 자기 협회만(page READ 필터).
 //     · 레거시 `(referee)/referee/`가 URL `/referee` 점유 → 본 콘솔은 `/referee-console`.
-//   - 인증: getWebSession → isSuperAdmin(session) only(전역). 협회 멤버십 불요.
+//   - 인증: getWebSession → getRefereeAdminContext(전역 우선 판정 후 비-전역만 getAssociationAdmin).
 //     · 미로그인 → buildLoginRedirect(원경로 복귀)
-//     · 비-super → no_permission redirect (협회 admin 은 레거시 콘솔로)
+//     · 무권한(비admin·매핑부재) → no_permission redirect
 //   - admin-v2 디자인시스템 CSS 를 여기서 import(세그먼트 스코프 = /referee-console/* 전용).
 //     전 셀렉터 [data-admin="v2"] 스코프라 레거시/다른 콘솔과 충돌 0.
-//   - 셸은 RefereeShell(심판 NAV) 마운트 — nav badge = 실 카운트(전역·협회필터 0).
-//   ⚠ 백엔드/DB/Prisma 0변경 · 레거시 0 import · raw fetch 0.
+//   - 셸은 RefereeShell(심판 NAV) 마운트 — nav badge = 실 카운트(전역=전 협회 / 협회=자기 협회).
+//   ⚠ 백엔드/DB/Prisma 0변경 · layout 가드 + page READ 필터만 · raw fetch 0.
 // ============================================================
 
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { getWebSession } from "@/lib/auth/web-session";
-import { isSuperAdmin } from "@/lib/auth/is-super-admin";
 import { prisma } from "@/lib/db/prisma";
 import { buildLoginRedirect } from "@/lib/auth/redirect";
 import type { AdminUser } from "@/components/admin-v2";
@@ -41,27 +40,30 @@ export default async function RefereeConsoleLayout({
     redirect(buildLoginRedirect(pathname, search));
   }
 
-  // 2) 글로벌 super-admin 게이트 — 비-super 차단(협회 admin 은 레거시 /referee/admin).
-  if (!isSuperAdmin(session)) {
+  // 2) 권한 게이트(4-3 개방) — 전역(super/recorder) OR 협회 admin(+매핑) 통과.
+  //    ctx = getRefereeAdminContext = getRefereeScope 기반(전역 우선 판정 후 비-전역만 getAssociationAdmin).
+  //    null = 무권한(비admin·매핑부재) → no_permission. 레거시 referee/admin/layout 차단 로직 이식.
+  const ctx = await getRefereeAdminContext();
+  if (!ctx) {
     redirect("/login?error=no_permission");
   }
 
-  // 3) 셸 표시용 컨텍스트(닉네임) — super 확정 후라 항상 존재.
-  const ctx = await getRefereeAdminContext();
-
-  // 4) nav badge 용 실 카운트(전역 · 협회 필터 0).
-  //    배정 = 미확정(assigned) / 검증 = 미검증 자격증 / 정산 = 지급 대기.
+  // 3) nav badge 용 실 카운트 — 협회 admin 은 자기 협회 심판만, 전역=전 협회 통합.
+  //    3종 모두 referee 관계경유 필터(association_id). 배정=미확정/검증=미검증/정산=지급대기.
+  const badgeWhere = ctx.isSuper
+    ? {}
+    : { referee: { association_id: ctx.associationId } };
   const [assignBadge, verifyBadge, settleBadge] = await Promise.all([
-    prisma.refereeAssignment.count({ where: { status: "assigned" } }),
-    prisma.refereeCertificate.count({ where: { verified: false } }),
-    prisma.refereeSettlement.count({ where: { status: "pending" } }),
+    prisma.refereeAssignment.count({ where: { status: "assigned", ...badgeWhere } }),
+    prisma.refereeCertificate.count({ where: { verified: false, ...badgeWhere } }),
+    prisma.refereeSettlement.count({ where: { status: "pending", ...badgeWhere } }),
   ]);
 
-  // 5) 셸 푸터 UserChip 표시 정보.
+  // 4) 셸 푸터 UserChip 표시 정보 — 전역=최고 관리자 / 협회=협회 관리자.
   const user: AdminUser = {
-    name: ctx?.name ?? "심판 운영",
-    role: "최고 관리자",
-    initial: (ctx?.name ?? "심").slice(0, 1).toUpperCase(),
+    name: ctx.name,
+    role: ctx.isSuper ? "최고 관리자" : "협회 관리자",
+    initial: ctx.name.slice(0, 1).toUpperCase(),
   };
 
   return (

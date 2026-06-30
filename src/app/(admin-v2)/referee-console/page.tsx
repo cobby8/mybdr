@@ -7,8 +7,9 @@
 //   - 데이터 0행 → 0 표시 + 빈 막대 + 처리대기 Empty(정직).
 // ============================================================
 
+import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db/prisma";
-import { won, n } from "./_referee-data";
+import { won, n, getRefereeScope } from "./_referee-data";
 import {
   RefereeDashboard,
   type RfKpi,
@@ -31,6 +32,17 @@ function lastMonths(count: number): { gte: Date; lt: Date; label: string }[] {
 }
 
 export default async function RefereeDashboardPage() {
+  // ★4-2 스코프 — 협회 admin 은 자기 협회 심판/배정/정산/자격증만 집계(누출 0).
+  //   전역(super/recorder)=필터 0(전 협회 통합). 무권한=방어 차단(layout 이 이미 차단하나 2중 방어).
+  const scope = await getRefereeScope();
+  if (!scope) notFound();
+  // referee 직접 컬럼 필터(referee.count 용).
+  const refWhere = scope.isSuper ? {} : { association_id: scope.associationId };
+  // assignment/settlement/certificate 관계 경유 필터(referee.association_id).
+  const relWhere = scope.isSuper
+    ? {}
+    : { referee: { association_id: scope.associationId } };
+
   const months = lastMonths(8);
   const thisMonth = months[months.length - 1];
 
@@ -42,26 +54,26 @@ export default async function RefereeDashboardPage() {
     pendingSettleCount,
     monthlyAssignCounts,
   ] = await Promise.all([
-    // 활동 심판(전역)
-    prisma.referee.count({ where: { status: "active" } }),
-    // 이번달 배정(assigned_at 기준)
+    // 활동 심판(스코프) — referee 직접 필터.
+    prisma.referee.count({ where: { status: "active", ...refWhere } }),
+    // 이번달 배정(assigned_at 기준·관계 필터)
     prisma.refereeAssignment.count({
-      where: { assigned_at: { gte: thisMonth.gte, lt: thisMonth.lt } },
+      where: { assigned_at: { gte: thisMonth.gte, lt: thisMonth.lt }, ...relWhere },
     }),
-    // 정산 대기 금액 합(pending + scheduled)
+    // 정산 대기 금액 합(pending + scheduled·관계 필터)
     prisma.refereeSettlement.aggregate({
-      where: { status: { in: ["pending", "scheduled"] } },
+      where: { status: { in: ["pending", "scheduled"] }, ...relWhere },
       _sum: { amount: true },
     }),
-    // 미검증 자격증
-    prisma.refereeCertificate.count({ where: { verified: false } }),
-    // 지급 대기 정산 건수(처리대기 항목용)
-    prisma.refereeSettlement.count({ where: { status: "pending" } }),
-    // 월별 신규 배정(assigned_at) — 0 데이터면 전부 0 막대(빈상태)
+    // 미검증 자격증(관계 필터)
+    prisma.refereeCertificate.count({ where: { verified: false, ...relWhere } }),
+    // 지급 대기 정산 건수(처리대기 항목용·관계 필터)
+    prisma.refereeSettlement.count({ where: { status: "pending", ...relWhere } }),
+    // 월별 신규 배정(assigned_at·관계 필터) — 0 데이터면 전부 0 막대(빈상태)
     Promise.all(
       months.map((m) =>
         prisma.refereeAssignment.count({
-          where: { assigned_at: { gte: m.gte, lt: m.lt } },
+          where: { assigned_at: { gte: m.gte, lt: m.lt }, ...relWhere },
         })
       )
     ),

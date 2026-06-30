@@ -25,6 +25,7 @@ import {
   settleStatusBadge,
   certVerifyBadge,
   won,
+  getRefereeScope,
 } from "../../_referee-data";
 import { MemberDetail, type RfDetailData } from "./_detail";
 
@@ -40,9 +41,17 @@ export default async function RefereeMemberDetailPage({
   if (!/^\d+$/.test(id)) notFound();
   const refereeId = BigInt(id);
 
-  // 전역 심판 상세(협회 필터 0) — 표시 필드만 select. 민감 컬럼(resident_id_enc) 제외.
-  const referee = await prisma.referee.findUnique({
-    where: { id: refereeId },
+  // ★4-2 스코프 — 협회 admin 은 자기 협회 심판만 상세 조회(IDOR 차단).
+  const scope = await getRefereeScope();
+  if (!scope) notFound();
+
+  // 심판 상세(스코프 필터) — 표시 필드만 select. 민감 컬럼(resident_id_enc) 제외.
+  //   ★findUnique→findFirst: 비유니크 association_id 를 where 에 AND 결합하기 위함.
+  //     협회 admin 이 타 협회 id 직접 접근 시 조건 불일치 → null → notFound(누출 0).
+  const referee = await prisma.referee.findFirst({
+    where: scope.isSuper
+      ? { id: refereeId }
+      : { id: refereeId, association_id: scope.associationId },
     select: {
       id: true,
       user_id: true,

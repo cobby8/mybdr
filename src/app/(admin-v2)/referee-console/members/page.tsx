@@ -9,6 +9,7 @@
 //     rowHref(→상세 [id]) · addHref(→신규 new) 네비게이션을 건다. 본 페이지는 목록 데이터만 매핑.
 // ============================================================
 
+import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db/prisma";
 import {
   refereeName,
@@ -17,14 +18,20 @@ import {
   regionLabel,
   roleTypeLabel,
   avColor,
+  getRefereeScope,
 } from "../_referee-data";
 import { MembersList, type RfMemberRow } from "./_members";
 
 export const dynamic = "force-dynamic";
 
 export default async function RefereeMembersPage() {
-  // 전역 심판 목록(협회 필터 0) — 최근 등록 우선. 표시 필드만 select.
+  // ★4-2 스코프 — 협회 admin 은 자기 협회 심판만(referee.association_id), 전역=전 협회.
+  const scope = await getRefereeScope();
+  if (!scope) notFound();
+
+  // 심판 목록(스코프 필터) — 최근 등록 우선. 표시 필드만 select.
   const referees = await prisma.referee.findMany({
+    where: scope.isSuper ? {} : { association_id: scope.associationId },
     orderBy: { created_at: "desc" },
     take: 200,
     select: {

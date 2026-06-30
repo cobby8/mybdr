@@ -9,20 +9,29 @@
 //   - 데이터 0행 → SchemaList Empty(mock 0).
 // ============================================================
 
+import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db/prisma";
 import {
   refereeName,
   certVerifyBadge,
   fmtDate,
   avColor,
+  getRefereeScope,
 } from "../_referee-data";
 import { VerifyList, type RfVerifyRow } from "./_verify";
 
 export const dynamic = "force-dynamic";
 
 export default async function RefereeVerifyPage() {
-  // 전역 자격증 목록(협회 필터 0) — 미검증 우선, 최근 등록 우선.
+  // ★4-2 스코프 — 협회 admin 은 자기 협회 심판 자격증만(referee 관계경유), 전역=전 협회.
+  const scope = await getRefereeScope();
+  if (!scope) notFound();
+
+  // 자격증 목록(스코프 필터) — 미검증 우선, 최근 등록 우선.
   const certs = await prisma.refereeCertificate.findMany({
+    where: scope.isSuper
+      ? {}
+      : { referee: { association_id: scope.associationId } },
     orderBy: [{ verified: "asc" }, { created_at: "desc" }],
     take: 200,
     select: {
