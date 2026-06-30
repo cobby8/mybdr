@@ -23,6 +23,9 @@ import {
   regenerateNewsAction,
   regenerateSummaryBriefAction,
   editNewsAction,
+  // 작성(compose) 통합 — 레거시 /admin/news/compose 의 기존 액션 그대로 사용(백엔드 0변경)
+  createNewsPostAction,
+  listMatchOptionsAction,
 } from "@/app/actions/admin-news";
 // 매치별 LinkifyEntry[] 일괄 빌더 — 레거시와 동일 헬퍼(N+1 방지)
 import { buildLinkifyEntriesBatch } from "@/lib/news/build-linkify-entries";
@@ -51,31 +54,42 @@ export default async function AdminV2NewsConsolePage({
     statusFilter === "published" || statusFilter === "rejected" ? statusFilter : "draft";
 
   // 카테고리 = "news" 만 조회 (레거시 page.tsx 쿼리 1:1).
-  const [posts, draftCount, publishedCount, rejectedCount] = await Promise.all([
-    prisma.community_posts.findMany({
-      where: { category: "news", status },
-      orderBy: { created_at: "desc" },
-      take: 100,
-      select: {
-        id: true,
-        title: true,
-        content: true,
-        status: true,
-        created_at: true,
-        updated_at: true,
-        likes_count: true,
-        comments_count: true,
-        view_count: true,
-        tournament_match_id: true,
-        tournament_id: true,
-        period_type: true,
-        period_key: true,
-      },
-    }),
-    prisma.community_posts.count({ where: { category: "news", status: "draft" } }),
-    prisma.community_posts.count({ where: { category: "news", status: "published" } }),
-    prisma.community_posts.count({ where: { category: "news", status: "rejected" } }),
-  ]);
+  // tournaments = 작성 폼의 매치 cross-domain 대회 셀렉트용 (레거시 compose/page.tsx READ 1:1).
+  const [posts, draftCount, publishedCount, rejectedCount, tournaments] =
+    await Promise.all([
+      prisma.community_posts.findMany({
+        where: { category: "news", status },
+        orderBy: { created_at: "desc" },
+        take: 100,
+        select: {
+          id: true,
+          title: true,
+          content: true,
+          status: true,
+          created_at: true,
+          updated_at: true,
+          likes_count: true,
+          comments_count: true,
+          view_count: true,
+          tournament_match_id: true,
+          tournament_id: true,
+          period_type: true,
+          period_key: true,
+        },
+      }),
+      prisma.community_posts.count({ where: { category: "news", status: "draft" } }),
+      prisma.community_posts.count({ where: { category: "news", status: "published" } }),
+      prisma.community_posts.count({ where: { category: "news", status: "rejected" } }),
+      // 최근 대회 30건 (작성 매치 단신 cross-domain 선택용) — 레거시 compose 1:1
+      prisma.tournament.findMany({
+        orderBy: { startDate: "desc" },
+        take: 30,
+        select: { id: true, name: true },
+      }),
+    ]);
+
+  // 작성 폼 대회 옵션 (id=cuid 문자열·BigInt 아님 → 직렬화 그대로)
+  const tournamentOptions = tournaments.map((t) => ({ id: t.id, name: t.name }));
 
   // 매치별 LinkifyEntry[] + 사진 (레거시 page.tsx 1:1 — 배치 조회로 N+1 방지)
   const matchIds = posts
@@ -167,6 +181,10 @@ export default async function AdminV2NewsConsolePage({
       regenerateAction={regenerateNewsAction}
       regenerateSummaryAction={regenerateSummaryBriefAction}
       editAction={editNewsAction}
+      // 작성(compose) 통합 — 기존 액션 + 대회 옵션 전달(백엔드 0변경)
+      tournamentOptions={tournamentOptions}
+      createAction={createNewsPostAction}
+      listMatchOptionsAction={listMatchOptionsAction}
     />
   );
 }

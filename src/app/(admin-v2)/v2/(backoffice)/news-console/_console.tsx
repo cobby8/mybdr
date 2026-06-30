@@ -18,6 +18,7 @@ import React from "react";
 import { useRouter } from "next/navigation";
 import { LinkifyNewsBody, type LinkifyEntry } from "@/lib/news/linkify-news-body";
 import { NewsPhotoManager, type NewsPhoto } from "./_photo-manager";
+import { NewsCompose } from "./_compose";
 import {
   PageHead,
   DataTable,
@@ -52,6 +53,8 @@ export type NewsPost = {
 
 type Counts = { draft: number; published: number; rejected: number };
 type ActionResult = { ok: boolean; error?: string };
+// 작성(compose) 옵션 — 매치 cross-domain 대회 셀렉트용 (page.tsx READ 직렬화)
+type Option = { id: string; name: string };
 
 interface Props {
   posts: NewsPost[];
@@ -65,6 +68,19 @@ interface Props {
     id: bigint,
     data: { title?: string; content?: string },
   ) => Promise<ActionResult>;
+  // ── 작성(compose) 통합 — 레거시 (admin)/admin/news/compose 의 작성 기능 ──
+  tournamentOptions: Option[];
+  createAction: (data: {
+    title: string;
+    content?: string;
+    category?: string;
+    publishMode?: string;
+    tournamentId?: string | null;
+    tournamentMatchId?: string | null;
+  }) => Promise<{ ok: boolean; id?: string; error?: string }>;
+  listMatchOptionsAction: (
+    tournamentId: string,
+  ) => Promise<{ ok: boolean; matches?: Option[]; error?: string }>;
 }
 
 // ── 상태 라벨/톤 (레거시 NEWS_STATUS_* 1:1 — draft=warn / published=ok / rejected=danger) ──
@@ -106,9 +122,15 @@ export function NewsConsole({
   regenerateAction,
   regenerateSummaryAction,
   editAction,
+  tournamentOptions,
+  createAction,
+  listMatchOptionsAction,
 }: Props) {
   const router = useRouter();
   const { toast } = useAdminShell();
+
+  // 작성 모달 열림 상태 (compose 통합)
+  const [composeOpen, setComposeOpen] = React.useState(false);
 
   // selected 는 id 보관 — posts(props) 갱신 시 최신 객체 재도출(사진 refresh 반영, 레거시 동일).
   const [selectedId, setSelectedId] = React.useState<string | null>(null);
@@ -163,6 +185,16 @@ export function NewsConsole({
       "수정 완료",
     );
     setEditing(false);
+  };
+
+  // 작성 성공 → 결과 상태 탭으로 목록 전환 + 서버 재READ + toast.
+  //   createAction 의 status 매핑(publish→published / 그 외→draft)과 동일한 status 로 이동해
+  //   방금 작성한 기사가 보이게 한다.
+  const handleCreated = (resultStatus: "published" | "draft") => {
+    setComposeOpen(false);
+    router.push(`/v2/news-console?status=${resultStatus}`);
+    router.refresh();
+    toast(resultStatus === "published" ? "발행 완료" : "임시저장 완료");
   };
 
   // 행 클릭 → 미리보기 Modal 오픈 (편집상태 초기화)
@@ -244,6 +276,22 @@ export function NewsConsole({
         eyebrow="백오피스 · 콘텐츠"
         title="BDR NEWS 검수"
         sub={`검수 대기 ${counts.draft} · 발행됨 ${counts.published} · 거절됨 ${counts.rejected}`}
+        actions={
+          // 작성 통합 — 레거시 /admin/news/compose 진입을 news-console 내부 모달로.
+          <Btn icon="plus" onClick={() => setComposeOpen(true)}>
+            새 기사 작성
+          </Btn>
+        }
+      />
+
+      {/* 작성 모달 — 기존 createNewsPostAction/listMatchOptionsAction 호출(백엔드 0변경) */}
+      <NewsCompose
+        open={composeOpen}
+        onClose={() => setComposeOpen(false)}
+        tournamentOptions={tournamentOptions}
+        createAction={createAction}
+        listMatchOptionsAction={listMatchOptionsAction}
+        onCreated={handleCreated}
       />
 
       {/* 상태탭 — ?status= 서버필터(클릭 시 서버 재READ) */}
