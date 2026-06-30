@@ -122,14 +122,14 @@ export default async function OrganizationDetailPage({
     return (
       <div className="mx-auto max-w-3xl px-4 py-12">
         <PageBackButton fallbackHref="/organizations" />
-        <div className="mt-6 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-6 py-12 text-center">
-          <span className="material-symbols-outlined text-4xl text-[var(--color-text-muted)]">
+        <div className="mt-6 rounded-lg border border-[var(--border)] bg-[var(--bg-elev)] px-6 py-12 text-center">
+          <span className="material-symbols-outlined text-4xl text-[var(--ink-mute)]">
             inventory_2
           </span>
-          <h1 className="mt-3 text-lg font-bold text-[var(--color-text-primary)]">
+          <h1 className="mt-3 text-lg font-bold text-[var(--ink)]">
             보관된 단체입니다
           </h1>
-          <p className="mt-2 text-sm text-[var(--color-text-muted)]">
+          <p className="mt-2 text-sm text-[var(--ink-mute)]">
             '{org.name}' 단체는 운영자에 의해 보관 처리되어 현재 공개되지 않습니다.
             <br />
             소속 시리즈와 대회는 그대로 보존되어 별도로 접근 가능합니다.

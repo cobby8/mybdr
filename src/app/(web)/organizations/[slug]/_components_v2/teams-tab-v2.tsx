@@ -11,15 +11,15 @@
 
 export function TeamsTabV2() {
   return (
-    <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] py-16 text-center">
+    <div className="rounded-lg border border-[var(--border)] bg-[var(--bg-elev)] py-16 text-center">
       {/* Material Symbols (lucide-react 금지 컨벤션) */}
-      <span className="material-symbols-outlined text-4xl text-[var(--color-text-disabled)]">
+      <span className="material-symbols-outlined text-4xl text-[var(--ink-dim)]">
         sports_basketball
       </span>
-      <p className="mt-2 text-sm text-[var(--color-text-muted)]">
+      <p className="mt-2 text-sm text-[var(--ink-mute)]">
         준비 중 (집계 예정)
       </p>
-      <p className="mx-auto mt-1 max-w-md text-xs text-[var(--color-text-disabled)]">
+      <p className="mx-auto mt-1 max-w-md text-xs text-[var(--ink-dim)]">
         단체 소속 팀 집계 기능은 추후 업데이트 예정입니다.
       </p>
     </div>

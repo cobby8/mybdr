@@ -47,7 +47,7 @@ export function OrgCardV2({ org }: { org: OrgCardData }) {
   };
 
   return (
-    <div className="overflow-hidden rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] transition-colors hover:border-[var(--color-primary)]">
+    <div className="overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--bg-elev)] transition-colors hover:border-[var(--cafe-blue)]">
       {/* 헤더: 그라디언트 + 로고/태그/이름/종류 */}
       <div
         className="flex items-start gap-3.5 px-5 py-4 text-white"
@@ -100,7 +100,7 @@ export function OrgCardV2({ org }: { org: OrgCardData }) {
       {/* 본문: 설명 + 통계 3분할 */}
       <div className="px-[18px] py-3.5">
         <p
-          className="mb-3 line-clamp-2 text-[13px] leading-[1.5] text-[var(--color-text-secondary)]"
+          className="mb-3 line-clamp-2 text-[13px] leading-[1.5] text-[var(--ink-soft)]"
           style={{ minHeight: 40 }}
         >
           {org.description || "단체 소개가 없습니다."}
@@ -109,28 +109,28 @@ export function OrgCardV2({ org }: { org: OrgCardData }) {
         <div className="grid grid-cols-3 gap-2">
           {/* 지역 */}
           <div>
-            <div className="text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--color-text-muted)]">
+            <div className="text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--ink-mute)]">
               지역
             </div>
-            <div className="mt-0.5 text-[13px] font-bold text-[var(--color-text-primary)]">
+            <div className="mt-0.5 text-[13px] font-bold text-[var(--ink)]">
               {org.region || "전국"}
             </div>
           </div>
           {/* 시리즈 (DB에 teams 집계 없음 → series_count로 대체) */}
           <div>
-            <div className="text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--color-text-muted)]">
+            <div className="text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--ink-mute)]">
               시리즈
             </div>
-            <div className="mt-0.5 text-lg font-black tracking-tight text-[var(--color-text-primary)]">
+            <div className="mt-0.5 text-lg font-black tracking-tight text-[var(--ink)]">
               {org.seriesCount}
             </div>
           </div>
           {/* 인원 */}
           <div>
-            <div className="text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--color-text-muted)]">
+            <div className="text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--ink-mute)]">
               인원
             </div>
-            <div className="mt-0.5 text-lg font-black tracking-tight text-[var(--color-text-primary)]">
+            <div className="mt-0.5 text-lg font-black tracking-tight text-[var(--ink)]">
               {org.membersCount}
             </div>
           </div>
@@ -138,17 +138,17 @@ export function OrgCardV2({ org }: { org: OrgCardData }) {
       </div>
 
       {/* 하단 액션: 상세 (Link) / 가입 신청 (준비 중 alert) */}
-      <div className="flex gap-1.5 border-t border-[var(--color-border)] px-[18px] pb-3.5 pt-2.5">
+      <div className="flex gap-1.5 border-t border-[var(--border)] px-[18px] pb-3.5 pt-2.5">
         <Link
           href={`/organizations/${org.slug}`}
-          className="flex-1 rounded border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1.5 text-center text-xs font-medium text-[var(--color-text-primary)] transition-colors hover:border-[var(--color-text-muted)]"
+          className="flex-1 rounded border border-[var(--border)] bg-[var(--bg-elev)] px-3 py-1.5 text-center text-xs font-medium text-[var(--ink)] transition-colors hover:border-[var(--ink-mute)]"
         >
           상세
         </Link>
         <button
           type="button"
           onClick={handleApply}
-          className="flex-1 rounded bg-[var(--color-primary)] px-3 py-1.5 text-xs font-bold text-white transition-colors hover:bg-[var(--color-primary-hover)]"
+          className="flex-1 rounded bg-[var(--cafe-blue)] px-3 py-1.5 text-xs font-bold text-white transition-colors hover:bg-[var(--cafe-blue-deep)]"
         >
           가입 신청
         </button>

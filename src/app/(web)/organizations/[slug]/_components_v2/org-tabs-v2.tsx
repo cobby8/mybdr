@@ -53,7 +53,7 @@ export function OrgTabsV2({ active }: OrgTabsV2Props) {
   };
 
   return (
-    <div className="mb-5 flex border-b-2 border-[var(--color-border)]">
+    <div className="mb-5 flex border-b-2 border-[var(--border)]">
       {ORG_TABS.map(({ key, label }) => {
         const isActive = active === key;
         return (
@@ -65,11 +65,11 @@ export function OrgTabsV2({ active }: OrgTabsV2Props) {
             style={{
               // 시안: 활성 탭은 cafe-blue 3px 하단 보더 + ink 색
               borderBottom: isActive
-                ? "3px solid var(--color-info)"
+                ? "3px solid var(--cafe-blue)"
                 : "3px solid transparent",
               color: isActive
-                ? "var(--color-text-primary)"
-                : "var(--color-text-muted)",
+                ? "var(--ink)"
+                : "var(--ink-mute)",
               fontWeight: isActive ? 700 : 500,
             }}
           >

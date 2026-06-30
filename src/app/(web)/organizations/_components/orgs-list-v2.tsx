@@ -72,7 +72,7 @@ export function OrgsListV2({ orgs }: { orgs: OrgCardData[] }) {
       {/* 필터 바: 지역 chip + 정렬 chip + 검색 */}
       <div className="mb-4 flex flex-wrap items-center gap-2">
         {/* 지역 그룹 */}
-        <span className="text-[10.5px] font-extrabold uppercase tracking-[0.06em] text-[var(--color-text-muted)]">
+        <span className="text-[10.5px] font-extrabold uppercase tracking-[0.06em] text-[var(--ink-mute)]">
           지역
         </span>
         <div className="flex flex-wrap gap-1">
@@ -86,12 +86,12 @@ export function OrgsListV2({ orgs }: { orgs: OrgCardData[] }) {
                 className="rounded border px-3 py-1.5 text-xs font-medium transition-colors"
                 style={{
                   background: isActive
-                    ? "var(--color-info)"
-                    : "var(--color-surface)",
-                  color: isActive ? "#fff" : "var(--color-text-primary)",
+                    ? "var(--cafe-blue)"
+                    : "var(--bg-elev)",
+                  color: isActive ? "#fff" : "var(--ink)",
                   borderColor: isActive
-                    ? "var(--color-info)"
-                    : "var(--color-border)",
+                    ? "var(--cafe-blue)"
+                    : "var(--border)",
                 }}
               >
                 {r === "all" ? "전체" : r}
@@ -101,10 +101,10 @@ export function OrgsListV2({ orgs }: { orgs: OrgCardData[] }) {
         </div>
 
         {/* 구분선 */}
-        <span className="mx-1 h-4 w-px bg-[var(--color-border)]" />
+        <span className="mx-1 h-4 w-px bg-[var(--border)]" />
 
         {/* 정렬 그룹 */}
-        <span className="text-[10.5px] font-extrabold uppercase tracking-[0.06em] text-[var(--color-text-muted)]">
+        <span className="text-[10.5px] font-extrabold uppercase tracking-[0.06em] text-[var(--ink-mute)]">
           정렬
         </span>
         <div className="flex gap-1">
@@ -118,12 +118,12 @@ export function OrgsListV2({ orgs }: { orgs: OrgCardData[] }) {
                 className="rounded border px-3 py-1.5 text-xs font-medium transition-colors"
                 style={{
                   background: isActive
-                    ? "var(--color-info)"
-                    : "var(--color-surface)",
-                  color: isActive ? "#fff" : "var(--color-text-primary)",
+                    ? "var(--cafe-blue)"
+                    : "var(--bg-elev)",
+                  color: isActive ? "#fff" : "var(--ink)",
                   borderColor: isActive
-                    ? "var(--color-info)"
-                    : "var(--color-border)",
+                    ? "var(--cafe-blue)"
+                    : "var(--border)",
                 }}
               >
                 {s.l}
@@ -133,25 +133,25 @@ export function OrgsListV2({ orgs }: { orgs: OrgCardData[] }) {
         </div>
 
         {/* 우측 검색 (남는 공간 밀어내기) */}
-        <div className="ml-auto flex min-w-[200px] items-center gap-1.5 rounded border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1.5">
-          <span className="material-symbols-outlined text-base text-[var(--color-text-muted)]">
+        <div className="ml-auto flex min-w-[200px] items-center gap-1.5 rounded border border-[var(--border)] bg-[var(--bg-elev)] px-3 py-1.5">
+          <span className="material-symbols-outlined text-base text-[var(--ink-mute)]">
             search
           </span>
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="단체명 / 지역"
-            className="w-full bg-transparent text-sm text-[var(--color-text-primary)] outline-none placeholder:text-[var(--color-text-muted)]"
+            className="w-full bg-transparent text-sm text-[var(--ink)] outline-none placeholder:text-[var(--ink-mute)]"
           />
         </div>
       </div>
 
       {/* 전체 단체 섹션 헤더 + 개수 */}
       <div className="mb-2 flex items-baseline gap-2">
-        <h2 className="text-base font-extrabold text-[var(--color-text-primary)]">
+        <h2 className="text-base font-extrabold text-[var(--ink)]">
           전체 단체
         </h2>
-        <span className="text-xs text-[var(--color-text-muted)]">
+        <span className="text-xs text-[var(--ink-mute)]">
           {filtered.length}개
         </span>
       </div>
@@ -170,10 +170,10 @@ export function OrgsListV2({ orgs }: { orgs: OrgCardData[] }) {
         </div>
       ) : (
         <div className="py-20 text-center">
-          <span className="material-symbols-outlined text-4xl text-[var(--color-text-disabled)]">
+          <span className="material-symbols-outlined text-4xl text-[var(--ink-dim)]">
             corporate_fare
           </span>
-          <p className="mt-2 text-[var(--color-text-muted)]">
+          <p className="mt-2 text-[var(--ink-mute)]">
             {orgs.length === 0
               ? "아직 등록된 단체가 없습니다."
               : "조건에 맞는 단체가 없습니다."}

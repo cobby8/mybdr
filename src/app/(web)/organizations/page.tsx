@@ -68,13 +68,13 @@ export default async function OrganizationsPage() {
       {/* 페이지 헤더: eyebrow + h1 + 부제 + 등록 버튼 */}
       <div className="mb-4 flex flex-wrap items-baseline justify-between gap-4">
         <div>
-          <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">
+          <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-[var(--ink-mute)]">
             단체 · ORGANIZATIONS
           </div>
-          <h1 className="mt-1.5 text-[28px] font-extrabold tracking-tight text-[var(--color-text-primary)]">
+          <h1 className="mt-1.5 text-[28px] font-extrabold tracking-tight text-[var(--ink)]">
             리그 · 협회 · 동호회
           </h1>
-          <div className="mt-1 text-[13px] text-[var(--color-text-muted)]">
+          <div className="mt-1 text-[13px] text-[var(--ink-mute)]">
             여러 팀을 아우르는 {orgs.length}개의 농구 단체. 단체 페이지에서 소속
             시리즈와 누적 우승팀을 확인할 수 있습니다.
           </div>
@@ -82,7 +82,7 @@ export default async function OrganizationsPage() {
         {/* 단체 등록 버튼 (라벨: PM 지시 "단체 등록"). 기존 /apply 라우트 유지 */}
         <Link
           href="/organizations/apply"
-          className="inline-flex items-center gap-1.5 rounded bg-[var(--color-primary)] px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-[var(--color-primary-hover)]"
+          className="inline-flex items-center gap-1.5 rounded bg-[var(--cafe-blue)] px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-[var(--cafe-blue-deep)]"
         >
           <span className="material-symbols-outlined text-lg">add</span>
           단체 등록

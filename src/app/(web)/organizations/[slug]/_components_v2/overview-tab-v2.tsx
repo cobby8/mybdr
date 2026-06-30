@@ -26,19 +26,19 @@ export function OverviewTabV2({
     // 시안 그대로 좌측은 1fr, 우측은 300px 고정. lg 미만에선 1열 스택
     <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_300px]">
       {/* 좌측: 단체 소개 + 운영 원칙 */}
-      <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-[26px] py-6">
-        <h2 className="mb-3 text-lg font-bold text-[var(--color-text-primary)]">
+      <div className="rounded-lg border border-[var(--border)] bg-[var(--bg-elev)] px-[26px] py-6">
+        <h2 className="mb-3 text-lg font-bold text-[var(--ink)]">
           단체 소개
         </h2>
-        <p className="mb-3.5 leading-[1.75] text-[var(--color-text-secondary)]">
+        <p className="mb-3.5 leading-[1.75] text-[var(--ink-soft)]">
           {description || "단체 소개가 아직 등록되지 않았습니다."}
         </p>
 
         {/* 운영 원칙 — DB 컬럼 없음. "준비 중" 안내 (구현 시 별도 필드 추가 필요) */}
-        <h3 className="mb-2.5 mt-5 text-[15px] font-bold text-[var(--color-text-primary)]">
+        <h3 className="mb-2.5 mt-5 text-[15px] font-bold text-[var(--ink)]">
           운영 원칙
         </h3>
-        <p className="m-0 text-sm leading-[1.7] text-[var(--color-text-muted)]">
+        <p className="m-0 text-sm leading-[1.7] text-[var(--ink-mute)]">
           운영 원칙은 준비 중입니다.
         </p>
       </div>
@@ -46,11 +46,11 @@ export function OverviewTabV2({
       {/* 우측: 연락처 + 스폰서 (300px 고정) */}
       <div className="flex flex-col gap-3">
         {/* 연락처 카드 — DB 값이 있으면 노출, 없으면 placeholder */}
-        <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-[18px]">
-          <div className="mb-2.5 text-sm font-bold text-[var(--color-text-primary)]">
+        <div className="rounded-lg border border-[var(--border)] bg-[var(--bg-elev)] px-5 py-[18px]">
+          <div className="mb-2.5 text-sm font-bold text-[var(--ink)]">
             연락처
           </div>
-          <div className="space-y-1.5 text-[13px] leading-[1.8] text-[var(--color-text-secondary)]">
+          <div className="space-y-1.5 text-[13px] leading-[1.8] text-[var(--ink-soft)]">
             {/* 이메일 */}
             <div className="flex items-center gap-1.5">
               <span className="material-symbols-outlined text-base">mail</span>
@@ -66,7 +66,7 @@ export function OverviewTabV2({
               <span className="material-symbols-outlined text-base">
                 business
               </span>
-              <span className="text-[var(--color-text-muted)]">준비 중</span>
+              <span className="text-[var(--ink-mute)]">준비 중</span>
             </div>
             {/* 웹사이트 (있을 때만 노출) */}
             {websiteUrl && (
@@ -78,7 +78,7 @@ export function OverviewTabV2({
                   href={websiteUrl}
                   target="_blank"
                   rel="noopener"
-                  className="text-[var(--color-info)] hover:underline"
+                  className="text-[var(--cafe-blue)] hover:underline"
                 >
                   웹사이트
                 </a>
@@ -88,11 +88,11 @@ export function OverviewTabV2({
         </div>
 
         {/* 주요 스폰서 — DB 컬럼 없음 → "준비 중" placeholder */}
-        <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-[18px]">
-          <div className="mb-2.5 text-sm font-bold text-[var(--color-text-primary)]">
+        <div className="rounded-lg border border-[var(--border)] bg-[var(--bg-elev)] px-5 py-[18px]">
+          <div className="mb-2.5 text-sm font-bold text-[var(--ink)]">
             주요 스폰서
           </div>
-          <p className="m-0 text-[13px] text-[var(--color-text-muted)]">
+          <p className="m-0 text-[13px] text-[var(--ink-mute)]">
             스폰서 정보는 준비 중입니다.
           </p>
         </div>

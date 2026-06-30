@@ -45,12 +45,12 @@ const STATUS_INFO: Record<
 };
 
 const TONE_CLASS: Record<string, string> = {
-  success: "bg-[var(--color-success)] text-white",
-  warning: "bg-[var(--color-warning)] text-white",
-  info: "bg-[var(--color-info)] text-white",
-  error: "bg-[var(--color-error)] text-white",
+  success: "bg-[var(--ok)] text-white",
+  warning: "bg-[var(--warn)] text-black",
+  info: "bg-[var(--cafe-blue)] text-white",
+  error: "bg-[var(--bdr-red)] text-white",
   default:
-    "bg-[var(--color-surface-bright)] text-[var(--color-text-muted)] border border-[var(--color-border)]",
+    "bg-[var(--bg-alt)] text-[var(--ink-mute)] border border-[var(--border)]",
 };
 
 type TabKey = "editions" | "honors" | "stats" | "about";
@@ -78,7 +78,7 @@ export function SeriesDetailTabs({
       {/* 탭 헤더 — 시안: bottom-border 강조 + active는 cafe-blue */}
       <div
         className="mb-5 flex flex-wrap"
-        style={{ borderBottom: "2px solid var(--color-border)" }}
+        style={{ borderBottom: "2px solid var(--border)" }}
       >
         {TABS.map(([k, l]) => {
           const active = tab === k;
@@ -90,9 +90,9 @@ export function SeriesDetailTabs({
               className="-mb-0.5 cursor-pointer border-0 bg-transparent px-4 py-3 text-[14px]"
               style={{
                 borderBottom: active
-                  ? "3px solid var(--color-info)"
+                  ? "3px solid var(--cafe-blue)"
                   : "3px solid transparent",
-                color: active ? "var(--color-text)" : "var(--color-text-muted)",
+                color: active ? "var(--ink)" : "var(--ink-mute)",
                 fontWeight: active ? 700 : 500,
               }}
             >
@@ -108,21 +108,21 @@ export function SeriesDetailTabs({
           {/* BO8 위계 안내 — 회차 클릭 시 Phase 1 대회 상세로 이동(cross-domain).
               시안 OU4 PAGE 2의 안내 문구 박제. 회차가 있을 때만 노출 */}
           {editions.length > 0 && (
-            <div className="mb-2.5 flex items-center gap-1.5 text-[12.5px] text-[var(--color-text-muted)]">
+            <div className="mb-2.5 flex items-center gap-1.5 text-[12.5px] text-[var(--ink-mute)]">
               <span
                 className="material-symbols-outlined text-sm"
-                style={{ color: "var(--color-info)" }}
+                style={{ color: "var(--cafe-blue)" }}
                 aria-hidden
               >
                 account_tree
               </span>
               회차를 누르면 해당{" "}
-              <b className="text-[var(--color-text)]">대회 상세</b>로 이동합니다
+              <b className="text-[var(--ink)]">대회 상세</b>로 이동합니다
             </div>
           )}
-          <div className="overflow-hidden rounded-[12px] border border-[var(--color-border)]">
+          <div className="overflow-hidden rounded-[12px] border border-[var(--border)]">
           {editions.length === 0 && (
-            <div className="px-6 py-12 text-center text-[var(--color-text-muted)]">
+            <div className="px-6 py-12 text-center text-[var(--ink-mute)]">
               <p className="text-sm">아직 공개된 회차가 없습니다.</p>
             </div>
           )}
@@ -141,28 +141,28 @@ export function SeriesDetailTabs({
             return (
               <Link key={e.id} href={`/tournaments/${e.id}`}>
                 <div
-                  className="grid cursor-pointer items-center gap-3.5 px-5 py-4 transition-colors hover:bg-[var(--color-surface-bright)]"
+                  className="grid cursor-pointer items-center gap-3.5 px-5 py-4 transition-colors hover:bg-[var(--bg-alt)]"
                   style={{
                     gridTemplateColumns:
                       "52px 96px minmax(0,1fr) minmax(0,1fr) 80px",
                     borderBottom:
                       i < editions.length - 1
-                        ? "1px solid var(--color-border)"
+                        ? "1px solid var(--border)"
                         : 0,
                     background: isActive
-                      ? "color-mix(in srgb, var(--color-info) 8%, transparent)"
+                      ? "color-mix(in srgb, var(--cafe-blue) 8%, transparent)"
                       : "transparent",
                   }}
                 >
                   {/* #회차 */}
                   <div
-                    className="text-[22px] font-black text-[var(--color-text-muted)]"
-                    style={{ fontFamily: "var(--font-heading)" }}
+                    className="text-[22px] font-black text-[var(--ink-mute)]"
+                    style={{ fontFamily: "var(--ff-display)" }}
                   >
                     #{e.edition_number ?? "-"}
                   </div>
                   {/* 날짜 */}
-                  <div className="text-[12px] text-[var(--color-text-muted)] tabular-nums">
+                  <div className="text-[12px] text-[var(--ink-mute)] tabular-nums">
                     {e.startDate
                       ? new Date(e.startDate).toLocaleDateString("ko-KR", {
                           timeZone: "Asia/Seoul",
@@ -174,7 +174,7 @@ export function SeriesDetailTabs({
                     <div className="truncate text-[15px] font-bold">
                       {e.name}
                     </div>
-                    <div className="mt-0.5 text-[12px] text-[var(--color-text-muted)]">
+                    <div className="mt-0.5 text-[12px] text-[var(--ink-mute)]">
                       {(e.teams_count ?? 0)}/{e.maxTeams ?? "?"}팀 참가
                       {e.city || e.venue_name
                         ? ` · ${[e.city, e.venue_name].filter(Boolean).join(" ")}`
@@ -191,7 +191,7 @@ export function SeriesDetailTabs({
                   </div>
                   {/* 우측 액션 */}
                   <div className="text-right">
-                    <span className="inline-flex items-center rounded border border-[var(--color-border)] bg-[var(--color-surface-bright)] px-2.5 py-1 text-[12px] font-medium text-[var(--color-text)]">
+                    <span className="inline-flex items-center rounded border border-[var(--border)] bg-[var(--bg-alt)] px-2.5 py-1 text-[12px] font-medium text-[var(--ink)]">
                       {isActive ? "참가" : "기록"}
                     </span>
                   </div>
@@ -205,9 +205,9 @@ export function SeriesDetailTabs({
 
       {/* honors — 명예의 전당 (DB winner 컬럼 미지원: 안내) */}
       {tab === "honors" && (
-        <div className="rounded-[12px] border border-[var(--color-border)] bg-[var(--color-surface)] px-7 py-6">
+        <div className="rounded-[12px] border border-[var(--border)] bg-[var(--bg-elev)] px-7 py-6">
           <h2 className="m-0 mb-4 text-[18px] font-bold">🏆 다수 우승팀</h2>
-          <div className="rounded-[8px] bg-[var(--color-surface-bright)] px-5 py-8 text-center text-[var(--color-text-muted)]">
+          <div className="rounded-[8px] bg-[var(--bg-alt)] px-5 py-8 text-center text-[var(--ink-mute)]">
             <p className="text-sm">
               회차별 우승팀·MVP 기록은 추후 제공될 예정입니다.
             </p>
@@ -259,21 +259,21 @@ export function SeriesDetailTabs({
 
       {/* about — 소개 */}
       {tab === "about" && (
-        <div className="rounded-[12px] border border-[var(--color-border)] bg-[var(--color-surface)] px-7 py-6">
+        <div className="rounded-[12px] border border-[var(--border)] bg-[var(--bg-elev)] px-7 py-6">
           <h2 className="m-0 mb-3 text-[18px] font-bold">
             {about.seriesName} 소개
           </h2>
           {about.description ? (
-            <p className="m-0 mb-3.5 leading-[1.75] text-[var(--color-text-muted)]">
+            <p className="m-0 mb-3.5 leading-[1.75] text-[var(--ink-mute)]">
               {about.description}
             </p>
           ) : (
-            <p className="m-0 mb-3.5 leading-[1.75] text-[var(--color-text-muted)]">
+            <p className="m-0 mb-3.5 leading-[1.75] text-[var(--ink-mute)]">
               아직 시리즈 소개가 등록되지 않았습니다.
             </p>
           )}
           <div
-            className="grid rounded-[8px] bg-[var(--color-surface-bright)] px-4 py-3.5 text-[14px]"
+            className="grid rounded-[8px] bg-[var(--bg-alt)] px-4 py-3.5 text-[14px]"
             style={{
               gridTemplateColumns: "140px 1fr",
               rowGap: 10,
@@ -282,15 +282,15 @@ export function SeriesDetailTabs({
           >
             {about.host && (
               <>
-                <div className="text-[12px] text-[var(--color-text-muted)]">주최</div>
+                <div className="text-[12px] text-[var(--ink-mute)]">주최</div>
                 <div>{about.host}</div>
               </>
             )}
-            <div className="text-[12px] text-[var(--color-text-muted)]">설립</div>
+            <div className="text-[12px] text-[var(--ink-mute)]">설립</div>
             <div>{about.foundedYear}년</div>
-            <div className="text-[12px] text-[var(--color-text-muted)]">경기 방식</div>
+            <div className="text-[12px] text-[var(--ink-mute)]">경기 방식</div>
             <div>3v3 토너먼트</div>
-            <div className="text-[12px] text-[var(--color-text-muted)]">대상</div>
+            <div className="text-[12px] text-[var(--ink-mute)]">대상</div>
             <div>참가 자격은 각 회차 페이지에서 확인하세요</div>
           </div>
         </div>
@@ -312,17 +312,17 @@ function StatCard({
   muted?: boolean;
 }) {
   return (
-    <div className="rounded-[12px] border border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-5">
-      <div className="mb-1.5 text-[11px] font-bold uppercase tracking-[0.08em] text-[var(--color-text-muted)]">
+    <div className="rounded-[12px] border border-[var(--border)] bg-[var(--bg-elev)] px-5 py-5">
+      <div className="mb-1.5 text-[11px] font-bold uppercase tracking-[0.08em] text-[var(--ink-mute)]">
         {label}
       </div>
       <div
-        className={`mb-1.5 text-[32px] leading-none font-black ${muted ? "text-[var(--color-text-muted)]" : "text-[var(--color-text)]"}`}
-        style={{ fontFamily: "var(--font-heading)" }}
+        className={`mb-1.5 text-[32px] leading-none font-black ${muted ? "text-[var(--ink-mute)]" : "text-[var(--ink)]"}`}
+        style={{ fontFamily: "var(--ff-display)" }}
       >
         {value}
       </div>
-      <div className="text-[12px] text-[var(--color-text-muted)]">{sub}</div>
+      <div className="text-[12px] text-[var(--ink-mute)]">{sub}</div>
     </div>
   );
 }

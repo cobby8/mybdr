@@ -49,11 +49,11 @@ function roleLabel(role: string): string {
 export function MembersTabV2({ members }: MembersTabV2Props) {
   if (members.length === 0) {
     return (
-      <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] py-16 text-center">
-        <span className="material-symbols-outlined text-4xl text-[var(--color-text-disabled)]">
+      <div className="rounded-lg border border-[var(--border)] bg-[var(--bg-elev)] py-16 text-center">
+        <span className="material-symbols-outlined text-4xl text-[var(--ink-dim)]">
           group
         </span>
-        <p className="mt-2 text-sm text-[var(--color-text-muted)]">
+        <p className="mt-2 text-sm text-[var(--ink-mute)]">
           아직 등록된 임원이 없습니다.
         </p>
       </div>
@@ -70,15 +70,15 @@ export function MembersTabV2({ members }: MembersTabV2Props) {
     <div className="flex flex-col gap-3">
       {/* BO3 헤더 — 운영 멤버 요약 (관리자 N · 멤버 N) */}
       <div className="flex items-center justify-between">
-        <h2 className="flex items-center gap-1.5 text-base font-bold text-[var(--color-text-primary)]">
+        <h2 className="flex items-center gap-1.5 text-base font-bold text-[var(--ink)]">
           <span className="material-symbols-outlined text-lg">
             shield_person
           </span>
           운영 멤버
         </h2>
         <span
-          className="text-[11px] font-bold text-[var(--color-text-muted)]"
-          style={{ fontFamily: "var(--font-space-grotesk), monospace" }}
+          className="text-[11px] font-bold text-[var(--ink-mute)]"
+          style={{ fontFamily: "var(--ff-mono), monospace" }}
         >
           관리자 {adminCount} · 멤버 {memberCount}
         </span>
@@ -98,7 +98,7 @@ export function MembersTabV2({ members }: MembersTabV2Props) {
           <Link
             key={m.id.toString()}
             href={`/users/${m.user.id}`}
-            className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-[18px] text-center transition-colors hover:border-[var(--color-primary)]"
+            className="rounded-lg border border-[var(--border)] bg-[var(--bg-elev)] px-4 py-[18px] text-center transition-colors hover:border-[var(--cafe-blue)]"
           >
             {/* 64px 원형 아바타 (이미지 또는 이니셜) */}
             {m.user.profile_image_url ? (
@@ -109,22 +109,22 @@ export function MembersTabV2({ members }: MembersTabV2Props) {
                 className="mx-auto mb-2.5 h-16 w-16 rounded-full object-cover"
               />
             ) : (
-              <div className="mx-auto mb-2.5 grid h-16 w-16 place-items-center rounded-full bg-[var(--color-text-secondary)] text-xl font-bold text-[var(--color-bg)]">
+              <div className="mx-auto mb-2.5 grid h-16 w-16 place-items-center rounded-full bg-[var(--bg-head)] text-xl font-bold text-[var(--ink-mute)]">
                 {initial}
               </div>
             )}
             {/* 이름 */}
-            <div className="text-sm font-bold text-[var(--color-text-primary)]">
+            <div className="text-sm font-bold text-[var(--ink)]">
               {m.user.nickname || "이름 없음"}
             </div>
             {/* role 라벨 (시안 accent 색) */}
-            <div className="mt-0.5 text-xs font-semibold text-[var(--color-primary)]">
+            <div className="mt-0.5 text-xs font-semibold text-[var(--cafe-blue)]">
               {roleLabel(m.role)}
             </div>
             {/* since YYYY (created_at 없을 땐 "준비 중") */}
             <div
-              className="mt-1 text-[11px] text-[var(--color-text-muted)]"
-              style={{ fontFamily: "var(--font-space-grotesk), monospace" }}
+              className="mt-1 text-[11px] text-[var(--ink-mute)]"
+              style={{ fontFamily: "var(--ff-mono), monospace" }}
             >
               {sinceYear ? `since ${sinceYear}` : "since 준비 중"}
             </div>

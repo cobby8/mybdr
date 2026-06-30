@@ -102,12 +102,12 @@ export default async function SeriesHubPage({
         <OrgHierarchyCrumbs trail={hierarchyTrail} />
       </div>
 
-      {/* hero — 시안 박제. 그라디언트는 var(--color-accent) 기반 */}
+      {/* hero — 시안 박제. 그라디언트는 var(--accent) 기반 */}
       <div
         className="relative mb-6 overflow-hidden rounded-[16px] px-9 py-10 text-white"
         style={{
           background:
-            "linear-gradient(135deg, var(--color-accent), color-mix(in srgb, var(--color-accent) 70%, transparent) 50%, #0B0D10)",
+            "linear-gradient(135deg, var(--accent), color-mix(in srgb, var(--accent) 70%, transparent) 50%, #0B0D10)",
         }}
       >
         {/* 시안의 사선 패턴 오버레이 */}
@@ -125,7 +125,7 @@ export default async function SeriesHubPage({
           </div>
           <h1
             className="m-0 mb-1.5 text-[44px] font-black leading-tight tracking-tight sm:text-[56px]"
-            style={{ fontFamily: "var(--font-heading)" }}
+            style={{ fontFamily: "var(--ff-display)" }}
           >
             {series.name}
           </h1>
@@ -136,7 +136,7 @@ export default async function SeriesHubPage({
           )}
           <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-[13px] opacity-90">
             <span>
-              <b style={{ fontFamily: "var(--font-heading)" }}>
+              <b style={{ fontFamily: "var(--ff-display)" }}>
                 {series.tournaments_count ?? 0}
               </b>
               회 진행
@@ -184,17 +184,17 @@ export default async function SeriesHubPage({
         <aside className="space-y-3.5 lg:sticky lg:top-[120px] lg:self-start">
           {latestActive ? (
             <Link href={`/tournaments/${latestActive.id}`}>
-              <div className="cursor-pointer rounded-[12px] border border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-5 transition-colors hover:bg-[var(--color-surface-bright)]">
-                <div className="mb-2.5 text-[11px] font-bold uppercase tracking-[0.1em] text-[var(--color-text-muted)]">
+              <div className="cursor-pointer rounded-[12px] border border-[var(--border)] bg-[var(--bg-elev)] px-5 py-5 transition-colors hover:bg-[var(--bg-alt)]">
+                <div className="mb-2.5 text-[11px] font-bold uppercase tracking-[0.1em] text-[var(--ink-mute)]">
                   다음 회차
                 </div>
                 <div
                   className="mb-1 text-[20px] font-black"
-                  style={{ fontFamily: "var(--font-heading)" }}
+                  style={{ fontFamily: "var(--ff-display)" }}
                 >
                   {latestActive.name}
                 </div>
-                <div className="mb-3.5 text-[13px] text-[var(--color-text-muted)]">
+                <div className="mb-3.5 text-[13px] text-[var(--ink-mute)]">
                   {latestActive.startDate
                     ? new Date(latestActive.startDate).toLocaleDateString(
                         "ko-KR",
@@ -203,33 +203,33 @@ export default async function SeriesHubPage({
                     : "날짜 미정"}
                   {latestActive.venue_name && ` — ${latestActive.venue_name}`}
                 </div>
-                <div className="rounded bg-[var(--color-accent)] px-4 py-2.5 text-center text-sm font-bold text-[var(--color-on-accent)]">
+                <div className="rounded bg-[var(--accent)] px-4 py-2.5 text-center text-sm font-bold text-white">
                   참가 신청
                 </div>
               </div>
             </Link>
           ) : (
-            <div className="rounded-[12px] border border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-5">
-              <div className="mb-2.5 text-[11px] font-bold uppercase tracking-[0.1em] text-[var(--color-text-muted)]">
+            <div className="rounded-[12px] border border-[var(--border)] bg-[var(--bg-elev)] px-5 py-5">
+              <div className="mb-2.5 text-[11px] font-bold uppercase tracking-[0.1em] text-[var(--ink-mute)]">
                 다음 회차
               </div>
-              <div className="text-[14px] text-[var(--color-text-muted)]">
+              <div className="text-[14px] text-[var(--ink-mute)]">
                 현재 모집 중인 회차가 없습니다.
               </div>
             </div>
           )}
 
           {/* 알림 받기 — UI만 (DB/API 없음, 시안 박제) */}
-          <div className="rounded-[12px] border border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-5">
-            <div className="mb-2.5 text-[11px] font-bold uppercase tracking-[0.1em] text-[var(--color-text-muted)]">
+          <div className="rounded-[12px] border border-[var(--border)] bg-[var(--bg-elev)] px-5 py-5">
+            <div className="mb-2.5 text-[11px] font-bold uppercase tracking-[0.1em] text-[var(--ink-mute)]">
               알림 받기
             </div>
-            <div className="mb-3 text-[13px] text-[var(--color-text-muted)]">
+            <div className="mb-3 text-[13px] text-[var(--ink-mute)]">
               새 회차가 열리면 알려드릴게요
             </div>
             <button
               type="button"
-              className="w-full rounded border border-[var(--color-border)] bg-[var(--color-surface-bright)] px-4 py-2 text-sm font-medium text-[var(--color-text-muted)]"
+              className="w-full rounded border border-[var(--border)] bg-[var(--bg-alt)] px-4 py-2 text-sm font-medium text-[var(--ink-mute)]"
               disabled
               title="시리즈 팔로우 기능은 추후 제공 예정입니다"
             >

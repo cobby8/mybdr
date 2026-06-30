@@ -49,16 +49,16 @@ function statusLabel(status: string | null): { text: string; color: string } {
   switch (status) {
     case "recruiting":
     case "open":
-      return { text: "모집중", color: "var(--color-success)" };
+      return { text: "모집중", color: "var(--ok)" };
     case "ongoing":
     case "in_progress":
-      return { text: "진행중", color: "var(--color-info)" };
+      return { text: "진행중", color: "var(--cafe-blue)" };
     case "completed":
     case "finished":
-      return { text: "종료", color: "var(--color-text-muted)" };
+      return { text: "종료", color: "var(--ink-mute)" };
     default:
       // 알 수 없는 status 는 원문 그대로 (없으면 예정)
-      return { text: status || "예정", color: "var(--color-text-muted)" };
+      return { text: status || "예정", color: "var(--ink-mute)" };
   }
 }
 
@@ -72,11 +72,11 @@ export function EventsTabV2({ orgSlug, orgName, series }: EventsTabV2Props) {
   // 시리즈 자체가 없으면 빈 상태
   if (series.length === 0) {
     return (
-      <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] py-16 text-center">
-        <span className="material-symbols-outlined text-4xl text-[var(--color-text-disabled)]">
+      <div className="rounded-lg border border-[var(--border)] bg-[var(--bg-elev)] py-16 text-center">
+        <span className="material-symbols-outlined text-4xl text-[var(--ink-dim)]">
           event
         </span>
-        <p className="mt-2 text-sm text-[var(--color-text-muted)]">
+        <p className="mt-2 text-sm text-[var(--ink-mute)]">
           아직 등록된 시리즈가 없습니다.
         </p>
       </div>
@@ -99,21 +99,21 @@ export function EventsTabV2({ orgSlug, orgName, series }: EventsTabV2Props) {
         return (
           <div
             key={s.id.toString()}
-            className="overflow-hidden rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)]"
+            className="overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--bg-elev)]"
           >
             {/* 시리즈 헤더 — 이름 + 누적 회수/소개 + 시리즈 hub 링크 */}
-            <div className="flex items-center gap-3 border-b border-[var(--color-border)] px-[18px] py-3.5">
+            <div className="flex items-center gap-3 border-b border-[var(--border)] px-[18px] py-3.5">
               {/* 시리즈 아이콘 박스 (정사각 → rounded 4px, pill 금지) */}
-              <div className="grid h-10 w-10 flex-shrink-0 place-items-center rounded bg-[var(--color-info)] text-white">
+              <div className="grid h-10 w-10 flex-shrink-0 place-items-center rounded bg-[var(--cafe-blue)] text-white">
                 <span className="material-symbols-outlined text-xl">
                   collections_bookmark
                 </span>
               </div>
               <div className="min-w-0 flex-1">
-                <div className="truncate font-bold text-[var(--color-text-primary)]">
+                <div className="truncate font-bold text-[var(--ink)]">
                   {s.name}
                 </div>
-                <div className="mt-0.5 truncate text-xs text-[var(--color-text-muted)]">
+                <div className="mt-0.5 truncate text-xs text-[var(--ink-mute)]">
                   {/* tournamentsCount 캐시값 우선, 0이면 실측 tournaments 길이 */}
                   {(s.tournamentsCount || tournaments.length)}회 진행
                   {s.description ? ` · ${s.description}` : ""}
@@ -122,7 +122,7 @@ export function EventsTabV2({ orgSlug, orgName, series }: EventsTabV2Props) {
               {/* 시리즈 hub 진입 (기존 라우트 /organizations/[slug]/series/[seriesSlug]) */}
               <Link
                 href={`/organizations/${orgSlug}/series/${s.slug}`}
-                className="inline-flex flex-shrink-0 items-center gap-1 rounded border border-[var(--color-border)] px-3 py-1.5 text-xs text-[var(--color-text-primary)] transition-colors hover:border-[var(--color-primary)]"
+                className="inline-flex flex-shrink-0 items-center gap-1 rounded border border-[var(--border)] px-3 py-1.5 text-xs text-[var(--ink)] transition-colors hover:border-[var(--cafe-blue)]"
               >
                 시리즈 hub
                 <span className="material-symbols-outlined text-sm">
@@ -133,11 +133,11 @@ export function EventsTabV2({ orgSlug, orgName, series }: EventsTabV2Props) {
 
             {/* 회차(대회) 리스트 — 실측 tournaments 만 */}
             {tournaments.length === 0 ? (
-              <div className="px-[18px] py-6 text-center text-xs text-[var(--color-text-muted)]">
+              <div className="px-[18px] py-6 text-center text-xs text-[var(--ink-mute)]">
                 아직 진행된 회차가 없습니다.
               </div>
             ) : (
-              <div className="divide-y divide-[var(--color-border)]">
+              <div className="divide-y divide-[var(--border)]">
                 {tournaments.map((t) => {
                   const st = statusLabel(t.status);
                   return (
@@ -145,13 +145,13 @@ export function EventsTabV2({ orgSlug, orgName, series }: EventsTabV2Props) {
                       key={t.id}
                       // 시리즈 hub 로 이동 (개별 대회 상세 라우트 분리 시 변경 가능)
                       href={`/organizations/${orgSlug}/series/${s.slug}`}
-                      className="group flex items-center gap-3 px-[18px] py-3 transition-colors hover:bg-[var(--color-bg)]"
+                      className="group flex items-center gap-3 px-[18px] py-3 transition-colors hover:bg-[var(--bg)]"
                     >
                       <div className="min-w-0 flex-1">
-                        <div className="truncate text-sm font-semibold text-[var(--color-text-primary)]">
+                        <div className="truncate text-sm font-semibold text-[var(--ink)]">
                           {t.name}
                         </div>
-                        <div className="mt-0.5 text-xs text-[var(--color-text-muted)]">
+                        <div className="mt-0.5 text-xs text-[var(--ink-mute)]">
                           {t.startDate
                             ? new Date(t.startDate).toLocaleDateString("ko-KR")
                             : "날짜 미정"}
@@ -164,7 +164,7 @@ export function EventsTabV2({ orgSlug, orgName, series }: EventsTabV2Props) {
                       >
                         {st.text}
                       </span>
-                      <span className="material-symbols-outlined flex-shrink-0 text-base text-[var(--color-text-disabled)]">
+                      <span className="material-symbols-outlined flex-shrink-0 text-base text-[var(--ink-dim)]">
                         chevron_right
                       </span>
                     </Link>
@@ -178,7 +178,7 @@ export function EventsTabV2({ orgSlug, orgName, series }: EventsTabV2Props) {
 
       {/* 시리즈는 있는데 모든 회차가 0건인 경우 안내 (전부 준비 중) */}
       {totalTournaments === 0 && (
-        <p className="text-center text-xs text-[var(--color-text-disabled)]">
+        <p className="text-center text-xs text-[var(--ink-dim)]">
           등록된 시리즈는 있으나 아직 진행된 회차가 없습니다.
         </p>
       )}

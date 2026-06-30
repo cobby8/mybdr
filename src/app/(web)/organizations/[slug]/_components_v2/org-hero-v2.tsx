@@ -121,7 +121,7 @@ export function OrgHeroV2({
         <button
           type="button"
           onClick={handleApply}
-          className="w-full rounded bg-[var(--color-primary)] px-5 py-2.5 text-sm font-bold text-white transition-colors hover:bg-[var(--color-primary-hover)] sm:w-auto"
+          className="w-full rounded bg-[var(--cafe-blue)] px-5 py-2.5 text-sm font-bold text-white transition-colors hover:bg-[var(--cafe-blue-deep)] sm:w-auto"
         >
           가입 신청
         </button>

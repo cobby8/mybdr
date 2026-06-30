@@ -40,17 +40,17 @@ export default async function SeriesListPage() {
       <div className="mb-5 flex flex-wrap items-baseline justify-between gap-3">
         <div>
           <div
-            className="text-[11px] font-extrabold uppercase tracking-[0.14em] text-[var(--color-text-muted)]"
+            className="text-[11px] font-extrabold uppercase tracking-[0.14em] text-[var(--ink-mute)]"
           >
             시리즈 · SERIES
           </div>
           <h1
             className="mt-1.5 mb-1 text-[28px] font-extrabold tracking-tight"
-            style={{ fontFamily: "var(--font-heading)" }}
+            style={{ fontFamily: "var(--ff-display)" }}
           >
             대회 시리즈 허브
           </h1>
-          <div className="text-[13px] text-[var(--color-text-muted)]">
+          <div className="text-[13px] text-[var(--ink-mute)]">
             정기적으로 열리는 모든 시리즈와 그 회차의 계보
           </div>
         </div>
@@ -61,18 +61,18 @@ export default async function SeriesListPage() {
         </Link>
       </div>
 
-      {/* spotlight — 시안 박제. 그라디언트는 var(--color-accent) 기반 (하드코딩 금지) */}
+      {/* spotlight — 시안 박제. 그라디언트는 var(--accent) 기반 (하드코딩 금지) */}
       {spotlight && (
         <Link href={`/series/${spotlight.slug}`}>
           <div
-            className="mb-5 grid cursor-pointer overflow-hidden rounded-[16px] border border-[var(--color-border)] sm:grid-cols-2"
+            className="mb-5 grid cursor-pointer overflow-hidden rounded-[16px] border border-[var(--border)] sm:grid-cols-2"
           >
             {/* 왼쪽: 그라디언트 + 시리즈명 강조 */}
             <div
               className="px-8 py-7 text-white"
               style={{
                 background:
-                  "linear-gradient(135deg, var(--color-accent), color-mix(in srgb, var(--color-accent) 70%, transparent) 50%, #0B0D10)",
+                  "linear-gradient(135deg, var(--accent), color-mix(in srgb, var(--accent) 70%, transparent) 50%, #0B0D10)",
               }}
             >
               <div className="mb-2.5 text-[11px] font-extrabold uppercase tracking-[0.14em] opacity-85">
@@ -80,7 +80,7 @@ export default async function SeriesListPage() {
               </div>
               <div
                 className="text-[40px] font-black leading-[1.05] tracking-tight"
-                style={{ fontFamily: "var(--font-heading)" }}
+                style={{ fontFamily: "var(--ff-display)" }}
               >
                 {spotlight.name}
               </div>
@@ -91,19 +91,19 @@ export default async function SeriesListPage() {
               )}
             </div>
             {/* 오른쪽: 누적 회차 + CTA */}
-            <div className="flex flex-col justify-between bg-[var(--color-surface)] px-8 py-6">
+            <div className="flex flex-col justify-between bg-[var(--bg-elev)] px-8 py-6">
               <div>
-                <div className="mb-1 text-xs font-semibold uppercase tracking-[0.06em] text-[var(--color-text-muted)]">
+                <div className="mb-1 text-xs font-semibold uppercase tracking-[0.06em] text-[var(--ink-mute)]">
                   누적 회차
                 </div>
                 <div className="mb-2 text-[22px] font-extrabold">
                   {spotlight.tournaments_count ?? 0}회 진행
                 </div>
-                <div className="text-[13px] leading-[1.6] text-[var(--color-text-muted)]">
+                <div className="text-[13px] leading-[1.6] text-[var(--ink-mute)]">
                   시리즈 페이지에서 회차별 우승팀과 MVP 기록을 확인할 수 있습니다.
                 </div>
               </div>
-              <div className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-[var(--color-accent)]">
+              <div className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-[var(--accent)]">
                 회차 보기 →
               </div>
             </div>
@@ -119,36 +119,36 @@ export default async function SeriesListPage() {
           const tag = s.slug?.split("-")[0]?.slice(0, 3).toUpperCase() ?? "BDR";
           return (
             <Link key={s.id.toString()} href={`/series/${s.slug}`}>
-              <div className="cursor-pointer overflow-hidden rounded-[12px] border border-[var(--color-border)] transition-colors hover:bg-[var(--color-surface-bright)]">
+              <div className="cursor-pointer overflow-hidden rounded-[12px] border border-[var(--border)] transition-colors hover:bg-[var(--bg-alt)]">
                 {/* 상단: 시리즈명 + 우측 컬러 태그 */}
-                <div className="flex items-start justify-between gap-3.5 border-b border-[var(--color-border)] px-5 py-4">
+                <div className="flex items-start justify-between gap-3.5 border-b border-[var(--border)] px-5 py-4">
                   <div className="min-w-0 flex-1">
                     <div className="mb-1.5 flex items-center gap-1.5">
-                      <span className="inline-flex items-center rounded-[3px] bg-[var(--color-surface-bright)] px-1.5 py-0.5 text-[11px] font-semibold text-[var(--color-text-muted)]">
+                      <span className="inline-flex items-center rounded-[3px] bg-[var(--bg-alt)] px-1.5 py-0.5 text-[11px] font-semibold text-[var(--ink-mute)]">
                         {s.tournaments_count ?? 0}회
                       </span>
                     </div>
                     <div
                       className="mb-0.5 truncate text-[20px] font-black tracking-tight"
-                      style={{ fontFamily: "var(--font-heading)" }}
+                      style={{ fontFamily: "var(--ff-display)" }}
                     >
                       {s.name}
                     </div>
                     {s.description && (
-                      <div className="line-clamp-1 text-[13px] text-[var(--color-text-muted)]">
+                      <div className="line-clamp-1 text-[13px] text-[var(--ink-mute)]">
                         {s.description}
                       </div>
                     )}
                   </div>
                   {/* 컬러 박스 — 로고 있으면 로고, 없으면 이니셜/태그 */}
                   {s.logo_url ? (
-                    <div className="relative h-12 w-12 flex-shrink-0 overflow-hidden rounded-lg bg-[var(--color-surface-bright)]">
+                    <div className="relative h-12 w-12 flex-shrink-0 overflow-hidden rounded-lg bg-[var(--bg-alt)]">
                       <Image src={s.logo_url} alt={s.name} fill sizes="48px" className="object-cover" />
                     </div>
                   ) : (
                     <div
                       className="grid h-12 w-12 flex-shrink-0 place-items-center rounded-lg text-[13px] font-extrabold text-white"
-                      style={{ background: "var(--color-accent)", fontFamily: "var(--font-heading)" }}
+                      style={{ background: "var(--accent)", fontFamily: "var(--ff-display)" }}
                       aria-hidden
                     >
                       {tag || initial}
@@ -156,10 +156,10 @@ export default async function SeriesListPage() {
                   )}
                 </div>
                 {/* 하단: 메타 라인 */}
-                <div className="flex justify-between bg-[var(--color-surface-bright)] px-5 py-3 text-[12px] text-[var(--color-text-muted)]">
+                <div className="flex justify-between bg-[var(--bg-alt)] px-5 py-3 text-[12px] text-[var(--ink-mute)]">
                   <span className="truncate">시리즈</span>
                   <span>
-                    <b className="text-[var(--color-text)]" style={{ fontFamily: "var(--font-heading)" }}>
+                    <b className="text-[var(--ink)]" style={{ fontFamily: "var(--ff-display)" }}>
                       {s.tournaments_count ?? 0}
                     </b>
                     회 진행
@@ -171,7 +171,7 @@ export default async function SeriesListPage() {
         })}
 
         {series.length === 0 && (
-          <div className="col-span-full rounded-[12px] border border-[var(--color-border)] py-12 text-center text-[var(--color-text-muted)]">
+          <div className="col-span-full rounded-[12px] border border-[var(--border)] py-12 text-center text-[var(--ink-mute)]">
             <p className="text-sm">등록된 시리즈가 없습니다.</p>
           </div>
         )}
@@ -179,21 +179,21 @@ export default async function SeriesListPage() {
 
       {/* about — 시안 박제 (시리즈란 안내 박스) */}
       <div
-        className="mt-6 rounded-[12px] bg-[var(--color-surface-bright)] px-6 py-4"
-        style={{ borderLeft: "3px solid var(--color-info)" }}
+        className="mt-6 rounded-[12px] bg-[var(--bg-alt)] px-6 py-4"
+        style={{ borderLeft: "3px solid var(--cafe-blue)" }}
       >
         <div className="flex items-start gap-3.5">
           <span
-            className="material-symbols-outlined text-[24px] text-[var(--color-info)]"
+            className="material-symbols-outlined text-[24px] text-[var(--cafe-blue)]"
             aria-hidden
           >
             lightbulb
           </span>
           <div>
             <div className="mb-1 font-bold">시리즈란?</div>
-            <div className="text-[13px] leading-[1.65] text-[var(--color-text-muted)]">
+            <div className="text-[13px] leading-[1.65] text-[var(--ink-mute)]">
               같은 주최자가 정기적으로 여는 대회들의 묶음입니다. 시리즈 페이지에는{" "}
-              <b className="text-[var(--color-text)]">전 회차 우승팀·MVP·대진 결과</b>가 누적되며,
+              <b className="text-[var(--ink)]">전 회차 우승팀·MVP·대진 결과</b>가 누적되며,
               내 팀이 출전한 시리즈 이력이 프로필에 기록됩니다.
             </div>
           </div>
