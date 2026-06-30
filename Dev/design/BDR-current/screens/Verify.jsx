@@ -1,125 +1,85 @@
 /* global React */
-// ============================================================
-// BDR v2.27 — Verify (AU4 · Phase 7 · 보강 · BA4 + BA5 ★★★)
-// 운영: /verify (438 · v2(1) 박제 ✅) — 단계 progress + 카운트다운.
-//
-// AU4-A 사후 hero (verified 카드: name/phone/birth/일자) + 프로필 진입 CTA
-// AU4-B 실패 retry (warn-soft) · AU4-C cross-domain (PU2/GU3 IdentityVerifyButton 정합)
-// ============================================================
-function Verify() {
-  const [phase, setPhase] = React.useState('input'); // input / code / done
-  const [result, setResult] = React.useState('ok');  // ok / fail (데모)
-  const [phone, setPhone] = React.useState('');
+
+function Verify({ setRoute }) {
+  const [step, setStep] = React.useState('phone'); // phone | code | done
+  const [phone, setPhone] = React.useState('010-');
   const [code, setCode] = React.useState('');
-  const [left, setLeft] = React.useState(180);
+  const [secondsLeft, setSecondsLeft] = React.useState(180);
 
   React.useEffect(() => {
-    if (phase !== 'code') return;
-    setLeft(180);
-    const t = setInterval(() => setLeft(s => Math.max(0, s - 1)), 1000);
+    if (step !== 'code') return;
+    const t = setInterval(() => setSecondsLeft(s => Math.max(0, s-1)), 1000);
     return () => clearInterval(t);
-  }, [phase]);
-  const fmt = (s) => String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0');
-  const stepActive = phase === 'code' ? 2 : phase === 'done' ? 2 : 1;
+  }, [step]);
+
+  const fmt = (s) => `${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;
 
   return (
-    <div className="au-page">
-      <div className="au-wrap">
-        <window.AuthBrand slogan="본인 인증" />
+    <div className="page" style={{maxWidth:480}}>
+      <div className="eyebrow">온보딩 1/2 · VERIFY</div>
+      <h1 style={{margin:'8px 0 6px', fontSize:28, fontWeight:800, letterSpacing:'-0.02em'}}>전화번호 인증</h1>
+      <p style={{color:'var(--ink-mute)', fontSize:14, marginBottom:24, lineHeight:1.6}}>
+        매치 신청·대회 운영 알림을 받으려면 전화번호 인증이 필요합니다.
+        SMS로 6자리 인증번호를 발송합니다.
+      </p>
 
-        {/* 데모 토글 — 운영은 인증 결과로 분기 */}
-        {phase === 'done' && (
-          <div style={{ textAlign: 'center' }}>
-            <div className="au-demo">
-              <button className={result === 'ok' ? 'is-on' : ''} onClick={() => setResult('ok')}>인증 성공</button>
-              <button className={result === 'fail' ? 'is-on' : ''} onClick={() => setResult('fail')}>인증 실패</button>
-            </div>
+      {/* progress */}
+      <div style={{display:'flex', gap:6, marginBottom:24}}>
+        <div style={{flex:1, height:4, background: step!=='done' ? 'var(--cafe-blue)' : 'var(--ok)', borderRadius:2}}/>
+        <div style={{flex:1, height:4, background: step==='done' ? 'var(--ok)' : 'var(--border)', borderRadius:2}}/>
+      </div>
+
+      {step === 'phone' && (
+        <div className="card" style={{padding:'24px 26px'}}>
+          <label className="label">휴대전화번호</label>
+          <input className="input" inputMode="tel" value={phone} onChange={e=>setPhone(e.target.value)} placeholder="010-0000-0000" autoFocus/>
+          <div style={{fontSize:12, color:'var(--ink-dim)', marginTop:8, lineHeight:1.6}}>
+            ※ 입력하신 번호는 본인 확인과 알림 외 목적으로 사용되지 않습니다.
           </div>
-        )}
-
-        <div className="au-card">
-          <div className="au-card__body">
-            {phase !== 'done' && (
-              <>
-                <div className="au-step-head" style={{ textAlign: 'left', marginBottom: 16 }}>
-                  <div className="au-step-eyebrow">온보딩 1 / 2 · VERIFY</div>
-                  <h1 className="au-step-title" style={{ fontSize: 21 }}>전화번호 인증</h1>
-                  <p className="au-step-desc">매치 신청·대회 알림을 받으려면 전화번호 인증이 필요해요. SMS로 6자리 코드를 보냅니다.</p>
-                </div>
-                {/* 2-step bar */}
-                <div style={{ display: 'flex', gap: 6, marginBottom: 18 }}>
-                  <div style={{ flex: 1, height: 4, borderRadius: 2, background: stepActive >= 1 ? 'var(--accent)' : 'var(--border)' }}></div>
-                  <div style={{ flex: 1, height: 4, borderRadius: 2, background: stepActive >= 2 ? 'var(--accent)' : 'var(--border)' }}></div>
-                </div>
-              </>
-            )}
-
-            {phase === 'input' && (
-              <>
-                <div className="au-field">
-                  <label className="au-label">휴대전화번호 <span style={{ color: 'var(--accent)' }}>*</span></label>
-                  <input className="au-input" type="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="010-1234-5678" />
-                  <div className="au-hint">※ 본인 확인과 알림 외 목적으로 사용되지 않습니다.</div>
-                </div>
-                <button className="au-btn" style={{ marginTop: 6 }} onClick={() => setPhase('code')}><span className="ico material-symbols-outlined">sms</span>인증번호 받기</button>
-              </>
-            )}
-
-            {phase === 'code' && (
-              <>
-                <div className="au-field">
-                  <label className="au-label" style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span>인증번호 6자리</span>
-                    <span className="au-countdown"><span className="ico material-symbols-outlined">timer</span>{fmt(left)}</span>
-                  </label>
-                  <input className="au-input au-code" maxLength={6} value={code} onChange={e => setCode(e.target.value.replace(/\D/g, ''))} placeholder="000000" />
-                  <div className="au-hint">{phone || '010-1234-5678'}로 발송했어요. 코드가 안 오면 재전송하세요.</div>
-                </div>
-                <button className="au-btn" style={{ marginTop: 6 }} disabled={code.length !== 6} onClick={() => setPhase('done')}>인증 확인</button>
-                <div className="au-foot" style={{ marginTop: 12 }}><button onClick={() => setLeft(180)}>인증번호 재전송</button></div>
-              </>
-            )}
-
-            {phase === 'done' && result === 'ok' && (
-              <div className="au-result au-result--ok">
-                <div className="au-result__icon"><span className="ico material-symbols-outlined">verified</span></div>
-                <h1 className="au-result__title">본인 인증 완료</h1>
-                <p className="au-result__desc">인증이 완료됐어요. 이제 대회 참가와 안전한 매칭을 이용할 수 있어요.</p>
-                <div className="au-verified" style={{ textAlign: 'left' }}>
-                  <div className="au-verified__bar"><span className="ico material-symbols-outlined">verified</span><span className="au-verified__bar-t">인증 정보</span></div>
-                  <div className="au-verified__rows">
-                    <div className="au-vrow"><span className="au-vrow__l">실명</span><span className="au-vrow__v">{window.VERIFIED.name}</span></div>
-                    <div className="au-vrow"><span className="au-vrow__l">휴대폰</span><span className="au-vrow__v">{window.VERIFIED.phone}</span></div>
-                    <div className="au-vrow"><span className="au-vrow__l">생년월일</span><span className="au-vrow__v">{window.VERIFIED.birth}</span></div>
-                    <div className="au-vrow"><span className="au-vrow__l">인증 일자</span><span className="au-vrow__v">{window.VERIFIED.at}</span></div>
-                  </div>
-                </div>
-                <a className="au-btn" href="pu1-profile.html">프로필로 이동</a>
-                <p className="au-hint" style={{ marginTop: 12 }}>인증 완료 시 <a href="pu2-profile-edit.html" style={{ color: 'var(--cafe-blue-deep)', fontWeight: 700 }}>PU2 편집</a> · <a href="gu3-profile-settings.html" style={{ color: 'var(--cafe-blue-deep)', fontWeight: 700 }}>GU3 설정</a>의 본인인증 배지가 자동으로 표시됩니다.</p>
-              </div>
-            )}
-
-            {phase === 'done' && result === 'fail' && (
-              <div className="au-result au-result--warn">
-                <div className="au-result__icon"><span className="ico material-symbols-outlined">error</span></div>
-                <h1 className="au-result__title">인증에 실패했어요</h1>
-                <p className="au-result__desc">인증번호가 일치하지 않거나 시간이 만료됐어요. 다시 시도해 주세요.</p>
-                <div className="gw-ph" style={{ textAlign: 'left', marginBottom: 16 }}>
-                  <span className="gw-ph__ico ico material-symbols-outlined">info</span>
-                  <div className="gw-ph__body"><div className="gw-ph__d" style={{ color: '#8B5A0F' }}>오류 사유 — 인증번호 불일치 (CODE_MISMATCH)</div></div>
-                </div>
-                <button className="au-btn au-btn--accent" onClick={() => { setPhase('input'); setCode(''); }}><span className="ico material-symbols-outlined">refresh</span>다시 인증하기</button>
-              </div>
-            )}
+          <div style={{marginTop:18, display:'flex', gap:8}}>
+            <button className="btn btn--primary btn--xl" onClick={()=>{setStep('code'); setSecondsLeft(180);}}>
+              인증번호 받기
+            </button>
+          </div>
+          <div style={{marginTop:12, textAlign:'center'}}>
+            <button className="btn btn--ghost" onClick={()=>setRoute('home')} style={{fontSize:13, color:'var(--ink-mute)'}}>
+              나중에 (홈으로)
+            </button>
           </div>
         </div>
+      )}
 
-        {phase !== 'done' && (
-          <div style={{ textAlign: 'center' }}>
-            <a className="au-back" href="p2-uc2-home.html">나중에 (홈으로)</a>
+      {step === 'code' && (
+        <div className="card" style={{padding:'24px 26px'}}>
+          <div style={{fontSize:13, color:'var(--ink-mute)', marginBottom:6}}>{phone} 으로 발송됨</div>
+          <label className="label">인증번호 6자리</label>
+          <input className="input" inputMode="numeric" maxLength={6} value={code} onChange={e=>setCode(e.target.value.replace(/\D/g,''))} placeholder="000000"
+            style={{fontFamily:'var(--ff-mono)', fontSize:22, letterSpacing:'.4em', textAlign:'center'}} autoFocus/>
+          <div style={{display:'flex', justifyContent:'space-between', marginTop:10, fontSize:12, color:'var(--ink-mute)'}}>
+            <span>남은 시간 <b style={{color:'var(--accent)', fontFamily:'var(--ff-mono)'}}>{fmt(secondsLeft)}</b></span>
+            <button className="btn btn--ghost btn--sm" onClick={()=>setSecondsLeft(180)}>재전송</button>
           </div>
-        )}
-      </div>
+          <div style={{marginTop:18, display:'grid', gap:8}}>
+            <button className="btn btn--primary btn--xl" disabled={code.length<6} onClick={()=>setStep('done')}>
+              인증 확인
+            </button>
+            <button className="btn btn--ghost" onClick={()=>setStep('phone')} style={{fontSize:13}}>
+              번호 다시 입력
+            </button>
+          </div>
+        </div>
+      )}
+
+      {step === 'done' && (
+        <div className="card" style={{padding:'32px 26px', textAlign:'center'}}>
+          <div style={{width:64, height:64, background:'var(--ok)', color:'#fff', borderRadius:'50%', display:'grid', placeItems:'center', margin:'0 auto 16px', fontSize:32, fontWeight:700}}>✓</div>
+          <h2 style={{margin:'0 0 6px', fontSize:20, fontWeight:700}}>인증 완료</h2>
+          <p style={{margin:'0 0 22px', color:'var(--ink-mute)', fontSize:14}}>이제 미니 프로필 3가지만 채우면 끝나요.</p>
+          <button className="btn btn--primary btn--xl" onClick={()=>setRoute('onboardingV2')}>
+            미니 프로필 작성 (15초)
+          </button>
+        </div>
+      )}
     </div>
   );
 }

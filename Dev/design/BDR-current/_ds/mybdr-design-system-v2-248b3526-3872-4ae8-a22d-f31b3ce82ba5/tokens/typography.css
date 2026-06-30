@@ -1,0 +1,42 @@
+/* ============================================================
+   MyBDR Design System v4 — Typography tokens
+   Display = Archivo (athletic, weight 800) · Body = Pretendard
+   Mono = IBM Plex Mono (stats / labels — tabular, sturdy small numerals)
+   Single type scale (not theme-conditional in v4).
+   ============================================================ */
+
+:root {
+  /* Families */
+  --ff-display: 'Archivo', 'Pretendard', system-ui, sans-serif; /* @kind font */
+  --ff-body:    'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif; /* @kind font */
+  --ff-mono:    'IBM Plex Mono', ui-monospace, 'SFMono-Regular', monospace; /* @kind font */
+
+  /* Type scale */
+  --fs-mega:  46px; /* @kind font */
+  --fs-h1:    30px; /* @kind font */
+  --fs-h2:    22px; /* @kind font */
+  --fs-h3:    17px; /* @kind font */
+  --fs-body:  14px; /* @kind font */
+  --fs-small: 12.5px; /* @kind font */
+  --fs-micro: 11px; /* @kind font */
+}
+
+/* ---- Helper classes ---- */
+.t-display { font-family: var(--ff-display); font-weight: 800; letter-spacing: -0.02em; }
+.t-mono    { font-family: var(--ff-mono); font-variant-numeric: tabular-nums; }
+.t-mute    { color: var(--mute); }
+.t-soft    { color: var(--soft); }
+.t-up      { text-transform: uppercase; letter-spacing: 0.04em; }
+
+/* Eyebrow — mono caps kicker with a signature-color tick */
+.eyebrow {
+  font-family: var(--ff-mono);
+  font-size: var(--fs-micro);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--mute);
+  display: inline-flex; align-items: center; gap: 8px;
+}
+.eyebrow::before {
+  content: ""; width: 20px; height: 2px; background: var(--sig); display: inline-block;
+}

@@ -1,0 +1,42 @@
+/* ============================================================
+   MyBDR — Fonts
+   Display : Archivo (heavy, athletic, condensed-ish caps + big numbers)
+   Body    : Pretendard (Korean-first UI sans)
+   Mono    : IBM Plex Mono (stats / numbers / route labels — sturdy, tall
+             x-height; strong small tabular numerals)
+   Icons   : Material Symbols Outlined
+   ------------------------------------------------------------
+   NOTE: Pretendard is self-hosted (assets/fonts/PretendardVariable.woff2).
+   Archivo / IBM Plex Mono / Material Symbols still load from Google Fonts
+   CDN — swap to local binaries if you need a fully offline bundle.
+   ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,500;0,600;0,700;0,800;0,900;1,700;1,800;1,900&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-25..200&display=swap');
+
+/* Pretendard — self-hosted variable font (body UI sans) */
+@font-face {
+  font-family: 'Pretendard';
+  src: url('../assets/fonts/PretendardVariable.woff2') format('woff2-variations');
+  font-weight: 45 920;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Material Symbols base — apply via .material-symbols-outlined */
+.material-symbols-outlined {
+  font-family: 'Material Symbols Outlined';
+  font-weight: normal;
+  font-style: normal;
+  font-size: 20px;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  -webkit-font-feature-settings: 'liga';
+  -webkit-font-smoothing: antialiased;
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+}

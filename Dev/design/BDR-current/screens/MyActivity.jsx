@@ -1,274 +1,126 @@
-/* global React */
-// ============================================================
-// BDR v2.21 — MyActivity (Phase 3B · TU5 — "내 팀" 보강)
-// 운영 박제 대상: /profile/activity
-// 진입: AppNav 계정 / 우측 utility / 더보기 마이페이지
-// 복귀: 카드 클릭 → 각 팀/대회/경기 상세
-// 에러: 빈 상태 모두 시각 (내 팀 0 / 내 신청 0 / 휴면 예정 0 hide)
-//
-// Phase 1B (v2.18) "내 대회" + Phase 2 (v2.20) "내 경기" / "내 매너" carry-over.
-// Phase 3 추가 (변경 ❌):
-//   ① BT1+BT2 통합 — "내 신청" 섹션 (가입 / jersey / 휴면 / 탈퇴 4종 step indicator)
-//   ② BT3 — "휴면 예정 D-N" 카드 (last_activity_at 60일+ 90일 미만)
-//   ③ "내 팀" 섹션 (Phase 1B / 2 보강 위에 추가) — role + pending counts + match-requests
-// 상단 카운트 = "내 대회 N · 내 경기 M · 내 팀 K · 평균 매너 X.Y"
-// A 등급
-// ============================================================
+/* global React, TOURNAMENTS, TEAMS */
 
-function MyActivity() {
-  const myTn = window.MY_TOURNAMENTS || [];
-  const myGames = window.MY_GAMES || [];
-  const myTeams = window.MY_TEAMS || [];
-  const myRequests = window.MY_TEAM_REQUESTS || [];
-  const myDormantPending = window.MY_DORMANT_PENDING || [];
-  const manner = window.MY_MANNER;
+function MyActivity({ setRoute }) {
+  const [tab, setTab] = React.useState('all');
 
-  const order = { pending: 0, approved: 1, live: 2, completed: 3, rejected: 4 };
-  const sortedGames = [...myGames].sort((a, b) => (order[a.status] ?? 9) - (order[b.status] ?? 9));
+  const items = [
+    { kind:'tournament', status:'pending', title:'BDR CHALLENGE SPRING 2026', sub:'팀 신청 · 검토중', when:'D-14', meta:'참가비 ₩80,000', accent:'var(--warn)', route:'matchDetail' },
+    { kind:'game',       status:'confirmed', title:'장충체육관 픽업 3v3', sub:'토 19:00 · 4명 모집', when:'토 19:00', meta:'본인 신청 확정', accent:'var(--ok)', route:'gameDetail' },
+    { kind:'team',       status:'pending', title:'리딤 (RDM)', sub:'팀 가입 신청 · 팀장 검토중', when:'2일 전', meta:'서울 강남 · D3', accent:'var(--warn)', route:'teamDetail' },
+    { kind:'tournament', status:'confirmed', title:'KINGS CUP VOL.07', sub:'팀 등록 확정', when:'D-3', meta:'예선 토 10:00', accent:'var(--ok)', route:'matchDetail' },
+    { kind:'game',       status:'cancelled', title:'한강 농구코트 픽업', sub:'주최자 취소', when:'어제', meta:'환불 처리됨', accent:'var(--danger)', route:'gameDetail' },
+    { kind:'team',       status:'rejected', title:'몽키즈 (MKZ)', sub:'팀 가입 신청 · 거절', when:'1주 전', meta:'정원 마감', accent:'var(--danger)', route:'teamDetail' },
+    { kind:'game',       status:'past', title:'올림픽공원 5v5', sub:'완료 · 24-19 승', when:'1주 전', meta:'평점 미작성', accent:'var(--ink-mute)', route:'gameResult', rated:false },
+  ];
+
+  const filters = [
+    { id:'all',  label:'전체', count: items.length },
+    { id:'tournament', label:'대회', count: items.filter(x=>x.kind==='tournament').length },
+    { id:'game', label:'경기', count: items.filter(x=>x.kind==='game').length },
+    { id:'team', label:'팀',   count: items.filter(x=>x.kind==='team').length },
+    { id:'pending', label:'검토중', count: items.filter(x=>x.status==='pending').length },
+  ];
+  const shown = tab === 'all' ? items
+    : tab === 'pending' ? items.filter(x=>x.status==='pending')
+    : items.filter(x=>x.kind===tab);
+
+  const statusLabel = { pending:'검토중', confirmed:'확정', rejected:'거절', cancelled:'취소', past:'완료' };
+  const statusBadge = { pending:'badge--warn', confirmed:'badge--ok', rejected:'badge--ghost', cancelled:'badge--ghost', past:'badge--ghost' };
+  const kindIcon = { tournament:'🏆', game:'🏀', team:'👥' };
+
+  // counters at top
+  const pending = items.filter(x=>x.status==='pending').length;
+  const upcoming = items.filter(x=>x.status==='confirmed' && (x.when.startsWith('D-') || x.when.startsWith('토') || x.when.startsWith('일'))).length;
 
   return (
-    <div className="gm-page">
-      <div className="gm-page__inner" style={{maxWidth:1100}}>
-        <header className="gm-page__head">
-          <div className="eyebrow">/profile/activity · 내 활동</div>
-          <h1 className="gm-page__title">내 활동</h1>
-          <p className="gm-page__sub">
-            내 대회 <strong>{myTn.length}건</strong> ·
-            내 경기 <strong>{myGames.length}건</strong> ·
-            내 팀 <strong style={{color:'var(--accent)'}}>{myTeams.length}팀</strong> ·
-            평균 매너 <strong style={{color: manner.avg >= 4.5 ? 'var(--ok)' : manner.avg >= 3.0 ? 'var(--warn)' : 'var(--err)'}}>
-              {manner.avg.toFixed(1)} / 5
-            </strong>
-          </p>
-        </header>
+    <div className="page">
+      <div style={{fontSize:12, color:'var(--ink-mute)', marginBottom:10}}>
+        <a onClick={()=>setRoute('profile')} style={{cursor:'pointer'}}>프로필</a> › <span style={{color:'var(--ink)'}}>내 활동</span>
+      </div>
 
-        <div className="ma-stack">
-
-          {/* Phase 3 신규 — 내 팀 (BT1/BT2/BT3/BT4 진입점) */}
-          <section className="gm-card">
-            <h3 className="gm-card__h">
-              <span className="ico material-symbols-outlined" style={{color:'var(--accent)'}}>groups</span>
-              내 팀
-              <span className="ma-new">NEW · Phase 3</span>
-              <span className="ma-count">{myTeams.length}팀</span>
-              <a className="ma-more" href="tu3-team-manage.html">팀 관리 →</a>
-            </h3>
-            <div className="ma-list">
-              {myTeams.map(t => {
-                const isOperator = t.role_for_me === 'captain' || t.role_for_me === 'manager' || t.role_for_me === 'vice';
-                const pendingMembers = isOperator ? t.pending_apps : 0;  // BT1
-                const pendingChanges = isOperator && t.id === 'tm-1' ? 3 : 0;  // BT2 demo
-                const pendingMatch = isOperator && t.id === 'tm-1' ? 2 : 0;  // BT5 demo
-                return (
-                  <div key={t.id} className="tu5-myteam-row">
-                    <window.JerseyAvatar logo={t.logo} color1={t.color_primary} color2={t.color_secondary} size={40}/>
-                    <div className="tu5-myteam-row__body">
-                      <div className="tu5-myteam-row__title">
-                        {t.name}
-                        <window.RoleBadge role={t.role_for_me} small/>
-                      </div>
-                      <div className="tu5-myteam-row__meta">
-                        <span><span className="ico material-symbols-outlined">place</span>{t.city}</span>
-                        <span><span className="ico material-symbols-outlined">groups</span>{t.member_count}명</span>
-                        <span><window.MannerStars avg={t.manner_avg}/></span>
-                        <span><span className="ico material-symbols-outlined">schedule</span>{t.last_activity_at?.slice(5)} 활동</span>
-                      </div>
-                      {(pendingMembers > 0 || pendingChanges > 0 || pendingMatch > 0) && (
-                        <div className="tu5-myteam-row__chips">
-                          {pendingMembers > 0 && (
-                            <span className="tu5-myteam-row__chip">
-                              <span className="ico material-symbols-outlined">how_to_reg</span>
-                              가입 {pendingMembers}건
-                            </span>
-                          )}
-                          {pendingChanges > 0 && (
-                            <span className="tu5-myteam-row__chip tu5-myteam-row__chip--blue">
-                              <span className="ico material-symbols-outlined">edit_note</span>
-                              변경 {pendingChanges}건
-                            </span>
-                          )}
-                          {pendingMatch > 0 && (
-                            <span className="tu5-myteam-row__chip tu5-myteam-row__chip--blue">
-                              <span className="ico material-symbols-outlined">handshake</span>
-                              매치 {pendingMatch}건
-                            </span>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                    <a className="btn btn--sm btn--ghost" href={isOperator ? "tu4-team-manage-detail.html" : "tu2-team-detail.html"}>
-                      {isOperator ? '관리 →' : '상세 →'}
-                    </a>
-                  </div>
-                );
-              })}
-              {myTeams.length === 0 && (
-                <div className="ma-empty">
-                  아직 가입한 팀이 없습니다.
-                  <a className="btn btn--sm btn--accent" href="tu1-teams.html">팀 둘러보기 →</a>
-                </div>
-              )}
-            </div>
-          </section>
-
-          {/* Phase 3 신규 — 내 신청 (BT1 + BT2 통합) */}
-          {myRequests.length > 0 && (
-            <section className="gm-card">
-              <h3 className="gm-card__h">
-                <span className="ico material-symbols-outlined" style={{color:'var(--cafe-blue)'}}>how_to_reg</span>
-                내 신청
-                <span className="ma-new">NEW · BT1+BT2</span>
-                <span className="ma-count">{myRequests.length}건</span>
-              </h3>
-              <div className="ma-list">
-                {myRequests.map(r => {
-                  const kindLabel = { join: '팀 가입', jersey_change: 'jersey 변경', dormant: '휴면 신청', withdraw: '탈퇴 신청' }[r.kind];
-                  return (
-                    <div key={r.id} className="tu5-req-row">
-                      <window.JerseyAvatar logo={r.team_logo} color1="#1B3C87" size={36}/>
-                      <div style={{flex:1, minWidth:0}}>
-                        <div style={{display:'flex', alignItems:'center', gap:6, flexWrap:'wrap', marginBottom:4}}>
-                          <span className={'tu5-req-row__kind tu5-req-row__kind--' + (r.kind === 'join' ? 'join' : r.kind === 'jersey_change' ? 'jersey' : r.kind === 'dormant' ? 'dormant' : 'withdraw')}>{kindLabel}</span>
-                          <span style={{fontWeight:700, fontSize:13}}>{r.team_name}</span>
-                        </div>
-                        <div style={{fontSize:11.5, color:'var(--ink-mute)', marginBottom:6}}>
-                          {r.kind === 'join' && '"' + r.message + '"'}
-                          {r.kind === 'jersey_change' && '#' + r.payload.old + ' → #' + r.payload.new}
-                          {r.kind === 'dormant' && '기간 ' + r.payload.period + ' · "' + r.payload.reason + '"'}
-                        </div>
-                        <window.ApplyStep
-                          stepIdx={r.step_idx}
-                          status={r.status}
-                          applied_at={r.submitted_at?.slice(5)}
-                          approved_at={r.approved_at?.slice(5)}
-                          compact
-                        />
-                      </div>
-                      <window.GMStatusBadge
-                        status={r.status}
-                        label={{ pending:'대기', approved:'승인', rejected:'거절' }[r.status]}
-                      />
-                    </div>
-                  );
-                })}
-              </div>
-            </section>
-          )}
-
-          {/* Phase 3 신규 — 휴면 예정 (BT3 — 60일+ 90일 미만) */}
-          {myDormantPending.length > 0 && (
-            <section>
-              <div className="tu1-section-h" style={{marginBottom:8}}>
-                <h2 style={{fontSize:15, color:'#8B5A0F', display:'inline-flex', alignItems:'center', gap:6}}>
-                  <span className="ico material-symbols-outlined" style={{color:'#8B5A0F'}}>schedule</span>
-                  휴면 예정
-                </h2>
-                <span className="tu1-section-h__hint">BT3 · last_activity_at 60일+ · 활동 시 갱신</span>
-                <span className="ma-new">NEW</span>
-              </div>
-              <div style={{display:'flex', flexDirection:'column', gap:8}}>
-                {myDormantPending.map(d => (
-                  <div key={d.team_id} className="tu5-dormant-card">
-                    <div className="tu5-dormant-card__days">
-                      D-{d.days_until_dormant}
-                      <small>휴면까지</small>
-                    </div>
-                    <window.JerseyAvatar logo={d.team_logo} color1="#E31B23" size={36}/>
-                    <div className="tu5-dormant-card__body">
-                      <div className="tu5-dormant-card__title">{d.team_name}</div>
-                      <div className="tu5-dormant-card__sub">마지막 활동 {d.last_activity_at} · {d.last_action}</div>
-                      <div className="tu5-dormant-card__hint">📌 경기/매니저 활동 시 last_activity_at 자동 갱신</div>
-                    </div>
-                    <a className="btn btn--sm btn--accent" href="tu2-team-detail.html">활동하기 →</a>
-                  </div>
-                ))}
-              </div>
-            </section>
-          )}
-
-          {/* Phase 1B 보존 — 내 대회 */}
-          <section className="gm-card">
-            <h3 className="gm-card__h">
-              <span className="ico material-symbols-outlined">military_tech</span>
-              내 대회
-              <span className="ma-count">{myTn.length}건</span>
-              <a className="ma-more" href="ua1-tournaments.html">전체 보기 →</a>
-            </h3>
-            <div className="ma-list">
-              {myTn.slice(0, 3).map(t => (
-                <div key={t.id} className="ma-row">
-                  <div className="ma-row__date">
-                    <span className="ma-row__d">{t.submitted_at?.slice(8, 10)}</span>
-                    <span className="ma-row__m">{t.submitted_at?.slice(5, 7)}월</span>
-                  </div>
-                  <div style={{flex:1, minWidth:0}}>
-                    <div className="ma-row__title">{t.tn_name}</div>
-                    <div className="ma-row__sub">{t.division} · {t.team_name}</div>
-                    <div className="ma-row__next">{t.next_action}</div>
-                  </div>
-                  <window.GMStatusBadge
-                    status={t.status}
-                    label={
-                      { pending:'승인 대기', approved:'결제 대기', in_progress:'진행 중', completed:'종료', rejected:'거절' }[t.status] || t.status
-                    }
-                  />
-                </div>
-              ))}
-            </div>
-          </section>
-
-          {/* Phase 2 보존 — 내 경기 (BG6) */}
-          <section className="gm-card">
-            <h3 className="gm-card__h">
-              <span className="ico material-symbols-outlined" style={{color:'var(--accent)'}}>sports_basketball</span>
-              내 경기
-              <span className="ma-count">{myGames.length}건</span>
-              <a className="ma-more" href="p2-ua1-games.html">전체 보기 →</a>
-            </h3>
-            <div className="ma-list">
-              {sortedGames.slice(0, 3).map(g => (
-                <div key={g.id} className={'ma-row ma-row--game ma-row--' + g.status}>
-                  <div className="ma-row__date">
-                    <span className="ma-row__d">{g.starts_at?.slice(8, 10)}</span>
-                    <span className="ma-row__m">{g.starts_at?.slice(5, 7)}월</span>
-                  </div>
-                  <div style={{flex:1, minWidth:0}}>
-                    <div style={{display:'flex', alignItems:'center', gap:6, marginBottom:3, flexWrap:'wrap'}}>
-                      <window.GMKindBadge kind={g.kind} small/>
-                      <span style={{fontFamily:'var(--ff-mono)', fontSize:10.5, color:'var(--ink-dim)', fontWeight:700}}>{g.time}</span>
-                    </div>
-                    <div className="ma-row__title">{g.title}</div>
-                    <div className="ma-row__sub">{g.host} · {g.court}</div>
-                    {g.status !== 'completed' && (
-                      <div style={{marginTop:8}}>
-                        <window.ApplyStep
-                          stepIdx={g.step_idx}
-                          status={g.status === 'pending' ? 'pending' : g.status === 'rejected' ? 'rejected' : 'approved'}
-                          applied_at={g.applied_at?.slice(5)}
-                          approved_at={g.approved_at?.slice(5)}
-                          rejected_at={g.rejected_at?.slice(5)}
-                          reject_reason={g.reject_reason}
-                          compact
-                        />
-                      </div>
-                    )}
-                  </div>
-                  <window.GMStatusBadge
-                    status={g.status}
-                    label={
-                      { pending:'승인 대기', approved:'참가 확정', live:'진행 중', completed:'종료', rejected:'거절' }[g.status]
-                    }
-                  />
-                </div>
-              ))}
-            </div>
-          </section>
-
-          {/* Phase 2 보존 — 내 매너 */}
-          <section>
-            <window.MannerCard data={manner} />
-          </section>
+      <div style={{display:'flex', alignItems:'baseline', justifyContent:'space-between', marginBottom:18, flexWrap:'wrap', gap:10}}>
+        <div>
+          <div className="eyebrow">내 활동 · MY ACTIVITY</div>
+          <h1 style={{margin:'6px 0 4px', fontSize:28, fontWeight:800, letterSpacing:'-0.02em'}}>신청한 모든 것</h1>
+          <div style={{fontSize:13, color:'var(--ink-mute)'}}>경기 · 대회 · 팀 가입 신청을 한 화면에서</div>
         </div>
+      </div>
+
+      {/* counters */}
+      <div style={{display:'grid', gridTemplateColumns:'repeat(4, 1fr)', gap:10, marginBottom:18}}>
+        {[
+          { n: pending, lbl:'검토중', tone:'var(--warn)' },
+          { n: upcoming, lbl:'예정', tone:'var(--cafe-blue)' },
+          { n: items.filter(x=>x.status==='past').length, lbl:'완료', tone:'var(--ink-mute)' },
+          { n: items.filter(x=>x.status==='rejected'||x.status==='cancelled').length, lbl:'취소·거절', tone:'var(--ink-dim)' },
+        ].map((c,i)=> (
+          <div key={i} className="card" style={{padding:'14px 16px', borderTop:`3px solid ${c.tone}`}}>
+            <div style={{fontFamily:'var(--ff-display)', fontSize:32, fontWeight:900, lineHeight:1, color:c.tone}}>{c.n}</div>
+            <div style={{fontSize:12, color:'var(--ink-mute)', marginTop:4}}>{c.lbl}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* 시안 D — 평점 CTA 배너 (종료 · 미작성 경기) */}
+      {items.filter(x=>x.status==='past' && x.rated===false).length > 0 && (
+        <div className="card" style={{padding:'16px 20px', marginBottom:16, display:'flex', alignItems:'center', gap:14, flexWrap:'wrap', borderLeft:'3px solid var(--accent)', background:'color-mix(in oklab, var(--accent) 7%, transparent)'}}>
+          <div style={{fontSize:24}}>⭐</div>
+          <div style={{flex:1, minWidth:160}}>
+            <div style={{fontWeight:800, fontSize:15}}>끝난 경기 평점을 남겨주세요</div>
+            <div style={{fontSize:12, color:'var(--ink-mute)', marginTop:2}}>평점은 매너 점수에 반영됩니다 · 미작성 {items.filter(x=>x.status==='past' && x.rated===false).length}건</div>
+          </div>
+          <button className="btn btn--primary" onClick={()=>setRoute('gameReport')}>평점 남기기 →</button>
+        </div>
+      )}
+
+      {/* filter chips */}
+      <div style={{display:'flex', gap:8, marginBottom:14, flexWrap:'wrap'}}>
+        {filters.map(f => (
+          <button key={f.id} className="btn btn--sm" onClick={()=>setTab(f.id)}
+            style={tab===f.id ? {background:'var(--cafe-blue)', color:'#fff', borderColor:'var(--cafe-blue-deep)'} : {}}>
+            {f.label} <span style={{fontFamily:'var(--ff-mono)', opacity:.7, marginLeft:4}}>{f.count}</span>
+          </button>
+        ))}
+      </div>
+
+      {/* list */}
+      <div className="card" style={{padding:0, overflow:'hidden'}}>
+        {shown.map((it, i) => (
+          <div key={i} onClick={()=>setRoute(it.route)} style={{
+            display:'grid', gridTemplateColumns:'40px 1fr auto auto', gap:14,
+            alignItems:'center', padding:'14px 18px',
+            borderBottom: i<shown.length-1 ? '1px solid var(--border)' : 0,
+            cursor:'pointer',
+            borderLeft: `3px solid ${it.accent}`,
+          }}>
+            <div style={{fontSize:22}}>{kindIcon[it.kind]}</div>
+            <div style={{minWidth:0}}>
+              <div style={{display:'flex', alignItems:'center', gap:8, marginBottom:4}}>
+                <span className={`badge ${statusBadge[it.status]}`}>{statusLabel[it.status]}</span>
+                <span style={{fontSize:11, color:'var(--ink-dim)', fontFamily:'var(--ff-mono)'}}>{it.when}</span>
+              </div>
+              <div style={{fontWeight:700, fontSize:15, marginBottom:2, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{it.title}</div>
+              <div style={{fontSize:13, color:'var(--ink-mute)'}}>{it.sub} · {it.meta}</div>
+            </div>
+            <div style={{fontSize:12, color:'var(--ink-dim)', textAlign:'right', whiteSpace:'nowrap'}}>
+              {it.status==='pending' && <button className="btn btn--sm" onClick={(e)=>{e.stopPropagation();}}>신청 취소</button>}
+              {it.status==='confirmed' && it.kind!=='team' && <button className="btn btn--sm">상세</button>}
+              {it.status==='past' && <button className="btn btn--sm btn--ghost">기록 보기</button>}
+            </div>
+          </div>
+        ))}
+        {shown.length === 0 && (
+          <div style={{padding:'60px 20px', textAlign:'center', color:'var(--ink-mute)'}}>
+            아직 신청한 항목이 없어요.
+          </div>
+        )}
+      </div>
+
+      <div style={{display:'flex', gap:8, marginTop:16, flexWrap:'wrap'}}>
+        <button className="btn btn--primary" onClick={()=>setRoute('myRegistrations')}>내 신청 현황 →</button>
+        <button className="btn" onClick={()=>setRoute('games')}>경기 찾기</button>
+        <button className="btn" onClick={()=>setRoute('match')}>대회 찾기</button>
+        <button className="btn" onClick={()=>setRoute('team')}>팀 찾기</button>
       </div>
     </div>
   );

@@ -1,103 +1,87 @@
-/* global React */
-// ============================================================
-// BDR v2.25 — Pricing (BU1 · Phase 6.2B · 신규 박제 · BB1 ★★★★★)
-// 운영: /pricing (41 wrapper · pricing-content.tsx) · 박제 ❌ → 신규.
-//
-// Hero band "MyBDR 멤버십" + 플랜 grid (free/BDR+/PRO · plans 모델) +
-// 본인 현재 구독 badge (user_subscriptions) + 비교 표.
-// CTA → /pricing/checkout (BU2). BB1 = BU3 "현재 구독" = BA2 플랜 동일 PLANS.
-// ============================================================
-const COMPARE_ROWS = [
-  { label: '픽업 게임 참가', free: true, plus: true, pro: true },
-  { label: '커뮤니티 · 코트 둘러보기', free: true, plus: true, pro: true },
-  { label: '팀 생성 · 운영', free: false, plus: '최대 3팀', pro: '무제한' },
-  { label: '코트 예약 수수료', free: '일반', plus: '면제', pro: '면제' },
-  { label: '게스트 모집 우선 노출', free: false, plus: true, pro: true },
-  { label: '대회 생성 · 운영', free: false, plus: false, pro: true },
-  { label: '대진표 · 라이브 스코어', free: false, plus: false, pro: true },
-  { label: '월간 활동 리포트', free: false, plus: false, pro: true },
-];
+/* global React, PRICING, Icon */
 
-function CompareCell({ v }) {
-  if (v === true) return <span className="ico material-symbols-outlined">check</span>;
-  if (v === false) return <span className="ico material-symbols-outlined" data-no="true">remove</span>;
-  return <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--ink-soft)' }}>{v}</span>;
-}
-
-function Pricing() {
-  const plans = window.PLANS;
-  const myPlanId = window.MY_SUBSCRIPTION.plan_id;
-
+function Pricing({ setRoute }) {
+  const [cycle, setCycle] = React.useState('monthly');
   return (
-    <div className="pm-page">
-      <div className="pm-page__inner bl-wide">
-        <window.PageBackBilling />
+    <div className="page">
+      <div style={{textAlign:'center', marginBottom:36, maxWidth:720, margin:'0 auto 36px'}}>
+        <div className="eyebrow" style={{justifyContent:'center'}}>요금제 · PRICING</div>
+        <h1 style={{margin:'10px 0 10px', fontSize:36, fontWeight:800, letterSpacing:'-0.02em'}}>
+          더 자주 뛰는 사람들을 위한 <span style={{color:'var(--accent)'}}>BDR+</span>
+        </h1>
+        <p style={{margin:0, color:'var(--ink-mute)', fontSize:15, lineHeight:1.6}}>
+          기본 기능은 언제나 무료. 대회 우선 접수·상세 스탯·팀 확장이 필요할 때만 업그레이드하세요.
+        </p>
+        <div className="theme-switch" style={{marginTop:20}}>
+          <button className="theme-switch__btn" data-active={cycle==='monthly'} onClick={()=>setCycle('monthly')}>월간</button>
+          <button className="theme-switch__btn" data-active={cycle==='yearly'} onClick={()=>setCycle('yearly')}>연간 <span style={{color:'var(--ok)', fontWeight:700, marginLeft:4}}>2개월 할인</span></button>
+        </div>
+      </div>
 
-        {/* Hero band */}
-        <header className="pm-hero">
-          <div className="pm-hero__row">
-            <div className="pm-hero__body">
-              <div className="pm-hero__namerow">
-                <h1 className="pm-hero__name">MyBDR 멤버십</h1>
-              </div>
-              <p className="pm-hero__bio">
-                전국 농구 매칭을 더 깊게. 팀 운영부터 대회 개최까지, 나에게 맞는 플랜을 선택하세요.
-                지금 <strong>BDR PRO</strong>를 이용 중이에요.
-              </p>
-              <div className="pm-hero__meta">
-                <span><span className="ico material-symbols-outlined">verified</span>토스페이먼츠 안전 결제</span>
-                <span><span className="ico material-symbols-outlined">autorenew</span>언제든 해지 가능</span>
-                <span><span className="ico material-symbols-outlined">receipt_long</span>월 자동 결제</span>
-              </div>
+      <div style={{display:'grid', gridTemplateColumns:'repeat(3, 1fr)', gap:16, maxWidth:1080, margin:'0 auto'}}>
+        {PRICING.map(p => (
+          <div key={p.id} className="card" style={{
+            padding:'28px 26px 26px',
+            border: p.highlight ? '2px solid var(--accent)' : undefined,
+            position:'relative',
+            transform: p.highlight ? 'translateY(-8px)' : 'none',
+            boxShadow: p.highlight ? 'var(--sh-lg)' : undefined,
+          }}>
+            {p.highlight && (
+              <div style={{
+                position:'absolute', top:-11, left:'50%', transform:'translateX(-50%)',
+                background:'var(--accent)', color:'#fff', padding:'4px 12px',
+                fontSize:11, fontWeight:800, letterSpacing:'.08em', textTransform:'uppercase',
+                borderRadius:99,
+              }}>가장 인기</div>
+            )}
+            <div style={{fontFamily:'var(--ff-display)', fontWeight:900, fontSize:20, letterSpacing:'.04em', color: p.highlight ? 'var(--accent)' : 'var(--ink)'}}>{p.name}</div>
+            <div style={{fontSize:13, color:'var(--ink-mute)', marginTop:6, marginBottom:18, minHeight:36}}>{p.tagline}</div>
+            <div style={{display:'flex', alignItems:'baseline', gap:6, marginBottom:20}}>
+              <span style={{fontFamily:'var(--ff-display)', fontSize:40, fontWeight:900, letterSpacing:'-0.02em'}}>
+                {cycle === 'yearly' && p.id !== 'free' && p.id !== 'pro' ? '₩3,900' : p.price}
+              </span>
+              <span style={{fontSize:13, color:'var(--ink-dim)'}}>{p.subprice}</span>
             </div>
+            <button className={`btn ${p.highlight ? 'btn--accent' : ''} btn--xl`} style={{marginBottom:20}}>{p.cta}</button>
+            <ul style={{margin:0, padding:0, listStyle:'none', display:'flex', flexDirection:'column', gap:10}}>
+              {p.features.map((f,i) => (
+                <li key={i} style={{display:'flex', gap:10, fontSize:13.5, color:'var(--ink-soft)', lineHeight:1.5}}>
+                  <span style={{color: p.highlight ? 'var(--accent)' : 'var(--ok)', fontWeight:700, flexShrink:0}}>✓</span>
+                  {f}
+                </li>
+              ))}
+            </ul>
           </div>
-        </header>
+        ))}
+      </div>
 
-        {/* 플랜 grid */}
-        <div className="bl-plans" style={{ marginBottom: 18 }}>
-          {plans.map(p => (
-            <window.PlanCard key={p.id} plan={p} current={p.id === myPlanId} />
+      {/* Comparison table */}
+      <div style={{maxWidth:1080, margin:'50px auto 0'}}>
+        <h2 style={{fontSize:22, fontWeight:700, letterSpacing:'-0.015em', marginBottom:18}}>상세 비교</h2>
+        <div className="board">
+          <div className="board__head" style={{gridTemplateColumns:'1.6fr 1fr 1fr 1fr'}}>
+            <div style={{textAlign:'left'}}>기능</div><div>FREE</div><div>BDR+</div><div>PRO</div>
+          </div>
+          {[
+            ['팀 등록 개수', '1', '3', '무제한'],
+            ['대회 우선 접수', '–', '12시간 먼저', '24시간 먼저'],
+            ['상세 스탯·리플레이', '–', '○', '○'],
+            ['광고 제거', '–', '○', '○'],
+            ['리그 운영 대시보드', '–', '–', '○'],
+            ['심판·기록 시스템', '–', '–', '○'],
+            ['전용 CS 라인', '–', '–', '○'],
+          ].map((row, i) => (
+            <div key={i} className="board__row" style={{gridTemplateColumns:'1.6fr 1fr 1fr 1fr', cursor:'default'}}>
+              <div className="title" style={{fontWeight:600}}>{row[0]}</div>
+              <div>{row[1]}</div><div style={{fontWeight:700, color: row[2] === '○' ? 'var(--accent)' : 'var(--ink)'}}>{row[2]}</div><div style={{fontWeight:700}}>{row[3]}</div>
+            </div>
           ))}
         </div>
+      </div>
 
-        {/* 비교 표 */}
-        <div className="pm-card">
-          <div className="pm-card__head">
-            <h2 className="pm-card__h"><span className="ico material-symbols-outlined">table_rows</span>플랜 비교</h2>
-            <span className="pm-card__more" style={{ color: 'var(--ink-mute)', cursor: 'default' }}>월 구독 기준</span>
-          </div>
-          <div className="bl-compare-wrap">
-            <table className="bl-compare">
-              <thead>
-                <tr>
-                  <th style={{ textAlign: 'left' }}>혜택</th>
-                  <th>무료</th>
-                  <th>BDR+</th>
-                  <th>BDR PRO</th>
-                </tr>
-              </thead>
-              <tbody>
-                {COMPARE_ROWS.map((r, i) => (
-                  <tr key={i}>
-                    <th>{r.label}</th>
-                    <td><CompareCell v={r.free} /></td>
-                    <td><CompareCell v={r.plus} /></td>
-                    <td><CompareCell v={r.pro} /></td>
-                  </tr>
-                ))}
-                <tr>
-                  <th>월 요금</th>
-                  <td style={{ fontFamily: 'var(--ff-display)', fontWeight: 800 }}>무료</td>
-                  <td style={{ fontFamily: 'var(--ff-display)', fontWeight: 800 }}>{window.wonRaw(4900)}</td>
-                  <td style={{ fontFamily: 'var(--ff-display)', fontWeight: 800 }}>{window.wonRaw(9900)}</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-          <p style={{ fontSize: 12, color: 'var(--ink-dim)', margin: '12px 0 0', lineHeight: 1.6 }}>
-            플랜은 언제든 변경·해지할 수 있으며, 해지 시 다음 결제일까지 혜택이 유지됩니다. 결제는 토스페이먼츠를 통해 안전하게 처리됩니다.
-          </p>
-        </div>
+      <div style={{textAlign:'center', marginTop:50, fontSize:13, color:'var(--ink-mute)'}}>
+        결제 문의 · <a href="mailto:bdr.wonyoung@gmail.com">bdr.wonyoung@gmail.com</a> · 기업·단체 요금은 별도 문의
       </div>
     </div>
   );

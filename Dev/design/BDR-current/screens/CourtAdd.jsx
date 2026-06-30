@@ -1,82 +1,233 @@
 /* global React */
-// BDR v2.31 — CourtAdd (/courts/submit · 자체 디자인 · 코트 등록 신청)
-function CourtAdd() {
-  const [amen, setAmen] = React.useState(['shower']);
-  const toggle = (k) => setAmen(a => a.includes(k) ? a.filter(x => x !== k) : [...a, k]);
-  const amens = [
-    ['shower', '샤워실', 'shower'], ['parking', '주차', 'local_parking'], ['indoor', '실내', 'home'],
-    ['light', '야간 조명', 'lightbulb'], ['locker', '락커', 'lock'], ['rental', '용품 대여', 'sports_basketball'],
-  ];
+
+function CourtAdd({ setRoute }) {
+  const [step, setStep] = React.useState(1);
+  const [submitted, setSubmitted] = React.useState(false);
+  const [data, setData] = React.useState({
+    name: '',
+    area: '서울',
+    addr: '',
+    type: 'outdoor',
+    surface: 'urethane',
+    hoops: 2,
+    lighting: true,
+    fee: 'free',
+    feeAmount: 0,
+    hours: '24시간',
+    features: [],
+    vibe: 'mixed',
+    desc: '',
+    photos: [],
+  });
+  const update = (k, v) => setData({...data, [k]:v});
+  const toggleF = (f) => update('features', data.features.includes(f) ? data.features.filter(x=>x!==f) : [...data.features, f]);
+
+  if (submitted) {
+    return (
+      <div className="page" style={{maxWidth:560}}>
+        <div className="card" style={{padding:'40px 36px', textAlign:'center'}}>
+          <div style={{width:72, height:72, borderRadius:'50%', background:'color-mix(in oklab, var(--ok) 16%, transparent)', color:'var(--ok)', display:'grid', placeItems:'center', fontSize:40, margin:'0 auto 18px', fontWeight:900}}>✓</div>
+          <h1 style={{margin:'0 0 6px', fontSize:22, fontWeight:800}}>코트 제보 완료</h1>
+          <p style={{margin:'0 0 14px', fontSize:13, color:'var(--ink-mute)', lineHeight:1.6}}>
+            BDR 운영팀이 <b>24~48시간 내</b> 검토 후 등록합니다.<br/>
+            등록되면 <b>기여 배지</b>와 <b>포인트 500P</b>를 드려요.
+          </p>
+          <div style={{padding:'14px 16px', background:'var(--bg-alt)', borderRadius:6, margin:'16px 0 22px', textAlign:'left'}}>
+            <div style={{fontSize:11, color:'var(--ink-dim)', fontWeight:700, marginBottom:6, letterSpacing:'.08em'}}>제보 요약</div>
+            <div style={{display:'grid', gridTemplateColumns:'70px 1fr', gap:8, fontSize:13}}>
+              <div style={{color:'var(--ink-dim)'}}>이름</div><div style={{fontWeight:700}}>{data.name || '(이름 없음)'}</div>
+              <div style={{color:'var(--ink-dim)'}}>위치</div><div>{data.area} · {data.addr || '—'}</div>
+              <div style={{color:'var(--ink-dim)'}}>유형</div><div>{data.type==='outdoor'?'야외':'실내'} · 골대 {data.hoops}개</div>
+            </div>
+          </div>
+          <div style={{display:'flex', gap:8, justifyContent:'center'}}>
+            <button className="btn btn--lg" onClick={()=>setRoute('court')}>코트 목록</button>
+            <button className="btn btn--primary btn--lg" onClick={()=>{setSubmitted(false); setStep(1); setData({...data, name:'', addr:''});}}>또 제보하기</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const Step = ({ n, l }) => (
+    <div style={{flex:1, display:'flex', alignItems:'center', gap:6}}>
+      <div style={{width:24, height:24, borderRadius:'50%', background: step>=n?'var(--accent)':'var(--bg-alt)', color: step>=n?'#fff':'var(--ink-dim)', display:'grid', placeItems:'center', fontFamily:'var(--ff-mono)', fontWeight:800, fontSize:11}}>{step>n?'✓':n}</div>
+      <div style={{fontSize:11, fontWeight:700, color: step>=n?'var(--ink)':'var(--ink-dim)'}}>{l}</div>
+    </div>
+  );
+
   return (
     <div className="page">
-      <div className="page__inner page__inner--narrow">
-        <div className="ex-crumb"><a>홈</a><span className="sep">›</span><a>코트</a><span className="sep">›</span><span className="cur">코트 등록 신청</span></div>
-        <div className="ex-head" style={{ marginBottom: 14 }}>
-          <div>
-            <div className="eyebrow">COURT · 코트 등록 신청</div>
-            <h1 className="ex-head__title">새 코트 제보하기</h1>
-            <p className="ex-head__sub">아직 등록되지 않은 코트를 제보해 주세요. 운영팀 검수 후 지도에 추가됩니다.</p>
+      <div style={{display:'flex', gap:6, fontSize:12, color:'var(--ink-mute)', marginBottom:12}}>
+        <a onClick={()=>setRoute('home')} style={{cursor:'pointer'}}>홈</a><span>›</span>
+        <a onClick={()=>setRoute('court')} style={{cursor:'pointer'}}>코트</a><span>›</span>
+        <span style={{color:'var(--ink)'}}>코트 제보</span>
+      </div>
+
+      <div style={{marginBottom:20}}>
+        <div className="eyebrow">COURT REPORT · 코트 제보</div>
+        <h1 style={{margin:'6px 0 0', fontSize:28, fontWeight:800, letterSpacing:'-0.02em'}}>새 코트 제보</h1>
+        <p style={{margin:'4px 0 0', color:'var(--ink-mute)', fontSize:13}}>BDR에 없는 코트를 발견했다면 알려주세요 · 등록되면 <b style={{color:'var(--accent)'}}>500P</b> 지급</p>
+      </div>
+
+      <div style={{display:'grid', gridTemplateColumns:'minmax(0,1fr) 300px', gap:18, alignItems:'flex-start'}}>
+        <div className="card" style={{padding:'24px 28px'}}>
+          <div style={{display:'flex', marginBottom:24, gap:20}}>
+            <Step n={1} l="기본 정보"/>
+            <Step n={2} l="시설·특징"/>
+            <Step n={3} l="사진·설명"/>
           </div>
+
+          {step === 1 && (
+            <div>
+              <h2 style={{margin:'0 0 14px', fontSize:16, fontWeight:700}}>기본 정보</h2>
+              <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:14}}>
+                <div style={{gridColumn:'1/-1'}}>
+                  <label style={{fontSize:12, fontWeight:700, color:'var(--ink-dim)', display:'block', marginBottom:6}}>코트 이름 *</label>
+                  <input className="input" value={data.name} onChange={e=>update('name', e.target.value)} placeholder="예: 한강공원 반포지구 농구장"/>
+                </div>
+                <div>
+                  <label style={{fontSize:12, fontWeight:700, color:'var(--ink-dim)', display:'block', marginBottom:6}}>지역 *</label>
+                  <select className="input" value={data.area} onChange={e=>update('area', e.target.value)}>
+                    {['서울','경기','인천','부산','대구','대전','광주','울산','기타'].map(a => <option key={a}>{a}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label style={{fontSize:12, fontWeight:700, color:'var(--ink-dim)', display:'block', marginBottom:6}}>운영 시간</label>
+                  <input className="input" value={data.hours} onChange={e=>update('hours', e.target.value)} placeholder="24시간 / 09:00-22:00"/>
+                </div>
+                <div style={{gridColumn:'1/-1'}}>
+                  <label style={{fontSize:12, fontWeight:700, color:'var(--ink-dim)', display:'block', marginBottom:6}}>상세 주소 *</label>
+                  <input className="input" value={data.addr} onChange={e=>update('addr', e.target.value)} placeholder="예: 서울 서초구 반포동 한강공원 반포지구 내"/>
+                  <div style={{fontSize:11, color:'var(--ink-dim)', marginTop:4}}>📍 주소를 입력하면 자동으로 지도에 표시됩니다</div>
+                </div>
+                <div>
+                  <label style={{fontSize:12, fontWeight:700, color:'var(--ink-dim)', display:'block', marginBottom:6}}>유형</label>
+                  <div style={{display:'flex', gap:6}}>
+                    {[{v:'outdoor', l:'야외'},{v:'indoor', l:'실내'},{v:'mixed', l:'복합'}].map(t => (
+                      <button key={t.v} onClick={()=>update('type', t.v)} className={`btn btn--sm ${data.type===t.v?'btn--primary':''}`} style={{flex:1}}>{t.l}</button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <label style={{fontSize:12, fontWeight:700, color:'var(--ink-dim)', display:'block', marginBottom:6}}>바닥</label>
+                  <select className="input" value={data.surface} onChange={e=>update('surface', e.target.value)}>
+                    <option value="urethane">우레탄</option>
+                    <option value="asphalt">아스팔트</option>
+                    <option value="wood">우드</option>
+                    <option value="pvc">PVC</option>
+                    <option value="concrete">콘크리트</option>
+                  </select>
+                </div>
+              </div>
+              <div style={{display:'flex', justifyContent:'flex-end', marginTop:24, paddingTop:20, borderTop:'1px solid var(--border)'}}>
+                <button className="btn btn--primary" disabled={!data.name || !data.addr} onClick={()=>setStep(2)}>다음 →</button>
+              </div>
+            </div>
+          )}
+
+          {step === 2 && (
+            <div>
+              <h2 style={{margin:'0 0 14px', fontSize:16, fontWeight:700}}>시설·특징</h2>
+              <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:14, marginBottom:20}}>
+                <div>
+                  <label style={{fontSize:12, fontWeight:700, color:'var(--ink-dim)', display:'block', marginBottom:6}}>골대 수</label>
+                  <div style={{display:'flex', gap:6}}>
+                    {[1,2,4,6].map(n => (
+                      <button key={n} onClick={()=>update('hoops', n)} className={`btn btn--sm ${data.hoops===n?'btn--primary':''}`} style={{flex:1}}>{n}개</button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <label style={{fontSize:12, fontWeight:700, color:'var(--ink-dim)', display:'block', marginBottom:6}}>조명</label>
+                  <div style={{display:'flex', gap:6}}>
+                    <button onClick={()=>update('lighting', true)} className={`btn btn--sm ${data.lighting?'btn--primary':''}`} style={{flex:1}}>있음</button>
+                    <button onClick={()=>update('lighting', false)} className={`btn btn--sm ${!data.lighting?'btn--primary':''}`} style={{flex:1}}>없음</button>
+                  </div>
+                </div>
+                <div style={{gridColumn:'1/-1'}}>
+                  <label style={{fontSize:12, fontWeight:700, color:'var(--ink-dim)', display:'block', marginBottom:6}}>이용료</label>
+                  <div style={{display:'flex', gap:6, marginBottom:8}}>
+                    <button onClick={()=>update('fee', 'free')} className={`btn btn--sm ${data.fee==='free'?'btn--primary':''}`} style={{flex:1}}>무료</button>
+                    <button onClick={()=>update('fee', 'paid')} className={`btn btn--sm ${data.fee==='paid'?'btn--primary':''}`} style={{flex:1}}>유료</button>
+                    <button onClick={()=>update('fee', 'reserve')} className={`btn btn--sm ${data.fee==='reserve'?'btn--primary':''}`} style={{flex:2}}>예약제</button>
+                  </div>
+                  {data.fee === 'paid' && <input className="input" type="number" value={data.feeAmount} onChange={e=>update('feeAmount', Number(e.target.value))} placeholder="시간당 이용료 (원)"/>}
+                </div>
+                <div style={{gridColumn:'1/-1'}}>
+                  <label style={{fontSize:12, fontWeight:700, color:'var(--ink-dim)', display:'block', marginBottom:6}}>편의시설 (복수)</label>
+                  <div style={{display:'flex', gap:6, flexWrap:'wrap'}}>
+                    {['주차장','화장실','음수대','샤워실','라커','벤치','매점','와이파이','AED','응급실 인근','흡연 구역','자판기'].map(f => (
+                      <button key={f} onClick={()=>toggleF(f)} className={`btn btn--sm ${data.features.includes(f)?'btn--primary':''}`}>{f}</button>
+                    ))}
+                  </div>
+                </div>
+                <div style={{gridColumn:'1/-1'}}>
+                  <label style={{fontSize:12, fontWeight:700, color:'var(--ink-dim)', display:'block', marginBottom:6}}>분위기</label>
+                  <div style={{display:'flex', gap:6}}>
+                    {[{v:'pickup', l:'픽업 위주'},{v:'practice', l:'개인 연습'},{v:'family', l:'가족·어린이'},{v:'mixed', l:'혼합'}].map(t => (
+                      <button key={t.v} onClick={()=>update('vibe', t.v)} className={`btn btn--sm ${data.vibe===t.v?'btn--primary':''}`} style={{flex:1}}>{t.l}</button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <div style={{display:'flex', justifyContent:'space-between', marginTop:24, paddingTop:20, borderTop:'1px solid var(--border)'}}>
+                <button className="btn" onClick={()=>setStep(1)}>← 이전</button>
+                <button className="btn btn--primary" onClick={()=>setStep(3)}>다음 →</button>
+              </div>
+            </div>
+          )}
+
+          {step === 3 && (
+            <div>
+              <h2 style={{margin:'0 0 14px', fontSize:16, fontWeight:700}}>사진·설명</h2>
+              <label style={{fontSize:12, fontWeight:700, color:'var(--ink-dim)', display:'block', marginBottom:6}}>사진 (최대 5장)</label>
+              <div style={{padding:'24px', border:'2px dashed var(--border)', borderRadius:8, textAlign:'center', marginBottom:8, background:'var(--bg-alt)'}}>
+                <div style={{fontSize:32, opacity:.3, marginBottom:6}}>📸</div>
+                <div style={{fontSize:13, fontWeight:600}}>드래그하거나 클릭해서 업로드</div>
+                <div style={{fontSize:11, color:'var(--ink-dim)', marginTop:4}}>JPG · PNG · 최대 5MB · 코트 전체가 보이는 사진이 좋아요</div>
+                <button className="btn btn--sm" style={{marginTop:12}}>파일 선택</button>
+              </div>
+              <div style={{display:'grid', gridTemplateColumns:'repeat(5,1fr)', gap:6, marginBottom:18}}>
+                {[0,1,2].map(i => (
+                  <div key={i} style={{aspectRatio:'1', background:`linear-gradient(135deg, ${['#DC2626','#0F5FCC','#10B981'][i]}88, ${['#DC2626','#0F5FCC','#10B981'][i]}44)`, borderRadius:4, display:'grid', placeItems:'center', color:'#fff', fontSize:22, fontWeight:900, position:'relative'}}>
+                    <span style={{opacity:.5}}>🏀</span>
+                    <button style={{position:'absolute', top:4, right:4, width:18, height:18, borderRadius:'50%', background:'rgba(0,0,0,.5)', color:'#fff', border:0, cursor:'pointer', fontSize:10}}>×</button>
+                  </div>
+                ))}
+              </div>
+
+              <label style={{fontSize:12, fontWeight:700, color:'var(--ink-dim)', display:'block', marginBottom:6}}>한줄 설명 (선택)</label>
+              <textarea className="input" rows={3} value={data.desc} onChange={e=>update('desc', e.target.value)} placeholder="예: 강변북로 바로 옆. 저녁엔 야경이 좋고 조명도 22시까지 켜짐. 평일 저녁·주말 붐빔." style={{resize:'vertical'}}/>
+
+              <div style={{marginTop:18, padding:'12px 14px', background:'color-mix(in oklab, var(--accent) 5%, transparent)', borderLeft:'3px solid var(--accent)', borderRadius:4, fontSize:12, color:'var(--ink-soft)', lineHeight:1.6}}>
+                제보해주신 내용은 BDR 운영팀 검토 후 공개됩니다. 허위 정보나 이미 등록된 코트일 경우 반려될 수 있어요.
+              </div>
+
+              <div style={{display:'flex', justifyContent:'space-between', marginTop:24, paddingTop:20, borderTop:'1px solid var(--border)'}}>
+                <button className="btn" onClick={()=>setStep(2)}>← 이전</button>
+                <button className="btn btn--primary btn--lg" onClick={()=>setSubmitted(true)}>제보하기</button>
+              </div>
+            </div>
+          )}
         </div>
 
-        <div className="card fm-card">
-          <div className="fm-step"><span className="fm-step__dot is-on" /><span className="fm-step__dot is-on" /><span className="fm-step__dot" /></div>
-
-          <div className="fm-field">
-            <label className="fm-label">코트 이름<span className="req">*</span></label>
-            <input className="fm-input" placeholder="예: 장충체육관 보조경기장" />
+        <aside style={{position:'sticky', top:120, display:'flex', flexDirection:'column', gap:14}}>
+          <div className="card" style={{padding:'18px 20px', background:'linear-gradient(135deg, #DC262622, #0F5FCC22)'}}>
+            <div style={{fontSize:11, color:'var(--ink-dim)', fontWeight:800, letterSpacing:'.1em', marginBottom:8}}>🎁 기여 보상</div>
+            <div style={{display:'flex', justifyContent:'space-between', padding:'6px 0', fontSize:13}}><span>제보 승인</span><b style={{fontFamily:'var(--ff-mono)', color:'var(--accent)'}}>+500P</b></div>
+            <div style={{display:'flex', justifyContent:'space-between', padding:'6px 0', fontSize:13}}><span>사진 3장 이상</span><b style={{fontFamily:'var(--ff-mono)', color:'var(--accent)'}}>+200P</b></div>
+            <div style={{display:'flex', justifyContent:'space-between', padding:'6px 0', fontSize:13}}><span>월 3회 이상 제보</span><b style={{fontFamily:'var(--ff-mono)', color:'var(--accent)'}}>🥇 배지</b></div>
           </div>
-          <div className="fm-row">
-            <div className="fm-field">
-              <label className="fm-label">지역<span className="req">*</span></label>
-              <select className="fm-select"><option>서울 중구</option><option>서울 송파구</option><option>서울 용산구</option><option>경기 하남시</option></select>
-            </div>
-            <div className="fm-field">
-              <label className="fm-label">코트 유형<span className="req">*</span></label>
-              <select className="fm-select"><option>실내 풀코트</option><option>실외 풀코트</option><option>하프코트 (3x3)</option></select>
-            </div>
+          <div className="card" style={{padding:'16px 18px'}}>
+            <div style={{fontSize:11, color:'var(--ink-dim)', fontWeight:700, marginBottom:6}}>내 기여 현황</div>
+            <div style={{fontFamily:'var(--ff-display)', fontSize:24, fontWeight:900}}>3<span style={{fontSize:14, color:'var(--ink-dim)', fontWeight:700}}> 개 제보</span></div>
+            <div style={{fontSize:11, color:'var(--ink-dim)', marginTop:2}}>누적 포인트 1,200P · 🥈 은 기여자</div>
           </div>
-          <div className="fm-field">
-            <label className="fm-label">상세 주소<span className="req">*</span></label>
-            <input className="fm-input" placeholder="도로명 주소를 입력하세요" />
-          </div>
-          <div className="fm-row">
-            <div className="fm-field">
-              <label className="fm-label">운영 시간</label>
-              <input className="fm-input" placeholder="예: 06:00 – 22:00" />
-            </div>
-            <div className="fm-field">
-              <label className="fm-label">이용료</label>
-              <input className="fm-input" placeholder="예: 무료 / 시간당 5,000원" />
-            </div>
-          </div>
-          <div className="fm-field">
-            <label className="fm-label">편의시설</label>
-            <div className="fm-checks">
-              {amens.map(([k, l, ico]) => (
-                <button key={k} type="button" className={'fm-check' + (amen.includes(k) ? ' is-on' : '')} onClick={() => toggle(k)}>
-                  <span className="ico material-symbols-outlined">{ico}</span>{l}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div className="fm-field">
-            <label className="fm-label">코트 사진</label>
-            <div className="fm-upload"><span className="ico material-symbols-outlined">add_a_photo</span>사진을 끌어다 놓거나 클릭해 업로드 (최대 5장)</div>
-          </div>
-          <div className="fm-field">
-            <label className="fm-label">추가 설명</label>
-            <textarea className="fm-textarea" placeholder="바닥 상태, 골대 개수, 주차 안내 등 도움이 될 정보를 적어주세요."></textarea>
-          </div>
-          <div className="fm-note"><span className="ico material-symbols-outlined">info</span>제보해 주신 코트는 운영팀 검수(평균 2~3일) 후 등록되며, 등록 시 알림으로 안내드립니다.</div>
-
-          <div className="fm-actions">
-            <button className="btn">임시저장</button>
-            <button className="btn btn--accent"><span className="ico material-symbols-outlined">send</span>제보 제출</button>
-          </div>
-        </div>
+        </aside>
       </div>
     </div>
   );
 }
+
 window.CourtAdd = CourtAdd;

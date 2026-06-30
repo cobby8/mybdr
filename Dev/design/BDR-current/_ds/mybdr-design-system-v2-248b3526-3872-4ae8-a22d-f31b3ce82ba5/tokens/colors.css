@@ -1,0 +1,104 @@
+/* ============================================================
+   MyBDR Design System — Color tokens
+   LIGHT = clean admin (Toss-blue accent) · DARK = sporty (BDR-red accent)
+   ONE point color per mode. Brand red #E31B23 is fixed.
+   Theming = [data-mode] (light|dark) on <html>.
+   ============================================================ */
+
+/* ---------- Fixed brand + semantic (all themes) ---------- */
+:root {
+  --red:      #E31B23;   /* brand red — fixed */
+  --red-ink:  #B3141A;
+  --red-hot:  #FF2A33;
+
+  --ok:     #15B66E;   /* success / + delta */
+  --warn:   #FF9500;   /* warning */
+  --danger: #F04452;   /* destructive / error */
+  --info:   #3182F6;   /* informational */
+}
+
+/* ============================================================
+   LIGHT — clean admin · point color = Toss blue
+   ============================================================ */
+:root,
+[data-mode="light"] {
+  color-scheme: light;
+
+  --bg:    #F2F4F6;
+  --elev:  #FFFFFF;
+  --card:  #FFFFFF;
+  --alt:   #F9FAFB;
+  --head:  #F4F6F8;
+
+  --ink:   #191F28;
+  --soft:  #4E5968;
+  --mute:  #8B95A1;
+  --dim:   #B0B8C1;
+
+  --border:  #E5E8EB;
+  --bstrong: #D1D6DB;
+
+  --shadow: rgba(20,28,40,.14);
+  --pill-on: var(--card);
+  --pill-shadow: 0 1px 3px rgba(20,28,40,.16);
+  --seg-track: #F4F6F8;
+  --info-soft: #E7F0FE;
+
+  /* The single accent (point) color */
+  --primary:      #3182F6;   /* Toss blue */
+  --primary-deep: #1B64DA;
+  --primary-on:   #FFFFFF;
+  --soft-fill:    #E8F1FE;
+  --soft-ink:     #1B64DA;
+
+  /* Signature slots collapse to the single accent (no second hue) */
+  --sig:      var(--primary);
+  --sig-2:    var(--primary-deep);
+  --sig-soft: var(--soft-fill);
+  --sig-ink:  var(--soft-ink);
+  --sig-on:   var(--primary-on);
+
+  --glow: transparent;
+}
+
+/* ============================================================
+   DARK — sporty · point color = BDR red
+   ============================================================ */
+[data-mode="dark"] {
+  color-scheme: dark;
+
+  --bg:    #0A0C10;
+  --elev:  #12161C;
+  --card:  #161B22;
+  --alt:   #1C222B;
+  --head:  #1E2530;
+
+  --ink:   #F4F6F8;
+  --soft:  #C9D1DB;
+  --mute:  #8A95A3;
+  --dim:   #5B6675;
+
+  --border:  #252C36;
+  --bstrong: #39434F;
+
+  --shadow: rgba(0,0,0,.5);
+  --pill-on: var(--bstrong);
+  --pill-shadow: 0 1px 3px rgba(0,0,0,.4);
+  --seg-track: #0F141A;
+  --info-soft: rgba(49,130,246,.16);
+
+  /* The single accent (point) color */
+  --primary:      #E31B23;   /* BDR red */
+  --primary-deep: #B3141A;
+  --primary-on:   #FFFFFF;
+  --soft-fill:    rgba(227,27,35,.16);
+  --soft-ink:     #FF8A93;
+
+  --sig:      var(--primary);
+  --sig-2:    var(--red-hot);
+  --sig-soft: var(--soft-fill);
+  --sig-ink:  var(--soft-ink);
+  --sig-on:   var(--primary-on);
+
+  --glow: rgba(227,27,35,.20);
+}

@@ -1,242 +1,150 @@
-/* global React */
-// ============================================================
-// BDR v2.28 — CourtDetail (VU2 · Phase 8B · 보강 · BV3 ★★★★)
-// 운영: /courts/[id] (323 · v3 ContextReviews + 5항목 평균 + ReviewForm) — 보강.
-//
-// Hero band (코트 + 평점 + 즐겨찾기 + 예약 CTA → VU3) + 4 탭
-//   (overview / 리뷰 5항목 / 예약 가능 시간 / 신고·편집) + 신고 모달(court_reports)
-//   + 편집 제안 모달(court_edit_suggestions). cross-domain Phase 1/2/5.
-// ============================================================
-const VU2_TABS = [
-  { key: 'overview', lbl: '개요', ico: 'info' },
-  { key: 'reviews',  lbl: '리뷰', ico: 'reviews' },
-  { key: 'slots',    lbl: '예약 가능 시간', ico: 'schedule' },
-  { key: 'report',   lbl: '신고·편집', ico: 'flag' },
+/* global React, Icon */
+
+const COURT_DETAIL = {
+  id: 'jangchung',
+  name: '장충체육관',
+  area: '서울 중구',
+  address: '서울특별시 중구 동호로 241',
+  type: '실내',
+  courts: 2,
+  fee: '무료 (예약 필요)',
+  hours: '09:00 – 22:00',
+  floor: '우레탄',
+  light: '상',
+  parking: '유료 주차 120대',
+  shower: '있음',
+  locker: '유료 락커',
+  phone: '02-2128-2800',
+  desc: '서울 중심부의 대표 실내 농구장. 2면 풀코트와 관중석을 갖추고 있어 대회장으로 자주 활용됩니다. 픽업·정기모임이 활발합니다.',
+  tags: ['대회장', '픽업 다수', '관중석'],
+};
+
+const TIME_SLOTS = [
+  { time: '09:00', busy: 2, total: 20 },
+  { time: '10:00', busy: 5, total: 20 },
+  { time: '11:00', busy: 8, total: 20 },
+  { time: '12:00', busy: 14, total: 20 },
+  { time: '13:00', busy: 18, total: 20 },
+  { time: '14:00', busy: 16, total: 20 },
+  { time: '15:00', busy: 11, total: 20 },
+  { time: '16:00', busy: 9, total: 20 },
+  { time: '17:00', busy: 12, total: 20 },
+  { time: '18:00', busy: 17, total: 20 },
+  { time: '19:00', busy: 20, total: 20 },
+  { time: '20:00', busy: 19, total: 20 },
+  { time: '21:00', busy: 13, total: 20 },
 ];
 
-function CourtDetail() {
-  const c = window.COURTS[0];
-  const [tab, setTab] = React.useState('overview');
-  const [modal, setModal] = React.useState(null); // 'report' | 'edit'
+const UPCOMING_HERE = [
+  { kind: '픽업', title: '금요일 저녁 픽업 · 중급', date: '2026.04.25 19:00', spots: '6/10' },
+  { kind: '대회', title: 'BDR CHALLENGE SPRING', date: '2026.04.11 09:00', spots: '12/16팀' },
+  { kind: '게스트', title: '리딤 정기훈련 게스트 2명', date: '2026.04.27 14:00', spots: '1/2' },
+];
 
+function CourtDetail({ setRoute }) {
+  const c = COURT_DETAIL;
   return (
-    <div className="pm-page">
-      <div className="pm-page__inner bl-wide">
-        <div className="bl-crumb">
-          <a href="vu1-courts.html">코트</a><span className="sep">›</span><span>{c.city}</span><span className="sep">›</span><span className="cur">{c.name}</span>
-        </div>
-
-        {/* Hero */}
-        <div className="cv-hero">
-          <div className="cv-hero__photo">
-            <div className="cv-hero__badges">
-              <span className="cv-card__type" style={{ position: 'static' }}>{c.type === 'indoor' ? '실내' : '야외'}</span>
-              {c.ambassador && <window.AmbassadorBadge name={c.ambassador_name} />}
-              {c.verified && <span className="cv-stat" data-tone="ok">검증됨</span>}
-            </div>
-          </div>
-          <div className="cv-hero__body">
-            <div style={{ minWidth: 0 }}>
-              <h1 className="cv-hero__name">{c.name}</h1>
-              <div className="cv-hero__loc"><span className="ico material-symbols-outlined">location_on</span>{c.addr} · {c.station}</div>
-              <div className="cv-hero__meta">
-                <window.StarRating value={c.rating} size={15} />
-                <span style={{ fontFamily: 'var(--ff-mono)', fontSize: 12, color: 'var(--ink-mute)' }}>리뷰 {c.reviews}</span>
-                <span className="cv-card__live"><span className="cv-dot"></span>{c.active_checkins}명 이용 중</span>
-                <span style={{ fontFamily: 'var(--ff-display)', fontSize: 16, fontWeight: 800 }}>{window.courtFee(c)}</span>
-              </div>
-            </div>
-            <div className="cv-hero__actions">
-              <window.FavButton on={c.fav} />
-              <a className="btn btn--primary" href="vu3-court-booking.html" style={{ minHeight: 44 }}><span className="ico material-symbols-outlined">event_available</span>예약하기</a>
-            </div>
-          </div>
-        </div>
-
-        {/* tabs */}
-        <div className="cv-tabbar">
-          {VU2_TABS.map(t => (
-            <button key={t.key} className={'cv-tab' + (tab === t.key ? ' is-on' : '')} onClick={() => setTab(t.key)}>
-              <span className="ico material-symbols-outlined">{t.ico}</span>{t.lbl}
-            </button>
-          ))}
-        </div>
-
-        {/* OVERVIEW */}
-        {tab === 'overview' && (
-          <div className="pm-grid">
-            <div className="pm-main">
-              <div className="pm-card">
-                <h2 className="pm-card__h" style={{ marginBottom: 14 }}><span className="ico material-symbols-outlined">tune</span>시설 정보</h2>
-                <div className="cv-infogrid">
-                  <div className="cv-info"><div className="cv-info__l">바닥재</div><div className="cv-info__v">{c.surface}</div></div>
-                  <div className="cv-info"><div className="cv-info__l">골대</div><div className="cv-info__v">{c.hoops}개</div></div>
-                  <div className="cv-info"><div className="cv-info__l">조명</div><div className="cv-info__v"><span className="ico material-symbols-outlined">{c.lighting ? 'check' : 'close'}</span>{c.lighting ? '있음' : '없음'}</div></div>
-                  <div className="cv-info"><div className="cv-info__l">주차</div><div className="cv-info__v"><span className="ico material-symbols-outlined">{c.parking ? 'check' : 'close'}</span>{c.parking ? '가능' : '불가'}</div></div>
-                  <div className="cv-info"><div className="cv-info__l">화장실</div><div className="cv-info__v"><span className="ico material-symbols-outlined">{c.restroom ? 'check' : 'close'}</span>{c.restroom ? '있음' : '없음'}</div></div>
-                  <div className="cv-info"><div className="cv-info__l">최근역</div><div className="cv-info__v" style={{ fontSize: 12.5 }}>{c.station}</div></div>
-                  <div className="cv-info"><div className="cv-info__l">운영</div><div className="cv-info__v" style={{ fontSize: 12.5 }}>{c.partner || '공공'}</div></div>
-                  <div className="cv-info"><div className="cv-info__l">이용료</div><div className="cv-info__v">{window.courtFee(c)}</div></div>
-                </div>
-              </div>
-              {/* map */}
-              <div className="pm-card">
-                <h2 className="pm-card__h" style={{ marginBottom: 14 }}><span className="ico material-symbols-outlined">map</span>위치</h2>
-                <div className="cv-map" style={{ position: 'relative', height: 240 }}>
-                  <div className="cv-map__note">카카오맵 · {c.addr}</div>
-                  <div className="cv-map__pin" style={{ left: '46%', top: '44%' }}><span>sports_basketball</span></div>
-                </div>
-              </div>
-            </div>
-            <aside className="pm-aside">
-              {/* cross-domain */}
-              <div className="pm-card" style={{ padding: 16 }}>
-                <div className="pm-sec-title" style={{ marginBottom: 10 }}>이 코트에서</div>
-                <a className="cv-xlink" href="ua1-tournaments.html">
-                  <span className="cv-xlink__ico" style={{ background: 'var(--accent-soft)' }}><span className="ico material-symbols-outlined" style={{ color: 'var(--accent)' }}>emoji_events</span></span>
-                  <div className="cv-xlink__body"><div className="cv-xlink__t">예정 대회 2건</div><div className="cv-xlink__d">Phase 1 대회</div></div>
-                  <span className="cv-xlink__arr ico material-symbols-outlined">chevron_right</span>
-                </a>
-                <a className="cv-xlink" href="p2-ua1-games.html">
-                  <span className="cv-xlink__ico" style={{ background: 'var(--cafe-blue-soft)' }}><span className="ico material-symbols-outlined" style={{ color: 'var(--cafe-blue-deep)' }}>sports_basketball</span></span>
-                  <div className="cv-xlink__body"><div className="cv-xlink__t">이 코트 경기 5건</div><div className="cv-xlink__d">Phase 2 경기</div></div>
-                  <span className="cv-xlink__arr ico material-symbols-outlined">chevron_right</span>
-                </a>
-                <a className="cv-xlink" href="ru1-rankings.html" style={{ marginBottom: 0 }}>
-                  <span className="cv-xlink__ico" style={{ background: '#FBF0D6' }}><span className="ico material-symbols-outlined" style={{ color: '#B47A11' }}>leaderboard</span></span>
-                  <div className="cv-xlink__body"><div className="cv-xlink__t">코트 랭킹</div><div className="cv-xlink__d">Phase 5 랭킹</div></div>
-                  <span className="cv-xlink__arr ico material-symbols-outlined">chevron_right</span>
-                </a>
-              </div>
-            </aside>
-          </div>
-        )}
-
-        {/* REVIEWS — 5항목 평균 (v3 carry) */}
-        {tab === 'reviews' && (
-          <div className="pm-grid">
-            <div className="pm-main">
-              <div className="pm-card">
-                <div className="pm-card__head">
-                  <h2 className="pm-card__h"><span className="ico material-symbols-outlined">reviews</span>리뷰 {c.reviews}</h2>
-                  <button className="btn btn--sm btn--primary"><span className="ico material-symbols-outlined">edit</span>리뷰 작성</button>
-                </div>
-                {window.COURT_REVIEWS.map(r => (
-                  <div key={r.id} className="cv-review">
-                    <div className="cv-review__head">
-                      <span className="cv-review__av">{r.avatar}</span>
-                      <div className="cv-review__who"><div className="cv-review__name">{r.user}</div><div className="cv-review__date">{r.date}</div></div>
-                      <window.StarRating value={r.rating} showNum={false} />
-                    </div>
-                    <div className="cv-review__text">{r.text}</div>
-                    {r.photo && <div className="cv-review__photo">PHOTO</div>}
-                  </div>
-                ))}
-              </div>
-            </div>
-            <aside className="pm-aside">
-              <div className="pm-card">
-                <h2 className="pm-card__h" style={{ marginBottom: 6 }}><span className="ico material-symbols-outlined">analytics</span>항목별 평점</h2>
-                <div style={{ textAlign: 'center', padding: '8px 0 14px' }}>
-                  <div style={{ fontFamily: 'var(--ff-display)', fontSize: 40, fontWeight: 900, color: 'var(--ink)', lineHeight: 1 }}>{c.rating.toFixed(1)}</div>
-                  <window.StarRating value={c.rating} showNum={false} size={16} />
-                </div>
-                <div className="cv-rate5">
-                  {window.COURT_RATING_5.map(r => (
-                    <div key={r.key} className="cv-rate-row">
-                      <span className="cv-rate-row__l">{r.label}</span>
-                      <span className="cv-rate-row__track"><span className="cv-rate-row__fill" style={{ width: (r.val / 5 * 100) + '%' }}></span></span>
-                      <span className="cv-rate-row__v">{r.val.toFixed(1)}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </aside>
-          </div>
-        )}
-
-        {/* SLOTS */}
-        {tab === 'slots' && (
-          <div className="pm-card">
-            <div className="pm-card__head">
-              <h2 className="pm-card__h"><span className="ico material-symbols-outlined">schedule</span>오늘 예약 가능 시간</h2>
-              <a className="btn btn--sm btn--primary" href="vu3-court-booking.html">예약 진행</a>
-            </div>
-            <div className="cv-slots">
-              {window.BOOKING_SLOTS.map(s => (
-                <button key={s.t} className="cv-slot" disabled={!s.avail}>
-                  <div className="cv-slot__t">{s.t}</div>
-                  <div className="cv-slot__s">{s.avail ? s.spots + '자리' : '마감'}</div>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* REPORT/EDIT */}
-        {tab === 'report' && (
-          <div className="pm-card">
-            <h2 className="pm-card__h" style={{ marginBottom: 6 }}><span className="ico material-symbols-outlined">fact_check</span>정보가 정확한가요?</h2>
-            <p style={{ fontSize: 13, color: 'var(--ink-mute)', margin: '0 0 16px' }}>잘못된 정보를 신고하거나, 코트 정보 수정을 제안할 수 있어요. 검수 후 반영됩니다.</p>
-            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-              <button className="btn" onClick={() => setModal('report')}><span className="ico material-symbols-outlined">flag</span>잘못된 정보 신고</button>
-              <button className="btn" onClick={() => setModal('edit')}><span className="ico material-symbols-outlined">edit_note</span>정보 수정 제안</button>
-            </div>
-          </div>
-        )}
+    <div className="page page--wide">
+      <div style={{display:'flex', alignItems:'center', gap:6, fontSize:12, color:'var(--ink-mute)', marginBottom:14, flexWrap:'wrap'}}>
+        <a onClick={()=>setRoute('home')} style={{cursor:'pointer'}}>홈</a>
+        <span>›</span>
+        <a onClick={()=>setRoute('court')} style={{cursor:'pointer'}}>코트</a>
+        <span>›</span>
+        <span style={{color:'var(--ink)'}}>{c.name}</span>
       </div>
 
-      {/* 신고 모달 (court_reports) */}
-      {modal === 'report' && (
-        <div className="bl-modal-stage" onClick={() => setModal(null)}>
-          <div className="bl-modal" onClick={e => e.stopPropagation()}>
-            <div className="bl-modal__head">
-              <h3 className="bl-modal__title"><span className="ico material-symbols-outlined" style={{ color: 'var(--accent)' }}>flag</span>잘못된 정보 신고</h3>
-              <button className="bl-modal__close" onClick={() => setModal(null)}><span className="ico material-symbols-outlined">close</span></button>
-            </div>
-            <div className="bl-modal__body">
-              <div className="pm-field" style={{ marginBottom: 12 }}>
-                <label className="pm-field__l">신고 유형</label>
-                <select className="pm-select"><option>시설 정보 불일치</option><option>운영시간 오류</option><option>폐쇄된 코트</option><option>기타</option></select>
-              </div>
-              <div className="pm-field" style={{ marginBottom: 0 }}>
-                <label className="pm-field__l">상세 내용</label>
-                <textarea className="pm-input" rows={3} placeholder="어떤 정보가 잘못됐는지 알려주세요"></textarea>
+      <div style={{display:'grid', gridTemplateColumns:'minmax(0,1fr) 340px', gap:24, alignItems:'flex-start'}}>
+        <div>
+          {/* Header */}
+          <div className="card" style={{padding:0, overflow:'hidden', marginBottom:20}}>
+            <div style={{height:220, background:'repeating-linear-gradient(45deg, var(--bg-alt) 0 14px, var(--bg-elev) 14px 28px)', position:'relative', borderBottom:'1px solid var(--border)'}}>
+              <div style={{position:'absolute', inset:0, display:'grid', placeItems:'center', fontFamily:'var(--ff-mono)', fontSize:12, color:'var(--ink-dim)'}}>COURT PHOTO · placeholder</div>
+              <div style={{position:'absolute', left:16, top:16, display:'flex', gap:6}}>
+                {c.tags.map(t => <span key={t} className="badge badge--soft">{t}</span>)}
               </div>
             </div>
-            <div className="bl-modal__foot">
-              <button className="btn" onClick={() => setModal(null)}>취소</button>
-              <button className="btn btn--primary" onClick={() => setModal(null)}><span className="ico material-symbols-outlined">send</span>신고 접수</button>
+            <div style={{padding:'22px 24px'}}>
+              <div style={{fontSize:12, color:'var(--ink-dim)', letterSpacing:'.08em', textTransform:'uppercase', fontWeight:700, marginBottom:6}}>{c.area}</div>
+              <h1 style={{margin:'0 0 8px', fontSize:30, fontWeight:800, letterSpacing:'-0.02em'}}>{c.name}</h1>
+              <div style={{fontSize:13, color:'var(--ink-mute)', marginBottom:14}}>{c.address}</div>
+              <p style={{margin:0, color:'var(--ink-soft)', lineHeight:1.7}}>{c.desc}</p>
             </div>
           </div>
-        </div>
-      )}
 
-      {/* 편집 제안 모달 (court_edit_suggestions) */}
-      {modal === 'edit' && (
-        <div className="bl-modal-stage" onClick={() => setModal(null)}>
-          <div className="bl-modal" onClick={e => e.stopPropagation()}>
-            <div className="bl-modal__head">
-              <h3 className="bl-modal__title"><span className="ico material-symbols-outlined" style={{ color: 'var(--cafe-blue-deep)' }}>edit_note</span>정보 수정 제안</h3>
-              <button className="bl-modal__close" onClick={() => setModal(null)}><span className="ico material-symbols-outlined">close</span></button>
+          {/* Busy by hour */}
+          <div className="card" style={{padding:'20px 22px', marginBottom:20}}>
+            <h2 style={{margin:'0 0 14px', fontSize:18, fontWeight:700}}>오늘의 혼잡도</h2>
+            <div style={{display:'grid', gridTemplateColumns:`repeat(${TIME_SLOTS.length}, 1fr)`, gap:4, alignItems:'end', height:120}}>
+              {TIME_SLOTS.map(s => {
+                const pct = s.busy / s.total;
+                const bg = pct > 0.8 ? 'var(--accent)' : pct > 0.5 ? 'var(--warn)' : 'var(--ok)';
+                return (
+                  <div key={s.time} style={{display:'flex', flexDirection:'column', alignItems:'center', gap:4}}>
+                    <div style={{width:'100%', height: `${pct*100}%`, background:bg, minHeight:3, borderRadius:2}}/>
+                    <div style={{fontSize:10, fontFamily:'var(--ff-mono)', color:'var(--ink-dim)'}}>{s.time.slice(0,2)}</div>
+                  </div>
+                );
+              })}
             </div>
-            <div className="bl-modal__body">
-              <div className="pm-field" style={{ marginBottom: 12 }}>
-                <label className="pm-field__l">수정할 항목</label>
-                <select className="pm-select"><option>운영시간</option><option>주차</option><option>바닥재</option><option>이용료</option></select>
-              </div>
-              <div className="pm-field" style={{ marginBottom: 0 }}>
-                <label className="pm-field__l">올바른 정보</label>
-                <input className="pm-input" placeholder="예: 06:00–23:00" />
-              </div>
-            </div>
-            <div className="bl-modal__foot">
-              <button className="btn" onClick={() => setModal(null)}>취소</button>
-              <button className="btn btn--primary" onClick={() => setModal(null)}><span className="ico material-symbols-outlined">check</span>제안 제출</button>
+            <div style={{display:'flex', gap:14, marginTop:12, fontSize:11, color:'var(--ink-mute)'}}>
+              <div style={{display:'flex', gap:4, alignItems:'center'}}><span style={{width:10, height:10, background:'var(--ok)', borderRadius:2}}/>한산</div>
+              <div style={{display:'flex', gap:4, alignItems:'center'}}><span style={{width:10, height:10, background:'var(--warn)', borderRadius:2}}/>보통</div>
+              <div style={{display:'flex', gap:4, alignItems:'center'}}><span style={{width:10, height:10, background:'var(--accent)', borderRadius:2}}/>혼잡</div>
             </div>
           </div>
+
+          {/* Upcoming here */}
+          <div className="card" style={{padding:0}}>
+            <div style={{padding:'16px 22px', borderBottom:'1px solid var(--border)', display:'flex', alignItems:'center', justifyContent:'space-between'}}>
+              <h2 style={{margin:0, fontSize:17, fontWeight:700}}>이 코트의 일정</h2>
+              <a style={{fontSize:12}}>더보기 ›</a>
+            </div>
+            {UPCOMING_HERE.map((u, i) => (
+              <div key={i} style={{padding:'14px 22px', borderBottom: i < UPCOMING_HERE.length-1 ? '1px solid var(--border)' : 0, display:'grid', gridTemplateColumns:'72px 1fr auto', gap:14, alignItems:'center'}}>
+                <span className="badge badge--soft">{u.kind}</span>
+                <div>
+                  <div style={{fontWeight:600}}>{u.title}</div>
+                  <div style={{fontSize:12, color:'var(--ink-dim)', fontFamily:'var(--ff-mono)', marginTop:2}}>{u.date}</div>
+                </div>
+                <div style={{fontFamily:'var(--ff-mono)', fontWeight:700, fontSize:13}}>{u.spots}</div>
+              </div>
+            ))}
+          </div>
         </div>
-      )}
+
+        {/* Side */}
+        <aside style={{position:'sticky', top:120}}>
+          {/* Map */}
+          <div className="card" style={{padding:0, overflow:'hidden', marginBottom:14}}>
+            <div style={{height:180, background:'repeating-linear-gradient(45deg, var(--bg-alt) 0 10px, var(--bg-elev) 10px 20px)', position:'relative'}}>
+              <div style={{position:'absolute', left:'50%', top:'50%', width:18, height:18, background:'var(--accent)', border:'3px solid #fff', borderRadius:'50% 50% 50% 0', transform:'translate(-50%,-100%) rotate(-45deg)', boxShadow:'0 2px 8px rgba(0,0,0,.3)'}}/>
+              <div style={{position:'absolute', bottom:8, left:8, fontFamily:'var(--ff-mono)', fontSize:10, color:'var(--ink-dim)', background:'var(--bg-elev)', padding:'3px 7px', borderRadius:3}}>MAP · placeholder</div>
+            </div>
+            <div style={{padding:'14px 18px'}}>
+              <button className="btn btn--sm" style={{width:'100%', marginBottom:6}}>길찾기</button>
+              <button className="btn btn--sm" style={{width:'100%'}}>지도에서 열기</button>
+            </div>
+          </div>
+
+          {/* Info */}
+          <div className="card" style={{padding:'18px 20px', marginBottom:14}}>
+            <div style={{fontSize:11, fontWeight:800, letterSpacing:'.1em', color:'var(--ink-dim)', textTransform:'uppercase', marginBottom:12}}>시설 정보</div>
+            <div style={{display:'grid', gridTemplateColumns:'80px 1fr', rowGap:9, fontSize:13}}>
+              <div style={{color:'var(--ink-dim)'}}>유형</div><div>{c.type} · {c.courts}코트</div>
+              <div style={{color:'var(--ink-dim)'}}>이용료</div><div>{c.fee}</div>
+              <div style={{color:'var(--ink-dim)'}}>운영시간</div><div>{c.hours}</div>
+              <div style={{color:'var(--ink-dim)'}}>바닥</div><div>{c.floor}</div>
+              <div style={{color:'var(--ink-dim)'}}>조명</div><div>{c.light}</div>
+              <div style={{color:'var(--ink-dim)'}}>주차</div><div>{c.parking}</div>
+              <div style={{color:'var(--ink-dim)'}}>샤워실</div><div>{c.shower}</div>
+              <div style={{color:'var(--ink-dim)'}}>락커</div><div>{c.locker}</div>
+              <div style={{color:'var(--ink-dim)'}}>연락처</div><div style={{fontFamily:'var(--ff-mono)'}}>{c.phone}</div>
+            </div>
+          </div>
+
+          <button className="btn btn--primary btn--xl">이곳에서 모집 글쓰기</button>
+        </aside>
+      </div>
     </div>
   );
 }

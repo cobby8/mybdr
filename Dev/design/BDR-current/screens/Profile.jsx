@@ -1,178 +1,203 @@
-/* global React */
-// ============================================================
-// BDR v2.24 — ProfileMain (PU1 · Phase 6.1B · 보강 · BP1 + BP6)
-// 운영: /profile (831 line · Phase 13 박제) — 카운트 동기화 + 진입 다리 보강.
-//
-// 진입: AppNav 더보기 → 마이페이지 / 로그인 후
-// 복귀: AppNav
-// BP1: PU5 와 동일 User 데이터 (privacy_settings 분기). "공개 프로필 미리보기" → PU5 preview
-// BP6: 상단 카운트 = UC1(/profile/activity) 카드 카운트 동일 source · "내 활동" 진입 CTA
-// ============================================================
-function ProfileMain() {
-  const u = window.USER_ME;
-  const s = window.SEASON_STAT;
-  const isPro = u.subscription_status === 'active';
+/* global React, TEAMS, GAMES, TOURNAMENTS, POSTS, Icon, MemberPendingBadge */
 
-  // BP6 — UC1 활동 카드와 동일 source 카운트
-  const counts = [
-    { v: window.MY_TOURNAMENTS.length, l: '내 대회', href: 'uc1-my-activity.html' },
-    { v: s.participated, l: '내 경기', href: 'uc1-my-activity.html' },
-    { v: window.ME_TEAMS.length, l: '내 팀', href: 'uc1-my-activity.html' },
-    { v: window.ME_ORGS.length, l: '내 단체', href: 'uc1-my-activity.html' },
-    { v: u.evaluation_rating, l: '매너 평점', href: 'uc1-my-activity.html', accent: true },
+function Profile({ setRoute }) {
+  const team = TEAMS[0]; // RDM
+
+  // 신뢰 stat (Phase 10 manner_score 기반) — 숫자 비노출, 등급 라벨로만 표시
+  const trust = { mannerScore: 4.6, mvpCount: 5, gamesPlayed: 47, rated: true };
+  const mannerGrade = (s) =>
+    s >= 4.5 ? { label: '아주 좋음', tone: 'var(--ok)', step: 4 } :
+    s >= 4.0 ? { label: '좋음',    tone: 'var(--cafe-blue)', step: 3 } :
+    s >= 3.0 ? { label: '보통',    tone: 'var(--ink-mute)', step: 2 } :
+               { label: '주의 필요', tone: 'var(--warn)', step: 1 };
+  const grade = mannerGrade(trust.mannerScore);
+  const stats = [
+    { label: '경기', value: '47' },
+    { label: '승률', value: '63%' },
+    { label: 'PPG', value: '14.2' },
+    { label: 'APG', value: '5.1' },
+    { label: 'RPG', value: '3.8' },
+    { label: '레이팅', value: '1,684' },
+  ];
+  const timeline = [
+    { date: '04.22', action: '대회 접수', target: 'BDR Challenge Spring 2026', tag: 'match' },
+    { date: '04.20', action: '경기 완료', target: '장충체육관 픽업 · 21–18 승', tag: 'win' },
+    { date: '04.18', action: '게시글 작성', target: '어제 장충체육관 픽업경기 후기', tag: 'post' },
+    { date: '04.17', action: '팀 합류', target: 'REDEEM 정식 팀원', tag: 'team' },
+    { date: '04.12', action: '경기 완료', target: '반포 주말 3x3 · 15–21 패', tag: 'loss' },
+  ];
+  const badges = [
+    { icon: '🏆', name: 'Winter Finals 진출', date: '2026.02' },
+    { icon: '🔥', name: '10연승', date: '2026.03' },
+    { icon: '⭐', name: '시즌 MVP 후보', date: '2026.03' },
+    { icon: '🎯', name: '3점 100개', date: '2026.04' },
   ];
 
   return (
-    <div className="pm-page">
-      <div className="pm-page__inner">
-        {/* Hero (PU1-C — PU5 와 동일 데이터 / 본인 시야) */}
-        <header className="pm-hero">
-          <div className="pm-hero__row">
-            <div className="pm-hero__av">{u.avatar}</div>
-            <div className="pm-hero__body">
-              <div className="pm-hero__namerow">
-                <h1 className="pm-hero__name">{u.nickname}</h1>
-                <window.LevelBadge level={u.level} pro={isPro} />
-                {u.profile_completed && <span className="pm-hero__verified" title="본인 인증"><span className="ico material-symbols-outlined">verified</span></span>}
+    <div className="page">
+      <div style={{display:'grid', gridTemplateColumns:'320px 1fr', gap:20, alignItems:'flex-start'}}>
+        <aside className="profile-aside" style={{position:'sticky', top:120, display:'flex', flexDirection:'column', gap:14}}>
+          <div className="card profile-id-card" style={{padding:'24px 22px', textAlign:'center'}}>
+            <div className="profile-avatar" style={{width:96, height:96, margin:'0 auto 14px', background:`linear-gradient(145deg, ${team.color}, #000)`, color:team.ink, display:'grid', placeItems:'center', fontFamily:'var(--ff-display)', fontWeight:900, fontSize:28, borderRadius:'50%', border:'3px solid var(--border)'}}>{team.tag}</div>
+            <div className="profile-id-text">
+              <h1 style={{margin:'0 0 4px', fontSize:22, fontWeight:800}}>rdm_captain</h1>
+              <div style={{fontSize:13, color:'var(--ink-mute)', marginBottom:12}}>리딤 · 가드 · #7</div>
+              <div className="profile-id-badges" style={{display:'flex', gap:6, justifyContent:'center', marginBottom:14, flexWrap:'wrap'}}>
+                <span className="badge badge--red">L.8</span>
+                <span className="badge badge--soft">PRO 멤버</span>
+                <span className="badge badge--ok">인증완료</span>
               </div>
-              <div className="pm-hero__meta">
-                <span><span className="ico material-symbols-outlined">sports_basketball</span>{u.position} · {window.HAND_LABEL[u.dominant_hand]}</span>
-                <span><span className="ico material-symbols-outlined">location_on</span>{u.city} {u.district}</span>
-                <span><span className="ico material-symbols-outlined">favorite</span>매너 {u.evaluation_rating} <em style={{ fontStyle: 'normal', opacity: .6 }}>({u.manner_count})</em></span>
-              </div>
-              <p className="pm-hero__bio">{u.bio}</p>
+            </div>
+            <div className="profile-id-actions">
+              <button className="btn btn--sm" style={{width:'100%', marginBottom:6}} onClick={()=>setRoute('settings')}>프로필 편집</button>
+              <button className="btn btn--sm" style={{width:'100%'}} onClick={()=>setRoute('notifications')}>알림 3건 확인</button>
             </div>
           </div>
-          <div className="pm-hero__actions">
-            {/* PU1-D — 프로필 편집 → PU2 */}
-            <a className="pm-hbtn pm-hbtn--accent" href="pu2-profile-edit.html"><span className="ico material-symbols-outlined">edit</span>프로필 편집</a>
-            {/* PU1-G — 공개 프로필 미리보기 → PU5 preview */}
-            <a className="pm-hbtn" href="pu5-user-public.html"><span className="ico material-symbols-outlined">visibility</span>공개 프로필 미리보기</a>
+
+          <div className="card" style={{padding:'18px 20px'}}>
+            <div style={{fontWeight:700, fontSize:14, marginBottom:10}}>활동 뱃지</div>
+            <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:8}}>
+              {badges.map((b, i) => (
+                <div key={i} style={{padding:'10px 8px', background:'var(--bg-alt)', borderRadius:6, textAlign:'center'}}>
+                  <div style={{fontSize:22}}>{b.icon}</div>
+                  <div style={{fontSize:11, fontWeight:700, marginTop:2}}>{b.name}</div>
+                  <div style={{fontSize:10, color:'var(--ink-dim)', fontFamily:'var(--ff-mono)'}}>{b.date}</div>
+                </div>
+              ))}
+            </div>
           </div>
-        </header>
+        </aside>
 
-        {/* BP6 — 카운트 strip (UC1 동기화) */}
-        <div className="pm-counts">
-          {counts.map((c, i) => (
-            <a key={i} className={'pm-count' + (c.accent ? ' pm-count--accent' : '')} href={c.href}>
-              <div className="pm-count__v">{c.v}</div>
-              <div className="pm-count__l">{c.l}</div>
-            </a>
-          ))}
-        </div>
+        <div>
+          {/* Phase A.5 §4-§6 — 소속 팀 카드 히어로 직하 풀 width 이동 + MemberPendingBadge (본인 한정) */}
+          <div className="member-card card" style={{padding:'18px 22px', marginBottom:16, display:'grid', gridTemplateColumns:'56px 1fr auto', gap:16, alignItems:'center', cursor:'pointer'}} onClick={()=>setRoute('teamDetail')}>
+            <span style={{width:56, height:56, background:team.color, color:team.ink, display:'grid', placeItems:'center', fontFamily:'var(--ff-display)', fontSize:14, fontWeight:900, borderRadius:6, letterSpacing:'.04em'}}>{team.tag}</span>
+            <div>
+              <div style={{fontSize:10, fontWeight:700, color:'var(--ink-dim)', letterSpacing:'.12em', textTransform:'uppercase', marginBottom:2}}>소속 팀</div>
+              <div style={{fontWeight:800, fontSize:18, letterSpacing:'-0.01em'}}>{team.name}</div>
+              <div style={{fontSize:12, color:'var(--ink-mute)', fontFamily:'var(--ff-mono)', marginTop:2}}>#7 · 가드 · {team.wins}W {team.losses}L · RTG {team.rating}</div>
+            </div>
+            <span style={{fontSize:18, color:'var(--ink-mute)'}}>›</span>
+            <MemberPendingBadge kind="jersey_change" newJersey={23} anchor />
+          </div>
 
-        <div className="pm-grid">
-          <div className="pm-main">
-            {/* PU1-B — 내 활동 진입 (BP6 → UC1) */}
-            <a className="pm-card pm-card--link" href="uc1-my-activity.html">
-              <div className="pm-card__head">
-                <h2 className="pm-card__h"><span className="ico material-symbols-outlined">timeline</span>내 활동</h2>
-                <span className="pm-card__more">전체 보기<span className="ico material-symbols-outlined">chevron_right</span></span>
-              </div>
-              <div className="pm-list">
-                {window.ME_RECENT_GAMES.slice(0, 3).map(g => (
-                  <div key={g.id} className="pm-list__row">
-                    <span className="pm-list__ico"><span className="ico material-symbols-outlined">sports_basketball</span></span>
-                    <div className="pm-list__body">
-                      <div className="pm-list__title">{g.title}{g.mvp && <span className="pm-mvp-dot"> ★ MVP</span>}</div>
-                      <div className="pm-list__sub">{g.date}</div>
-                    </div>
-                    <span className={'pm-list__right ' + (g.result[0] === 'W' ? 'pm-win' : 'pm-loss')}>{g.result}</span>
+          {/* 시안 D — 신뢰 카드 (HeroCard와 별도 · 매너 등급 라벨 + MVP + 참여) */}
+          <div className="card" style={{padding:'20px 24px', marginBottom:16}}>
+            <div style={{display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:14}}>
+              <h2 style={{margin:0, fontSize:18, fontWeight:700}}>신뢰 <span style={{fontSize:12, color:'var(--ink-mute)', fontWeight:500, marginLeft:4}}>함께 뛰기 좋은 상대</span></h2>
+              <a onClick={()=>setRoute('myActivity')} style={{fontSize:12, color:'var(--ink-dim)', cursor:'pointer'}}>활동 기록 →</a>
+            </div>
+            {trust.rated ? (
+              <div className="trust-grid" style={{display:'grid', gridTemplateColumns:'1.4fr 1fr 1fr', gap:0, border:'1px solid var(--border)', borderRadius:8, overflow:'hidden'}}>
+                <div style={{padding:'16px 18px'}}>
+                  <div style={{fontSize:11, color:'var(--ink-dim)', fontWeight:700, letterSpacing:'.04em', marginBottom:6}}>매너 등급</div>
+                  <div style={{display:'flex', alignItems:'center', gap:8, marginBottom:8}}>
+                    <span style={{width:9, height:9, borderRadius:'50%', background:grade.tone}}/>
+                    <span style={{fontWeight:800, fontSize:18, color:grade.tone, letterSpacing:'-0.01em'}}>{grade.label}</span>
                   </div>
-                ))}
-              </div>
-            </a>
-
-            {/* PU1-E — 농구 정보 미니 (PU3 link) */}
-            <a className="pm-card pm-card--link" href="pu3-profile-basketball.html">
-              <div className="pm-card__head">
-                <h2 className="pm-card__h"><span className="ico material-symbols-outlined">sports_basketball</span>내 농구</h2>
-                <span className="pm-card__more">시즌 기록<span className="ico material-symbols-outlined">chevron_right</span></span>
-              </div>
-              <div className="pm-char" style={{ marginBottom: 14 }}>
-                <div className="pm-char__item"><span className="pm-char__lbl">주 사용 손</span><span className="pm-char__v">{window.HAND_LABEL[u.dominant_hand]}</span></div>
-                <div className="pm-char__item"><span className="pm-char__lbl">실력</span><window.SkillChip skill={u.skill_level} /></div>
-                <div className="pm-char__item" style={{ flex: 1 }}>
-                  <span className="pm-char__lbl">강점</span>
-                  <div className="pm-strengths">
-                    {u.strengths.slice(0, 3).map(st => <span key={st} className="pm-strength"><span className="ico material-symbols-outlined">bolt</span>{st}</span>)}
+                  <div style={{display:'flex', gap:3}}>
+                    {[1,2,3,4].map(n => (
+                      <span key={n} style={{flex:1, height:4, borderRadius:2, background: n<=grade.step ? grade.tone : 'var(--bg-elev)'}}/>
+                    ))}
                   </div>
                 </div>
+                <div style={{padding:'16px 14px', borderLeft:'1px solid var(--border)', background:'var(--bg-alt)'}}>
+                  <div style={{fontFamily:'var(--ff-display)', fontWeight:900, fontSize:24, letterSpacing:'-0.01em'}}>{trust.mvpCount}<span style={{fontSize:13, color:'var(--ink-mute)', marginLeft:2}}>회</span></div>
+                  <div style={{fontSize:11, color:'var(--ink-dim)', fontWeight:600, marginTop:2}}>MVP 선정</div>
+                </div>
+                <div style={{padding:'16px 14px', borderLeft:'1px solid var(--border)', background:'var(--bg-alt)'}}>
+                  <div style={{fontFamily:'var(--ff-display)', fontWeight:900, fontSize:24, letterSpacing:'-0.01em'}}>{trust.gamesPlayed}<span style={{fontSize:13, color:'var(--ink-mute)', marginLeft:2}}>경기</span></div>
+                  <div style={{fontSize:11, color:'var(--ink-dim)', fontWeight:600, marginTop:2}}>참여 경기</div>
+                </div>
               </div>
-              <div className="pm-career">
-                <div className="pm-career__c"><div className="pm-career__v">{s.participated}</div><div className="pm-career__l">참가 경기</div></div>
-                <div className="pm-career__c"><div className="pm-career__v">{s.hosted}</div><div className="pm-career__l">호스트</div></div>
-                <div className="pm-career__c"><div className="pm-career__v">{s.mvp_month}</div><div className="pm-career__l">이달 MVP</div></div>
-                <div className="pm-career__c"><div className="pm-career__v">{s.team_wins}-{s.team_losses}-{s.team_draws}</div><div className="pm-career__l">팀 전적</div></div>
-              </div>
-            </a>
-
-            {/* PU1-F — 업적 미니 (PU4 link) */}
-            <a className="pm-card pm-card--link" href="pu4-profile-achievements.html">
-              <div className="pm-card__head">
-                <h2 className="pm-card__h"><span className="ico material-symbols-outlined">military_tech</span>최근 업적</h2>
-                <span className="pm-card__more">전체 {window.BADGE_EARNED.length}<span className="ico material-symbols-outlined">chevron_right</span></span>
-              </div>
-              <div className="pm-badges pm-badges--mini">
-                {window.BADGE_RECENT.map(b => <window.BadgeTile key={b.type} badge={b} mini />)}
-              </div>
-            </a>
+            ) : (
+              <div style={{padding:'24px', textAlign:'center', background:'var(--bg-alt)', borderRadius:8, color:'var(--ink-mute)', fontSize:13}}>아직 기록 없음</div>
+            )}
           </div>
 
-          <aside className="pm-aside">
-            {/* 소속 팀 */}
-            <div className="pm-card">
-              <div className="pm-card__head">
-                <h2 className="pm-card__h"><span className="ico material-symbols-outlined">groups</span>소속 팀</h2>
-                <a className="pm-card__more" href="tu1-teams.html">팀 찾기</a>
-              </div>
-              <div className="pm-list">
-                {window.ME_TEAMS.map(t => (
-                  <a key={t.id} className="pm-team" href="tu2-team-detail.html">
-                    <span className="pm-team__logo" style={{ background: t.color }}>{t.logo}</span>
-                    <div className="pm-team__body">
-                      <div className="pm-team__name">{t.name}</div>
-                      <div className="pm-team__sub">{t.city} · #{t.jersey}</div>
-                    </div>
-                    {t.role === 'captain' && <window.RoleBadge role="captain" small />}
-                  </a>
-                ))}
-              </div>
+          <div className="card" style={{padding:'22px 24px', marginBottom:16}}>
+            <div style={{display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:14}}>
+              <h2 style={{margin:0, fontSize:18, fontWeight:700}}>시즌 스탯 <span style={{fontSize:12, color:'var(--ink-mute)', fontWeight:500}}>2026 Spring</span></h2>
+              <a style={{fontSize:12, color:'var(--ink-dim)', cursor:'pointer'}}>전체 시즌 →</a>
             </div>
+            <div style={{display:'grid', gridTemplateColumns:'repeat(6, 1fr)', gap:0, border:'1px solid var(--border)', borderRadius:8, overflow:'hidden'}}>
+              {stats.map((s, i) => (
+                <div key={s.label} style={{padding:'14px 10px', textAlign:'center', borderLeft: i > 0 ? '1px solid var(--border)' : 0, background: 'var(--bg-alt)'}}>
+                  <div style={{fontFamily:'var(--ff-display)', fontWeight:900, fontSize:24, letterSpacing:'-0.01em'}}>{s.value}</div>
+                  <div style={{fontSize:11, color:'var(--ink-dim)', fontWeight:600, letterSpacing:'.04em', marginTop:2}}>{s.label}</div>
+                </div>
+              ))}
+            </div>
+          </div>
 
-            {/* 최근 작성 글 */}
-            <div className="pm-card">
-              <div className="pm-card__head">
-                <h2 className="pm-card__h"><span className="ico material-symbols-outlined">edit_note</span>내 게시글</h2>
-                <a className="pm-card__more" href="cu1-community-list.html">커뮤니티</a>
-              </div>
-              <div className="pm-list">
-                {window.ME_RECENT_POSTS.map(p => (
-                  <a key={p.id} className="pm-list__row" href="cu2-community-detail.html">
-                    <span className="pm-list__ico"><span className="ico material-symbols-outlined">article</span></span>
-                    <div className="pm-list__body">
-                      <div className="pm-list__title">{p.title}</div>
-                      <div className="pm-list__sub">{p.date}</div>
-                    </div>
-                  </a>
-                ))}
-              </div>
+          <div className="card" style={{padding:'22px 24px', marginBottom:16}}>
+            <h2 style={{margin:'0 0 14px', fontSize:18, fontWeight:700}}>다가오는 일정</h2>
+            <div style={{display:'flex', flexDirection:'column', gap:10}}>
+              {GAMES.slice(0, 3).map(g => (
+                <div key={g.id} style={{display:'grid', gridTemplateColumns:'72px 1fr auto', gap:14, padding:'12px 14px', background:'var(--bg-alt)', borderRadius:6, alignItems:'center'}}>
+                  <div style={{fontFamily:'var(--ff-mono)', fontSize:12, fontWeight:700, color:'var(--accent)'}}>{g.date.split(' ')[0].slice(5)}</div>
+                  <div>
+                    <div style={{fontWeight:600, fontSize:14}}>{g.title}</div>
+                    <div style={{fontSize:12, color:'var(--ink-dim)', marginTop:2}}>{g.court} · {g.time}</div>
+                  </div>
+                  <span className="badge badge--ok">참가확정</span>
+                </div>
+              ))}
             </div>
+          </div>
 
-            {/* 도움말 */}
-            <div className="pm-card">
-              <div style={{ fontFamily: 'var(--ff-display)', fontWeight: 800, fontSize: 14, marginBottom: 6 }}>도움이 필요하세요?</div>
-              <div style={{ fontSize: 12, color: 'var(--ink-mute)', marginBottom: 12, lineHeight: 1.5 }}>계정 · 결제 · 환불 문의는 24시간 이내 답변드려요.</div>
-              <div style={{ display: 'flex', gap: 6 }}>
-                <a className="btn btn--sm" style={{ flex: 1, textAlign: 'center', justifyContent: 'center' }}>도움말</a>
-                <a className="btn btn--sm" style={{ flex: 1, textAlign: 'center', justifyContent: 'center' }}>설정</a>
-              </div>
+          <div className="card" style={{padding:'22px 24px', marginBottom:16}}>
+            <div style={{display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:14}}>
+              <h2 style={{margin:0, fontSize:18, fontWeight:700}}>마이페이지 메뉴</h2>
+              <span style={{fontSize:11, color:'var(--ink-dim)', fontFamily:'var(--ff-mono)'}}>5 영역</span>
             </div>
-          </aside>
+            <div className="profile-hub-grid" style={{display:'grid', gridTemplateColumns:'repeat(3, 1fr)', gap:8}}>
+              {[
+                { r:'profileBasketball',          k:'내 농구',      d:'스탯·포지션·경력',    accent:'var(--accent)' },
+                { r:'profilePreferences',         k:'매칭 선호',    d:'성별·연령·BDR 점수',  accent:'var(--cafe-blue)' },
+                { r:'profileSubscription',        k:'구독',         d:'플랜·혜택·자동갱신',  accent:'var(--cafe-blue)' },
+                { r:'profilePayments',            k:'결제 내역',    d:'거래 이력·영수증',    accent:'var(--ink-mute)' },
+                { r:'profileNotificationSettings', k:'알림 설정',    d:'채널·카테고리·시간',  accent:'var(--ink-mute)' },
+              ].map(m => (
+                <button key={m.r} onClick={()=>setRoute(m.r)} style={{
+                  textAlign:'left', padding:'14px 16px', minHeight:72,
+                  background:'var(--bg-alt)', border:'1px solid var(--border)',
+                  borderLeft:`3px solid ${m.accent}`,
+                  borderRadius:6, cursor:'pointer',
+                  display:'flex', flexDirection:'column', justifyContent:'center', gap:2,
+                }}>
+                  <div style={{fontWeight:700, fontSize:14}}>{m.k}</div>
+                  <div style={{fontSize:11, color:'var(--ink-mute)'}}>{m.d}</div>
+                </button>
+              ))}
+            </div>
+            <style>{`
+              @media (max-width: 720px) {
+                .profile-hub-grid { grid-template-columns: 1fr 1fr !important; }
+                .trust-grid { grid-template-columns: 1fr 1fr !important; }
+                .trust-grid > div:first-child { grid-column: 1 / -1; border-bottom: 1px solid var(--border); }
+              }
+            `}</style>
+          </div>
+
+          <div className="card" style={{padding:'22px 24px'}}>
+            <h2 style={{margin:'0 0 14px', fontSize:18, fontWeight:700}}>최근 활동</h2>
+            <div>
+              {timeline.map((t, i) => (
+                <div key={i} style={{display:'grid', gridTemplateColumns:'60px 80px 1fr', gap:14, padding:'12px 0', borderBottom: i < timeline.length-1 ? '1px solid var(--border)' : 0}}>
+                  <div style={{fontFamily:'var(--ff-mono)', fontSize:12, color:'var(--ink-dim)'}}>{t.date}</div>
+                  <div>
+                    <span className={`badge ${t.tag==='win'?'badge--ok':t.tag==='loss'?'badge--red':'badge--soft'}`} style={{fontSize:10}}>{t.action}</span>
+                  </div>
+                  <div style={{fontSize:14}}>{t.target}</div>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
     </div>
   );
 }
 
-window.ProfileMain = ProfileMain;
+window.Profile = Profile;

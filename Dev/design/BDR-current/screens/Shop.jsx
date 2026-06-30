@@ -1,61 +1,116 @@
-/* global React */
-// BDR v2.31 — Shop (/shop · 자체 디자인 · BDR 샵)
-function Shop() {
+/* global React, Icon */
+
+function Shop({ setRoute }) {
   const [cat, setCat] = React.useState('all');
-  const cats = [['all', '전체'], ['ball', '농구공'], ['shoes', '슈즈'], ['wear', '의류'], ['acc', '액세서리'], ['goods', 'BDR 굿즈']];
-  const items = [
-    { brand: 'MOLTEN', name: 'GG7X 공인구 7호', cat: 'ball', price: '54,000', tag: ['ex-badge--ok', 'BEST'] },
-    { brand: 'NIKE', name: '지오메트리 엘리트 농구화', cat: 'shoes', price: '129,000', was: '159,000', off: '19%' },
-    { brand: 'BDR', name: 'BDR 리버서블 저지', cat: 'wear', price: '38,000', tag: ['ex-badge--red', 'NEW'] },
-    { brand: 'SPALDING', name: 'TF-1000 실내용 농구공', cat: 'ball', price: '78,000' },
-    { brand: 'UNDER ARMOUR', name: '컴프레션 암슬리브', cat: 'acc', price: '19,000' },
-    { brand: 'ADIDAS', name: '데임 서티 농구화', cat: 'shoes', price: '109,000', was: '139,000', off: '21%' },
-    { brand: 'BDR', name: 'BDR 로고 볼파우치', cat: 'goods', price: '24,000', tag: ['ex-badge--red', 'NEW'] },
-    { brand: 'MOLTEN', name: '에어펌프 + 바늘 세트', cat: 'acc', price: '12,000' },
+  const [cart, setCart] = React.useState(3);
+
+  const cats = [
+    { id:'shoe',  label:'농구화' },
+    { id:'ball',  label:'공' },
+    { id:'wear',  label:'의류' },
+    { id:'gear',  label:'보호대·장비' },
+    { id:'team',  label:'팀 굿즈' },
   ];
-  const shown = cat === 'all' ? items : items.filter(i => i.cat === cat);
+
+  const products = [
+    { id:'p1', cat:'shoe', brand:'NIKE', name:'KD 16 "Ready Play"', price:169000, sale:139000, rating:4.8, reviews:234, stock:'재고 多', color:'#DC2626', tags:['EXCLUSIVE'] },
+    { id:'p2', cat:'shoe', brand:'UNDER ARMOUR', name:'Curry 11 Low Team', price:179000, sale:159000, rating:4.9, reviews:412, stock:'품절임박', color:'#0F5FCC', tags:['HOT'] },
+    { id:'p3', cat:'ball', brand:'MOLTEN', name:'BGG7X · FIBA 공인구', price:68000, sale:59000, rating:4.9, reviews:892, stock:'재고 多', color:'#F59E0B', tags:['BESTSELLER'] },
+    { id:'p4', cat:'ball', brand:'SPALDING', name:'TF-1000 Legacy 7호', price:98000, sale:89000, rating:4.7, reviews:340, stock:'재고 多', color:'#7C2D12', tags:[] },
+    { id:'p5', cat:'wear', brand:'BDR STUDIO', name:'REDEEM 2026 저지 홈', price:59000, sale:59000, rating:4.6, reviews:47, stock:'입고대기', color:'#DC2626', tags:['팀'] },
+    { id:'p6', cat:'wear', brand:'NIKE', name:'Dri-FIT 숏 슬리브 농구 티', price:49000, sale:39000, rating:4.5, reviews:178, stock:'재고 多', color:'#000', tags:[] },
+    { id:'p7', cat:'gear', brand:'BODY FRIEND', name:'무릎 슬리브 Pro 2', price:35000, sale:32000, rating:4.7, reviews:521, stock:'재고 多', color:'#374151', tags:[] },
+    { id:'p8', cat:'gear', brand:'McDAVID', name:'발목 보호대 195', price:29000, sale:26000, rating:4.8, reviews:814, stock:'재고 多', color:'#10B981', tags:['재구매율↑'] },
+    { id:'p9', cat:'team', brand:'BDR STUDIO', name:'BDR Challenge 공식 후디', price:79000, sale:69000, rating:4.8, reviews:120, stock:'S/M/L', color:'#111', tags:['한정'] },
+    { id:'p10', cat:'team', brand:'BDR STUDIO', name:'팀 맞춤 저지 (5장 세트)', price:350000, sale:320000, rating:5.0, reviews:28, stock:'주문제작', color:'#8B5CF6', tags:['CUSTOM'] },
+    { id:'p11', cat:'shoe', brand:'ADIDAS', name:'Harden Vol.9', price:189000, sale:169000, rating:4.6, reviews:156, stock:'재고 多', color:'#475569', tags:[] },
+    { id:'p12', cat:'gear', brand:'SKLZ', name:'드리블 고글 (시야 제한 훈련)', price:42000, sale:39000, rating:4.4, reviews:62, stock:'재고 多', color:'#F59E0B', tags:[] },
+  ];
+
+  const shown = cat==='all' ? products : products.filter(p=>p.cat===cat);
+
   return (
     <div className="page">
-      <div className="page__inner page__inner--wide">
-        <div className="ex-crumb"><a>홈</a><span className="sep">›</span><span className="cur">BDR 샵</span></div>
-        <div className="ex-head">
-          <div>
-            <div className="eyebrow">샵 · SHOP</div>
-            <h1 className="ex-head__title">코트 위 모든 것</h1>
-            <p className="ex-head__sub">공인구부터 슈즈, BDR 한정 굿즈까지. 멤버 전용 할인가로 만나보세요.</p>
-          </div>
-          <div className="ex-head__actions">
-            <button className="btn"><span className="ico material-symbols-outlined">shopping_cart</span>장바구니</button>
+      <div style={{display:'flex', gap:6, fontSize:12, color:'var(--ink-mute)', marginBottom:12}}>
+        <a onClick={()=>setRoute('home')} style={{cursor:'pointer'}}>홈</a><span>›</span>
+        <span style={{color:'var(--ink)'}}>샵</span>
+      </div>
+
+      {/* Hero */}
+      <div className="card" style={{padding:'32px 40px', marginBottom:18, background:'linear-gradient(110deg, #DC2626 0%, #7F1D1D 60%, #000 100%)', color:'#fff', position:'relative', overflow:'hidden'}}>
+        <div style={{position:'absolute', right:-40, top:-40, width:280, height:280, border:'40px solid rgba(255,255,255,.08)', borderRadius:'50%'}}/>
+        <div style={{position:'absolute', right:60, top:60, width:180, height:180, border:'20px solid rgba(255,255,255,.12)', borderRadius:'50%'}}/>
+        <div style={{position:'relative'}}>
+          <div style={{fontSize:11, letterSpacing:'.14em', opacity:.85, fontWeight:800, textTransform:'uppercase'}}>BDR SHOP · 2026 SPRING</div>
+          <h1 style={{margin:'6px 0 8px', fontFamily:'var(--ff-display)', fontSize:42, fontWeight:900, letterSpacing:'-0.03em', lineHeight:1.1}}>우리가 직접 쓰는 것만.</h1>
+          <p style={{margin:0, fontSize:14, opacity:.9, maxWidth:520}}>커뮤니티 멤버 리뷰 4.5+ 제품 · 공식 파트너 직배송 · 팀 굿즈 맞춤 제작</p>
+          <div style={{display:'flex', gap:8, marginTop:18}}>
+            <button className="btn" style={{background:'#fff', color:'#000', border:0}}>시즌 신상 보기 →</button>
+            <button className="btn" style={{background:'transparent', color:'#fff', border:'1px solid rgba(255,255,255,.4)'}}>팀 주문 상담</button>
           </div>
         </div>
+      </div>
 
-        <div className="ex-chips">
-          {cats.map(([k, l]) => (
-            <button key={k} className={'ex-chip' + (cat === k ? ' is-on' : '')} onClick={() => setCat(k)}>{l}</button>
+      {/* Toolbar */}
+      <div className="card" style={{padding:'12px 14px', marginBottom:14, display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:10}}>
+        <div style={{display:'flex', gap:6, flexWrap:'wrap'}}>
+          {[{id:'all',label:`전체 · ${products.length}`}, ...cats.map(c=>({id:c.id,label:`${c.label} · ${products.filter(p=>p.cat===c.id).length}`}))].map(f => (
+            <button key={f.id} onClick={()=>setCat(f.id)} className={`btn ${cat===f.id?'btn--primary':''} btn--sm`}>{f.label}</button>
           ))}
         </div>
+        <div style={{display:'flex', gap:6, alignItems:'center', fontSize:12}}>
+          <select className="input" style={{padding:'4px 8px', fontSize:12}}><option>추천순</option><option>리뷰순</option><option>가격낮은순</option><option>신상순</option></select>
+          <button className="btn btn--sm" onClick={()=>setCart(cart+1)}>🛒 장바구니 <span style={{fontFamily:'var(--ff-mono)', fontWeight:700, marginLeft:4, background:'var(--accent)', color:'#fff', padding:'1px 6px', borderRadius:99}}>{cart}</span></button>
+        </div>
+      </div>
 
-        <div className="sh-grid">
-          {shown.map((it, i) => (
-            <div key={i} className="sh-card">
-              <div className="sh-card__img ex-ph">
-                {it.tag && <span className="sh-card__tag"><span className={'ex-badge ' + it.tag[0]}>{it.tag[1]}</span></span>}
-                <span className="ico material-symbols-outlined">image</span><span>상품 이미지</span>
-              </div>
-              <div className="sh-card__body">
-                <div className="sh-card__brand">{it.brand}</div>
-                <div className="sh-card__name">{it.name}</div>
-                <div className="sh-card__price">
-                  {it.was && <del>{it.was}</del>}
-                  {it.off && <span className="off">{it.off}</span>}
-                  {it.price}원
+      {/* Grid */}
+      <div style={{display:'grid', gridTemplateColumns:'repeat(4, 1fr)', gap:12}}>
+        {shown.map(p => (
+          <div key={p.id} className="card" style={{padding:0, overflow:'hidden', cursor:'pointer'}}>
+            <div style={{aspectRatio:'1/1', background:`linear-gradient(135deg, ${p.color} 0%, #000 130%)`, position:'relative', display:'grid', placeItems:'center'}}>
+              <div style={{fontFamily:'var(--ff-display)', fontSize:56, fontWeight:900, color:'rgba(255,255,255,.18)', letterSpacing:'-0.04em'}}>{p.brand.slice(0,3)}</div>
+              {p.tags.length > 0 && (
+                <div style={{position:'absolute', top:10, left:10, display:'flex', flexDirection:'column', gap:3}}>
+                  {p.tags.map(t => <span key={t} style={{background:'#fff', color:'#000', fontSize:9, fontWeight:800, letterSpacing:'.08em', padding:'3px 7px', borderRadius:3, textTransform:'uppercase'}}>{t}</span>)}
                 </div>
+              )}
+              {p.sale < p.price && <span style={{position:'absolute', bottom:10, left:10, background:'var(--accent)', color:'#fff', fontSize:11, fontWeight:800, padding:'3px 8px', borderRadius:3, fontFamily:'var(--ff-mono)'}}>-{Math.round((1-p.sale/p.price)*100)}%</span>}
+              <button style={{position:'absolute', top:10, right:10, width:32, height:32, borderRadius:'50%', background:'rgba(255,255,255,.9)', border:0, cursor:'pointer', fontSize:14}}>♡</button>
+            </div>
+            <div style={{padding:'14px 16px'}}>
+              <div style={{fontSize:10, color:'var(--ink-dim)', fontWeight:800, letterSpacing:'.12em', fontFamily:'var(--ff-mono)'}}>{p.brand}</div>
+              <div style={{fontWeight:700, fontSize:13, margin:'4px 0', lineHeight:1.4, minHeight:36}}>{p.name}</div>
+              <div style={{display:'flex', alignItems:'baseline', gap:6, marginBottom:6}}>
+                <span style={{fontFamily:'var(--ff-display)', fontSize:18, fontWeight:900, color: p.sale<p.price?'var(--accent)':'var(--ink)'}}>₩{p.sale.toLocaleString()}</span>
+                {p.sale < p.price && <span style={{fontSize:11, color:'var(--ink-dim)', textDecoration:'line-through', fontFamily:'var(--ff-mono)'}}>₩{p.price.toLocaleString()}</span>}
+              </div>
+              <div style={{display:'flex', justifyContent:'space-between', fontSize:11, color:'var(--ink-mute)', fontFamily:'var(--ff-mono)'}}>
+                <span>★ {p.rating} ({p.reviews})</span>
+                <span style={{color: p.stock==='품절임박'?'var(--err)':p.stock==='입고대기'?'var(--ink-dim)':'var(--ok)'}}>{p.stock}</span>
               </div>
             </div>
-          ))}
-        </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Info bar */}
+      <div style={{display:'grid', gridTemplateColumns:'repeat(4, 1fr)', gap:10, marginTop:24}}>
+        {[
+          { icon:'🚚', t:'무료 배송', d:'50,000원 이상 전국 무료' },
+          { icon:'↩️', t:'30일 반품', d:'미개봉 제품 무조건 반품' },
+          { icon:'✅', t:'정품 보증', d:'공식 파트너 직배송' },
+          { icon:'💳', t:'무이자 할부', d:'5만원 이상 2~6개월' },
+        ].map(s => (
+          <div key={s.t} style={{padding:'16px 18px', background:'var(--bg-alt)', borderRadius:6}}>
+            <div style={{fontSize:22, marginBottom:4}}>{s.icon}</div>
+            <div style={{fontWeight:700, fontSize:13}}>{s.t}</div>
+            <div style={{fontSize:11, color:'var(--ink-mute)'}}>{s.d}</div>
+          </div>
+        ))}
       </div>
     </div>
   );
 }
+
 window.Shop = Shop;

@@ -1,183 +1,196 @@
 /* global React */
+
 // ============================================================
-// BDR v2.24 — ProfileBasketball (PU3 · Phase 6.1B · 신규 · BP2 ★★★★)
-// 운영: /profile/basketball (1068 line · 박제 ❌) — 신규 핵심.
+// ProfileBasketball — /profile/basketball (Phase F2)
 //
-// 진입: PU1 "내 농구" 카드 / 더보기
-// 복귀: PageBack → PU1
-// BP2 cross-domain: UserSeasonStat + Phase 2 BG4 (final_mvp 30일) +
-//   Phase 3 BT6 (팀 wins/losses/draws) + Phase 1A PA7 (우승)
-// 신규 컴포넌트: 농구 캐릭터 / 시즌 stat 5종 / 선호 chip 8종 / 우승 이력
+// 시즌 스탯 (PPG / RPG / APG / +/-) + 포지션·키·손·경력 정보
+// Onboarding Basketball 입력값 표시 + 편집 버튼
+// 시안 출처: Profile.jsx Phase 13 Tier 1 "내 농구" 카드 확장판
+// var(--accent) 강조
 // ============================================================
-function PreferredGroup({ group }) {
-  const [sel, setSel] = React.useState(group.selected);
-  const toggle = (opt) => setSel(s => s.includes(opt) ? s.filter(x => x !== opt) : [...s, opt]);
+
+function ProfileBasketball({ setRoute }) {
+  const stats = [
+    { k: 'PPG',  v: '14.2', sub: '+1.8 vs 직전',  trend: 'up'   },
+    { k: 'RPG',  v: '3.8',  sub: '−0.4 vs 직전',  trend: 'down' },
+    { k: 'APG',  v: '5.1',  sub: '+0.6 vs 직전',  trend: 'up'   },
+    { k: '+/−',  v: '+6.4', sub: '리그 상위 18%', trend: 'up'   },
+  ];
+  const advanced = [
+    { k: 'FG%',  v: '47.3' },
+    { k: '3P%',  v: '36.1' },
+    { k: 'FT%',  v: '78.2' },
+    { k: 'TO',   v: '2.1'  },
+    { k: 'STL',  v: '1.4'  },
+    { k: 'BLK',  v: '0.3'  },
+    { k: 'EFF',  v: '17.6' },
+    { k: 'MIN',  v: '24.8' },
+  ];
+  const profile = [
+    { k: '주포지션', v: 'G · 가드',     desc: '볼 핸들링·슈팅' },
+    { k: '주력 손',  v: '오른손',       desc: '— ' },
+    { k: '키',       v: '178 cm',       desc: '체중 72 kg' },
+    { k: '경력',     v: 'L4 · 5년+',    desc: '아마추어 대회 출전' },
+    { k: '레벨',     v: 'L8 · 1,684',   desc: '시즌 레이팅' },
+    { k: 'BDR 점수', v: '82.4',         desc: '매너 91 · 출석 96' },
+  ];
+  const recent = [
+    { date: '04.20', oppo: '장충체육관 픽업',   line: '18p 4r 6a', result: 'W 21–18', pct: '+12' },
+    { date: '04.17', oppo: 'REDEEM 주간 스크림', line: '12p 5r 7a', result: 'W 38–32', pct: '+8'  },
+    { date: '04.12', oppo: '반포 주말 3x3',    line: '8p 2r 3a',   result: 'L 15–21', pct: '−6'  },
+    { date: '04.07', oppo: '강남구 픽업 리그', line: '22p 3r 4a',  result: 'W 24–20', pct: '+9'  },
+    { date: '04.03', oppo: '용산 야간 픽업',   line: '11p 4r 8a',  result: 'W 20–17', pct: '+5'  },
+  ];
+
   return (
-    <div className="pm-pref__group">
-      <div className="pm-pref__head">
-        <span className="ico material-symbols-outlined">{group.ico}</span>
-        <span className="pm-pref__lbl">{group.label}</span>
-        <span className="pm-pref__count">{sel.length} 선택</span>
+    <div className="page" style={{maxWidth:960}}>
+      {/* Breadcrumb */}
+      <div style={{display:'flex', gap:6, fontSize:12, color:'var(--ink-mute)', marginBottom:12}}>
+        <a onClick={()=>setRoute('home')} style={{cursor:'pointer'}}>홈</a><span>›</span>
+        <a onClick={()=>setRoute('profile')} style={{cursor:'pointer'}}>마이페이지</a><span>›</span>
+        <span style={{color:'var(--ink)'}}>내 농구</span>
       </div>
-      <div className="pm-pref__chips">
-        {group.options.map(opt => {
-          const on = sel.includes(opt);
-          return (
-            <button key={opt} className={'pm-chip' + (on ? ' is-on' : '')} onClick={() => toggle(opt)}>
-              {on && <span className="ico material-symbols-outlined">check</span>}{opt}
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
 
-function ProfileBasketball() {
-  const u = window.USER_ME;
-  const s = window.SEASON_STAT;
-  const c = window.CAREER_STAT;
-  const team = window.ME_TEAMS[0];
+      {/* Hero */}
+      <header style={{marginBottom:20, display:'flex', alignItems:'flex-end', justifyContent:'space-between', gap:12, flexWrap:'wrap'}}>
+        <div>
+          <div className="eyebrow">MY BASKETBALL</div>
+          <h1 style={{margin:'4px 0 4px', fontFamily:'var(--ff-display)', fontSize:'var(--fs-h1, 30px)', fontWeight:800, letterSpacing:'-0.015em'}}>
+            내 농구
+          </h1>
+          <div style={{fontSize:13, color:'var(--ink-mute)'}}>
+            2026 Spring · 47경기 · <span style={{color:'var(--accent)', fontWeight:700}}>30승 17패 · 승률 63.8%</span>
+          </div>
+        </div>
+        <div style={{display:'flex', gap:6, flexWrap:'wrap'}}>
+          <button className="btn btn--sm" onClick={()=>setRoute('stats')} style={{minHeight:44}}>전체 시즌 →</button>
+          <button className="btn btn--sm" onClick={()=>setRoute('onboardingBasketball')} style={{minHeight:44}}>정보 편집</button>
+        </div>
+      </header>
 
-  return (
-    <div className="pm-page">
-      <div className="pm-page__inner">
-        <window.PageBack />
-
-        {/* Hero */}
-        <header className="pm-hero">
-          <div className="pm-hero__row">
-            <div className="pm-hero__av">{u.avatar}</div>
-            <div className="pm-hero__body">
-              <div className="pm-hero__namerow">
-                <h1 className="pm-hero__name">내 농구</h1>
-                <window.LevelBadge level={u.level} pro={u.subscription_status === 'active'} />
-              </div>
-              <div className="pm-hero__meta">
-                <span><span className="ico material-symbols-outlined">back_hand</span>{window.HAND_LABEL[u.dominant_hand]}</span>
-                <span><span className="ico material-symbols-outlined">trending_up</span>{window.SKILL_LABEL[u.skill_level]}</span>
-                <span><span className="ico material-symbols-outlined">straighten</span>{u.height}cm · {u.weight}kg</span>
-                <span><span className="ico material-symbols-outlined">groups</span>{team.name}</span>
-              </div>
+      {/* 4 핵심 스탯 — var(--accent) 강조 */}
+      <div className="pb-stats" style={{display:'grid', gridTemplateColumns:'repeat(4, 1fr)', gap:10, marginBottom:18}}>
+        {stats.map((s, i) => (
+          <div key={s.k} className="card" style={{
+            padding:'20px 22px',
+            borderTop: i === 0 ? '3px solid var(--accent)' : '3px solid transparent',
+            position:'relative',
+          }}>
+            <div style={{fontSize:11, color:'var(--ink-dim)', fontWeight:800, letterSpacing:'.1em', textTransform:'uppercase'}}>
+              {s.k}
             </div>
-            <div className="pm-hero__jersey">
-              <div className="pm-hero__jersey-n">#{team.jersey}</div>
-              <div className="pm-hero__jersey-l">JERSEY</div>
+            <div style={{fontFamily:'var(--ff-display)', fontWeight:900, fontSize:42, letterSpacing:'-0.02em', margin:'2px 0 4px', color: i === 0 ? 'var(--accent)' : 'var(--ink)'}}>
+              {s.v}
+            </div>
+            <div style={{
+              fontSize:11, fontFamily:'var(--ff-mono)',
+              color: s.trend === 'up' ? 'var(--ok)' : 'var(--accent)',
+            }}>
+              {s.trend === 'up' ? '▲' : '▼'} {s.sub}
             </div>
           </div>
-        </header>
+        ))}
+      </div>
 
-        <div className="pm-grid">
-          <div className="pm-main">
-            {/* PU3-A — 농구 캐릭터 카드 */}
-            <div className="pm-card">
-              <h2 className="pm-card__h" style={{ marginBottom: 14 }}><span className="ico material-symbols-outlined">badge</span>농구 캐릭터</h2>
-              <div className="pm-char" style={{ marginBottom: 16 }}>
-                <div className="pm-char__item"><span className="pm-char__lbl">주 사용 손</span><span className="pm-char__v">{window.HAND_LABEL[u.dominant_hand]}</span></div>
-                <div className="pm-char__item"><span className="pm-char__lbl">포지션</span><span className="pm-char__v">{u.position}</span></div>
-                <div className="pm-char__item"><span className="pm-char__lbl">실력 수준</span><window.SkillChip skill={u.skill_level} /></div>
-              </div>
-              <div className="pm-sec-title">강점 (strengths)</div>
-              <div className="pm-strengths">
-                {u.strengths.map(st => <span key={st} className="pm-strength"><span className="ico material-symbols-outlined">bolt</span>{st}</span>)}
-              </div>
-            </div>
-
-            {/* PU3-B — 시즌 stat 5종 grid */}
-            <div className="pm-card">
-              <div className="pm-card__head">
-                <h2 className="pm-card__h"><span className="ico material-symbols-outlined">leaderboard</span>{s.season} 시즌 기록</h2>
-                <span className="pm-card__more" style={{ color: 'var(--ink-mute)', cursor: 'default' }}>UserSeasonStat</span>
-              </div>
-              <div className="pm-stats">
-                <window.StatCard icon="sports_basketball" label="참가 경기" value={s.participated} sub="total" />
-                <window.StatCard icon="add_circle" label="호스트" value={s.hosted} sub="주최" />
-                <window.StatCard icon="local_fire_department" tone="gold" label="이달의 MVP" value={s.mvp_month} sub="최근 30일" cross />
-                <window.StatCard icon="favorite" tone="red" label="매너 평점" value={s.rating} sub={u.manner_count + '회'} />
-                <window.StatCard icon="military_tech" tone="blue" label="팀 전적" value={s.team_wins + '승'} sub={s.team_losses + '패 ' + s.team_draws + '무'} cross />
-              </div>
-              <div className="pm-locked-note" style={{ marginTop: 12 }}>
-                <span className="ico material-symbols-outlined">hub</span>
-                <span><strong>cross-domain</strong> — 이달의 MVP는 경기 영역, 팀 전적은 소속 팀({team.name}) 영역에서 자동 동기화됩니다.</span>
-              </div>
-            </div>
-
-            {/* 통산 기록 (Phase 1 8열) */}
-            <div className="pm-card">
-              <div className="pm-card__head">
-                <h2 className="pm-card__h"><span className="ico material-symbols-outlined">query_stats</span>통산 평균</h2>
-                <span className="pm-card__more" style={{ color: 'var(--ink-mute)', cursor: 'default' }}>공식 기록 {c.games}경기</span>
-              </div>
-              <div className="pm-career" style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
-                <div className="pm-career__c"><div className="pm-career__v">{c.win_rate}%</div><div className="pm-career__l">승률</div></div>
-                <div className="pm-career__c"><div className="pm-career__v">{c.ppg}</div><div className="pm-career__l">PPG</div></div>
-                <div className="pm-career__c"><div className="pm-career__v">{c.rpg}</div><div className="pm-career__l">RPG</div></div>
-                <div className="pm-career__c"><div className="pm-career__v">{c.apg}</div><div className="pm-career__l">APG</div></div>
-                <div className="pm-career__c"><div className="pm-career__v">{c.mpg}</div><div className="pm-career__l">MIN</div></div>
-                <div className="pm-career__c"><div className="pm-career__v">{c.fg}%</div><div className="pm-career__l">FG%</div></div>
-                <div className="pm-career__c"><div className="pm-career__v">{c.tp}%</div><div className="pm-career__l">3P%</div></div>
-                <div className="pm-career__c"><div className="pm-career__v">{s.participated}</div><div className="pm-career__l">총 경기</div></div>
-              </div>
-            </div>
-
-            {/* PU3-C — 선호 정보 chip 8종 */}
-            <div className="pm-card">
-              <div className="pm-card__head">
-                <h2 className="pm-card__h"><span className="ico material-symbols-outlined">tune</span>선호 정보</h2>
-                <a className="pm-card__more" href="pu2-profile-edit.html">편집<span className="ico material-symbols-outlined">chevron_right</span></a>
-              </div>
-              <div className="pm-pref">
-                {window.PREFERRED.map(g => <PreferredGroup key={g.key} group={g} />)}
-              </div>
-            </div>
+      <div style={{display:'grid', gridTemplateColumns:'minmax(0, 1.4fr) minmax(0, 1fr)', gap:14, alignItems:'flex-start'}} className="pb-split">
+        {/* 좌: 선수 정보 카드 */}
+        <div className="card" style={{padding:'22px 24px'}}>
+          <div style={{display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:14}}>
+            <h2 style={{margin:0, fontSize:18, fontWeight:700}}>선수 정보</h2>
+            <a onClick={()=>setRoute('onboardingBasketball')} style={{fontSize:12, color:'var(--ink-dim)', cursor:'pointer'}}>온보딩에서 편집 →</a>
           </div>
-
-          <aside className="pm-aside">
-            {/* PU3-D — 우승 이력 (Phase 1A cross-domain) */}
-            <div className="pm-card">
-              <div className="pm-card__head">
-                <h2 className="pm-card__h"><span className="ico material-symbols-outlined">emoji_events</span>입상 이력</h2>
-                <a className="pm-card__more" href="pu4-profile-achievements.html">업적</a>
-              </div>
-              {window.ME_CHAMPIONS.map(ch => (
-                <div key={ch.id} className="pm-champ">
-                  <span className="pm-champ__medal">{ch.placed === '우승' ? '🥇' : ch.placed === '준우승' ? '🥈' : '🥉'}</span>
-                  <div className="pm-champ__body">
-                    <div className="pm-champ__tn">{ch.tn}</div>
-                    <div className="pm-champ__meta">{ch.team} · {ch.date}</div>
-                  </div>
-                  <span className="pm-champ__place" data-p={ch.placed}>{ch.placed}</span>
+          <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:0, border:'1px solid var(--border)', borderRadius:6, overflow:'hidden'}} className="pb-info-grid">
+            {profile.map((p, i) => (
+              <div key={p.k} style={{
+                padding:'14px 16px',
+                background: i % 2 === 0 ? 'var(--bg-alt)' : 'transparent',
+                borderTop: i >= 2 ? '1px solid var(--border)' : 0,
+                borderLeft: i % 2 === 1 ? '1px solid var(--border)' : 0,
+              }}>
+                <div style={{fontSize:10, color:'var(--ink-dim)', fontWeight:700, letterSpacing:'.08em', textTransform:'uppercase'}}>
+                  {p.k}
                 </div>
-              ))}
-            </div>
-
-            {/* 진행 중 신청 (운영 PU3 MyPendingRequestsCard 답습) */}
-            <div className="pm-card">
-              <h2 className="pm-card__h" style={{ marginBottom: 12 }}><span className="ico material-symbols-outlined">hourglass_top</span>진행 중 신청</h2>
-              <div className="pm-list">
-                <a className="pm-list__row" href="tu2-team-detail.html">
-                  <span className="pm-list__ico"><span className="ico material-symbols-outlined">group_add</span></span>
-                  <div className="pm-list__body"><div className="pm-list__title">송파 새벽런 — 이적 승인</div><div className="pm-list__sub">양 팀장 승인 대기</div></div>
-                  <span className="pm-list__right" style={{ color: 'var(--warn)' }}>대기</span>
-                </a>
-                <a className="pm-list__row" href="ua2-tournament-detail.html">
-                  <span className="pm-list__ico"><span className="ico material-symbols-outlined">emoji_events</span></span>
-                  <div className="pm-list__body"><div className="pm-list__title">BDR 서머 오픈 #4</div><div className="pm-list__sub">결제 마감 D-2</div></div>
-                  <span className="pm-list__right" style={{ color: 'var(--accent)' }}>결제</span>
-                </a>
+                <div style={{fontFamily:'var(--ff-display)', fontWeight:800, fontSize:18, letterSpacing:'-0.01em', margin:'2px 0'}}>
+                  {p.v}
+                </div>
+                <div style={{fontSize:11, color:'var(--ink-mute)'}}>{p.desc}</div>
               </div>
-            </div>
+            ))}
+          </div>
+        </div>
 
-            {/* 다음 대회 매치 (운영 NextTournamentMatchCard 답습) */}
-            <div className="pm-card" style={{ background: 'linear-gradient(180deg, var(--cafe-blue-soft) 0%, var(--bg-elev) 60%)', borderColor: 'var(--cafe-blue-hair)' }}>
-              <div className="pm-sec-title" style={{ color: 'var(--cafe-blue-deep)' }}>다음 대회 매치</div>
-              <div style={{ fontFamily: 'var(--ff-display)', fontSize: 16, fontWeight: 800, color: 'var(--ink)' }}>BDR 서머 오픈 #4 · 8강</div>
-              <div style={{ fontFamily: 'var(--ff-mono)', fontSize: 11.5, color: 'var(--ink-mute)', fontWeight: 700, marginTop: 4 }}>06.15 (일) 14:00 · 장충체육관 2코트</div>
-              <a className="pm-hbtn pm-hbtn--primary" style={{ marginTop: 12, width: '100%' }} href="ua2-tournament-detail.html"><span className="ico material-symbols-outlined">calendar_month</span>대회 보기</a>
-            </div>
-          </aside>
+        {/* 우: 어드밴스드 스탯 */}
+        <div className="card" style={{padding:'22px 24px'}}>
+          <h2 style={{margin:'0 0 14px', fontSize:18, fontWeight:700}}>세부 지표</h2>
+          <div style={{display:'grid', gridTemplateColumns:'repeat(2, 1fr)', gap:0}}>
+            {advanced.map((a, i) => (
+              <div key={a.k} style={{
+                display:'flex', justifyContent:'space-between', alignItems:'baseline',
+                padding:'10px 0',
+                borderBottom: i < advanced.length - 2 ? '1px solid var(--border)' : 0,
+                paddingLeft: i % 2 === 1 ? 12 : 0,
+                paddingRight: i % 2 === 0 ? 12 : 0,
+                borderRight: i % 2 === 0 ? '1px solid var(--border)' : 0,
+              }}>
+                <span style={{fontSize:11, color:'var(--ink-dim)', fontWeight:700, letterSpacing:'.06em'}}>{a.k}</span>
+                <span style={{fontFamily:'var(--ff-mono)', fontSize:14, fontWeight:700}}>{a.v}</span>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
+
+      {/* 최근 경기 폼 */}
+      <div className="card" style={{padding:'22px 24px', marginTop:14}}>
+        <div style={{display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:14}}>
+          <h2 style={{margin:0, fontSize:18, fontWeight:700}}>최근 폼</h2>
+          <span style={{fontSize:11, color:'var(--ink-dim)', fontFamily:'var(--ff-mono)'}}>최근 5경기</span>
+        </div>
+        <div className="data-table" style={{border:'1px solid var(--border)', borderRadius:6, overflow:'hidden'}}>
+          <div className="data-table__head" style={{
+            display:'grid', gridTemplateColumns:'72px 1fr 110px 110px 80px',
+            gap:10, padding:'10px 14px', background:'var(--bg-alt)',
+            fontSize:11, color:'var(--ink-mute)', fontWeight:700,
+            letterSpacing:'.06em', textTransform:'uppercase',
+            borderBottom:'1px solid var(--border)',
+          }}>
+            <div>날짜</div><div>상대</div><div>박스스코어</div><div>결과</div><div style={{textAlign:'right'}}>+/−</div>
+          </div>
+          {recent.map((r, i) => (
+            <div key={i} className="data-table__row" style={{
+              display:'grid', gridTemplateColumns:'72px 1fr 110px 110px 80px',
+              gap:10, padding:'12px 14px',
+              borderBottom: i < recent.length - 1 ? '1px solid var(--border)' : 0,
+              alignItems:'center', fontSize:13,
+            }}>
+              <div data-label="날짜" style={{fontFamily:'var(--ff-mono)', color:'var(--ink-mute)'}}>{r.date}</div>
+              <div data-label="상대" data-primary="true" style={{fontWeight:600}}>{r.oppo}</div>
+              <div data-label="박스" style={{fontFamily:'var(--ff-mono)', color:'var(--ink-soft)'}}>{r.line}</div>
+              <div data-label="결과">
+                <span className={`badge ${r.result.startsWith('W') ? 'badge--ok' : 'badge--red'}`} style={{fontSize:11}}>
+                  {r.result}
+                </span>
+              </div>
+              <div data-label="+/−" style={{
+                textAlign:'right', fontFamily:'var(--ff-mono)', fontWeight:700,
+                color: r.pct.startsWith('+') ? 'var(--ok)' : 'var(--accent)',
+              }}>
+                {r.pct}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <style>{`
+        @media (max-width: 720px) {
+          .pb-stats { grid-template-columns: repeat(2, 1fr) !important; }
+          .pb-split { grid-template-columns: 1fr !important; }
+          .pb-info-grid { grid-template-columns: 1fr !important; }
+          .pb-info-grid > div { border-left: 0 !important; border-top: 1px solid var(--border) !important; background: var(--bg-alt) !important; }
+          .pb-info-grid > div:first-child { border-top: 0 !important; }
+        }
+      `}</style>
     </div>
   );
 }

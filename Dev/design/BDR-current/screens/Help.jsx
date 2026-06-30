@@ -1,185 +1,90 @@
-/* global React */
-// ============================================================
-// BDR v2.30 — Help (IU3 · Phase 10B · 보강 carry + Glossary 신규 · BI3 ★★★)
-// 운영: /help (Phase 6 carry 405) + /help/glossary (신규 330).
-//
-// IU3-A Help: 검색 + 탭 3종(FAQ 아코디언 / 용어집 mini / 정책 카드) + 문의.
-// IU3-B Glossary: A-Z chip 인덱스 + 용어 카드 grid + 검색 + cross-domain link.
-// ============================================================
+/* global React, GLOSSARY, HELP_FAQ, Icon */
 
-// ---- /help 통합 허브 ----
-function Help() {
-  const faq = window.HELP_FAQ;
-  const mini = window.GLOSSARY_MINI;
-  const policy = window.HELP_POLICY;
+function Help({ setRoute }) {
   const [tab, setTab] = React.useState('faq');
   const [q, setQ] = React.useState('');
-  const [open, setOpen] = React.useState(0);
-
-  const needle = q.trim().toLowerCase();
-  const fFaq = faq.filter(f => !needle || f.q.toLowerCase().includes(needle) || f.a.toLowerCase().includes(needle));
-  const fMini = mini.filter(g => !needle || g.term.toLowerCase().includes(needle) || g.desc.toLowerCase().includes(needle));
-
+  const filtered = GLOSSARY.filter(g => !q || g.term.toLowerCase().includes(q.toLowerCase()) || g.desc.includes(q));
   return (
     <div className="page">
-      <div className="page__inner" style={{ maxWidth: 820 }}>
-        {/* Hero + 검색 */}
-        <header className="info-hero" style={{ paddingBottom: 4 }}>
-          <div className="eyebrow">도움말 · HELP</div>
-          <h1 className="info-hero__title">무엇을 도와드릴까요?</h1>
-          <div className="hlp-search">
-            <span className="ico material-symbols-outlined">search</span>
-            <input className="input" placeholder="용어·FAQ 검색 (예: 픽업, 레이팅)" value={q} onChange={e => setQ(e.target.value)} />
+      <div style={{maxWidth:820, margin:'0 auto'}}>
+        <div style={{textAlign:'center', marginBottom:28}}>
+          <div className="eyebrow" style={{justifyContent:'center'}}>도움말 · HELP</div>
+          <h1 style={{margin:'10px 0 10px', fontSize:32, fontWeight:800, letterSpacing:'-0.02em'}}>무엇을 도와드릴까요?</h1>
+          <div style={{position:'relative', maxWidth:520, margin:'18px auto 0'}}>
+            <Icon.search style={{position:'absolute', left:14, top:'50%', transform:'translateY(-50%)', color:'var(--ink-dim)'}}/>
+            <input className="input" placeholder="용어·FAQ 검색 (예: 픽업, 레이팅)" value={q} onChange={e=>setQ(e.target.value)} style={{paddingLeft:38, height:44, fontSize:15}}/>
           </div>
-        </header>
+        </div>
 
-        {/* 탭 3종 */}
-        <div className="hlp-tabs">
-          {[['faq', '자주 묻는 질문'], ['glossary', '용어집'], ['policy', '정책']].map(([k, l]) => (
-            <button key={k} className={'hlp-tab' + (tab === k ? ' is-on' : '')} onClick={() => setTab(k)}>{l}</button>
+        <div style={{display:'flex', gap:4, marginBottom:20, borderBottom:'1px solid var(--border)', justifyContent:'center'}}>
+          {[['faq','자주 묻는 질문'],['glossary','용어집'],['policy','정책']].map(([k,l]) => (
+            <button key={k} onClick={()=>setTab(k)} style={{
+              padding:'12px 20px', background:'transparent', border:0,
+              borderBottom: tab===k ? '3px solid var(--cafe-blue)' : '3px solid transparent',
+              color: tab===k ? 'var(--ink)' : 'var(--ink-mute)',
+              fontWeight: tab===k ? 700 : 500, fontSize:14, cursor:'pointer', marginBottom:-1,
+            }}>{l}</button>
           ))}
         </div>
 
-        {/* FAQ */}
         {tab === 'faq' && (
-          fFaq.length > 0 ? (
-            <div className="card hlp-faq">
-              {fFaq.map((f, i) => (
-                <div key={i} className={'hlp-faq__item' + (open === i ? ' is-open' : '')}>
-                  <button className="hlp-faq__q" onClick={() => setOpen(open === i ? -1 : i)}>
-                    <span className="hlp-faq__qnum">Q{i + 1}.</span>
-                    <span className="hlp-faq__qtext">{f.q}</span>
-                    <span className="hlp-faq__chev material-symbols-outlined">expand_more</span>
-                  </button>
-                  {open === i && <div className="hlp-faq__a">{f.a}</div>}
-                </div>
-              ))}
-            </div>
-          ) : <div className="card hlp-empty"><span className="ico material-symbols-outlined">search_off</span>검색 결과가 없습니다</div>
+          <div className="card" style={{padding:0, overflow:'hidden'}}>
+            {HELP_FAQ.map((f, i) => (
+              <details key={i} style={{borderBottom: i < HELP_FAQ.length-1 ? '1px solid var(--border)' : 0}}>
+                <summary style={{padding:'18px 22px', cursor:'pointer', fontWeight:600, fontSize:15, display:'flex', alignItems:'center', gap:10}}>
+                  <span style={{color:'var(--accent)', fontFamily:'var(--ff-mono)', fontWeight:700}}>Q{i+1}.</span>
+                  {f.q}
+                </summary>
+                <div style={{padding:'0 22px 18px 48px', color:'var(--ink-soft)', lineHeight:1.7, fontSize:14}}>{f.a}</div>
+              </details>
+            ))}
+          </div>
         )}
 
-        {/* 용어집 mini */}
         {tab === 'glossary' && (
-          <>
-            {fMini.length > 0 ? (
-              <div className="card hlp-glist">
-                {fMini.map((g, i) => (
-                  <div key={i} className="hlp-grow">
-                    <div className="hlp-grow__term">{g.term}</div>
-                    <div className="hlp-grow__desc">{g.desc}</div>
-                  </div>
-                ))}
+          <div className="card" style={{padding:0, overflow:'hidden'}}>
+            {filtered.map((g, i) => (
+              <div key={i} style={{display:'grid', gridTemplateColumns:'200px 1fr', padding:'14px 22px', borderBottom: i < filtered.length-1 ? '1px solid var(--border)' : 0, gap:16, alignItems:'baseline'}}>
+                <div style={{fontWeight:700, fontSize:14}}>{g.term}</div>
+                <div style={{fontSize:13.5, color:'var(--ink-soft)', lineHeight:1.6}}>{g.desc}</div>
               </div>
-            ) : <div className="card hlp-empty"><span className="ico material-symbols-outlined">search_off</span>검색 결과가 없습니다</div>}
-            <a className="hlp-glossary-cta" href="iu3-glossary.html">
-              <div className="hlp-glossary-cta__t">전체 용어 사전 보기
-                <small>A-Z 인덱스 · 예시 · 관련 페이지 link 포함 (9+ 핵심 용어)</small>
-              </div>
-              <span className="btn btn--primary btn--sm"><span className="ico material-symbols-outlined">menu_book</span>용어 사전 →</span>
-            </a>
-          </>
+            ))}
+            {filtered.length === 0 && <div style={{padding:40, textAlign:'center', color:'var(--ink-dim)'}}>검색 결과가 없습니다</div>}
+          </div>
         )}
 
-        {/* 정책 */}
         {tab === 'policy' && (
-          <div className="hlp-policy">
-            {policy.map((p, i) => (
-              <div key={i} className={'hlp-pcard' + (p.active ? '' : ' is-soon')}>
-                <div className="hlp-pcard__t">{p.title}{!p.active && <span className="hlp-pcard__soon">준비 중</span>}</div>
-                <div className="hlp-pcard__d">{p.desc}</div>
-                {p.active && <span className="hlp-pcard__arr material-symbols-outlined">arrow_forward</span>}
-              </div>
+          <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:14}}>
+            {[
+              ['이용약관','커뮤니티 참여, 경기·대회 신청·취소 규정 전반','terms'],
+              ['개인정보처리방침','수집 항목, 보관 기간, 제3자 제공 여부','privacy'],
+              ['운영정책','게시물 관리, 제재 기준, 이의 제기 절차',null],
+              ['환불규정','대회 참가비, 멤버십 결제 환불 기준','billing'],
+              ['광고·제휴 문의','브랜드 제휴, 배너 광고, 코트 스폰서십',null],
+              ['저작권 안내','이미지·영상 사용, 무단 전재 금지 조항',null],
+            ].map(([t, d, route]) => (
+              <a key={t} className="card" style={{padding:'18px 20px', cursor:'pointer'}} onClick={()=> route && setRoute(route)}>
+                <div style={{fontWeight:700, fontSize:15, marginBottom:4}}>{t}</div>
+                <div style={{fontSize:12, color:'var(--ink-mute)'}}>{d}</div>
+              </a>
             ))}
           </div>
         )}
 
-        {/* 1:1 문의 */}
-        <div className="hlp-contact">
-          <h3 className="hlp-contact__t">원하는 답을 찾지 못하셨나요?</h3>
-          <p className="hlp-contact__d">운영팀이 평일 1~2일 내에 답변드립니다.</p>
-          <a className="btn btn--accent"><span className="ico material-symbols-outlined">mail</span>1:1 문의하기</a>
-        </div>
-      </div>
-    </div>
-  );
-}
-window.Help = Help;
-
-// ---- /help/glossary 신규 — A-Z chip 인덱스 + 카드 grid + 검색 ----
-function Glossary() {
-  const all = window.GLOSSARY;
-  const [letter, setLetter] = React.useState('all');
-  const [q, setQ] = React.useState('');
-
-  const az = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
-  const initial = (e) => (e.english || '').trim().charAt(0).toUpperCase();
-  const activeLetters = new Set(all.map(initial));
-
-  const needle = q.trim().toLowerCase();
-  let rows = all;
-  if (letter !== 'all') rows = rows.filter(e => initial(e) === letter);
-  if (needle) rows = rows.filter(e =>
-    e.term.toLowerCase().includes(needle) ||
-    (e.english || '').toLowerCase().includes(needle) ||
-    e.desc.toLowerCase().includes(needle));
-
-  return (
-    <div className="page">
-      <div className="page__inner" style={{ maxWidth: 820 }}>
-        <a className="glo-back" href="iu3-help.html"><span className="ico material-symbols-outlined">arrow_back</span>도움말로 돌아가기</a>
-
-        <header style={{ marginBottom: 18 }}>
-          <div className="eyebrow">용어 사전 · GLOSSARY</div>
-          <h1 className="info-hero__title" style={{ fontSize: 28, textAlign: 'left', margin: '10px 0 8px' }}>농구 용어 한눈에 보기</h1>
-          <p style={{ fontSize: 14, color: 'var(--ink-mute)', lineHeight: 1.6, margin: 0 }}>
-            MyBDR에서 자주 쓰는 핵심 용어를 예시·관련 페이지와 함께 정리했습니다. 용어를 누르면 해당 화면으로 이동합니다.
-          </p>
-        </header>
-
-        {/* 검색 */}
-        <div className="hlp-search" style={{ margin: '0 0 4px', maxWidth: '100%' }}>
-          <span className="ico material-symbols-outlined">search</span>
-          <input className="input" placeholder="용어 검색 (예: 레이팅, 디비전, seed)" value={q}
-            onChange={e => { setQ(e.target.value); setLetter('all'); }} />
-        </div>
-
-        {/* A-Z 인덱스 chip */}
-        <div className="glo-az">
-          <button className={'glo-az__chip glo-az__chip--all' + (letter === 'all' ? ' is-on' : '')} onClick={() => setLetter('all')}>전체</button>
-          {az.map(L => (
-            <button key={L} className={'glo-az__chip' + (letter === L ? ' is-on' : '')}
-              disabled={!activeLetters.has(L)}
-              onClick={() => { setLetter(L); setQ(''); }}>{L}</button>
-          ))}
-        </div>
-
-        {/* 카드 grid */}
-        {rows.length > 0 ? (
-          <div className="glo-grid">
-            {rows.map((e, i) => (
-              <article key={i} className="glo-card">
-                <div className="glo-card__head">
-                  <span className="glo-card__icon material-symbols-outlined">{e.icon}</span>
-                  <span className="glo-card__term">{e.term}</span>
-                  {e.english && <span className="glo-card__en">{e.english}</span>}
-                </div>
-                <div className="glo-card__desc">{e.desc}</div>
-                {e.ex && <div className="glo-card__ex">{e.ex}</div>}
-                {e.links && (
-                  <div className="glo-card__links">
-                    {e.links.map((l, j) => (
-                      <a key={j} className="glo-card__link" href={'#' + l.href}>
-                        <span className="ico material-symbols-outlined">north_east</span>{l.label}
-                      </a>
-                    ))}
-                  </div>
-                )}
-              </article>
-            ))}
+        <div className="card" style={{padding:'20px 24px', marginTop:24, display:'flex', alignItems:'center', justifyContent:'space-between', gap:16, flexWrap:'wrap'}}>
+          <div>
+            <div style={{fontWeight:700, fontSize:15}}>여전히 해결이 안 되시나요?</div>
+            <div style={{fontSize:13, color:'var(--ink-mute)', marginTop:4}}>운영팀이 평일 10–19시에 답변드립니다</div>
           </div>
-        ) : <div className="card hlp-empty"><span className="ico material-symbols-outlined">search_off</span>해당 용어가 없습니다</div>}
+          <button className="btn btn--primary">1:1 문의하기</button>
+        </div>
+
+        <div style={{marginTop:14, fontSize:11, color:'var(--ink-dim)', textAlign:'center'}}>
+          잘못된 링크인가요? <a onClick={()=>setRoute('404')} style={{cursor:'pointer', textDecoration:'underline'}}>404 안내 페이지 보기</a>
+        </div>
       </div>
     </div>
   );
 }
-window.Glossary = Glossary;
+
+window.Help = Help;
