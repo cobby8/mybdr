@@ -13,12 +13,18 @@ export function Footer() {
           </div>
 
           <nav className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 sm:gap-x-6 sm:gap-y-2 text-sm" style={{ color: 'var(--color-text-secondary)' }}>
+            <Link href="/about" className="transition-colors hover:underline" style={{ color: 'inherit' }}>
+              소개
+            </Link>
             <Link href="/pricing" className="transition-colors hover:underline" style={{ color: 'inherit' }}>
               요금제
             </Link>
             {/* 도움말(용어 사전) — W4 L1 도메인 용어 통일 */}
             <Link href="/help/glossary" className="transition-colors hover:underline" style={{ color: 'inherit' }}>
               도움말
+            </Link>
+            <Link href="/safety" className="transition-colors hover:underline" style={{ color: 'inherit' }}>
+              안전·차단
             </Link>
             <Link href="/terms" className="transition-colors hover:underline" style={{ color: 'inherit' }}>
               이용약관

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import { Footer } from "@/components/layout/Footer";
@@ -251,23 +251,47 @@ function WebLayoutBody({ children, initialUser }: WebLayoutInnerProps) {
     </div>
   );
 
-  // ── nav dot 뱃지: 커뮤니티 섹션 (newCommunityCount 활용) ─────
-  // PR3에서 unreadCount/newGameCount 완전 배선. 지금은 커뮤니티 dot만.
+  // ── nav dot 뱃지: 3섹션 배선 (PR3) ─────────────────────────
+  // board=newCommunityCount / games=newGameCount / mypage=unreadCount(쪽지+알림)
   const sectionsWithDot = NAV_SECTIONS.map((s) => ({
     ...s,
-    dot: s.id === "board" ? newCommunityCount > 0 : (s.dot ?? false),
+    dot: s.id === "board"  ? newCommunityCount > 0
+       : s.id === "games"  ? newGameCount > 0
+       : s.id === "mypage" ? unreadCount > 0
+       : (s.dot ?? false),
   }));
+
+  // ── 마이 섹션 서브메뉴 count 주입 (PR3) ──────────────────────
+  // messages/notifications 항목에 unreadCount 표시 (기존 폴링값 재사용)
+  const navCtx = useMemo(() => {
+    if (!unreadCount) return NAV_CTX;
+    return {
+      ...NAV_CTX,
+      mypage: {
+        ...NAV_CTX.mypage,
+        groups: NAV_CTX.mypage.groups.map((g) => ({
+          ...g,
+          items: g.items.map((it) =>
+            it.id === "messages" || it.id === "notifications"
+              ? { ...it, count: unreadCount }
+              : it
+          ),
+        })),
+      },
+    };
+  }, [unreadCount]);
 
   return (
     <div style={{ minHeight: "100vh", background: "var(--bg)" }} data-pub>
       <DualSideNav
         sections={sectionsWithDot}
-        ctx={NAV_CTX}
+        ctx={navCtx}
         activeSection={activeSection}
         activeSub={activeSub || undefined}
         onNavSection={(id) => router.push(getSectionHref(id))}
         onNavSub={(id) => router.push(getSubHref(id))}
         onHome={() => router.push("/")}
+        onSearch={(q) => router.push(`/search?q=${encodeURIComponent(q)}`)}
         brand="B"
         railFooter={railFooter}
         panelFooter={panelFooter}

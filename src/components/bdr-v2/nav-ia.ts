@@ -124,6 +124,11 @@ export const NAV_CTX: Record<string, DSNavCtxEntry> = {
         { id: "gallery", label: "갤러리", icon: "photo_library", href: "/gallery" },
         { id: "reviews", label: "후기",   icon: "reviews",       href: "/reviews" },
       ] },
+      // P1-1: 둘러보기성 항목 — 기존 MORE_GROUPS 둘러보기 그룹에서 이관
+      { title: "둘러보기", items: [
+        { id: "refereeInfo", label: "심판 정보",     icon: "sports_handball", href: "/referee-info" },
+        { id: "coaches",     label: "코치·트레이너", icon: "sports",          href: "/coaches" },
+      ] },
     ],
   },
   mypage: {
@@ -140,6 +145,13 @@ export const NAV_CTX: Record<string, DSNavCtxEntry> = {
         { id: "editProfile", label: "프로필 편집", icon: "edit",           href: "/profile" },
         { id: "settings",    label: "설정",        icon: "settings",       href: "/settings" },
         { id: "pricing",     label: "요금제",      icon: "sell",           href: "/pricing" },
+      ] },
+      // P1-1: 서비스·도움 항목 — 기존 MORE_GROUPS 계정·도움 + 둘러보기에서 이관
+      { title: "서비스·도움", items: [
+        { id: "shop",    label: "샵",       icon: "shopping_bag", href: "/shop" },
+        { id: "safety",  label: "안전·차단", icon: "shield",      href: "/safety" },
+        { id: "about",   label: "소개",      icon: "info",        href: "/about" },
+        { id: "help",    label: "도움말",    icon: "help",        href: "/help" },
       ] },
     ],
   },
@@ -175,6 +187,8 @@ const _prefixToSection: [string, string][] = [
   ["/community",     "board"],
   ["/gallery",       "board"],
   ["/reviews",       "board"],
+  ["/referee-info",  "board"],    // P1-1
+  ["/coaches",       "board"],    // P1-1
   ["/my",            "mypage"],
   ["/saved",         "mypage"],
   ["/messages",      "mypage"],
@@ -182,6 +196,10 @@ const _prefixToSection: [string, string][] = [
   ["/profile",       "mypage"],
   ["/settings",      "mypage"],
   ["/pricing",       "mypage"],
+  ["/shop",          "mypage"],   // P1-1
+  ["/safety",        "mypage"],   // P1-1
+  ["/about",         "mypage"],   // P1-1
+  ["/help",          "mypage"],   // P1-1
 ];
 
 // pathname(exact) → sub item id
@@ -217,6 +235,13 @@ const _pathToSub: Record<string, string> = {
   "/profile":          "profile",
   "/settings":         "settings",
   "/pricing":          "pricing",
+  // P1-1 복원
+  "/referee-info":     "refereeInfo",
+  "/coaches":          "coaches",
+  "/shop":             "shop",
+  "/safety":           "safety",
+  "/about":            "about",
+  "/help":             "help",
 };
 
 /** pathname → 활성 섹션 id */

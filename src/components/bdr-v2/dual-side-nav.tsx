@@ -30,6 +30,7 @@ interface DualSideNavProps extends Omit<React.HTMLAttributes<HTMLDivElement>, "c
   panelFooter?: React.ReactNode;
   searchPlaceholder?: string;
   searchKbd?: string;
+  onSearch?: (query: string) => void;
   children?: React.ReactNode;
 }
 
@@ -47,6 +48,7 @@ export function DualSideNav({
   panelFooter,
   searchPlaceholder = "검색",
   searchKbd = "/",
+  onSearch,
   children,
   style,
   ...rest
@@ -232,7 +234,18 @@ export function DualSideNav({
         <div className="bdr-dsnav__fixed">
           <label className="bdr-dsnav__search">
             <span className="material-symbols-outlined">search</span>
-            <input placeholder={searchPlaceholder} />
+            <input
+              placeholder={searchPlaceholder}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  const q = e.currentTarget.value.trim();
+                  if (q && onSearch) {
+                    onSearch(q);
+                    e.currentTarget.value = "";
+                  }
+                }
+              }}
+            />
             {searchKbd && <kbd>{searchKbd}</kbd>}
           </label>
           <button
