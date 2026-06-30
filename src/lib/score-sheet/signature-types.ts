@@ -63,3 +63,16 @@ export const SIGNATURE_MAX_LENGTH = 50;
 export const CAPTAIN_SIGNATURE_MAX_LENGTH = 100;
 // 매치 노트 — 부상 / 사고 / 특이사항 약식 박제 위해 500자
 export const NOTES_MAX_LENGTH = 500;
+
+export interface RequiredSignatureInput {
+  label: string;
+  value?: string | null;
+}
+
+export function getMissingRequiredSignatures(
+  required: RequiredSignatureInput[] = [],
+): string[] {
+  return required
+    .filter((item) => !item.value?.trim())
+    .map((item) => item.label);
+}

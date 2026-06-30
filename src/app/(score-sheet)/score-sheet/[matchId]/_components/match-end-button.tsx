@@ -28,6 +28,10 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useToast } from "@/contexts/toast-context";
 import type { FinalScore } from "@/lib/score-sheet/running-score-types";
+import {
+  getMissingRequiredSignatures,
+  type RequiredSignatureInput,
+} from "@/lib/score-sheet/signature-types";
 
 interface MatchEndButtonProps {
   matchId: string;
@@ -56,6 +60,7 @@ interface MatchEndButtonProps {
   //   true = BFF POST /submit 호출 skip → "연습 모드 — 저장되지 않음" toast + submitted state 진입.
   //   undefined / false = 운영 매치 흐름 (기존 동작 100% 보존).
   isPractice?: boolean;
+  requiredSignatures?: RequiredSignatureInput[];
 }
 
 export function MatchEndButton({
@@ -70,6 +75,7 @@ export function MatchEndButton({
   hideTriggerButton,
   onSubmittedChange,
   isPractice = false,
+  requiredSignatures = [],
 }: MatchEndButtonProps) {
   // controlled vs uncontrolled 결정:
   //   controlledOpen !== undefined = 외부 제어 (toolbar 가 setMatchEndOpen 호출) → useState 무시
@@ -81,6 +87,8 @@ export function MatchEndButton({
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const { showToast } = useToast();
+  const missingRequiredSignatures =
+    getMissingRequiredSignatures(requiredSignatures);
 
   // PR-S2 후속 fix 2 (2026-05-14) — setOpen 을 useCallback 으로 메모이제이션.
   //   왜: useEffect 의 ESC 핸들러가 setOpen 을 호출하므로 deps 에 포함해야 안전.
@@ -140,6 +148,13 @@ export function MatchEndButton({
   //   서버 멱등성에만 의존하지 않고 클라이언트 단에서 명시적으로 막는다.
   async function handleConfirm() {
     if (submitting || submitted) return;
+    if (missingRequiredSignatures.length > 0) {
+      showToast(
+        `경기 종료 전 필수 서명을 입력해 주세요: ${missingRequiredSignatures.join(", ")}`,
+        "error",
+      );
+      return;
+    }
     // 2026-05-17 연습 모드 (사용자 결재 옵션 E):
     //   BFF POST /submit 호출 skip → "연습 모드 — 저장되지 않음" toast + submitted state 진입.
     //   submitted=true 박제 = onSubmittedChange 콜백 trigger → 외부 toolbar disabled 분기 일관.
@@ -340,6 +355,33 @@ export function MatchEndButton({
             </div>
 
             {/* 버튼 영역 */}
+            <div
+              className="mt-3 rounded-[4px] px-3 py-2 text-xs"
+              style={{
+                backgroundColor:
+                  missingRequiredSignatures.length > 0
+                    ? "color-mix(in srgb, var(--color-error) 12%, transparent)"
+                    : "color-mix(in srgb, var(--color-success) 12%, transparent)",
+                color:
+                  missingRequiredSignatures.length > 0
+                    ? "var(--color-error)"
+                    : "var(--color-success)",
+                border:
+                  missingRequiredSignatures.length > 0
+                    ? "1px solid var(--color-error)"
+                    : "1px solid var(--color-success)",
+              }}
+            >
+              <span className="material-symbols-outlined mr-1 align-middle text-sm">
+                {missingRequiredSignatures.length > 0
+                  ? "error"
+                  : "check_circle"}
+              </span>
+              {missingRequiredSignatures.length > 0
+                ? `필수 서명 필요: ${missingRequiredSignatures.join(", ")}`
+                : "필수 서명 완료"}
+            </div>
+
             <div className="mt-4 flex gap-2">
               <button
                 type="button"
@@ -357,7 +399,7 @@ export function MatchEndButton({
               <button
                 type="button"
                 onClick={handleConfirm}
-                disabled={submitting}
+                disabled={submitting || missingRequiredSignatures.length > 0}
                 className="flex-1 rounded-[4px] py-2 text-sm font-semibold disabled:opacity-40"
                 style={{
                   backgroundColor: "var(--color-primary)",

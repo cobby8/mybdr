@@ -1269,4 +1269,79 @@
 }
 .score-sheet-print-root .score-sheet-fiba-frame {
   background-color: #FFFFFF;
+  max-width: min(100%, 1440px);
+}
+
+.score-sheet-print-root .score-sheet-fiba-frame .ss-header {
+  max-width: 100%;
+}
+
+.score-sheet-print-root .ss-shell .ss-toolbar {
+  max-width: min(100%, 1440px);
+}
+
+/* ============================================================
+   2026-07-01 — Electronic scoresheet v2 landscape layout
+   ============================================================
+   왜:
+     기존 A4 2x2 배치는 FIBA 종이 기록지 인쇄에는 좋지만, 태블릿 가로 실시간 입력에서는
+     양 팀 로스터가 한쪽에 압축되어 기록원이 선수 행과 개인 스탯 셀을 빠르게 찾기 어렵다.
+   어떻게:
+     기존 TeamSection / RunningScoreGrid / PeriodScoresSection / FooterSignatures 는 그대로 두고,
+     바깥 배치만 홈 로스터 / 중앙 러닝스코어 / 어웨이 로스터 3열로 전환한다.
+*/
+.score-sheet-print-root .score-sheet-v2-grid {
+  display: grid;
+  grid-template-columns:
+    minmax(260px, 0.95fr)
+    minmax(360px, 1.2fr)
+    minmax(260px, 0.95fr);
+  gap: 2px;
+  background-color: #1A1E27;
+  border-top: 2px solid #1A1E27;
+}
+
+.score-sheet-print-root .score-sheet-v2-panel,
+.score-sheet-print-root .score-sheet-v2-center,
+.score-sheet-print-root .score-sheet-v2-signatures {
+  min-width: 0;
+  background-color: #FFFFFF;
+}
+
+.score-sheet-print-root .score-sheet-v2-panel {
+  display: flex;
+  flex-direction: column;
+}
+
+.score-sheet-print-root .score-sheet-v2-center {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+}
+
+.score-sheet-print-root .score-sheet-v2-center-bottom {
+  border-top: 2px solid #1A1E27;
+}
+
+.score-sheet-print-root .score-sheet-v2-signatures {
+  border-top: 2px solid #1A1E27;
+}
+
+@media (max-width: 900px) {
+  .score-sheet-print-root .score-sheet-v2-grid {
+    grid-template-columns: minmax(280px, 1fr) minmax(360px, 1.1fr);
+  }
+
+  .score-sheet-print-root [data-ss-area="away-roster"] {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 720px) {
+  .score-sheet-print-root .score-sheet-v2-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .score-sheet-print-root [data-ss-area="away-roster"] {
+    grid-column: auto;
+  }
 }

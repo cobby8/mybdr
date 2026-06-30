@@ -17,6 +17,7 @@ import {
   SIGNATURE_MAX_LENGTH,
   CAPTAIN_SIGNATURE_MAX_LENGTH,
   NOTES_MAX_LENGTH,
+  getMissingRequiredSignatures,
 } from "@/lib/score-sheet/signature-types";
 
 describe("EMPTY_SIGNATURES", () => {
@@ -51,6 +52,30 @@ describe("EMPTY_SIGNATURES", () => {
     expect(merged.scorer).toBe("홍길동");
     expect(merged.refereeSign).toBe(""); // 누락 키는 EMPTY 값 유지
     expect(merged.notes).toBe("");
+  });
+});
+
+describe("getMissingRequiredSignatures", () => {
+  it("공백만 있는 필수 서명은 미입력으로 판단한다", () => {
+    const missing = getMissingRequiredSignatures([
+      { label: "1심 서명", value: "홍길동" },
+      { label: "2심 서명", value: " " },
+      { label: "기록원 서명", value: "" },
+      { label: "보조기록원 서명", value: null },
+    ]);
+
+    expect(missing).toEqual(["2심 서명", "기록원 서명", "보조기록원 서명"]);
+  });
+
+  it("필수 서명이 모두 있으면 빈 배열을 반환한다", () => {
+    const missing = getMissingRequiredSignatures([
+      { label: "1심 서명", value: "Ref A" },
+      { label: "2심 서명", value: "Ref B" },
+      { label: "기록원 서명", value: "Scorer A" },
+      { label: "보조기록원 서명", value: "Scorer B" },
+    ]);
+
+    expect(missing).toEqual([]);
   });
 });
 

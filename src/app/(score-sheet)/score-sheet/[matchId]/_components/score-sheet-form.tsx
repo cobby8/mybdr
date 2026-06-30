@@ -61,7 +61,10 @@ import {
   removeLastTimeout,
 } from "@/lib/score-sheet/timeout-helpers";
 import type { SignaturesState } from "@/lib/score-sheet/signature-types";
-import { EMPTY_SIGNATURES } from "@/lib/score-sheet/signature-types";
+import {
+  EMPTY_SIGNATURES,
+  getMissingRequiredSignatures,
+} from "@/lib/score-sheet/signature-types";
 // Phase 19 PR-Stat3 (2026-05-15) — player stats state wiring (6 stat: OR/DR/A/S/B/TO).
 //   사용자 결재 Q1 (위치) / Q2 (StatPopover) / Q3 (match_player_stats 직접 박제 / DB 변경 0).
 import type {
@@ -1668,6 +1671,13 @@ export function ScoreSheetForm({
   //   submit 흐름은 MatchEndButton 와 동일 path 사용 (단일 source) — fetch 직접 호출.
   async function handleEndMatchFromQuarterEnd() {
     if (isReadOnly) return; // Phase 23 PR-EDIT3 (PR-D-3 isReadOnly 통일 / quarter-end modal 진입점)
+    if (missingRequiredSignatures.length > 0) {
+      showToast(
+        `경기 종료 전 필수 서명을 입력해 주세요: ${missingRequiredSignatures.join(", ")}`,
+        "error",
+      );
+      return;
+    }
     // 2026-05-17 연습 모드 (사용자 결재 옵션 E):
     //   BFF /submit 호출 skip → 모달만 닫고 toast 안내. 실제 발행 0.
     //   localStorage draft 는 유지 (운영자가 다시 진입해 검토 가능).
@@ -2034,6 +2044,15 @@ export function ScoreSheetForm({
     });
   }
 
+  const requiredSignatures = [
+    { label: "1심 서명", value: signatures.refereeSign },
+    { label: "2심 서명", value: signatures.umpire1Sign },
+    { label: "기록원 서명", value: signatures.scorer },
+    { label: "보조기록원 서명", value: signatures.asstScorer },
+  ];
+  const missingRequiredSignatures =
+    getMissingRequiredSignatures(requiredSignatures);
+
   // 2026-05-16 (긴급 박제 — 라이브 자동 sync / 시합 직전).
   //
   // 왜 (이유):
@@ -2323,9 +2342,9 @@ export function ScoreSheetForm({
     //   우측 = Running Score (상) + Period Scores + Final + Winner (하)
     //   최하단 = FooterSignatures 가로 펼침 (1~2 줄 컴팩트)
     //
-    //   페이지 폭 = max-w-screen-md (768px) 가 아닌 A4 비율에 가깝게 조절 — 화면 시각 fit.
+    //   페이지 폭 = v2 가로형 로스터 3열을 위해 태블릿 landscape 기준으로 확장.
     //   인쇄 시 = _print.css 의 198mm × 285mm 강제.
-    <main className="score-sheet-print-root mx-auto w-full max-w-[820px] px-1 py-1">
+    <main className="score-sheet-print-root mx-auto w-full max-w-[1440px] px-1 py-1">
       {/* 2026-05-17 연습 모드 안내 배너 (사용자 결재 옵션 E + 기록원 인증 가드).
           왜: 운영 매치가 아님을 운영자에게 즉시 인식시키고 자유롭게 연습하도록 안내.
           위치 = main 최상단 (= 종료 배너보다 위 / 인쇄 시 hide).
@@ -2661,124 +2680,57 @@ export function ScoreSheetForm({
           />
         </div>
 
-        {/* Phase 15 (2026-05-12) — 본문 영역 좌:우 50:50 (FIBA PDF 정합).
-            좌 = Team A (상) + Team B (중) + FooterSignatures (하) 세로 누적 (FIBA PDF 정합)
-            우 = Running Score + Period Scores + Final + Winner 누적
-            모바일 (md 미만) = 1 컬럼 / 태블릿 이상 = 2 컬럼 + 중앙 fiba-divider-right
-
-            Phase 14 → Phase 15 핵심: 풋터가 frame 가로 펼침 (잘못된 위치) → 좌측 col 안 Team B 아래로 이동.
-            이유 (사용자 결재 §1 / 이미지 35): FIBA PDF 정합 (좌측 = Team A + Team B + Coach + 풋터). */}
-        {/* 2026-05-15 (PR-E-2) — grid 2x2 정합 (사용자 요청):
-            좌상 = Team A+B (한 cell 묶음) / 우상 = Running Score
-            좌하 = Signatures / 우하 = Period Scores
-            grid auto rows = max(좌, 우) → 같은 row 양 자식 자동 stretch (자식 잘림 0). */}
-        {/* 2026-05-16 (PR-Layout-Unify) — 사용자 보고 fix.
-            grid 부모 = gap 2px + backgroundColor 검정 (light 강제 + cell #fff bg 박혀 갭만 검정).
-            자식 cell wrapper = inline border 제거 (grid gap 으로 영역 구분만 의존).
-            divider class (md-fiba-divider-right / fiba-divider-bottom) 제거 — 중복 1px 차단.
-            data-grid-frame="2x2" = 인쇄 시 background 검정 강제 (_print.css PR-Print-Grid-Bg). */}
-        <div
-          className="grid grid-cols-1 md:grid-cols-2"
-          data-grid-frame="2x2"
-          style={{ gap: "2px", backgroundColor: "#1A1E27" }}
-        >
-          {/* 좌상 — Team A + Team B 묶음 cell. inline border 제거 (grid gap 의존). */}
-          <div className="flex flex-col" data-ss-area="left-top">
-            {/* Team A — 상단 (Time-outs + Team Fouls + Players 12행 + Coach) */}
-            <div className="fiba-divider-bottom">
-              <TeamSection
-                sideLabel="Team A"
-                teamName={homeFilteredRoster.teamName}
-                players={homeFilteredRoster.players}
-                values={teamA}
-                onChange={setTeamA}
-                fouls={fouls.home}
-                onRequestAddFoul={(playerId) =>
-                  handleRequestAddFoul("home", playerId)
-                }
-                onRequestRemoveFoul={(playerId) =>
-                  handleRequestRemoveFoul("home", playerId)
-                }
-                currentPeriod={runningScore.currentPeriod}
-                timeouts={timeouts.home}
-                onRequestAddTimeout={() => handleRequestAddTimeout("home")}
-                onRequestRemoveTimeout={() => handleRequestRemoveTimeout("home")}
-                // Phase 19 PR-Stat3 — 6 stat wiring (양 팀 통합 record / TeamSection 이 자신의 id 만 lookup)
-                playerStats={playerStats}
-                onRequestOpenStatPopover={(playerId, statKey) =>
-                  handleRequestOpenStatPopover("home", playerId, statKey)
-                }
-                // Phase 23 PR-RO2 (2026-05-15) — 종료 매치 차단 (사용자 결재 Q2).
-                //   disabled = button (foul/timeout/stat cell) + checkbox 차단
-                //   readOnly = input (coach/asstCoach) 차단
-                disabled={isReadOnly}
-                readOnly={isReadOnly}
-                frameless
-                // 2026-05-16 (긴급 박제 — 전후반 모드) — Team fouls Period 라벨 + timeout phase 분기.
-                periodFormat={periodFormat}
-                // 2026-05-16 (긴급 박제 — Bench Technical + Delay of Game / FIBA Article 36).
-                benchTechnical={benchTechnical.home}
-                onRequestAddCoachFoul={() => handleRequestAddCoachFoul("home")}
-                onRequestRemoveLastCoachFoul={() =>
-                  handleRequestRemoveLastCoachFoul("home")
-                }
-                delayOfGame={delayOfGame.home}
-                onRequestDelayClick={() => handleRequestDelayClick("home")}
-                onRequestRemoveLastDelay={() =>
-                  handleRequestRemoveLastDelay("home")
-                }
-                // 2026-05-17 임시번호 부여 UI 이동 (사용자 결재 옵션 A): No. cell 클릭 wiring = 폐기.
-              />
-            </div>
-            {/* Team B — 중단 (FIBA PDF 정합 — Team A 와 동일 구조 세로 분할).
-                Phase 15: 하단 → 중단 (아래에 풋터 추가). */}
-            <div className="fiba-divider-bottom">
-              <TeamSection
-                sideLabel="Team B"
-                teamName={awayFilteredRoster.teamName}
-                players={awayFilteredRoster.players}
-                values={teamB}
-                onChange={setTeamB}
-                fouls={fouls.away}
-                onRequestAddFoul={(playerId) =>
-                  handleRequestAddFoul("away", playerId)
-                }
-                onRequestRemoveFoul={(playerId) =>
-                  handleRequestRemoveFoul("away", playerId)
-                }
-                currentPeriod={runningScore.currentPeriod}
-                timeouts={timeouts.away}
-                onRequestAddTimeout={() => handleRequestAddTimeout("away")}
-                onRequestRemoveTimeout={() => handleRequestRemoveTimeout("away")}
-                // Phase 19 PR-Stat3 — 6 stat wiring (양 팀 통합 record / TeamSection 이 자신의 id 만 lookup)
-                playerStats={playerStats}
-                onRequestOpenStatPopover={(playerId, statKey) =>
-                  handleRequestOpenStatPopover("away", playerId, statKey)
-                }
-                // Phase 23 PR-RO2 (2026-05-15) — 종료 매치 차단 (사용자 결재 Q2 — Team A 와 동일 패턴)
-                disabled={isReadOnly}
-                readOnly={isReadOnly}
-                frameless
-                // 2026-05-16 (긴급 박제 — 전후반 모드) — Team B 도 동일 wiring.
-                periodFormat={periodFormat}
-                // 2026-05-16 (긴급 박제 — Bench Technical + Delay of Game / FIBA Article 36).
-                benchTechnical={benchTechnical.away}
-                onRequestAddCoachFoul={() => handleRequestAddCoachFoul("away")}
-                onRequestRemoveLastCoachFoul={() =>
-                  handleRequestRemoveLastCoachFoul("away")
-                }
-                delayOfGame={delayOfGame.away}
-                onRequestDelayClick={() => handleRequestDelayClick("away")}
-                onRequestRemoveLastDelay={() =>
-                  handleRequestRemoveLastDelay("away")
-                }
-                // 2026-05-17 임시번호 부여 UI 이동 (사용자 결재 옵션 A): No. cell 클릭 wiring = 폐기.
-              />
-            </div>
+        {/* 2026-07-01 — Electronic scoresheet v2 landscape layout.
+            왜: 현재 2x2 A4 종이형은 두 팀 로스터가 한쪽에 세로로 압축되어 태블릿 실시간 기록에 좁다.
+            방법: 기록 엔진은 그대로 두고, 배치만 홈 로스터 / 중앙 러닝스코어 / 어웨이 로스터로 재구성한다. */}
+        <div className="score-sheet-v2-grid" data-grid-frame="v2-landscape">
+          <div className="score-sheet-v2-panel" data-ss-area="home-roster">
+            <TeamSection
+              sideLabel="Team A"
+              teamName={homeFilteredRoster.teamName}
+              players={homeFilteredRoster.players}
+              values={teamA}
+              onChange={setTeamA}
+              fouls={fouls.home}
+              onRequestAddFoul={(playerId) =>
+                handleRequestAddFoul("home", playerId)
+              }
+              onRequestRemoveFoul={(playerId) =>
+                handleRequestRemoveFoul("home", playerId)
+              }
+              currentPeriod={runningScore.currentPeriod}
+              timeouts={timeouts.home}
+              onRequestAddTimeout={() => handleRequestAddTimeout("home")}
+              onRequestRemoveTimeout={() => handleRequestRemoveTimeout("home")}
+              // Phase 19 PR-Stat3 — 6 stat wiring (양 팀 통합 record / TeamSection 이 자신의 id 만 lookup)
+              playerStats={playerStats}
+              onRequestOpenStatPopover={(playerId, statKey) =>
+                handleRequestOpenStatPopover("home", playerId, statKey)
+              }
+              // Phase 23 PR-RO2 (2026-05-15) — 종료 매치 차단 (사용자 결재 Q2).
+              //   disabled = button (foul/timeout/stat cell) + checkbox 차단
+              //   readOnly = input (coach/asstCoach) 차단
+              disabled={isReadOnly}
+              readOnly={isReadOnly}
+              frameless
+              // 2026-05-16 (긴급 박제 — 전후반 모드) — Team fouls Period 라벨 + timeout phase 분기.
+              periodFormat={periodFormat}
+              // 2026-05-16 (긴급 박제 — Bench Technical + Delay of Game / FIBA Article 36).
+              benchTechnical={benchTechnical.home}
+              onRequestAddCoachFoul={() => handleRequestAddCoachFoul("home")}
+              onRequestRemoveLastCoachFoul={() =>
+                handleRequestRemoveLastCoachFoul("home")
+              }
+              delayOfGame={delayOfGame.home}
+              onRequestDelayClick={() => handleRequestDelayClick("home")}
+              onRequestRemoveLastDelay={() =>
+                handleRequestRemoveLastDelay("home")
+              }
+              // 2026-05-17 임시번호 부여 UI 이동 (사용자 결재 옵션 A): No. cell 클릭 wiring = 폐기.
+            />
           </div>
 
-          {/* 우상 — Running Score. inline border 제거 (grid gap 의존). */}
-          <div data-ss-area="right-top">
+          <div className="score-sheet-v2-center" data-ss-area="running-score">
             <RunningScoreGrid
               state={runningScore}
               onChange={setRunningScore}
@@ -2794,23 +2746,10 @@ export function ScoreSheetForm({
               //   종료/read-only 매치 = undefined (수정 모드 진입 시 활성).
               onRetreatPeriod={isReadOnly ? undefined : handleRetreatPeriod}
             />
-          </div>
-
-          {/* 좌하 — Signatures (Scorer/Timer/Referee/Umpire/Captain 등). inline border 제거 (grid gap 의존). */}
-          <div data-ss-area="left-bottom">
-            <FooterSignatures
-              values={signatures}
-              onChange={setSignatures}
-              headerReferee={header.referee}
-              headerUmpire1={header.umpire1}
-              headerUmpire2={header.umpire2}
-              readOnly={isReadOnly}
-              frameless
-            />
-          </div>
-
-          {/* 우하 — Period Scores + Final + Winner. inline border 제거 (grid gap 의존). */}
-          <div data-ss-area="right-bottom">
+            <div
+              className="score-sheet-v2-center-bottom"
+              data-ss-area="period-score"
+            >
               <PeriodScoresSection
                 state={runningScore}
                 homeTeamName={homeFilteredRoster.teamName}
@@ -2827,7 +2766,64 @@ export function ScoreSheetForm({
                 // 2026-05-16 (긴급 박제 — 전후반 모드) — Period row 라벨 분기 (전반/후반 + Q3/Q4 hide).
                 periodFormat={periodFormat}
               />
+            </div>
           </div>
+
+          <div className="score-sheet-v2-panel" data-ss-area="away-roster">
+            <TeamSection
+              sideLabel="Team B"
+              teamName={awayFilteredRoster.teamName}
+              players={awayFilteredRoster.players}
+              values={teamB}
+              onChange={setTeamB}
+              fouls={fouls.away}
+              onRequestAddFoul={(playerId) =>
+                handleRequestAddFoul("away", playerId)
+              }
+              onRequestRemoveFoul={(playerId) =>
+                handleRequestRemoveFoul("away", playerId)
+              }
+              currentPeriod={runningScore.currentPeriod}
+              timeouts={timeouts.away}
+              onRequestAddTimeout={() => handleRequestAddTimeout("away")}
+              onRequestRemoveTimeout={() => handleRequestRemoveTimeout("away")}
+              // Phase 19 PR-Stat3 — 6 stat wiring (양 팀 통합 record / TeamSection 이 자신의 id 만 lookup)
+              playerStats={playerStats}
+              onRequestOpenStatPopover={(playerId, statKey) =>
+                handleRequestOpenStatPopover("away", playerId, statKey)
+              }
+              // Phase 23 PR-RO2 (2026-05-15) — 종료 매치 차단 (사용자 결재 Q2 — Team A 와 동일 패턴)
+              disabled={isReadOnly}
+              readOnly={isReadOnly}
+              frameless
+              // 2026-05-16 (긴급 박제 — 전후반 모드) — Team B 도 동일 wiring.
+              periodFormat={periodFormat}
+              // 2026-05-16 (긴급 박제 — Bench Technical + Delay of Game / FIBA Article 36).
+              benchTechnical={benchTechnical.away}
+              onRequestAddCoachFoul={() => handleRequestAddCoachFoul("away")}
+              onRequestRemoveLastCoachFoul={() =>
+                handleRequestRemoveLastCoachFoul("away")
+              }
+              delayOfGame={delayOfGame.away}
+              onRequestDelayClick={() => handleRequestDelayClick("away")}
+              onRequestRemoveLastDelay={() =>
+                handleRequestRemoveLastDelay("away")
+              }
+              // 2026-05-17 임시번호 부여 UI 이동 (사용자 결재 옵션 A): No. cell 클릭 wiring = 폐기.
+            />
+          </div>
+        </div>
+
+        <div className="score-sheet-v2-signatures" data-ss-area="signatures">
+          <FooterSignatures
+            values={signatures}
+            onChange={setSignatures}
+            headerReferee={header.referee}
+            headerUmpire1={header.umpire1}
+            headerUmpire2={header.umpire2}
+            readOnly={isReadOnly}
+            frameless
+          />
         </div>
       </div>
 
@@ -2854,6 +2850,7 @@ export function ScoreSheetForm({
         open={matchEndOpen}
         onOpenChange={setMatchEndOpen}
         hideTriggerButton
+        requiredSignatures={requiredSignatures}
         // 2026-05-17 연습 모드 (사용자 결재 옵션 E) — BFF submit skip + practice toast.
         //   MatchEndButton 내부에서 isPractice=true 면 fetch 호출 0 / "연습 모드 — 저장되지 않음" toast.
         isPractice={isPractice}
