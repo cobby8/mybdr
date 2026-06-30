@@ -2,6 +2,16 @@
 <!-- 담당: planner-architect | 최대 30항목 -->
 <!-- "왜 A 대신 B를 선택했는지" 기술 결정의 배경과 이유를 기록 -->
 
+### [2026-06-30] 공개웹 PUB 디자인 시스템 세대교체 — DualSideNav 셸 + 라이트=토스블루 (13룰 A 면제)
+- **분류**: decision (공개웹 셸 구조 / 색상 정책 / 13룰 적용 범위)
+- **발견자**: pm + design-system-expert (Phase PUB-0a IA 델타 `Dev/design/prompts/_pub-ia-delta.md`)
+- **계기**: 공개웹(mybdr.kr) 전면 리뉴얼 시안(BDR-current PUB-v1.0, zip50)이 기존 13룰 근간 3가지를 전면 교체. IA 델타 판정: ①시안 README "AppNav는 DualSideNav로 대체·제거" 명시 → 상단 9탭 헤더(frozen) vs 좌측 2단 사이드네비 = 13룰 A 6/7 충돌(재구성 아닌 셸 교체) ②tokens.css 라이트 `--primary:#3182F6`(토스블루)/다크 `#E31B23`(BDR레드) → "공개웹=BDR Red, Toss와 완전 별개" 정책과 라이트모드 충돌 ③NAV_SECTIONS=[홈·경기·대회·단체·팀·코트·랭킹·커뮤니티·**마이**] → "더보기" 탭 삭제+서브메뉴 분산.
+- **PM 결정(사용자 2026-06-30)**: ①**DualSideNav 셸 채택** — 공개웹 PUB 도메인에서 **13룰 A(AppNav frozen) 면제**. 시안 dual-sidenav.jsx를 정본으로 박제. 더보기탭→마이탭 재편(more-groups.ts는 사이드네비 섹션 구조로 재설계). ②**색상 시안대로** — 라이트=토스블루#3182F6/다크=BDR레드#E31B23 유지(다크 기본이라 평소 노출은 BDR레드). CLAUDE.md "공개웹=BDR Red" 정책을 PUB용으로 갱신 필요.
+- **적용 범위 경계**: 본 면제·색상은 **공개웹 `(web)` = PUB 도메인 한정**. admin-v2(Toss 시스템·`/v2`)와 별개이며, 기존 13룰 A frozen 규격은 `_archive/...pre-PUB-v1.0/`에 보존(레거시 참조용).
+- **대안 기각**: AppNav 유지(시안 전체가 사이드네비 기반이라 콘텐츠만 부분 차용 시 리뉴얼 효과 소멸·시안 대량 개조) / 라이트 BDR레드 통일(시안 토스블루 전면 치환 작업·디자이너 의도 훼손).
+- **후속**: claude-project-knowledge 13룰(특히 03-appnav-frozen·00-master-guide A섹션·02 토큰)을 PUB 도메인 기준으로 갱신(PUB-0b 셸 박제와 병행). more-groups.ts 재설계. PUB-1 박제는 본 결재 이후 착수.
+- **참조횟수**: 0
+
 ### [2026-06-29] 후원사 sponsors varchar→jsonb 마이그레이션 실행 (운영 DB·무손실)
 - **분류**: decision (스키마 타입 변경 / 데이터 보존 / 마이그레이션 경로)
 - **발견자**: db-migration-expert
