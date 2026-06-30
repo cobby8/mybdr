@@ -236,6 +236,7 @@ export function DualSideNav({
             <span className="material-symbols-outlined">search</span>
             <input
               placeholder={searchPlaceholder}
+              aria-label="통합 검색"
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
                   const q = e.currentTarget.value.trim();

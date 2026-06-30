@@ -17,8 +17,8 @@ import {
   getSubHref,
   getSectionHref,
 } from "@/components/bdr-v2/nav-ia";
-// AppNavUser 타입은 app-nav.tsx(휴면)에서 보존 — layout.tsx 와 타입 호환 유지
-import type { AppNavUser } from "@/components/bdr-v2/app-nav";
+// AppNavUser 타입 — PR4: app-nav.tsx 제거로 nav-ia.ts 로 이전
+import type { AppNavUser } from "@/components/bdr-v2/nav-ia";
 
 /* ============================================================
  * WebLayoutInner (Phase PUB-0b PR2)

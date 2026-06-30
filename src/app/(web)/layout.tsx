@@ -12,7 +12,8 @@
 import { getAuthUser } from "@/lib/auth/get-auth-user";
 import { prisma } from "@/lib/db/prisma";
 import { WebLayoutInner } from "./_layout/web-layout-inner";
-import type { AppNavUser } from "@/components/bdr-v2/app-nav";
+// PR4: AppNavUser 타입 이전 — app-nav.tsx(dead) 대신 nav-ia.ts
+import type { AppNavUser } from "@/components/bdr-v2/nav-ia";
 import { determineRole } from "@/lib/auth/roles";
 
 // 2026-05-05 fix: force-dynamic — 로그인 직후 헤더 SSR 가 세션 미인지 (캐시) 문제 해결.

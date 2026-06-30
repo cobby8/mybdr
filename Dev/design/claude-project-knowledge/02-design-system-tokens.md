@@ -23,6 +23,58 @@
 
 ---
 
+## 0-A. PUB 도메인 스코프 격리 — `[data-pub]` (2026-06-30 — Phase PUB-0b)
+
+공개웹(`(web)`)은 `data-pub` 마커로 토큰 스코프를 격리한다. 레거시(admin/referee/score-sheet) 영역에 번짐 없음.
+
+```css
+/* globals.css 말미 — [data-pub] 스코프 라이트 */
+[data-pub] {
+  --primary:    #3182F6;           /* 라이트: 토스블루 */
+  --primary-on: #ffffff;
+  --soft:       var(--ink-soft);
+  --mute:       var(--ink-mute);
+  --dim:        var(--ink-dim);
+  --elev:       var(--bg-elev);
+  --card:       var(--bg-card);
+  --alt:        var(--bg-alt);
+  --head:       var(--bg-head);
+  --bstrong:    var(--border-strong);
+  --r-2:        9px;               /* DS v4 soft 라운딩 */
+  --r-3:        11px;
+  /* ... */
+}
+
+/* 다크 오버라이드 */
+html[data-theme="dark"] [data-pub],
+html.dark [data-pub] {
+  --primary: #E31B23;              /* 다크: BDR Red */
+  /* ... */
+}
+```
+
+**PUB 도메인 시안 작업 시 전용 DS v4 단축 토큰:**
+
+| DS v4 토큰 | 현행 글로벌 대응 | 비고 |
+|---|---|---|
+| `var(--primary)` | `var(--accent)` 별칭 | PUB 라이트=토스블루/다크=BDR Red |
+| `var(--primary-on)` | `var(--ink-on-brand)` 별칭 | 포인트 위 텍스트 |
+| `var(--soft)` | `var(--ink-soft)` 별칭 | 2차 텍스트 |
+| `var(--mute)` | `var(--ink-mute)` 별칭 | 보조 텍스트 |
+| `var(--dim)` | `var(--ink-dim)` 별칭 | 비활성 텍스트 |
+| `var(--elev)` | `var(--bg-elev)` 별칭 | 패널 배경 (elevation 1) |
+| `var(--card)` | `var(--bg-card)` 별칭 | 카드 배경 |
+| `var(--alt)` | `var(--bg-alt)` 별칭 | hover 배경 |
+| `var(--head)` | `var(--bg-head)` 별칭 | 테이블 헤더 |
+| `var(--bstrong)` | `var(--border-strong)` 별칭 | 강조 테두리 |
+| `var(--r-2)` | 9px (DS v4 soft, 전역 4px 대신) | 카드·버튼 라운딩 |
+| `var(--r-3)` | 11px (DS v4 soft, 전역 6px 대신) | 큰 카드 라운딩 |
+
+> 전역 `:root` 의 `--r-2`(4px) / `--r-3`(6px) 는 건드리지 않음. `[data-pub]` 스코프 안에서만 9/11px 재정의.
+> 레거시(admin/referee 등) 라운딩은 현행 유지.
+
+---
+
 ## 1. 색상 (CSS 변수)
 
 ### 1-1. 브랜드 (라이트/다크 공유 — `:root`)

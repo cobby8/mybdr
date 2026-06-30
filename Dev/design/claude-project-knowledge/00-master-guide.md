@@ -20,21 +20,29 @@
 
 ### 2-1. AppNav (헤더) 룰 6가지
 
+> ⚠️ **PUB 도메인(`(web)`) 한정 무효** — Phase PUB-0b에서 AppNav → DualSideNav 교체 완료(2026-06-30).
+> PUB 셸은 `03-appnav-frozen-component.md §PUB 전용 Frozen 셸` 참조.
+> 아래 룰은 레거시 도메인(admin/referee/tournament-admin/_site)에만 적용.
+
 ```
 ✅ AppNav 컴포넌트는 frozen — `04-appnav-frozen-component.md` 코드 그대로 사용
    (절대 새로 그리지 말 것. 기존 코드 카피 + import 만)
+   [PUB 도메인 면제 — DualSideNav frozen 사용]
 
 1. 9 메인 탭 = 홈 / 경기 / 대회 / 단체 / 팀 / 코트 / 랭킹 / 커뮤니티 / 더보기
    (마지막 탭이 더보기 — 클릭 시 5그룹 패널 토글)
+   [PUB 예외] 9 레일 섹션 = 홈~마이 (더보기 없음 — DualSideNav 마이 섹션이 대체)
 
 2. utility bar (상단 파란 띠):
    - 좌측: "MyBDR 커뮤니티 / 소개 / 요금제 / 도움말" — 모바일 hidden, PC 표시
    - 우측: "계정 / 설정 / 로그아웃" — **모바일에서도 표시**
+   [PUB 예외] utility bar 없음 — 로그아웃/계정은 DualSideNav 패널 footer 배치
 
 3. main bar 우측 컨트롤 = 검색 + 알림 + 다크모드 토글 + 햄버거(모바일)
    ❌ 더보기 dropdown trigger 추가 금지
    ❌ 계정 아이콘 + 닉네임 추가 금지
    (캡처에서 "더보기 ▼" 또는 "RDM" 아바타 보이면 위반)
+   [PUB 예외] main bar 없음 — 검색은 패널 인라인 / 다크는 패널 footer
 
 4. 다크모드 토글 (하이브리드):
    - 데스크톱 (md ≥ 768px): 두 라벨 토글 ("라이트 / 다크")

@@ -4,6 +4,46 @@
 
 ---
 
+## ★ PUB 리뉴얼 IA 델타 (2026-06-30 — Phase PUB-0b)
+
+**공개웹(`(web)`) 셸이 AppNav → DualSideNav 로 교체됨에 따른 IA 변경:**
+
+### 신규 진입점 (DualSideNav NAV_CTX 서브메뉴에 배선)
+
+| 라우트 | 위치(섹션) | 비고 |
+|---|---|---|
+| `/games`, `/games/new`, `/games/my-games` | 경기 섹션 | 기존 AppNav 탭에서 서브메뉴로 이동 |
+| `/scrim`, `/live`, `/tournaments` | 경기 섹션 | |
+| `/tournaments/[id]`, `/series` | 대회 섹션 | |
+| `/organizations`, `/teams` | 단체/팀 섹션 | |
+| `/courts`, `/rankings`, `/stats`, `/awards` | 코트/랭킹 섹션 | |
+| `/community`, `/reviews`, `/gallery` | 커뮤니티 섹션 | |
+| `/profile`, `/my`, `/my/registrations`, `/saved` | 마이 섹션 | |
+| `/messages`, `/notifications` | 마이 섹션 | AppNav 아이콘에서 마이 서브메뉴로 이동 |
+| `/profile/edit`, `/settings`, `/pricing` | 마이 섹션 (계정·설정 그룹) | |
+
+### 기존 AppNav 전용 진입점 → 대체 배치
+
+| 항목 | 이전 위치 | 새 위치 |
+|---|---|---|
+| 검색 | AppNav 아이콘 | DualSideNav 패널 인라인 검색바 |
+| 다크모드 토글 | AppNav 우측 | DualSideNav 패널 footer |
+| 로그아웃/계정 | AppNav utility bar | DualSideNav 패널 footer |
+| 더보기 5그룹 | AppDrawer | DualSideNav 컨텍스트 패널 각 섹션 서브메뉴 |
+
+### P1-1 잠정 대기 진입점 (Footer 링크로 보강됨)
+
+| 라우트 | 이전 위치 | 현황 |
+|---|---|---|
+| `/referee-info` | 더보기 > 둘러보기 | Footer 링크 유지 |
+| `/coaches` | 더보기 > 둘러보기 | Footer 링크 유지 |
+| `/shop` | 더보기 > 둘러보기 | Footer 링크 유지 |
+| `/safety` | 더보기 > 계정·도움 | Footer 링크 유지 |
+| `/about` | 더보기 > 계정·도움 | Footer 링크 유지 |
+| `/help` | 더보기 > 계정·도움 | Footer 링크 유지 |
+
+---
+
 ## 1. 등급 매트릭스
 
 | 등급 | 정의 | 페이지 수 |

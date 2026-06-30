@@ -5,6 +5,34 @@
 
 ---
 
+## 🚫 PUB 도메인 면제 (2026-06-30 — Phase PUB-0b)
+
+> **공개웹 `(web)` 도메인은 AppNav frozen 룰이 적용되지 않습니다.**
+>
+> 이유: PUB 리뉴얼(Phase PUB-0b)에서 AppNav(상단 가로 네비)를 **DualSideNav(좌측 2단 레일+패널)** 로 교체.
+> 해당 교체는 사용자 결재 완료. AppNav frozen 7룰은 레거시 도메인 (admin/referee/tournament-admin/_site) 에만 유효.
+
+### PUB 전용 Frozen 셸 — DualSideNav
+
+| 항목 | 값 |
+|------|-----|
+| 운영 파일 | `src/components/bdr-v2/dual-side-nav.tsx` |
+| CSS | `src/app/globals.css` `[data-pub] .bdr-dsnav__*` |
+| 데이터 | `src/components/bdr-v2/nav-ia.ts` (NAV_SECTIONS + NAV_CTX) |
+| 모바일 분기 | `≤920px` — 레일+패널 오버레이 + 드래그 핸들 3단 스냅 |
+| 본문 분기 | `≤720px` — 콘텐츠 스택 (셸과 독립, 목적 다름) |
+
+**DualSideNav frozen 룰 (PUB 전용):**
+1. 9 레일 섹션 = 홈/경기/대회/단체/팀/코트/랭킹/커뮤니티/마이 (더보기 없음)
+2. 레일 폭 76px 고정 / 패널 234px 고정
+3. 모바일(≤920px) = 드래그 핸들 3단 스냅(hidden→rail→dual)
+4. `[data-pub]` 스코프 격리 — 레거시 영역 번짐 없음
+5. `AppNavUser` 타입은 `nav-ia.ts` 에서 export (app-nav.tsx 삭제됨)
+
+---
+
+---
+
 ## 🔒 보존 룰 (사용자 결정 §1) — Phase 19 갱신 (2026-05-07)
 
 다음 7 규칙 모두 준수:

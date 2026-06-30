@@ -4,8 +4,18 @@
  * 정본: Dev/design/BDR-current/MyBDR.html L149~247
  * href: 운영 라우트 매핑 (more-groups.ts 기존 href + _pub-ia-delta.md §1-A)
  *
- * Phase PUB-0b PR2
+ * Phase PUB-0b PR2 / PR4
  * ============================================================ */
+
+/** 로그인 사용자 정보 — AppNav(레거시) 와 DualSideNav 양쪽에서 공유.
+ *  PR4: app-nav.tsx dead-code 제거에 따라 여기로 이전. */
+export interface AppNavUser {
+  name: string;
+  role: string;
+  is_referee?: boolean;
+  /** 관리자 진입 URL. null = 비관리자(링크 미노출). */
+  admin_entry_url?: string | null;
+}
 
 export interface DSNavSection {
   id: string;
