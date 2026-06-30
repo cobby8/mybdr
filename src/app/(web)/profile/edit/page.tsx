@@ -1603,10 +1603,10 @@ export default function ProfileEditPage() {
           <div
             className="mx-3 w-full max-w-sm p-6"
             style={{
-              backgroundColor: "var(--color-card)",
+              backgroundColor: "var(--bg-card)",
               borderRadius: 4,
               border: "1px solid var(--border)",
-              boxShadow: "var(--shadow-elevated)",
+              boxShadow: "var(--sh-md)",
             }}
           >
             <div className="mb-4 flex items-center gap-2">
