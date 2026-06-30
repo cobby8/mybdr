@@ -324,6 +324,9 @@ const nextConfig: NextConfig = {
       { source: "/admin/news", destination: "/v2/news-console", permanent: true }, // exact — /admin/news/compose 는 미매칭(레거시 유지)
       // analytics: v2 지표 보강(레거시 동등·무손실) 완료 → 봉인
       { source: "/admin/analytics", destination: "/v2/analytics", permanent: true },
+      // 매너평가·시즌시상 v2 포팅(67cd7c4) → 봉인 (둘 다 exact·하위 없음)
+      { source: "/admin/game-reports", destination: "/v2/manner-console", permanent: true },
+      { source: "/admin/season-awards", destination: "/v2/season-awards", permanent: true },
     ];
   },
   async headers() {
