@@ -53,10 +53,22 @@ export default async function RefereeConsoleLayout({
   const badgeWhere = ctx.isSuper
     ? {}
     : { referee: { association_id: ctx.associationId } };
-  const [assignBadge, verifyBadge, settleBadge] = await Promise.all([
+  // 신청 관리(apps) 배지 = 대기(submitted) 신청 건수.
+  //   ★스코프 경로가 다름: 신청은 referee 가 아닌 announcement.association_id 로 협회 판정.
+  //   전역 super 는 필터 0(전 협회 통합).
+  //   associationId 는 비-전역(협회 admin)에서 항상 존재(getRefereeScope 보장).
+  //   타입상 bigint|null 이지만 announcement.association_id 는 non-null 컬럼 → 0n 폴백으로 좁힘.
+  const appsWhere = ctx.isSuper
+    ? { status: "submitted" }
+    : {
+        status: "submitted",
+        announcement: { association_id: ctx.associationId ?? BigInt(0) },
+      };
+  const [assignBadge, verifyBadge, settleBadge, appsBadge] = await Promise.all([
     prisma.refereeAssignment.count({ where: { status: "assigned", ...badgeWhere } }),
     prisma.refereeCertificate.count({ where: { verified: false, ...badgeWhere } }),
     prisma.refereeSettlement.count({ where: { status: "pending", ...badgeWhere } }),
+    prisma.assignmentApplication.count({ where: appsWhere }),
   ]);
 
   // 4) 셸 푸터 UserChip 표시 정보 — 전역=최고 관리자 / 협회=협회 관리자.
@@ -72,6 +84,7 @@ export default async function RefereeConsoleLayout({
       assignBadge={assignBadge}
       verifyBadge={verifyBadge}
       settleBadge={settleBadge}
+      appsBadge={appsBadge}
     >
       {children}
     </RefereeShell>

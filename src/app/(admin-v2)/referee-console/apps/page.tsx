@@ -1,16 +1,10 @@
-// referee-console/apps — 신청 관리 (준비 중 · 후속)
-//   심판 배정 신청 승인/반려 = 승인 전용 엔드포인트 부재(pool 흐름으로 소비) → 준비 중(mock 0).
-import { RefereeSoon } from "../_soon";
+// referee-console/apps — 신청 관리 (컷오버 4-5 ③-B)
+//   협회 관리자가 받은 배정 신청을 상태별로 모아 승인/거절하는 inbox.
+//   thin 서버 컴포넌트 → 클라 콘솔(_apps) 마운트. 데이터/권한은 layout 게이트 + API 협회게이트.
+import { AppsConsole } from "./_apps";
 
 export const dynamic = "force-dynamic";
 
 export default function RefereeAppsPage() {
-  return (
-    <RefereeSoon
-      title="신청 관리"
-      sub="심판들이 제출한 경기 배정 신청을 승인·반려합니다."
-      icon="inbox"
-      desc="배정 신청 승인 흐름은 정합 정리 후 제공됩니다."
-    />
-  );
+  return <AppsConsole />;
 }

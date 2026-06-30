@@ -44,12 +44,14 @@ export function RefereeShell({
   assignBadge,
   verifyBadge,
   settleBadge,
+  appsBadge,
   children,
 }: {
   user: AdminUser;
   assignBadge: number; // 미확정 배정(assigned)
   verifyBadge: number; // 미검증 자격증
   settleBadge: number; // 지급 대기 정산
+  appsBadge: number; // 대기(submitted) 신청
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
@@ -73,7 +75,12 @@ export function RefereeShell({
     { id: "refs", icon: "users", text: "심판 명단" },
     // 컷오버 4-4c: 레거시 bulk-register/bulk-verify 를 v2 로 포팅. Excel 일괄 처리 2화면.
     { id: "bulkReg", icon: "file-up", text: "일괄 등록" },
-    { id: "apps", icon: "inbox", text: "신청 관리" },
+    {
+      id: "apps",
+      icon: "inbox",
+      text: "신청 관리",
+      ...(appsBadge > 0 ? { badge: appsBadge } : {}),
+    },
     {
       id: "verify",
       icon: "badge-check",
