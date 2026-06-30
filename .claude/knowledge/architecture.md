@@ -2,6 +2,18 @@
 <!-- 담당: planner-architect, developer | 최대 30항목 -->
 <!-- 프로젝트의 폴더 구조, 파일 역할, 핵심 패턴을 기록 -->
 
+### [2026-06-30] 공개웹 (web) 셸 구조 + 토큰 별칭 레이어 (PUB 셸 교체 예정·read-only 실측)
+- **분류**: architecture
+- **발견자**: planner-architect (PUB-0b-① 셸 교체+토큰 마이그레이션 설계)
+- **내용**:
+  - **★현행 셸 2파일 집중**: `(web)/layout.tsx`(server·getAuthUser→initialUser) → `_layout/web-layout-inner.tsx`(client·SWR/PreferFilter/Toast Provider) → `<AppNav>`(components/bdr-v2/app-nav.tsx: utility bar+main bar 탭9+우측 검색/쪽지/알림/다크/햄버거, 내부 `<AppDrawer>` 모바일 서랍+MORE_GROUPS) + `<main>{children}` + `<Footer>` + `<BottomNav>`(≤720px fixed). **(web) 전 페이지는 children 주입** → 셸 교체 = 이 2파일+셸컴포넌트만, 개별 페이지 0.
+  - **★토큰 = "값"이 아니라 "별칭 레이어" 구조**: globals.css에 신형 토큰(`--bg`/`--ink`/`--accent`/`--cafe-blue`/`--border` 값보유 L94~185) + **`--color-*` 별칭 레이어**(L2780~2831: `--color-primary:var(--accent)`/`--color-surface:var(--bg-elev)`/`--color-text-primary:var(--ink)`…). → `(web)`의 `--color-*` **2,615건/145파일**(전체 5,482/250)은 별칭으로 신형 토큰에 자동 연결 → **일괄 치환 불필요**. 02-design-system-tokens §9 폐기→신규 매핑이 CSS레벨 구현됨.
+  - **★DS v4(BDR-current/tokens.css) 단축 토큰이 globals.css에 부재**: `--primary`/`--primary-deep`/`--primary-on`·`--soft`/`--mute`/`--dim`·`--elev`/`--card`/`--alt`/`--head`·`--bstrong`·`--soft-fill` 미정의(현행은 `--accent`/`--ink-soft`/`--bg-elev`/`--border-strong` 등 풀네임만). DualSideNav+포팅화면이 단축 참조 → **대칭 별칭 레이어 신규 추가 필요**(`--primary:var(--accent)` 등). 통째 복붙은 이중정의·드리프트 비권장.
+  - **★라운딩 값 충돌**: 현행 `--r-2`=4px·`--r-3`=6px ↔ DS v4 9px·11px(soft). 색상: 현행 light/dark 모두 `--accent=var(--bdr-red)` ↔ DS v4 light=#3182F6(토스블루)·dark=#E31B23(레드)=P0-2 결재. **globals.css `:root` 변경은 전역**(legacy admin/referee/score-sheet/site-host도 `--color-*`/`--accent` 공유) → 공개웹 외 번짐=PUB 최대 리스크(스코프 격리 vs 전역수용 결정 필요). admin-v2는 자체 styles라 안전.
+  - **★셸 IA**: 현행 메인 9탭(홈~더보기·app-nav.tsx tabs[]) + MORE_GROUPS(more-groups.ts 4그룹15항목). 시안 = DualSideNav 9섹션(홈~**마이**·MyBDR.html NAV_SECTIONS/NAV_CTX L149~247)·섹션별 컨텍스트 패널 서브메뉴. NAV_CTX는 id/label/icon만(href無·setRoute SPA) → 포팅 시 운영 라우트 href 부여+usePathname active 역매핑 헬퍼 신규(`nav-ia.ts`). 테마=`[data-theme="dark"],html.dark` 이중셀렉터(theme-switch.tsx L60 둘 다 set)·시안 `[data-mode]` 추가 불필요.
+  - 설계서=`Dev/design/prompts/_pub-0b-shell-design.md`(셸 영향·토큰계획·PR4분할·리스크9).
+- **참조횟수**: 0
+
 ### [2026-06-28] 단체(organization) 도메인 전체 맵 — 모델·화면·사이트·API 현황 (read-only 실측·코드0변경)
 - **분류**: architecture
 - **발견자**: planner-architect (단체 생성·관리 + 사이트 고도화 현황분석)
