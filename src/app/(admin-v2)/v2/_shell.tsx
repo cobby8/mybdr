@@ -43,16 +43,16 @@ const TARGET: Record<string, string> = {
   dash: "/v2",
   userConsole: "/v2/user-console",
   publicsite: "/v2/public-site",
-  logs: "/v2/soon?c=logs",
+  logs: "/v2/logs",
   matchConsole: "/v2/match-console",
   communityConsole: "/v2/community-console",
   courtConsole: "/v2/court-console",
   marketingConsole: "/v2/marketing-console",
   payments: "/v2/payments",
   plans: "/v2/plans",
-  notifications: "/v2/soon?c=notifications",
-  settings: "/v2/soon?c=settings",
-  mypage: "/v2/soon?c=mypage",
+  notifications: "/v2/notifications",
+  settings: "/v2/settings",
+  mypage: "/v2/mypage",
 };
 
 export function V2Shell({
@@ -85,6 +85,14 @@ export function V2Shell({
       ? "payments"
       : pathname.startsWith("/v2/plans")
       ? "plans"
+      : pathname.startsWith("/v2/logs")
+      ? "logs"
+      : pathname.startsWith("/v2/notifications")
+      ? "notifications"
+      : pathname.startsWith("/v2/settings")
+      ? "settings"
+      : pathname.startsWith("/v2/mypage")
+      ? "mypage"
       : "";
 
   const onNav = (id: string) => {
