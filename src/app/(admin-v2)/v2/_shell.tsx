@@ -30,6 +30,8 @@ const NAV: NavItem[] = [
   { id: "partnerConsole", icon: "handshake", text: "협력업체 콘솔" },
   // 뉴스 콘솔 = 알기자(BDR NEWS) 운영자 검수 콘솔(컷오버 포팅)
   { id: "newsConsole", icon: "newspaper", text: "뉴스 콘솔" },
+  // 매너 평가 콘솔 = super_admin 의 매너 신고 검토·통계 콘솔(컷오버 포팅·game-reports)
+  { id: "mannerConsole", icon: "scale", text: "매너 평가" },
   { id: "marketingConsole", icon: "megaphone", text: "마케팅 콘솔" },
   { id: "publicsite", icon: "globe", text: "공개 사이트" },
   { label: "정산·플랜" },
@@ -37,6 +39,8 @@ const NAV: NavItem[] = [
   { id: "plans", icon: "layers", text: "요금제" },
   { label: "시스템" },
   { id: "categories", icon: "layout-grid", text: "종별 관리" },
+  // 시즌 시상 콘솔 = super_admin 의 시즌 시상 입력·관리 콘솔(컷오버 포팅·season-awards)
+  { id: "seasonAwards", icon: "award", text: "시즌 시상" },
   { id: "notifications", icon: "bell", text: "알림" },
   { id: "settings", icon: "settings", text: "설정" },
   { id: "mypage", icon: "user", text: "마이페이지" },
@@ -53,10 +57,12 @@ const TARGET: Record<string, string> = {
   courtConsole: "/v2/court-console",
   partnerConsole: "/v2/partner-console",
   newsConsole: "/v2/news-console",
+  mannerConsole: "/v2/manner-console",
   marketingConsole: "/v2/marketing-console",
   payments: "/v2/payments",
   plans: "/v2/plans",
   categories: "/v2/categories",
+  seasonAwards: "/v2/season-awards",
   notifications: "/v2/notifications",
   settings: "/v2/settings",
   mypage: "/v2/mypage",
@@ -90,6 +96,8 @@ export function V2Shell({
       ? "partnerConsole"
       : pathname.startsWith("/v2/news-console")
       ? "newsConsole"
+      : pathname.startsWith("/v2/manner-console")
+      ? "mannerConsole"
       : pathname.startsWith("/v2/marketing-console")
       ? "marketingConsole"
       : pathname.startsWith("/v2/payments")
@@ -100,6 +108,8 @@ export function V2Shell({
       ? "logs"
       : pathname.startsWith("/v2/categories")
       ? "categories"
+      : pathname.startsWith("/v2/season-awards")
+      ? "seasonAwards"
       : pathname.startsWith("/v2/notifications")
       ? "notifications"
       : pathname.startsWith("/v2/settings")
