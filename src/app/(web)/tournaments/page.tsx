@@ -36,8 +36,8 @@ function PageSkeleton() {
             key={i}
             className="rounded overflow-hidden"
             style={{
-              backgroundColor: "var(--color-card)",
-              border: "1px solid var(--color-border)",
+              backgroundColor: "var(--bg-card)",
+              border: "1px solid var(--border)",
             }}
           >
             <Skeleton className="h-48 w-full" />

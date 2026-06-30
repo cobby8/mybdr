@@ -105,22 +105,22 @@ function Pagination({
       <button
         onClick={() => onPageChange(currentPage - 1)}
         disabled={currentPage === 1}
-        className="w-10 h-10 flex items-center justify-center rounded-md transition-colors disabled:opacity-30 bg-[var(--color-surface)] text-[var(--color-text-muted)]"
+        className="w-10 h-10 flex items-center justify-center rounded-md transition-colors disabled:opacity-30 bg-[var(--bg-alt)] text-[var(--ink-mute)]"
       >
         <span className="material-symbols-outlined">chevron_left</span>
       </button>
 
       {pages.map((page, idx) =>
         page === "..." ? (
-          <span key={`dots-${idx}`} className="px-2 text-[var(--color-text-disabled)]">...</span>
+          <span key={`dots-${idx}`} className="px-2 text-[var(--ink-dim)]">...</span>
         ) : (
           <button
             key={page}
             onClick={() => onPageChange(page)}
             className={`w-10 h-10 flex items-center justify-center rounded-md font-bold text-sm transition-colors ${
               page === currentPage
-                ? "bg-[var(--color-primary)] text-white"
-                : "bg-[var(--color-surface)] text-[var(--color-text-secondary)]"
+                ? "bg-[var(--primary)] text-white"
+                : "bg-[var(--bg-alt)] text-[var(--ink-soft)]"
             }`}
           >
             {page}
@@ -131,7 +131,7 @@ function Pagination({
       <button
         onClick={() => onPageChange(currentPage + 1)}
         disabled={currentPage === totalPages}
-        className="w-10 h-10 flex items-center justify-center rounded-md transition-colors disabled:opacity-30 bg-[var(--color-surface)] text-[var(--color-text-muted)]"
+        className="w-10 h-10 flex items-center justify-center rounded-md transition-colors disabled:opacity-30 bg-[var(--bg-alt)] text-[var(--ink-mute)]"
       >
         <span className="material-symbols-outlined">chevron_right</span>
       </button>

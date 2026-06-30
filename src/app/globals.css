@@ -7365,4 +7365,54 @@ html.dark [data-pub] .bdr-dsnav__ava { border-radius:9px; }
   [data-pub] .bdr-dsnav.is-navdrag .bdr-dsnav__bd { transition:none !important; }
 }
 /* END DualSideNav Shell CSS ================================== */
+
+/* ============================================================
+   Home Page Layout — PUB-1 (2026-06-30)
+   home__split / home__bento / home__aside / home__notice-pop
+   시안: Dev/design/BDR-current/screens/Home.jsx L108~163
+   [data-pub] 스코프 격리 — 다른 도메인 영향 0
+   ============================================================ */
+[data-pub] .home__bento {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
+  gap: 14px;
+  margin-bottom: 20px;
+}
+[data-pub] .home__bento-main {
+  min-height: 220px;
+  display: flex;
+  flex-direction: column;
+}
+[data-pub] .home__bento-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 220px;
+}
+[data-pub] .home__notice-pop {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+  margin-bottom: 20px;
+}
+[data-pub] .home__split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: 24px;
+  margin-top: 32px;
+}
+[data-pub] .home__aside {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  align-self: start;
+}
+@media (max-width: 900px) {
+  [data-pub] .home__split { grid-template-columns: 1fr; }
+  [data-pub] .home__bento { grid-template-columns: 1fr; }
+}
+@media (max-width: 720px) {
+  [data-pub] .home h1 { font-size: 22px !important; white-space: normal !important; }
+  [data-pub] .home__notice-pop { grid-template-columns: 1fr; }
+}
+/* END Home Page Layout ======================================= */
 /* END PUB SCOPE ============================================== */
