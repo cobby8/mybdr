@@ -24,7 +24,7 @@
 
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useToast } from "@/contexts/toast-context";
 import type { FinalScore } from "@/lib/score-sheet/running-score-types";
@@ -61,6 +61,7 @@ interface MatchEndButtonProps {
   //   undefined / false = 운영 매치 흐름 (기존 동작 100% 보존).
   isPractice?: boolean;
   requiredSignatures?: RequiredSignatureInput[];
+  reviewContent?: ReactNode;
 }
 
 export function MatchEndButton({
@@ -76,6 +77,7 @@ export function MatchEndButton({
   onSubmittedChange,
   isPractice = false,
   requiredSignatures = [],
+  reviewContent,
 }: MatchEndButtonProps) {
   // controlled vs uncontrolled 결정:
   //   controlledOpen !== undefined = 외부 제어 (toolbar 가 setMatchEndOpen 호출) → useState 무시
@@ -266,10 +268,12 @@ export function MatchEndButton({
           aria-labelledby="match-end-modal-title"
         >
           <div
-            className="w-full max-w-md rounded-[4px] p-4"
+            className="w-full max-w-5xl rounded-[4px] p-4"
             style={{
               backgroundColor: "var(--color-background)",
               border: "1px solid var(--color-border)",
+              maxHeight: "92vh",
+              overflowY: "auto",
             }}
             onClick={(e) => e.stopPropagation()}
           >
@@ -336,6 +340,7 @@ export function MatchEndButton({
               >
                 Winner: {winnerLabel}
               </div>
+              {reviewContent && <div className="mt-3">{reviewContent}</div>}
             </div>
 
             {/* ⚠️ 안내 */}

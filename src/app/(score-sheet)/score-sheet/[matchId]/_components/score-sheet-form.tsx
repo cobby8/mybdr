@@ -1671,6 +1671,9 @@ export function ScoreSheetForm({
   //   submit 흐름은 MatchEndButton 와 동일 path 사용 (단일 source) — fetch 직접 호출.
   async function handleEndMatchFromQuarterEnd() {
     if (isReadOnly) return; // Phase 23 PR-EDIT3 (PR-D-3 isReadOnly 통일 / quarter-end modal 진입점)
+    setQuarterEndModal(null);
+    setMatchEndOpen(true);
+    return;
     if (missingRequiredSignatures.length > 0) {
       showToast(
         `경기 종료 전 필수 서명을 입력해 주세요: ${missingRequiredSignatures.join(", ")}`,
@@ -1706,9 +1709,8 @@ export function ScoreSheetForm({
       showToast("매치 종료 완료 — 라이브 페이지에 발행됩니다.", "success");
       setQuarterEndModal(null);
       // 클라이언트 측 currentPeriod 는 진행 X (status=completed 박제됨)
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      showToast(`제출 실패: ${msg}`, "error");
+    } catch {
+      showToast("제출 실패", "error");
     }
   }
 
@@ -2646,7 +2648,7 @@ export function ScoreSheetForm({
       <div className="score-sheet-fiba-frame w-full">
         {/* 헤더 영역 (~10% / 110px) — 4 줄 컴팩트 inline 라벨.
             2026-05-16 (PR-Layout-Unify) — fiba-divider-bottom (1px) → inline 2px 박제. 영역 구분 두께 통일. */}
-        <div style={{ borderBottom: "2px solid #1A1E27" }}>
+        <div style={{ display: "none" }} aria-hidden="true">
           <FibaHeader
             teamAName={homeRoster.teamName}
             teamBName={awayRoster.teamName}
@@ -2749,6 +2751,8 @@ export function ScoreSheetForm({
             <div
               className="score-sheet-v2-center-bottom"
               data-ss-area="period-score"
+              style={{ display: "none" }}
+              aria-hidden="true"
             >
               <PeriodScoresSection
                 state={runningScore}
@@ -2814,7 +2818,12 @@ export function ScoreSheetForm({
           </div>
         </div>
 
-        <div className="score-sheet-v2-signatures" data-ss-area="signatures">
+        <div
+          className="score-sheet-v2-signatures"
+          data-ss-area="signatures"
+          style={{ display: "none" }}
+          aria-hidden="true"
+        >
           <FooterSignatures
             values={signatures}
             onChange={setSignatures}
@@ -2851,6 +2860,35 @@ export function ScoreSheetForm({
         onOpenChange={setMatchEndOpen}
         hideTriggerButton
         requiredSignatures={requiredSignatures}
+        reviewContent={
+          <div className="score-sheet-end-review">
+            <div className="score-sheet-end-review__periods">
+              <PeriodScoresSection
+                state={runningScore}
+                homeTeamName={homeFilteredRoster.teamName}
+                awayTeamName={awayFilteredRoster.teamName}
+                onAdvancePeriod={handleAdvancePeriod}
+                onRetreatPeriod={handleRetreatPeriod}
+                onEndPeriod={handleEndPeriod}
+                disabled
+                frameless
+                matchEnded
+                periodFormat={periodFormat}
+              />
+            </div>
+            <div className="score-sheet-end-review__signatures">
+              <FooterSignatures
+                values={signatures}
+                onChange={setSignatures}
+                headerReferee={header.referee}
+                headerUmpire1={header.umpire1}
+                headerUmpire2={header.umpire2}
+                readOnly={isReadOnly}
+                frameless
+              />
+            </div>
+          </div>
+        }
         // 2026-05-17 연습 모드 (사용자 결재 옵션 E) — BFF submit skip + practice toast.
         //   MatchEndButton 내부에서 isPractice=true 면 fetch 호출 0 / "연습 모드 — 저장되지 않음" toast.
         isPractice={isPractice}

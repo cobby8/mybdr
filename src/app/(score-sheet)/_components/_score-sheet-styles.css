@@ -1266,10 +1266,21 @@
   color-scheme: light;
   background-color: #FFFFFF;
   color: #000000;
+  min-height: 100dvh;
+  height: 100dvh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 .score-sheet-print-root .score-sheet-fiba-frame {
   background-color: #FFFFFF;
   max-width: min(100%, 1440px);
+  width: 100%;
+  flex: 1 1 auto;
+  height: auto;
+  min-height: 0;
+  margin: 0 auto;
+  overflow: hidden;
 }
 
 .score-sheet-print-root .score-sheet-fiba-frame .ss-header {
@@ -1278,6 +1289,22 @@
 
 .score-sheet-print-root .ss-shell .ss-toolbar {
   max-width: min(100%, 1440px);
+}
+
+.score-sheet-print-root .ss-toolbar__print .material-symbols-outlined,
+.score-sheet-print-root .ss-toolbar__finish .material-symbols-outlined,
+.score-sheet-print-root > .no-print:not(.ss-shell) .material-symbols-outlined {
+  display: none;
+}
+
+.score-sheet-print-root .ss-toolbar__back .material-symbols-outlined {
+  display: none;
+}
+
+.score-sheet-print-root .ss-toolbar__back::before {
+  content: "\2190";
+  font: 700 22px/1 var(--ff-body, "Pretendard", system-ui, sans-serif);
+  color: #1A1E27;
 }
 
 /* ============================================================
@@ -1293,12 +1320,14 @@
 .score-sheet-print-root .score-sheet-v2-grid {
   display: grid;
   grid-template-columns:
-    minmax(260px, 0.95fr)
-    minmax(360px, 1.2fr)
-    minmax(260px, 0.95fr);
+    minmax(360px, 1fr)
+    minmax(118px, 140px)
+    minmax(360px, 1fr);
   gap: 2px;
   background-color: #1A1E27;
   border-top: 2px solid #1A1E27;
+  height: 100%;
+  min-height: 0;
 }
 
 .score-sheet-print-root .score-sheet-v2-panel,
@@ -1311,11 +1340,15 @@
 .score-sheet-print-root .score-sheet-v2-panel {
   display: flex;
   flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .score-sheet-print-root .score-sheet-v2-center {
-  display: grid;
-  grid-template-rows: minmax(0, 1fr) auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .score-sheet-print-root .score-sheet-v2-center-bottom {
@@ -1326,22 +1359,131 @@
   border-top: 2px solid #1A1E27;
 }
 
-@media (max-width: 900px) {
+@media (max-width: 1180px) and (min-width: 901px) {
   .score-sheet-print-root .score-sheet-v2-grid {
-    grid-template-columns: minmax(280px, 1fr) minmax(360px, 1.1fr);
+    grid-template-columns:
+      minmax(380px, 1fr)
+      minmax(112px, 126px)
+      minmax(380px, 1fr);
   }
 
-  .score-sheet-print-root [data-ss-area="away-roster"] {
-    grid-column: 1 / -1;
+  .score-sheet-print-root .score-sheet-v2-panel .ss-tbox__plyhead,
+  .score-sheet-print-root .score-sheet-v2-panel .ss-tbox__plyrow {
+    grid-template-columns:
+      28px minmax(70px, 1fr) 20px 24px
+      18px 18px 18px 18px 18px 18px
+      14px 14px 14px 14px 14px;
+  }
+
+  .score-sheet-print-root .score-sheet-v2-panel .ss-tbox__plyhead > div {
+    font-size: 8.5px;
+  }
+
+  .score-sheet-print-root .score-sheet-v2-panel .ss-tbox__plyrow > * {
+    padding-left: 2px;
+    padding-right: 2px;
+  }
+}
+
+@media (max-width: 900px) {
+  .score-sheet-print-root .score-sheet-v2-grid {
+    grid-template-columns:
+      minmax(290px, 1fr)
+      minmax(104px, 116px)
+      minmax(290px, 1fr);
   }
 }
 
 @media (max-width: 720px) {
   .score-sheet-print-root .score-sheet-v2-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns:
+      minmax(230px, 1fr)
+      minmax(96px, 104px)
+      minmax(230px, 1fr);
   }
+}
 
-  .score-sheet-print-root [data-ss-area="away-roster"] {
-    grid-column: auto;
+.score-sheet-print-root .score-sheet-v2-center .ss-rs {
+  height: 100%;
+  min-height: 0;
+}
+
+.score-sheet-print-root .score-sheet-v2-center .ss-rs__title {
+  min-height: 52px;
+  padding: 4px;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: center;
+  gap: 3px;
+}
+
+.score-sheet-print-root .score-sheet-v2-center .ss-rs__title > div:first-child {
+  font-size: 13px;
+  line-height: 1;
+  text-align: center;
+}
+
+.score-sheet-print-root .score-sheet-v2-center .ss-rs__title .ml-auto {
+  margin-left: 0;
+  justify-content: center;
+  gap: 3px;
+}
+
+.score-sheet-print-root .score-sheet-v2-center .ss-rs__title button {
+  min-width: 42px;
+  padding: 1px 5px;
+  font-size: 10px;
+  line-height: 1.15;
+  white-space: nowrap;
+}
+
+.score-sheet-print-root .score-sheet-v2-center .ss-rs__scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.score-sheet-print-root
+  .score-sheet-v2-center
+  .ss-rs__grid[data-score-layout="single-column"] {
+  grid-template-columns:
+    minmax(24px, 0.8fr)
+    minmax(30px, 1fr)
+    minmax(30px, 1fr)
+    minmax(24px, 0.8fr);
+  grid-auto-rows: auto;
+}
+
+.score-sheet-print-root
+  .score-sheet-v2-center
+  .ss-rs__grid[data-score-layout="single-column"]
+  .ss-rs__cell:nth-last-child(-n+16) {
+  border-bottom: 1px solid var(--pap-line);
+}
+
+.score-sheet-print-root
+  .score-sheet-v2-center
+  .ss-rs__grid[data-score-layout="single-column"]
+  .ss-rs__cell:nth-last-child(-n+4) {
+  border-bottom: 0;
+}
+
+.score-sheet-end-review {
+  display: grid;
+  grid-template-columns: minmax(320px, 0.9fr) minmax(420px, 1.1fr);
+  gap: 10px;
+  align-items: start;
+}
+
+.score-sheet-end-review .ss-ps-section,
+.score-sheet-end-review .ss-footer-sigs {
+  border: 1.5px solid var(--pap-line) !important;
+  background: var(--pap-bg);
+}
+
+@media (max-width: 820px) {
+  .score-sheet-end-review {
+    grid-template-columns: 1fr;
   }
 }

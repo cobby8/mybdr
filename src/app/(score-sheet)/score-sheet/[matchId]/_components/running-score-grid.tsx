@@ -89,9 +89,9 @@ interface RunningScoreGridProps {
 
 // 2026-05-15 — FIBA 양식: 4 세트 × 30 row = 120점 (사용자 요청, 40×4=160 → 30×4=120).
 //   각 컬럼 row 수 감소 + cell flex stretch 로 좌측 Team A+B 와 정합.
-const SETS = 4;
-const ROWS_PER_SET = 30;
-const MAX_POSITION = SETS * ROWS_PER_SET; // 120
+const SETS = 1;
+const ROWS_PER_SET = 120;
+const MAX_POSITION = ROWS_PER_SET;
 // Phase 18 (2026-05-13) — 한 세트 = 4 sub-column (마킹A | 점수A | 점수B | 마킹B)
 const SUB_COLS_PER_SET = 4;
 
@@ -261,7 +261,7 @@ export function RunningScoreGrid({
               aria-label="이전 쿼터로 되돌리기"
               title="이전 쿼터로 되돌리기 (잘못 기록한 경우)"
             >
-              이전 쿼터
+              이전
             </button>
           )}
           {onEndPeriod && (
@@ -280,7 +280,7 @@ export function RunningScoreGrid({
               aria-label="다음 쿼터로 이동"
               title="다음 쿼터로 이동"
             >
-              다음 쿼터
+              다음
             </button>
           )}
         </div>
@@ -309,33 +309,36 @@ export function RunningScoreGrid({
       {/* Phase 18 (2026-05-13) — 4 세트 × 4 sub-column = 16 컬럼 가로 배치.
           사용자 결재 §1 / 이미지 43-44 / FIBA PDF 정합.
           한 세트 = 마킹A | 점수A | 점수B | 마킹B (양팀 점수 가운데 모음). */}
-      <div
-        className="grid"
-        style={{
-          gridTemplateColumns: `repeat(${SETS * SUB_COLS_PER_SET}, minmax(0, 1fr))`,
-        }}
-      >
-        {Array.from({ length: SETS }).map((_, setIdx) => {
-          const offset = setIdx * ROWS_PER_SET;
-          // 마지막 세트만 우측 border 제거 (외곽 박스 = wrapper)
-          const isLastSet = setIdx === SETS - 1;
-          return (
-            <SetColumns
-              key={setIdx}
-              offset={offset}
-              rowIndexes={rowIndexes}
-              homeMarkMap={homeMarkMap}
-              awayMarkMap={awayMarkMap}
-              homeLastPos={homeLastPos}
-              awayLastPos={awayLastPos}
-              homePeriodEnds={homePeriodEnds}
-              awayPeriodEnds={awayPeriodEnds}
-              jerseyMap={jerseyMap}
-              onCellClick={handleCellClick}
-              isLastSet={isLastSet}
-            />
-          );
-        })}
+      <div className="ss-rs__scroll">
+        <div
+          className="ss-rs__grid"
+          data-score-layout="single-column"
+          style={{
+            gridTemplateColumns: `repeat(${SETS * SUB_COLS_PER_SET}, minmax(0, 1fr))`,
+          }}
+        >
+          {Array.from({ length: SETS }).map((_, setIdx) => {
+            const offset = setIdx * ROWS_PER_SET;
+            // 단일 세로 세트라 마지막 세트 테두리만 제거한다.
+            const isLastSet = setIdx === SETS - 1;
+            return (
+              <SetColumns
+                key={setIdx}
+                offset={offset}
+                rowIndexes={rowIndexes}
+                homeMarkMap={homeMarkMap}
+                awayMarkMap={awayMarkMap}
+                homeLastPos={homeLastPos}
+                awayLastPos={awayLastPos}
+                homePeriodEnds={homePeriodEnds}
+                awayPeriodEnds={awayPeriodEnds}
+                jerseyMap={jerseyMap}
+                onCellClick={handleCellClick}
+                isLastSet={isLastSet}
+              />
+            );
+          })}
+        </div>
       </div>
 
       {/* 모달 — Phase 2 핵심 UX */}
