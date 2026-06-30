@@ -28,6 +28,8 @@ const NAV: NavItem[] = [
   { href: "/v2/soon?c=referee", icon: "gavel", text: "심판 콘솔" },
   // 협력업체 콘솔 = super_admin 의 파트너사 승인·관리 콘솔(컷오버 포팅·soon 해제)
   { id: "partnerConsole", icon: "handshake", text: "협력업체 콘솔" },
+  // 뉴스 콘솔 = 알기자(BDR NEWS) 운영자 검수 콘솔(컷오버 포팅)
+  { id: "newsConsole", icon: "newspaper", text: "뉴스 콘솔" },
   { id: "marketingConsole", icon: "megaphone", text: "마케팅 콘솔" },
   { id: "publicsite", icon: "globe", text: "공개 사이트" },
   { label: "정산·플랜" },
@@ -50,6 +52,7 @@ const TARGET: Record<string, string> = {
   communityConsole: "/v2/community-console",
   courtConsole: "/v2/court-console",
   partnerConsole: "/v2/partner-console",
+  newsConsole: "/v2/news-console",
   marketingConsole: "/v2/marketing-console",
   payments: "/v2/payments",
   plans: "/v2/plans",
@@ -85,6 +88,8 @@ export function V2Shell({
       ? "courtConsole"
       : pathname.startsWith("/v2/partner-console")
       ? "partnerConsole"
+      : pathname.startsWith("/v2/news-console")
+      ? "newsConsole"
       : pathname.startsWith("/v2/marketing-console")
       ? "marketingConsole"
       : pathname.startsWith("/v2/payments")
