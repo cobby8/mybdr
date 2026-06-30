@@ -10,6 +10,7 @@
 - **적용 범위 경계**: 본 면제·색상은 **공개웹 `(web)` = PUB 도메인 한정**. admin-v2(Toss 시스템·`/v2`)와 별개이며, 기존 13룰 A frozen 규격은 `_archive/...pre-PUB-v1.0/`에 보존(레거시 참조용).
 - **대안 기각**: AppNav 유지(시안 전체가 사이드네비 기반이라 콘텐츠만 부분 차용 시 리뉴얼 효과 소멸·시안 대량 개조) / 라이트 BDR레드 통일(시안 토스블루 전면 치환 작업·디자이너 의도 훼손).
 - **후속**: claude-project-knowledge 13룰(특히 03-appnav-frozen·00-master-guide A섹션·02 토큰)을 PUB 도메인 기준으로 갱신(PUB-0b 셸 박제와 병행). more-groups.ts 재설계. PUB-1 박제는 본 결재 이후 착수.
+- **0b 추가 결재(2026-06-30)**: R1 토큰 적용=**스코프 격리(`.pub`/`[data-pub]`)** — 공개웹 셸 스코프 안에서만 DS v4 토큰 오버라이드, 레거시(심판/기록지/토너먼트 공개사이트 site-host/admin레거시) 색·라운딩 보호(globals `:root` 전역값 미변경). R4 모바일=**BottomNav 제거**(DualSideNav 좌측 드래그 핸들 대체·localStorage 5슬롯 커스텀 상실 수용). 박제 PR 4분할 직렬: PR1 토큰→PR2 셸→PR3 IA배선→PR4 반응형/정리. 설계=`Dev/design/prompts/_pub-0b-shell-design.md`.
 - **참조횟수**: 0
 
 ### [2026-06-29] 후원사 sponsors varchar→jsonb 마이그레이션 실행 (운영 DB·무손실)
