@@ -27,7 +27,8 @@ import React from "react";
 import { useRouter } from "next/navigation";
 import { Btn, Badge, Modal, Icon } from "@/components/admin-v2";
 import { adminFetch, AdminApiError } from "@/lib/admin-v2/data/client";
-import { assignRoleLabel, assignStatusBadge, fmtDateTime } from "../_referee-data";
+// ★순수 포맷 헬퍼는 _referee-format(server import 무유입)에서 가져온다 — RSC 경계 위반 방지.
+import { assignRoleLabel, assignStatusBadge, fmtDateTime } from "../_referee-format";
 
 // ── 타입(adminFetch 응답 = snake→camel 변환 후) ──
 type Tournament = {
