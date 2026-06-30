@@ -1,16 +1,36 @@
 "use client";
 
 /**
- * BasketballStep — 5/7 PR2.b 클라이언트 폼
+ * BasketballStep — 5/7 PR2.b + PUB-1-7 시각 갭 교체
  *
- * 이유: 농구 정보 단독 폼. 포지션 5종 + 신장 + 5단계 실력 + 선출(선택).
- *   ⚠️ 등번호는 본 단계에서 제외 (사용자 룰 5/5 PR1) — 팀 가입 시 별도 신청.
+ * 이유(왜):
+ *   Phase 7C-4 박제: PG/SG/SF/PF/C chip 버튼 + 신장 number input + 실력 chip.
+ *   BDR-current 시안(OnboardingBasketball.jsx): 포지션을 카드 스타일(아이콘+설명)로 표현.
+ *   갭: 포지션 UI가 chip→card 미전환.
+ *   제약: 데이터 필드(position=PG|SG|…/height/skill_level/is_elite) 완전 보존.
+ *     DB 미지원 필드(hand/career/years) 추가 금지.
+ *
+ * 어떻게:
+ *   - POSITIONS: 기존 값(PG/SG/SF/PF/C) 유지 + 카드용 label/desc 추가 (표시용)
+ *   - 카드 클릭 → setPosition(p.value) — 기존 submit body의 position 값 동일
+ *   - 신장/실력/선출 섹션: 기존 로직 100% 보존, 마이너 스타일 개선만
+ *   - submit body: 완전 동일 (position, height, skill_level, is_elite)
+ *
+ * lock: PATCH /api/web/profile body 0 변경. router.push("/onboarding/preferences") 0 변경.
  */
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
-const POSITIONS = ["PG", "SG", "SF", "PF", "C"] as const;
+// 기존 값 보존 + 카드 표시용 label/desc 추가
+const POSITIONS = [
+  { value: "PG", label: "포인트가드", desc: "볼 핸들링·패스·리딩" },
+  { value: "SG", label: "슈팅가드",   desc: "3점·드리블·슈팅" },
+  { value: "SF", label: "스몰포워드", desc: "다재다능·득점" },
+  { value: "PF", label: "파워포워드", desc: "리바운드·포스트업" },
+  { value: "C",  label: "센터",       desc: "내곽·블락·리바운드" },
+] as const;
+
 const SKILL_LEVELS = ["초보", "초중급", "중급", "중상급", "상급"] as const;
 
 type Props = {
@@ -99,34 +119,42 @@ export function BasketballStep({
         💡 등번호는 가입한 팀에서 별도로 신청합니다 — 팀장 승인 후 부여
       </div>
 
-      {/* 포지션 */}
+      {/* 포지션 — chip→card 전환 (시안 OnboardingBasketball.jsx 카드 스타일 박제) */}
       <section style={{ marginBottom: 20 }}>
         <h3
           style={{
             fontSize: 14,
             fontWeight: 700,
-            marginBottom: 8,
+            marginBottom: 10,
             color: "var(--ink)",
           }}
         >
           포지션 <span style={{ color: "var(--accent)" }}>*</span>
         </h3>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+        {/* ob2-pos-grid: onboarding.css 2열 카드 그리드 (C는 단독 중앙) */}
+        <div className="ob2-pos-grid">
           {POSITIONS.map((p) => (
             <button
-              key={p}
+              key={p.value}
               type="button"
-              onClick={() => setPosition(p)}
-              className={`chip ${position === p ? "chip--active" : ""}`}
+              onClick={() => setPosition(p.value)}
               disabled={submitting}
+              className={`ob2-pos-card${position === p.value ? " ob2-pos-card--active" : ""}`}
             >
-              {p}
+              {/* 약어 박스 — 44×44 정사각형 (룰 §C 10) */}
+              <span className="ob2-pos-card__abbr" aria-hidden="true">
+                {p.value}
+              </span>
+              <span>
+                <div className="ob2-pos-card__label">{p.label}</div>
+                <div className="ob2-pos-card__desc">{p.desc}</div>
+              </span>
             </button>
           ))}
         </div>
       </section>
 
-      {/* 신장 */}
+      {/* 신장 — number input 그대로 (데이터 보존) */}
       <section style={{ marginBottom: 20 }}>
         <h3
           style={{
@@ -161,7 +189,7 @@ export function BasketballStep({
         />
       </section>
 
-      {/* 실력 5단계 */}
+      {/* 실력 5단계 — chip 유지 (데이터 보존) */}
       <section style={{ marginBottom: 20 }}>
         <h3
           style={{

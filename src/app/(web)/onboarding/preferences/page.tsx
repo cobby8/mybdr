@@ -84,7 +84,7 @@ export default async function OnboardingPreferencesPage() {
       <OnboardingStepper current={3} />
 
       <header style={{ marginBottom: 24, textAlign: "center" }}>
-        <h1 style={{ fontSize: 24, fontWeight: 800, marginBottom: 8, color: "var(--ink)" }}>
+        <h1 style={{ fontSize: 24, fontWeight: 800, marginBottom: 8, color: "var(--ink)", fontFamily: "var(--ff-display)", letterSpacing: "-0.015em" }}>
           맞춤 설정
         </h1>
         <p style={{ fontSize: 14, color: "var(--ink-mute)", lineHeight: 1.6 }}>
