@@ -20,19 +20,12 @@
  *  - snake_case 접근자 유지(my_teams/div_caps/division_counts/user_info/is_registration_open).
  *  - 본인인증 사전 redirect + 주장 가드는 기존 그대로 보존.
  *  - Toss 스킨은 .te-enroll[data-skin="toss"] 루트 스코프로 격리(_v2/tournament-enroll.css).
- *    아이콘 = lucide-react 직접 import(CDN/window.lucide 금지).
+ *    아이콘 = Material Symbols Outlined (lucide-react 금지 — BDR 룰11).
  */
 
 import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import useSWR from "swr";
-import {
-  Shield,
-  CheckCircle2,
-  Check,
-  Users,
-  AlertTriangle,
-} from "lucide-react";
 
 import { EnrollStepper, type StepDef } from "./_v2/enroll-stepper";
 import { EnrollSuccessHero } from "./_v2/enroll-success-hero";
@@ -573,14 +566,18 @@ export default function TournamentJoinPage() {
                             flex: "0 0 auto",
                           }}
                         >
-                          <Shield
-                            size={22}
-                            color={
-                              team.primary_color === "#FFFFFF"
-                                ? "var(--ink-dim)"
-                                : "#fff"
-                            }
-                          />
+                          <span
+                            className="material-symbols-outlined"
+                            style={{
+                              fontSize: 22,
+                              color:
+                                team.primary_color === "#FFFFFF"
+                                  ? "var(--ink-dim)"
+                                  : "#fff",
+                            }}
+                          >
+                            shield
+                          </span>
                         </span>
                         <span style={{ flex: 1, minWidth: 0 }}>
                           <span
@@ -606,7 +603,12 @@ export default function TournamentJoinPage() {
                           </span>
                         </span>
                         {isSelected && (
-                          <CheckCircle2 size={22} color="var(--primary)" />
+                          <span
+                            className="material-symbols-outlined"
+                            style={{ fontSize: 22, color: "var(--primary)" }}
+                          >
+                            check_circle
+                          </span>
                         )}
                       </button>
                     );
@@ -929,7 +931,14 @@ export default function TournamentJoinPage() {
                       >
                         {/* 체크 */}
                         <span className="ts-check" data-on={on ? "true" : "false"}>
-                          {on && <Check size={15} />}
+                          {on && (
+                            <span
+                              className="material-symbols-outlined"
+                              style={{ fontSize: 15 }}
+                            >
+                              check
+                            </span>
+                          )}
                         </span>
                         {/* 등번호 */}
                         <span
@@ -1016,7 +1025,7 @@ export default function TournamentJoinPage() {
                   className="ts-btn ts-btn--secondary ts-btn--block"
                   style={{ marginTop: 10 }}
                 >
-                  <Users size={16} /> 게스트 선수 추가
+                  <span className="material-symbols-outlined" style={{ fontSize: 16 }}>group</span> 게스트 선수 추가
                 </button>
               )}
 
@@ -1081,7 +1090,7 @@ export default function TournamentJoinPage() {
                     alignItems: "center",
                   }}
                 >
-                  <AlertTriangle size={15} />
+                  <span className="material-symbols-outlined" style={{ fontSize: 15 }}>warning</span>
                   최소 {tournament.roster_min ?? 5}명을 선택해야 접수가
                   가능합니다.
                 </div>

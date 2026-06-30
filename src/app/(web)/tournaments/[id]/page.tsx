@@ -582,12 +582,12 @@ export default async function TournamentDetailPage({
               tournament.rules ? (
                 <div
                   className="rounded-md border p-6"
-                  style={{ borderColor: "var(--color-border)", backgroundColor: "var(--color-card)" }}
+                  style={{ borderColor: "var(--border)", backgroundColor: "var(--bg-card)" }}
                 >
                   <h2 className="mb-4 text-lg font-bold sm:text-xl">경기 규정</h2>
                   <div
                     className="text-sm leading-relaxed whitespace-pre-line"
-                    style={{ color: "var(--color-text-secondary)" }}
+                    style={{ color: "var(--ink-soft)" }}
                   >
                     {tournament.rules}
                   </div>
@@ -595,9 +595,9 @@ export default async function TournamentDetailPage({
               ) : (
                 <div
                   className="rounded-md border p-8 text-center"
-                  style={{ borderColor: "var(--color-border)", backgroundColor: "var(--color-card)" }}
+                  style={{ borderColor: "var(--border)", backgroundColor: "var(--bg-card)" }}
                 >
-                  <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>
+                  <p className="text-sm" style={{ color: "var(--ink-mute)" }}>
                     경기 규정이 공개되지 않았습니다.
                   </p>
                 </div>
@@ -716,20 +716,20 @@ export default async function TournamentDetailPage({
       {(tournament.city || tournament.venue_name) && (
         <div
           className="mt-6 rounded-md border p-4"
-          style={{ borderColor: "var(--color-border)", backgroundColor: "var(--color-card)" }}
+          style={{ borderColor: "var(--border)", backgroundColor: "var(--bg-card)" }}
         >
           <div className="flex items-center gap-3">
             {/* 장소 아이콘 */}
             <div
               className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg"
-              style={{ backgroundColor: "var(--color-surface)" }}
+              style={{ backgroundColor: "var(--bg-alt)" }}
             >
-              <span className="material-symbols-outlined text-xl" style={{ color: "var(--color-info)" }}>location_on</span>
+              <span className="material-symbols-outlined text-xl" style={{ color: "var(--info)" }}>location_on</span>
             </div>
             {/* 장소 정보 */}
             <div>
-              <p className="text-xs font-medium" style={{ color: "var(--color-text-tertiary)" }}>대회 장소</p>
-              <p className="text-sm font-bold" style={{ color: "var(--color-text-primary)" }}>
+              <p className="text-xs font-medium" style={{ color: "var(--ink-dim)" }}>대회 장소</p>
+              <p className="text-sm font-bold" style={{ color: "var(--ink)" }}>
                 {[tournament.venue_name, tournament.city].filter(Boolean).join(", ")}
               </p>
             </div>
@@ -741,24 +741,24 @@ export default async function TournamentDetailPage({
       {tournament.bank_name && tournament.bank_account && (
         <div
           className="mt-6 rounded-md border p-6"
-          style={{ borderColor: "var(--color-border)", backgroundColor: "var(--color-elevated)" }}
+          style={{ borderColor: "var(--border)", backgroundColor: "var(--bg-elev)" }}
         >
           <h3 className="mb-4 flex items-center gap-2 text-lg font-bold">
-            <span className="material-symbols-outlined text-lg" style={{ color: "var(--color-primary)" }}>account_balance</span>
+            <span className="material-symbols-outlined text-lg" style={{ color: "var(--primary)" }}>account_balance</span>
             입금 정보
           </h3>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <div>
-              <p className="text-xs" style={{ color: "var(--color-text-tertiary)" }}>은행</p>
+              <p className="text-xs" style={{ color: "var(--ink-dim)" }}>은행</p>
               <p className="text-sm font-medium">{tournament.bank_name}</p>
             </div>
             <div>
-              <p className="text-xs" style={{ color: "var(--color-text-tertiary)" }}>계좌번호</p>
+              <p className="text-xs" style={{ color: "var(--ink-dim)" }}>계좌번호</p>
               <p className="text-sm font-medium">{tournament.bank_account}</p>
             </div>
             {tournament.bank_holder && (
               <div>
-                <p className="text-xs" style={{ color: "var(--color-text-tertiary)" }}>예금주</p>
+                <p className="text-xs" style={{ color: "var(--ink-dim)" }}>예금주</p>
                 <p className="text-sm font-medium">{tournament.bank_holder}</p>
               </div>
             )}
@@ -770,10 +770,10 @@ export default async function TournamentDetailPage({
       {divisions.length > 0 && (
         <div
           className="mt-6 rounded-md border p-6"
-          style={{ borderColor: "var(--color-border)", backgroundColor: "var(--color-card)" }}
+          style={{ borderColor: "var(--border)", backgroundColor: "var(--bg-card)" }}
         >
           <h3 className="mb-4 flex items-center gap-2 text-lg font-bold">
-            <span className="h-6 w-1.5 flex-shrink-0 rounded-full" style={{ backgroundColor: "var(--color-primary)" }} />
+            <span className="h-6 w-1.5 flex-shrink-0 rounded-full" style={{ backgroundColor: "var(--primary)" }} />
             디비전별 현황
           </h3>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -782,15 +782,15 @@ export default async function TournamentDetailPage({
               const isFull = remaining !== null && remaining <= 0;
               const progressPct = div.cap ? Math.min((div.count / div.cap) * 100, 100) : null;
               return (
-                <div key={`${div.category}-${div.division}`} className="rounded-lg border p-3" style={{ borderColor: "var(--color-border)" }}>
+                <div key={`${div.category}-${div.division}`} className="rounded-lg border p-3" style={{ borderColor: "var(--border)" }}>
                   <div className="mb-2 flex items-center justify-between">
                     <div>
-                      <span className="text-sm font-medium" style={{ color: "var(--color-text-secondary)" }}>{div.category}</span>
-                      <p className="text-lg font-bold" style={{ color: "var(--color-primary)" }}>{div.division}</p>
+                      <span className="text-sm font-medium" style={{ color: "var(--ink-soft)" }}>{div.category}</span>
+                      <p className="text-lg font-bold" style={{ color: "var(--primary)" }}>{div.division}</p>
                     </div>
                     <div className="text-right">
                       {div.cap && (
-                        <span className="text-xs" style={{ color: "var(--color-text-secondary)" }}>{div.count}/{div.cap}팀</span>
+                        <span className="text-xs" style={{ color: "var(--ink-soft)" }}>{div.count}/{div.cap}팀</span>
                       )}
                       {isFull && (
                         <Badge variant={tournament.allow_waiting_list ? "warning" : "error"}>
@@ -800,12 +800,12 @@ export default async function TournamentDetailPage({
                     </div>
                   </div>
                   {progressPct !== null && (
-                    <div className="h-1.5 overflow-hidden rounded-full" style={{ backgroundColor: "var(--color-surface)" }}>
-                      <div className="h-full rounded-full transition-all" style={{ width: `${progressPct}%`, backgroundColor: isFull ? "var(--color-error)" : "var(--color-primary)" }} />
+                    <div className="h-1.5 overflow-hidden rounded-full" style={{ backgroundColor: "var(--bg-alt)" }}>
+                      <div className="h-full rounded-full transition-all" style={{ width: `${progressPct}%`, backgroundColor: isFull ? "var(--err)" : "var(--primary)" }} />
                     </div>
                   )}
                   {false && div.fee !== null && div.fee > 0 && (
-                    <p className="mt-1.5 text-xs" style={{ color: "var(--color-text-secondary)" }}>{div.fee.toLocaleString()}원</p>
+                    <p className="mt-1.5 text-xs" style={{ color: "var(--ink-soft)" }}>{div.fee.toLocaleString()}원</p>
                   )}
                 </div>
               );
@@ -840,14 +840,14 @@ export default async function TournamentDetailPage({
         <div
           className="rounded-md border p-6"
           style={{
-            borderColor: "var(--color-border)",
-            backgroundColor: "var(--color-card)",
+            borderColor: "var(--border)",
+            backgroundColor: "var(--bg-card)",
           }}
         >
           <h3 className="mb-3 text-base font-bold sm:text-lg">추가 안내</h3>
           <div
             className="text-sm leading-relaxed whitespace-pre-line"
-            style={{ color: "var(--color-text-secondary)" }}
+            style={{ color: "var(--ink-soft)" }}
           >
             {tournament.rules}
           </div>
@@ -857,13 +857,13 @@ export default async function TournamentDetailPage({
   ) : tournament.rules ? (
     <div
       className="rounded-md border p-6"
-      style={{ borderColor: "var(--color-border)", backgroundColor: "var(--color-card)" }}
+      style={{ borderColor: "var(--border)", backgroundColor: "var(--bg-card)" }}
     >
       <h2 className="mb-4 text-lg font-bold sm:text-xl">경기 규정</h2>
       {/* whitespace-pre-line으로 줄바꿈 보존 — rules는 일반 텍스트 필드(마크다운 파서 미적용) */}
       <div
         className="text-sm leading-relaxed whitespace-pre-line"
-        style={{ color: "var(--color-text-secondary)" }}
+        style={{ color: "var(--ink-soft)" }}
       >
         {tournament.rules}
       </div>
@@ -873,17 +873,17 @@ export default async function TournamentDetailPage({
     <div
       className="rounded-md border p-8 text-center"
       style={{
-        borderColor: "var(--color-border)",
-        backgroundColor: "var(--color-card)",
+        borderColor: "var(--border)",
+        backgroundColor: "var(--bg-card)",
       }}
     >
       <span
         className="material-symbols-outlined mb-2 block text-4xl"
-        style={{ color: "var(--color-text-disabled)" }}
+        style={{ color: "var(--ink-dim)" }}
       >
         gavel
       </span>
-      <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>
+      <p className="text-sm" style={{ color: "var(--ink-mute)" }}>
         경기 규정이 아직 공개되지 않았습니다.
       </p>
     </div>
@@ -1021,7 +1021,7 @@ export default async function TournamentDetailPage({
           <div className="mt-6 flex flex-wrap gap-3">
             <Link
               href="/tournaments"
-              className="flex items-center gap-1.5 rounded-lg border border-[var(--color-border)] px-4 py-2.5 text-sm font-medium text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-elevated)]"
+              className="flex items-center gap-1.5 rounded-lg border border-[var(--border)] px-4 py-2.5 text-sm font-medium text-[var(--ink-soft)] transition-colors hover:bg-[var(--bg-elev)]"
             >
               <span className="material-symbols-outlined text-base">emoji_events</span>
               다른 대회 보기
