@@ -680,7 +680,7 @@ export function NotificationsClient({
                         justifyContent: "center",
                         width: 28,
                         height: 28,
-                        borderRadius: 999,
+                        borderRadius: "50%",
                         border: "none",
                         background: "transparent",
                         color: "var(--ink-mute)",

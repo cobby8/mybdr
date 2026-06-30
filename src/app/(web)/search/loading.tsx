@@ -62,7 +62,7 @@ export default function SearchLoading() {
                 style={{
                   width: 32,
                   height: 32,
-                  borderRadius: 999,
+                  borderRadius: "50%",
                   background: "var(--bg-elev)",
                 }}
               />

@@ -275,7 +275,7 @@ const CHIP_TONES: { bg: string; ink: string }[] = [
   { bg: "var(--accent)", ink: "#fff" },
   { bg: "var(--cafe-blue)", ink: "#fff" },
   { bg: "var(--ink)", ink: "var(--bg)" },
-  { bg: "var(--bg-elev-2)", ink: "var(--ink)" },
+  { bg: "var(--bg-alt)", ink: "var(--ink)" },
 ];
 function getChipTone(id: string): { bg: string; ink: string } {
   // 단순 합 해시 — id 변하지 않으면 색도 유지
