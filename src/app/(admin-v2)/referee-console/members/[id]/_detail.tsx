@@ -11,7 +11,8 @@
 //   ⚠ cross-association 한계: 위 3 API 는 getAssociationAdmin IDOR 가드라
 //     super 자동선택 협회 외 대상은 403 → 실패 시 화면에 사유(message) 가시화(데이터 희박 수용).
 //   ★성공 → router.refresh()(서버 재조회). admin-v2 키트·var(--*)만 — 하드코딩 색 0.
-//   ★서류(RefereeDocument OCR) 관리는 이번 포팅 제외 — 후속(보고).
+//   ★서류(RefereeDocument OCR) 관리 = documents/ 하위 페이지로 분리(4-4b 마무리).
+//     본 상세에는 "정산 서류" 섹션 + documents 진입 버튼만 배선(데이터는 해당 페이지 raw fetch).
 // ============================================================
 
 import React from "react";
@@ -296,6 +297,27 @@ export function MemberDetail({ data }: { data: RfDetailData }) {
               )}
             </div>
           )}
+        </section>
+
+        {/* ── 정산 서류(OCR) — documents 하위 페이지 진입 ── */}
+        <section className="ad-panel" style={{ padding: "16px 18px" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+            <div style={{ minWidth: 0 }}>
+              <SectionTitle>정산 서류</SectionTitle>
+              <p style={{ fontSize: 12.5, color: "var(--ink-mute)", margin: "6px 0 0" }}>
+                자격증·신분증·통장 사본 대리 업로드 및 OCR 정보 추출/확정.
+              </p>
+            </div>
+            {/* 데이터는 documents 페이지에서 raw fetch — 여기선 진입 버튼만 배선. */}
+            <Btn
+              variant="secondary"
+              icon="folder"
+              size="sm"
+              onClick={() => router.push(`/referee-console/members/${data.id}/documents`)}
+            >
+              서류 관리
+            </Btn>
+          </div>
         </section>
 
         {/* ── 자격증 ── */}
