@@ -321,7 +321,8 @@ const nextConfig: NextConfig = {
       { source: "/admin/me", destination: "/v2/mypage", permanent: true }, // me → mypage(경로 리네이밍)
       { source: "/admin/categories", destination: "/v2/categories", permanent: true },
       { source: "/admin/partners", destination: "/v2/partner-console", permanent: true }, // super 파트너 관리(본인포털 /partner 와 무관)
-      { source: "/admin/news", destination: "/v2/news-console", permanent: true }, // exact — /admin/news/compose 는 미매칭(레거시 유지)
+      { source: "/admin/news", destination: "/v2/news-console", permanent: true }, // exact
+      { source: "/admin/news/compose", destination: "/v2/news-console", permanent: true }, // 작성 통합(ffa8918) → news-console 모달
       // analytics: v2 지표 보강(레거시 동등·무손실) 완료 → 봉인
       { source: "/admin/analytics", destination: "/v2/analytics", permanent: true },
       // 매너평가·시즌시상 v2 포팅(67cd7c4) → 봉인 (둘 다 exact·하위 없음)
