@@ -37,7 +37,7 @@
  *  - 마일스톤 중 커뮤니티 활동 (집계 미구현)
  *
  * Phase 6.3C-2 보강 (BG1 정합 — 2026-05-31):
- *  - "준비 중" placeholder 배지 4곳 톤 통일 → warn-soft (var(--color-warning) color-mix + schedule 아이콘)
+ *  - "준비 중" placeholder 배지 4곳 톤 통일 → warn-soft (var(--warn) color-mix + schedule 아이콘)
  *    · 6.3C-1 (weekly-report) 와 동일 패턴: 14% bg / 100% color / 32% border / schedule 아이콘
  *    · 기존 muted-gray (var(--ink-dim) + var(--bg-alt)) → warn-soft 로 교체 (하드코딩 색상 0, 토큰만)
  *  - PU4 정합: 마일스톤 이모지(🏀⭐🎯🔥💬🤝) 유지 — 시안 GU1 MilestoneTile 도 이모지 사용
@@ -134,7 +134,7 @@ export default function GrowthPage() {
               <svg
                 xmlns="http://www.w3.org/2000/svg"
                 className="mx-auto h-8 w-8 animate-spin"
-                style={{ color: "var(--color-primary)" }}
+                style={{ color: "var(--primary)" }}
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
@@ -147,7 +147,7 @@ export default function GrowthPage() {
             </div>
             <p
               className="text-sm"
-              style={{ color: "var(--color-text-muted)" }}
+              style={{ color: "var(--ink-mute)" }}
             >
               불러오는 중...
             </p>
@@ -165,13 +165,13 @@ export default function GrowthPage() {
           <div className="text-center">
             <span
               className="material-symbols-outlined text-5xl mb-4 block"
-              style={{ color: "var(--color-text-disabled)" }}
+              style={{ color: "var(--ink-dim)" }}
             >
               person_off
             </span>
             <p
               className="mb-4 text-sm"
-              style={{ color: "var(--color-text-secondary)" }}
+              style={{ color: "var(--ink-soft)" }}
             >
               로그인이 필요합니다
             </p>
@@ -179,8 +179,8 @@ export default function GrowthPage() {
               href="/login"
               className="inline-block rounded-[4px] px-8 py-3 text-sm font-bold"
               style={{
-                backgroundColor: "var(--color-primary)",
-                color: "var(--color-on-primary)",
+                backgroundColor: "var(--primary)",
+                color: "var(--primary-on)",
               }}
             >
               로그인
@@ -220,7 +220,7 @@ export default function GrowthPage() {
       val: String(totalGames),
       goal: "100",
       pct: Math.min((totalGames / 100) * 100, 100),
-      tone: "var(--color-primary)",
+      tone: "var(--primary)",
       isDummy: false,
     },
     {
@@ -250,7 +250,7 @@ export default function GrowthPage() {
       val: `${gamification.streak}주`,
       goal: "24주",
       pct: Math.min((gamification.streak / 24) * 100, 100),
-      tone: "#F59E0B",
+      tone: "var(--warn)",
       isDummy: false,
     },
     {
@@ -259,7 +259,7 @@ export default function GrowthPage() {
       val: "128",
       goal: "200",
       pct: 64,
-      tone: "#10B981",
+      tone: "var(--ok)",
       isDummy: true,
     },
     // [BDR-current sync] 시안 v2.4 6번째 = "팀 멤버 추천" (DB 미지원 → 더미 + 준비 중)
@@ -296,20 +296,20 @@ export default function GrowthPage() {
           display: "flex",
           gap: 6,
           fontSize: 12,
-          color: "var(--color-text-muted)",
+          color: "var(--ink-mute)",
           marginBottom: 12,
           flexWrap: "wrap",
         }}
       >
-        <Link href="/" style={{ cursor: "pointer", color: "var(--color-text-muted)" }}>
+        <Link href="/" style={{ cursor: "pointer", color: "var(--ink-mute)" }}>
           홈
         </Link>
         <span>›</span>
-        <Link href="/profile" style={{ cursor: "pointer", color: "var(--color-text-muted)" }}>
+        <Link href="/profile" style={{ cursor: "pointer", color: "var(--ink-mute)" }}>
           내 프로필
         </Link>
         <span>›</span>
-        <span style={{ color: "var(--color-text-primary)" }}>내 성장</span>
+        <span style={{ color: "var(--ink)" }}>내 성장</span>
       </div>
 
       {/* 헤더 — eyebrow + h1 (시안 L46-50) */}
@@ -321,12 +321,12 @@ export default function GrowthPage() {
             fontSize: 30,
             fontWeight: 800,
             letterSpacing: "-0.015em",
-            color: "var(--color-text-primary)",
+            color: "var(--ink)",
           }}
         >
           내 성장 기록
         </h1>
-        <div style={{ fontSize: 13, color: "var(--color-text-muted)" }}>
+        <div style={{ fontSize: 13, color: "var(--ink-mute)" }}>
           지난 12주 활동 + 마일스톤 진행도
         </div>
       </div>
@@ -339,7 +339,7 @@ export default function GrowthPage() {
           padding: "24px 28px",
           marginBottom: 14,
           background:
-            "linear-gradient(135deg, color-mix(in oklab, var(--color-primary) 8%, transparent), transparent)",
+            "linear-gradient(135deg, color-mix(in oklab, var(--primary) 8%, transparent), transparent)",
         }}
       >
         {/* auto-fit 패턴으로 모바일 자동 1열 stack (인라인 repeat(N,1fr) 위반 방지) */}
@@ -358,7 +358,7 @@ export default function GrowthPage() {
                 width: 80,
                 height: 80,
                 borderRadius: "50%",
-                background: "linear-gradient(135deg, var(--color-primary), #FF6B35)",
+                background: "linear-gradient(135deg, var(--primary), #FF6B35)",
                 color: "#fff",
                 display: "grid",
                 placeItems: "center",
@@ -376,7 +376,7 @@ export default function GrowthPage() {
             <div
               style={{
                 fontSize: 11,
-                color: "var(--color-primary)",
+                color: "var(--primary)",
                 fontWeight: 800,
                 letterSpacing: ".12em",
                 marginBottom: 4,
@@ -388,12 +388,12 @@ export default function GrowthPage() {
               {gamification.next_level_xp ? (
                 <>
                   다음 레벨까지{" "}
-                  <span style={{ color: "var(--color-primary)" }}>
+                  <span style={{ color: "var(--primary)" }}>
                     {gamification.xp_to_next_level.toLocaleString()} XP
                   </span>
                 </>
               ) : (
-                <span style={{ color: "var(--color-primary)" }}>최대 레벨 달성</span>
+                <span style={{ color: "var(--primary)" }}>최대 레벨 달성</span>
               )}
             </div>
             {/* 진행 막대 (시안 L59-61) */}
@@ -409,7 +409,7 @@ export default function GrowthPage() {
                 style={{
                   width: `${Math.min(gamification.progress, 100)}%`,
                   height: "100%",
-                  background: "linear-gradient(90deg, var(--color-primary), #FF6B35)",
+                  background: "linear-gradient(90deg, var(--primary), #FF6B35)",
                   transition: "width .3s",
                 }}
               />
@@ -447,12 +447,12 @@ export default function GrowthPage() {
                 fontSize: 32,
                 fontWeight: 900,
                 fontFamily: "var(--ff-display)",
-                color: "#F59E0B",
+                color: "var(--warn)",
               }}
             >
               🔥 {gamification.streak}
             </div>
-            <div style={{ fontSize: 11, color: "var(--color-text-muted)" }}>
+            <div style={{ fontSize: 11, color: "var(--ink-mute)" }}>
               연속 주
             </div>
           </div>
@@ -495,10 +495,10 @@ export default function GrowthPage() {
                   fontSize: 10,
                   fontWeight: 800,
                   letterSpacing: ".12em",
-                  // warn-soft — DB 미지원 placeholder 공통 톤 (var(--color-warning) 토큰 기반)
-                  color: "var(--color-warning)",
-                  background: "color-mix(in oklab, var(--color-warning) 14%, transparent)",
-                  border: "1px solid color-mix(in oklab, var(--color-warning) 32%, transparent)",
+                  // warn-soft — DB 미지원 placeholder 공통 톤 (var(--warn) 토큰 기반)
+                  color: "var(--warn)",
+                  background: "color-mix(in oklab, var(--warn) 14%, transparent)",
+                  border: "1px solid color-mix(in oklab, var(--warn) 32%, transparent)",
                   padding: "3px 8px",
                   borderRadius: 4,
                 }}
@@ -542,7 +542,7 @@ export default function GrowthPage() {
                     height: `${(g / maxG) * 60}px`,
                     background:
                       i === games.length - 1
-                        ? "var(--color-primary)"
+                        ? "var(--primary)"
                         : "var(--cafe-blue-soft)",
                     borderRadius: 2,
                   }}
@@ -562,12 +562,12 @@ export default function GrowthPage() {
           <div
             style={{
               fontSize: 11,
-              color: "var(--color-text-muted)",
+              color: "var(--ink-mute)",
               marginTop: 8,
             }}
           >
             이번 주{" "}
-            <b style={{ color: "var(--color-primary)" }}>
+            <b style={{ color: "var(--primary)" }}>
               {games[games.length - 1]}경기
             </b>{" "}
             · 12주 평균 5.5
@@ -599,9 +599,9 @@ export default function GrowthPage() {
                   fontSize: 10,
                   fontWeight: 800,
                   letterSpacing: ".12em",
-                  color: "var(--color-warning)",
-                  background: "color-mix(in oklab, var(--color-warning) 14%, transparent)",
-                  border: "1px solid color-mix(in oklab, var(--color-warning) 32%, transparent)",
+                  color: "var(--warn)",
+                  background: "color-mix(in oklab, var(--warn) 14%, transparent)",
+                  border: "1px solid color-mix(in oklab, var(--warn) 32%, transparent)",
                   padding: "3px 8px",
                   borderRadius: 4,
                 }}
@@ -639,7 +639,7 @@ export default function GrowthPage() {
                 r={i === ratings.length - 1 ? 4 : 2}
                 fill={
                   i === ratings.length - 1
-                    ? "var(--color-primary)"
+                    ? "var(--primary)"
                     : "var(--cafe-blue)"
                 }
               />
@@ -648,7 +648,7 @@ export default function GrowthPage() {
           <div
             style={{
               fontSize: 11,
-              color: "var(--color-text-muted)",
+              color: "var(--ink-mute)",
               marginTop: 6,
             }}
           >
@@ -698,9 +698,9 @@ export default function GrowthPage() {
                       fontSize: 10,
                       fontWeight: 800,
                       letterSpacing: ".1em",
-                      color: "var(--color-warning)",
-                      background: "color-mix(in oklab, var(--color-warning) 14%, transparent)",
-                      border: "1px solid color-mix(in oklab, var(--color-warning) 32%, transparent)",
+                      color: "var(--warn)",
+                      background: "color-mix(in oklab, var(--warn) 14%, transparent)",
+                      border: "1px solid color-mix(in oklab, var(--warn) 32%, transparent)",
                       padding: "3px 8px",
                       borderRadius: 4,
                     }}
@@ -732,7 +732,7 @@ export default function GrowthPage() {
             <div
               style={{
                 fontSize: 12,
-                color: "var(--color-text-muted)",
+                color: "var(--ink-mute)",
                 marginBottom: 4,
               }}
             >
@@ -797,7 +797,7 @@ export default function GrowthPage() {
       >
         <span
           className="material-symbols-outlined"
-          style={{ fontSize: 28, color: "var(--color-primary)" }}
+          style={{ fontSize: 28, color: "var(--primary)" }}
         >
           flag
         </span>
@@ -807,7 +807,7 @@ export default function GrowthPage() {
             다음 목표 — 누적 50경기 (
             {Math.max(50 - totalGames, 0)}경기 남음)
           </div>
-          <div style={{ fontSize: 12, color: "var(--color-text-muted)" }}>
+          <div style={{ fontSize: 12, color: "var(--ink-mute)" }}>
             이번 주 추천 경기에 신청해 마일스톤을 달성해 보세요
           </div>
         </div>
@@ -822,7 +822,7 @@ export default function GrowthPage() {
             borderRadius: 4,
             fontSize: 13,
             fontWeight: 700,
-            background: "var(--color-primary)",
+            background: "var(--primary)",
             color: "#fff",
             textDecoration: "none",
           }}
@@ -853,9 +853,9 @@ export default function GrowthPage() {
             fontSize: 11,
             fontWeight: 800,
             letterSpacing: ".12em",
-            color: "var(--color-warning)",
-            background: "color-mix(in oklab, var(--color-warning) 14%, transparent)",
-            border: "1px solid color-mix(in oklab, var(--color-warning) 32%, transparent)",
+            color: "var(--warn)",
+            background: "color-mix(in oklab, var(--warn) 14%, transparent)",
+            border: "1px solid color-mix(in oklab, var(--warn) 32%, transparent)",
             padding: "4px 10px",
             borderRadius: 4,
           }}
@@ -866,7 +866,7 @@ export default function GrowthPage() {
           준비 중
         </span>
         <div
-          style={{ flex: 1, fontSize: 13, color: "var(--color-text-muted)", minWidth: 200 }}
+          style={{ flex: 1, fontSize: 13, color: "var(--ink-mute)", minWidth: 200 }}
         >
           구간별 상세 분석 (포지션별 / 코트별 / 시간대별) 곧 추가됩니다
         </div>

@@ -24,7 +24,7 @@
  *   06. 지난주 상세 비교 (Hybrid 보존 — 운영 진짜 데이터)
  *
  * 박제 룰 준수:
- * - var(--*) 토큰만 (시안 var(--accent) → 사이트 var(--color-primary) 매핑)
+ * - var(--*) 토큰만 (시안 var(--accent) → 사이트 var(--primary) 매핑)
  * - Material Symbols Outlined 만
  * - radius 4px
  * - API/데이터 패칭 0 변경 (SWR /api/web/profile/weekly-report 그대로)
@@ -105,10 +105,10 @@ function Delta({ now, prev, prevWeek }: { now: number; prev: number; prevWeek: s
   const txt = Math.abs(diff).toFixed(diff % 1 === 0 ? 0 : 1);
   // flat: 회색 / up: 성공색 / down: BDR red
   const color = flat
-    ? "var(--color-text-muted)"
+    ? "var(--ink-mute)"
     : up
       ? "var(--ok, #22C55E)"
-      : "var(--bdr-red, var(--color-primary))";
+      : "var(--bdr-red)";
   return (
     <span
       style={{
@@ -119,7 +119,7 @@ function Delta({ now, prev, prevWeek }: { now: number; prev: number; prevWeek: s
       }}
     >
       {sign} {txt}{" "}
-      <span style={{ color: "var(--color-text-muted)", fontWeight: 500 }}>
+      <span style={{ color: "var(--ink-mute)", fontWeight: 500 }}>
         vs {prevWeek}
       </span>
     </span>
@@ -143,7 +143,7 @@ function Section({
           style={{
             fontFamily: "var(--ff-mono, ui-monospace, monospace)",
             fontSize: 11,
-            color: "var(--color-text-muted)",
+            color: "var(--ink-mute)",
             fontWeight: 700,
           }}
         >
@@ -155,7 +155,7 @@ function Section({
             fontSize: 16,
             fontWeight: 800,
             letterSpacing: "-0.01em",
-            color: "var(--color-text-primary)",
+            color: "var(--ink)",
           }}
         >
           {title}
@@ -164,7 +164,7 @@ function Section({
           style={{
             flex: 1,
             height: 1,
-            background: "var(--color-border-subtle)",
+            background: "var(--border)",
           }}
         />
       </div>
@@ -176,7 +176,7 @@ function Section({
 // "준비 중" placeholder 라벨 — 시안 신규 섹션 (DB 미지원) 공통 안내
 // Why: 시안 v2.4 신설 섹션 (Highlight + 다음 주 추천) 은 DB/추천엔진 미지원이므로
 //      디자인 위치만 확보하고 사용자에게 명시적 안내. 사일런트 더미 표시 금지
-// Phase 6.3C: placeholder 톤을 warn-soft (var(--color-warning) color-mix) 로 통일 +
+// Phase 6.3C: placeholder 톤을 warn-soft (var(--warn) color-mix) 로 통일 +
 //             라벨 카피 "준비 중" 통일 (하드코딩 색상 금지 — 토큰만 사용)
 function ComingSoonBadge() {
   return (
@@ -190,11 +190,11 @@ function ComingSoonBadge() {
         letterSpacing: "0.08em",
         textTransform: "uppercase",
         padding: "3px 8px",
-        // warn-soft 배경 — DB 미지원 placeholder 공통 톤 (var(--color-warning) 토큰 기반)
-        background: "color-mix(in oklab, var(--color-warning) 14%, transparent)",
-        color: "var(--color-warning)",
+        // warn-soft 배경 — DB 미지원 placeholder 공통 톤 (var(--warn) 토큰 기반)
+        background: "color-mix(in oklab, var(--warn) 14%, transparent)",
+        color: "var(--warn)",
         borderRadius: 4,
-        border: "1px solid color-mix(in oklab, var(--color-warning) 32%, transparent)",
+        border: "1px solid color-mix(in oklab, var(--warn) 32%, transparent)",
       }}
     >
       <span className="material-symbols-outlined" style={{ fontSize: 12 }}>
@@ -219,7 +219,7 @@ export default function WeeklyReportPage() {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
         <div className="text-center">
-          <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>
+          <p className="text-sm" style={{ color: "var(--ink-mute)" }}>
             리포트를 불러오는 중...
           </p>
         </div>
@@ -234,17 +234,17 @@ export default function WeeklyReportPage() {
         <div className="text-center">
           <span
             className="material-symbols-outlined text-5xl mb-4 block"
-            style={{ color: "var(--color-text-disabled)" }}
+            style={{ color: "var(--ink-dim)" }}
           >
             error_outline
           </span>
-          <p className="text-sm mb-4" style={{ color: "var(--color-text-secondary)" }}>
+          <p className="text-sm mb-4" style={{ color: "var(--ink-soft)" }}>
             리포트를 불러올 수 없습니다
           </p>
           <Link
             href="/profile"
             className="inline-block rounded-md px-6 py-2.5 text-sm font-bold text-white"
-            style={{ backgroundColor: "var(--color-primary)" }}
+            style={{ backgroundColor: "var(--primary)" }}
           >
             프로필로 돌아가기
           </Link>
@@ -276,7 +276,7 @@ export default function WeeklyReportPage() {
       val: tw.session_count,
       prev: lw.session_count,
       unit: "회",
-      tone: "var(--color-primary)", // 시안 var(--accent) 매핑
+      tone: "var(--primary)", // 시안 var(--accent) 매핑
       hasData: true,
     },
     {
@@ -300,7 +300,7 @@ export default function WeeklyReportPage() {
       val: parseFloat(formatHours(tw.total_minutes)),
       prev: parseFloat(formatHours(lw.total_minutes)),
       unit: hoursUnit(tw.total_minutes),
-      tone: "var(--color-accent, #F59E0B)",
+      tone: "var(--warn)",
       hasData: true,
     },
   ];
@@ -313,13 +313,13 @@ export default function WeeklyReportPage() {
           icon: "local_fire_department",
           head: `${data.streak}일 연속 출석 중`,
           body: "꾸준함이 가장 강력한 무기입니다. 다음 주에도 이 흐름을 이어가세요.",
-          tone: "var(--color-accent, #F59E0B)",
+          tone: "var(--warn)",
         }
       : {
           icon: "calendar_month",
           head: "이번 주 활동을 시작해보세요",
           body: "코트에서 체크인하면 streak이 시작됩니다.",
-          tone: "var(--color-text-muted)",
+          tone: "var(--ink-mute)",
         },
     // 인사이트 2: 운동 시간 변화
     data.minutes_change > 0
@@ -334,7 +334,7 @@ export default function WeeklyReportPage() {
             icon: "trending_down",
             head: "운동 시간이 줄었습니다",
             body: `지난주 대비 ${Math.abs(data.minutes_change)}% 감소. 다음 주에 회복해봅시다.`,
-            tone: "var(--bdr-red, var(--color-primary))",
+            tone: "var(--bdr-red)",
           }
         : {
             icon: "fitness_center",
@@ -347,7 +347,7 @@ export default function WeeklyReportPage() {
       icon: "lightbulb",
       head: "다음 도전: 새로운 코트",
       body: "단골 코트 외 다른 곳도 방문해보세요. 새로운 멤버와의 매칭은 실력 향상의 지름길입니다.",
-      tone: "var(--color-accent, #F59E0B)",
+      tone: "var(--warn)",
     },
   ];
 
@@ -360,7 +360,7 @@ export default function WeeklyReportPage() {
           display: "flex",
           gap: 6,
           fontSize: 12,
-          color: "var(--color-text-muted)",
+          color: "var(--ink-mute)",
           marginBottom: 12,
           flexWrap: "wrap",
           paddingTop: 8,
@@ -374,7 +374,7 @@ export default function WeeklyReportPage() {
           내 프로필
         </Link>
         <span>›</span>
-        <span style={{ color: "var(--color-text-primary)" }}>주간 리포트</span>
+        <span style={{ color: "var(--ink)" }}>주간 리포트</span>
       </div>
 
       {/* HERO — 이메일 뉴스레터 톤 (시안 L86-97) */}
@@ -382,7 +382,7 @@ export default function WeeklyReportPage() {
         style={{
           textAlign: "center",
           padding: "24px 0 28px",
-          borderBottom: "1px solid var(--color-border-subtle)",
+          borderBottom: "1px solid var(--border)",
           marginBottom: 20,
         }}
       >
@@ -395,7 +395,7 @@ export default function WeeklyReportPage() {
             fontSize: 11,
             fontWeight: 700,
             letterSpacing: "0.12em",
-            color: "var(--color-text-muted)",
+            color: "var(--ink-mute)",
             textTransform: "uppercase",
           }}
         >
@@ -407,7 +407,7 @@ export default function WeeklyReportPage() {
             fontSize: 30,
             fontWeight: 800,
             letterSpacing: "-0.015em",
-            color: "var(--color-text-primary)",
+            color: "var(--ink)",
           }}
         >
           {weekLabel}
@@ -415,7 +415,7 @@ export default function WeeklyReportPage() {
         <div
           style={{
             fontSize: 13,
-            color: "var(--color-text-muted)",
+            color: "var(--ink-mute)",
             marginBottom: 16,
           }}
         >
@@ -433,9 +433,9 @@ export default function WeeklyReportPage() {
               fontSize: 13,
               fontWeight: 600,
               borderRadius: 4,
-              border: "1px solid var(--color-border-subtle)",
+              border: "1px solid var(--border)",
               background: "transparent",
-              color: "var(--color-text-disabled)",
+              color: "var(--ink-dim)",
               cursor: "not-allowed",
               opacity: 0.6,
             }}
@@ -451,8 +451,8 @@ export default function WeeklyReportPage() {
               fontSize: 13,
               fontWeight: 700,
               borderRadius: 4,
-              border: "1px solid var(--color-primary)",
-              background: "var(--color-primary)",
+              border: "1px solid var(--primary)",
+              background: "var(--primary)",
               color: "#FFFFFF",
               cursor: "default",
             }}
@@ -468,9 +468,9 @@ export default function WeeklyReportPage() {
               fontSize: 13,
               fontWeight: 600,
               borderRadius: 4,
-              border: "1px solid var(--color-border-subtle)",
+              border: "1px solid var(--border)",
               background: "transparent",
-              color: "var(--color-text-disabled)",
+              color: "var(--ink-dim)",
               cursor: "not-allowed",
               opacity: 0.6,
             }}
@@ -493,7 +493,7 @@ export default function WeeklyReportPage() {
           style={{
             fontSize: 14,
             fontWeight: 700,
-            color: "var(--color-text-primary)",
+            color: "var(--ink)",
             marginBottom: 2,
           }}
         >
@@ -502,7 +502,7 @@ export default function WeeklyReportPage() {
         <p
           style={{
             fontSize: 12,
-            color: "var(--color-text-muted)",
+            color: "var(--ink-mute)",
           }}
         >
           Lv.{data.level} {data.title}
@@ -512,7 +512,7 @@ export default function WeeklyReportPage() {
                 className="material-symbols-outlined"
                 style={{
                   fontSize: 14,
-                  color: "var(--color-accent, #F59E0B)",
+                  color: "var(--warn)",
                   verticalAlign: "middle",
                 }}
               >
@@ -540,15 +540,15 @@ export default function WeeklyReportPage() {
                 key={k.label}
                 style={{
                   padding: "16px 18px",
-                  background: "var(--color-surface, var(--color-bg-card))",
-                  border: "1px solid var(--color-border-subtle)",
+                  background: "var(--bg-card)",
+                  border: "1px solid var(--border)",
                   borderRadius: 4,
                 }}
               >
                 <div
                   style={{
                     fontSize: 11,
-                    color: "var(--color-text-muted)",
+                    color: "var(--ink-mute)",
                     fontWeight: 700,
                     letterSpacing: ".08em",
                     textTransform: "uppercase",
@@ -571,7 +571,7 @@ export default function WeeklyReportPage() {
                       fontSize: 28,
                       fontWeight: 900,
                       fontFamily: "var(--ff-display, var(--ff-base))",
-                      color: k.hasData ? k.tone : "var(--color-text-disabled)",
+                      color: k.hasData ? k.tone : "var(--ink-dim)",
                     }}
                   >
                     {k.hasData ? k.val : "-"}
@@ -579,7 +579,7 @@ export default function WeeklyReportPage() {
                   <span
                     style={{
                       fontSize: 12,
-                      color: "var(--color-text-muted)",
+                      color: "var(--ink-mute)",
                     }}
                   >
                     {k.unit}
@@ -589,11 +589,11 @@ export default function WeeklyReportPage() {
                   <Delta now={k.val} prev={k.prev} prevWeek={prevWeekLabel} />
                 ) : !k.hasData ? (
                   // 평점 시스템 추후 연동 — 사용자에게 명시적으로 안내
-                  // Phase 6.3C: placeholder warn-soft 톤 통일 (var(--color-warning))
+                  // Phase 6.3C: placeholder warn-soft 톤 통일 (var(--warn))
                   <span
                     style={{
                       fontSize: 11,
-                      color: "var(--color-warning)",
+                      color: "var(--warn)",
                       fontFamily: "var(--ff-mono, ui-monospace, monospace)",
                     }}
                   >
@@ -609,8 +609,8 @@ export default function WeeklyReportPage() {
             style={{
               textAlign: "center",
               padding: "32px 24px",
-              background: "var(--color-surface, var(--color-bg-card))",
-              border: "1px solid var(--color-border-subtle)",
+              background: "var(--bg-card)",
+              border: "1px solid var(--border)",
               borderRadius: 4,
             }}
           >
@@ -618,7 +618,7 @@ export default function WeeklyReportPage() {
               className="material-symbols-outlined"
               style={{
                 fontSize: 36,
-                color: "var(--color-text-disabled)",
+                color: "var(--ink-dim)",
                 display: "block",
                 marginBottom: 12,
               }}
@@ -629,13 +629,13 @@ export default function WeeklyReportPage() {
               style={{
                 fontSize: 13,
                 fontWeight: 500,
-                color: "var(--color-text-secondary)",
+                color: "var(--ink-soft)",
                 marginBottom: 4,
               }}
             >
               이번 주는 아직 운동 기록이 없어요
             </p>
-            <p style={{ fontSize: 12, color: "var(--color-text-muted)" }}>
+            <p style={{ fontSize: 12, color: "var(--ink-mute)" }}>
               코트에서 체크인하면 리포트에 반영됩니다
             </p>
             <Link
@@ -648,7 +648,7 @@ export default function WeeklyReportPage() {
                 padding: "8px 16px",
                 fontSize: 13,
                 fontWeight: 500,
-                color: "var(--color-primary)",
+                color: "var(--primary)",
                 borderRadius: 4,
               }}
             >
@@ -668,8 +668,8 @@ export default function WeeklyReportPage() {
           style={{
             padding: "20px 22px",
             background:
-              "linear-gradient(135deg, color-mix(in oklab, var(--color-primary) 6%, transparent), transparent)",
-            border: "1px solid var(--color-border-subtle)",
+              "linear-gradient(135deg, color-mix(in oklab, var(--primary) 6%, transparent), transparent)",
+            border: "1px solid var(--border)",
             borderRadius: 4,
           }}
         >
@@ -688,7 +688,7 @@ export default function WeeklyReportPage() {
               <div
                 style={{
                   fontSize: 11,
-                  color: "var(--color-primary)",
+                  color: "var(--primary)",
                   fontWeight: 800,
                   letterSpacing: ".1em",
                   marginBottom: 4,
@@ -697,7 +697,7 @@ export default function WeeklyReportPage() {
               >
                 BEST GAME
               </div>
-              <div style={{ fontSize: 13, color: "var(--color-text-muted)" }}>
+              <div style={{ fontSize: 13, color: "var(--ink-mute)" }}>
                 평점 기반 베스트 경기 자동 추천
               </div>
             </div>
@@ -723,15 +723,15 @@ export default function WeeklyReportPage() {
                 style={{
                   textAlign: "center",
                   padding: "10px 0",
-                  background: "var(--color-surface, var(--color-bg-card))",
-                  border: "1px solid var(--color-border-subtle)",
+                  background: "var(--bg-card)",
+                  border: "1px solid var(--border)",
                   borderRadius: 4,
                 }}
               >
                 <div
                   style={{
                     fontSize: 10,
-                    color: "var(--color-text-muted)",
+                    color: "var(--ink-mute)",
                     fontWeight: 700,
                     letterSpacing: ".1em",
                   }}
@@ -743,7 +743,7 @@ export default function WeeklyReportPage() {
                     fontSize: 22,
                     fontWeight: 900,
                     fontFamily: "var(--ff-display, var(--ff-base))",
-                    color: "var(--color-text-disabled)",
+                    color: "var(--ink-dim)",
                   }}
                 >
                   -
@@ -758,9 +758,9 @@ export default function WeeklyReportPage() {
               margin: 0,
               fontSize: 13,
               lineHeight: 1.6,
-              color: "var(--color-text-secondary)",
+              color: "var(--ink-soft)",
               fontStyle: "italic",
-              borderLeft: "2px solid var(--color-border-subtle)",
+              borderLeft: "2px solid var(--border)",
               paddingLeft: 12,
             }}
           >
@@ -781,8 +781,8 @@ export default function WeeklyReportPage() {
                 gridTemplateColumns: "40px 1fr",
                 gap: 14,
                 alignItems: "flex-start",
-                background: "var(--color-surface, var(--color-bg-card))",
-                border: "1px solid var(--color-border-subtle)",
+                background: "var(--bg-card)",
+                border: "1px solid var(--border)",
                 borderRadius: 4,
               }}
             >
@@ -811,7 +811,7 @@ export default function WeeklyReportPage() {
                     fontSize: 14,
                     fontWeight: 700,
                     marginBottom: 3,
-                    color: "var(--color-text-primary)",
+                    color: "var(--ink)",
                   }}
                 >
                   {ins.head}
@@ -819,7 +819,7 @@ export default function WeeklyReportPage() {
                 <div
                   style={{
                     fontSize: 12,
-                    color: "var(--color-text-secondary)",
+                    color: "var(--ink-soft)",
                     lineHeight: 1.6,
                   }}
                 >
@@ -837,8 +837,8 @@ export default function WeeklyReportPage() {
         <Section eyebrow="04" title="자주 방문한 코트">
           <div
             style={{
-              background: "var(--color-surface, var(--color-bg-card))",
-              border: "1px solid var(--color-border-subtle)",
+              background: "var(--bg-card)",
+              border: "1px solid var(--border)",
               borderRadius: 4,
               overflow: "hidden",
             }}
@@ -854,7 +854,7 @@ export default function WeeklyReportPage() {
                     borderBottom:
                       idx === tw.top_courts.length - 1
                         ? "none"
-                        : "1px solid var(--color-border-subtle)",
+                        : "1px solid var(--border)",
                   }}
                 >
                   {/* 순위 뱃지 — 1금/2은/3동 */}
@@ -871,10 +871,10 @@ export default function WeeklyReportPage() {
                       color: "#FFFFFF",
                       background:
                         idx === 0
-                          ? "var(--color-accent, #F59E0B)"
+                          ? "var(--warn)"
                           : idx === 1
-                            ? "var(--color-tier-silver, #94A3B8)"
-                            : "var(--color-tier-bronze, #CD7F32)",
+                            ? "#94A3B8"
+                            : "#CD7F32",
                     }}
                   >
                     {idx + 1}
@@ -884,7 +884,7 @@ export default function WeeklyReportPage() {
                       style={{
                         fontSize: 13,
                         fontWeight: 600,
-                        color: "var(--color-text-primary)",
+                        color: "var(--ink)",
                         overflow: "hidden",
                         textOverflow: "ellipsis",
                         whiteSpace: "nowrap",
@@ -898,7 +898,7 @@ export default function WeeklyReportPage() {
                       flexShrink: 0,
                       fontSize: 13,
                       fontWeight: 700,
-                      color: "var(--color-primary)",
+                      color: "var(--primary)",
                     }}
                   >
                     {court.visits}회
@@ -907,7 +907,7 @@ export default function WeeklyReportPage() {
                     className="material-symbols-outlined"
                     style={{
                       fontSize: 18,
-                      color: "var(--color-text-disabled)",
+                      color: "var(--ink-dim)",
                     }}
                   >
                     chevron_right
@@ -927,9 +927,9 @@ export default function WeeklyReportPage() {
             padding: "20px 22px",
             // Phase 6.3C: placeholder warn-soft 통일 — dashed border + 옅은 warn 배경
             background:
-              "color-mix(in oklab, var(--color-warning) 5%, var(--color-surface, var(--color-bg-card)))",
+              "color-mix(in oklab, var(--warn) 5%, var(--bg-card))",
             border:
-              "1px dashed color-mix(in oklab, var(--color-warning) 36%, transparent)", // dashed warn = 준비 중 시각 신호
+              "1px dashed color-mix(in oklab, var(--warn) 36%, transparent)", // dashed warn = 준비 중 시각 신호
             borderRadius: 4,
             textAlign: "center",
           }}
@@ -939,7 +939,7 @@ export default function WeeklyReportPage() {
             style={{
               fontSize: 32,
               // Phase 6.3C: placeholder 아이콘 warn-soft 톤
-              color: "color-mix(in oklab, var(--color-warning) 70%, transparent)",
+              color: "color-mix(in oklab, var(--warn) 70%, transparent)",
               display: "block",
               marginBottom: 8,
             }}
@@ -950,7 +950,7 @@ export default function WeeklyReportPage() {
             style={{
               fontSize: 13,
               fontWeight: 700,
-              color: "var(--color-text-primary)",
+              color: "var(--ink)",
               marginBottom: 4,
             }}
           >
@@ -960,7 +960,7 @@ export default function WeeklyReportPage() {
             style={{
               margin: "0 0 12px",
               fontSize: 12,
-              color: "var(--color-text-secondary)",
+              color: "var(--ink-soft)",
               lineHeight: 1.6,
             }}
           >
@@ -977,15 +977,15 @@ export default function WeeklyReportPage() {
           <div
             style={{
               padding: "16px 18px",
-              background: "var(--color-surface, var(--color-bg-card))",
-              border: "1px solid var(--color-border-subtle)",
+              background: "var(--bg-card)",
+              border: "1px solid var(--border)",
               borderRadius: 4,
             }}
           >
             <p
               style={{
                 fontSize: 11,
-                color: "var(--color-text-muted)",
+                color: "var(--ink-mute)",
                 marginBottom: 14,
                 fontFamily: "var(--ff-mono, ui-monospace, monospace)",
               }}
@@ -1027,7 +1027,7 @@ export default function WeeklyReportPage() {
                     fontSize: 13,
                   }}
                 >
-                  <span style={{ color: "var(--color-text-secondary)" }}>
+                  <span style={{ color: "var(--ink-soft)" }}>
                     {row.label}
                   </span>
                   <div
@@ -1040,7 +1040,7 @@ export default function WeeklyReportPage() {
                     <span
                       style={{
                         fontWeight: 700,
-                        color: "var(--color-text-muted)",
+                        color: "var(--ink-mute)",
                       }}
                     >
                       {row.prev}
@@ -1048,7 +1048,7 @@ export default function WeeklyReportPage() {
                     <span
                       style={{
                         fontSize: 11,
-                        color: "var(--color-text-disabled)",
+                        color: "var(--ink-dim)",
                       }}
                     >
                       →
@@ -1056,7 +1056,7 @@ export default function WeeklyReportPage() {
                     <span
                       style={{
                         fontWeight: 700,
-                        color: "var(--color-text-primary)",
+                        color: "var(--ink)",
                       }}
                     >
                       {row.now}
@@ -1074,10 +1074,10 @@ export default function WeeklyReportPage() {
         style={{
           textAlign: "center",
           padding: "28px 0 16px",
-          borderTop: "1px solid var(--color-border-subtle)",
+          borderTop: "1px solid var(--border)",
           marginTop: 24,
           fontSize: 12,
-          color: "var(--color-text-muted)",
+          color: "var(--ink-mute)",
           lineHeight: 1.7,
         }}
       >
@@ -1115,7 +1115,7 @@ export default function WeeklyReportPage() {
           style={{
             background: "transparent",
             border: "none",
-            color: "var(--color-text-muted)",
+            color: "var(--ink-mute)",
             fontSize: 12,
             cursor: "pointer",
             display: "inline-flex",
