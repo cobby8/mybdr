@@ -334,6 +334,25 @@ const nextConfig: NextConfig = {
       { source: "/admin/tournaments/:id([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})", destination: "/v2/operate/:id", permanent: true },
       { source: "/admin/tournaments/:id([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})/audit-log", destination: "/v2/tournaments/:id/audit-log", permanent: true },
       { source: "/admin/tournaments/:id([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})/transfer-organizer", destination: "/v2/tournaments/:id/transfer-organizer", permanent: true },
+      // ── 심판 레거시(referee/admin) → /referee-console (4-3 협회 스코프 개방 c2757ce 후 봉인) ──
+      //   Referee·AssignmentAnnouncement id=BigInt → :id([0-9]+) 숫자제한(members/new 등 비숫자 배제)
+      //   fee-settings→settings 통합 · settlements 하위(dashboard/new-batch)→settlements 탭 통합
+      { source: "/referee/admin", destination: "/referee-console", permanent: true },
+      { source: "/referee/admin/announcements", destination: "/referee-console/announcements", permanent: true },
+      { source: "/referee/admin/announcements/:id([0-9]+)", destination: "/referee-console/announcements/:id", permanent: true },
+      { source: "/referee/admin/assignments", destination: "/referee-console/assignments", permanent: true },
+      { source: "/referee/admin/bulk-register", destination: "/referee-console/bulk-register", permanent: true },
+      { source: "/referee/admin/bulk-verify", destination: "/referee-console/bulk-verify", permanent: true },
+      { source: "/referee/admin/fee-settings", destination: "/referee-console/settings", permanent: true },
+      { source: "/referee/admin/members", destination: "/referee-console/members", permanent: true },
+      { source: "/referee/admin/members/new", destination: "/referee-console/members/new", permanent: true },
+      { source: "/referee/admin/members/:id([0-9]+)", destination: "/referee-console/members/:id", permanent: true },
+      { source: "/referee/admin/members/:id([0-9]+)/documents", destination: "/referee-console/members/:id/documents", permanent: true },
+      { source: "/referee/admin/pools", destination: "/referee-console/pools", permanent: true },
+      { source: "/referee/admin/settings", destination: "/referee-console/settings", permanent: true },
+      { source: "/referee/admin/settlements", destination: "/referee-console/settlements", permanent: true },
+      { source: "/referee/admin/settlements/dashboard", destination: "/referee-console/settlements", permanent: true },
+      { source: "/referee/admin/settlements/new-batch", destination: "/referee-console/settlements", permanent: true },
     ];
   },
   async headers() {
