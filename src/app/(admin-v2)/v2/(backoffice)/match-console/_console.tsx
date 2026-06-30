@@ -363,12 +363,12 @@ export function MatchConsole({
         foot={
           selected ? (
             <div style={{ display: "flex", gap: 8, width: "100%", alignItems: "center", flexWrap: "wrap" }}>
-              {/* 상세 3탭은 이번 범위 아님 → 레거시 상세로 deep-link */}
+              {/* 행 요약 → v2 매칭 상세(3탭) 페이지로 이동 */}
               <Link
-                href={`/admin/games/${selected.id}`}
+                href={`/v2/match-console/${selected.id}`}
                 className="ts-btn ts-btn--secondary ts-btn--sm"
               >
-                레거시 상세 열기
+                상세 보기
               </Link>
               {allowed.length > 0 && (
                 <div style={{ display: "flex", gap: 8, alignItems: "center", marginLeft: "auto" }}>
