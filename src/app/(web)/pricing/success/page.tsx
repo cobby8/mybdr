@@ -124,7 +124,7 @@ function ReceiptContent() {
                 fontSize: 28,
                 fontWeight: 800,
                 fontFamily: "var(--ff-mono)",
-                color: "var(--color-text-primary)",
+                color: "var(--ink)",
                 letterSpacing: "-0.01em",
               }}
             >
