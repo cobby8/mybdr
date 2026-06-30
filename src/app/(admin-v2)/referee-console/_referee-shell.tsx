@@ -21,6 +21,9 @@ import { LogoutButton } from "./_logout-button";
 // 내부 콘솔 id → 라우트 (배선 6 + 미배선 6 placeholder)
 const TARGET: Record<string, string> = {
   dash: "/referee-console",
+  // 컷오버 4-4e: 레거시 announcements/pools 를 v2 로 포팅(공고+일자별 선정).
+  announce: "/referee-console/announcements",
+  pools: "/referee-console/pools",
   assign: "/referee-console/assignments",
   calendar: "/referee-console/calendar",
   refs: "/referee-console/members",
@@ -56,6 +59,9 @@ export function RefereeShell({
   const nav: NavItem[] = [
     { label: "운영" },
     { id: "dash", icon: "layout-dashboard", text: "대시보드" },
+    // 컷오버 4-4e: 배정 공고(announcements) → 일자별 운영(pools·선정) → 배정 현황 순.
+    { id: "announce", icon: "megaphone", text: "배정 공고" },
+    { id: "pools", icon: "calendar-range", text: "일자별 운영" },
     {
       id: "assign",
       icon: "clipboard-check",
@@ -96,6 +102,8 @@ export function RefereeShell({
     if (pathname === "/referee-console") return "dash";
     const seg = pathname.replace("/referee-console/", "").split("/")[0];
     const map: Record<string, string> = {
+      announcements: "announce",
+      pools: "pools",
       assignments: "assign",
       calendar: "calendar",
       members: "refs",
