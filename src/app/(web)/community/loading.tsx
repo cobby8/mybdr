@@ -3,6 +3,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 /**
  * CommunityLoading - 커뮤니티 목록 로딩 스켈레톤
  * 2열 레이아웃: 좌측 게시글 카드 + 우측 사이드바
+ * DS v4 토큰 교체 (PR-PUB-2-4): --color-* → 직접 토큰
  */
 export default function CommunityLoading() {
   return (
@@ -25,7 +26,7 @@ export default function CommunityLoading() {
             <div
               key={i}
               className="rounded-lg border p-5"
-              style={{ borderColor: "var(--color-border)", backgroundColor: "var(--color-card)" }}
+              style={{ borderColor: "var(--border)", backgroundColor: "var(--bg-card)" }}
             >
               <div className="flex items-center gap-2 mb-3">
                 <Skeleton className="h-6 w-6 rounded-full" />
@@ -50,7 +51,7 @@ export default function CommunityLoading() {
         <div className="lg:col-span-4 space-y-6">
           <div
             className="rounded-lg border p-6"
-            style={{ borderColor: "var(--color-border)", backgroundColor: "var(--color-card)" }}
+            style={{ borderColor: "var(--border)", backgroundColor: "var(--bg-card)" }}
           >
             <Skeleton className="h-5 w-32 mb-4 rounded" />
             {Array.from({ length: 5 }).map((_, i) => (
@@ -62,7 +63,7 @@ export default function CommunityLoading() {
           </div>
           <div
             className="rounded-lg border p-6"
-            style={{ borderColor: "var(--color-border)", backgroundColor: "var(--color-card)" }}
+            style={{ borderColor: "var(--border)", backgroundColor: "var(--bg-card)" }}
           >
             <Skeleton className="h-5 w-28 mb-4 rounded" />
             {Array.from({ length: 3 }).map((_, i) => (

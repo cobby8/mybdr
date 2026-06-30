@@ -9,6 +9,7 @@ import { deletePostAction } from "@/app/actions/community";
  *
  * 본인 게시글인 경우에만 렌더링됨 (서버에서 isOwner로 제어).
  * more_vert 아이콘 클릭 시 드롭다운 메뉴 표시.
+ * DS v4 토큰 교체 (PR-PUB-2-4): --color-* → 직접 토큰
  */
 export function PostActions({
   postPublicId,
@@ -58,7 +59,7 @@ export function PostActions({
       <button
         onClick={() => setOpen(!open)}
         className="p-2 transition-colors"
-        style={{ color: "var(--color-text-muted)" }}
+        style={{ color: "var(--ink-mute)" }}
         aria-label="게시글 메뉴"
       >
         <span className="material-symbols-outlined">more_vert</span>
@@ -69,14 +70,14 @@ export function PostActions({
         <div
           className="absolute right-0 top-full mt-1 w-32 rounded border shadow-lg z-50 py-1"
           style={{
-            backgroundColor: "var(--color-elevated)",
-            borderColor: "var(--color-border)",
+            backgroundColor: "var(--bg-elev)",
+            borderColor: "var(--border)",
           }}
         >
           <button
             onClick={handleEdit}
             className="flex items-center gap-2 w-full px-4 py-2 text-sm text-left transition-colors hover:bg-white/5"
-            style={{ color: "var(--color-text-primary)" }}
+            style={{ color: "var(--ink)" }}
           >
             <span className="material-symbols-outlined text-base">edit</span>
             수정
@@ -85,7 +86,7 @@ export function PostActions({
             onClick={handleDelete}
             disabled={deleting}
             className="flex items-center gap-2 w-full px-4 py-2 text-sm text-left transition-colors hover:bg-white/5 disabled:opacity-50"
-            style={{ color: "var(--color-primary)" }}
+            style={{ color: "var(--bdr-red)" }}
           >
             <span className="material-symbols-outlined text-base">delete</span>
             {deleting ? "삭제 중..." : "삭제"}

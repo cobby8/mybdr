@@ -27,6 +27,7 @@ interface CommentItem {
  *
  * 본인 댓글에만 수정/삭제 메뉴가 표시됨.
  * 수정 클릭 시 해당 댓글이 textarea로 전환되어 인라인 편집 가능.
+ * DS v4 토큰 교체 (PR-PUB-2-4): --color-* → 직접 토큰
  */
 export function CommentList({
   comments,
@@ -52,7 +53,7 @@ export function CommentList({
       {comments.length === 0 && (
         <p
           className="text-center py-8 text-sm"
-          style={{ color: "var(--color-text-muted)" }}
+          style={{ color: "var(--ink-mute)" }}
         >
           아직 댓글이 없습니다. 첫 댓글을 남겨보세요!
         </p>
@@ -128,7 +129,7 @@ function CommentRow({
   }
 
   return (
-    <div className={`flex gap-4${c.isReply ? " ml-12 pl-4 border-l-2" : ""}`} style={c.isReply ? { borderColor: "var(--color-border)" } : undefined}>
+    <div className={`flex gap-4${c.isReply ? " ml-12 pl-4 border-l-2" : ""}`} style={c.isReply ? { borderColor: "var(--border)" } : undefined}>
       {/* 댓글 작성자 아바타 */}
       {c.profileImage ? (
         <Image
@@ -141,7 +142,7 @@ function CommentRow({
       ) : (
         <div
           className="w-10 h-10 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0"
-          style={{ backgroundColor: "var(--color-primary)" }}
+          style={{ backgroundColor: "var(--primary)" }}
         >
           {c.nickname.charAt(0)}
         </div>
@@ -152,7 +153,7 @@ function CommentRow({
           <div className="flex items-center gap-2">
             <span
               className="text-sm font-bold"
-              style={{ color: "var(--color-text-primary)" }}
+              style={{ color: "var(--ink)" }}
             >
               {decodeHtmlEntities(c.nickname)}
             </span>
@@ -160,14 +161,14 @@ function CommentRow({
             {c.isPostAuthor && (
               <span
                 className="text-[8px] px-1 py-0.5 rounded font-bold uppercase tracking-tighter"
-                style={{ backgroundColor: "var(--color-primary)", color: "var(--color-on-primary)" }}
+                style={{ backgroundColor: "var(--primary)", color: "#fff" }}
               >
                 작성자
               </span>
             )}
             <span
               className="text-xs ml-2"
-              style={{ color: "var(--color-text-muted)" }}
+              style={{ color: "var(--ink-mute)" }}
             >
               {formatRelativeTime(c.createdAt)}
             </span>
@@ -178,7 +179,7 @@ function CommentRow({
             <div className="relative">
               <button
                 onClick={() => setMenuOpen(!menuOpen)}
-                style={{ color: "var(--color-text-muted)" }}
+                style={{ color: "var(--ink-mute)" }}
               >
                 <span className="material-symbols-outlined text-lg">more_horiz</span>
               </button>
@@ -186,14 +187,14 @@ function CommentRow({
                 <div
                   className="absolute right-0 top-full mt-1 w-28 rounded border shadow-lg z-50 py-1"
                   style={{
-                    backgroundColor: "var(--color-elevated)",
-                    borderColor: "var(--color-border)",
+                    backgroundColor: "var(--bg-elev)",
+                    borderColor: "var(--border)",
                   }}
                 >
                   <button
                     onClick={() => { setEditing(true); setMenuOpen(false); }}
                     className="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-left transition-colors hover:bg-white/5"
-                    style={{ color: "var(--color-text-primary)" }}
+                    style={{ color: "var(--ink)" }}
                   >
                     <span className="material-symbols-outlined text-sm">edit</span>
                     수정
@@ -202,7 +203,7 @@ function CommentRow({
                     onClick={() => { handleDelete(); setMenuOpen(false); }}
                     disabled={deleting}
                     className="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-left transition-colors hover:bg-white/5 disabled:opacity-50"
-                    style={{ color: "var(--color-primary)" }}
+                    style={{ color: "var(--bdr-red)" }}
                   >
                     <span className="material-symbols-outlined text-sm">delete</span>
                     {deleting ? "삭제 중..." : "삭제"}
@@ -215,7 +216,7 @@ function CommentRow({
 
         {/* 에러 메시지 */}
         {error && (
-          <p className="text-xs mb-2" style={{ color: "var(--color-primary)" }}>
+          <p className="text-xs mb-2" style={{ color: "var(--bdr-red)" }}>
             {error}
           </p>
         )}
@@ -226,10 +227,10 @@ function CommentRow({
             <textarea
               value={editContent}
               onChange={(e) => setEditContent(e.target.value)}
-              className="w-full rounded border p-3 text-sm resize-none bg-transparent outline-none focus:border-[var(--color-primary)]"
+              className="w-full rounded border p-3 text-sm resize-none bg-transparent outline-none focus:border-[var(--primary)]"
               style={{
-                color: "var(--color-text-primary)",
-                borderColor: "var(--color-border)",
+                color: "var(--ink)",
+                borderColor: "var(--border)",
               }}
               rows={3}
             />
@@ -237,7 +238,7 @@ function CommentRow({
               <button
                 onClick={() => { setEditing(false); setEditContent(c.content); setError(null); }}
                 className="px-3 py-1 text-xs rounded border"
-                style={{ borderColor: "var(--color-border)", color: "var(--color-text-muted)" }}
+                style={{ borderColor: "var(--border)", color: "var(--ink-mute)" }}
               >
                 취소
               </button>
@@ -245,7 +246,7 @@ function CommentRow({
                 onClick={handleSave}
                 disabled={saving || !editContent.trim()}
                 className="px-3 py-1 text-xs rounded font-bold text-white disabled:opacity-50"
-                style={{ backgroundColor: "var(--color-primary)" }}
+                style={{ backgroundColor: "var(--primary)" }}
               >
                 {saving ? "저장 중..." : "저장"}
               </button>
@@ -256,7 +257,7 @@ function CommentRow({
             {/* 댓글 내용 */}
             <p
               className="text-sm leading-relaxed"
-              style={{ color: "var(--color-text-secondary)" }}
+              style={{ color: "var(--ink-soft)" }}
             >
               {decodeHtmlEntities(c.content)}
             </p>
@@ -271,7 +272,7 @@ function CommentRow({
               <button
                 type="button"
                 className="flex items-center gap-1 text-xs transition-colors"
-                style={{ color: "var(--color-text-muted)", opacity: 0.55, cursor: "not-allowed" }}
+                style={{ color: "var(--ink-mute)", opacity: 0.55, cursor: "not-allowed" }}
                 title="좋아요 준비 중"
                 onClick={() => alert("좋아요 기능은 준비 중입니다.")}
               >
@@ -281,7 +282,7 @@ function CommentRow({
               <button
                 type="button"
                 className="text-xs font-medium"
-                style={{ color: "var(--color-text-muted)", opacity: 0.55, cursor: "not-allowed" }}
+                style={{ color: "var(--ink-mute)", opacity: 0.55, cursor: "not-allowed" }}
                 title="답글 준비 중"
                 onClick={() => alert("답글 기능은 준비 중입니다.")}
               >

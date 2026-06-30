@@ -32,6 +32,7 @@ interface PostDetailSidebarProps {
  * 1. 작성자 정보 카드 (아바타 + 이름 + 게시글 수 + 팔로우 버튼)
  * 2. 실시간 인기글 리스트
  * 3. 이벤트 배너 (placeholder)
+ * DS v4 토큰 교체 (PR-PUB-2-4): --color-* → 직접 토큰
  */
 export async function PostDetailSidebar({
   authorId,
@@ -71,11 +72,11 @@ export async function PostDetailSidebar({
       {/* 작성자 정보 카드 */}
       <div
         className="rounded-lg border p-6"
-        style={{ borderColor: "var(--color-border)", backgroundColor: "var(--color-card)" }}
+        style={{ borderColor: "var(--border)", backgroundColor: "var(--bg-card)" }}
       >
         <h3
           className="text-sm font-bold mb-4 uppercase tracking-wider opacity-60"
-          style={{ color: "var(--color-text-primary)" }}
+          style={{ color: "var(--ink)" }}
         >
           작성자 정보
         </h3>
@@ -88,12 +89,12 @@ export async function PostDetailSidebar({
                 src={authorImage}
                 alt={authorNickname}
                 className="w-16 h-16 rounded-full object-cover border-2"
-                style={{ borderColor: "var(--color-border)" }}
+                style={{ borderColor: "var(--border)" }}
               />
             ) : (
               <div
                 className="w-16 h-16 rounded-full flex items-center justify-center text-xl font-bold text-white"
-                style={{ backgroundColor: "var(--color-primary)" }}
+                style={{ backgroundColor: "var(--primary)" }}
               >
                 {authorNickname.charAt(0)}
               </div>
@@ -102,7 +103,7 @@ export async function PostDetailSidebar({
           <div>
             <span
               className="block text-lg font-bold"
-              style={{ color: "var(--color-text-primary)" }}
+              style={{ color: "var(--ink)" }}
             >
               {decodeHtmlEntities(authorNickname)}
             </span>
@@ -113,34 +114,34 @@ export async function PostDetailSidebar({
         <div className="grid grid-cols-2 gap-4 text-center">
           <div
             className="p-3 rounded"
-            style={{ backgroundColor: "var(--color-elevated)" }}
+            style={{ backgroundColor: "var(--bg-elev)" }}
           >
             <span
               className="block text-xs uppercase"
-              style={{ color: "var(--color-text-muted)" }}
+              style={{ color: "var(--ink-mute)" }}
             >
               작성글
             </span>
             <span
               className="block text-lg font-bold"
-              style={{ color: "var(--color-text-primary)" }}
+              style={{ color: "var(--ink)" }}
             >
               {authorPostCount}
             </span>
           </div>
           <div
             className="p-3 rounded"
-            style={{ backgroundColor: "var(--color-elevated)" }}
+            style={{ backgroundColor: "var(--bg-elev)" }}
           >
             <span
               className="block text-xs uppercase"
-              style={{ color: "var(--color-text-muted)" }}
+              style={{ color: "var(--ink-mute)" }}
             >
               작성댓글
             </span>
             <span
               className="block text-lg font-bold"
-              style={{ color: "var(--color-text-primary)" }}
+              style={{ color: "var(--ink)" }}
             >
               {authorCommentCount}
             </span>
@@ -161,11 +162,11 @@ export async function PostDetailSidebar({
       {/* 실시간 인기글 */}
       <div
         className="rounded-lg border p-6"
-        style={{ borderColor: "var(--color-border)", backgroundColor: "var(--color-card)" }}
+        style={{ borderColor: "var(--border)", backgroundColor: "var(--bg-card)" }}
       >
         <h3
           className="text-sm font-bold mb-4 uppercase tracking-wider opacity-60"
-          style={{ color: "var(--color-text-primary)" }}
+          style={{ color: "var(--ink)" }}
         >
           실시간 인기글
         </h3>
@@ -178,13 +179,13 @@ export async function PostDetailSidebar({
             >
               <span
                 className="text-xs mb-1 block"
-                style={{ color: "var(--color-text-muted)" }}
+                style={{ color: "var(--ink-mute)" }}
               >
                 커뮤니티 &gt; {categoryLabelMap[tp.category ?? ""] ?? "기타"}
               </span>
               <p
                 className="text-sm transition-colors line-clamp-1"
-                style={{ color: "var(--color-text-secondary)" }}
+                style={{ color: "var(--ink-soft)" }}
               >
                 {decodeHtmlEntities(tp.title)}
               </p>
@@ -192,7 +193,7 @@ export async function PostDetailSidebar({
           ))}
 
           {trendingPosts.length === 0 && (
-            <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>
+            <p className="text-sm" style={{ color: "var(--ink-mute)" }}>
               아직 게시글이 없습니다.
             </p>
           )}
@@ -202,7 +203,7 @@ export async function PostDetailSidebar({
       {/* 이벤트 배너 (placeholder) */}
       <div
         className="relative rounded-lg aspect-[3/4] overflow-hidden flex flex-col justify-end p-6"
-        style={{ backgroundColor: "var(--color-elevated)" }}
+        style={{ backgroundColor: "var(--bg-elev)" }}
       >
         <div
           className="absolute inset-0"
@@ -212,23 +213,22 @@ export async function PostDetailSidebar({
         />
         <div className="relative z-10">
           <span
-            className="text-xs font-bold px-2 py-1 rounded w-fit mb-3 inline-block"
-            style={{ backgroundColor: "var(--color-primary)", color: "var(--color-on-primary)" }}
+            className="text-xs font-bold px-2 py-1 rounded w-fit mb-3 inline-block text-white"
+            style={{ backgroundColor: "var(--primary)" }}
           >
             HOT EVENT
           </span>
           <h4
-            className="text-xl font-bold mb-2 leading-tight"
-            style={{ color: "var(--color-on-primary)" }}
+            className="text-xl font-bold mb-2 leading-tight text-white"
           >
             BDR 3x3 아마추어 챔피언십 모집
           </h4>
-          <p className="text-xs mb-4" style={{ color: "var(--color-text-muted)" }}>
+          <p className="text-xs mb-4" style={{ color: "var(--ink-mute)" }}>
             지금 바로 팀을 구성하고 우승 상금에 도전하세요!
           </p>
           <button
-            className="py-2 px-4 rounded text-xs font-bold uppercase transition-colors"
-            style={{ backgroundColor: "var(--color-on-primary)", color: "var(--color-text-primary)" }}
+            className="py-2 px-4 rounded text-xs font-bold uppercase transition-colors text-white"
+            style={{ backgroundColor: "var(--primary)" }}
           >
             View Detail
           </button>
