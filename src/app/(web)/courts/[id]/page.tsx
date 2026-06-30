@@ -155,7 +155,7 @@ export default async function CourtDetailPage({ params }: { params: Promise<Para
       <Link
         href="/courts"
         className="inline-flex items-center gap-1 text-sm mb-4 transition-colors"
-        style={{ color: "var(--color-text-muted)" }}
+        style={{ color: "var(--ink-mute)" }}
       >
         <span className="material-symbols-outlined text-base">arrow_back</span>
         농구장 목록
@@ -197,12 +197,12 @@ export default async function CourtDetailPage({ params }: { params: Promise<Para
         <div
           className="rounded-md p-5 sm:p-6 mb-4"
           style={{
-            backgroundColor: "var(--color-card)",
-            boxShadow: "var(--shadow-card)",
+            backgroundColor: "var(--bg-card)",
+            boxShadow: "var(--sh-sm)",
           }}
         >
-          <h2 className="text-base font-bold mb-3" style={{ color: "var(--color-text-primary)" }}>
-            <span className="material-symbols-outlined text-base align-middle mr-1" style={{ color: "var(--color-primary)" }}>
+          <h2 className="text-base font-bold mb-3" style={{ color: "var(--ink)" }}>
+            <span className="material-symbols-outlined text-base align-middle mr-1" style={{ color: "var(--accent)" }}>
               sports_basketball
             </span>
             근처 경기 ({relatedGames.length}건)
@@ -213,17 +213,17 @@ export default async function CourtDetailPage({ params }: { params: Promise<Para
                 key={game.id.toString()}
                 href={`/games/${game.game_id}`}
                 className="flex items-center justify-between rounded-lg px-3 py-2.5 transition-colors"
-                style={{ backgroundColor: "var(--color-surface)" }}
+                style={{ backgroundColor: "var(--bg-elev)" }}
               >
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium truncate" style={{ color: "var(--color-text-primary)" }}>
+                  <p className="text-sm font-medium truncate" style={{ color: "var(--ink)" }}>
                     {game.title || "경기"}
                   </p>
-                  <p className="text-xs mt-0.5" style={{ color: "var(--color-text-muted)" }}>
+                  <p className="text-xs mt-0.5" style={{ color: "var(--ink-mute)" }}>
                     {gameTypeLabel(game.game_type)} · {new Date(game.scheduled_at).toLocaleDateString("ko-KR", { month: "short", day: "numeric", weekday: "short" })}
                   </p>
                 </div>
-                <span className="material-symbols-outlined text-base" style={{ color: "var(--color-text-disabled)" }}>
+                <span className="material-symbols-outlined text-base" style={{ color: "var(--ink-dim)" }}>
                   chevron_right
                 </span>
               </Link>
@@ -237,12 +237,12 @@ export default async function CourtDetailPage({ params }: { params: Promise<Para
         <div
           className="rounded-md p-5 sm:p-6 mb-4"
           style={{
-            backgroundColor: "var(--color-card)",
-            boxShadow: "var(--shadow-card)",
+            backgroundColor: "var(--bg-card)",
+            boxShadow: "var(--sh-sm)",
           }}
         >
-          <h2 className="text-base font-bold mb-3" style={{ color: "var(--color-text-primary)" }}>
-            <span className="material-symbols-outlined text-base align-middle mr-1" style={{ color: "var(--color-navy)" }}>
+          <h2 className="text-base font-bold mb-3" style={{ color: "var(--ink)" }}>
+            <span className="material-symbols-outlined text-base align-middle mr-1" style={{ color: "var(--cafe-blue)" }}>
               emoji_events
             </span>
             이 코트에서 열린 대회 ({relatedTournaments.length}건)
@@ -253,19 +253,19 @@ export default async function CourtDetailPage({ params }: { params: Promise<Para
                 key={t.id}
                 href={`/tournaments/${t.id}`}
                 className="flex items-center justify-between rounded-lg px-3 py-2.5 transition-colors"
-                style={{ backgroundColor: "var(--color-surface)" }}
+                style={{ backgroundColor: "var(--bg-elev)" }}
               >
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium truncate" style={{ color: "var(--color-text-primary)" }}>
+                  <p className="text-sm font-medium truncate" style={{ color: "var(--ink)" }}>
                     {t.name}
                   </p>
-                  <p className="text-xs mt-0.5" style={{ color: "var(--color-text-muted)" }}>
+                  <p className="text-xs mt-0.5" style={{ color: "var(--ink-mute)" }}>
                     {t.startDate
                       ? new Date(t.startDate).toLocaleDateString("ko-KR", { year: "numeric", month: "short", day: "numeric" })
                       : "날짜 미정"}
                   </p>
                 </div>
-                <span className="material-symbols-outlined text-base" style={{ color: "var(--color-text-disabled)" }}>
+                <span className="material-symbols-outlined text-base" style={{ color: "var(--ink-dim)" }}>
                   chevron_right
                 </span>
               </Link>
@@ -279,11 +279,11 @@ export default async function CourtDetailPage({ params }: { params: Promise<Para
         <div
           className="rounded-md p-5 sm:p-6 mb-4"
           style={{
-            backgroundColor: "var(--color-card)",
-            boxShadow: "var(--shadow-card)",
+            backgroundColor: "var(--bg-card)",
+            boxShadow: "var(--sh-sm)",
           }}
         >
-          <h2 className="text-base font-bold mb-3" style={{ color: "var(--color-text-primary)" }}>
+          <h2 className="text-base font-bold mb-3" style={{ color: "var(--ink)" }}>
             최근 체크인
           </h2>
           <div className="space-y-2">
@@ -296,9 +296,9 @@ export default async function CourtDetailPage({ params }: { params: Promise<Para
                 <PlayerLink
                   userId={c.users?.id}
                   name={c.users?.nickname ?? "사용자"}
-                  style={{ color: "var(--color-text-primary)" }}
+                  style={{ color: "var(--ink)" }}
                 />
-                <span className="text-xs" style={{ color: "var(--color-text-muted)" }}>
+                <span className="text-xs" style={{ color: "var(--ink-mute)" }}>
                   {new Date(c.created_at).toLocaleDateString("ko-KR")}
                 </span>
               </div>
