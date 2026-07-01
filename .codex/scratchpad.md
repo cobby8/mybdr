@@ -27,6 +27,7 @@
 | Tournament operate panel Toss flow | Done | Teams, bracket, schedule, ops, site, and settlement panel roots now run inside the single Toss workspace skin without nested compatibility wrappers. |
 
 ## Work Log
+- 2026-07-02: Added NBA news dry-run scenario fixtures for official, single-insider, multi-source, and rumor cases; focused Vitest and `cmd /c npx tsc --noEmit` passed.
 - 2026-07-02: Added NBA news dry-run pipeline and focused tests; fixed two-source T1 scoring threshold; focused Vitest and `cmd /c npx tsc --noEmit` passed.
 - 2026-07-02: Upgraded Alkija match-news generation with editorial fact sheets, article-angle selection, and stricter phase2 title/team/score validation; `cmd /c npx tsc --noEmit` passed.
 - 2026-07-02: Added NBA news trust scoring utility and unit tests; focused Vitest and `cmd /c npx tsc --noEmit` passed.
@@ -36,4 +37,3 @@
 - 2026-07-01: Electronic score-sheet Q4/OT end now delegates to the final review modal; Chrome confirmed period scores, required signatures, disabled submit before signatures, and submit unlock after 4 required signatures.
 - 2026-07-01: Electronic score-sheet toolbar now exposes the existing jump-ball/held-ball flow; Chrome confirmed the toolbar button opens the jump-ball dialog.
 - 2026-07-01: Electronic score-sheet v2 running-score header now includes a prominent current-period chip; 1024px Chrome metrics confirmed visibility without page scroll.
-- 2026-07-01: Electronic score-sheet v2 player foul columns now consume the leftover roster width; 1440px/1024px Chrome measurements confirmed no right-side gap.
