@@ -52,7 +52,7 @@
 [data-admin="v2"] .ad-iconbtn { width: 32px; height: 32px; border: 0; background: var(--grey-100); border-radius: 9px; display: grid; place-items: center; cursor: pointer; color: var(--ink-soft); }
 [data-admin="v2"] .ad-iconbtn:hover { background: var(--grey-200); color: var(--ink); }
 [data-admin="v2"] .ad-avatar-sm { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; font-size: 13px; font-weight: 800; color: #fff; flex: 0 0 auto; }
-[data-admin="v2"] .ad-backlink { display: inline-flex; align-items: center; gap: 5px; border: 0; background: transparent; cursor: pointer; font-family: var(--ff); font-size: 13.5px; font-weight: 700; color: var(--ink-mute); padding: 0 0 14px; }
+[data-admin="v2"] .ad-backlink { display: inline-flex; align-items: center; gap: 5px; border: 0; background: transparent; cursor: pointer; font-family: var(--ff); font-size: 13.5px; font-weight: 700; color: var(--ink-mute); padding: 0 0 14px; white-space: nowrap; }
 [data-admin="v2"] .ad-backlink:hover { color: var(--primary); }
 [data-admin="v2"] .ad-cell-flex { display: flex; align-items: center; gap: 10px; min-width: 0; }
 
