@@ -136,6 +136,122 @@ function formatQuarters(qs: { home: number[]; away: number[] }): string {
   return rows.join(" / ");
 }
 
+type ArticleAngle =
+  | "clutch"
+  | "comeback"
+  | "overtime"
+  | "dominant"
+  | "shooting"
+  | "rebounding"
+  | "playmaking"
+  | "defense"
+  | "mvp"
+  | "balanced";
+
+const ARTICLE_ANGLE_LABEL: Record<ArticleAngle, string> = {
+  clutch: "막판 승부처",
+  comeback: "역전 흐름",
+  overtime: "연장 접전",
+  dominant: "우세한 경기 운영",
+  shooting: "외곽/야투 효율",
+  rebounding: "리바운드 장악",
+  playmaking: "패스와 볼 흐름",
+  defense: "수비 지표",
+  mvp: "핵심 선수 활약",
+  balanced: "균형 잡힌 경기 요약",
+};
+
+function getWinnerLoser(input: MatchBriefInput): {
+  winner: string;
+  loser: string;
+  winnerScore: number;
+  loserScore: number;
+} {
+  const homeWon = input.homeScore > input.awayScore;
+  return {
+    winner: homeWon ? input.homeTeam : input.awayTeam,
+    loser: homeWon ? input.awayTeam : input.homeTeam,
+    winnerScore: homeWon ? input.homeScore : input.awayScore,
+    loserScore: homeWon ? input.awayScore : input.homeScore,
+  };
+}
+
+function getTeamStatDiff(
+  input: MatchBriefInput,
+  key: keyof Pick<TeamStat, "totalReb" | "ast" | "stl" | "blk" | "to" | "threesMade" | "fgPct">,
+): number | null {
+  if (!input.homeTeamStat || !input.awayTeamStat) return null;
+  return Number(input.homeTeamStat[key]) - Number(input.awayTeamStat[key]);
+}
+
+function pickArticleAngle(input: MatchBriefInput): ArticleAngle {
+  const scoreDiff = Math.abs(input.homeScore - input.awayScore);
+  if (input.flow === "overtime") return "overtime";
+  if (input.flow === "lastminute" || scoreDiff <= 3) return "clutch";
+  if (input.flow === "comeback" || input.maxLead - scoreDiff >= 8) return "comeback";
+
+  const reboundDiff = getTeamStatDiff(input, "totalReb");
+  if (reboundDiff !== null && Math.abs(reboundDiff) >= 8) return "rebounding";
+
+  const assistDiff = getTeamStatDiff(input, "ast");
+  if (assistDiff !== null && Math.abs(assistDiff) >= 6) return "playmaking";
+
+  const stealDiff = getTeamStatDiff(input, "stl");
+  const blockDiff = getTeamStatDiff(input, "blk");
+  if ((stealDiff !== null && Math.abs(stealDiff) >= 4) || (blockDiff !== null && Math.abs(blockDiff) >= 3)) {
+    return "defense";
+  }
+
+  const threeDiff = getTeamStatDiff(input, "threesMade");
+  const fgPctDiff = getTeamStatDiff(input, "fgPct");
+  if ((threeDiff !== null && Math.abs(threeDiff) >= 4) || (fgPctDiff !== null && Math.abs(fgPctDiff) >= 10)) {
+    return "shooting";
+  }
+
+  if (input.flow === "blowout" || input.flow === "dominant" || scoreDiff >= 10) return "dominant";
+  if (input.mvp && input.mvp.pts >= 18) return "mvp";
+  return "balanced";
+}
+
+function formatPlayerFact(player: PlayerStat | null, label: string): string | null {
+  if (!player) return null;
+  const parts = [`${player.name}`, `${player.pts}점`];
+  if (player.reb > 0) parts.push(`${player.reb}리바운드`);
+  if (player.ast > 0) parts.push(`${player.ast}어시스트`);
+  if (player.stl > 0) parts.push(`${player.stl}스틸`);
+  if (player.blk > 0) parts.push(`${player.blk}블록`);
+  return `${label}: ${parts.join(" ")}`;
+}
+
+function buildEditorialFactSheet(input: MatchBriefInput): string[] {
+  const { winner, loser, winnerScore, loserScore } = getWinnerLoser(input);
+  const scoreDiff = Math.abs(input.homeScore - input.awayScore);
+  const angle = pickArticleAngle(input);
+  const facts: string[] = [
+    `[기사각] ${ARTICLE_ANGLE_LABEL[angle]}`,
+    `[결론] ${winner}가 ${loser}를 ${winnerScore}-${loserScore}로 제압`,
+    `[스코어 흐름] ${FLOW_LABEL[input.flow]}, 점수 차 ${scoreDiff}점, 리드 체인지 ${input.leadChanges}회`,
+    `[쿼터] ${formatQuarters(input.quarterScores)}`,
+  ];
+
+  if (input.maxLead > scoreDiff) facts.push(`[변곡점 힌트] 한때 최대 ${input.maxLead}점 차까지 벌어진 경기`);
+  if (input.advancement) facts.push(`[대회 의미] ${input.advancement}`);
+  if (input.mvp) facts.push(`[중심 선수] ${input.mvp.name} ${input.mvp.pts}점 ${input.mvp.reb}리바운드 ${input.mvp.ast}어시스트`);
+
+  const specialFacts = [
+    formatPlayerFact(input.topRebounder, "리바운드"),
+    formatPlayerFact(input.topAssister, "어시스트"),
+    formatPlayerFact(input.topStealer, "수비"),
+    formatPlayerFact(input.topBlocker, "블록"),
+    formatPlayerFact(input.topPlusMinus, "+/-"),
+    formatPlayerFact(input.bestThreeShooter, "3점"),
+  ].filter((line): line is string => Boolean(line));
+  facts.push(...specialFacts.slice(0, 3).map((line) => `[보조 근거] ${line}`));
+
+  facts.push("[주의] 위 팩트 밖의 관중 반응, 감정, 부상, 감독/코치 발언은 만들지 말 것");
+  return facts;
+}
+
 // User prompt 구성 — system prompt 가 페르소나/톤, user prompt 는 데이터만
 // mode 별 안내 메시지만 다르고 데이터 본체는 동일.
 function buildUserPrompt(input: MatchBriefInput, mode: BriefMode): string {
@@ -153,6 +269,10 @@ function buildUserPrompt(input: MatchBriefInput, mode: BriefMode): string {
     lines.push("- 팀명은 첫 문장 승팀 1회만 (패팀은 자연스러우면 1회)");
     lines.push("- 매치의 서사 (역전·시소·완승·접전) + 승부처 영웅만 다룸");
   }
+  lines.push("");
+  lines.push("[편집 데스크 팩트 시트 - 기사 작성 전 반드시 반영]");
+  buildEditorialFactSheet(input).forEach((fact) => lines.push(`- ${fact}`));
+  lines.push("- 기사각은 위 [기사각]을 우선하되, 더 강한 실제 기록이 있으면 보조 근거 1개만 추가");
   lines.push("");
   lines.push("[매치 정보 — 입력 데이터, 모두 정확히 사용]");
   if (input.tournamentName) {

@@ -7,6 +7,44 @@ import type { MatchBriefInput, BriefMode } from "./match-brief-generator";
 
 export type ValidationResult = { valid: true } | { valid: false; reason: string };
 
+function validatePhase2Structure(brief: string, input: MatchBriefInput): ValidationResult {
+  const trimmed = brief.trim();
+  const [firstLine = "", ...bodyLines] = trimmed.split(/\r?\n/);
+  const titleMatch = firstLine.match(/^TITLE\s*[:：]\s*(.+)$/i);
+  if (!titleMatch) {
+    return { valid: false, reason: "phase2 제목 라인(TITLE:) 누락" };
+  }
+
+  const title = titleMatch[1]?.trim() ?? "";
+  if (!title) return { valid: false, reason: "phase2 제목 비어 있음" };
+  if (title.length > 40) {
+    return { valid: false, reason: `phase2 제목 길이 초과 (${title.length}자)` };
+  }
+
+  const body = bodyLines.join("\n").trim();
+  if (body.length < 120) {
+    return { valid: false, reason: `phase2 본문 너무 짧음 (${body.length}자)` };
+  }
+  if (!body.includes(input.homeTeam) || !body.includes(input.awayTeam)) {
+    return { valid: false, reason: "phase2 양 팀명 누락" };
+  }
+
+  const scorePatterns = [
+    `${input.homeScore}-${input.awayScore}`,
+    `${input.awayScore}-${input.homeScore}`,
+    `${input.homeScore}대${input.awayScore}`,
+    `${input.awayScore}대${input.homeScore}`,
+  ];
+  if (!scorePatterns.some((score) => body.includes(score))) {
+    return {
+      valid: false,
+      reason: `phase2 최종 스코어 누락 (${input.homeScore}-${input.awayScore})`,
+    };
+  }
+
+  return { valid: true };
+}
+
 // 단신 기사 검증
 // 2026-05-03: mode 별 길이 한도 분기 추가
 // - phase1-section: 350자 reject (Phase 1 lead 영역)
@@ -24,6 +62,11 @@ export function validateBrief(
     input.homeScore > input.awayScore ? input.homeTeam : input.awayTeam;
   if (!brief.includes(winnerTeam)) {
     return { valid: false, reason: `승팀명(${winnerTeam}) 누락` };
+  }
+
+  if (mode === "phase2-match") {
+    const phase2Structure = validatePhase2Structure(brief, input);
+    if (!phase2Structure.valid) return phase2Structure;
   }
 
   // 3. 길이 — mode 별 한도
