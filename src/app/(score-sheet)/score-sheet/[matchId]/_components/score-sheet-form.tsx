@@ -2592,6 +2592,15 @@ export function ScoreSheetForm({
         currentPeriod={runningScore.currentPeriod}
         onEndPeriod={isReadOnly ? undefined : handleEndPeriod}
         onRetreatPeriod={isReadOnly ? undefined : handleRetreatPeriod}
+        possessionArrow={possession.arrow}
+        possessionTeamLabel={
+          possession.arrow === "home"
+            ? homeFilteredRoster.teamName
+            : possession.arrow === "away"
+              ? awayFilteredRoster.teamName
+              : null
+        }
+        onPossessionClick={isReadOnly ? undefined : handleArrowClick}
       />
 
       {/* 2026-05-15 (PR-SS-54) — 별도 PeriodColorLegend 박스 제거.

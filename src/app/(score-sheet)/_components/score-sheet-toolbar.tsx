@@ -85,6 +85,9 @@ interface ScoreSheetToolbarProps {
   currentPeriod?: number;
   onEndPeriod?: () => void;
   onRetreatPeriod?: () => void;
+  possessionArrow?: "home" | "away" | null;
+  possessionTeamLabel?: string | null;
+  onPossessionClick?: () => void;
 }
 
 export function ScoreSheetToolbar({
@@ -109,6 +112,9 @@ export function ScoreSheetToolbar({
   currentPeriod,
   onEndPeriod,
   onRetreatPeriod,
+  possessionArrow,
+  possessionTeamLabel,
+  onPossessionClick,
 }: ScoreSheetToolbarProps) {
   const router = useRouter();
   // 2026-05-15 (PR-Fullscreen-Clean) — 풀스크린 시 toolbar 자체 hidden (양식만 보이도록).
@@ -137,6 +143,15 @@ export function ScoreSheetToolbar({
       : getPeriodColor(currentPeriod);
 
   // 풀스크린 모드에선 toolbar 자체 미렌더 (양식만 보이도록 — 사용자 요청).
+  const possessionButtonLabel =
+    possessionArrow === null ? "점프볼" : "헬드볼";
+  const possessionTitle =
+    possessionArrow === null
+      ? "점프볼 승리 팀 선택"
+      : `헬드볼 발생 기록${
+          possessionTeamLabel ? ` — 공격권 ${possessionTeamLabel}` : ""
+        }`;
+
   if (isFullscreen) return null;
 
   return (
@@ -205,6 +220,26 @@ export function ScoreSheetToolbar({
         {/* 2026-05-16 (PR-Fullscreen-Button) — 사용자 보고 이미지 #132 fix.
             라인업 좌측에 "전체화면" 텍스트 버튼 (아이콘 0). useFullscreen.toggle 호출.
             isFullscreen=true 일 때는 위 if (isFullscreen) return null 으로 toolbar 자체 미렌더. */}
+        {possessionArrow !== undefined && (
+          <button
+            type="button"
+            className="ss-toolbar__print ss-toolbar__possession"
+            onClick={onPossessionClick}
+            disabled={!onPossessionClick}
+            aria-label={possessionTitle}
+            title={possessionTitle}
+          >
+            <span className="material-symbols-outlined" aria-hidden>
+              {possessionArrow === null
+                ? "sports_basketball"
+                : possessionArrow === "home"
+                  ? "arrow_forward"
+                  : "arrow_back"}
+            </span>
+            {possessionButtonLabel}
+          </button>
+        )}
+
         <button
           type="button"
           className="ss-toolbar__print"

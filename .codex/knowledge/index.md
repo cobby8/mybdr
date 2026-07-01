@@ -1,5 +1,7 @@
 # Knowledge Index
 
+- 2026-07-01 score-sheet: the existing jump-ball/held-ball possession flow is now reachable from the visible electronic score-sheet toolbar instead of only the hidden FIBA header area.
+
 - 2026-07-01 score-sheet: v2 running-score title now includes a prominent current-period chip inside the sheet body, so the active period remains visible even when the toolbar is not the operator's focus.
 
 - 2026-07-01 score-sheet: v2 roster grids now give leftover player-table width to the five personal-foul cells instead of leaving a right-side gap; the 1-5 foul buttons remain separate cells.
@@ -86,6 +88,7 @@ Updated: 2026-07-01
 | lessons.md | 0 | - |
 
 Recent work:
+- 2026-07-01 score-sheet: the visible toolbar gained a possession action button that opens the existing jump-ball/held-ball flow; Chrome confirmed the jump-ball dialog opens from the toolbar.
 - 2026-07-01 score-sheet: the electronic score-sheet v2 running-score header gained an in-sheet current-period chip; Chrome confirmed a visible 64x27 Q1 chip at 1024px without page scroll.
 - 2026-07-01 score-sheet: personal-foul columns in electronic score-sheet v2 were widened by redistributing leftover roster width; Chrome metrics confirmed 0px right gap at 1440px and 1024px.
 - 2026-07-01 score-sheet: current-period chip and period-colored running-score marks were added to the electronic score-sheet v2 layout; visual checks passed at 1366px/1024px and color verification confirmed Q1/Q2/Q3/Q4 mappings.

@@ -95,6 +95,19 @@
 
 /* 2026-05-15 (PR-SS-52) — 뒤로 버튼 = 아이콘만 (외곽 박스 제거, 사용자 요청).
    터치 영역 = 36px hit area 유지 (display: inline-flex + 44px wide). */
+.ss-shell .ss-toolbar__possession {
+  border: 1.5px solid var(--color-primary);
+  color: var(--color-primary);
+  font-weight: 800;
+}
+
+.ss-shell .ss-toolbar__possession:disabled {
+  border-color: var(--ss-toolbar-border);
+  color: var(--color-text-muted);
+  cursor: default;
+  opacity: 0.65;
+}
+
 .ss-shell .ss-toolbar__back {
   display: inline-flex;
   align-items: center;
