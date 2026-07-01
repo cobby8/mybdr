@@ -1,5 +1,7 @@
 # Knowledge Index
 
+- 2026-07-01 score-sheet: next/previous period navigation now uses the shared ConfirmModal before changing `runningScore.currentPeriod`; Chrome confirmed Q4 end confirm, Q4→Q3 retreat, and Q3→Q4 advance.
+
 - 2026-07-01 score-sheet: Q4/OT end now always delegates to the final match-end review modal; local Chrome confirmed period scores are shown, required signatures block submit, and the submit button unlocks only after 1st referee, 2nd referee, scorer, and assistant scorer signatures are entered.
 
 - 2026-07-01 score-sheet: the existing jump-ball/held-ball possession flow is now reachable from the visible electronic score-sheet toolbar instead of only the hidden FIBA header area.
@@ -90,6 +92,7 @@ Updated: 2026-07-01
 | lessons.md | 0 | - |
 
 Recent work:
+- 2026-07-01 score-sheet: next/previous quarter buttons now require confirmation before changing the active period; local Chrome verified cancel/confirm behavior and Q3/Q4 labels.
 - 2026-07-01 score-sheet: removed the unreachable old direct-submit branch from the Q4/OT end handler; Chrome verified the final review modal shows period/final scores and enforces required signatures before enabling submit.
 - 2026-07-01 score-sheet: the visible toolbar gained a possession action button that opens the existing jump-ball/held-ball flow; Chrome confirmed the jump-ball dialog opens from the toolbar.
 - 2026-07-01 score-sheet: the electronic score-sheet v2 running-score header gained an in-sheet current-period chip; Chrome confirmed a visible 64x27 Q1 chip at 1024px without page scroll.

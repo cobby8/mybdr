@@ -1562,15 +1562,81 @@ export function ScoreSheetForm({
 
   // Period 진행/후퇴 — Phase 4 통합 전 임시 버튼 (PeriodScoresSection 안).
   // Phase 23 PR-RO2 (2026-05-15) — 종료 매치 차단 (사용자 결재 Q2 — 모든 핸들러 isCompleted early return).
-  function handleAdvancePeriod() {
+  function periodMoveLabel(period: number): string {
+    if (periodFormat === "halves") {
+      if (period === 1) return "전반";
+      if (period === 2) return "후반";
+      return `OT${period - 2}`;
+    }
+    if (period <= 4) return `Q${period}`;
+    return `OT${period - 4}`;
+  }
+
+  async function confirmPeriodMove(params: {
+    direction: "next" | "previous";
+    from: number;
+    to?: number;
+    opensDecisionModal?: boolean;
+  }): Promise<boolean> {
+    const fromLabel = periodMoveLabel(params.from);
+    const toLabel = params.to ? periodMoveLabel(params.to) : null;
+    const isNext = params.direction === "next";
+    const choice = await confirmModal({
+      title: isNext ? `${fromLabel} 종료 확인` : "이전 쿼터 이동 확인",
+      message: (
+        <>
+          <p>
+            {isNext
+              ? params.opensDecisionModal
+                ? `${fromLabel}을 종료하고 경기 종료/연장 진행 선택으로 넘어갈까요?`
+                : `${fromLabel}을 종료하고 ${toLabel}로 이동할까요?`
+              : `${fromLabel}에서 ${toLabel}로 돌아갈까요?`}
+          </p>
+          <p className="mt-2">
+            이동 후 새로 입력하는 기록은 선택된 쿼터에 박제됩니다. 현장 기록
+            흐름을 한 번 더 확인해 주세요.
+          </p>
+        </>
+      ),
+      options: [
+        { value: "cancel", label: "취소" },
+        {
+          value: "move",
+          label: isNext ? "이동" : "돌아가기",
+          isPrimary: true,
+        },
+      ],
+    });
+    return choice === "move";
+  }
+
+  async function handleAdvancePeriod() {
     if (isReadOnly) return; // Phase 23 PR-EDIT3 (PR-D-3 isReadOnly 통일)
+    const from = runningScore.currentPeriod;
+    const to = Math.min(from + 1, 9);
+    if (to === from) return;
+    const ok = await confirmPeriodMove({
+      direction: "next",
+      from,
+      to,
+    });
+    if (!ok) return;
     setRunningScore((prev) => ({
       ...prev,
       currentPeriod: Math.min(prev.currentPeriod + 1, 9),
     }));
   }
-  function handleRetreatPeriod() {
+  async function handleRetreatPeriod() {
     if (isReadOnly) return; // Phase 23 PR-EDIT3 (PR-D-3 isReadOnly 통일)
+    const from = runningScore.currentPeriod;
+    const to = Math.max(from - 1, 1);
+    if (to === from) return;
+    const ok = await confirmPeriodMove({
+      direction: "previous",
+      from,
+      to,
+    });
+    if (!ok) return;
     setRunningScore((prev) => ({
       ...prev,
       currentPeriod: Math.max(prev.currentPeriod - 1, 1),
@@ -1583,9 +1649,18 @@ export function ScoreSheetForm({
   //   - period 1~3 종료 = 자동 다음 Period 진입 (기존 동작 유지)
   //   - period 4 (Q4) 종료 = QuarterEndModal 표시 (경기 종료 / OT1 진행 2 버튼)
   //   - period 5~7 (OTn) 종료 = QuarterEndModal 표시 (경기 종료 / 다음 OT 진행 / 동점 시 종료 비활성)
-  function handleEndPeriod() {
+  async function handleEndPeriod() {
     if (isReadOnly) return; // Phase 23 PR-EDIT3 (PR-D-3 isReadOnly 통일)
     const endedPeriod = runningScore.currentPeriod;
+    const opensDecisionModal =
+      periodFormat === "halves" ? endedPeriod >= 2 : endedPeriod >= 4;
+    const ok = await confirmPeriodMove({
+      direction: "next",
+      from: endedPeriod,
+      to: Math.min(endedPeriod + 1, 9),
+      opensDecisionModal,
+    });
+    if (!ok) return;
     // 2026-05-16 (PR-Possession-2) — 쿼터 종료 시 공격권 자동 토글 (FIBA Article 12).
     //   룰: 쿼터 종료 = 다음 쿼터 시작 공격권 = 이전 쿼터 시작과 반대.
     //   arrow === null (Opening Jump Ball 미박제) 시 togglePossession 가 state 그대로 반환 (헬퍼 가드).
