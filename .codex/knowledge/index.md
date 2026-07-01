@@ -1,5 +1,7 @@
 # Knowledge Index
 
+- 2026-07-02 nba-news: reporter prompt contract now maps verification status to verified article, single-source attribution, developing note, analysis draft, or internal monitoring note; focused Vitest and `cmd /c npx tsc --noEmit` passed.
+
 - 2026-07-02 nba-news: dry-run scenario fixtures now cover official injury, single-insider trade, multi-source signing, and unknown-source rumor cases; focused Vitest and `cmd /c npx tsc --noEmit` passed.
 
 - 2026-07-02 Alkija: match-news generation now prepends an editorial fact sheet and article-angle hint before the raw match data; phase2 validation rejects missing `TITLE:`, missing team names, or missing final score before draft creation.
@@ -98,6 +100,7 @@ Updated: 2026-07-02
 | lessons.md | 0 | - |
 
 Recent work:
+- 2026-07-02 nba-news: added reporter prompt contract with status-aware output modes, source brief clipping, attribution rules, and queue-only monitoring prompts; focused Vitest and `cmd /c npx tsc --noEmit` passed.
 - 2026-07-02 nba-news: added reusable dry-run scenario fixtures and a scenario runner for official, single-insider, multi-source, and rumor cases; focused Vitest and `cmd /c npx tsc --noEmit` passed.
 - 2026-07-02 nba-news: added dry-run pipeline for mock source signals, source registry lookup, trust scoring, event creation, and deterministic draft output; fixed the two-source T1 threshold after a focused test caught `reported_single` instead of `confirmed_multiple`.
 - 2026-07-01 score-sheet: next/previous quarter buttons now require confirmation before changing the active period; local Chrome verified cancel/confirm behavior and Q3/Q4 labels.
