@@ -27,6 +27,7 @@
 | Tournament operate panel Toss flow | Done | Teams, bracket, schedule, ops, site, and settlement panel roots now run inside the single Toss workspace skin without nested compatibility wrappers. |
 
 ## Work Log
+- 2026-07-01: Electronic score-sheet v2 toolbar now shows a large current-period chip, running-score reached marks inherit period colors, and local Chrome visual/color checks passed.
 - 2026-06-27: Replaced recording-mode trigger/card modal Tailwind/inline UI with Toss `rm-*` classes and removed layout inline styles from site panel public-section card; TypeScript and diff check passed.
 - 2026-06-27: Added operate-workspace final parity CSS guard for v2.41 Toss sizing and converted schedule table inline cell styles to classes; TypeScript and diff check passed.
 - 2026-06-27: Removed nested Toss skin wrappers from bracket/schedule/ops/site/settlement panels, deleted old nested-skin compatibility CSS, and added shared operate panel flow.

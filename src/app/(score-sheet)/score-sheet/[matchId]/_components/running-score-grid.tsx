@@ -47,7 +47,7 @@
 
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import type { RosterItem } from "./team-section-types";
 import type {
   ScoreMark,
@@ -485,7 +485,8 @@ function RunningScoreSide({
               <PrintScoreCell
                 key={`${side}-score-${position}`}
                 position={position}
-                reached={markMap.has(position)}
+                reached={Boolean(mark)}
+                period={mark?.period ?? null}
                 periodEnd={periodEnds.has(position)}
               />
             );
@@ -562,13 +563,15 @@ function SetColumns({
         {rowIndexes.map((rowIdx) => {
           const position = offset + rowIdx;
           // PR-S10 — data-reached (마킹 도달) / data-period-end (period 마지막 마킹)
-          const reached = homeMarkMap.has(position);
+          const mark = homeMarkMap.get(position);
+          const reached = Boolean(mark);
           const periodEnd = homePeriodEnds.has(position);
           return (
             <PrintScoreCell
               key={`pa-${position}`}
               position={position}
               reached={reached}
+              period={mark?.period ?? null}
               periodEnd={periodEnd}
             />
           );
@@ -579,13 +582,15 @@ function SetColumns({
       <div className="flex flex-col">
         {rowIndexes.map((rowIdx) => {
           const position = offset + rowIdx;
-          const reached = awayMarkMap.has(position);
+          const mark = awayMarkMap.get(position);
+          const reached = Boolean(mark);
           const periodEnd = awayPeriodEnds.has(position);
           return (
             <PrintScoreCell
               key={`pb-${position}`}
               position={position}
               reached={reached}
+              period={mark?.period ?? null}
               periodEnd={periodEnd}
             />
           );
@@ -657,17 +662,28 @@ function ColumnHeader({ label }: { label: string }) {
 function PrintScoreCell({
   position,
   reached,
+  period,
   periodEnd,
 }: {
   position: number;
   reached: boolean;
+  period: number | null;
   periodEnd: boolean;
 }) {
+  const periodColor =
+    reached && period != null ? getPeriodColor(period) : "var(--pap-ink)";
+  const style = {
+    height: "100%",
+    color: periodColor,
+    "--rs-period-color": periodColor,
+  } as CSSProperties;
+
   return (
     <div
       className="ss-rs__cell flex w-full items-center justify-center text-[9px] font-semibold"
-      style={{ height: "100%" }}
+      style={style}
       data-reached={reached ? "true" : undefined}
+      data-period={period ?? undefined}
       data-period-end={periodEnd ? "true" : undefined}
       aria-hidden="true"
     >

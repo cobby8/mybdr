@@ -25,6 +25,10 @@
 
 import { useRouter } from "next/navigation";
 import { useFullscreen } from "./fullscreen-context";
+import {
+  getPeriodColor,
+  getPeriodLabel,
+} from "@/lib/score-sheet/period-color";
 // 2026-05-15 (PR-SS-Manual-Legend) — PeriodColorLegend 가 설명서 모달로 이동.
 //   toolbar 직접 import 불필요 (form 의 handleOpenManual 안에서 사용).
 
@@ -126,6 +130,11 @@ export function ScoreSheetToolbar({
     gameNo !== null && gameNo !== undefined && String(gameNo).trim() !== ""
       ? `#${gameNo}`
       : "#";
+  const periodLabel = getToolbarPeriodLabel(currentPeriod, periodFormat);
+  const periodColor =
+    currentPeriod == null
+      ? "var(--pap-bonus)"
+      : getPeriodColor(currentPeriod);
 
   // 풀스크린 모드에선 toolbar 자체 미렌더 (양식만 보이도록 — 사용자 요청).
   if (isFullscreen) return null;
@@ -150,7 +159,21 @@ export function ScoreSheetToolbar({
 
         {/* 2026-05-15 (PR-SS-Manual-Legend) — 색상/점수 안내 = 설명서 모달로 이동.
             toolbar 중앙은 빈 공간 spacer (flex-1) → 우측 버튼들 우측 정렬. */}
-        <div className="flex-1" aria-hidden />
+        <div className="ss-toolbar__period-slot" aria-live="polite">
+          {periodLabel && (
+            <span
+              className="ss-toolbar__period-chip"
+              style={{
+                borderColor: periodColor,
+                backgroundColor: `color-mix(in srgb, ${periodColor} 12%, #FFFFFF)`,
+                color: periodColor,
+              }}
+              aria-label={`현재 쿼터 ${periodLabel}`}
+            >
+              {periodLabel}
+            </span>
+          )}
+        </div>
         {/* aria 보조 — gameNo 정보 유지 (스크린리더용 hidden) */}
         <span className="sr-only">SCORESHEET · {titleSuffix}</span>
 
@@ -366,4 +389,17 @@ export function ScoreSheetToolbar({
       </div>
     </div>
   );
+}
+
+function getToolbarPeriodLabel(
+  currentPeriod: number | undefined,
+  periodFormat: "halves" | "quarters" | undefined,
+): string | null {
+  if (currentPeriod == null || currentPeriod < 1) return null;
+  if (periodFormat === "halves") {
+    if (currentPeriod === 1) return "전반";
+    if (currentPeriod === 2) return "후반";
+    return `OT${currentPeriod - 2}`;
+  }
+  return getPeriodLabel(currentPeriod);
 }

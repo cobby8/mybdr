@@ -1,5 +1,7 @@
 # Knowledge Index
 
+- 2026-07-01 score-sheet: v2 electronic score-sheet toolbar now exposes the current period as a large centered chip, and running-score reached score cells/period-end markers inherit the scoring period color.
+
 - 2026-06-27 admin: bracket/schedule/ops/site/settlement operate panels no longer mount nested `data-skin="toss"` roots; all six operate tabs now rely on the single parent Toss skin and shared `op-panel-flow`, avoiding grey embedded backgrounds and legacy compatibility CSS.
 
 - 2026-06-27 admin: tournament teams tab looked unchanged because visible operate panels were still hybrid-preserving old structure; the teams tab now starts direct Toss parity with actionbar, registration-route stats, division readiness, grouped rows, and no nested `data-skin` grey background.
@@ -69,7 +71,7 @@
 - 2026-06-26 tournament-admin: match-level manual recording mode is now a real non-record-system mode instead of Flutter fallback.
 - 2026-06-26 record-app: separated game-rule time presets from nonstop/all-dead clock mode.
 
-Updated: 2026-06-27
+Updated: 2026-07-01
 
 | File | Entries | Recent |
 |---|---:|---|
@@ -80,6 +82,7 @@ Updated: 2026-06-27
 | lessons.md | 0 | - |
 
 Recent work:
+- 2026-07-01 score-sheet: current-period chip and period-colored running-score marks were added to the electronic score-sheet v2 layout; visual checks passed at 1366px/1024px and color verification confirmed Q1/Q2/Q3/Q4 mappings.
 - 2026-06-27 admin: tournament teams tab now renders the v2.41 Toss visible order and removes the nested panel-level `data-skin` background that made the body look unchanged/grey; TypeScript, diff check, and local Chrome DOM metrics passed.
 - 2026-06-27 admin: tournament audit-log native table moved to Toss `ad-native-table`; TypeScript, diff check, scan, and local Chrome old-table DOM check passed.
 - 2026-06-27 admin: active status badges were moved from `admin-stat-pill` to Toss `ad-pill` with matching tone CSS; TypeScript, diff check, and local Chrome `/admin/users` DOM check passed.

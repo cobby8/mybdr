@@ -27,6 +27,7 @@
   /* 2026-05-15 (PR-SS-Manual-Legend) — grid 4컬럼 → flex 한 줄 정렬.
      사용자 요청 "한 행으로 재배치 + 버튼 우측 정렬".
      좌측 back + spacer (flex-1) + 우측 버튼 다수 = 한 줄 우측 정렬. */
+  position: relative;
   display: flex;
   flex-wrap: nowrap;
   align-items: center;
@@ -41,6 +42,36 @@
 /* 2026-05-15 — toolbar 안 버튼들 = shrink 0 (wrap 차단, 항상 한 줄 유지) */
 .ss-shell .ss-toolbar > * {
   flex-shrink: 0;
+}
+
+.ss-shell .ss-toolbar__period-slot {
+  flex: 1 1 auto;
+  min-width: 96px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.ss-shell .ss-toolbar__period-chip {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 1;
+  transform: translate(-50%, -50%);
+  min-width: 88px;
+  height: 40px;
+  padding: 0 18px;
+  border: 2px solid var(--pap-bonus);
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font: 900 22px/1 var(--ff-mono, "Space Grotesk", ui-monospace, monospace);
+  letter-spacing: 0;
+  background: #FFFFFF;
+  box-shadow: 0 6px 16px rgba(26, 30, 39, 0.12);
+  white-space: nowrap;
 }
 
 /* print / finish — 공통 32px 버튼.
@@ -1166,7 +1197,7 @@
   position: absolute;
   width: 130%;
   height: 1px;
-  background: var(--pap-ink);
+  background: var(--rs-period-color, var(--pap-ink));
   left: -15%;
   top: 50%;
   transform: rotate(-22deg);
@@ -1180,7 +1211,7 @@
   position: absolute;
   width: 12px;
   height: 12px;
-  border: 1.2px solid var(--pap-ink);
+  border: 1.2px solid var(--rs-period-color, var(--pap-ink));
   border-radius: 50%;
   pointer-events: none;
   left: 50%;
@@ -1289,6 +1320,7 @@
 
 .score-sheet-print-root .ss-shell .ss-toolbar {
   max-width: min(100%, 1440px);
+  position: relative;
 }
 
 .score-sheet-print-root .ss-toolbar__print .material-symbols-outlined,
@@ -1395,6 +1427,16 @@
 }
 
 @media (max-width: 1180px) and (min-width: 901px) {
+  .score-sheet-print-root .ss-toolbar__period-chip {
+    position: static;
+    transform: none;
+    min-width: 76px;
+    height: 34px;
+    padding: 0 14px;
+    font-size: 19px;
+    box-shadow: none;
+  }
+
   .score-sheet-print-root .score-sheet-v2-grid {
     grid-template-columns:
       minmax(380px, 1fr)
@@ -1421,6 +1463,20 @@
 }
 
 @media (max-width: 900px) {
+  .score-sheet-print-root .ss-toolbar__period-slot {
+    min-width: 72px;
+  }
+
+  .score-sheet-print-root .ss-toolbar__period-chip {
+    position: static;
+    transform: none;
+    min-width: 66px;
+    height: 32px;
+    padding: 0 10px;
+    font-size: 17px;
+    box-shadow: none;
+  }
+
   .score-sheet-print-root .score-sheet-v2-grid {
     grid-template-columns:
       minmax(290px, 1fr)
