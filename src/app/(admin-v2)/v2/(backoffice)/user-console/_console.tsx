@@ -49,14 +49,17 @@ export function UserConsole({
   orgs,
   currentUserId,
   suspendAction,
+  initialTab = "users",
 }: {
   users: AdminBoUser[];
   teams: AdminBoTeam[];
   orgs: AdminBoOrg[];
   currentUserId: string | null;
   suspendAction: (formData: FormData) => Promise<void>;
+  /** 서브라우트(/teams, /orgs) 진입 시 초기 탭 설정. 기본값 "users". */
+  initialTab?: "users" | "teams" | "orgs";
 }) {
-  const [tab, setTab] = React.useState<"users" | "teams" | "orgs">("users");
+  const [tab, setTab] = React.useState<"users" | "teams" | "orgs">(initialTab);
   const [detail, setDetail] = React.useState<Detail>(null);
 
   // 색상 주입(정본 av) — 리스트 아바타 + 상세 hero 공용

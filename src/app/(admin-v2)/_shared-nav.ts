@@ -150,10 +150,10 @@ export const ADMIN_TARGET: Record<string, string> = {
   // ① 운영
   dash:          "/v2",
   logs:          "/v2/logs",
-  // ② 유저 콘솔
+  // ② 유저 콘솔 (서브라우트 실연결 — /teams·/orgs 각 탭 직접 진입)
   userMembers:   "/v2/user-console",
-  userTeams:     "/v2/soon?c=user-teams",
-  userOrgs:      "/v2/soon?c=user-orgs",
+  userTeams:     "/v2/user-console/teams",
+  userOrgs:      "/v2/user-console/orgs",
   // ③ 매칭 콘솔
   matchGuest:    "/v2/match-console",
   matchPickup:   "/v2/soon?c=match-pickup",
@@ -218,8 +218,10 @@ export function getAdminActive(pathname: string): string {
   // ① 운영
   if (pathname === "/v2") return "dash";
   if (pathname.startsWith("/v2/logs")) return "logs";
-  // ② 유저 콘솔
-  if (pathname.startsWith("/v2/user-console")) return "userMembers";
+  // ② 유저 콘솔 (더 구체적인 경로 먼저)
+  if (pathname.startsWith("/v2/user-console/teams")) return "userTeams";
+  if (pathname.startsWith("/v2/user-console/orgs"))  return "userOrgs";
+  if (pathname.startsWith("/v2/user-console"))        return "userMembers";
   // ③ 매칭 콘솔
   if (pathname.startsWith("/v2/match-console")) return "matchGuest";
   // ④ 커뮤니티 콘솔 (news-console 먼저)
