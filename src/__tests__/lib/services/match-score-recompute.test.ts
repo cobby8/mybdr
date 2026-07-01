@@ -1,7 +1,7 @@
 /**
  * Match Score Recompute 단위 테스트 — Phase C: status route safety net.
  *
- * 검증 범위 (8 케이스):
+ * 검증 범위 (11 케이스):
  * 1) 매치 없음 → null 반환
  * 2) homeScore > 0 이미 박제 → source="skip" / changed 모두 false (멱등성)
  * 3) playerStats 정상 (#98 패턴) → source="playerStats" / 팀별 합 사용
@@ -10,6 +10,10 @@
  * 6) quarterScores 재계산 — Phase B 와 일치 (Q1~Q4 + OT)
  * 7) winner_team_id 재계산 — 점수 비교 / 동점 null / 기존 winner 와 다르면 갱신
  * 8) applyScoreSafetyNet 호출 시 audit 박제 + UPDATE 데이터 검증 (mock prisma)
+ * 9) 한 팀 0점 잔여 → 임계 미달 skip / 기존 winner 보존 (가드2 커버 범위)
+ * 10) applyScoreSafetyNet — 한 팀 0점 잔여 → UPDATE/audit 미호출 (가드2 커버 범위)
+ * 11) 306 실제 사고값(home 2 / away 3, 양팀>0) → 가드2 게이트 통과 → skip 안 함
+ *     (가드2 한계 문서화 — 이 클래스는 가드1이 근본 차단)
  *
  * mock 패턴: 기존 admin-roles.test.ts / score-from-pbp.test.ts 와 일관.
  *   Prisma 호출 단위로 mock 객체 만들고 결과 매핑.
@@ -395,5 +399,120 @@ describe("computeRecomputedScore", () => {
     expect(auditArgs[4]).toBe("system");
     expect(auditArgs[5]).toBe("test-context");
     expect(auditArgs[6]).toBeNull(); // changedBy
+  });
+
+  it("9) 한 팀 0점 잔여 → 임계 미달 skip / 기존 winner 보존 / changed 모두 false (가드2 커버 범위)", async () => {
+    // 가드2가 '실제로 막는' 케이스: home(펜타곤 245)=0점, away(몽키즈 999)=3점.
+    // resolvedHome=0 → 임계 ①(양팀>0) 미달 → skip → 기존 winner 보존.
+    // ⚠️ 주의: 이 시나리오는 준결승 306 의 '실제 사고값(home 2 / away 3)'이 아니다.
+    //   306 실사고는 양팀 모두 >0 이라 이 게이트를 통과한다(아래 #11 참조). 여기서는
+    //   가드2 가 커버하는 '한 팀 0점' 부분데이터 케이스만 검증한다.
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const tx = buildMockTx({
+      matchHeader: {
+        id: BigInt(306),
+        homeScore: 0,
+        awayScore: 0,
+        quarterScores: null,
+        winner_team_id: BigInt(245), // 원본 승자 펜타곤 — 반드시 보존되어야 함
+        homeTeamId: BigInt(245),
+        awayTeamId: BigInt(999),
+      },
+      playerStats: [],
+      // away(몽키즈) 3점만 존재 — home 0점
+      pbpRows: [
+        { quarter: 1, action_type: "made_shot", is_made: true, points_scored: 3, tournament_team_id: BigInt(999) },
+      ],
+    });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const result = await computeRecomputedScore(tx as any, BigInt(306));
+    expect(result).not.toBeNull();
+    // 한 팀 0점 → 임계 미달 → 변경 전면 skip.
+    expect(result!.changed.homeScore).toBe(false);
+    expect(result!.changed.awayScore).toBe(false);
+    expect(result!.changed.quarterScores).toBe(false);
+    expect(result!.changed.winnerTeamId).toBe(false);
+    expect(result!.quarterScores).toBeNull();
+    // 기존 winner(펜타곤 245) 보존 — 한 팀 0점 케이스라 엉뚱한 승자 박제 안 됨.
+    expect(result!.winnerTeamId?.toString()).toBe("245");
+    // 수동검토 표식 warn 1회.
+    expect(warnSpy).toHaveBeenCalledTimes(1);
+    warnSpy.mockRestore();
+  });
+
+  it("10) applyScoreSafetyNet — 한 팀 0점 잔여(임계 미달) → UPDATE/audit 전면 미호출 (가드2 커버 범위)", async () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const updateCalls: unknown[] = [];
+    const tx = buildMockTx({
+      matchHeader: {
+        id: BigInt(306),
+        homeScore: 0,
+        awayScore: 0,
+        quarterScores: null,
+        winner_team_id: BigInt(245),
+        homeTeamId: BigInt(245),
+        awayTeamId: BigInt(999),
+      },
+      playerStats: [],
+      pbpRows: [
+        { quarter: 1, action_type: "made_shot", is_made: true, points_scored: 3, tournament_team_id: BigInt(999) },
+      ],
+      beforeSnapshot: { homeScore: 0, awayScore: 0, winner_team_id: BigInt(245) },
+      updateImpl: async (args: unknown) => {
+        updateCalls.push(args);
+        return {};
+      },
+    });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const result = await applyScoreSafetyNet(tx as any, BigInt(306), "test-context");
+    // 결과는 반환되지만 changed 모두 false → UPDATE/audit 진입 안 함.
+    expect(result).not.toBeNull();
+    expect(updateCalls.length).toBe(0);
+    expect(recordMatchAudit).not.toHaveBeenCalled();
+    warnSpy.mockRestore();
+  });
+
+  it("11) 준결승 306 실제 사고값(home 2 / away 3, 양팀>0) → 가드2 게이트 '통과' → skip 안 함 (가드2 한계 · 가드1이 근본 차단)", async () => {
+    // ⚠️ 이 테스트는 '가드2가 306 을 막는다'는 거짓 확신을 방지하기 위한 정직한 한계 문서화다.
+    // 준결승 306 의 실제 사고값 = home(펜타곤 245) 2점 / away(몽키즈 999) 3점 (양팀 모두 >0)
+    //   + 잔여 PBP 행 존재. 이 경우:
+    //   - 조건 ①(resolvedHome>0 AND resolvedAway>0): 2>0 AND 3>0 → 통과
+    //   - 조건 ②(playerStats 또는 PBP 행 최소 1건): PBP 존재 → 통과
+    //   → hasMinimumData=true → 게이트를 그냥 지나간다(skip 아님).
+    //   → away(3) > home(2) 이므로 winner 가 원본 펜타곤(245) → 몽키즈(999)로 '오판' 뒤집힘.
+    // 즉 가드2 단독으로는 이 2-3 형 폐기 잔여를 못 막는다. 근본 차단은 가드1(reset 시
+    //   status="completed" → 409/throw)이 담당: completed 폐기 진입 자체를 봉쇄해 이 잔여
+    //   상태가 애초에 만들어지지 않는다.
+    const homeTeamId = BigInt(245);
+    const awayTeamId = BigInt(999);
+    const tx = buildMockTx({
+      matchHeader: {
+        id: BigInt(306),
+        homeScore: 0,
+        awayScore: 0,
+        quarterScores: null,
+        winner_team_id: BigInt(245), // 원본 승자 펜타곤
+        homeTeamId,
+        awayTeamId,
+      },
+      playerStats: [],
+      // 실제 사고값: home 2점 / away 3점 (양팀 모두 >0)
+      pbpRows: [
+        { quarter: 1, action_type: "made_shot", is_made: true, points_scored: 2, tournament_team_id: homeTeamId },
+        { quarter: 1, action_type: "made_shot", is_made: true, points_scored: 3, tournament_team_id: awayTeamId },
+      ],
+    });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const result = await computeRecomputedScore(tx as any, BigInt(306));
+    expect(result).not.toBeNull();
+    // 게이트 통과 → skip 아님 → 점수/승자 변경이 실제로 발생한다(가드2 미차단 실증).
+    expect(result!.source).toBe("pbp");
+    expect(result!.homeScore).toBe(2);
+    expect(result!.awayScore).toBe(3);
+    expect(result!.changed.homeScore).toBe(true);
+    expect(result!.changed.awayScore).toBe(true);
+    // ★핵심: winner 가 원본 펜타곤(245) → 몽키즈(999)로 뒤집힘 = 가드2 로는 못 막는 오판.
+    expect(result!.winnerTeamId?.toString()).toBe("999");
+    expect(result!.changed.winnerTeamId).toBe(true);
   });
 });
