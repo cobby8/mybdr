@@ -302,3 +302,16 @@
 @media (max-width: 900px) {
   [data-admin="v2"] .adn-rail, [data-admin="v2"] .adn-panel { display: none; }
 }
+
+/* 패널 섹션 전환 슬라이드-인 ─────────────────────────────────────────────
+   레일 클릭 → railSec 변경 → shell.tsx 의 nav[key=railSec] remount
+   → 마운트 시 adnPanelIn 애니메이션 실행 (translateX 우→좌 슬라이드 + fade).
+   flatPanel=true 모드(key=undefined)에서는 remount 없어 초기 마운트 1회만 실행. */
+@keyframes adnPanelIn {
+  from { opacity: 0; transform: translateX(12px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+[data-admin="v2"] .adn-panel__nav { animation: adnPanelIn 0.18s ease-out both; }
+@media (prefers-reduced-motion: reduce) {
+  [data-admin="v2"] .adn-panel__nav { animation: none; }
+}

@@ -194,7 +194,7 @@ export type AdminShellProps = {
   onUser?: () => void;
   /** 역할 필터 (D2: 이번 PR은 타입만 — 배선은 후속) */
   roles?: string[];
-  /** 패널 표시 모드. true(기본): 전 섹션 나열. false: 레일 선택 섹션만. */
+  /** 패널 표시 모드. true: 전 섹션 나열. false(기본·정본): 레일 선택 섹션만 표시 → 레일 클릭 시 패널 전환. */
   flatPanel?: boolean;
 };
 
@@ -212,7 +212,8 @@ export function AdminShell({
   footAction,
   onUser,
   // roles: 후속(D2) — 현재 미사용, 타입 수신만
-  flatPanel = true,
+  // flatPanel=false(정본): 레일 선택 섹션만 패널에 표시. true: 전 섹션 나열(flat).
+  flatPanel = false,
 }: AdminShellProps) {
   const [drawer, setDrawer] = React.useState(false);
   const [toast, setToast] = React.useState<React.ReactNode>(null);
@@ -372,7 +373,7 @@ export function AdminShell({
         {/* ── 데스크톱 — 컨텍스트 패널 (236px) ── */}
         <aside className="adn-panel">
           <div className="adn-panel__head">
-            {/* eyebrow: flatPanel=true → brand만. false → "brand · brandSub" */}
+            {/* eyebrow: flatPanel=false(기본) → "brand · brandSub" 계층. true → brand만. */}
             <div className="adn-panel__eyebrow">
               {flatPanel ? (
                 brand
@@ -390,7 +391,9 @@ export function AdminShell({
                 : (panelSec.label || (brandSub ?? brand))}
             </div>
           </div>
-          <nav className="adn-panel__nav">
+          {/* key=railSec: flatPanel=false 모드에서 레일 클릭 → railSec 변경 → nav remount → CSS slide-in 트리거.
+              flatPanel=true 모드에서는 key=undefined → remount 없음(애니메이션 초기 마운트 1회만). */}
+          <nav className="adn-panel__nav" key={flatPanel ? undefined : railSec}>
             {(flatPanel ? secs : [panelSec]).map((s, i) => (
               <div key={s.label + i}>
                 {/* flatPanel 모드에서만 섹션 레이블 노출 */}
