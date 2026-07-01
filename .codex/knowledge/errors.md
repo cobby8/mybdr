@@ -1,5 +1,12 @@
 # Errors
 
+## 2026-07-02 NBA Trust Scoring Multiple Sources Stayed Single
+
+- Symptom: The dry-run pipeline test expected two independent T1 insider signals to produce `confirmed_multiple`, but the scoring result stayed `reported_single`.
+- Cause: Two independent sources added only 15 points, leaving medium-risk T1 + T1 reports below the 85-point confirmed threshold.
+- Fix: Raised the two-source independence score from 15 to 20 so two independent high-tier signals can reach `confirmed_multiple`.
+- Prevention: Keep representative policy cases in focused tests when changing trust-score thresholds: official source, single T1, high-risk single T1, two independent T1, rumor-watch.
+
 ## 2026-06-27 Group Stage Knockout Preview Count Diverged From Generator
 
 - Symptom: For a 2-group tournament with 3 qualifiers per group, the operate bracket preview could imply same-group first-round risk and showed `본선 7경기` even though only 5 real knockout matches should be generated.

@@ -66,7 +66,7 @@ function getIndependentSourceCount(sources: readonly NbaNewsSource[]): number {
 
 function getIndependenceScore(independentSourceCount: number): number {
   if (independentSourceCount >= 3) return 20;
-  if (independentSourceCount === 2) return 15;
+  if (independentSourceCount === 2) return 20;
   if (independentSourceCount === 1) return 0;
   return 0;
 }
