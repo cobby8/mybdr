@@ -436,6 +436,77 @@ export const prefetchUpcomingGames = unstable_cache(async () => {
 }, ["home-upcoming-games"], { revalidate: 60 });
 
 /* ============================================================
+ * 4-C. 주목할 단체(NotableOrgs) 프리페치 (PR-HOME-3)
+ *
+ * 왜 이 함수가 필요한가:
+ * 시안 Home.jsx L788~822 의 사이드바 위젯 "추천 단체"(NotableOrgs)를 홈
+ * aside 에 배선하기 위함. 기존 홈에는 이 위젯이 없었다(현재 부재 → 시안만 존재).
+ *
+ * 신규 REST 엔드포인트 없이 서비스 레이어에서 필요한 필드만 READ 한다.
+ * is_public=true + status="approved" 인 공개·승인 단체만 노출.
+ *
+ * 시안 근사매핑 (PM 승인): 시안의 kind/teams 필드가 실제 스키마에 없으므로
+ *   kind    → region(활동 지역)
+ *   teams   → series_count(소속 시리즈 수)
+ *   members → _count.members(organization_members)
+ * 로 근사한다.
+ *
+ * 유저 비의존 → unstable_cache 60s (홈 접속 빈도 높음).
+ * ============================================================ */
+export const prefetchNotableOrgs = unstable_cache(async () => {
+  // 공개 + 승인 단체만 — 시리즈 많은 순(활동 활발) 우선, 동률이면 최신 생성순
+  const orgs = await prisma.organizations.findMany({
+    where: {
+      is_public: true,
+      status: "approved",
+      // 테스트 단체 노출 방지 — prefetchUpcomingTournament 의 test 필터 방식 준수.
+      // 단 org 명은 한글 "테스트" 도 쓰이므로 "test"/"테스트" 둘 다 제외(대소문자 무시).
+      // AND 배열 = NOT(test) AND NOT(테스트) (각 조건 독립 부정)
+      AND: [
+        { NOT: { name: { contains: "test", mode: "insensitive" as const } } },
+        { NOT: { name: { contains: "테스트", mode: "insensitive" as const } } },
+      ],
+    },
+    orderBy: [{ series_count: "desc" }, { created_at: "desc" }],
+    take: 4,
+    select: {
+      id: true,
+      name: true,
+      slug: true, // 라우팅용 (/organizations/[slug])
+      logo_url: true,
+      region: true, // 시안 kind 근사
+      series_count: true, // 시안 teams 근사
+      // 멤버 수 — organization_members 관계(`members`) 카운트
+      _count: { select: { members: true } },
+    },
+  });
+
+  // BigInt → string 직렬화 + 필드 평탄화
+  const serialized = orgs.map((o) => ({
+    id: o.id.toString(),
+    name: o.name,
+    slug: o.slug,
+    logoUrl: o.logo_url,
+    region: o.region,
+    seriesCount: o.series_count,
+    memberCount: o._count.members,
+  }));
+
+  // apiSuccess()와 동일하게 snake_case 변환 (프론트 접근자 일관성)
+  return convertKeysToSnakeCase({ orgs: serialized }) as {
+    orgs: Array<{
+      id: string;
+      name: string;
+      slug: string;
+      logo_url: string | null;
+      region: string | null;
+      series_count: number;
+      member_count: number;
+    }>;
+  };
+}, ["home-notable-orgs"], { revalidate: 60 });
+
+/* ============================================================
  * 5. 열린 대회 프리페치 (BDR v2 Home용)
  *
  * 왜 이 함수가 필요한가:

@@ -45,6 +45,8 @@ import {
   prefetchHeroSlides,
   prefetchMySummary,
   prefetchUpcomingGames,
+  prefetchTeams,
+  prefetchNotableOrgs,
 } from "@/lib/services/home";
 
 export const dynamic = "force-dynamic";
@@ -451,6 +453,305 @@ function GameMiniCard({
 }
 
 /* ============================================================
+ * teamInitials — 팀명/단체명 → 이니셜 (아바타 텍스트)
+ * 한글/영문 모두 앞 2글자. 공백 제거 후 잘라 사용.
+ * ============================================================ */
+function nameInitials(name: string): string {
+  const trimmed = (name ?? "").trim();
+  if (!trimmed) return "?";
+  // 앞 2글자 (한글은 1~2자만으로도 식별 충분)
+  return trimmed.slice(0, 2).toUpperCase();
+}
+
+/* ============================================================
+ * isWhitish — 팀색이 흰색/거의 흰색인지 판정
+ * 왜: 운영 팀 primary_color 다수가 #FFFFFF → 흰 배경 + ink-on-brand(흰 글자)
+ *     면 이니셜이 안 보인다. 흰색/null 이면 var(--cafe-blue) 로 fallback.
+ * ============================================================ */
+function isWhitish(hex: string | null | undefined): boolean {
+  if (!hex) return true;
+  const h = hex.trim().toLowerCase();
+  return h === "#fff" || h === "#ffffff" || h === "white";
+}
+
+/* ============================================================
+ * TeamMiniCard — 시안 Home.jsx L498~525 (TeamMiniCard) 카피 (PR-HOME-3)
+ * "주목할 팀" 레일 카드 (wins desc 상위 팀)
+ *
+ * 시안 정합:
+ *  - 좌: 이니셜 아바타 (44px, radius 6) — 팀색 primary_color 배경 + ink-on-brand 글자
+ *    (흰색/null 팀색은 var(--cafe-blue) fallback — 흰 글자 대비 확보)
+ *  - 중: 팀명(1줄 ellipsis) / 서브 "{wins}승 {losses}패" + 지역
+ *  - 우: 멤버수 (mono, cafe-blue-deep) — 시안 rating 컬럼 부재 → 멤버수로 대체
+ *  - rating 컬럼이 없어 정렬은 wins desc(레이팅 상위 근사)
+ * ============================================================ */
+function TeamMiniCard({
+  team,
+}: {
+  team: {
+    id: string;
+    name: string;
+    primary_color: string | null;
+    city: string | null;
+    district: string | null;
+    wins: number;
+    losses: number;
+    member_count: number;
+  };
+}) {
+  // 흰색/null 가드 — 흰 배경이면 이니셜(흰 글자)이 사라지므로 cafe-blue 토큰 fallback
+  const avatarBg = isWhitish(team.primary_color)
+    ? "var(--cafe-blue)"
+    : (team.primary_color as string);
+  // 지역: 시/구 조합 (둘 다 없으면 빈 문자열)
+  const region = [team.city, team.district].filter(Boolean).join(" ");
+
+  return (
+    <Link
+      href={`/teams/${team.id}`}
+      className="card"
+      style={{
+        padding: 14,
+        display: "flex",
+        alignItems: "center",
+        gap: 12,
+        height: "100%",
+        minWidth: 0,
+        textDecoration: "none",
+        color: "var(--ink)",
+        scrollSnapAlign: "start",
+      }}
+    >
+      {/* 이니셜 아바타 — 팀색 배경(흰색 가드) + ink-on-brand 글자 */}
+      <div
+        style={{
+          width: 44,
+          height: 44,
+          borderRadius: 6,
+          background: avatarBg,
+          color: "var(--ink-on-brand)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          fontWeight: 800,
+          fontSize: 15,
+          fontFamily: "var(--ff-display)",
+          flex: "0 0 auto",
+        }}
+      >
+        {nameInitials(team.name)}
+      </div>
+
+      {/* 중앙 — 팀명 + 전적·지역 */}
+      <div style={{ minWidth: 0, flex: 1 }}>
+        <div
+          style={{
+            fontWeight: 700,
+            fontSize: 14,
+            color: "var(--ink)",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {team.name}
+        </div>
+        <div
+          style={{
+            fontSize: 11,
+            color: "var(--ink-mute)",
+            display: "flex",
+            gap: 6,
+            alignItems: "center",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}
+        >
+          <span style={{ fontFamily: "var(--ff-mono)" }}>
+            {team.wins}승 {team.losses}패
+          </span>
+          {region && (
+            <>
+              <span style={{ color: "var(--ink-dim)" }}>·</span>
+              <span
+                style={{
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {region}
+              </span>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* 우측 — 멤버수 (시안 rating 위치 대체) */}
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          flex: "0 0 auto",
+        }}
+      >
+        <span
+          style={{
+            fontFamily: "var(--ff-mono)",
+            fontSize: 15,
+            fontWeight: 800,
+            color: "var(--cafe-blue-deep)",
+            lineHeight: 1,
+          }}
+        >
+          {team.member_count}
+        </span>
+        <span
+          style={{
+            fontSize: 10,
+            color: "var(--ink-dim)",
+            marginTop: 2,
+          }}
+        >
+          멤버
+        </span>
+      </div>
+    </Link>
+  );
+}
+
+/* ============================================================
+ * HomeNotableOrgs — 시안 Home.jsx L788~822 (NotableOrgs) 카피 (PR-HOME-3)
+ * 사이드바 "추천 단체" 위젯 (is_public+approved 상위 4)
+ *
+ * 시안 정합:
+ *  - 헤더 "추천 단체" + "더 보기 →"(/organizations)
+ *  - 각 행: 이니셜 아바타(32px, radius 4) + 단체명 + "{region} · {series}팀 · {members}명"
+ *  - 근사매핑(PM 승인): kind→region · teams→series_count · members→member_count
+ *  - 단체는 색상 컬럼 부재 → 아바타 배경을 토큰 로테이션(cafe-blue/accent/cafe-blue-deep)
+ * ============================================================ */
+const ORG_AVATAR_TOKENS = [
+  "var(--cafe-blue)",
+  "var(--accent)",
+  "var(--cafe-blue-deep)",
+] as const;
+
+function HomeNotableOrgs({
+  orgs,
+}: {
+  orgs: Array<{
+    id: string;
+    name: string;
+    slug: string;
+    region: string | null;
+    series_count: number;
+    member_count: number;
+  }>;
+}) {
+  return (
+    <section className="card" style={{ padding: 0, overflow: "hidden" }}>
+      <header
+        style={{
+          padding: "12px 16px",
+          borderBottom: "1px solid var(--border)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+        }}
+      >
+        <div style={{ fontWeight: 700, fontSize: 13 }}>추천 단체</div>
+        <Link
+          href="/organizations"
+          style={{
+            fontSize: 11,
+            color: "var(--ink-mute)",
+            textDecoration: "none",
+          }}
+        >
+          더 보기 →
+        </Link>
+      </header>
+      <div>
+        {orgs.map((o, i) => {
+          // 시안 "{kind} · {teams}팀 · {members}명" 근사 (빈 값은 스킵)
+          const meta = [
+            o.region,
+            `${o.series_count}팀`,
+            `${o.member_count}명`,
+          ]
+            .filter(Boolean)
+            .join(" · ");
+          return (
+            <Link
+              key={o.id}
+              href={`/organizations/${o.slug}`}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+                padding: "10px 16px",
+                borderBottom:
+                  i < orgs.length - 1 ? "1px solid var(--border)" : "none",
+                color: "var(--ink)",
+                textDecoration: "none",
+              }}
+            >
+              {/* 이니셜 아바타 — 색상 컬럼 부재 → 토큰 로테이션 배경 */}
+              <div
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: 4,
+                  background:
+                    ORG_AVATAR_TOKENS[i % ORG_AVATAR_TOKENS.length],
+                  color: "var(--ink-on-brand)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontWeight: 800,
+                  fontSize: 12,
+                  fontFamily: "var(--ff-display)",
+                  flex: "0 0 auto",
+                }}
+              >
+                {nameInitials(o.name)}
+              </div>
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <div
+                  style={{
+                    fontWeight: 600,
+                    fontSize: 13,
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {o.name}
+                </div>
+                <div
+                  style={{
+                    fontSize: 11,
+                    color: "var(--ink-dim)",
+                    fontFamily: "var(--ff-mono)",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {meta}
+                </div>
+              </div>
+            </Link>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+/* ============================================================
  * HomeNoticeCard — 시안 Home.jsx L530~578 (NoticeCard) 카피
  * 공지사항 목록 (category=notice 우선, 없으면 최신글 대체)
  * ============================================================ */
@@ -817,6 +1118,8 @@ export default async function HomePage() {
     liveResult,
     mySummaryResult,
     upcomingGamesResult,
+    teamsResult,
+    notableOrgsResult,
   ] = await Promise.allSettled([
     prefetchStats(),
     prefetchCommunity(),
@@ -825,6 +1128,8 @@ export default async function HomePage() {
     getLiveChips(),
     userId ? prefetchMySummary(userId) : Promise.resolve(null),
     prefetchUpcomingGames(),
+    prefetchTeams(), // 주목할 팀 (PR-HOME-3·유저 비의존·캐시)
+    prefetchNotableOrgs(), // 주목할 단체 (PR-HOME-3·유저 비의존·캐시)
   ]);
 
   const statsData =
@@ -846,6 +1151,16 @@ export default async function HomePage() {
   const upcomingGames =
     upcomingGamesResult.status === "fulfilled"
       ? upcomingGamesResult.value?.games ?? []
+      : [];
+  // 주목할 팀 — wins desc 상위 6팀 (실패 시 빈 배열 → 레일 미표시)
+  const featuredTeams =
+    teamsResult.status === "fulfilled"
+      ? (teamsResult.value?.teams ?? []).slice(0, 6)
+      : [];
+  // 주목할 단체 — 상위 4단체 (실패 시 빈 배열 → 위젯 미표시)
+  const notableOrgs =
+    notableOrgsResult.status === "fulfilled"
+      ? notableOrgsResult.value?.orgs ?? []
       : [];
 
   // 게시글 데이터 분배
@@ -1117,12 +1432,32 @@ export default async function HomePage() {
 
           {/* 방금 올라온 글 — 탭 필터 (클라이언트 컴포넌트, 신규 fetch 0) */}
           <HomeBoardFeed posts={latestPosts} />
+
+          {/* 주목할 팀 — 시안 Home.jsx L127~137 (RecommendedRail inset) 카피 (PR-HOME-3)
+              featuredTeams → TeamMiniCard 가로 스크롤. 데이터 0건이면 미표시. */}
+          {featuredTeams.length > 0 && (
+            <div style={{ marginTop: 24 }}>
+              <RecommendedRail
+                title="주목할 팀"
+                eyebrow="TEAMS · 레이팅 상위"
+                more={{ href: "/teams" }}
+                inset
+              >
+                {featuredTeams.map((t) => (
+                  <TeamMiniCard key={t.id} team={t} />
+                ))}
+              </RecommendedRail>
+            </div>
+          )}
         </div>
 
         {/* 우 — 사이드바 */}
         <aside className="home__aside">
           {/* ProfileWidget: 로그인 시 게이미피케이션 / 비로그인 null */}
           <ProfileWidget />
+          {/* 주목할 단체 — 시안 Home.jsx L146 (NotableOrgs) 카피 (PR-HOME-3)
+              ProfileWidget ↔ CommunityPulse 사이. 0건이면 미표시. */}
+          {notableOrgs.length > 0 && <HomeNotableOrgs orgs={notableOrgs} />}
           {/* CommunityPulse: 통계 4개 2×2 */}
           <HomeCommunityPulse stats={statsData} />
         </aside>
