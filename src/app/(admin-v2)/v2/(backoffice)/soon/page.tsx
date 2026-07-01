@@ -10,18 +10,32 @@ import { PageHead, Empty, Icon } from "@/components/admin-v2";
 export const dynamic = "force-dynamic";
 
 const LABELS: Record<string, { title: string; eyebrow: string }> = {
-  logs: { title: "활동 로그", eyebrow: "관리자 콘솔" },
-  matchConsole: { title: "매칭 콘솔", eyebrow: "운영 콘솔" },
+  // 신규 11콘솔 nav soon 하위메뉴 (c-value = _shell.tsx TARGET 값과 1:1)
+  "user-teams":     { title: "팀",        eyebrow: "유저 콘솔" },
+  "user-orgs":      { title: "단체",      eyebrow: "유저 콘솔" },
+  "match-pickup":   { title: "픽업게임",  eyebrow: "매칭 콘솔" },
+  "match-scrim":    { title: "연습경기",  eyebrow: "매칭 콘솔" },
+  "comm-hot":       { title: "인기글",    eyebrow: "커뮤니티 콘솔" },
+  "comm-report":    { title: "신고 검토", eyebrow: "커뮤니티 콘솔" },
+  "court-outdoor":  { title: "야외코트",  eyebrow: "코트 콘솔" },
+  "court-checkin":  { title: "체크인",    eyebrow: "코트 콘솔" },
+  "partner-camp":   { title: "캠페인",    eyebrow: "협력업체 콘솔" },
+  "partner-settle": { title: "정산",      eyebrow: "협력업체 콘솔" },
+  "mkt-promo":      { title: "프로모션",  eyebrow: "마케팅 콘솔" },
+  "mkt-banner":     { title: "배너 관리", eyebrow: "마케팅 콘솔" },
+  // 구 키 (하위호환 — 이전 4섹션 nav에서 생성되던 c-value, 현재 nav에서 미생성)
+  logs:             { title: "활동 로그",     eyebrow: "관리자 콘솔" },
+  matchConsole:     { title: "매칭 콘솔",     eyebrow: "운영 콘솔" },
   communityConsole: { title: "커뮤니티 콘솔", eyebrow: "운영 콘솔" },
-  courtConsole: { title: "코트 콘솔", eyebrow: "운영 콘솔" },
-  marketingConsole: { title: "마케팅 콘솔", eyebrow: "운영 콘솔" },
-  referee: { title: "심판 콘솔", eyebrow: "운영 콘솔" },
-  partner: { title: "협력업체 콘솔", eyebrow: "운영 콘솔" },
-  payments: { title: "결제", eyebrow: "정산·플랜" },
-  plans: { title: "요금제", eyebrow: "정산·플랜" },
-  notifications: { title: "알림", eyebrow: "시스템" },
-  settings: { title: "설정", eyebrow: "시스템" },
-  mypage: { title: "마이페이지", eyebrow: "시스템" },
+  courtConsole:     { title: "코트 콘솔",     eyebrow: "운영 콘솔" },
+  marketingConsole: { title: "마케팅 콘솔",   eyebrow: "운영 콘솔" },
+  referee:          { title: "심판 콘솔",     eyebrow: "운영 콘솔" },
+  partner:          { title: "협력업체 콘솔", eyebrow: "운영 콘솔" },
+  payments:         { title: "결제",          eyebrow: "정산·플랜" },
+  plans:            { title: "요금제",        eyebrow: "정산·플랜" },
+  notifications:    { title: "알림",          eyebrow: "시스템" },
+  settings:         { title: "설정",          eyebrow: "시스템" },
+  mypage:           { title: "마이페이지",    eyebrow: "시스템" },
 };
 
 export default async function AdminV2Soon({
