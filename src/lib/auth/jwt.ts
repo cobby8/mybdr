@@ -13,9 +13,13 @@ const MEMBERSHIP_TO_ROLE: Record<number, string> = {
 const getSecret = () => new TextEncoder().encode(process.env.JWT_SECRET);
 
 const ALGORITHM = "HS256";
-// M-02: 30d → 7d 단축. jti를 생성하지만 현재 블랙리스트 미구현.
-// TODO: 토큰 즉시 폐기가 필요하면 Redis 기반 jti 블랙리스트 도입 필요
-const EXPIRY = "7d";
+// M-02: 30d → 7d → 3d 단축 (2026-07-01 보안 후속·사용자 결정).
+//   로그아웃이 stateless no-op(서버측 무효화 없음)이라, 로그아웃/탈취 토큰의
+//   유효 노출 창 = EXPIRY. 이를 7d→3d(72h)로 줄여 노출 창을 축소.
+//   ⚠️ EXPIRY = 실질 세션 길이(웹 자동 refresh/슬라이딩 없음·refresh는 비만료 토큰만).
+//   즉 자동로그인(쿠키 30d) 사용자도 실제로는 EXPIRY(3d)마다 재로그인.
+//   jti는 생성하나 블랙리스트 미적용(즉시 폐기 필요 시 Redis jti 또는 users.tokens_valid_after 도입).
+const EXPIRY = "3d";
 
 export interface JwtPayload {
   sub: string;

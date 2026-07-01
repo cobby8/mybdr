@@ -33,8 +33,8 @@
 - **분류**: error (운영 보안)
 - **발견자**: site-security
 - **내용**:
-  1. **jti 블랙리스트 미구현** — `src/lib/auth/jwt.ts` EXPIRY=7d / jti 생성은 하나 Redis 블랙리스트 미적용. 로그아웃해도 토큰 7일 유효. TODO 주석 존재. 조치: Redis jti 블랙리스트 도입 또는 토큰 만료 단축.
-  2. **expire-pending-bookings cron — CRON_SECRET 조건부 우회** — `src/app/api/cron/expire-pending-bookings/route.ts` L37: `if (process.env.CRON_SECRET && ...)` 패턴. CRON_SECRET 미설정 시 인증 없이 누구나 호출 가능. 다른 12개 cron은 `if (authHeader !== 'Bearer ...')` 무조건 체크(미설정=모든요청차단). 이 cron은 pending 예약을 cancelled 처리하므로 악용 위험. 조치: 다른 cron 패턴(`if (authHeader !== 'Bearer ...')`)으로 통일.
+  1. **jti 블랙리스트 미구현** — `src/lib/auth/jwt.ts` jti 생성은 하나 블랙리스트 미적용·로그아웃 stateless no-op(`/api/v1/auth/logout`·`getWebSession` 서버측 무효화 0). ✅ **[2026-07-01 대응·사용자 결정] EXPIRY 7d→3d(72h) 단축**(노출 창 축소·경량). **미채택 이유(블랙리스트 풀구현)**: verifyToken이 웹(withWebAuth/getWebSession)+Flutter(withAuth) 인증 코어 공용인데 **현재 핫패스 DB/Redis 0**(서명검증만) → Redis jti/DB tokens_valid_after는 전 인증요청에 round-trip 추가. **주의**: EXPIRY=실질 세션(웹 자동 refresh 없음·refresh는 비만료 토큰만)이라 자동로그인(쿠키30d) 사용자도 3d마다 재로그인. 즉시폐기 필요 시 users.tokens_valid_after(무중단 컬럼) 재검토.
+  2. ✅ **[해결됨·커밋 7f2b0e3] expire-pending-bookings cron — CRON_SECRET 조건부 우회** — L37~40이 이미 `if (authHeader !== 'Bearer ${CRON_SECRET}')` 무조건 검증으로 수정됨(미설정=전요청 401). 본 항목 stale.
   3. **CSP script-src 'unsafe-inline' 잔존** — `next.config.ts` L6: 프로덕션에서도 'unsafe-inline' 미제거. TODO 주석으로 nonce 구현 예정이나 미완. XSS 공격 CSP 방어 약화. 조치: nonce 기반 CSP 구현(`proxy.ts`에서 nonce 생성 → `x-nonce` 헤더 전달) 후 'unsafe-inline' 제거.
   4. **upload rate limit 미매핑** — `RATE_LIMITS.upload` (10/min) 정의는 있으나 `proxy.ts` `getRateLimitConfig()`에서 upload 경로 미매핑 → 파일업로드도 `api` (100/min) 한도 적용. 조치: `pathname.includes("/upload")` 조건 추가.
 - **참조횟수**: 0
