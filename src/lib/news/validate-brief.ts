@@ -42,6 +42,10 @@ function validatePhase2Structure(brief: string, input: MatchBriefInput): Validat
     };
   }
 
+  if (/✍|알기자|AI\s*작성/i.test(body)) {
+    return { valid: false, reason: "phase2 서명/footer 문구 포함" };
+  }
+
   return { valid: true };
 }
 

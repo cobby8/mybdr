@@ -148,6 +148,7 @@ function buildEditorialReview(post: NewsPost): EditorialReview {
     { label: "매치 연결", ok: Boolean(post.tournament_match_id) },
     { label: "팀명 근거", ok: teamLinks >= 2 },
     { label: "스코어", ok: scorePattern.test(body) },
+    { label: "서명 없음", ok: !/✍|알기자|AI\s*작성/i.test(body) },
     { label: "본문 길이", ok: body.length >= 120 && body.length <= 900 },
   ];
   const passed = checks.filter((check) => check.ok).length;
