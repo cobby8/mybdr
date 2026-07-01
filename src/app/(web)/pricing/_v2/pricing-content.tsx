@@ -124,7 +124,8 @@ export function PricingContent({ plans }: { plans: PricingPlan[] }) {
                     left: "50%",
                     transform: "translateX(-50%)",
                     background: "var(--accent)",
-                    color: "#fff",
+                    // accent(유색) 배지 배경 위 흰 텍스트 → DS v4 ink-on-brand
+                    color: "var(--ink-on-brand)",
                     padding: "4px 12px",
                     fontSize: 11,
                     fontWeight: 800,

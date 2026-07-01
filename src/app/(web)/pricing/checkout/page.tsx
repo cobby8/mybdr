@@ -305,8 +305,8 @@ function CheckoutContent() {
                     flexShrink: 0,
                     // done/on=accent 채움 / todo=흐린 테두리
                     background: isDone || isOn ? "var(--accent)" : "var(--bg-alt)",
-                    // accent 배경 위 텍스트 — 운영 .btn--accent 컨벤션과 동일하게 #fff 사용
-                    color: isDone || isOn ? "#fff" : "var(--ink-dim)",
+                    // accent(유색) 배경 위 텍스트 → DS v4 ink-on-brand
+                    color: isDone || isOn ? "var(--ink-on-brand)" : "var(--ink-dim)",
                     border: isDone || isOn ? "none" : "1px solid var(--border)",
                   }}
                 >

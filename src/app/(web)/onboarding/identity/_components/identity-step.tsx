@@ -86,7 +86,7 @@ export function IdentityStep({ returnTo = null }: IdentityStepProps = {}) {
                 {m.badge && (
                   <span
                     className="badge"
-                    style={{ background: "var(--accent)", color: "#fff", borderColor: "transparent" }}
+                    style={{ background: "var(--accent)", color: "var(--ink-on-brand)", borderColor: "transparent" }}
                   >
                     {m.badge}
                   </span>

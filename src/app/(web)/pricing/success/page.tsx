@@ -64,7 +64,8 @@ function ReceiptContent() {
             width: 72,
             height: 72,
             background: "var(--ok)",
-            color: "#fff",
+            // ok(유색) 원형 배경 위 흰 아이콘 → DS v4 ink-on-brand
+            color: "var(--ink-on-brand)",
             borderRadius: "50%",
             display: "grid",
             placeItems: "center",
@@ -187,7 +188,8 @@ function ReceiptContent() {
               gap: 6,
               textDecoration: "none",
               background: "var(--cafe-blue)",
-              color: "#fff",
+              // cafe-blue(유색) 버튼 배경 위 흰 텍스트 → DS v4 ink-on-brand
+              color: "var(--ink-on-brand)",
               borderColor: "var(--cafe-blue-deep)",
             }}
           >

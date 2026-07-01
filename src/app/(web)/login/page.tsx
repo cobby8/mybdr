@@ -387,7 +387,8 @@ export default function LoginPage() {
                     padding: "2px 8px",
                     borderRadius: 4,
                     background: "var(--cafe-blue)",
-                    color: "#fff",
+                    // cafe-blue(유색) 배지 배경 위 흰 텍스트 → DS v4 ink-on-brand
+                    color: "var(--ink-on-brand)",
                     fontWeight: 700,
                     fontSize: 11,
                   }}

@@ -165,7 +165,8 @@ function TourneyMiniCard({
             fontFamily: "var(--ff-display)",
             fontWeight: 900,
             fontSize: 16,
-            color: "#fff",
+            // 유색 그라디언트 포스터 배경 위 흰 텍스트 → DS v4 ink-on-brand
+            color: "var(--ink-on-brand)",
             overflow: "hidden",
             textOverflow: "ellipsis",
             whiteSpace: "nowrap",
@@ -330,7 +331,10 @@ function HomeNoticeCard({
                       ? "var(--accent)"
                       : "var(--bg-alt)",
                   color:
-                    p.category === "notice" ? "#fff" : "var(--ink-mute)",
+                    // notice 배지는 accent(유색) 배경 → 흰 텍스트를 ink-on-brand로
+                    p.category === "notice"
+                      ? "var(--ink-on-brand)"
+                      : "var(--ink-mute)",
                   borderRadius: 3,
                   letterSpacing: ".04em",
                   flex: "0 0 auto",
