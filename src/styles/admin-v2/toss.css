@@ -62,7 +62,10 @@
   --ff: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
   --ff-mono: 'JetBrains Mono', ui-monospace, monospace;
 
-  --sidebar-w: 248px;
+  /* 듀얼네비 토큰 (v52 ADM-V1) */
+  --adn-rail:  76px;
+  --adn-panel: 236px;
+  --sidebar-w: 312px; /* RAIL(76) + PANEL(236) — ts-main margin-left 자동 반영 */
 }
 
 [data-admin="v2"], [data-admin="v2"] * { box-sizing: border-box; }
@@ -257,3 +260,45 @@
    → admin-v2 스코프 안에서 정본 톤으로 기본화한다. */
 [data-admin="v2"] ::selection { background: var(--primary-weak); color: var(--ink); }
 [data-admin="v2"] a:hover { text-decoration: none; }
+
+/* ── 듀얼네비 레일 (ADM-V1 v52) ─────────────────────────────────
+   정본 admin-shell.jsx 의 RAIL(76px)+PANEL(236px) CSS를 [data-admin="v2"] 스코프로 이식.
+   JS style 주입 방식 → Next.js CSS 파일 방식으로 전환.
+   모바일(≤900px): adn-rail·adn-panel hidden → ts-topbar·ts-drawer 그대로 사용. */
+
+/* 아이콘 레일 */
+[data-admin="v2"] .adn-rail { position: fixed; top: 0; left: 0; bottom: 0; width: var(--adn-rail); background: var(--bg); border-right: 1px solid var(--border); z-index: 32; display: flex; flex-direction: column; align-items: center; }
+[data-admin="v2"] .adn-rail__brand { width: 40px; height: 40px; border-radius: 12px; background: var(--primary); color: #fff; display: grid; place-items: center; font-size: 18px; font-weight: 900; margin: 16px 0 10px; text-decoration: none; flex: 0 0 auto; }
+[data-admin="v2"] .adn-rail__brand:hover { background: var(--primary-hover); }
+[data-admin="v2"] .adn-rail__nav { flex: 1; width: 100%; padding: 4px 0; display: flex; flex-direction: column; align-items: center; gap: 3px; overflow-y: auto; scrollbar-width: none; }
+[data-admin="v2"] .adn-rail__nav::-webkit-scrollbar { display: none; }
+[data-admin="v2"] .adn-railitem { position: relative; width: 58px; padding: 9px 0; border: 0; background: transparent; border-radius: 14px; display: flex; flex-direction: column; align-items: center; gap: 5px; cursor: pointer; color: var(--ink-mute); font-size: 10.5px; font-weight: 700; font-family: var(--ff); transition: background .12s, color .12s; }
+[data-admin="v2"] .adn-railitem:hover { background: var(--grey-50); color: var(--ink); }
+[data-admin="v2"] .adn-railitem[data-active="true"] { background: var(--primary-weak); color: var(--primary); }
+[data-admin="v2"] .adn-railitem[data-active="true"]::before { content: ""; position: absolute; left: -9px; top: 50%; transform: translateY(-50%); width: 3px; height: 24px; border-radius: 0 3px 3px 0; background: var(--primary); }
+[data-admin="v2"] .adn-railitem__lbl { max-width: 60px; line-height: 1.15; text-align: center; word-break: keep-all; }
+[data-admin="v2"] .adn-railitem__dot { position: absolute; top: 7px; right: 11px; width: 7px; height: 7px; border-radius: 50%; background: var(--primary); border: 1.5px solid var(--bg); }
+
+/* 컨텍스트 패널 */
+[data-admin="v2"] .adn-panel { position: fixed; top: 0; left: var(--adn-rail); bottom: 0; width: var(--adn-panel); background: #fff; border-right: 1px solid var(--border); z-index: 31; display: flex; flex-direction: column; }
+[data-admin="v2"] .adn-panel__head { padding: 22px 18px 10px; flex: 0 0 auto; }
+[data-admin="v2"] .adn-panel__eyebrow { font-size: 11px; font-weight: 700; color: var(--ink-dim); letter-spacing: .02em; }
+[data-admin="v2"] .adn-panel__title { font-size: 19px; font-weight: 800; color: var(--ink); letter-spacing: -0.02em; margin-top: 3px; }
+[data-admin="v2"] .adn-panel__nav { flex: 1; overflow-y: auto; padding: 6px 14px 12px; display: flex; flex-direction: column; gap: 2px; }
+[data-admin="v2"] .adn-panel__foot { padding: 14px; border-top: 1px solid var(--border); flex: 0 0 auto; display: flex; flex-direction: column; gap: 10px; }
+
+/* 공용 nav 링크 — 패널 + 모바일 드로어 */
+[data-admin="v2"] .adn-link { display: flex; align-items: center; gap: 12px; padding: 11px 14px; border: 0; background: transparent; cursor: pointer; text-align: left; width: 100%; font-size: 14.5px; font-weight: 600; color: var(--ink-soft); border-radius: 12px; font-family: var(--ff); transition: background .12s, color .12s; text-decoration: none; }
+[data-admin="v2"] .adn-link:hover { background: var(--grey-50); color: var(--ink); }
+[data-admin="v2"] .adn-link[data-active="true"] { background: var(--primary-weak); color: var(--primary); font-weight: 700; }
+[data-admin="v2"] .adn-link__t { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+[data-admin="v2"] .adn-link__badge { margin-left: auto; font-size: 11.5px; font-family: var(--ff-mono); font-weight: 700; background: var(--grey-100); color: var(--ink-mute); padding: 2px 8px; border-radius: 8px; flex: 0 0 auto; }
+[data-admin="v2"] .adn-link[data-active="true"] .adn-link__badge { background: var(--primary); color: #fff; }
+
+/* 섹션 레이블 (패널 + 드로어 공통) */
+[data-admin="v2"] .adn-dgroup__label { font-size: 11px; font-weight: 700; color: var(--ink-dim); padding: 14px 12px 6px; letter-spacing: .02em; }
+
+/* 모바일에서 레일·패널 hidden — 토픽바·드로어가 대체 */
+@media (max-width: 900px) {
+  [data-admin="v2"] .adn-rail, [data-admin="v2"] .adn-panel { display: none; }
+}
