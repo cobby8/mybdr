@@ -1,5 +1,7 @@
 # Knowledge Index
 
+- 2026-07-01 score-sheet: v2 running-score title now includes a prominent current-period chip inside the sheet body, so the active period remains visible even when the toolbar is not the operator's focus.
+
 - 2026-07-01 score-sheet: v2 roster grids now give leftover player-table width to the five personal-foul cells instead of leaving a right-side gap; the 1-5 foul buttons remain separate cells.
 
 - 2026-07-01 score-sheet: v2 electronic score-sheet toolbar now exposes the current period as a large centered chip, and running-score reached score cells/period-end markers inherit the scoring period color.
@@ -84,6 +86,7 @@ Updated: 2026-07-01
 | lessons.md | 0 | - |
 
 Recent work:
+- 2026-07-01 score-sheet: the electronic score-sheet v2 running-score header gained an in-sheet current-period chip; Chrome confirmed a visible 64x27 Q1 chip at 1024px without page scroll.
 - 2026-07-01 score-sheet: personal-foul columns in electronic score-sheet v2 were widened by redistributing leftover roster width; Chrome metrics confirmed 0px right gap at 1440px and 1024px.
 - 2026-07-01 score-sheet: current-period chip and period-colored running-score marks were added to the electronic score-sheet v2 layout; visual checks passed at 1366px/1024px and color verification confirmed Q1/Q2/Q3/Q4 mappings.
 - 2026-06-27 admin: tournament teams tab now renders the v2.41 Toss visible order and removes the nested panel-level `data-skin` background that made the body look unchanged/grey; TypeScript, diff check, and local Chrome DOM metrics passed.

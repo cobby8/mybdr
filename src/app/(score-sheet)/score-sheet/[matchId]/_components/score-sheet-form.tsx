@@ -2743,6 +2743,7 @@ export function ScoreSheetForm({
               awayPlayers={awayFilteredRoster.players}
               homeTeamName={homeFilteredRoster.teamName}
               awayTeamName={awayFilteredRoster.teamName}
+              periodFormat={periodFormat}
               readOnly={isReadOnly}
               frameless
               // 2026-05-16 (PR-Quarter-Retreat) — 사용자 보고. 2쿼터+ 시 "이전 쿼터" 버튼.

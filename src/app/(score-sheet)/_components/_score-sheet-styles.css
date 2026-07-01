@@ -1117,6 +1117,38 @@
 }
 
 /* 16-col header (A / / / B / A / / / B / ...) = 시안 L554~571 정합 */
+.ss-shell .ss-rs__title-main {
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.ss-shell .ss-rs__period-chip {
+  min-width: 54px;
+  height: 24px;
+  padding: 0 10px;
+  border: 2px solid var(--pap-ink);
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font: 900 17px/1 var(--ff-mono, "Space Grotesk", ui-monospace, monospace);
+  letter-spacing: 0;
+  background: #FFFFFF;
+  box-shadow: 0 2px 6px rgba(26, 30, 39, 0.14);
+  white-space: nowrap;
+}
+
+.ss-shell .ss-rs__title-label {
+  font: 800 13px/1 var(--ff-body, "Pretendard", system-ui, sans-serif);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--pap-ink);
+  white-space: nowrap;
+}
+
 .ss-shell .ss-rs__head {
   display: grid;
   grid-template-columns: repeat(16, 1fr);
@@ -1520,16 +1552,29 @@
 }
 
 .score-sheet-print-root .score-sheet-v2-center .ss-rs__title {
-  min-height: 30px;
+  min-height: 46px;
   padding: 4px 6px;
-  flex-direction: row;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 0;
+  gap: 3px;
 }
 
-.score-sheet-print-root .score-sheet-v2-center .ss-rs__title > div:first-child {
-  font-size: 12px;
+.score-sheet-print-root .score-sheet-v2-center .ss-rs__title-main {
+  flex-direction: column;
+  gap: 3px;
+}
+
+.score-sheet-print-root .score-sheet-v2-center .ss-rs__period-chip {
+  min-width: 64px;
+  height: 27px;
+  padding: 0 12px;
+  font-size: 19px;
+  box-shadow: 0 3px 8px rgba(26, 30, 39, 0.16);
+}
+
+.score-sheet-print-root .score-sheet-v2-center .ss-rs__title-label {
+  font-size: 11px;
   line-height: 1;
   text-align: center;
 }

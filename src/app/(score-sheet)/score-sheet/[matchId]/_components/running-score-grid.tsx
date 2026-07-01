@@ -59,7 +59,7 @@ import {
   addMark,
   getScoreMarkVariant,
 } from "@/lib/score-sheet/running-score-helpers";
-import { getPeriodColor } from "@/lib/score-sheet/period-color";
+import { getPeriodColor, getPeriodLabel } from "@/lib/score-sheet/period-color";
 import { PlayerSelectModal } from "./player-select-modal";
 
 interface RunningScoreGridProps {
@@ -78,6 +78,7 @@ interface RunningScoreGridProps {
   frameless?: boolean;
   onEndPeriod?: () => void;
   onRetreatPeriod?: () => void;
+  periodFormat?: "halves" | "quarters";
   // 2026-05-15 — 쿼터 종료 trigger. 헤더 "Running Score" 라벨 우측 작은 버튼.
   //   FIBA 표준 양식 정합 (별도 큰 버튼 영역 없음) — 사용자 요청.
   // 2026-05-16 (PR-Quarter-Retreat) — 이전 쿼터로 되돌리기 trigger (사용자 보고).
@@ -114,6 +115,7 @@ export function RunningScoreGrid({
   frameless,
   onEndPeriod, // 2026-05-15 — 헤더 우측 쿼터 종료 작은 버튼 (FIBA 양식 정합).
   onRetreatPeriod, // 2026-05-16 — 헤더 좌측 "이전 쿼터" 버튼 (P2+ 노출).
+  periodFormat,
 }: RunningScoreGridProps) {
   // 모달 컨텍스트 — null 이면 모달 닫힘
   const [modalContext, setModalContext] = useState<ModalContext | null>(null);
@@ -230,6 +232,11 @@ export function RunningScoreGrid({
   const wrapperStyle: React.CSSProperties = frameless
     ? {}
     : { border: "1.5px solid var(--pap-line)" };
+  const periodLabel = getRunningScorePeriodLabel(
+    state.currentPeriod,
+    periodFormat
+  );
+  const periodColor = getPeriodColor(state.currentPeriod);
 
   return (
     // Phase 7-A → Phase 8 — 디자인 정합 (FIBA PDF 1:1): radius X / shadow X
@@ -251,8 +258,18 @@ export function RunningScoreGrid({
           letterSpacing: "normal",
         }}
       >
-        <div className="text-[16px] font-bold uppercase tracking-wider" style={{ color: "var(--pap-ink)" }}>
-          Running Score
+        <div className="ss-rs__title-main">
+          <span
+            className="ss-rs__period-chip"
+            style={{
+              borderColor: periodColor,
+              backgroundColor: `color-mix(in srgb, ${periodColor} 12%, #FFFFFF)`,
+              color: periodColor,
+            }}
+          >
+            {periodLabel}
+          </span>
+          <span className="ss-rs__title-label">Running Score</span>
         </div>
         {/* 2026-05-15 — 우측 안내 텍스트 ("P1·1탭=입력 / 마지막=해제") 제거.
             대신 쿼터 종료 작은 버튼 배치 (FIBA 양식 정합 — 기존 큰 빨강 버튼 영역 제거). */}
@@ -693,6 +710,18 @@ function PrintScoreCell({
 }
 
 // Phase 18 — 마킹 칸 (클릭 가능 / FIBA 정합 점/●/●+○ 표기)
+function getRunningScorePeriodLabel(
+  currentPeriod: number,
+  periodFormat: "halves" | "quarters" | undefined
+): string {
+  if (periodFormat === "halves") {
+    if (currentPeriod <= 1) return "전반";
+    if (currentPeriod === 2) return "후반";
+    return `OT${currentPeriod - 2}`;
+  }
+  return getPeriodLabel(currentPeriod);
+}
+
 interface MarkCellProps {
   position: number;
   mark: ScoreMark | undefined;
