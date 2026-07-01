@@ -1321,7 +1321,7 @@
   display: grid;
   grid-template-columns:
     minmax(360px, 1fr)
-    minmax(118px, 140px)
+    minmax(156px, 190px)
     minmax(360px, 1fr);
   gap: 2px;
   background-color: #1A1E27;
@@ -1344,6 +1344,41 @@
   overflow: hidden;
 }
 
+.score-sheet-print-root .score-sheet-v2-panel .ss-tbox {
+  width: 100%;
+  max-width: none;
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.score-sheet-print-root .score-sheet-v2-panel .ss-tbox__head,
+.score-sheet-print-root .score-sheet-v2-panel .ss-tbox__tt,
+.score-sheet-print-root .score-sheet-v2-panel .ss-tbox__plyhead,
+.score-sheet-print-root .score-sheet-v2-panel .ss-tbox__coach {
+  flex: 0 0 auto;
+}
+
+.score-sheet-print-root .score-sheet-v2-panel .ss-tbox__plybody {
+  flex: 1 1 auto;
+  min-height: 0;
+  grid-template-rows: repeat(12, minmax(0, 1fr));
+}
+
+.score-sheet-print-root .score-sheet-v2-panel .ss-tbox__plyhead,
+.score-sheet-print-root .score-sheet-v2-panel .ss-tbox__plyrow {
+  grid-template-columns:
+    38px minmax(120px, 0.9fr) 30px 34px
+    repeat(6, 26px)
+    repeat(5, 22px);
+}
+
+.score-sheet-print-root .score-sheet-v2-panel .ss-tbox__plyrow > * {
+  padding-left: 3px;
+  padding-right: 3px;
+}
+
 .score-sheet-print-root .score-sheet-v2-center {
   display: flex;
   flex-direction: column;
@@ -1363,16 +1398,16 @@
   .score-sheet-print-root .score-sheet-v2-grid {
     grid-template-columns:
       minmax(380px, 1fr)
-      minmax(112px, 126px)
+      minmax(150px, 170px)
       minmax(380px, 1fr);
   }
 
   .score-sheet-print-root .score-sheet-v2-panel .ss-tbox__plyhead,
   .score-sheet-print-root .score-sheet-v2-panel .ss-tbox__plyrow {
     grid-template-columns:
-      28px minmax(70px, 1fr) 20px 24px
-      18px 18px 18px 18px 18px 18px
-      14px 14px 14px 14px 14px;
+      32px minmax(96px, 1fr) 26px 30px
+      repeat(6, 22px)
+      repeat(5, 18px);
   }
 
   .score-sheet-print-root .score-sheet-v2-panel .ss-tbox__plyhead > div {
@@ -1389,8 +1424,20 @@
   .score-sheet-print-root .score-sheet-v2-grid {
     grid-template-columns:
       minmax(290px, 1fr)
-      minmax(104px, 116px)
+      minmax(138px, 150px)
       minmax(290px, 1fr);
+  }
+
+  .score-sheet-print-root .score-sheet-v2-panel .ss-tbox__plyhead,
+  .score-sheet-print-root .score-sheet-v2-panel .ss-tbox__plyrow {
+    grid-template-columns:
+      24px minmax(62px, 1fr) 20px 22px
+      repeat(6, 16px)
+      repeat(5, 13px);
+  }
+
+  .score-sheet-print-root .score-sheet-v2-panel .ss-tbox__plyhead > div {
+    font-size: 7.5px;
   }
 }
 
@@ -1398,8 +1445,16 @@
   .score-sheet-print-root .score-sheet-v2-grid {
     grid-template-columns:
       minmax(230px, 1fr)
-      minmax(96px, 104px)
+      minmax(128px, 138px)
       minmax(230px, 1fr);
+  }
+
+  .score-sheet-print-root .score-sheet-v2-panel .ss-tbox__plyhead,
+  .score-sheet-print-root .score-sheet-v2-panel .ss-tbox__plyrow {
+    grid-template-columns:
+      20px minmax(48px, 1fr) 18px 20px
+      repeat(6, 14px)
+      repeat(5, 11px);
   }
 }
 
@@ -1409,16 +1464,16 @@
 }
 
 .score-sheet-print-root .score-sheet-v2-center .ss-rs__title {
-  min-height: 52px;
-  padding: 4px;
-  flex-direction: column;
-  align-items: stretch;
+  min-height: 30px;
+  padding: 4px 6px;
+  flex-direction: row;
+  align-items: center;
   justify-content: center;
-  gap: 3px;
+  gap: 0;
 }
 
 .score-sheet-print-root .score-sheet-v2-center .ss-rs__title > div:first-child {
-  font-size: 13px;
+  font-size: 12px;
   line-height: 1;
   text-align: center;
 }
@@ -1438,10 +1493,76 @@
 }
 
 .score-sheet-print-root .score-sheet-v2-center .ss-rs__scroll {
-  flex: 1;
+  display: none;
+}
+
+.score-sheet-print-root .score-sheet-v2-center .ss-rs__side-heads {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  border-bottom: 1px solid var(--pap-line);
+  background: var(--pap-fill);
+}
+
+.score-sheet-print-root .score-sheet-v2-center .ss-rs__side-head {
+  min-width: 0;
+  padding: 4px 2px;
+  border-right: 1px solid var(--pap-line);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  color: var(--pap-ink);
+}
+
+.score-sheet-print-root .score-sheet-v2-center .ss-rs__side-head:last-child {
+  border-right: 0;
+}
+
+.score-sheet-print-root .score-sheet-v2-center .ss-rs__side-head span {
+  font: 800 12px/1 var(--ff-body, "Pretendard", system-ui, sans-serif);
+}
+
+.score-sheet-print-root .score-sheet-v2-center .ss-rs__side-head strong {
+  font: 800 20px/1 var(--ff-mono, "Space Grotesk", ui-monospace, monospace);
+}
+
+.score-sheet-print-root .score-sheet-v2-center .ss-rs__split {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+
+.score-sheet-print-root .score-sheet-v2-center .ss-rs__side {
+  min-width: 0;
+  min-height: 0;
+  border-right: 1.5px solid var(--pap-line);
+}
+
+.score-sheet-print-root .score-sheet-v2-center .ss-rs__side:last-child {
+  border-right: 0;
+}
+
+.score-sheet-print-root .score-sheet-v2-center .ss-rs__side-scroll {
+  height: 100%;
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
+}
+
+.score-sheet-print-root .score-sheet-v2-center .ss-rs__side-grid {
+  display: grid;
+  grid-template-columns: minmax(34px, 1fr) minmax(34px, 1fr);
+  grid-template-rows: repeat(120, minmax(0, 1fr));
+  height: 800%;
+  min-height: 0;
+}
+
+.score-sheet-print-root .score-sheet-v2-center .ss-rs__side-grid .ss-rs__cell {
+  height: 100% !important;
+  min-height: 0;
+  font-size: 11px;
 }
 
 .score-sheet-print-root

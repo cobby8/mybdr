@@ -2589,6 +2589,9 @@ export function ScoreSheetForm({
         //   진행 매치 + 수정 모드 매치 = 토글 가능.
         periodFormat={periodFormat}
         onTogglePeriodFormat={isReadOnly ? undefined : togglePeriodFormat}
+        currentPeriod={runningScore.currentPeriod}
+        onEndPeriod={isReadOnly ? undefined : handleEndPeriod}
+        onRetreatPeriod={isReadOnly ? undefined : handleRetreatPeriod}
       />
 
       {/* 2026-05-15 (PR-SS-54) — 별도 PeriodColorLegend 박스 제거.
@@ -2742,11 +2745,9 @@ export function ScoreSheetForm({
               awayTeamName={awayFilteredRoster.teamName}
               readOnly={isReadOnly}
               frameless
-              onEndPeriod={isReadOnly ? undefined : handleEndPeriod}
               // 2026-05-16 (PR-Quarter-Retreat) — 사용자 보고. 2쿼터+ 시 "이전 쿼터" 버튼.
               //   handleRetreatPeriod = confirm modal + setRunningScore (currentPeriod-1).
               //   종료/read-only 매치 = undefined (수정 모드 진입 시 활성).
-              onRetreatPeriod={isReadOnly ? undefined : handleRetreatPeriod}
             />
             <div
               className="score-sheet-v2-center-bottom"

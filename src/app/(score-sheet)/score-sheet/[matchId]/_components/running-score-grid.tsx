@@ -47,7 +47,7 @@
 
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { RosterItem } from "./team-section-types";
 import type {
   ScoreMark,
@@ -76,13 +76,13 @@ interface RunningScoreGridProps {
   readOnly?: boolean;
   // Phase 8 — frameless 모드. 단일 외곽 박스 안에서 자체 border 제거.
   frameless?: boolean;
+  onEndPeriod?: () => void;
+  onRetreatPeriod?: () => void;
   // 2026-05-15 — 쿼터 종료 trigger. 헤더 "Running Score" 라벨 우측 작은 버튼.
   //   FIBA 표준 양식 정합 (별도 큰 버튼 영역 없음) — 사용자 요청.
-  onEndPeriod?: () => void;
   // 2026-05-16 (PR-Quarter-Retreat) — 이전 쿼터로 되돌리기 trigger (사용자 보고).
   //   2쿼터부터 (state.currentPeriod >= 2) 헤더 좌측 "이전 쿼터" 버튼 노출.
   //   미전달 시 버튼 미노출 (운영 호환). form 의 handleRetreatPeriod 와 wiring.
-  onRetreatPeriod?: () => void;
   // PR-S6 (2026-05-14 rev2 롤백) — mode prop 제거. 시안 rev2 가 모드 토글을 제거하면서
   // 단일 모드 (= 기존 detail 동작) 통일. 호출자 (score-sheet-form.tsx) 도 mode 미전달.
 }
@@ -117,6 +117,8 @@ export function RunningScoreGrid({
 }: RunningScoreGridProps) {
   // 모달 컨텍스트 — null 이면 모달 닫힘
   const [modalContext, setModalContext] = useState<ModalContext | null>(null);
+  const homeScrollRef = useRef<HTMLDivElement | null>(null);
+  const awayScrollRef = useRef<HTMLDivElement | null>(null);
 
   // 등번호 lookup — 마킹 표시용 (선수 id → jersey)
   const jerseyMap = new Map<string, number | null>();
@@ -205,6 +207,20 @@ export function RunningScoreGrid({
   // 1~ROWS_PER_SET (40) 의 row 인덱스 배열
   const rowIndexes = Array.from({ length: ROWS_PER_SET }, (_, i) => i + 1);
 
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(() => {
+      autoScrollRunningScore(homeScrollRef.current, homeLastPos);
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [homeLastPos]);
+
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(() => {
+      autoScrollRunningScore(awayScrollRef.current, awayLastPos);
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [awayLastPos]);
+
   // Phase 8 — frameless 모드: 단일 외곽 박스 안에서 자체 border 제거.
   // PR-S10 (2026-05-15) — outermost = `ss-shell ss-rs` (다크 leak 차단 / 페이퍼 라이트 강제).
   //   frameless 분기는 fiba-frameless 추가 (단일 외곽 박스 안 자체 border 제거 유지).
@@ -290,20 +306,32 @@ export function RunningScoreGrid({
           이전 = 16 col 헤더 (각 set 마킹A=A / 점수A="" / 점수B="" / 마킹B=B) → 사용자 명시 "8 col 병합".
           새 = 별도 8 col header row (각 set A header 2 sub-col span + B header 2 sub-col span).
           데이터 grid 는 16 col 유지 (SetColumns 안 ColumnHeader 제거 — 데이터 cell 만 박제). */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: `repeat(${SETS * 2}, minmax(0, 1fr))`,
-        }}
-      >
-        {Array.from({ length: SETS }).map((_, setIdx) => {
-          return (
-            <div key={`hd-${setIdx}`} style={{ display: "contents" }}>
-              <ColumnHeader label="A" />
-              <ColumnHeader label="B" />
-            </div>
-          );
-        })}
+      <div className="ss-rs__side-heads">
+        <ScoreSideHeader label="A" teamName={homeTeamName} score={homeLastPos} />
+        <ScoreSideHeader label="B" teamName={awayTeamName} score={awayLastPos} />
+      </div>
+
+      <div className="ss-rs__split">
+        <RunningScoreSide
+          side="home"
+          scrollRef={homeScrollRef}
+          rowIndexes={rowIndexes}
+          markMap={homeMarkMap}
+          lastPos={homeLastPos}
+          periodEnds={homePeriodEnds}
+          jerseyMap={jerseyMap}
+          onCellClick={handleCellClick}
+        />
+        <RunningScoreSide
+          side="away"
+          scrollRef={awayScrollRef}
+          rowIndexes={rowIndexes}
+          markMap={awayMarkMap}
+          lastPos={awayLastPos}
+          periodEnds={awayPeriodEnds}
+          jerseyMap={jerseyMap}
+          onCellClick={handleCellClick}
+        />
       </div>
 
       {/* Phase 18 (2026-05-13) — 4 세트 × 4 sub-column = 16 컬럼 가로 배치.
@@ -370,6 +398,106 @@ function computePeriodEnds(marks: ScoreMark[]): Set<number> {
     }
   }
   return new Set(periodMax.values());
+}
+
+function autoScrollRunningScore(
+  element: HTMLDivElement | null,
+  lastPosition: number,
+) {
+  if (!element || lastPosition <= 0) return;
+  const rowHeight = element.scrollHeight / MAX_POSITION;
+  if (!Number.isFinite(rowHeight) || rowHeight <= 0) return;
+
+  const visibleRows = element.clientHeight / rowHeight;
+  const nextEmptyPosition = Math.min(lastPosition + 1, MAX_POSITION);
+  const visibleTopRow = element.scrollTop / rowHeight;
+  const thresholdRow = visibleTopRow + visibleRows * (2 / 3);
+
+  if (nextEmptyPosition < thresholdRow) return;
+
+  const maxTopRow = Math.max(0, MAX_POSITION - visibleRows);
+  const targetTopRow = Math.min(
+    maxTopRow,
+    Math.max(0, nextEmptyPosition - visibleRows / 3),
+  );
+
+  element.scrollTo({
+    top: targetTopRow * rowHeight,
+    behavior: "smooth",
+  });
+}
+
+function ScoreSideHeader({
+  label,
+  teamName,
+  score,
+}: {
+  label: "A" | "B";
+  teamName: string;
+  score: number;
+}) {
+  return (
+    <div className="ss-rs__side-head" title={teamName}>
+      <span>{label}</span>
+      <strong>{score}</strong>
+    </div>
+  );
+}
+
+function RunningScoreSide({
+  side,
+  scrollRef,
+  rowIndexes,
+  markMap,
+  lastPos,
+  periodEnds,
+  jerseyMap,
+  onCellClick,
+}: {
+  side: "home" | "away";
+  scrollRef: { current: HTMLDivElement | null };
+  rowIndexes: number[];
+  markMap: Map<number, ScoreMark>;
+  lastPos: number;
+  periodEnds: Set<number>;
+  jerseyMap: Map<string, number | null>;
+  onCellClick: (team: "home" | "away", position: number) => void;
+}) {
+  return (
+    <div className="ss-rs__side" data-team={side}>
+      <div ref={scrollRef} className="ss-rs__side-scroll">
+        <div className="ss-rs__side-grid" data-team={side}>
+          {rowIndexes.flatMap((position) => {
+            const mark = markMap.get(position);
+            const isLast = position === lastPos;
+            const markCell = (
+              <MarkCell
+                key={`${side}-mark-${position}`}
+                position={position}
+                mark={mark}
+                isLast={isLast}
+                jerseyNumber={mark ? (jerseyMap.get(mark.playerId) ?? null) : null}
+                onClick={() => onCellClick(side, position)}
+                side={side}
+              />
+            );
+            const scoreCell = (
+              <PrintScoreCell
+                key={`${side}-score-${position}`}
+                position={position}
+                reached={markMap.has(position)}
+                periodEnd={periodEnds.has(position)}
+              />
+            );
+
+            return side === "home"
+              ? [markCell, scoreCell]
+              : [scoreCell, markCell];
+          })}
+        </div>
+      </div>
+    </div>
+  );
 }
 
 // Phase 18 — 한 세트 (40 row) = 4 sub-column (마킹A | 점수A | 점수B | 마킹B)
@@ -538,7 +666,7 @@ function PrintScoreCell({
   return (
     <div
       className="ss-rs__cell flex w-full items-center justify-center text-[9px] font-semibold"
-      style={{ height: "17px" }}
+      style={{ height: "100%" }}
       data-reached={reached ? "true" : undefined}
       data-period-end={periodEnd ? "true" : undefined}
       aria-hidden="true"
@@ -572,7 +700,7 @@ function MarkCell({
   // Phase 19 (2026-05-13) — 행 높이 16 → 17px (PrintScoreCell 와 일치 / 사용자 결재 §4 / 시인성 ↑)
   // PR-S10 — border / 색은 .ss-rs__cell CSS 룰이 박제. 여기서는 height + touchAction 만.
   const baseStyle = {
-    height: "17px",
+    height: "100%",
     touchAction: "manipulation",
   } as const;
 

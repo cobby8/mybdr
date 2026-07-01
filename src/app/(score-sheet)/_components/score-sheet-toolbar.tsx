@@ -78,6 +78,9 @@ interface ScoreSheetToolbarProps {
   //   클릭 시 onTogglePeriodFormat 콜백 호출 (form 이 setPeriodFormat 토글).
   periodFormat?: "halves" | "quarters";
   onTogglePeriodFormat?: () => void;
+  currentPeriod?: number;
+  onEndPeriod?: () => void;
+  onRetreatPeriod?: () => void;
 }
 
 export function ScoreSheetToolbar({
@@ -99,6 +102,9 @@ export function ScoreSheetToolbar({
   // 2026-05-16 (긴급 박제 — 전후반 모드 토글)
   periodFormat,
   onTogglePeriodFormat,
+  currentPeriod,
+  onEndPeriod,
+  onRetreatPeriod,
 }: ScoreSheetToolbarProps) {
   const router = useRouter();
   // 2026-05-15 (PR-Fullscreen-Clean) — 풀스크린 시 toolbar 자체 hidden (양식만 보이도록).
@@ -147,6 +153,31 @@ export function ScoreSheetToolbar({
         <div className="flex-1" aria-hidden />
         {/* aria 보조 — gameNo 정보 유지 (스크린리더용 hidden) */}
         <span className="sr-only">SCORESHEET · {titleSuffix}</span>
+
+        {onRetreatPeriod && (currentPeriod ?? 1) >= 2 && (
+          <button
+            type="button"
+            className="ss-toolbar__print"
+            onClick={onRetreatPeriod}
+            aria-label="이전 쿼터로 되돌리기"
+            title="이전 쿼터로 되돌리기"
+          >
+            이전 쿼터
+          </button>
+        )}
+
+        {onEndPeriod && (
+          <button
+            type="button"
+            className="ss-toolbar__finish"
+            onClick={onEndPeriod}
+            disabled={(currentPeriod ?? 1) >= 9}
+            aria-label="다음 쿼터로 이동"
+            title="다음 쿼터로 이동"
+          >
+            다음 쿼터
+          </button>
+        )}
 
         {/* 2026-05-16 (PR-Fullscreen-Button) — 사용자 보고 이미지 #132 fix.
             라인업 좌측에 "전체화면" 텍스트 버튼 (아이콘 0). useFullscreen.toggle 호출.
