@@ -333,7 +333,7 @@ export function GhostCandidatesTab({ teamId }: Props) {
               toast.type === "success"
                 ? "color-mix(in srgb, var(--color-success) 90%, black)"
                 : "var(--color-error)",
-            color: "#fff",
+            color: "var(--ink-on-brand)",
           }}
         >
           {toast.text}

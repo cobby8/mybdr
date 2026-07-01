@@ -104,7 +104,7 @@ export function TeamSideCardV2({
                   fontFamily: "var(--ff-display)",
                   fontWeight: 900,
                   fontSize: 13,
-                  color: isW || isL ? "#fff" : "var(--ink-mute)",
+                  color: isW || isL ? "var(--ink-on-brand)" : "var(--ink-mute)",
                   background: isW
                     ? "var(--ok)"
                     : isL

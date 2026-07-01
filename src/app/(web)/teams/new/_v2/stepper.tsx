@@ -28,7 +28,7 @@ export function Stepper({ step }: { step: 1 | 2 | 3 | 4 }) {
                   height: 36,
                   borderRadius: "50%",
                   background: reached ? "var(--accent)" : "var(--bg-alt)",
-                  color: reached ? "#fff" : "var(--ink-dim)",
+                  color: reached ? "var(--ink-on-brand)" : "var(--ink-dim)",
                   display: "grid",
                   placeItems: "center",
                   fontFamily: "var(--ff-mono)",

@@ -204,7 +204,7 @@ export function TeamOpsCardV2({
               fontSize: 11,
               fontWeight: 800,
               letterSpacing: "0.04em",
-              color: "#fff",
+              color: "var(--ink-on-brand)",
               background: role.tone,
               padding: "3px 9px",
               borderRadius: "var(--radius-chip)",

@@ -244,7 +244,7 @@ export function ForceActionModal({
               minWidth: 100,
               // withdraw=danger / jersey=primary
               background: mode === "withdraw" ? "var(--color-error)" : "var(--color-primary)",
-              color: "#fff",
+              color: "var(--ink-on-brand)",
               borderColor: mode === "withdraw" ? "var(--color-error)" : "var(--color-primary)",
               opacity: busy ? 0.7 : 1,
             }}

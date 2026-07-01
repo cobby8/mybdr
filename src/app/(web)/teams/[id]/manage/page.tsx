@@ -843,7 +843,7 @@ export default function TeamManagePage({ params }: { params: Promise<{ id: strin
 
   // 포지션별 색상 — 시안 톤 (G=blue / F=green / C=red)
   function posColor(pos: string | null): string {
-    if (pos === "G") return "var(--color-info)";
+    if (pos === "G") return "var(--cafe-blue)";
     if (pos === "F") return "var(--color-success)";
     if (pos === "C") return "var(--color-primary)";
     return "var(--color-text-muted)";
@@ -868,7 +868,7 @@ export default function TeamManagePage({ params }: { params: Promise<{ id: strin
         style={{
           gridTemplateColumns: "64px 1fr auto",
           backgroundColor: teamData?.primary_color ?? "var(--color-card)",
-          color: teamData?.primary_color ? "#fff" : "var(--color-text-primary)",
+          color: teamData?.primary_color ? "var(--ink-on-brand)" : "var(--color-text-primary)",
         }}
       >
         {/* 팀 태그 박스 (이니셜) */}
@@ -905,7 +905,7 @@ export default function TeamManagePage({ params }: { params: Promise<{ id: strin
           style={{
             backgroundColor: teamData?.primary_color ? "rgba(255,255,255,0.18)" : "var(--color-surface)",
             borderColor: teamData?.primary_color ? "rgba(255,255,255,0.35)" : "var(--color-border)",
-            color: teamData?.primary_color ? "#fff" : "var(--color-text-secondary)",
+            color: teamData?.primary_color ? "var(--ink-on-brand)" : "var(--color-text-secondary)",
           }}
         >
           팀 페이지 보기
@@ -935,7 +935,7 @@ export default function TeamManagePage({ params }: { params: Promise<{ id: strin
                   className="rounded-full px-1.5 text-[10px] font-bold"
                   style={{
                     backgroundColor: active ? "var(--color-primary)" : "var(--color-surface)",
-                    color: active ? "#fff" : "var(--color-text-muted)",
+                    color: active ? "var(--ink-on-brand)" : "var(--color-text-muted)",
                     paddingTop: 1,
                     paddingBottom: 1,
                   }}
@@ -1095,7 +1095,7 @@ export default function TeamManagePage({ params }: { params: Promise<{ id: strin
               <div key={req.id} className="rounded-lg bg-[var(--color-card)] p-5">
                 {/* 시안: 48px avatar / 1fr / actions */}
                 <div className="mb-3 grid items-center gap-3.5" style={{ gridTemplateColumns: "48px 1fr auto" }}>
-                  <div className="flex h-12 w-12 items-center justify-center rounded bg-[var(--color-info)] text-base font-bold text-white">
+                  <div className="flex h-12 w-12 items-center justify-center rounded bg-[var(--cafe-blue)] text-base font-bold text-white">
                     {displayName.slice(0, 2).toUpperCase()}
                   </div>
                   {/* 4단계 B: 가입 신청자 닉네임 → 공개프로필 PlayerLink. user.id 없으면 자동 span fallback. */}
@@ -1200,9 +1200,9 @@ export default function TeamManagePage({ params }: { params: Promise<{ id: strin
             <div
               className="rounded-lg border px-4 py-3 text-sm"
               style={{
-                borderColor: "color-mix(in srgb, var(--color-info) 30%, transparent)",
-                backgroundColor: "color-mix(in srgb, var(--color-info) 8%, transparent)",
-                color: "var(--color-info)",
+                borderColor: "color-mix(in srgb, var(--cafe-blue) 30%, transparent)",
+                backgroundColor: "color-mix(in srgb, var(--cafe-blue) 8%, transparent)",
+                color: "var(--cafe-blue)",
               }}
             >
               <span className="material-symbols-outlined mr-1.5 align-middle text-base">info</span>
@@ -1222,7 +1222,7 @@ export default function TeamManagePage({ params }: { params: Promise<{ id: strin
             const proposerName = req.proposer?.nickname ?? "운영진";
             const fromLocation = [req.from_team?.city, req.from_team?.district].filter(Boolean).join(" ");
             // primary_color 가 헥스로 들어오면 from_team 이니셜 박스 배경으로 사용
-            const teamColor = req.from_team?.primary_color ?? "var(--color-info)";
+            const teamColor = req.from_team?.primary_color ?? "var(--cafe-blue)";
             const createdAt = new Date(req.created_at).toLocaleDateString("ko-KR", { timeZone: "Asia/Seoul" });
             // preferred_date: 신청자가 선호한 경기일 — 없을 수도 있음
             const preferred = req.preferred_date
@@ -1405,9 +1405,9 @@ export default function TeamManagePage({ params }: { params: Promise<{ id: strin
             <div
               className="rounded-lg border px-4 py-2.5 text-xs"
               style={{
-                borderColor: "color-mix(in srgb, var(--color-info) 30%, transparent)",
-                backgroundColor: "color-mix(in srgb, var(--color-info) 8%, transparent)",
-                color: "var(--color-info)",
+                borderColor: "color-mix(in srgb, var(--cafe-blue) 30%, transparent)",
+                backgroundColor: "color-mix(in srgb, var(--cafe-blue) 8%, transparent)",
+                color: "var(--cafe-blue)",
               }}
             >
               <span className="material-symbols-outlined mr-1 align-middle text-sm">info</span>
@@ -1430,7 +1430,7 @@ export default function TeamManagePage({ params }: { params: Promise<{ id: strin
               const p = req.payload as { newJersey?: number } | null;
               const newJ = typeof p?.newJersey === "number" ? p.newJersey : "?";
               typeLabel = "등번호 변경";
-              typeColor = "var(--color-info)";
+              typeColor = "var(--cafe-blue)";
               contentText = `→ #${newJ}`;
             } else if (req.requestType === "dormant") {
               const p = req.payload as { until?: string } | null;
@@ -1563,8 +1563,8 @@ export default function TeamManagePage({ params }: { params: Promise<{ id: strin
                 <span
                   className="rounded px-2 py-0.5 text-[11px] font-bold"
                   style={{
-                    backgroundColor: "color-mix(in srgb, var(--color-info) 16%, transparent)",
-                    color: "var(--color-info)",
+                    backgroundColor: "color-mix(in srgb, var(--cafe-blue) 16%, transparent)",
+                    color: "var(--cafe-blue)",
                   }}
                 >
                   {transferRequests.length}
@@ -1573,9 +1573,9 @@ export default function TeamManagePage({ params }: { params: Promise<{ id: strin
               <div
                 className="rounded-lg border px-4 py-2.5 text-xs"
                 style={{
-                  borderColor: "color-mix(in srgb, var(--color-info) 30%, transparent)",
-                  backgroundColor: "color-mix(in srgb, var(--color-info) 8%, transparent)",
-                  color: "var(--color-info)",
+                  borderColor: "color-mix(in srgb, var(--cafe-blue) 30%, transparent)",
+                  backgroundColor: "color-mix(in srgb, var(--cafe-blue) 8%, transparent)",
+                  color: "var(--cafe-blue)",
                 }}
               >
                 <span className="material-symbols-outlined mr-1 align-middle text-sm">info</span>
@@ -1589,7 +1589,7 @@ export default function TeamManagePage({ params }: { params: Promise<{ id: strin
                 // 본 팀이 어느 사이드인지 분기 (UI 라벨)
                 const isFromMine = row.fromTeamId === id;
                 const sideLabel = isFromMine ? "이 팀에서 떠나려는 신청" : "이 팀에 들어오려는 신청";
-                const sideColor = isFromMine ? "var(--color-error)" : "var(--color-info)";
+                const sideColor = isFromMine ? "var(--color-error)" : "var(--cafe-blue)";
                 const counterTeam = isFromMine ? row.toTeam : row.fromTeam;
                 const counterStatus = isFromMine ? row.toTeamStatus : row.fromTeamStatus;
                 const counterStatusLabel =
@@ -1780,9 +1780,9 @@ export default function TeamManagePage({ params }: { params: Promise<{ id: strin
                 <div
                   className="rounded-lg border px-4 py-3 text-sm"
                   style={{
-                    borderColor: "color-mix(in srgb, var(--color-info) 30%, transparent)",
-                    backgroundColor: "color-mix(in srgb, var(--color-info) 8%, transparent)",
-                    color: "var(--color-info)",
+                    borderColor: "color-mix(in srgb, var(--cafe-blue) 30%, transparent)",
+                    backgroundColor: "color-mix(in srgb, var(--cafe-blue) 8%, transparent)",
+                    color: "var(--cafe-blue)",
                   }}
                 >
                   <span className="material-symbols-outlined mr-1.5 align-middle text-base">info</span>

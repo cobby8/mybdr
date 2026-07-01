@@ -151,7 +151,7 @@ export async function RecentTabV2({ teamId }: Props) {
               className="badge"
               style={{
                 background: "var(--ink-dim)",
-                color: "#fff",
+                color: "var(--ink-on-brand)",
                 borderColor: "transparent",
               }}
             >

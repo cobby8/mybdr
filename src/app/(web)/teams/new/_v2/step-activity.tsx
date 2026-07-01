@@ -100,7 +100,7 @@ export function StepActivity({
                   style={{
                     padding: "8px 14px",
                     background: selected ? "var(--accent)" : "var(--bg-alt)",
-                    color: selected ? "#fff" : "var(--ink)",
+                    color: selected ? "var(--ink-on-brand)" : "var(--ink)",
                     border: "1px solid var(--border)",
                     borderRadius: 4,
                     cursor: "pointer",

@@ -359,7 +359,7 @@ export default async function TeamsManageHubPage() {
                     height: 56,
                     borderRadius: 8,
                     background: accent,
-                    color: "#fff",
+                    color: "var(--ink-on-brand)",
                     display: "grid",
                     placeItems: "center",
                     fontFamily: "var(--ff-display)",

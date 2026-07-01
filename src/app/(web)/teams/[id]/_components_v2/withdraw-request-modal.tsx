@@ -223,7 +223,7 @@ export function WithdrawRequestModal({ teamId, open, onClose, onSuccess }: Props
             style={{
               minWidth: 100,
               background: "var(--color-error)",
-              color: "#fff",
+              color: "var(--ink-on-brand)",
               borderColor: "var(--color-error)",
               opacity: loading || reasonLen < REASON_MIN ? 0.6 : 1,
             }}

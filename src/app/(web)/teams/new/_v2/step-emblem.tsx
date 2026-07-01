@@ -128,7 +128,7 @@ export function StepEmblem({
               height: 160,
               margin: "0 auto",
               background: homeColor,
-              color: "#fff",
+              color: "var(--ink-on-brand)",
               display: "grid",
               placeItems: "center",
               fontFamily: "var(--ff-display)",

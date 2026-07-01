@@ -386,7 +386,7 @@ export function TeamsContentV2() {
                   ...(isActive
                     ? {
                         background: "var(--cafe-blue)",
-                        color: "#fff",
+                        color: "var(--ink-on-brand)",
                         borderColor: "var(--cafe-blue)",
                       }
                     : {}),
@@ -494,7 +494,7 @@ export function TeamsContentV2() {
           style={{
             flexShrink: 0,
             ...(recruitOnly
-              ? { background: "var(--ok)", color: "#fff", borderColor: "var(--ok)" }
+              ? { background: "var(--ok)", color: "var(--ink-on-brand)", borderColor: "var(--ok)" }
               : {}),
           }}
         >

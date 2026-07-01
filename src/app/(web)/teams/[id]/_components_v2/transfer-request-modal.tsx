@@ -228,7 +228,7 @@ export function TransferRequestModal({
             padding: "10px 12px",
             background: "var(--color-elevated)",
             borderRadius: 4,
-            borderLeft: "3px solid var(--color-info, #0079B9)",
+            borderLeft: "3px solid var(--cafe-blue)",
             lineHeight: 1.55,
           }}
         >

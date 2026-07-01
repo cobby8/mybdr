@@ -63,7 +63,7 @@ export function TeamCardV2({
   const founded = foundedYear(team.created_at);
 
   // accent 위에는 흰 글자가 가장 안전 (primary 색상은 보통 중간~진한 채도)
-  const inkOnAccent = "#FFFFFF";
+  const inkOnAccent = "var(--ink-on-brand)";
 
   return (
     <div

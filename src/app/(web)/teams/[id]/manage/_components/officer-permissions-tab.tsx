@@ -216,7 +216,7 @@ export function OfficerPermissionsTab({ teamId, members }: Props) {
                 {grant && (
                   <span
                     className="text-xs px-2 py-0.5 rounded"
-                    style={{ background: "var(--color-info-soft)", color: "var(--color-info)" }}
+                    style={{ background: "var(--color-info-soft)", color: "var(--cafe-blue)" }}
                   >
                     위임됨
                   </span>

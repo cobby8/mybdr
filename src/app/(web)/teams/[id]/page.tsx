@@ -290,7 +290,7 @@ export default async function TeamDetailPage({
     (team.createdAt ? new Date(team.createdAt).getFullYear() : null);
 
   // Hero 위 이미지 accent 의 ink(전경색) — 기본 흰색 유지 (충분한 대비 확보)
-  const ink = "#FFFFFF";
+  const ink = "var(--ink-on-brand)";
 
   // 레이아웃 폭: .page (max-width 1200px) 사용 — 다른 v2 페이지와 폭 통일.
   // page--wide(1440px)은 헤더/푸터(1200px)와 어긋나 팀 페이지가 더 넓게 보였음.
