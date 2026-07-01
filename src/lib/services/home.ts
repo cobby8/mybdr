@@ -353,6 +353,89 @@ interface PrefetchGamesResult {
 }
 
 /* ============================================================
+ * 4-B. 곧 시작할 경기 프리페치 (PR-HOME-2)
+ *
+ * 왜 이 함수가 필요한가:
+ * 시안 Home.jsx L79~90 의 RecommendedRail "곧 시작할 경기"(픽업/게스트/
+ * 스크림 미니카드)를 홈 서버 컴포넌트에 배선하기 위함. 기존 홈에는 이 레일이
+ * 없었고(현재 부재 → 시안만 존재), GameMiniCard 도 운영 코드에 없다.
+ *
+ * 기존 `/api/web/games` route.ts 는 건드리지 않고, 서비스 레이어에서 필요한
+ * 필드만 조회한다. status IN [1,2](모집·확정) + 미래 일정만.
+ *
+ * 유저 비의존(개인화 없음) → unstable_cache 60s 로 재사용(홈 접속 빈도 높음).
+ * courts 조인으로 코트명·지역, users(organizer) 조인으로 주최자 닉네임을 함께 가져온다.
+ * ============================================================ */
+export const prefetchUpcomingGames = unstable_cache(async () => {
+  // 미래(scheduled_at >= now)의 모집·확정 경기만 — 시작 임박 순(scheduled_at asc)
+  const now = new Date();
+  const games = await prisma.games.findMany({
+    where: {
+      status: { in: [1, 2] }, // 1모집 · 2확정
+      scheduled_at: { gte: now },
+    },
+    orderBy: { scheduled_at: "asc" },
+    take: 6,
+    select: {
+      id: true,
+      uuid: true,
+      title: true,
+      scheduled_at: true,
+      game_type: true, // Int: 0픽업 · 1게스트 · 2연습
+      status: true,
+      venue_name: true,
+      city: true,
+      district: true,
+      max_participants: true,
+      current_participants: true,
+      // 코트명·지역 — courts 조인 (게임 자체 venue_name/city 를 fallback 으로 사용)
+      courts: { select: { name: true, city: true, district: true } },
+      // 주최자 닉네임 — users(organizer_id) 조인
+      users: { select: { nickname: true } },
+    },
+  });
+
+  // BigInt → string, Date → ISO 직렬화 + 필드 평탄화
+  const serialized = games.map((g) => ({
+    id: g.id.toString(),
+    uuid: g.uuid,
+    title: g.title,
+    scheduledAt: g.scheduled_at?.toISOString() ?? null,
+    gameType: g.game_type, // Int 그대로 (카드에서 kind 매핑)
+    status: g.status, // Int (마감 판정용)
+    // 코트명: courts.name 우선, 없으면 게임 venue_name
+    courtName: g.courts?.name ?? g.venue_name ?? null,
+    // 지역: courts.district/city 우선, 없으면 게임 district/city
+    area:
+      g.courts?.district ??
+      g.courts?.city ??
+      g.district ??
+      g.city ??
+      null,
+    maxParticipants: g.max_participants,
+    currentParticipants: g.current_participants,
+    organizerNickname: g.users?.nickname ?? null,
+  }));
+
+  // apiSuccess()와 동일하게 snake_case 변환 (프론트 접근자 일관성)
+  return convertKeysToSnakeCase({ games: serialized }) as {
+    games: Array<{
+      id: string;
+      uuid: string | null;
+      title: string | null;
+      scheduled_at: string | null;
+      game_type: number;
+      status: number;
+      court_name: string | null;
+      area: string | null;
+      max_participants: number | null;
+      current_participants: number | null;
+      organizer_nickname: string | null;
+    }>;
+  };
+}, ["home-upcoming-games"], { revalidate: 60 });
+
+/* ============================================================
  * 5. 열린 대회 프리페치 (BDR v2 Home용)
  *
  * 왜 이 함수가 필요한가:

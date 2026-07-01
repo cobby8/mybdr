@@ -44,6 +44,7 @@ import {
   prefetchOpenTournaments,
   prefetchHeroSlides,
   prefetchMySummary,
+  prefetchUpcomingGames,
 } from "@/lib/services/home";
 
 export const dynamic = "force-dynamic";
@@ -235,6 +236,215 @@ function TourneyMiniCard({
             {tournament.format}
           </div>
         )}
+      </div>
+    </Link>
+  );
+}
+
+/* ============================================================
+ * GameMiniCard — 시안 Home.jsx L413~461 (GameMiniCard) 카피
+ * upcomingGames 가로 스크롤 카드 (픽업/게스트/연습 미니카드)
+ *
+ * 시안 정합:
+ *  - 상단 3px 컬러바 + 종류 배지 (game_type 0픽업/1게스트/2연습)
+ *  - 종류색: 픽업=cafe-blue / 게스트=accent / 연습=ok
+ *  - 배지 글자색 시안 '#fff' → DS v4 var(--ink-on-brand) (유색배경 위 글자·13룰)
+ *  - 제목(2줄 클램프) / 코트명·지역 / 날짜·시간 / 정원 current/max + 진행률 바
+ *  - 마감 판정: status===2(확정) 또는 정원 충족(current>=max) → "마감" 배지 + accent 강조
+ * ============================================================ */
+function GameMiniCard({
+  game,
+}: {
+  game: {
+    id: string;
+    title: string | null;
+    scheduled_at: string | null;
+    game_type: number;
+    status: number;
+    court_name: string | null;
+    area: string | null;
+    max_participants: number | null;
+    current_participants: number | null;
+  };
+}) {
+  // 종류(game_type Int) → 라벨/색 매핑 (§0: 0픽업·1게스트·2연습)
+  const kindLabel: Record<number, string> = { 0: "픽업", 1: "게스트", 2: "연습" };
+  const kindColor: Record<number, string> = {
+    0: "var(--cafe-blue)",
+    1: "var(--accent)",
+    2: "var(--ok, #16a34a)",
+  };
+  const label = kindLabel[game.game_type] ?? "픽업";
+  const color = kindColor[game.game_type] ?? "var(--cafe-blue)";
+
+  // 정원 (null 안전) — applied/spots 및 진행률
+  const applied = game.current_participants ?? 0;
+  const spots = game.max_participants ?? 0;
+  // 진행률 % (spots 0 이면 0%)
+  const pct = spots > 0 ? Math.min(100, (applied / spots) * 100) : 0;
+  // 마감 판정: status===2(확정=모집마감) 또는 정원 충족
+  const isClosing = game.status === 2 || (spots > 0 && applied >= spots);
+
+  // 날짜·시간 포맷 ("M/D · HH:mm")
+  let dateTimeLabel = "";
+  if (game.scheduled_at) {
+    const d = new Date(game.scheduled_at);
+    const date = d.toLocaleDateString("ko-KR", {
+      month: "numeric",
+      day: "numeric",
+    });
+    const time = d.toLocaleTimeString("ko-KR", {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    });
+    dateTimeLabel = `${date} · ${time}`;
+  }
+
+  return (
+    <Link
+      href={`/games/${game.id}`}
+      className="card"
+      style={{
+        padding: 0,
+        overflow: "hidden",
+        display: "flex",
+        flexDirection: "column",
+        height: "100%",
+        textDecoration: "none",
+        color: "var(--ink)",
+        scrollSnapAlign: "start",
+      }}
+    >
+      {/* 상단 3px 종류 컬러바 */}
+      <div style={{ height: 3, background: color }} />
+
+      {/* 바디 — 배지 / 제목 / 날짜·시간 */}
+      <div
+        style={{
+          padding: "12px 14px 10px",
+          flex: 1,
+          display: "flex",
+          flexDirection: "column",
+          gap: 8,
+          minWidth: 0,
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          {/* 종류 배지 — 유색 배경 위 글자는 ink-on-brand (13룰) */}
+          <span
+            className="badge"
+            style={{
+              background: color,
+              color: "var(--ink-on-brand)",
+              borderColor: "transparent",
+            }}
+          >
+            {label}
+          </span>
+          {isClosing && <span className="badge badge--red">마감</span>}
+          {/* 지역 (우측 정렬) */}
+          {game.area && (
+            <span
+              style={{
+                fontSize: 11,
+                fontFamily: "var(--ff-mono)",
+                color: "var(--ink-dim)",
+                marginLeft: "auto",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {game.area}
+            </span>
+          )}
+        </div>
+
+        {/* 제목 — 2줄 클램프 */}
+        <div
+          style={{
+            fontWeight: 700,
+            fontSize: 13.5,
+            lineHeight: 1.4,
+            color: "var(--ink)",
+            display: "-webkit-box",
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: "vertical",
+            overflow: "hidden",
+          }}
+        >
+          {game.title ?? "픽업 게임"}
+        </div>
+
+        {/* 날짜·시간 */}
+        {dateTimeLabel && (
+          <div
+            style={{
+              fontSize: 12,
+              color: "var(--ink-mute)",
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+            }}
+          >
+            {dateTimeLabel}
+          </div>
+        )}
+      </div>
+
+      {/* 푸터 — 코트명 / 정원 + 진행률 바 */}
+      <div
+        style={{
+          padding: "10px 14px 12px",
+          borderTop: "1px dashed var(--border)",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            fontSize: 11,
+            marginBottom: 4,
+          }}
+        >
+          <span
+            style={{
+              color: "var(--ink-dim)",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+              maxWidth: "60%",
+            }}
+          >
+            {game.court_name ?? ""}
+          </span>
+          <span
+            style={{
+              fontFamily: "var(--ff-mono)",
+              fontWeight: 700,
+              // 마감 임박이면 accent 강조
+              color: isClosing ? "var(--accent)" : "var(--ink-soft)",
+            }}
+          >
+            {applied}/{spots}
+          </span>
+        </div>
+        {/* 진행률 바 */}
+        <div
+          style={{
+            height: 3,
+            background: "var(--bg-alt)",
+            borderRadius: 2,
+            overflow: "hidden",
+          }}
+        >
+          <div
+            style={{
+              width: `${pct}%`,
+              height: "100%",
+              background: isClosing ? "var(--accent)" : color,
+            }}
+          />
+        </div>
       </div>
     </Link>
   );
@@ -596,8 +806,9 @@ export default async function HomePage() {
   const session = await getWebSession().catch(() => null);
   const userId = session ? BigInt(session.sub) : undefined;
 
-  // 6개 데이터 병렬 프리페치 — 하나 실패해도 나머지 정상 반영
+  // 7개 데이터 병렬 프리페치 — 하나 실패해도 나머지 정상 반영
   // mySummary: 로그인 시에만 조회(비로그인은 null) — 유저별 요약 3열 카드용
+  // upcomingGames: "곧 시작할 경기" 레일용 (PR-HOME-2·유저 비의존·캐시)
   const [
     statsResult,
     communityResult,
@@ -605,6 +816,7 @@ export default async function HomePage() {
     heroResult,
     liveResult,
     mySummaryResult,
+    upcomingGamesResult,
   ] = await Promise.allSettled([
     prefetchStats(),
     prefetchCommunity(),
@@ -612,6 +824,7 @@ export default async function HomePage() {
     prefetchHeroSlides(userId),
     getLiveChips(),
     userId ? prefetchMySummary(userId) : Promise.resolve(null),
+    prefetchUpcomingGames(),
   ]);
 
   const statsData =
@@ -629,6 +842,11 @@ export default async function HomePage() {
   // 로그인 유저 요약 데이터 (실패/비로그인 시 null)
   const mySummary =
     mySummaryResult.status === "fulfilled" ? mySummaryResult.value : null;
+  // 곧 시작할 경기 (실패 시 빈 배열 → 레일 미표시)
+  const upcomingGames =
+    upcomingGamesResult.status === "fulfilled"
+      ? upcomingGamesResult.value?.games ?? []
+      : [];
 
   // 게시글 데이터 분배
   const allPosts = communityData?.posts ?? [];
@@ -845,6 +1063,23 @@ export default async function HomePage() {
       <section style={{ marginTop: 24 }}>
         <RecommendedVideos />
       </section>
+
+      {/* ======================================================
+          5.5 RecommendedRail "곧 시작할 경기" — 시안 Home.jsx L79~90 카피
+          upcomingGames → GameMiniCard 가로 스크롤 (PR-HOME-2)
+          시안 상대순서: 경기#1 → 대회#2. 데이터 0건이면 미표시.
+          ====================================================== */}
+      {upcomingGames.length > 0 && (
+        <RecommendedRail
+          title="곧 시작할 경기"
+          eyebrow="GAMES · 픽업 · 게스트"
+          more={{ href: "/games" }}
+        >
+          {upcomingGames.map((g) => (
+            <GameMiniCard key={g.id} game={g} />
+          ))}
+        </RecommendedRail>
+      )}
 
       {/* ======================================================
           6. RecommendedRail "열린 대회" — 시안 Home.jsx L95~103 카피
