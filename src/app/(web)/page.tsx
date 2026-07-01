@@ -34,6 +34,8 @@ import { getLiveChips } from "@/lib/services/live-chips";
 import { RecommendedRail } from "@/components/bdr-v2/recommended-rail";
 import { ProfileWidget } from "@/components/home/profile-widget";
 import { ProfileCtaCard } from "@/components/home/profile-cta-card";
+import { MySummaryHeroCard } from "@/components/home/my-summary-hero-card";
+import { GuestCtaCard } from "@/components/home/guest-cta-card";
 import { RecommendedVideos } from "@/components/home/recommended-videos";
 import { HomeBoardFeed } from "@/components/home/home-board-feed";
 import {
@@ -41,6 +43,7 @@ import {
   prefetchCommunity,
   prefetchOpenTournaments,
   prefetchHeroSlides,
+  prefetchMySummary,
 } from "@/lib/services/home";
 
 export const dynamic = "force-dynamic";
@@ -593,19 +596,22 @@ export default async function HomePage() {
   const session = await getWebSession().catch(() => null);
   const userId = session ? BigInt(session.sub) : undefined;
 
-  // 5개 데이터 병렬 프리페치 — 하나 실패해도 나머지 정상 반영
+  // 6개 데이터 병렬 프리페치 — 하나 실패해도 나머지 정상 반영
+  // mySummary: 로그인 시에만 조회(비로그인은 null) — 유저별 요약 3열 카드용
   const [
     statsResult,
     communityResult,
     tournamentsResult,
     heroResult,
     liveResult,
+    mySummaryResult,
   ] = await Promise.allSettled([
     prefetchStats(),
     prefetchCommunity(),
     prefetchOpenTournaments(),
     prefetchHeroSlides(userId),
     getLiveChips(),
+    userId ? prefetchMySummary(userId) : Promise.resolve(null),
   ]);
 
   const statsData =
@@ -620,6 +626,9 @@ export default async function HomePage() {
     heroResult.status === "fulfilled" ? heroResult.value : [];
   const liveChips =
     liveResult.status === "fulfilled" ? liveResult.value : [];
+  // 로그인 유저 요약 데이터 (실패/비로그인 시 null)
+  const mySummary =
+    mySummaryResult.status === "fulfilled" ? mySummaryResult.value : null;
 
   // 게시글 데이터 분배
   const allPosts = communityData?.posts ?? [];
@@ -718,8 +727,21 @@ export default async function HomePage() {
       <LiveChipRow items={liveChips} />
 
       {/* ======================================================
+          2.5 세션 분기 요약 영역 (PR-HOME-1)
+          로그인 → MySummaryHeroCard(시안 3열 요약, 데이터 정상 시)
+          비로그인 → GuestCtaCard(가입/로그인 유도)
+          (로그인이나 요약 조회 실패 시엔 둘 다 미노출 — Guest CTA 오노출 방지)
+          ====================================================== */}
+      {session ? (
+        mySummary && <MySummaryHeroCard data={mySummary} />
+      ) : (
+        <GuestCtaCard />
+      )}
+
+      {/* ======================================================
           3. ProfileCtaCard — 프로필 미완성 CTA
           비로그인 / 완성 / dismiss 시 null 반환
+          (로그인 + 프로필 미완성 전용 — MySummaryHeroCard 와 역할 구분)
           ====================================================== */}
       <ProfileCtaCard />
 

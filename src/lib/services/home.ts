@@ -896,3 +896,171 @@ async function prefetchUserHeroSlides(userId: bigint): Promise<HeroSlide[]> {
 
   return slides;
 }
+
+/* ============================================================
+ * 10. MySummaryHero — 로그인 유저 요약 카드 3열 데이터 (PR-HOME-1)
+ *
+ * 왜 이 함수가 필요한가:
+ * 시안 Home.jsx의 MySummaryHero 3열 카드(좌:팀색 아바타 / 중:다음 일정 D-N +
+ * 알림 뱃지 / 우:빠른 액션)를 서버 컴포넌트로 렌더하기 위해, 홈 page.tsx 에서
+ * 서버 Prisma 로 직접 READ 해 props 로 내려준다. (신규 REST 엔드포인트 0)
+ *
+ * 데이터 4종 (전부 세션 userId 스코프 — IDOR 방지):
+ *  ① 대표팀     — TeamMember(status="active") 첫 팀의 primaryColor/name/role.
+ *                 별도 대표 플래그 없음 → 가장 먼저 가입한 활성 팀을 대표로 사용.
+ *  ② 다음 일정  — scheduled_at ≥ now 인 게임 중, 내가 host(organizer_id)이거나
+ *                 승인 신청(game_applications.status=1)한 게임의 최근접 1건 → D-N 계산.
+ *  ③ 미응답 신청수 — 내가 host(organizer_id=userId)인 게임에 달린 신청 중
+ *                 status=0(신청·미처리) 카운트. ⚠️IDOR: 반드시 games.organizer_id=userId 스코프.
+ *  ④ 알림 미읽음수 — 쪽지(messages) 테이블 부재 → notifications 미읽음으로 근사.
+ *                 ⚠️IDOR: notifications.user_id=userId(수신자) 스코프.
+ *
+ * unstable_cache 미사용 — 사용자별 데이터. 각 쿼리 .catch() 로 격리(하나 실패해도 나머지 반영).
+ * ============================================================ */
+export interface MySummaryData {
+  // 표시용 유저 이름 (닉네임 우선)
+  display_name: string;
+  // 대표팀 (없으면 null)
+  team: {
+    id: string;
+    name: string;
+    primary_color: string | null;
+    role: string; // "leader" | "member" 등
+  } | null;
+  // 다음 일정 (없으면 null)
+  next_game: {
+    id: string;
+    uuid: string | null;
+    title: string | null;
+    location: string | null;
+    scheduled_at: string; // ISO
+    d_day: number; // 0 = 오늘(D-DAY), 3 = D-3
+  } | null;
+  // 미응답 신청수 (host 게임의 status=0)
+  pending_applications: number;
+  // 알림 미읽음수 (notifications status="unread")
+  unread_notifications: number;
+}
+
+export async function prefetchMySummary(
+  userId: bigint
+): Promise<MySummaryData | null> {
+  const now = new Date();
+
+  // 4개 데이터 병렬 조회 — 각 쿼리 .catch() 로 격리(모델/컬럼 drift 안전 가드)
+  const [user, membership, nextGame, pendingCount, unreadCount] =
+    await Promise.all([
+      // 유저 표시 이름 (닉네임 우선, 없으면 name)
+      prisma.user
+        .findUnique({
+          where: { id: userId },
+          select: { nickname: true, name: true },
+        })
+        .catch(() => null),
+
+      // ① 대표팀 — 활성 멤버십 첫 팀 (orderBy 없음 = id asc = 가입순)
+      prisma.teamMember
+        .findFirst({
+          where: { userId, status: "active" },
+          // primaryColor 는 @map("primary_color") — camelCase 로 select
+          include: {
+            team: { select: { id: true, name: true, primaryColor: true } },
+          },
+        })
+        .catch(() => null),
+
+      // ② 다음 일정 — host 이거나 승인 신청한 미래 게임의 최근접 1건
+      prisma.games
+        .findFirst({
+          where: {
+            scheduled_at: { gte: now },
+            OR: [
+              // 내가 host(organizer_id) 인 게임
+              { organizer_id: userId },
+              // 내가 승인(status=1) 신청한 게임
+              {
+                game_applications: {
+                  some: { user_id: userId, status: 1 },
+                },
+              },
+            ],
+          },
+          orderBy: { scheduled_at: "asc" },
+          select: {
+            id: true,
+            uuid: true,
+            title: true,
+            scheduled_at: true,
+            venue_name: true,
+            city: true,
+          },
+        })
+        .catch(() => null),
+
+      // ③ 미응답 신청수 — 내가 host(organizer_id=userId)인 게임의 status=0 신청
+      //   ⚠️IDOR: games 관계 필드로 organizer_id=userId 스코프 강제
+      prisma.game_applications
+        .count({
+          where: {
+            status: 0,
+            games: { organizer_id: userId },
+          },
+        })
+        .catch(() => 0),
+
+      // ④ 알림 미읽음수 — notifications 수신자=userId 미읽음
+      //   ⚠️IDOR: user_id=userId(수신자) 스코프
+      prisma.notifications
+        .count({
+          where: { user_id: userId, status: "unread" },
+        })
+        .catch(() => 0),
+    ]);
+
+  // 유저 조회조차 실패하면 카드 렌더 불가 → null (page 에서 fallback 처리)
+  if (!user) return null;
+
+  const displayName = user.nickname || user.name || "회원";
+
+  // ① 대표팀 직렬화 (BigInt → string)
+  const team = membership?.team
+    ? {
+        id: membership.team.id.toString(),
+        name: membership.team.name,
+        primary_color: membership.team.primaryColor,
+        role: membership.role ?? "member",
+      }
+    : null;
+
+  // ② 다음 일정 직렬화 + D-N 계산
+  //   D-N = 자정 기준 남은 일수 (오늘=0=D-DAY). 시/분 차이로 음수 안 나도록 날짜만 비교.
+  let nextGameData: MySummaryData["next_game"] = null;
+  if (nextGame?.scheduled_at) {
+    const startOfToday = new Date(now);
+    startOfToday.setHours(0, 0, 0, 0);
+    const gameDay = new Date(nextGame.scheduled_at);
+    gameDay.setHours(0, 0, 0, 0);
+    const dDay = Math.max(
+      0,
+      Math.round(
+        (gameDay.getTime() - startOfToday.getTime()) / (24 * 60 * 60 * 1000)
+      )
+    );
+    nextGameData = {
+      id: nextGame.id.toString(),
+      uuid: nextGame.uuid,
+      title: nextGame.title,
+      location: nextGame.venue_name ?? nextGame.city ?? null,
+      scheduled_at: nextGame.scheduled_at.toISOString(),
+      d_day: dDay,
+    };
+  }
+
+  return {
+    display_name: displayName,
+    team,
+    next_game: nextGameData,
+    pending_applications: pendingCount,
+    unread_notifications: unreadCount,
+  };
+}
