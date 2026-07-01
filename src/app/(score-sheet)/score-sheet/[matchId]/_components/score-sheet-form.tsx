@@ -1669,49 +1669,10 @@ export function ScoreSheetForm({
   //
   //   이유: 사용자가 Q4 종료 시점에서 별도 confirm 모달 (MatchEndButton) 통과 안 해도 즉시 종료.
   //   submit 흐름은 MatchEndButton 와 동일 path 사용 (단일 source) — fetch 직접 호출.
-  async function handleEndMatchFromQuarterEnd() {
+  function handleEndMatchFromQuarterEnd() {
     if (isReadOnly) return; // Phase 23 PR-EDIT3 (PR-D-3 isReadOnly 통일 / quarter-end modal 진입점)
     setQuarterEndModal(null);
     setMatchEndOpen(true);
-    return;
-    if (missingRequiredSignatures.length > 0) {
-      showToast(
-        `경기 종료 전 필수 서명을 입력해 주세요: ${missingRequiredSignatures.join(", ")}`,
-        "error",
-      );
-      return;
-    }
-    // 2026-05-17 연습 모드 (사용자 결재 옵션 E):
-    //   BFF /submit 호출 skip → 모달만 닫고 toast 안내. 실제 발행 0.
-    //   localStorage draft 는 유지 (운영자가 다시 진입해 검토 가능).
-    if (isPractice) {
-      showToast("연습 모드 — 매치 종료 저장 skip (운영 DB 영향 0)", "info");
-      setQuarterEndModal(null);
-      return;
-    }
-    try {
-      const payload = buildSubmitPayload();
-      const res = await fetch(`/api/web/score-sheet/${match.id}/submit`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-        credentials: "include",
-      });
-      const json = await res.json();
-      if (!res.ok) {
-        const errMsg =
-          (typeof json?.error === "string" && json.error) ||
-          json?.message ||
-          "제출 실패 (알 수 없는 오류)";
-        showToast(errMsg, "error");
-        return;
-      }
-      showToast("매치 종료 완료 — 라이브 페이지에 발행됩니다.", "success");
-      setQuarterEndModal(null);
-      // 클라이언트 측 currentPeriod 는 진행 X (status=completed 박제됨)
-    } catch {
-      showToast("제출 실패", "error");
-    }
   }
 
   // Phase 7-C — "다음 OT 진행" 버튼 (QuarterEndModal 안).
