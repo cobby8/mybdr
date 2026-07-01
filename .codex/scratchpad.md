@@ -27,6 +27,7 @@
 | Tournament operate panel Toss flow | Done | Teams, bracket, schedule, ops, site, and settlement panel roots now run inside the single Toss workspace skin without nested compatibility wrappers. |
 
 ## Work Log
+- 2026-07-02: Added deterministic NBA reporter article preview generator for article, analysis, and monitoring outputs; focused Vitest and `cmd /c npx tsc --noEmit` passed.
 - 2026-07-02: Added NBA reporter prompt contract for verified, single-source, developing, analysis, and monitoring outputs; focused Vitest and `cmd /c npx tsc --noEmit` passed.
 - 2026-07-02: Added NBA news dry-run scenario fixtures for official, single-insider, multi-source, and rumor cases; focused Vitest and `cmd /c npx tsc --noEmit` passed.
 - 2026-07-02: Added NBA news dry-run pipeline and focused tests; fixed two-source T1 scoring threshold; focused Vitest and `cmd /c npx tsc --noEmit` passed.
@@ -36,4 +37,3 @@
 - 2026-07-02: Added NBA newsroom planning docs and `src/lib/nba-news/types.ts` enum/type contract; `cmd /c npx tsc --noEmit` passed.
 - 2026-07-01: Electronic score-sheet period navigation now asks for confirmation before next/previous quarter movement; Chrome confirmed Q4 end confirm, Q4→Q3 retreat, and Q3→Q4 advance.
 - 2026-07-01: Electronic score-sheet Q4/OT end now delegates to the final review modal; Chrome confirmed period scores, required signatures, disabled submit before signatures, and submit unlock after 4 required signatures.
-- 2026-07-01: Electronic score-sheet toolbar now exposes the existing jump-ball/held-ball flow; Chrome confirmed the toolbar button opens the jump-ball dialog.
