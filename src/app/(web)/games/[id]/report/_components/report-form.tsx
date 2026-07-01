@@ -628,7 +628,8 @@ export function GameReportForm({
                     height: 54,
                     borderRadius: 4,
                     background: overall >= n ? "var(--accent)" : "var(--bg-alt)",
-                    color: overall >= n ? "#fff" : "var(--ink-dim)",
+                    // DS v4: 선택된 별(accent 배경) 위 흰 전경색 → ink-on-brand
+                    color: overall >= n ? "var(--ink-on-brand)" : "var(--ink-dim)",
                     border: 0,
                     cursor: "pointer",
                     fontSize: 22,
@@ -716,7 +717,8 @@ export function GameReportForm({
                           height: 44,
                           borderRadius: 6,
                           background: p.color,
-                          color: "#fff",
+                          // DS v4: 유색 팀 아바타 배경 위 흰 전경색 → ink-on-brand (p.color=팀 파생 데이터라 유지)
+                          color: "var(--ink-on-brand)",
                           display: "grid",
                           placeItems: "center",
                           fontWeight: 900,
@@ -797,7 +799,8 @@ export function GameReportForm({
                                 padding: "3px 8px",
                                 borderRadius: 10,
                                 background: on ? f.c : "transparent",
-                                color: on ? "#fff" : "var(--ink-dim)",
+                                // DS v4: 활성 신고 플래그(warn/err 배경) 위 흰 전경색 → ink-on-brand
+                                color: on ? "var(--ink-on-brand)" : "var(--ink-dim)",
                                 border: `1px solid ${on ? f.c : "var(--border)"}`,
                                 cursor: "pointer",
                                 fontSize: 10,

@@ -83,7 +83,8 @@ export function MyGamesClient({ upcoming, waiting, past, cancelled }: Props) {
               height: 48,
               borderRadius: "50%",
               background: "var(--cafe-blue)",
-              color: "#fff",
+              // DS v4: cafe-blue 체크 아이콘 배경 위 흰 전경색 → ink-on-brand
+              color: "var(--ink-on-brand)",
               display: "grid",
               placeItems: "center",
               flexShrink: 0,

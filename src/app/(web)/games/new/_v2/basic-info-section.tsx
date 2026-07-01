@@ -122,7 +122,8 @@ function TimePicker({
                     border: "none",
                     cursor: "pointer",
                     background: ampm === v ? "var(--cafe-blue)" : "transparent",
-                    color: ampm === v ? "#fff" : "var(--ink-mute)",
+                    // DS v4: 선택된 오전/오후(cafe-blue 배경) 위 흰 전경색 → ink-on-brand
+                    color: ampm === v ? "var(--ink-on-brand)" : "var(--ink-mute)",
                   }}
                 >
                   {v}
@@ -143,7 +144,8 @@ function TimePicker({
                     border: "none",
                     cursor: "pointer",
                     background: selHour === h ? "var(--cafe-blue)" : "transparent",
-                    color: selHour === h ? "#fff" : "var(--ink)",
+                    // DS v4: 선택된 시(cafe-blue 배경) 위 흰 전경색 → ink-on-brand
+                    color: selHour === h ? "var(--ink-on-brand)" : "var(--ink)",
                   }}
                 >
                   {String(h).padStart(2, "0")}
@@ -164,7 +166,8 @@ function TimePicker({
                     border: "none",
                     cursor: "pointer",
                     background: selMin === m ? "var(--cafe-blue)" : "transparent",
-                    color: selMin === m ? "#fff" : "var(--ink)",
+                    // DS v4: 선택된 분(cafe-blue 배경) 위 흰 전경색 → ink-on-brand
+                    color: selMin === m ? "var(--ink-on-brand)" : "var(--ink)",
                   }}
                 >
                   {m}
@@ -449,7 +452,8 @@ export function BasicInfoSection({
               borderRadius: 999,
               border: "1px solid var(--border)",
               background: data.feePerPerson === v ? "var(--cafe-blue)" : "var(--bg-alt)",
-              color: data.feePerPerson === v ? "#fff" : "var(--ink-soft)",
+              // DS v4: 선택된 참가비 칩(cafe-blue 배경) 위 흰 전경색 → ink-on-brand
+              color: data.feePerPerson === v ? "var(--ink-on-brand)" : "var(--ink-soft)",
               padding: "4px 10px",
               fontSize: 11,
               cursor: "pointer",

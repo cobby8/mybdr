@@ -89,7 +89,8 @@ export function RegRow({ r }: { r: RegItem }) {
             textAlign: "center",
             padding: "10px 6px",
             background: dateBlockBg,
-            color: "#fff",
+            // DS v4: 유색 날짜 블록(accent/cafe-blue 배경) 위 흰 전경색 → ink-on-brand
+            color: "var(--ink-on-brand)",
             borderRadius: 6,
           }}
         >

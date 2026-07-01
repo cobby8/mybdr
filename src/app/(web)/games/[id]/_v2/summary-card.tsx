@@ -154,7 +154,8 @@ export function SummaryCard({ game }: { game: SummaryCardGame }) {
             className="badge"
             style={{
               background: kindColor,
-              color: "#fff",
+              // DS v4: 유색 kind 배지 배경 위 흰 전경색 → ink-on-brand
+              color: "var(--ink-on-brand)",
               borderColor: kindColor,
             }}
           >
@@ -167,7 +168,7 @@ export function SummaryCard({ game }: { game: SummaryCardGame }) {
             }
             style={
               isActiveStatus
-                ? { background: "var(--ok)", color: "#fff", borderColor: "var(--ok)" }
+                ? { background: "var(--ok)", color: "var(--ink-on-brand)", borderColor: "var(--ok)" }
                 : undefined
             }
           >

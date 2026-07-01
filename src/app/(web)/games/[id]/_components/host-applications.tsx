@@ -185,7 +185,7 @@ export function HostApplications({ gameId, applicants }: HostApplicationsProps) 
                   {/* 게스트 신청은 카드 상단에 GUEST 뱃지 + 농구 경력 라벨 노출 */}
                   {isGuest && (
                     <div className="mb-2 flex items-center gap-2">
-                      <span className="inline-flex items-center rounded-[4px] bg-[var(--color-accent)] px-2 py-0.5 text-[10px] font-bold tracking-wider text-[var(--color-on-accent)]">
+                      <span className="inline-flex items-center rounded-[4px] bg-[var(--color-accent)] px-2 py-0.5 text-[10px] font-bold tracking-wider text-[var(--ink-on-brand)]">
                         GUEST
                       </span>
                       {expLabel && (

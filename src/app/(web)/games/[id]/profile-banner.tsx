@@ -39,7 +39,8 @@ export function ProfileIncompleteBanner() {
           padding: "6px 12px",
           fontSize: 12,
           fontWeight: 600,
-          color: "#fff",
+          // DS v4: primary(브랜드) 버튼 배경 위 흰 전경색 → ink-on-brand
+          color: "var(--ink-on-brand)",
           textDecoration: "none",
           minHeight: 32,
           display: "inline-flex",

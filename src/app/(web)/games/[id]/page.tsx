@@ -510,7 +510,8 @@ export default async function GameDetailPage({
                           flexShrink: 0,
                           fontSize: 24,
                           background: "var(--accent)",
-                          color: "#fff",
+                          // DS v4: accent 배경 위 흰 전경색 → ink-on-brand 토큰
+                          color: "var(--ink-on-brand)",
                         }}
                       >
                         🏆
@@ -892,7 +893,8 @@ export default async function GameDetailPage({
                           justifyContent: "center",
                           fontSize: 12,
                           fontWeight: 700,
-                          color: "#fff",
+                          // DS v4: 유색(cafe-blue/ink-dim) 아바타 배경 위 흰 전경색 → ink-on-brand
+                          color: "var(--ink-on-brand)",
                           background: c.is_reply ? "var(--ink-dim)" : "var(--cafe-blue)",
                         }}
                       >

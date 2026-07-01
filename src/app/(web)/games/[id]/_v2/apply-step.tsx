@@ -218,7 +218,8 @@ function colorOf(state: StepState): {
       return {
         bg: "var(--ok)",
         border: "var(--ok)",
-        fg: "#fff",
+        // DS v4: ok(성공) 마커 배경 위 흰 아이콘 → ink-on-brand
+        fg: "var(--ink-on-brand)",
         labelColor: "var(--ink)",
       };
     case "current":
@@ -234,7 +235,8 @@ function colorOf(state: StepState): {
       return {
         bg: "var(--bdr-red)",
         border: "var(--bdr-red)",
-        fg: "#fff",
+        // DS v4: bdr-red(거절) 마커 배경 위 흰 아이콘 → ink-on-brand
+        fg: "var(--ink-on-brand)",
         labelColor: "var(--bdr-red)",
       };
     default:

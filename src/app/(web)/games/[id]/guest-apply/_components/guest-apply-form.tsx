@@ -315,7 +315,8 @@ export function GuestApplyForm({ gameId, game, host, me }: GuestApplyGameProps) 
                       padding: "10px 0",
                       // 선택된 포지션은 액센트 배경 — 시안 라인 77 박제
                       background: pos === p ? "var(--accent)" : "var(--bg-alt)",
-                      color: pos === p ? "#fff" : "var(--ink)",
+                      // DS v4: 선택된 포지션(accent 배경) 위 흰 전경색 → ink-on-brand
+                      color: pos === p ? "var(--ink-on-brand)" : "var(--ink)",
                       border: 0,
                       borderRadius: 4,
                       cursor: "pointer",
@@ -430,7 +431,8 @@ export function GuestApplyForm({ gameId, game, host, me }: GuestApplyGameProps) 
                 borderRadius: 4,
                 // 디자인 토큰 사용 — Cafe Blue
                 background: "var(--cafe-blue)",
-                color: "#fff",
+                // DS v4: cafe-blue 아바타 배경 위 흰 전경색 → ink-on-brand
+                color: "var(--ink-on-brand)",
                 display: "grid",
                 placeItems: "center",
                 fontFamily: "var(--ff-display)",
