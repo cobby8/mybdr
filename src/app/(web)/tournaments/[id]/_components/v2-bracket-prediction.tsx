@@ -82,7 +82,7 @@ export function V2BracketPrediction({ predictions = [] }: V2BracketPredictionPro
         >
           <span
             className="material-symbols-outlined mb-1 text-2xl"
-            style={{ color: "var(--color-text-disabled)" }}
+            style={{ color: "var(--ink-dim)" }}
           >
             how_to_vote
           </span>

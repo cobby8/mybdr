@@ -202,7 +202,7 @@ export function TournamentAbout({
             >
               <span
                 className="material-symbols-outlined mb-2 block text-3xl"
-                style={{ color: "var(--color-info)" }}
+                style={{ color: "var(--cafe-blue)" }}
               >
                 emoji_events
               </span>
@@ -218,7 +218,7 @@ export function TournamentAbout({
               >
                 <span
                   className="material-symbols-outlined mb-2 block text-3xl"
-                  style={{ color: "var(--color-info)" }}
+                  style={{ color: "var(--cafe-blue)" }}
                 >
                   sports_basketball
                 </span>

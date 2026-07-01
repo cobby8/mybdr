@@ -123,7 +123,7 @@ export function V2TournamentHero({
         // 2026-06-10 td-redesign compact 톤: 그라데이션 각도 155deg(시안 td-hero__poster 일치)
         //  + padding/marginBottom 미세 축소 (밀도 compact). primary_color 폴백·props·데이터 와이어 0 변경.
         background: `linear-gradient(155deg, ${accent}, ${accent}AA 50%, #0B0D10)`,
-        color: "#fff",
+        color: "var(--ink-on-brand)",
         padding: "clamp(18px, 3.5vw, 24px) clamp(16px, 3.5vw, 26px)",
         borderRadius: "var(--radius-card, 12px)",
         position: "relative",
@@ -258,7 +258,7 @@ export function V2TournamentHero({
               gap: 6,
               background: "rgba(255,255,255,0.15)",
               backdropFilter: "blur(8px)",
-              color: "#fff",
+              color: "var(--ink-on-brand)",
               padding: "6px 12px",
               borderRadius: 4,
               fontSize: 12,
@@ -284,7 +284,7 @@ export function V2TournamentHero({
               gap: 6,
               marginLeft: myApplicationsCount > 0 ? 8 : 0,
               background: "rgba(255,255,255,0.15)",
-              color: "#fff",
+              color: "var(--ink-on-brand)",
               padding: "6px 12px",
               borderRadius: 4,
               fontSize: 12,

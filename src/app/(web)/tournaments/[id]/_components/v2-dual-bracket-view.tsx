@@ -348,8 +348,8 @@ function GroupCompositionCard({ groups }: { groups: GroupComposition[] }) {
                                     }
                                   : {
                                       backgroundColor:
-                                        "color-mix(in srgb, var(--color-info) 18%, transparent)",
-                                      color: "var(--color-info)",
+                                        "color-mix(in srgb, var(--cafe-blue) 18%, transparent)",
+                                      color: "var(--cafe-blue)",
                                     }
                               }
                               title={r === "W" ? "승" : "패"}

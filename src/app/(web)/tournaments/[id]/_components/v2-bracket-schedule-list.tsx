@@ -24,10 +24,10 @@ interface V2BracketScheduleListProps {
 // 매치 상태 → 배지 색상/텍스트
 function getStatusBadge(m: BracketMatch): { text: string; color: string; bg: string } {
   if (m.status === "in_progress") {
-    return { text: "LIVE", color: "#ffffff", bg: "var(--color-error)" };
+    return { text: "LIVE", color: "var(--ink-on-brand)", bg: "var(--color-error)" };
   }
   if (m.status === "completed") {
-    return { text: "완료", color: "#ffffff", bg: "var(--color-success)" };
+    return { text: "완료", color: "var(--ink-on-brand)", bg: "var(--color-success)" };
   }
   // 팀 둘 다 미정 → TBD
   if (!m.homeTeam && !m.awayTeam) {

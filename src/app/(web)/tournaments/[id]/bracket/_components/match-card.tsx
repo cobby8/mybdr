@@ -147,7 +147,7 @@ function TeamRow({
               className="inline-flex items-center justify-center rounded px-1 text-[9px] font-bold flex-shrink-0 tabular-nums"
               style={{
                 backgroundColor: winner ? "var(--color-primary)" : "var(--color-surface)",
-                color: winner ? "#ffffff" : "var(--color-text-muted)",
+                color: winner ? "var(--ink-on-brand)" : "var(--color-text-muted)",
               }}
             >
               {team.seedNumber}

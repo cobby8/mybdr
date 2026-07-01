@@ -485,8 +485,8 @@ function DualStatusBadge({ status }: { status: BracketMatch["status"] }) {
       <span
         className="inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-bold flex-shrink-0"
         style={{
-          backgroundColor: "color-mix(in srgb, var(--color-info) 14%, transparent)",
-          color: "var(--color-info)",
+          backgroundColor: "color-mix(in srgb, var(--cafe-blue) 14%, transparent)",
+          color: "var(--cafe-blue)",
         }}
       >
         종료
@@ -499,7 +499,7 @@ function DualStatusBadge({ status }: { status: BracketMatch["status"] }) {
         className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold flex-shrink-0"
         style={{
           backgroundColor: "var(--color-error)",
-          color: "#ffffff",
+          color: "var(--ink-on-brand)",
         }}
       >
         LIVE

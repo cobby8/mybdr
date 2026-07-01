@@ -573,7 +573,7 @@ export default function TournamentJoinPage() {
                               color:
                                 team.primary_color === "#FFFFFF"
                                   ? "var(--ink-dim)"
-                                  : "#fff",
+                                  : "var(--ink-on-brand)",
                             }}
                           >
                             shield

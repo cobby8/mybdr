@@ -24,7 +24,7 @@
  *   - 본 컴포넌트 = 공개 페이지 별도 view / admin 의존 0
  *
  * 디자인 룰 (BDR 13):
- *   - var(--color-info) Navy 활성 / var(--color-elevated) 비활성 / rounded-[4px]
+ *   - var(--cafe-blue) 활성 / var(--color-elevated) 비활성 / rounded-[4px]
  *   - material-symbols-outlined / lucide-react ❌ / pill 9999px ❌
  *   - 모바일 flex-wrap / 44px+ 터치
  */
@@ -196,11 +196,11 @@ export function DivisionsView({
             style={{
               backgroundColor:
                 selectedDivision === null
-                  ? "var(--color-info)"
+                  ? "var(--cafe-blue)"
                   : "var(--color-elevated)",
               color:
                 selectedDivision === null
-                  ? "#fff"
+                  ? "var(--ink-on-brand)"
                   : "var(--color-text-muted)",
             }}
           >
@@ -219,9 +219,9 @@ export function DivisionsView({
                 className="min-h-[44px] rounded-[4px] px-3 py-1.5 text-xs font-medium transition-colors"
                 style={{
                   backgroundColor: active
-                    ? "var(--color-info)"
+                    ? "var(--cafe-blue)"
                     : "var(--color-elevated)",
-                  color: active ? "#fff" : "var(--color-text-muted)",
+                  color: active ? "var(--ink-on-brand)" : "var(--color-text-muted)",
                 }}
               >
                 {tabLabel} ({count})
@@ -280,7 +280,7 @@ export function DivisionsView({
               <header className="flex items-center gap-3">
                 <span
                   className="material-symbols-outlined"
-                  style={{ color: "var(--color-info)", fontSize: 28 }}
+                  style={{ color: "var(--cafe-blue)", fontSize: 28 }}
                   aria-hidden="true"
                 >
                   groups

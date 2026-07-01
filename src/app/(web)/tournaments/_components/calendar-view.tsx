@@ -334,7 +334,7 @@ export function CalendarView({ categoryFilter = "all", genderFilter = "all" }: C
                       )}
                     </div>
                   </div>
-                  <span className="material-symbols-outlined text-base text-[var(--color-text-disabled)]">chevron_right</span>
+                  <span className="material-symbols-outlined text-base text-[var(--ink-dim)]">chevron_right</span>
                 </Link>
               ))}
             </div>

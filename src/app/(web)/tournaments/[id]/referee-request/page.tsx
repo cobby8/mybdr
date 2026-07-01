@@ -354,7 +354,7 @@ function Step1Tournament({
             width: 48,
             height: 48,
             background: "var(--accent)",
-            color: "#fff",
+            color: "var(--ink-on-brand)",
             display: "grid",
             placeItems: "center",
             fontFamily: "var(--ff-display)",

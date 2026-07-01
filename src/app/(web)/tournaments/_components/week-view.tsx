@@ -260,7 +260,7 @@ export function WeekView({ categoryFilter = "all", genderFilter = "all" }: WeekV
                   >
                     {dayTournaments.length === 0 && (
                       <div className="h-full flex items-center justify-center">
-                        <span className="text-xs text-[var(--color-text-disabled)]">-</span>
+                        <span className="text-xs text-[var(--ink-dim)]">-</span>
                       </div>
                     )}
                     {dayTournaments.map((t) => {

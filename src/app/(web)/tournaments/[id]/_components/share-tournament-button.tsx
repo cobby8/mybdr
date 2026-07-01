@@ -41,7 +41,7 @@ export function ShareTournamentButton({ variant = "default" }: { variant?: "defa
       className="flex w-full items-center justify-center gap-2 rounded-lg border px-4 py-2.5 text-sm font-medium transition-colors hover:opacity-80"
       style={{ borderColor: "var(--color-border)", color: "var(--color-text)" }}
     >
-      <span className="material-symbols-outlined text-base" style={{ color: "var(--color-info)" }}>
+      <span className="material-symbols-outlined text-base" style={{ color: "var(--cafe-blue)" }}>
         link
       </span>
       링크 복사

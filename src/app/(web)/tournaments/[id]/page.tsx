@@ -724,7 +724,7 @@ export default async function TournamentDetailPage({
               className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg"
               style={{ backgroundColor: "var(--bg-alt)" }}
             >
-              <span className="material-symbols-outlined text-xl" style={{ color: "var(--info)" }}>location_on</span>
+              <span className="material-symbols-outlined text-xl" style={{ color: "var(--cafe-blue)" }}>location_on</span>
             </div>
             {/* 장소 정보 */}
             <div>

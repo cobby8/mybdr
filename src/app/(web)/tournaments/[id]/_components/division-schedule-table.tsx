@@ -18,7 +18,7 @@
  *   - PR-G5 룰 준수 (placeholder-helpers 의존 0 / generator 박제 슬롯 라벨 그대로 사용)
  *
  * 디자인 룰 (BDR 13):
- *   - var(--color-info) Navy 헤더 / var(--color-card) 행 배경 / rounded-[4px]
+ *   - var(--cafe-blue) 헤더 / var(--color-card) 행 배경 / rounded-[4px]
  *   - material-symbols-outlined / lucide-react ❌
  *   - 모바일 카드 스택 / PC 표 (720px 분기) — schedule-timeline 패턴 답습
  */
@@ -87,7 +87,7 @@ export function DivisionScheduleTable({ title, matches, emptyMessage }: Props) {
       <div className="mb-4 flex items-center gap-2">
         <span
           className="w-1.5 h-6 rounded-sm"
-          style={{ backgroundColor: "var(--color-info)" }}
+          style={{ backgroundColor: "var(--cafe-blue)" }}
           aria-hidden="true"
         />
         <h3
@@ -247,12 +247,12 @@ export function DivisionScheduleTable({ title, matches, emptyMessage }: Props) {
                             backgroundColor: completed
                               ? "color-mix(in srgb, var(--color-success) 15%, transparent)"
                               : m.status === "in_progress" || m.status === "live"
-                                ? "color-mix(in srgb, var(--color-info) 15%, transparent)"
+                                ? "color-mix(in srgb, var(--cafe-blue) 15%, transparent)"
                                 : "var(--color-surface)",
                             color: completed
                               ? "var(--color-success)"
                               : m.status === "in_progress" || m.status === "live"
-                                ? "var(--color-info)"
+                                ? "var(--cafe-blue)"
                                 : "var(--color-text-muted)",
                           }}
                         >
@@ -305,12 +305,12 @@ export function DivisionScheduleTable({ title, matches, emptyMessage }: Props) {
                         backgroundColor: completed
                           ? "color-mix(in srgb, var(--color-success) 15%, transparent)"
                           : m.status === "in_progress" || m.status === "live"
-                            ? "color-mix(in srgb, var(--color-info) 15%, transparent)"
+                            ? "color-mix(in srgb, var(--cafe-blue) 15%, transparent)"
                             : "var(--color-surface)",
                         color: completed
                           ? "var(--color-success)"
                           : m.status === "in_progress" || m.status === "live"
-                            ? "var(--color-info)"
+                            ? "var(--cafe-blue)"
                             : "var(--color-text-muted)",
                       }}
                     >

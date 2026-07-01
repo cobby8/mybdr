@@ -61,7 +61,7 @@ export interface ScheduleMatch {
 const DIVISION_COLOR_TOKENS = [
   "var(--color-primary)",
   "var(--color-secondary)",
-  "var(--color-info)",
+  "var(--cafe-blue)",
   "var(--color-success)",
   "var(--color-warning)",
   "var(--color-accent)",
@@ -70,7 +70,7 @@ const DIVISION_COLOR_MAP: Record<string, string> = {
   // 강남구협회장배 6 종별 (case-insensitive 매칭)
   "i3-u9": "var(--color-primary)",
   "i2-u11": "var(--color-secondary)",
-  "i3-u11": "var(--color-info)",
+  "i3-u11": "var(--cafe-blue)",
   "i2-u12": "var(--color-success)",
   "i3w-u12": "var(--color-warning)",
   "i3-u14": "var(--color-accent)",
@@ -323,9 +323,9 @@ export function ScheduleTimeline({ matches, teams, selectedDate: selectedDatePro
             onClick={() => setSelectedDivision(null)}
             className="flex-shrink-0 whitespace-nowrap rounded-md px-3 py-1.5 text-xs font-medium transition-colors"
             style={{
-              backgroundColor: selectedDivision === null ? "var(--color-info)" : "var(--color-elevated)",
+              backgroundColor: selectedDivision === null ? "var(--cafe-blue)" : "var(--color-elevated)",
               color: selectedDivision === null ? "white" : "var(--color-text-secondary)",
-              border: `1px solid ${selectedDivision === null ? "var(--color-info)" : "var(--color-border)"}`,
+              border: `1px solid ${selectedDivision === null ? "var(--cafe-blue)" : "var(--color-border)"}`,
             }}
           >
             전체 ({matches.length})
@@ -376,9 +376,9 @@ export function ScheduleTimeline({ matches, teams, selectedDate: selectedDatePro
             onClick={() => setSelectedVenue(null)}
             className="flex-shrink-0 whitespace-nowrap rounded-md px-3 py-1.5 text-xs font-medium transition-colors"
             style={{
-              backgroundColor: selectedVenue === null ? "var(--color-info)" : "var(--color-elevated)",
+              backgroundColor: selectedVenue === null ? "var(--cafe-blue)" : "var(--color-elevated)",
               color: selectedVenue === null ? "white" : "var(--color-text-secondary)",
-              border: `1px solid ${selectedVenue === null ? "var(--color-info)" : "var(--color-border)"}`,
+              border: `1px solid ${selectedVenue === null ? "var(--cafe-blue)" : "var(--color-border)"}`,
             }}
           >
             전체
@@ -393,9 +393,9 @@ export function ScheduleTimeline({ matches, teams, selectedDate: selectedDatePro
                 onClick={() => setSelectedVenue(active ? null : venue)}
                 className="flex-shrink-0 whitespace-nowrap rounded-md px-3 py-1.5 text-xs font-medium transition-colors"
                 style={{
-                  backgroundColor: active ? "var(--color-info)" : "var(--color-elevated)",
+                  backgroundColor: active ? "var(--cafe-blue)" : "var(--color-elevated)",
                   color: active ? "white" : "var(--color-text-secondary)",
-                  border: `1px solid ${active ? "var(--color-info)" : "var(--color-border)"}`,
+                  border: `1px solid ${active ? "var(--cafe-blue)" : "var(--color-border)"}`,
                 }}
               >
                 <span className="material-symbols-outlined align-middle" style={{ fontSize: 14, marginRight: 4 }}>

@@ -76,8 +76,8 @@ export function SeriesCard({
               className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded text-base font-bold"
               style={{
                 background:
-                  "linear-gradient(135deg, var(--color-primary), var(--color-navy))",
-                color: "var(--color-on-accent)",
+                  "linear-gradient(135deg, var(--color-primary), var(--cafe-blue))",
+                color: "var(--ink-on-brand)",
               }}
             >
               {seriesName.charAt(0)}
@@ -140,7 +140,7 @@ export function SeriesCard({
           <Link
             href={`/series/${seriesSlug}`}
             className="hidden flex-shrink-0 items-center gap-1 text-xs hover:underline sm:inline-flex"
-            style={{ color: "var(--color-info)" }}
+            style={{ color: "var(--cafe-blue)" }}
           >
             시리즈 전체 보기
             <span className="material-symbols-outlined text-sm">

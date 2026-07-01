@@ -13,7 +13,7 @@
  *   - groupTeams: 해당 종별 팀 (이미 부모에서 division 필터링됨)
  *
  * 디자인 룰 (BDR 13):
- *   - var(--color-info) Navy 헤더 / var(--color-card) 배경 / rounded-[4px]
+ *   - var(--cafe-blue) 헤더 / var(--color-card) 배경 / rounded-[4px]
  *   - material-symbols-outlined 만 / lucide-react ❌
  *   - 모바일 세로 스택 / PC 2컬럼 grid (조 ≥2 시)
  */
@@ -57,7 +57,7 @@ export function DivisionGroupComposition({ divisionLabel, groupTeams }: Props) {
       <div className="mb-4 flex items-center gap-2">
         <span
           className="w-1.5 h-6 rounded-sm"
-          style={{ backgroundColor: "var(--color-info)" }}
+          style={{ backgroundColor: "var(--cafe-blue)" }}
           aria-hidden="true"
         />
         <h3
@@ -94,8 +94,8 @@ export function DivisionGroupComposition({ divisionLabel, groupTeams }: Props) {
               <div
                 className="px-4 py-2.5 text-sm font-bold"
                 style={{
-                  backgroundColor: "var(--color-info)",
-                  color: "#fff",
+                  backgroundColor: "var(--cafe-blue)",
+                  color: "var(--ink-on-brand)",
                 }}
               >
                 {groupName}조 ({teams.length}팀)
