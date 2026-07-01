@@ -910,7 +910,7 @@ function EmptyState({ tab }: { tab: Tab }) {
         style={{
           // 토큰 매핑 정정: --color-primary→--accent (BDR Red)
           backgroundColor: "var(--accent)",
-          color: "#fff",
+          color: "var(--ink-on-brand)",
           borderRadius: 4,
         }}
       >
@@ -1219,7 +1219,7 @@ function TeamLogo({
         justifyContent: "center",
         // 색상 없으면 토큰 폴백 — 하드코딩 금지 룰 준수
         background: `linear-gradient(135deg, ${color1 || "var(--accent)"}, ${color2 || "var(--cafe-blue)"})`,
-        color: "#fff",
+        color: "var(--ink-on-brand)",
         fontWeight: 800,
         fontSize: 16,
         fontFamily: "var(--ff-display)",
@@ -1318,7 +1318,7 @@ function MyTeamsSection({ teams }: { teams: MyTeamItem[] }) {
               fontSize: 12,
               fontWeight: 700,
               backgroundColor: "var(--accent)",
-              color: "#fff",
+              color: "var(--ink-on-brand)",
               borderRadius: 4,
               textDecoration: "none",
             }}

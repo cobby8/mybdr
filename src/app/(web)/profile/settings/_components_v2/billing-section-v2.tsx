@@ -51,7 +51,7 @@ export function BillingSectionV2({ summary }: { summary: BillingSummary | null }
           background: isPaid
             ? "linear-gradient(135deg, var(--cafe-blue), var(--cafe-blue-deep))"
             : "var(--bg-alt)",
-          color: isPaid ? "#fff" : "var(--ink)",
+          color: isPaid ? "var(--ink-on-brand)" : "var(--ink)",
           borderRadius: 8,
           marginBottom: 16,
           border: isPaid ? "0" : "1px solid var(--border)",

@@ -276,7 +276,7 @@ export function DangerSectionV2() {
                     disabled={!canDelete}
                     style={{
                       background: "var(--accent)",
-                      color: "#fff",
+                      color: "var(--ink-on-brand)",
                       borderColor: "var(--accent)",
                       opacity: canDelete ? 1 : 0.5,
                       cursor: submitting
@@ -357,7 +357,7 @@ function DangerCard({
           accent
             ? {
                 background: "var(--accent)",
-                color: "#fff",
+                color: "var(--ink-on-brand)",
                 borderColor: "var(--accent)",
               }
             : disabled

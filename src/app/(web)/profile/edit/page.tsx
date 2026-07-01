@@ -1353,7 +1353,7 @@ export default function ProfileEditPage() {
               >
                 <span
                   className="material-symbols-outlined"
-                  style={{ color: "#fff", fontSize: 20 }}
+                  style={{ color: "var(--ink-on-brand)", fontSize: 20 }}
                 >
                   {SOCIAL_PROVIDERS[provider].icon}
                 </span>
@@ -1676,7 +1676,7 @@ export default function ProfileEditPage() {
                 style={{
                   flex: 1,
                   background: "var(--danger)",
-                  color: "#fff",
+                  color: "var(--ink-on-brand)",
                   borderColor: "var(--danger)",
                 }}
               >

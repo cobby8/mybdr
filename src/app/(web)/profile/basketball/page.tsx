@@ -1302,7 +1302,7 @@ export default async function BasketballPage() {
             <div className="py-8 text-center">
               <span
                 className="material-symbols-outlined text-3xl mb-2 block"
-                style={{ color: "var(--color-text-disabled)" }}
+                style={{ color: "var(--ink-dim)" }}
               >
                 group_add
               </span>
@@ -1351,7 +1351,7 @@ export default async function BasketballPage() {
             <div className="py-8 text-center">
               <span
                 className="material-symbols-outlined text-3xl mb-2 block"
-                style={{ color: "var(--color-text-disabled)" }}
+                style={{ color: "var(--ink-dim)" }}
               >
                 emoji_events
               </span>
@@ -1401,7 +1401,7 @@ export default async function BasketballPage() {
             <div className="py-8 text-center">
               <span
                 className="material-symbols-outlined text-3xl mb-2 block"
-                style={{ color: "var(--color-text-disabled)" }}
+                style={{ color: "var(--ink-dim)" }}
               >
                 sports_basketball
               </span>
@@ -1424,7 +1424,7 @@ export default async function BasketballPage() {
       <TossCard className="p-0">
         <TossListItem
           icon="bar_chart"
-          iconBg="var(--color-info, #0079B9)"
+          iconBg="var(--cafe-blue)"
           title="주간 운동 리포트"
           subtitle="이번주 운동 요약과 지난주 비교"
           href="/profile/weekly-report"

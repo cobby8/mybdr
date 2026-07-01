@@ -365,7 +365,7 @@ function SubscriptionSection() {
               className="inline-block text-sm font-bold px-4 py-2 rounded"
               style={{
                 backgroundColor: "var(--accent)",
-                color: "#fff",
+                color: "var(--ink-on-brand)",
               }}
             >
               요금제 보기
@@ -398,7 +398,7 @@ function SubscriptionSection() {
                     padding: "20px 24px",
                     background:
                       "linear-gradient(135deg, var(--cafe-blue), var(--cafe-blue-deep))",
-                    color: "#fff",
+                    color: "var(--ink-on-brand)",
                     display: "flex",
                     justifyContent: "space-between",
                     alignItems: "flex-start",
@@ -461,7 +461,7 @@ function SubscriptionSection() {
                           verticalAlign: "middle",
                         }}
                       />
-                      <span style={{ color: "#fff" }}>
+                      <span style={{ color: "var(--ink-on-brand)" }}>
                         {statusInfo.label.toUpperCase()}
                       </span>
                     </div>
@@ -826,7 +826,7 @@ function SubscriptionSection() {
                               left: 14,
                               padding: "2px 8px",
                               background: p.color,
-                              color: "#fff",
+                              color: "var(--ink-on-brand)",
                               fontSize: 10,
                               fontWeight: 800,
                               letterSpacing: ".08em",
@@ -884,7 +884,7 @@ function SubscriptionSection() {
                               background:
                                 p.key === "free" ? "transparent" : p.color,
                               color:
-                                p.key === "free" ? "var(--ink-soft)" : "#fff",
+                                p.key === "free" ? "var(--ink-soft)" : "var(--ink-on-brand)",
                               borderColor:
                                 p.key === "free" ? "var(--border)" : p.color,
                             }}
@@ -971,7 +971,7 @@ function SubscriptionSection() {
                 className="flex-1 py-3 rounded text-sm font-bold"
                 style={{
                   backgroundColor: "var(--danger)",
-                  color: "#fff",
+                  color: "var(--ink-on-brand)",
                   opacity: cancelling ? 0.6 : 1,
                 }}
                 onClick={handleCancel}
@@ -1178,7 +1178,7 @@ function PaymentsHub({ view }: { view: "payments" | "refund" }) {
             className="flex-1 py-3 rounded text-sm font-bold"
             style={{
               backgroundColor: "var(--danger)",
-              color: "#fff",
+              color: "var(--ink-on-brand)",
               opacity: refunding ? 0.6 : 1,
             }}
             onClick={handleRefund}
@@ -1424,7 +1424,7 @@ function PaymentsHub({ view }: { view: "payments" | "refund" }) {
                   minHeight: 40,
                   border: `1px solid ${on ? "var(--accent)" : "var(--border)"}`,
                   background: on ? "var(--accent)" : "transparent",
-                  color: on ? "#fff" : "var(--ink-soft)",
+                  color: on ? "var(--ink-on-brand)" : "var(--ink-soft)",
                   borderRadius: 4,
                   cursor: "pointer",
                   fontSize: 13,
@@ -1445,7 +1445,7 @@ function PaymentsHub({ view }: { view: "payments" | "refund" }) {
                     background: on
                       ? "rgba(255,255,255,.22)"
                       : "var(--bg-alt)",
-                    color: on ? "#fff" : "var(--ink-dim)",
+                    color: on ? "var(--ink-on-brand)" : "var(--ink-dim)",
                   }}
                 >
                   {f.count}

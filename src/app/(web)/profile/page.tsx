@@ -326,7 +326,7 @@ export default async function ProfilePage() {
     });
 
   // 팀 색상 기반 ink (대비) — 토큰 fallback 패턴 (mypage.css 의 --ink-on-accent 와 동일)
-  const teamInk = "var(--ink-on-accent, #fff)";
+  const teamInk = "var(--ink-on-brand)";
   // 아바타 그라디언트 색상 — 팀 있으면 팀 색, 없으면 BDR Red
   const avatarBg = primaryTeam
     ? `linear-gradient(145deg, ${primaryTeam.primaryColor}, color-mix(in srgb, ${primaryTeam.primaryColor} 30%, var(--bg)))`

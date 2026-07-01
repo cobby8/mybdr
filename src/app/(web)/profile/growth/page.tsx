@@ -359,7 +359,7 @@ export default function GrowthPage() {
                 height: 80,
                 borderRadius: "50%",
                 background: "linear-gradient(135deg, var(--primary), #FF6B35)",
-                color: "#fff",
+                color: "var(--ink-on-brand)",
                 display: "grid",
                 placeItems: "center",
                 fontSize: 30,
@@ -823,7 +823,7 @@ export default function GrowthPage() {
             fontSize: 13,
             fontWeight: 700,
             background: "var(--primary)",
-            color: "#fff",
+            color: "var(--ink-on-brand)",
             textDecoration: "none",
           }}
         >

@@ -453,7 +453,7 @@ export default function WeeklyReportPage() {
               borderRadius: 4,
               border: "1px solid var(--primary)",
               background: "var(--primary)",
-              color: "#FFFFFF",
+              color: "var(--ink-on-brand)",
               cursor: "default",
             }}
           >
@@ -868,7 +868,7 @@ export default function WeeklyReportPage() {
                       placeItems: "center",
                       fontSize: 13,
                       fontWeight: 700,
-                      color: "#FFFFFF",
+                      color: "var(--ink-on-brand)",
                       background:
                         idx === 0
                           ? "var(--warn)"

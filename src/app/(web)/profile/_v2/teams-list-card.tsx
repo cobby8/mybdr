@@ -74,7 +74,7 @@ export function TeamsListCard({ teams }: Props) {
         {teams.map((t) => {
           const region = [t.city, t.district].filter(Boolean).join(" ") || "지역 미설정";
           const tagBg = t.primaryColor ?? "var(--accent)";
-          const tagInk = "var(--color-on-accent, #fff)";
+          const tagInk = "var(--ink-on-brand)";
 
           return (
             <li

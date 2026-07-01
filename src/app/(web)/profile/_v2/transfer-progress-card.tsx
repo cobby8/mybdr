@@ -67,13 +67,13 @@ export function TransferProgressCard() {
       >
         <span
           className="material-symbols-outlined"
-          style={{ fontSize: 16, color: "var(--info, #0079B9)" }}
+          style={{ fontSize: 16, color: "var(--cafe-blue)" }}
         >
           swap_horiz
         </span>
         <span
           className="eyebrow"
-          style={{ fontSize: 10, color: "var(--info, #0079B9)" }}
+          style={{ fontSize: 10, color: "var(--cafe-blue)" }}
         >
           이적 진행 중
         </span>
@@ -173,7 +173,7 @@ export function TransferProgressCard() {
                   display: "inline-block",
                   marginTop: 6,
                   fontSize: 11,
-                  color: "var(--info, #0079B9)",
+                  color: "var(--cafe-blue)",
                   textDecoration: "underline",
                 }}
               >
