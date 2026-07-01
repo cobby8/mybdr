@@ -2,6 +2,16 @@
 <!-- 담당: planner-architect | 최대 30항목 -->
 <!-- "왜 A 대신 B를 선택했는지" 기술 결정의 배경과 이유를 기록 -->
 
+### [2026-06-30] 관리자 영역 v2 컷오버 종결 — 봉인 패턴 + 심판 봉인 불가 확정
+- **분류**: decision (컷오버 전략 / redirect 봉인 / 권한 스코프)
+- **계기**: 관리자 그린필드 v2(`(admin-v2)`) 완성 후, 레거시 `(admin)/admin/*`·`(referee)/referee/admin/*` 등을 308 redirect로 점진 봉인해 컷오버 종결.
+- **봉인 패턴(확립)**: `next.config.ts` redirects 점진 추가(롤백=규칙제거·레거시 무손상). **path-to-regexp 매칭 실증 필수** — 함정: ①BigInt id=`:id([0-9]+)` 숫자제한(`\d`는 path-to-regexp 미동작→**문자클래스 `[0-9]` 사용**) ②UUID id=`[0-9a-fA-F]{8}-...` 형식정규식(`/new` 등 비-UUID 자동배제) ③exact source는 하위 세그먼트 미매칭(`/admin/news`가 `/admin/news/compose` 안 잡음).
+- **봉인 완료**: ①대회운영·④협력(8f99674) / ②매칭+백오피스7콘솔 settings·logs·notifications·mypage·categories·partners·news(68c1a89) / analytics(fe55267·v2 지표 보강 a755a53 후 무손실).
+- **포팅 원칙**: 전부 **백엔드 0변경**(기존 API/server action 재사용·READ=서버 Prisma 직접 snake→camel·mutation=adminFetch 또는 기존 action). 신규 백엔드 0.
+- **★심판 봉인 불가 확정**: v2 `referee-console`=**super_admin 전용**(layout `isSuperAdmin`·주석 "협회 admin은 레거시로")·레거시 `referee/admin`=**association_admin**용 → redirect 시 협회 관리자 전원 마비. v2는 레거시 대체가 아닌 **super 글로벌 레이어로 공존**. 봉인하려면 v2를 협회 스코프까지 확장(권한 재설계)해야 함 = 별도 큰 작업.
+- **남은 결정/별도 트랙**: ③-B 심판 신청관리(레거시無 신규기능)·game-reports(row0 빈화면)·season-awards(버킷B)·tournaments 직접봉인(상세/audit-log/transfer-organizer v2 매핑 미정)·news/compose(v2 미대응).
+- **참조횟수**: 0
+
 ### [2026-06-30] 공개웹 PUB 디자인 시스템 세대교체 — DualSideNav 셸 + 라이트=토스블루 (13룰 A 면제)
 - **분류**: decision (공개웹 셸 구조 / 색상 정책 / 13룰 적용 범위)
 - **발견자**: pm + design-system-expert (Phase PUB-0a IA 델타 `Dev/design/prompts/_pub-ia-delta.md`)

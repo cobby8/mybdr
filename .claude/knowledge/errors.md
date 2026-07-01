@@ -2,6 +2,16 @@
 <!-- 담당: debugger, tester | 최대 30항목 -->
 <!-- 이 프로젝트에서 반복되는 에러 패턴, 함정, 주의사항을 기록 -->
 
+### [2026-07-01] 멀티테넌트 스코핑 시 `getAssociationAdmin()` sentinel 함정 — 전역(super) 판정을 먼저 안 하면 오스코핑/누출 (security-reviewer)
+- **분류**: error (보안) — 협회별 데이터 스코핑 패턴 / sentinel 오스코핑
+- **검수 대상**: 컷오버 4-2/4-3 심판 콘솔(`/referee-console`) super전용→협회admin 공존 개방(8파일·백엔드0변경). **판정 통과(데이터 누출 0)**.
+- **핵심 함정**: `getAssociationAdmin()`(admin-guard.ts L144)는 **super_admin/recorder_admin 에게 sentinel(첫 활성 협회 id + `__super_admin__` role)을 반환**한다. 협회별 READ 필터를 걸 때 이걸 그대로 `where:{association_id}`에 쓰면 → (가) super가 **특정 한 협회 데이터만** 보이거나(마비) (나) super가 협회admin으로 오인돼 **다른 협회 데이터가 그 협회로 새는** 누출 위험.
+- **안전 패턴(검증된 해법)**: 스코프 판정 단일 진입점(`getRefereeScope`)에서 **순서 절대 준수** — ①`isRecorderAdmin(session)`(super_admin OR recorder_admin 자동흡수)로 **전역을 먼저** 가려 `associationId=null`(필터0) 반환 → ②비-전역에서만 `getAssociationAdmin()` 호출. 이러면 super는 ②에 도달조차 안 하고, ②에 도달한 비-전역은 같은 세션이라 `getAssociationAdmin` 내부 sentinel 분기도 false로 스킵→**실 매핑 association_id** 반환. 무권한(미로그인·비admin·매핑부재)→null→차단.
+- **page 필터 경로(모델별 schema 대조 필수)**: 협회 컬럼이 직접 있으면 `{association_id}`(Referee), 없으면 관계경유 `{referee:{association_id}}`(Certificate/Assignment/Settlement/Evaluation — 전부 `referee` 필수관계). **IDOR**: 상세는 `findUnique`→`findFirst({id, association_id})` AND로 타협회 id 직접 URL→null→notFound. **badge/집계도 동일 필터**(전역 count 잔존 시 정보 누출).
+- **검증 방법**: 콘솔 전 디렉토리 `grep prisma\.` 로 **스코프 없는 직접 READ가 0인지** 전수 확인(권한 개방 = 콘솔 전체 노출이므로 6 page 외 다른 page의 무필터 READ도 누출). raw SQL($queryRaw)도 확인.
+- **예방**: 협회/테넌트별 스코핑 신규 작성 시 (a) 전역 권한(super/recorder)을 **먼저** 분기해 필터0 반환 후 협회 판정 (b) sentinel 반환 함수를 스코프 필터에 직접 쓰지 말 것 (c) 모델별 협회컬럼 직접/관계 경로 schema 대조 (d) 상세=findFirst AND IDOR (e) 권한 개방 PR은 디렉토리 전수 grep으로 무필터 READ 0 확인.
+- **참조횟수**: 0
+
 ### [2026-06-30] tsc EXIT 0인데 `next build` 실패 — RSC client/server 경계 위반 (tsc 미검출)
 - **분류**: error (Next.js App Router 빌드 / RSC 경계)
 - **발견자**: tester (PUB-0b PR1 검증 중 부수 발견 — 원인은 ③-A 심판 배정 작업)
