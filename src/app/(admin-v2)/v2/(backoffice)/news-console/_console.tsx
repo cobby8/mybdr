@@ -113,6 +113,54 @@ const COLS: DataCol[] = [
 const fmtDateTime = (iso: string) => new Date(iso).toLocaleString("ko-KR");
 const fmtDate = (iso: string) => new Date(iso).toLocaleDateString("ko-KR");
 
+type ReviewTone = "ok" | "warn" | "danger";
+
+type EditorialReview = {
+  angle: string;
+  tone: ReviewTone;
+  passed: number;
+  total: number;
+  checks: Array<{ label: string; ok: boolean }>;
+};
+
+function inferEditorialAngle(post: NewsPost): string {
+  const text = `${post.title}\n${post.content}`;
+  const patterns: Array<[string, RegExp]> = [
+    ["막판 승부처", /막판|종료|클러치|승부처|접전|신승/],
+    ["역전 흐름", /역전|뒤집|추격|리드를 빼앗/],
+    ["연장 접전", /연장|오버타임|OT/],
+    ["외곽/야투 효율", /3점|외곽|야투|필드골|FG/],
+    ["리바운드 장악", /리바운드|보드 장악|공격 리바/],
+    ["패스와 볼 흐름", /어시스트|패스|볼 흐름/],
+    ["수비 지표", /스틸|블록|수비|턴오버/],
+    ["핵심 선수 활약", /MVP|더블더블|트리플더블|최다 득점/],
+    ["우세한 경기 운영", /완승|대승|압도|점 차|우세/],
+  ];
+  return patterns.find(([, pattern]) => pattern.test(text))?.[0] ?? "균형 잡힌 경기 요약";
+}
+
+function buildEditorialReview(post: NewsPost): EditorialReview {
+  const body = post.content.trim();
+  const teamLinks = post.linkifyEntries.filter((entry) => entry.type === "team").length;
+  const scorePattern = /\b\d{1,3}\s*(?:-|대|:)\s*\d{1,3}\b/;
+  const checks = [
+    { label: "제목", ok: post.title.trim().length >= 8 },
+    { label: "매치 연결", ok: Boolean(post.tournament_match_id) },
+    { label: "팀명 근거", ok: teamLinks >= 2 },
+    { label: "스코어", ok: scorePattern.test(body) },
+    { label: "본문 길이", ok: body.length >= 120 && body.length <= 900 },
+  ];
+  const passed = checks.filter((check) => check.ok).length;
+  const tone: ReviewTone = passed === checks.length ? "ok" : passed >= checks.length - 1 ? "warn" : "danger";
+  return {
+    angle: inferEditorialAngle(post),
+    tone,
+    passed,
+    total: checks.length,
+    checks,
+  };
+}
+
 export function NewsConsole({
   posts,
   currentStatus,
@@ -211,6 +259,7 @@ export function NewsConsole({
   // 표 셀 렌더
   const renderCell = (row: DataRow, key: string) => {
     const p = row as unknown as NewsPost;
+    const review = buildEditorialReview(p);
     switch (key) {
       case "title":
         return (
@@ -233,6 +282,10 @@ export function NewsConsole({
                 {p.photos.length}
               </div>
             )}
+            <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 6, marginTop: 6 }}>
+              <Badge tone={review.tone}>{review.passed}/{review.total}</Badge>
+              <span style={{ fontSize: 11, color: "var(--ink-mute)" }}>{review.angle}</span>
+            </div>
           </div>
         );
       case "match":
@@ -331,6 +384,34 @@ export function NewsConsole({
       >
         {selected && (
           <div style={{ display: "flex", flexDirection: "column", gap: 14, color: "var(--ink)" }}>
+            {(() => {
+              const review = buildEditorialReview(selected);
+              return (
+                <div style={{ display: "flex", flexDirection: "column", gap: 8, padding: 12, border: "1px solid var(--border)", borderRadius: 8, background: "var(--surface)" }}>
+                  <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8 }}>
+                    <Badge tone={review.tone}>검증 {review.passed}/{review.total}</Badge>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: "var(--ink)" }}>{review.angle}</span>
+                  </div>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                    {review.checks.map((check) => (
+                      <span
+                        key={check.label}
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 4,
+                          fontSize: 12,
+                          color: check.ok ? "var(--success)" : "var(--danger)",
+                        }}
+                      >
+                        <Icon name={check.ok ? "check-circle" : "alert-circle"} size={13} />
+                        {check.label}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
             {/* 메타 행 — 매치 / 상태 배지 / 작성일 */}
             <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8, fontSize: 12, color: "var(--ink-mute)" }}>
               <span style={{ fontFamily: "var(--ff-mono)" }}>
