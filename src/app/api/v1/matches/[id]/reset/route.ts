@@ -37,6 +37,19 @@ export async function POST(
     );
     if (modeGuard) return modeGuard;
 
+    // 가드1 1차방어 (2026-07-01 준결승 306 재발 방지):
+    // 이미 completed(확정)된 경기는 record-discard 로 폐기하면 확정 결과 + 라이브 3테이블
+    // (play_by_plays/matchPlayerStat/liveScoreboard)을 cascade 파괴한다 (준결승 306 사고 원인).
+    // 이미 SELECT 해둔 match.status 를 재사용 — 추가 DB 쿼리 0. completed 만 차단하고
+    // in_progress(정상 폐기)/scheduled(멱등 재폐기)/cancelled(재개 리셋)는 그대로 통과.
+    if (match.status === "completed") {
+      return apiError(
+        "이미 완료된 경기는 기록을 폐기할 수 없습니다.",
+        409,
+        "MATCH_ALREADY_COMPLETED"
+      );
+    }
+
     const resetAt = new Date();
     await prisma.$transaction(async (tx) => {
       await resetMatchRecord(tx, {

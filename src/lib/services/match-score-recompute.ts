@@ -205,6 +205,53 @@ export async function computeRecomputedScore(
     resolvedAway = pbpScore.away;
   }
 
+  // ── 가드2: 최소 데이터 임계 게이트 (2026-07-01 · 방어심층 2차선) ──
+  // 왜: safety-net 의 원래 목적은 "Flutter /sync 누락으로 헤더만 0, 실데이터는 완전"(매치 #132형)
+  //     매치의 자동 보정이다. record-discard 로 폐기된 매치의 "잔여 부분데이터"로 재계산에
+  //     진입하면 엉뚱한 점수/승자를 박제할 위험이 있어, 박제 직전 최소 데이터 임계를 둔다.
+  // 무엇을 막나 (게이트가 실제로 걸러내는 범위 — 과대평가 금지):
+  //   ① resolvedHome > 0 AND resolvedAway > 0 — "한 팀 완전 0점"(또는 양팀 0점) 완료를 차단
+  //   ② playerStats 또는 PBP 행이 최소 1건 존재 — 빈/부분 라이브 테이블을 차단
+  //   → 즉 이 게이트가 커버하는 건 "한 팀 0점 / 양팀 0점 / 빈 테이블"뿐이다.
+  // 무엇을 못 막나 (가드2의 한계 — 정직 기록):
+  //   - 준결승 306 의 실제 사고값은 home 2 / away 3 (양팀 모두 >0) + 잔여 PBP 행 존재였다.
+  //     조건 ①·② 를 둘 다 통과 → hasMinimumData=true → 게이트를 그냥 지나간다.
+  //     따라서 "양팀 모두 >0 인 폐기 잔여"(306 의 2-3 형)는 가드2 로는 걸러지지 않는다.
+  //   - 이 클래스를 근본 차단하는 것은 가드1(reset 시 status="completed" → 409/throw)이다.
+  //     completed 매치의 폐기 진입 자체를 봉쇄해, 잔여 2-3 상태가 애초에 만들어지지 않는다.
+  //   - 조건 강화(min-points / 쿼터 완결성)는 비채택: 정상 저득점 완료와 폐기 잔여가
+  //     데이터상 구분 불가라 정상 경기에 false-positive 를 유발한다.
+  // 미달 시: UPDATE/winner 변경 전면 skip + 기존 winner 보존 + 수동검토 표식 console.warn.
+  // 회귀 안전: #132형(양팀 점수 충분 + 행 다수)은 임계 통과 → 정상 보정. 동점 null 처리는 게이트
+  //           통과 후 기존 winner 로직이 그대로 담당.
+  const hasMinimumData =
+    resolvedHome > 0 &&
+    resolvedAway > 0 &&
+    (playerStatsRows.length > 0 || pbpRows.length > 0);
+  if (!hasMinimumData) {
+    // 수동검토 표식 — 한 팀 0점 / 빈·부분 라이브 테이블로 완료 전환된 의심 매치 로그.
+    // (양팀 모두 >0 인 폐기 잔여는 이 조건을 통과하므로 여기 안 걸린다 — 가드1이 근본 방어)
+    console.warn(
+      `[match-score-recompute] 최소 데이터 임계 미달 — safety-net skip (수동검토 필요). ` +
+        `matchId=${matchId} resolvedHome=${resolvedHome} resolvedAway=${resolvedAway} ` +
+        `playerStatsRows=${playerStatsRows.length} pbpRows=${pbpRows.length} source=${source}`
+    );
+    return {
+      source,
+      homeScore: resolvedHome,
+      awayScore: resolvedAway,
+      quarterScores: null,
+      // 기존 winner_team_id 보존 — 한 팀 0점·빈 테이블 케이스에서 엉뚱한 승자 박제 방지.
+      winnerTeamId: match.winner_team_id,
+      changed: {
+        homeScore: false,
+        awayScore: false,
+        quarterScores: false,
+        winnerTeamId: false,
+      },
+    };
+  }
+
   // quarterScores 빌드 — PBP 기반 (Phase B live API L838~845 와 동일 구조).
   // PBP 가 1행이라도 있으면 quarterScores 박제 / 0행이면 null (변경 X).
   let quarterScoresOut: QuarterScoresShape | null = null;
