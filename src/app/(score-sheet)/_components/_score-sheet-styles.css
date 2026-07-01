@@ -1401,9 +1401,9 @@
 .score-sheet-print-root .score-sheet-v2-panel .ss-tbox__plyhead,
 .score-sheet-print-root .score-sheet-v2-panel .ss-tbox__plyrow {
   grid-template-columns:
-    44px minmax(72px, 0.55fr) 36px 40px
+    44px minmax(72px, 0.45fr) 36px 40px
     repeat(6, 32px)
-    repeat(5, 26px);
+    repeat(5, minmax(30px, 1fr));
 }
 
 .score-sheet-print-root .score-sheet-v2-panel .ss-tbox__plyrow > * {
@@ -1447,9 +1447,9 @@
   .score-sheet-print-root .score-sheet-v2-panel .ss-tbox__plyhead,
   .score-sheet-print-root .score-sheet-v2-panel .ss-tbox__plyrow {
     grid-template-columns:
-      30px minmax(58px, 0.55fr) 24px 28px
+      30px minmax(54px, 0.45fr) 24px 28px
       repeat(6, 26px)
-      repeat(5, 22px);
+      repeat(5, minmax(26px, 1fr));
   }
 
   .score-sheet-print-root .score-sheet-v2-panel .ss-tbox__plyhead > div {
@@ -1487,9 +1487,9 @@
   .score-sheet-print-root .score-sheet-v2-panel .ss-tbox__plyhead,
   .score-sheet-print-root .score-sheet-v2-panel .ss-tbox__plyrow {
     grid-template-columns:
-      22px minmax(38px, 0.55fr) 18px 20px
+      22px minmax(38px, 0.45fr) 18px 20px
       repeat(6, 19px)
-      repeat(5, 15px);
+      repeat(5, minmax(15px, 1fr));
   }
 
   .score-sheet-print-root .score-sheet-v2-panel .ss-tbox__plyhead > div {
@@ -1508,9 +1508,9 @@
   .score-sheet-print-root .score-sheet-v2-panel .ss-tbox__plyhead,
   .score-sheet-print-root .score-sheet-v2-panel .ss-tbox__plyrow {
     grid-template-columns:
-      18px minmax(32px, 0.55fr) 16px 18px
+      18px minmax(32px, 0.45fr) 16px 18px
       repeat(6, 15px)
-      repeat(5, 11px);
+      repeat(5, minmax(11px, 1fr));
   }
 }
 
