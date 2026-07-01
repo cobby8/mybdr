@@ -27,6 +27,7 @@
 | Tournament operate panel Toss flow | Done | Teams, bracket, schedule, ops, site, and settlement panel roots now run inside the single Toss workspace skin without nested compatibility wrappers. |
 
 ## Work Log
+- 2026-07-02: Added NBA news trust scoring utility and unit tests; focused Vitest and `cmd /c npx tsc --noEmit` passed.
 - 2026-07-02: Added `src/lib/nba-news/sources.seed.ts` mock source registry from the NBA seed doc; `cmd /c npx tsc --noEmit` passed.
 - 2026-07-02: Added NBA newsroom planning docs and `src/lib/nba-news/types.ts` enum/type contract; `cmd /c npx tsc --noEmit` passed.
 - 2026-07-01: Electronic score-sheet period navigation now asks for confirmation before next/previous quarter movement; Chrome confirmed Q4 end confirm, Q4→Q3 retreat, and Q3→Q4 advance.
@@ -36,4 +37,3 @@
 - 2026-07-01: Electronic score-sheet v2 player foul columns now consume the leftover roster width; 1440px/1024px Chrome measurements confirmed no right-side gap.
 - 2026-07-01: Electronic score-sheet v2 toolbar now shows a large current-period chip, running-score reached marks inherit period colors, and local Chrome visual/color checks passed.
 - 2026-06-27: Replaced recording-mode trigger/card modal Tailwind/inline UI with Toss `rm-*` classes and removed layout inline styles from site panel public-section card; TypeScript and diff check passed.
-- 2026-06-27: Added operate-workspace final parity CSS guard for v2.41 Toss sizing and converted schedule table inline cell styles to classes; TypeScript and diff check passed.
