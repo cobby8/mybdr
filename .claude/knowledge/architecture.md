@@ -2,6 +2,19 @@
 <!-- 담당: planner-architect, developer | 최대 30항목 -->
 <!-- 프로젝트의 폴더 구조, 파일 역할, 핵심 패턴을 기록 -->
 
+### [2026-07-02] 단체 self-serve 콘솔 — 신규 개념 백엔드 경계 실측 + 권한게이트 참조패턴
+- **분류**: architecture (read-only·schema 실측·코드 0변경)
+- **발견자**: planner-architect (단체 self-serve 운영 콘솔 기획 + 시안 브리프)
+- **내용**:
+  - **★신규 개념 부재 확정(schema.prisma 실측)**: `organizations`(L2554)=**parent_org_id 없음**(산하 하위단체 계층 부재)·**org 정산/출금계좌/bank_account 없음**(org 레벨)·brand_color/founded_year/address 없음(06-28 재확인). `organization_members`(L2590)=role **owner/admin/member 3종뿐**·**position(직책) 필드 없음**·@@unique[org,user]. **org↔team 직접관계 없음**(series→tournaments→teams 역추적만). **유저→단체 가입신청 모델 없음**(team_join_requests=팀용·유사 참조).
+  - **★백엔드 경계 3단계 분류(브리프 §2-2)**: [기존 DB로 가능]=단체정보 PATCH·멤버 초대/제거·대회개최(마법사)·권한게이트 / [무중단 ADD]=직책(organization_members.position VARCHAR?)·하위단체(organizations.parent_org_id BigInt? self-FK) / [신규 테이블·큰작업]=소속팀 관계·가입신청 모델·회비정산(+결제 PG)·공지소통·인증서류(06-29 O7). 소속팀 "읽기"=시리즈→대회→TournamentTeam 역추적 집계로 부분 가능(쓰기 불가).
+  - **★self-serve 권한게이트 참조패턴 = `partner-admin/layout.tsx`**: 서버 컴포넌트에서 getWebSession→null? /login redirect → `partner_members.findFirst({user_id, is_active})` → 없음&!super_admin? / redirect → super_admin 전능 우회(첫 active 자동선택 or sentinel). 단체 콘솔은 이 패턴을 `organization_members`(role owner/admin·is_active)로 미러. member/비소속 진입 차단.
+  - **★정산 참조 스키마 = `PartnerSettlement`(L3633·@@map partner_settlements)**: partner_id/period_year/period_month/booking_count/gross_amount/fee_amount/net_amount/status(pending·paid·cancelled)/scheduled_at/paid_at/memo·@@unique[partner,year,month]. org 정산 신설 시 이 톤 참조.
+  - **★디자인 시스템 2계통 구분**: self-serve 콘솔=**admin-v2**(components/admin-v2+styles/admin-v2+lucide·13룰 미적용·기존 `/v2`·`/v2/ta/*` 계열). 공개 단체사이트=BDR v2(13룰). ⚠️파트너콘솔(partner-admin)은 admin-toss 키트(data-skin="toss")지만 단체 콘솔은 admin-v2 — **파트너콘솔에서 권한게이트 서버로직만 차용·디자인 키트는 admin-v2**.
+  - **★기존 stub**: `/v2/ta/organizations`(_orgs.tsx)=읽기전용 카드그리드·등록/관리/운영진 전부 "준비 중" 토스트. self-serve 콘솔 진입점을 이 stub 확장 vs 신규 `/org-console`(파트너콘솔 미러)은 사용자 결정.
+  - 브리프=`Dev/design/prompts/org-selfserve-console-brief-2026-07-02.md`.
+- **참조횟수**: 0
+
 ### [2026-06-30] 공개웹 (web) 셸 구조 + 토큰 별칭 레이어 (PUB 셸 교체 예정·read-only 실측)
 - **분류**: architecture
 - **발견자**: planner-architect (PUB-0b-① 셸 교체+토큰 마이그레이션 설계)
