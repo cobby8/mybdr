@@ -1,0 +1,117 @@
+/* ============================================================
+   org-console.css — 단체 Self-Serve 콘솔 전용 (admin-v2 toss.css 토큰 위)
+   정본 참조: Dev/design/BDR v2.41-admin-toss/org-console/org-console.css
+   신규 색상 없음 — 전부 var(--*) / orgColor 해시. 전 셀렉터 [data-admin="v2"] 스코프.
+   (정본의 oc-demobar · oc-ld · oc-error 는 시안 전용 데모 장치라 이식 제외 — src는 실 로딩/
+    에러를 Next.js 컴포넌트 흐름으로 자연 처리)
+   ============================================================ */
+
+/* ── 2열 폼 그리드 (단체 정보 편집) — 정본 admin-forms.jsx .ad-formgrid 1:1 ─ */
+[data-admin="v2"] .ad-formgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 16px; }
+[data-admin="v2"] .ad-formgrid .ts-field { margin-bottom: 14px; }
+@media (max-width: 560px) { [data-admin="v2"] .ad-formgrid { grid-template-columns: 1fr; } }
+
+/* ── 컨셉(준비중) 라벨 ─────────────────────────────────────── */
+[data-admin="v2"] .oc-concept { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 800; letter-spacing: .02em;
+  color: var(--ink-mute); background: var(--grey-100); padding: 3px 8px; border-radius: 7px; }
+[data-admin="v2"] .oc-concept[data-tone="warn"] { color: var(--warn); background: var(--warn-weak); }
+
+/* ── 인증 유도 배너 (대시보드) ─────────────────────────────── */
+[data-admin="v2"] .oc-cert { position: relative; overflow: hidden; border-radius: 22px; padding: 22px 24px; margin-bottom: 24px;
+  display: flex; align-items: center; gap: 20px; color: #fff; box-shadow: var(--sh-md); min-width: 0; }
+[data-admin="v2"] .oc-cert::after { content: ""; position: absolute; right: -40px; top: -40px; width: 200px; height: 200px; border-radius: 50%;
+  background: rgba(255,255,255,.10); pointer-events: none; }
+[data-admin="v2"] .oc-cert__icon { width: 52px; height: 52px; border-radius: 15px; background: rgba(255,255,255,.16); display: grid; place-items: center; flex: 0 0 auto; }
+[data-admin="v2"] .oc-cert__body { flex: 1; min-width: 0; z-index: 1; }
+[data-admin="v2"] .oc-cert__eyebrow { font-size: 12px; font-weight: 800; opacity: .82; letter-spacing: .03em; display: flex; align-items: center; gap: 8px; }
+[data-admin="v2"] .oc-cert__title { font-size: 19px; font-weight: 800; letter-spacing: -0.02em; margin-top: 3px; }
+[data-admin="v2"] .oc-cert__desc { font-size: 13.5px; opacity: .9; margin-top: 5px; line-height: 1.5; }
+[data-admin="v2"] .oc-cert__prog { margin-top: 14px; max-width: 340px; }
+[data-admin="v2"] .oc-cert__track { height: 7px; border-radius: 4px; background: rgba(255,255,255,.24); overflow: hidden; }
+[data-admin="v2"] .oc-cert__fill { height: 100%; border-radius: 4px; background: #fff; }
+[data-admin="v2"] .oc-cert__pct { display: flex; justify-content: space-between; font-size: 11.5px; font-weight: 700; margin-top: 6px; font-family: var(--ff-mono); opacity: .92; }
+[data-admin="v2"] .oc-cert__act { z-index: 1; flex: 0 0 auto; }
+[data-admin="v2"] .oc-cert__act .ts-btn { background: #fff; color: var(--ink); }
+[data-admin="v2"] .oc-cert__act .ts-btn:hover { background: var(--grey-100); }
+@media (max-width: 720px) {
+  [data-admin="v2"] .oc-cert { flex-direction: column; align-items: flex-start; }
+  [data-admin="v2"] .oc-cert__act { width: 100%; }
+  [data-admin="v2"] .oc-cert__act .ts-btn { width: 100%; }
+}
+
+/* ── 온보딩 체크리스트 ─────────────────────────────────────── */
+[data-admin="v2"] .oc-onb { display: flex; flex-direction: column; gap: 2px; }
+[data-admin="v2"] .oc-onbrow { display: flex; align-items: center; gap: 13px; padding: 13px 10px; border-radius: 13px; cursor: pointer;
+  text-align: left; width: 100%; background: transparent; border: 0; font-family: var(--ff); transition: background .12s; }
+[data-admin="v2"] .oc-onbrow:hover { background: var(--grey-50); }
+[data-admin="v2"] .oc-onbrow__mark { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; flex: 0 0 auto;
+  border: 2px solid var(--border-strong); color: transparent; }
+[data-admin="v2"] .oc-onbrow[data-state="done"] .oc-onbrow__mark { background: var(--ok); border-color: var(--ok); color: #fff; }
+[data-admin="v2"] .oc-onbrow[data-state="now"]  .oc-onbrow__mark { border-color: var(--primary); color: var(--primary); }
+[data-admin="v2"] .oc-onbrow[data-state="soon"] .oc-onbrow__mark { border-style: dashed; }
+[data-admin="v2"] .oc-onbrow__body { flex: 1; min-width: 0; }
+[data-admin="v2"] .oc-onbrow__t { font-size: 14.5px; font-weight: 700; color: var(--ink); display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+[data-admin="v2"] .oc-onbrow[data-state="done"] .oc-onbrow__t { color: var(--ink-mute); text-decoration: line-through; text-decoration-color: var(--border-strong); }
+[data-admin="v2"] .oc-onbrow__d { font-size: 12.5px; color: var(--ink-mute); margin-top: 2px; }
+[data-admin="v2"] .oc-onbrow__go { color: var(--ink-dim); flex: 0 0 auto; }
+[data-admin="v2"] .oc-onbrow:hover .oc-onbrow__go { color: var(--primary); }
+[data-admin="v2"] .oc-pill { font-size: 10.5px; font-weight: 800; padding: 2px 7px; border-radius: 6px; letter-spacing: .02em; }
+[data-admin="v2"] .oc-pill[data-tone="now"] { background: var(--primary-weak); color: var(--primary); }
+[data-admin="v2"] .oc-pill[data-tone="soon"] { background: var(--grey-100); color: var(--ink-mute); }
+
+/* ── 단체 정보 : 브랜딩 (배너 + 로고) ──────────────────────── */
+[data-admin="v2"] .oc-brand { border-radius: 22px; overflow: hidden; background: #fff; box-shadow: var(--sh-sm); border: 1px solid rgba(0,0,0,0.03); margin-bottom: 20px; }
+[data-admin="v2"] .oc-brand__banner { position: relative; height: 148px; display: grid; place-items: center; }
+[data-admin="v2"] .oc-brand__bannerhint { display: inline-flex; align-items: center; gap: 7px; font-size: 12.5px; font-weight: 700; color: rgba(255,255,255,.92);
+  background: rgba(0,0,0,.24); padding: 8px 13px; border-radius: 11px; backdrop-filter: blur(2px); }
+[data-admin="v2"] .oc-brand__edit { position: absolute; top: 12px; right: 12px; display: inline-flex; align-items: center; gap: 5px;
+  font-size: 12.5px; font-weight: 700; color: var(--ink); background: rgba(255,255,255,.94); border: 0; padding: 8px 12px;
+  border-radius: 10px; cursor: pointer; font-family: var(--ff); }
+[data-admin="v2"] .oc-brand__edit:hover { background: #fff; }
+[data-admin="v2"] .oc-brand__edit, [data-admin="v2"] .oc-brand__bannerhint { white-space: nowrap; }
+[data-admin="v2"] .oc-brand__row { display: flex; align-items: center; gap: 16px; padding: 0 22px 20px; margin-top: -30px; position: relative; }
+[data-admin="v2"] .oc-brand__logo { width: 76px; height: 76px; border-radius: 20px; display: grid; place-items: center; font-size: 26px;
+  font-weight: 800; color: #fff; flex: 0 0 auto; border: 4px solid #fff; box-shadow: var(--sh-sm); overflow: hidden; }
+[data-admin="v2"] .oc-brand__logo img { width: 100%; height: 100%; object-fit: cover; }
+[data-admin="v2"] .oc-brand__meta { flex: 1; min-width: 0; padding-top: 34px; }
+[data-admin="v2"] .oc-brand__name { font-size: 20px; font-weight: 800; letter-spacing: -0.02em; color: var(--ink); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+[data-admin="v2"] .oc-brand__sub { font-size: 13.5px; color: var(--ink-mute); margin-top: 3px; }
+
+/* 업로드 위젯 (드롭존 컨셉 — 파일 업로드 인프라 후속) */
+[data-admin="v2"] .oc-drop { border: 2px dashed var(--border-strong); border-radius: 14px; padding: 22px; text-align: center; background: var(--grey-50);
+  display: flex; flex-direction: column; align-items: center; gap: 8px; }
+[data-admin="v2"] .oc-drop__icon { width: 44px; height: 44px; border-radius: 12px; background: var(--primary-weak); color: var(--primary); display: grid; place-items: center; }
+[data-admin="v2"] .oc-drop__t { font-size: 14px; font-weight: 700; color: var(--ink); }
+[data-admin="v2"] .oc-drop__d { font-size: 12.5px; color: var(--ink-mute); line-height: 1.5; }
+
+/* ── 정보 조회 행 (view mode) ─────────────────────────────── */
+[data-admin="v2"] .oc-info { display: flex; flex-direction: column; }
+[data-admin="v2"] .oc-inforow { display: flex; align-items: baseline; gap: 16px; padding: 15px 0; border-top: 1px solid var(--border); }
+[data-admin="v2"] .oc-inforow:first-child { border-top: 0; }
+[data-admin="v2"] .oc-inforow__k { font-size: 13px; font-weight: 700; color: var(--ink-mute); flex: 0 0 108px; }
+[data-admin="v2"] .oc-inforow__v { font-size: 15px; font-weight: 600; color: var(--ink); flex: 1; min-width: 0; word-break: break-word; }
+[data-admin="v2"] .oc-inforow__v[data-empty="true"] { color: var(--ink-dim); font-weight: 500; }
+
+/* ── 인증·서류 현황 (컨셉) ────────────────────────────────── */
+[data-admin="v2"] .oc-verify__head { display: flex; align-items: center; gap: 12px; padding-bottom: 16px; border-bottom: 1px solid var(--border); margin-bottom: 16px; }
+[data-admin="v2"] .oc-verify__ring { width: 46px; height: 46px; border-radius: 50%; display: grid; place-items: center; flex: 0 0 auto;
+  font-size: 18px; font-weight: 900; color: #fff; }
+[data-admin="v2"] .oc-verify__t { font-size: 15px; font-weight: 800; color: var(--ink); display: flex; align-items: center; gap: 8px; }
+[data-admin="v2"] .oc-verify__d { font-size: 12.5px; color: var(--ink-mute); margin-top: 2px; line-height: 1.45; }
+[data-admin="v2"] .oc-doc { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-top: 1px solid var(--border); }
+[data-admin="v2"] .oc-doc:first-of-type { border-top: 0; }
+[data-admin="v2"] .oc-doc__icon { width: 34px; height: 34px; border-radius: 10px; background: var(--grey-100); color: var(--ink-soft); display: grid; place-items: center; flex: 0 0 auto; }
+[data-admin="v2"] .oc-doc__body { flex: 1; min-width: 0; }
+[data-admin="v2"] .oc-doc__t { font-size: 14px; font-weight: 700; color: var(--ink); }
+[data-admin="v2"] .oc-doc__req { font-size: 11.5px; color: var(--ink-mute); margin-top: 1px; }
+
+/* ── 골격(skeleton) — 8레일 준비중/잠금 화면 ──────────────── */
+[data-admin="v2"] .oc-skel-wrap { position: relative; border-radius: 20px; overflow: hidden; }
+[data-admin="v2"] .oc-skel { filter: grayscale(1); opacity: .5; pointer-events: none; user-select: none; }
+[data-admin="v2"] .oc-skel-mask { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(242,244,246,.15) 0%, rgba(242,244,246,.9) 78%); display: flex; align-items: center; justify-content: center; padding: 24px; }
+[data-admin="v2"] .oc-lockcard { background: #fff; border: 1px solid var(--border); border-radius: 20px; box-shadow: var(--sh-lg); padding: 30px 28px;
+  text-align: center; max-width: 400px; }
+[data-admin="v2"] .oc-lockcard__icon { width: 58px; height: 58px; border-radius: 17px; display: grid; place-items: center; margin: 0 auto 14px; }
+[data-admin="v2"] .oc-lockcard__t { font-size: 18px; font-weight: 800; color: var(--ink); letter-spacing: -0.02em; display: flex; align-items: center; justify-content: center; gap: 8px; }
+[data-admin="v2"] .oc-lockcard__d { font-size: 13.5px; color: var(--ink-mute); margin-top: 8px; line-height: 1.6; }
+[data-admin="v2"] .oc-skelbar { background: var(--grey-200); border-radius: 7px; }
