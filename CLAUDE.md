@@ -89,6 +89,7 @@ git push origin dev
 - 다크모드 기본 (쿨 그레이). 핑크/살몬/코랄 금지
 - 버튼 border-radius 4px
 - **하드코딩 색상 금지** → `var(--color-*)` 변수
+- **[PUB 도메인 예외 2026-07-02]** 공개웹 `[data-pub]` 스코프는 DS v4 듀얼포인트 채택: 라이트=토스블루 `#3182F6` / 다크=BDR레드 `#E31B23`. globals `:root`(레거시 admin/referee/site)는 BDR레드 유지(미변경). "공개웹=BDR레드 단일" 문구는 `[data-pub]` 라이트에 한해 무효. 고정 브랜드레드는 `--red`/`--bdr-red`(LIVE·기록·브랜드 모먼트 전용, 포인트색과 분리).
 
 ## 🗂️ Dev/design/ 폴더 구조 (단일 폴더 룰 — 2026-05-01)
 
@@ -176,6 +177,8 @@ git log --since="<above-date>" --oneline -- "src/components/" "src/app/(web)/" |
 
 ### 디자인 작업 13 룰 (위반 시 자동 reject)
 
+> **[PUB 도메인 예외 2026-07-02]** 공개웹 `(web)`는 AppNav frozen 13룰 A(1~7)를 **면제**한다. 셸=DualSideNav(좌측 2단 레일+패널, `nav-ia.ts`+`dual-side-nav.tsx`, 06-30 c190857~46bacc0 완료). AppNav frozen은 이제 admin/referee/site 등 **비-PUB 도메인에만** 적용. (아래 A 7룰은 비-PUB 참조용 보존)
+
 **A. AppNav (헤더) 7 룰** — `03-appnav-frozen-component.md` 코드 그대로 카피, 재구성 금지:
 1. 9 메인 탭 = 홈/경기/대회/단체/팀/코트/랭킹/커뮤니티/더보기
 2. utility bar 우측 (계정/설정/로그아웃) 모바일에서도 표시
@@ -184,6 +187,8 @@ git log --since="<above-date>" --oneline -- "src/components/" "src/app/(web)/" |
 5. 검색·**쪽지**·알림 = `app-nav__icon-btn` (border/bg 박스 ❌)
 6. 모바일 닉네임 hidden
 7. 더보기 = 9번째 탭 (drawer + 5그룹 패널)
+
+> **[PUB 예외 2026-07-02]** 공개웹은 "더보기" 탭 폐지·"마이"(mypage) 섹션으로 대체. 더보기 5그룹 IA는 비-PUB/레거시 참조용. 공개웹 IA source = `nav-ia.ts`(9섹션).
 
 **B. 더보기 5그룹 IA**:
 8. 가짜링크 4건 영구 제거: `gameResult / gameReport / guestApps / referee`
