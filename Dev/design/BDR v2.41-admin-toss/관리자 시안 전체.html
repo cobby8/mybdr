@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>MyBDR 관리자 시안 전체 — 코워크 전달용 (v2.41)</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700;800&display=swap" />
+<link rel="stylesheet" href="toss.css" />
+<style>
+  body { background: var(--bg); font-family: var(--ff); color: var(--ink); -webkit-font-smoothing: antialiased; }
+  .ix-wrap { max-width: 1240px; margin: 0 auto; padding: 40px 32px 96px; }
+  @media (max-width: 720px) { .ix-wrap { padding: 26px 16px 72px; } }
+
+  /* ── 헤더 ── */
+  .ix-hero { margin-bottom: 14px; }
+  .ix-kicker { display: inline-flex; align-items: center; gap: 7px; font-size: 12.5px; font-weight: 800; letter-spacing: .02em; color: var(--primary); background: var(--primary-weak); padding: 6px 12px; border-radius: 999px; }
+  .ix-h1 { font-size: 34px; font-weight: 800; letter-spacing: -0.035em; margin: 16px 0 0; line-height: 1.18; }
+  .ix-lead { font-size: 15.5px; color: var(--ink-soft); margin: 12px 0 0; line-height: 1.65; max-width: 660px; }
+  .ix-stats { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 22px; }
+  .ix-stat { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 12px 18px; box-shadow: var(--sh-xs); }
+  .ix-stat__v { font-size: 21px; font-weight: 800; font-family: var(--ff-mono); letter-spacing: -0.02em; }
+  .ix-stat__l { font-size: 12px; font-weight: 600; color: var(--ink-mute); margin-top: 3px; }
+
+  /* ── 섹션 ── */
+  .ix-sec { margin-top: 44px; }
+  .ix-sec__head { display: flex; align-items: baseline; gap: 12px; margin-bottom: 6px; }
+  .ix-sec__n { font-family: var(--ff-mono); font-size: 13px; font-weight: 800; color: var(--primary); }
+  .ix-sec__t { font-size: 19px; font-weight: 800; letter-spacing: -0.02em; }
+  .ix-sec__d { font-size: 13.5px; color: var(--ink-mute); margin: 0 0 20px; line-height: 1.55; }
+
+  /* ── 카드 그리드 ── */
+  .ix-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; }
+  @media (max-width: 980px) { .ix-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @media (max-width: 640px) { .ix-grid { grid-template-columns: minmax(0, 1fr); } }
+  .ix-grid[data-cols="2"] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  @media (max-width: 640px) { .ix-grid[data-cols="2"] { grid-template-columns: minmax(0, 1fr); } }
+
+  .ix-card { display: flex; flex-direction: column; background: var(--card); border: 1px solid var(--border); border-radius: 20px; overflow: hidden; text-decoration: none; color: inherit; box-shadow: var(--sh-sm); transition: transform .14s ease, box-shadow .14s ease, border-color .14s ease; }
+  .ix-card:hover { transform: translateY(-4px); border-color: var(--primary); box-shadow: var(--sh-lg); }
+  .ix-card:hover .ix-thumb__open { opacity: 1; transform: translateY(0); }
+
+  /* 썸네일 */
+  .ix-thumb { position: relative; height: 208px; background: var(--grey-100); border-bottom: 1px solid var(--border); overflow: hidden; }
+  .ix-thumb__img { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; object-position: top left; display: block; }
+  .ix-thumb__open { position: absolute; right: 12px; bottom: 12px; z-index: 3; display: inline-flex; align-items: center; gap: 6px; background: var(--ink); color: #fff; font-size: 12.5px; font-weight: 700; padding: 8px 13px; border-radius: 10px; opacity: 0; transform: translateY(6px); transition: opacity .14s, transform .14s; box-shadow: var(--sh-md); }
+  .ix-badge { position: absolute; top: 12px; left: 12px; z-index: 3; font-size: 11.5px; font-weight: 800; padding: 5px 11px; border-radius: 999px; backdrop-filter: blur(6px); }
+  .ix-badge[data-tone="hub"]   { background: rgba(49,130,246,.14); color: var(--primary); }
+  .ix-badge[data-tone="flow"]  { background: rgba(21,184,106,.14); color: var(--ok); }
+  .ix-badge[data-tone="ops"]   { background: rgba(109,90,230,.16); color: #6D5AE6; }
+  .ix-badge[data-tone="new"]   { background: var(--ink); color: #fff; }
+
+  /* 카드 본문 */
+  .ix-body { padding: 17px 19px 19px; display: flex; flex-direction: column; flex: 1; }
+  .ix-card__t { font-size: 16.5px; font-weight: 800; letter-spacing: -0.02em; display: flex; align-items: center; gap: 8px; }
+  .ix-card__file { font-family: var(--ff-mono); font-size: 11.5px; color: var(--ink-dim); margin-top: 4px; }
+  .ix-card__d { font-size: 13px; color: var(--ink-soft); margin-top: 10px; line-height: 1.55; }
+  .ix-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 13px; }
+  .ix-tag { font-size: 11.5px; font-weight: 700; color: var(--ink-mute); background: var(--grey-100); padding: 4px 9px; border-radius: 7px; }
+  .ix-new { font-size: 10.5px; font-weight: 800; color: var(--ok); background: var(--ok-weak); padding: 2px 7px; border-radius: 6px; letter-spacing: .02em; }
+
+  /* ── 모듈/스택 패널 ── */
+  .ix-modgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 720px) { .ix-modgrid { grid-template-columns: 1fr; } }
+  .ix-mod { background: var(--card); border: 1px solid var(--border); border-radius: 18px; padding: 22px 24px; box-shadow: var(--sh-xs); }
+  .ix-mod__t { font-size: 14.5px; font-weight: 800; display: flex; align-items: center; gap: 8px; margin-bottom: 14px; }
+  .ix-mrow { display: flex; gap: 12px; padding: 9px 0; border-top: 1px solid var(--border); font-size: 13px; }
+  .ix-mrow:first-child, .ix-mod__t + .ix-mrow { border-top: 0; }
+  .ix-mrow__k { font-family: var(--ff-mono); font-weight: 700; color: var(--ink); flex: 0 0 168px; }
+  .ix-mrow__v { color: var(--ink-mute); min-width: 0; line-height: 1.5; }
+  @media (max-width: 480px) { .ix-mrow { flex-direction: column; gap: 2px; } .ix-mrow__k { flex: none; } }
+
+  .ix-note { display: flex; gap: 11px; background: var(--primary-weak); border: 1px solid #cfe0fb; border-radius: 14px; padding: 15px 18px; margin-top: 18px; }
+  .ix-note__t { font-size: 13px; color: var(--ink-soft); line-height: 1.6; }
+  .ix-note__t b { color: var(--ink); font-weight: 700; }
+
+  .ix-foot { margin-top: 56px; padding-top: 24px; border-top: 1px solid var(--border); font-size: 12.5px; color: var(--ink-dim); display: flex; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
+  .ico { width: 18px; height: 18px; flex: 0 0 auto; }
+</style>
+</head>
+<body>
+<div class="ix-wrap">
+
+  <header class="ix-hero">
+    <span class="ix-kicker">MyBDR · 관리자 시안 · v2.41</span>
+    <h1 class="ix-h1">관리자 페이지 시안 전체</h1>
+    <p class="ix-lead">전국 농구 매칭 플랫폼 <b>MyBDR</b> 관리자 영역의 모든 화면을 한 곳에 모은 코워크 전달용 인덱스입니다. 카드를 클릭하면 실제 시안으로 이동합니다.</p>
+    <div class="ix-stats">
+      <div class="ix-stat"><div class="ix-stat__v">8</div><div class="ix-stat__l">진입 화면</div></div>
+      <div class="ix-stat"><div class="ix-stat__v">3</div><div class="ix-stat__l">영역</div></div>
+      <div class="ix-stat"><div class="ix-stat__v">Toss</div><div class="ix-stat__l">디자인 시스템</div></div>
+      <div class="ix-stat"><div class="ix-stat__v">React 18</div><div class="ix-stat__l">스택</div></div>
+    </div>
+  </header>
+
+  <!-- 1. 콘솔 진입 -->
+  <section class="ix-sec">
+    <div class="ix-sec__head"><span class="ix-sec__n">01</span><span class="ix-sec__t">콘솔 진입</span></div>
+    <p class="ix-sec__d">관리자가 가장 먼저 만나는 허브. 듀얼 사이드바로 8개 콘솔과 운영·시스템 메뉴를 한 화면에서 탐색합니다.</p>
+    <div class="ix-grid" data-cols="2" id="grid-hub"></div>
+  </section>
+
+  <!-- 2. 대회 운영 플로우 -->
+  <section class="ix-sec">
+    <div class="ix-sec__head"><span class="ix-sec__n">02</span><span class="ix-sec__t">대회 운영 플로우</span></div>
+    <p class="ix-sec__d">대회 목록에서 생성·운영·수정으로 이어지는 핵심 작업 동선. 운영 워크스페이스는 요약 + 7패널 탭 구조입니다.</p>
+    <div class="ix-grid" id="grid-flow"></div>
+  </section>
+
+  <!-- 3. 플랫폼 운영 -->
+  <section class="ix-sec">
+    <div class="ix-sec__head"><span class="ix-sec__n">03</span><span class="ix-sec__t">플랫폼 운영</span></div>
+    <p class="ix-sec__d">전사 백오피스와 전용 콘솔. 유저·커뮤니티·정산·심판·협력업체 등 플랫폼 전반을 운영합니다.</p>
+    <div class="ix-grid" id="grid-ops"></div>
+  </section>
+
+  <!-- 공유 모듈 -->
+  <section class="ix-sec">
+    <div class="ix-sec__head"><span class="ix-sec__n">04</span><span class="ix-sec__t">공유 모듈 · 스택</span></div>
+    <p class="ix-sec__d">모든 화면이 공유하는 디자인 시스템·컴포넌트 키트·외부 의존성입니다.</p>
+    <div class="ix-modgrid">
+      <div class="ix-mod">
+        <div class="ix-mod__t"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="#3182F6" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>디자인 시스템 · 키트</div>
+        <div class="ix-mrow"><span class="ix-mrow__k">toss.css</span><span class="ix-mrow__v">토큰 — Toss Blue #3182F6, 라운딩 24/16/14, Pretendard</span></div>
+        <div class="ix-mrow"><span class="ix-mrow__k">toss-kit.jsx</span><span class="ix-mrow__v">Icon(lucide)·Btn·Badge·Modal·Toggle·StepDots·Empty</span></div>
+        <div class="ix-mrow"><span class="ix-mrow__k">admin-shell.jsx</span><span class="ix-mrow__v">AdminShell(듀얼 사이드바)·PageHead·KpiGrid·DataTable</span></div>
+        <div class="ix-mrow"><span class="ix-mrow__k">admin-blocks.jsx</span><span class="ix-mrow__v">SchemaList·AdBar·AdList·AdSettings</span></div>
+      </div>
+      <div class="ix-mod">
+        <div class="ix-mod__t"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="#6D5AE6" stroke-width="2"><path d="M12 2v20M2 12h20" stroke-linecap="round"/></svg>외부 의존성 (CDN 공통)</div>
+        <div class="ix-mrow"><span class="ix-mrow__k">React / ReactDOM</span><span class="ix-mrow__v">18.3.1 UMD (integrity 고정) + Babel 7.29.0</span></div>
+        <div class="ix-mrow"><span class="ix-mrow__k">Pretendard</span><span class="ix-mrow__v">v1.3.9 (jsDelivr)</span></div>
+        <div class="ix-mrow"><span class="ix-mrow__k">JetBrains Mono</span><span class="ix-mrow__v">숫자·코드 표기 (Google Fonts)</span></div>
+        <div class="ix-mrow"><span class="ix-mrow__k">lucide</span><span class="ix-mrow__v">@latest — toss-kit Icon 래퍼 경유</span></div>
+      </div>
+    </div>
+    <div class="ix-note">
+      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="#3182F6" stroke-width="2" style="margin-top:1px"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01" stroke-linecap="round"/></svg>
+      <div class="ix-note__t"><b>구현 = 동작 기준.</b> 모든 서버 호출은 mock 상태 시연입니다(실 API 없음). 캘린더·필터·토글·CSV import·토스트 등 클라이언트 동작만 실제로 작동하며, 백엔드 배선 시 mock 자리에 실 데이터/엔드포인트를 끼웁니다. 관리자 영역은 사용자 프론트(BDR Red·다크·4px·Material)와 <b>완전히 분리된 Toss 시스템</b>입니다.</div>
+    </div>
+  </section>
+
+  <footer class="ix-foot">
+    <span>MyBDR 관리자 시안 · v2.41-admin-toss</span>
+    <span>Dev/design/BDR v2.41-admin-toss/</span>
+  </footer>
+</div>
+
+<script>
+  const SCREENS = {
+    hub: [
+      { f: "관리자 홈.html", thumb: "thumbs/hub.jpg", t: "관리자 콘솔 홈", badge: "허브", tone: "hub",
+        d: "듀얼 사이드바 콘솔 허브. 아이콘 레일 + 컨텍스트 패널로 8개 콘솔과 운영·정산·시스템 메뉴를 한 화면에서 관리합니다.",
+        tags: ["듀얼 사이드바", "KPI 대시보드", "콘솔 바로가기"], isNew: true },
+    ],
+    flow: [
+      { f: "대회 관리자.html", thumb: "thumbs/ta.jpg", t: "대회 관리자 셸", badge: "플로우", tone: "flow",
+        d: "대회 운영의 진입점. 대시보드·대회 목록·정규대회·템플릿. 목록 행 클릭 → 운영 워크스페이스.",
+        tags: ["대회 목록", "템플릿", "대시보드"] },
+      { f: "대회 운영.html", thumb: "thumbs/ops.jpg", t: "대회 운영 워크스페이스", badge: "플로우", tone: "flow",
+        d: "요약 + 7패널(참가팀·대진표·일정·매치·정산·공개 사이트·운영 설정) 탭형 워크스페이스. 승인/거절·스코어 입력·발행 토글 동작.",
+        tags: ["요약+7패널", "대진표", "스코어 모달"], isNew: true },
+      { f: "대회 생성.html", thumb: "thumbs/create.jpg", t: "대회 생성 마법사", badge: "플로우", tone: "flow",
+        d: "5단계 마법사 — 기본정보 → 일정·장소 → 참가규정 → 종별 구성 → 공개 설정. 종별 추가/삭제·발행 섹션 토글.",
+        tags: ["5단계", "스텝 진행바", "종별 구성"], isNew: true },
+      { f: "대회 수정.html", thumb: "thumbs/edit.jpg", t: "대회 수정", badge: "플로우", tone: "flow",
+        d: "5섹션 메가폼 한 화면 수정. 운영 워크스페이스의 '대회 수정' 진입점.",
+        tags: ["메가폼", "5섹션"], isNew: true },
+    ],
+    ops: [
+      { f: "백오피스.html", thumb: "thumbs/bo.jpg", t: "플랫폼 백오피스", badge: "운영", tone: "ops",
+        d: "전사 운영 콘솔. 유저·커뮤니티·BDR NEWS·신고검토·결제·요금제·캠페인·파트너·분석·종별·알림·로그·설정.",
+        tags: ["7그룹 18화면", "DataTable", "스키마 리스트"] },
+      { f: "심판 관리자.html", thumb: "thumbs/ref.jpg", t: "심판 관리자", badge: "운영", tone: "ops",
+        d: "심판 배정 운영. 배정·검증·등급·수당 정산 등 심판 운영 전반.",
+        tags: ["배정", "검증", "수당 정산"] },
+      { f: "협력업체 콘솔.html", thumb: "thumbs/partner.jpg", t: "협력업체 콘솔", badge: "운영", tone: "ops",
+        d: "파트너 셀프서브 콘솔. 대시보드·제휴 시설·캠페인·정산.",
+        tags: ["셀프서브", "제휴 시설", "정산"] },
+    ],
+  };
+
+  function card(s) {
+    const a = document.createElement("a");
+    a.className = "ix-card";
+    a.href = encodeURI(s.f);
+    a.innerHTML = `
+      <div class="ix-thumb">
+        <span class="ix-badge" data-tone="${s.tone}">${s.badge}</span>
+        <img class="ix-thumb__img" loading="lazy" src="${encodeURI(s.thumb)}" alt="${s.t} 미리보기" />
+        <span class="ix-thumb__open">열기 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M7 17 17 7M9 7h8v8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+      </div>
+      <div class="ix-body">
+        <div class="ix-card__t">${s.t}${s.isNew ? '<span class="ix-new">NEW</span>' : ''}</div>
+        <div class="ix-card__file">${s.f}</div>
+        <div class="ix-card__d">${s.d}</div>
+        <div class="ix-tags">${s.tags.map(t => `<span class="ix-tag">${t}</span>`).join("")}</div>
+      </div>`;
+    return a;
+  }
+
+  for (const [key, arr] of Object.entries(SCREENS)) {
+    const grid = document.getElementById("grid-" + key);
+    arr.forEach(s => grid.appendChild(card(s)));
+  }
+</script>
+
+<template id="__bundler_thumbnail">
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" rx="20" fill="#3182F6"/><g fill="#fff"><rect x="22" y="26" width="20" height="48" rx="3"/><rect x="48" y="26" width="30" height="14" rx="3" opacity=".85"/><rect x="48" y="44" width="30" height="14" rx="3" opacity=".6"/><rect x="48" y="62" width="30" height="12" rx="3" opacity=".4"/></g></svg>
+</template>
+</body>
+</html>

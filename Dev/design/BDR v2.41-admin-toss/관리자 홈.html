@@ -3,11 +3,29 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>관리자 홈 — MyBDR</title>
-<meta http-equiv="refresh" content="0; url=백오피스.html" />
-<script>location.replace("백오피스.html");</script>
+<title>관리자 콘솔 홈 — MyBDR (v2.41 관리자)</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700;800&display=swap" />
+<link rel="stylesheet" href="toss.css" />
+<link rel="stylesheet" href="admin-pages.css" />
 </head>
 <body>
-<p style="font-family:sans-serif;padding:24px">관리자 홈으로 이동합니다… <a href="백오피스.html">백오피스 열기</a></p>
+<div id="root"></div>
+
+<script src="https://unpkg.com/lucide@latest"></script>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script type="text/babel" src="toss-kit.jsx"></script>
+<script type="text/babel" src="admin-forms.jsx"></script>
+<script type="text/babel" src="admin-shell.jsx"></script>
+<script type="text/babel" src="admin-blocks.jsx"></script>
+<script type="text/babel" src="hub-data.jsx"></script>
+<script type="text/babel" src="hub-pages.jsx"></script>
+<script type="text/babel">
+  ReactDOM.createRoot(document.getElementById('root')).render(<window.AdminHubApp />);
+</script>
 </body>
 </html>

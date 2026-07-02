@@ -147,24 +147,16 @@ button { font-family: inherit; }
 .ts-shell { min-height: 100vh; background: var(--bg); }
 .ts-sidebar { position: fixed; top: 0; left: 0; bottom: 0; width: var(--sidebar-w); background: #fff; border-right: 1px solid var(--border); display: flex; flex-direction: column; z-index: 30; }
 @media (max-width: 900px) { .ts-sidebar { display: none; } }
-.ts-sidebar__back, .ts-backrow { display: flex; gap: 6px; padding: 14px 14px 0; }
-.ts-backbtn { display: flex; align-items: center; justify-content: center; gap: 6px; flex: 1 1 0; min-width: 0; padding: 9px 10px; border: 1px solid var(--border); background: #fff; border-radius: var(--radius-input); cursor: pointer; font-family: var(--ff); font-size: 13px; font-weight: 700; color: var(--ink-soft); text-decoration: none; transition: background .12s, border-color .12s, color .12s; }
-.ts-backbtn:hover { background: var(--grey-50); border-color: var(--border-strong); color: var(--ink); }
-.ts-backbtn span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.ts-sidebar__brand { display: flex; align-items: center; gap: 9px; padding: 16px 22px 18px; font-weight: 800; font-size: 19px; letter-spacing: -0.02em; color: var(--ink); }
+.ts-sidebar__brand { display: flex; align-items: center; gap: 9px; padding: 22px 22px 18px; font-weight: 800; font-size: 19px; letter-spacing: -0.02em; color: var(--ink); }
 .ts-sidebar__brand-dot { width: 26px; height: 26px; border-radius: 8px; background: var(--primary); color: #fff; display: grid; place-items: center; font-size: 13px; font-weight: 900; }
-.ts-sidebar__nav { flex: 1; min-height: 0; overflow-y: auto; padding: 8px 14px; display: flex; flex-direction: column; gap: 2px; }
+.ts-sidebar__nav { flex: 1; padding: 8px 14px; display: flex; flex-direction: column; gap: 2px; }
 .ts-sidebar__label { font-size: 11px; font-weight: 700; color: var(--ink-dim); padding: 14px 12px 6px; letter-spacing: 0.02em; }
 .ts-navlink { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 0; background: transparent; cursor: pointer; text-align: left; width: 100%; font-size: 15px; font-weight: 600; color: var(--ink-soft); border-radius: 14px; font-family: var(--ff); transition: background .12s, color .12s; }
 .ts-navlink:hover { background: var(--grey-50); color: var(--ink); }
 .ts-navlink[data-active="true"] { background: var(--primary-weak); color: var(--primary); font-weight: 700; }
 .ts-navlink__badge { margin-left: auto; font-size: 11.5px; font-family: var(--ff-mono); font-weight: 700; background: var(--grey-100); color: var(--ink-mute); padding: 2px 8px; border-radius: 8px; }
 .ts-navlink[data-active="true"] .ts-navlink__badge { background: var(--primary); color: #fff; }
-.ts-sidebar__foot { padding: 16px; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 10px; }
-.ts-cancelbtn { display: flex; align-items: center; justify-content: center; gap: 7px; width: 100%; padding: 11px; border: 1px solid var(--border); background: #fff; border-radius: 12px; font-family: var(--ff); font-size: 13.5px; font-weight: 700; color: var(--ink-soft); cursor: pointer; }
-.ts-cancelbtn:hover { background: var(--grey-50); color: var(--ink); }
-.ts-cancelbtn[data-danger="true"] { color: var(--danger); border-color: color-mix(in oklab, var(--danger) 30%, var(--border)); }
-.ts-cancelbtn[data-danger="true"]:hover { background: var(--danger-weak); }
+.ts-sidebar__foot { padding: 16px; border-top: 1px solid var(--border); }
 .ts-userchip { display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px; border: 0; background: transparent; border-radius: 14px; cursor: pointer; font-family: var(--ff); }
 .ts-userchip:hover { background: var(--grey-50); }
 .ts-avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--primary); color: #fff; display: grid; place-items: center; font-size: 14px; font-weight: 800; flex: 0 0 auto; }
