@@ -10,6 +10,7 @@ import React from "react";
 import { SchemaList, type Schema, type SchemaCol, type SchemaRow } from "@/components/admin-v2";
 import type { AdminBoUser, AdminBoTeam, AdminBoOrg } from "@/lib/admin-v2/data";
 import { UserDetail, TeamDetail, OrgDetail } from "./_detail";
+import { OrgCreateModal } from "./_org-modals";
 
 const AV = ["#3182F6", "#15B86A", "#6D5AE6", "#FF9500", "#F04452", "#00B8D9", "#E0457B", "#8B5CF6"];
 
@@ -61,6 +62,7 @@ export function UserConsole({
 }) {
   const [tab, setTab] = React.useState<"users" | "teams" | "orgs">(initialTab);
   const [detail, setDetail] = React.useState<Detail>(null);
+  const [createOrgOpen, setCreateOrgOpen] = React.useState(false);
 
   // 색상 주입(정본 av) — 리스트 아바타 + 상세 hero 공용
   const usersC = React.useMemo(
@@ -89,6 +91,8 @@ export function UserConsole({
       return {
         head: "단체 관리",
         sub: "주최 단체·협회·동호회의 인증과 권한을 관리합니다. 행을 눌러 단체 상세·인증 처리로 이동합니다.",
+        addLabel: "새 단체",
+        addAction: () => setCreateOrgOpen(true),
         cols: ORG_COLS,
         rows: orgsC.map((o) => ({
           id: o.id, name: o.name, sub: o.slug, color: o.color, type: o.type,
@@ -151,6 +155,7 @@ export function UserConsole({
         ))}
       </div>
       <SchemaList schema={schema} eyebrow="유저 콘솔" onRow={onRow} />
+      <OrgCreateModal open={createOrgOpen} onClose={() => setCreateOrgOpen(false)} />
     </div>
   );
 }

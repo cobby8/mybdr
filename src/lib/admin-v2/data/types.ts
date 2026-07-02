@@ -130,7 +130,12 @@ export type AdminBoOrg = {
   tone: string;
   tourn: string; // 주최 대회 수 "12개"
   contactEmail: string | null;
+  contactPhone: string | null;
   website: string | null;
+  logoUrl: string | null;
+  bannerUrl: string | null;
+  description: string | null;
+  isPublic: boolean;
   createdAt: string;
   seriesCount: number;
   membersCount: number;

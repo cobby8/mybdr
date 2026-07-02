@@ -77,6 +77,8 @@ export type Schema = {
   sub?: string;
   addLabel?: string;
   addHref?: string;
+  /** addHref 없을 때 버튼 클릭 콜백 (모달 오픈 등) */
+  addAction?: () => void;
   rowHref?: string | ((r: SchemaRow) => string);
   cols: SchemaCol[];
   rows: SchemaRow[];
@@ -240,6 +242,8 @@ export function SchemaList({
                 onClick={() => {
                   if (schema.addHref) {
                     window.location.href = schema.addHref;
+                  } else if (schema.addAction) {
+                    schema.addAction();
                   } else {
                     toast(schema.addLabel + "");
                   }

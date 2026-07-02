@@ -12,6 +12,7 @@
 import React from "react";
 import { useRouter } from "next/navigation";
 import { Icon, Btn, Badge, Modal, useAdminShell } from "@/components/admin-v2";
+import { OrgEditModal } from "./_org-modals";
 import {
   approveOrganization,
   rejectOrganization,
@@ -263,6 +264,7 @@ export function OrgDetail({ row, onBack }: { row: AdminBoOrg & { color: string }
   const [badge, setBadge] = React.useState(row.badge);
   const [tone, setTone] = React.useState(row.tone);
   const [verifyOpen, setVerifyOpen] = React.useState(false);
+  const [editOpen, setEditOpen] = React.useState(false);
   const [reason, setReason] = React.useState("제출 서류 미비");
   const [busy, setBusy] = React.useState(false);
   const pending = badge === "대기";
@@ -302,9 +304,17 @@ export function OrgDetail({ row, onBack }: { row: AdminBoOrg & { color: string }
         title={row.name}
         sub={<>{row.type} · 주최 시리즈 <b style={{ color: "var(--ink-soft)" }}>{row.tourn}</b></>}
         actions={<>
-          <a href={`/organizations/${row.slug}`} target="_blank" rel="noopener" className="ts-btn ts-btn--secondary">
-            <Icon name="external-link" size={17} />공개 페이지
-          </a>
+          {/* Task B: slug 방어 체크 — slug 없는 레거시 단체 대응 */}
+          {row.slug ? (
+            <a href={`/organizations/${row.slug}`} target="_blank" rel="noopener noreferrer" className="ts-btn ts-btn--secondary">
+              <Icon name="external-link" size={17} />공개 페이지
+            </a>
+          ) : (
+            <button className="ts-btn ts-btn--secondary" disabled title="slug 미등록 단체">
+              <Icon name="external-link" size={17} />공개 페이지
+            </button>
+          )}
+          <Btn variant="secondary" icon="pencil" onClick={() => setEditOpen(true)}>편집</Btn>
           {pending && <Btn icon="badge-check" disabled={busy} onClick={() => setVerifyOpen(true)}>인증 처리</Btn>}
         </>}
       />
@@ -357,6 +367,8 @@ export function OrgDetail({ row, onBack }: { row: AdminBoOrg & { color: string }
           ) : <div className="ad-cell-muted" style={{ padding: "10px 0", fontWeight: 600 }}>등록된 운영진이 없습니다.</div>}
         </div>
       </div>
+
+      <OrgEditModal row={row} open={editOpen} onClose={() => setEditOpen(false)} />
 
       <Modal open={verifyOpen} onClose={() => setVerifyOpen(false)} title="단체 인증 처리" sub={row.name + " · " + row.type}
         foot={<>

@@ -98,7 +98,9 @@ export async function fetchUserConsoleData(): Promise<{
       take: 50,
       select: {
         id: true, name: true, slug: true, region: true, status: true,
-        contact_email: true, website_url: true, created_at: true,
+        description: true, contact_email: true, contact_phone: true,
+        website_url: true, logo_url: true, banner_url: true,
+        is_public: true, created_at: true,
         owner: { select: { nickname: true, name: true, email: true } },
         _count: { select: { series: true, members: true } },
         members: {
@@ -182,7 +184,12 @@ export async function fetchUserConsoleData(): Promise<{
       badge, tone,
       tourn: `${o._count.series}개`,
       contactEmail: o.contact_email ?? null,
+      contactPhone: o.contact_phone ?? null,
       website: o.website_url ?? null,
+      logoUrl: o.logo_url ?? null,
+      bannerUrl: o.banner_url ?? null,
+      description: o.description ?? null,
+      isPublic: o.is_public,
       createdAt: fmtDate(o.created_at),
       seriesCount: o._count.series,
       membersCount: o._count.members,
