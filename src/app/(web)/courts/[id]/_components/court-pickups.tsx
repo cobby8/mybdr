@@ -535,7 +535,7 @@ export function CourtPickups({ courtId, currentUserId }: CourtPickupsProps) {
                       </div>
                     ))}
                     {p.participants.length > 6 && (
-                      <span className="text-[10px]" style={{ color: "var(--color-text-disabled)" }}>
+                      <span className="text-[10px]" style={{ color: "var(--ink-dim)" }}>
                         +{p.participants.length - 6}
                       </span>
                     )}
@@ -622,8 +622,8 @@ function StatusBadge({ status }: { status: string }) {
   const config: Record<string, { label: string; color: string }> = {
     recruiting: { label: "모집중", color: "var(--color-success)" },
     full: { label: "마감", color: "var(--color-warning)" },
-    in_progress: { label: "진행중", color: "var(--color-info)" },
-    completed: { label: "완료", color: "var(--color-text-disabled)" },
+    in_progress: { label: "진행중", color: "var(--cafe-blue)" },
+    completed: { label: "완료", color: "var(--ink-dim)" },
     cancelled: { label: "취소", color: "var(--color-error)" },
   };
   const { label, color } = config[status] ?? { label: status, color: "var(--color-text-muted)" };
@@ -647,8 +647,8 @@ function CourtTypeBadge({ courtType }: { courtType: string }) {
       <span
         className="inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-[10px] font-semibold"
         style={{
-          backgroundColor: "color-mix(in srgb, var(--color-info) 15%, transparent)",
-          color: "var(--color-info)",
+          backgroundColor: "color-mix(in srgb, var(--cafe-blue) 15%, transparent)",
+          color: "var(--cafe-blue)",
         }}
       >
         <span className="material-symbols-outlined" style={{ fontSize: "11px" }}>stadium</span>

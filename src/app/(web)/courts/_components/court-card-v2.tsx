@@ -164,7 +164,7 @@ export function CourtCardV2({ court }: { court: CourtCardV2Data }) {
               className="badge"
               style={{
                 background: "var(--bdr-red)",
-                color: "#fff",
+                color: "var(--ink-on-brand)",
                 fontFamily: "var(--ff-display)",
                 letterSpacing: ".06em",
               }}
@@ -212,7 +212,7 @@ export function CourtCardV2({ court }: { court: CourtCardV2Data }) {
           // 검증 뱃지: info 색상으로 시안 톤(블루) 매칭
           <span
             className="material-symbols-outlined"
-            style={{ fontSize: 14, color: "var(--info)", flexShrink: 0 }}
+            style={{ fontSize: 14, color: "var(--cafe-blue)", flexShrink: 0 }}
             title="검증된 코트"
           >
             verified
@@ -238,9 +238,9 @@ export function CourtCardV2({ court }: { court: CourtCardV2Data }) {
           <span
             className="badge"
             style={{
-              background: "var(--cafe-blue-soft, color-mix(in srgb, var(--info) 12%, transparent))",
-              color: "var(--info)",
-              border: "1px solid color-mix(in srgb, var(--info) 30%, transparent)",
+              background: "var(--cafe-blue-soft, color-mix(in srgb, var(--cafe-blue) 12%, transparent))",
+              color: "var(--cafe-blue)",
+              border: "1px solid color-mix(in srgb, var(--cafe-blue) 30%, transparent)",
               fontSize: 10,
             }}
           >

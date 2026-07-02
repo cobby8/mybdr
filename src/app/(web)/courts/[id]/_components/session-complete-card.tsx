@@ -129,7 +129,7 @@ export function SessionCompleteCard({
                 style={{
                   backgroundColor: "var(--color-accent)",
                   // 다크/라이트 모드에서 accent 배경 대비가 유지되도록 on-accent 변수 사용
-                  color: "var(--color-on-accent)",
+                  color: "var(--ink-on-brand)",
                 }}
               >
                 +{gamification.streak_bonus_xp} XP
@@ -141,7 +141,7 @@ export function SessionCompleteCard({
         {/* 새 뱃지 */}
         {gamification.new_court_badges.length > 0 && (
           <div className="text-center">
-            <p className="text-xs font-bold mb-1" style={{ color: "var(--color-info)" }}>
+            <p className="text-xs font-bold mb-1" style={{ color: "var(--cafe-blue)" }}>
               새 뱃지 획득!
             </p>
             {gamification.new_court_badges.map((badge, i) => (
@@ -149,8 +149,8 @@ export function SessionCompleteCard({
                 key={i}
                 className="inline-flex items-center gap-1 text-sm font-bold px-3 py-1 rounded-full mx-1"
                 style={{
-                  backgroundColor: "color-mix(in srgb, var(--color-info) 15%, transparent)",
-                  color: "var(--color-info)",
+                  backgroundColor: "color-mix(in srgb, var(--cafe-blue) 15%, transparent)",
+                  color: "var(--cafe-blue)",
                 }}
               >
                 <span className="material-symbols-outlined" style={{ fontSize: "16px" }}>

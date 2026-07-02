@@ -426,7 +426,7 @@ export function CourtsContentV2({ courts, cities }: CourtsContentV2Props) {
                 ...(isActive
                   ? {
                       background: "var(--cafe-blue, var(--accent))",
-                      color: "#fff",
+                      color: "var(--ink-on-brand)",
                       borderColor: "var(--cafe-blue-deep, var(--accent))",
                     }
                   : {}),
@@ -457,7 +457,7 @@ export function CourtsContentV2({ courts, cities }: CourtsContentV2Props) {
             ...(heatmapOn
               ? {
                   background: "var(--accent)",
-                  color: "#fff",
+                  color: "var(--ink-on-brand)",
                   borderColor: "var(--accent)",
                 }
               : {}),
@@ -488,7 +488,7 @@ export function CourtsContentV2({ courts, cities }: CourtsContentV2Props) {
                   heatmapPeriod === p.key
                     ? {
                         background: "var(--accent)",
-                        color: "#fff",
+                        color: "var(--ink-on-brand)",
                         borderColor: "var(--accent)",
                         fontSize: 11,
                         flexShrink: 0,

@@ -85,9 +85,9 @@ const FORMAT_LABELS: Record<string, string> = {
 // 상태 한글 매핑
 const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
   recruiting: { label: "팀 모집중", color: "var(--color-success)" },
-  ready: { label: "대진표 확정", color: "var(--color-info)" },
+  ready: { label: "대진표 확정", color: "var(--cafe-blue)" },
   in_progress: { label: "진행중", color: "var(--color-warning)" },
-  completed: { label: "완료", color: "var(--color-text-disabled)" },
+  completed: { label: "완료", color: "var(--ink-dim)" },
   cancelled: { label: "취소", color: "var(--color-error)" },
 };
 
@@ -500,7 +500,7 @@ function EventCard({
           <span
             className="material-symbols-outlined text-base transition-transform"
             style={{
-              color: "var(--color-text-disabled)",
+              color: "var(--ink-dim)",
               transform: isExpanded ? "rotate(180deg)" : "rotate(0deg)",
             }}
           >
@@ -664,7 +664,7 @@ function EventDetail({
               onClick={handleGenerateBracket}
               disabled={actionLoading}
               className="rounded-[4px] px-3 py-1.5 text-xs font-semibold text-white transition-colors disabled:opacity-50"
-              style={{ backgroundColor: "var(--color-info)" }}
+              style={{ backgroundColor: "var(--cafe-blue)" }}
             >
               {actionLoading ? "생성 중..." : "대진표 생성"}
             </button>
@@ -769,7 +769,7 @@ function EventDetail({
                       {p.nickname?.[0] ?? "?"}
                     </div>
                   ))}
-                  <span className="text-[10px] ml-1" style={{ color: "var(--color-text-disabled)" }}>
+                  <span className="text-[10px] ml-1" style={{ color: "var(--ink-dim)" }}>
                     {team.players.length}명
                   </span>
                 </div>
@@ -777,7 +777,7 @@ function EventDetail({
             ))}
           </div>
         ) : (
-          <p className="text-xs" style={{ color: "var(--color-text-disabled)" }}>
+          <p className="text-xs" style={{ color: "var(--ink-dim)" }}>
             아직 등록된 팀이 없습니다.
           </p>
         )}
@@ -875,7 +875,7 @@ function TeamRegisterForm({
         </button>
       </div>
       {error && <p className="text-[11px]" style={{ color: "var(--color-error)" }}>{error}</p>}
-      <p className="text-[10px]" style={{ color: "var(--color-text-disabled)" }}>
+      <p className="text-[10px]" style={{ color: "var(--ink-dim)" }}>
         등록하면 본인이 주장으로 자동 배정됩니다. 팀원은 추후 초대 가능합니다.
       </p>
     </div>
@@ -963,7 +963,7 @@ function BracketView({
   return (
     <div className="mt-4">
       <h4 className="text-xs font-bold mb-2" style={{ color: "var(--color-text-secondary)" }}>
-        <span className="material-symbols-outlined text-xs align-middle mr-0.5" style={{ color: "var(--color-info)" }}>
+        <span className="material-symbols-outlined text-xs align-middle mr-0.5" style={{ color: "var(--cafe-blue)" }}>
           account_tree
         </span>
         대진표
@@ -1003,7 +1003,7 @@ function BracketView({
                         key={m.id}
                         className="rounded-lg overflow-hidden"
                         style={{
-                          border: `1px solid ${m.status === "completed" ? "var(--color-border-subtle)" : "color-mix(in srgb, var(--color-info) 30%, transparent)"}`,
+                          border: `1px solid ${m.status === "completed" ? "var(--color-border-subtle)" : "color-mix(in srgb, var(--cafe-blue) 30%, transparent)"}`,
                         }}
                       >
                         {/* 홈팀 */}
@@ -1030,7 +1030,7 @@ function BracketView({
                           <button
                             onClick={() => setScoreInput({ matchId: m.id, homeScore: "", awayScore: "" })}
                             className="w-full py-1 text-[10px] font-semibold"
-                            style={{ backgroundColor: "var(--color-surface-bright)", color: "var(--color-info)" }}
+                            style={{ backgroundColor: "var(--color-surface-bright)", color: "var(--cafe-blue)" }}
                           >
                             결과 입력
                           </button>
@@ -1047,7 +1047,7 @@ function BracketView({
                               style={{ backgroundColor: "var(--color-surface)", color: "var(--color-text-primary)", border: "1px solid var(--color-border-subtle)" }}
                               placeholder="H"
                             />
-                            <span className="text-[10px]" style={{ color: "var(--color-text-disabled)" }}>:</span>
+                            <span className="text-[10px]" style={{ color: "var(--ink-dim)" }}>:</span>
                             <input
                               type="number"
                               value={scoreInput.awayScore}
@@ -1110,14 +1110,14 @@ function MatchTeamRow({
     >
       <div className="flex items-center gap-1 min-w-0 flex-1">
         {seed && (
-          <span className="text-[9px] font-bold" style={{ color: "var(--color-text-disabled)" }}>
+          <span className="text-[9px] font-bold" style={{ color: "var(--ink-dim)" }}>
             [{seed}]
           </span>
         )}
         <span
           className="text-[11px] truncate"
           style={{
-            color: isEmpty ? "var(--color-text-disabled)" : "var(--color-text-primary)",
+            color: isEmpty ? "var(--ink-dim)" : "var(--color-text-primary)",
             fontWeight: isWinner ? 700 : 400,
             fontStyle: isEmpty ? "italic" : "normal",
           }}
@@ -1141,7 +1141,7 @@ function MatchTeamRow({
 function TeamStatusBadge({ status }: { status: string }) {
   const config: Record<string, { label: string; color: string }> = {
     registered: { label: "등록", color: "var(--color-text-muted)" },
-    confirmed: { label: "확정", color: "var(--color-info)" },
+    confirmed: { label: "확정", color: "var(--cafe-blue)" },
     eliminated: { label: "탈락", color: "var(--color-error)" },
     winner: { label: "우승", color: "var(--color-accent)" },
   };

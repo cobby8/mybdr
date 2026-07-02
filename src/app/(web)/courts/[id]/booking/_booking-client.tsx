@@ -435,7 +435,7 @@ export function BookingClient({ court }: { court: CourtData }) {
                     padding: "10px 0",
                     background:
                       date === d.ds ? accentColor : "var(--bg-alt)",
-                    color: date === d.ds ? "#fff" : "var(--ink)",
+                    color: date === d.ds ? "var(--ink-on-brand)" : "var(--ink)",
                     border: 0,
                     borderRadius: 4,
                     cursor: "pointer",
@@ -522,7 +522,7 @@ export function BookingClient({ court }: { court: CourtData }) {
                         ? "var(--bg)"
                         : "var(--bg-alt)",
                       color: isSelected
-                        ? "#fff"
+                        ? "var(--ink-on-brand)"
                         : occupied
                         ? "var(--ink-dim)"
                         : "var(--ink)",
@@ -724,7 +724,7 @@ export function BookingClient({ court }: { court: CourtData }) {
               style={{
                 padding: "16px 20px",
                 background: `linear-gradient(135deg, ${accentColor}, #000)`,
-                color: "#fff",
+                color: "var(--ink-on-brand)",
               }}
             >
               <div

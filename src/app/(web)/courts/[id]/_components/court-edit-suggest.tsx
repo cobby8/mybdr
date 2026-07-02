@@ -167,7 +167,7 @@ export function CourtEditSuggest({ courtId, currentUserId }: CourtEditSuggestPro
         >
           <span
             className="material-symbols-outlined text-base align-middle mr-1"
-            style={{ color: "var(--color-info)" }}
+            style={{ color: "var(--cafe-blue)" }}
           >
             edit_note
           </span>
@@ -175,7 +175,7 @@ export function CourtEditSuggest({ courtId, currentUserId }: CourtEditSuggestPro
           {suggestions.filter((s) => s.status === "pending").length > 0 && (
             <span
               className="ml-1.5 inline-flex items-center justify-center rounded-full px-1.5 text-xs font-bold text-white"
-              style={{ backgroundColor: "var(--color-info)", minWidth: "18px", height: "18px" }}
+              style={{ backgroundColor: "var(--cafe-blue)", minWidth: "18px", height: "18px" }}
             >
               {suggestions.filter((s) => s.status === "pending").length}
             </span>
@@ -188,8 +188,8 @@ export function CourtEditSuggest({ courtId, currentUserId }: CourtEditSuggestPro
             onClick={() => setShowForm(true)}
             className="inline-flex items-center gap-1 rounded-[4px] px-3 py-1.5 text-xs font-semibold transition-colors"
             style={{
-              backgroundColor: "color-mix(in srgb, var(--color-info) 15%, transparent)",
-              color: "var(--color-info)",
+              backgroundColor: "color-mix(in srgb, var(--cafe-blue) 15%, transparent)",
+              color: "var(--cafe-blue)",
             }}
           >
             <span className="material-symbols-outlined" style={{ fontSize: "14px" }}>
@@ -250,13 +250,13 @@ export function CourtEditSuggest({ courtId, currentUserId }: CourtEditSuggestPro
                   className="inline-flex items-center gap-1 rounded-[4px] px-3 py-1.5 text-xs font-medium transition-colors"
                   style={{
                     backgroundColor: isSelected
-                      ? "color-mix(in srgb, var(--color-info) 20%, transparent)"
+                      ? "color-mix(in srgb, var(--cafe-blue) 20%, transparent)"
                       : "var(--color-surface-bright)",
                     color: isSelected
-                      ? "var(--color-info)"
+                      ? "var(--cafe-blue)"
                       : "var(--color-text-secondary)",
                     border: isSelected
-                      ? "1px solid var(--color-info)"
+                      ? "1px solid var(--cafe-blue)"
                       : "1px solid transparent",
                   }}
                 >
@@ -326,7 +326,7 @@ export function CourtEditSuggest({ courtId, currentUserId }: CourtEditSuggestPro
                             fontSize: "20px",
                             color: value
                               ? "var(--color-success)"
-                              : "var(--color-text-disabled)",
+                              : "var(--ink-dim)",
                           }}
                         >
                           {value ? "toggle_on" : "toggle_off"}
@@ -418,7 +418,7 @@ export function CourtEditSuggest({ courtId, currentUserId }: CourtEditSuggestPro
               border: "1px solid var(--color-border-subtle)",
             }}
           />
-          <p className="text-xs mb-3" style={{ color: "var(--color-text-disabled)" }}>
+          <p className="text-xs mb-3" style={{ color: "var(--ink-dim)" }}>
             승인 시 10 XP가 지급됩니다
           </p>
 
@@ -435,7 +435,7 @@ export function CourtEditSuggest({ courtId, currentUserId }: CourtEditSuggestPro
               onClick={handleSubmit}
               disabled={submitting}
               className="rounded-[4px] px-4 py-2 text-sm font-semibold text-white transition-colors disabled:opacity-50"
-              style={{ backgroundColor: "var(--color-info)" }}
+              style={{ backgroundColor: "var(--cafe-blue)" }}
             >
               {submitting ? "제출 중..." : "제안 등록"}
             </button>
@@ -480,7 +480,7 @@ export function CourtEditSuggest({ courtId, currentUserId }: CourtEditSuggestPro
                     </span>
                     <span
                       className="text-xs"
-                      style={{ color: "var(--color-text-disabled)" }}
+                      style={{ color: "var(--ink-dim)" }}
                     >
                       {new Date(s.created_at).toLocaleDateString("ko-KR")}
                     </span>
@@ -509,18 +509,18 @@ export function CourtEditSuggest({ courtId, currentUserId }: CourtEditSuggestPro
                         >
                           {field.label}:
                         </span>
-                        <span style={{ color: "var(--color-text-disabled)" }}>
+                        <span style={{ color: "var(--ink-dim)" }}>
                           {formatFieldValue(key, diff.old)}
                         </span>
                         <span
                           className="material-symbols-outlined"
-                          style={{ fontSize: "12px", color: "var(--color-text-disabled)" }}
+                          style={{ fontSize: "12px", color: "var(--ink-dim)" }}
                         >
                           arrow_forward
                         </span>
                         <span
                           className="font-semibold"
-                          style={{ color: "var(--color-info)" }}
+                          style={{ color: "var(--cafe-blue)" }}
                         >
                           {formatFieldValue(key, diff.new)}
                         </span>

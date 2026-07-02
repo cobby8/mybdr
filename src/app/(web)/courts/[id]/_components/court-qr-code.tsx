@@ -170,7 +170,7 @@ export function CourtQrCode({ courtId, courtName }: CourtQrCodeProps) {
             {/* 안내 문구 */}
             <p
               className="text-xs text-center mb-4"
-              style={{ color: "var(--color-text-disabled)" }}
+              style={{ color: "var(--ink-dim)" }}
             >
               <span className="material-symbols-outlined align-middle mr-0.5" style={{ fontSize: "14px" }}>
                 info

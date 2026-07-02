@@ -295,7 +295,7 @@ export function CourtReports({ courtId, currentUserId }: CourtReportsProps) {
                     </span>
                     <span
                       className="text-xs"
-                      style={{ color: "var(--color-text-disabled)" }}
+                      style={{ color: "var(--ink-dim)" }}
                     >
                       {r.nickname} &middot;{" "}
                       {new Date(r.created_at).toLocaleDateString("ko-KR")}

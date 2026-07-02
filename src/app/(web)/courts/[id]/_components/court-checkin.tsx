@@ -254,7 +254,7 @@ export function CourtCheckin({ courtId, courtLat, courtLng }: CourtCheckinProps)
                 ? "var(--color-success)"
                 : activeCount >= 1
                 ? "var(--color-accent)"
-                : "var(--color-text-disabled)",
+                : "var(--ink-dim)",
             }}
           >
             {activeCount >= 5 ? "local_fire_department" : activeCount >= 1 ? "groups" : "bedtime"}

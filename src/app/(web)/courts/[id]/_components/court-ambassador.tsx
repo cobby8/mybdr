@@ -110,7 +110,7 @@ export function CourtAmbassador({ courtId, currentUserId }: Props) {
             style={{
               backgroundColor: "var(--color-accent)",
               // 다크/라이트 테마에서 accent 배경 대비가 유지되도록 on-accent 변수 사용
-              color: "var(--color-on-accent)",
+              color: "var(--ink-on-brand)",
             }}
           >
             {ambassador.profile_image ? (
@@ -152,7 +152,7 @@ export function CourtAmbassador({ courtId, currentUserId }: Props) {
               onClick={() => setEditOpen(true)}
               className="shrink-0 rounded-[4px] px-3 py-1.5 text-xs font-semibold transition-colors"
               // accent 배경은 테마 반응형이므로 텍스트도 on-accent로 자동 전환
-              style={{ backgroundColor: "var(--color-accent)", color: "var(--color-on-accent)" }}
+              style={{ backgroundColor: "var(--color-accent)", color: "var(--ink-on-brand)" }}
             >
               <span className="material-symbols-outlined align-middle mr-0.5" style={{ fontSize: "14px" }}>
                 edit
@@ -168,14 +168,14 @@ export function CourtAmbassador({ courtId, currentUserId }: Props) {
         <div className="text-center py-4">
           <span
             className="material-symbols-outlined text-3xl mb-2"
-            style={{ color: "var(--color-text-disabled)" }}
+            style={{ color: "var(--ink-dim)" }}
           >
             person_add
           </span>
           <p className="text-sm mb-1" style={{ color: "var(--color-text-muted)" }}>
             이 코트에 아직 앰배서더가 없습니다
           </p>
-          <p className="text-xs mb-3" style={{ color: "var(--color-text-disabled)" }}>
+          <p className="text-xs mb-3" style={{ color: "var(--ink-dim)" }}>
             앰배서더가 되면 코트 정보를 직접 관리하고 XP를 받을 수 있습니다
           </p>
 
@@ -197,7 +197,7 @@ export function CourtAmbassador({ courtId, currentUserId }: Props) {
               disabled={applying}
               className="rounded-[4px] px-4 py-2 text-xs font-semibold transition-colors disabled:opacity-50"
               // accent 배경에서 글씨 대비가 다크/라이트 자동 전환되도록 on-accent 사용
-              style={{ backgroundColor: "var(--color-accent)", color: "var(--color-on-accent)" }}
+              style={{ backgroundColor: "var(--color-accent)", color: "var(--ink-on-brand)" }}
             >
               {applying ? "신청 중..." : "앰배서더 신청하기"}
             </button>
@@ -424,7 +424,7 @@ function AmbassadorEditModal({
             disabled={saving || Object.keys(changes).length === 0}
             className="flex-1 rounded-[4px] py-2.5 text-sm font-semibold transition-colors disabled:opacity-50"
             // accent 배경 위 글씨가 테마 대비를 자동 유지하도록 on-accent 변수 사용
-            style={{ backgroundColor: "var(--color-accent)", color: "var(--color-on-accent)" }}
+            style={{ backgroundColor: "var(--color-accent)", color: "var(--ink-on-brand)" }}
           >
             {saving ? "저장 중..." : `수정 반영 (${Object.keys(changes).length}개 항목)`}
           </button>
